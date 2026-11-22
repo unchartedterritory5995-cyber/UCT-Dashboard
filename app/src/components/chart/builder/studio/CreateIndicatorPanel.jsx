@@ -16,7 +16,8 @@
 // is the STORED blob, and the only write this component makes is Save's, through
 // `onChange` — the chart's own settings writer, exactly as BuilderSheet does.
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { withoutGuardIds } from '../../engine/ast/guardIdText'
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import UIcon from '../../../ui/UIcon'
 import * as engineRegistry from '../../engine/nativeRegistry'
@@ -24,15 +25,37 @@ import { presentationLines, vocabularyLines } from '../authoring'
 import { colorRuleWords, outputNamer } from '../authoring/readback'
 import { helpersOfDefinition, plotColorRule } from '../authoring/colorRules'
 import { converseTurn } from '../authoring/converseClient'
+import { offerableBuiltIns, applyOffer } from '../authoring/builtInOffer'
+import { isDefinitionOffered, subscribeServerDefinitions, serverDefinitionsVersion } from '../../engine/serverCompute'
 import useIndicatorConversation, { typeWord } from './useIndicatorConversation'
 import { claimPreview, releasePreview, installPreview, removePreview } from './previewChannel'
 import { withPendingInputs } from './editPreview'
 import { conversationEditability, CARRIED_NOTE } from '../authoring/memberWords'
 import { ackCheckboxText } from '../authoring/repaintWarning'
 import styles from './CreateIndicatorPanel.module.css'
+import useReportsConfig from '../../supportLoop/useReportsConfig'
+import { hasSomethingToSend } from './sendConversation'
+// ⭐ L8 — loaded on the press: most conversations are never sent
+const SendConversationDialog = lazy(() => import('./SendConversationDialog'))
 import { safeCssColour } from '../../engine/objectColour'
+import SettingsFields from './SettingsFields'
+import { restoreNote } from '../authoring/restoreVersion'
+import { scriptNeedsFixing } from '../authoring/scriptAnswer'
+import { emptyOnThisChart, emptyOnChartWords, watchEmptyOnChart } from '../authoring/emptyOnChart'
 
 const EXAMPLES = Object.freeze(['Add a 20 EMA', 'RSI overbought signal', 'Volume above its 50-day average'])
+/** The hint inside the message box, by what the member is doing.
+ *  ⛔ ONE SHORT LINE EACH. The box is one row tall until something is typed, so a hint that wraps is
+ *  cut off mid-word (seen on a phone, 2026-11-17: "Describe the indicator you want to" and a sliver
+ *  of the rest). The sentence above the box already says it in full; the stylesheet keeps whatever
+ *  is here on one line as the second guard. */
+export const BOX_HINT = Object.freeze({
+  fresh: 'Describe your indicator…',
+  working: 'Refine it — e.g. "make it 50"',
+  edit: 'Describe a change — e.g. "make it 21"',
+})
+/** The longest a hint may be and still fit the box on a 360 px phone at the touch text size. */
+export const BOX_HINT_MAX = 38
 const PANEL_W = 360
 const INSET = 8
 
@@ -147,12 +170,82 @@ const keepKeysInPanel = (e) => e.stopPropagation()
  * @param {Function|null} [props.onEditFormula] ⭐ PHASE 4 — open the manual editor on
  *   the same definition (offered when the conversation cannot edit it)
  */
+/** How long a preview usually takes, said to the member while they wait. Measured on
+ *  production 2026-11-15 (about 14 s to a first preview); a range, never a promise. */
+export const USUAL_WAIT = 'Usually 10 to 20 seconds'
+/** After this many seconds the line says so instead. */
+export const LONG_WAIT_S = 30
+
+/**
+ * ⭐ WHILE IT WORKS (2026-11-16). The wait showed one unchanging line and no way out. It now
+ * counts the seconds, says what is usual, and offers Stop. Mounted only while a turn is in
+ * flight, so its one-second tick ends with the turn.
+ */
+function Working({ onStop }) {
+  const [secs, setSecs] = useState(0)
+  useEffect(() => {
+    const t0 = Date.now()
+    const id = setInterval(() => setSecs(Math.floor((Date.now() - t0) / 1000)), 1000)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className={styles.workingRow}>
+      <div className={styles.workingText}>
+        <div className={styles.working} data-testid="create-indicator-working">The UCT Agent is thinking</div>
+        <div className={styles.workingNote} data-testid="create-indicator-working-note" aria-live="off">
+          {secs >= LONG_WAIT_S ? `${secs}s. This one is taking longer than usual` : `${secs}s. ${USUAL_WAIT}`}
+        </div>
+      </div>
+      <button type="button" className={styles.ghost} data-testid="create-indicator-stop"
+        onClick={() => onStop && onStop()}>Stop</button>
+    </div>
+  )
+}
+
+/** ⭐ F1 — the dock speaks about the allowance only once less than this share is left. */
+export const ALLOWANCE_NOTE_BELOW = 0.5
+
+/** The sentence for a share left, or null while there is plenty. No times: the allowance
+ *  renews with the market day, which this line does not try to pin to a clock. */
+/** True while the conversation's LAST entry is the spent-allowance refusal: the line above the box
+ *  would say the same thing twice. */
+export function spentJustSaid(transcript, left) {
+  if (!(typeof left === 'number' && left <= 0)) return false
+  const last = Array.isArray(transcript) && transcript.length ? transcript[transcript.length - 1] : null
+  return !!(last && last.kind === 'refusal' && last.gate === 'cost:user')
+}
+
+/** When a saved version was stored, as a short date; '' when the store gave none. */
+export function versionWhen(at) {
+  if (!Number.isFinite(at) || at <= 0) return ''
+  try {
+    return new Date(at * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+  } catch { return '' }
+}
+
+export function allowanceLine(left) {
+  if (typeof left !== 'number' || !(left < ALLOWANCE_NOTE_BELOW)) return null
+  if (left <= 0) return "Today's UCT Agent allowance is used up. It renews each day."
+  return `About ${Math.max(5, Math.round(left * 100))}% of today's UCT Agent allowance is left.`
+}
+
 export default function CreateIndicatorPanel({
-  onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null,
+  onClose, settings = null, onChange = null, sym = null, tf = null, anchorRef = null, onOpenScript = null,
   onPreview, onOpenBuilder = null, onOpenLibrary = null, converse = converseTurn,
   dockHost = null, onDocked = null, sessionKey = null, editRow = null, onEditFormula = null,
-  seed = null, previewChartRef = null,
+  seed = null, sendSeed = false, previewChartRef = null, readHistory = undefined,
+  engineChart = null,
 }) {
+  // ⭐ THE CHART THIS DOCK SITS BESIDE, as the engine sees it (`StockChart`'s `engineChart`: the bars
+  // its binder computes on and the compute context it hands that binder). Kept in a ref and read
+  // through a stable getter, so a new bar does not re-render the conversation and a script is run on
+  // the bars of the moment it is checked.
+  const chartRef = useRef(engineChart)
+  useEffect(() => { chartRef.current = engineChart }, [engineChart])
+  const chartOf = useCallback(() => {
+    const c = chartRef.current
+    return c && c.ctx && Array.isArray(c.bars) ? c : null
+  }, [])
   // ⭐ PHASE 4 — held once: the row this studio was opened on (a later list refresh
   // must not re-open it under the member's feet).
   const [open] = useState(() => (editRow && editRow.definition && editRow.def_id
@@ -161,7 +254,16 @@ export default function CreateIndicatorPanel({
   const editMode = !!open
   const editability = useMemo(() => (open ? conversationEditability(open.def) : null), [open])
   const blocked = !!(editability && !editability.editable)
-  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open })
+  // ⭐ WHAT THIS WINDOW CAN ADD TO THE CHART RIGHT NOW (`builtInOffer.js`, rule 1): the library's
+  // built-in names this build's registry offers, re-read when the live server's list arrives.
+  // Nothing while the chart cannot be written from here.
+  const serverVersion = useSyncExternalStore(subscribeServerDefinitions, serverDefinitionsVersion, () => 0)
+  const builtIns = useMemo(
+    () => offerableBuiltIns({ registry: engineRegistry, isOffered: isDefinitionOffered, canWrite: !!onChange }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- serverVersion is the re-read signal
+    [serverVersion, onChange])
+  const conv = useIndicatorConversation({ sym, tf, converse, sessionKey, open, builtIns, chartOf,
+    ...(readHistory ? { readHistory } : {}) })
   const { state, transcript, rb, busy, saving, previewDefinition } = conv
   const previewCalcTf = (state && state.requests && state.requests.calculationTimeframe) || null
   const previewBase = (state && state.base) || null
@@ -210,6 +312,43 @@ export default function CreateIndicatorPanel({
       calcTf: previewCalcTf, settings: settingsRef.current, registry: engineRegistry, onPreview: onPreviewRef.current,
       shapeEdit: withPendingInputs })
   }, [previewDefinition, previewBase, open, previewCalcTf, previewChartRef, previewToken])
+
+  // ⭐ 2026-11-21 — WHAT THE PREVIEW DOES NOT SHOW ON THIS CHART (`emptyOnChart.js`). Read from what the chart
+  // drew, at a few fixed delays after the preview is installed (the chart draws in its own pass and publishes
+  // nothing when it has), stopped at the first read that finds it drawn. ⛔ The cleanup cancels every pending
+  // read: a new answer, an undo, a discard and an unmount all change `previewDefinition` or end the effect, so
+  // no timer outlives the preview it was started for. Silence when the chart never draws it.
+  // ⛔ ONE GUARD AGAINST A STALE STATEMENT, and it is the definition's IDENTITY: what was read is kept WITH the
+  // preview definition it was read for and shown only while that same object is the preview. A revision number
+  // would not do (an undo followed by another change reaches the same number with a different build).
+  const [emptyOnChart, setEmptyOnChart] = useState(null)   // {of: the preview definition it was read for, items}
+  useEffect(() => {
+    if (!previewDefinition) return undefined
+    return watchEmptyOnChart({
+      read: () => {
+        const c = chartRef.current
+        if (!c || typeof c.bindings !== 'function' || !Array.isArray(c.bars)) return null
+        return emptyOnThisChart({ bindings: c.bindings(), definition: previewDefinition, barCount: c.bars.length })
+      },
+      onResult: (items) => setEmptyOnChart({ of: previewDefinition, items }),
+    })
+  }, [previewDefinition])
+  const emptyLines = useMemo(() => {
+    if (!emptyOnChart || emptyOnChart.of !== previewDefinition || !emptyOnChart.items.length) return []
+    const outputs = (rb && rb.outputs) || []
+    const nameOf = (key) => {
+      if (outputs.length < 2) return null
+      const o = outputs.find((x) => x && x.key === key)
+      return (o && (o.name || o.label)) || null
+    }
+    return emptyOnChart.items.map((it) => emptyOnChartWords(it, { name: nameOf(it.key) })).filter(Boolean)
+  }, [emptyOnChart, previewDefinition, rb])
+  // the entry the statement belongs to: the newest applied turn of the definition now on the chart
+  const emptyEntryId = useMemo(() => {
+    if (!emptyLines.length) return null
+    const hit = [...transcript].reverse().find((t) => t && t.role === 'uct' && t.revision === state.revision && (t.kind === 'created' || t.kind === 'patched'))
+    return hit ? hit.id : null
+  }, [emptyLines, transcript, state.revision])
 
   // ⛔ THE TEARDOWN IS NOT OPTIONAL — Cancel, ✕, Save, a symbol-less remount and
   // an unmount of the chart itself all end here: no registry entry, no instance.
@@ -269,12 +408,35 @@ export default function CreateIndicatorPanel({
     if (lost) panelRef.current?.querySelector('[data-testid="create-indicator-choices"] button:not(:disabled)')?.focus({ preventScroll: true })
   }, [busy, hasChoices, focusComposer])
 
+  /** ⭐ THE TAP ON AN OFFER: asks again whether this build offers it, makes the Indicators
+   *  list's own write, and says what happened. One tap settles the offer either way. */
+  const takeOffer = useCallback((entry) => {
+    if (!entry || !entry.offer || busy || saving) return
+    // (`tf`: so the line can say when a built-in that draws only on some timeframes will not show here)
+    const out = applyOffer(entry.offer, { settings: settingsRef.current, registry: engineRegistry, isOffered: isDefinitionOffered, tf })
+    if (out.ok && onChange) onChange(out.next)
+    conv.settleOffer(entry.id, out.ok && !onChange ? 'This chart cannot be changed from here, so nothing was added.' : out.line)
+  }, [busy, saving, conv, onChange, tf])
+
   const submit = useCallback(async (text) => {
     const words = String(text ?? message).trim()
     if (!words || busy || saving) return
     setMessage('')
     await conv.send(words)
   }, [message, busy, saving, conv])
+
+  // ⭐ 2026-11-16 — THE MEMBER'S OWN WORDS, SENT ONCE. The Indicators window's plain-words box
+  // was submitted by the member (`sendSeed`), so the seed goes as the first turn instead of
+  // waiting in the box. ⛔ Once per opening, never over a restored draft, never on an indicator
+  // that cannot be changed here, and never for UCT Agent's seed (its door cannot set the flag).
+  const seedSentRef = useRef(false)
+  useEffect(() => {
+    if (!sendSeed || seedSentRef.current) return
+    if (conv.restored || blocked || typeof seed !== 'string' || !seed.trim()) return
+    seedSentRef.current = true
+    submit(seed)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, at the opening that carried it
+  }, [])
 
   // ⭐ SLICE 2 — TWO WAYS OUT, AND THEY MEAN DIFFERENT THINGS.
   //   ✕       closes the dock and KEEPS the draft: reopening Create Indicator on
@@ -289,6 +451,21 @@ export default function CreateIndicatorPanel({
   // discard it, or keep editing). An opened-but-untouched or just-saved definition
   // closes without a question; a create keeps the accepted no-prompt contract.
   const [confirmLeave, setConfirmLeave] = useState(null)   // 'close' | 'discard' | null
+  // ⭐ L8 — the support loop's report door: asked once a member has written something
+  const reportsCfg = useReportsConfig(hasSomethingToSend(transcript))
+  const [sendOpen, setSendOpen] = useState(false)
+  // ⭐ V1 — the History list (the earlier steps of this draft). Closed by a pick, by Esc,
+  // by its own button, and whenever there is no longer more than one step to offer.
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const stepCount = conv.steps.length
+  // ⭐ SAVED VERSIONS (backlog 30) — an indicator saved more than once has earlier versions to go
+  // back to, so History is offered on an edit even before the draft has a step of its own. The
+  // list is read when History is opened, never when the dock opens.
+  const hasSavedVersions = editMode && open.version > 1
+  const historyAvailable = stepCount >= 2 || hasSavedVersions
+  useEffect(() => { if (!historyAvailable) setHistoryOpen(false) }, [historyAvailable])
+  const loadVersions = conv.loadVersions
+  useEffect(() => { if (historyOpen && hasSavedVersions) loadVersions() }, [historyOpen, hasSavedVersions, loadVersions])
   const askOrClose = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('close'); else close() }, [editMode, conv.dirty, close])
   const askOrCancel = useCallback(() => { if (editMode && conv.dirty) setConfirmLeave('discard'); else cancel() }, [editMode, conv.dirty, cancel])
 
@@ -329,7 +506,7 @@ export default function CreateIndicatorPanel({
           <span className={styles.title}>{panelTitle}</span>
           <span className={styles.identity}>
             <UIcon name="ind-formula" size={11} gold={false} />
-            UCT Intelligence
+            UCT Agent
           </span>
         </div>
         <button type="button" className={styles.close} onClick={askOrClose} aria-label={`Close ${panelTitle} (your draft is kept)`}
@@ -388,7 +565,7 @@ export default function CreateIndicatorPanel({
 
         {editMode && blocked && (
           <div className={styles.status} role="note" data-testid="create-indicator-not-editable" data-code={editability.code}>
-            {editability.text}
+            {withoutGuardIds(editability.text)}
             {onEditFormula && (
               <div className={styles.doors}>
                 <button type="button" className={styles.door} data-testid="create-indicator-edit-formula"
@@ -410,7 +587,7 @@ export default function CreateIndicatorPanel({
         )}
         {/* ⭐ BATCH 1 — a kept draft that could not be opened safely, and why. */}
         {conv.dropped && (
-          <div className={styles.status} role="note" data-testid="create-indicator-draft-dropped" data-reason={conv.dropped.reason}>
+          <div className={styles.status} role="note" data-testid="create-indicator-draft-dropped" data-reason={withoutGuardIds(conv.dropped.reason)}>
             {conv.dropped.reason === 'stale'
               ? `Your unsaved changes were made to version ${conv.dropped.from ?? 'an earlier version'}, and this indicator has been saved since (now version ${conv.dropped.now}). They were not restored, so nothing newer is overwritten.`
               : 'An unsaved draft from before the page reloaded could not be restored.'}
@@ -423,12 +600,67 @@ export default function CreateIndicatorPanel({
               ? <li key={t.id} className={styles.msgMember} data-role="member">{t.text}</li>
               : (
                 <li key={t.id} data-role="uct" data-kind={t.kind} data-updated={t.updated ? 'true' : undefined}
-                  className={`${styles.msgUct} ${t.kind === 'refusal' ? styles.msgRefusal : ''} ${t.kind === 'unsupported' ? styles.msgLimit : ''} ${t.kind === 'answer' ? styles.msgAnswer : ''} ${t.kind === 'undo' ? styles.msgQuiet : ''}`}>
+                  className={`${styles.msgUct} ${t.kind === 'refusal' ? styles.msgRefusal : ''} ${t.kind === 'unsupported' ? styles.msgLimit : ''} ${t.kind === 'answer' ? styles.msgAnswer : ''} ${t.kind === 'undo' || t.kind === 'stopped' ? styles.msgQuiet : ''}`}>
                   {/* ⭐ SLICE 2 — a change says so; an answer never does. */}
                   {t.updated && <span className={styles.updated} data-testid="create-indicator-updated">Updated preview</span>}
                   {(t.lines || []).map((l, i) => (
                     <span key={i} className={i === 0 ? styles.lead : undefined}>{l}</span>
                   ))}
+                  {/* ⭐ 2026-11-21 — WHAT THIS BUILD DOES NOT SHOW ON THE MEMBER'S OWN CHART, read from what the
+                      chart drew. UCT's statement, not the assistant's; on the newest applied answer only. */}
+                  {emptyEntryId === t.id && (
+                    <span className={styles.said} data-testid="create-indicator-empty-on-chart" role="note">
+                      <span className={styles.saidLabel}>On this chart</span>
+                      {emptyLines.map((n, i) => <span key={i}>{n}</span>)}
+                    </span>
+                  )}
+                  {/* ⭐ 2026-11-21 — WHAT UCT ITSELF SAYS ABOUT THIS BUILD (the door's own notes: a count that
+                      stops, a window that reaches only so far back). The system's words about its own limits,
+                      so they sit with the engine's lines and above anything the assistant wrote. */}
+                  {t.notes && Array.isArray(t.notes.uct) && t.notes.uct.length > 0 && (
+                    <span className={styles.said} data-testid="create-indicator-notes-uct">
+                      <span className={styles.saidLabel}>UCT's notes on this build</span>
+                      {t.notes.uct.map((n, i) => <span key={i}>{n}</span>)}
+                    </span>
+                  )}
+                  {/* ⭐ What the assistant says it built: below the engine's words, and labelled as
+                      the assistant's, never mixed into them (Studio plan, section 5). Plain text. */}
+                  {typeof t.said === 'string' && t.said && (
+                    <span className={styles.said} data-testid="create-indicator-said">
+                      <span className={styles.saidLabel}>What the assistant says it built</span>
+                      {t.said}
+                    </span>
+                  )}
+                  {/* ⭐ 2026-11-21 — and what the assistant says it TOOK FOR GRANTED, labelled as the assistant's. */}
+                  {t.notes && Array.isArray(t.notes.assumed) && t.notes.assumed.length > 0 && (
+                    <span className={styles.said} data-testid="create-indicator-notes-assumed">
+                      <span className={styles.saidLabel}>What the assistant assumed</span>
+                      {t.notes.assumed.map((n, i) => <span key={i}>{n}</span>)}
+                    </span>
+                  )}
+                  {/* ⭐ AN OFFER — the one action this answer is about (add one of UCT's own built-in
+                      indicators). One tap; the entry stops offering once it is settled. */}
+                  {t.offer && (
+                    <button type="button" className={styles.chip} data-testid="create-indicator-offer"
+                      disabled={busy || saving} onClick={() => takeOffer(t)}>{t.offer.label}</button>
+                  )}
+                  {/* ⭐ A SCRIPT ANSWER — the lines above are the ENGINE's verdict. The script itself opens
+                      in the script editor, where it is checked again, previewed and saved like any
+                      pasted script. Nothing is put on the chart from here. */}
+                  {t.script && typeof t.script.pine === 'string' && (
+                    <span className={styles.said} data-testid="create-indicator-script" data-runs={t.script.runs ? 'true' : 'false'}>
+                      {onOpenScript && (
+                        <button type="button" className={styles.chip} data-testid="create-indicator-open-script"
+                          disabled={busy || saving} onClick={() => onOpenScript({ pine: t.script.pine, name: t.script.name })}>
+                          {scriptNeedsFixing(t.script) ? 'Open this script to fix it' : 'Open this script'}
+                        </button>
+                      )}
+                      <details data-testid="create-indicator-script-text">
+                        <summary>The script the assistant wrote</summary>
+                        <pre>{t.script.pine}</pre>
+                      </details>
+                    </span>
+                  )}
                   {/* P3 UX — the engine's code, for support, behind the member sentence */}
                   {Array.isArray(t.details) && t.details.length > 0 && (
                     <details data-testid="create-indicator-error-detail">
@@ -449,7 +681,16 @@ export default function CreateIndicatorPanel({
           </div>
         )}
 
-        {busy && <div className={styles.working} data-testid="create-indicator-working">UCT Intelligence is thinking</div>}
+        {busy && <Working onStop={conv.stop} />}
+        {/* ⭐ L8 — "SEND THIS TO UCT": offered only while the support loop's report door is on
+            (`PINE_SUPPORT_REPORTS_ENABLED`) and once the member has said something. Nothing is
+            sent from here: the press opens the dialog that shows what would be sent and asks. */}
+        {!busy && reportsCfg && reportsCfg.reportsEnabled && hasSomethingToSend(transcript) && (
+          <div className={styles.sendRow}>
+            <button type="button" className={styles.sendLink} data-testid="create-indicator-send-to-uct"
+              onClick={() => setSendOpen(true)}>Something not right? Send this conversation to UCT</button>
+          </div>
+        )}
         <div ref={logEndRef} />
       </div>
 
@@ -474,7 +715,7 @@ export default function CreateIndicatorPanel({
                 <span className={styles.typeTag}>{typeWord(o.type)}</span>
                 <span>{o.phrase || o.sentence || o.label}</span>
                 {/* ⭐ PHASE 5 — a pending refusal is another symbol's bars still loading */}
-                {o.status === 'refused' && !o.pending && <span className={styles.refused}> — {o.reason}</span>}
+                {o.status === 'refused' && !o.pending && <span className={styles.refused}> — {withoutGuardIds(o.reason)}</span>}
               </div>
             ))}
           </div>
@@ -483,7 +724,7 @@ export default function CreateIndicatorPanel({
             {look.plots.map((p) => (
               <div key={p.key} className={styles.detail}>
                 {safeCssColour(p.color) && <span className={styles.swatch} style={{ background: safeCssColour(p.color) }} />}
-                <span>{p.text}</span>
+                <span>{withoutGuardIds(p.text)}</span>
               </div>
             ))}
             {look.paints.map((l) => <div key={l} className={styles.detail}>{l}</div>)}
@@ -503,6 +744,9 @@ export default function CreateIndicatorPanel({
               {[...rb.alerts, ...rb.infoValues].map((l) => <div key={l} className={styles.detail}>{l}</div>)}
             </div>
           )}
+          {/* ⭐ SETTINGS (2026-11-17) — every length, level and multiple of the indicator, as a field.
+              A change is the ordinary slot edit: the preview redraws and Undo takes it back. */}
+          <SettingsFields settings={conv.settings} onSet={conv.setNumber} disabled={busy || saving} />
           {conv.needsAck.length > 0 && (
             <label className={styles.ack}>
               <input type="checkbox" checked={conv.acked} onChange={(e) => conv.setAcked(e.target.checked)}
@@ -514,6 +758,14 @@ export default function CreateIndicatorPanel({
         </section>
       )}
 
+      {/* ⭐ SAID ONCE (2026-11-17). When the last thing in the conversation is the spent-allowance
+          answer itself, this line would repeat it directly underneath; it returns as soon as that
+          answer is no longer the last thing said. */}
+      {allowanceLine(conv.allowanceLeft) && !spentJustSaid(transcript, conv.allowanceLeft) && (
+        <p className={styles.allowance} data-testid="create-indicator-allowance" role="status">
+          {allowanceLine(conv.allowanceLeft)}
+        </p>
+      )}
       <div className={styles.composer}>
         <textarea
           ref={inputRef}
@@ -521,9 +773,8 @@ export default function CreateIndicatorPanel({
           rows={1}
           value={message}
           disabled={saving || blocked}
-          placeholder={editMode ? 'Describe a change — e.g. "make it 21" or "make the line gold"'
-            : (state.working ? 'Refine it — e.g. "make it 50"' : 'Describe the indicator you want to build…')}
-          aria-label="Message UCT Intelligence"
+          placeholder={editMode ? BOX_HINT.edit : (state.working ? BOX_HINT.working : BOX_HINT.fresh)}
+          aria-label="Message the UCT Agent"
           data-testid="create-indicator-input"
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={(e) => {
@@ -534,9 +785,84 @@ export default function CreateIndicatorPanel({
           disabled={busy || saving || blocked || !message.trim()} onClick={() => submit()}>Send</button>
       </div>
 
+      {/* ⭐ V1 — HISTORY: every earlier step of this draft, newest first, each one press away.
+          What a step WAS is the read-back's own sentence for that step. Nothing here saves:
+          going back is a preview change like any other, and Undo-able in the sense that the
+          steps before it are still listed. */}
+      {historyOpen && historyAvailable && (
+        <div className={styles.history} role="region"
+          aria-label={hasSavedVersions ? 'Earlier steps of this draft and saved versions' : 'Earlier steps of this draft'}
+          data-testid="create-indicator-history"
+          onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setHistoryOpen(false) } }}>
+          <div className={styles.historyHead}>
+            <span>{stepCount >= 2 ? 'Earlier steps' : 'Saved versions'}</span>
+            <button type="button" className={styles.historyClose} aria-label="Close history"
+              data-testid="create-indicator-history-close" onClick={() => setHistoryOpen(false)}>Close</button>
+          </div>
+          {stepCount >= 2 && (
+          <ol className={styles.historyList} reversed>
+            {[...conv.steps].reverse().map((st) => (
+              <li key={st.index} className={styles.historyRow} data-testid="create-indicator-history-step"
+                data-step={st.step}>
+                <div className={styles.historyWhat}>
+                  <span className={styles.historyStep}>Step {st.step}</span>
+                  {st.empty
+                    ? <span className={styles.historyLine}>Before anything was built</span>
+                    : (st.lines.length ? st.lines : [st.name || 'Indicator']).map((l, i) => (
+                      <span key={i} className={styles.historyLine}>{l}</span>))}
+                </div>
+                <button type="button" className={styles.ghost} disabled={!conv.canUndo}
+                  data-testid="create-indicator-history-go"
+                  onClick={() => { if (conv.goBackTo(st.index)) setHistoryOpen(false) }}>Go back to this</button>
+              </li>
+            ))}
+          </ol>
+          )}
+          {/* ⭐ SAVED VERSIONS — what the store kept at each save, newest first. Using one makes it
+              the draft again as ONE step (Undo takes it back); nothing is saved until Save changes.
+              A version that cannot come back says why. */}
+          {hasSavedVersions && (
+            <div className={styles.historyVersions} data-testid="create-indicator-versions">
+              {stepCount >= 2 && <div className={styles.historySub}>Saved versions</div>}
+              {conv.savedVersionsError ? (
+                <p className={styles.historyNote} role="alert" data-testid="create-indicator-versions-error">{conv.savedVersionsError}</p>
+              ) : !conv.savedVersions ? (
+                <p className={styles.historyNote} data-testid="create-indicator-versions-loading">Reading the saved versions…</p>
+              ) : (
+                <ul className={styles.historyList}>
+                  {conv.savedVersions.map((v) => (
+                    <li key={v.version} className={styles.historyRow} data-testid="create-indicator-version"
+                      data-version={v.version} data-usable={v.usable ? 'yes' : 'no'}>
+                      <div className={styles.historyWhat}>
+                        <span className={styles.historyStep}>Version {v.version}{versionWhen(v.at) ? `, ${versionWhen(v.at)}` : ''}</span>
+                        <span className={styles.historyLine}>{v.name}</span>
+                        {(v.usable ? restoreNote(v.lines) : v.text) ? (
+                          <span className={`${styles.historyLine} ${styles.historyWrap}`} data-testid="create-indicator-version-note">
+                            {v.usable ? restoreNote(v.lines) : v.text}</span>
+                        ) : null}
+                      </div>
+                      {v.usable && (
+                        <button type="button" className={styles.ghost} disabled={busy || saving}
+                          data-testid="create-indicator-version-use"
+                          onClick={() => { if (conv.restoreVersion(v.version).ok) setHistoryOpen(false) }}>Use this version</button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className={styles.foot}>
         <button type="button" className={styles.ghost} data-testid="create-indicator-undo"
           disabled={!conv.canUndo} onClick={conv.undo}>Undo</button>
+        {historyAvailable && (
+          <button type="button" className={styles.ghost} data-testid="create-indicator-history-toggle"
+            aria-expanded={historyOpen} disabled={busy || saving || (!conv.canUndo && !hasSavedVersions)}
+            onClick={() => setHistoryOpen((v) => !v)}>History</button>
+        )}
         <span className={styles.footSpacer} />
         {editMode ? (
           <button type="button" className={styles.ghost} data-testid="create-indicator-cancel" onClick={askOrCancel}
@@ -553,6 +879,17 @@ export default function CreateIndicatorPanel({
     </aside>
   )
 
-  if (typeof document === 'undefined') return panel
-  return createPortal(panel, dockHost || document.body)
+  const withSend = sendOpen ? (
+    <>
+      {panel}
+      <Suspense fallback={null}>
+        <SendConversationDialog open onClose={() => setSendOpen(false)} transcript={transcript}
+          working={state.working} readbackLines={rb.lines} sym={sym} tf={tf}
+          maxSourceBytes={reportsCfg ? reportsCfg.maxSourceBytes : undefined}
+          maxNoteChars={reportsCfg ? reportsCfg.maxNoteChars : undefined} />
+      </Suspense>
+    </>
+  ) : panel
+  if (typeof document === 'undefined') return withSend
+  return createPortal(withSend, dockHost || document.body)
 }

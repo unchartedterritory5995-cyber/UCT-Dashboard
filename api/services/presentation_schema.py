@@ -37,7 +37,12 @@ import re
 from typing import Any, Mapping
 
 PLOT_STYLES = ("line", "stepline", "histogram", "area", "baseline", "hlines",
-               "markers", "band")
+               "markers", "band", "candles", "ohlcBars")
+#: W4-T13 -- the two styles drawn from FOUR computed columns (`plots[].ohlc`), and the
+#: colour parts a document may name for each (`plots[].ohlcColors`); `defSchema.js`
+#: `OHLC_DEF_STYLES` / `OHLC_COLOUR_PARTS`, held equal by the shared fixture.
+OHLC_DEF_STYLES = ("candles", "ohlcBars")
+OHLC_COLOUR_PARTS = {"candles": ("body", "wick", "border"), "ohlcBars": ("body",)}
 RESERVED_PLOT_STYLES = ("zones", "bgband", "barcolor", "fill", "cross")
 MARKER_SHAPES = ("circle", "square", "arrowUp", "arrowDown")
 MARKER_POSITIONS = ("aboveBar", "belowBar", "inBar")
@@ -51,7 +56,7 @@ COLOR_MODES = ("fixed", "sign")
 #: NOT one of them and must not become one: its ceiling (`_check_width`) carries its
 #: OWN fingerprint, the plot's key + the width it draws (`_width_fp`).
 _PLOT_PRESENTATION = ("style", "marker", "colorMode", "colorUp", "colorDown",
-                      "colorPalette", "colorGradient", "colorPacked")
+                      "colorPalette", "colorGradient", "colorPacked", "ohlc", "ohlcColors")
 
 _HEX = re.compile(r"^#[0-9a-f]{6}([0-9a-f]{2})?$", re.IGNORECASE)
 
@@ -248,6 +253,49 @@ def _check_plot_colour_fields(plot: Mapping, path: str, fp: str, out: list) -> N
                  f"{path}.{field}: expected a non-empty colour string", fp)
 
 
+def _check_ohlc(plot: Mapping, path: str, fp: str, columns: set, out: list) -> None:
+    """W4-T13: `defSchema.validateOhlc` -- a candles / ohlcBars row names the columns it is
+    drawn from (`ohlc` = {open, high, low}; its own column is the close), may name colour
+    columns (`ohlcColors`), and no other style may carry either."""
+    if plot.get("style") not in OHLC_DEF_STYLES:
+        for f in ("ohlc", "ohlcColors"):
+            if f in plot:
+                _err(out, f"{path}.{f}", "plot-ohlc",
+                     f"{path}.{f}: only a \"candles\" or \"ohlcBars\" plot names OHLC columns", fp)
+        return
+
+    def ref_ok(v: Any, p: str) -> None:
+        if not _is_str(v):
+            _err(out, p, "plot-ohlc", f"{p}: expected a plot key", fp)
+        elif v == plot.get("key"):
+            _err(out, p, "plot-ohlc", f"{p}: the plot's own column is its close; name another", fp)
+        elif v not in columns:
+            _err(out, p, "plot-ohlc", f"{p}: references a column no plot declares", fp)
+
+    ohlc = plot.get("ohlc")
+    if not isinstance(ohlc, Mapping):
+        _err(out, f"{path}.ohlc", "plot-ohlc",
+             f"{path}.ohlc: style {plot.get('style')!r} requires {{open, high, low}} naming three plot keys", fp)
+    else:
+        for k in ohlc:
+            if k not in ("open", "high", "low"):
+                _err(out, f"{path}.ohlc.{k}", "plot-ohlc", f"{path}.ohlc.{k}: unknown part", fp)
+        for k in ("open", "high", "low"):
+            ref_ok(ohlc.get(k), f"{path}.ohlc.{k}")
+    if "ohlcColors" in plot:
+        oc = plot["ohlcColors"]
+        if not isinstance(oc, Mapping):
+            _err(out, f"{path}.ohlcColors", "plot-ohlc", f"{path}.ohlcColors: expected an object", fp)
+        else:
+            parts = OHLC_COLOUR_PARTS[plot["style"]]
+            for k, v in oc.items():
+                if k not in parts:
+                    _err(out, f"{path}.ohlcColors.{k}", "plot-ohlc",
+                         f"{path}.ohlcColors.{k}: unknown part for {plot['style']!r}", fp)
+                else:
+                    ref_ok(v, f"{path}.ohlcColors.{k}")
+
+
 def _check_color_mode(plot: Mapping, path: str, fp: str, columns: set, out: list) -> None:
     if "colorMode" not in plot:
         return
@@ -408,7 +456,11 @@ _ALPHA = r"(?:,\s*(?:0|1|0?\.\d+|1\.0+)\s*)?"
 #: ⛔ THE COLOUR GRAMMAR OF A DEFINITION'S PRESENTATION (plots, paints, colour settings) --
 #: byte-equal to ``objectColour.js::PRESENTATION_COLOUR`` (a test compares the sources).
 #: Everything UCT writes and every format measured in the repo: hex 3/4/6/8, numeric
-#: rgb/rgba/hsl/hsla, a plain colour word, ``token:<role>[@step]``. Nothing admits ``(``
+#: rgb/rgba/hsl/hsla, a plain colour word, ``token:<role>[@step]``, and (engine 58) the
+#: chart-theme reference ``chart.fg_color`` / ``chart.bg_color`` with an optional
+#: ``@<transparency>`` -- a Pine plot coloured by the chart's own colours, resolved where it
+#: is drawn (``objectTheme.js``); a document carrying one was refused at save before (422).
+#: Nothing admits ``(``
 #: except the numeric functions, ``:`` except ``token:``, or ``;`` -- so ``url()``,
 #: ``var()`` and declaration smuggling cannot be stored. The 2026-10-08 inventory found
 #: these fields reaching inline CSS (legend chips/rows, settings swatches) unvalidated,
@@ -416,7 +468,8 @@ _ALPHA = r"(?:,\s*(?:0|1|0?\.\d+|1\.0+)\s*)?"
 PRESENTATION_COLOUR = re.compile(
     r"^(?:#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})"
     + rf"|rgba?\({_NUM_CHANNELS}{_ALPHA}\)|hsla?\({_HSL_CHANNELS}{_ALPHA}\)"
-    + r"|[a-z]{3,20}|token:[a-z][a-z0-9_.-]{0,40}(?:@[a-z0-9_.-]{1,20})?)$", re.IGNORECASE)
+    + r"|[a-z]{3,20}|token:[a-z][a-z0-9_.-]{0,40}(?:@[a-z0-9_.-]{1,20})?|chart\.(?:fg|bg)_color(?:@\d{1,3})?)$",
+    re.IGNORECASE)
 
 
 def is_presentation_colour(value: Any) -> bool:
@@ -502,8 +555,145 @@ def presentation_errors(definition: Mapping[str, Any]) -> list:
         _check_width(plot, inputs, path, out)
         _check_plot_colour_fields(plot, path, fp, out)
         _check_color_mode(plot, path, fp, columns, out)
-    _check_paints(definition.get("paints"), columns, out)
+        _check_ohlc(plot, path, fp, columns, out)
+    # DIV-4 -- a PAINT (never a plot) may also name a colour column the per-bar run computes
+    run_keys = _check_runtime_colours(definition, columns, out)
+    _check_paints(definition.get("paints"), columns | run_keys, out)
+    # ENGINE 53 -- a host document's run half (``compute.runtimeObjects``), mapped onto PLOT keys
+    plot_keys = {p.get("key") for p in plots if isinstance(p, Mapping) and isinstance(p.get("key"), str)}
+    _check_runtime_objects(definition, plot_keys, out)
     return out
+
+
+#: ENGINE 53 -- the fields ``compute.runtimeObjects`` may carry (``defSchema.RUNTIME_OBJECTS_FIELDS``).
+#: CLOSED: anything else is refused.
+RUNTIME_OBJECTS_FIELDS = ("source", "outputs", "runtimeLanguage", "runtimeFrontend", "runtimeIr",
+                          "runtimeOutputSignature", "sites", "programSha256", "programGraphSha256")
+# ASCII digits only, as the client's JS `\d` reads them (Python's `\d` would admit any Unicode digit)
+_RO_SITE_ID = re.compile(r"^s[0-9]+$")
+_RO_SITE_KEY = re.compile(r"^[0-9]+:[0-9]+$")
+_RO_SHA256 = re.compile(r"^[0-9a-f]{64}$")
+
+
+def _check_runtime_objects(definition: Mapping, plot_keys: set, out: list) -> None:
+    """ENGINE 53 -- ``compute.runtimeObjects = {source, outputs, ...runtimeVersionStamp}``: the RUN
+    HALF of a host document whose object program lost drawings. The mirror of the client's
+    ``defSchema.runtimeObjectsErrors``, rule for rule, held to it by one fixture both suites read
+    (``tests/fixtures/runtime_objects_schema.json``): only on an ``ast`` definition; ``source`` a
+    non-empty string; ``outputs`` an object mapping a DECLARED plot key to a whole-number run output
+    index, no index named twice; the stamp, when present, typed (``runtimeLanguage`` a non-empty
+    string, ``runtimeFrontend``/``runtimeIr`` positive whole numbers, ``runtimeOutputSignature`` a list
+    of strings naming every mapped index); ENGINE 54: ``sites`` an object mapping a create site id
+    (``s<n>``) to its source call (``<line>:<column>``), ``programSha256`` / ``programGraphSha256``
+    64 lowercase hex; no other field."""
+    compute = definition.get("compute")
+    if not isinstance(compute, Mapping) or "runtimeObjects" not in compute:
+        return
+    ro = compute.get("runtimeObjects")
+    path = "compute.runtimeObjects"
+    fp = "runtimeObjects:" + _canon(ro)
+    code = "runtime-objects"
+    if compute.get("kind") != "ast":
+        _err(out, path, code, f"{path}: only an \"ast\" definition draws its objects from the per-bar run, "
+             f"got kind {compute.get('kind')!r}", fp)
+        return
+    if not isinstance(ro, Mapping):
+        _err(out, path, code, f"{path}: expected {{source, outputs, ...stamp}}", fp)
+        return
+    extra = sorted(k for k in ro if k not in RUNTIME_OBJECTS_FIELDS)
+    if extra:
+        _err(out, path, code, f"{path}: unknown field(s) {', '.join(map(repr, extra))}", fp)
+    if not _is_str(ro.get("source")) or not ro.get("source"):
+        _err(out, f"{path}.source", code, f"{path}.source: expected the script the run runs, a non-empty string", fp)
+    # one document, one script: beside run-read colours both runs read the same source
+    rc = compute.get("runtimeColours")
+    if isinstance(rc, Mapping) and "source" in rc and rc.get("source") != ro.get("source"):
+        _err(out, f"{path}.source", code,
+             f"{path}.source: is not the script compute.runtimeColours.source reads; one document runs one script", fp)
+    outputs = ro.get("outputs")
+    if not isinstance(outputs, Mapping):
+        _err(out, f"{path}.outputs", code,
+             f"{path}.outputs: expected an object mapping a plot key to a run output index", fp)
+    else:
+        seen: set = set()
+        for k, idx in outputs.items():
+            if k not in plot_keys:
+                _err(out, f"{path}.outputs.{k}", code, f"{path}.outputs.{k}: names no declared plot", fp)
+            if not _is_int(idx) or idx < 0:
+                _err(out, f"{path}.outputs.{k}", code,
+                     f"{path}.outputs.{k}: expected a whole-number run output index, got {idx!r}", fp)
+            elif int(idx) in seen:
+                _err(out, f"{path}.outputs.{k}", code, f"{path}.outputs.{k}: run output {int(idx)} is named by two plots", fp)
+            else:
+                seen.add(int(idx))
+    lang = ro.get("runtimeLanguage")
+    if "runtimeLanguage" in ro and (not _is_str(lang) or not lang):
+        _err(out, f"{path}.runtimeLanguage", code, f"{path}.runtimeLanguage: expected a non-empty string", fp)
+    for f in ("runtimeFrontend", "runtimeIr"):
+        if f in ro and (not _is_int(ro.get(f)) or ro.get(f) < 1):
+            _err(out, f"{path}.{f}", code, f"{path}.{f}: expected a positive whole number, got {ro.get(f)!r}", fp)
+    if "sites" in ro:
+        sites = ro.get("sites")
+        if not isinstance(sites, Mapping):
+            _err(out, f"{path}.sites", code, f"{path}.sites: expected an object mapping a create site to its source call", fp)
+        else:
+            for k, v in sites.items():
+                if not isinstance(k, str) or not _RO_SITE_ID.fullmatch(k):
+                    _err(out, f"{path}.sites.{k}", code, f"{path}.sites.{k}: a create site is named s<n>", fp)
+                if not isinstance(v, str) or not _RO_SITE_KEY.fullmatch(v):
+                    _err(out, f"{path}.sites.{k}", code, f"{path}.sites.{k}: expected a source call <line>:<column>", fp)
+    for f in ("programSha256", "programGraphSha256"):
+        if f in ro and not (isinstance(ro.get(f), str) and _RO_SHA256.fullmatch(ro.get(f))):
+            _err(out, f"{path}.{f}", code, f"{path}.{f}: expected 64 lowercase hex", fp)
+    if "runtimeOutputSignature" in ro:
+        sig = ro.get("runtimeOutputSignature")
+        if not isinstance(sig, list) or not all(isinstance(x, str) for x in sig):
+            _err(out, f"{path}.runtimeOutputSignature", code,
+                 f"{path}.runtimeOutputSignature: expected a list of strings", fp)
+        elif isinstance(outputs, Mapping):
+            for k, idx in outputs.items():
+                if _is_int(idx) and idx >= len(sig):
+                    _err(out, f"{path}.outputs.{k}", code,
+                         f"{path}.outputs.{k}: run output {int(idx)} is past the signature's {len(sig)} outputs", fp)
+
+
+def _check_runtime_colours(definition: Mapping, plot_keys: set, out: list) -> set:
+    """DIV-4 -- ``compute.runtimeColours = {source, at, keys}``: colours a HOST document
+    reads from the per-bar run. The mirror of the client's ``defSchema.validateRuntimeColours``,
+    rule for rule: only on an ``ast`` definition; one key per value; a key unique, a
+    non-empty string, and never a plot's key; each ``at`` a colour asked for at a statement
+    (``{line, column, node, kind: "colour"}``). Returns the keys a paint may name: none when
+    absent or malformed (the paint naming one is then refused as an undeclared column)."""
+    compute = definition.get("compute")
+    if not isinstance(compute, Mapping) or "runtimeColours" not in compute:
+        return set()
+    rc = compute.get("runtimeColours")
+    path = "compute.runtimeColours"
+    fp = "runtimeColours:" + _canon(rc)
+    if compute.get("kind") != "ast":
+        _err(out, path, "runtime-colours",
+             f"{path}: only an \"ast\" definition reads colours from the per-bar run, got kind {compute.get('kind')!r}", fp)
+        return set()
+    at = rc.get("at") if isinstance(rc, Mapping) else None
+    keys = rc.get("keys") if isinstance(rc, Mapping) else None
+    if (not isinstance(rc, Mapping) or not _is_str(rc.get("source")) or not rc.get("source")
+            or not isinstance(at, list) or not isinstance(keys, list) or not at or len(at) != len(keys)):
+        _err(out, path, "runtime-colours", f"{path}: expected {{source, at, keys}} with one key per value", fp)
+        return set()
+    seen: list = []
+    for i, k in enumerate(keys):
+        if not _is_str(k) or not k or k in seen or k in plot_keys:
+            _err(out, f"{path}.keys[{i}]", "runtime-colours",
+                 f"{path}.keys[{i}]: expected a unique key no plot declares, got {k!r}", fp)
+            return set()
+        spec = at[i]
+        if (not isinstance(spec, Mapping) or not _is_int(spec.get("line")) or not _is_int(spec.get("column"))
+                or spec.get("kind") != "colour" or not isinstance(spec.get("node"), Mapping)):
+            _err(out, f"{path}.at[{i}]", "runtime-colours",
+                 f"{path}.at[{i}]: expected a colour asked for at a statement ({{line, column, node, kind: \"colour\"}})", fp)
+            return set()
+        seen.append(k)
+    return set(seen)
 
 
 def new_presentation_errors(definition: Mapping[str, Any],

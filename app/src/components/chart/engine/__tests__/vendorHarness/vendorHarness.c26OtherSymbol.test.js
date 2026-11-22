@@ -20,6 +20,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { runOurSide, toProductBars } from './ourSide'
 import { OTHER_SYMBOL_REFUSAL as R } from '../../otherSymbols'
+import { translatePine } from '../../ast/pine'
 
 const REPO = path.resolve(process.cwd(), '..')
 const H = path.join(REPO, 'tests/fixtures/vendor/harness')
@@ -84,11 +85,19 @@ describe('C26 served — TradingView\'s SPY bars on an RDDT chart, date for date
     const amex = on(RDDT, pine(['plot(request.security("AMEX:SPY", timeframe.period, close), "spy")']))
     expect(bare.notes).toContain('other symbol SPY: served')
     expect(Array.from(bare.plots[0].column)).toEqual(Array.from(amex.plots[0].column))
+    // ⭐ ENGINE 55 — an unheld bare spelling no binding can serve is refused AT TRANSLATE now
+    // (`pine:request`, `other-symbol:bare`), so nothing is drawn and nothing is all-`na`.
     const gold = on(RDDT, pine(['plot(request.security("XAUUSD", timeframe.period, close), "x")']))
-    expect(gold.notes.some((n) => n.startsWith(`other symbol XAUUSD: refused (${R.BARE})`))).toBe(true)
-    expect(Array.from(gold.plots[0].column).every(Number.isNaN)).toBe(true)
+    expect(namedText(gold)).toContain(`${R.BARE} — `)
+    expect(namedText(gold)).toContain('XAUUSD')
+    expect((gold.plots || []).every((p) => !p.column)).toBe(true)
   })
 })
+
+/** ⭐ ENGINE 55 — every place a refusal is NAMED on our side: the door's refusal, each
+ *  plot's missing reason, the notes. */
+const namedText = (ours) => [ours.refusal || '', ...(ours.plots || []).map((p) => p.missingReason || ''),
+  ...(ours.notes || [])].join('\n')
 
 describe('C26 refused — the graded captures\' other-symbol reads, each named', () => {
   const CASES = {
@@ -97,12 +106,20 @@ describe('C26 refused — the graded captures\' other-symbol reads, each named',
     'htf-liquidity-dashboard-tfo-rddt-1d-2026-09-28.json': ['AUDUSD', 'EURUSD', 'GBPUSD', 'USDJPY'],
   }
   for (const [file, tickers] of Object.entries(CASES)) {
+    // ⭐⭐ ENGINE 55 — FLIPPED DELIBERATELY: these spellings are refused AT TRANSLATE now
+    // (`pine:request` carrying `other-symbol:bare`, per plot) instead of becoming a `sym` the
+    // bind starved into an all-`na` line. Each refusal is still named; none is served.
     it(`${file.split('-rddt')[0]}: ${tickers.join(', ')} refused as bare spellings, none served`, () => {
-      const ours = runOurSide(load(file))
-      for (const t of tickers) {
-        expect(ours.notes.some((n) => n.startsWith(`other symbol ${t}: refused (${R.BARE})`)), t).toBe(true)
-      }
-      expect(ours.notes.some((n) => / served$/.test(n))).toBe(false)
+      const cap = load(file)
+      const ours = runOurSide(cap)
+      // the plots' refusals (`namedText`), and — for a script whose only reads are inside
+      // drawing steps — the drops the translation names (`objectDiagnostics.guardRefusals`)
+      const t = translatePine(cap.source.text, { strict: true })
+      const drops = ((t.objectDiagnostics || {}).guardRefusals || []).join(' | ')
+      const text = namedText(ours)
+      expect(text.includes(`${R.BARE} — `) || drops.includes('pine:request'), file).toBe(true)
+      if (text.includes(`${R.BARE} — `)) expect(tickers.some((x) => text.includes(`"${x}"`))).toBe(true)
+      expect((ours.notes || []).some((n) => / served$/.test(n))).toBe(false)
     })
   }
 
@@ -112,8 +129,10 @@ describe('C26 refused — the graded captures\' other-symbol reads, each named',
       'if barstate.islast',
       '    label.new(bar_index, high, str.tostring(x))',
     ]))
-    expect(ours.objects.ok).toBe(true)
-    expect(ours.objects.texts.labels).not.toContain('NaN')
-    expect(ours.objects.counts.labels).toBe(0)
+    // ⭐ ENGINE 55 — the request is refused at translate; whatever the door does with the
+    // drawing, it never prints a number it does not have.
+    const o = ours.objects || {}
+    expect(((o.texts && o.texts.labels) || [])).not.toContain('NaN')
+    expect(((o.counts && o.counts.labels) || 0)).toBe(0)
   })
 })

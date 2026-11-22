@@ -1,0 +1,20 @@
+//@version=5
+strategy("vw-s1-q-s1g-blocked-stop-entry", overlay = false, pyramiding = 1)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row Q-S1g of
+// docs/pine/capture-queue-2026-10-05-s1.md (the first trade is closed on bar 70 so the question can be read). One behaviour, no licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: pyramiding = 1, an open long, then a stop entry L2: does L2 ever fill after the first trade closes (cancelled or kept)?
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults, Strategy properties at the script's own defaults (Properties tab untouched);
+// export the Strategy Tester List of trades as CSV beside the capture (the doc's header).
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+if bar_index == 50
+    strategy.entry("L", strategy.long)
+if bar_index == 52
+    strategy.entry("L2", strategy.long, stop = close * 1.01)
+if bar_index == 70
+    strategy.close("L")
+plot(strategy.position_size, "P01_position_size")
+plot(strategy.opentrades, "P02_opentrades")

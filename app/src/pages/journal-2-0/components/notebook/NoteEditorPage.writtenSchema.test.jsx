@@ -434,7 +434,11 @@ describe('⭐ once recovered words LAND, the editor is this bundle’s own again
     await openTheNote()
     await sit(4)                                            // the old tab's words are adopted; their save is held
     globalThis.__restoredVersion = { ...server.note, bodyJson: LEVEL1_BODY }
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'stub: restore a version' })); await settleIdb(4) })
+    // Tier 1a bytes: version history mounts on its FIRST open from More (its chunk is fetched then).
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Version history' }))
+    const restore = await screen.findByRole('button', { name: 'stub: restore a version' })
+    await act(async () => { fireEvent.click(restore); await settleIdb(4) })
     expect(hasFormula((await liveEditor()).getJSON()), 'precondition: the restored version is on screen').toBe(true)
     await typeInBody(' typed on the restored version')
     await act(async () => { vi.advanceTimersByTime(900); await settleIdb(6) })   // its save leaves (held)

@@ -1,0 +1,63 @@
+{
+  "enml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Cited:</div><en-media hash=\"365dccce50f2d8411c4e737c7ff0057d\" type=\"image/png\"/><div>A file whose bytes are gone:</div><en-media hash=\"ffffffffffffffffffffffffffffffff\" type=\"application/pdf\"/><div>end of body</div></en-note>",
+  "id": "03-missing-and-unreferenced",
+  "note": {
+    "created": "20260101T090000Z",
+    "guid": "11111111-0000-4000-8000-000000000003",
+    "notebook": "Trading",
+    "notes": {},
+    "resources": [
+      {
+        "data_b64": "dWN0LWZpeHR1cmUtaW1hZ2UtY2hhcnQ=",
+        "hash": "365dccce50f2d8411c4e737c7ff0057d",
+        "mime": "image/png",
+        "name": "chart.png"
+      },
+      {
+        "data_b64": "dWN0LWZpeHR1cmUtaW1hZ2UtdW5jaXRlZA==",
+        "hash": "c2f342baf635f4739608b6fd24c6fb53",
+        "mime": "image/png",
+        "name": "uncited.png"
+      }
+    ],
+    "title": "Missing note"
+  },
+  "server": {
+    "blocks": [
+      {
+        "text": "Cited:",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      },
+      {
+        "text": "A file whose bytes are gone:",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "importNotice"
+      },
+      {
+        "text": "end of body",
+        "type": "paragraph"
+      },
+      {
+        "text": "",
+        "type": "image"
+      }
+    ],
+    "chips": [],
+    "images": [
+      "365dccce50f2d8411c4e737c7ff0057d",
+      "c2f342baf635f4739608b6fd24c6fb53"
+    ],
+    "links": [],
+    "notices": [
+      "missing_resource"
+    ],
+    "task_checked": []
+  }
+}

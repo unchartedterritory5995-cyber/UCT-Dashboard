@@ -66,6 +66,14 @@ const box = {
   color: 'var(--text, #c9d1d9)', fontSize: 12, lineHeight: 1.4, boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
 }
 const head = { display: 'flex', alignItems: 'center', gap: 6, padding: '5px 8px', cursor: 'pointer', userSelect: 'none' }
+// The head's toggle: a real button that looks like the row it replaced. Tier 2 review minor 13: it carries the row's
+// own padding and the gap before the close, so every pixel the old div[role=button] toggled on still toggles.
+const toggleBtn = {
+  display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, padding: '5px 6px 5px 8px', margin: 0, border: 0,
+  background: 'none', color: 'inherit', font: 'inherit', textAlign: 'left', cursor: 'pointer',
+}
+// The row around the toggle and the close: no padding or gap of its own (the toggle holds them), 8 px after the close.
+const headRow = { display: 'flex', alignItems: 'center', gap: 0, padding: '0 8px 0 0', userSelect: 'none' }
 const tag = { fontWeight: 700, color: 'var(--gold, #e3b341)', whiteSpace: 'nowrap' }
 const sub = { color: 'var(--text-muted, #8b949e)', fontSize: 11 }
 
@@ -87,7 +95,17 @@ export function errorText(error) {
   return 'Chart IQ could not read this chart'
 }
 
-export default function ChartIqPanel({ data, loading, error, layers, onLayer, onClose, notDaily = false, onShowDaily = null }) {
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "2026-10-30" -> "Oct 30 close": every read is built from a completed session, so during market hours it says plainly
+ * that it is not today's price action. Pure string work: no Date, no time zone. */
+export function closeLabel(asof) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(asof || '')
+  if (!m) return ''
+  return `${MONTHS[Number(m[2]) - 1] || m[2]} ${Number(m[3])} close`
+}
+
+export default function ChartIqPanel({ data, loading, error, layers, onLayer, onClose, notDaily = false, onShowDaily = null, weekly = false }) {
   const [open, setOpen] = useState(false)
   if (notDaily) {
     return (
@@ -111,13 +129,21 @@ export default function ChartIqPanel({ data, loading, error, layers, onLayer, on
   const status = error ? errorText(error) : loading && !data ? 'Chart IQ is reading the chart...' : ''
   return (
     <div style={box} data-testid="chart-iq-panel" onPointerDown={(e) => e.stopPropagation()}>
-      <div style={head} onClick={() => setOpen((v) => !v)} role="button" aria-expanded={open} tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v) } }}>
-        <span style={tag}>Chart IQ</span>
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: open ? 'normal' : 'nowrap' }}>
-          {status || (open ? '' : firstSentence(data?.thesis))}
-        </span>
-        <span style={sub} aria-hidden="true">{open ? 'less' : 'more'}</span>
+      {/* VIS-7 (audit 2026-11-05, axe nested-interactive): the head was a `div[role=button]` holding the
+          "Turn Chart IQ off" button. The head is now a plain row; the toggle is a REAL button covering everything
+          but the close, so every place a member clicked before still toggles, and the close stays its own button. */}
+      <div style={headRow} data-chart-iq-head="">
+        <button type="button" style={toggleBtn} onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          <span style={tag}>Chart IQ</span>
+          {data?.asof ? <span style={{ ...sub, whiteSpace: 'nowrap' }} data-testid="chart-iq-asof"
+            title={`This read uses prices through the ${data.asof} close`}>{closeLabel(data.asof)}</span> : null}
+          {weekly ? <span style={{ ...sub, whiteSpace: 'nowrap' }} data-testid="chart-iq-weekly"
+            title="The daily read's price levels on the weekly chart. Trendlines and day markers are on the daily chart.">weekly: levels</span> : null}
+          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: open ? 'normal' : 'nowrap' }}>
+            {status || (open ? '' : firstSentence(data?.thesis))}
+          </span>
+          <span style={sub} aria-hidden="true">{open ? 'less' : 'more'}</span>
+        </button>
         {onClose ? (
           <button type="button" aria-label="Turn Chart IQ off" onClick={(e) => { e.stopPropagation(); onClose() }}
             style={{ background: 'none', border: 0, color: 'inherit', cursor: 'pointer', fontSize: 14, padding: '0 2px' }}>×</button>
@@ -155,6 +181,12 @@ export default function ChartIqPanel({ data, loading, error, layers, onLayer, on
               </label>
             ))}
           </div>
+          {weekly ? (
+            <p style={{ ...sub, margin: '6px 0 0' }} data-testid="chart-iq-weekly-note">Weekly chart: the daily read's price levels are drawn.
+              Trendlines, key candles and buy days are on the daily chart.{onShowDaily ? <> <button type="button" onClick={onShowDaily}
+              style={{ background: 'none', border: 0, color: 'var(--gold, #e3b341)', cursor: 'pointer', fontSize: 'inherit', padding: 0,
+                textDecoration: 'underline' }}>Show daily</button></> : null}</p>
+          ) : null}
           <ChartIqFeedback data={data} />
           <p style={{ ...sub, margin: '6px 0 0' }}>Engine read as of {data.asof}. Automated pattern recognition for education only: not
             investment advice and not a recommendation to buy or sell.</p>

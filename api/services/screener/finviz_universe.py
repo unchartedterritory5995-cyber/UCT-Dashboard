@@ -199,6 +199,17 @@ _BOOL_COLUMNS = {"optionable", "shortable"}
 _MIN_ROWS = 1000        # an artifact below this is a failed pull, not a market
 _STALE_DAYS = 4
 
+# ⭐ 2026-11-18 HAND-OVER: the export's two short-interest columns are still
+# PULLED and still stored in the artifact (`short_interest.py` reads them from
+# it for its own view), but `read_finviz_fields` no longer writes them to a
+# Screener row. Their ONE writer is `short_columns.read_short_columns`, which
+# takes them from the FINRA short-interest list the server holds and reaches
+# this export only through `read_short_export` below, as the value for a stock
+# that list cannot answer for. Two readers handing `build_row` the same key
+# would be two authorities over one column, resolved by merge order: the rail
+# is `test_no_two_screener_sources_write_the_same_column`.
+SHORT_EXPORT_COLUMNS = ("short_float_pct", "short_ratio")
+
 
 def _parse(text, is_pct, raw_millions=False, receipt=None):
     """'1.5B' -> 1.5e9 · '3.45%' -> 3.45 · '12.3' -> 12.3 · '-'/'' -> None.
@@ -477,29 +488,20 @@ def read_finviz_fields(targets, failures=None) -> dict:
     header was in `missing_headers`, which drops it from `row` before the
     derivation ever sees it) or `shares_outstanding` is `0`. See
     `_derive_float_pct` — this is the one place `float_pct` reaches a caller.
+
+    ⭐ 2026-11-18: `short_float_pct` and `short_ratio` are NOT returned here
+    any more (`SHORT_EXPORT_COLUMNS`): `short_columns.read_short_columns` is
+    their one writer and reads the export's values through `read_short_export`.
     """
-    path = _artifact_path()
-    try:
-        with open(path, "r", encoding="utf-8") as fh:
-            payload = json.load(fh)
-    except (OSError, ValueError):
-        _note(failures, "finviz_universe", "missing")
+    loaded = _load_artifact_rows(failures, "finviz_universe")
+    if loaded is None:
         return {}
-    if not isinstance(payload, dict):
-        _note(failures, "finviz_universe", "missing")
-        return {}
+    rows, missing_headers = loaded
 
-    rows = payload.get("rows") or {}
-    if len(rows) < _MIN_ROWS:
-        _note(failures, "finviz_universe", "missing")
-        return {}
-
-    missing_headers = set(payload.get("missing_headers") or ())
-    age_days = _artifact_age_days(payload.get("as_of"))
-    if age_days is not None and age_days > _STALE_DAYS:
-        _note(failures, "finviz_universe", f"stale:{age_days}d")
-
-    cols = [c for c in _HEADERS if c not in missing_headers]
+    # The two short-interest columns are `short_columns`'s to write, not this
+    # reader's (see `SHORT_EXPORT_COLUMNS`).
+    cols = [c for c in _HEADERS
+            if c not in missing_headers and c not in SHORT_EXPORT_COLUMNS]
 
     out = {}
     for t in (targets or ()):
@@ -512,5 +514,75 @@ def read_finviz_fields(targets, failures=None) -> dict:
         fp = _derive_float_pct(row)
         if fp is not None:
             row["float_pct"] = fp
+        out[tu] = row
+    return out
+
+
+def _load_artifact_rows(failures, source, prefix=""):
+    """`(rows, missing_headers)` from the stored artifact, or None when it is
+    absent, unreadable, not an object or short (< `_MIN_ROWS`): counted as
+    `{prefix}missing` under `source`. An artifact older than `_STALE_DAYS` is
+    served and counted (`{prefix}stale:{age}d`). One local file read."""
+    path = _artifact_path()
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except (OSError, ValueError):
+        _note(failures, source, prefix + "missing")
+        return None
+    if not isinstance(payload, dict):
+        _note(failures, source, prefix + "missing")
+        return None
+
+    rows = payload.get("rows") or {}
+    if not isinstance(rows, dict) or len(rows) < _MIN_ROWS:
+        _note(failures, source, prefix + "missing")
+        return None
+
+    missing_headers = set(payload.get("missing_headers") or ())
+    age_days = _artifact_age_days(payload.get("as_of"))
+    if age_days is not None and age_days > _STALE_DAYS:
+        _note(failures, source, f"{prefix}stale:{age_days}d")
+    return rows, missing_headers
+
+
+def _finite(v):
+    """A stored number as a float, or None: never a bool, a NaN or an infinity."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    f = float(v)
+    return f if f == f and f not in (float("inf"), float("-inf")) else None
+
+
+def read_short_export(targets, failures=None) -> dict:
+    """{TICKER: {"short_float_pct"?, "short_ratio"?, "float_shares"?}}: what the
+    export holds for `short_columns`, the two columns' one writer. NOT a
+    `market_row` reader and never merged into a row as it stands.
+
+    `short_float_pct` is a PERCENT (3.45 means 3.45% of the float, never the
+    fraction 0.0345), `short_ratio` is DAYS to cover, `float_shares` is an
+    absolute share count (the same value `read_finviz_fields` gives the row's
+    `float_shares`). Per-column presence, as in `read_finviz_fields`: a key is
+    absent when its header was missing from the pull or the stock has no
+    number for it, so "not known" is never a 0. A stock with no row gets `{}`.
+    Artifact absent or short -> `{}`, counted under `short_columns` as
+    `export_missing`; a stale one is served and counted `export_stale:{n}d`.
+    """
+    loaded = _load_artifact_rows(failures, "short_columns", "export_")
+    if loaded is None:
+        return {}
+    rows, missing_headers = loaded
+    cols = [c for c in SHORT_EXPORT_COLUMNS + ("float_shares",)
+            if c not in missing_headers]
+    out = {}
+    for t in (targets or ()):
+        tu = str(t).upper()
+        src = rows.get(tu)
+        row = {}
+        if isinstance(src, dict):
+            for col in cols:
+                v = _finite(src.get(col))
+                if v is not None:
+                    row[col] = v
         out[tu] = row
     return out

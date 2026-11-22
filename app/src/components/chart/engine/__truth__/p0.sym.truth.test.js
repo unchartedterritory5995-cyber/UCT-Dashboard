@@ -114,7 +114,10 @@ describe('P0 sym — a typed formula that reads another symbol is SUPPLIED on th
     expect(registry.externalReadNotices(def, cols).map((n) => n.code)).toEqual([OTHER_SYMBOL_REFUSAL.BARE])
   })
 
-  it('CONTROL — a Pine translation keeps its own spelling rules, unchanged (no stamp → `unspelled`, no strip row)', () => {
+  // ⭐⭐ ENGINE 55 — FLIPPED DELIBERATELY: a Pine translation keeps its own spelling rules
+  // (no stamp → `unspelled`), and its settled refusal is now NAMED on the strip too
+  // (`externalReadNotices`): the plot used to draw an all-`na` line with nothing said.
+  it('CONTROL — a Pine translation keeps its own spelling rules (no stamp → `unspelled`), and the refusal is named on the strip', () => {
     const def = { ...formulaDoc("close / sym('SPY', close)") }
     def.meta = { ...def.meta, recurrenceOrigin: 'pine' }
     const cols = registry.computeFor(def, BARS, {}, { tf: 'D', secondary: AVAILABLE_SPY })
@@ -122,7 +125,8 @@ describe('P0 sym — a typed formula that reads another symbol is SUPPLIED on th
     expect(registry.otherSymbolReport(cols).refused.map((r) => r.code)).toEqual([OTHER_SYMBOL_REFUSAL.UNSPELLED])
     expect(resolveOtherSymbols(def, { secondary: AVAILABLE_SPY }).refused.map((r) => r.code)).toEqual([OTHER_SYMBOL_REFUSAL.UNSPELLED])
     expect(fetchableOtherSymbols(def)).toEqual([])
-    expect(registry.externalReadNotices(def, cols)).toEqual([])
+    expect(registry.externalReadNotices(def, cols).map((n) => n.code)).toEqual([OTHER_SYMBOL_REFUSAL.UNSPELLED])
+    expect(registry.columnErrors(cols).value.guard).toBe(OTHER_SYMBOL_REFUSAL.UNSPELLED)
   })
 })
 

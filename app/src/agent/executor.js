@@ -18,18 +18,69 @@
 // written. The runtime resolves aliases to real refs after creating them; an
 // alias never leaves the transaction.
 
-import { getCapability, getTargetKind, shapeError } from './capabilities'
+import { getCapability, getTargetKind, shapeError, normalizeArgs } from './capabilities'
 
 // The CLIENT planner's ceiling, for every plan (fast path, references, expansions included): 24 units,
 // an expansion counting once, 96 raw ops at most. A MODEL plan is held to 12 ops before it gets here
 // (server turn.py MAX_OPS = contract/manifest.contract.json limits.maxOps; agentContracts.test.js).
 export const MAX_OPS = 24
 
-export function planOps(targets, ops, env = {}, ctx = null) {
+export const MIXED_REFUSAL = 'I can’t add new widgets and change existing ones in the same request here — ask in two steps: the new widgets first, then the change to the ones you already have.'
+
+// Target kinds whose changes re-tile, replace or re-point the board itself: a request mixing them with new widgets keeps
+// the refusal (the new widgets' placement depends on them, so neither order can be rolled back exactly).
+const SPLIT_DENY_KINDS = new Set(['board', 'workspace', 'layouts'])
+
+/**
+ * ⭐ MISSION 3: "add a QQQ chart and change the SPY chart to weekly" — the ops of a plan refused ONLY as add + change-existing,
+ * split into the part that creates (every creator op and every op aimed at what it creates) and the part that changes
+ * targets that already exist. Each part is an ordinary plan of its own. Pure; null when the request can't be split safely:
+ * an exclusive op (opening a layout), a change to the board / workspace / layouts themselves, or a change to an existing
+ * target that names a new widget (its alias) in its arguments — those keep the refusal.
+ * → { parts: [{ side: 'create'|'change', ops }] } in the member's order (the part whose first op came first runs first).
+ */
+export function splitMixedOps(opsIn) {
+  if (!Array.isArray(opsIn) || opsIn.length < 2) return null
+  const aliases = new Set()
+  for (const op of opsIn) {
+    const c = getCapability(op?.action)?.creates?.(op?.args || {})
+    if (c?.alias) aliases.add(String(c.alias))
+  }
+  if (!aliases.size) return null
+  const create = [], change = []
+  let firstCreate = -1, firstChange = -1
+  opsIn.forEach((op, i) => {
+    const cap = getCapability(op?.action)
+    const creating = !!cap?.creates?.(op?.args || {}) || aliases.has(String(op?.target))
+    if (creating) { create.push(op); if (firstCreate < 0) firstCreate = i } else { change.push(op); if (firstChange < 0) firstChange = i }
+  })
+  if (!create.length || !change.length) return null
+  // ⭐ CG-3 (corpus #769): new widgets + exactly ONE re-tile of the WHOLE board (widget.arrange, widgets null) is the one
+  // board change allowed beside creation — run after the adds, so it arranges them too; one grouped Undo reverses both
+  const arrangeAfter = change.length === 1 && change[0]?.action === 'widget.arrange' && change[0]?.args?.widgets == null
+    && create.every(o => o?.action === 'widget.add' || o?.action === 'widget.addCharts' || aliases.has(String(o?.target)))
+  for (const op of opsIn) if (getCapability(op?.action)?.exclusive && !getCapability(op?.action)?.sequential) return null
+  for (const op of change) {
+    const cap = getCapability(op?.action)
+    if (!cap || cap.query || (SPLIT_DENY_KINDS.has(cap.target) && !arrangeAfter)) return null
+    const args = JSON.stringify(op?.args ?? null)
+    for (const a of aliases) if (args.includes(`"${a}"`)) return null
+  }
+  // CG-3: "put four charts on my screen" planned as new charts + ONE even re-tile of the whole board — the adds first, THEN
+  // the re-tile of what is on the board then (its own plan, of the real widgets), whatever order the model wrote them in
+  const parts = [{ side: 'create', ops: create, at: arrangeAfter ? -1 : firstCreate }, { side: 'change', ops: change, at: firstChange }]
+    .sort((a, b) => a.at - b.at).map(({ side, ops }) => ({ side, ops }))
+  return { parts }
+}
+
+export function planOps(targets, opsIn, env = {}, ctx = null) {
   const refusals = []
-  if (!Array.isArray(ops) || ops.length === 0) {
+  if (!Array.isArray(opsIn) || opsIn.length === 0) {
     return { ok: false, refusals: [{ index: -1, reason: 'There was nothing to change.' }] }
   }
+  // W1.1 R-01: the capability's declared args tolerance (capabilities.normalizeArgs — the browser half of the
+  // server's turn.normalize_args) applies on EVERY path before the shape gate; the op objects given are never mutated
+  const ops = opsIn.map(op => (op && op.args && typeof op.args === 'object' ? { ...op, args: normalizeArgs(op.action, op.args).args } : op))
   // An expanded request (compose.expandOps, e.g. "chart these 8") counts once.
   const units = new Set(ops.map((o, i) => (o?.fromExpand != null ? `x${o.fromExpand}` : `#${i}`))).size
   if (units > MAX_OPS || ops.length > MAX_OPS * 4) {
@@ -104,7 +155,10 @@ export function planOps(targets, ops, env = {}, ctx = null) {
       if (why) { refusals.push({ index, action: op.action, target: ref, reason: why }); continue }
       if (cap.confirmIf && cap.confirmIf(st, op.args, oenv)) confirm = true
       const next = cap.apply(st, op.args, oenv)
-      if (next === st && cap.noop) noops.push(cap.noop(st, st, op.args, oenv))
+      // hotfix 2026-11-03 (live T1: "Already Daily · Already Daily" for two charts that did not exist yet): a NEW target's
+      // defaults are only the planner's stand-in — an op that matches them is still carried into its creation
+      // (createFlags), so it is never reported as "already" so
+      if (next === st && cap.noop && !tgt.virtual) noops.push(cap.noop(st, st, op.args, oenv))
       st = next
     }
     // ⭐ PHASE 3 (receipts): how many targets of this kind the board has — one chart's change on a board of several
@@ -115,11 +169,13 @@ export function planOps(targets, ops, env = {}, ctx = null) {
 
   // A creating plan may only touch its creators and what it creates: mixing in
   // changes to EXISTING targets would need a general rollback to compensate.
+  // ⭐ MISSION 3 (W2): `code: 'mixed'` — the runtime (useAgent) may instead run the request as TWO executions of this same
+  // planner, in the member's order, with one grouped Undo (splitMixedOps); where it can't, this refusal stands.
   if (created.length) {
     const creatorRefs = new Set(created.map(c => c.op.target))
     const mixed = plans.filter(p => !p.virtual && !creatorRefs.has(p.ref))
     if (mixed.length) {
-      refusals.push({ index: -1, reason: 'Adding widgets and changing existing ones in one request isn’t supported yet — do it in two steps.' })
+      refusals.push({ index: -1, code: 'mixed', reason: MIXED_REFUSAL })
     }
   }
   // An EXCLUSIVE capability (e.g. opening another layout) replaces what every other
@@ -158,7 +214,11 @@ export function planOps(targets, ops, env = {}, ctx = null) {
     p.changed = !!p.patch || p.virtual
     if (p.changed) changed = true
   }
-  return { ok: true, plans, lines: summarize(plans), changed, noops: plans.flatMap(p => p.noops) }
+  const out = { ok: true, plans, lines: summarize(plans), changed, noops: plans.flatMap(p => p.noops) }
+  // W1.1 review NB-3: the NORMALIZED ops (canonical arg keys) for the guards that run after planning
+  // (protectionRefusal); non-enumerable, so a plan's shape and equality are unchanged
+  Object.defineProperty(out, 'normalizedOps', { value: ops, enumerable: false })
+  return out
 }
 
 /**

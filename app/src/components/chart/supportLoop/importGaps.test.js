@@ -97,7 +97,19 @@ describe('A2 — the log payload carries only allowlisted names and a count', ()
     expect(p).toEqual({
       gaps: [{ name: 'ta.sma', kind: 'call-unmapped' }, { name: 'ta.rci', kind: 'call-unmapped' }],
       unlisted: 2,
+      guards: [],
     })
+    expect(JSON.stringify(p)).not.toMatch(/mySecretThing/)
+  })
+
+  it('U4: carries the distinct refusal GUARD CODES of the gaps, sorted, and nothing else of them', () => {
+    const p = gapLogPayload({ gaps: [
+      { name: null, kind: 'call-unmapped', guard: 'pine:state' },
+      { name: 'ta.sma', kind: 'call-unmapped', guard: 'pine:builtin-args' },
+      { name: null, kind: 'call-unmapped', guard: 'pine:state' },
+      { name: 'mySecretThing', kind: 'name-unknown', guard: null },
+    ] })
+    expect(p.guards).toEqual(['pine:builtin-args', 'pine:state'])
     expect(JSON.stringify(p)).not.toMatch(/mySecretThing/)
   })
 

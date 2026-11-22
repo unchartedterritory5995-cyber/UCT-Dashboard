@@ -595,7 +595,10 @@ describe('⭐⭐ `#` is an OPTIONAL digit and `0` is a REQUIRED one', () => {
     // `String(n)` — '1234.5' — which no capture shows TradingView drawing either.
     // F3 reads the pattern where the separator cannot appear (every captured
     // value sits below the group size) and WITHHOLDS the text where it would.
-    expect(cellText(1234.5, '#,###')).toBeNull()
+    // ⭐ CBC-FMT (landing train 1): grouping by THREE is witnessed (capture session S10, T20) and drawn;
+    // what stays withheld by name is another grouping size (`format:grouping-uncaptured`).
+    expect(cellText(1234.5, '#,###')).toBe('1,235')
+    expect(cellText(123456.5, '#,##')).toBeNull()
     // CONTROL: below the group size the same pattern is drawn
     expect(cellText(999, '#,###')).toBe('999')
   })

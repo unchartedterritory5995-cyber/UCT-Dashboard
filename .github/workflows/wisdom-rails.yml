@@ -39,11 +39,35 @@ on:
     branches: [master, feat/wisdom-loop, 'wisdom/**']
   pull_request:
 
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
+# workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
+# is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   rails:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
+      # A PULL REQUEST LEAVES OUT OLD FILE CONTENTS (2026-11-17): `filter: blob:none` keeps the WHOLE commit graph
+      # and the WHOLE working tree, and skips the 1.3 GB of historical file contents. The off-limits rail asks git
+      # for a merge base and two `diff --name-only --no-renames` lists; neither reads a file's contents from
+      # history, and this is not a shallow clone, so the merge base is there. 71 s became 37 s on a real runner
+      # (probe run 44004258840), on a check that runs on every push to every PR.
+      # ⛔ NEVER a sparse checkout here: the ban rails walk the whole tree (measured under strace: 7,365 files in
+      #   2,224 folders), and a folder that is not on disk is a folder they silently do not scan.
+      # ⛔ Every other event keeps the full checkout, the second step below, exactly as it was: promotion reads
+      #   the master run. tests/test_ci_cost_rails.py evaluates the two conditions for every event.
       - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - uses: actions/checkout@v4
+        if: github.event_name != 'pull_request'
         with:
           fetch-depth: 0
 

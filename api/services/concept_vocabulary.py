@@ -337,8 +337,12 @@ def firm_setups(path: Optional[pathlib.Path] = None) -> frozenset:
 #: no count of the entries is written anywhere in this module.
 _CATALOG_BLOCK = re.compile(
     r"export const SETUP_CATALOG\s*=\s*\[(.*?)\n\]", re.DOTALL)
+# ⛔ ANY NUMBER of comment lines may sit between an entry's `{` and its `name:`. This allowed
+# exactly one until 2026-11-15; the Flat Base Breakout card gained a three-line correction note
+# on 2026-11-09 and silently left the definitions this reads, so its citation refused with "the
+# Setup Library publishes no definition of 'Flat Base Breakout'" while the card was published.
 _CATALOG_ENTRY = re.compile(
-    r"\{\s*(?://[^\n]*\n\s*)?name:\s*'([^']+)'(.*?)\n\s*\},", re.DOTALL)
+    r"\{\s*(?://[^\n]*\n\s*)*name:\s*'([^']+)'(.*?)\n\s*\},", re.DOTALL)
 _CATALOG_PIVOT = re.compile(r"pivot:\s*\{[^}]*side:\s*'([^']+)'")
 
 #: The fields an entry must carry for a citation to resolve against it. The
@@ -493,6 +497,17 @@ def _resolve_starter_screen(cite: Mapping[str, Any]) -> dict:
                 "the filter registry no longer declares")
         keys.add(entry.get("column"))
         values |= _numbers(f.get(k) for k in ("min", "max", "value"))
+        # ⭐ A FIELD-TO-FIELD filter (`lt_col` / `gt_col`, `other`: the column it is compared
+        # against) screens on BOTH columns. Reading only `key` dropped the right-hand one, so a
+        # concept quoting `Tight bases near highs` term for term (`adr_pct_1w < adr_pct`) was
+        # refused for naming `adr_pct` (2026-11-15).
+        if f.get("other") is not None:
+            other = registry.get(f.get("other"))
+            if other is None:
+                raise _CitationFailed(
+                    f"starter screen {wanted!r} compares against {f.get('other')!r}, which "
+                    "the filter registry no longer declares")
+            keys.add(other.get("column"))
     return {"values": values, "keys": keys,
             "detail": f"{screen.get('name')!r} ({wanted})"}
 

@@ -3,8 +3,8 @@
 // ─── B1 (step 61) — paints JOIN the harness verdict, as C44 joined object colour ──
 //
 // Integrator ruling 2026-10-02: a capture whose `bgcolor` / `barcolor` differs from
-// TradingView's — or that the door withholds by name — grades DIVERGE, ON by
-// default. `verdictWithoutPaints` is the verdict exactly as it was before, so both
+// TradingView's grades DIVERGE, ON by default; one the door withholds BY NAME grades
+// INCONCLUSIVE (G5 ruling 2026-11-15; it was DIVERGE before). `verdictWithoutPaints` is the verdict exactly as it was before, so both
 // numbers are read from one run; `VENDOR_HARNESS_PAINTS=0` (or `{paints: false}`)
 // reproduces the old record byte for byte.
 //
@@ -35,10 +35,12 @@ describe('B1 — what each paint state means for the verdict (comparePaints)', (
     }
   })
 
-  it('⭐ a WITHHELD paint is a gap — DIVERGE — unless TradingView does not draw it either', () => {
+  it('⭐ a paint WITHHELD BY NAME is INCONCLUSIVE, as a plot is (G5 ruling 2026-11-15) — unless TradingView does not draw it either', () => {
+    // ⚰️ It was a gap graded DIVERGE until the G5 ruling; the full table is
+    // `vendorHarness.g5PaintWithheldByName.test.js`.
     const shown = comparePaints({ rows: [row('withheld', { displayed: true, reason: 'x' })], unpaired: [] })
-    expect(shown.verdict).toBe('DIVERGE')
-    expect(shown.reason).toContain('withheld')
+    expect(shown.verdict).toBe('INCONCLUSIVE')
+    expect(shown.reason).toContain('withheld by name')
     const hidden = comparePaints({ rows: [row('withheld', { displayed: false, reason: 'x' })], unpaired: [] })
     expect(hidden.verdict).toBe(null)
     expect(hidden.undrawn).toBe(1)
@@ -68,10 +70,10 @@ describe('B1 — what each paint state means for the verdict (comparePaints)', (
 })
 
 describe('B1 — the verdict on the real captures', () => {
-  it('⭐ heat-map-seasons — its withheld `barcolor` counts as a GAP in the verdict, named', () => {
+  it('⭐ heat-map-seasons — its `barcolor` withheld by name is INCONCLUSIVE in the verdict, named', () => {
     const { verdict } = gradeCapture(load(HEAT))
-    expect(verdict.paints.verdict).toBe('DIVERGE')
-    expect(verdict.paints.reason).toMatch(/barcolor plot_0 "Bar Color" withheld/)
+    expect(verdict.paints.verdict).toBe('INCONCLUSIVE')
+    expect(verdict.paints.reason).toMatch(/withheld by name, not graded \(first: barcolor plot_0 "Bar Color" — /)
     // it already diverged on its plots, so the overall verdict does not move
     expect(verdict.verdict).toBe('DIVERGE')
     expect(verdict.verdictWithoutPaints).toBe('DIVERGE')

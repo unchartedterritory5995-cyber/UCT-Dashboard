@@ -59,5 +59,15 @@
     "last_date": "2008-05-30",
     "reason": "Acquired by JPMorgan Chase after near-collapse (ticker BSC later reused by an ETN)",
     "source": "massive"
+  },
+  {
+    "ticker": "ROKU",
+    "name": "Roku, Inc.",
+    "sector": "Communication Services",
+    "industry": "Entertainment",
+    "delisted_date": "2026-11-06",
+    "last_date": "2026-11-09",
+    "reason": "Acquired by Fox Corporation (closed 2026-11-06; Nasdaq trading halted and the stock delisted)",
+    "source": "massive"
   }
 ]

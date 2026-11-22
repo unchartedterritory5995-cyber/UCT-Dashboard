@@ -155,6 +155,48 @@ describe('barsStreamManager', () => {
     } finally { vi.useRealTimers() }
   })
 
+  it('VENDOR DOWN: a status live:false drops delivering at once, and live:true restores it (2026-11-18)', () => {
+    let notified = 0
+    bars.subscribe('AAPL', '1', { onStatus: () => { notified += 1 } })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 1, c: 1 } })
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+    es._emit('status', { live: true })                 // the start-of-stream word: nothing changes
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+    const before = notified
+    es._emit('status', { live: false })                // a fresh bar, but the vendor socket is down
+    expect(bars.getStatus('AAPL', '1')).toMatchObject({ connected: true, delivering: false })
+    expect(notified).toBe(before + 1)                  // the chart re-reads its gate now
+    es._emit('status', { live: false })                // the same word again: no new notice
+    expect(notified).toBe(before + 1)
+    es._emit('status', { live: true })
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+  })
+
+  it('VENDOR DOWN: a malformed status is ignored, and a new connection forgets the old word', () => {
+    vi.useFakeTimers()
+    try {
+      bars.subscribe('AAPL', '1', {})
+      flush()
+      const es = MockES.instances[0]
+      es._open()
+      es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 1, c: 1 } })
+      ;(es.listeners.status || []).forEach(fn => fn({ data: 'not json' }))
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+      es._emit('status', { live: false })
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(false)
+      es._error()                                      // reconnect: a new EventSource
+      vi.advanceTimersByTime(60000)
+      const es2 = MockES.instances[MockES.instances.length - 1]
+      expect(es2).not.toBe(es)
+      es2._open()
+      es2._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 2, c: 1 } })
+      expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+    } finally { vi.useRealTimers() }
+  })
+
   it('watchdog re-notifies each sweep so a stale delivering is OBSERVED, not dead code (re-review)', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-07-06T14:00:00Z'))
@@ -201,5 +243,184 @@ describe('barsStreamManager', () => {
     const s = bars.getStatus('AAPL', '1')
     expect(s.connected).toBe(false)
     expect(s.delivering).toBe(false)  // a dropped feed must not read as delivering
+  })
+})
+
+describe('barsStreamManager — optional `final` / `trade_ts` bar fields', () => {
+  it('a FINAL bar dispatches immediately and is never coalesced away by a straggler', () => {
+    const got = []
+    bars.subscribe('AAPL', '5', { onBar: d => got.push(d.bar) })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 } })
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.6, v: 12, final: true, trade_ts: 1500 } })
+    expect(got.length).toBe(1)                       // dispatched without waiting for the throttle
+    expect(got[0]).toMatchObject({ final: true, trade_ts: 1500, c: 1.6 })
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 301, o: 1.6, h: 1.6, l: 1.6, c: 1.6, v: 1 } })
+    bars._flushBars()
+    expect(got.map(b => b.t)).toEqual([1, 301])      // the superseded non-final frame was dropped
+  })
+
+  it('absent fields: legacy {t,o,h,l,c,v} frames pass through unchanged', () => {
+    const got = []
+    bars.subscribe('AAPL', '5', { onBar: d => got.push(d.bar) })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 } })
+    bars._flushBars()
+    expect(got).toEqual([{ t: 1, o: 1, h: 2, l: 1, c: 1.5, v: 10 }])
+  })
+})
+
+describe('barsStreamManager — session (60m alignment, per connection)', () => {
+  it('ETH 60m rides its own ?session=eth connection; 1-30m and RTH share the default one', () => {
+    const rth = []; const eth = []
+    bars.subscribe('AAPL', '60', { onBar: d => rth.push(d), session: 'rth' })
+    bars.subscribe('AAPL', '60', { onBar: d => eth.push(d), session: 'eth' })
+    bars.subscribe('MSFT', '5', { session: 'eth' })   // non-60m normalizes to the default connection
+    flush()
+    expect(MockES.instances.length).toBe(2)
+    const [a, b] = MockES.instances
+    expect(a.url).toContain('AAPL:60'); expect(a.url).toContain('MSFT:5'); expect(a.url).not.toContain('session=')
+    expect(b.url).toContain('bars=AAPL:60'); expect(b.url).toContain('session=eth'); expect(b.url).not.toContain('@')
+    a._open(); b._open()
+    b._emit('bar', { sym: 'AAPL', tf: '60', bar: { t: 1, o: 1, h: 1, l: 1, c: 1, v: 1, session: 'eth' } })
+    bars._flushBars()
+    expect(eth.length).toBe(1)
+    expect(rth.length).toBe(0)
+    expect(bars.getStatus('AAPL', '60', 'eth').delivering).toBe(true)
+    expect(bars.getStatus('AAPL', '60', 'rth').delivering).toBe(false)
+  })
+})
+
+describe('barsStreamManager — protocol v2 per-key t ordering', () => {
+  it('opts in with v=2', () => {
+    bars.subscribe('AAPL', '1', {})
+    flush()
+    expect(MockES.instances[0].url).toContain('v=2')
+  })
+  it('drops a NON-final frame older than the newest seen; dispatches an older-t FINAL correction', () => {
+    const got = []
+    bars.subscribe('AAPL', '5', { onBar: d => got.push(d.bar) })
+    flush()
+    const es = MockES.instances[0]
+    es._open()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 600, o: 1, h: 1, l: 1, c: 1, v: 1 } })
+    bars._flushBars()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 300, o: 1, h: 2, l: 1, c: 2, v: 9 } })   // straggler
+    bars._flushBars()
+    es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 300, o: 1, h: 2, l: 1, c: 1.5, v: 9, final: true } })
+    bars._flushBars()
+    expect(got.map(b => [b.t, !!b.final])).toEqual([[600, false], [300, true]])
+  })
+})
+
+describe('recovery: reconnectNow and isConnected', () => {
+  it('reopens every bucket at once and the reopen gap-backfills each chart', () => {
+    vi.useFakeTimers()
+    const reconnects = []
+    bars.subscribe('AAPL', '5', { onReconnect: (t) => reconnects.push(t) })
+    flush()
+    const first = MockES.instances[0]
+    first._open()
+    first._error()
+    expect(bars.isConnected()).toBe(false)
+    bars.reconnectNow()
+    const open = MockES.instances.filter((es) => !es.closed)
+    expect(open).toHaveLength(1)
+    expect(open[0]).not.toBe(first)
+    vi.advanceTimersByTime(20000) // past the 20 s backoff cap: the old backoff timer must not open a second connection
+    const still = MockES.instances.filter((es) => !es.closed)
+    expect(still).toHaveLength(1)
+    expect(still[0]).toBe(open[0])
+    still[0]._open()
+    expect(bars.isConnected()).toBe(true)
+    expect(reconnects.length).toBe(2) // first open, then the recovery reopen
+    vi.useRealTimers()
+  })
+
+  it('with nothing subscribed there is nothing to wait for', () => {
+    expect(bars.isConnected()).toBe(true)
+  })
+})
+
+describe('developing-bar hold: 250 ms by default (LIVE_CANDLE_CADENCE_MS), the per-browser override when set', () => {
+  const KEY = 'uct.liveCadenceMs'
+  const run = (stored) => {
+    if (stored == null) localStorage.removeItem(KEY); else localStorage.setItem(KEY, stored)
+    vi.useFakeTimers()
+    try {
+      const got = []
+      bars.subscribe('AAPL', '5', { onBar: (d) => got.push(d.bar.c) })
+      flush()
+      const es = MockES.instances[0]
+      es._emit('open')
+      es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 1, l: 1, c: 1.1, v: 1 } })
+      es._emit('bar', { sym: 'AAPL', tf: '5', bar: { t: 1, o: 1, h: 1, l: 1, c: 1.2, v: 2 } })
+      const at = (ms) => { vi.advanceTimersByTime(ms); return got.slice() }
+      return { at }
+    } finally { /* timers restored by the caller */ }
+  }
+  afterEach(() => { vi.useRealTimers(); localStorage.removeItem(KEY) })
+
+  it('default: nothing before 250 ms, the newest value at 250 ms', () => {
+    const r = run(null)
+    expect(r.at(249)).toEqual([])
+    expect(r.at(1)).toEqual([1.2])
+  })
+  it('override 1000 (slower than the default) holds this browser to 1 s', () => {
+    const r = run('1000')
+    expect(r.at(999)).toEqual([])
+    expect(r.at(1)).toEqual([1.2])
+  })
+  it('override 50: nothing at 49 ms, the newest value at 50 ms', () => {
+    const r = run('50')
+    expect(r.at(49)).toEqual([])
+    expect(r.at(1)).toEqual([1.2])
+  })
+  it('an unusable override changes nothing', () => {
+    const r = run('soon')
+    expect(r.at(249)).toEqual([])
+    expect(r.at(1)).toEqual([1.2])
+  })
+})
+
+describe('delivering = a DEVELOPING frame, never past finals alone (2026-11-17, 1m live edge)', () => {
+  it('the subscribe snapshot of closed finals leaves delivering false; a developing frame turns it on', () => {
+    bars.subscribe('AAPL', '1', {})
+    bars._flushRebuild()
+    const es = MockES.instances[0]
+    es._open()
+    for (let t = 1; t <= 3; t++) es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t, o: 1, h: 1, l: 1, c: 1, final: true } })
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(false)
+    es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 2, c: 1 } })          // a straggler: dropped
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(false)
+    es._emit('bar', { sym: 'AAPL', tf: '1', bar: { t: 4, c: 1 } })          // the live candle
+    expect(bars.getStatus('AAPL', '1').delivering).toBe(true)
+  })
+})
+
+describe('edge entitlement refresh (stream-edge, 2026-11-17)', () => {
+  it('re-mints the edge cookie every EDGE_REFRESH_MS while a stream is open, and stops after', () => {
+    vi.useFakeTimers()
+    const fetchSpy = vi.fn(() => Promise.resolve({ ok: true }))
+    const saved = global.fetch
+    global.fetch = fetchSpy
+    try {
+      const unsub = bars.subscribe('AAPL', '1', {})
+      bars._flushRebuild()
+      expect(fetchSpy).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(bars.EDGE_REFRESH_MS)
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+      expect(fetchSpy.mock.calls[0][0]).toBe('/api/auth/me')
+      vi.advanceTimersByTime(bars.EDGE_REFRESH_MS)
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+      unsub()
+      bars._flushRebuild()
+      vi.advanceTimersByTime(bars.EDGE_REFRESH_MS * 3)
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+    } finally { global.fetch = saved; vi.useRealTimers() }
   })
 })

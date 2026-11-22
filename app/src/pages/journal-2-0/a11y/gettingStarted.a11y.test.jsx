@@ -14,6 +14,7 @@ import { installFetch, Providers } from './fixtures'
 import { axeSurface } from './surface'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
 import GettingStartedChecklist from '../components/notebook/GettingStartedChecklist'
+import GettingStartedList from '../components/notebook/GettingStartedList'
 import { WALKTHROUGH_TITLE } from '../lib/templateBlocks'
 
 const EMPTY_HOME = { continueWorking: [], favorites: [], activeTheses: [], openPositionResearch: [], needsReview: [] }
@@ -49,7 +50,7 @@ describe('lane W14-D surface (the get started checklist)', () => {
     ])
     render(
       <Providers>
-        <GettingStartedChecklist hasAnyNotes onCreateNote={() => {}} onAddSample={null} />
+        <GettingStartedList hasAnyNotes onCreateNote={() => {}} onAddSample={null} />
       </Providers>,
     )
     await screen.findByText('2 of 3 done')

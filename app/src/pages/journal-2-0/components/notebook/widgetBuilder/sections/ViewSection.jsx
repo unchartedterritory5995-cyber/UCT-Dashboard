@@ -99,7 +99,7 @@ export default function ViewSection({ cat, plan, unit = 'trades', onView, onComp
 
       {cat.accents.length > 0 && (
         <div className={styles.field}>
-          <span className={styles.fieldLabel} id={`${accentName}-l`}>Colour</span>
+          <span className={styles.fieldLabel} id={`${accentName}-l`}>Color</span>
           <div className={styles.swatches} role="radiogroup" aria-labelledby={`${accentName}-l`}>
             {cat.accents.map((a) => (
               <label key={a} className={`${styles.swatch} ${plan.display.accent === a ? styles.swatchOn : ''}`}

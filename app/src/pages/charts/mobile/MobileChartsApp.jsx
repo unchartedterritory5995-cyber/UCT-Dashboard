@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import useHistoryUserId from '../../../components/chart/useHistoryUserId'
 import { recordIndicatorChange } from '../../../components/chart/indicatorHistoryStore'
-import { labelFor as indicatorLabelFor } from '../../../components/chart/indicatorCatalog'
+import { anyLabelFor as indicatorLabelFor } from '../../../components/chart/indicatorCatalog'
 import ChartPane from '../../../components/chart/pane/ChartPane'
 import { ChartHostOverlayContext } from '../widgets/chartHostOverlay'
 import useChartSurfaceSettings from '../../../components/chart/pane/useChartSurfaceSettings'
@@ -36,6 +36,7 @@ import { isInstanceTombstone } from '../../../components/chart/instanceShape'
 import { CARVED_OUT_ROWS } from '../../../components/chart/indicatorCatalog'
 import { liveOverlayList } from '../../../components/chart/chartDefaults'
 import { MA_DEF_ID } from '../../../components/chart/maAdoption'
+import useChartTouchTuck from '../../../hooks/useChartTouchTuck'
 import wsStyles from '../ChartsWorkspace.module.css'
 import styles from './MobileCharts.module.css'
 
@@ -125,6 +126,12 @@ export default function MobileChartsApp({
   const [pendingWatchlistOpen, setPendingWatchlistOpen] = useState(false)
 
   const paneRef = useRef(null)
+  // ⭐ Decision B3 — the floating buttons (voice orb, feedback "?", the joystick
+  // hub and its pill) tuck away while a finger is on the CHART and come back a
+  // short idle after it lifts. The listener sits on the chart's own wrapper, not
+  // on the chart area, so a touch on a widget page opened over the chart (a
+  // watchlist) never tucks anything. See `hooks/useChartTouchTuck.js`.
+  const chartTouchRef = useRef(null)
   // Filled by StockChart with the mounted ChartToolbar's imperative API — the
   // door the ƒx sheet uses to open the real IndicatorLibraryDialog.
   const toolbarApiRef = useRef(null)
@@ -149,6 +156,9 @@ export default function MobileChartsApp({
 
   const chartIdx = chartWidgetIndex(widgets)
   const chartWidget = chartIdx >= 0 ? widgets[chartIdx] : null
+  // Armed only once the chart wrapper exists: the layout hydrates AFTER the first
+  // render, so the wrapper (and the ref) arrive later than the hook's first run.
+  useChartTouchTuck(chartTouchRef, { enabled: !!chartWidget })
   const otherWidgets = useMemo(() => (widgets || []).filter((w) => w.type !== 'chart'), [widgets])
   const screenWidget = screen ? (widgets || []).find((w) => w.id === screen.id) : null
 
@@ -300,6 +310,14 @@ export default function MobileChartsApp({
     paneRef.current?.openSettings(door && door.isConnected ? { currentTarget: door } : undefined)
   }, [])
   const browseLibrary = useCallback(() => { toolbarApiRef.current?.openIndicatorLibrary?.() }, [])
+  // ⭐ 2026-11-17 — the sheet's first row. The chart's own Create Indicator door (the dock, as a bottom
+  // sheet here); where that door does not open (a chart that cannot be edited), the library, which
+  // says why.
+  const createIndicator = useCallback(() => {
+    let opened = false
+    try { opened = toolbarApiRef.current?.openCreateIndicator?.() === true } catch { opened = false }
+    if (!opened) toolbarApiRef.current?.openIndicatorLibrary?.()
+  }, [])
   // Tools → "Draw on chart": the discoverable door onto the drawing toolbar,
   // which starts collapsed on phone (clean canvas, a chevron nobody new would
   // find). Expands through the toolbar's own persisting setter.
@@ -517,7 +535,7 @@ export default function MobileChartsApp({
                 onOpenList={openReviewList}
               />
             )}
-            <div className={styles.paneWrap}>
+            <div className={styles.paneWrap} ref={chartTouchRef} data-chart-touch-area="">
               <ChartPane
                 ref={paneRef}
                 sym={sym}
@@ -635,6 +653,7 @@ export default function MobileChartsApp({
         historyKey={chartWidget?.id ? `chart:${chartWidget.id}` : null}
         historyUserId={historyUserId}
         onBrowseLibrary={browseLibrary}
+        onCreateIndicator={createIndicator}
         onOpenSettings={openSettings}
         className={sheetTheme}
         initialEditing={sheetEditing}

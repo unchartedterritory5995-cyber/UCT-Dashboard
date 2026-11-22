@@ -1,0 +1,40 @@
+node_modules LinkType/Target: Junction -> C:\w\pl-mc-fw\app\node_modules
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+ ❯ src/agent/agentWhichWidget.rail.test.jsx (7 tests | 1 failed | 6 skipped) 1085ms
+     ↓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed
+     ↓ "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed
+     × u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won't guess 1084ms
+     ↓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question
+     ↓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question
+     ↓ "refresh the IPOs scanner" with two Scanners: that one only
+     ↓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (d) u18-refresh-06: an EXCLUDED widget is never acted on > u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won't guess
+AssertionError: UCT Agent10:52 PMYou asked me to leave the Period Sort alone, so I didn’t touch it. Nothing changed.: expected 'UCT Agent10:52 PMYou asked me to leav…' to match /Scanner/
+
+- Expected: 
+/Scanner/
+
++ Received: 
+"UCT Agent10:52 PMYou asked me to leave the Period Sort alone, so I didn’t touch it. Nothing changed."
+
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:75:22
+     73|     expect(s.calls, out).toEqual([])
+     74|     expect(out, out).toMatch(/leave the Period Sort alone/)
+     75|     expect(out, out).toMatch(/Scanner/)
+       |                      ^
+     76|     expect(out, out).toMatch(/won.t guess/)
+     77|     expect(out, out).toMatch(/Nothing changed\./)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 skipped (7)
+   Start at  22:52:05
+   Duration  6.95s (transform 4.03s, setup 244ms, import 5.11s, tests 1.08s, environment 374ms)
+

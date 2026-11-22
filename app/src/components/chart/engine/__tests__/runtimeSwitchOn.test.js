@@ -123,7 +123,9 @@ describe('GT D6 — the starter allowlist', () => {
 
   it('the committed list is adx-and-di-for-v4 only, and its hash is the door\'s', () => {
     const committed = JSON.parse(fs.readFileSync(ALLOWLIST, 'utf8')).scripts
-    expect(committed.map((s) => s.slug)).toEqual(['adx-and-di-for-v4'])
+    // RS Rating (fred6724) joined on 2026-11-16, on the SUBSTITUTED path (docs/pine/RS-RATING-TRANSFER.md)
+    expect(committed.map((s) => s.slug)).toEqual(['adx-and-di-for-v4', 'rs-rating-fred6724'])
+    expect(committed[1].admission).toBe('substituted')
     expect(committed[0].sha256).toBe(docs()['adx-and-di-for-v4'].meta.runtimeSourceHash)
   })
 
@@ -190,6 +192,10 @@ describe('GT D6 — the starter allowlist', () => {
   it('MemberPane latches the list from the same read as the kill list', () => {
     const src = fs.readFileSync(path.join(REPO, 'app', 'src', 'components', 'chart', 'builder',
       'memberPane', 'MemberPane.jsx'), 'utf8')
-    expect(src).toMatch(/setRuntimeKillList\(d\.kill\)[\s\S]{0,400}setRuntimeAllowList\(d\.allow\)/)
+    // ⭐ RS RATING L8 — through the one latch both readers share (`runtimeKill.js::latchRuntimeLists`)
+    expect(src).toMatch(/latchRuntimeLists\(d\)/)
+    const kill = fs.readFileSync(path.join(REPO, 'app', 'src', 'components', 'chart', 'engine', 'runtimeKill.js'), 'utf8')
+    const latch = kill.slice(kill.indexOf('export function latchRuntimeLists'))
+    expect(latch).toMatch(/setRuntimeKillList\(d\.kill\)[\s\S]{0,400}setRuntimeAllowList\(d\.allow\)/)
   })
 })

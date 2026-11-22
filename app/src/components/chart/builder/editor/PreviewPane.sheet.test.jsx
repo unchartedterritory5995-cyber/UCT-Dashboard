@@ -18,6 +18,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import BuilderSheet from '../BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../../testing/builder/builderStart.testkit.js'
 import ChartToolbar from '../../ChartToolbar'
 import { mergeChartSettings } from '../../chartDefaults'
 import { FORMULA_DEBOUNCE_MS } from '../FormulaField'
@@ -41,15 +42,17 @@ const flush = async () => { await act(async () => { await Promise.resolve(); awa
 const noop = () => {}
 
 function mount(props = {}) {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} sym="NVDA" tf="D" {...props} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
-const field = () => screen.getByLabelText('Formula')
+const field = () => formulaBox()
 async function typeFormula(text) {
   fireEvent.change(field(), { target: { value: text } })
   await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 1) })
@@ -99,7 +102,7 @@ describe('the live preview is reachable from the sheet', () => {
   it('a member input the draft NAMES rides onto the preview definition — declared there, and named by the source the registry holds', async () => {
     mount()
     await flush()
-    await act(async () => { fireEvent.click(screen.getByTestId('add-input')) })
+    await act(async () => { fireEvent.click((openInputs(), screen.getByTestId('add-input'))) })
     await act(async () => { fireEvent.change(screen.getByLabelText('Input 1 name'), { target: { value: 'period' } }) })
     // ⚠️ `sma(close, period)` CANNOT BE THE FIXTURE HERE, and the reason is the
     // engine's, not this test's: the closed table refuses a non-literal window

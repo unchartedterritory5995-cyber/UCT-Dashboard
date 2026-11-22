@@ -8,11 +8,12 @@
 // (StockChart `adjustTime`). So on a daily chart every anchor (20261015)
 // was read as a 1970 timestamp, `timeToCoordinate` answered null, and every
 // shape silently drew nothing; intraday anchors landed ET_OFFSET seconds off
-// any bar and resolved null the same way.
+// any bar and resolved null the same way. (2026-11-10: that offset is now per
+// instant, not one module-load constant -- see barTime.js.)
 //
 // ONE conversion, then ONE snap onto a bar the series actually holds, because
 // `timeToCoordinate` answers only for a time the series has.
-import { ET_OFFSET } from './barTime'
+import { toChartTime as unixToChartTime } from './barTime'
 
 const DATE_TFS = new Set(['D', 'W', 'M'])
 
@@ -49,23 +50,24 @@ function isoToEtOpenEpoch(iso) {
 /**
  * Engine anchor `t` -> the chart's time format for `tf`.
  *   D/W/M    -> 'YYYY-MM-DD' (ET calendar date)
- *   intraday -> epoch seconds + ET_OFFSET (StockChart's adjustTime)
+ *   intraday -> epoch seconds shifted by the ET offset AT THAT INSTANT
+ *               (barTime.toChartTime, StockChart's adjustTime)
  * Accepts YYYYMMDD ints, 'YYYY-MM-DD' strings and UTC epoch seconds.
  * Returns null for anything unrecognisable — never a guess.
  */
-export function toChartTime(t, tf, etOffset = ET_OFFSET) {
+export function toChartTime(t, tf) {
   if (t == null || t === '') return null
   const dateTf = isDateTf(tf)
   if (typeof t === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(t)) {
-    return dateTf ? t : isoToEtOpenEpoch(t) + etOffset
+    return dateTf ? t : unixToChartTime(isoToEtOpenEpoch(t))
   }
   if (isYmdInt(t)) {
     const iso = ymdIntToIso(t)
-    return dateTf ? iso : isoToEtOpenEpoch(iso) + etOffset
+    return dateTf ? iso : unixToChartTime(isoToEtOpenEpoch(iso))
   }
   const n = Number(t)
   if (!Number.isFinite(n) || n <= 0) return null
-  return dateTf ? epochToEtIso(n) : n + etOffset
+  return dateTf ? epochToEtIso(n) : unixToChartTime(n)
 }
 
 /**
@@ -101,8 +103,8 @@ export function snapToBar(chartT, barTimes, tf) {
 }
 
 /** Convert + snap in one call; when no bar list is known, the converted time. */
-export function anchorToBarTime(t, tf, barTimes, etOffset = ET_OFFSET) {
-  const c = toChartTime(t, tf, etOffset)
+export function anchorToBarTime(t, tf, barTimes) {
+  const c = toChartTime(t, tf)
   if (c == null) return null
   if (!barTimes || !barTimes.length) return c
   return snapToBar(c, barTimes, tf)

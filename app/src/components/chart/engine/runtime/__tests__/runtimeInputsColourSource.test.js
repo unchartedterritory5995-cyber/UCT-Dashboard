@@ -154,10 +154,12 @@ describe('⛔ what is not offered, by name', () => {
     expect(JSON.stringify(built.notes)).toMatch(/colours nothing/)
   })
 
-  it('a see-through default colour (the picker sets opaque colours)', () => {
+  it('(no longer withheld) a see-through default colour IS offered, at its opacity', () => {
+    // 2026-11-17: the colour picker sets a colour AND its opacity, as TradingView's does, so the author's
+    // transparency is kept (`#RRGGBBAA`), never dropped; only an unreadable transparency is still skipped
     const { specs, skipped } = runtimeInputSpecsOf('//@version=5\nindicator("t")\nc = input.color(#FF000080)\nplot(close, color = c)\n')
-    expect(specs).toEqual([])
-    expect(skipped[0].reason).toMatch(/see-through/)
+    expect(specs).toEqual([expect.objectContaining({ key: 'c', type: 'color', default: '#FF000080' })])
+    expect(skipped).toEqual([])
   })
 
   it('a timeframe input: another timeframe\'s bars are not made up', () => {

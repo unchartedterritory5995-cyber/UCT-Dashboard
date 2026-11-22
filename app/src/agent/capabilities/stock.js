@@ -128,7 +128,12 @@ export async function answerEarnings({ symbol }) {
   let e
   try { e = await get(`/api/earnings-intel/${encodeURIComponent(sym)}`) } catch (err) { return notFound(sym, err) }
   const qs = (e?.quarters || []).filter(q => q && q.reported !== false)
-  const lines = [`${sym} earnings (reported figures${e?.currency && e.currency !== 'USD' ? `, ${e.currency}` : ''})`]
+  const s = e?.summary || {}
+  const next = s.next_report_date || e?.next_report_date
+  // W1.1 R-06 (live LT-12): the LEAD line (the card's summary) carries the next report date when the data has one
+  const currency = e?.currency && e.currency !== 'USD' ? e.currency : null
+  const lines = [next ? `${sym} earnings — next report: ${day(next)} (${[s.next_report_label, 'scheduled'].filter(Boolean).join(', ')})${currency ? ` · ${currency}` : ''}`
+    : `${sym} earnings (reported figures${currency ? `, ${currency}` : ''})`]
   const q = qs[0]
   if (!q) lines.push(`No reported quarter is available for ${sym}.`)
   else {
@@ -141,8 +146,6 @@ export async function answerEarnings({ symbol }) {
     const epsEst = num(q.eps_estimate) != null ? `$${q.eps_estimate.toFixed(2)}` : null
     lines.push(`• EPS ${eps || NA}${epsEst ? ` vs ${epsEst} estimated${num(q.eps_surprise_pct) != null ? ` (${pct(q.eps_surprise_pct)} surprise)` : ''}` : ' (no comparable estimate)'}${q.eps_basis ? ` · basis: ${String(q.eps_basis).replace(/_/g, ' ')}` : ''}`)
   }
-  const s = e?.summary || {}
-  const next = s.next_report_date || e?.next_report_date
   if (next) {
     const est = [num(s.next_eps_estimate) != null ? `EPS est. $${s.next_eps_estimate.toFixed(2)}` : null, big(s.next_revenue_estimate) ? `revenue est. ${big(s.next_revenue_estimate)}` : null].filter(Boolean)
     lines.push(`Next report: ${day(next)}${s.next_report_label ? ` (${s.next_report_label})` : ''}${est.length ? ` · ${est.join(', ')}` : ''}`)
@@ -206,7 +209,7 @@ export function registerStockCapabilities() {
   const one = { type: 'object', properties: { symbol: { type: 'string' } }, required: ['symbol'], additionalProperties: false }
   registerCapability({
     name: 'stock.profile',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Answer a question about ONE stock\'s profile, price or fundamentals from UCT\'s own data: company name, sector/industry, price and today\'s change, market cap, P/E, 52-week range, revenue, margins, beta, next earnings date. '
       + 'Use this (disposition apply, research null) for "what\'s NVDA\'s market cap?", "what sector is AMD in?", "what\'s TSLA\'s P/E?" instead of answering from memory.',
@@ -216,7 +219,7 @@ export function registerStockCapabilities() {
   })
   registerCapability({
     name: 'stock.earnings',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Answer earnings questions about ONE stock from UCT\'s earnings data: the latest REPORTED quarter\'s revenue and EPS versus consensus estimates, year-over-year change, and the next report date with its estimates. '
       + 'Use this (disposition apply, research null) for "what was AMD\'s latest quarterly revenue?", "when does TSLA report earnings?", "did NVDA beat last quarter?".',
@@ -226,7 +229,7 @@ export function registerStockCapabilities() {
   })
   registerCapability({
     name: 'stock.compare',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Compare the fundamentals of TWO stocks side by side from UCT\'s Research data (market cap, P/E, revenue, growth, margins, beta, next earnings). Use this (disposition apply, research null) for "compare NVDA and AMD".',
     hints: 'target = the ref of the stockData entry; symbols = exactly two tickers, uppercase. For three or more, clarify which two.',

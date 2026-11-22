@@ -138,7 +138,8 @@ function importsSeed(fromKey, spec) {
 }
 
 /**
- * Every hand-rolled-sort signal in one module, as `{line, signal}`.
+ * Every hand-rolled-sort signal in one module, as `{line, signal}` (a NEGATE also carries
+ * its source `text`, which is what `NOT_A_GRID` matches on).
  * Exported so the controls below can run it on a planted source.
  */
 export function gridSignals(fileKey, source) {
@@ -151,7 +152,7 @@ export function gridSignals(fileKey, source) {
   walk(tree, (n) => {
     if (n.type === 'ConditionalExpression' && isFlip(n)) out.push({ line: n.loc.start.line, signal: 'FLIP' })
     if (n.type === 'UnaryExpression' && n.operator === '-' && isDirRef(n.argument)) {
-      out.push({ line: n.loc.start.line, signal: 'NEGATE' })
+      out.push({ line: n.loc.start.line, signal: 'NEGATE', text: source.slice(n.start, n.end) })
     }
     if (n.type === 'ArrayPattern') {
       for (const el of n.elements) {
@@ -165,12 +166,31 @@ export function gridSignals(fileKey, source) {
   return { usesSeed, signals: out }
 }
 
+// ── NOT A GRID — a signal that reads like a sort direction and is not one ───
+//
+// ⛔ NOT the BASELINE: that list names GRIDS that still hand-roll a sort and may only
+// shrink. This one names single EXPRESSIONS the detector's words catch but that sort
+// nothing, matched by file + signal + exact source text, never by file alone, so any
+// other signal in the same module (a real toggle added beside it) still fails by name.
+// Each entry says what the expression is; the "still matches" test below drops a stale one.
+export const NOT_A_GRID = new Map([
+  ['app/src/components/chart/engine/runtime/broker.js', [{
+    signal: 'NEGATE',
+    text: '-targets[0].dir',
+    why: 'the Pine strategy broker\'s TRADE direction (+1 long / -1 short; profit is (exit - entry) * dir * qty), '
+      + 'negated so a market close\'s slippage moves the fill against the position it closes '
+      + '(W9-T5 [B-SLIPPAGE], 361d4bac65). Nothing is sorted and there is no grid.',
+  }]],
+])
+
+const isNotAGrid = (k, s) => (NOT_A_GRID.get(k) || []).some((x) => x.signal === s.signal && x.text === s.text)
+
 /** The census: every module outside the seed that hand-rolls a column sort. */
 export function handRolledGrids(tree = treeSources()) {
   const out = new Map()
   for (const [k, src] of tree) {
     if (k.startsWith(SEED_DIR)) continue
-    const { signals } = gridSignals(k, src)
+    const signals = gridSignals(k, src).signals.filter((s) => !isNotAGrid(k, s))
     if (signals.length) out.set(k, signals)
   }
   return out
@@ -248,6 +268,18 @@ describe('TERM-065 — a new sortable grid uses the DataGrid seed', () => {
     expect(gone).toEqual([])
   })
 
+  it('every NOT_A_GRID entry still matches a live signal, and gives its reason', () => {
+    const stale = []
+    for (const [k, entries] of NOT_A_GRID) {
+      const live = tree.has(k) ? gridSignals(k, tree.get(k)).signals : []
+      for (const x of entries) {
+        expect(x.why?.length, `${k} ${x.text}: a reason`).toBeGreaterThan(40)
+        if (!live.some((s) => s.signal === x.signal && s.text === x.text)) stale.push(`${k} ${x.signal} ${x.text} — drop it from NOT_A_GRID`)
+      }
+    }
+    expect(stale).toEqual([])
+  })
+
   it('every migrated grid imports the seed and hand-rolls nothing', () => {
     for (const k of MIGRATED) {
       expect(tree.has(k), `${k} exists`).toBe(true)
@@ -318,6 +350,18 @@ describe('the detector (controls)', () => {
     const src = `import { useGridSort } from '../lib/presentation/dataGrid'\n`
       + `export const t = (d) => (d === ${q(DESC)} ? ${q(ASC)} : ${q(DESC)})`
     expect(gridSignals('app/src/pages/Planted.jsx', src).signals.map((s) => s.signal)).toEqual(['FLIP'])
+  })
+
+  it('NOT_A_GRID excuses its one expression, never the module: a real toggle beside it still fails', () => {
+    const [k] = [...NOT_A_GRID.keys()]
+    const src = read(path.join(ROOT, k))
+    expect(handRolledGrids(new Map([[k, src]])).has(k), `${k} is clear with only its named expression`).toBe(false)
+    // The detector still SEES the named expression (it is excused, not unseen) ...
+    expect(gridSignals(k, src).signals.map((s) => s.text)).toContain(NOT_A_GRID.get(k)[0].text)
+    // ... and a sort toggle planted in the same file is counted, by name.
+    const planted = `${src}\nexport const __plantedToggle = (s) => ({ key: s.key, dir: -s.dir })\n`
+    const sigs = handRolledGrids(new Map([[k, planted]])).get(k) || []
+    expect(sigs.map((s) => `${s.signal} ${s.text}`)).toEqual(['NEGATE -s.dir'])
   })
 
   it('a planted new grid fails the census BY NAME', () => {

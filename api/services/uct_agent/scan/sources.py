@@ -60,7 +60,9 @@ def precheck(params: Any) -> Optional[str]:
     try:
         src = _which(p)
         if src == "spec":
-            scan_spec.validate(p["spec"])
+            why = scan_spec.logic_refusal(scan_spec.validate(p["spec"]))
+            if why:
+                return why
         elif src == "saved_id":
             try:
                 int(p["saved_id"])

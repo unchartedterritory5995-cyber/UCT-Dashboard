@@ -26,6 +26,33 @@
 }
 .search::placeholder { color: var(--text-muted); }
 
+/* ── "Showing": the one control that chooses which list the sheet holds (`libraryShelves.js`).
+   A native select, dressed as the search box above it: the same height, edge and radius. At the
+   touch width its text is 16px, the size below which iOS zooms the page on focus. */
+.shelf {
+  display: flex; align-items: center; gap: 10px;
+  min-height: var(--tap-min, 44px);
+}
+.shelfLabel {
+  flex: 0 0 auto;
+  font-size: 12px; font-weight: 600;
+  color: var(--text-muted, #a9a59b);
+}
+.shelfSelect {
+  flex: 1 1 auto; min-width: 0;
+  box-sizing: border-box;
+  min-height: var(--tap-min, 44px);
+  padding: 0 10px;
+  font: inherit; font-size: 14px; font-weight: 600;
+  color: var(--text-bright, #ededed);
+  background: var(--bg-surface, #1a1b1f);
+  border: 1px solid var(--border, #2c2c30);
+  border-radius: var(--radius-md, 8px);
+}
+.shelfSelect:focus { outline: none; border-color: var(--border-accent, #3a3a40); }
+.shelfSelect:focus-visible { outline: 2px solid var(--ut-gold, #dcbb5e); outline-offset: 2px; }
+@media (max-width: 1024px) { .shelfSelect { font-size: 16px; } }
+
 /* ── "＋ New formula" — the criteria builder's door on `/charts` ─────────────
    Gold-edged so it reads as the one AUTHORING affordance among a list of
    things to switch on, and full-width so it survives a 375px phone sheet
@@ -53,6 +80,20 @@
   border-color: var(--border-accent);
   outline: none;
 }
+/* The gold spark is UCT Intelligence's mark (house style, the gold mix). */
+.createSpark { color: var(--ut-gold, #dcbb5e); }
+/* Back from the members list to the catalogue. */
+.backRow {
+  align-self: flex-start;
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: var(--tap-min, 44px);
+  padding: 0 10px 0 4px;
+  background: none; border: 0; cursor: pointer;
+  color: var(--text-bright, #ededed);
+  font: 600 13px var(--font-sans, inherit);
+}
+.backRow:focus-visible { outline: 2px solid var(--ut-gold, #dcbb5e); outline-offset: 2px; }
+.createRow + .createRow { margin-top: 8px; }
 .createPlus {
   flex-shrink: 0;
   font-size: 15px;
@@ -80,6 +121,19 @@
   color: var(--text-muted);
   line-height: 1.35;
 }
+
+/* Describe it instead: the empty search's way forward. Touch-sized. */
+.emptyDescribe {
+  display: flex; align-items: center; margin-top: 10px;
+  min-height: var(--tap-min, 44px); padding: 0 14px;
+  background: var(--bg-surface, #1a1b1f);
+  border: 1px dashed var(--ut-gold-glow, var(--border-accent, #3a3a40));
+  border-radius: var(--radius-md, 8px);
+  color: var(--text-bright, #ededed);
+  font: 600 13px var(--font-sans, inherit);
+  cursor: pointer;
+}
+.emptyDescribe:focus-visible { outline: 2px solid var(--ut-gold, #dcbb5e); outline-offset: 2px; }
 
 .empty {
   padding: 18px 4px;
@@ -118,6 +172,17 @@
   background: var(--bg-hover);
   outline: none;
   border-color: var(--border);
+}
+/* ⭐ a11y — THE ROW WEARS THE APP'S FOCUS RING while its title button has keyboard
+   focus (2026-11-08). The hover tint alone (`--bg-hover` on the sheet) is about
+   1.1:1, so a keyboard member could not see which row ↓ had landed on. The ring
+   is the app's own (`tokens.css` :focus-visible, 2 px `--ut-gold`, the one every
+   other control wears), drawn INSIDE the row because the sheet body scrolls and
+   would clip an outset ring at its edges. It is the focus indicator, not
+   decoration, so the header's one-gold-element rule (the tier badge) stands. */
+.row:has(.primary:focus-visible) {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
 }
 /* The title-line button, reset to the span it replaced. */
 .primary {
@@ -187,7 +252,11 @@
   padding-top: 2px;
   font-size: 13px;
   line-height: 1.2;
-  color: var(--gain);
+  /* ⭐ `--text-bright`, NEVER `--gain` (owner-delegated decision L3, 2026-11-07):
+     green means money going up, never "selected", and gold is rationed to the
+     header's one mark (`.tier`). The row's `.rowOn` fill and border already say
+     "on"; the tick only has to read clearly beside the name. */
+  color: var(--text-bright);
 }
 
 .main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -203,7 +272,7 @@
 
 .chip {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   color: var(--text-muted);
   background: var(--bg-surface);
@@ -214,7 +283,7 @@
 /* "Intraday only" — a scope note, not a warning. */
 .pill {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--info);
   background: var(--info-bg);
   border: 1px solid var(--info-border);
@@ -230,7 +299,7 @@
    reasoning is a reasoning nobody can find. */
 .badge {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
   background: var(--bg-surface);
   border: 1px solid var(--border);
@@ -249,7 +318,7 @@
    (`.tier`). */
 .badgeRepaint {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ind-warn);
   background: var(--ind-warn-bg);
   border: 1px solid var(--ind-warn-border);
@@ -261,7 +330,7 @@
    this is a fact about who authored the row, not a warning and not a tier. */
 .mine {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   color: var(--info);
   background: var(--info-bg);
   border: 1px solid var(--info-border);
@@ -272,7 +341,7 @@
    no native declares today. */
 .tier {
   padding: 1px 6px;
-  font-size: 10px;
+  font-size: 11px;
   text-transform: capitalize;
   color: var(--ut-gold);
   background: var(--ut-gold-dim);
@@ -326,4 +395,55 @@
      button wrap under the text, aligned past the 16px check + its gap. */
   .row { flex-wrap: wrap; }
   .addAnother { margin-left: 26px; }
+}
+
+/* The search hint (Phase 4, unit 4-03): one muted row under the results when the
+   whole query equals a definition's declared hint query. Muted on purpose: it is a
+   pointer to another indicator, not a result. */
+.hintRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+}
+.hintLine {
+  flex: 1 1 220px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.hintOn {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.hintButton {
+  flex: 0 0 auto;
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+.hintButton:hover, .hintButton:focus-visible {
+  color: var(--text-bright);
+  border-color: var(--border-accent);
+  outline: none;
+}
+
+/* ⭐ a11y (2026-11-08) — the three plain buttons on this surface keep the app's
+   own focus ring on keyboard focus instead of a border tint alone: the rules
+   above end in `outline: none` for hover's sake, and this restores the ring for
+   `:focus-visible` only, inset so the scrolling sheet never clips it. */
+.createRow:focus-visible,
+.addAnother:focus-visible,
+.hintButton:focus-visible {
+  outline: 2px solid var(--ut-gold);
+  outline-offset: -2px;
 }

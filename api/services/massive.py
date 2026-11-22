@@ -18,6 +18,8 @@ from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services import provider_errors as _pe
 from api.services import provider_licensing_class as _plc
+from api.services import snapshot_hl as _snapshot_hl
+from api.services.vendor_symbols import marked as _vendor_marked
 
 _REST_BASE = "https://api.massive.com"
 
@@ -930,38 +932,20 @@ class _MassiveRestClient:
             f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
             f"?apiKey={self._api_key}"
         )
+        # The row rule lives in snapshot_hl.row (one rule for both paths). With
+        # SNAPSHOT_CHILD_ENABLED=1 the 5.8 MB download + parse runs in a helper
+        # process so it cannot hold this process's interpreter lock; if the helper
+        # itself is unavailable, the in-process path below serves.
+        if _snapshot_hl.enabled():
+            try:
+                return _snapshot_hl.fetch_rows(url)
+            except _snapshot_hl.ChildUnavailable:
+                pass
         try:
             data = self._get(url)
         except Exception:
             return {}
-        out: dict[str, dict] = {}
-        for t in data.get("tickers", []):
-            ticker = t.get("ticker", "")
-            if not ticker:
-                continue
-            day      = t.get("day", {})
-            prev_day = t.get("prevDay", {})
-            last     = t.get("lastTrade", {})
-            minute   = t.get("min", {})
-            last_price = float(last.get("p") or day.get("c") or prev_day.get("c") or 0.0)
-            out[ticker] = {
-                "last_price": round(last_price, 4),
-                "prev_close": round(float(prev_day.get("c") or 0.0), 4),
-                "prev_vol":   int(prev_day.get("v") or 0),
-                "today_vol":  int(day.get("v") or 0),
-                "day_high":   round(float(day.get("h") or 0.0), 4),
-                "day_low":    round(float(day.get("l") or 0.0), 4),
-                "day_open":   round(float(day.get("o") or 0.0), 4),
-                "day_c":      round(float(day.get("c") or 0.0), 4),      # RTH close (for ext-price staleness check)
-                "min_c":      round(float(minute.get("c") or 0.0), 4),   # current minute close (ext-hours aware)
-                "last_trade_p": round(float(last.get("p") or 0.0), 4),   # raw lastTrade.p (ext-hours print)
-                # min.av = accumulated volume for the CURRENT day — grows continuously
-                # across pre/RTH/post (unlike day.v, which is RTH-only), so a rate off
-                # it works in every session. min.v = the last minute's volume.
-                "min_av":     int(minute.get("av") or 0),
-                "min_v":      int(minute.get("v") or 0),
-            }
-        return out
+        return _snapshot_hl.rows_from_payload(data)
 
 
 def _get_client() -> _MassiveRestClient:
@@ -1028,27 +1012,60 @@ def _fmt_chg(pct: float) -> tuple[str, str]:
     return f"{sign}{pct:.2f}%", ("pos" if pct >= 0 else "neg")
 
 
+# A fund name carrying one of these is a leveraged or inverse product.
+_LEV_NAME_KEYWORDS = ("2x", "3x", "-2x", "-3x", "ultra", "leveraged", "inverse",
+                      "bull 2", "bear 2", "bull 3", "bear 3", "direxion daily",
+                      "proshares ultra")
+
+
+def _lev_by_profile_name(ticker: str) -> bool | None:
+    """The name test over the company profile's name, or None when the profile
+    cannot decide (no row, a failed read, an unnamed row, or a fund whose name
+    does not say). The profile is the one `ticker_metadata.profile_facts` holds
+    for a day."""
+    from api.services.catalyst import ticker_metadata
+    facts = ticker_metadata.profile_facts(ticker) or {}
+    name = str(facts.get("name") or "").lower()
+    if not name:
+        return None
+    if any(kw in name for kw in _LEV_NAME_KEYWORDS):
+        return True
+    # A plain name settles it for a company. For a fund, or a row that does not
+    # say what it is, the yfinance name is still read: the two sources word fund
+    # names differently, and a leveraged fund must not pass on one wording.
+    if facts.get("is_etf") is False and facts.get("is_fund") is False:
+        return False
+    return None
+
+
 def _is_leveraged_etf(ticker: str) -> bool:
-    """Return True if ticker is a leveraged/inverse ETF. Cached 24h via existing cache."""
+    """Return True if ticker is a leveraged/inverse ETF. Cached 24h via existing cache.
+
+    The company profile's name decides first; the yfinance name is read only
+    when the profile cannot decide."""
     cache_key = f"is_lev_{ticker}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
     verified = False
     try:
-        import yfinance as yf
-        info = _bounded_yf(lambda: yf.Ticker(ticker).info, None)
-        if not info:
-            result = False
-        else:
-            verified = True
-            name = (info.get("longName", "") + " " + info.get("shortName", "")).lower()
-            keywords = ["2x", "3x", "-2x", "-3x", "ultra", "leveraged", "inverse",
-                        "bull 2", "bear 2", "bull 3", "bear 3", "direxion daily",
-                        "proshares ultra"]
-            result = any(kw in name for kw in keywords)
+        decided = _lev_by_profile_name(ticker)
     except Exception:
-        result = False
+        decided = None
+    if decided is not None:
+        result, verified = decided, True
+    else:
+        try:
+            import yfinance as yf
+            info = _bounded_yf(lambda: yf.Ticker(ticker).info, None)
+            if not info:
+                result = False
+            else:
+                verified = True
+                name = (info.get("longName", "") + " " + info.get("shortName", "")).lower()
+                result = any(kw in name for kw in _LEV_NAME_KEYWORDS)
+        except Exception:
+            result = False
     # A yfinance failure/empty `.info` could not actually determine leveraged-
     # ness -- caching that unverified `False` for 24h means TQQQ/SQQQ/SOXL etc.
     # render as ordinary stocks in Top Movers for a day on a transient blip.
@@ -1061,56 +1078,6 @@ def _is_leveraged_etf(ticker: str) -> bool:
 _PRICE_MIN    = 2.0          # price must be strictly above $2
 _PM_VOL_MIN   = 50_000       # min shares in current session (pre-market at open)
 _AVG_DVOL_MIN = 5_000_000    # min 5-day avg dollar volume ($5M)
-
-
-def _get_avg_dollar_vol(tickers: list) -> dict[str, float]:
-    """Return 5-day average dollar volume for each ticker via yfinance.
-
-    Fetches all tickers in parallel (ThreadPoolExecutor).
-    Returns float("inf") for any ticker where history cannot be fetched —
-    meaning it will NOT be filtered out if yfinance is unavailable.
-    """
-    if not tickers:
-        return {}
-    try:
-        import yfinance as yf
-
-        def _fetch_one(ticker: str) -> tuple[str, float]:
-            try:
-                # Through the shared guard: the local pool below bounds the
-                # BATCH, the guard bounds how many yfinance calls this whole
-                # process has in flight and stops them entirely on a 429.
-                # `None` is the guard's failure default (timeout, 429, error)
-                # and MUST map to inf — "couldn't fetch, don't filter it out" —
-                # not to 0.0, which means "fetched, no volume, filter it out".
-                hist = yf_util.bounded_call(
-                    lambda: yf.Ticker(ticker).history(period="10d"), None
-                )
-                if hist is None:
-                    return ticker, float("inf")
-                if hist.empty:
-                    return ticker, 0.0
-                dvol = (hist["Close"] * hist["Volume"]).tail(5)
-                return ticker, float(dvol.mean()) if not dvol.empty else 0.0
-            except Exception:
-                return ticker, float("inf")  # can't fetch → don't filter out
-
-        # Bound the whole batch to a hard deadline + non-blocking shutdown so a
-        # hung Yahoo request can't pin this thread forever (2026-07-01 incident).
-        ex = _cf.ThreadPoolExecutor(max_workers=min(len(tickers), 8), thread_name_prefix="yf-dvol")
-        futures = {ex.submit(_fetch_one, t): t for t in tickers}
-        result: dict[str, float] = {}
-        deadline = time.monotonic() + 15.0
-        for fut, t in futures.items():
-            try:
-                k, v = fut.result(timeout=max(0.0, deadline - time.monotonic()))
-                result[k] = v
-            except Exception:
-                result[t] = float("inf")  # timeout/error → don't filter out
-        ex.shutdown(wait=False, cancel_futures=True)
-        return result
-    except Exception:
-        return {t: float("inf") for t in tickers}
 
 
 def _yfinance_snapshot(ticker: str) -> dict:
@@ -1129,35 +1096,6 @@ def _yfinance_snapshot(ticker: str) -> dict:
         return _bounded_yf(_work, {})
     except Exception:
         return {}
-
-
-# NOTE: unused since 2026-07-27 — its only caller was the index-futures snapshot
-# path, which was removed. Kept because it is the only .info-based quote helper.
-def _yf_quote_info(ticker: str) -> dict:
-    """Accurate quote via Yahoo's regularMarket* fields.
-
-    For INDEX FUTURES the day-change must be measured against the prior
-    SETTLEMENT — which is `regularMarketPreviousClose`, NOT
-    `fast_info.previous_close` (that reads a different/earlier reference and
-    understates the move badly, e.g. -0.17% vs the true -0.53% on ES).
-    `regularMarketChangePercent` is already in percent units. Falls back to the
-    fast_info snapshot on any failure. (Do NOT use this for ^VIX — Yahoo's
-    regularMarketChangePercent for the index is unreliable.)"""
-    try:
-        import yfinance as yf
-
-        def _work():
-            info = yf.Ticker(ticker).get_info()
-            price = info.get("regularMarketPrice")
-            chg   = info.get("regularMarketChangePercent")
-            if price is None or chg is None:
-                return None
-            return {"close": float(price), "vwap": float(price), "change_pct": round(float(chg), 4)}
-
-        got = _bounded_yf(_work, None)
-        return got if got is not None else _yfinance_snapshot(ticker)
-    except Exception:
-        return _yfinance_snapshot(ticker)
 
 
 def _detect_session() -> str:
@@ -1562,7 +1500,9 @@ def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
     out: dict[str, float] = {}
     for r in (data.get("results") or []):
         tk, c = r.get("T"), r.get("c")
-        if tk and isinstance(c, (int, float)) and c > 0:
+        # A lowercase-marked ticker (a preferred, `BCpC`) is not the common stock its
+        # upper case names (`BCPC`, Balchem): skipped (api/services/vendor_symbols.py).
+        if tk and not _vendor_marked(tk) and isinstance(c, (int, float)) and c > 0:
             out[str(tk).upper()] = float(c)
     if out:  # never cache an empty/error (would pin a non-trading-day miss)
         cache.set(ck, out, ttl=(604800 if _settled else 900))
@@ -1639,7 +1579,9 @@ def get_grouped_daily_ohlcv(day_iso: str, adjusted: bool = False) -> dict:
     out: dict[str, dict] = {}
     for r in (data.get("results") or []):
         tk, c = r.get("T"), r.get("c")
-        if tk and isinstance(c, (int, float)) and c > 0:
+        # A lowercase-marked ticker (a preferred, `BCpC`) is not the common stock its
+        # upper case names (`BCPC`, Balchem): skipped (api/services/vendor_symbols.py).
+        if tk and not _vendor_marked(tk) and isinstance(c, (int, float)) and c > 0:
             out[str(tk).upper()] = {
                 "o": _num(r.get("o")), "h": _num(r.get("h")), "l": _num(r.get("l")),
                 "c": float(c), "v": _num(r.get("v")) or 0.0,
@@ -1834,7 +1776,9 @@ def get_grouped_daily_frame(day_iso: str, adjusted: bool = False, store: bool = 
     out: dict[str, dict] = {}
     for r in (data.get("results") or []):
         tk, c = r.get("T"), r.get("c")
-        if tk and isinstance(c, (int, float)) and c > 0:
+        # A lowercase-marked ticker (a preferred, `BCpC`) is not the common stock its
+        # upper case names (`BCPC`, Balchem): skipped (api/services/vendor_symbols.py).
+        if tk and not _vendor_marked(tk) and isinstance(c, (int, float)) and c > 0:
             out[str(tk).upper()] = {
                 "o": _num(r.get("o")), "h": _num(r.get("h")), "l": _num(r.get("l")),
                 "c": float(c), "v": _num(r.get("v")) or 0.0,

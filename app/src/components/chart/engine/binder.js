@@ -55,34 +55,51 @@ import {
   columnColorsForPlot,
   gradientPointColour,
   packedPointColour,
+  withPackedTheme,
   effectiveColor,
   DEFAULT_MARKER_COLOR,
   bindingKey,
   lineStyleValue,
   OHLC_POOL_KEYS,
+  plotActiveFor,
+  markerIsEvent,
 } from './pool'
+import { outputTypeOf, OUTPUT_TYPES } from './outputType'
 import { paneMode, paneStretchPlan, paneHeightMismatch } from './paneLayout'
 import { createFillPrimitive, createFillLayerGroup } from './fillPrimitive'
-import { MAIN_PRICE_SCALE_ID } from './placement'
+import { MAIN_PRICE_SCALE_ID, applyAxisTenancy } from './placement'
 import { fillOpacityOf, fillPaint, staticFillOf } from './fillPaint'
 import { opaqueOf } from '../designTokens'
 import { createBackgroundPrimitive, isNaColour, staticPaintColour } from './paintPrimitive'
 import { markersFor, createMarkerLayer } from './markerPrimitive'
-import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES } from './definitionSemantics'
+import { semanticsOf, SEMANTICS_UNKNOWN_PROPAGATES, isPineImport } from './definitionSemantics'
 // ⭐⭐ C3B — the object lifecycle, on the chart. Same injection discipline as the
 // marker layer above it: the capability is handed in, and a host that does not
 // provide one simply draws no objects.
-import { evaluateObjects } from './objectRuntime'
+// ⭐⭐ ENGINE 54 — the host object program's one evaluation path, and (on import) the run
+// half's object rail registered for the bind (`runHalfRailSeam.js`)
+import { hostObjectRun, hostObjectReaderOpts } from './runHalfObjectRail.js'
 // ⭐⭐ RT5 — a runtime document's drawings, made by its own run (imports nothing).
-import { runtimeObjectsOf, drawsRuntimeObjects } from './runtime/runtimeObjects.js'
-import { objectReaderFor } from './objectColumns'
+import { runtimeObjectsOf, runtimeObjectsWithheldOf, drawsRuntimeObjects, drawsRunObjectsOn, runHalfOf, carriesRunHalf } from './runtime/runtimeObjects.js'
+// ⭐⭐ W9-T12 — a strategy's trade markers, from the run's record (refused by name until W9-MK1)
+import { drawsTradeMarkers, memberTradeMarkers, tradeMarkerObjects, publishTradeMarkers, markersWithheldWith,
+  joinMarkersToState } from './runtime/tradeMarkers.js'
 import { toRenderState } from './objectRenderState'
 // ⭐ C43 — a script whose own `runtime.error` is reached draws nothing; the
 // binder is where that is known per INSTANCE, so it publishes the sentence for
 // the disclosure strip (`runtimeErrorNotice.js`), exactly as the object layer
 // publishes a scaled table (`paneFitNotice.js`).
-import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, columnErrors } from './nativeRegistry'
+import { runtimeErrorStopOf, runtimeObjectsWithheld, runtimeRunStopOf, runtimeColourStopOf, columnErrors, resolveInputs, runtimeRunPendingOf,
+  runtimeRunWaitingOf } from './nativeRegistry'
 import { setRuntimeErrorNotice } from './runtimeErrorNotice'
+// ⭐⭐ HOST WORKER — a host document computed off the main thread answers PENDING while its values
+// are in the worker (with the pane's last picture re-aligned on bar time), and a worker that held a
+// job past its watchdog says so on the strip (`hostLaneAsync.js`).
+import { isHostLanePending, hostLaneStopOf, hostObjectsOffThread } from './hostLaneAsync.js'
+// W9-T13b: a strategy run's record, published for the (dark) report panel
+import { setStrategyRecord } from './strategyReportNotice'
+import { runtimeStrategyOf } from './runtime/strategyRecord.js'
+import { isStrategyWindowDefinition } from './strategyWindow'
 import { chartThemeOf } from './objectTheme'
 
 import {
@@ -103,36 +120,61 @@ import { SOURCE_STATUS } from './secondaryBars'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
+import { serverDeclares, scalarsFor, landedEnvelopeFor, noteServerHit } from './serverCompute'
+import { computeLaneOf, COMPUTE_LANE } from './computeLane'
+// ⭐⭐ NEIGHBOR FRAMES (2026-11-20) — columns and points computed AHEAD, in idle time, for the bars of the
+// rows a member is about to reach (`prepare` below), found by the switch instead of recomputed.
+import { neighborFramesOn, chartTimesFor, nfCount, nfLogSwitch } from '../neighborFrames'
+import { rescaleOf, rescalePriceFormat } from './rescale'
 // ⭐ P2b — what a render state dropped, for the member's drawing note.
 import { setObjectRenderDrops, renderDroppedCount, renderHeldCount } from './objectRenderNotice'
+import { runtimeWithheldWhy, stoppedRunSentence, STOPPED_KEY, runHalfRefusedSentence, RUN_HALF_WHY_KEY } from './ast/objectLoss'
+import { runtimeFormingIdsOf } from './runtimeKill'
+
 import { ThinVolumeSeries } from '../thinVolumeSeries'
+import { isRthBar } from '../barTime'
+import { windowedPoints, firstIndexAtOrAfter, PLOT_WINDOW_STEP } from './plotWindow'
+import { FIRST_PAINT_MAX } from '../../../utils/barsBackfill'
+
+/** The script a document's run half runs (`compute.runtimeObjects.source`, as `nativeRegistry.js::withRunHalf`
+ *  reads it), or null. */
+const runHalfSourceOf = (def) => {
+  const ro = def && def.compute && def.compute.runtimeObjects
+  return ro && typeof ro.source === 'string' && ro.source ? ro.source : null
+}
+/** The drawing note's sentence for a REFUSED run half (`runHalfOf`), or null. ⭐ G6 — a forming-bar refusal
+ *  says the reason the server named for THIS document's run-half script (`formingReason.js`). */
+export function runHalfWhyFor(def, runHalf) {
+  if (!runHalf || runHalf.state !== 'refused') return null
+  return runHalfRefusedSentence(runHalf.code, { formingIds: runtimeFormingIdsOf({ source: runHalfSourceOf(def) }) })
+}
 
 /** RTH filter for an intraday FRAME on a chart that hides extended hours — the same
- *  09:30–16:00 ET window `StockChart.sessionBars` applies to the chart's own bars, so
+ *  regular-session window (09:30 to the day's close, half-days included: barTime.isRthBar)
+ *  `StockChart.sessionBars` applies to the chart's own bars, so
  *  a 1h RSI on an RTH 5m chart is computed from the same session a 1h RTH chart
  *  would show. Memoised per frame array. */
 const _rthMemo = new WeakMap()
-const _rthFmt = (() => {
-  try {
-    return new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', hour12: false, hour: '2-digit', minute: '2-digit' })
-  } catch { return null }
-})()
 function rthFrameBars(fbars) {
   let hit = _rthMemo.get(fbars)
   if (hit) return hit
-  hit = fbars.filter((b) => {
-    if (!b || typeof b.t !== 'number') return true
-    if (!_rthFmt) return true
-    const [h, m] = _rthFmt.format(new Date(b.t * 1000)).split(':').map(Number)
-    const mins = (h % 24) * 60 + m
-    return mins >= 570 && mins < 960
-  })
+  hit = fbars.filter((b) => !b || typeof b.t !== 'number' || isRthBar(b.t))
   _rthMemo.set(fbars, hit)
   return hit
 }
 
 /** Projection memo: frame column set → (chart bars → projected set). */
 const _projMemo = new WeakMap()
+
+/** ⭐ UCT RS design round (2026-11-08) — is this band switched on for the
+ *  binding's instance? A fill that declares no `activeWhen` always is; one that
+ *  does reads the inputs' condition grammar through the SAME evaluator a plot's
+ *  `activeWhen` uses (`pool.plotActiveFor`: stored value, else the declared
+ *  default), so a band and a guide can never disagree about one switch. */
+function fillActiveFor(fillSpec, b) {
+  if (!fillSpec || fillSpec.activeWhen === undefined) return true
+  return plotActiveFor({ activeWhen: fillSpec.activeWhen }, b && b.def, (b && b.inst && b.inst.inputs) || {})
+}
 
 /** A STATIC fill's colour and opacity -- `fillPaint.staticFillOf`, the one
  *  authority both band paths share (the per-bar half is `bandColoursFor`).
@@ -225,6 +267,68 @@ function ohlcPayload(bars) {
   return { kind: OHLC_KIND, bars: Array.isArray(bars) ? bars : [] }
 }
 
+// ─── W4-T13 · A CANDLE / BAR FROM FOUR COMPUTED COLUMNS ─────────────────────────────────
+//
+// A document row whose style is `candles` / `ohlcBars` and which names its price columns
+// (`plots[].ohlc`, validated by `defSchema.validateOhlc`) is drawn from the SAME run that computed
+// them: bar i is `{open, high, low, close}` read from the four columns at i, and the colours of its
+// body, wick and border from the colour columns `ohlcColors` names (a packed `0xTTBBGGRR` integer,
+// NaN where the script's colour is `na`). The payload is the one the symbol path hands the series
+// (`ohlcPayload`), so the series, the legend and the last-value tag read it unchanged.
+//
+// ⛔ A BAR WITH ANY NON-FINITE PRICE IS WHITESPACE (`toOhlcPoints`), so an `na` open hides the
+// candle exactly as TradingView draws nothing for it. ⛔ A COLOUR THAT IS `na` IS THE TRANSPARENT
+// ENTRY, never the series colour: the script chose nothing there, so a stand-in would be a colour it
+// never wrote. ⛔ MEMOISED ON THE IDENTITY OF EVERY COLUMN IT READS AND THE CHART'S BARS, so an
+// unchanged run hands the point memo the SAME payload (a fresh object each sync would rebuild the
+// points, and re-set the series data, every second).
+const _computedOhlcMemo = new WeakMap()
+
+function computedOhlcDeclared(plot) {
+  return !!plot && (plot.style === 'candles' || plot.style === 'ohlcBars')
+    && !!plot.ohlc && typeof plot.ohlc === 'object'
+}
+
+/** The PAYLOAD (not the bars) is what is memoised: its identity is what the point memo keys on. */
+export function computedOhlcPayload(plot, cols, bars, theme = null) {
+  if (!computedOhlcDeclared(plot)) return null
+  const close = cols[plot.key]
+  const read = {
+    o: cols[plot.ohlc.open], h: cols[plot.ohlc.high], l: cols[plot.ohlc.low], c: close,
+  }
+  if (!read.o || !read.h || !read.l || !close) return null
+  const colourCols = {}
+  for (const [part, key] of Object.entries(plot.ohlcColors || {})) {
+    if (cols[key]) colourCols[part] = cols[key]
+  }
+  const sources = [read.o, read.h, read.l, ...Object.keys(colourCols).sort().map((k) => colourCols[k])]
+  // ⭐ CO-2 — the chart's own colours join the signature: a theme change repaints a theme-coloured candle
+  const sig = Object.keys(colourCols).sort().join('|') + (theme ? `|${theme.fg || ''}/${theme.bg || ''}` : '')
+  const memo = _computedOhlcMemo.get(close)
+  if (memo && memo.bars === bars && memo.sig === sig && memo.sources.length === sources.length
+      && memo.sources.every((s, i) => s === sources[i])) return memo.payload
+  const packed = { transparency: null, theme }
+  const colourAt = (part, i) => {
+    const col = colourCols[part]
+    if (!col) return undefined
+    return packedPointColour(packed, col[i]) || PACKED_NA_POINT
+  }
+  const out = new Array(bars.length)
+  for (let i = 0; i < bars.length; i++) {
+    const bar = { t: bars[i].t, o: read.o[i], h: read.h[i], l: read.l[i], c: close[i] }
+    const body = colourAt('body', i)
+    const wick = colourAt('wick', i)
+    const border = colourAt('border', i)
+    if (body !== undefined) bar.color = body
+    if (wick !== undefined) bar.wickColor = wick
+    if (border !== undefined) bar.borderColor = border
+    out[i] = bar
+  }
+  const payload = ohlcPayload(out)
+  _computedOhlcMemo.set(close, { bars, sig, sources, payload })
+  return payload
+}
+
 /** Is this binding payload the coordinated bar shape rather than a column? */
 function isOhlcPayload(v) {
   return !!v && typeof v === 'object' && v.kind === OHLC_KIND
@@ -259,6 +363,11 @@ function toOhlcPoints(payload, adjustTime) {
       continue
     }
     out[i] = { time, open: b.o, high: b.h, low: b.l, close: b.c }
+    // W4-T13 - the colours a COMPUTED candle carries per bar (a symbol's bars carry none, so
+    // theirs are unchanged): the library lets a point's own colours beat the series options.
+    if (b.color !== undefined) out[i].color = b.color
+    if (b.wickColor !== undefined) out[i].wickColor = b.wickColor
+    if (b.borderColor !== undefined) out[i].borderColor = b.borderColor
   }
   return out
 }
@@ -310,14 +419,30 @@ export function displacedColumn(column, d) {
  *  string the host lane's palette uses for its `na` leaf. */
 const PACKED_NA_POINT = 'rgba(0, 0, 0, 0)'
 
-function toPoints(column, bars, adjustTime, signColors, colColors, condColumn, unknownNone = false) {
-  const out = new Array(bars.length)
-  for (let i = 0; i < bars.length; i++) {
-    const time = adjustTime(bars[i].t)
+/**
+ * One point per bar from bar `start` on (`start` 0: every bar). ⭐ (2026-11-20) THE ROWS THE RENDERER IS HANDED,
+ * NOT EVERY ROW: with a plot window (`ctx.plotWindowFrom`) the series is given the bars from its start only
+ * (`windowedPoints`), so a switch that built a point for each of 30,000 bars and then cut 28,000 of them off
+ * builds the 2,000 it hands over. Point i of the result is bar `start + i`'s point, exactly as the whole array's.
+ */
+function toPoints(column, bars, adjustTime, signColors, colColors, condColumn, unknownNone = false, times = null, start = 0) {
+  const s = start > 0 ? Math.min(Math.floor(start), bars.length) : 0
+  return toPointsInto(new Array(bars.length - s), s, bars.length, column, bars, adjustTime, signColors, colColors, condColumn,
+    unknownNone, times, s)
+}
+
+/** ⭐ NEIGHBOR FRAMES — `toPoints`' body over bars [from, to) of `out` (prepare fills one array in slices); bar i is
+ *  written at `out[i - base]` (`base` 0: the whole array; `toPoints` from a window start passes the start). */
+function toPointsInto(out, from, to, column, bars, adjustTime, signColors, colColors, condColumn, unknownNone = false,
+  times = null, base = 0) {
+  for (let i = from; i < to; i++) {
+    // ⭐ NEIGHBOR FRAMES — `times` is `chartTimesFor(bars, adjustTime)`: these values, built once per bars
+    const time = times ? times[i] : adjustTime(bars[i].t)
     const v = column ? column[i] : NaN
-    if (!Number.isFinite(v)) { out[i] = { time }; continue }
+    const at = i - base
+    if (!Number.isFinite(v)) { out[at] = { time }; continue }
     if (signColors) {
-      out[i] = { time, value: v, color: v >= 0 ? signColors.up : signColors.down }
+      out[at] = { time, value: v, color: v >= 0 ? signColors.up : signColors.down }
       continue
     }
     // ⭐⭐ C1 — PER-POINT COLOUR FROM A COMPUTED COLUMN (`colorMode: 'column:'`).
@@ -326,13 +451,13 @@ function toPoints(column, bars, adjustTime, signColors, colColors, condColumn, u
     // series colour there. Owner ruling 2 (2026-09-28) replaced it with Pine's
     // rule — an `na` condition takes the ELSE branch — see `pointColour`.
     const colour = pointColour(colColors, condColumn, i, unknownNone)
-    if (colour) { out[i] = { time, value: v, color: colour }; continue }
+    if (colour) { out[at] = { time, value: v, color: colour }; continue }
     // ⭐⭐ RT6 — a run's `na` colour draws NOTHING at that point (TradingView
     // hides a plot point whose colour is `na`) — the transparent entry a
     // palette's `na` leaf already draws (`pine.js` TRANSPARENT_PALETTE_ENTRY),
     // never the series colour, which would be a colour the script never chose.
-    if (colColors && colColors.packed) { out[i] = { time, value: v, color: PACKED_NA_POINT }; continue }
-    out[i] = { time, value: v }
+    if (colColors && colColors.packed) { out[at] = { time, value: v, color: PACKED_NA_POINT }; continue }
+    out[at] = { time, value: v }
   }
   return out
 }
@@ -472,8 +597,9 @@ function fillColours(fillSpec, instanceId, columns, n, unknownNone = false) {
  * ⛔ The spec's own `opacity` is STRIPPED before the colour rule reads it, so
  * there is exactly one alpha, applied exactly once.
  */
-export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false, inputs = null) {
-  const spec = plot && plot.fill
+export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false, inputs = null, theme = null) {
+  // ⭐ CO-2 — the chart's own colours on the band's plan (`pool.withPackedTheme`)
+  const spec = withPackedTheme(plot && plot.fill, theme)
   if (!spec || typeof spec.colorMode !== 'string') return null
   const { opacity: _ignored, ...rule } = spec
   // ⭐⭐ A BAND COLOUR THAT IS THE SCRIPT'S `input.color` (`colorUpInput` /
@@ -482,15 +608,24 @@ export function bandColoursFor(plot, instanceId, columns, n, unknownNone = false
   // its own alpha is dropped (TradingView set E5: a 70%-opaque bull colour still
   // paints band 0 at alpha 13). Without one, the pick is used as it is.
   const opacityDeclared = fillOpacityOf(plot) !== null
+  const opacity = fillOpacityOf(plot)
+  // ⭐⭐ SETTINGS PARITY (area colours, 2026-11-17) — A SIDE WHOSE INPUT CARRIES ITS OWN TRANSPARENCY
+  // (`colorUpInputOwnAlpha`: the script's colour is the bare input, `input(color.rgb(0, 230, 119, 75))`, not
+  // `color.new(input, t)`): the member's pick is the WHOLE colour, alpha included, as TradingView paints it (set
+  // F: RS Rating's areas picked at 0.5 / 0.6 paint at 0.5 / 0.6). Then every colour of the band carries its own
+  // paint — the other side and an untouched default baked at the band's opacity — and nothing is applied twice.
+  const own = { colorUp: spec.colorUpInputOwnAlpha === true, colorDown: spec.colorDownInputOwnAlpha === true }
+  const anyOwn = own.colorUp || own.colorDown
   for (const [field, ref] of [['colorUp', spec.colorUpInput], ['colorDown', spec.colorDownInput]]) {
     const v = typeof ref === 'string' && inputs ? inputs[ref] : undefined
-    if (typeof v !== 'string' || !v) continue
-    rule[field] = opacityDeclared ? (opaqueOf(v) || v) : v
+    const picked = typeof v === 'string' && !!v
+    if (own[field] && picked) { rule[field] = v; continue }
+    if (picked) rule[field] = opacityDeclared ? (opaqueOf(v) || v) : v
+    if (anyOwn && typeof rule[field] === 'string') rule[field] = fillPaint(rule[field], opacity)
   }
   const colours = fillColours(rule, instanceId, columns, n, unknownNone)
   if (!colours) return null
-  const opacity = fillOpacityOf(plot)
-  if (opacity === null) return colours
+  if (opacity === null || anyOwn) return colours
   for (let i = 0; i < colours.length; i += 1) colours[i] = fillPaint(colours[i], opacity)
   return colours
 }
@@ -520,6 +655,67 @@ function lastPointValue(points) {
   return last ? last.value : undefined
 }
 
+// ─── ⭐⭐ A HEAVY PASS'S INDICATOR DATA, HANDED TO THE RENDERER OVER SEVERAL TASKS (switch smoothness) ───
+//
+// MEASURED (patrick-54's trace, RDDT 1D -> 5m with Fred RS, a production build of fcbb91a97f): every deep-history
+// pass applied every indicator series' data in ONE task, after the candles', and lightweight-charts rebuilds its
+// whole time scale on each `setData` of a series that already holds data (5.2.0, `DataLayer.setSeriesData`: every
+// time point's mapping is visited, then all of them re-sorted). So each Fred series cost a rebuild over the chart's
+// rows: 25-31 ms of `setData` per deep pass from the binder alone, in tasks of 198-236 ms.
+// With `ctx.deferSeriesData` (StockChart's opt-in) a pass over more rows than a first paint (`FIRST_PAINT_MAX`) does
+// not hand a series it ALREADY DREW its new data at once: it is queued, and the queue is drained one task at a time
+// (`SERIES_DATA_SLICE_MS` each, at least one series), so no task carries a whole indicator's data.
+// ⛔⛔ THE FINAL PICTURE IS IDENTICAL: each series receives exactly the calls it received before, in the same order
+// for that series; only WHEN changes. A series' queued data is applied before any later call that depends on what
+// it holds (an incremental `update`, a removal drops it, a newer full set replaces it, `flushPendingData` for a
+// writer outside the binder), and a pass never defers:
+//   · a FIRST bind, a pooled series, a gap-split line or an OHLC payload (the series would show another tenant's or
+//     another shape's picture meanwhile);
+//   · a series whose picture on screen was built from bars that are not all in this pass's bars: its old times
+//     would stay in the time scale while the chart frames the new ones. With them all inside (a deeper history of the
+//     same symbol and timeframe, a landing on the same bars) the time scale is the candles' either way, so the
+//     framing done before the queue drains is the framing done after it.
+// Railed: `binderSeriesDataSpread.rail.test.js` (the final applied data per series, deferred vs at once).
+/** A pass over more rows than this (a first paint's most, `barsBackfill.FIRST_PAINT_MAX`) may spread its data. */
+export const SERIES_DATA_DEFER_MIN_ROWS = FIRST_PAINT_MAX + 1
+/** How long one drain task may apply queued data (at least one series per task). */
+export const SERIES_DATA_SLICE_MS = 8
+
+const _sliceClock = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now())
+
+/** One task from now (a posted message where there is one: it is not clamped or throttled like a timer). */
+let _taskChannel = null
+const _taskQueue = []
+function nextTask(fn) {
+  if (typeof MessageChannel === 'function') {
+    if (!_taskChannel) {
+      _taskChannel = new MessageChannel()
+      _taskChannel.port1.onmessage = () => { const f = _taskQueue.shift(); if (f) f() }
+      // a host that counts open ports (node) must not be held open by this one
+      try { if (_taskChannel.port1.unref) _taskChannel.port1.unref() } catch { /* not node */ }
+      try { if (_taskChannel.port2.unref) _taskChannel.port2.unref() } catch { /* not node */ }
+    }
+    _taskQueue.push(fn)
+    _taskChannel.port2.postMessage(0)
+    return
+  }
+  setTimeout(fn, 0)
+}
+
+/** Is every bar time of `inner` a bar time of `outer`? Both chronological (a chart's bars). */
+export function barTimesWithin(inner, outer) {
+  if (inner === outer) return true
+  if (!Array.isArray(inner) || !Array.isArray(outer) || inner.length > outer.length) return false
+  let j = 0
+  for (let i = 0; i < inner.length; i += 1) {
+    const t = inner[i] ? inner[i].t : undefined
+    while (j < outer.length && outer[j] && outer[j].t < t) j += 1
+    if (j >= outer.length || !outer[j] || outer[j].t !== t) return false
+    j += 1
+  }
+  return true
+}
+
 /** A binding's GAP-RUN series (`gapRuns.js`) -- the render-only series that draw
  *  the EARLIER valid runs of one fundamental line. They live and die with the
  *  binding that owns them: every path that removes `b.series` removes these. */
@@ -540,6 +736,71 @@ function splitFor(points) {
   let sp = splitMemo.get(points)
   if (!sp) { sp = splitGapRuns(points); splitMemo.set(points, sp) }
   return sp
+}
+
+/** Is output `key` of `def` an AUTHORED yes/no (`outputType` CONDITION, in a
+ *  house / member definition)? Memoised per definition object: the binder asks on
+ *  every sync and the answer is a pure function of the document.
+ *
+ *  ⛔⛔ NEVER A PINE IMPORT (coordinator ruling on #1550, 2026-11-17). For a Pine
+ *  `plotshape` / `plotchar` the reference treats the series as boolean "for all
+ *  location values except location.absolute": at `location.absolute` (our `inBar`)
+ *  TradingView reads the value as the y, a yes/no included, so an imported glyph
+ *  keeps value-as-y on both lanes until a capture shows TradingView's own picture
+ *  (queue row Q-MK1, `vw-mk1-bool-absolute.pine`). `isPineImport` is the one
+ *  authority for "Pine-translated maths by any door". */
+const conditionMemo = new WeakMap()
+function isConditionOutput(def, key) {
+  if (!def || typeof def !== 'object') return false
+  if (isPineImport(def)) return false
+  let m = conditionMemo.get(def)
+  if (!m) { m = new Map(); conditionMemo.set(def, m) }
+  if (!m.has(key)) {
+    const t = attempt(() => outputTypeOf(def, key))
+    m.set(key, !!(t.ok && t.value && t.value.type === OUTPUT_TYPES.CONDITION))
+  }
+  return m.get(key)
+}
+
+/** The series kinds an event glyph may ride in a pane: each holds the value it
+ *  draws, so a glyph above / below / on it sits inside the pane's own range. */
+const GLYPH_HOST_POOLS = new Set(['line', 'area', 'baseline', 'histogram', 'columns'])
+
+/**
+ * ⭐⭐ 2026-11-17 (backlog row 41) — WHAT AN EVENT GLYPH RIDES, per binding.
+ *
+ * `pool.markerIsEvent` says which glyphs have no y of their own (an above / below
+ * glyph, or a glyph on a yes/no output). Such a glyph needs a HOST whose values
+ * are on the scale, and its own 0/1 series then leaves the autoscale walk
+ * (`pool.seriesOptionsForPlot`, `markerOnHost`):
+ *   - `'price'` on pane 0: the chart's own price series, as an above / below
+ *     glyph already did (BATCH 2), so "on the bar" is on the candle;
+ *   - an INDEX into `bind` in any other pane: the first visible line-family plot
+ *     of the SAME instance on the same pane and scale (the line the event is
+ *     about, e.g. a new high of the relative strength line);
+ *   - `null`: no host — a glyph with a y (`inBar` on a number), or a pane of
+ *     markers only, whose column is all that frames the pane. Unchanged.
+ *
+ * Pure over `bind` and the resolved placements, so it is decided BEFORE pass one
+ * builds any series option.
+ */
+export function eventGlyphHosts(bind, settled, { isCondition = isConditionOutput } = {}) {
+  return bind.map((b, i) => {
+    const pl = settled[i]
+    if (!b || !pl || !b.plot || b.plot.hidden === true) return null
+    if (!markerIsEvent(b.plot, isCondition(b.def, b.plot.key))) return null
+    if (pl.paneIndex === 0) return 'price'
+    for (let j = 0; j < bind.length; j++) {
+      const o = bind[j]
+      const op = settled[j]
+      if (j === i || !o || !op || o.instanceId !== b.instanceId) continue
+      if (!o.plot || o.plot.hidden === true || o.plot.style === 'markers') continue
+      if (!GLYPH_HOST_POOLS.has(o.poolKey)) continue
+      if (op.paneIndex !== pl.paneIndex || op.scaleId !== pl.scaleId) continue
+      return j
+    }
+    return null
+  })
 }
 
 /** `time -> 'Aug 2026'` for an economic column, one per (column, adjustTime). */
@@ -603,6 +864,41 @@ function sameOptions(a, b) {
     const kx = Object.keys(x)
     if (kx.length !== Object.keys(y).length) return false
     for (const j of kx) if (x[j] !== y[j]) return false
+  }
+  return true
+}
+
+/**
+ * True when handing `want` to `series.applyOptions` would change no option the series holds now, by the library's
+ * own `merge` (lightweight-charts 5.2.0): a key set to `undefined` is skipped, a `null` over a value already set is
+ * skipped, a plain object merges key by key into the object already there, and everything else (a number, a
+ * string, a function, an array) is ASSIGNED, so it is held when it is the same value (an array: the same items).
+ * Read off `series.options()` (the library's copy of what the series holds), never off what this file last sent:
+ * other code writes some of these options too. A series that cannot say what it holds holds nothing.
+ */
+export function optionsHeld(series, want) {
+  let now = null
+  try { now = series && typeof series.options === 'function' ? series.options() : null } catch { now = null }
+  return !!now && typeof now === 'object' && heldIn(now, want)
+}
+function heldIn(now, want) {
+  if (!want || typeof want !== 'object') return false
+  for (const k of Object.keys(want)) {
+    const w = want[k]
+    if (w === undefined) continue
+    const n = now[k]
+    if (w !== null && typeof w === 'object' && !Array.isArray(w) && n !== undefined) {
+      // merged key by key into what is there (which must itself be an object to take keys)
+      if (n === null || typeof n !== 'object' || Array.isArray(n) || !heldIn(n, w)) return false
+      continue
+    }
+    if (w === null && n !== undefined) continue
+    if (Array.isArray(w)) {
+      if (!Array.isArray(n) || n.length !== w.length) return false
+      for (let i = 0; i < w.length; i++) if (!Object.is(n[i], w[i])) return false
+      continue
+    }
+    if (!Object.is(n, w)) return false
   }
   return true
 }
@@ -733,6 +1029,123 @@ function inputsSignature(inputs) {
   return out
 }
 
+// ─── ⭐⭐ NEIGHBOR FRAMES (2026-11-20): AN ANSWER COMPUTED AHEAD, FILED BY WHAT IT WAS COMPUTED FROM ──────
+//
+// `prepare` (in `createBinder`) runs `registry.computeFor` in idle time over the bars of a row the member
+// is about to reach; `sync` takes that answer instead of computing when it asks the SAME question. The
+// question is (the bars array, by identity) + this key + `token`, and the key is built by ONE function for
+// both sides, so the side that files and the side that looks up cannot disagree about what was asked.
+//
+// ⛔ ONLY A COMPUTE WHOSE INPUTS THE KEY CAN NAME. A native reads the bars, its inputs and its source
+// columns (`nativeRegistry.computeFor`: `fn(bars, p, ctx)`, and `ctx.source` is the only ctx a native
+// reads). A server-lane definition reads those plus the symbol, the timeframe, the newest bar's tri-state,
+// its live-tail state (`registry.computeSignature`) and the landed envelope (`token`, by identity, and
+// only one this browser's store did not hand in: a provisional entry is re-asked by the normal path). Any
+// other lane (a Pine run, the AST host lane), a framed instance, a source of another symbol / fundamental /
+// economic series, or a document reading other symbols or a lower timeframe is NOT prepared: those read
+// state the key cannot name, and the switch computes them exactly as before.
+const _colSerials = new WeakMap()
+let _colSerial = 0
+function columnSerial(col) {
+  let s = _colSerials.get(col)
+  if (!s) { s = ++_colSerial; _colSerials.set(col, s) }
+  return s
+}
+
+/** The inputs by VALUE (a value that is an object is named by its JSON), or null when one cannot be. */
+function prepInputsSig(inputs) {
+  if (!inputs || typeof inputs !== 'object') return ''
+  let out = ''
+  for (const k of Object.keys(inputs).sort()) {
+    const v = inputs[k]
+    let s
+    if (v === null || typeof v !== 'object') s = `${typeof v}:${String(v)}`
+    else { try { s = `json:${JSON.stringify(v)}` } catch { return null } }
+    out += `${k}\u0000${s}\u0001`
+  }
+  return out
+}
+
+/**
+ * `{key, token, lane}` for a prepared column set, or null when this instance is never prepared.
+ * `sourceCols` are the source columns the compute is handed (by input key).
+ */
+export function prepKeyOf(registry, def, inst, sourceCols, { sym, tf, forming, otherSig = '', lowerSig = '' } = {}) {
+  if (!def || !inst || otherSig || lowerSig) return null
+  const lane = computeLaneOf(def)
+  if (lane !== COMPUTE_LANE.NATIVE && lane !== COMPUTE_LANE.SERVER) return null
+  const inputs = prepInputsSig(inst.inputs)
+  if (inputs === null) return null
+  let key = `${lane}\u0002${def.id}\u0002${inputs}`
+  for (const [k, value] of sourceInputsOf(def, inst)) {
+    const parsed = parseSource(value)
+    const col = sourceCols ? sourceCols[k] : null
+    if (parsed && parsed.kind === 'bar') key += `\u0002${k}=bar:${parsed.field}`
+    else if (parsed && parsed.kind === 'instance' && col) key += `\u0002${k}=col#${columnSerial(col)}`
+    else return null
+  }
+  let token = null
+  if (lane === COMPUTE_LANE.SERVER) {
+    const s = typeof sym === 'string' ? sym : ''
+    const t = tf === undefined || tf === null ? '' : tf
+    token = landedEnvelopeFor(def, resolveInputs(def, inst.inputs), s, t)
+    if (!token) return null
+    const live = typeof registry.computeSignature === 'function'
+      ? (registry.computeSignature(def, inst.inputs, { sym: s, tf: t }) || '') : ''
+    key += `\u0002srv:${s}:${t}\u0002nbf:${forming === null || forming === undefined ? '?' : forming ? 1 : 0}\u0002live:${live}`
+  }
+  return { key, token, lane }
+}
+
+/**
+ * Everything `toPoints` reads for one binding, besides the bars and `adjustTime` — ONE reading, used by the
+ * sync's `pointsFor` and by `prepare`, so a prepared point array is filed under exactly what the switch asks.
+ */
+function pointsInputsOf(b, rawColumn, columnOf, cs) {
+  const shift = isOhlcPayload(rawColumn) ? 0 : drawShiftOf(b.plot)
+  const column = displacedColumn(rawColumn, shift)
+  if (isOhlcPayload(column)) return { ohlc: true, column }
+  const sc = signColorsForPlot(b.plot)
+  // ⭐ C1 — the deciding column for `colorMode: 'column:<key>'`, looked up
+  // through the SAME `bindingKey` every column in this pass is stored under,
+  // so a colour rule can only ever name a column of its own instance.
+  const cc = sc ? null : columnColorsForPlot(withPackedTheme(b.plot, chartThemeOf(cs)))
+  const cond = cc ? displacedColumn(columnOf(bindingKey(b.instanceId, cc.key)), shift) : undefined
+  const up = sc ? sc.up : (cc ? cc.up : null)
+  const down = sc ? sc.down : (cc ? cc.down : null)
+  const palette = cc && cc.palette ? cc.palette.join('|')
+    : (cc && cc.gradient ? `gradient:${cc.gradient.sig}`
+      : (cc && cc.packed ? cc.packed.sig : null))
+  // ⭐ P1 — what an unknown condition paints is the DOCUMENT's rule.
+  const unknownNone = unknownColourRule(b.def)
+  return { ohlc: false, column, sc, cc, cond, up, down, palette, unknownNone }
+}
+
+/** Does a filed point array answer this question? (The pointMemo's own key, field for field.) */
+function samePointsKey(m, column, bars, adjustTime, k) {
+  return !!m && m.column === column && m.bars === bars && m.adjustTime === adjustTime
+    && m.up === k.up && m.down === k.down && m.palette === k.palette && m.cond === k.cond
+    && m.unknownNone === k.unknownNone
+}
+
+/** How many bars one piece of `prepare` turns into points (a 30,000-bar plot is several pieces). */
+export const POINTS_SLICE_BARS = 6000
+
+/** How many bars arrays one binder keeps prepared answers for (the rows ahead / behind it prepares:
+ *  `useNeighborFrames.PREPARE_RANKS`). Older ones are dropped: a 30,000-bar row's columns are megabytes. */
+export const PREPARED_BARS_MAX = 3
+
+// ⭐ NEIGHBOR FRAMES — a bar field as a column, ONE array per (bars, field) while the switch is on, so the
+// side that prepares and the side that switches hand a native the same source (`barFieldSeries`' values).
+const _barFieldMemo = new WeakMap()   // bars -> Map(field -> column)
+function barFieldOf(bars, field) {
+  let byField = _barFieldMemo.get(bars)
+  if (!byField) { byField = new Map(); _barFieldMemo.set(bars, byField) }
+  let col = byField.get(field)
+  if (!col) { col = barFieldSeries(bars, field); byField.set(field, col) }
+  return col
+}
+
 // ─── D2: WHERE A SURVIVING HEIGHT DRIFT GOES ─────────────────────────────────
 //
 // ⛔ NOT AN EXCEPTION. `binder.sync` runs inside StockChart's render effect, so a
@@ -774,6 +1187,19 @@ export function __resetPaneHeightAlerts() {
  *   binders. `StockChart` passes a stable per-chart id; absent, it is `''`.
  * @returns {{sync: (ctx: object) => object, teardown: () => void}}
  */
+/** What the member's disclosure strip says about one indicator's PLOTS (and the paints
+ *  read from them), off the columns the decision was made for: the chart-clock report's
+ *  withheld list, then (⭐⭐ P0) a refused `sym` / `ltf` read. A registry without a
+ *  reader (a test double) contributes nothing. ONE reader: the binder publishes it, and
+ *  the vendor harness asks it which paints are withheld BY NAME (G5). */
+export function plotStripNoticesOf(registry, def, cols) {
+  return [
+    ...(registry && typeof registry.chartClockReport === 'function'
+      ? ((registry.chartClockReport(cols) || {}).withheld || []) : []),
+    ...(registry && typeof registry.externalReadNotices === 'function' ? registry.externalReadNotices(def, cols) : []),
+  ]
+}
+
 export function createBinder({ chart, LWC, scope = '' }) {
   const noticeScope = typeof scope === 'string' ? scope : ''
   /** Last pass's bindings, each carrying `series`, `guideHandles`, `paneIndex`. */
@@ -806,6 +1232,62 @@ export function createBinder({ chart, LWC, scope = '' }) {
   // the header's info values, so a refused output says the chart's own reason
   // instead of a blank; never consulted by the paint.
   let lastColumnErrors = new Map()
+  /** ⭐⭐ HOST WORKER — the instances the last sync held (their values were in the host lane's
+   *  worker). One that is no longer held has LANDED: its series are re-set below whatever the
+   *  plan says, because the landing repaints with the SAME bars (a `noop` plan, whose `applyData`
+   *  leaves a series untouched) and the series still holds the stale picture. */
+  let heldLastSync = new Set()
+
+  // ─── ⭐⭐ THE QUEUED SERIES DATA (see `SERIES_DATA_DEFER_MIN_ROWS`) ───
+  /** series -> {points, from}: the newest full data a pass handed it and has not applied yet (insertion order is
+   *  the drain's order). `from` is the bars array the points were built from. */
+  const pendingData = new Map()
+  /** series -> the bars array the data it HOLDS was built from (what the renderer has), set on every apply. */
+  const drawnFrom = new WeakMap()
+  /** series -> the chart SYMBOL the data it holds was built for (set with `drawnFrom`).
+   *  ⛔ `barTimesWithin` compares bar TIMES only, and two stocks' daily bars share every trading date: without
+   *  this, the previous symbol's picture counted as "built from bars inside this pass", its replacement was
+   *  queued, and the old symbol's moving averages sat on the new candles until the drain (a scan's next flip
+   *  pushed the drain back again) — the "moving-average blip" between charts (owner, 2026-11-20). */
+  const drawnSym = new WeakMap()
+  /** The symbol of the pass now running (`sync` sets it first); a queued entry carries its own. */
+  let passSym = ''
+  let drainArmed = false
+
+  function applySeriesData(series, points, from, sym = passSym) {
+    pendingData.delete(series)
+    attempt(() => series.setData(points))
+    drawnFrom.set(series, from)
+    drawnSym.set(series, sym)
+  }
+  /** Apply what is queued for `series`, if anything (before a call that reads or extends what it holds). */
+  function flushSeries(series) {
+    const p = pendingData.get(series)
+    if (p) applySeriesData(series, p.points, p.from, p.sym)
+  }
+  function queueSeriesData(series, points, from) {
+    pendingData.delete(series)
+    pendingData.set(series, { points, from, sym: passSym })
+    if (drainArmed) return
+    drainArmed = true
+    nextTask(drainSlice)
+  }
+  function drainSlice() {
+    drainArmed = false
+    if (!pendingData.size) return
+    const t0 = _sliceClock()
+    for (const [series, p] of pendingData) {
+      applySeriesData(series, p.points, p.from, p.sym)
+      if (_sliceClock() - t0 >= SERIES_DATA_SLICE_MS) break
+    }
+    if (pendingData.size && !drainArmed) { drainArmed = true; nextTask(drainSlice) }
+  }
+  /** A series about to be removed takes its queued data with it (never applied to a removed series). */
+  function removeSeriesNow(series) {
+    if (!series) return
+    pendingData.delete(series)
+    attempt(() => chart.removeSeries(series))
+  }
 
   // ─── THE TWO MEMOS (spec §5: "columnar→object mapping reused, never
   //     re-allocated per update") ─────────────────────────────────────────────
@@ -830,6 +1312,21 @@ export function createBinder({ chart, LWC, scope = '' }) {
 
   /** instanceId → the live object layer for that indicator, if it draws any. */
   const objectLayers = new Map()
+  /** ⭐ (e85) instanceId → the pane (`{def, pane}`) whose SERVED run-half picture its layer holds: a pending run of
+   *  that same pane keeps the layer as it stands (`syncObjects`). Any other drawing of the layer forgets it. */
+  const runHalfServed = new Map()
+  /** ⭐ (engine 87 train, #2076 x #2044) DOES A PENDING RUN HALF OF THIS INSTANCE KEEP THE PICTURE ITS RUN LAST SERVED ON
+   *  THIS PANE? ONE condition, read by `syncObjects` (which keeps the layer as it stands) and by the strip's computing note
+   *  (`noteRuntimeErrorStop`, said only where this pane has NO picture): the same document, the same pane (symbol, timeframe,
+   *  settings: `instancePanes`, without what the data moves), a layer that holds it, and a run half that is pending.
+   *  ⚰️ The note asked only `drawnPictures`, keyed on the FULL signature: SPX's own update moved it, so a run in the worker
+   *  over a KEPT picture said "still computing ... drawn when that finishes" while the drawings were drawn. */
+  const keepsServedPicture = (instanceId, def, cols, instancePanes) => {
+    const drawnFor = runHalfServed.get(instanceId)
+    return !!(drawnFor && carriesRunHalf(def) && objectLayers.has(instanceId) && drawnFor.def === def
+      && instancePanes && drawnFor.pane === instancePanes.get(instanceId)
+      && (runHalfOf(cols) || {}).state === 'pending')
+  }
 
   // ⭐⭐ P1 HARDENING (2026-10-11) — THE CHART MOVED, THE DRAWINGS FOLLOW.
   // An object layer repaints only when its STATE changes (`objectLayer.js::set`);
@@ -899,7 +1396,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const registry = ctx.registry
     const n = bars.length
     let times = null
-    const timesOf = () => (times || (times = bars.map((bar) => adjustTime(bar.t))))
+    const timesOf = () => (times || (times = (neighborFramesOn() && chartTimesFor(bars, adjustTime))
+      || bars.map((bar) => adjustTime(bar.t))))
     const alive = new Set()
     /** The bgcolor layer keys in priority order (lowest first). */
     const paintOrder = []
@@ -929,7 +1427,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
       const instOverrides = new Map()
       paints.forEach((p, i) => {
         if (!p) return
-        const computed = paintColoursFor(p, inst.instanceId, columns, n, { unknownNone: unknownColourRule(def) })
+        const computed = paintColoursFor(withPackedTheme(p, chartThemeOf(ctx.cs)), inst.instanceId, columns, n,
+          { unknownNone: unknownColourRule(def) })
         if (!computed) return
         const colours = paintRenderColours(p, computed, n)
         if (p.kind === 'bgcolor') {
@@ -1036,12 +1535,39 @@ export function createBinder({ chart, LWC, scope = '' }) {
    *  state could not place is counted into the member's drawing note, never only
    *  into a DOM attribute. A state of `null` (nothing drawn) clears. */
   const dropsPublished = new Set()
-  const publishDrops = (instanceId, state) => {
+  // ⭐ W-C22-DEL — `families`: the drawing families the run withheld WHOLE because
+  // TradingView's collector may have removed objects this chart still holds
+  // (`objectRuntime.js`, `withheldBy['objects:collector']`), said by name in the
+  // same note.
+  // `familiesAll`: those withheld WHOLE (`withheldBy['objects:collector-all']`).
+  // ⭐ DIV-3 r2 — `why`: family → the member's sentence, for a family the HOST run
+  // withheld whole by a named guard of its own (`objectRuntime.js`, `withheldWhy`:
+  // a `table.cell` on a merged head cell). Said in the same note, never a silent drop.
+  // ⭐ `servedByRun` (2026-11-17): the drawings on this chart ARE the run half's. The pane reads THIS
+  // (the binder's own decision) to leave out the host lane's withheld-drawings note, never a second
+  // evaluation of the gates.
+  const publishDrops = (instanceId, state, { families = null, familiesAll = null, why = null, servedByRun = false } = {}) => {
     const n = state ? renderDroppedCount(state) : 0
-    if (!n && !dropsPublished.has(instanceId)) return
-    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope))
-    if (n) dropsPublished.add(instanceId)
+    const fams = Array.isArray(families) ? families : []
+    const all = Array.isArray(familiesAll) ? familiesAll : []
+    const whyN = why && typeof why === 'object' ? Object.keys(why).length : 0
+    if (!n && !fams.length && !all.length && !whyN && !servedByRun && !dropsPublished.has(instanceId)) return
+    attempt(() => setObjectRenderDrops(instanceId, n, state ? renderHeldCount(state) : 0, noticeScope,
+      { families: fams, familiesAll: all, why, servedByRun }))
+    if (n || fams.length || all.length || whyN || servedByRun) dropsPublished.add(instanceId)
     else dropsPublished.delete(instanceId)
+  }
+  // ⭐⭐ W9-T12 — the marker outcome per instance (served, or the refusal's sentence), for the
+  // member surface that shows it (T13b). Zero calls for a chart with no strategy on it.
+  const markersPublished = new Set()
+  const publishMarkers = (instanceId, result) => {
+    if (!result && !markersPublished.has(instanceId)) return
+    attempt(() => publishTradeMarkers(instanceId, result, noticeScope))
+    if (result) markersPublished.add(instanceId)
+    else markersPublished.delete(instanceId)
+  }
+  const pruneMarkers = (keep) => {
+    for (const id of [...markersPublished]) if (!keep || !keep.has(id)) publishMarkers(id, null)
   }
   const pruneDrops = (keep) => {
     for (const id of [...dropsPublished]) if (!keep || !keep.has(id)) publishDrops(id, null)
@@ -1059,61 +1585,179 @@ export function createBinder({ chart, LWC, scope = '' }) {
    *  object program that refuses, exceeds its envelope, or throws must never
    *  take the columns, the legend or the scan down with it. That is the C2A
    *  failure-containment rule applied to the newest surface. */
-  const syncObjects = (ctx, instances, bars, runCols = null) => {
+  const syncObjects = (ctx, instances, bars, runCols = null, heldIds = null, instancePanes = null) => {
     const make = ctx.createObjectLayer
     const alive = new Set()
     if (typeof make === 'function') ensureObjectRangeSubscription()
     const theme = chartThemeOf(ctx.cs)
+    // ⭐ W9-T12 r2 (N1) — each strategy's marker outcome, published once AFTER its picture is
+    // decided, so the outcome never says `ok` over a layer this sync cleared (and never flickers).
+    const markOutcomes = new Map()
     for (const inst of instances) {
       if (!inst || typeof inst.instanceId !== 'string' || inst.hidden === true) continue
       const def = ctx.registry && attempt(() => ctx.registry.getDefinition(inst.defId)).value
+      // ⭐⭐ HOST WORKER — AN INSTANCE WHOSE VALUES ARE IN THE WORKER, AND WHOSE DRAWINGS COME FROM THEM
+      // (a run half, a runtime document's run, a strategy's trade markers), KEEPS ITS DRAWINGS AS THEY
+      // STAND (stale-while-revalidate): its layer, notes and markers are left as the last sync drew
+      // them (a drawing is placed by bar TIME, so it stays where it was) and redrawn when the values
+      // land. A host object program reads no plot value: it goes on below, to its own door.
+      if (heldIds && heldIds.has(inst.instanceId)
+          && (!def || !def.objects || drawsRuntimeObjects(def) || carriesRunHalf(def) || drawsTradeMarkers(def))) {
+        if (objectLayers.has(inst.instanceId)) alive.add(inst.instanceId)
+        continue
+      }
+      // ⭐⭐ (e85) A RUN HALF WHOSE RUN IS PENDING (in the worker, a series still loading, or WAITING for another
+      // series' newest bars) KEEPS THE PICTURE ITS RUN LAST SERVED ON THIS PANE, as it stands (stale-while-revalidate:
+      // a drawing is placed by bar time, so it stays where it was), until the run answers. ⚰️ The layer was EMPTIED on
+      // every pending answer: on a live 5m chart Fred RS's drawings blinked out for each new bar's run, and a tail wait
+      // would have held an empty layer for as long as SPX lagged. ⛔ ONLY the run's own SERVED picture of THIS pane
+      // (`runHalfServed`: the document, symbol, timeframe and settings it was drawn for): never another symbol's or
+      // timeframe's, never the host program's picture (engine 53: no host picture first and a swap after).
+      if (keepsServedPicture(inst.instanceId, def, runCols ? runCols.get(inst.instanceId) : null, instancePanes)) {
+        alive.add(inst.instanceId)
+        continue
+      }
+      runHalfServed.delete(inst.instanceId)
       // ⭐⭐ RT5 — THE RUN'S OWN DRAWINGS: read off the column record step 1
       // already computed (one run, both answers), drawn by the same render state.
       // ⛔ No columns yet (a worker run in flight) or a run that computed nothing
       // draws nothing — never a stale picture, never the host program's.
-      if (drawsRuntimeObjects(def)) {
+      // ⭐⭐ W9-T12 — A STRATEGY'S TRADE MARKERS: asked of the committed ledger at the member door
+      // (`memberTradeMarkers`) and published BEFORE either drawing path, then merged into
+      // WHICHEVER layer draws this instance (the run's objects below, or the host program's).
+      // ⛔ An indicator never reaches `memberTradeMarkers` (`drawsTradeMarkers` is false), so its
+      // path is unchanged. ⚰️ The first cut sent every strategy into the run's branch, and a
+      // strategy whose drawings come from the HOST program (`definition.objects`, no
+      // `compute.objects`) drew nothing at all (review F1).
+      const markersHere = drawsTradeMarkers(def)
+      const marks = markersHere
+        ? attempt(() => memberTradeMarkers((computeMemo.get(inst.instanceId) || {}).cols)).value || null : null
+      if (markersHere) markOutcomes.set(inst.instanceId, marks)
+      const markersCleared = () => { if (markersHere) markOutcomes.set(inst.instanceId, markersWithheldWith(marks)) }
+      const markLive = marks ? attempt(() => tradeMarkerObjects(marks)).value || [] : []
+      const markSig = markersHere ? `:mk:${markLive.map((o) => `${o.id}=${o.props.text}`).join(',')}` : ''
+      // ⭐⭐ ENGINE 53 — A HOST DOCUMENT'S RUN HALF (`nativeRegistry.js::withRunHalf`), read off
+      // the column record step 1 computed. `served`: the run's drawings, through the run's
+      // branch below, and the host program's are NOT drawn (never both pictures). `pending`:
+      // the run's branch with nothing to draw yet, so the layer is EMPTY until the run lands
+      // (never the host picture first and a swap after). `refused`: the host program's branch,
+      // with the reason the complete picture is not shown said in the drawing note.
+      const runHalf = carriesRunHalf(def) ? runHalfOf((runCols ? runCols.get(inst.instanceId) : null)
+        || (computeMemo.get(inst.instanceId) || {}).cols) : null
+      const runHalfDraws = !!(runHalf && (runHalf.state === 'served' || runHalf.state === 'pending'))
+      const runHalfWhy = runHalfWhyFor(def, runHalf)
+      // the run's branch: a document whose run draws its objects, or a strategy with no host program
+      // ⭐⭐ PARITY UNIT LF — a run-owned document that carries its clean host program beside the run
+      // draws that program instead whenever the run holds back a family it draws (`drawsRunObjectsOn`)
+      // (and never once the member has moved one of the script's own settings: the program is the author's)
+      const runObjects = drawsRunObjectsOn(def, (runCols ? runCols.get(inst.instanceId) : null)
+        || (computeMemo.get(inst.instanceId) || {}).cols, inst.inputs)
+      if (runObjects || runHalfDraws || (markersHere && !(def && def.objects))) {
         alive.add(inst.instanceId)
-        if (typeof make !== 'function') continue
+        const memo = computeMemo.get(inst.instanceId)
+        // (r3) no object layer on this surface, or one that could not be made: nothing is drawn
+        if (typeof make !== 'function') { markersCleared(); continue }
         let rlayer = objectLayers.get(inst.instanceId)
         if (!rlayer) {
           const made = attempt(() => make(inst))
           rlayer = made.ok ? made.value : null
-          if (!rlayer) continue
+          if (!rlayer) { markersCleared(); continue }
           objectLayers.set(inst.instanceId, rlayer)
         }
-        const memo = computeMemo.get(inst.instanceId)
-        const payload = runtimeObjectsOf(memo && memo.cols)
-        if (!payload) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
+        const objPayload = runtimeObjectsOf(memo && memo.cols)
+        const payload = objPayload && !markLive.length ? objPayload
+          : objPayload ? { ...objPayload, live: objPayload.live.concat(markLive) }
+            : markLive.length ? { live: markLive, withheld: {}, reason: null, stats: { nextId: `mk${markLive.length}` }, pineVersion: null }
+              : null
+        if (!payload) {
+          // ⭐ OZ r1 — a run that withheld its drawings whole (`WITHHELD`) says why
+          const wr = runtimeObjectsWithheldOf(memo && memo.cols)
+          const ws = wr ? stoppedRunSentence(wr.reason, 'withheld', { fromListing: ctx.historyFromListing === true }) : null
+          publishDrops(inst.instanceId, null, { why: ws ? { [STOPPED_KEY]: ws } : null })
+          attempt(() => rlayer.set(null, '')); continue
+        }
         const rstate = attempt(() => toRenderState(payload.live,
           { bars, tf: ctx.tf, theme, pineVersion: payload.pineVersion })).value
-        if (!rstate) { publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
-        publishDrops(inst.instanceId, rstate)
+        if (!rstate) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => rlayer.set(null, '')); continue }
+        // ⭐ OZ — a family the RUN withheld whole draws none; its name reaches the
+        // member's drawing note on this lane too (`runtimeWithheldWhy`).
+        // ⭐ OZ r1 — and a run STOPPED on a step no capture settles (`OBJECT_UNWITNESSED`,
+        // C40) draws nothing; its reason reached only the layer's meta until now.
+        const rStop = payload.status && payload.status !== 'ok' && objPayload
+          ? stoppedRunSentence(payload.reason, 'unmeasured', { fromListing: ctx.historyFromListing === true }) : null
+        const rWhy = runtimeWithheldWhy(payload.withheld)
+        // ⭐ the run half drew this instance's drawings on this chart: say so (`servedByRun`)
+        publishDrops(inst.instanceId, rstate,
+          { why: rStop || rWhy ? { ...(rStop ? { [STOPPED_KEY]: rStop } : {}), ...(rWhy || {}) } : null, servedByRun: true })
         const rsig = `rt:${bars.length}:${bars.length ? bars[bars.length - 1].t : 0}:${(payload.stats || {}).nextId}:${theme.fg || ''}/${theme.bg || ''}`
-        attempt(() => rlayer.set(rstate, rsig, {
+          + markSig
+        const rset = attempt(() => rlayer.set(rstate, rsig, {
           liveIds: payload.live.map((o) => o.id),
           createdBars: payload.live.map((o) => o.createdBar),
           lane: 'runtime',
           withheld: payload.withheld || {},
           reason: payload.reason || null,
         }))
+        if (!rset.ok) markersCleared()
+        // ⭐ (e85) the run half's SERVED picture of this pane, which a pending run of the same pane keeps (above)
+        else if (runHalf && runHalf.state === 'served' && instancePanes && instancePanes.has(inst.instanceId)) {
+          runHalfServed.set(inst.instanceId, { def, pane: instancePanes.get(inst.instanceId) })
+        }
         continue
       }
       const program = def && def.objects
-      if (!program) continue
+      if (!program) {
+        // ⭐ ENGINE 53 — a refused run half over a host picture with NO drawings (the host
+        // program lost all of them, or a lost removal withheld it) still says why the complete
+        // picture is not shown; a layer the run drew before is emptied, never left standing.
+        if (runHalfWhy) {
+          alive.add(inst.instanceId)
+          const was = objectLayers.get(inst.instanceId)
+          if (was) attempt(() => was.set(null, ''))
+          publishDrops(inst.instanceId, null, { why: { [RUN_HALF_WHY_KEY]: runHalfWhy } })
+        }
+        continue
+      }
       alive.add(inst.instanceId)
-      if (typeof make !== 'function') continue
+      if (typeof make !== 'function') { markersCleared(); continue }
       let layer = objectLayers.get(inst.instanceId)
       if (!layer) {
         const made = attempt(() => make(inst))
         layer = made.ok ? made.value : null
-        if (!layer) continue
+        if (!layer) { markersCleared(); continue }
         objectLayers.set(inst.instanceId, layer)
       }
       // ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN: what step 1
       // computed for this instance on THIS chart decides (`runtimeObjectsWithheld`).
       if (runtimeObjectsWithheld(def, runCols ? runCols.get(inst.instanceId) : undefined)) {
+        markersCleared()
         publishClock(inst.instanceId, 'objects', [])
         publishDrops(inst.instanceId, null)
+        attempt(() => layer.set(null, ''))
+        continue
+      }
+      // ⭐⭐ HOST WORKER — A CHART'S HOST OBJECT PROGRAM IS EVALUATED OFF THE MAIN THREAD, memoised per
+      // bars array (`hostLaneAsync.hostObjectsOffThread`, the same `hostObjectRun` in the worker): a
+      // repaint with the same bars evaluates nothing. While a new bars array's evaluation is in the
+      // worker, this pane's own last picture stays (drawings are placed by bar time) and another
+      // pane signature's (a symbol or timeframe switch) is taken down: never the old symbol's
+      // drawings. A program the worker cannot take is evaluated here, as before (`null`).
+      const readerOpts = hostObjectReaderOpts(ctx, inst.inputs)
+      const off = attempt(() => hostObjectsOffThread(def, bars, readerOpts, `${noticeScope}\u0001${inst.instanceId}`))
+      const offHost = off.ok ? off.value : null
+      if (offHost && offHost.pending) {
+        if (!offHost.keep) {
+          markersCleared()
+          publishClock(inst.instanceId, 'objects', [])
+          publishDrops(inst.instanceId, null)
+          attempt(() => layer.set(null, ''))
+        }
+        continue
+      }
+      if (offHost && offHost.refused) {
+        markersCleared()
+        publishClock(inst.instanceId, 'objects', [])
+        publishDrops(inst.instanceId, null, { why: { 'host-lane': offHost.refused } })
         attempt(() => layer.set(null, ''))
         continue
       }
@@ -1121,7 +1765,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // UNBOUND; only a document over the byte budget carries a graph. Reading
       // one form and not the other is what made the first live run paint
       // nothing while every unit test stayed green — see `objectReaderFor`.
-      const built = attempt(() => {
+      const built = !off.ok ? off : attempt(() => {
         // ⭐⭐ THE INSTANCE'S OWN INPUTS AND THE CHART'S TIMEFRAME, exactly as
         // step 1 below hands them to `registry.computeFor`. Passing neither is
         // what made a member input invisible to an object coordinate while the
@@ -1134,32 +1778,15 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // ⭐ AND WHETHER THE NEWEST BAR IS STILL FORMING — the same tri-state
         // step 1 hands `computeFor`, for the same reason: `barstate.isconfirmed`
         // in an object guard reads `na` without it (`objectReaderFor`).
-        const reader = objectReaderFor(def, bars, {
-          inputs: inst.inputs, tf: ctx.tf, symbol: ctx.symbol,
-          newestBarIsForming: ctx.newestBarIsForming ?? null,
-          // ⭐ C26 — the same other-symbol supply the plot beside it is handed.
-          secondary: ctx.secondary && typeof ctx.secondary.get === 'function' ? ctx.secondary : null,
-          exchangeOf: ctx.exchangeOf,
-          // ⭐ C41 — the same intraday supply the plot beside it is handed.
-          lowerTf: ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null,
-          // ⭐ C12w — the caller's statement that bar 0 is the listing bar. The
-          // document's own declaration is asked inside `objectReaderFor`.
-          ...(ctx.historyFromListing === true ? { historyFromListing: true } : {}),
-          // ⭐ C45 — and the one about `bar_index` (`barIndexAbsoluteFor`); no member
-          // surface states it.
-          ...(ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
-        })
-        if (!reader) return null
-        const run = evaluateObjects(reader.program, {
-          barCount: bars.length,
-          readNode: reader.readNode,
-          readTime: reader.readTime,
-          // ⭐ C12: an op reading a `var` before its warm-up is withheld, not
-          // drawn off a `NaN` that reads as Pine's `na` (`objectRuntime.js`).
-          readUnknown: reader.readUnknown,
-          // ⭐ F1 — off the listing a `var` list of drawings is withheld whole.
-          offListing: reader.historyFromListing !== true,
-        })
+        // ⭐⭐ ENGINE 54 — ONE EVALUATION PATH (`runHalfObjectRail.js::hostObjectRun`), which the
+        // run half's object rail compares the run against: the reader's options are the
+        // instance's inputs and the chart's tf / symbol / forming state, the other-symbol
+        // (C26) and intraday (C41) supplies, the listing (C12w) and `bar_index` (C45)
+        // statements; the evaluator withholds a `var` read before its warm-up (C12), keeps the
+        // chart clock's channel apart (OZ r1) and withholds a `var` list off the listing (F1).
+        const host = offHost && offHost.done ? offHost.host : hostObjectRun(def, bars, readerOpts)
+        if (!host) return null
+        const { reader, run } = host
         return {
           run,
           // ⭐ `tf` so a date-keyed daily series can place an `xloc.bar_time`
@@ -1204,7 +1831,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         }
       })
       publishClock(inst.instanceId, 'objects', built.ok && built.value ? built.value.chartClock : [])
-      if (!built.ok || !built.value) { publishDrops(inst.instanceId, null); attempt(() => layer.set(null, '')); continue }
+      if (!built.ok || !built.value) { markersCleared(); publishDrops(inst.instanceId, null); attempt(() => layer.set(null, '')); continue }
       // ⭐ THE SIGNATURE IS THE BARS PLUS THE PROGRAM. Same script over the same
       // series is the same picture, so a poll that changed nothing repaints
       // nothing — the memo discipline the column path above already keeps.
@@ -1237,23 +1864,76 @@ export function createBinder({ chart, LWC, scope = '' }) {
           dropped: built.value.state.dropped,
         },
       }
-      publishDrops(inst.instanceId, built.value.state)
-      attempt(() => layer.set(built.value.state, sig, meta))
+      // ⭐ W9-T12 — served markers join the host program's picture (one layer per instance)
+      // (r2, N2): ids and bars kept in step, a marker the chart cannot place counted in the note
+      let hstate = built.value.state
+      if (markLive.length) {
+        const joined = attempt(() => joinMarkersToState(hstate, meta.liveIds, meta.createdBars, markLive,
+          { bars, tf: ctx.tf, theme })).value
+        if (joined) {
+          hstate = joined.state
+          meta.liveIds = joined.liveIds
+          meta.createdBars = joined.createdBars
+          meta.stats.dropped = hstate.dropped
+        } else markersCleared()
+      }
+      // ⭐ ENGINE 53 — a refused run half says why the complete picture is not shown here
+      // (`RUN_HALF_KEY` in the note's `why`, never a guard token).
+      const hostWhy = built.value.run.withheldWhy || null
+      publishDrops(inst.instanceId, hstate, {
+        families: (built.value.run.withheldBy || {})['objects:collector'] || null,
+        familiesAll: (built.value.run.withheldBy || {})['objects:collector-all'] || null,
+        why: runHalfWhy ? { ...(hostWhy || {}), [RUN_HALF_WHY_KEY]: runHalfWhy } : hostWhy,
+      })
+      if (!attempt(() => layer.set(hstate, sig + markSig, meta)).ok) markersCleared()
     }
     for (const [id, layer] of objectLayers) {
       if (alive.has(id)) continue
       attempt(() => layer.clear())
       objectLayers.delete(id)
+      runHalfServed.delete(id)
     }
+    for (const [id, out] of markOutcomes) publishMarkers(id, out)
     pruneClock('objects', alive)
     pruneDrops(alive)
+    pruneMarkers(alive)
   }
 
   /** instanceId → `{registry, def, bars, sig, cols}`. */
   let computeMemo = new Map()
+  // ⭐ (engine 86) instance -> the picture it last drew (`{registry, def, sig, pic}`), see `hadPicture` below
+  let drawnPictures = new Map()
 
   /** bindingKey → `{column, bars, adjustTime, up, down, points}`. */
   let pointMemo = new Map()
+
+  // ⭐⭐ NEIGHBOR FRAMES — answers computed ahead (`prepare`) for the bars of a row not yet on screen.
+  // bars array → Map(instanceId → `{registry, def, key, token, cols}`), at most PREPARED_BARS_MAX arrays
+  // (oldest dropped: a scan moves on, and a 30,000-bar column set is megabytes).
+  let preparedCols = new Map()
+  /** column (by identity) → `{column, bars, adjustTime, up, down, palette, cond, unknownNone, from, points}`
+   *  (`points[i]` is bar `from + i`'s point). */
+  let preparedPoints = new WeakMap()
+  /** The last enabled sync's ctx: what `prepare` asks the same questions with, for another row's bars. */
+  let lastPrepCtx = null
+  /** …and its planned bindings (`planBindings`' `bind`: key, instanceId, plot, def), whose points it makes. */
+  let lastPlanBindings = []
+  /** …and how many of its newest bars it handed the renderer (its plot window), or null for every bar. */
+  let lastDrawRows = null
+  /** The symbol of the last enabled sync (diagnostics: a pass for another symbol is a switch). */
+  let lastSyncSym = null
+  const takePrepared = (registry, def, inst, calcBars, sourceCols, keyCtx) => {
+    if (!preparedCols.size) return null
+    const byInst = preparedCols.get(calcBars)
+    if (!byInst) return null
+    const e = byInst.get(inst.instanceId)
+    const k = e && e.registry === registry && e.def === def ? prepKeyOf(registry, def, inst, sourceCols, keyCtx) : null
+    if (!k || k.key !== e.key || k.token !== e.token) { nfCount('colsMissed'); return null }
+    // the side effects the normal path has on a landed, non-provisional envelope (an ask noted, the entry used)
+    if (k.lane === COMPUTE_LANE.SERVER) attempt(() => noteServerHit(def, resolveInputs(def, inst.inputs), keyCtx.sym, keyCtx.tf))
+    nfCount('colsHit')
+    return e.cols
+  }
 
   // ─── FLIP C: THE HEIGHT CHECK IS ONE FRAME BEHIND, ON PURPOSE ──────────────
   //
@@ -1356,7 +2036,23 @@ export function createBinder({ chart, LWC, scope = '' }) {
   /** ⭐ C43 — the instances this binder has published a `runtime.error` stop for,
    *  so a removed, hidden or released instance takes its sentence with it. */
   const stoppedIds = new Set()
-  const noteRuntimeErrorStop = (instanceId, cols, def = null) => {
+  /** ⭐ W9-T13b — the instances THIS binder has published a strategy record for
+   *  (`strategyReportNotice.js`). Rides every call site of `noteRuntimeErrorStop`, so a
+   *  removed, hidden or recomputed instance takes its record with it. */
+  const strategyIds = new Set()
+  const noteStrategyRecord = (instanceId, cols) => {
+    const rec = cols ? runtimeStrategyOf(cols) : null
+    if (rec) strategyIds.add(instanceId)
+    else if (!strategyIds.has(instanceId)) return
+    else strategyIds.delete(instanceId)
+    attempt(() => setStrategyRecord(instanceId, rec, noticeScope))
+  }
+  const clearStrategyRecords = () => {
+    for (const id of strategyIds) attempt(() => setStrategyRecord(id, null, noticeScope))
+    strategyIds.clear()
+  }
+  const noteRuntimeErrorStop = (instanceId, cols, def = null, hadPicture = true) => {
+    noteStrategyRecord(instanceId, cols)
     const stop = cols ? runtimeErrorStopOf(cols) : null
     let sentence = stop && stop.reached ? stop.sentence : null
     // ⭐⭐ RF — a RUNTIME document whose run computed nothing on this chart says
@@ -1365,6 +2061,35 @@ export function createBinder({ chart, LWC, scope = '' }) {
     if (!sentence && def) {
       const ran = runtimeRunStopOf(def, cols)
       if (ran) sentence = ran.sentence
+    }
+    // ⭐⭐ (e85) — a run WAITING for another series' newest bars says what it waits for (`runtimeRunWaitingOf`): a
+    // status, said whether or not a picture is drawn (it names a wait on data, not work in progress), never a stop
+    // ⛔ (engine 87 train) BEFORE the computing note below: `runtimeRunPendingOf` reads a waiting run half (state
+    // 'pending') and a waiting runtime answer (no enumerable column) as pending, so in the other order a pane with
+    // no picture would say "still computing" for a run that is waiting on another series' bars.
+    if (!sentence && def && cols) {
+      const wait = runtimeRunWaitingOf(def, cols)
+      if (wait) sentence = wait.sentence
+    }
+    // ⭐ (engine 86) — and while its run is still in the worker, it says so: an empty pane on a first load, a
+    // symbol or timeframe switch reads as work (`nativeRegistry.runtimeRunPendingOf`). ⛔ Only where this pane has
+    // NO picture of this instance yet (`hadPicture`): a live chart's every update is a short pending run too, and a
+    // sentence that came and went on every bar would be noise.
+    if (!sentence && def && !hadPicture) {
+      const pending = runtimeRunPendingOf(def, cols)
+      if (pending) sentence = pending.sentence
+    }
+    // ⭐ DIV-4 r1 — a host document's `barcolor` whose run-read colour is not served
+    // on this chart says why on the same strip (`nativeRegistry.runtimeColourStopOf`).
+    if (!sentence && def) {
+      const paint = runtimeColourStopOf(def, cols)
+      if (paint) sentence = paint.sentence
+    }
+    // ⭐ HOST WORKER — a host document whose worker held its job past the watchdog: refused by
+    // name on every column, and said here, never an empty pane alone (`hostLaneAsync.js`).
+    if (!sentence && cols) {
+      const hw = hostLaneStopOf(cols)
+      if (hw) sentence = hw.sentence
     }
     if (sentence) stoppedIds.add(instanceId)
     else if (!stoppedIds.has(instanceId)) return
@@ -1377,25 +2102,35 @@ export function createBinder({ chart, LWC, scope = '' }) {
       for (const h of was.fills.values()) attempt(() => was.host.detachPrimitive(h.primitive))
     }
     priceHosted = new Map()
-    for (const b of held) { attempt(() => chart.removeSeries(b.series)); removeRunSeries(chart, b) }
+    for (const b of held) { removeSeriesNow(b.series); removeRunSeries(chart, b) }
+    pendingData.clear()
     // ⛔ THE DRAWINGS GO WITH THE SERIES. A layer that merely stopped updating
     // would leave its last picture frozen over the chart, which reads as "the
     // indicator is still on" — the ghost-state defect this release path exists
     // to prevent, one surface newer.
     for (const [, layer] of objectLayers) attempt(() => layer.clear())
     objectLayers.clear()
+    runHalfServed.clear()
     // ⭐ B1 — and the paints: a background left attached, or candles left
     // recoloured, would read as "the indicator is still on".
     clearPaints()
     pruneClock('plots', null)
     pruneClock('objects', null)
     pruneDrops(null)
+    pruneMarkers(null)
     held = []
     lastColumnErrors = new Map()
     for (const id of stoppedIds) setRuntimeErrorNotice(id, null, noticeScope)
     stoppedIds.clear()
+    clearStrategyRecords()
     computeMemo = new Map()
+    drawnPictures = new Map()
     pointMemo = new Map()
+    preparedCols = new Map()
+    preparedPoints = new WeakMap()
+    lastPrepCtx = null
+    lastPlanBindings = []
+    lastDrawRows = null
     pendingLayout = null
     pendingLaidOut = false
     mismatchRun = 0
@@ -1472,6 +2207,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
   }
 
   function sync(ctx) {
+    // every series this pass sets (or queues) is drawn for this symbol (`drawnSym`)
+    passSym = String((ctx && ctx.sym) || '').toUpperCase()
     // The renderer has had a frame with the last layout: did it keep it?
     if (paneMode() === 'panes') verifyPendingLayout()
 
@@ -1501,6 +2238,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
       pruneClock('plots', null)
       pruneClock('objects', null)
       pruneDrops(null)
+      pruneMarkers(null)
       // ⭐ RF — and a stopped run's sentence, for the same reason: a runtime pane
       // that drew nothing binds NO series, so `held` is empty exactly when there
       // is a "not drawn because …" sentence to take down. Zero calls when none.
@@ -1508,6 +2246,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         for (const id of stoppedIds) setRuntimeErrorNotice(id, null, noticeScope)
         stoppedIds.clear()
       }
+      clearStrategyRecords()
       // ⛔ THE TENANT IS GONE, SO THE AXIS GOES. See `assertLeftAxis` — deleting
       // the last indicator arrives HERE, not at pass two.
       assertLeftAxis(false)
@@ -1525,6 +2264,28 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const plan = ctx.plan || {}
     const planMode = plan.fresh ? 'fresh' : plan.incr ? 'incr' : plan.noop ? 'noop' : 'fresh'
     const instances = Array.isArray(ctx.instances) ? ctx.instances : []
+    // ⭐ NEIGHBOR FRAMES — `prepare` asks this chart's questions (instances, registry, timeframe) of another row
+    const nf = neighborFramesOn()
+    if (nf) lastPrepCtx = ctx
+    // one chart time per bar, shared by every series and fill of this pass (null: each converts its own)
+    const nfTimes = nf ? chartTimesFor(bars, adjustTime) : null
+    let nfMisses = 0   // memo misses of the chart's own bars this pass (a new row, or new bars)
+    let nfHits = 0     // …of which a prepared answer took the place
+    const nfT0 = nf && typeof performance !== 'undefined' ? performance.now() : 0
+    // ⭐⭐ (switch smoothness) may this pass queue series data (`SERIES_DATA_DEFER_MIN_ROWS`)? And is the picture a
+    // series holds built from bars all inside this pass's (asked once per bars array the pass meets)?
+    const spreadOn = ctx.deferSeriesData === true && bars.length >= SERIES_DATA_DEFER_MIN_ROWS
+    const withinMemo = new Map()
+    const drawnWithinBars = (series) => {
+      const from = drawnFrom.get(series)
+      if (!from) return false
+      // ⛔ ANOTHER SYMBOL'S PICTURE IS NEVER "INSIDE" THIS PASS, whatever its bar times (see `drawnSym`): its
+      // replacement is set now, with the candles, never left for the drain.
+      if (drawnSym.get(series) !== passSym) return false
+      let ok = withinMemo.get(from)
+      if (ok === undefined) { ok = barTimesWithin(from, bars); withinMemo.set(from, ok) }
+      return ok
+    }
 
     // ── 1. Compute every column ONCE, before any decision needs one ──
     //
@@ -1538,6 +2299,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
     const runCols = new Map()
     // ⭐ C36 — the instances whose columns were in hand this pass (`publishClock`).
     const clockSeen = new Set()
+    // ⭐⭐ HOST WORKER — the instances whose values are in the host lane's worker this pass: drawn
+    // from the pane's last picture (the pending answer's columns), their notices and drawings held.
+    const heldIds = new Set()
+    // ⭐ (e85) instanceId → the pane it computes for this pass (symbol, timeframe, settings): what a run half's kept
+    // picture must match (`runHalfServed`)
+    const instancePanes = new Map()
 
     // ⭐⭐ BARS FOR ANY CANONICAL SYMBOL AN INSTANCE NAMES, AS DATA. The binder
     // never fetches — `sync` runs inside a paint — so this arrives already
@@ -1657,7 +2424,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
       for (const [key, value] of sourceInputsOf(def, inst)) {
         const parsed = parseSource(value)
         let series = null
-        if (parsed && parsed.kind === 'bar') series = barFieldSeries(calcBars, parsed.field)
+        // ⛔ ONE array per (bars, field) ONLY for a native: its values are the bars, its inputs and this source,
+        // all in the memo key. A runtime / AST document also reads context the key does not name (the listing
+        // fact, the symbol landing after the bars), and on master it recomputes because a fresh source array is a
+        // new key every pass: it keeps that fresh array, so it keeps recomputing.
+        if (parsed && parsed.kind === 'bar') series = nf && computeLaneOf(def) === COMPUTE_LANE.NATIVE
+          ? barFieldOf(calcBars, parsed.field) : barFieldSeries(calcBars, parsed.field)
         else if (parsed && parsed.kind === 'instance') {
           // ⭐ A FRAMED dependent reads its source in the SOURCE'S OWN frame (it
           // inherited that frame), never the projected chart column.
@@ -1748,17 +2520,89 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // a memo keyed only on the bars would keep the curtained columns.
       // ⭐ C26 — a Pine document's other-symbol series: a secondary that lands
       // (or changes) must recompute, exactly as a symbol SOURCE does above.
-      const otherSig = frame ? '' : otherSymbolsSignature(def, secondary)
+      // ⭐ RS RATING L11 — read under the key THIS chart's timeframe files it under (`SPX@D` on a weekly chart)
+      const otherSig = frame ? '' : otherSymbolsSignature(def, secondary, ctx.tf)
       // ⭐ C41 — and this symbol's intraday windows, for a document that reads
       // below the chart: a window that lands (or changes) must recompute. '' for
       // every document that reads none (one property read).
       const lowerTf = ctx.lowerTf && typeof ctx.lowerTf.get === 'function' ? ctx.lowerTf : null
       const lowerSig = frame ? '' : lowerTfSignature(def, lowerTf)
-      const sig = inputsSignature(inst.inputs) + sourceSig + (otherSig ? `|os:${otherSig}` : '')
+      // ⭐⭐ W9-T11-F1 — THE CHART LANE'S STRATEGY WINDOW (design 3.4, "The chart"). A strategy
+      // document (stamped `strategy-window`, possible only with the broker gate on) is handed the
+      // window the caller holds, `ctx.historyWindowBars`: the server's `bars_window` value, read once
+      // per tab through `GET /api/pine/history-window` (`strategyWindow.js`), never a literal here.
+      // The runtime decides the rest (`runtimeColumns.js::computeStrategyWindow`, `vm.js`): bars
+      // from the listing that fit the window run; anything else refuses by name (more bars than
+      // the window → the cut window is off the listing → Q-S1n; no window → `runtime:strategy-start`).
+      // A served run therefore always starts at the listing bar, so a new bar never slides it.
+      // ⛔ Only the chart's OWN series: a framed instance's bars are not what the window describes.
+      // ⛔ Every other document is handed nothing, so an indicator's ctx and memo key are unchanged.
+      // ⛔ The value is forwarded as held: what is not a window is the VM's to refuse by name
+      // (`vm.js`, `runtime:strategy-start`), one author, never a second check here.
+      const ownStrategy = !frame && isStrategyWindowDefinition(def)
+      const strategyWindow = ownStrategy && ctx.historyWindowBars != null ? ctx.historyWindowBars : null
+      // ⭐⭐ (2026-11-19, the strategy-only daily window) and, with it, the depth a run from the listing is served at
+      // without the deep-start rule (`ctx.listingDepthBars`, the server's shared window): forwarded as held, the VM
+      // decides ([B-START-DEEP]); handed only beside a window, so every other document's ctx is unchanged
+      const strategyDepth = strategyWindow !== null && ctx.listingDepthBars != null ? ctx.listingDepthBars : null
+      // ⭐ r1 (review N3) — THE WINDOW HAS BEEN ASKED FOR AND NOT ANSWERED YET
+      // (`ctx.historyWindowPending`, `useStrategyHistoryWindow`). The run is HELD, not refused: no
+      // columns, no record, no notice, so first paint never flashes `runtime:strategy-start`. When
+      // the answer lands the caller re-syncs and the run computes; when the ask FAILS, pending is
+      // false with no window, and the run refuses by name.
+      if (ownStrategy && strategyWindow === null && ctx.historyWindowPending === true) {
+        computeMemo.delete(inst.instanceId)
+        noteRuntimeErrorStop(inst.instanceId, null)
+        runCols.set(inst.instanceId, null)
+        continue
+      }
+      // ⭐ U2b — what the compute reads BEYOND bars and inputs that can change under
+      // an unchanged key (a server definition's live benchmark tail, `plots[].
+      // liveTail`): the registry says so through one optional hook
+      // (`nativeRegistry.computeSignature`), so a landed benchmark quote is a memo
+      // miss and not another paint of the stale forming bar. `''` for every native.
+      const liveSig = typeof registry.computeSignature === 'function'
+        ? (registry.computeSignature(def, inst.inputs, { sym: ctx.sym, tf: frame || ctx.tf }) || '') : ''
+      // ⭐ A SERVER-LANE COMPUTE IS KEYED ON (symbol, timeframe) TOO (2026-11-11). The lane
+      // fetches `/api/signature/columns?...&sym=&tf=` and aligns the answer onto the bars it
+      // is handed, so the same inputs over the SAME bars array mean a different request
+      // after a timeframe or symbol switch. The chart changes `tf`/`sym` a render BEFORE the
+      // new bars land (it keeps the old series on screen meanwhile), and a memo keyed only on
+      // (bars, inputs) answered that render from the old timeframe's columns: no request for
+      // the new one until the new bars arrived. `rsLine` was spared only because its
+      // live-tail signature happens to move with the timeframe; `rsRating`, `rsPhases` and
+      // `rsVsEma` carry none. Natives never read either key, so their signature is unchanged.
+      const serverSig = def && def.compute && def.compute.kind === 'server'
+        ? `|srv:${ctx.sym || ''}:${frame || ctx.tf || ''}` : ''
+      // ⭐⭐ (2026-11-18) THE NEWEST BAR'S TRI-STATE IS PART OF WHAT THE COMPUTE READ, so it is part of the key. A
+      // FRAMED instance's is its frame's; the chart's own is the payload's (`/api/bars` `newest_bar_is_forming`).
+      // ⚰️ The memo keyed (bars, inputs, …) only: a flag that LANDED over the same bars array (unknown -> closed,
+      // the answer arriving after a cached first paint, or the close itself) was a memo hit, and the run kept the
+      // answer it gave while the newest bar was unknown. A strategy read it as forming: before engine 80 its
+      // backtest was refused by [B-EXEC] after the close (the 2026-11-18 production check, RDDT 1D at 22:05Z); from
+      // engine 80 it is served one bar stale, without the bar that closed.
+      const formingNow = frame
+        ? (frameEntry && typeof frameEntry.newestBarIsForming === 'boolean' ? frameEntry.newestBarIsForming : null)
+        : (ctx.newestBarIsForming ?? null)
+      const formingSig = `|nbf:${formingNow === null ? '?' : formingNow ? '1' : '0'}`
+      const sig = inputsSignature(inst.inputs) + sourceSig + serverSig + formingSig + (otherSig ? `|os:${otherSig}` : '')
         + (lowerSig ? `|ltf:${lowerSig}` : '')
+        + (liveSig ? `|live:${liveSig}` : '')
+        + (strategyWindow !== null ? `|hw${strategyWindow}` : '')
+        + (strategyDepth !== null ? `|ld${strategyDepth}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
+      // ⭐ (e85) the pane, without what the data moves (the other-symbol, live-tail and forming parts of `sig`): a run
+      // half waiting for SPX keeps its picture across SPX's own update
+      instancePanes.set(inst.instanceId, `${ctx.sym || ''}\u0001${frame || ctx.tf || ''}\u0001${inputsSignature(inst.inputs)}`)
       const memo = computeMemo.get(inst.instanceId)
+      // ⭐ (engine 86) the picture this instance draws: the chart's symbol and the timeframe it computes on, with its
+      // document and signature. `drawnPictures` keeps the last one that LANDED (the memo is dropped while a run is
+      // pending, so it cannot), so a pending run can tell a live chart's next bar (a picture is drawn) from a first
+      // load or a switch (none yet), and only the second says it is computing (`noteRuntimeErrorStop`).
+      const pic = `${ctx.sym || ''}|${frame || ctx.tf || ''}`
+      const drawn = drawnPictures.get(inst.instanceId)
+      const hadPicture = !!(drawn && drawn.registry === registry && drawn.def === def && drawn.sig === sig && drawn.pic === pic)
       let cols
       if (memo && memo.registry === registry && memo.def === def && memo.bars === calcBars && memo.sig === sig) {
         cols = memo.cols
@@ -1769,7 +2613,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // line registered, enabled and permanently blank — a definition that
         // lies. It rides the ctx rather than a module global on purpose: a
         // 16-cell Multi-Chart grid has sixteen symbols and one module.
-        const r = attempt(() => registry.computeFor(def, calcBars, inst.inputs,
+        // ⭐⭐ NEIGHBOR FRAMES — the same compute over these very bars, done ahead in idle time (`prepare`)
+        if (!frame) nfMisses += 1
+        const pre = frame ? null : takePrepared(registry, def, inst, calcBars, sourceCols,
+          { sym: ctx.sym, tf: ctx.tf, forming: formingNow, otherSig, lowerSig })
+        if (pre) nfHits += 1
+        const r = pre ? { ok: true, value: pre } : attempt(() => registry.computeFor(def, calcBars, inst.inputs,
           // ⭐ MERGED 2026-09-15 AS A UNION: master's `source`/`sources` (the
           // universal-data seam) and this branch's `symbol`/`newestBarIsForming`
           // (the R-K seam) are four independent keys on one ctx. Taking either
@@ -1796,16 +2645,19 @@ export function createBinder({ chart, LWC, scope = '' }) {
           // tri-state the frame payload carried, never the chart's.
           { sym: ctx.sym, symbol: ctx.symbol || null, tf: frame || ctx.tf,
             source: primarySource, sources: sourceCols,
-            newestBarIsForming: frame
-              ? (frameEntry && typeof frameEntry.newestBarIsForming === 'boolean' ? frameEntry.newestBarIsForming : null)
-              : (ctx.newestBarIsForming ?? null),
+            newestBarIsForming: formingNow,
             // ⭐ C12w — ONLY the chart's own series can start at the listing
             // bar: a framed instance computes on its frame's bars, which the
             // caller's statement does not describe.
             ...(!frame && ctx.historyFromListing === true ? { historyFromListing: true } : {}),
+            // ⭐⭐ (2026-11-20) and the listing FACT where it is not served (W / M): the same restriction
+            ...(!frame && ctx.listingStart === true ? { listingStart: true } : {}),
             // ⭐ C45 — the same restriction, for the same reason: a frame's bars are
             // not the series the caller described.
             ...(!frame && ctx.barIndexFromFirstBar === true ? { barIndexFromFirstBar: true } : {}),
+            // ⭐⭐ W9-T11-F1 — a strategy run's window (see `strategyWindow` above)
+            ...(strategyWindow !== null ? { historyWindowBars: strategyWindow } : {}),
+            ...(strategyDepth !== null ? { listingDepthBars: strategyDepth } : {}),
             // ⭐⭐ C26 — the other symbols a Pine document may read: the chart's
             // secondary bars and our store's exchange per ticker, decided by
             // `otherSymbols.js`. A FRAMED instance reads none (its bars are the
@@ -1814,7 +2666,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // ⭐⭐ C41 — this symbol's intraday bars per store timeframe, for a Pine
             // document that reads BELOW the chart (`lowerTf.js` decides what is
             // served; a framed instance is served none).
-            lowerTf }))
+            lowerTf,
+            // ⭐⭐ HOST WORKER — THE PANE ASKING: this chart's binder and this instance. A costly
+            // host document is computed off the main thread for a chart's request only, and a
+            // newer request of the same pane supersedes an older one (`hostLaneAsync.js`).
+            hostPane: `${noticeScope}\u0001${inst.instanceId}` }))
         if (!r.ok || !r.value) { computeMemo.delete(inst.instanceId); noteRuntimeErrorStop(inst.instanceId, null); runCols.set(inst.instanceId, null); continue }
         cols = r.value
         // ⛔ AN EMPTY COLUMN SET IS NOT MEMOIZED. Every native returns at least
@@ -1824,26 +2680,37 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // array changed for some unrelated reason.
         // ⭐ RT5 — a drawing-only runtime document's record carries no column
         // and IS an answer (its drawings ride non-enumerably beside them).
-        if (Object.keys(cols).length || runtimeObjectsOf(cols)) {
+        // ⛔ ENGINE 53 — and a host result whose run half is still in flight is NOT memoised:
+        // remembering it would pin the empty object layer until the bars changed, and the run's
+        // landing (`notifyColumnsLanded`) would repaint the same pending answer.
+        const halfPending = (runHalfOf(cols) || {}).state === 'pending'
+        // ⛔ HOST WORKER — and a PENDING host answer is never memoised either: its columns are the
+        // pane's last picture, and the landing (`notifyColumnsLanded`) must find no memo to repaint.
+        if ((Object.keys(cols).length || runtimeObjectsOf(cols)) && !halfPending && !isHostLanePending(cols)) {
           computeMemo.set(inst.instanceId, { registry, def, bars: calcBars, sig, cols })
+          drawnPictures.set(inst.instanceId, { registry, def, sig, pic })
         } else {
           computeMemo.delete(inst.instanceId)
         }
       }
       runCols.set(inst.instanceId, cols)
-      // ⭐ C43 — reached on this chart at these settings, or no longer reached
-      noteRuntimeErrorStop(inst.instanceId, cols, def)
-      // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
-      // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
-      // columns the decision was made for; a registry without the report (a test
-      // double) publishes nothing.
       clockSeen.add(inst.instanceId)
-      publishClock(inst.instanceId, 'plots', [
-        ...(typeof registry.chartClockReport === 'function'
-          ? ((registry.chartClockReport(cols) || {}).withheld || []) : []),
-        // ⭐⭐ P0 — a formula's refused `sym` / `ltf` read says so on the same strip.
-        ...(typeof registry.externalReadNotices === 'function' ? registry.externalReadNotices(def, cols) : []),
-      ])
+      if (isHostLanePending(cols)) {
+        // ⭐⭐ HOST WORKER — STALE-WHILE-REVALIDATE: the values are in the worker. The columns below
+        // are the pane's last picture (or none, the first time: the pane's loading state), and every
+        // notice this instance published stays as it stands until the values land.
+        heldIds.add(inst.instanceId)
+      } else {
+        // ⭐ C43 — reached on this chart at these settings, or no longer reached
+        // ⭐ (engine 87 train) a picture is drawn when it LANDED here (`hadPicture`) or when a pending run half KEEPS this
+        // pane's served picture (`keepsServedPicture`, the very condition `syncObjects` keeps it by)
+        noteRuntimeErrorStop(inst.instanceId, cols, def, hadPicture || keepsServedPicture(inst.instanceId, def, cols, instancePanes))
+        // ⭐ C36 — a plot whose `time(<timeframe>)` is withheld on this chart says
+        // so on the member's disclosure strip (`chartClockNotice.js`). Read off the
+        // columns the decision was made for; a registry without the report (a test
+        // double) publishes nothing.
+        publishClock(inst.instanceId, 'plots', plotStripNoticesOf(registry, def, cols))
+      }
       // ── THE CANDLE PAYLOAD, IF THIS OUTPUT ASKED FOR ONE AND MAY HAVE IT ───
       //
       // ⛔ IT ANSWERS `null` UNLESS EVERYTHING AGREES: the output's resolved
@@ -1900,12 +2767,33 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // (the projection, `computeFor`, the memo) is untouched, which is why
         // `MA(QQQ)` and a QQQ line are byte-identical.
         const ohlcBars = ohlcBarsForPlot(def, inst, plotKey)
+        // W4-T13 - …or a row that names its own four columns, drawn from the run.
+        const computedPlot = ohlcBars ? null : (def.plots || []).find((pl) => pl && pl.key === plotKey)
+        const computedBars = computedPlot && computedOhlcDeclared(computedPlot)
+          && isOhlcPlotStyle(resolvePlotStyle(inst, computedPlot, { ohlcCapable: true }))
+          ? computedOhlcPayload(computedPlot, cols, bars, chartThemeOf(ctx.cs)) : null
+        // ⛔ A DECLARED OHLC ROW WHOSE COLUMNS ARE MISSING DRAWS NOTHING: the scalar close must never
+        // be handed to a candlestick series. (`validateOhlc` makes it unreachable for a valid document.)
+        const declaredNoColumns = computedPlot && computedOhlcDeclared(computedPlot) && !computedBars
+          && isOhlcPlotStyle(resolvePlotStyle(inst, computedPlot, { ohlcCapable: true }))
         columns.set(bindingKey(inst.instanceId, plotKey),
-          ohlcBars ? ohlcPayload(ohlcBars) : cols[plotKey])
+          ohlcBars ? ohlcPayload(ohlcBars) : (computedBars || (declaredNoColumns ? ohlcPayload([]) : cols[plotKey])))
       }
     }
     for (const id of computeMemo.keys()) if (!computedIds.has(id)) computeMemo.delete(id)
+    // ⭐ NEIGHBOR FRAMES (diagnostics): a pass over new bars found them prepared, or did not
+    if (nf && nfMisses) {
+      const was = preparedCols.has(bars)
+      nfCount(was ? 'syncPrepared' : 'syncUnprepared')
+      if (ctx.sym !== lastSyncSym) {
+        nfCount(was ? 'switchPrepared' : 'switchUnprepared')
+        const ms = typeof performance !== 'undefined' ? Math.round(performance.now() - nfT0) : 0
+        nfLogSwitch([ctx.sym, ctx.tf, was ? 'P' : 'U', `h${nfHits}`, `m${nfMisses - nfHits}`, ms].join(':'))
+      }
+    }
+    if (nf) lastSyncSym = ctx.sym
     for (const id of [...stoppedIds]) if (!computedIds.has(id)) noteRuntimeErrorStop(id, null)
+    for (const id of [...strategyIds]) if (!computedIds.has(id)) noteStrategyRecord(id, null)
     pruneClock('plots', clockSeen)
     // ⭐ A FRAME THE CHART HAS OUTRUN IS REPORTED, never silently held: the host
     // refetches it (`useCalcFrames.refreshFrame`, throttled per window) and the
@@ -1928,7 +2816,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // AFTER the columns and BEFORE the pool, because a drawing must never be
     // able to change which series get bound: an object program that refuses has
     // to cost its own pictures and nothing else.
-    attempt(() => syncObjects(ctx, instances, bars, runCols))
+    attempt(() => syncObjects(ctx, instances, bars, runCols, heldIds, instancePanes))
+    // ⭐⭐ HOST WORKER — held last sync, not held now: the values landed (see `heldLastSync`).
+    const landedNow = new Set([...heldLastSync].filter((id) => !heldIds.has(id)))
+    heldLastSync = heldIds
     lastColumnErrors = new Map()
     for (const [id, c] of runCols) lastColumnErrors.set(id, c ? columnErrors(c) : null)
 
@@ -1990,18 +2881,25 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // Chart Theme is chosen, so a signed histogram that stores no colour of its
       // own follows the theme for free — one palette, not a second one.
       candles: (ctx.cs && ctx.cs.candles) || null,
+      // ⭐ ENGINE 58 — this chart's own colours, for a Pine plot coloured
+      // `chart.fg_color` / `chart.bg_color` (`pool.withThemeColour`).
+      theme: chartThemeOf(ctx.cs),
+      // ⭐ UCT RS 3-14 — what the live server row declares, so a guide gated on a
+      // value that row drops (a v4 Reading under a v3 server) is not drawn.
+      serverDeclares,
     })
 
     // HAND-BACK (W1b.5, minor 4): reassign a hidden carrier's guides onto its
     // instance's first VISIBLE plot BEFORE the hidden-plot skip below ever
     // sees them — see `reassignOrphanedGuides`.
     reassignOrphanedGuides(bind)
+    if (nf) lastPlanBindings = bind
 
     // ── 3. Free first, so a create later in the pass can reuse the slot the
     //       renderer just gave back. (The planner has already guaranteed nothing
     //       released here could have been reused, so this is ordering hygiene
     //       rather than a second policy.) ──
-    for (const b of release) { attempt(() => chart.removeSeries(b.series)); removeRunSeries(chart, b) }
+    for (const b of release) { removeSeriesNow(b.series); removeRunSeries(chart, b) }
 
     // ── 4. Bind ──
     //
@@ -2014,14 +2912,29 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // `normalizeInstances` validates `placement.target`), and it fails in the
     // wrong direction for a Phase C catalog definition, so it is closed now.
     const orphan = (b) => {
-      if (b.series) attempt(() => chart.removeSeries(b.series))
+      if (b.series) removeSeriesNow(b.series)
       removeRunSeries(chart, b.from)
+    }
+
+    // ⭐ (2026-11-20) THE FIRST BAR THE RENDERER IS HANDED: `ctx.plotWindowFrom` (a chart time) as an index into
+    // these bars, found once per pass by the very search `windowedPoints` cuts with, so a line's points are built
+    // from there (`toPoints`' `start`) and the cut below hands the renderer that array as it is. 0: every bar.
+    // ⛔ Never past the second-to-last bar: the binding's `lastValue` / `prevValue` read the last two points.
+    let drawStart = null
+    const drawStartOf = () => {
+      if (drawStart === null) {
+        const at = firstIndexAtOrAfter(bars.length,
+          nfTimes ? (i) => nfTimes[i] : (i) => adjustTime(bars[i].t), ctx.plotWindowFrom)
+        drawStart = Math.max(0, Math.min(at, bars.length - 2))
+      }
+      return drawStart
     }
 
     /** The column→LWC-points mapping, reused whenever nothing it depends on has
      *  moved. `adjustTime` is part of the key because it is what stamps every
-     *  `time`; it is a stable `useCallback` in `StockChart`, so this hits. */
-    const pointsFor = (b, rawColumn) => {
+     *  `time`; it is a stable `useCallback` in `StockChart`, so this hits.
+     *  `whole`: every bar's point (a gap-split line splits all of them). */
+    const pointsFor = (b, rawColumn, whole = false) => {
       // ⭐ ONE ADAPTER, TWO SHAPES. The memo is keyed on the payload's IDENTITY
       // exactly as it is on a column's, so a candle binding that did not change
       // re-uses its points for the same reason a line does.
@@ -2030,38 +2943,34 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // bar that computed the point). `displacedColumn` is memoised on identity, so
       // an unchanged column still hits the memo below. An OHLC payload is never
       // displaced — candles are a passthrough of the source, not an author's plot.
-      const shift = isOhlcPayload(rawColumn) ? 0 : drawShiftOf(b.plot)
-      const column = displacedColumn(rawColumn, shift)
-      if (isOhlcPayload(column)) {
+      const k = pointsInputsOf(b, rawColumn, (key) => columns.get(key), ctx.cs)
+      const column = k.column
+      if (k.ohlc) {
         const m0 = pointMemo.get(b.key)
         if (m0 && m0.column === column && m0.adjustTime === adjustTime) return m0.points
         const pts = toOhlcPoints(column, adjustTime)
         pointMemo.set(b.key, { column, bars, adjustTime, up: null, down: null, points: pts })
         return pts
       }
-      const sc = signColorsForPlot(b.plot)
-      // ⭐ C1 — the deciding column for `colorMode: 'column:<key>'`, looked up
-      // through the SAME `bindingKey` every column in this pass is stored under,
-      // so a colour rule can only ever name a column of its own instance.
-      const cc = sc ? null : columnColorsForPlot(b.plot)
-      const cond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), shift) : undefined
-      const up = sc ? sc.up : (cc ? cc.up : null)
-      const down = sc ? sc.down : (cc ? cc.down : null)
-      const palette = cc && cc.palette ? cc.palette.join('|')
-        : (cc && cc.gradient ? `gradient:${cc.gradient.sig}`
-          : (cc && cc.packed ? cc.packed.sig : null))
-      // ⭐ P1 — what an unknown condition paints is the DOCUMENT's rule.
-      const unknownNone = unknownColourRule(b.def)
+      const { sc, cc, cond, up, down, palette, unknownNone } = k
+      const from = whole ? 0 : drawStartOf()
       const m = pointMemo.get(b.key)
       // ⛔ `cond` JOINS THE MEMO KEY. Without it, a colour column that changed
       // while the VALUE column did not (a different input, the same maths) would
       // serve the previous pass's colours — the memo would be answering a
       // question nobody asked.
-      if (m && m.column === column && m.bars === bars && m.adjustTime === adjustTime
-          && m.up === up && m.down === down && m.palette === palette && m.cond === cond
-          && m.unknownNone === unknownNone) return m.points
-      const points = toPoints(column, bars, adjustTime, sc, cc, cond, unknownNone)
-      pointMemo.set(b.key, { column, bars, adjustTime, up, down, palette, cond, unknownNone, points })
+      // ⛔ …AND SO DOES WHERE ITS POINTS BEGIN: an array built from a later bar cannot serve a pass that draws from
+      // an earlier one (the window grew, or the line went whole); one that begins at or before it can (the cut below).
+      if (samePointsKey(m, column, bars, adjustTime, k) && (m.from || 0) <= from) return m.points
+      // ⭐⭐ NEIGHBOR FRAMES — the same points, made ahead for this very column (`prepare`), from a bar at or before
+      // this pass's first drawn one
+      const pre = preparedPoints.get(column)
+      let points
+      let pointsFrom = 0
+      if (samePointsKey(pre, column, bars, adjustTime, k) && (pre.from || 0) <= from) {
+        points = pre.points; pointsFrom = pre.from || 0; nfCount('pointsHit')
+      } else { points = toPoints(column, bars, adjustTime, sc, cc, cond, unknownNone, nfTimes, from); pointsFrom = from }
+      pointMemo.set(b.key, { column, bars, adjustTime, up, down, palette, cond, unknownNone, from: pointsFrom, points })
       return points
     }
 
@@ -2069,6 +2978,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
      *  scale id AND payload, so a second definition wanting a DIFFERENT scale
      *  state on the same axis still gets its write. */
     const scalesWritten = new Set()
+    /** A series write carrying `priceFormat` (the library's full update) went out THIS sync — see pass one. */
+    let fullUpdateCarried = false
 
     // ── TRAP #5: EVERY SERIES ON A SCALE MUST EXIST BEFORE ANY OF THEM HAS
     //             DATA. Measured at B5 Task 8; it cost 11,913 changed pixels.
@@ -2083,14 +2994,36 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // scale, the guides and the data. Both walk `bind` in the same order, so
     // insertion order — which IS z-order — is unchanged.
     const prepared = []
-    for (const b of bind) {
+    // ⭐ A4 — EVERY PLACEMENT IS RESOLVED BEFORE ANY SERIES IS TOUCHED, because one
+    // answer now depends on the others: a pane's axis hides only when every tenant
+    // on it asks (`placement.applyAxisTenancy`), and a tenant's `priceScaleId` is
+    // part of the series options built just below. `resolvePlacement` is pure, so
+    // resolving early changes no call the renderer sees; the orphans still happen
+    // in the loop, in the order they always did.
+    //
+    // ⛔ IDENTITY WITHOUT A HIDDEN ASK: tenancy returns every answer it does not
+    // change as the same object, so a chart with no `placement.axis: 'hidden'`
+    // definition binds exactly as before. And it is wrapped like every other
+    // placement call — if it throws, the per-instance answers stand.
+    const resolved = bind.map((b) => (
+      (b.plot && b.plot.hidden === true) ? null : attempt(() => resolvePlacement(b.inst, b.def, ctx))
+    ))
+    const tenancy = attempt(() => applyAxisTenancy(resolved.map((r) => (r && r.ok ? r.value : null)), ctx))
+    const settled = (tenancy.ok && Array.isArray(tenancy.value) && tenancy.value.length === resolved.length)
+      ? tenancy.value
+      : resolved.map((r) => (r && r.ok ? r.value : null))
+    // ⭐ ROW 41 — every event glyph's host, decided before any series option is.
+    const glyphHosts = eventGlyphHosts(bind, settled)
+    const hasPriceHost = typeof ctx.priceSeries === 'function'
+    for (let bi = 0; bi < bind.length; bi++) {
+      const b = bind[bi]
       // ⭐ W1b — `plots[].hidden`: COMPUTED, NEVER DRAWN. The column still reaches
       // the scan and the alert seam through `computeFor`; the chart gets no
       // series. A series this binding was carrying goes back to the renderer.
       if (b.plot && b.plot.hidden === true) { orphan(b); continue }
-      const placement = attempt(() => resolvePlacement(b.inst, b.def, ctx))
-      if (!placement.ok || !placement.value) { orphan(b); continue }
-      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placement.value
+      const placementValue = settled[bi]
+      if (!placementValue) { orphan(b); continue }
+      const { paneIndex, scaleId, scaleOptions, autoscale, lastValue, autoscaleRange } = placementValue
       // ⭐ A series on the CANDLES' OWN AXIS ('right' in the price pane) takes the chart's
       // axis format (`ctx.mainPriceFormat`, StockChart's `priceFormat` prop). The library
       // formats an axis with the series on it added FIRST, and an MA is usually added
@@ -2112,6 +3045,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // is a question about PLACEMENT, and `pool` has never been told where a
         // series landed.
         lastValue,
+        // ⭐ ROW 41 — an event glyph that rides a host leaves the autoscale walk.
+        markerOnHost: glyphHosts[bi] !== null && (glyphHosts[bi] !== 'price' || hasPriceHost),
         LineStyle: LWC.LineStyle,
         LineType: LWC.LineType,
         // The declutter toggle (Alt+Shift+I). `visible` is part of the complete
@@ -2121,6 +3056,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // ⭐ A `fund:` source's unit, from the catalogue -- null for everything else.
         // An MA of a fundamental inherits its unit (`domainBehavior: 'inherit'`).
         priceFormat: fundamentalPriceFormat(fundamentalFormatOfInstance(b.inst, (id) => registry.getDefinition(id), instances))
+          // ⭐ 2026-11-12 — a line scaled to a rating reads in the rating's
+          // decimals (`rescale.rescalePriceFormat`) while the scale is APPLIED, read
+          // off the instance's landed scalars; null with the scale Off or unscaled.
+          || rescalePriceFormat(b.def, b.inst, b.plot && b.plot.key, rescaleOf(b.def)
+            ? attempt(() => scalarsFor(b.def, resolveInputs(b.def, (b.inst && b.inst.inputs) || {}), { sym: ctx.sym, tf: ctx.tf })).value
+            : null)
           || (_onCandleAxis && ctx.mainPriceFormat) || null,
         // ⭐ ONLY A CANDLE READS THESE, and resolving them HERE is what keeps the
         // chart's own palette the default: `cs.candles` is the member's candle
@@ -2209,11 +3150,27 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // series object ends up in the new pane with `toBe` and an empty
         // `removeSeries` list.
         if (b.from && b.from.paneIndex !== paneIndex) attempt(() => series.moveToPane(paneIndex))
-        attempt(() => series.applyOptions(options))
+        // ⭐ (paint, 2026-11-21) A SET THE SERIES ALREADY HOLDS IS NOT HANDED BACK TO IT. Every `applyOptions`
+        // marks the series' pane view "options changed", and its next paint restyles EVERY item of the series
+        // (a search for its row plus two object spreads per item): measured on eight real-Chrome list flips of
+        // the production build, 8.3 ms of each flip's paint, for sets that had not changed. `optionsHeld` asks
+        // the series itself (`series.options()`), so a value another writer set since (the Group-only
+        // `visible`, the off-screen `lastValueVisible`) is not held and is put back exactly as before.
+        // ⚠️ ONE WRITE STILL GOES OUT PER SYNC (`fullUpdateCarried`): every set carries `priceFormat`, and a
+        // series `priceFormat` makes the library run a FULL update (a relayout: the price axes re-fit their
+        // labels and can shrink). The chart got that from every sync before, so it still does.
+        // Railed: binder.optionsHeld.test.js.
+        if (!optionsHeld(series, options) || (!fullUpdateCarried && options.priceFormat !== undefined)) {
+          attempt(() => series.applyOptions(options))
+          if (options.priceFormat !== undefined) fullUpdateCarried = true
+        }
       }
 
-      prepared.push({ b, paneIndex, scaleId, scaleOptions, series, guideHandles, options })
+      prepared.push({ b, bi, paneIndex, scaleId, scaleOptions, series, guideHandles, options })
     }
+    // ⭐ ROW 41 — the series each binding landed on, by its index in `bind`, so an
+    // event glyph can find the sibling line it rides (`eventGlyphHosts`).
+    const seriesAt = new Map(prepared.map((p) => [p.bi, p.series]))
 
     // ⛔⛔ THE LEFT AXIS IS ASSERTED **BEFORE** ANY SCALE IS WRITTEN, and the order
     // is the whole of it. `series.priceScale().applyOptions({visible: true})` on a
@@ -2321,7 +3278,10 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // guides use, and it detaches here for the same reason.
       let fill = (b.from && b.from.fill) || null
       const fillSpec = b.plot && b.plot.fill
-      const fillWith = fillSpec && typeof fillSpec.with === 'string' ? fillSpec.with : null
+      // ⭐ UCT RS design round (2026-11-08) — `fill.activeWhen`: a band the member
+      // switches (the RS line's "Shade vs average"). Off ⇒ exactly the no-fill
+      // path below: the primitive comes off, the columns are untouched.
+      const fillWith = fillSpec && typeof fillSpec.with === 'string' && fillActiveFor(fillSpec, b) ? fillSpec.with : null
       if (fill && (b.source !== 'same' || !fillWith)) {
         attempt(() => series.detachPrimitive(fill.primitive))
         fill = null
@@ -2340,11 +3300,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
             attempt(() => series.attachPrimitive(fill.primitive))
           }
           fill.setOptions({
-            upper: own, lower: other, times: bars.map((bar) => adjustTime(bar.t)),
+            upper: own, lower: other, times: nfTimes || bars.map((bar) => adjustTime(bar.t)),
             color: colour.color, opacity: colour.opacity,
             // ⛔ a per-point band colour travels with its edges; the door refuses a
             // band whose two edges are displaced differently (memberPaneDefinition).
-            colors: displacedColumn(bandColoursFor(b.plot, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null), ownShift),
+            colors: displacedColumn(bandColoursFor(b.plot, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), ownShift),
           })
         }
       }
@@ -2385,7 +3345,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         const kept = new Map()
         for (const hp of ((b.def && b.def.plots) || [])) {
           if (!hp || hp.hidden !== true) continue
-          const hw = hp.fill && typeof hp.fill.with === 'string' ? hp.fill.with : null
+          const hw = hp.fill && typeof hp.fill.with === 'string' && fillActiveFor(hp.fill, b) ? hp.fill.with : null
           if (!hw || hw === hp.key) continue
           const upper = displacedColumn(columns.get(bindingKey(b.instanceId, hp.key)), drawShiftOf(hp))
           const lower = displacedColumn(columns.get(bindingKey(b.instanceId, hw)), plotShift(hw))
@@ -2400,11 +3360,11 @@ export function createBinder({ chart, LWC, scope = '' }) {
           }
           const hc = effectiveFillColour(hp, (b.inst && b.inst.inputs) || null)
           h.setOptions({
-            upper, lower, times: bars.map((bar) => adjustTime(bar.t)),
+            upper, lower, times: nfTimes || bars.map((bar) => adjustTime(bar.t)),
             color: hc.color, opacity: hc.opacity,
             // ⭐ (j) j.3 — the HOSTED band is Clouds' case: the fill is declared on
             // a `display.none` anchor, so this is the site that colours a cloud.
-            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null), drawShiftOf(hp)),
+            colors: displacedColumn(bandColoursFor(hp, b.instanceId, columns, bars.length, unknownColourRule(b.def), (b.inst && b.inst.inputs) || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
           })
           kept.set(hp.key, h)
         }
@@ -2441,10 +3401,16 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // above/below glyph rides the chart's own price series (`ctx.priceSeries()`, the
       // host `syncPaints` already uses); in any other pane, and for `inBar` (the value
       // the author plotted), it stays on the plot's series exactly as before.
-      const anchored = !!markerSpec && (markerSpec.position === 'aboveBar' || markerSpec.position === 'belowBar')
-      const priceHost = anchored && paneIndex === 0 && typeof ctx.priceSeries === 'function'
+      // ⭐⭐ ROW 41 (2026-11-17) — THE HOST IS `eventGlyphHosts`'s ANSWER: the price
+      // series on pane 0 (unchanged for above / below; now also for a glyph ON a
+      // yes/no output, which sat at price ≈ 1), the pane's own line elsewhere (an
+      // event glyph in a pane rode its 0/1 series and stretched the pane to 0..1),
+      // and the plot's own series when there is no host.
+      const host = markerSpec ? glyphHosts[p.bi] : null
+      const priceHost = host === 'price' && hasPriceHost
         ? (attempt(() => ctx.priceSeries()).value || null) : null
-      const markerHost = priceHost || series
+      const siblingHost = Number.isInteger(host) ? (seriesAt.get(host) || null) : null
+      const markerHost = priceHost || siblingHost || series
       if (markerLayer && (b.source !== 'same' || !markerSpec || markerLayer.host !== markerHost)) {
         attempt(() => markerLayer.clear())
         markerLayer = null
@@ -2462,22 +3428,30 @@ export function createBinder({ chart, LWC, scope = '' }) {
             markerLayer.host = markerHost
             markerLayer.onPrice = markerHost !== series
           }
-          const cc = columnColorsForPlot(b.plot)
+          const cc = columnColorsForPlot(withPackedTheme(b.plot, chartThemeOf(ctx.cs)))
+          const markCond = cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null
+          const unknownNone = unknownColourRule(b.def)
           attempt(() => markerLayer.set(markersFor({
             column: own,
-            times: bars.map((bar) => adjustTime(bar.t)),
+            times: nfTimes || bars.map((bar) => adjustTime(bar.t)),
             marker: markerSpec,
             color: effectiveColor(b.plot, DEFAULT_MARKER_COLOR),
-            condColumn: cc ? displacedColumn(columns.get(bindingKey(b.instanceId, cc.key)), markShift) : null,
+            condColumn: markCond,
             colorUp: cc ? cc.up : null,
             colorDown: cc ? cc.down : null,
-            unknownNone: unknownColourRule(b.def),
+            unknownNone,
+            // ⭐ ENGINE 58 — a palette / gradient / run-computed colour picks each
+            // marker's colour by the ONE per-point rule (`pointColour`) a line uses;
+            // a bar it gives no colour falls back to the plot's own (none, for a Pine
+            // rule row). ⚰️ A palette-coloured `plotshape` drew every glyph in its
+            // series colour, the sheet's gold.
+            colourAt: cc && !cc.up && markCond
+              ? (i) => pointColour(cc, markCond, i, unknownNone) : null,
           })))
         }
       }
 
       // ── TRAP #1: a first bind is setData, whatever the plan says ──
-      const points = pointsFor(b, columns.get(b.key))
       // ⛔⛔ A CANONICAL GAP IS A BREAK, NOT A MISSING POINT (`gapRuns.js`). A
       // connected line of fundamental lineage is split into one render series per
       // valid run; the primary keeps the newest run and every time slot, the rest
@@ -2488,14 +3462,55 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // connected line, so each valued run is drawn as its own series instead.
       const gapBreak = isConnectedPool(b.poolKey)
         && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === true))
+      // a split line's runs are split from EVERY bar (its run series stay whole); every other line's points are
+      // built from the first bar it is handed (`drawStartOf`)
+      const points = pointsFor(b, columns.get(b.key), gapBreak)
       const split = gapBreak ? splitFor(points) : null
-      const drawn = split ? split.primary : points
-      if (firstBindNeedsSetData(b, planMode)) {
-        attempt(() => series.setData(drawn))
+      // ⭐ 2026-11-13 — ONLY THE ROWS FROM THE WINDOW START ARE HANDED TO THE RENDERER
+      // (`plotWindow.js`; `ctx.plotWindowFrom`, a bar time, absent = every row). The
+      // column, the legend's `lastValue` / `valueAt` below and every other reader keep
+      // the whole series: this is what is DRAWN, never what is known. The primary series
+      // only; a gap-run series is one valid run and stays whole.
+      // ⛔ THE SAME ARRAY when there is no window (`windowedPoints` returns its argument),
+      // so every chart without one makes exactly the calls it always made.
+      const drawn = windowedPoints(split ? split.primary : points, ctx.plotWindowFrom)
+      // ⭐⭐ HOST WORKER — STALE-WHILE-REVALIDATE ON THE RENDERER TOO: a series this pane already
+      // holds keeps the picture it holds while its values are in the worker (its points are placed by
+      // bar time, so they stay where they were; a new bar has no point yet, as the pending answer
+      // says). It is handed no data, so a poll costs the renderer one `setData` (the landing's,
+      // below) and not two. ⛔ A series bound for the first time is set as always.
+      const holdPicture = heldIds.has(b.instanceId) && !firstBindNeedsSetData(b, planMode)
+      // ⭐⭐ (switch smoothness) MAY THIS SERIES' NEW DATA WAIT FOR A LATER TASK? Only on a heavy pass the chart
+      // opted in, for a series this binding already drew (never a first bind, a pooled series, a gap-split line or
+      // an OHLC payload), whose picture on screen was built from bars all inside this pass's bars (see
+      // `SERIES_DATA_DEFER_MIN_ROWS`). Every other series is handed its data now, as before, after anything still
+      // queued for it.
+      // ⛔ An incremental plan is never spread: its one `update` lands on the series itself, after what is queued.
+      const spread = spreadOn && planMode !== 'incr' && b.source === 'same' && !split
+        && !isOhlcPayload(columns.get(b.key)) && drawnWithinBars(series)
+      if (holdPicture) {
+        // the series is left exactly as it is (data still queued for it is the picture it holds, and stays queued)
+        // …unless that picture is ANOTHER symbol's: stale-while-revalidate holds this symbol's last values, never
+        // the previous stock's on the new candles. Empty until the worker lands.
+        const heldSym = pendingData.has(series) ? pendingData.get(series).sym : drawnSym.get(series)
+        if (heldSym !== undefined && heldSym !== passSym) applySeriesData(series, [], bars)
+      } else if (firstBindNeedsSetData(b, planMode) || landedNow.has(b.instanceId)) {
+        if (spread) queueSeriesData(series, drawn, bars)
+        else applySeriesData(series, drawn, bars)
       } else if (typeof ctx.applyData === 'function') {
-        attempt(() => ctx.applyData(series, drawn))
+        if (spread) {
+          // the chart's own plan decides (`StockChart._applyData`: nothing on a noop, else a full set), through a
+          // stand-in whose full set is queued
+          attempt(() => ctx.applyData({ setData: (data) => queueSeriesData(series, data, bars) }, drawn))
+        } else {
+          flushSeries(series)
+          attempt(() => ctx.applyData(series, drawn))
+          // whatever the plan did (nothing, an `update` of the newest bar, a full set), what it holds is built from bars
+          // all inside this pass's: the same bars, the same bars and the newest one, or these bars
+          drawnFrom.set(series, bars); drawnSym.set(series, passSym)
+        }
       } else {
-        attempt(() => series.setData(drawn))
+        applySeriesData(series, drawn, bars)
       }
 
       // Reconcile the run series: reuse what this binding (or the one it was
@@ -2504,10 +3519,14 @@ export function createBinder({ chart, LWC, scope = '' }) {
       // a style, pane or visibility change can never leave an old run behind.
       const carried = (b.from && Array.isArray(b.from.runSeries)) ? b.from.runSeries : []
       const carriedData = (b.from && Array.isArray(b.from.runData)) ? b.from.runData : []
-      const wanted = split ? split.runs : []
+      const wanted = holdPicture ? [] : (split ? split.runs : [])
       const runSeries = []
       const runData = []
-      if (wanted.length) {
+      if (holdPicture) {
+        // ⭐ HOST WORKER — and its run series are carried as they are (see `holdPicture`)
+        runSeries.push(...carried)
+        runData.push(...carriedData)
+      } else if (wanted.length) {
         const ropts = runSeriesOptions(p.options)
         for (let k = 0; k < wanted.length; k++) {
           let rs = carried[k] || null
@@ -2525,7 +3544,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
           runData.push(wanted[k])
         }
       }
-      for (let k = wanted.length; k < carried.length; k++) attempt(() => chart.removeSeries(carried[k]))
+      if (!holdPicture) for (let k = wanted.length; k < carried.length; k++) attempt(() => chart.removeSeries(carried[k]))
 
       next.push({
         markerLayer,
@@ -2581,6 +3600,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
     // ask for again — a memo that only grows is a leak wearing a cache's clothes.
     const boundKeys = new Set(next.map(n => n.key))
     for (const key of pointMemo.keys()) if (!boundKeys.has(key)) pointMemo.delete(key)
+    // ⭐ NEIGHBOR FRAMES — the rows this pass handed the renderer, for the points `prepare` makes ahead
+    if (nf) lastDrawRows = ctx.plotWindowFrom == null || !(drawStartOf() > 0) ? null : bars.length - drawStartOf()
 
     held = next
 
@@ -2663,9 +3684,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
         if (!h) { h = createFillPrimitive({ group: fillGroupFor(priceSeriesNow, id) }); attempt(() => priceSeriesNow.attachPrimitive(h.primitive)) }
         const hc = effectiveFillColour(hp, inst.inputs || null)
         h.setOptions({
-          upper, lower, times: bars.map((bar) => adjustTime(bar.t)),
+          upper, lower, times: nfTimes || bars.map((bar) => adjustTime(bar.t)),
           color: hc.color, opacity: hc.opacity,
-          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null), drawShiftOf(hp)),
+          colors: displacedColumn(bandColoursFor(hp, id, columns, bars.length, unknownColourRule(def), inst.inputs || null, chartThemeOf(ctx.cs)), drawShiftOf(hp)),
         })
         kept.set(hp.key, h)
       }
@@ -2718,11 +3739,154 @@ export function createBinder({ chart, LWC, scope = '' }) {
    *  `null` when its compute failed outright, `undefined` when it was not computed. */
   function columnErrorsOf(instanceId) { return lastColumnErrors.get(instanceId) }
 
+  /**
+   * ⭐⭐ NEIGHBOR FRAMES — ask THIS chart's questions (its instances, registry, timeframe, colours) of
+   * another row's bars, in idle time, and file the answers for the switch (`takePrepared`, `pointsFor`).
+   *
+   * A generator: every `yield` is a place the idle queue may pause it (one compute, or a slice of one plot's
+   * points, per piece). It writes no notice, no memo the sync reads, no series. ⚠️ NOT NOTHING ELSE: a server-lane
+   * compute notes its ask (`serverCompute._noteAsk`, what a warm replays) and marks its landed envelope as used
+   * (the lane cache's recency), exactly as the switch's own compute would. It never fetches (only a landed,
+   * non-provisional envelope is prepared: `landedEnvelopeFor`).
+   *
+   * @param {{bars: object[], sym: string, newestBarIsForming?: boolean|null, points?: boolean}} row
+   *   the bars exactly as the chart will hand them to `sync` for that row (`filteredBars`), its symbol and
+   *   the payload's tri-state; `points: false` files the columns only.
+   */
+  function* prepare(row) {
+    const base = lastPrepCtx
+    if (!base || !row || !Array.isArray(row.bars) || !row.bars.length || typeof row.sym !== 'string') return
+    const registry = base.registry
+    if (!registry || typeof registry.computeFor !== 'function') return
+    const bars = row.bars
+    const sym = row.sym
+    const tf = base.tf
+    const forming = row.newestBarIsForming ?? null
+    const adjustTime = typeof base.adjustTime === 'function' ? base.adjustTime : (t) => t
+    const instances = Array.isArray(base.instances) ? base.instances : []
+    const secondary = base.secondary && typeof base.secondary.get === 'function' ? base.secondary : null
+    const lowerTf = base.lowerTf && typeof base.lowerTf.get === 'function' ? base.lowerTf : null
+    const getDef = (id) => registry.getDefinition(id)
+    const { ordered, cyclic } = orderByDependency(instances, getDef)
+    const instFrames = resolveInstanceFrames(ordered, getDef, tf === undefined || tf === null ? '' : String(tf))
+    const instanceById = new Map()
+    for (const inst of instances) if (inst && typeof inst.instanceId === 'string') instanceById.set(inst.instanceId, inst)
+    const dependedOn = new Set()
+    for (const inst of instances) {
+      if (!inst || inst.hidden === true) continue
+      for (const [, value] of sourceInputsOf(getDef(inst.defId), inst)) {
+        const parsed = parseSource(value)
+        if (parsed && parsed.kind === 'instance') dependedOn.add(parsed.instanceId)
+      }
+    }
+    let byInst = preparedCols.get(bars)
+    if (byInst) preparedCols.delete(bars)          // re-inserted: the newest
+    else byInst = new Map()
+    preparedCols.set(bars, byInst)
+    while (preparedCols.size > PREPARED_BARS_MAX) preparedCols.delete(preparedCols.keys().next().value)
+    const cols = new Map()                      // bindingKey → prepared column (this row)
+    for (const inst of ordered) {
+      if (!inst || typeof inst.instanceId !== 'string') continue
+      if (inst.hidden === true && !dependedOn.has(inst.instanceId)) continue
+      if (cyclic.has(inst.instanceId)) continue
+      const fr = instFrames.get(inst.instanceId)
+      if (fr && fr.frame) continue
+      const def = getDef(inst.defId)
+      if (!def) continue
+      let sourceCols = null
+      let ok = true
+      for (const [key, value] of sourceInputsOf(def, inst)) {
+        const parsed = parseSource(value)
+        let series = null
+        if (parsed && parsed.kind === 'bar') series = barFieldOf(bars, parsed.field)
+        else if (parsed && parsed.kind === 'instance') {
+          series = cols.get(bindingKey(parsed.instanceId, parsed.plotKey)) || null
+          if (series && !sourceLineIntact(inst, key, parsed, instanceById.get(parsed.instanceId), getDef)) series = null
+        }
+        if (!series) { ok = false; break }
+        sourceCols = sourceCols || {}
+        sourceCols[key] = series
+      }
+      if (!ok) continue
+      const keyCtx = {
+        sym, tf, forming,
+        otherSig: otherSymbolsSignature(def, secondary, tf),
+        lowerSig: lowerTfSignature(def, lowerTf),
+      }
+      const k = prepKeyOf(registry, def, inst, sourceCols, keyCtx)
+      if (!k) continue
+      const had = byInst.get(inst.instanceId)
+      let answer = had && had.registry === registry && had.def === def && had.key === k.key && had.token === k.token
+        ? had.cols : null
+      if (!answer) {
+        const primarySource = sourceCols ? sourceCols[Object.keys(sourceCols)[0]] : null
+        // ⛔ THE SAME CALL THE SYNC MAKES (same arguments, same ctx keys), with this row's symbol, bars and
+        // tri-state. `symbol` (the bind-time fold's object) and `hostPane` are read by lanes never prepared.
+        const r = attempt(() => registry.computeFor(def, bars, inst.inputs, {
+          sym, symbol: null, tf,
+          source: primarySource, sources: sourceCols,
+          newestBarIsForming: forming,
+          secondary, exchangeOf: base.exchangeOf, framed: false,
+          lowerTf,
+          hostPane: `${noticeScope}\u0001${inst.instanceId}`,
+        }))
+        yield
+        if (!r.ok || !r.value || !Object.keys(r.value).length || isHostLanePending(r.value)) continue
+        // ⛔ the envelope may have been replaced while this piece waited: file under what was computed
+        const k2 = prepKeyOf(registry, def, inst, sourceCols, keyCtx)
+        if (!k2 || k2.key !== k.key || k2.token !== k.token) continue
+        answer = r.value
+        byInst.set(inst.instanceId, { registry, def, key: k.key, token: k.token, cols: answer })
+        nfCount('colsPrepared')
+      }
+      for (const plotKey of Object.keys(answer)) cols.set(bindingKey(inst.instanceId, plotKey), answer[plotKey])
+    }
+    if (row.points === false || !cols.size) return
+    // ── the points of the plots this chart draws now, from the columns above ──
+    const times = chartTimesFor(bars, adjustTime)
+    yield
+    // ⭐ (2026-11-20) ONLY THE ROWS THE SWITCH WILL HAND THE RENDERER (`drawStartOf` in `sync`): as many of the newest
+    // bars as the last sync drew, and one window step more (the chart places a window start in PLOT_WINDOW_STEP steps,
+    // so the same zoom on another row starts at most a step further back). Every bar when the last sync drew every
+    // bar. A switch that draws from further back than this (a zoom out meanwhile) builds its own, as it always did.
+    const start = lastDrawRows ? Math.max(0, bars.length - lastDrawRows - PLOT_WINDOW_STEP) : 0
+    for (const b of lastPlanBindings) {
+      const raw = b ? cols.get(b.key) : undefined
+      if (!raw || isOhlcPayload(raw)) continue
+      const k = pointsInputsOf(b, raw, (key) => cols.get(key), base.cs)
+      // a gap-split line splits every bar (`sync`'s `gapBreak`)
+      const whole = isConnectedPool(b.poolKey) && (hasPitLineage(b.inst, instances) || (b.plot && b.plot.sparse === true))
+      const from0 = whole ? 0 : start
+      const had = preparedPoints.get(k.column)
+      if (k.ohlc || (samePointsKey(had, k.column, bars, adjustTime, k) && (had.from || 0) <= from0)) continue
+      const points = new Array(bars.length - from0)
+      for (let from = from0; from < bars.length; from += POINTS_SLICE_BARS) {
+        toPointsInto(points, from, Math.min(bars.length, from + POINTS_SLICE_BARS), k.column, bars, adjustTime,
+          k.sc, k.cc, k.cond, k.unknownNone, times, from0)
+        yield
+      }
+      preparedPoints.set(k.column, { column: k.column, bars, adjustTime, up: k.up, down: k.down,
+        palette: k.palette, cond: k.cond, unknownNone: k.unknownNone, from: from0, points })
+      nfCount('pointsPrepared')
+    }
+  }
+
   /** ⭐ P1 HARDENING — teardown also lets go of the chart's visible-range listener. */
   function teardown() {
     releaseAll()
     if (unsubscribeObjectRange) { unsubscribeObjectRange(); unsubscribeObjectRange = null }
   }
 
-  return { sync, teardown, bindings, columnErrorsOf }
+  /** ⭐⭐ (switch smoothness) Apply the data still queued for `series` (or for every series, with none), now. For a
+   *  writer or reader outside the binder that extends or reads what a series HOLDS (a live writer's `update`, an
+   *  end label's `data()`): it then sees exactly what it would have seen with no queue. */
+  function flushPendingData(series) {
+    if (series) { flushSeries(series); return }
+    for (const [s, p] of [...pendingData]) applySeriesData(s, p.points, p.from, p.sym)
+  }
+
+  /** How many series have data queued (diagnostics and rails). */
+  function pendingDataCount() { return pendingData.size }
+
+  return { sync, teardown, bindings, columnErrorsOf, flushPendingData, pendingDataCount, prepare }
 }

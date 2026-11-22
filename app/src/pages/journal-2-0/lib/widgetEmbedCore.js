@@ -6,12 +6,12 @@
 import {
   widgetMeta, normalizeParams, validateParams, paramsPlainText, isReconstructable, asOfDayOf,
 } from '../../../widgets/registry'
-import { peekDrawings } from '../../../components/chart/drawingsStore'
+import { peekDrawings } from '../../../components/chart/drawingsPeek' // not drawingsStore: keeps it off Notebook first open
 import { notebookFlag } from './offline/notebookFlags'
 
 /** Wave 13 lane 13H-2: the ONE client gate for the chart-plan doors -- the plan panel, bar
  *  replay, the weekly /mtf stack and /vs. It is 13H-1's flag, reused (never a second one):
- *  `NOTEBOOK_CHART_PLAN_ENABLED` on the server, latched per tab. Absent => OFF. */
+ *  always true from the server (NOTEBOOK_CHART_PLAN_ENABLED was retired, 2026-11-04), latched per tab. Absent => OFF. */
 export const CHART_PLAN_FLAG = 'notebook_chart_plan_enabled'
 export const chartPlanEnabled = () => notebookFlag(CHART_PLAN_FLAG) === true
 
@@ -450,6 +450,17 @@ export function retimeChartParams(attrs, newTf) {
   const next = normalizeParams('chart', {
     ...params, tf, ...(r ? { from: r.from, to: r.to } : {}),
   })
+  return { params: next, searchText: paramsPlainText('chart', next) }
+}
+
+/** Audit 2026-11-05, spec S3: the same chart window for another ticker. `{params, searchText}`, or
+ *  null for no change (an empty or identical symbol). The window (from/to/tf) is kept: the member is
+ *  asking "this moment, on AMD". The caller clears the archive (it shows the old ticker). */
+export function resymbolChartParams(attrs, newSymbol) {
+  const params = attrs?.params || {}
+  const symbol = String(newSymbol ?? '').trim().replace(/^\$+/, '').toUpperCase()
+  if (!symbol || symbol === String(params.symbol || '').toUpperCase()) return null
+  const next = normalizeParams('chart', { ...params, symbol })
   return { params: next, searchText: paramsPlainText('chart', next) }
 }
 

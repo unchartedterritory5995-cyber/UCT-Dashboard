@@ -6,8 +6,9 @@
 import { planPlacement } from '../../pages/charts/placement/place'
 import { buildWidgetSource, buildLayoutSource, buildWatchlistSource, buildWidgetSync, positionWord } from '../host'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
+import { chartTabList } from '../../pages/charts/chartTabs'
 
-export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null } = {}) {
+export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null, layouts = null, watchlists = null, minOf = null, repack = null, resize = null, catalog = null } = {}) {
   const state = { widgets: widgets.map(w => ({ color: 'A', opts: {}, ...w })), groupSyms: { ...groupSyms } }
   let n = 0
   let adds = 0
@@ -38,7 +39,9 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       state.widgets = ws
     },
     grid: () => ({ cols: 24, rows: 20 }),
-    minOf: () => ({ minW: 2, minH: 3 }),
+    minOf: minOf || (() => ({ minW: 2, minH: 3 })),
+    // the product's own geometry, when a test passes it (ChartsWorkspace repackAroundMoved / resolveResize): a drop and an edge drag
+    ...(repack ? { repack } : {}), ...(resize ? { resize } : {}),
     remove: (id) => { state.widgets = state.widgets.filter(w => w.id !== id) },
     color: (id, color) => { state.widgets = state.widgets.map(w => (w.id === id ? { ...w, color } : w)) },
     cancelPending: () => {},
@@ -55,6 +58,9 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       ref: id, label: `Chart ${id}`, position: pos, cell: { x: w.x, y: w.y, w: w.w, h: w.h }, group: w.color,
       symbol: state.groupSyms[keyOf(w)] || 'SPY', tf: w.opts.tf || 'D',
       stored: w.opts.settings ?? null, cs: mergeChartSettings(w.opts.settings || null),
+      watermarkPos: w.opts.watermarkPos ?? null,
+      // a board chart widget's dock (ChartWidget adapter: canDock, the RAW opts.dock, the chart tabs sharing it)
+      canDock: true, dock: w.opts.dock ?? null, dockTabs: chartTabList(w.opts).length,
       linkedCount: 0,
     }
   }
@@ -69,6 +75,8 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
         const opts = { ...w.opts }
         if ('settings' in patch) opts.settings = patch.settings
         if ('tf' in patch) opts.tf = patch.tf
+        if ('watermarkPos' in patch) opts.watermarkPos = patch.watermarkPos
+        if ('dock' in patch) { if (patch.dock == null) delete opts.dock; else opts.dock = patch.dock }
         state.widgets = state.widgets.map(x => (x.id === ref ? { ...x, opts } : x))
         if (patch.symbol) state.groupSyms = { ...state.groupSyms, [keyOf(w)]: patch.symbol }
         return true
@@ -190,6 +198,9 @@ export function makeBoard(widgets, groupSyms = { A: 'AAPL' }, { failAddAt = null
       const path = url.split('?')[0]
       server.calls.push([method, path, body])
       if (server.failOn && server.failOn(method, path, body)) return nope(500, 'server error')
+      // the picker's catalogue (watchlistCatalog.js): UCT's prebuilt directory and the community lists, names only
+      if (method === 'GET' && path === '/api/watchlists/prebuilt') return catalog ? ok(catalog.prebuilt || []) : nope(404, 'not found')
+      if (method === 'GET' && path === '/api/watchlists/public') return catalog ? ok(catalog.community || []) : nope(404, 'not found')
       if (method === 'GET' && path === '/api/watchlists') return ok(server.lists.map(l => ({ id: l.id, name: l.name, item_count: l.items.length })))
       if (method === 'POST' && path === '/api/watchlists') {
         const row = { id: `wl${++seq}`, name: body.name, items: [] }

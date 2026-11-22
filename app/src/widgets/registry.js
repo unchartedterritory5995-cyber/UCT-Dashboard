@@ -48,7 +48,10 @@
 //                    canvas always comes from its own settings blob).
 //
 // ── Params layer (journal embeds) ───────────────────────────────────────────
-// - paramsSchema   — declarative field descriptors for the widget's FROZEN
+// - paramsSchema   — (`live: true` on a field = the mounted widget reads it back from `opts`, so UCT Agent's
+//                    widget.setOption may write it; `clears` = opts keys its control resets with it;
+//                    agent/settingsLiveness.test.js proves the read, both ways)
+//                    declarative field descriptors for the widget's FROZEN
 //                    params: what an embedded snapshot stores in the notebook
 //                    doc and re-renders from. Types: 'symbol' | 'tf' | 'ts' |
 //                    'string' | 'number' | 'boolean' | 'enum' (options) |
@@ -243,6 +246,9 @@ export function validatePanelManifest(id, manifest) {
         problems.push(`${at}.type ${JSON.stringify(f.type)} is not one of ${PARAM_FIELD_TYPES.join('|')}`)
       } else if (f.type === 'enum' && !(Array.isArray(f.options) && f.options.length > 0)) {
         problems.push(`${at} is an enum and needs a non-empty options array`)
+      }
+      if (f.live !== undefined && !(f.live === true && ['enum', 'boolean', 'number'].includes(f.type))) {
+        problems.push(`${at}.live is true or absent, on an enum, boolean or number field`)
       }
     })
   }
@@ -474,7 +480,7 @@ const PANEL_MANIFESTS = {
       { key: 'symbol', type: 'symbol', required: true },
       // Freeze the EFFECTIVE view — the widget silently falls annual↔quarterly
       // when a dataset is missing, and the capture must show what was shown.
-      { key: 'view', type: 'enum', options: ['annual', 'quarterly', 'analyst', 'ownership'], default: 'quarterly' },
+      { key: 'view', type: 'enum', options: ['annual', 'quarterly', 'analyst', 'ownership'], default: 'quarterly', live: true },
       { key: 'company', type: 'string' },
       { key: 'settings', type: 'json' },        // GLOBAL fundamentals_settings — merged copy
       // The captured table itself ({annual[], quarterly[]}) — owner-approved
@@ -622,7 +628,7 @@ const PANEL_MANIFESTS = {
     themeFollow: true,
     paramsSchema: [
       { key: 'symbol', type: 'symbol', required: true },
-      { key: 'filter', type: 'enum', options: ['all', 'up', 'down'], default: 'all' },
+      { key: 'filter', type: 'enum', options: ['all', 'up', 'down'], default: 'all', live: true },
       { key: 'company', type: 'string' },
       { key: 'settings', type: 'json' },
       // The captured feed itself — owner-approved payload freeze: headlines
@@ -687,7 +693,12 @@ const PANEL_MANIFESTS = {
     liveCapable: false,
   },
   calendar: {
-    labels: { header: 'UCT Terminal', menu: 'UCT Terminal', tab: 'Terminal' },
+    // Owner 2026-11-13: the widget is called "Calendar" (the /terminal PAGE keeps "UCT Terminal").
+    labels: { header: 'Calendar', menu: 'Calendar', tab: 'Calendar' },
+    // agentLabels: UCT Agent's routing reads widget NAMES to decide which widget a request
+    // means, so it keeps the old names until its routing corpus is re-tuned for "Calendar"
+    // (a reviewed Agent change, like PICKER_ONLY_WIDGETS). Members never see these.
+    agentLabels: { header: 'UCT Terminal', menu: 'UCT Terminal', tab: 'Terminal' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
     placement: { family: 'panel', fill: 'narrow' },
     menus: { workspace: true, tab: true, mobile: false, journal: false },
@@ -695,7 +706,7 @@ const PANEL_MANIFESTS = {
     paramsSchema: [
       // The widget renders ONE DAY (the week is only the fetch granularity).
       { key: 'date', type: 'string', required: true },       // 'YYYY-MM-DD'
-      { key: 'econStars', type: 'number', default: 3, min: 1, max: 3, integer: true },   // the widget's own [1, 2, 3] (CalendarWidget)
+      { key: 'econStars', type: 'number', default: 3, min: 1, max: 3, integer: true, live: true },   // the widget's own [1, 2, 3] (CalendarWidget)
       { key: 'selectedSym', type: 'symbol' },
       { key: 'tbdOpen', type: 'boolean', default: false },
       { key: 'sections', type: 'json' },        // {bmo,amc} × {sortBy,sortDir,showAll} — child-local state, lifted at capture
@@ -726,8 +737,8 @@ const PANEL_MANIFESTS = {
     menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
-      { key: 'lead', type: 'enum', options: ['tape', 'biggest', 'sentiment'], default: 'tape' },
-      { key: 'scope', type: 'enum', options: ['market', 'symbol'], default: 'market' },
+      { key: 'lead', type: 'enum', options: ['tape', 'biggest', 'sentiment'], default: 'tape', live: true },
+      { key: 'scope', type: 'enum', options: ['market', 'symbol'], default: 'market', live: true },
       { key: 'symbol', type: 'symbol' },        // only meaningful when scope==='symbol'
       { key: 'filters', type: 'json' },         // {minPrem, cp, type, dir}
       { key: 'settings', type: 'json' },
@@ -746,7 +757,7 @@ const PANEL_MANIFESTS = {
     paramsSchema: [
       { key: 'start', type: 'number', required: true },      // YYYYMMDD int (the widget's wire format)
       { key: 'end', type: 'number', required: true },        // YYYYMMDD int
-      { key: 'group', type: 'enum', options: ['theme', 'sector', 'industry'] },
+      { key: 'group', type: 'enum', options: ['theme', 'sector', 'industry'], live: true },
       { key: 'settings', type: 'json' },
       { key: 'colCfg', type: 'json' },          // session-only ephemeral columns — freeze or lose them
     ],
@@ -799,7 +810,7 @@ const PANEL_MANIFESTS = {
       { key: 'minRvol', type: 'number', default: 2 },
       { key: 'minMove', type: 'number', default: 0.25 },
       { key: 'minDollarK', type: 'number' },   // $-vol/min floor ($thousands); blank = session-aware auto
-      { key: 'showLogos', type: 'boolean', default: false },   // company logos next to tickers (off by default)
+      { key: 'showLogos', type: 'boolean', default: false, live: true },   // company logos next to tickers (off by default)
       { key: 'settings', type: 'json' },
     ],
     plainText: () => '[volume surge]',
@@ -843,8 +854,8 @@ const PANEL_MANIFESTS = {
     themeFollow: true,
     paramsSchema: [
       { key: 'settings', type: 'json' },
-      { key: 'follow', type: 'boolean', default: true },
-      { key: 'linked', type: 'boolean', default: false },
+      { key: 'follow', type: 'boolean', default: true, live: true },
+      { key: 'linked', type: 'boolean', default: false, live: true, clears: ['presetId'] },
       { key: 'watchlistId', type: 'string' },
       // UCT News V2: the Saved Headlines view (the toolbar bookmark) and its filters.
       { key: 'view', type: 'string' },
@@ -877,8 +888,8 @@ const PANEL_MANIFESTS = {
       { key: 'to', type: 'string' },
       { key: 'sort', type: 'string' },
       { key: 'view', type: 'string' },
-      { key: 'follow', type: 'boolean', default: true },
-      { key: 'linked', type: 'boolean', default: false },
+      { key: 'follow', type: 'boolean', default: true, live: true },
+      { key: 'linked', type: 'boolean', default: false, live: true, clears: ['presetId'] },
       { key: 'watchlistId', type: 'string' },
     ],
     plainText: () => '[library: saved UCT News headlines]',
@@ -1216,12 +1227,21 @@ export const JOURNAL_MENU_TYPES_ALL = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id
 // broke the golden manifest. Releasing a widget to members is not releasing it to
 // the Agent -- that is a separate, reviewed Agent change.
 export const PICKER_ONLY_WIDGETS = Object.freeze(['tradeExchangeNews', 'researchLibrary'])
+// ⚰️ HIDDEN WIDGETS (owner 2026-11-13). Taken out of every MEMBER add menu on /charts
+// (workspace, add-tab, phone sheet, menuGroups). UCT Agent's widget.add/addTab lists are
+// NOT filtered: the Agent is admin-only, and its lists are a separate reviewed contract
+// (see PICKER_ONLY_WIDGETS above). They stay REGISTERED and bound: a board that already holds one still
+// renders it, a stored notebook embed still renders, and bringing one back = deleting its
+// id here. Market Map, Volume Surge, H/L Pulse, Fundamentals, Stock Profile,
+// News & Catalysts, AI Search.
+export const HIDDEN_WIDGETS = Object.freeze(['scatter', 'volumescan', 'nhnlPulse', 'fundamentals', 'profile', 'news', 'aisearch'])
+const shown = (ids) => ids.filter(id => !HIDDEN_WIDGETS.includes(id))
 const agentList = (picker) => (captureEnabled() ? picker : picker.filter(id => !PICKER_ONLY_WIDGETS.includes(id)))
-export const WORKSPACE_PICKER_TYPES = releasedTypes(WORKSPACE_MENU_TYPES_ALL)
-export const TAB_PICKER_TYPES = releasedTypes(TAB_MENU_TYPES_ALL)
-export const WORKSPACE_MENU_TYPES = agentList(WORKSPACE_PICKER_TYPES)
-export const TAB_MENU_TYPES = agentList(TAB_PICKER_TYPES)
-export const MOBILE_MENU_TYPES = releasedTypes(MOBILE_MENU_TYPES_ALL)
+export const WORKSPACE_PICKER_TYPES = shown(releasedTypes(WORKSPACE_MENU_TYPES_ALL))
+export const TAB_PICKER_TYPES = shown(releasedTypes(TAB_MENU_TYPES_ALL))
+export const WORKSPACE_MENU_TYPES = agentList(releasedTypes(WORKSPACE_MENU_TYPES_ALL))
+export const TAB_MENU_TYPES = agentList(releasedTypes(TAB_MENU_TYPES_ALL))
+export const MOBILE_MENU_TYPES = shown(releasedTypes(MOBILE_MENU_TYPES_ALL))
 export const JOURNAL_MENU_TYPES = releasedTypes(JOURNAL_MENU_TYPES_ALL)
 export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].themeFollow)
 
@@ -1234,12 +1254,12 @@ export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].th
 // order within each are the menu order.
 export const WIDGET_CATEGORIES = [
   { key: 'charts',    label: 'Charts',                 items: ['chart'] },
-  { key: 'lists',     label: 'Watchlists & Screening', items: ['watchlist', 'themes', 'scanner', 'scatter'] },
+  { key: 'lists',     label: 'Watchlists & screening', items: ['watchlist', 'themes', 'scanner', 'scatter'] },
   // "Market Internals" is the home for the real-time, market-wide tools — the growing
   // NH/NL-style family. Renamed from "Breadth & Momentum" as that family expands.
-  { key: 'internals', label: 'Market Internals',       items: ['indexes', 'breadth', 'marketcontext', 'nhnl', 'nhnlPulse', 'volumescan'] },
+  { key: 'internals', label: 'Market internals',       items: ['indexes', 'breadth', 'marketcontext', 'nhnl', 'nhnlPulse', 'volumescan'] },
   { key: 'research',  label: 'Research',               items: ['fundamentals', 'profile', 'news', 'tradeExchangeNews', 'aisearch', 'calendar', 'notebook'] },
-  { key: 'flow',      label: 'Flow & Alerts',          items: ['optionsflow', 'alerts'] },
+  { key: 'flow',      label: 'Flow & alerts',          items: ['optionsflow', 'alerts'] },
 ]
 
 // ── Widget catalog presentation ──────────────────────────────────────────────
@@ -1258,7 +1278,7 @@ export const WIDGET_CATALOG = {
   breadth:      { icon: 'breadth',  blurb: 'Market breadth & participation monitor.', live: true },
   indexes:      { icon: 'equity',   blurb: 'Index levels and the day’s move, live.', live: true },
   marketcontext:{ icon: 'compass',  blurb: 'Phase, exposure and breadth in one read.' },
-  aisearch:     { icon: 'sparkle',  blurb: 'Ask AI about any stock or the market.' },
+  aisearch:     { icon: 'sparkle',  blurb: 'Ask the UCT Agent about any stock or the market.' },
   news:         { icon: 'wire',     blurb: 'High-impact news & catalysts per stock.' },
   tradeExchangeNews: { icon: 'wire', blurb: 'Breaking market headlines from Trade Exchange, live.', live: true },
   profile:      { icon: 'book',     blurb: 'Company profile, description & stats.' },
@@ -1296,9 +1316,18 @@ export function menuGroups(menu = 'workspace') {
 /** Full id→label map for one label kind ('header' | 'menu' | 'tab').
  *  Falls back to the header label so a kind never returns undefined. */
 export function labelMap(kind) {
+  // 'agent' = UCT Agent's menu name for a widget (agentLabelsOf).
+  if (kind === 'agent') return Object.fromEntries(WIDGET_IDS.map(id => [id, agentLabelsOf(id).menu]))
   return Object.fromEntries(
     WIDGET_IDS.map(id => [id, WIDGET_REGISTRY[id].labels[kind] ?? WIDGET_REGISTRY[id].labels.header]),
   )
+}
+
+/** The names UCT Agent reads for a widget: its agentLabels override where one is set
+ *  (a member-facing rename the Agent's routing has not been re-tuned for), else labels. */
+export function agentLabelsOf(id) {
+  const w = WIDGET_REGISTRY[id]
+  return w?.agentLabels || w?.labels || {}
 }
 
 /** Metadata for one widget id, or null for an unknown/removed type. */

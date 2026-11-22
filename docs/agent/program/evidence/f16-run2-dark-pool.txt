@@ -1,0 +1,27 @@
+Raw output (ANSI stripped), F-16 focused run 2 on cd0dd2ce12+1 (LOCAL, vitest, jsdom), the two expectations corrected after it:
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentWidgetControls.test.jsx > widget.readOptions: how a widget is set, read back > every control's value and choices, opts and door alike; a scan's criteria; a list that is long is said to be
+AssertionError: expected 'The Options Flow: lead biggest, scope…' to match /minPremium 0,/
+
+- Expected: 
+/minPremium 0,/
+
++ Received: 
+"The Options Flow: lead biggest, scope market, minPremium All, callPut Puts, printType Any, direction All.
+
+--
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/agent/qa/chartsOutcome/flowFilters.outcome.test.jsx > NEGATIVE: what the chips do not allow is refused in the UI's own words; nothing is written > held-out "only dark pool prints in the options flow" ({ text: 'only dark pool prints in the options flow', ops: [ { key: 'darkPool', value: 'on' } ], refuse: /no option “darkPool”/, kind: 'invented filter' })
+AssertionError: expected 'UCT Agent5:00 PMI didn\'t run it: UCT…' to match /no option “darkPool”/
+
+- Expected: 
+/no option “darkPool”/
+
++ Received: 
+"UCT Agent5:00 PMI didn't run it: UCT Agent can't screen on options-flow or dark-pool data. You can use it on the Screener page. A public alternative: volume vs its 30-day average (vol_ratio). "
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ Test Files  2 failed | 11 passed (13)
+      Tests  2 failed | 231 passed (233)

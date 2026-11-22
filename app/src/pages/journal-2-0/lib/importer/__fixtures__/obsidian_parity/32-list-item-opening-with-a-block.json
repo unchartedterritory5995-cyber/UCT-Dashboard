@@ -10,6 +10,7 @@
       "https://example.com/chart.png"
     ],
     "links": [],
+    "notices": [],
     "pending": [],
     "task_checked": [],
     "text": "A list item opening with a block  after the image  nested first next  quoted first then text"

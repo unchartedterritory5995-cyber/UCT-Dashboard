@@ -66,7 +66,6 @@ import notebook_perf_harness as h  # noqa: E402
 import notebook_fin_walk as fw  # noqa: E402  -- flag_sets, settle_first_run, BENIGN, VIEWPORTS
 
 VIEWPORTS = fw.VIEWPORTS
-LIBRARY_FLAGS = ["NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_JOURNAL_STYLES_ENABLED", "NOTEBOOK_STYLE_LIBRARY_ENABLED"]
 # Sandbox seed (throwaway data dir only; the walk tools' shared sandbox password).
 AUTHOR = ("p3awalk-author@local.dev", "LocalTest2026!", "P3a Author")
 MEMBER = ("p3awalk-member@local.dev", "LocalTest2026!", "P3a Member")
@@ -495,7 +494,7 @@ def story(browser, base: str, vp: str, run: str) -> None:
 # ── boot ──────────────────────────────────────────────────────────────────────────────────
 
 def set_env(fs: dict) -> list[str]:
-    on = sorted(set(fs["c1"]) | set(LIBRARY_FLAGS))
+    on = sorted(set(fs["c1"]))   # the gallery, library and styles switches were retired as always on
     for name in fs["all_names"]:
         os.environ.pop(name, None)
     for k in [k for k in os.environ if k.startswith("RAILWAY_")]:

@@ -1,0 +1,9 @@
+//@version=5
+indicator("hp ema macd", overlay=false)
+fast = ta.ema(close, 12)
+slow = ta.ema(close, 26)
+m = fast - slow
+s = ta.ema(m, 9)
+plot(m, "macd")
+plot(s, "signal")
+plot(m - s, "hist")

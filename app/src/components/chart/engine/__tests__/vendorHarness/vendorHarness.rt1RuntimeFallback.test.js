@@ -122,15 +122,20 @@ describe('RT1 → RT3 — a `?:` whose test is `na` reads as false from v4; only
   // ⭐ RT3: the runtime lane now reads an `na` condition as TradingView does
   // from v4 (`interpret.js::pineBool`, one rule for both lanes), so the two v4
   // captures below are drawn by the runtime run exactly as TradingView draws
-  // them. H1 still serves both from the host lane first, so the runtime run is
-  // graded here directly. What stays withheld is what is still unsettled — a
+  // them. H1 served both from the host lane first; ⭐ ROUTE BY COST (Engine 73 (#1711),
+  // docs/pine/evidence/2026-11-17-host-lane-cost/EVIDENCE.md) now serves both from the RUNTIME
+  // lane for a viewer whose runtime pane is on (their recurrences hold the main thread for
+  // seconds on the host lane, and the run draws the same picture), so the run graded here
+  // directly is the run that draws. What stays withheld is what is still unsettled — a
   // `?:` below v4, and a v4/v5 `or` / `not` over a value that can be `na`.
   it('⭐ qqe-signals: the runtime run now marks exactly TradingView\'s bars — bar 73 included', () => {
     const cap = capture(QQE)
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
     expect(built.ok).toBe(true)
-    expect(built.lane).toBeUndefined() // the host lane serves it first (H1)
+    // ROUTE BY COST: the runtime lane serves it (H1 served the host lane first)
+    expect(built.lane).toBe('runtime')
+    expect(built.costRoute).toMatchObject({ moved: true })
     const probe = probeRuntimeProgram(cap.source.text)
     expect(probe.ok).toBe(true)
     expect(probe.naTests).toBe(0) // v4: the `?:` tests are settled now
@@ -154,7 +159,9 @@ describe('RT1 → RT3 — a `?:` whose test is `na` reads as false from v4; only
     vi.stubEnv(FLAG, '1')
     const built = memberPaneDefinition({ source: cap.source.text, id: DEF_ID })
     expect(built.ok).toBe(true)
-    expect(built.lane).toBeUndefined()
+    // ROUTE BY COST: the runtime lane serves it (H1 served the host lane first)
+    expect(built.lane).toBe('runtime')
+    expect(built.costRoute).toMatchObject({ moved: true })
     const probe = probeRuntimeProgram(cap.source.text)
     expect(probe.naTests).toBe(0)
     const shapes = probe.outputs.map((o, i) => (o.call === 'plotshape' ? i : -1)).filter((i) => i >= 0)

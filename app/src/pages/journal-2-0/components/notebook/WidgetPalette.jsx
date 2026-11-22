@@ -17,13 +17,23 @@
  * the / menu's moment labels, and every one is the item SlashMenu.snapshotWidgetItems builds -- the
  * palette clicks the same command, and a symbol kind asks for a ticker and runs the same grammar.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { JOURNAL_MENU_TYPES, widgetMeta, isReconstructable } from '../../../../widgets/registry'
 import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes, etTodayIso,
 } from '../../lib/widgetEmbedCore'
 import { snapshotWidgetItems, SLASH_GROUPS } from './SlashMenu'
+import { CAPTURE_KINDS } from '../../lib/notebookWidgets'
+import { COT_SYMBOLS_URL, cotMarkets } from '../../lib/cotMarkets'
+import { withInsertDoor } from '../../lib/notebookUsage'
 import styles from './WidgetPalette.module.css'
+
+// S13.6 remainder: a capture kind that asks for something other than a ticker says so (COT asks for a CFTC
+// market). `picker: 'cot'` lists the COT tab's own markets (GET /api/cot/symbols) under the field.
+const kindByCmd = (cmd) => CAPTURE_KINDS.find((k) => k.cmd === cmd) || null
+const askFor = (kind) => (kind?.picker === 'cot'
+  ? { label: 'Market', placeholder: 'e.g. ES, CL, GC', hint: 'Choose a market, then insert a snapshot' }
+  : { label: 'Ticker', placeholder: 'e.g. AMD', hint: 'Choose a ticker, then insert a snapshot' })
 
 // The tf pills speak slash TOKENS ('15m', '1h', 'M' — case decides
 // month-vs-minute), so the parser below is the one validator.
@@ -65,12 +75,34 @@ function parseSelection(kind, sym, tfTok, day) {
   return { args, reason: null }
 }
 
-export default function WidgetPalette({ editor, onClose }) {
+/** After an insert the caret sits just after the new embed(s): select the embed right before it. */
+function selectLastInsertedEmbed(editor) {
+  try {
+    const { state } = editor
+    const caret = state?.selection?.from
+    if (!Number.isFinite(caret)) return
+    let pos = -1
+    state.doc.descendants((n, p) => {
+      if (n.type.name === 'widgetEmbed' && p + n.nodeSize <= caret) pos = p
+      return true
+    })
+    if (pos >= 0) editor.chain().focus().setNodeSelection(pos).run()
+  } catch { /* a stub editor (or one mid-teardown) keeps its caret */ }
+}
+
+// Follow-up A: `via` names the door for `block_inserted` ('palette', or 'phone_plus' when the phone "+" opened it).
+export default function WidgetPalette({ editor, onClose, returnFocusTo, via = 'palette' }) {
   const [kind, setKind] = useState(null)   // null = the type list
   const [sym, setSym] = useState('')
   const [tfTok, setTfTok] = useState('D')
   const [day, setDay] = useState('')
   const [inserted, setInserted] = useState(null)
+  // Simplify pass 2 (C4): the "More" group (the market snapshots) waits behind "Show all" at the foot of the list;
+  // once shown it stays shown while this palette is open. The slash menu is unchanged.
+  const [showAll, setShowAll] = useState(false)
+  const moreRef = useRef(null)
+  // "Show all" leaves the screen when pressed: focus goes to the first row it revealed.
+  useEffect(() => { if (showAll) moreRef.current?.querySelector('button')?.focus() }, [showAll])
   const symRef = useRef(null)
   const panelRef = useRef(null)
   const firstTypeRef = useRef(null)
@@ -102,9 +134,34 @@ export default function WidgetPalette({ editor, onClose }) {
   // mount-site comment in NoteEditorPage.jsx -- so Sheet's centered-modal/
   // bottom-sheet treatment would fight that design, not fix this bug).
   // Competitive audit finding UX #13, 2026-09-22.
+  // VIS-5 (audit 2026-11-05, issue 25): Escape and ✕ hand focus BACK to what opened the panel (the toolbar's
+  // Insert button). It used to drop to <body>, the top of the page, so a keyboard member lost their place.
+  // Read once, at the first render -- before the effect above moves focus into the panel. A chart that was
+  // just inserted keeps its own focus (S3): only a close without an insert returns to the opener.
+  // Fix round 1 (review Minor 13): a NAMED opener (`returnFocusTo`, the toolbar's Insert button) wins -- that button
+  // keeps the editor's selection on a press, so it never held focus itself; else whatever held focus at the first render.
+  const openerRef = useRef(typeof document !== 'undefined' ? document.activeElement : null)
+  const dismiss = () => {
+    const opener = returnFocusTo?.current || openerRef.current
+    onClose?.()
+    if (opener && opener !== document.body && opener.isConnected) opener.focus?.()
+  }
+  const dismissRef = useRef(dismiss)
+  dismissRef.current = dismiss
+
+  // Insert panel (VIS-4, issue 22): its bottom sat past the screen. It hangs from the sticky chrome, so its
+  // top is measured once open and the panel may grow only to 16 px above the viewport's bottom
+  // (`--palette-top` feeds the stylesheet's `max-height: calc(100vh - top - 16px)`).
+  useLayoutEffect(() => {
+    const el = panelRef.current
+    if (!el) return
+    const top = Math.max(0, Math.round(el.getBoundingClientRect().top))
+    el.style.setProperty('--palette-top', `${top}px`)
+  }, [])
+
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose?.(); return }
+      if (e.key === 'Escape') { e.stopPropagation(); dismissRef.current(); return }
       if (e.key !== 'Tab') return
       const nodes = panelRef.current?.querySelectorAll(
         'button:not([disabled]), input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])')
@@ -120,6 +177,20 @@ export default function WidgetPalette({ editor, onClose }) {
 
   // A snapshot kind that reads a symbol opens the form as `snap:<cmd>`; the slash grammar decides validity.
   const snapCmd = kind?.startsWith('snap:') ? kind.slice(5) : null
+  const snapKind = snapCmd ? kindByCmd(snapCmd) : null
+  const ask = askFor(snapKind)
+  // The COT tab's markets, read once when the COT form opens. A failed read leaves a plain field.
+  const [markets, setMarkets] = useState(null)
+  const wantsMarkets = snapKind?.picker === 'cot' && markets === null
+  useEffect(() => {
+    if (!wantsMarkets) return undefined
+    let alive = true
+    fetch(COT_SYMBOLS_URL, { credentials: 'include' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => { if (alive) setMarkets(body ? cotMarkets(body) : []) })
+      .catch(() => { if (alive) setMarkets([]) })
+    return () => { alive = false }
+  }, [wantsMarkets])
   const snapItem = snapCmd && sym ? snapshotWidgetItems(`${snapCmd} ${sym}`).find((it) => it.cmd === snapCmd) || null : null
   const { args, reason: blockReason } = kind && !snapCmd ? parseSelection(kind, sym, tfTok, day) : { args: null, reason: null }
   const multi = kind === 'mtf' || kind === 'compare'
@@ -128,7 +199,7 @@ export default function WidgetPalette({ editor, onClose }) {
   const runSnapshot = async (item) => {
     if (!item || !editor) return
     setInserted(`Adding ${item.title}…`)
-    const res = await item.command({ editor, range: null })
+    const res = await withInsertDoor(via, () => item.command({ editor, range: null }))
     setInserted(res?.ok ? `${item.title} inserted` : res?.message || null)
     if (res?.ok && snapCmd) { setSym(''); symRef.current?.focus() }
   }
@@ -143,13 +214,19 @@ export default function WidgetPalette({ editor, onClose }) {
     // The slash path can't reach this state — typing collapses the selection
     // — but a palette click doesn't, so the entry side needs the same guard
     // as the exit side.
-    editor.chain().focus()
+    withInsertDoor(via, () => editor.chain().focus()
       .caretAfterWidgetEmbed()
       .insertContent(nodes)
       .caretAfterWidgetEmbed()
-      .run()
-    // Stay open, clear the ticker, refocus — "click, click, click" means the
-    // next insert starts immediately.
+      .run())
+    // ⛔ Audit 2026-11-05, spec S3 (detail #36): the picker used to STAY OPEN over the chart it had
+    // just made. It closes, and the last chart inserted takes focus -- selected, so its header and
+    // its type-to-search (a key opens its ticker search, never replaces it) answer at once.
+    if (onClose) {
+      selectLastInsertedEmbed(editor)
+      onClose()
+      return
+    }
     setInserted(`${args.symbol} inserted`)
     setSym('')
     symRef.current?.focus()
@@ -166,7 +243,7 @@ export default function WidgetPalette({ editor, onClose }) {
           <span className={styles.headTitle}>Insert widget</span>
         )}
         {onClose && (
-          <button type="button" className={styles.headBtn} onClick={onClose} aria-label="Close insert panel">✕</button>
+          <button type="button" className={styles.headBtn} onClick={dismiss} aria-label="Close insert panel">✕</button>
         )}
       </div>
 
@@ -203,25 +280,32 @@ export default function WidgetPalette({ editor, onClose }) {
           ))}
           {SLASH_GROUPS.map((g) => {
             const inGroup = snapshots.filter((it) => it.group === g.id)
-            return inGroup.length ? (
-              <div key={g.id} role="group" aria-label={g.label}>
+            const folded = g.id === 'more' && !showAll
+            return inGroup.length && !folded ? (
+              <div key={g.id} role="group" aria-label={g.label} ref={g.id === 'more' ? moreRef : undefined}>
                 <div className={styles.fieldLabel}>{g.label}</div>
                 {inGroup.map((it) => (
                   <button key={it.title} type="button" className={styles.typeBtn}
                     onClick={() => (it.cmd ? setKind(`snap:${it.cmd}`) : runSnapshot(it))}>
                     <span className={styles.typeLabel}>{it.title}</span>
-                    <span className={styles.typeHint}>{it.cmd ? 'Choose a ticker, then insert a snapshot' : it.description}</span>
+                    <span className={styles.typeHint}>{it.cmd ? askFor(kindByCmd(it.cmd)).hint : it.description}</span>
                   </button>
                 ))}
               </div>
             ) : null
           })}
+          {!showAll && snapshots.some((it) => it.group === 'more') && (
+            <button type="button" className={`${styles.headBtn} ${styles.showAll}`} aria-label="Show all widgets"
+              onClick={() => setShowAll(true)}>
+              Show all
+            </button>
+          )}
           {inserted && <span className={styles.insertedMsg} role="status">{inserted}</span>}
           {/* R58 (UX I-12): with wave 4 on (its kinds are the "More" rows) news, breadth and the calendar are listed
               above, so the footnote names only what still comes in from its own page. */}
           <div className={styles.footNote}>
             {snapshots.some((it) => it.group === 'more')
-              ? "Most widgets fill in from your own data when you insert them. A few (Screener, COT, Model Book) still come in from their own page, with the journal button beside the widget's gear."
+              ? "Most widgets fill in from your own data when you insert them. A Screener result still comes in from the Screener page, with its Save to Notebook button."
               : "Widgets with live data (news, breadth, calendar…) come in from their own page — use the journal button beside each widget's gear."}
           </div>
         </div>
@@ -229,16 +313,22 @@ export default function WidgetPalette({ editor, onClose }) {
 
       {kind && (
         <div className={styles.form}>
-          <label className={styles.fieldLabel} htmlFor="uct-palette-sym">Ticker</label>
+          <label className={styles.fieldLabel} htmlFor="uct-palette-sym">{ask.label}</label>
           <input
             id="uct-palette-sym"
             ref={symRef}
             className={styles.symInput}
             value={sym}
-            placeholder="e.g. AMD"
+            placeholder={ask.placeholder}
+            list={markets?.length ? 'uct-palette-markets' : undefined}
             onChange={(e) => setSym(e.target.value.toUpperCase().replace(/\s+/g, ''))}
             onKeyDown={(e) => { if (e.key === 'Enter') { if (snapCmd) runSnapshot(snapItem); else insert() } }}
           />
+          {snapKind?.picker === 'cot' && markets?.length > 0 && (
+            <datalist id="uct-palette-markets">
+              {markets.map((m) => <option key={m.symbol} value={m.symbol}>{m.name}</option>)}
+            </datalist>
+          )}
           {!snapCmd && kind !== 'mtf' && (
             <>
               <span className={styles.fieldLabel}>Timeframe</span>

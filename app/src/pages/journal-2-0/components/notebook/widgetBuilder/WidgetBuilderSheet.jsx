@@ -33,6 +33,7 @@ import ExamplesGallery from './ExamplesGallery'
 import SaveQuestion, { UPDATE_ALL, SAVE_NEW, preselectAnswer } from './SaveQuestion'
 import styles from './WidgetBuilderSheet.module.css'
 import { holdSheetKeys } from '../sheetKeys'
+import { withInsertDoor } from '../../../lib/notebookUsage'
 
 /**
  * Notebook widgets phase 2 (wave 8, Task 8.15): the widget builder (spec 5.2, 5.9-5.11).
@@ -219,7 +220,7 @@ function keptAgo(at, now = Date.now()) {
   return `${h} hour${h === 1 ? '' : 's'} ago`
 }
 
-export default function WidgetBuilderSheet({ editor = null, from = null, start, uid, onClose, registerLeave, navigate = null }) {
+export default function WidgetBuilderSheet({ editor = null, from = null, start, uid, onClose, registerLeave, navigate = null, via = null }) {
   const phone = useIsPhone()
   const viewport = useViewport(useHasCoarsePointer())
   const keyboardOpen = phone && viewport.keyboardOpen
@@ -924,7 +925,8 @@ export default function WidgetBuilderSheet({ editor = null, from = null, start, 
       return null
     }
   }
-  const insertNode = (payload) => editor.chain().insertWidgetEmbed(BUILT_KIND, payload).run()
+  // Follow-up A fix I4: a member-built widget counts as `block_inserted` {custom} under the door that opened the builder.
+  const insertNode = (payload) => withInsertDoor(via, () => editor.chain().insertWidgetEmbed(BUILT_KIND, payload).run())
   const replaceNode = (payload) => {
     // The placed widget moved away or is another widget now: write nothing (the widget is saved, never a stray copy).
     const hit = placedNode()

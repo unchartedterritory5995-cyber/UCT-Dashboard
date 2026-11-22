@@ -36,7 +36,8 @@ const MOBILE_NAV = [
   { to: '/journal/compass', label: 'Compass', icon: 'compass', paidOnly: true },
 ]
 
-export default function JournalMobileNav() {
+/** `compact`: the phone Notebook (Tier 2): labels only, 44 px, with room at the end for the folded tools ⋯. */
+export default function JournalMobileNav({ compact = false } = {}) {
   const isPaid = useIsPaid()
 
   // Wave 13 (13Q-4): the same roving-tabindex treatment as the desktop rail
@@ -49,7 +50,8 @@ export default function JournalMobileNav() {
 
   return (
     <nav
-      className={styles.mobileNav}
+      className={`${styles.mobileNav} ${compact ? styles.compact : ''}`}
+      data-compact={compact ? '' : undefined}
       aria-label="Journal sections (mobile)"
       {...mobileNavRovingProps}
     >

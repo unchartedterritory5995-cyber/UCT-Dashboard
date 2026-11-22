@@ -457,7 +457,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 32 clock, 15 operators, 86 functions and 138 scalars — 276 names, one grammar', () => {
+  it('declares 5 series, 32 clock, 15 operators, 87 functions and 138 scalars — 276 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     // ⭐ THE FIFTH SECTION (tableVersion 2, 2026-08-26). Thirteen bar-clock
     // values — the seven ET wall-clock fields, `sessionfirst`, `barindex` and the
@@ -491,7 +491,10 @@ describe('the manifest', () => {
     // (`timeframe.change("W"/"M")`; "D" is `sessionfirst`). Measured against the
     // vendor on 1D / 60m / W. Same `series` node, no new `interpret` argument,
     // so `tableVersion` is unmoved at 2.
-    expect(Object.keys(TABLE.clock)).toHaveLength(32)
+    // ⭐ 32 -> 34 (2026-11-17): `regularhours` and `regularfirst`, the REGULAR session's two
+    // leaves (`sessionfirst` is the calendar day's, 04:00 with extended hours). Same `series`
+    // node, no new `interpret` argument, so `tableVersion` is unmoved at 2.
+    expect(Object.keys(TABLE.clock)).toHaveLength(34)
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 70 -> 71 (2026-09-09): `cum`, the running total, under owner Ruling D.
@@ -612,7 +615,21 @@ describe('the manifest', () => {
     // ⭐ 83 -> 86 (2026-10-30): `accum2`, `accum3`, `accum4` — `accum`'s bounded window
     // over a tuple of K running values (`_functions_multi_state`). Same `int` / `series`
     // argument kinds and `lookback: "argN"` form; no new node type; `tableVersion` unmoved.
-    expect(Object.keys(TABLE.functions)).toHaveLength(86)
+    // ⭐ 86 -> 87 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch` — the last n finite
+    // highs / lows, the last value kept where the formula has none. Reached only through
+    // `PINE_CALL_SHAPES.stoch`; the house `stoch` is untouched. Same signature as `stoch`.
+    // ⭐ 87 -> 88 (2026-11-14, engine 56 A3): `boolNaWithheld(operand, flag)`, the Pine door's marker for a
+    // v1-v5 `bool` `na` meeting an unwitnessed operator (pointwise, two `series`). No new node type,
+    // argument kind or lookback form; `tableVersion` unmoved.
+    // ⭐ 88 -> 89 (2026-11-14, engine 56 S1): `tieNewest(source)`, the Pine door's mark on a v4 / v5
+    // `highestbars` / `lowestbars` source (newest of a tie, witnessed). Pointwise, one `series`.
+    // (landing train 1: engine 57's `stochPine` and engine 56's two land under one number, 86 -> 89)
+    // ⭐ 89 -> 94 (2026-11-17): `sessionOpen`, `sessionHigh`, `sessionLow`, `openingRangeHigh(minutes)`
+    // and `openingRangeLow(minutes)` — the regular session's own values, bar readers beside
+    // `vwap` (`reads: "bars"`, `lookback: "session"`, `cadence: "live"`), on the clock's
+    // `regularfirst` / `regularhours` and nothing else.
+    // U-BUILTIN B3 (2026-11-19) 94 -> 95: `asin`, Pine's `math.asin` (pointwise, acos's twin).
+    expect(Object.keys(TABLE.functions)).toHaveLength(95)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -671,7 +688,13 @@ describe('the manifest', () => {
     // reason each side moved.
     // ⭐ 137 -> 138 (2026-10-11): `dollar_vol_1d`, the newest session's dollar volume
     // (`tests/test_ast_scalars.py`'s partition pin has the reason)
-    expect(Object.keys(TABLE.scalars)).toHaveLength(138)
+    // ⭐ 138 -> 139 (2026-11-06, UCT RS Phase 2a unit 2a-01): `base_pivot_px` DECLARED.
+    // ⚰️ That commit did not move this line (outside its file list) and said so.
+    // ⭐ 139 -> 149 (2026-11-06, UCT RS Phase 2a unit 2a-07): the ten bar-derived RS
+    // columns DECLARED -- `tests/test_ast_scalars.py`'s partition pin has the names and
+    // the arithmetic ((139, 100) -> (149, 107)); the seven `rs_rating_*` columns are
+    // EXCLUDED there and do not count here.
+    expect(Object.keys(TABLE.scalars)).toHaveLength(149)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.clock),
       ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
@@ -734,9 +757,21 @@ describe('the manifest', () => {
     // ⭐ 129 -> 130 IS `barsAgo` (2026-09-30, C38) -- see the functions-count note above.
     // ⭐ 130 -> 131 IS `vwapOf` (2026-10-02, H3) -- see the functions-count note above.
     // ⭐ 131 -> 138 IS Phase 1's four plus `accum2`/`accum3`/`accum4` (2026-10-30) -- see the functions-count note above.
-    expect(bar.size).toBe(138)
+    // ⭐ 138 -> 139 IS `stochPine` (2026-11-14, engine 57) -- see the functions-count note above.
+    // ⭐ 139 -> 140 IS `boolNaWithheld` (2026-11-14, engine 56 A3) -- see the functions-count note above.
+    // ⭐ 140 -> 141 IS `tieNewest` (2026-11-14, engine 56 S1).
+    // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
+    expect(bar.size).toBe(149)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(276)
+    // ⭐ 276 -> 287 (2026-11-06, UCT RS Phase 2a units 2a-01 and 2a-07): the bar half
+    // is untouched at 138; the scalar half went 138 -> 139 (`base_pivot_px`) -> 149
+    // (the ten bar-derived RS columns), and this is their sum: 138 + 149 = 287.
+    // ⭐ 287 -> 288 (2026-11-14, engine 57): `stochPine`; bar half 139, scalars 149.
+    // ⭐ 288 -> 289 (2026-11-14, engine 56): the bar half 139 -> 140 (`boolNaWithheld`); 140 + 149 = 289.
+    // ⭐ 289 -> 290 (2026-11-14, engine 56 S1): the bar half 140 -> 141 (`tieNewest`); 141 + 149 = 290.
+    // ⭐ 290 -> 297 (2026-11-17): the bar half 141 -> 148 (the regular session's seven); 148 + 149 = 297.
+    expect(declared.size).toBe(298)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     // ⚠️ `tableVersion` WENT 1 -> 2 ON 2026-08-26, AND THE CRITERION IN THIS

@@ -1,0 +1,13 @@
+//@version=6
+indicator("UCTPROBE_VW_EMA_LAST_BIT", overlay = false)
+// Landing train 1 (2026-11-16): ta.rma is measured bit for bit ((prev * (n - 1) + src) / n, 4,063 of 4,063
+// TradingView doubles). These rows ask the same of what was NOT measured: ta.ema at three lengths, a bare
+// ta.rsi (the house kernel, not the builtin's own ta.rma spelling), ta.wma and ta.sma as controls.
+plot(ta.ema(close, 3), "E01_ema3")
+plot(ta.ema(close, 14), "E02_ema14")
+plot(ta.ema(close, 50), "E03_ema50")
+plot(ta.rsi(close, 14), "E04_rsi14")
+plot(ta.rma(close, 14), "E05_rma14_CONTROL")
+plot(ta.sma(close, 14), "E06_sma14_CONTROL")
+plot(ta.wma(close, 14), "E07_wma14")
+plot(bar_index, "E00_bar_index_CONTROL")

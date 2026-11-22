@@ -186,7 +186,7 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     fireEvent(chip, ev)
     expect(h.onMenu).toHaveBeenCalledWith(
       expect.objectContaining({ instanceId: 'legacy:rsi', plotKey: 'rsi', label: 'RSI(14)' }),
-      { x: 40, y: 93 })
+      { x: 40, y: 93, besideX: 166, rowTop: 70 })
     // ⚰️ IT USED TO ANCHOR AT `{clientX, clientY}` — 120,44 here. A pointer anchor
     // cannot serve a KEYBOARD activation, which has no coordinates at all, so the
     // element's own rectangle serves every input and the menu always hangs off the
@@ -240,7 +240,7 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     expect(inert.getAttribute('aria-haspopup')).toBeNull()
   })
 
-  it('⭐⭐ the chip WEARS ITS PLOT COLOUR — label and value alike, and no swatch', () => {
+  it('⭐⭐ the chip keys its PLOT COLOUR on the VALUE (owner 11-16) — the name takes the shared label ink, and no swatch', () => {
     // ⚰️ A 2×9px `<i>` RAIL STOOD BEFORE EVERY NAME, because Track B had
     // neutralised the text. Both are retired and the ORDER matters: the rail went
     // first (nine little coloured tabs on a nine-row legend), and then the owner
@@ -249,13 +249,14 @@ describe('IndicatorChip — the controls, and the one line that makes them reach
     // The legend is the chart's key; a key printed in one colour names nothing.
     const { container } = draw()
     const chip = container.querySelector('[data-instance-id]')
-    expect(chip.style.color, 'the chip is back to neutral text').toBe('rgb(123, 104, 238)')
-    // ⛔ THE VALUE FOLLOWS THE LABEL. `.chipVal` carries the bright legend ink for
-    // an uncoloured chip, so a coloured one has to defeat it — `inherit`, not a
-    // second copy of the colour, so the box stays the one source of truth.
+    // ⭐ Owner 11-16 — "same contrast and brightness": the NAME is not inked inline (it reads the
+    // legend's shared pair ink from `.chip`); the VALUE reads the box's `--chip-color` in CSS
+    // (clamped there to the label's lightness band), so the box is still the one source of colour.
+    expect(chip.style.color, 'the name was inked in the line colour').toBe('')
+    expect(chip.style.getPropertyValue('--chip-color')).toBe('#7b68ee')
     const val = chip.querySelector('span')
     expect(val.textContent).toBe('54.3')
-    expect(val.style.color, 'the value kept the neutral ink while the label turned').toBe('inherit')
+    expect(val.style.color, 'the value carries an inline colour instead of reading --chip-color').toBe('')
     // ⛔ AND STILL NO SWATCH. The colour is ON the name, not in a tab beside it.
     expect(chip.querySelector('i'), 'a colour rail is back in the chip').toBeNull()
   })
@@ -338,5 +339,21 @@ describe('wave 10 — the body tap (tap-the-legend-name → editor)', () => {
     const chip = container.querySelector('[data-instance-id]')
     fireEvent.click(chip)
     expect(h.onMenu).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('UCT Signature — the grid row holds its hover state while its menu is open', () => {
+  const props = () => ({ onMenu: vi.fn(), onToggleHidden: vi.fn(), onSettings: vi.fn() })
+  it('menuOpen puts .rowActive on the grid row and aria-expanded on the ⋯', () => {
+    const { container } = render(<IndicatorChip chip={CHIP} grid menuOpen {...props()} />)
+    const row = container.querySelector('[data-row-acts]').parentElement
+    expect(row.className).toMatch(/rowActive/)
+    expect(container.querySelector('button[aria-label="More for RSI(14)"]').getAttribute('aria-expanded')).toBe('true')
+  })
+  it('closed: no .rowActive and no aria-expanded', () => {
+    const { container } = render(<IndicatorChip chip={CHIP} grid {...props()} />)
+    const row = container.querySelector('[data-row-acts]').parentElement
+    expect(row.className).not.toMatch(/rowActive/)
+    expect(container.querySelector('button[aria-label="More for RSI(14)"]').hasAttribute('aria-expanded')).toBe(false)
   })
 })

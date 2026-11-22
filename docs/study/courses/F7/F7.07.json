@@ -1,0 +1,1895 @@
+{
+ "unit": "F7.07",
+ "track": "F7",
+ "title": "CPI, jobs and the data calendar",
+ "teaches": "Read the two big monthly prints: what CPI and the jobs report measure, when they land (8:30 a.m. Eastern; jobs usually the first Friday, CPI on no set weekday), why the market moves on the surprise against the forecast, and why the first payroll number is noisy and gets revised.",
+ "skills": [
+  {
+   "id": "history.data_calendar",
+   "title": "CPI, jobs and the data calendar"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "CPI Home",
+   "url": "https://www.bls.gov/cpi/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Consumer Price Index Frequently Asked Questions",
+   "url": "https://www.bls.gov/cpi/questions-and-answers.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Schedule of Selected Releases 2026",
+   "url": "https://www.bls.gov/schedule/2026/home.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "CES Frequently Asked Questions",
+   "url": "https://www.bls.gov/web/empsit/cesfaq.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "The Employment Situation, October 2026 (news release with technical note, Nov. 6, 2026)",
+   "url": "https://www.bls.gov/news.release/archives/empsit_11062026.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Frequently Asked Questions (Current Population Survey)",
+   "url": "https://www.bls.gov/cps/faq.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "Consumer Price Index, August 2022 (news release, Sept. 13, 2022)",
+   "url": "https://www.bls.gov/news.release/archives/cpi_09132022.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Labor Statistics",
+   "title": "The Employment Situation, July 2025 (news release, Aug. 1, 2025)",
+   "url": "https://www.bls.gov/news.release/archives/empsit_08012025.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "Federal Reserve Board",
+   "title": "Statement on Longer-Run Goals and Monetary Policy Strategy (as reaffirmed effective January 27, 2026)",
+   "url": "https://www.federalreserve.gov/monetarypolicy/files/FOMC_LongerRunGoals.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Economic Analysis",
+   "title": "Personal Consumption Expenditures Price Index",
+   "url": "https://www.bea.gov/data/personal-consumption-expenditures-price-index",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 1,
+   "publisher": "U.S. Bureau of Economic Analysis",
+   "title": "Gross Domestic Product (Learning Center)",
+   "url": "https://www.bea.gov/resources/learning-center/what-to-know-gdp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "U.S. Department of Labor, Employment and Training Administration",
+   "title": "UI Weekly Claims News Release: publication schedule and archives",
+   "url": "https://oui.doleta.gov/unemploy/claims_arch.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Extended-Hours Trading: Investor Bulletin",
+   "url": "https://www.investor.gov/introduction-investing/general-resources/news-alerts/alerts-bulletins/investor-bulletins-42",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Federal Reserve Board (FEDS Notes, staff research)",
+   "title": "Macroeconomic news and stock prices over the FOMC cycle (McCoy, Modugno, Palazzo and Sharpe, October 14, 2020)",
+   "url": "https://www.federalreserve.gov/econres/notes/feds-notes/macroeconomic-news-and-stock-prices-over-the-fomc-cycle-20201014.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "NBER",
+   "title": "Stock Prices and Economic News (Pearce and Roley, Working Paper 1296, 1984)",
+   "url": "https://www.nber.org/papers/w1296",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "NBER",
+   "title": "The Stock Market's Reaction to Unemployment News: Why Bad News is Usually Good for Stocks (Boyd, Hu and Jagannathan, Working Paper 8092, 2001)",
+   "url": "https://www.nber.org/papers/w8092",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Dow tumbles 1,200 points for worst day since June 2020 after hot inflation report (Jesse Pound and Carmen Reinicke, CNBC, Sept. 13, 2022; published on NBCNews.com)",
+   "url": "https://www.nbcnews.com/business/markets/stock-market-open-to-close-september-13-rcna47504",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "CBS News (with The Associated Press)",
+   "title": "Dow plummets more than 1,000 points as inflation burns hot (CBS/AP, Sept. 13, 2022)",
+   "url": "https://www.cbsnews.com/news/stocks-down-us-inflation-report-2022-09-13",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "U.S. added just 73,000 jobs in July and numbers for prior months were revised much lower (Jeff Cox, Aug. 1, 2025)",
+   "url": "https://www.cnbc.com/2025/08/01/jobs-report-july-2025.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Limit Orders, Stop Orders, & Market Orders",
+   "url": "https://www.schwab.com/learn/story/3-order-types-market-limit-and-stop-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "How Stop Orders Can Help Protect a Position",
+   "url": "https://www.schwab.com/learn/story/help-protect-your-position-using-stop-orders",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Exit Strategies",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies",
+   "accessed": "2026-11-09"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "The Consumer Price Index (CPI) is a measure of the average change over time in the prices paid by urban consumers for a market basket of consumer goods and services.",
+   "claim": "CPI measures the average change over time in the prices urban consumers pay for a basket of goods and services."
+  },
+  {
+   "id": "f02",
+   "source": "s2",
+   "quote": "The CPI is the most widely used measure of inflation and is sometimes viewed as an indicator of the effectiveness of government economic policy.",
+   "claim": "CPI is the most widely used measure of inflation."
+  },
+  {
+   "id": "f03",
+   "source": "s2",
+   "quote": "BLS publishes thousands of other consumer price indexes, such as all items less food and energy",
+   "claim": "One of BLS's CPI indexes is all items less food and energy."
+  },
+  {
+   "id": "f04",
+   "source": "s2",
+   "quote": "Some users of CPI data use this index because food and energy prices are relatively volatile, and they want to focus on what they perceive to be the \"core\" or \"underlying\" rate of inflation.",
+   "claim": "The index without food and energy is watched as 'core' inflation because food and energy prices are volatile."
+  },
+  {
+   "id": "f05",
+   "source": "s2",
+   "quote": "The CPI measures inflation as experienced by consumers in their day-to-day living expenses; the Producer Price Index (PPI) measures inflation at earlier stages of the production process",
+   "claim": "CPI is inflation consumers face; the PPI measures inflation earlier in production."
+  },
+  {
+   "id": "f06",
+   "source": "s2",
+   "quote": "the Employment Cost Index (ECI) measures inflation in the labor market",
+   "claim": "The Employment Cost Index, not CPI, measures inflation in the labor market."
+  },
+  {
+   "id": "f07",
+   "source": "s2",
+   "quote": "A national average reflects millions of individual price experiences; it seldom mirrors a particular consumer's experience.",
+   "claim": "CPI is a national average and seldom matches any one household's experience."
+  },
+  {
+   "id": "f08",
+   "source": "s2",
+   "quote": "Future CPI release dates are available on the BLS release calendar.",
+   "claim": "BLS posts future CPI release dates on its release calendar."
+  },
+  {
+   "id": "f09",
+   "source": "s3",
+   "quote": "Tuesday, November 10, 2026 08:30 AM Consumer Price Index for October 2026",
+   "claim": "October 2026's CPI is scheduled for Tuesday, Nov. 10, 2026, at 8:30 a.m."
+  },
+  {
+   "id": "f10",
+   "source": "s3",
+   "quote": "Thursday, December 10, 2026 08:30 AM Consumer Price Index for November 2026",
+   "claim": "November 2026's CPI is scheduled for Thursday, Dec. 10, 2026, at 8:30 a.m."
+  },
+  {
+   "id": "f11",
+   "source": "s3",
+   "quote": "Wednesday, October 14, 2026 08:30 AM Consumer Price Index for September 2026",
+   "claim": "September 2026's CPI came out Wednesday, Oct. 14, 2026, at 8:30 a.m."
+  },
+  {
+   "id": "f12",
+   "source": "s3",
+   "quote": "Friday, November 06, 2026 08:30 AM Employment Situation for October 2026",
+   "claim": "The October 2026 jobs report came out Friday, Nov. 6, 2026, at 8:30 a.m."
+  },
+  {
+   "id": "f13",
+   "source": "s3",
+   "quote": "Friday, December 04, 2026 08:30 AM Employment Situation for November 2026",
+   "claim": "The November 2026 jobs report is scheduled for Friday, Dec. 4, 2026, at 8:30 a.m."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "Thursday, July 2, 2026 08:30 AM Employment Situation for June 2026",
+   "claim": "The June 2026 jobs report came out on a Thursday, July 2, 2026."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "Wednesday, February 11, 2026 08:30 AM Employment Situation for January 2026",
+   "claim": "The January 2026 jobs report came out on a Wednesday, Feb. 11, 2026."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "Tuesday, December 15, 2026 08:30 AM Producer Price Index for November 2026",
+   "claim": "November 2026's PPI is scheduled for Tuesday, Dec. 15, 2026."
+  },
+  {
+   "id": "f17",
+   "source": "s3",
+   "quote": "NOTE: All times on calendar are Eastern Time.",
+   "claim": "BLS calendar times are Eastern Time."
+  },
+  {
+   "id": "f18",
+   "source": "s4",
+   "quote": "CES data are published 3 weeks after the week that includes the 12th of the month, typically the first Friday of the following month.",
+   "claim": "Payroll data usually come out on the first Friday of the next month."
+  },
+  {
+   "id": "f19",
+   "source": "s4",
+   "quote": "The Current Employment Statistics (CES) program is a monthly survey of business establishments (or jobs). CES produces estimates on the number of employees on nonfarm payrolls, average hourly earnings, average weekly earnings, and average weekly hours.",
+   "claim": "Nonfarm payrolls (and average hourly earnings) come from a monthly survey of businesses."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "The Current Population Survey (CPS) is a monthly survey of households (or people). The household survey produces estimates about the labor force, the employed, the unemployed, the unemployment rate, and demographic information about the employed and unemployed.",
+   "claim": "The unemployment rate comes from a monthly survey of households."
+  },
+  {
+   "id": "f21",
+   "source": "s4",
+   "quote": "Estimates are then revised twice before being held constant until the annual benchmark release.",
+   "claim": "Each month's payroll estimate is revised twice, then held until the annual benchmark."
+  },
+  {
+   "id": "f22",
+   "source": "s5",
+   "quote": "8:30 a.m. (ET) Friday, November 6, 2026",
+   "claim": "The October 2026 jobs report was released at 8:30 a.m. Eastern on Friday, Nov. 6, 2026."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "The unemployment rate is the number unemployed as a percent of the labor force.",
+   "claim": "Unemployment rate = unemployed divided by the labor force."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "The civilian labor force is the sum of the employed and unemployed.",
+   "claim": "The labor force is the employed plus the unemployed."
+  },
+  {
+   "id": "f26",
+   "source": "s5",
+   "quote": "The unemployment data derived from the household survey in no way depend upon the eligibility for or receipt of unemployment insurance benefits.",
+   "claim": "Whether someone counts as unemployed has nothing to do with collecting unemployment benefits."
+  },
+  {
+   "id": "f27",
+   "source": "s5",
+   "quote": "the confidence interval for the monthly change in total nonfarm employment from the establishment survey is on the order of plus or minus 122,000.",
+   "claim": "The monthly payroll change carries a margin of error of about plus or minus 122,000."
+  },
+  {
+   "id": "f28",
+   "source": "s5",
+   "quote": "Suppose the estimate of nonfarm employment increases by 50,000 from one month to the next. The 90-percent confidence interval on the monthly change would range from -72,000 to +172,000 (50,000 +/- 122,000).",
+   "claim": "A reported 50,000 gain has a 90% range of -72,000 to +172,000."
+  },
+  {
+   "id": "f29",
+   "source": "s5",
+   "quote": "Since this range includes values of less than zero, we could not say with confidence that nonfarm employment had, in fact, increased that month.",
+   "claim": "With that range dipping below zero, BLS says you cannot be confident jobs grew that month."
+  },
+  {
+   "id": "f30",
+   "source": "s5",
+   "quote": "The prior 2 months are routinely revised to incorporate additional sample reports and recalculated seasonal adjustment factors.",
+   "claim": "Each jobs report revises the two months before it."
+  },
+  {
+   "id": "f31",
+   "source": "s5",
+   "quote": "The labor force participation rate is the labor force as a percent of the population",
+   "claim": "The participation rate is the labor force as a share of the population."
+  },
+  {
+   "id": "f32",
+   "source": "s6",
+   "quote": "People are classified as unemployed if they do not have a job, have actively looked for work in the prior 4 weeks, and are currently available for work.",
+   "claim": "To count as unemployed you must be jobless, have looked for work in the past 4 weeks, and be available."
+  },
+  {
+   "id": "f33",
+   "source": "s6",
+   "quote": "People who are neither employed nor unemployed are not in the labor force.",
+   "claim": "People who are neither employed nor unemployed are outside the labor force."
+  },
+  {
+   "id": "f34",
+   "source": "s7",
+   "quote": "8:30 a.m. (ET) Tuesday, September 13, 2022",
+   "claim": "August 2022's CPI came out at 8:30 a.m. Eastern on Tuesday, Sept. 13, 2022."
+  },
+  {
+   "id": "f35",
+   "source": "s7",
+   "quote": "The Consumer Price Index for All Urban Consumers (CPI-U) rose 0.1 percent in August on a seasonally adjusted basis after being unchanged in July",
+   "claim": "Headline CPI rose 0.1% in August 2022."
+  },
+  {
+   "id": "f36",
+   "source": "s7",
+   "quote": "The index for all items less food and energy rose 0.6 percent in August, a larger increase than in July.",
+   "claim": "Core CPI rose 0.6% in August 2022."
+  },
+  {
+   "id": "f37",
+   "source": "s7",
+   "quote": "These increases were mostly offset by a 10.6-percent decline in the gasoline index.",
+   "claim": "A 10.6% drop in gasoline held the August 2022 headline down."
+  },
+  {
+   "id": "f38",
+   "source": "s8",
+   "quote": "8:30 a.m. (ET) Friday, August 1, 2025",
+   "claim": "The July 2025 jobs report came out at 8:30 a.m. Eastern on Friday, Aug. 1, 2025."
+  },
+  {
+   "id": "f39",
+   "source": "s8",
+   "quote": "Total nonfarm payroll employment changed little in July (+73,000) and has shown little change since April",
+   "claim": "Payrolls rose 73,000 in July 2025."
+  },
+  {
+   "id": "f40",
+   "source": "s8",
+   "quote": "Revisions for May and June were larger than normal.",
+   "claim": "BLS called the May and June 2025 revisions larger than normal."
+  },
+  {
+   "id": "f41",
+   "source": "s8",
+   "quote": "With these revisions, employment in May and June combined is 258,000 lower than previously reported.",
+   "claim": "May and June 2025 together were revised down by 258,000 jobs."
+  },
+  {
+   "id": "f77",
+   "source": "s23",
+   "quote": "The value of the final goods and services produced in the United States is the gross domestic product.",
+   "claim": "GDP is the value of the final goods and services produced in the United States."
+  },
+  {
+   "id": "f78",
+   "source": "s23",
+   "quote": "for each quarter, BEA estimates GDP three times. The advance estimate, coming about a month after the quarter's end, is an early look based on the best information available at that time.",
+   "claim": "BEA estimates each quarter's GDP three times; the first, the advance estimate, comes about a month after the quarter ends."
+  },
+  {
+   "id": "f79",
+   "source": "s23",
+   "quote": "The second estimate and third estimate each incorporate additional source data that weren't available the month before, improving accuracy.",
+   "claim": "The second and third GDP estimates add data that weren't in before, so they are more accurate."
+  },
+  {
+   "id": "f42",
+   "source": "s9",
+   "quote": "inflation at the rate of 2 percent, as measured by the annual change in the price index for personal consumption expenditures, is most consistent over the longer run with the Federal Reserve’s statutory maximum employment and price stability mandates",
+   "claim": "The Fed's 2% inflation goal is measured with the PCE price index."
+  },
+  {
+   "id": "f43",
+   "source": "s9",
+   "quote": "The Committee’s primary means of adjusting the stance of monetary policy is through changes in the target range for the federal funds rate.",
+   "claim": "The Fed's main tool is the target range for the federal funds rate."
+  },
+  {
+   "id": "f44",
+   "source": "s10",
+   "quote": "The PCE price index, released each month in the Personal Income and Outlays report, reflects changes in the prices of goods and services purchased by consumers in the United States.",
+   "claim": "BEA publishes the PCE price index monthly in its Personal Income and Outlays report."
+  },
+  {
+   "id": "f45",
+   "source": "s11",
+   "quote": "Publication Schedule: The UI Weekly Claims News Release is published each week on Thursday morning at 8:30am EST.",
+   "claim": "Weekly jobless claims come out every Thursday at 8:30 a.m. Eastern."
+  },
+  {
+   "id": "f46",
+   "source": "s11",
+   "quote": "Exceptions to this schedule occur when a Thursday falls on a Federal Holiday.",
+   "claim": "A federal holiday on a Thursday moves the claims report."
+  },
+  {
+   "id": "f47",
+   "source": "s11",
+   "quote": "Wednesday, November 25, 2026 8:30 AM EST",
+   "claim": "In Thanksgiving week 2026 the claims report comes out Wednesday, Nov. 25."
+  },
+  {
+   "id": "f48",
+   "source": "s12",
+   "quote": "Regular trading hours for stocks traded on exchanges and certain other markets are from 9:30 a.m. to 4:00 p.m. Eastern Time.",
+   "claim": "Regular stock trading runs 9:30 a.m. to 4:00 p.m. Eastern."
+  },
+  {
+   "id": "f49",
+   "source": "s12",
+   "quote": "Extended-hours trading sessions may occur before or after regular trading hours.",
+   "claim": "Trading can happen before the open and after the close, in extended hours."
+  },
+  {
+   "id": "f50",
+   "source": "s13",
+   "quote": "The stop price is not the guaranteed execution price for a stop order.",
+   "claim": "A stop does not promise your stop price."
+  },
+  {
+   "id": "f51",
+   "source": "s13",
+   "quote": "The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "Once triggered, a stop becomes a market order."
+  },
+  {
+   "id": "f52",
+   "source": "s13",
+   "quote": "The execution price an investor receives for this market order can deviate significantly from the stop price due to the prices of available liquidity when the market order executes.",
+   "claim": "A triggered stop can fill well away from the stop price."
+  },
+  {
+   "id": "f53",
+   "source": "s13",
+   "quote": "A stop-limit order includes a limit price that requires the order to be executed at the limit price or better",
+   "claim": "A stop-limit only fills at its limit price or better."
+  },
+  {
+   "id": "f54",
+   "source": "s14",
+   "quote": "surprise is defined as the difference between the realized value of the macroeconomic release and the median (a.k.a. consensus) of the forecasts made by a panel of market participants",
+   "claim": "A data surprise is the actual number minus the consensus forecast."
+  },
+  {
+   "id": "f55",
+   "source": "s14",
+   "quote": "We find that aggregate stock prices are positively correlated with our real economic activity news index and negatively correlated with our price news index.",
+   "claim": "On average, stronger-than-expected activity news went with higher stocks, and hotter-than-expected price news with lower stocks."
+  },
+  {
+   "id": "f56",
+   "source": "s15",
+   "quote": "only the unexpected part of any announcement, the surprise,moves stock prices. The empirical results support this hypothesis",
+   "claim": "Research finds it is the unexpected part of an announcement, the surprise, that moves stock prices."
+  },
+  {
+   "id": "f57",
+   "source": "s16",
+   "quote": "We find that on average an announcement of rising unemployment is 'good news' for stocks during economic expansions and 'bad news' during economic contractions.",
+   "claim": "The same jobs news can be good or bad for stocks, depending on the state of the economy."
+  },
+  {
+   "id": "f58",
+   "source": "s16",
+   "quote": "A rise in unemployment typically signals a decline in interest rates, which is good news for stocks, as well as a decline in future corporate earnings and dividends, which is bad news for stocks.",
+   "claim": "Jobs news carries two messages: where interest rates are going and where corporate earnings are going."
+  },
+  {
+   "id": "f59",
+   "source": "s17",
+   "quote": "Economists surveyed by Dow Jones had been expecting a decline of 0.1% for overall inflation, with a rise of 0.3% for core inflation.",
+   "claim": "For August 2022, forecasters expected headline CPI to fall 0.1% and core to rise 0.3%."
+  },
+  {
+   "id": "f60",
+   "source": "s17",
+   "quote": "The S&P 500 dropped about 4.3%, and the Nasdaq Composite sank more than 5%.",
+   "claim": "On Sept. 13, 2022, the S&P 500 fell about 4.3% and the Nasdaq more than 5%."
+  },
+  {
+   "id": "f61",
+   "source": "s17",
+   "quote": "Dow tumbles 1,200 points for worst day since June 2020 after hot inflation report",
+   "claim": "Sept. 13, 2022 was the worst day since June 2020, after a hot inflation report."
+  },
+  {
+   "id": "f62",
+   "source": "s17",
+   "quote": "The sell-off was particularly painful in high-growth tech stocks.",
+   "claim": "High-growth tech took the worst of the Sept. 13, 2022 selloff."
+  },
+  {
+   "id": "f63",
+   "source": "s18",
+   "quote": "Markets honed in on a 0.6% rise in such prices during August from July, double what economists expected.",
+   "claim": "Core prices rose 0.6% in August 2022, double the forecast."
+  },
+  {
+   "id": "f64",
+   "source": "s18",
+   "quote": "The drop was the worst day for the S&P 500 and Nasdaq since June 2020, according to FactSet.",
+   "claim": "It was the S&P 500's and Nasdaq's worst day since June 2020."
+  },
+  {
+   "id": "f65",
+   "source": "s18",
+   "quote": "Technology and other high-growth companies fell more than the rest of the market because they're seen as most at risk from higher rates.",
+   "claim": "Tech and high-growth stocks fell hardest because they are seen as most exposed to higher rates."
+  },
+  {
+   "id": "f66",
+   "source": "s18",
+   "quote": "The Dow Jones Industrial Average lost 1,256 points, or 3.9%, and the Nasdaq Composite dropped 5.2%.",
+   "claim": "The Nasdaq fell 5.2% that day."
+  },
+  {
+   "id": "f67",
+   "source": "s18",
+   "quote": "Bond prices also fell sharply, sending their yields higher.",
+   "claim": "Bonds fell too, pushing yields up."
+  },
+  {
+   "id": "f68",
+   "source": "s18",
+   "quote": "The disappointing data means traders are bracing for the Federal Reserve to ultimately raise interest rates even higher than expected to combat inflation",
+   "claim": "The hot print had traders expecting the Fed to raise rates higher than they had thought."
+  },
+  {
+   "id": "f69",
+   "source": "s18",
+   "quote": "In the meantime, higher rates also pressure prices of stocks, bonds and other investments.",
+   "claim": "Higher rates pressure stock prices."
+  },
+  {
+   "id": "f70",
+   "source": "s19",
+   "quote": "Nonfarm payrolls growth totaled 73,000 for July, above the June total of 14,000 but below even the meager Dow Jones estimate for a gain of 100,000.",
+   "claim": "July 2025 payrolls rose 73,000 against a forecast of 100,000."
+  },
+  {
+   "id": "f71",
+   "source": "s19",
+   "quote": "June and May totals were revised sharply lower, down by a combined 258,000 from previously announced levels.",
+   "claim": "May and June 2025 were revised down by a combined 258,000."
+  },
+  {
+   "id": "f72",
+   "source": "s19",
+   "quote": "Stock market futures fell further after the news while Treasury yields also were sharply lower.",
+   "claim": "After the weak July 2025 report, stock futures fell and Treasury yields dropped."
+  },
+  {
+   "id": "f73",
+   "source": "s19",
+   "quote": "Following the report, futures traders raised the odds of a cut at the meeting to 75.5%, up from 40% on Thursday, according to CME Group data.",
+   "claim": "The weak report raised the odds of a Fed rate cut."
+  },
+  {
+   "id": "f74",
+   "source": "s20",
+   "quote": "Gaps frequently occur when exchanges open or when news or events outside of trading hours have created an imbalance in supply and demand.",
+   "claim": "News that hits outside trading hours often makes stocks gap at the open."
+  },
+  {
+   "id": "f75",
+   "source": "s21",
+   "quote": "when the stock gaps down in the morning (lower than the prior day's closing price), your execution price could be significantly lower than your stop price.",
+   "claim": "If a stock gaps down at the open, a stop can fill well below the stop price."
+  },
+  {
+   "id": "f76",
+   "source": "s22",
+   "quote": "Beware: Stop orders will not protect you from sudden price drops, known as gaps.",
+   "claim": "A stop order does not protect you from a gap."
+  },
+  {
+   "id": "f80",
+   "source": "s18",
+   "quote": "Investments seen as the most expensive or the riskiest are the ones hardest hit by higher rates",
+   "claim": "Higher rates hit the most expensive and riskiest investments hardest."
+  },
+  {
+   "id": "f81",
+   "source": "s17",
+   "quote": "Stocks fell sharply on Tuesday after a key August inflation report came in hotter than expected",
+   "claim": "An inflation report above the forecast is said to come in hotter than expected."
+  },
+  {
+   "id": "f82",
+   "source": "s5",
+   "quote": "People laid off from a job and expecting recall need not be looking for work to be counted as unemployed.",
+   "claim": "Laid-off workers expecting to be recalled count as unemployed even if they are not looking for work."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "The two big monthly prints",
+   "steps": [
+    "CPI is the average change in what consumers pay. Core CPI strips out food and energy, because those jump around.",
+    "The jobs report has two headlines from two surveys. Payrolls come from businesses, the unemployment rate from households.",
+    "Both drop at 8:30 a.m. Eastern. The regular session opens at 9:30, so you get the number before the open."
+   ],
+   "facts": [
+    "f01",
+    "f03",
+    "f04",
+    "f19",
+    "f20",
+    "f12",
+    "f17",
+    "f22",
+    "f48"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Where they sit on the calendar",
+   "steps": [
+    "The jobs report lands the first Friday of the next month, most of the time. October 2026's came out Friday, November 6.",
+    "CPI has no set weekday. October's came out Tuesday, November 10. November's is set for Thursday, December 10.",
+    "Jobless claims come every Thursday at 8:30. Holidays move dates, so check the calendar every week."
+   ],
+   "facts": [
+    "f18",
+    "f12",
+    "f22",
+    "f09",
+    "f10",
+    "f45",
+    "f46",
+    "f08"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The surprise is the news",
+   "steps": [
+    "Before each print, forecasters put out a consensus. The surprise is the actual number minus that consensus.",
+    "The surprise is what moves stocks. A number that matches the forecast was already expected.",
+    "Inflation over the forecast is called hot. On average, a hot print has gone with lower stocks.",
+    "And the jobs number gets revised in the next two reports. The margin of error is about 122,000 either way."
+   ],
+   "facts": [
+    "f54",
+    "f56",
+    "f55",
+    "f81",
+    "f21",
+    "f30",
+    "f27",
+    "f28"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "history.data_calendar",
+   "rung": 1,
+   "format": "mcq",
+   "term": "CPI",
+   "q": "CPI drops at 8:30 tomorrow and every headline calls it the inflation report. What's it actually measuring?",
+   "choices": [
+    "Average change in consumer prices",
+    "One consumer's own price changes",
+    "Prices at earlier production stages",
+    "Inflation in the labor market"
+   ],
+   "answer": "Average change in consumer prices",
+   "why": "The average change in what consumers pay. BLS tracks the prices urban consumers pay over time for a basket of goods and services. It's the most widely used inflation measure, so you'll see it everywhere. Keep in mind it's a national average. It seldom matches your own bills, and that's fine. You're trading how the market reads the number, not your grocery receipt.",
+   "lesson_line": "CPI is what consumers pay, averaged across the country. It's the inflation number everyone watches.",
+   "facts": [
+    "f01",
+    "f02",
+    "f05",
+    "f06",
+    "f07"
+   ],
+   "wrong": {
+    "Inflation in the labor market": "That's the Employment Cost Index. CPI is about what consumers pay.",
+    "One consumer's own price changes": "It's a national average. BLS says it seldom matches any one person's experience.",
+    "Prices at earlier production stages": "That's PPI, the Producer Price Index. It measures inflation earlier in production, before goods reach the store."
+   },
+   "simple": "CPI is the average change in the prices consumers pay for a basket of goods and services.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "history.data_calendar",
+   "rung": 1,
+   "format": "tf",
+   "q": "Core CPI, the number printed right next to the headline, leaves out food and energy prices.",
+   "answer": "True",
+   "why": "True. Core strips out food and energy because those prices jump around a lot. What's left shows you the underlying trend in inflation. The headline still counts everything. So on CPI morning you read both. A cheap month for gas can make the headline look tame while core runs hot.",
+   "lesson_line": "Headline counts everything. Core drops food and energy so you see the trend underneath.",
+   "facts": [
+    "f03",
+    "f04"
+   ],
+   "simple": "True. Core drops food and energy, whose prices swing a lot, so you can see the underlying rate.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q03",
+   "skill": "history.data_calendar",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Nonfarm payrolls come from a monthly survey of ___.",
+   "bank": [
+    "businesses",
+    "households",
+    "economists",
+    "consumers",
+    "banks"
+   ],
+   "answer": "businesses",
+   "why": "Businesses. Nonfarm payrolls come from the Current Employment Statistics survey, a monthly survey of business establishments. The same survey gives average hourly earnings and average weekly hours. It counts jobs, not people, so it is not where the unemployment rate comes from.",
+   "lesson_line": "Payrolls are the headline jobs number, and they come from employers.",
+   "facts": [
+    "f19",
+    "f20"
+   ],
+   "simple": "Businesses. The payroll count comes from a monthly survey of employers about the jobs on their books.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q04",
+   "skill": "history.data_calendar",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Payrolls rose and the unemployment rate rose too, in the same report. Where does that jobless rate come from?",
+   "choices": [
+    "A monthly survey of households",
+    "A monthly survey of employers",
+    "Weekly jobless benefit claims",
+    "A full count of the jobless"
+   ],
+   "answer": "A monthly survey of households",
+   "why": "A survey of households. The jobs report is really two surveys. Payrolls come from businesses. The jobless rate comes from asking households who's working and who's looking. That's how both can rise in one report. So when the two seem to disagree, you're not looking at an error. You're looking at two different surveys.",
+   "lesson_line": "Two surveys, two headlines. Payrolls from businesses, the jobless rate from households.",
+   "facts": [
+    "f20",
+    "f19",
+    "f45",
+    "f32",
+    "f33"
+   ],
+   "wrong": {
+    "A monthly survey of employers": "That's where payrolls come from. Businesses report jobs, not who's out looking for work.",
+    "Weekly jobless benefit claims": "Claims are a separate weekly report from the Labor Department. The rate comes from the household survey.",
+    "A full count of the jobless": "Nobody counts every jobless person. It's an estimate from a monthly household survey, and not every jobless person counts as unemployed."
+   },
+   "simple": "It comes from a monthly survey of households. Payrolls come from a survey of firms.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q05",
+   "skill": "history.data_calendar",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Tomorrow brings CPI, and Friday the jobs report. What time do they hit?",
+   "choices": [
+    "8:30 a.m. Eastern",
+    "9:30 a.m. Eastern",
+    "4:00 p.m. Eastern",
+    "Varies month to month"
+   ],
+   "answer": "8:30 a.m. Eastern",
+   "why": "8:30 a.m. Eastern, an hour before the 9:30 open. BLS has CPI and the jobs reports at 8:30 on its 2026 calendar. The big ones in 2022 and 2025 came at 8:30 too. So the number is out before regular trading starts. Extended hours react first, and your stocks can open on a gap. I don't sit out CPI days. But I know when they land, and I know a gap can jump my stop.",
+   "lesson_line": "The big prints hit at 8:30 Eastern. You see the reaction in the open.",
+   "facts": [
+    "f09",
+    "f12",
+    "f13",
+    "f17",
+    "f22",
+    "f34",
+    "f38",
+    "f48",
+    "f49"
+   ],
+   "wrong": {
+    "9:30 a.m. Eastern": "That's the opening bell. By then the number's been out an hour, and the open already shows it.",
+    "4:00 p.m. Eastern": "That's the close. These reports come out before the open, not after.",
+    "Varies month to month": "The day moves, the time doesn't. BLS lists them at 8:30 Eastern, and the 2022 and 2025 reports came at 8:30 too."
+   },
+   "simple": "8:30 a.m. Eastern, an hour before the 9:30 open, so the news is out before regular trading starts.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "history.data_calendar",
+   "rung": 3,
+   "format": "fill",
+   "q": "You're mapping out the week's data before Monday's open. Tap the day the weekly jobless claims number lands.",
+   "sentence": "Weekly jobless claims come out every ___ at 8:30 a.m. Eastern.",
+   "bank": [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday"
+   ],
+   "answer": "Thursday",
+   "why": "Thursday. The Labor Department puts claims out every Thursday at 8:30 Eastern. You get it every single week, so it belongs on your weekly map. A holiday moves it. Thanksgiving week 2026, it comes out Wednesday, Nov. 25. So in a holiday week, check the date instead of assuming.",
+   "lesson_line": "Claims every Thursday at 8:30. A holiday week moves it, so check.",
+   "facts": [
+    "f45",
+    "f46",
+    "f47"
+   ],
+   "simple": "Thursday. Claims come out each Thursday, and only a holiday moves the day.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a dated 2026 calendar row (Nov. 25)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "history.data_calendar",
+   "rung": 3,
+   "format": "mcq",
+   "q": "A Fed speaker says inflation is still above the 2% goal. Which price index is the Fed measuring that goal with?",
+   "choices": [
+    "The PCE price index",
+    "The Consumer Price Index",
+    "The Producer Price Index",
+    "The Employment Cost Index"
+   ],
+   "answer": "The PCE price index",
+   "why": "PCE, not CPI. The Fed sets its 2% goal on the yearly change in the PCE price index. BEA puts PCE out each month in its Personal Income and Outlays report. CPI gets the headlines because it's the most widely used measure. So you watch both. But when a Fed speaker says 2%, PCE is the number they're grading against.",
+   "lesson_line": "CPI gets the headlines. The Fed's 2% goal is measured in PCE.",
+   "facts": [
+    "f42",
+    "f44",
+    "f02",
+    "f05",
+    "f06"
+   ],
+   "wrong": {
+    "The Consumer Price Index": "It's the most widely used measure and gets the headlines. But the Fed states its 2% goal in PCE prices.",
+    "The Producer Price Index": "PPI measures prices earlier in production. The Fed's goal is about what consumers pay.",
+    "The Employment Cost Index": "The ECI tracks inflation in the labor market. The Fed's goal is stated in PCE prices."
+   },
+   "simple": "The PCE price index. The Fed's 2% goal is measured in PCE, even though CPI is the most widely used measure.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the Fed's goal statement is reaffirmed each year and can change"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "history.data_calendar",
+   "rung": 3,
+   "format": "tf",
+   "q": "BLS just put out the jobs report. The first payroll number it gives for a month is the final one.",
+   "answer": "False",
+   "why": "False. That first number is a draft. BLS revises each month in the next two reports, as late surveys come in and the seasonal factors get redone. Then it's held until the yearly benchmark. So don't build your view on the headline alone. In August 2025, the revisions to May and June mattered more than July did. Read the revision line every time.",
+   "lesson_line": "The first print is a draft. Read the revisions every month.",
+   "facts": [
+    "f21",
+    "f30",
+    "f38",
+    "f40",
+    "f41"
+   ],
+   "simple": "False. BLS revises each month's payrolls in the next two reports, so the first print is a draft.",
+   "deeper": {
+    "example": "In the Aug. 1, 2025 report, BLS revised May and June down by a combined 258,000 jobs from what it had reported before. BLS called those revisions larger than normal. The earlier estimates for those two months had been higher by that much."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q09",
+   "skill": "history.data_calendar",
+   "rung": 3,
+   "format": "mcq",
+   "q": "The quarter just ended and everyone's asking about GDP. When does BEA put out its first estimate for that quarter?",
+   "choices": [
+    "About a month after it ends",
+    "On the quarter's last day",
+    "Three months after it ends",
+    "Only once all the data are in"
+   ],
+   "answer": "About a month after it ends",
+   "why": "About a month after the quarter ends. BEA estimates each quarter three times. The first, the advance estimate, is an early look built on the best data it has then. The second and third add data that wasn't in yet. Treat it like the first payroll print. Fast, but rough. The next two passes can change it.",
+   "lesson_line": "GDP comes in three passes. The first is the fastest and the roughest.",
+   "facts": [
+    "f78",
+    "f79",
+    "f77"
+   ],
+   "wrong": {
+    "On the quarter's last day": "The data isn't in yet. The first estimate comes about a month after the quarter ends.",
+    "Three months after it ends": "Too late for the first look. The advance estimate comes about a month after the quarter ends, and two more follow.",
+    "Only once all the data are in": "The first estimate doesn't wait. BEA calls it an early look, and the next two estimates add what was missing."
+   },
+   "simple": "About a month after the quarter ends. Two more estimates follow and add data.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q10",
+   "skill": "history.data_calendar",
+   "rung": 4,
+   "format": "tf",
+   "q": "Your buddy lost his job, never filed for benefits, applied for jobs all month and can start now. BLS counts him as unemployed.",
+   "answer": "True",
+   "why": "True. Benefits have nothing to do with it. BLS counts you as unemployed if you have no job, looked for work in the past 4 weeks and can start. He checks all three. So don't read the jobless rate as a count of people on benefits. It comes from a household survey. Weekly claims are a different number entirely.",
+   "lesson_line": "Jobless, looking and available. That's unemployed, benefits or not.",
+   "facts": [
+    "f26",
+    "f32",
+    "f82"
+   ],
+   "simple": "True. He has no job, he looked in the past 4 weeks and he can start, so benefits play no part.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "statement and key rewritten in wave6"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "history.data_calendar",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Tuesday, Nov. 10, 2026, 8:30 a.m. The CPI hits. Which month's prices are you actually reading?",
+   "choices": [
+    "October 2026",
+    "November 2026",
+    "September 2026",
+    "July-Sept. 2026"
+   ],
+   "answer": "October 2026",
+   "why": "October. BLS lists the Nov. 10 release as the CPI for October 2026. Each print covers the month before. November's CPI comes Thursday, Dec. 10, and September's came out Wednesday, Oct. 14. So when you read a CPI headline, you're looking back a month. Know which month it is before you judge the trend.",
+   "lesson_line": "A print released in November tells you about October.",
+   "facts": [
+    "f09",
+    "f10",
+    "f11",
+    "f78"
+   ],
+   "wrong": {
+    "November 2026": "November isn't over yet. Its CPI comes Thursday, Dec. 10.",
+    "September 2026": "September's CPI already came out, on Wednesday, Oct. 14.",
+    "July-Sept. 2026": "CPI is monthly. BLS calls this one the CPI for October 2026. Quarters are how BEA does GDP."
+   },
+   "simple": "October. A CPI that comes out in November tells you about October's prices.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "dated 2026 calendar rows"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q12",
+   "skill": "history.data_calendar",
+   "rung": 4,
+   "format": "mcq",
+   "q": "The household survey shows 152 million people working and 8 million unemployed. What's the unemployment rate?",
+   "answer": "5%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "unemployed / (employed + unemployed) * 100",
+     "employed": 152,
+     "unemployed": 8
+    }
+   },
+   "suffix": "",
+   "why": "5%. The rate is the unemployed as a share of the labor force. The labor force is everyone working plus everyone looking. 152 million plus 8 million is 160 million. 8 divided by 160 is 0.05, so 5%. The mistake you'll see is dividing by only the 152 million with jobs. That gives 5.3%, a rate that's too high.",
+   "lesson_line": "Unemployed over the labor force. Not over the people with jobs.",
+   "facts": [
+    "f24",
+    "f25"
+   ],
+   "simple": "5%. Divide the 8 million unemployed by the whole labor force, the employed plus the unemployed.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "95%",
+    "19%",
+    "5.3%",
+    "5%"
+   ],
+   "wrong": {
+    "5.3%": "You divided 8 by 152, the people with jobs. The labor force counts the unemployed too.",
+    "95%": "That's the employed share of the labor force, the flip side of the answer.",
+    "19%": "You divided 152 by 8. That's employed over unemployed, not a rate anyone uses."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The jobless rate",
+    "rows": [
+     {
+      "key": "employed,_millions",
+      "label": "Employed, millions",
+      "value": 152,
+      "fmt": "count"
+     },
+     {
+      "key": "unemployed,_millions",
+      "label": "Unemployed, millions",
+      "value": 8,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Unemployment rate",
+     "as": "pct"
+    }
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "history.data_calendar",
+   "rung": 5,
+   "format": "scenario",
+   "story": "It's Monday, Nov. 30, 2026. You hold three swing trades, and you're mapping out the week's data before the open.",
+   "q": "Which report lands Friday, Dec. 4, at 8:30 a.m.?",
+   "choices": [
+    "November's jobs report",
+    "November's CPI report",
+    "November's PPI report",
+    "Weekly jobless claims"
+   ],
+   "answer": "November's jobs report",
+   "why": "November's jobs report. BLS has it Friday, Dec. 4, 2026 at 8:30 a.m. Payrolls come out three weeks after the week with the 12th in it. Most months, that's the first Friday. Not every month though. In 2026 it also came on a Wednesday, Feb. 11, and a Thursday, July 2. November's CPI is Thursday, Dec. 10, and PPI is Tuesday, Dec. 15. With three trades on, you want to know Friday's open can gap.",
+   "lesson_line": "The first Friday brings the jobs report most months. Most, so check the calendar.",
+   "facts": [
+    "f13",
+    "f18",
+    "f14",
+    "f15",
+    "f10",
+    "f16",
+    "f45",
+    "f46"
+   ],
+   "wrong": {
+    "November's CPI report": "CPI has no set weekday. November's comes Thursday, Dec. 10.",
+    "November's PPI report": "November's PPI comes Tuesday, Dec. 15.",
+    "Weekly jobless claims": "Claims come Thursday mornings unless a holiday moves them. Friday's 8:30 report is the jobs report."
+   },
+   "simple": "November's jobs report. Most months it lands on the first Friday of the next month, and this Friday is the first one.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "dated 2026 calendar rows"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q14",
+   "skill": "history.data_calendar",
+   "rung": 5,
+   "format": "scenario",
+   "story": "The estimate on your calendar says CPI rises 0.3% this month. At 8:30 a.m. it prints exactly 0.3%. Stocks barely move.",
+   "q": "Prices still went up. Why such a quiet reaction?",
+   "choices": [
+    "The print held no surprise",
+    "CPI rarely moves stocks",
+    "Stocks wait for the 9:30 open",
+    "0.3% is too small to matter"
+   ],
+   "answer": "The print held no surprise",
+   "why": "No surprise, so no news. The surprise is the actual print minus the consensus, the median forecast. Here that gap is zero. Research finds it's the surprise that moves stocks, not the number itself. That's a finding, not a promise. But it's why you look at the estimate before 8:30. Then you know in a second whether the print is news.",
+   "lesson_line": "The market trades the surprise, not the number.",
+   "facts": [
+    "f54",
+    "f56",
+    "f55",
+    "f60",
+    "f81",
+    "f34",
+    "f49"
+   ],
+   "wrong": {
+    "CPI rarely moves stocks": "It can move them hard. On Sept. 13, 2022, a hot CPI helped knock the S&P 500 down about 4.3%.",
+    "Stocks wait for the 9:30 open": "Extended hours trade before the open. The number's out at 8:30, and the reaction starts right there.",
+    "0.3% is too small to matter": "Size isn't the test. A 0.3% print is big news if they expected less. Here it matched."
+   },
+   "simple": "The 0.3% print matched the forecast. Research finds the surprise moves stocks, not the number.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "history.data_calendar",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Your calendar shows CPI estimated at +0.2% for the month. At 8:30 it prints +0.5%. How big a surprise is that?",
+   "answer": "0.3 points",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "actual - forecast",
+     "actual": 0.5,
+     "forecast": 0.2
+    }
+   },
+   "suffix": "",
+   "why": "0.3 points, and that's a hot print. The surprise is actual minus forecast: 0.5 minus 0.2 is 0.3. That gap is the news, not the 0.5% itself. A print above the estimate is what people call hot. Have the estimate up before 8:30. In the UCT Terminal, turn on the Macro chip on the calendar, and CPI shows with its estimate when we have it. Then you do this math the second the number hits.",
+   "lesson_line": "Surprise is actual minus forecast. Do that math the second the number hits.",
+   "facts": [
+    "f54",
+    "f56",
+    "f81"
+   ],
+   "simple": "0.3 points. The actual 0.5% minus the 0.2% forecast is the gap, and that gap is the news.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "2.5 points",
+    "0.7 points",
+    "0.3 points",
+    "0.5 points"
+   ],
+   "wrong": {
+    "0.7 points": "You added them. The surprise is the gap between the print and the forecast.",
+    "2.5 points": "You divided 0.5 by 0.2. A surprise is a subtraction, not a ratio.",
+    "0.5 points": "That's the print alone. It ignores what the market expected."
+   },
+   "visual": {
+    "kind": "move",
+    "from": {
+     "label": "Forecast (%)",
+     "value": 0.2
+    },
+    "to": {
+     "label": "Actual (%)",
+     "value": 0.5
+    },
+    "find": {
+     "label": "The surprise",
+     "as": "num",
+     "unit": "points"
+    }
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "history.data_calendar",
+   "rung": 6,
+   "format": "tf",
+   "q": "You can count on CPI landing on the same weekday every month.",
+   "answer": "False",
+   "why": "False. The time stays 8:30 Eastern, but the day moves. September 2026's CPI came on a Wednesday, Oct. 14. October's lands Tuesday, Nov. 10, and November's Thursday, Dec. 10. So look it up every month. It's on the BLS release calendar, and in the UCT Terminal with the calendar's Macro chip on. Don't let a CPI morning catch you by surprise.",
+   "lesson_line": "CPI has no fixed weekday. Look up the date every month.",
+   "facts": [
+    "f09",
+    "f10",
+    "f11",
+    "f08"
+   ],
+   "simple": "False. The time stays the same but the weekday moves, so you look up the date every month.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "dated 2026 calendar rows"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "history.data_calendar",
+   "rung": 6,
+   "format": "scenario",
+   "story": "A lot of unemployed people get discouraged and stop looking for work. Not one of them has looked in the past 4 weeks. Nothing else changes.",
+   "q": "What does that do to the unemployment rate?",
+   "choices": [
+    "It falls, they left the labor force",
+    "It rises, more people are jobless",
+    "It stays put, they're still jobless",
+    "It falls, more of them found jobs"
+   ],
+   "answer": "It falls, they left the labor force",
+   "why": "It falls, and not for a good reason. With no search in 4 weeks, BLS stops counting them as unemployed. They drop out of the labor force. The unemployed and the labor force both shrink by the same number, so the rate drops. Nobody found work. So you check the participation rate, the labor force as a share of the population. If both fell together, the better jobless rate isn't what it looks like.",
+   "lesson_line": "A lower jobless rate can just mean people quit looking. Check participation too.",
+   "facts": [
+    "f32",
+    "f33",
+    "f24",
+    "f25",
+    "f31",
+    "f82"
+   ],
+   "wrong": {
+    "It rises, more people are jobless": "Nobody new lost a job. The ones who quit looking are still jobless, but BLS stops counting them as unemployed.",
+    "It stays put, they're still jobless": "The rate is the unemployed over the labor force. Take the same number out of both and the rate drops.",
+    "It falls, more of them found jobs": "Nobody found a job, and nothing else changed. It falls only because they left the labor force."
+   },
+   "simple": "It falls. People who stop looking leave the labor force, so they no longer count as unemployed.",
+   "deeper": {
+    "trap": "A falling jobless rate reads like good news. It can also mean people gave up looking. Check the participation rate in the same report. If the jobless rate fell and participation fell with it, the labor force shrank as a share of the population. That is not the same as more people working."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "history.data_calendar",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You're holding a growth stock overnight with a sell stop at $50. CPI comes in hot at 8:30 a.m. The stock opens at $46.",
+   "q": "Where's your stop likely to fill?",
+   "choices": [
+    "Around $46, or below that",
+    "Right at your $50 stop price",
+    "Only if it trades back to $50",
+    "A few cents under your $50 stop"
+   ],
+   "answer": "Around $46, or below that",
+   "why": "Around $46, maybe worse. Your stop price is a trigger, not a promise. Once the stock trades through $50, the stop turns into a market order. On a gap, the first trade is down near $46, so that's about where you fill. A stop-limit doesn't save you either. It only fills at its limit or better, so it might not fill at all. That's why a tight stop never earns you a monster position. A stop can't catch a gap.",
+   "lesson_line": "A stop is a trigger, not a floor. A gap goes right through it.",
+   "facts": [
+    "f50",
+    "f51",
+    "f52",
+    "f75",
+    "f76",
+    "f74",
+    "f53"
+   ],
+   "wrong": {
+    "Right at your $50 stop price": "The stop price isn't guaranteed. It only turns your order into a market order.",
+    "Only if it trades back to $50": "That's a stop-limit with a $50 limit. A plain stop turns into a market order once it's triggered.",
+    "A few cents under your $50 stop": "A gap isn't a few cents of slip. The fill can be well under the stop, so expect something near the $46 open."
+   },
+   "simple": "Around $46 or lower. The gap triggers your stop, it turns into a market order, and it fills near the open.",
+   "deeper": {
+    "trap": "A stop feels like a floor under the trade. It isn't. Stop orders do not protect you from gaps. When news lands outside trading hours, a stock can open far below your stop, and the order fills near that open. The loss on a gap can be bigger than the loss you planned at the stop."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "sits next to the owner's gap rule B20 and real-stop rule D41 (flagged)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "history.data_calendar",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Sept. 13, 2022, 8:30 a.m. The Dow Jones survey expects headline CPI down 0.1% for the month, core up 0.3%. BLS prints headline up 0.1%, core up 0.6%.",
+   "q": "Headline rose just 0.1%. Why does the market take it so badly?",
+   "choices": [
+    "Both came in above forecast",
+    "0.1% a month is high inflation",
+    "Gas prices fell that month",
+    "Headline fell below forecast"
+   ],
+   "answer": "Both came in above forecast",
+   "why": "Both came in above forecast. Headline was supposed to fall 0.1% and rose 0.1% instead. Core rose 0.6% against a 0.3% estimate, double what was expected. A 10.6% drop in gas is what kept the headline tame. Core showed the real pressure. The S&P 500 fell about 4.3%, its worst day since June 2020. So on CPI morning you read each number against its own estimate.",
+   "lesson_line": "Read every number against its forecast. A small print can be a big surprise.",
+   "facts": [
+    "f59",
+    "f35",
+    "f36",
+    "f63",
+    "f60",
+    "f64",
+    "f61",
+    "f34",
+    "f37"
+   ],
+   "wrong": {
+    "0.1% a month is high inflation": "The level wasn't the shock. They expected a decline, and core came in at double its estimate.",
+    "Gas prices fell that month": "Gas did fall 10.6%, and that held the headline down. The shock was core rising faster than expected.",
+    "Headline fell below forecast": "They expected a 0.1% decline. A 0.1% rise is above that, not below."
+   },
+   "simple": "Both came in above their forecasts. Headline rose when a drop was expected, and core rose double what was expected.",
+   "deeper": {
+    "trap": "A 0.1% rise looks tame on its own. The market read it against a forecast of a 0.1% fall, and core against a forecast of 0.3%. Read each print against its own forecast, headline and core apart. A small number can be a big surprise."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2022-09-12",
+    "window": 120,
+    "forward": 10
+   }
+  },
+  {
+   "key": "q20",
+   "skill": "history.data_calendar",
+   "rung": 7,
+   "format": "mcq",
+   "q": "Sept. 13, 2022. CPI comes in hot and the whole market sells off. Where's the damage worst?",
+   "choices": [
+    "High-growth tech names",
+    "All stocks fell about evenly",
+    "Cheap, low-risk stocks",
+    "Dow industrial blue chips"
+   ],
+   "answer": "High-growth tech names",
+   "why": "High-growth tech. The hot print had traders expecting the Fed to raise rates even more. Higher rates hit the most expensive and riskiest stocks hardest, and that's growth. The Nasdaq fell 5.2%, the S&P 500 about 4.3% and the Dow 3.9%. So when inflation runs hot, think rates first. If your book is full of high-growth names, that's where you'll feel it.",
+   "lesson_line": "Hot inflation is a rate story. The stocks most exposed to rates get hit hardest.",
+   "facts": [
+    "f65",
+    "f62",
+    "f66",
+    "f60",
+    "f68",
+    "f80"
+   ],
+   "wrong": {
+    "All stocks fell about evenly": "Growth took the bigger hit. The Nasdaq fell 5.2%, more than the S&P 500's 4.3%.",
+    "Cheap, low-risk stocks": "The reverse. Higher rates hit the most expensive and riskiest stocks hardest.",
+    "Dow industrial blue chips": "The Dow lost 3.9%, less than the Nasdaq's 5.2%. Tech and growth took the worst of it."
+   },
+   "simple": "High-growth tech fell hardest. Those stocks are seen as most at risk when rates go up.",
+   "deeper": {
+    "trap": "A hot CPI print is about prices. The market read it as a rate story. The stocks most exposed to higher rates, high-growth tech, fell hardest."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "IXIC",
+    "asof": "2022-09-12",
+    "window": 120,
+    "forward": 10
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "history.data_calendar",
+   "rung": 8,
+   "format": "tf",
+   "q": "A jobs report that crushes the estimate can still send stocks lower.",
+   "answer": "True",
+   "why": "True. Jobs news says two things: where rates are going and where earnings are going. A hot report can point to higher rates, and higher rates pressure stocks. Research finds the same jobs news can help or hurt, depending on where the economy is. On average, stronger activity news has gone with higher stocks. On average isn't every time. So before you cheer a big number, ask what it means for rates.",
+   "lesson_line": "Good news isn't always good for stocks. Ask what it means for rates.",
+   "facts": [
+    "f57",
+    "f58",
+    "f69",
+    "f43",
+    "f55"
+   ],
+   "simple": "True. A strong jobs report can point to higher rates, and higher rates pressure stocks.",
+   "deeper": {
+    "trap": "Strong economy, so buy, sounds safe. A hot jobs number can raise the odds of higher rates, and higher rates pressure stocks. On average, stronger-than-expected activity news has gone with higher stocks. On average is not always. Ask what the number means for rates before you assume."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "statement and key rewritten in wave6"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "history.data_calendar",
+   "rung": 8,
+   "format": "scenario",
+   "story": "The estimate was +150,000 jobs. BLS prints +120,000. Your feed is full of big-miss headlines.",
+   "q": "How much does that miss really tell you?",
+   "choices": [
+    "It's well inside the noise",
+    "It proves hiring slowed",
+    "It's too small to be revised",
+    "It shows jobs fell this month"
+   ],
+   "answer": "It's well inside the noise",
+   "why": "Not much. It's inside the noise. BLS puts the 90% confidence interval on the monthly payroll change at about plus or minus 122,000. This miss is a fraction of that. One month can't prove hiring slowed, and the number gets revised in the next two reports anyway. I'd wait for the revisions and a few more months before I call a trend.",
+   "lesson_line": "One payroll print is a noisy estimate. Don't build a trend on a small miss.",
+   "facts": [
+    "f27",
+    "f28",
+    "f29",
+    "f21",
+    "f30"
+   ],
+   "wrong": {
+    "It proves hiring slowed": "BLS's own example: a 50,000 gain can't even prove jobs grew, since the range dips below zero.",
+    "It's too small to be revised": "Every month gets revised in the next two reports, big miss or small.",
+    "It shows jobs fell this month": "Jobs rose 120,000. Missing the estimate isn't the same as losing jobs."
+   },
+   "simple": "The miss is small next to BLS's own margin of error, so it may just be noise.",
+   "deeper": {
+    "trap": "BLS's own example: a 50,000 gain has a 90% range of -72,000 to +172,000, so it cannot even prove jobs grew. A miss smaller than the margin of error tells you little. Wait for the revisions and the next few months before you call a trend."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "BLS updates the margin of error over time"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "history.data_calendar",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Aug. 1, 2025, 8:30 a.m. The Dow Jones forecast for July payrolls is +100,000. BLS reports +73,000. It also revises May and June down by 258,000 combined.",
+   "q": "Counting the revisions, how does the job count stack up against what was expected?",
+   "choices": [
+    "285,000 fewer than expected",
+    "27,000 fewer than expected",
+    "258,000 fewer than expected",
+    "73,000 more than expected"
+   ],
+   "answer": "285,000 fewer than expected",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(forecast - actual) + revisions",
+     "forecast": 100000,
+     "actual": 73000,
+     "revisions": 258000
+    }
+   },
+   "why": "285,000 short. July missed the 100,000 forecast: 100,000 minus 73,000 is 27,000. Then BLS cut May and June by 258,000 combined, revisions it called larger than normal. 27,000 plus 258,000 is 285,000. The two old months hurt more than the new one. That's why you read the revision line, not just the headline.",
+   "lesson_line": "Read the revisions, not just the headline. Two old months can outweigh the new one.",
+   "facts": [
+    "f38",
+    "f39",
+    "f70",
+    "f40",
+    "f41",
+    "f71",
+    "f21"
+   ],
+   "wrong": {
+    "27,000 fewer than expected": "That's only July's miss. You left out the 258,000 revised off May and June.",
+    "258,000 fewer than expected": "That's the revisions alone. July also came in short of its forecast.",
+    "73,000 more than expected": "73,000 is July's gain, not how it compared with the forecast. It came in short."
+   },
+   "simple": "285,000 fewer. July came in short of its forecast, and the revisions took 258,000 more off May and June.",
+   "deeper": {
+    "trap": "It is tempting to stop at the headline 73,000. The revisions to the two months before can matter more. Here they cut 258,000 from earlier estimates, far more than July's miss against its forecast. Read the revision line in every jobs report."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "size",
+    "title": "Payrolls vs the forecast",
+    "rows": [
+     {
+      "key": "forecast",
+      "label": "Forecast",
+      "value": 100000,
+      "fmt": "count"
+     },
+     {
+      "key": "reported",
+      "label": "Reported",
+      "value": 73000,
+      "fmt": "count"
+     },
+     {
+      "key": "revisions,_down",
+      "label": "Revisions, down",
+      "value": 258000,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Short, counting revisions",
+     "as": "num",
+     "unit": "jobs"
+    }
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "history.data_calendar",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Aug. 1, 2025. July payrolls rise 73,000, short of the 100,000 Dow Jones forecast. Odds of a Fed rate cut jump and Treasury yields drop. Stock futures fall further.",
+   "q": "Cut odds just jumped, and stock futures still fell further. How can weak jobs news hurt stocks?",
+   "choices": [
+    "It signals lower profits ahead",
+    "Rate cuts are bad for stocks",
+    "Treasury yields rose on the news",
+    "The cut was already priced in"
+   ],
+   "answer": "It signals lower profits ahead",
+   "why": "Lower profits ahead. Weak jobs news cuts both ways. Lower rates help stocks, and lower future earnings hurt them. Research on jobs news finds both messages in the same report. That morning, cut odds jumped to 75.5% from 40% and yields fell sharply. Futures were already down before the print, so don't pin the whole day on one report. But don't assume a weak number means a rally just because cuts look closer.",
+   "lesson_line": "Weak jobs news cuts two ways: lower rates, but lower earnings too.",
+   "facts": [
+    "f58",
+    "f57",
+    "f55",
+    "f70",
+    "f72",
+    "f73",
+    "f69"
+   ],
+   "wrong": {
+    "Rate cuts are bad for stocks": "Lower rates are a plus. Research finds a signal of lower rates is good news for stocks.",
+    "The cut was already priced in": "It wasn't. Futures traders raised the odds of a cut to 75.5%, up from 40% the day before.",
+    "Treasury yields rose on the news": "Yields fell sharply as the odds of a cut jumped. Rising rates weren't the problem that day."
+   },
+   "simple": "Weak jobs news can mean lower rates, which helps, but also weaker profits ahead, which hurts.",
+   "deeper": {
+    "counter": "Weak jobs news does not always hurt stocks. Research finds rising unemployment is good news for stocks on average in expansions and bad news in contractions."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2025-07-31",
+    "window": 120,
+    "forward": 10
+   }
+  }
+ ],
+ "conflicts": [
+  "Jobs report day: BLS says payroll data come out 'typically the first Friday of the following month' (CES FAQ). The 2026 calendar has two exceptions, Wednesday, Feb. 11 (January data) and Thursday, July 2 (June data). The file teaches 'usually, not always' and cites both rows. No source read gives the reason those dates moved, so the file never states one.",
+  "DOL's claims archive page says the weekly report comes out at '8:30am EST' every week; in daylight-saving months that is 8:30 a.m. Eastern daylight time. The file says '8:30 a.m. Eastern' and never 'EST'.",
+  "Sept. 13, 2022 market figures: CBS/AP says the S&P 500 dropped '176 points to 3,935, or 4.3%' and the Dow 'lost 1,256 points'; CNBC says the Dow 'slid 1,276 points'. FRED's S&P 500 closes (4,110.41 on 2022-09-12 and 3,932.69 on 2022-09-13, https://fred.stlouisfed.org/graph/fredgraph.csv?id=SP500&cosd=2022-09-08&coed=2022-09-14, fetched 2026-11-09) give a 4.32% drop, matching both outlets' 4.3%. The file uses only the 4.3% and the Nasdaq's 5.2% (CBS) / 'more than 5%' (CNBC), never the point or level figures. The same CBS/AP story says communication services 'sank 3.9% for the largest loss among the 11 sectors', which cannot be right on a day the index fell 4.3% (likely text from an earlier wire version); not used.",
+  "NBER w1296 (Pearce and Roley, 1984) supports 'only the surprise moves stock prices' as a general finding, but in its own 1977-82 sample it found 'only limited evidence of an impact from inflation surprises'. The file pairs it with the Fed Board's 2020 FEDS Note (price news negatively correlated with stocks over 2003-2020) and the 2022 case, and never claims any single print always moves stocks.",
+  "NBER w8092 (Boyd, Hu and Jagannathan) is an 'on average' finding (rising unemployment is usually good news for stocks in expansions), while the 2020 FEDS Note finds stocks positively correlated with stronger-than-expected activity news. On Aug. 1, 2025 weak payrolls came with falling stock futures (CNBC). Because good sources disagree on the usual direction, the file keys no direction as a rule: q21 keys only that strong jobs are not ALWAYS good, and q24 keys the two-channel explanation both papers support.",
+  "BLS margin of error: the plus or minus 122,000 (90%) interval on the monthly payroll change is from the technical note in the Nov. 6, 2026 release (archived URL, so the quote stays put); BLS updates the figure over time. The same note's plus or minus 0.3 point interval for the unemployment rate is stated 'at an unemployment rate of around 6.0 percent', so the file does not use it.",
+  "The CPI and jobs dates come from the BLS 'Schedule of Selected Releases 2026' page (fetched 2026-11-09). They match the per-release schedule pages fetched the same day (CPI for October 2026 on Nov. 10; Employment Situation Nov. 6 and Dec. 4; CPI for November 2026 on Dec. 10). Those per-release pages list only upcoming months, so they are not cited.",
+  "BEA's release schedule (https://www.bea.gov/news/schedule/full) shows PCE (Personal Income and Outlays) and GDP releases at 8:30 AM, but its page text splits the label 'News' into 'N ews', so no row can be quoted verbatim. The file says only that PCE comes out monthly in the Personal Income and Outlays report (BEA) and never states a PCE or GDP release time.",
+  "Aug. 1, 2025: CNBC says stock futures 'fell further after the news', so they were already lower before 8:30 (the same story notes tariffs being ramped up). The story in the Aug. 1, 2025 weak-jobs question says only 'fall further' and keys why weak jobs news CAN hit stocks, never that the report alone caused the day's move.",
+  "Who counts as unemployed: BLS's technical note adds that 'People laid off from a job and expecting recall need not be looking for work to be counted as unemployed.' No question says 'only if you looked'; the people in the gave-up-looking question are not on recall, so the exception does not apply to them.",
+  "GDP timing is taught only as BEA's learning-center line ('about a month after the quarter's end' for the advance estimate). The wrong note for 'Three months after it ends' does not claim when the third estimate comes out.",
+  "The Fed's 2% goal in PCE prices is from the Statement on Longer-Run Goals 'as reaffirmed effective January 27, 2026' (PDF fetched 2026-11-09).",
+  "Publishers under the support rule: CNBC's Sept. 13, 2022 story is read on NBCNews.com (CNBC byline) and filed as 'CNBC', the same publisher as the Aug. 1, 2025 CNBC story; the two NBER papers share the publisher 'NBER'; the two Schwab pages share 'Charles Schwab'. No key relies on two facts from one publisher as two publishers. The FEDS Note is Federal Reserve Board staff research (the views of its authors), filed as Tier 2 per the contract's 'Federal Reserve research papers'.",
+  "Checker, 2026-11-09: the consensus depends on the survey. For July 2025 payrolls CNBC gives the Dow Jones estimate of 100,000, while Reuters' poll had 110,000 ('Economists polled by Reuters had forecast payrolls increasing by 110,000 jobs', RTE's copy of the Reuters story, https://www.rte.ie/news/business/2025/0801/1526556-us-non-farm-payroll-data) and AP had 115,000 ('well short of the 115,000 forecasters had expected', https://www.pbs.org/newshour/economy/u-s-employers-added-just-73000-jobs-last-month-as-labor-market-weakens-in-face-of-trump-trade-wars), both read with WebFetch 2026-11-09. The two Aug. 1, 2025 stories and the Sept. 13, 2022 story now name 'Dow Jones', the survey their cited CNBC facts quote, so each key is exact for the survey it names. Neither page is cited as a fact.",
+  "Checker, 2026-11-09: BLS's 258,000 is 'lower than previously reported'. May 2025 had already been revised once before the Aug. 1, 2025 release, so '258,000 fewer than first reported' would be wrong; the July 2025 revisions question says 'previously reported'.",
+  "Checker, 2026-11-09: investor.gov (SEC bulletins s12, s13) answered WebFetch and plain curl with 403 today. The quote check's own fetch of both pages (2026-11-08) found every quote, and the checker read each in context from that copy."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "f01 (BLS CPI home), f03, f04 (CPI FAQ), f19, f20 (CES FAQ), f12, f17 (2026 schedule, re-read live today), f22 (Nov. 6, 2026 release, re-read live) and f48 (SEC; read from the quote check's copy, see conflicts) all confirmed in context. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f18 (CES FAQ) and f45, f46 (DOL claims page) re-read live; f09, f10, f12 match the live 2026 schedule. Weekdays checked: Nov. 6, 2026 Friday, Nov. 10 Tuesday, Dec. 10 Thursday. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Step 1 said forecasters 'publish' a consensus; f54 defines it as the median of a survey panel's forecasts, so reworded. Step 2 now teaches 'hot' (used in q18 to q20) from new CNBC fact f81. Step 3 said BLS 'revises it twice', which reads as only twice though the annual benchmark revises again (f21); now 'in the next two reports' (f30), and the 122,000 is labelled BLS's 90% interval (f27, f28). Steps kept to 22 words.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. The grocery-receipt line is a good mentor touch."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Gas-vs-core line gives the reason to read both."
+  },
+  "q03": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Two-survey answer now matters because the stem gives the both-up puzzle."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. 'I don't sit out CPI days' matches his C32 ruling (Fed and CPI days traded like any other day, 'i generally ignore that'). 8:30 vs 9:30 checked against f09/f12/f48."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Fill sentence and bank unchanged; Thanksgiving Nov. 25, 2026 is f47."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Writer's why was correct but flat ('you know which number they mean'). Rewritten to land the trader point: CPI moves the headlines, PCE is what the Fed grades itself on. Facts f42, f44, f02 only."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. 258,000 lives in deeper and f41; 'previously reported' kept per the checker conflict note."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "'It's fast, it's rough, and it can change' is a three-part list (VOICE section 6). Ending rewritten as two short fragments; claim that later passes can change it rests on f79."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "'Why you care:' read like a template label. Rewritten so the practical point (don't confuse the jobless rate with claims or benefits) comes as plain talk. f26, f32 only; 4 weeks from f32."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Weekdays checked: Nov. 10, 2026 Tuesday, Dec. 10 Thursday, Oct. 14 Wednesday."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. 152+8=160, 8/160=0.05=5%; 8/152=5.26 -> 5.3%; 152/8=19; 152/160=95%."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Nov. 30, 2026 is a Monday and Dec. 4 the first Friday of December (from Tuesday Nov. 10). 3-week rule is f18; Feb. 11 and July 2 exceptions f14/f15."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Surprise is 0.3 - 0.3 = 0; 4.3% in the wrong note is f60, cited."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Math right (0.5 - 0.2 = 0.3; 0.7 added, 2.5 divided). The app line overclaimed: the UCT Terminal calendar shows CPI with the estimate only 'when we have them', behind the Macro chip (checked in V.10 and its checker note: CalendarHeader EVENT_TYPE_CHIPS, MacroBand shows est and prior). Rewritten to the true, practical how."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Correct (Oct. 14 Wed, Nov. 10 Tue, Dec. 10 Thu). Where-to-find now says how: the BLS release calendar (f08) or the Macro chip on the UCT Terminal calendar."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Choice semicolons now commas, same key. Participation check from f31."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. 'A tight stop never earns you a monster position. A stop can't catch a gap.' is his own line (VOICE section 3). Stop-limit point from f53."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. -0.1 expected vs +0.1 headline; 0.6 vs 0.3 core = double (f63); 10.6% gas f37; 4.3% and June 2020 f60/f64."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Nasdaq 5.2%, S&P 4.3%, Dow 3.9% all in f66/f60 quotes; uses percents only per the conflict note."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. Keys only that strong jobs is not always good, as the conflict note requires; 'on average' kept."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. 122,000 interval and the 50,000 example are f27/f28/f29. 'I'd wait for the revisions' is the right judgment line."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cold re-read: answer and wrong choices hold, every claim traced to the lesson's facts, numbers recomputed, no working words or book authors, stem not leading. 100,000 - 73,000 = 27,000; 27,000 + 258,000 = 285,000. Distractors are each a named partial."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "TRUTH: the writer turned the stem into 'Why are stock futures still falling?' and the why into 'so the profit worry won'. That claims the report's profit signal caused that morning's futures drop. The lesson's conflict note forbids exactly this: CNBC says futures 'fell further', so they were already lower before 8:30 on other news, and the question keys why weak jobs news CAN hit stocks, never what caused the day. Stem and why rewritten to the safe claim; key, choices and wrong notes unchanged."
+  }
+ }
+}

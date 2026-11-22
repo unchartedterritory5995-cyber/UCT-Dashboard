@@ -1,0 +1,23 @@
+//@version=6
+indicator("UCTPROBE_VW_WSC_H9_EXPR_HISTORY_BLOCK", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row H9
+// (docs/pine/capture-queue-2026-10-31-wsc-history.md section Q3). NEVER COMPILED ON TRADINGVIEW.
+// An EXPRESSION's history inside `if close > open`, plotted on the bars the block runs: is
+// `(close + open)[1]` / `(close * 2)[2]` the previous RUN's value (like a block local, C05) or the
+// chart's previous bar(s)? E* are the chart-bar readings on every bar.
+// CHART: the row names none (the queue marks it NEEDS_CHART); vw-call-site-history, whose C05 this
+// extends, was read on NYSE:RDDT 1D from the listing.
+
+float b_sum1 = na
+float b_dbl2 = na
+if close > open
+    b_sum1 := (close + open)[1]
+    b_dbl2 := (close * 2)[2]
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(close > open ? 1 : 0, "A01_up_CONTROL")
+plot((close + open)[1], "E01_sum_1_every_bar")
+plot((close * 2)[2], "E02_double_2_every_bar")
+plot(b_sum1, "B01_sum_1_in_up_block")
+plot(b_dbl2, "B02_double_2_in_up_block")

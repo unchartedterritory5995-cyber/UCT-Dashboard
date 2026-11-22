@@ -18,6 +18,7 @@ import fs from 'node:fs'
 
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 import { registerPineLibrary, clearPineLibraries } from '../../ast/pineLibraryStore'
+import { fixtureLibrary } from '../../ast/__tests__/libraryFixture.js'
 
 const load = (id) => loadCapture(path.join(HARNESS_DIR, `${id}.json`)).capture
 // ⭐ L2 — opt-in only: the real `TradingView/ta/7` from a scratch store directory
@@ -60,14 +61,14 @@ describe('Q-H1b — ratchet stops, RDDT from the listing', () => {
       expect(p.stats.compared).toBe(636)
     })
 
-  it.fails('⛔ door: R03_trend KNOWN DIVERGE on bar 0 only (ours na, TradingView 1) — the Q-NA rule', () => {
-    expect(item(grade(RATCHET_RDDT), 'R03_trend').verdict).toBe('MATCH')
-  })
-
-  it('control: R03_trend diverges on exactly one bar, bar 0', () => {
+  // ⭐⭐ LANE B0 (2026-11-09) — `trend = 1` / `trend := nz(trend[1], trend)` folds to
+  // `accum(na, …)` (the plain spelling's history seed), and from the listing bar 0 now
+  // runs the update (`interpret.js::historySeedReading`) instead of also keeping "bar 0
+  // IS the seed (`na`)" as a candidate and withholding the bar where the two differed.
+  it('⭐ door: R03_trend MATCH on all 636 bars, bar 0 included (was: na there, TradingView 1)', () => {
     const p = item(grade(RATCHET_RDDT), 'R03_trend')
-    expect(p.stats.steady.divergent).toBe(1)
-    expect(p.stats.steady.first.bar).toBe(0)
+    expect(p.verdict, p.reason).toBe('MATCH')
+    expect(p.stats.compared).toBe(636)
   })
 })
 
@@ -86,18 +87,21 @@ describe('Q-H1a — ratchet stops, SPY behind the curtain', () => {
       expect(p.stats.steady.compared).toBeGreaterThan(1200)
     })
 
-  it('door: R05_range_filter is a CONVERGING PREFIX (bars 331..446, error falling), every later bar agrees', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was "a CONVERGING PREFIX (bars 331..446)". The plot lane
+  // now replays SPY's proved history from its 1993 listing before the window, as the
+  // member's daily chart computes it (`ourSide.js`, DIV-1), and the prefix is gone.
+  it('door: R05_range_filter MATCH on every bar once graded with the history TradingView had (DIV-1)', () => {
     const p = item(grade(RATCHET_SPY), 'R05_range_filter')
-    expect(p.verdict).toBe('DIVERGE')
-    expect(p.stats.steady.pattern.kind).toBe('converging-prefix')
-    expect(p.stats.steady.pattern.lastDivergentBar).toBe(446)
-    expect(p.stats.steady.pattern.agreeingAfter).toBe(1353)
+    expect(p.verdict, p.reason).toBe('MATCH')
+    expect(p.warmupBars).toBe(0)
+    expect(p.stats.steady.compared).toBeGreaterThan(1400)
   })
 
-  it('door: R00 bar_index is withheld by name on a chart that does not start at the listing', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was "withheld by name (bar-index:window)". Replayed from
+  // the listing, the count IS TradingView's (8175.. on the window), so it is served and agrees.
+  it('door: R00 bar_index MATCH — counted from the listing the replay starts at (DIV-1)', () => {
     const p = item(grade(RATCHET_SPY), 'R00_bar_index_CONTROL')
-    expect(p.verdict).toBe('INCONCLUSIVE')
-    expect(p.reason).toMatch(/bar-index:window/)
+    expect(p.verdict, p.reason).toBe('MATCH')
   })
 })
 
@@ -162,7 +166,8 @@ export highestSince(series bool cond, series float source = high) =>
     hi
 `
 function gradeWithLibrary(cap, entry) {
-  registerPineLibrary(entry)
+  // U15: a fixture entry is stamped with its own sha; a store entry carries its own already
+  registerPineLibrary(entry.sha256 ? entry : fixtureLibrary(entry))
   vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
   vi.stubEnv('VITE_PINE_RUNTIME_PANE_ENABLED', '1')
   return gradeCapture(cap).verdict
@@ -357,11 +362,13 @@ describe('Q-O1 — the door on the wave-16 tree (O1 merged), graded', () => {
     expect(v.objects.counts.find((x) => x.family === 'boxes').ours).toBe(5)
   })
 
-  it('⛔ sonarlab SPY (off the listing): the boxes are WITHHELD by name, never drawn as a subset (F1)', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was "WITHHELD by name (objects:off-listing)". Replayed
+  // from SPY's listing (the member's daily chart's own history) the `var` list is known,
+  // and every box agrees. The off-listing withhold itself is still railed on AAPL / BRK.A
+  // (`vendorHarness.f1Captures`), which have no proved prehistory.
+  it('sonarlab SPY: MATCH once replayed from the listing (DIV-1)', () => {
     const v = grade(SONAR_SPY)
-    // a withheld drawing grades as a GAP (DIVERGE with its name), F3's rule
-    expect(v.objects.verdict).toBe('DIVERGE')
-    expect(v.objects.reason).toMatch(/withheld by name \(objects:off-listing\)/)
+    expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
   })
 
   it('⛔ auto-trendline: 6 plots MATCH; the 2 lines are WITHHELD by name (the program lost a removal)', () => {

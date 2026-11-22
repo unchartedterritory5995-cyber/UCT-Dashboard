@@ -43,7 +43,7 @@ test('offers Full Research, routed to canonical /research/:sym', () => {
 
 test('"Ask AI about {sym}" now routes to canonical Research Ask AI, not generic /ai-search', () => {
   render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
-  fireEvent.click(screen.getByRole('button', { name: /ask ai about nvda/i }))
+  fireEvent.click(screen.getByRole('button', { name: /ask the uct agent about nvda/i }))
   expect(navigateMock).toHaveBeenCalledWith('/research/NVDA?section=ai')
   expect(navigateMock).not.toHaveBeenCalledWith(expect.stringContaining('/ai-search'))
 })

@@ -121,7 +121,8 @@ export function closeWidgetTab(widget, tabId) {
   if (nextActive > next.length) nextActive = next.length
   if (nextActive < 0) nextActive = 0
   const out = { ...w, wtabs: next, activeWtab: nextActive }
-  if (!next.length) { delete out.wtabs; delete out.activeWtab }
+  if (Array.isArray(out.wtabOrder)) out.wtabOrder = out.wtabOrder.filter(id => id !== tabId)
+  if (!next.length) { delete out.wtabs; delete out.activeWtab; delete out.wtabOrder }
   return out
 }
 
@@ -149,4 +150,32 @@ export function patchActiveTabOpts(widget, opts) {
   const { tabs, active } = sanitizeWidgetTabs(widget)
   if (active === 0) return { ...w, opts }
   return { ...w, wtabs: tabs.map((t, i) => (i === active - 1 ? { ...t, opts } : t)) }
+}
+
+// ── Strip order (owner 11-14: right-click a tab → Move left / Move right) ──────────────
+// `wtabOrder` (tab ids, '__main__' for the base) reorders the TAB STRIP only. Storage (the
+// base widget + wtabs) and every tab's identity stay as they are — so moving a tab never
+// changes its group id, its links or its settings. Each entry carries `index`, its storage
+// index (what setActiveWidgetTab takes). Unknown ids are dropped; a tab missing from the
+// order (a new one) keeps its natural place at the end.
+export function orderedWidgetTabList(widget) {
+  const list = widgetTabList(widget).map((t, i) => ({ ...t, index: i }))
+  const order = Array.isArray(widget?.wtabOrder) ? widget.wtabOrder : null
+  if (!order || !order.length) return list
+  const byId = new Map(list.map(t => [t.id, t]))
+  const out = []
+  for (const id of order) { const t = byId.get(id); if (t && !out.includes(t)) out.push(t) }
+  for (const t of list) if (!out.includes(t)) out.push(t)
+  return out
+}
+
+// Move a tab one step left (dir < 0) or right (dir > 0) in the strip. No-op at either end.
+export function moveWidgetTab(widget, tabId, dir) {
+  const w = widget && typeof widget === 'object' ? widget : {}
+  const ids = orderedWidgetTabList(w).map(t => t.id)
+  const i = ids.indexOf(tabId)
+  const j = i + (dir < 0 ? -1 : 1)
+  if (i < 0 || j < 0 || j >= ids.length) return w
+  ;[ids[i], ids[j]] = [ids[j], ids[i]]
+  return { ...w, wtabOrder: ids }
 }

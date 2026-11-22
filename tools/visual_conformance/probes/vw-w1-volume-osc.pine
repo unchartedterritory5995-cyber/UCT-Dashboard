@@ -1,0 +1,22 @@
+//@version=6
+indicator("vw-w1-volume-osc")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w1.md, W1-C (rows C01-C03, C02/C12, C04/C05, C06-C08, C09/C10). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: ta.iii (which printed body: C02 must read 0, C12 must not), ta.wvad, ta.wad and its first bar, ta.cmo and ta.cog values and first bars; C11 / C13 mark flat and zero-volume bars.
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING, inputs at defaults.
+
+plot(ta.iii, "C01_iii")
+plot(ta.iii - (2 * close - high - low) / ((high - low) * volume), "C02_iii_minus_reference_ZERO")
+plot(ta.wvad, "C03_wvad")
+plot(ta.wad, "C04_wad")
+plot(na(ta.wad) ? -1 : bar_index, "C05_wad_first_bar")
+plot(ta.cmo(close, 5), "C06_cmo_5")
+plot(ta.cmo(close, 14), "C07_cmo_14")
+plot(na(ta.cmo(close, 5)) ? -1 : bar_index, "C08_cmo_first_bar")
+plot(ta.cog(close, 10), "C09_cog_10")
+plot(na(ta.cog(close, 10)) ? -1 : bar_index, "C10_cog_first_bar")
+plot(high == low ? 1 : 0, "C11_flat_bar_marker")
+plot(ta.iii - ((2 * close - high - low) / (high - low)) * volume, "C12_iii_minus_v5_page_body_NONZERO")
+plot(volume == 0 ? 1 : 0, "C13_zero_volume_marker")

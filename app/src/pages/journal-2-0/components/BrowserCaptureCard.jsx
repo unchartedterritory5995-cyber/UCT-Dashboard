@@ -42,6 +42,12 @@ function when(iso) {
   })
 }
 
+// Visual audit issue 18: these links rendered the UA's default blue (#0000EE)
+// under a parent at opacity 0.75 -- 1.59:1, an axe "serious". The links now use
+// the theme accent with an underline, and the muted line uses --text-muted
+// rather than opacity (opacity dimmed the link along with the words).
+const LINK_STYLE = { color: 'var(--accent)', textDecoration: 'underline' }
+
 export default function BrowserCaptureCard() {
   const { data, error, isLoading, mutate } = useSWR(URL, fetcher, { revalidateOnFocus: false })
   const [busyId, setBusyId] = useState(null)
@@ -70,9 +76,9 @@ export default function BrowserCaptureCard() {
       {error && <div style={{ opacity: 0.7 }}>Could not load your connections.</div>}
 
       {!isLoading && !error && connections.length === 0 && (
-        <div style={{ opacity: 0.75, lineHeight: 1.6 }}>
+        <div style={{ color: 'var(--text-muted)', lineHeight: 1.6 }}>
           Not connected.{' '}
-          <a href={CAPTURE_INSTALL_URL} target="_blank" rel="noopener noreferrer">
+          <a href={CAPTURE_INSTALL_URL} target="_blank" rel="noopener noreferrer" style={LINK_STYLE}>
             Install the UCT Browser Capture extension
           </a>{' '}
           (Chrome) and choose Connect to save research from any page into your Notebook.
@@ -80,9 +86,9 @@ export default function BrowserCaptureCard() {
       )}
 
       {!isLoading && !error && connections.length > 0 && (
-        <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
           On another computer?{' '}
-          <a href={CAPTURE_INSTALL_URL} target="_blank" rel="noopener noreferrer">
+          <a href={CAPTURE_INSTALL_URL} target="_blank" rel="noopener noreferrer" style={LINK_STYLE}>
             Get the extension
           </a>
         </div>

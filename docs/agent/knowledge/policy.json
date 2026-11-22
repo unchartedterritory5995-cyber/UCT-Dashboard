@@ -1,0 +1,179 @@
+{
+  "policy_version": 5,
+  "about": "UCT Agent knowledge source policy (KN-1). DEFAULT-DENY: a Brain Pack source the policy does not list as admitted is invisible to the Agent. Admitting a source is an owner decision recorded here as a reviewed diff. Read per request by api/services/uct_agent/knowledge/policy.py.",
+  "approval": {
+    "by": "owner",
+    "on": "2026-11-03",
+    "scope": "overnight implementation program: team-owned sources only; third-party, Substack intake, tweets, YouTube and other unresolved sources excluded"
+  },
+  "sources": {
+    "trader_archive": {
+      "admit": true,
+      "licence": "team_owned",
+      "label": "the UCT team's own posts (dated)"
+    },
+    "setup_knowledge": {
+      "admit": true,
+      "licence": "team_owned",
+      "label": "the UCT team playbook (distilled, unattributed)"
+    },
+    "self_review": {
+      "admit": false,
+      "licence": "firm_generated",
+      "label": "the brain's own post-market self-review",
+      "pending": "not explicitly approved on 2026-11-03; candidate for owner approval"
+    },
+    "manual": {
+      "admit": false,
+      "licence": "firm_curated",
+      "label": "manually curated firm rows",
+      "pending": "not explicitly approved on 2026-11-03"
+    },
+    "chart_intake": {
+      "admit": false,
+      "licence": "firm_curated",
+      "label": "the brain's chart case studies",
+      "pending": "not explicitly approved on 2026-11-03"
+    },
+    "wisdom": {
+      "admit": false,
+      "licence": "team_owned",
+      "label": "Wisdom-published rows",
+      "pending": "WISDOM_BRAINKB_PUBLISH_ENABLED is off; not reviewed for the Agent"
+    }
+  },
+  "prefix_classes": [
+    {
+      "prefix": "intake:x_",
+      "licence": "third_party_attributed",
+      "reason": "tweets / X intake"
+    },
+    {
+      "prefix": "intake:youtube_",
+      "licence": "third_party_attributed",
+      "reason": "YouTube intake"
+    },
+    {
+      "prefix": "intake:substack_",
+      "licence": "substack_intake",
+      "reason": "Substack intake (licensing unresolved)"
+    },
+    {
+      "prefix": "intake:discord_",
+      "licence": "unresolved",
+      "reason": "Discord intake (not reviewed for the Agent)"
+    },
+    {
+      "prefix": "intake:",
+      "licence": "unresolved",
+      "reason": "other intake documents (not reviewed for the Agent)"
+    }
+  ],
+  "excluded_categories": [
+    "TEST"
+  ],
+  "dated_categories": [
+    "MACRO",
+    "REGIME",
+    "SECTOR"
+  ],
+  "dated_max_age_days": 30,
+  "trader_aliases": {
+    "TSDR_Trading": "TSDR",
+    "1ChartMaster": "Chartmaster",
+    "Uncharted Territory": "UCT Team"
+  },
+  "search": {
+    "k_max": 3,
+    "excerpt_chars": 500,
+    "candidates": 40,
+    "max_reads_per_turn": 4,
+    "turn_excerpt_chars": 3000
+  },
+  "stats": {
+    "n_min": 30,
+    "interval": "wilson95"
+  },
+  "pack": {
+    "stale_days": 4,
+    "stats_stale_days": 14,
+    "stats_data_stale_days": 30
+  },
+  "model_access": {
+    "status": "conditionally approved for design and testing (owner, 2026-11-03)",
+    "conditions": [
+      "admin-only",
+      "provider terms verified",
+      "only approved team-owned sources",
+      "no restricted scores, credentials or private data",
+      "passages are untrusted data (B2 frame)",
+      "only the excerpts needed (caps in `search`)",
+      "cost limits enforced"
+    ],
+    "transcript_retention": "NOT approved; see branch agent/kn/retention-proposal (design only)"
+  },
+  "templates": {
+    "about": "setup_templates carry no source column; a template's source is its origin_trader. Only templates written by the UCT team are approved team-owned content. Presence in the Brain Pack is not approval.",
+    "team_origins": [
+      "TSDR",
+      "Bracco",
+      "Manrav",
+      "Chartmaster",
+      "Jersace",
+      "AtTheAsk",
+      "UCT",
+      "UCT Team"
+    ],
+    "team_licence": "team_owned",
+    "other_licence": "third_party_methodology",
+    "unresolved_origins": [
+      "various",
+      ""
+    ],
+    "rights_cleared_concepts": [],
+    "rights_cleared_about": "Team-authored explanations of GENERAL concepts that are not the team's own setups may be served only after a provenance and rights review. Entry shape: {template, provenance_ref, rights_review_ref, approved_by, approved_on}; every field required. Empty: nothing is cleared yet (owner 2026-11-03). EP, VCP, HTF and Stage 2 stay blocked."
+  },
+  "records": {
+    "team_archive": {
+      "admit": true,
+      "licence": "team_owned",
+      "label": "the UCT team's own posted calls, scored after the fact"
+    },
+    "setup_performance": {
+      "admit": "conditional",
+      "licence": "firm_generated",
+      "label": "the brain's own logged trades",
+      "methodology_id": "uct-brain.setup_performance/v1",
+      "methodology": "the brain's own EP-candidate trades for the setup x regime; win = latest follow-through > 0; outcome at each trade's own exit; no base-rate control",
+      "conditions": [
+        "provenance",
+        "calculation_date (stale after stats_stale_days -> withheld)",
+        "n >= stats.n_min (else no figures)",
+        "methodology_id",
+        "uncertainty (Wilson 95% interval)"
+      ],
+      "approval": "owner 2026-11-03: CONDITIONALLY APPROVED; anything failing a condition stays source_not_approved"
+    },
+    "trigger_performance": {
+      "admit": "conditional",
+      "licence": "firm_generated",
+      "label": "UCT's published setup triggers, resolved after the fact",
+      "methodology_id": "uct-brain.trigger_performance/v1",
+      "methodology": "published leadership-list setup triggers, resolved win/loss after the fact; expectancy in R; never-triggered excluded; no base-rate control",
+      "conditions": [
+        "provenance",
+        "calculation_date (stale after stats_stale_days -> withheld)",
+        "n >= stats.n_min (else no figures)",
+        "methodology_id",
+        "uncertainty (Wilson 95% interval)"
+      ],
+      "approval": "owner 2026-11-03: CONDITIONALLY APPROVED; anything failing a condition stays source_not_approved"
+    }
+  },
+  "cleared_rows": [],
+  "cleared_rows_about": "Owner decisions 2026-11-03/04: an admitted row that NAMES an excluded setup is withheld pending provenance and rights review (see excluded_setup_mentions). A row is served only after review, listed here as {kb_id, content_sha, provenance_ref, rights_review_ref, approved_by, approved_on}: every field required, approved_by a name, approved_on an ISO date not in the future, content_sha the sha256 the index records for the reviewed text (a changed text loses its clearance). Empty: nothing is cleared yet.",
+  "excluded_setup_mentions": {
+    "mode": "withhold",
+    "about": "Owner directive 2026-11-04 (withhold uncertain; a commentary label never makes restricted content permissible): 'withhold' = every admitted row that names an excluded setup is withheld unless it is on cleared_rows. 'serve_flagged' (owner only) re-admits rows WITHOUT definitional wording as a block, served flagged commentary_only; definitional rows stay withheld either way."
+  }
+}

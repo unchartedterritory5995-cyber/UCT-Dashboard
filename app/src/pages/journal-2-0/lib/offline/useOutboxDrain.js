@@ -13,11 +13,13 @@
  * has open, with its own backoff; this drains everything else.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { mutate as globalMutate } from 'swr'
 import { createNoteViaApi } from '../noteCreation'
 import { notebookSchemaHeaders } from '../notebookSchema'
+import { noteReadKey } from '../noteReadKey'
 import { listOutbox, offlineStorageAvailable } from './notebookDb'
 import { offlineEnabled } from './offlineFlag'
-import { FORKED, NO_BASELINE, SENT, drainOutbox, summarize } from './outboxDrain'
+import { FORKED, NO_BASELINE, SENT, SUPERSEDED, drainOutbox, summarize } from './outboxDrain'
 import { postBlockedBaseline } from './blockedBaselineEvent'
 import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../notebookTelemetry'
 import {
@@ -56,7 +58,8 @@ export const RETRY_INTERVAL_MS = 60000
  * the wrong direction on every axis.
  */
 export async function serverCopyIsOursDefault(entry, { landedRevisions = null } = {}) {
-  const res = await fetch(`/api/j2/notes/${entry.noteId}`, { credentials: 'include' })
+  // ⭐ Follow-up D: `no-store` — a record's clean mark can rest on this read, so it must be the server's answer.
+  const res = await fetch(`/api/j2/notes/${entry.noteId}`, { credentials: 'include', cache: 'no-store' })
   if (!res.ok) {
     const err = new Error(`${res.status}`)
     err.status = res.status
@@ -193,6 +196,8 @@ export function useOutboxDrain({
   /** Injected so a rail can drive the 409 self-supersede without a network. */
   serverCopyIsOurs = serverCopyIsOursDefault,
   intervalMs = RETRY_INTERVAL_MS,
+  /** Final fix pass, item 1: SWR's global `mutate` unless a rail passes its own. */
+  mutate = null,
 } = {}) {
   // ⛔ The same gate. Nothing drains — and nothing even claims leadership —
   // until the §32 matrix has been reported.
@@ -224,6 +229,8 @@ export function useOutboxDrain({
   reportRef.current = report
   const serverCopyIsOursRef = useRef(serverCopyIsOurs)
   serverCopyIsOursRef.current = serverCopyIsOurs
+  const mutateRef = useRef(mutate)
+  mutateRef.current = mutate
 
   // ── leadership ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -330,6 +337,29 @@ export function useOutboxDrain({
       for (const r of results) {
         if (r?.outcome !== SENT) continue
         trackNotebookEvent(NOTEBOOK_EVENTS.SAVE_SUCCESS, { door: 'outbox', queued: true })
+      }
+      // ⭐ Final fix pass, item 1: a drained note's cached read is dropped, so a reopen loads the
+      // server copy (it used to mount the read from before these words, and the next PUT forked).
+      // SENT (the server took the words), SUPERSEDED (it already held them, from a save whose reply
+      // this tab may never have read) and FORKED (another revision stands) each leave the server copy
+      // different from what this tab may have cached. A queued copy (`r.copy`) writes a NEW note and
+      // leaves its source alone. Never the note this tab has open now: its editor reads that key, and
+      // the drain skips it, but it can open while the drain runs. Swallowed: a failed drop is a stale
+      // read until the next load, never a change to what the drain returns.
+      // ⛔ Round 2 (A1): and only a note NO editor owns. The side pane's editor, or one in another tab,
+      // mounts the same read, and clearing it drops that editor to the loading skeleton under the
+      // member's hands. The drain's own question, asked again now: only an answer of exactly `false`
+      // clears; `true`, unknown (`null`, a query slower than OWNER_QUERY_TIMEOUT_MS) or a throw keep
+      // the cached read, as before round 1.
+      for (const r of results) {
+        if (r?.copy || (r?.outcome !== SENT && r?.outcome !== SUPERSEDED && r?.outcome !== FORKED)) continue
+        if (r.noteId === excludeRef.current) continue
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          if ((await isNoteOwned(accountId, r.noteId)) !== false) continue
+          const p = (mutateRef.current || globalMutate)(noteReadKey(r.noteId), undefined, { revalidate: true })
+          if (p && typeof p.catch === 'function') p.catch(() => {})
+        } catch { /* a cache drop is not a guard */ }
       }
       const s = summarize(results)
       setLastSummary(s)

@@ -1,0 +1,16 @@
+//@version=6
+indicator("UCTPROBE_VW_INPUT_TIME_CONFIRM", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for RULING-0927 r1 (docs/pine/capture-queue-2026-09-27.md).
+// NEVER COMPILED ON TRADINGVIEW. What `confirm = true` hands the script.
+//
+// With `confirm = true` TradingView asks the member to pick the time on the chart when the
+// script is added. Refused by name on every lane until this is captured: is the value the
+// author's default, the picked time, or does the script not run until one is picked?
+//
+// ⛔ CAPTURE: AMEX:SPY 1D. Add the study, PICK a bar on the chart (record its date), let it run,
+// then capture. C01 is the value in days; C02 the picked bar's own time in days, as a control.
+
+c = input.time(timestamp("18 May 2022 00:00 +0000"), "Pick", confirm = true)
+plot(c / 86400000.0, "C01_confirmed_time_DAYS")
+plot(time / 86400000.0, "C02_bar_time_DAYS_CONTROL")

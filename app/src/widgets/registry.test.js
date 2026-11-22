@@ -22,6 +22,7 @@ import {
   WORKSPACE_PICKER_TYPES,
   TAB_PICKER_TYPES,
   PICKER_ONLY_WIDGETS,
+  HIDDEN_WIDGETS,
   WORKSPACE_MENU_TYPES_ALL,
   TAB_MENU_TYPES_ALL,
   TAB_MENU_TYPES,
@@ -108,7 +109,7 @@ describe('widget registry — metadata pins', () => {
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
       indexes: 'Indexes', marketcontext: 'Market Context',
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
-      alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
+      alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News', researchLibrary: 'UCT News',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book', tradeExchangeHeadline: 'UCT News headline',
@@ -142,7 +143,7 @@ describe('widget registry — metadata pins', () => {
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
       indexes: 'Indexes', marketcontext: 'Market Context',
       aisearch: 'AI Search', news: 'News & Catalysts', notebook: 'Notebook', profile: 'Stock Profile',
-      alerts: 'Alerts', calendar: 'UCT Terminal', optionsflow: 'Options Flow',
+      alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Options Flow',
       periodsort: 'Period Sort', nhnl: 'New Highs / Lows', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume Surge', scatter: 'Market Map', tradeExchangeNews: 'News', researchLibrary: 'Research Library',
       screener: 'Screener', cot: 'COT Positioning', modelbook: 'Model Book', tradeExchangeHeadline: 'UCT News headline',
@@ -176,7 +177,7 @@ describe('widget registry — metadata pins', () => {
       scanner: 'Scanner', fundamentals: 'Fundamentals', breadth: 'Breadth',
       indexes: 'Indexes', marketcontext: 'Context',
       aisearch: 'AI Search', news: 'News', notebook: 'Notebook', profile: 'Profile',
-      alerts: 'Alerts', calendar: 'Terminal', optionsflow: 'Flow',
+      alerts: 'Alerts', calendar: 'Calendar', optionsflow: 'Flow',
       periodsort: 'Period Sort', nhnl: 'NH / NL', nhnlPulse: 'H/L Pulse',
       volumescan: 'Volume', scatter: 'Map', tradeExchangeNews: 'News', researchLibrary: 'News',
       screener: 'Screener', cot: 'COT', modelbook: 'Model Book', tradeExchangeHeadline: 'Headline',
@@ -295,23 +296,32 @@ describe('widget registry — metadata pins', () => {
     expect(TAB_MENU_TYPES_ALL).toEqual(WORKSPACE_MENU_TYPES_ALL)
   })
 
-  it('⛔ and what THIS RELEASE offers is that set minus the Wave R capture widgets', () => {
+  it('⛔ and what THIS RELEASE offers is that set minus the Wave R capture widgets and the hidden ones', () => {
     // The gate itself (both directions, plus menuGroups) is owned by
     // ./captureRelease.test.js. This is the pin that the registry's own exported
     // menus are the GATED ones — i.e. that the gate is actually applied here,
     // rather than being a helper nobody calls.
     expect(WORKSPACE_PICKER_TYPES).toEqual(
-      WORKSPACE_MENU_TYPES_ALL.filter(id => !UNRELEASED_CAPTURE_WIDGETS.includes(id)),
+      WORKSPACE_MENU_TYPES_ALL.filter(id => !UNRELEASED_CAPTURE_WIDGETS.includes(id) && !HIDDEN_WIDGETS.includes(id)),
     )
+    // Owner 2026-11-13: exactly these eleven are offered on /charts.
+    expect(WORKSPACE_PICKER_TYPES).toEqual([
+      'chart', 'watchlist', 'themes', 'scanner', 'breadth',
+      'notebook', 'alerts', 'calendar', 'optionsflow', 'nhnl', 'tradeExchangeNews',
+    ])
     expect(TAB_PICKER_TYPES).toEqual(WORKSPACE_PICKER_TYPES)
     expect(WORKSPACE_PICKER_TYPES.length).toBeLessThan(WORKSPACE_MENU_TYPES_ALL.length)
-    // UCT Agent's lists are the member lists minus PICKER_ONLY_WIDGETS (UCT News).
-    expect(WORKSPACE_MENU_TYPES).toEqual(WORKSPACE_PICKER_TYPES.filter(id => !PICKER_ONLY_WIDGETS.includes(id)))
+    // UCT Agent's lists are the released set minus PICKER_ONLY_WIDGETS (UCT News); the
+    // owner's HIDDEN_WIDGETS leave member menus only — the admin-only Agent keeps them.
+    expect(WORKSPACE_MENU_TYPES).toEqual(
+      WORKSPACE_MENU_TYPES_ALL.filter(id => !UNRELEASED_CAPTURE_WIDGETS.includes(id) && !PICKER_ONLY_WIDGETS.includes(id)),
+    )
+    for (const id of HIDDEN_WIDGETS) expect(WORKSPACE_MENU_TYPES).toContain(id)
     expect(TAB_MENU_TYPES).toEqual(WORKSPACE_MENU_TYPES)
   })
 
-  it('mobile offers exactly the 5 phone-usable types', () => {
-    expect(MOBILE_MENU_TYPES).toEqual(['chart', 'watchlist', 'themes', 'scanner', 'fundamentals'])
+  it('mobile offers exactly the phone-usable types that are not hidden', () => {
+    expect(MOBILE_MENU_TYPES).toEqual(['chart', 'watchlist', 'themes', 'scanner'])
   })
 
   it('journal slash menu offers only types with an in-editor render path (v1: chart)', () => {

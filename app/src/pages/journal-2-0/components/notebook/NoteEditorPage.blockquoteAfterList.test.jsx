@@ -92,7 +92,7 @@ describe('G-131 (second finding): "❝" after "1. List" -- desktop, reproduces t
     // by name('❝') after disabling it would itself fail. React reuses this
     // same DOM node across re-renders (fixed JSX position), so holding the
     // reference is what lets the test read its RENDERED state at each step.
-    const blockquoteBtn = within(toolbar).getByRole('button', { name: '❝' })
+    const blockquoteBtn = within(toolbar).getByRole('button', { name: 'Quote' })
     expect(blockquoteBtn).not.toBeDisabled()
 
     editor.commands.setTextSelection(3)
@@ -128,9 +128,10 @@ describe('G-131 (second finding): "❝" after "1. List" -- desktop, reproduces t
     editor.commands.setTextSelection(3)
     expect(editor.isActive('orderedList')).toBe(false)
 
-    const blockquoteBtn = within(toolbar).getByRole('button', { name: '❝' })
+    const blockquoteBtn = within(toolbar).getByRole('button', { name: 'Quote' })
     expect(blockquoteBtn, 'enabled on a plain paragraph').not.toBeDisabled()
-    expect(blockquoteBtn.title || '').toBe('')
+    // VIS-6 fix round 1: an icon button, so its plain name rides the title; the refusal sentence is not shown.
+    expect(blockquoteBtn.title).toBe('Quote')
 
     fireEvent.mouseDown(blockquoteBtn)
     fireEvent.click(blockquoteBtn)

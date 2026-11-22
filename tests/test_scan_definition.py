@@ -422,7 +422,10 @@ def test_the_node_types_this_module_branches_on_ARE_the_declared_ones():
                 scan_definition._OFFSET, scan_definition._TF,
                 scan_definition._SYM, scan_definition._TF_LIVE,
                 scan_definition._STR, scan_definition._SYMTEXT,
-                scan_definition._TEXTOP, scan_definition._LTF)
+                scan_definition._TEXTOP, scan_definition._LTF,
+                # ENGINE 55: Pine's merged higher-timeframe read, branched with `_TF`
+                # and refused as a screen by name (`assert_scannable`).
+                scan_definition._TF_MERGE)
     assert set(branched) == set(ast_interpret.NODE_TYPES)
     assert len(set(branched)) == len(ast_interpret.NODE_TYPES)
     assert set(branched) == set(user_definitions.NODE_TYPES)

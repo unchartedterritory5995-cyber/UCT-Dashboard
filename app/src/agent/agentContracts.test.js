@@ -9,7 +9,7 @@
 //    names a registered capability; a kind that keeps no Undo never has a capability claiming one.
 // 4. SCALING — past `routingThreshold` capabilities the flat manifest must give way to relevance
 //    routing (docs/agent/CAPABILITY-CONTRACT.md §Scaling); this fails first.
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { registerBuiltins } from './builtins'
@@ -72,6 +72,45 @@ describe('golden manifest (the JS ⇄ Python contract)', () => {
     for (const c of manifest) { const g = groupOfAction(c.name); by[g] = (by[g] || 0) + 1 }
     for (const [g, n] of Object.entries(by)) expect(n, g).toBeLessThanOrEqual(CAT.maxGroupSize)
   })
+  // T1 cap raise (2026-11-13): the golden above is the UNARMED Charts catalog. The browser's real catalog is larger
+  // once /api/agent/config arms the server-gated builtins (data kinds, research, history, knowledge, coach), and
+  // planner v2 sends it WHOLE (turn_v2.MAX_CAPABILITIES_V2 == maxRegistered, tests/test_uct_agent_contract.py).
+  // So the cap is held against the MAX-ARMED catalog: every server gate open, every surface, every ctx flag on.
+  // A fresh module graph keeps the armed registry out of this file's other tests.
+  it('🔴 the MAX-ARMED catalog (every server-gated builtin registered) stays under maxRegistered', async () => {
+    vi.resetModules()
+    const KINDS = ['instrument.resolve', 'quote', 'quotes', 'bars.daily', 'fundamentals', 'earnings', 'news.company', 'themes',
+      'screen.run', 'screen.count', 'screen.saved', 'history.eventStudy', 'research.company',
+      'knowledge.search', 'setup.playbook', 'setup.record', 'breadth.current', 'ratings', 'cot.positioning']
+    const cfg = { stream: true, nl1: true, data: true, scan: true, news: true, coach: true, routing_v2: true, planner: 'v2', data_kinds: KINDS }
+    const realFetch = globalThis.fetch
+    globalThis.fetch = vi.fn(async (url) => new Response(JSON.stringify(String(url).endsWith('/api/agent/config') ? cfg : {}),
+      { status: String(url).endsWith('/api/agent/config') ? 200 : 404, headers: { 'content-type': 'application/json' } }))
+    try {
+      const client = await import('./agentClient')
+      client._resetAgentConfig()
+      await client.loadAgentConfig()
+      expect(client.serverDataKinds()).toEqual(KINDS)
+      const b = await import('./builtins')
+      const caps = await import('./capabilities')
+      b.registerBuiltins()
+      const ungated = new Set(caps.allCapabilityNames())
+      b.registerServerGatedBuiltins()
+      const gated = caps.allCapabilityNames().filter(n => !ungated.has(n))
+      // every server-gated family actually armed (a gate this list misses would make the bound a proxy again)
+      for (const n of ['stock.quote', 'stock.dailyBars', 'stock.themes', 'research.ask', 'history.afterEvent', 'chart.describeSetup',
+        'playbook.explain', 'playbook.setup', 'playbook.record', 'cot.positioning']) expect(gated, n).toContain(n)
+      expect(gated.some(n => n.startsWith('coach.'))).toBe(true)
+      const surfaces = ['charts', 'screener', 'breadth', 'calendar', 'journal', 'home']
+      const sizes = surfaces.map(s => caps.manifestFor({ surface: s, createIndicator: true, manageIndicators: true }).length)
+      const maxArmed = Math.max(...sizes)
+      console.info(`[cap] max-armed catalog = ${maxArmed} (charts ${sizes[0]}; registered ${caps.allCapabilityNames().length}; gated ${gated.length}; golden ${manifest.length}); maxRegistered = ${CAT.maxRegistered}`)
+      expect(maxArmed).toBeGreaterThan(manifest.length)
+      expect(maxArmed).toBeLessThanOrEqual(CAT.maxRegistered)
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  })
   describe('a synthetic 150-action catalog (the anticipated Charts size)', () => {
     const fake = (domain, n) => Array.from({ length: n }, (_, i) => ({ ...manifest[0], name: `${domain}.fake${i}`, domain }))
     const big = [...manifest, ...fake('chart', 30), ...fake('widget', 15), ...fake('watchlist', 20), ...fake('screener', 25)].slice(0, 150)
@@ -103,7 +142,8 @@ describe('product drift — the Agent offers exactly what the product has', () =
     expect(enumOf('widget.addCharts', 'chart_type')).toEqual(ids)
   })
   it('timeframes = timeframes.NATIVE_TFS (setTimeframe and addCharts)', () => {
-    expect(enumOf('chart.setTimeframe', 'timeframe')).toEqual(NATIVE_TFS)
+    // + the timeframe keys' one-rung step (C1-011): next / previous, read against the chart's own timeframe
+    expect(enumOf('chart.setTimeframe', 'timeframe')).toEqual([...NATIVE_TFS, 'next', 'previous'])
     expect(enumOf('widget.addCharts', 'timeframe')).toEqual(NATIVE_TFS)
   })
   it('chart themes = chartThemes.CHART_THEMES; widget types = registry.WORKSPACE_MENU_TYPES', () => {
@@ -122,7 +162,8 @@ describe('product drift — the Agent offers exactly what the product has', () =
 
 describe('knowing ≠ doing', () => {
   it('chart.setSetting offers exactly the descriptor rows classified eligible — nothing else', () => {
-    expect(enumOf('chart.setSetting', 'setting')).toEqual(ELIGIBLE_SETTINGS.map(d => d.id))
+    // + the two LIST settings (execution family L): which fields the Info row and the Bar info strip print
+    expect(enumOf('chart.setSetting', 'setting')).toEqual([...ELIGIBLE_SETTINGS.map(d => d.id), 'header.fields', 'header.barInfo'])
     for (const d of CHART_SETTING_DESCRIPTORS.filter(x => x.agent !== 'eligible')) {
       expect(enumOf('chart.setSetting', 'setting'), d.id).not.toContain(d.id)
     }

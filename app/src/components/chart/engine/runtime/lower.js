@@ -156,6 +156,7 @@ export function lowerTree(ast, bars, inputs, opts) {
       case 'call':
       case 'tf':
       case 'tf_live':
+      case 'tf_merge':
       case 'sym':
       case 'ltf':
         emit(OP.READ_COLUMN, columnIndex(n))

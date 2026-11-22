@@ -60,6 +60,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { fromAst } from './criteria'
 import { AuthContext } from '../../../context/AuthContext'
@@ -130,7 +131,7 @@ const type = async (el, value) => { await set(el, value); await settle() }
 const chart = { settings: { indicatorInstances: [] } }
 function mount() {
   chart.settings = { indicatorInstances: [] }
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet
@@ -142,13 +143,15 @@ function mount() {
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
 async function addPlot(n, key, source, style = 'line') {
-  await click(screen.getByTestId('add-plot'))
+  await click((openPlots(), screen.getByTestId('add-plot')))
   await set(screen.getByLabelText(`Plot ${n} key`), key)
   await set(screen.getByLabelText(`Plot ${n} label`), key.toUpperCase())
-  await set(screen.getByLabelText(`Plot ${n} style`), style)
+  chooseValue(`Plot ${n} style`, style)
   await type(screen.getByLabelText(`Formula for plot ${n}`), source)
 }
 async function save(name) {
@@ -196,7 +199,7 @@ describe('A1 — author MACD-with-histogram, one def_hash at every surface', () 
     mount(); await flush()
 
     // ── the four rows, typed from the PUBLISHED fixture's own sources ────────
-    await type(screen.getByLabelText('Formula'), fx.sources.macd)
+    await type(formulaBox(), fx.sources.macd)
     await set(screen.getByLabelText('Plot 1 key'), 'macd')
     await addPlot(2, 'signal', fx.sources.signal)
     await addPlot(3, 'hist', fx.sources.hist, 'histogram')
@@ -208,12 +211,12 @@ describe('A1 — author MACD-with-histogram, one def_hash at every surface', () 
     // Declared, not spent inside a tree, because the four trees must stay
     // byte-identical to the cross-lane fixture; the second case below spends
     // one inside a tree and re-checks the whole agreement on a DIFFERENT hash.
-    await click(screen.getByTestId('add-input'))
+    await click((openInputs(), screen.getByTestId('add-input')))
     await set(screen.getByLabelText('Input 1 name'), 'fast')
     await set(screen.getByLabelText('Input 1 default'), '12')
 
     // Own pane + a zero guide — A1's "overlay/pane" and "styles" half.
-    await set(screen.getByLabelText('Placement'), 'pane')
+    chooseValue('Placement', 'pane')
     await set(screen.getByLabelText('Levels'), '0')
 
     await save('MACD v2')
@@ -285,7 +288,7 @@ describe('A1 — author MACD-with-histogram, one def_hash at every surface', () 
 
   it('🔴 the scan tree is a real 0/1 column and the three drawn plots agree with each other', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), fx.sources.macd)
+    await type(formulaBox(), fx.sources.macd)
     await set(screen.getByLabelText('Plot 1 key'), 'macd')
     await addPlot(2, 'signal', fx.sources.signal)
     await addPlot(3, 'hist', fx.sources.hist, 'histogram')
@@ -365,14 +368,14 @@ describe('A1 — author MACD-with-histogram, one def_hash at every surface', () 
     // an OVERLAY placement (A1's other half) must move NOTHING: `def_hash` names
     // the maths, so chrome cannot be inside it.
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), fx.sources.macd)
+    await type(formulaBox(), fx.sources.macd)
     await set(screen.getByLabelText('Plot 1 key'), 'macd')
-    await click(screen.getByTestId('add-input'))
+    await click((openInputs(), screen.getByTestId('add-input')))
     await set(screen.getByLabelText('Input 1 name'), 'fast')
     await set(screen.getByLabelText('Input 1 default'), '12')
     await addPlot(2, 'tuned_up', 'ema(close, 20) * fast > ema(close, 26)')
     await click(screen.getByLabelText('Scan on plot 2'))
-    await set(screen.getByLabelText('Placement'), 'price')
+    chooseValue('Placement', 'price')
     await save('MACD overlay')
     const doc = sent()
 

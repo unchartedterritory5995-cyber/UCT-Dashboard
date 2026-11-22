@@ -131,18 +131,41 @@ describe('H4 (1) — a call-site length that is constant arithmetic', () => {
     sameColumn(runtime(b, plotIndex(b)), runtime(a, plotIndex(a)), 'inline sum')
   })
 
-  it('⛔ a `/` or `%` length keeps its refusal (Pine\'s integer division is version-dependent)', () => {
-    for (const e of ['vl3 / 2', 'vl3 % 5']) {
-      const p = probeRuntimeProgram(wmaScript(e))
-      expect(p.ok, e).toBe(false)
-      expect(p.refusal.guard, e).toBe('runtime:history-dynamic-offset')
-    }
+  it('⛔ a `/` length keeps its refusal (Pine\'s integer division is version-dependent): DY1, by name', () => {
+    const p = probeRuntimeProgram(wmaScript('vl3 / 2'))
+    expect(p.ok).toBe(false)
+    expect(p.refusal.guard).toBe('runtime:history-dynamic-offset')
+    expect(p.refusal.message).toMatch(/built with `\/`.*DY1/)
   })
 
-  it('volume-divergence-by-mm is past the length wall (its next wall is `pivotlow` over state)', () => {
+  // ⭐ A1 (feat/a1-series-param-offsets, engine 91): a `%` of whole numbers is whole in every version, and the
+  // copy its call site compiles reads it per bar (the frozen fold still refuses it, T17, so the window is not FIXED):
+  // `vl3 % 5` = 3 here, and the loop runs 3 passes on every bar. (G04 of the vw-udt-fn-global-history witness grades a
+  // per-bar `bar_index % 3` MATCH against TradingView on every bar.) It was refused here.
+  it('⭐ a `%` length of whole numbers is read per bar (A1): 3 passes, equal to the hand replay on every bar', () => {
+    const src = wmaScript('vl3 % 5')
+    const got = runtime(src, plotIndex(src))
+    const { n, open, close, volume } = series()
+    const y = 13 % 5
+    const want = Array.from({ length: n }, (_, t) => {
+      let norm = 0
+      let sum = 0
+      for (let i = 0; i <= y - 1; i += 1) {
+        const w = (y - i) * y
+        norm += w
+        const f = at(close, t, i) < at(open, t, i) ? -1 : 1
+        sum += at(volume, t, i) * w * f
+      }
+      return sum / norm
+    })
+    expect(sameColumn(got, want, 'pine_wma(volume, vl3 % 5)')).toBe(n - (y - 1))
+  })
+
+  it('volume-divergence-by-mm is past the length wall AND the `pivotlow` wall: it builds (W4 T10)', () => {
+    // ⭐ W4 T10 — its next wall was `ta.pivotlow` over state (`runtime:call-windowed-state`);
+    // `CARRIED.pivotLowPine` serves it, and the program now attaches.
     const p = probeRuntimeProgram(corpus('volume-divergence-by-mm'))
-    expect(p.ok).toBe(false)
-    expect(p.refusal.guard).toBe('runtime:call-windowed-state')
+    expect(p.ok, p.ok ? '' : `${p.refusal.guard}: ${p.refusal.message}`).toBe(true)
   })
 })
 

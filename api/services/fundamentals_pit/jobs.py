@@ -167,6 +167,9 @@ def main(argv=None) -> int:
                     help="publish to R2 in THIS process only (sets FUNDAMENTALS_PIT_PUBLISH_R2 locally)")
     a = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    # ⛔ credentials never reach a log line: filter on the handlers basicConfig just made
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     from .backfill import quiet_http_loggers
     quiet_http_loggers()
     if a.r2:

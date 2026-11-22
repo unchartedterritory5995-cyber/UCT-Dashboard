@@ -46,6 +46,7 @@ import MonthView from './calendar/MonthView'
 import DayDetailDrawer from './calendar/DayDetailDrawer'
 import MineNotice from './calendar/MineNotice'
 import styles from './calendar/Calendar.module.css'
+import { useCalendarAgentHost } from '../agent/hosts/usePageAgentHosts'
 
 // ── Helpers ported verbatim from the original Calendar.jsx ──────────────────
 // These keep EarningsModal rendering identical to the old page.
@@ -846,6 +847,8 @@ export default function Calendar({ mine = false } = {}) {
     />
   )
 
+  // ⭐ W2-C1: what UCT Agent may read of this page (read only: the loaded week by day and session, the view)
+  useCalendarAgentHost({ data, weekLabel, view, loading: !data })
   // ── Loading / error states (below the always-live header) ────────────────
   // `range_error` (2026-09-03 range_empty follow-up) is the honest signal
   // that both earnings providers failed for a paged week — reusing this

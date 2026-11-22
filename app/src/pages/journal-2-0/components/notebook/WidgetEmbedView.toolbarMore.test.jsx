@@ -60,8 +60,9 @@ describe('the chart toolbar folds the rarely-used actions under More', () => {
     const names = within(bar).getAllByRole('button').map((b) => b.getAttribute('aria-label') || b.textContent.trim())
     expect(names).toEqual(expect.arrayContaining(['Plan', 'Replay', 'More chart actions']))
     for (const moved of MOVED) expect(names).not.toContain(moved)
-    // The row's other controls are not in the row either: no Live/Half/Charts link.
-    expect(within(bar).queryByText('Live')).toBeNull()
+    // The row's other controls are not in the row either: no Half/Charts link.
+    // (Audit 2026-11-05, S3: Live / Snapshot DID move into the header, as a labelled segment.)
+    expect(within(bar).getByRole('group', { name: 'Live or snapshot' })).toBeTruthy()
     expect(within(bar).queryByText('Half')).toBeNull()
     expect(within(bar).queryByRole('link')).toBeNull()
     fireEvent.click(within(bar).getByRole('button', { name: 'More chart actions' }))

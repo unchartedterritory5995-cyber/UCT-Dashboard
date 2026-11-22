@@ -5,7 +5,7 @@
   align-items: center;
   gap: 6px;
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--br-line, var(--border));
 }
 
 /* The pills are their own flex track so they can scroll independently of the
@@ -19,47 +19,44 @@
 
 .label {
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--br-faint, var(--text-muted));
   margin-right: 4px;
 }
 
 .btn {
-  padding: 5px 12px;
-  border-radius: 20px;
-  border: 1px solid var(--border);
-  background: var(--bg-elevated);
-  color: var(--text);
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 0;
+  background: var(--br-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
+  color: var(--br-text, var(--text));
   font-family: var(--font-sans);
-  font-size: var(--text-base);
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
   white-space: nowrap;
 }
 
 .btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-accent);
-  color: var(--text-bright);
+  background: var(--br-soft-hi, color-mix(in srgb, var(--text-bright) 11%, transparent));
+  color: var(--br-bright, var(--text-bright));
 }
 
-/* Filled gold — deliberately louder than .groupBtnActive's dim gold so the
-   live preset reads differently from a merely-expanded metric group. */
+/* The live preset: the Signature selected tone (a solid lift + bright text). No
+   gold — gold on this page is the current tab only. */
 .btnActive {
-  background: var(--ut-gold);
-  border-color: var(--ut-gold);
-  color: var(--bg);
-  font-weight: 600;
-  box-shadow: 0 0 8px var(--ut-gold-glow);
+  background: color-mix(in srgb, var(--text-bright) 16%, transparent);
+  color: var(--br-bright, var(--text-bright));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text-bright) 22%, transparent);
 }
 
 /* .btn:hover is (0,2,0) — this needs the same weight to win. */
 .btnActive:hover {
-  background: var(--ut-gold);
-  border-color: var(--ut-gold);
-  color: var(--bg);
+  background: color-mix(in srgb, var(--text-bright) 18%, transparent);
+  color: var(--br-bright, var(--text-bright));
 }
 
 .more {
@@ -74,8 +71,9 @@
   z-index: 30;
   min-width: 288px;
   padding: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-accent);
   border-radius: 10px;
+  padding: 5px;
   background: var(--bg-elevated);
   box-shadow: var(--shadow-popover);
   list-style: none;
@@ -85,10 +83,9 @@
 .groupHeading {
   padding: 8px 10px 4px;
   font-family: var(--font-sans);
-  font-size: var(--text-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-faint);
 }
 
 .groupList {
@@ -113,7 +110,7 @@
 
 .itemLabel { display: block; font-size: var(--text-base); color: var(--text-bright); }
 .itemHint  { display: block; font-size: var(--text-sm); color: var(--text-muted); margin-top: 2px; }
-.itemActive .itemLabel { color: var(--ut-gold); font-weight: 600; }
+.itemActive .itemLabel { color: var(--text-bright); font-weight: 600; }
 
 /* Canonical TOUCH breakpoint. Seven pills plus the trigger run about 880px, so
    a tablet overflows too — scrolling has to start here, not at the phone

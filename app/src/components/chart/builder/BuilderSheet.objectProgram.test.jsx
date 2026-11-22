@@ -16,6 +16,7 @@ import path from 'node:path'
 import { render, cleanup, fireEvent, act, screen } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 import { clearUserDefinitions } from '../engine/nativeRegistry'
@@ -103,8 +104,8 @@ describe('⭐⭐ P2X — a representable edit KEEPS the object program byte-iden
     expect(prior.objects.ops.some((o) => o.k === 'create' && o.family === 'label')).toBe(true)
     mount({ def_id: DEF_ID, version: 1, rev: 1, definition: prior })
     await settle()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed labels' } })
-    fireEvent.change(screen.getByLabelText('Formula'), { target: { value: 'sma(close, 40)' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'Renamed labels' } })
+    fireEvent.change(formulaBox(), { target: { value: 'sma(close, 40)' } })
     await settle()
     expect(saveButton().disabled).toBe(false)
     await act(async () => { fireEvent.click(saveButton()) })
@@ -135,11 +136,11 @@ describe('⭐⭐ P2X — a representable edit KEEPS the object program byte-iden
     const prior = deepFreeze(stored('c3b_04_table_dash.pine'))
     mount({ def_id: DEF_ID, version: 1, rev: 1, definition: prior })
     await settle()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Dash 2' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'Dash 2' } })
     await settle()
     await act(async () => { fireEvent.click(saveButton()) })
     await flush()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Dash 3' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'Dash 3' } })
     await settle()
     await act(async () => { fireEvent.click(saveButton()) })
     await flush()
@@ -159,7 +160,7 @@ describe('⭐⭐ P2X — an edit that would invalidate the program asks first, a
     mount({ def_id: DEF_ID, version: 1, rev: 1, definition: prior })
     await settle()
     // the member removes the input and writes the offset in as a literal
-    fireEvent.change(screen.getByLabelText('Formula'), { target: { value: 'close - 5' } })
+    fireEvent.change(formulaBox(), { target: { value: 'close - 5' } })
     await settle()
     await act(async () => { fireEvent.click(screen.getByLabelText('Remove input 1')) })
     await settle()
@@ -210,7 +211,7 @@ describe('⭐⭐ P2X — an edit that would invalidate the program asks first, a
     await act(async () => { fireEvent.click(saveButton()) })
     await flush()
     expect(screen.getByTestId('object-loss-confirm')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('Formula'), { target: { value: 'close - 6' } })
+    fireEvent.change(formulaBox(), { target: { value: 'close - 6' } })
     await settle()
     expect(screen.queryByTestId('object-loss-confirm')).toBeNull()
     expect(writes()).toHaveLength(0)
@@ -231,8 +232,12 @@ plot(close > ta.sma(close, 50) ? 1 : 0, title = "Above")
     if (!built.ok) throw new Error(built.reason)
     return JSON.parse(JSON.stringify(built.definition))
   }
+  // ⭐ RULING 1 (2026-11-20) — on a chart FROM THE LISTING: off it, the na test's bars (the average's first 49) are now
+  // withheld whatever the semantics (the window reaches before bar 0), so neither the non-vacuity check below nor the
+  // rename's "same column" could see a lost `naConditionFalse`. From the listing a Pine document draws Pine's 0 there
+  // and a document without the Pine stamps (semantics 2) withholds them: the difference this rail is about.
   const column = (def) => {
-    const cols = computeFor(def, BARS, undefined, { tf: 'D', symbol: { ticker: 'SPY', exchange: 'NYSE Arca' }, newestBarIsForming: false })
+    const cols = computeFor(def, BARS, undefined, { tf: 'D', symbol: { ticker: 'SPY', exchange: 'NYSE Arca' }, newestBarIsForming: false, historyFromListing: true })
     return JSON.stringify(Array.from(cols.value).slice(0, 60))
   }
   const STAMPS = ['recurrenceOrigin', 'naConditionFalse', 'lowerTf', 'otherSymbols', 'periodReads', 'runtimeErrors', 'disclosures', 'requirementTags']
@@ -252,7 +257,7 @@ plot(close > ta.sma(close, 50) ? 1 : 0, title = "Above")
     expect(column({ ...stripped, meta: { ...nativeMeta, semantics: 2 } })).not.toBe(column(prior))
     mount({ def_id: DEF_ID, version: 1, rev: 1, definition: prior })
     await settle()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed na' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'Renamed na' } })
     await settle()
     await act(async () => { fireEvent.click(saveButton()) })
     await flush()
@@ -275,7 +280,7 @@ plot(close > ta.sma(close, 50) ? 1 : 0, title = "Above")
     deepFreeze(prior)
     mount({ def_id: DEF_ID, version: 1, rev: 1, definition: prior })
     await settle()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Native renamed' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'Native renamed' } })
     await settle()
     await act(async () => { fireEvent.click(saveButton()) })
     await flush()

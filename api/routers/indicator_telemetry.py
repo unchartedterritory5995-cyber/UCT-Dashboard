@@ -7,6 +7,14 @@ other three events (`import_accepted`, `delivery_configured`,
 SERVER decision (validated, saved, delivered, executed) and a client must
 never be able to assert one of those about its own unconfirmed input.
 
+⭐ Since then the list has grown by client OBSERVATIONS only, never a server
+decision: `studio_action` (the authoring funnel) and the five UCT RS counts
+(`rs_on`, `rs_off_within_60s`, `rs_benchmark`, `rs_marker_card`, `rs_learn`;
+`app/src/lib/rsTelemetry.js`; `rs_preset` retired with the presets, RS split U9),
+each prop held to a closed set or a
+strict pattern by the service's `_VALUE_RULES`. `CLIENT_FIREABLE_EVENTS` is the
+list; this paragraph is not.
+
 ⛔ AUTHENTICATED, UNLIKE `landing_analytics.py`. That router is deliberately
 open (anonymous marketing visitors have no session); this one is not — the
 indicator/screener surface is a signed-in feature, and an open write endpoint
@@ -20,6 +28,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field, model_validator
 
 from api.middleware.auth_middleware import get_current_user, require_admin
@@ -68,3 +77,15 @@ def rollout_report(days: int = 7, user: dict = Depends(require_admin)) -> dict[s
     `converse_turn` / `studio_action` events and today's shared AI pool. ADMIN ONLY.
     Shape only; no member words are stored, so none can be returned."""
     return telemetry.rollout_report(days)
+
+
+@router.get("/weekly-report")
+def weekly_report(days: int = 7, format: str = "json", user: dict = Depends(require_admin)):  # noqa: A002
+    """⭐ LEARN AS A PRODUCT -- the weekly owner report: names asked for, questions asked and how
+    many per indicator built (this window against the one before), second calls, named indicators
+    built. ADMIN ONLY. Closed ids and counts only; a row about one or two members withholds its
+    numbers. ``?format=text`` answers the same report in plain words, to read in a browser tab."""
+    report = telemetry.weekly_report(days)
+    if format == "text":
+        return PlainTextResponse(telemetry.weekly_report_text(report))
+    return report

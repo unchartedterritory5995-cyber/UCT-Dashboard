@@ -7073,3 +7073,55 @@ as a bookmark, never as completion.
 ⭐ **The deploy-#5 stamp is still owed**, and it is the one that dates the gate.
 This stamp exists so the next session can tell a *paused* wave from a *finished*
 one — the distinction the two hard stops kept losing.
+
+---
+
+## ⛔ 2026-11-13 — FOLLOW-UP D: A RECORD PROVEN EQUAL TO THE SERVER IS SETTLED
+
+**The defect, older than the 2026-11 Notebook work.** A save that reached the server but
+whose answer the page never saw (a full navigation, a closed tab) left the record
+`dirty: 1`, its entry queued and a dead tab's marker. The drain's two *"server already
+identical"* branches removed **the entry only**, and opening the note wrote nothing, so
+the record stayed dirty for good and every `noteHasUnsentWork` door (trash, bulk trash,
+tag rename, sample removal, send to journal, AI actions, review drafts) refused with a
+false *"has changes that have not finished saving"*. ⭐ **The fix** is ONE helper,
+`settleIfServerHolds` (`outboxDrain.js`), in ONE readwrite transaction through
+`putNoteWithIntentIf`: a dirty record holding exactly the server's words, with every
+entry queued for the note holding them too, goes clean at the revision just read and
+its entries go; otherwise only the proven entry is removed, and only while it still
+holds those words — the old clear was BY ID after a network round trip, so a capture
+landing during the server check had its newer entry deleted. The drain calls it from
+both identical branches, and the editor calls it on open (`settleProvenEqual`) when
+recovery finds a dirty record no copy differs from. The save label now waits for the
+recovery decision and does not say "Saved" over unsent work the store held on open;
+`pagehide` and a hidden tab flush the durable writer. ⛔⛔ **The rule it adds: a record
+proven equal to the server is settled, by the drain and on open; identical content
+never enters the landed ring** — the content proves the server HAS the words, never
+that THIS browser wrote the revision, and recording it would hand guard 2 a false
+"ours". ⛔ **And a CACHED copy is never proof** (fix round 1): the editor settles on open
+only with a copy THAT MOUNT saw arrive from the network, and the helper refuses a proof
+whose revision is older than the base the record's words were written on — an in-app
+reopen served from cache leaves the mark for the drain, as before. ⭐ **Fix round 1 also
+closed an older defect the work found: Discard on the recovery banner did not discard.**
+`markSynced` went through `persist`, fix 6 kept the dirty record's words and re-queued
+them, and after the note closed the drain WROTE THE DISCARDED WORDS INTO THE NOTE.
+⛔⛔ **The rule it adds: when Discard's transaction runs, it removes the device's copy of
+exactly the offered words and nothing the member typed after the offer** (`useDurableNote`
+`discardOffered`, content-checked; fix 6 untouched for every other writer). ⚠️ **Residual,
+ruled not fixed in this release:** a durable write or a save-settle already in flight for
+the note when Discard is pressed (roughly the two seconds after the last keystroke) can put
+the offered words back; the outcome is then what it was before this fix (the words are
+sent after close, or arrive as a conflicted copy). Closing it means the two writers
+re-deciding inside one transaction, which touches fix 6's writer and is left for its own
+change. ⚠️ **Second recorded residual (final fix pass):** when the crash draft is a deletion
+or a mid-text edit ahead of the device record (the tab died within the 200 ms before the
+record caught up), Discard's content check refuses, the banner closes, and the record's
+words are sent when the note closes, as before this release. Closing it means carrying the
+edit lineage on the crash draft; left for its own change. ⚠️ **Third (final fix pass):** a
+note reopened from the cached read keeps a dirty record that equals the server until the
+next full load or the list's drain; the header reads 'waiting to sync' meanwhile. Item 1 of
+the final fix pass removes the common way into this state (the drain now drops a drained
+note's cached read, `useOutboxDrain.js`). Rails: `provenEqualSettles.test.js`, `provenEqualOnOpen.test.jsx`, every guard
+mutation-proved; `ringVouchAuthority.test.js` names `supersedeIdentical` as the
+identical sites' remove-only call and reads both helpers' bodies for a plan or a ring
+write; `f5Freeze.test.js` carries the amendment and pins the two call sites.

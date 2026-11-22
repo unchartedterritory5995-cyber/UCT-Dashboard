@@ -1,0 +1,22 @@
+/* ── Joined look (breadth drill window): ‹ | date | › as one control ───────── */
+.joined {
+  display: inline-flex; align-items: stretch; height: 28px;
+  border: 0; border-radius: 7px; overflow: hidden; background: var(--dr-soft, color-mix(in srgb, var(--text-bright) 6%, transparent));
+}
+.jStep {
+  width: 28px; display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; border: 0; color: var(--dr-dim, var(--text)); cursor: pointer; padding: 0;
+}
+.jStep:hover { background: var(--dr-soft, var(--bg-hover)); color: var(--dr-bright, var(--text)); }
+.jStep:disabled { color: color-mix(in srgb, var(--text-muted) 45%, transparent); cursor: default; background: transparent; }
+.jDate {
+  display: inline-flex; align-items: center; gap: 5px; padding: 0 9px;
+  background: transparent; border: 0; cursor: pointer;
+  border-left: 1px solid var(--dr-line, var(--border)); border-right: 1px solid var(--dr-line, var(--border));
+  font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; color: var(--dr-text, var(--text-bright));
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.jDate small { font-size: 12.5px; font-weight: 500; color: var(--dr-faint, var(--text-muted)); }
+.jDate:hover, .jDate[aria-expanded='true'] { background: var(--dr-soft, var(--bg-hover)); }
+.jDate:hover .jCal, .jDate[aria-expanded='true'] .jCal { color: var(--dr-text, var(--text)); }
+.jCal { color: var(--dr-dim, var(--text-muted)); }

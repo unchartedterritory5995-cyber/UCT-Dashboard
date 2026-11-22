@@ -34,8 +34,9 @@
 /** Where the member's chosen sizes live on the settings blob. */
 export const PANE_SIZES_KEY = 'paneSizes'
 
-/** Below this share a pane is unreadable; the stack refuses to starve one. */
-const MIN_SHARE = 0.04
+/** Below this share a pane is unreadable; the stack refuses to starve one.
+ *  Exported for `applyPaneMins` (RS split U3), which must not take a donor below it. */
+export const MIN_SHARE = 0.04
 /** Above this, one pane has effectively eaten the chart. */
 const MAX_SHARE = 0.90
 /**
@@ -234,6 +235,82 @@ export function applyPaneSizes(plan, keyByIndex, sizes) {
       // Nothing to scale — split what is left evenly rather than leave zeros,
       // because a zero-weight pane is one the renderer collapses.
       for (const i of others) out[i] = remainder / others.length
+    }
+  }
+  return out
+}
+
+/** Below this many pixels a transfer is rounding, not a resize. */
+const MIN_EPS = 1e-9
+
+/**
+ * Lift every pane that declares a minimum height (`placement.pane.minPx`) up to
+ * it, taking the pixels from the tallest pane. RS split U3.
+ *
+ * ⚰️ THE 25 px RS PANE. A stored share at the 4 % floor, or pinned Price and
+ * Volume shares that leave the one unpinned pane `1 − Σpinned` (a sliver whenever
+ * that sum sits just under the 0.96 `stalePartition` trigger above), both put the
+ * UCT Relative Strength pane at ~25 px on the owner's saved layout — a flat line
+ * under its own legend. Reproduced from a plausible blob in
+ * `__tests__/paneMinPx.test.js`. The definition asks for 0.20 of the candle pane;
+ * the member's drag won, as it must, and nothing said how small was too small.
+ *
+ * ⭐ RUNS AFTER `applyPaneSizes`, NEVER INSTEAD OF IT. The member's drag still wins
+ * over the definition's default; this only refuses to let it (or a stale
+ * partition) starve a pane that has said what it needs to be read. Absent a
+ * declared min, nothing here moves a pixel — every existing chart takes the same
+ * path it always took.
+ *
+ * ⛔ THE DONOR IS THE TALLEST PANE WITH ROOM, and room stops at the donor's own
+ * lower bound: its declared min if it has one, else the 4 % share floor. A donor
+ * is never taken under either, so two panes whose mins cannot both fit each grow
+ * as far as the stack allows and stop — nothing goes below the floor, and the
+ * stack still sums (total in equals total out, by construction: every pixel
+ * added to a short pane is a pixel subtracted from a donor).
+ *
+ * @param {number[]} plan pixel weights by slot, `applyPaneSizes`' output
+ * @param {Map<number,number>|Array<[number,number]>} minByIndex slot → min px
+ * @param {Iterable<number>} [donors] the slots this stack may take pixels from;
+ *        absent, every slot. `paneStretchPlan` passes the layout's own slots so
+ *        a pane below the stack ("not ours") keeps what it has.
+ * @returns {number[]} a new plan; the SAME numbers when no pane is short
+ */
+export function applyPaneMins(plan, minByIndex, donors) {
+  const base = Array.isArray(plan) ? plan.slice() : []
+  const mins = minByIndex instanceof Map ? minByIndex : new Map(minByIndex || [])
+  if (!base.length || !mins.size) return base
+  const total = base.reduce((s, v) => s + (Number.isFinite(v) && v > 0 ? v : 0), 0)
+  if (!(total > 0)) return base
+
+  const floorPx = MIN_SHARE * total
+  const minOf = (i) => {
+    const m = mins.get(i)
+    return Number.isFinite(m) && m > 0 ? m : 0
+  }
+  const lowerBound = (i) => Math.max(floorPx, minOf(i))
+  const eligible = donors ? new Set(donors) : null
+  const mayDonate = (j) => !eligible || eligible.has(j)
+
+  const out = base.slice()
+  const short = [...mins.keys()]
+    .filter((i) => Number.isInteger(i) && i >= 0 && i < out.length && out[i] < minOf(i))
+    .sort((a, b) => a - b)   // ascending slot → deterministic when two are short
+  for (const i of short) {
+    let need = minOf(i) - out[i]
+    while (need > MIN_EPS) {
+      let donor = -1
+      let room = 0
+      for (let j = 0; j < out.length; j++) {
+        if (j === i || !mayDonate(j)) continue
+        const r = out[j] - lowerBound(j)
+        if (r <= MIN_EPS) continue
+        if (donor < 0 || out[j] > out[donor]) { donor = j; room = r }
+      }
+      if (donor < 0) break          // nobody can give: the pane stays as tall as the stack allows
+      const take = Math.min(need, room)
+      out[donor] -= take
+      out[i] += take
+      need -= take
     }
   }
   return out

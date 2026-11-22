@@ -399,8 +399,14 @@ def test_download_snapshot_bumps_db_epoch(tmp_path, monkeypatch):
 
     # Mock boto3 client
     class _MockBody:
-        def read(self):
-            return tar_bytes
+        # A STREAM, as R2's body is: the download reads it in bounded pieces
+        # (_STREAM_READ_BYTES); a read() that returned the whole tarball each call
+        # made every download fail ('takes 1 positional argument').
+        def __init__(self):
+            self._b = __import__('io').BytesIO(tar_bytes)
+
+        def read(self, amt=-1):
+            return self._b.read(amt)
 
     class _MockClient:
         def get_object(self, Bucket, Key):
@@ -419,7 +425,9 @@ def test_download_snapshot_bumps_db_epoch(tmp_path, monkeypatch):
     assert ok is True
 
     epoch_after = bars_sqlite._db_epoch
-    assert epoch_after == epoch_before + 1, (
+    # ">=": the safe swap (`_swap_in_bars_db`, 2026-11-13) bumps too; the invariant is that
+    # every thread drops its connection, which one bump or two both guarantee.
+    assert epoch_after >= epoch_before + 1, (
         f"download_snapshot did not bump _db_epoch "
         f"(before={epoch_before}, after={epoch_after}). "
         "Connection invalidation broken — pulled snapshots would be ignored "
@@ -471,8 +479,14 @@ def test_download_snapshot_refuses_malformed_payload(tmp_path, monkeypatch):
     tar_bytes = _make_tarball_bytes_with(b"NOT A SQLITE DATABASE")
 
     class _Body:
-        def read(self):
-            return tar_bytes
+        # A STREAM, as R2's body is: the download reads it in bounded pieces
+        # (_STREAM_READ_BYTES); a read() that returned the whole tarball each call
+        # made every download fail ('takes 1 positional argument').
+        def __init__(self):
+            self._b = __import__('io').BytesIO(tar_bytes)
+
+        def read(self, amt=-1):
+            return self._b.read(amt)
 
     class _Client:
         def get_object(self, Bucket, Key):
@@ -490,55 +504,13 @@ def test_download_snapshot_refuses_malformed_payload(tmp_path, monkeypatch):
     )
 
 
-def test_download_snapshot_does_not_clobber_active_sidecars(tmp_path, monkeypatch):
-    """download_snapshot must NOT delete bars.db-wal / bars.db-shm during the
-    swap. An earlier version did so (to prevent a theoretical "stale WAL on
-    new main file → malformed image" path) but that deletion races with
-    in-flight writers — SQLite then reports "disk I/O error" on the next
-    operation in any thread that had the WAL open. The malformed-image
-    risk is instead handled by integrity_ok() at boot + the put_bars
-    malformed handler that triggers force_resync."""
-    monkeypatch.setenv("DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("DATA_SYNC_ENDPOINT_URL", "https://example.test")
-    monkeypatch.setenv("DATA_SYNC_ACCESS_KEY", "x")
-    monkeypatch.setenv("DATA_SYNC_SECRET_KEY", "y")
-    monkeypatch.setenv("DATA_SYNC_BUCKET", "test-bucket")
-
-    # Pre-create sidecars that simulate an in-use WAL
-    (tmp_path / "bars.db-wal").write_bytes(b"in-use-wal-bytes")
-    (tmp_path / "bars.db-shm").write_bytes(b"in-use-shm-bytes")
-
-    # Build a good snapshot
-    src_db = tmp_path / "snap_src.db"
-    s = sqlite3.connect(str(src_db))
-    s.execute("CREATE TABLE t (k INT)")
-    s.execute("INSERT INTO t VALUES (1)")
-    s.commit()
-    s.close()
-    tar_bytes = _make_tarball_bytes_with(src_db.read_bytes())
-
-    class _Body:
-        def read(self):
-            return tar_bytes
-
-    class _Client:
-        def get_object(self, Bucket, Key):
-            return {"Body": _Body()}
-
-    data_sync = _reload_data_sync()
-    monkeypatch.setattr(data_sync, "_client", lambda: _Client())
-
-    ok = data_sync.download_snapshot("123")
-    assert ok is True
-    # Sidecars must STILL be on disk — deleting them would race with
-    # active SQLite writers and surface as disk I/O errors at runtime.
-    assert (tmp_path / "bars.db-wal").exists(), (
-        "download_snapshot deleted bars.db-wal — this races with in-flight "
-        "writers and causes disk I/O errors. See data_sync.py comment."
-    )
-    assert (tmp_path / "bars.db-shm").exists(), (
-        "download_snapshot deleted bars.db-shm — same race as above."
-    )
+# ⚰️ test_download_snapshot_does_not_clobber_active_sidecars RETIRED 2026-11-15. It pinned the
+# pre-2026-11-13 contract (never touch bars.db-wal / -shm during a swap). The safe wholesale swap
+# (`data_sync._swap_in_bars_db`) replaced it after an old WAL left beside a new main file read as
+# 'database disk image is malformed' on bars-api: a healthy old store is TRUNCATE-checkpointed under
+# the write lock, and sidecars with no main file are orphans and are removed. That contract is
+# tests/test_snapshot_safe_swap.py (test_orphan_sidecars_of_a_removed_store_are_removed asserts the
+# exact opposite of this test), so this one could only ever be red again.
 
 
 def test_force_resync_clears_marker_and_local_db(tmp_path, monkeypatch):
@@ -615,22 +587,25 @@ class TestMergeOhlcv:
         # `o=h=l=1, c=10`: a close TEN TIMES the high. Those rows are refused at
         # the door now, so the merge adopted 0 and the test read as a merge bug.
         # The c values are what every assertion below reads; only h/l moved.
-        self._mkdb(local, [("AAPL", "15", 100, 1, 10, 1, 10, 5)])
+        # ⚠️ And the keys are 15-minute BUCKET STARTS (multiples of 900): the merge refuses
+        # off-grid intraday rows (`_MERGE_GRID_SQL`, 2026-11-10), so the original 50/100/200/300
+        # keys were all refused and this test read 0 adopted from that day.
+        self._mkdb(local, [("AAPL", "15", 900, 1, 10, 1, 10, 5)])
         # snapshot: AAPL has the old 100 (different c — must NOT overwrite)
         # plus newer 200/300; NVDA fully present (cold-ticker pre-pop).
         self._mkdb(snap, [
-            ("AAPL", "15", 100, 9, 99, 9, 99, 9),  # collides — must be IGNORED
-            ("AAPL", "15", 200, 2, 20, 2, 20, 6),  # newer — adopt
-            ("AAPL", "15", 300, 3, 30, 3, 30, 7),  # newer — adopt
-            ("NVDA", "15", 50, 4, 40, 4, 40, 8),   # absent locally — adopt
+            ("AAPL", "15", 900, 9, 99, 9, 99, 9),  # collides — must be IGNORED
+            ("AAPL", "15", 1800, 2, 20, 2, 20, 6),  # newer — adopt
+            ("AAPL", "15", 2700, 3, 30, 3, 30, 7),  # newer — adopt
+            ("NVDA", "15", 900, 4, 40, 4, 40, 8),   # absent locally — adopt
         ])
         adopted = data_sync._merge_ohlcv_from(str(snap), local_db=str(local))
         assert adopted == 3
         aapl = self._rows(local, "AAPL", "15")
-        assert aapl == [(100, 10.0), (200, 20.0), (300, 30.0)], (
+        assert aapl == [(900, 10.0), (1800, 20.0), (2700, 30.0)], (
             "existing local bar must NOT be overwritten; newer bars adopted"
         )
-        assert self._rows(local, "NVDA", "15") == [(50, 40.0)]
+        assert self._rows(local, "NVDA", "15") == [(900, 40.0)]
 
     def test_stale_snapshot_is_a_noop(self, tmp_path):
         data_sync = _reload_data_sync()

@@ -42,7 +42,11 @@ describe('compute.rev — the revision a stored binding migrates on', () => {
     // definition quietly bumped without a migration is precisely the event this
     // is watching for, and a single-key assertion cannot see it.
     const offDefault = listDefinitions().filter(d => d.compute.rev !== 1).map(d => d.id)
-    expect(offDefault).toEqual(['vwap'])
+    // 2026-11-07: `rsLine` (UCT Relative Strength v2) joined deliberately, WITH its
+    // migration: `alert_rev_migration.ADDRESS_REVS['rsLine']` carries the same
+    // revision, so a stored binding is migrated, not silently re-read. This rail
+    // went red when Phase 1 bumped it and was not run; it names the pair now.
+    expect(offDefault).toEqual(['vwap', 'rsLine'])
   })
 
   it('the SOURCE SHAPE the Python rail parses is still the shape that is authored', () => {
@@ -56,6 +60,19 @@ describe('compute.rev — the revision a stored binding migrates on', () => {
     // Only a NON-default revision is a migration; an explicit `rev: 1` (the
     // server lane writes one) is the default spelled out and must not be read as
     // a bump. Both sides filter identically.
-    expect(parsed.filter(([, rev]) => rev !== 1)).toEqual([['vwap', 2]])
+    // rsLine 5 since Deepvue round 2 (2026-11-08), with ADDRESS_REVS beside it
+    // ⭐ UCT RS split, U7 (2026-11-09): the source authors TWO `rsLine` definitions
+    // (v5 and the slim one; `VITE_RS_SPLIT_ENABLED` registers one), both at rev 5,
+    // so the regex meets the pair twice. Read per id, and what must hold is
+    // stronger than before: ONE id never carries two revisions in the source — a
+    // second definition authored at a different rev would be a migration nobody
+    // ran, and that is the event this rail watches for.
+    const byId = new Map()
+    for (const [id, rev] of parsed.filter(([, r]) => r !== 1)) {
+      expect(byId.has(id) ? byId.get(id) : rev, `${id} is authored at two revisions`).toBe(rev)
+      byId.set(id, rev)
+    }
+    expect([...byId]).toEqual([['vwap', 2], ['rsLine', 5]])
+    expect(parsed.filter(([id]) => id === 'rsLine').length, 'the two rsLine definitions, both read').toBe(2)
   })
 })

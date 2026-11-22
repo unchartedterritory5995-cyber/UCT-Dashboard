@@ -6,8 +6,8 @@
 // can point at them without 8C editing 8A's files. `tourAnchors.test.js` reads each named
 // file and fails BY NAME if an anchor is removed, renamed or duplicated there.
 //
-// Wave 8 lane 8C adds ONE step, on an anchor in its own file: `first-run`, the first-run
-// screen's actions (ResearchHome), which is what a member with no notes actually sees.
+// ⚰️ Wave 8 lane 8C added a first step, `first-run`, on Research Home's first-run screen. Go-live wave 1 removed it
+// with Research Home: the tour opens on the folders panel, at once (NotebookTour.jsx no longer waits for that screen).
 //
 // ⛔ The copy is lane 8C's and lives in `tourCopy.js`, keyed by step id (a step here is
 // exactly {id, anchor, file} -- tourAnchors.test.js holds it to that). A step whose
@@ -17,7 +17,6 @@
 const step = (id, anchor, file) => Object.freeze({ id, anchor, file })
 
 export const TOUR_STEPS = Object.freeze([
-  step('first-run', 'first-run', 'components/notebook/ResearchHome.jsx'),
   step('sidebar', 'sidebar', 'components/notebook/FolderSidebar.jsx'),
   step('search', 'search', 'components/notebook/FolderSidebar.jsx'),
   step('new-note', 'new-note', 'tabs/NotebookTab.jsx'),

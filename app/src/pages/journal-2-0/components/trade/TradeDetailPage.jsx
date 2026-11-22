@@ -221,7 +221,7 @@ function TradeResearchMenu({ symbol, tradeId }) {
             <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
           </button>
           <button type="button" className={styles.researchMenuItem} onClick={goToAskAi}>
-            <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {symbol}
+            <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask the UCT Agent about {symbol}
           </button>
           {!showCompare ? (
             <button type="button" className={styles.researchMenuItem} onClick={() => setShowCompare(true)}>

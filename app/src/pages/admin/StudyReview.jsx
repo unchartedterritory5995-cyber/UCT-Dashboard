@@ -38,7 +38,8 @@ import Textarea from '../../components/ui/Textarea'
 import UIcon from '../../components/ui/UIcon'
 import { studySettingsOverride, HOUSE_CHART_URL } from '../study/studyChartLook'
 import { CHART_TYPES, choicesFromPrompt, questionOf as playerQuestionOf } from '../study/drills/types'
-import { studyAnnotations } from '../study/studyOverlays'
+import { studyAnnotations, studyOpenMarkers } from '../study/studyOverlays'
+import { toChartTime } from '../../components/chart/patternTime'
 import { slingshotInstances } from '../study/slingshotOverlay'
 import styles from './StudyReview.module.css'
 import { registerShortcuts } from '../command/shortcutRegistry'
@@ -178,6 +179,18 @@ export function provenanceOf(item) {
   const facts = r.facts || NO_OBJ
   if (Array.isArray(r.support) && r.support.length) {
     return { kind: 'support', lines: r.support.map(supportLineOf) }
+  }
+  // a course question (docs/study/courses, 2026-11-08): the cited pages, each with the verbatim quote the key rests on
+  const cites = Array.isArray(r.depth?.sources) ? r.depth.sources.filter((c) => c && (c.quote || c.name)) : []
+  if (cites.length) {
+    return {
+      kind: 'support',
+      lines: cites.map((c) => ({
+        source: `${c.name || 'source'}${c.tier ? ` · tier ${c.tier}` : ''}${c.accessed ? ` · read ${c.accessed}` : ''}`,
+        text: c.quote ? `"${c.quote}"` : '',
+        url: typeof c.url === 'string' && c.url.startsWith('https://') ? c.url : null,
+      })),
+    }
   }
   if (r.quote) return { kind: 'quote', text: String(r.quote) }
   const geometry = facts.geometry || r.geometry
@@ -574,8 +587,16 @@ export default function StudyReview() {
   const sessionChart = useSessionChartSettings(studyOverride, sel?.id || null)
   const markers = useMemo(() => {
     if (!sel?.asof) return null
+    // An hourly item marks its OPEN (the first-hour bar) instead of the session date: the three dotted bars
+    // under the arrow are the ones the reader judges (owner 2026-10-31), in their own red/green (owner 2026-11-01).
+    const firstHour = isHourlyItem(sel) ? sel.reveal_json?.facts?.first_hour_t : null
+    if (firstHour != null) {
+      // StockChart feeds intraday bars at toChartTime(t) (adjustTime, per-instant ET offset); the marker rides the same shift or it lands hours late.
+      const arrow = { time: toChartTime(Number(firstHour), '60'), position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'the open: first 3 hours dotted', id: 'study-open' }
+      return [arrow, ...((chartBars && studyOpenMarkers(sel, chartBars)) || [])]
+    }
     return [{ time: sel.asof, position: 'aboveBar', color: GOLD, shape: 'arrowDown', text: 'member sees to here', id: 'study-asof' }]
-  }, [sel])
+  }, [sel, chartBars])
   const priceLines = useMemo(() => {
     const lv = sel?.reveal_json?.facts?.levels
     if (!lv || typeof lv !== 'object') return null
@@ -774,6 +795,7 @@ export default function StudyReview() {
                     priceLines={priceLines}
                     annotations={annotations}
                     annotationsVisible={!!annotations}
+                    annotationsTextVisible={!!annotations}
                   />
                 </div>
                 <p className={styles.strip}>
@@ -863,7 +885,9 @@ export default function StudyReview() {
                   {prov.lines.map((l, i) => (
                     <li key={i}>
                       <span className={styles.supportText}>{l.text}</span>
-                      {l.source && <span className={styles.supportFrom}>{l.source}</span>}
+                      {l.source && (l.url
+                        ? <a className={styles.supportFrom} href={l.url} target="_blank" rel="noopener noreferrer">{l.source}</a>
+                        : <span className={styles.supportFrom}>{l.source}</span>)}
                     </li>
                   ))}
                 </ul>
@@ -893,6 +917,19 @@ export default function StudyReview() {
                 <span>{sel.lesson_text || '(no lesson text)'}</span>
                 {sel.lesson_origin && <span className={styles.origin}>{sel.lesson_origin}</span>}
               </p>
+            )}
+            {mode !== 'fix' && sel.reveal_json?.wrong && Object.keys(sel.reveal_json.wrong).length > 0 && (
+              <div className={styles.prov} data-testid="study-wrong">
+                <span className={styles.label}>Why each wrong choice is wrong</span>
+                <ul className={styles.support}>
+                  {Object.entries(sel.reveal_json.wrong).map(([choice, why]) => (
+                    <li key={choice}>
+                      <span className={styles.supportFrom}>{choice}</span>
+                      <span className={styles.supportText}>{String(why)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
 
             <Chips checks={checks} />

@@ -150,7 +150,8 @@ describe('M2 add / remove / show / hide — through the Indicators interface onl
     for (const defId of ['volumeProfile', 'ma', 'Volume Profile']) {
       const p = await plan(h, [op('indicator.add', 'L', { defId, inputs: null })])
       expect(p.ok, defId).toBe(false)
-      expect(p.refusals[0].reason).toMatch(/Classic overlay averages and Volume Profile are added from Chart Settings/)
+      // Charts family (2026-11-12): still never an indicator.add — a Volume Profile add now points at its own switch
+      expect(p.refusals[0].reason).toMatch(defId === 'ma' ? /Classic overlay averages and Volume Profile are added from Chart Settings/ : /Volume Profile isn’t added from the Indicator Library .* Say “turn on Volume Profile”/)
     }
   })
   it('unknown and foreign definitions are refused before any proposal; the member\'s own saved one is added', async () => {
@@ -391,7 +392,7 @@ describe('M2 safety, routing and budget', () => {
   })
   it('budget: the indicators group is 12 actions (M3 +4, Gate C + indicator.update, P1 + indicator.discardDraft) and every routed request stays ≤ 55', () => {
     const FULL = manifestFor({ ...CTX, manageIndicators: true })
-    expect(FULL.filter(c => groupOfAction(c.name) === 'indicators')).toHaveLength(12)
+    expect(FULL.filter(c => groupOfAction(c.name) === 'indicators')).toHaveLength(12)   // pl-zoom: master 12 + 0 (chartSetup.zoom routes in chartView) = 12
     const opts = { limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold }
     for (const m of ['Add RSI to this chart and put NVDA on a new chart and add it to my watchlist', 'hide MACD, draw a line at 200, alert me when it crosses 150, switch to weekly', 'remove this indicator then save the layout']) {
       expect(routeManifest(FULL, m, opts).manifest.length, m).toBeLessThanOrEqual(55)

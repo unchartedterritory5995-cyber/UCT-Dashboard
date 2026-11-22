@@ -3,9 +3,10 @@
   POST /api/agent/turn                     one model turn -> structured envelope
   POST /api/agent/turn/stream              the same turn as text/event-stream (an answer streams when
                                            UCT_AGENT_STREAM is on; the final event is /turn's JSON)
-  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner}: does this server stream turns (UCT_AGENT_STREAM),
+  GET  /api/agent/config                   {stream, nl1, news, data, scan, planner, coach}: does this server stream turns (UCT_AGENT_STREAM),
                                            does it serve NL-1 (UCT_AGENT_NL1), the MD-1 data gateway
                                            (UCT_AGENT_DATA) and its scan kinds (UCT_AGENT_SCAN); planner v1 | v2
+  GET  /api/agent/coach/concepts           Wave 3 coach (UCT_AGENT_COACH, default off): the concept knowledge base
   POST /api/agent/turn/step                planner v2 (UCT_AGENT_PLANNER=v2) only: the browser's outcome of ONE step
   POST /api/agent/turn/resume              planner v2 only: continue a turn paused on an approval card (event stream)
   POST /api/agent/data                     one MD-1 market-data read -> DataEnvelope (read-only, no model;
@@ -157,6 +158,9 @@ class TurnIn(BaseModel):
     # NL-1: stable catalogs (indicator catalog, Screener fields) sent apart from the context so the server
     # can cache them; turn.reference_block accepts only its known keys, as DATA, under a size limit.
     reference: Optional[dict] = None
+    # V2-G2 (review #782): the browser runs a v2 PLAN GROUP as one plan (steps.js runGroup). Absent/false = an older
+    # browser: the server sends one step at a time, as before.
+    stepGroups: bool = False
     pending: Optional[dict] = None
     recentOutcome: Optional[str] = None
     voice: bool = False
@@ -188,15 +192,47 @@ def streaming_enabled() -> bool:
     return str(os.environ.get(STREAM_ENV) or "").strip().lower() in ("1", "true", "on", "yes")
 
 
+ROUTING_V2_ENV = "UCT_AGENT_ROUTING_V2"
+
+
+def routing_v2_enabled() -> bool:
+    """NLM-1 (owner policy 11-04: ON by default for admins; the Agent is admin-only). UCT_AGENT_ROUTING_V2=0 / false /
+    off / no is the server KILL SWITCH (the browser has its own: localStorage uct.agent.routingV2 = '0'). Routing only
+    changes which capabilities the model SEES; the server validates every op against the manifest it was sent, as before."""
+    return str(os.environ.get(ROUTING_V2_ENV) or "").strip().lower() not in ("0", "false", "off", "no")
+
+
 @router.get("/api/agent/config")
 def agent_config(user: dict = Depends(require_admin_dark)):
     """What the browser needs to know about this server's Agent: whether turns stream, and whether it serves
     NL-1 (flags only). The browser takes NL-1's path only when this says so AND its own switch is on."""
     from api.services.uct_agent import news, turn, turn_v2
     from api.services.uct_agent.marketdata import gateway
+    from api.services.uct_agent import coach
     return {"stream": streaming_enabled(), "nl1": turn.nl1_enabled(), "news": news.enabled(),
             "data": gateway.data_enabled(), "scan": gateway.scan_enabled(),
-            "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner()}
+            "data_kinds": sorted(gateway.enabled_kinds()), "planner": turn_v2.planner(),
+            # Wave 3 (W3-1): the coach, UCT_AGENT_COACH (default off) -- the browser registers coach.* only on true
+            "coach": coach.enabled(),
+            # NLM-1 D1: registry-derived routing v2, UCT_AGENT_ROUTING_V2 (default ON; 0 = kill switch) -- the browser has its own kill switch
+            "routing_v2": routing_v2_enabled()}
+
+
+# ── COACH (Wave 3, UCT_AGENT_COACH, default off): the curated concept knowledge base the browser explains from ──
+# docs/agent/coach/concepts/*.md, parsed by services/uct_agent/coach/concepts.py. Read-only, no model call, no
+# member data. 404 while the flag is off (the route does not exist for a dark server), admin-dark like every route.
+@router.get("/api/agent/coach/concepts")
+def agent_coach_concepts(user: dict = Depends(require_admin_dark)):
+    from api.services.uct_agent import coach
+    from api.services.uct_agent.coach import concepts
+    if not coach.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"concepts": concepts.public_rows(), "footer": coach_footer()}
+
+
+def coach_footer() -> str:
+    from api.services.uct_agent.coach import guard
+    return guard.FOOTER
 
 
 # ── PLANNER v2 (Wave 1 A-04, docs/agent/program/contracts/STEP-1.md): the step registry ───────────────────
@@ -233,11 +269,14 @@ class ResumeIn(BaseModel):
     voice: bool = False
 
 
-def _v2_waiter(q: "queue.Queue"):
-    from api.services.uct_agent import turn_v2
+def _v2_waiter(q: "queue.Queue", uid):
+    from api.services import call_deadline
+    from api.services.uct_agent import limits, turn_v2
 
     def wait_step(step_id: str):
-        deadline = time.monotonic() + turn_v2.STEP_TIMEOUT_S
+        limits.renew(uid)                             # a step may wait longer than the in-flight lease
+        left = call_deadline.left()                   # and never past the turn's own deadline
+        deadline = time.monotonic() + (turn_v2.STEP_TIMEOUT_S if left is None else min(turn_v2.STEP_TIMEOUT_S, left))
         while True:
             left = deadline - time.monotonic()
             if left <= 0:
@@ -256,7 +295,7 @@ def _v2_register(uid) -> tuple[str, dict]:
     token, q = turn_v2.new_turn_token(), queue.Queue()
     with _V2_LOCK:
         _V2_STEPS[token] = (q, str(uid))
-    return token, {"wait_step": _v2_waiter(q), "turn_token": token}
+    return token, {"wait_step": _v2_waiter(q, uid), "turn_token": token}
 
 
 def _v2_unregister(token: str) -> None:
@@ -288,7 +327,7 @@ def _v2_finish(uid, cid: str, out: dict, voice: bool, background: BackgroundTask
     background.add_task(store.record_telemetry, uid, cid, {
         "path": "model", "disposition": "answer", "actions": [s.get("action") for s in env.get("steps") or []],
         "clarified": False, "latency_ms": usage.get("latency_ms"), "model": usage.get("model"), "cost_usd": usage.get("cost_usd"),
-        "research_calls": usage.get("research_calls"), "unsupported": None, "voice": voice,
+        "research_calls": usage.get("research_calls"), "unsupported": None, "voice": voice, **_speed_fields(usage),
     })
     log.info("[uct-agent] v2 turn rounds=%s steps=%s calls=%s in=%s out=%s cache_read=%s stopped=%s", usage.get("rounds"),
              usage.get("steps"), usage.get("model_calls"), usage.get("input_tokens"), usage.get("output_tokens"),
@@ -324,7 +363,8 @@ def agent_turn_resume(body: ResumeIn, background: BackgroundTasks, user: dict = 
 
     def work() -> None:
         try:
-            events.put(("final", _resume(body, background, user, on_event=lambda e: events.put(("event", e)))))
+            events.put(("final", _resume(body, background, user, on_event=lambda e: events.put(("event", e)),
+                                         on_expired=_ends_stream(events))))
         except HTTPException as e:
             events.put(("error", {"status": e.status_code, "detail": e.detail if isinstance(e.detail, str) else FAILED}))
         except Exception:  # noqa: BLE001
@@ -338,6 +378,16 @@ def agent_turn_resume(body: ResumeIn, background: BackgroundTasks, user: dict = 
                              headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"}, background=background)
 
 
+def _ends_stream(events: "queue.Queue"):
+    """A worker stuck past the turn's deadline cannot end its own stream, so the deadline's cleanup does."""
+    from api.services.uct_agent import budget
+
+    def end() -> None:
+        events.put(("error", {"status": 400, "detail": budget.TURN_DEADLINE}))
+        events.put(None)
+    return end
+
+
 def _relay(events: "queue.Queue"):
     yield ": open\n\n"
     while True:
@@ -349,7 +399,7 @@ def _relay(events: "queue.Queue"):
         yield f"data: {json.dumps(ev, separators=(',', ':'))}\n\n"
 
 
-def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event) -> dict:
+def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event, on_expired=None) -> dict:
     from api.services.uct_agent import budget, limits, turn as agent
     uid = user["id"]
     if not planner_v2():
@@ -361,27 +411,34 @@ def _resume(body: ResumeIn, background: BackgroundTasks, user: dict, on_event) -
     try:
         slot = limits.admit(uid, new_request=False)
     except limits.Refused as e:
-        raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
+        raise HTTPException(status_code=503 if e.reason in limits.SERVICE_REASONS else 429, detail=e.sentence,
+                            headers={"Retry-After": str(e.retry_after)})
     token, q = body.turnId, queue.Queue()
+    clock = budget.TurnClock(used_s=p["state"].get("active_s") or 0.0)
+    clock.on_expire(lambda: _v2_unregister(token))
+    if on_expired is not None:
+        clock.on_stuck(on_expired)
     with _V2_LOCK:
         _V2_STEPS[token] = (q, str(uid))
-    try:
-        out = agent.run_turn(message="(resume)", context={}, history=[], on_event=on_event,
-                             meter=budget.Meter(user_id=uid, request_id=None),
-                             v2={"wait_step": _v2_waiter(q), "turn_token": token, "resume": p["state"],
-                                 "resume_result": {"id": body.id, "status": body.status, "receipt": body.receipt, "refusal": body.refusal,
-                                                   "added": body.added}})
-    except budget.BudgetRefused as e:
-        raise HTTPException(status_code=503 if e.reason == "unavailable" else 429, detail=e.sentence)
-    except agent.TurnError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:  # noqa: BLE001
-        kind, said = provider_failure(e)
-        log.exception("[uct-agent] v2 resume failed kind=%s class=%s", kind, type(e).__name__)
-        raise HTTPException(status_code=503, detail=said)
-    finally:
-        _v2_unregister(token)
-        limits.done(slot)
+    with limits.guard(uid, slot, clock):
+        try:
+            out = agent.run_turn(message="(resume)", context={}, history=[], on_event=on_event,
+                                 meter=budget.Meter(user_id=uid, request_id=None, heartbeat=lambda: limits.renew(uid), clock=clock,
+                                                    turn_request_id=p["state"].get("turn_request_id")),
+                                 v2={"wait_step": _v2_waiter(q, uid), "turn_token": token, "resume": p["state"],
+                                     "resume_result": {"id": body.id, "status": body.status, "receipt": body.receipt, "refusal": body.refusal,
+                                                       "added": body.added}})
+        except budget.BudgetRefused as e:
+            raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason == "turn_deadline" else 429),
+                                detail=e.sentence)
+        except agent.TurnError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:  # noqa: BLE001
+            kind, said = provider_failure(e)
+            log.exception("[uct-agent] v2 resume failed kind=%s class=%s", kind, type(e).__name__)
+            raise HTTPException(status_code=503, detail=said)
+        finally:
+            _v2_unregister(token)
     if out.get("paused"):
         return _v2_park(token, uid, p["cid"], out, p["voice"])
     return _v2_finish(uid, p["cid"], out, p["voice"], background)
@@ -403,7 +460,7 @@ def agent_turn_stream(body: TurnIn, background: BackgroundTasks, user: dict = De
 
     def work() -> None:
         try:
-            events.put(("final", _turn(body, background, user, on_event=on_event)))
+            events.put(("final", _turn(body, background, user, on_event=on_event, on_expired=_ends_stream(events))))
         except HTTPException as e:
             events.put(("error", {"status": e.status_code, "detail": e.detail if isinstance(e.detail, str) else FAILED}))
         except Exception:  # noqa: BLE001 -- the member gets a sentence, never a broken stream
@@ -429,12 +486,12 @@ def agent_turn_stream(body: TurnIn, background: BackgroundTasks, user: dict = De
                              background=background)
 
 
-def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) -> dict:
+def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, on_expired=None) -> dict:
     """⭐ PHASE 0B ADMISSION, in order: the member's in-flight slot and the request-rate windows
     (limits.py — a reroute continues its request and takes no new window place), then the existing
     daily count, the opt-in dollar env cap and the population cap, then the member REQUEST that every
     paid call of this turn counts against (budget.py: at most 2 calls, and the $ caps per call)."""
-    from api.services.uct_agent import limits
+    from api.services.uct_agent import budget, limits
     uid = user["id"]
     if body.repair is not None and not body.reroute:
         raise HTTPException(status_code=400, detail="A repair continues a request; it can't start one.")
@@ -442,11 +499,13 @@ def _turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None) 
     try:
         slot = limits.admit(uid, new_request=not body.reroute)
     except limits.Refused as e:
-        raise HTTPException(status_code=429, detail=e.sentence, headers={"Retry-After": str(e.retry_after)})
-    try:
-        return _admitted_turn(body, background, user, on_event, headline)
-    finally:
-        limits.done(slot)
+        raise HTTPException(status_code=503 if e.reason in limits.SERVICE_REASONS else 429, detail=e.sentence,
+                            headers={"Retry-After": str(e.retry_after)})
+    clock = budget.TurnClock()
+    if on_expired is not None:
+        clock.on_stuck(on_expired)
+    with limits.guard(uid, slot, clock):
+        return _admitted_turn(body, background, user, on_event, headline, clock)
 
 
 def _news_turn(body: TurnIn) -> tuple[TurnIn, dict | None]:
@@ -496,7 +555,8 @@ def _news_conversation(uid, body: TurnIn, headline: dict | None) -> tuple[str, l
     return cid, turns, None, False
 
 
-def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, headline: dict | None = None) -> dict:
+def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_event=None, headline: dict | None = None,
+                   clock=None) -> dict:
     from api.services import ai_population_cap
     from api.services.uct_agent import budget, limits, news, store, turn as agent
     t0 = time.perf_counter()
@@ -534,6 +594,9 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
             budget.attach_conversation(request_id, cid)
         if body.reroute and history and history[-1].get("role") == "member" and history[-1].get("text") == body.message:
             history = history[:-1]        # the same message, asked again with more actions
+        elif body.repair is not None and body.reroute and any(
+                t.get("role") == "member" and t.get("text") == body.message for t in history[-2:]):
+            pass                          # the browser's repair of a message already stored: the member typed it once
         else:
             store.add_turn(uid, cid, "member", body.message,
                            {"voice": bool(body.voice), **({"news": headline["id"]} if answer_only else {})})
@@ -553,33 +616,56 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         nameable = None                   # a headline's chat keeps its "News: …" name (the member may rename it)
     pre_ms = _ms(t0)
     # PLANNER v2 (UCT_AGENT_PLANNER=v2): only a STREAMED, ordinary turn (no headline, no reroute) takes the step loop;
-    # its rounds are metered by the daily cap per call (request_id None: the 2-call ceiling is v1's), never by routing
+    # its rounds are metered per call with the request's dollars (turn_request_id; the 2-call ceiling is v1's), never by routing
     v2 = None
-    if on_event is not None and planner_v2() and headline is None and not body.reroute:
+    # (a COACH turn stays on v1: its prompt block and server guard live there -- W3 review C1)
+    from api.services.uct_agent import coach as agent_coach
+    turn_context = body.context
+    if agent_coach.is_coach_turn(turn_context):
+        # W3 review: the journal review rides to the model only with the consent the SERVER stored for this chat
+        turn_context = agent_coach.with_stored_consent(turn_context, agent_coach.stored_consent(uid, cid))
+    if on_event is not None and planner_v2() and headline is None and not body.reroute and not agent_coach.is_coach_turn(body.context):
         token, v2 = _v2_register(uid)
+        v2["step_groups"] = body.stepGroups is True
+        clock.on_expire(lambda: _v2_unregister(token))
+    # The browser's NL-1 repair (useAgent.js) IGNORES a failed repair and goes on with its first plan: the member never
+    # sees that failure, so it is never written to the transcript (the chat on reload and the next turn's history must
+    # match what the member saw). Every other failure is shown to the member and stored.
+    shown = body.repair is None
     try:
-        out = agent.run_turn(message=body.message, context=body.context, history=history,
+        out = agent.run_turn(message=body.message, context=turn_context, history=history,
                              capabilities=body.capabilities,
                              pending=body.pending, recent_outcome=body.recentOutcome,
                              manifest_version=body.manifestVersion, routing=body.routing,
                              conversation_title=nameable, on_event=on_event,
-                             meter=budget.Meter(user_id=uid, request_id=None if v2 else request_id), reroute=body.reroute,
+                             meter=budget.Meter(user_id=uid, request_id=None if v2 else request_id,
+                                                turn_request_id=request_id, heartbeat=lambda: limits.renew(uid), clock=clock),
+                             reroute=body.reroute,
                              interpreter=body.interpreter, repair=body.repair, reference=body.reference,
                              headline=headline, answer_only=answer_only, v2=v2)
     except budget.BudgetRefused as e:
         # refused BEFORE a paid call: nothing was sent, nothing changed; the day's count is given back
         _give_back(uid)
         log.info("[uct-agent] paid call refused reason=%s", e.reason)
-        store.add_turn(uid, cid, "outcome", e.sentence, {"kind": "error"})
-        raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason == "call_limit" else 429),
+        if shown:
+            store.add_turn(uid, cid, "outcome", e.sentence, {"kind": "error"})
+        # call_limit / turn_cap: this request's own limits (not today's), so a 400 with UCT's fixed sentence
+        raise HTTPException(status_code=503 if e.reason == "unavailable" else (400 if e.reason in ("call_limit", "turn_cap", "turn_deadline") else 429),
                             detail=e.sentence)
     except agent.TurnError as e:
         _give_back(uid)
-        store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})
+        if shown:
+            store.add_turn(uid, cid, "outcome", f"Refused: {e}", {"kind": "error"})
+        # the accuracy side of the speed comparison: a plan that could not be read (a reason code, never words)
+        reason = str(getattr(e, "reason", None) or "")
+        if reason.startswith("unreadable"):
+            store.record_telemetry(uid, cid, {"path": "failed", "disposition": "error", "unsupported": reason, "voice": body.voice,
+                                              "schema_mode": "constant" if agent.constant_schema() else "routed"})
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:  # noqa: BLE001 -- a provider failure is a sentence, not a 500
         _give_back(uid)
-        store.add_turn(uid, cid, "outcome", "UCT Agent was unavailable for this message.", {"kind": "error"})
+        if shown:
+            store.add_turn(uid, cid, "outcome", "UCT Agent was unavailable for this message.", {"kind": "error"})
         kind, said = provider_failure(e)
         log.exception("[uct-agent] turn failed kind=%s class=%s", kind, type(e).__name__)
         raise HTTPException(status_code=503, detail=said)
@@ -595,7 +681,10 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
     try:
         # A request for more action groups is plumbing, not a reply: nothing is stored for it.
         turn_id = None if env.get("need_groups") else store.add_turn(uid, cid, "agent", env.get("reply") or (env.get("question") or {}).get("text") or "",
-                             {"envelope": env, "citations": usage.get("citations")})
+                             {"envelope": env, "citations": usage.get("citations"),
+                              # Wave 3: a COACH turn's reply (it read the coach's concept / Brain text) is marked, so the
+                              # chat-naming request leaves it out (turn.name_conversation)
+                              **({"coach": True} if "coach_guard" in usage else {})})
     except Exception:  # noqa: BLE001 -- the answer stands; only its transcript row is lost
         log.exception("[uct-agent] could not store the agent turn")
         turn_id = None
@@ -606,7 +695,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         background.add_task(_set_title, uid, cid, title)
     elif nameable == NO_TITLE_YET and not env.get("need_groups"):
         # Still unnamed and the turn gave no name: one small naming call after the reply is sent.
-        background.add_task(_name_unnamed, uid, cid, request_id)
+        background.add_task(_name_unnamed, uid, cid, request_id, clock)
     background.add_task(store.record_telemetry, uid, cid, {
         # routing in the existing columns: path model | routed | reroute; disposition need_groups
         "path": "reroute" if body.reroute else ("routed" if body.routing else "model"),
@@ -615,7 +704,7 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
         "clarified": env["disposition"] == "clarify", "latency_ms": usage.get("latency_ms"),
         "model": usage.get("model"), "cost_usd": usage.get("cost_usd"),
         "research_calls": usage.get("research_calls"), "unsupported": env.get("unsupported_category"),
-        "voice": body.voice,
+        "voice": body.voice, **_speed_fields(usage),
     })
     # STAGE TIMINGS, ms only (the member's words, replies and values are never in them): pre = caps +
     # conversation store before the model; build/model/research from run_turn; post = stores after it.
@@ -630,6 +719,11 @@ def _admitted_turn(body: TurnIn, background: BackgroundTasks, user: dict, on_eve
                       "stages": stages}}
 
 
+def _speed_fields(usage: dict) -> dict:
+    """What the speed report reads off one turn: counts and the schema mode, never content."""
+    return {k: usage.get(k) for k in ("model_calls", "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "schema_mode")}
+
+
 def _set_title(uid: int, cid: str, title: str) -> None:
     from api.services.uct_agent import store
     try:
@@ -638,17 +732,22 @@ def _set_title(uid: int, cid: str, title: str) -> None:
         log.exception("[uct-agent] could not store the conversation title")
 
 
-def _name_unnamed(uid: int, cid: str, request_id: int | None = None) -> None:
+NAMING_MIN_LEFT_S = 10.0
+
+
+def _name_unnamed(uid: int, cid: str, request_id: int | None = None, clock=None) -> None:
     """Background: name a chat that is still on its first message. Never over the member's own
     name (the store refuses that) or over a name the Agent gave it meanwhile. The naming call is
     one of its request's calls (budget.py): a request that used both is not named this turn."""
     from api.services.uct_agent import budget, store, turn as agent
     try:
+        if clock is not None and clock.left() < NAMING_MIN_LEFT_S:
+            return                                      # a call capped to seconds would time out and cost its worst case
         if over_cost_cap() or (store.title_info(uid, cid) or {}).get("source") is not None:
             return
         try:
             title = agent.name_conversation(store.get_turns(uid, cid) or [],
-                                            meter=budget.Meter(user_id=uid, request_id=request_id))
+                                            meter=budget.Meter(user_id=uid, request_id=request_id, clock=clock))
         except budget.BudgetRefused as e:
             log.info("[uct-agent] naming skipped reason=%s", e.reason)
             return
@@ -735,17 +834,34 @@ def agent_conversation_delete(conversation_id: str, user: dict = Depends(require
 
 
 # ── per-conversation state (W1-C C-01, builder-c): the last screen, so a follow-up composes after a reload ──
-# GET/PUT /api/agent/conversations/{id}/state/{key}. Keys are store.STATE_KEYS (`lastScreen`); the value is
-# validated by services/uct_agent/scan/refine.py before it is stored (the screener's catalog, F-16 hidden keys,
-# ≤ 50 result ids). Owner-scoped: a conversation that is not the member's is 404, like every route above.
+# GET/PUT /api/agent/conversations/{id}/state/{key}. Keys are store.STATE_KEYS (`lastScreen`; W3-3 `coachConsent`);
+# the value is validated per key before it is stored: `lastScreen` by services/uct_agent/scan/refine.py (the
+# screener's catalog, F-16 hidden keys, ≤ 50 result ids), `coachConsent` by services/uct_agent/coach.validate_consent
+# ({granted: bool}; the server stamps `at`), and that key exists only while UCT_AGENT_COACH is on (404 otherwise).
+# Owner-scoped: a conversation that is not the member's is 404, like every route above.
 class StateIn(BaseModel):
     value: Any
+
+
+def _state_key_served(key: str) -> bool:
+    if key == "coachConsent":
+        from api.services.uct_agent import coach
+        return coach.enabled()
+    return True
+
+
+def _validate_state(key: str, value: Any) -> Any:
+    if key == "coachConsent":
+        from api.services.uct_agent import coach
+        return coach.validate_consent(value)
+    from api.services.uct_agent.scan import refine
+    return refine.validate_last_screen(value)
 
 
 @router.get("/api/agent/conversations/{conversation_id}/state/{key}")
 def agent_conversation_state(conversation_id: str, key: str, user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import store
-    if key not in store.STATE_KEYS or not store.owns(user["id"], conversation_id):
+    if key not in store.STATE_KEYS or not _state_key_served(key) or not store.owns(user["id"], conversation_id):
         raise HTTPException(status_code=404, detail="Conversation not found")
     got = store.get_state(user["id"], conversation_id, key)
     return {"key": key, "value": got["value"] if got else None, "updated_at": got["updated_at"] if got else None}
@@ -754,11 +870,10 @@ def agent_conversation_state(conversation_id: str, key: str, user: dict = Depend
 @router.put("/api/agent/conversations/{conversation_id}/state/{key}")
 def agent_conversation_state_put(conversation_id: str, key: str, body: StateIn, user: dict = Depends(require_admin_dark)):
     from api.services.uct_agent import store
-    from api.services.uct_agent.scan import refine
-    if key not in store.STATE_KEYS or not store.owns(user["id"], conversation_id):
+    if key not in store.STATE_KEYS or not _state_key_served(key) or not store.owns(user["id"], conversation_id):
         raise HTTPException(status_code=404, detail="Conversation not found")
     try:
-        value = refine.validate_last_screen(body.value)
+        value = _validate_state(key, body.value)
         store.set_state(user["id"], conversation_id, key, value)
     except ValueError as e:                      # RefineError is a ValueError, with the member-facing sentence
         raise HTTPException(status_code=400, detail=str(e)[:400])
@@ -795,7 +910,8 @@ class DataReadIn(BaseModel):
 @router.post("/api/agent/data")
 def agent_data(body: DataReadIn, user: dict = Depends(require_admin_dark)):
     """One MD-1 market-data read (services/uct_agent/marketdata/gateway.py) -> a DataEnvelope. Read-only, no
-    model call. Dark twice: admin-dark like every route here, and refused unless UCT_AGENT_DATA=1."""
+    model call; research.company may run one metered web lookup. Dark twice: admin-dark like every route here, and
+    refused unless UCT_AGENT_DATA=1."""
     from api.services.uct_agent.marketdata import gateway
     return gateway.read(body.kind, body.params, user_id=user.get("id"), turn_id=body.turn_id, purpose=body.purpose)
 

@@ -41,7 +41,7 @@ const WIDGET_VARS = [
   '--widget-accent-bg', '--widget-row-hover', '--widget-popup-bg', '--widget-popup-border',
 ]
 
-export default function ViewHoldingsControl({ sym, candleColors = null }) {
+export default function ViewHoldingsControl({ sym, candleColors = null, doorRef = null }) {
   const { isEtf } = useEtfSymbols()
   const [open, setOpen] = useState(false)
   const [centerOn, setCenterOn] = useState(null)
@@ -56,10 +56,6 @@ export default function ViewHoldingsControl({ sym, candleColors = null }) {
   // navigates the chart to that stock, and the list must STAY on screen (only ×
   // closes it).
   useEffect(() => { if (symIsEtf) setHeldEtf(sym) }, [sym, symIsEtf])
-
-  // Hide the button on a plain-stock chart, but keep an already-OPEN panel alive so
-  // clicking a holding (→ a stock) doesn't dismiss the list.
-  if (!symIsEtf && !open) return null
 
   const toggle = () => {
     if (open) { setOpen(false); return }
@@ -99,6 +95,12 @@ export default function ViewHoldingsControl({ sym, candleColors = null }) {
     setHeldEtf(sym)   // this ETF's holdings stay shown even after navigating to a stock
     setOpen(true)
   }
+  // The chart's widget door (Agent): the button's own toggle, offered only while the button shows (an ETF or a UCT index)
+  if (doorRef) doorRef.current = { holdable: symIsEtf, open, symbol: heldEtf || sym, set: (v) => { if (!!v !== open && (symIsEtf || !v)) toggle() } }
+
+  // Hide the button on a plain-stock chart, but keep an already-OPEN panel alive so
+  // clicking a holding (→ a stock) doesn't dismiss the list.
+  if (!symIsEtf && !open) return null
 
   return (
     <>
@@ -106,6 +108,7 @@ export default function ViewHoldingsControl({ sym, candleColors = null }) {
         <button
           ref={btnRef}
           type="button"
+          data-guide="chart.viewHoldings"
           className={styles.viewHoldingsBtn}
           onClick={toggle}
           title={String(sym).startsWith('$IDX:') ? 'View the stocks in this index' : `View ${String(sym).toUpperCase()} holdings`}

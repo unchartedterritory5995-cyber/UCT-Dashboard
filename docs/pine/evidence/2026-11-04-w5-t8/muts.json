@@ -1,0 +1,176 @@
+[
+[
+"control:noop-comment",
+"services/pine_runtime/cache.mjs",
+"// Kill and stage are NOT in the key",
+"// Kill and stage are NOT in the key (control)"
+],
+[
+"key:engine-field-dropped",
+"services/pine_runtime/cache.mjs",
+"for (const k of ENGINE_FIELDS) h.update(lp(String(request.engine[k])))",
+"for (const k of ENGINE_FIELDS.slice(1)) h.update(lp(String(request.engine[k])))"
+],
+[
+"key:doc-sha-dropped",
+"services/pine_runtime/cache.mjs",
+"h.update(lp(request.definition.doc_sha256))\n",
+"\n"
+],
+[
+"key:ctx-dropped",
+"services/pine_runtime/cache.mjs",
+"h.update(lp(canonicalCtx(job.ctx)))\n",
+"\n"
+],
+[
+"key:forming-dropped",
+"services/pine_runtime/cache.mjs",
+"`forming=${ctx.newestBarIsForming === true}`",
+"`forming=false`"
+],
+[
+"key:listing-dropped",
+"services/pine_runtime/cache.mjs",
+"`listing=${ctx.historyFromListing === true}`",
+"`listing=false`"
+],
+[
+"key:inputs-unsorted",
+"services/pine_runtime/cache.mjs",
+"Object.keys(inputs).sort()",
+"Object.keys(inputs)"
+],
+[
+"key:inputs-untyped",
+"services/pine_runtime/cache.mjs",
+"if (typeof x === 'boolean') return `b:${x}`\n  if (typeof x === 'number') return `n:${num(x)}`\n  return `s:${x}`",
+"return `s:${x}`"
+],
+[
+"key:neg-zero",
+"services/pine_runtime/cache.mjs",
+"Object.is(x, -0) ? '-0' : String(x)",
+"String(x)"
+],
+[
+"key:bars-dropped",
+"services/pine_runtime/cache.mjs",
+"h.update(lp(job.bars.sha256))\n",
+"\n"
+],
+[
+"key:symbol-dropped",
+"services/pine_runtime/cache.mjs",
+"h.update(lp(job.symbol.ticker)).update(lp(job.symbol.exchange)).update(lp(job.tf))",
+"h.update(lp(job.tf))"
+],
+[
+"key:tf-dropped",
+"services/pine_runtime/cache.mjs",
+".update(lp(job.tf))",
+""
+],
+[
+"key:want-unsorted",
+"services/pine_runtime/cache.mjs",
+"[...(job.want || [])].sort()",
+"[...(job.want || [])]"
+],
+[
+"key:want-dropped",
+"services/pine_runtime/cache.mjs",
+"for (const w of want) h.update(lp(w))",
+""
+],
+[
+"key:profile-dropped",
+"services/pine_runtime/cache.mjs",
+"h.update(lp(request.profile))",
+""
+],
+[
+"key:no-length-prefix",
+"services/pine_runtime/cache.mjs",
+"function lp(text) { const b = Buffer.from(String(text), 'utf8'); return Buffer.concat([u32(b.length), b]) }",
+"function lp(text) { const b = Buffer.from(String(text), 'utf8'); return b }"
+],
+[
+"doc:hash-check-off",
+"services/pine_runtime/cache.mjs",
+"if (createHash('sha256').update(bytes).digest('hex') !== docSha256) {",
+"if (false) {"
+],
+[
+"doc:no-lru-refresh",
+"services/pine_runtime/cache.mjs",
+"this.map.delete(k); this.map.set(k, e)\n    return e.value",
+"return e.value"
+],
+[
+"lru:count-bound-off",
+"services/pine_runtime/cache.mjs",
+"this.map.size > this.maxEntries ||",
+"false ||"
+],
+[
+"lru:byte-bound-off",
+"services/pine_runtime/cache.mjs",
+"|| this.bytes > this.maxBytes) {",
+"|| false) {"
+],
+[
+"lru:oversize-kept",
+"services/pine_runtime/cache.mjs",
+"if (size > this.maxBytes) return false",
+""
+],
+[
+"lru:replace-double-count",
+"services/pine_runtime/cache.mjs",
+"if (old) { this.bytes -= old.size; this.map.delete(k) }",
+"if (old) { this.map.delete(k) }"
+],
+[
+"never:time-budget-cached",
+"services/pine_runtime/cache.mjs",
+"g === TIME_BUDGET_GUARD || ",
+""
+],
+[
+"never:server-prefix-cached",
+"services/pine_runtime/cache.mjs",
+" || g.startsWith(SERVER_GUARD_PREFIX)",
+""
+],
+[
+"never:crash-cached",
+"services/pine_runtime/cache.mjs",
+"if (result.crashed === true || result.timedOut === true) return false",
+""
+],
+[
+"never:unnamed-withheld-cached",
+"services/pine_runtime/cache.mjs",
+"if (result.status === 'withheld' && guards.length === 0) return false",
+""
+],
+[
+"never:status-open",
+"services/pine_runtime/cache.mjs",
+"if (result.status !== 'ok' && result.status !== 'withheld') return false",
+""
+],
+[
+"never:nested-guard-missed",
+"services/pine_runtime/cache.mjs",
+"if (depth > 8 || v === null",
+"if (depth > 0 || v === null"
+],
+[
+"result:put-skips-cacheable",
+"services/pine_runtime/cache.mjs",
+"if (!cacheable(result)) return false\n",
+""
+]
+]

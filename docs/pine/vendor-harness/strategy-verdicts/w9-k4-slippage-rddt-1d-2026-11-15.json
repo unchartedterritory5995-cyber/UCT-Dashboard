@@ -1,0 +1,176 @@
+{
+ "schema": "uct.strategy-verdict/v1",
+ "captureId": "w9-k4-slippage-rddt-1d-2026-11-15",
+ "captureSha256": "102ff05459008c468c48fe236b3701a574f132a94626967a2a291add49b97021",
+ "receipt": 2087093207,
+ "sourceSha256": "9690a905c91b359b24a154479070e4012a4337b1d4a0aa760c69572e5a050ca7",
+ "queueTargetId": "W9-K4",
+ "symbol": "NYSE:RDDT",
+ "timeframe": "1D",
+ "gradeMethod": "a",
+ "verdict": "MATCH",
+ "step": 8,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+ "first": null,
+ "graded": {
+  "trades": true,
+  "fills": true,
+  "slots": 9,
+  "values": 36,
+  "texts": 20
+ },
+ "referenceTrades": 20,
+ "rulesExercised": [
+  "B-CLOSE",
+  "B-DEFAULTS",
+  "B-DIR",
+  "B-FIFO",
+  "B-FILL",
+  "B-MARGIN",
+  "B-MARKET",
+  "B-QTY",
+  "B-ROUND",
+  "B-SIG",
+  "B-SLIPPAGE",
+  "B-TXT-CLOSE-ID",
+  "B-TXT-NO-COMMENT",
+  "B-VAL"
+ ],
+ "ungradedSlots": [
+  {
+   "slot": "maxDrawdown",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxRunup",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "buyAndHoldReturn",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "percentProfitable",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgBarsInTrades",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sharpeRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sortinoRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  }
+ ],
+ "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
+ "provenance": {
+  "strategySettings": {
+   "properties": [
+    {
+     "name": "Default entry/order Qty Type",
+     "value": "fixed"
+    },
+    {
+     "name": "Default entry/order Qty Value",
+     "value": 1
+    },
+    {
+     "name": "Backtesting slippage for market orders",
+     "value": 3
+    },
+    {
+     "name": "pyramiding",
+     "value": 1
+    },
+    {
+     "name": "Calculate Strategy on Order's Fill(s)",
+     "value": false
+    },
+    {
+     "name": "Calculate Strategy on every Tick(s)",
+     "value": false
+    },
+    {
+     "name": "Backtesting Limit Order(s) fill assumption",
+     "value": 0
+    },
+    {
+     "name": "Initial Capital",
+     "value": 100000
+    },
+    {
+     "name": "Base Currency",
+     "value": "NONE"
+    },
+    {
+     "name": "Commission Type",
+     "value": "percent"
+    },
+    {
+     "name": "Commission Value",
+     "value": 0
+    },
+    {
+     "name": "Process orders on bar Close",
+     "value": false
+    },
+    {
+     "name": "Close entries rule",
+     "value": "FIFO"
+    },
+    {
+     "name": "Margin Long",
+     "value": 100
+    },
+    {
+     "name": "Margin Short",
+     "value": 100
+    },
+    {
+     "name": "Risk free rate",
+     "value": 2
+    },
+    {
+     "name": "Use Bar Magnifier",
+     "value": false
+    },
+    {
+     "name": "Fill orders using standard OHLC",
+     "value": false
+    },
+    {
+     "name": "Calculate Strategy on every History Tick",
+     "value": false
+    }
+   ]
+  }
+ }
+}

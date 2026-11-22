@@ -1,0 +1,93 @@
+{
+ "D-003": {
+  "ask": "When exactly do you buy?",
+  "options": [
+   "As price trades through the buy level, during the day, with a market order",
+   "At the day's close, once the setup has closed above the level",
+   "The next day, when price goes over the trigger day's high"
+  ],
+  "now": "Your Kicker ruling for every daily setup: buy as it trades through the level, stop under that day's low. The close is the entry only where a setup is defined by its close (Slingshot, Launchpad, Kell's Wedge Pop). The next-day break is the second-chance entry."
+ },
+ "D-002": {
+  "ask": "Which of the 44 setups get their own lesson, and which are just a version of another one?",
+  "options": [
+   "Row by row (the table is in the full detail below): own lesson, or fold into the setup named"
+  ],
+  "now": "The last column of the table. For example, the ascending triangle is a version of the Flat Base, VCP is its own lesson, and a flag with a 90%+ pole is a High Tight Flag, every other tight flag a Bull Flag."
+ },
+ "D-005": {
+  "ask": "The honest stop (under the day's low) is more than about 3% away. What do you do?",
+  "options": [
+   "Skip the trade",
+   "Take it with a smaller size",
+   "Take it only if the stop is within the stock's normal daily range (one ADR)",
+   "Use a tighter intraday stop instead, like the 30-minute low",
+   "Only an A+ setup may use a wider stop"
+  ],
+  "now": "Up to one ADR away: take it, smaller size, one grade lower. Past one ADR: skip, or wait for a tighter trigger. The Kicker keeps your 3.5%."
+ },
+ "D-008": {
+  "ask": "Where does the stop go?",
+  "options": [
+   "A few cents under the entry day's low",
+   "Under the pattern's low (the handle, the base, the flush low)",
+   "Under the moving average or line, minus a cushion"
+  ],
+  "now": "Under the entry day's low for every setup, never wider than the pattern's low. The 30-minute pivot candle's low is allowed when it is tighter."
+ },
+ "D-006": {
+  "ask": "Does a setup need big volume on the trigger day to count?",
+  "options": [
+   "Yes, it is a requirement (no volume, no trade)",
+   "No, volume only raises the grade"
+  ],
+  "now": "Volume raises the grade, it is not a requirement, because we buy during the day before the day's volume is known. A+ cue: 1.5 times the 50-day average. Exceptions where volume IS the setup: HVE and the capitulation/burst setups."
+ },
+ "D-007": {
+  "ask": "Before a chart example goes into a lesson, do you want to see and approve each one yourself?",
+  "options": [
+   "Yes: show me every chart, I keep it, keep it with a note, or cut it (like the Kicker charts)",
+   "Pick them yourselves under the must-work and liquid-stock rules; I only see a sample",
+   "I will name my own examples"
+  ],
+  "now": "Every candidate chart is checked against the must-work and liquidity rules, then you see each one and keep, note or cut it, the way you did the Kicker charts."
+ },
+ "D-009": {
+  "ask": "A setup forms while the stock is below its 200-day average. Can members buy it?",
+  "options": [
+   "No. Your 200-day rule stands; teach it as something to read, not buy",
+   "Yes, as a named exception for that setup",
+   "Only for indexes and leveraged ETFs",
+   "Keep these charts as reading drills marked not a buy"
+  ],
+  "now": "Your 200-day rule as written, no new exceptions. Below-200 charts stay as reading drills marked \"not a buy for us\". Index and leveraged-ETF flushes count only as the parabolic long."
+ },
+ "D-013": {
+  "ask": "Can a setup take profits at its own target instead of the standard thirds (a third at 3R, a third at 5R, trail the rest)?",
+  "options": [
+   "No, the standard thirds for every setup",
+   "Yes, the setup's own target replaces the thirds",
+   "Both: take the first third at whichever comes later, 3R or the setup's own target",
+   "Teach the alternative as the member's choice"
+  ],
+  "now": "The standard thirds for every swing setup. Only the three climax setups (Capitulation, Mean Reversion, Parabolic Short) take their first trim at their own target (the 9 EMA or 20-day). A setup's named spot is a cue to take the 3R third early."
+ },
+ "D-021": {
+  "ask": "Which pair of fast moving averages does the course teach?",
+  "options": [
+   "9 and 20 EMA everywhere (your wording)",
+   "10 and 21 (what the scanners use)",
+   "10 and 20 only for Kell's setups",
+   "The originators' simple averages for the Launchpad"
+  ],
+  "now": "9 and 20 EMA everywhere, plus the 50 and 200 SMA, with a one-line note where an originator uses 10/20 or 10/21. The scanners move to 9/20."
+ },
+ "D-016": {
+  "ask": "Small naming choices: what each setup is called, and which family it is filed under in the journal.",
+  "options": [
+   "Use the names in the table (your word wherever you have one)",
+   "Change a name: tell me which one and what to call it"
+  ],
+  "now": "One name per setup, using your word wherever you have one. The full table is in the detail below."
+ }
+}

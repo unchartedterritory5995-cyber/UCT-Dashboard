@@ -5,6 +5,8 @@
  *   - "Log trade"     → opens the add flow (the parent surface owns the modal;
  *                        `onLogTrade` mirrors the "+ Log Trade" header path).
  *   - "Open Notebook" → `/journal/notebook` (the notes surface).
+ *   - "Daily brief"   → `/journal/notebook?view=today` (the Notebook's notes day; follow-up B, item 1a: the two day
+ *                        pages are one press apart).
  *   - "Review a trade"→ `/journal/trades?seg=closed` (closed-trades segment).
  *
  * No emoji — every glyph is a `UIcon`. Phone stacks to a single column via CSS
@@ -12,6 +14,7 @@
  */
 import { useNavigate } from 'react-router-dom'
 import UIcon from '../../../../components/ui/UIcon'
+import { NOTEBOOK_TODAY_TO } from '../../lib/dailyBriefLink'
 import styles from './TodayQuickActions.module.css'
 
 export default function TodayQuickActions({ onLogTrade }) {
@@ -37,6 +40,16 @@ export default function TodayQuickActions({ onLogTrade }) {
       >
         <UIcon name="journal" size={15} aria-hidden="true" />
         <span>Open Notebook</span>
+      </button>
+
+      <button
+        type="button"
+        data-testid="qa-daily-brief"
+        className={styles.action}
+        onClick={() => navigate(NOTEBOOK_TODAY_TO)}
+      >
+        <UIcon name="calendar" size={15} aria-hidden="true" />
+        <span>Daily brief</span>
       </button>
 
       <button

@@ -49,8 +49,15 @@ def test_layer_mem_on_warm_cache_hit(fresh):
     assert bars_fetch.get_serve_layer() == "mem"
 
 
-def test_layer_sqlite_on_fresh_stored_rows(fresh):
+def test_layer_sqlite_on_fresh_stored_rows(fresh, monkeypatch):
     """Fresh INTRADAY rows serve straight from SQLite.
+
+    ⛔ "FRESH" IS HELD FIXED HERE, because whether a row stamped "now" is fresh depends on
+    the HOUR: overnight (8 PM to 4 AM ET) `_needs_fresh` asks whether the tail completes its
+    regular session, a 1 AM row does not, a delta fetch is tried, and the layer reads "miss".
+    Measured 2026-11-18, 05:11Z to 06:15Z: red on every run of the master deploy gate's bars
+    lane, and nothing promoted. This file pins the serve-layer TAG; the freshness policy has
+    its own rails (the tests that call `_needs_fresh` directly, and the bar-contract tests).
 
     Uses an intraday tf deliberately. _needs_fresh() short-circuits D/W/M to
     True unconditionally (`last_ts <= _last_weekday_yyyymmdd()`) because today's
@@ -63,6 +70,7 @@ def test_layer_sqlite_on_fresh_stored_rows(fresh):
     now = int(time.time())
     rows = [{"t": now, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]
     bars_sqlite.put_bars("AAPL", "5", rows)
+    monkeypatch.setattr(bars_fetch, "_needs_fresh", lambda *a, **k: False)
     # bars=1 so the len>=bars*0.9 gate passes on the single fresh row.
     bars_fetch._get_bars_inner("AAPL", "5", 1)
     assert bars_fetch.get_serve_layer() == "sqlite"

@@ -90,6 +90,15 @@ export const OBJECT_KINDS = Object.freeze(Object.keys(POOL_LIMITS))
  *   · one a drawing variable currently holds (a `var box b = box.new(…)` is
  *     never collected — it still COUNTS toward the total)
  *
+ * ⭐ W-C22-DEL r6 — an object held only in an ARRAY: for BOXES it is WITNESSED —
+ * it is collected like any other box (not spared). `sonarlab-order-blocks-spy-1d`
+ * keeps every box in a `var array<box>` (`max_boxes_count = 20`): TradingView holds
+ * 24, this collector (array members not spared) gives 24/24, and sparing them would
+ * give 36. ⛔ NOT witnessed: lines, labels and polylines in an array, and any
+ * family in a map, a matrix or a UDT field — where the collector reaches one, both
+ * lanes withhold the family (`objectRuntime.js`, `runtime/objectStore.js`), queued
+ * as Q-C22-1 (`docs/pine/capture-queue-2026-11-10-c22-array-gc.md`).
+ *
  * The live count therefore saw-tooths between `capacity` and
  * `capacity + GC_BATCH` (`label.all` read per bar: 5,6,…,10 then 5 at cap 5).
  * Measured on eight TradingView captures of `vw-object-gc-{a,b,c,d}.pine`
@@ -105,6 +114,67 @@ export const GC_BATCH = 5
 /** The live count above which a create triggers a collection — see `GC_BATCH`. */
 export function collectsAbove(capacity) {
   return capacity + GC_BATCH
+}
+
+/** ⭐⭐ DRAW-1 (2026-11-16, coordinator ruling) — A BOX FAMILY WHOSE COLLECTOR RAN IS WITHHELD BY NAME
+ *  ON THE RUNTIME LANE. The reference calls `max_boxes_count` approximate ("The count is approximate;
+ *  more drawings than the specified count may be displayed."), and the batch rule above does not hold
+ *  for every box script: inside-bar-boxes (rddt 1d, 2026-11-14) made 158 boxes on both sides
+ *  (TradingView's newest id 158, ours 158), every one of the 50 boxes both sides hold agrees, and
+ *  TradingView holds 52 (ids 107-158) where this rule holds 50 (109-158). Which of the oldest boxes
+ *  TradingView still shows once the collector has run is therefore not settled, and the run's store
+ *  withholds the box family (`runtime/objectStore.js` `collect`); the member reads
+ *  `NOT_SHOWN.COUNT_AT_CAP` (`ast/objectLoss.js`). Capture queue Q-DRAW-CAP-1/2
+ *  (`tools/visual_conformance/probes/vw-draw-count-at-cap.pine`).
+ *  For boxes the committed captures DISAGREE: sonarlab-order-blocks (spy, brk-a; cap 20) hold 24 boxes,
+ *  every one paired, as this rule predicts, and inside-bar-boxes holds two more than it predicts. Which
+ *  of the two applies to a given script is the unsettled question, so a box family is withheld once
+ *  its collector runs, whichever shape the script has.
+ *  ⛔ BOXES ONLY, on purpose: labels and lines reach their caps in served runtime-lane scripts too, and
+ *  there every committed capture whose collector ran agrees with this rule (parabolic-sar-rddt-1d-
+ *  2026-11-15: 52 labels held, every one paired, runtime-on MATCH; trendlines-spy and
+ *  swing-highlow-zigzag-chartprime-spy: 52 lines, every one paired). Polylines (cap 100) reach no cap
+ *  in a committed capture, and tables are withheld past their count already (`objectStore.js`). */
+export const COUNT_AT_CAP_FAMILIES = Object.freeze(['box'])
+/** ⭐⭐ DRAW-1 GC (2026-11-17, coordinator ruling after the engine-66 regression) — THE CARVE-OUT IS THE
+ *  SHAPE THE CAPTURES DO NOT WITNESS, NEVER THE WHOLE FAMILY. Withholding every box family whose collector
+ *  ran threw away TradingView's own garbage collection where it IS witnessed: rs-arm-label-last-bar-spy
+ *  (s10, cap 500: TradingView holds the newest 503, ours drew 0), sonarlab-order-blocks (boxes in arrays,
+ *  cap 20: 24 held, every one paired). The committed vw-draw-count-at-cap captures (2026-11-16, cap 20,
+ *  one create per family every third bar) separate the shapes: lines never held and labels held in a
+ *  `var` follow C7 on both charts (SPY 22 / 22 of 2836 made, RDDT 25 / 25 of 223), while BOXES held in a
+ *  `var` whose PAST value the script reads (`box.set_right(myBox[1], ...)`, inside-bar-boxes' shape) hold
+ *  20 and 23: C7 does not describe them, as it did not describe inside-bar-boxes (52 where it holds 50).
+ *  So a box family is withheld only when its collector runs AND the script reads a past value of a
+ *  variable holding a box (`historyHeldOf`); every other box family keeps C7: the oldest dropped, the
+ *  newest kept. */
+export const COUNT_AT_CAP_GUARD = 'objects:count-at-cap'
+export const COUNT_AT_CAP_PREFIX = 'The script held more '
+/** The store's reason for a family withheld because its collector ran. */
+export function countAtCapReason(family, capacity) {
+  const plural = family === 'box' ? 'boxes' : `${family}s`
+  return `${COUNT_AT_CAP_PREFIX}${plural} than its maximum count (${capacity}) and TradingView's collector ran; `
+    + `which of the oldest TradingView still shows then is not measured for a script that reads a past value of `
+    + `the variable holding its ${plural}`
+}
+
+/** ⭐ DRAW-1 GC — the families of `COUNT_AT_CAP_FAMILIES` whose handle a script keeps in a variable it
+ *  reads at a past offset (`myBox[1]`), off the stripped source (comments and strings out,
+ *  `pine.js::strippedForScan`), as `{ historyHeld: [...] }` beside the declared caps, or `{}`. A name is a
+ *  family's when it is declared with the family's type (`var box b = na`, `box b = ...`) or assigned that
+ *  family's constructor (`b := box.new(...)`); an array of them (`box[]`) is not a name of this kind. */
+export function historyHeldOf(stripped) {
+  const s = String(stripped || '')
+  const out = []
+  for (const fam of COUNT_AT_CAP_FAMILIES) {
+    const names = new Set()
+    for (const m of s.matchAll(new RegExp(`\\b${fam}\\s+([A-Za-z_]\\w*)\\s*=`, 'g'))) names.add(m[1])
+    for (const m of s.matchAll(new RegExp(`\\b([A-Za-z_]\\w*)\\s*:?=\\s*${fam}\\.new\\b`, 'g'))) names.add(m[1])
+    for (const n of names) {
+      if (new RegExp(`\\b${n}\\s*\\[\\s*\\d+\\s*\\]`).test(s)) { out.push(fam); break }
+    }
+  }
+  return out.length ? { historyHeld: out } : {}
 }
 
 /** The lowest Pine version with any drawing object at all. */

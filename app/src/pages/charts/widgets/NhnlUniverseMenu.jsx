@@ -36,6 +36,12 @@ const SECTOR_ETFS = ['XLV', 'XLE', 'XLF', 'XLK', 'XLI', 'XLU', 'XLB', 'XLY', 'XL
 const toItem = (e) => ({ key: `etf:${e.etf}`, label: e.label, etf: e.etf })
 const INDEX_ITEMS = INDEX_ETFS.map(toItem)   // S&P 500 / Nasdaq 100 / S&P 100 / Russell 2000 / Dow 30
 const ETF_ITEMS = SECTOR_ETFS.map(toItem)    // the 11 sector SPDRs
+/** The picks that need no fetch, as the menu hands them to its `onPick`. */
+export const NHNL_UNIVERSE_PICKS = [
+  { scope: 'all', label: 'UCT Universe' },
+  ...GROUP_BY.map(g => ({ scope: g.key, label: g.label })),
+  ...[...INDEX_ITEMS, ...ETF_ITEMS].map(e => ({ etf: e.etf, label: e.label })),
+]
 
 export default function NhnlUniverseMenu({ activeKey, onPick, addClassName }) {
   const [open, setOpen] = useState(false)

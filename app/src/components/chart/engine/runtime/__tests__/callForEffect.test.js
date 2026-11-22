@@ -176,9 +176,9 @@ describe('⭐⭐ a user function called as a statement, for its effect', () => {
     // A placement rail: the user-function branch sits AFTER the method-form
     // block, so `a.reverse()` must still be answered by the collection roster
     // rather than swallowed here.
-    const r = refusalOf('a = array.new_float(0)\na.reverse()\nplot(array.size(a))\n')
+    const r = refusalOf('a = array.new_float(0)\na.mode()\nplot(array.size(a))\n')
     expect(r.guard).toBe('runtime:array')
-    expect(r.message).toContain('array.reverse')
+    expect(r.message).toContain('array.mode') // W6-T5 serves `array.reverse`; `array.mode` (ties, W6-A1) is not held
   })
 
   it('⛔ a helper that reads a global\'s HISTORY still refuses that, by name', () => {
@@ -186,9 +186,11 @@ describe('⭐⭐ a user function called as a statement, for its effect', () => {
     // array refusing; C11 admitted global READS, and max-pain's exact
     // `generate_strikes()` shape now runs (functionGlobalReads.test.js). A
     // global's PAST inside a function has not been measured, so it stays here.
+    // ⭐ U-FGS F2 served a MUTABLE global's past (its value at each call, G01-G06); a global bound ONCE keeps the
+    // refusal until W13 / W14 is read, and that is the wall pinned here now.
     const r = refusalOf(
-      'var a = 0.0\na := a + 1\n'
-      + 'bump(x) =>\n    y = x + a[1]\n    y\n'
+      'var a = 0.0\na := a + 1\nb = a * 2\n'
+      + 'bump(x) =>\n    y = x + b[1]\n    y\n'
       + `bump(${ARG})\nplot(a)\n`)
     expect(r.guard).toBe('runtime:function-global-state')
   })

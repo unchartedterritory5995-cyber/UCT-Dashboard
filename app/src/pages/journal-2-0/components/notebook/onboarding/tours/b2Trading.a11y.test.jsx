@@ -8,6 +8,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { SWRConfig } from 'swr'
 import GenericTourEngine from '../GenericTourEngine'
 import { getTourEntry } from '../tourRegistry'
+import { stepsForScreen } from '../tourTiers'
 import { expectNoAxeViolations } from '../../../../a11y/axeHarness'
 import { installTourLayout } from '../__fixtures__/tourLayout'
 
@@ -34,8 +35,10 @@ beforeEach(() => {
 afterEach(() => { vi.restoreAllMocks() })
 
 describe('review-drafts tour through the generic engine: axe', () => {
+  // Go-live wave 1: the steps THIS screen keeps (tourTiers.js; jsdom reads as a desktop), as the engine walks them.
   it('walks every step with its real copy; the last step has zero violations', async () => {
-    const { steps, copy } = await ENTRY.load()
+    const { steps: all, copy } = await ENTRY.load()
+    const steps = stepsForScreen(all)
     render(<Page steps={steps} />)
     await screen.findByRole('dialog', {}, { timeout: 2000 })
     for (let i = 0; i < steps.length; i += 1) {

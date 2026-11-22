@@ -53,13 +53,13 @@ export function primaryOf(row) {
 
 /**
  * Is this Add-surface result ON the chart? Read the way a screen reader gets it:
- * the title button's `aria-describedby` resolves to the row's "Active" word.
+ * the title button's `aria-describedby` resolves to the row's "On chart" word (UCT Signature; it read "Active").
  * (This was the option's `aria-selected`. The library DIALOG's rows are toggles
  * and say it with `aria-pressed` on the same button instead.)
  */
 export function resultIsOn(row) {
   const ids = (primaryOf(row)?.getAttribute('aria-describedby') || '').split(/\s+/).filter(Boolean)
-  return ids.some((id) => row.ownerDocument.getElementById(id)?.textContent === 'Active')
+  return ids.some((id) => row.ownerDocument.getElementById(id)?.textContent === 'On chart')
 }
 
 /**

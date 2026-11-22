@@ -22,8 +22,9 @@
 // does not name exactly once) returns null or stays the model's.
 
 import { catalogRows } from '../../components/chart/indicatorCatalog'
+import { isCatalogRowOffered } from '../../components/chart/engine/serverCompute'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
-import { GUIDE_FEATURES } from './registry'
+import { GUIDE_FEATURES, surfaceOf } from './registry'
 import { CHART_SETTING_DESCRIPTORS } from '../../components/chart/chartSettingsDescriptors'
 
 // UCT concepts — each sentence states what the product does (source in the trailing comment)
@@ -32,18 +33,18 @@ export const CONCEPTS = [
     id: 'indicator-vs-condition', title: 'Chart indicator vs condition', local: true,
     words: [/\bindicators?\b.*\bconditions?\b|\bconditions?\b.*\bindicators?\b/],
     // components/chart/builder/BuilderSheet.jsx (SIGNAL presentation: a marker / candle / background where it is true)
-    text: 'An indicator draws VALUES on the chart — a line or histogram such as RSI or a 20 EMA. A condition is a true/false rule built from values like those — “close crosses above the 20 EMA” — made in Create Indicator; instead of a line, UCT marks the bars where it is true (a marker, or a candle or background colour).',
+    text: 'An indicator draws VALUES on the chart — a line or histogram such as RSI or a 20 EMA. A condition is a true/false rule built from values like those — “close crosses above the 20 EMA” — made in Create Indicator; instead of a line, UCT marks the bars where it is true (a marker, or a candle or background color).',
   },
   {
     id: 'condition', title: 'Condition', local: true,
     words: [/^(?:a |the )?conditions?$/],
-    text: 'A condition is a true/false rule — “close crosses above the 20 EMA”, “RSI below 30” — built in Create Indicator. UCT marks the bars where it is true with a marker, or a candle or background colour, instead of drawing a line.',
+    text: 'A condition is a true/false rule — “close crosses above the 20 EMA”, “RSI below 30” — built in Create Indicator. UCT marks the bars where it is true with a marker, or a candle or background color, instead of drawing a line.',
   },
   {
-    id: 'link-colours', title: 'Link colours', local: true,
+    id: 'link-colours', title: 'Link colors', local: true,
     words: [/\blink(ed)? (colou?rs?|groups?)\b/, /\bcolou?r (dot|link|group)s?\b/],
     // pages/charts/WidgetHost (the colour-link dot) — widgets in one group share a symbol
-    text: 'The coloured dot on a widget’s header is its link group. Widgets in the same colour share a symbol — click a ticker in a linked watchlist and every chart in that colour changes with it. “Not linked” keeps a widget on its own symbol.',
+    text: 'The colored dot on a widget’s header is its link group. Widgets in the same color share a symbol — click a ticker in a linked watchlist and every chart in that color changes with it. “Not linked” keeps a widget on its own symbol.',
   },
 ]
 
@@ -66,7 +67,8 @@ function indicatorRow(words) {
   const w = core(words)
   if (!w || w.length > 40) return null
   let rows = []
-  try { rows = catalogRows(nativeRegistry).filter(r => r.description && !r.userDefined) } catch { rows = [] }
+  // ⭐ RS split U1 — a `meta.requiresServer` definition the live server has not listed is not explained as addable.
+  try { rows = catalogRows(nativeRegistry).filter(r => r.description && !r.userDefined && isCatalogRowOffered(r, nativeRegistry)) } catch { rows = [] }
   const named = rows.filter(r => norm(r.name) === w || norm(r.shortName) === w || String(r.id).toLowerCase() === w)
   if (named.length) return named.length === 1 ? { row: named[0], option: null } : null
   const tagged = rows.filter(r => (r.tags || []).some(t => norm(t) === w))
@@ -78,7 +80,7 @@ const described = () => CHART_SETTING_DESCRIPTORS.filter(d => d.agent !== 'inter
 const optLabel = (d, v) => (Array.isArray(v) ? String(v[1] ?? v[0]) : typeof v === 'object' && v ? String(v.label ?? v.val) : String(v))
 function valuesOf(d) {
   if (d.type === 'bool') return 'It is on or off.'
-  if (d.type === 'color') return 'It takes a colour.'
+  if (d.type === 'color') return 'It takes a color.'
   if (d.type === 'enum' && Array.isArray(d.options) && d.options.length) return `Options: ${d.options.map(v => optLabel(d, v)).join(', ')}.`
   return ''
 }
@@ -121,8 +123,10 @@ function settingsOfTab(tab) {
   return { title: `Chart Settings → ${tab}`, text: `The ${tab} tab: ${lines.join(' ')} Ask me about any one of them (“what is ${rows[0].label.toLowerCase()}?”), or tell me what to change.` }
 }
 
-/** An explanation of what the words name, from UCT's own sources → { id, kind, title, text } | null. */
-export function explainTopic(words) {
+/** An explanation of what the words name, from UCT's own sources → { id, kind, title, text } | null.
+ *  ⭐ W2-C2 `surface`: the page asked on — a page's own features explain only there (the Charts features everywhere),
+ *  so "what are filters?" on /charts is answered exactly as before. */
+export function explainTopic(words, surface = 'charts') {
   const w = norm(words)
   if (!w) return null
   const concept = CONCEPTS.find(c => c.words.some(re => re.test(w)))
@@ -146,7 +150,7 @@ export function explainTopic(words) {
     return { id: `indicator:${row.id}`, kind: 'indicator', title: name, text: `${name} — ${row.description.replace(/\.$/, '')}. ${where} Say “add ${row.shortName || row.name}” to put it on this chart.`, local: true }
   }
   const c = core(w)
-  const f = GUIDE_FEATURES.find(x => norm(x.title) === w || (x.terms || []).includes(c))
+  const f = GUIDE_FEATURES.find(x => (surfaceOf(x) === 'charts' || surfaceOf(x) === surface) && (norm(x.title) === w || (x.terms || []).includes(c)))
   if (f) return { id: `feature:${f.id}`, kind: 'feature', title: f.title, text: f.explain, local: true }
   // ⭐ PHASE 3: "these settings" — the Chart Settings tab open on screen; with none open, where to look (one sentence)
   if (THESE.test(w) || /^(?:settings?|options?|controls?|tab)(?: here)?$/.test(c)) {

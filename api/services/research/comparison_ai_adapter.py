@@ -500,14 +500,19 @@ def _call_model(sym_a: str, sym_b: str, question: str, evidence: list[dict],
     user = _user_message(sym_a, sym_b, question, evidence)
     if extra_note:
         user += "\n\n" + extra_note
-    resp = _get_client().with_options(timeout=45).messages.create(
-        model=model,
-        max_tokens=_MAX_TOKENS,
-        system=_SYSTEM_PROMPT,
-        output_config={"format": {"type": "json_schema", "schema": COMPARISON_SCHEMA},
-                       "effort": _EFFORT},
-        messages=[{"role": "user", "content": user}],
-    )
+    charged = dict(model=model, max_tokens=_MAX_TOKENS, system=_SYSTEM_PROMPT,
+                   output_config={"format": {"type": "json_schema", "schema": COMPARISON_SCHEMA}, "effort": _EFFORT},
+                   messages=[{"role": "user", "content": user}])
+    # ⛔ The keywords stay on the call: the door rails read the schema from them.
+    with guard.charge_if_failed(_COST_SURFACE, charged):
+        resp = _get_client().with_options(timeout=45).messages.create(
+            model=model,
+            max_tokens=_MAX_TOKENS,
+            system=_SYSTEM_PROMPT,
+            output_config={"format": {"type": "json_schema", "schema": COMPARISON_SCHEMA},
+                           "effort": _EFFORT},
+            messages=[{"role": "user", "content": user}],
+        )
     try:
         guard.record_from_response(_COST_SURFACE, model, resp)
     except Exception:
@@ -572,7 +577,7 @@ def explain_comparison(sym_a: str, sym_b: str, question: str) -> dict:
 
     if guard.over_budget(_COST_SURFACE, COST_CAP_ENV, DEFAULT_COST_CAP_USD):
         return _result(sym_a=sym_a, sym_b=sym_b, question=question, response_state="refuse",
-                       refusal_reason="The AI assistant has reached today's usage limit "
+                       refusal_reason="The UCT Agent has reached today's usage limit "
                                       "-- try again tomorrow.")
 
     try:
@@ -605,7 +610,7 @@ def explain_comparison(sym_a: str, sym_b: str, question: str) -> dict:
                         sym_a, sym_b, attempt, exc)
             return _result(sym_a=sym_a, sym_b=sym_b, question=question,
                            entity_a=entity_a, entity_b=entity_b, response_state="refuse",
-                           refusal_reason="The AI assistant is temporarily unavailable.")
+                           refusal_reason="The UCT Agent is temporarily unavailable.")
         if getattr(resp, "stop_reason", None) == "refusal":
             return _result(sym_a=sym_a, sym_b=sym_b, question=question,
                            entity_a=entity_a, entity_b=entity_b, response_state="refuse",

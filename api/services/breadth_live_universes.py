@@ -368,7 +368,7 @@ def _load_frame_by_key(conn, tickers: list, dates: list):
     n, m = len(tickers), len(dates)
     closes = np.full((n, m), np.nan, dtype=np.float64)
     volumes = np.full((n, m), np.nan, dtype=np.float64)
-    lo, hi = dates[0], dates[-1]
+    lo, hi = min(dates), max(dates)
     q = "SELECT ts, c, v FROM ohlcv WHERE ticker=? AND tf='D' AND ts BETWEEN ? AND ?"
     for r, tk in enumerate(tickers):
         for ts, cl, vol in conn.execute(q, (tk, lo, hi)):
@@ -540,6 +540,25 @@ def _build_state(L: int) -> Optional[dict]:
         packed = None
     if packed is not None and len(packed[0]) >= 240:
         dates, closes, vols = packed
+        # ⛔ (2026-11-19) the pack can list L yet be a session behind for some names (the
+        # builder raced the daily ingest: 303 UCT names ended at L-1 in the 11-18 pack).
+        # Those rows are re-read from bars.db; see `breadth_live._fill_pack_gaps`.
+        stale = [i for i in range(len(union)) if np.isnan(closes[i, -1])]
+        if stale:
+            try:
+                db_c, db_v = _load_frame_by_key(conn, [union[i] for i in stale], list(dates))
+                filled = 0
+                for k, i in enumerate(stale):
+                    if not np.isnan(db_c[k, -1]):
+                        closes[i, :] = db_c[k, :]
+                        vols[i, :] = db_v[k, :]
+                        filled += 1
+                if filled:
+                    source = "barspack+bars.db"
+                    _log.info("[breadth_live_universes] pack frame: %d/%d names behind L "
+                              "re-read from bars.db", filled, len(stale))
+            except Exception as e:      # noqa: BLE001
+                _log.warning("[breadth_live_universes] pack gap fill failed: %s", e)
     else:
         source = "bars.db"
         start = bl._ts_int(date.fromisoformat(_iso(L)) - timedelta(days=bl._LOAD_CALENDAR_DAYS + 30))

@@ -1,0 +1,444 @@
+# -*- coding: utf-8 -*-
+"""evidence_ledger.py - the LEDGER_ONLY evidence: one row per graded capture, never its source.
+
+The public repo's licence gate (docs/pine/LICENSING.md, `corpus_licence.is_permitted`,
+evidence_engine "Licence gate") keeps a capture of a licence-held script out of git. Its verdict
+still counts: `evidence_engine promote` files it here (`docs/pine/vendor-harness/evidence-ledger.jsonl`),
+and `evidence_engine regrade` re-grades the out-of-git capture store at today's engine and
+appends fresh rows. The coverage map (`tools/pine_coverage/coverage_map.py`) and the capability-
+admission evidence (`tools/pine_coverage/capability_admission.py`) read this file through this
+module, so the freshness rule lives in ONE place.
+
+A ROW CARRIES what a verdict needs to be trusted and re-checked, and nothing else:
+  the source sha256 (never the text), the script key and title, symbol, timeframe, the capture's
+  receipt and file sha256, the verdict in BOTH lanes (production, runtime-on; None for a lane not
+  graded), SCRIPT_ENGINE_VERSION and the grader version at grade time, the UTC time.
+  `row_problems` refuses a row that carries source text or anything outside `ROW_FIELDS`.
+
+FRESHNESS (`classify`): rows are grouped per capture (captureId + receipt) and per lane; the
+NEWEST row wins (a local regrade supersedes an older row). It counts only when
+  * it was graded at the CURRENT `SCRIPT_ENGINE_VERSION`, and
+  * its `sourceSha256` is the sample's source sha256 (a sample whose script key names the row but
+    whose source differs is a sha MISMATCH, never counted).
+A stale row is "unproven (stale)", never proven. A DIVERGE counts as DIVERGE, never dropped.
+
+MATCH_SUBSTITUTED (L7, 2026-11-14): a grade whose our side ran with SUBSTITUTED inputs (a vendor-only
+fact the member door answers from UCT data) fed the vendor's own value. It is filed and kept like
+any verdict, with the substituted inputs on the lane (`substituted: [{name, source,
+vendorValueFrom}]`), and it is NEVER a MATCH: `is_match` answers no, and every consumer that counts
+MATCH counts it apart (`fresh_match_counts`, the coverage map's own bucket, capability admission's
+separately named path).
+"""
+from __future__ import annotations
+
+import datetime as _dt
+import hashlib
+import json
+import os
+import pathlib
+import re
+
+HERE = pathlib.Path(__file__).resolve().parent
+REPO = HERE.parent.parent
+LEDGER = REPO / "docs" / "pine" / "vendor-harness" / "evidence-ledger.jsonl"
+SCHEMA = "uct.evidence-ledger/v2"
+LANES = ("production", "runtime-on")
+MATCH = "MATCH"
+MATCH_SUBSTITUTED = "MATCH_SUBSTITUTED"
+VERDICTS = (MATCH, MATCH_SUBSTITUTED, "DIVERGE", "INCONCLUSIVE")
+#: The keys one substituted input carries on a lane verdict (the fed value is never filed).
+SUBSTITUTED_FIELDS = ("name", "source", "vendorValueFrom")
+
+
+def is_match(verdict) -> bool:
+    """A PROVEN-exact verdict. ⛔ MATCH_SUBSTITUTED is not one (its substituted inputs are unproven)."""
+    return verdict == MATCH
+
+
+def is_match_substituted(verdict) -> bool:
+    """Verified with substituted inputs fed the vendor's value: its own bucket, never MATCH."""
+    return verdict == MATCH_SUBSTITUTED
+
+
+def fresh_match_counts(classified: dict) -> dict:
+    """Over `classify`'s fresh verdicts: {"match": n, "matchSubstituted": n}. Two counters, never one."""
+    out = {"match": 0, "matchSubstituted": 0}
+    for e in (classified or {}).get("byKey", {}).values():
+        for v in e.get("verdicts") or []:
+            if is_match(v):
+                out["match"] += 1
+            elif is_match_substituted(v):
+                out["matchSubstituted"] += 1
+    return out
+FILED_BY = ("promote", "regrade")
+
+#: The out-of-git capture store `regrade` reads: `<store>/*/captures/*.json`. The env var wins.
+CAPTURE_STORE_ENV = "UCT_VENDOR_CAPTURE_STORE"
+DEFAULT_CAPTURE_STORE = pathlib.Path(os.path.expanduser("~")) / "AppData" / "Local" / "uct-vendor-batch" / "runs"
+
+#: Every key a row may carry. Nothing else (a capture's source, its provenance, an account) is filed.
+ROW_FIELDS = frozenset({
+    "schema", "filedBy", "gradedAtUTC", "captureId", "receipt", "captureSha256", "sourceSha256",
+    "scriptKey", "script", "symbol", "timeframe", "bars", "verdicts", "firstDivergence",
+    "scriptEngineVersion", "graderVersion", "licence", "promoted", "fixture", "packetSha256",
+    "queueTargetId", "rows", "chartDefaulted",
+})
+REQUIRED = ("schema", "filedBy", "gradedAtUTC", "captureId", "receipt", "captureSha256", "sourceSha256",
+            "scriptKey", "symbol", "timeframe", "verdicts", "scriptEngineVersion", "graderVersion")
+#: A string longer than this in a row is refused: no field legitimately carries a script.
+MAX_STRING = 600
+_HEX64 = re.compile(r"[0-9a-f]{64}")
+#: The grader: the corpus harness and the lane wiring it runs (their bytes are the grader version).
+GRADER_FILES = (
+    "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
+    "app/src/components/chart/engine/__tests__/vendorHarness/harness.js",
+    "app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js",
+    "app/src/components/chart/engine/__tests__/vendorHarness/objectRecords.js",
+    "tools/pine_coverage/runtime_lane.mjs",
+)
+
+
+def engine_version():
+    """`SCRIPT_ENGINE_VERSION` as the browser declares it (the server's one reader)."""
+    import sys
+    if str(REPO) not in sys.path:
+        sys.path.insert(0, str(REPO))
+    from api.services.user_definitions import read_script_engine_version  # noqa: PLC0415
+    return read_script_engine_version()
+
+
+def grader_version(repo: pathlib.Path = REPO) -> str:
+    """sha256 (12 hex) over the grader's files, LF-normalised: it moves when the harness does."""
+    h = hashlib.sha256()
+    for rel in GRADER_FILES:
+        p = pathlib.Path(repo) / rel
+        h.update(rel.encode("utf-8") + b"\0")
+        h.update(p.read_bytes().replace(b"\r\n", b"\n") if p.exists() else b"<absent>")
+    return h.hexdigest()[:12]
+
+
+def capture_store() -> pathlib.Path:
+    v = os.environ.get(CAPTURE_STORE_ENV, "").strip()
+    return pathlib.Path(v) if v else DEFAULT_CAPTURE_STORE
+
+
+#: ⭐ THE ONE CAPTURE-PHASE VOCABULARY (coordinator, 2026-11-19). Two rows of ONE probe on the same symbol, timeframe
+#: and day (in session, then after the close on a fresh load) named the same capture and collided. A capture id may
+#: therefore end with one phase: `<stem>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]`. Closed: a phase outside this tuple is
+#: refused wherever one is read (a queue doc's `phase` column, a manifest's `capturePhase`, an id). Defined HERE
+#: only; `evidence_engine.py` and `batch_capture.py` import it and never restate it.
+CAPTURE_PHASES = ("insession", "postclose-open", "postclose-fresh", "preopen")
+#: The optional `-<phase>` an id may end with, as a regex fragment (every id pattern appends it; built from the tuple).
+PHASE_SUFFIX_RX = "(?:-(?:" + "|".join(re.escape(p) for p in CAPTURE_PHASES) + "))?"
+
+#: ⭐⭐ THE ONE SESSION VOCABULARY (coordinator rulings 2026-11-21: #2134, and the queue's session dimension). The
+#: session a US listing's chart resolves to, as TradingView reports it (`symbolInfo().session`) and as every capture
+#: records it (`symbol.session`): extended hours 04:00-20:00, regular hours 09:30-16:00. Defined HERE only:
+#: `batch_capture.py` (a row's session, READ after its resolution) and `evidence_engine.py` (a queue target's session,
+#: matched against what each capture RECORDED) import it and never restate it.
+SESSIONS = {"extended": "0400-2000", "regular": "0930-1600"}
+#: What a capture id says of a row's NAMED session (`batch_capture.capture_id_for`), between its timeframe and its date:
+#: `vw-clock-vwap-spy-5-ext-2026-09-28`, `vw-time-session-spy-60-rth-2026-09-28`. One entry per SESSIONS key.
+SESSION_SUFFIX = {"extended": "-ext", "regular": "-rth"}
+#: The optional session suffix of an id, as a regex fragment (built from SESSION_SUFFIX). ⚰️ Until 2026-11-21 no id
+#: pattern had it: `script_key` returned a whole `-rth` id, `capture_phase` lost a phase after one, and the promotion
+#: gate (`evidence_engine.TAIL_RX` / `ID_RX`) refused every capture a regular-hours row would write.
+SESSION_SUFFIX_RX = "(?:" + "|".join(re.escape(s) for s in SESSION_SUFFIX.values()) + ")?"
+_ID_RX = re.compile(r"^(.*)-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])" + SESSION_SUFFIX_RX + r"-\d{4}-\d{2}-\d{2}("
+                    + PHASE_SUFFIX_RX + ")$")
+
+
+def capture_session(capture: dict):
+    """The session a capture RECORDED (`symbol.session`, read by the capture itself), as a SESSIONS key: 'regular',
+    'extended', or None for any other hours ('24x7', '1700-1600', ...) or none recorded. ⛔ Never read off the id or a
+    row label: an id says what was ASKED (`vw-bi-time-close-2arg-spy-60-2026-11-19` was asked for regular hours and
+    recorded 0400-2000)."""
+    sess = ((capture or {}).get("symbol") or {}).get("session") if isinstance(capture, dict) else None
+    return next((k for k, v in SESSIONS.items() if v == sess), None)
+
+
+def script_key(capture_id: str) -> str:
+    """The script part of a capture id `<script>-<sym>-<tf>-<yyyy-mm-dd>[-<phase>]` (the capture stem). The phase is
+    never part of it: two phases of one probe are one script."""
+    m = _ID_RX.match(capture_id or "")
+    return m.group(1) if m else (capture_id or "")
+
+
+def capture_phase(capture_id: str):
+    """The phase a capture id ends with (one of CAPTURE_PHASES), or None for an unphased id or a string that is not
+    an id at all."""
+    m = _ID_RX.match(capture_id or "")
+    return m.group(2)[1:] if m and m.group(2) else None
+
+
+def source_shas(text: str) -> set:
+    """The sha256 a capture of this sample would carry: the exact text, and its LF form (a
+    checkout's line endings are the box's, not the script's)."""
+    out = {hashlib.sha256(text.encode("utf-8")).hexdigest()}
+    out.add(hashlib.sha256(text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")).hexdigest())
+    return out
+
+
+def _lane_verdict(v) -> dict | None:
+    if not isinstance(v, dict) or v.get("verdict") is None:
+        return None
+    out = {"verdict": v.get("verdict"), "reason": (str(v.get("reason") or "")[:MAX_STRING] or None)}
+    # ⭐⭐ (coordinator rulings 2026-11-19) WHAT A HELD CAPTURE DECIDES, FROM THIS ROW ALONE: the lane's first diverging
+    # item and its kind (drawn / withheld / unpositioned), the document the grade was taken on (`door`), and the
+    # NARROWEST withholds that remove exactly what differs (`held_evidence.lane_withholds`, the one classifier). Only a
+    # grader result carries the items; a lane verdict already filed keeps what it has.
+    if any(k in v for k in ("first", "withholds", "door")):
+        if isinstance(v.get("first"), dict):
+            out["first"] = {"kind": v["first"].get("kind"), "item": str(v["first"].get("item") or "")[:MAX_STRING]}
+        if v.get("door") in ("host", "runtime"):
+            out["door"] = v["door"]
+        if isinstance(v.get("withholds"), list) and v["withholds"]:
+            out["withholds"] = v["withholds"]
+    elif "plots" in v or "objects" in v or "objectsV2" in v or "paints" in v:
+        import held_evidence  # noqa: PLC0415 -- held_evidence imports this module
+        first = held_evidence.lane_first(v, MAX_STRING)
+        if first:
+            out["first"] = first
+        if v.get("ourDoor") in held_evidence.DOORS:
+            out["door"] = v["ourDoor"]
+        withholds = held_evidence.lane_withholds(v)
+        if withholds:
+            out["withholds"] = withholds
+    # ⭐ L7 — the substituted inputs the grade ran with (the harness's `substituted` record), names only
+    subs = v.get("substituted")
+    if isinstance(subs, list) and subs:
+        out["substituted"] = [{k: (str(e.get(k))[:200] if e.get(k) is not None else None) for k in SUBSTITUTED_FIELDS}
+                              if isinstance(e, dict) else e for e in subs]
+    return out
+
+
+def make_row(*, capture: dict, capture_bytes: bytes, verdicts: dict, filed_by: str, licence,
+             engine: int | None, grader: str, stamp: str | None = None, **extra) -> dict:
+    """One ledger row for a graded capture. `verdicts` is {lane: {verdict, reason} | None}.
+    ⛔ The capture's source text, its provenance and its account never enter the row; the row is
+    checked (`row_problems`) and refused before it is returned if anything slipped in."""
+    cid = capture.get("id")
+    src = capture.get("source") or {}
+    row = {
+        "schema": SCHEMA, "filedBy": filed_by,
+        "gradedAtUTC": stamp or _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "captureId": cid, "receipt": (capture.get("receipt") or {}).get("fnv1a"),
+        "captureSha256": hashlib.sha256(capture_bytes).hexdigest(),
+        "sourceSha256": src.get("sha256"),
+        "scriptKey": script_key(cid),
+        "script": (str(src.get("declaredTitle") or "")[:200] or None),
+        "symbol": (capture.get("symbol") or {}).get("pro_name"), "timeframe": capture.get("timeframe"),
+        "bars": (capture.get("bars") or {}).get("count"),
+        "verdicts": {lane: _lane_verdict((verdicts or {}).get(lane)) for lane in LANES},
+        "scriptEngineVersion": engine, "graderVersion": grader, "licence": licence,
+    }
+    row.update({k: v for k, v in extra.items() if k in ROW_FIELDS})
+    problems = row_problems(row, source_text=src.get("text"))
+    if problems:
+        raise ValueError(f"ledger row for {cid} refused: {'; '.join(problems)}")
+    return row
+
+
+def _strings(o):
+    if isinstance(o, str):
+        yield o
+    elif isinstance(o, dict):
+        for v in o.values():
+            yield from _strings(v)
+    elif isinstance(o, list):
+        for v in o:
+            yield from _strings(v)
+
+
+def row_problems(row, source_text: str | None = None) -> list:
+    """Why this row may NOT be filed (empty = it may)."""
+    if not isinstance(row, dict):
+        return ["not an object"]
+    p = []
+    extra = sorted(set(row) - ROW_FIELDS)
+    if extra:
+        p.append(f"keys outside the ledger schema: {extra}")
+    for k in REQUIRED:
+        if row.get(k) in (None, ""):
+            p.append(f"{k} is missing")
+    if row.get("schema") not in (None, SCHEMA):
+        p.append(f"schema {row.get('schema')!r} is not {SCHEMA}")
+    if row.get("filedBy") not in FILED_BY + (None,):
+        p.append(f"filedBy {row.get('filedBy')!r}")
+    for k in ("sourceSha256", "captureSha256"):
+        if row.get(k) is not None and not (isinstance(row[k], str) and _HEX64.fullmatch(row[k])):
+            p.append(f"{k} is not a sha256")
+    v = row.get("verdicts")
+    if not isinstance(v, dict) or set(v) != set(LANES):
+        p.append(f"verdicts must name exactly the lanes {list(LANES)}")
+    else:
+        graded = [x for x in v.values() if x is not None]
+        if not graded:
+            p.append("no lane carries a verdict")
+        for x in graded:
+            if not isinstance(x, dict) or x.get("verdict") not in VERDICTS:
+                p.append(f"a lane verdict is not one of {VERDICTS}: {x!r}")
+                continue
+            p.extend(_substituted_problems(x))
+    if row.get("scriptEngineVersion") is not None and not isinstance(row.get("scriptEngineVersion"), int):
+        p.append("scriptEngineVersion is not an integer")
+    for s in _strings(row):
+        if len(s) > MAX_STRING:
+            p.append(f"a string of {len(s)} characters (no ledger field carries a script)")
+            break
+    if isinstance(source_text, str) and len(source_text.strip()) >= 40:
+        body = [ln.strip() for ln in source_text.splitlines() if len(ln.strip()) >= 40]
+        if any(source_text in s or any(ln in s for ln in body) for s in _strings(row)):
+            p.append("the row carries the capture's source text")
+    return p
+
+
+def _substituted_problems(x: dict) -> list:
+    """⭐ L7: a MATCH_SUBSTITUTED lane NAMES its substituted inputs; a MATCH lane carries none (a MATCH
+    with substituted inputs would be a substituted grade filed as proven)."""
+    subs = x.get("substituted")
+    if is_match_substituted(x.get("verdict")):
+        if not isinstance(subs, list) or not subs:
+            return ["a MATCH_SUBSTITUTED lane names no substituted inputs"]
+        bad = [e for e in subs if not (isinstance(e, dict) and set(e) <= set(SUBSTITUTED_FIELDS)
+                                       and isinstance(e.get("name"), str) and e["name"])]
+        return [f"a substituted input is not {{{', '.join(SUBSTITUTED_FIELDS)}}} with a name: {bad[0]!r}"] if bad else []
+    if is_match(x.get("verdict")) and subs:
+        return ["a MATCH lane carries substituted inputs (that grade is MATCH_SUBSTITUTED, never MATCH)"]
+    return []
+
+
+def read_rows(path: pathlib.Path = LEDGER) -> list:
+    path = pathlib.Path(path)
+    if not path.exists():
+        return []
+    rows = []
+    for ln in path.read_text(encoding="utf-8").splitlines():
+        if ln.strip():
+            rows.append(json.loads(ln))
+    return rows
+
+
+def row_key(row) -> tuple:
+    """The identity `append` dedupes on: the same capture graded by the same engine and grader is
+    the same evidence; a regrade at a new engine is a new row."""
+    return (row.get("captureId"), row.get("receipt"), row.get("scriptEngineVersion"),
+            row.get("graderVersion"), row.get("filedBy"))
+
+
+def append(path: pathlib.Path, rows) -> int:
+    path = pathlib.Path(path)
+    for r in rows:
+        problems = row_problems(r)
+        if problems:
+            raise ValueError(f"ledger row for {r.get('captureId')} refused: {'; '.join(problems)}")
+    have = {row_key(r) for r in read_rows(path)}
+    new = [r for r in rows if row_key(r) not in have]
+    if not new:
+        return 0
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8", newline="\n") as fh:
+        for r in new:
+            fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
+        fh.flush()
+        os.fsync(fh.fileno())
+    return len(new)
+
+
+#: The schema the OLD promote wrote (2026-11-13, before this module): one production verdict, no
+#: SCRIPT_ENGINE_VERSION, no grader version, the run's provenance. Such a row can never be judged
+#: fresh, so it is never evidence here (`newest_per_capture` reads only `verdicts`).
+LEGACY_SCHEMA = "uct.evidence-ledger/v1"
+
+
+def retire_legacy(path: pathlib.Path = LEDGER) -> dict:
+    """⛔ THE ONE REWRITE OF THIS FILE. The ledger is append-only for v2 rows. A LEGACY v1 row is
+    removed only once a v2 row files the SAME capture (captureId + receipt): the v2 row carries
+    everything the v1 row did that a verdict needs, plus the engine, the grader and both lanes.
+    A legacy row with no v2 successor is KEPT (and fails `row_problems`, so the committed-ledger
+    rail stays red until `regrade` files it). Every v2 row is kept byte for byte, in order.
+    Returns {"retired": [captureId...], "kept": [captureId...]}."""
+    path = pathlib.Path(path)
+    if not path.exists():
+        return {"retired": [], "kept": []}
+    lines = [ln for ln in path.read_text(encoding="utf-8").splitlines() if ln.strip()]
+    rows = [json.loads(ln) for ln in lines]
+    v2 = {(r.get("captureId"), r.get("receipt")) for r in rows if r.get("schema") == SCHEMA}
+    out, retired, kept = [], [], []
+    for ln, r in zip(lines, rows):
+        if r.get("schema") == LEGACY_SCHEMA:
+            if (r.get("captureId"), r.get("receipt")) in v2:
+                retired.append(r.get("captureId"))
+                continue
+            kept.append(r.get("captureId"))
+        out.append(ln)
+    if retired:
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text("".join(ln + "\n" for ln in out), encoding="utf-8", newline="\n")
+        os.replace(tmp, path)
+    return {"retired": retired, "kept": kept}
+
+
+def newest_per_capture(rows, lane: str) -> list:
+    """The newest row per capture (captureId + receipt) that carries a verdict in `lane`."""
+    best = {}
+    for r in rows:
+        v = (r.get("verdicts") or {}).get(lane)
+        if not isinstance(v, dict) or v.get("verdict") not in VERDICTS:
+            continue
+        k = (r.get("captureId"), r.get("receipt"))
+        if k not in best or str(r.get("gradedAtUTC") or "") >= str(best[k].get("gradedAtUTC") or ""):
+            best[k] = r
+    return list(best.values())
+
+
+def classify(rows, samples: dict, *, engine: int | None, lane: str, skip_captures=frozenset(),
+             slug_of=None) -> dict:
+    """Ledger evidence joined to samples.
+
+    `samples`: {sample_key: set of source sha256 it would carry} (`source_shas`).
+    `slug_of`: {sample_key: script key} for the sha-MISMATCH check (a sample whose script key names
+    the row but whose source does not hash to the row's). `skip_captures`: capture ids already
+    graded from a committed fixture (counted there, never twice).
+
+    Returns {"byKey": {key: {"verdicts": [..fresh verdicts..], "stale": n, "captures": [...]}},
+             "counts": {fresh, stale, shaMismatch, unjoined, skipped}, "shaMismatch": [...], "stale": [...]}.
+    """
+    by_sha = {}
+    for k, shas in samples.items():
+        for s in shas:
+            by_sha.setdefault(s, []).append(k)
+    by_slug = {}
+    for k, slug in (slug_of or {}).items():
+        by_slug.setdefault(slug, []).append(k)
+    out = {"byKey": {}, "counts": {"fresh": 0, "stale": 0, "shaMismatch": 0, "unjoined": 0, "skipped": 0},
+           "shaMismatch": [], "stale": []}
+    for r in sorted(newest_per_capture(rows, lane), key=lambda r: (r.get("captureId") or "", r.get("receipt") or "")):
+        cid = r.get("captureId")
+        if cid in skip_captures:
+            out["counts"]["skipped"] += 1
+            continue
+        keys = by_sha.get(r.get("sourceSha256")) or []
+        if not keys:
+            named = by_slug.get(r.get("scriptKey")) or []
+            if named:
+                out["counts"]["shaMismatch"] += 1
+                out["shaMismatch"].append({"captureId": cid, "samples": sorted(named)})
+            else:
+                out["counts"]["unjoined"] += 1
+            continue
+        fresh = engine is not None and r.get("scriptEngineVersion") == engine
+        verdict = r["verdicts"][lane]["verdict"]
+        for k in keys:
+            e = out["byKey"].setdefault(k, {"verdicts": [], "stale": 0, "captures": []})
+            if fresh:
+                e["verdicts"].append(verdict)
+                e["captures"].append(cid)
+            else:
+                e["stale"] += 1
+        if fresh:
+            out["counts"]["fresh"] += 1
+        else:
+            out["counts"]["stale"] += 1
+            out["stale"].append({"captureId": cid, "scriptEngineVersion": r.get("scriptEngineVersion")})
+    return out

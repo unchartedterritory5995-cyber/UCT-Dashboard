@@ -140,6 +140,21 @@ def test_purge_only_removes_notes_past_retention_not_recently_trashed_ones(conn)
     assert svc.restore_note("u1", recent["id"], conn=conn) is not None
 
 
+def test_purge_drops_the_sync_engines_media_record_of_the_note(conn):
+    """L4 fix round 1: `j2_note_import_media` (what a synced note's media is stored as) goes with
+    the note it describes; a kept note's rows stay."""
+    gone = svc.create_note("u1", {"title": "Gone"}, conn=conn)
+    kept = svc.create_note("u1", {"title": "Kept"}, conn=conn)
+    for nid in (gone["id"], kept["id"]):
+        conn.execute("INSERT INTO j2_note_import_media (user_id, note_id, ref, stored_json, recorded_at)"
+                     " VALUES ('u1', ?, 'obsidian-att:x/a.png', '{}', 'now')", (nid,))
+    svc.delete_note("u1", gone["id"], conn=conn)
+    future = datetime.now(timezone.utc) + timedelta(days=svc.TRASH_RETENTION_DAYS + 1)
+    assert svc.purge_expired_deleted_notes(now=future, conn=conn) == 1
+    left = [r[0] for r in conn.execute("SELECT note_id FROM j2_note_import_media").fetchall()]
+    assert left == [kept["id"]]
+
+
 def test_purge_is_cross_user_a_system_sweep_not_scoped_to_one_account(conn):
     a = svc.create_note("u1", {"title": "A"}, conn=conn)
     b = svc.create_note("u2", {"title": "B"}, conn=conn)

@@ -1,0 +1,1210 @@
+# head d9486ea660 2026-11-10T23:21:43Z dirty: 0 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget-pre3/app
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "turn off the tick flash on the watchlist widget": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+An update to Live inside a test was not wrapped in act(...).
+When testing, code that causes React state updates should be wrapped into act(...):
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-104: looks — save, apply, delete — through the ⚙ panel's Templates > held-out "apply my Paper look to the watchlist"
+An update to Live inside a test was not wrapped in act(...).
+When testing, code that causes React state updates should be wrapped into act(...):
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-104: looks — save, apply, delete — through the ⚙ panel's Templates > held-out "switch the watchlist to the paper template"
+An update to Live inside a test was not wrapped in act(...).
+When testing, code that causes React state updates should be wrapped into act(...):
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+ ❯ src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx (18 tests | 6 failed) 42296ms
+     ✓ no phrasing appears twice 1ms
+     × held-out "hide the logos in my watchlist": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly 5167ms
+     × held-out "turn off the tick flash on the watchlist widget": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly 5018ms
+     × held-out "make the watchlist background navy": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly 4972ms
+     × held-out "watchlist text in white please": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly 4993ms
+     × held-out "color the gainers on my watchlist teal": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly 4979ms
+     × held-out "make losers orange in the watchlist widget": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly 4993ms
+     ✓ held-out "save this watchlist look as Night Desk"  1236ms
+     ✓ held-out "store my watchlist style as a template called Clean"  1168ms
+     ✓ held-out "apply my Paper look to the watchlist"  1145ms
+     ✓ held-out "switch the watchlist to the paper template"  1176ms
+     ✓ held-out "delete the Paper watchlist look"  1204ms
+     ✓ held-out "rename my flagged list to Hot Hands": the Flagged hook holds the new name; Undo renames it back  1173ms
+     ✓ held-out "call the flagged watchlist A-List": the Flagged hook holds the new name; Undo renames it back  1144ms
+     ✓ held-out "make the watchlist background sort of bluish"  976ms
+     ✓ held-out "apply my Neon look to the watchlist"  975ms
+     ✓ held-out "save this watchlist look"  975ms
+     ✓ held-out "rename flagged to Movers"  997ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "hide the logos in my watchlist": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+AssertionError: expected { showLogos: true, tint: true, …(6) } to match object { showLogos: false }
+(7 matching properties omitted from actual)
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <aside
+        aria-label="UCT Agent"
+        class="_panel_90f2c0"
+        data-testid="agent-panel"
+      >
+        <header
+          class="_contact_90f2c0"
+        >
+          <span
+            aria-hidden="true"
+            class="_avatar_90f2c0"
+          >
+            <img
+              alt=""
+              src="/src/components/intro/assets/compass-mark.png"
+            />
+            <i
+              class="_online_90f2c0"
+            />
+          </span>
+          <span
+            class="_contactText_90f2c0"
+          >
+            <span
+              class="_contactName_90f2c0"
+            >
+              UCT Agent
+            </span>
+            <span
+              aria-live="polite"
+              class="_contactStatus_90f2c0"
+              data-testid="agent-status"
+            >
+              <span
+                class="_onlineWord_90f2c0"
+              >
+                Online
+              </span>
+            </span>
+          </span>
+          <span
+            class="_headSpacer_90f2c0"
+          />
+          <button
+            aria-expanded="false"
+            aria-label="Search this chat"
+            class="_iconBtn_90f2c0 "
+            data-tip="Search"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="6.5"
+              />
+              <path
+                d="m20 20-4.2-4.2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="New chat"
+            class="_iconBtn_90f2c0"
+            data-tip="New chat"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M12 20h8"
+              />
+              <path
+                d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"
+              />
+            </svg>
+          </button>
+          <button
+            aria-expanded="false"
+            aria-label="Conversation history"
+            class="_iconBtn_90f2c0 "
+            data-tip="History"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M3 12a9 9 0 1 0 2.6-6.4L3 8"
+              />
+              <path
+                d="M3 3v5h5"
+              />
+              <path
+                d="M12 7.5V12l3 2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="Close UCT Agent"
+            class="_iconBtn_90f2c0"
+            data-tip="Close"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M6 6l12 12M18 6 6 18"
+              />
+            </svg>
+          </button>
+        </header>
+        <div
+          class="_stage_90f2c0"
+        >
+          <div
+            class="_list_90f2c0 "
+            data-testid="agent-transcript"
+          >
+            <div
+              class="_welcome_90f2c0"
+              data-testid="agent-welcome"
+            >
+              <div
+                class="_agentRow_90f2c0"
+              >
+                <span
+                  aria-hidden="true"
+                  class="_avatar_90f2c0"
+                >
+                  <img
+                    al...
+- Expected
++ Received
+  {
+-   "showLogos": false,
++   "showLogos": true,
+  }
+ ❯ src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx:110:42
+    108|     const seen = {}
+    109|     await m.say(text, setOption(c.args, seen))
+    110|     await waitFor(() => expect(readOf()).toMatchObject(c.want))
+       |                                          ^
+    111|     expect(optsOf(m).settings, 'written into this widget\'s own opts.s…
+    112|     expect(JSON.stringify(optsOf(m, 'wb'))).toBe(other)
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+ FAIL  src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "turn off the tick flash on the watchlist widget": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+AssertionError: expected { showLogos: true, tint: true, …(6) } to match object { tint: false }
+(7 matching properties omitted from actual)
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <aside
+        aria-label="UCT Agent"
+        class="_panel_90f2c0"
+        data-testid="agent-panel"
+      >
+        <header
+          class="_contact_90f2c0"
+        >
+          <span
+            aria-hidden="true"
+            class="_avatar_90f2c0"
+          >
+            <img
+              alt=""
+              src="/src/components/intro/assets/compass-mark.png"
+            />
+            <i
+              class="_online_90f2c0"
+            />
+          </span>
+          <span
+            class="_contactText_90f2c0"
+          >
+            <span
+              class="_contactName_90f2c0"
+            >
+              UCT Agent
+            </span>
+            <span
+              aria-live="polite"
+              class="_contactStatus_90f2c0"
+              data-testid="agent-status"
+            >
+              <span
+                class="_onlineWord_90f2c0"
+              >
+                Online
+              </span>
+            </span>
+          </span>
+          <span
+            class="_headSpacer_90f2c0"
+          />
+          <button
+            aria-expanded="false"
+            aria-label="Search this chat"
+            class="_iconBtn_90f2c0 "
+            data-tip="Search"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="6.5"
+              />
+              <path
+                d="m20 20-4.2-4.2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="New chat"
+            class="_iconBtn_90f2c0"
+            data-tip="New chat"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M12 20h8"
+              />
+              <path
+                d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"
+              />
+            </svg>
+          </button>
+          <button
+            aria-expanded="false"
+            aria-label="Conversation history"
+            class="_iconBtn_90f2c0 "
+            data-tip="History"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M3 12a9 9 0 1 0 2.6-6.4L3 8"
+              />
+              <path
+                d="M3 3v5h5"
+              />
+              <path
+                d="M12 7.5V12l3 2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="Close UCT Agent"
+            class="_iconBtn_90f2c0"
+            data-tip="Close"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M6 6l12 12M18 6 6 18"
+              />
+            </svg>
+          </button>
+        </header>
+        <div
+          class="_stage_90f2c0"
+        >
+          <div
+            class="_list_90f2c0 "
+            data-testid="agent-transcript"
+          >
+            <div
+              class="_welcome_90f2c0"
+              data-testid="agent-welcome"
+            >
+              <div
+                class="_agentRow_90f2c0"
+              >
+                <span
+                  aria-hidden="true"
+                  class="_avatar_90f2c0"
+                >
+                  <img
+                    al...
+- Expected
++ Received
+  {
+-   "tint": false,
++   "tint": true,
+  }
+ ❯ src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx:110:42
+    108|     const seen = {}
+    109|     await m.say(text, setOption(c.args, seen))
+    110|     await waitFor(() => expect(readOf()).toMatchObject(c.want))
+       |                                          ^
+    111|     expect(optsOf(m).settings, 'written into this widget\'s own opts.s…
+    112|     expect(JSON.stringify(optsOf(m, 'wb'))).toBe(other)
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+ FAIL  src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "make the watchlist background navy": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+AssertionError: expected { showLogos: true, tint: true, …(6) } to match object { canvasColor: '#000080' }
+(7 matching properties omitted from actual)
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <aside
+        aria-label="UCT Agent"
+        class="_panel_90f2c0"
+        data-testid="agent-panel"
+      >
+        <header
+          class="_contact_90f2c0"
+        >
+          <span
+            aria-hidden="true"
+            class="_avatar_90f2c0"
+          >
+            <img
+              alt=""
+              src="/src/components/intro/assets/compass-mark.png"
+            />
+            <i
+              class="_online_90f2c0"
+            />
+          </span>
+          <span
+            class="_contactText_90f2c0"
+          >
+            <span
+              class="_contactName_90f2c0"
+            >
+              UCT Agent
+            </span>
+            <span
+              aria-live="polite"
+              class="_contactStatus_90f2c0"
+              data-testid="agent-status"
+            >
+              <span
+                class="_onlineWord_90f2c0"
+              >
+                Online
+              </span>
+            </span>
+          </span>
+          <span
+            class="_headSpacer_90f2c0"
+          />
+          <button
+            aria-expanded="false"
+            aria-label="Search this chat"
+            class="_iconBtn_90f2c0 "
+            data-tip="Search"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="6.5"
+              />
+              <path
+                d="m20 20-4.2-4.2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="New chat"
+            class="_iconBtn_90f2c0"
+            data-tip="New chat"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M12 20h8"
+              />
+              <path
+                d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"
+              />
+            </svg>
+          </button>
+          <button
+            aria-expanded="false"
+            aria-label="Conversation history"
+            class="_iconBtn_90f2c0 "
+            data-tip="History"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M3 12a9 9 0 1 0 2.6-6.4L3 8"
+              />
+              <path
+                d="M3 3v5h5"
+              />
+              <path
+                d="M12 7.5V12l3 2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="Close UCT Agent"
+            class="_iconBtn_90f2c0"
+            data-tip="Close"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M6 6l12 12M18 6 6 18"
+              />
+            </svg>
+          </button>
+        </header>
+        <div
+          class="_stage_90f2c0"
+        >
+          <div
+            class="_list_90f2c0 "
+            data-testid="agent-transcript"
+          >
+            <div
+              class="_welcome_90f2c0"
+              data-testid="agent-welcome"
+            >
+              <div
+                class="_agentRow_90f2c0"
+              >
+                <span
+                  aria-hidden="true"
+                  class="_avatar_90f2c0"
+                >
+                  <img
+                    al...
+- Expected
++ Received
+  {
+-   "canvasColor": "#000080",
++   "canvasColor": "#0e0f0d",
+  }
+ ❯ src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx:110:42
+    108|     const seen = {}
+    109|     await m.say(text, setOption(c.args, seen))
+    110|     await waitFor(() => expect(readOf()).toMatchObject(c.want))
+       |                                          ^
+    111|     expect(optsOf(m).settings, 'written into this widget\'s own opts.s…
+    112|     expect(JSON.stringify(optsOf(m, 'wb'))).toBe(other)
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+ FAIL  src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "watchlist text in white please": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+AssertionError: expected { showLogos: true, tint: true, …(6) } to match object { textColor: '#ffffff' }
+(7 matching properties omitted from actual)
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <aside
+        aria-label="UCT Agent"
+        class="_panel_90f2c0"
+        data-testid="agent-panel"
+      >
+        <header
+          class="_contact_90f2c0"
+        >
+          <span
+            aria-hidden="true"
+            class="_avatar_90f2c0"
+          >
+            <img
+              alt=""
+              src="/src/components/intro/assets/compass-mark.png"
+            />
+            <i
+              class="_online_90f2c0"
+            />
+          </span>
+          <span
+            class="_contactText_90f2c0"
+          >
+            <span
+              class="_contactName_90f2c0"
+            >
+              UCT Agent
+            </span>
+            <span
+              aria-live="polite"
+              class="_contactStatus_90f2c0"
+              data-testid="agent-status"
+            >
+              <span
+                class="_onlineWord_90f2c0"
+              >
+                Online
+              </span>
+            </span>
+          </span>
+          <span
+            class="_headSpacer_90f2c0"
+          />
+          <button
+            aria-expanded="false"
+            aria-label="Search this chat"
+            class="_iconBtn_90f2c0 "
+            data-tip="Search"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="6.5"
+              />
+              <path
+                d="m20 20-4.2-4.2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="New chat"
+            class="_iconBtn_90f2c0"
+            data-tip="New chat"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M12 20h8"
+              />
+              <path
+                d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"
+              />
+            </svg>
+          </button>
+          <button
+            aria-expanded="false"
+            aria-label="Conversation history"
+            class="_iconBtn_90f2c0 "
+            data-tip="History"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M3 12a9 9 0 1 0 2.6-6.4L3 8"
+              />
+              <path
+                d="M3 3v5h5"
+              />
+              <path
+                d="M12 7.5V12l3 2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="Close UCT Agent"
+            class="_iconBtn_90f2c0"
+            data-tip="Close"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M6 6l12 12M18 6 6 18"
+              />
+            </svg>
+          </button>
+        </header>
+        <div
+          class="_stage_90f2c0"
+        >
+          <div
+            class="_list_90f2c0 "
+            data-testid="agent-transcript"
+          >
+            <div
+              class="_welcome_90f2c0"
+              data-testid="agent-welcome"
+            >
+              <div
+                class="_agentRow_90f2c0"
+              >
+                <span
+                  aria-hidden="true"
+                  class="_avatar_90f2c0"
+                >
+                  <img
+                    al...
+- Expected
++ Received
+  {
+-   "textColor": "#ffffff",
++   "textColor": "#e0dac8",
+  }
+ ❯ src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx:110:42
+    108|     const seen = {}
+    109|     await m.say(text, setOption(c.args, seen))
+    110|     await waitFor(() => expect(readOf()).toMatchObject(c.want))
+       |                                          ^
+    111|     expect(optsOf(m).settings, 'written into this widget\'s own opts.s…
+    112|     expect(JSON.stringify(optsOf(m, 'wb'))).toBe(other)
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+ FAIL  src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "color the gainers on my watchlist teal": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+AssertionError: expected { showLogos: true, tint: true, …(6) } to match object { gainColor: '#008080' }
+(7 matching properties omitted from actual)
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <aside
+        aria-label="UCT Agent"
+        class="_panel_90f2c0"
+        data-testid="agent-panel"
+      >
+        <header
+          class="_contact_90f2c0"
+        >
+          <span
+            aria-hidden="true"
+            class="_avatar_90f2c0"
+          >
+            <img
+              alt=""
+              src="/src/components/intro/assets/compass-mark.png"
+            />
+            <i
+              class="_online_90f2c0"
+            />
+          </span>
+          <span
+            class="_contactText_90f2c0"
+          >
+            <span
+              class="_contactName_90f2c0"
+            >
+              UCT Agent
+            </span>
+            <span
+              aria-live="polite"
+              class="_contactStatus_90f2c0"
+              data-testid="agent-status"
+            >
+              <span
+                class="_onlineWord_90f2c0"
+              >
+                Online
+              </span>
+            </span>
+          </span>
+          <span
+            class="_headSpacer_90f2c0"
+          />
+          <button
+            aria-expanded="false"
+            aria-label="Search this chat"
+            class="_iconBtn_90f2c0 "
+            data-tip="Search"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="6.5"
+              />
+              <path
+                d="m20 20-4.2-4.2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="New chat"
+            class="_iconBtn_90f2c0"
+            data-tip="New chat"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M12 20h8"
+              />
+              <path
+                d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"
+              />
+            </svg>
+          </button>
+          <button
+            aria-expanded="false"
+            aria-label="Conversation history"
+            class="_iconBtn_90f2c0 "
+            data-tip="History"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M3 12a9 9 0 1 0 2.6-6.4L3 8"
+              />
+              <path
+                d="M3 3v5h5"
+              />
+              <path
+                d="M12 7.5V12l3 2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="Close UCT Agent"
+            class="_iconBtn_90f2c0"
+            data-tip="Close"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M6 6l12 12M18 6 6 18"
+              />
+            </svg>
+          </button>
+        </header>
+        <div
+          class="_stage_90f2c0"
+        >
+          <div
+            class="_list_90f2c0 "
+            data-testid="agent-transcript"
+          >
+            <div
+              class="_welcome_90f2c0"
+              data-testid="agent-welcome"
+            >
+              <div
+                class="_agentRow_90f2c0"
+              >
+                <span
+                  aria-hidden="true"
+                  class="_avatar_90f2c0"
+                >
+                  <img
+                    al...
+- Expected
++ Received
+  {
+-   "gainColor": "#008080",
++   "gainColor": "#34d17c",
+  }
+ ❯ src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx:110:42
+    108|     const seen = {}
+    109|     await m.say(text, setOption(c.args, seen))
+    110|     await waitFor(() => expect(readOf()).toMatchObject(c.want))
+       |                                          ^
+    111|     expect(optsOf(m).settings, 'written into this widget\'s own opts.s…
+    112|     expect(JSON.stringify(optsOf(m, 'wb'))).toBe(other)
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+ FAIL  src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "make losers orange in the watchlist widget": the widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+AssertionError: expected { showLogos: true, tint: true, …(6) } to match object { lossColor: '#ffa500' }
+(7 matching properties omitted from actual)
+Ignored nodes: comments, script, style
+<html>
+  <head />
+  <body>
+    <div>
+      <aside
+        aria-label="UCT Agent"
+        class="_panel_90f2c0"
+        data-testid="agent-panel"
+      >
+        <header
+          class="_contact_90f2c0"
+        >
+          <span
+            aria-hidden="true"
+            class="_avatar_90f2c0"
+          >
+            <img
+              alt=""
+              src="/src/components/intro/assets/compass-mark.png"
+            />
+            <i
+              class="_online_90f2c0"
+            />
+          </span>
+          <span
+            class="_contactText_90f2c0"
+          >
+            <span
+              class="_contactName_90f2c0"
+            >
+              UCT Agent
+            </span>
+            <span
+              aria-live="polite"
+              class="_contactStatus_90f2c0"
+              data-testid="agent-status"
+            >
+              <span
+                class="_onlineWord_90f2c0"
+              >
+                Online
+              </span>
+            </span>
+          </span>
+          <span
+            class="_headSpacer_90f2c0"
+          />
+          <button
+            aria-expanded="false"
+            aria-label="Search this chat"
+            class="_iconBtn_90f2c0 "
+            data-tip="Search"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="6.5"
+              />
+              <path
+                d="m20 20-4.2-4.2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="New chat"
+            class="_iconBtn_90f2c0"
+            data-tip="New chat"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M12 20h8"
+              />
+              <path
+                d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4z"
+              />
+            </svg>
+          </button>
+          <button
+            aria-expanded="false"
+            aria-label="Conversation history"
+            class="_iconBtn_90f2c0 "
+            data-tip="History"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M3 12a9 9 0 1 0 2.6-6.4L3 8"
+              />
+              <path
+                d="M3 3v5h5"
+              />
+              <path
+                d="M12 7.5V12l3 2"
+              />
+            </svg>
+          </button>
+          <button
+            aria-label="Close UCT Agent"
+            class="_iconBtn_90f2c0"
+            data-tip="Close"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="15"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="1.7"
+              viewBox="0 0 24 24"
+              width="15"
+            >
+              <path
+                d="M6 6l12 12M18 6 6 18"
+              />
+            </svg>
+          </button>
+        </header>
+        <div
+          class="_stage_90f2c0"
+        >
+          <div
+            class="_list_90f2c0 "
+            data-testid="agent-transcript"
+          >
+            <div
+              class="_welcome_90f2c0"
+              data-testid="agent-welcome"
+            >
+              <div
+                class="_agentRow_90f2c0"
+              >
+                <span
+                  aria-hidden="true"
+                  class="_avatar_90f2c0"
+                >
+                  <img
+                    al...
+- Expected
++ Received
+  {
+-   "lossColor": "#ffa500",
++   "lossColor": "#f24b42",
+  }
+ ❯ src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx:110:42
+    108|     const seen = {}
+    109|     await m.say(text, setOption(c.args, seen))
+    110|     await waitFor(() => expect(readOf()).toMatchObject(c.want))
+       |                                          ^
+    111|     expect(optsOf(m).settings, 'written into this widget\'s own opts.s…
+    112|     expect(JSON.stringify(optsOf(m, 'wb'))).toBe(other)
+ ❯ runWithExpensiveErrorDiagnosticsDisabled ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/config.js:47:12
+ ❯ checkCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:124:77
+ ❯ Timeout.checkRealTimersCallback ../../pl-mc-fw/app/node_modules/@testing-library/dom/dist/wait-for.js:118:16
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+ Test Files  1 failed (1)
+      Tests  6 failed | 12 passed (18)
+   Start at  18:21:46
+   Duration  49.73s (transform 5.09s, setup 343ms, import 6.34s, tests 42.30s, environment 579ms)

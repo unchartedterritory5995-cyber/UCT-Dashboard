@@ -8,7 +8,8 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { NOTEBOOK_TYPE_SCHEMA } from '../../../lib/notebookSchema'
-import { readSamplePref, isNotebookKey, SAMPLE_URL } from './sampleNotebook'
+import { readSamplePref, isNotebookKey, SAMPLE_COPY, SAMPLE_URL, SAMPLE_WRITE_URL } from './sampleNotebook'
+import { SAMPLE_ADD_FAILED, SAMPLE_URL as KEYS_SAMPLE_URL } from './sampleNotebookKeys'
 
 const JSON_PATH = path.resolve(process.cwd(), '..', 'api', 'services', 'journal_two', 'sample_notebook.json')
 const SAMPLE = JSON.parse(fs.readFileSync(JSON_PATH, 'utf8'))
@@ -56,5 +57,26 @@ describe('isNotebookKey', () => {
     for (const k of ['/api/j2/notes?sort=title', '/api/j2/notes/folder-counts', '/api/j2/note-folders',
       '/api/j2/notebook/home', '/api/auth/preferences', SAMPLE_URL]) expect(isNotebookKey(k), k).toBe(true)
     for (const k of ['/api/j2/trades', '/api/auth/me', null, ['/api/j2/notes']]) expect(isNotebookKey(k)).toBe(false)
+  })
+})
+
+// Go-live wave 1, fix round 1: the writes' literal route (kept in sampleNotebook.js for the door rail) is the keys
+// module's SAMPLE_URL, and the re-export is that same value.
+describe('one route for the sample notebook', () => {
+  it('the write route and the re-exported route are the SAMPLE_URL of the keys module', () => {
+    expect(SAMPLE_WRITE_URL).toBe(KEYS_SAMPLE_URL)
+    expect(SAMPLE_URL).toBe(KEYS_SAMPLE_URL)
+  })
+})
+
+// Go-live wave 1, fix round 2 (re-review): ONE add-failure sentence, in the keys module (first-open safe). The client's
+// SAMPLE_COPY.addFailed is it, and the add hook says it without a copy of its own.
+describe('one add-failure sentence', () => {
+  it('SAMPLE_COPY.addFailed is the keys module sentence, and the hook carries no copy of it', () => {
+    expect(SAMPLE_ADD_FAILED).toMatch(/couldn't add the sample notebook/)
+    expect(SAMPLE_COPY.addFailed).toBe(SAMPLE_ADD_FAILED)
+    const hook = fs.readFileSync(path.resolve(__dirname, 'useSampleNotebook.js'), 'utf8')
+    expect(hook).toContain('setError(SAMPLE_ADD_FAILED)')
+    expect(hook).not.toContain(SAMPLE_ADD_FAILED)
   })
 })

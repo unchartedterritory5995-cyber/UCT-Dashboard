@@ -1,0 +1,172 @@
+# promotion-gate: no — pull-request only. The master deploy gate runs these same commands on master and is the
+#   deploy blocker; this job only moves the same red from after the merge to before it.
+#
+# The master deploy gate's CHEAP, STATIC checks, run on the pull request.
+#
+# WHY (2026-11-20). Three times in one day a PR's own CI was green and the master deploy gate went red right after
+# the merge, on a check only the gate ran. A red gate holds every member-facing deploy until somebody fixes forward:
+#   * tools/check_repo_hygiene.py: four capture fixtures over 5 MB (#2146; gate runs 44696646515, 44702367636,
+#     44705762882);
+#   * tests/test_no_shadowed_definitions.py: a second module-level `_INTRADAY_TFS` in api/routers/bars.py (#2217,
+#     fixed forward by #2227; gate runs 44800794471, 44803586367, 44806109880);
+#   * tests/test_tools_pin_the_root.py: three new tools importing api.* with no `import conftest` (#2152, #2157;
+#     fixed by #2199). The gate does not run it; nothing but the nightly did.
+# And tests/test_queue_dispositions.py went red on master (#2117, #2154) and was found by a train's remote run.
+#
+# WHAT RUNS. Every gate step this job mirrors keeps the gate's step NAME and its command BYTE FOR BYTE, so a red step
+# here reads exactly as the red gate step would. tests/test_gate_static_rails_pr.py holds the two files to that, and
+# names, with its reason, every gate step left to the gate (the production-state checks, the heavy ones, and the ones
+# another PR workflow already runs). Plus the two rails above that the gate does not run, and that mirror rail.
+# Installed with the gate job's own install line, so a rail that grows a dependency the gate lacks goes red here
+# first. Every check runs even when an earlier one failed, so one push shows every red.
+#
+# CI COST. Unfiltered, and PINNED in tests/test_ci_cost_rails.py (UNFILTERED_PR_OK): the hygiene check's subject is
+# every tracked file (an oversized file, a .env* or a line-ending flip can land anywhere) and the shadow sweep's is
+# every module, so a path list that covered them would be the whole tree. PRs into master only, never a push (the
+# gate owns master), and a newer push to the PR cancels its older run. Step times on the gate runner (run
+# 44797949717): checkout 30 s, install 8 s, the shadow sweep 80 s, the cost rails 13 s, the rest a few seconds each.
+# ⛔ NEVER a sparse checkout: the hygiene check skips a file that is not on disk and the shadow sweep walks every
+#   folder (tests/test_ci_cost_rails.py WHOLE_TREE_CHECKS refuses one).
+# ⛔ fetch-depth 2 IS LOAD-BEARING: a pull_request run checks out the MERGE commit, so HEAD^ is the base branch and
+#   "files this push changed" (HEAD^..HEAD) is exactly this PR's change. Depth 1 has no HEAD^ and that step fails.
+# ⚠️ The merge includes master: when master itself is red, every PR is red here too. Fix master forward.
+name: gate static rails (PR)
+
+on:
+  pull_request:
+    branches: [master]
+  # 2026-11-22, merge-queue prep. `master gate static checks` is the required check on master; a merge queue
+  # asks every required check for a verdict on its merge group, and a workflow without this trigger never
+  # reports one (the queued pull request then times out). INERT until a queue exists: nothing fires it.
+  # A merge group's commit is a merge too (first parent = master plus the entries ahead), so HEAD^..HEAD is
+  # still exactly the queued pull request's change and fetch-depth 2 still holds.
+  merge_group:
+
+permissions:
+  contents: read
+
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this workflow. Every other
+# event (none today) is grouped by its own commit SHA and is never cancelled. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  static:
+    name: master gate static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install the gate's dependencies
+        id: deps
+        run: python -m pip install --quiet pytest httpx numpy pillow pyyaml
+
+      - name: Line endings match the stored blobs
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python tools/check_repo_hygiene.py
+
+      - name: Secret scan (files this push changed)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: |
+          # ⛔ TWO EMPTY RESULTS, TWO DIFFERENT FACTS. `--diff-filter=d` EXCLUDES
+          # deletions, so a commit that only DELETES files yields an empty list while the
+          # range itself is perfectly fine. The original guard could not tell that apart
+          # from a broken invocation and failed BOTH — which blocked promotion on
+          # 6c2c68adf, a legitimate delete-only tidy-up, holding production 6 commits
+          # behind master. A check that cannot distinguish the right answer from the
+          # wrong one is not a rail.
+          ALL=$(git diff --name-only HEAD^ HEAD | tr '\n' ' ')
+          FILES=$(git diff --name-only --diff-filter=d HEAD^ HEAD | tr '\n' ' ')
+          if [ -z "$ALL" ]; then
+            echo "::error::HEAD^..HEAD resolved NO paths at all — the RANGE is broken, not empty. This is the vacuous-scan case the guard exists for."
+            exit 1
+          fi
+          if [ -z "$FILES" ]; then
+            echo "this commit only DELETES paths ($ALL) — nothing readable to scan."
+            echo "NOT a vacuous pass: the range RESOLVED, and a deleted file carries no"
+            echo "content forward. A secret in a deleted file was already public when it"
+            echo "was pushed, which is what the full-push-range step below exists for."
+            exit 0
+          fi
+          echo "scanning: $FILES"
+          python tools/secret_scrub.py --scan $FILES
+
+      - name: CI cost rails
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_ci_cost_rails.py tests/test_promote_decision.py -q -p no:cacheprovider
+
+      - name: Every backend test file is in the nightly's shard plan
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_every_backend_test_file_is_in_the_shard_plan.py -q -p no:cacheprovider
+
+      - name: Memory observer file-cache probe (Linux)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_mem_observe.py -k "file_cache or with_files" -q -p no:cacheprovider -rs
+
+      - name: The saved-script engine number parses (offline)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_script_engine_version_gate.py -q
+
+      - name: No module shadows its own definitions
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_no_shadowed_definitions.py -q
+
+      # 2026-11-22: left to the gate at first (68 s on the gate runner). #1658 then merged using a flag nothing
+      # declared, every PR check green, and the gate went red for an hour (run 44128410568): no PR job ran this.
+      - name: Visibility flags are declared (offline)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_visibility_flag_ledger.py -q
+
+      # Not in the gate (yet): both went red on master on 2026-11-20 with no PR job running them.
+      - name: Tools that import api.* pin the shared-data-root census
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_tools_pin_the_root.py -q -p no:cacheprovider
+
+      - name: The capture queue's reviewed dispositions
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_queue_dispositions.py -q -p no:cacheprovider
+
+      # Red on master from 2026-09-29 to 2026-11-20 (13 unregistered sites), and only the report-only nightly ran it.
+      - name: Every corporate-action site is registered with a state
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_corp_actions_census.py -q -p no:cacheprovider
+
+      # 2026-11-20: 2,741 of 3,450 test files ran in no lane; tools/domain_test_census.py maps every one to a
+      # domain by its own imports and this rail holds that each lands in a lane, a queued domain, or EXEMPT
+      - name: Every test file lands in a lane, a queued domain, or EXEMPT
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_domain_test_census.py -q -p no:cacheprovider
+
+      # 2026-11-22 (#2501): these three files hold the Agent CI workflows, the merge-queue verdict and the evidence
+      # tools to their rules, and NO pull-request job ran them (agent ci's server job runs only the Agent's own
+      # server test files), so a PR that edited agent-ci-queue.yml alone was checked by nothing before it landed. Stdlib, PyYAML
+      # and git (throwaway repositories under the runner's temp folder). On the runner at
+      # 8b39c3aef6 this step took 18 s (554 tests; run 45055761744 of this job).
+      - name: The Agent CI workflows, queue verdict and evidence tools keep their rails
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_ci_agent_merge_ref.py tests/test_agent_ci_required.py tests/test_agent_ci_evidence.py -q -p no:cacheprovider
+
+      - name: This job mirrors the gate's static steps
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_gate_static_rails_pr.py -q -p no:cacheprovider
+
+      - name: Explain a failure
+        if: failure()
+        run: |
+          echo "::error::A check the master deploy gate runs (or one that went red on master) failed on this PR. Merged as it is, it turns the gate red, and a red gate holds every member-facing deploy."
+          echo ""
+          echo "Each step above carries the gate's step name and runs the gate's command. Run the red one locally:"
+          echo "  python tools/check_repo_hygiene.py"
+          echo "  python -m pytest tests/test_no_shadowed_definitions.py -q"
+          echo "  python -m pytest tests/test_tools_pin_the_root.py tests/test_queue_dispositions.py tests/test_corp_actions_census.py -q"
+          echo ""
+          echo "This run checks out the MERGE with master: a red this PR did not cause means master is red. Fix master forward."

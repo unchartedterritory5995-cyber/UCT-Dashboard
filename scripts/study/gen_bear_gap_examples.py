@@ -4,8 +4,12 @@ The owner, cutting NFLX 2022-02-07 from Gap Support on 2026-10-27: "Don't want t
 do bear gaps off the highs". This generator reads docs/study/setups/bear_gap_examples.json (written from the
 read-only pod scan scripts/study/find_bear_gap_examples.py) and makes one `spot` item per pick, the gap day
 itself as the last visible bar, 120 sessions of context and a 20-session forward strip resolved from the pod's
-daily store at import (the same `bars` spec as spot.setups). The definition is marked OWNER RULING PENDING:
-nothing here states what the lesson teaches; the measured fact line states what the chart shows. Drafts only.
+daily store at import (the same `bars` spec as spot.setups). The definition carries NO drafting note: the owner's
+words live in owner_verdicts.jsonl and in this docstring, never in a field a member reads (the bank rail
+_common.DRAFTING_MARKERS refuses one); the measured fact line states what the chart shows. Drafts only. The owner
+paused the first-draft sitting on 2026-10-31 after 8 of 39 (1 good: MPWR 2024-10-31; 7 cut as earnings
+breakdowns, "the seed itself is not what the owner means"): the finder is to be rebuilt from his own example
+charts, and the 39 stay drafts on the pod until then.
 
     python -X utf8 scripts/study/gen_bear_gap_examples.py
 """
@@ -20,10 +24,8 @@ SKILL = "setup.family3.bear_gap"
 SETUP = "Bear Gap off the Highs"
 WINDOW, FORWARD = 120, 20
 
-DEFINITION = ("Bear Gap off the Highs (owner ruling pending; owner 2026-10-27: \"Don't want to do downtrend gaps but will "
-              "do bear gaps off the highs\"): the FIRST true gap down since a recent top, marked on the gap day itself. "
-              "It is not Gap Support (a gap UP that is later tested) and not a gap inside a downtrend (cut). What this "
-              "lesson teaches is the owner's to rule on the charts.")
+DEFINITION = ("Bear Gap off the Highs: the first true gap down since a recent top, marked on the gap day itself. "
+              "It is not Gap Support (a gap up that is later tested) and not a gap inside a downtrend.")
 
 AFTER = {"gap_held": "the stock never traded back into the gap",
          "gap_entered": "the stock traded back into the gap but never closed above the gap-fill level",

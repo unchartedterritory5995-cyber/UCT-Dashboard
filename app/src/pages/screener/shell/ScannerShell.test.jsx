@@ -29,7 +29,9 @@ const { META, SAVED, scanMock, exportMock, metaMock } = vi.hoisted(() => ({
 // cases are about the shell's own states, and real routing here would be
 // scaffolding that asserts nothing. Entering a review is owned by
 // `pages/charts/review/reviewEntry.test.jsx`, where it is the subject.
-vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
+// No <Router> is rendered here, so the router context is absent, as `useInRouterContext` reports it.
+// ScreensManager asks since eb0689c961 (the scan hint leaves the address through the router).
+vi.mock('react-router-dom', () => ({ useNavigate: () => () => {}, useInRouterContext: () => false }))
 
 vi.mock('../hooks/useScreenerMeta', () => ({ default: metaMock }))
 vi.mock('../hooks/useScreenerScan', () => ({ default: scanMock }))

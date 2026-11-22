@@ -166,7 +166,8 @@ describe('⭐⭐ a user function whose body is an `if`', () => {
     // ⚰️ P3 WS-A: this specimen was a TUPLE literal, unsupported in both
     // positions — a tuple ARM is a value now (a function may yield `[a, b]`), so
     // the specimen is a construction this lane refuses anywhere it stands.
-    const TUP = 'matrix.new<float>(1, 1)'
+    // ⭐ W6-T7 serves `matrix.new`; `matrix.det` is still refused wherever it stands.
+    const TUP = 'matrix.det(matrix.new<float>(1, 1))'
     // ⛔ THE DISCRIMINATOR: with BOTH unsupported, the TEST's line must win.
     expect(refusalOf(mk(TUP, TUP)).line,
       'the BODY preempted the TEST — source order inverted').toBe(4)

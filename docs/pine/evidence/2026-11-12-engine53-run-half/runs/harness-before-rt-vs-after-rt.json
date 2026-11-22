@@ -1,0 +1,41 @@
+{
+ "captures": 369,
+ "tally": {
+  "before": {
+   "MATCH": 181,
+   "INCONCLUSIVE": 140,
+   "DIVERGE": 48
+  },
+  "after": {
+   "MATCH": 183,
+   "INCONCLUSIVE": 138,
+   "DIVERGE": 48
+  }
+ },
+ "plotVerdictDiffs": 0,
+ "captureVerdictDiffs": [
+  [
+   "tests/fixtures/vendor/harness/atr-support-and-resistance-rddt-1d-2026-09-28.json",
+   "INCONCLUSIVE",
+   "MATCH"
+  ],
+  [
+   "tests/fixtures/vendor/harness/atr-support-and-resistance-spy-1d-2026-10-03.json",
+   "INCONCLUSIVE",
+   "MATCH"
+  ]
+ ],
+ "objectsVerdictDiffs": [
+  [
+   "tests/fixtures/vendor/harness/atr-support-and-resistance-rddt-1d-2026-09-28.json",
+   "INCONCLUSIVE",
+   "MATCH"
+  ],
+  [
+   "tests/fixtures/vendor/harness/atr-support-and-resistance-spy-1d-2026-10-03.json",
+   "INCONCLUSIVE",
+   "MATCH"
+  ]
+ ],
+ "plotDiffFiles": []
+}

@@ -59,7 +59,7 @@ if str(_REPO) not in sys.path:
 import conftest  # noqa: E402,F401
 # One authority: the folder the daily door makes and the title it gives today's
 # note are note_daily's. (Importing it opens no database: auth_db connects lazily.)
-from api.services.journal_two.note_daily import DAILY_FOLDER_NAME, daily_title  # noqa: E402
+from api.services.journal_two.note_daily import DAILY_FOLDER_NAME, LEGACY_DAILY_FOLDER_NAMES, daily_title  # noqa: E402
 
 ET = ZoneInfo("America/New_York")
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -117,15 +117,18 @@ def daily_step(req, bare, bearer: dict, today, step, rec) -> int:
     """The daily append, only where it can create no folder and touch no note of
     bench's. Returns the exit-code contribution (0, or 1 on a FAIL)."""
     folders = (req.get("/api/j2/note-folders").json() or {}).get("folders") or []
-    # The door's own match: a ROOT folder whose name equals DAILY_FOLDER_NAME under
-    # NOCASE (note_daily._daily_folder_id) — no trimming, or " Daily" would read as
-    # present here while the door, finding none, CREATED one.
-    daily = [f for f in folders if str(f.get("name") or "").lower() == DAILY_FOLDER_NAME.lower()
+    # The door's own match: a ROOT folder whose name equals one of the daily names under
+    # NOCASE (note_daily._daily_folder_id: a legacy-named "Daily" first, then DAILY_FOLDER_NAME;
+    # simplify pass 2, A3) — no trimming, or " Daily" would read as present here while the door,
+    # finding none, CREATED one.
+    daily_names = {n.lower() for n in (*LEGACY_DAILY_FOLDER_NAMES, DAILY_FOLDER_NAME)}
+    daily = [f for f in folders if str(f.get("name") or "").lower() in daily_names
              and not f.get("parentId")]
     day_iso = today.isoformat()
     if not daily:
         step("append to today's daily note", "NOT RUN", None,
-             why=f"bench@ has no root {DAILY_FOLDER_NAME} folder, and the daily door would CREATE one — "
+             why=f"bench@ has no root daily folder ({' or '.join((*LEGACY_DAILY_FOLDER_NAMES, DAILY_FOLDER_NAME))}), "
+                 "and the daily door would CREATE one — "
                  "the walk never creates a folder in production")
         return 0
     existing, why = find_todays_daily_note(req, day_iso)
@@ -211,8 +214,19 @@ def main(argv=None) -> int:
         # is exactly what an iOS Shortcut sends; the control below proves it has no session.
         bare = pw.request.new_context(base_url=args.base, user_agent=UA)
         try:
-            r = req.post("/api/auth/login", data=json.dumps({"email": email, "password": password}),
-                         headers={"Content-Type": "application/json"})
+            # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+            try:
+                from tools import synthetic_session as S  # noqa: PLC0415 — package import
+            except ImportError:
+                import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+            try:
+                r = S.sign_in_playwright(req, args.base, "bench")
+            except S.IdentityMismatch:
+                step("the session is bench@ and nobody else", "FAIL", 200)
+                return finish(1)
+            except S.SignInError as exc:
+                step("sign in as bench@", "INCONCLUSIVE-OWNER", why=str(exc))
+                return finish(2)
             if not r.ok:
                 step("sign in as bench@", "INCONCLUSIVE-OWNER", r.status)
                 return finish(2)

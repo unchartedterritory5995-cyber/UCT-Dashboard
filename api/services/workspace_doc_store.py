@@ -109,6 +109,17 @@ WORKSPACE_PREF_KEYS = frozenset({
     "watchlist_settings",
 })
 
+#: Keys ``ChartsWorkspace.jsx`` writes that are deliberately NOT board state, each with its reason.
+#: ⛔ The one place an exclusion is recorded: the key-set rail subtracts exactly these, and fails if one
+#: stops being written or lands in ``WORKSPACE_PREF_KEYS`` too.
+NOT_BOARD_STATE = {
+    # Coordinator ruling 2026-11-17 (owner delegated): the member's saved indicator templates are a
+    # LIBRARY that outlives any board, not part of one board's layout. Versioning them with the board
+    # would make restoring an older Charts board roll back the member's template library. The
+    # workspace writes it (36cb18b6c5, for the Agent); it is still kept, just not in board history.
+    "indicator_templates": "a template library, not board layout: a board restore must never roll it back",
+}
+
 #: The terminal board's persisted keys: every ``*_PREF`` constant
 #: ``app/src/pages/terminal/useTerminalLayout.js`` exports. ⛔ Derived, not hand-kept:
 #: ``tests/test_workspace_doc_terminal_board.py`` re-reads the client constants, both directions.
@@ -171,6 +182,30 @@ RETAIN_CEILING = 2000
 PRUNE_MAX_PER_CALL = 100
 PRUNE_SCAN_ROWS = 1000
 _DAY = 86400
+
+#: HOW OFTEN a save pays for the opportunistic prune (speed follow-up 2026-11-16). N = prune only
+#: after an append whose new version is a multiple of N. Unset, or anything that is not a whole
+#: number >= 1, = after EVERY append, exactly as before. Capped at ``PRUNE_MAX_PER_CALL`` so one
+#: prune (up to that many removals) always keeps pace with the N appends since the last one: a
+#: board exceeds the policy by at most N-1 versions, and what the policy keeps is unchanged.
+#: Why: each prune re-reads ``created_at`` for up to ``PRUNE_SCAN_ROWS`` versions and that column
+#: sits AFTER each version's document, so a busy board paid ~80 ms of CPU per save to learn that
+#: nothing was due (measured: 40 KB board, 2,000 versions); production ``[prefs-slow]`` lines put
+#: 1-12 s of wall time in that step under load.
+PRUNE_EVERY_ENV = "WORKSPACE_PRUNE_EVERY"
+
+
+def _prune_every() -> int:
+    try:
+        n = int(os.environ.get(PRUNE_EVERY_ENV, "").strip())
+    except ValueError:
+        return 1
+    return min(n, PRUNE_MAX_PER_CALL) if n >= 1 else 1
+
+
+def _prune_due(version) -> bool:
+    """True when the append that produced ``version`` should be followed by a prune."""
+    return int(version or 0) % _prune_every() == 0
 
 #: The clock that stamps ``created_at``. Injected so tests never read the wall clock; production
 #: reads ``time.time`` through it.
@@ -792,12 +827,14 @@ def write_pref_checked(user_id: str, key: str, value: Optional[str], *, base_ver
                 c.execute("ROLLBACK")
             raise
     # Retention, exactly as the mirrored path runs it (``finish_pref_write``): the history grows
-    # here now, so it is bounded here. Best-effort, never fails the member's write.
-    try:
-        prune_versions(user_id, board_id, int(_clock()))
-    except Exception as exc:  # noqa: BLE001
-        _HOOK_FAILURES["prune"] = _HOOK_FAILURES.get("prune", 0) + 1
-        logger.warning("[workspace_doc] prune failed for %s: %s", user_id, exc)
+    # here now, so it is bounded here. Best-effort, never fails the member's write. Every
+    # ``WORKSPACE_PRUNE_EVERY`` appends (``_prune_due``; unset = every append).
+    if _prune_due(new_v):
+        try:
+            prune_versions(user_id, board_id, int(_clock()))
+        except Exception as exc:  # noqa: BLE001
+            _HOOK_FAILURES["prune"] = _HOOK_FAILURES.get("prune", 0) + 1
+            logger.warning("[workspace_doc] prune failed for %s: %s", user_id, exc)
     return {"appended": True, "version": new_v, "board": board_id}
 
 
@@ -1062,7 +1099,7 @@ def finish_pref_write(ticket: Optional[dict], value: Optional[str]) -> None:
         _HOOK_FAILURES["mirror"] += 1
         logger.warning("[workspace_doc] mirror failed for %s/%s: %s", ticket["user_id"], ticket["key"], exc)
         return
-    if not res.get("appended"):
+    if not res.get("appended") or not _prune_due(res.get("version")):
         return
     try:
         prune_versions(ticket["user_id"], ticket.get("board", BOARD_CHARTS), int(_clock()))

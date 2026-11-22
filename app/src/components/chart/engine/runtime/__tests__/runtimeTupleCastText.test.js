@@ -140,8 +140,10 @@ describe('⭐⭐ `str.tostring` is text in a run that does NOT draw its own obje
     const [o] = runAll(`//@version=4\nstudy("t")\nvar float y = 0.0\ny := 1.0 / 3\nplot(tostring(y, "#.##") == "0.33" ? 1 : 0)\n`)
     expect(o[0]).toBe(1)
   })
+  // ⭐ TC (2026-11-16): `format.mintick` is now printed at the binding's tick (`tcTextColour.test.js`), so the
+  // control asks a format no capture settles on this lane: a `%` pattern (`format.percent`'s family).
   it('⛔ CONTROL — a format this lane does not print exactly still refuses by name', () => {
-    expect(refusalOf(`${HEAD5}${STATE}plot(str.tostring(x, format.mintick) == "1" ? 1 : 0)\n`).guard)
+    expect(refusalOf(`${HEAD5}${STATE}plot(str.tostring(x, "#.#%") == "1" ? 1 : 0)\n`).guard)
       .toBe('runtime:call-text-state')
   })
 })

@@ -13,12 +13,17 @@ with no TradingView access. `batch` hands the page work to `batch_capture.py run
 
 ⛔ WHAT THIS NEVER DOES
   * writes Pine from a prose row (a row with no probe file is NEEDS_PROBE);
+  * reads a reference script's text from anywhere but this machine's pine_survey cache (a row names one as
+    `reference:<slug>`; without the cached text the row is NEEDS_PROBE, by name: REF_UNCACHED);
+  * counts a row its doc DISPOSES of as not a capture question (a `| not a capture | disposition | reason |`
+    table, see DISPOSITIONS) as needing a probe: such a row is listed, counted and reasoned in
+    `rowsNotCaptureQuestions`, never dropped;
   * guesses a chart: a target no row names a readable chart for is NEEDS_CHART, never batched;
   * batches a row that needs a live session (NEEDS_LIVE);
   * re-queues a capture already committed anywhere under tests/fixtures/vendor/;
   * commits, or overwrites an existing fixture (evidence is appended, never replaced);
-  * lets a capture into git whose source licence is not clear (LICENCE_HOLD: graded
-    locally, verdict filed in the ledger with the source sha, capture kept out of git);
+  * lets a capture into git whose source licence is not clear (such a capture is LEDGER_ONLY at
+    promote: its verdict is filed in the ledger with the source sha, the capture stays out of git);
   * grades without the machine-wide heavy lock (no lock tool found: grade REFUSES);
   * promotes anything without `--packet-sha` naming the packet as it is NOW.
 
@@ -51,8 +56,10 @@ sys.path.insert(0, str(REPO / "tools"))
 sys.path.insert(0, str(REPO / "tools" / "pine_coverage"))
 sys.path.insert(0, str(REPO / "tools" / "pine_survey"))
 
+import evidence_ledger as el  # noqa: E402 -- the ledger row, its freshness and its append: one authority
+
 QUEUE_SCHEMA = "uct.capture-queue/v1"
-LEDGER_SCHEMA = "uct.evidence-ledger/v1"
+LEDGER_SCHEMA = el.SCHEMA          # the ledger row is evidence_ledger's (one authority)
 PACKET_SCHEMA = "uct.promotion-packet/v1"
 MANIFEST_SCHEMA = "uct.vendor-batch-manifest/v1"
 
@@ -65,8 +72,13 @@ CORPUS = REPO / "corpus"
 FIXTURE_ROOT = REPO / "tests" / "fixtures" / "vendor"
 FIXTURES = FIXTURE_ROOT / "harness"          # where `promote` files a new capture
 COVERAGE = DOCS / "coverage-map.json"
+#: ⚰️ A LOCAL VIEW SINCE 2026-11-16, NEVER COMMITTED (.gitignore names it; `queue --check` refuses a tracked one).
+#: It was committed until then, and every PR that touched a queue input rewrote it: 39 master commits in three
+#: days, and on 2026-11-16 it was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge. Each
+#: conflict meant a merge of master, a regenerate commit and a full pine-heavy re-run (~100 runner-minutes),
+#: for a file EVIDENCE-ENGINE-DESIGN.md already called "the authority for nothing". Every reader derives it.
 QUEUE_OUT = DOCS / "vendor-harness" / "capture-queue.json"
-LEDGER = DOCS / "vendor-harness" / "evidence-ledger.jsonl"
+LEDGER = el.LEDGER
 DOOR_FLAG = "VITE_PINE_OBJECTS_ONLY_PANE_ENABLED"
 #: The desktop's heavy-job lock tool; `$HEAVY_LOCK` (set by the laptop's env) wins. See `heavy_lock_tool`.
 DESKTOP_HEAVY_LOCK = r"C:\Users\Patrick\uct-clips\tools\heavy_lock.py"
@@ -83,25 +95,74 @@ DEFAULT_LIMIT = 40
 LEDGER_HEADERS = {"settled", "served", "was", "now", "witness"}
 LEDGER_FIRST_HEADERS = {"refused as"}
 #: A heading that files the tables below it as a RECORD of captures already taken.
-FINISHED_HEAD_RX = re.compile(r"^(?:CAPTURED|READINGS?|BUILT|TAKEN|Taken)\b")
-#: A capture id written out in a doc: `<stem>-...-<yyyy-mm-dd>`, optionally `.json`.
-ID_TOKEN_RX = re.compile(r"`([a-z0-9][a-z0-9.-]*-\d{4}-\d{2}-\d{2})(?:\.json)?`")
+FINISHED_HEAD_RX = re.compile(r"^(?:(?:\d+(?:\.\d+)*|[A-Za-z]\d*)[.):]\s+|\d+(?:\.\d+)*\s+)?"
+                              r"(?:captured|readings?|built|taken)\b(?!-)", re.I)
+#: A column whose header marks it PROSE (a question, a "what it settles", what ships today): a probe or capture
+#: named in it is a reference to something else, never a request. ⛔ Every other column (probe, script, capture, chart,
+#: an unheaded one, the first) can still ask. Matched on the cleaned, lowercased header.
+PROSE_HEAD_RX = re.compile(r"^(?:what\b|question|settles|why\b|notes?\b|shipped|gap\b|errs\b|where\b|alternative|"
+                           r"candidates|withheld|served|rule\b|reading|evidence|ruling|grade when|witnessed)")
+#: A capture id written out in a doc: `<stem>-...-<yyyy-mm-dd>[-<phase>]`, optionally `.json`.
+ID_TOKEN_RX = re.compile(r"`([a-z0-9][a-z0-9.-]*-\d{4}-\d{2}-\d{2}" + el.PHASE_SUFFIX_RX + r")(?:\.json)?`")
 #: Anything shaped `EXCH:SYM`, known exchange or not (an unknown one is a chart this parser cannot read).
 CHART_TOKEN_RX = re.compile(r"\b([A-Z][A-Z0-9_]{1,15}):([A-Z0-9][A-Z0-9.!]{0,14})")
-#: What `capture_stem` yields, and what follows it in an id the driver writes (`batch_capture.Driver.capture`).
+#: What `capture_stem` yields, and what follows it in an id the driver writes (`batch_capture.capture_id_for`): the
+#: chart, for a row that names its session `-rth` / `-ext` (`evidence_ledger.SESSION_SUFFIX`), the day and, for a phased
+#: row, `-<phase>` (one of `evidence_ledger.CAPTURE_PHASES`, never another word).
 STEM_RX = re.compile(r"[a-z0-9][a-z0-9.-]*")
-TAIL_RX = re.compile(r"[a-z0-9.!]+(?:-[a-z0-9.!]+)*-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}")
+TAIL_RX = re.compile(r"[a-z0-9.!]+(?:-[a-z0-9.!]+)*-(?:\d+|1?[dwm]|[0-9]+[dwm])" + el.SESSION_SUFFIX_RX
+                     + r"-\d{4}-\d{2}-\d{2}" + el.PHASE_SUFFIX_RX)
 #: Strongest first: where a target's chart was read. Only `default` (nothing named) is NEEDS_CHART.
 CHART_RANK = {"row": 0, "section": 1, "preamble": 2, "census": 3, "default": 4}
 
-LIVE_RX = re.compile(r"market hours|during regular hours|\brealtime\b|\breal-time\b|\blive\b|\bforming\b|"
-                     r"minutes apart|\bintrabar\b|\bvarip\b|\b1m\b|\bticks?\b", re.I)
+#: THE ONE ROW DISPOSITION. A doc says a row of its own is NOT a capture question with a table headed
+#: `| not a capture | disposition | reason |`: the first cell names the row exactly as the row's own first cell
+#: reads (backticks and bold are ignored), the second is one of DISPOSITIONS, the third says why, in the doc's
+#: own words. Such a row leaves `rowsNeedingProbe` and is never a target; it is listed, with its reason, in
+#: `rowsNotCaptureQuestions` and counted, so nothing leaves the queue silently. A disposition with no reason,
+#: outside DISPOSITIONS, given twice, or naming no row of its doc REFUSES the whole queue (`DispositionError`).
+DISPOSITION_HEAD = "not a capture"
+DISPOSITIONS = {
+    "ruling": "blocked by an owner ruling, not by a missing capture",
+    "engine-gap": "engine work: what it needs is a build, not a TradingView reading",
+    "closed": "the item is closed; nothing is asked",
+    "by-design": "the engine's behaviour here is a decision, not an open question",
+    "builtin": "a TradingView built-in no probe file can stand in for",
+    "withheld-ledger": "a record of what the engine withholds; the capture that settles it, if any, is its own row",
+    "superseded": "a later row asks the same question with its own probe (the reason names it); that row is the capture",
+}
+
+#: ⛔ THE ONE LIVE MARKER. A row needs a live session (NEEDS_LIVE) when its doc SAYS so, explicitly: a table
+#: with a `live` (or `needs market hours`) column is the authority for every row of it, its cell one of
+#: LIVE_YES / LIVE_NO (anything else refuses the queue, `LiveMarkerError`). A table without the column falls
+#: back to LIVE_RX, which names a SESSION ("market hours", "realtime", "forming", ...), never a word that
+#: also names history: 2026-11-08 the old pattern's `live` / `ticks?` / `1m` / `varip` matched probe names
+#: (`w9-q-s1e-live-past`, `w9-p3-every-tick-history`, `w9-q-s1d-same-tick`), `format.mintick`'s "tick" and
+#: AMEX:SPY **1M** (monthly), and marked four history captures NEEDS_LIVE (W9-P3, Q-S1d, Q-S1e, Q-W3-6).
+#: NOT_LIVE_RX strips a NEGATED mention ("no market hours needed") before LIVE_RX looks.
+LIVE_HEADS = {"live", "needs market hours"}
+LIVE_YES = {"yes", "true", "live"}
+LIVE_NO = {"no", "false", "history", "-", ""}
+LIVE_RX = re.compile(r"market hours|during regular hours|during RTH\b|\brealtime\b|\breal-time\b|\bforming\b|"
+                     r"minutes apart", re.I)
+NOT_LIVE_RX = re.compile(r"\bno market hours(?: needed)?|\bmarket hours (?:are )?not needed", re.I)
 VARIANT_RX = re.compile(r"\bline \d+\b[^|]*(?:replac|//@version|→|->)|the same (?:file|probe) with|"
                         r"the same probe,|\bline 1 `//@version", re.I)
 VERSION_RX = re.compile(r"//@version=(\d)")
 NO_PROBE_RX = re.compile(r"\bno probe\b", re.I)
 GUARD_RX = re.compile(r"(?<![\w:-])((?:host:)?(?:pine|runtime|fn|paint|lower-tf):[a-z][a-z0-9-]*[a-z0-9])")
 PINE_RX = re.compile(r"([A-Za-z0-9_./-]+\.pine)\b")
+#: ⭐ A REFERENCE SCRIPT (a published sample whose text is never in git) is named in ONE form: `reference:<slug>`, its
+#: census key (`coverage-map.json`). Its metadata is `corpus/reference/<slug>.json` (title, scriptIdPart, url); its
+#: text is the pine_survey cache's `sources/<slug>.pine` (`World.cache_dir`, git-ignored), on the machines that
+#: fetched it. With the text the row is a target whose licence is read off that text (`licence_of`), so a held one is
+#: LICENCE_HOLD, never QUEUED, and carries what the add-the-published-script path needs (`publishedScript`). Without
+#: it the row is NEEDS_PROBE, by name (REF_UNCACHED): CI never has the cache, and the queue derives the same there.
+REF_RX = re.compile(r"`reference:([a-z0-9][a-z0-9-]*__[A-Za-z0-9]+)`")
+#: ⚰️ `reference/<slug>` named three rows on 2026-11-19 and resolved to nothing ("no probe file named"): any other
+#: spelling is named as one, never read as prose.
+REF_MISSPELT_RX = re.compile(r"`reference/([a-z0-9][a-z0-9-]*__[A-Za-z0-9]+)(?:\.pine)?`")
+REF_UNCACHED = "reference source not cached on this machine"
 TICK_RX = re.compile(r"`([a-z0-9][a-z0-9._-]*[a-z0-9])`")
 SLUG_RX = re.compile(r"\b([a-z0-9][a-z0-9-]*__[0-9a-f]{6,12})\b")
 SYMBOL_RX = re.compile(r"\b(?:(" + "|".join(EXCHANGES) + r"):([A-Z0-9.!]{1,12})|(" + "|".join(HOUSE_SYMBOLS) + r"))\b")
@@ -241,8 +302,10 @@ class World:
 
     @property
     def fixture_index(self) -> list:
-        """[{id, file, sha, symbol, tf}] for every v1 capture ANYWHERE under the fixture root (recursive:
-        a capture beside `harness/` is as committed as one in it)."""
+        """[{id, file, sha, symbol, tf, phase, session, xTable}] for every v1 capture ANYWHERE under the fixture root
+        (recursive: a capture beside `harness/` is as committed as one in it). `phase` is read off the id's suffix
+        (`evidence_ledger.capture_phase`): None for an unphased capture. ⭐ `session` is what the capture RECORDED
+        (`evidence_ledger.capture_session` over its own `symbol.session`), never what its id or a row says."""
         if self._fixtures is None:
             out = []
             if self.fixtures.exists():
@@ -254,12 +317,24 @@ class World:
                     if not isinstance(c, dict) or c.get("schema") != "uct.vendor-capture/v1":
                         continue
                     sym = c.get("symbol") or {}
-                    out.append({"id": c.get("id") or f.stem, "file": rel(f),
+                    cid = c.get("id") or f.stem
+                    # ⭐⭐ (2026-11-19) does it record WHERE its objects sit: the x table (`objects.xIndex`), or an
+                    # xmap sidecar beside it (`<dir>/../xmap/<id>.json`, `harness.js::loadCapture`)?
+                    xi = (c.get("objects") or {}).get("xIndex") or {}
+                    x_table = bool(isinstance(xi, dict) and xi.get("found")) or (f.parent.parent / "xmap" / f"{cid}.json").is_file()
+                    out.append({"id": cid, "file": rel(f),
                                 "sha": (c.get("source") or {}).get("sha256"),
                                 "symbol": (sym.get("pro_name") or sym.get("full_name") or sym.get("name") or "").upper(),
-                                "tf": norm_tf(c.get("timeframe"))})
+                                "tf": norm_tf(c.get("timeframe")), "phase": el.capture_phase(cid),
+                                "session": el.capture_session(c), "xTable": x_table})
             self._fixtures = out
         return self._fixtures
+
+    def with_docs(self, docs_dir) -> "World":
+        """The same world (probes, corpus, fixtures, census, ledger, cache) read through other queue docs: what
+        `queue --check --against` derives a ref's docs with, so only the DOCS differ between the two queues."""
+        return World(docs_dir=docs_dir, probe_dirs=self.probe_dirs, corpus=self.corpus, fixtures=self.fixtures,
+                     coverage=self.coverage_path, ledger=self.ledger_path, cache_dir=self.cache_dir)
 
     @property
     def fixture_ids(self) -> set:
@@ -315,6 +390,18 @@ class World:
             self._ledger = rows
         return self._ledger
 
+    def reference_meta(self, slug: str):
+        """`corpus/reference/<slug>.json` (title, scriptIdPart, url, ...), or None."""
+        try:
+            return json.loads((self.corpus / "reference" / f"{slug}.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
+    def reference_source(self, slug: str):
+        """The cached text of a reference script (`<cache_dir>/sources/<slug>.pine`), or None on a machine without it."""
+        p = self.cache_dir / "sources" / f"{slug}.pine"
+        return p if p.is_file() else None
+
     def resolve_pine(self, name: str):
         """A `.pine` reference -> (kind, path) or (None, None)."""
         name = name.strip().strip("`")
@@ -364,7 +451,9 @@ class Census:
         return bool((self.scripts.get(k) or {}).get("clean"))
 
     def matched(self, k) -> bool:
-        return (self.scripts.get(k) or {}).get("vendorVerdict") == "MATCH"
+        # ⛔ L7: PROVEN-exact only. A MATCH_SUBSTITUTED script is not "matched" here: its substituted
+        # inputs are unproven, so a census that ranks what MATCH would unblock never counts it.
+        return el.is_match((self.scripts.get(k) or {}).get("vendorVerdict"))
 
     def unblocks(self, guards: set, named: set, direct: set) -> dict:
         guards = set(guards)
@@ -475,7 +564,7 @@ def finished_table(world: World, header, trows, heads):
     context: read as a queue, its rows re-queue finished work on a guessed chart (the 2026-09-27
     CAPTURED table made seven targets that way)."""
     for h in heads:
-        if FINISHED_HEAD_RX.match(re.sub(r"^[\s*`_]+", "", h)):
+        if FINISHED_HEAD_RX.match(re.sub(r"^[\s_]+", "", re.sub(r"[*`]+", "", h))):
             return f"under the heading {h[:48]!r}"
     for ci, name in enumerate(header):
         if "capture" not in name:
@@ -486,8 +575,10 @@ def finished_table(world: World, header, trows, heads):
     return None
 
 
-def resolve_sources(world: World, text: str):
+def resolve_sources(world: World, text: str, refs_only: bool = False):
     """(sources [(kind, path)], owed [names], fixture_stems [stems]) named in `text`.
+    ⛔ `refs_only` is for a PROSE cell (see PROSE_HEAD_RX): every probe it names, as `x.pine` or as a bare stem,
+    is a fixture reference and nothing in it is a source or an owed probe.
     ⛔ A token `<probe stem>-<chart>[-<date>]` names a CAPTURE of that probe: it is filed as a fixture
     reference, never read as the row's source (`vw-bool-cast-spy-60` in a prose cell is not a request to
     run vw-bool-cast; the row's section says what to run)."""
@@ -495,6 +586,10 @@ def resolve_sources(world: World, text: str):
     seen = set()
     for name in PINE_RX.findall(text):
         kind, p = world.resolve_pine(name)
+        if refs_only:
+            if kind == "probe" and p.stem not in fx:
+                fx.append(p.stem)
+            continue
         if p is None:
             base = pathlib.PurePosixPath(name).name
             if base not in owed:
@@ -506,6 +601,10 @@ def resolve_sources(world: World, text: str):
     for tok in TICK_RX.findall(text):
         if tok.endswith(".pine"):
             continue
+        if tok in world.probes and refs_only:
+            if tok not in fx:
+                fx.append(tok)
+            continue
         if tok in world.probes:
             p = world.probes[tok]
             if str(p) not in seen:
@@ -516,6 +615,36 @@ def resolve_sources(world: World, text: str):
         if hit and hit not in fx:
             fx.append(hit)       # a REFERENCE to a capture of `hit`, never a source
     return sources, owed, fx
+
+
+def resolve_references(world: World, text: str):
+    """(sources [("reference", path)], why [str]) for every reference script named in `text` (REF_RX). `why` says,
+    by name, why a named reference is no source here: its text is not cached on this machine (REF_UNCACHED), it has
+    no `corpus/reference/<slug>.json`, or it is spelt another way (REF_MISSPELT_RX)."""
+    sources, why = [], []
+    for slug in REF_RX.findall(text):
+        if world.reference_meta(slug) is None:
+            why.append(f"no corpus/reference/{slug}.json for `reference:{slug}`")
+            continue
+        p = world.reference_source(slug)
+        if p is None:
+            why.append(f"{REF_UNCACHED}: `reference:{slug}`")
+        elif all(str(p) != str(q) for _, q in sources):
+            sources.append(("reference", p))
+    for slug in REF_MISSPELT_RX.findall(text):
+        why.append(f"a reference script is named `reference:{slug}`, not `reference/{slug}`")
+    return sources, why
+
+
+def published_script(world: World, slug: str):
+    """What the add-the-published-script path needs for a reference script: `{id: "PUB;<scriptIdPart>", search:
+    <title>, url, meta}` off `corpus/reference/<slug>.json`, or None when it names no scriptIdPart or no title."""
+    meta = world.reference_meta(slug) or {}
+    sid, title = str(meta.get("scriptIdPart") or ""), meta.get("title")
+    if not sid or not title:
+        return None
+    return {"id": sid if sid.startswith("PUB;") else f"PUB;{sid}", "search": title, "url": meta.get("url"),
+            "meta": f"corpus/reference/{slug}.json"}
 
 
 def explicit_pines(world: World, text: str) -> list:
@@ -545,9 +674,204 @@ def iter_tables(lines):
             i += 1
 
 
+class LiveMarkerError(ValueError):
+    """A `live` column cell the queue cannot read as yes or no."""
+
+
+def row_needs_live(header, cells, rtext: str, where: str) -> bool:
+    """THE live classifier: the table's explicit `live` column if it has one, else LIVE_RX on the row's text."""
+    col = next((i for i, h in enumerate(header) if h in LIVE_HEADS), None)
+    if col is not None:
+        v = clean_cell(cells[col]).lower() if col < len(cells) else ""
+        if v in LIVE_YES:
+            return True
+        if v in LIVE_NO:
+            return False
+        raise LiveMarkerError(f"{where}: a `live` cell must be one of {sorted(LIVE_YES | LIVE_NO)}, not {v!r}")
+    return bool(LIVE_RX.search(NOT_LIVE_RX.sub(" ", rtext)))
+
+
+#: ⭐⭐ THE ONE x-TABLE MARKER (coordinator ruling 2026-11-19). A row whose table has an `x table` column with `yes` asks
+#: for a capture that records WHERE its objects sit (`objects.xIndex`, or an xmap sidecar): a capture without one never
+#: answers it (`fixture_status`), whatever else matches. ⚰️ htf-candle-footprint-cartel-console's committed captures
+#: predate the x table, so a row asking for its boxes' bars read CAPTURED and would never have been asked again.
+#: Anything but yes / no (or blank) refuses the queue by name.
+X_TABLE_HEAD = "x table"
+
+
+class XTableMarkerError(ValueError):
+    """An `x table` column cell the queue cannot read as yes or no."""
+
+
+def row_needs_x_table(header, cells, where: str) -> bool:
+    col = next((i for i, h in enumerate(header) if h == X_TABLE_HEAD), None)
+    if col is None:
+        return False
+    v = clean_cell(cells[col]).lower() if col < len(cells) else ""
+    if v in LIVE_YES:
+        return True
+    if v in LIVE_NO:
+        return False
+    raise XTableMarkerError(f"{where}: an `x table` cell must be one of {sorted(LIVE_YES | LIVE_NO)}, not {v!r}")
+
+
+#: ⭐ THE ONE PHASE COLUMN (coordinator, 2026-11-19). A table may carry a `phase` column: each cell is one of
+#: `evidence_ledger.CAPTURE_PHASES` (the session state the capture is taken in), or blank / `-` for an unphased row.
+#: Anything else refuses the queue (`PhaseError`). A phased row is its own target (`build_queue`) and its own capture
+#: id (`batch_capture.capture_id_for`), so two rows of one probe on one chart and one day never name one capture.
+PHASE_HEAD = "phase"
+PHASE_NONE = {"", "-"}
+
+
+class PhaseError(ValueError):
+    """A `phase` cell outside the vocabulary, or phased rows of one probe on one chart that would collide."""
+
+
+def row_phase(header, cells, where: str):
+    """The row's capture phase from its table's `phase` column, or None (no column, or a blank / `-` cell)."""
+    col = next((i for i, h in enumerate(header) if h == PHASE_HEAD), None)
+    if col is None:
+        return None
+    v = clean_cell(cells[col]).lower() if col < len(cells) else ""
+    if v in PHASE_NONE:
+        return None
+    if v not in el.CAPTURE_PHASES:
+        raise PhaseError(f"{where}: a `phase` cell must be one of {list(el.CAPTURE_PHASES)} (or blank), not {v!r}")
+    return v
+
+
+def phase_refusals(groups: dict) -> list:
+    """Why phased rows of the queue would collide, per probe source on one (symbol, tf, session): `groups` maps
+    (source, symbol, tf, session) -> [(row, phase)]. When ANY row of a group carries a phase, EVERY row of it must,
+    and no phase may repeat. ⛔ An unphased row beside phased ones would be captured in no named state, under an id the
+    phased ones do not hold apart; a repeated phase is one capture asked twice. Groups with no phase are untouched
+    (they merge into one target, exactly as before phases existed). Two sessions are two captures (`-rth` / `-ext`
+    ids), so they never collide."""
+    out = []
+    for (src, sym, tf, sess), members in sorted(groups.items(), key=lambda kv: tuple(str(x) for x in kv[0])):
+        phases = [ph for _r, ph in members]
+        if not any(phases):
+            continue
+        named = ", ".join(f"{r['doc']}:{r['line']} {r['key'].split('#', 1)[-1]} ({ph or 'no phase'})"
+                          for r, ph in members)
+        chart = f"{sym} {tf}" + (f" ({sess} hours)" if sess else "")
+        if not all(phases):
+            out.append(f"{src} on {chart}: phased and unphased rows mixed: {named}")
+        elif len(set(phases)) != len(phases):
+            out.append(f"{src} on {chart}: a phase is repeated: {named}")
+    return out
+
+
+#: ⭐⭐ THE SESSION DIMENSION (coordinator ruling 2026-11-21). A row may ask for an INTRADAY chart's hours, in words
+#: beside its chart: "extended hours off", "extended off", "regular session" -> regular; "extended hours on", "the
+#: EXTENDED session on" -> extended (`session_words`: this closed vocabulary, nothing else). Such a row is its own
+#: target (`<stem>@<sym>@<tf>@<session>`), answered ONLY by a capture that RECORDED that session (`World.fixture_index`:
+#: the capture's own `symbol.session`), never by its id and never by a row's label. ⚰️ The four
+#: `vw-lower-tf-bars-rddt-*-2026-11-16` captures and `vw-bi-time-close-2arg-spy-60-2026-11-19` were asked for extended
+#: hours off and recorded 0400-2000; without the dimension they read CAPTURED. A daily, weekly or monthly chart
+#: resolves 0930-1600 whatever the layout's hours (every daily capture on record), so its rows carry no session and
+#: keep their keys. A row with no session words asks for the chart's own hours, exactly as before.
+SESSION_WORD_RX = re.compile(r"\bextended(?:[ -](?:hours?|session))?\s+(on|off)\b|\b(regular)[ -]session\b", re.I)
+#: Words that say WHEN a capture is taken (a live row's clock), never the chart's hours: "during regular hours",
+#: "during RTH", "in the regular session", "after the regular session". Removed before SESSION_WORD_RX reads.
+SESSION_TIMING_RX = re.compile(r"\b(?:during|in|inside|outside|after|before|until)\s+(?:the\s+)?"
+                               r"(?:regular|extended|rth)\b(?:[ -](?:session|hours))?", re.I)
+
+
+class SessionError(ValueError):
+    """A row, or the section or preamble its chart was read from, that names both sessions beside its chart."""
+
+
+def session_words(text: str) -> set:
+    """The sessions (`evidence_ledger.SESSIONS` keys) `text` asks for, emphasis and timing words removed first."""
+    t = SESSION_TIMING_RX.sub(" ", re.sub(r"[*`]+", "", text or ""))
+    return {"regular" if m.group(2) or m.group(1).lower() == "off" else "extended" for m in SESSION_WORD_RX.finditer(t)}
+
+
+def chart_session(pieces, where: str):
+    """The one session the chart-naming `pieces` (a row's cells, or a section's or preamble's lines) ask for, or None.
+    ⛔ Both named: the queue is refused by name (one row, one chart's hours)."""
+    named = set()
+    for p in pieces:
+        named |= session_words(p)
+    if len(named) > 1:
+        said = "; ".join(re.sub(r"\s+", " ", p).strip()[:120] for p in pieces if session_words(p))
+        raise SessionError(f"{where}: names both the regular and the extended session beside its chart ({said}): "
+                           "one row asks for one chart's hours")
+    return next(iter(named), None)
+
+
+def is_intraday(tf) -> bool:
+    """A minutes chart (`5`, `60`): the only chart whose hours a row can ask for (D / W / M resolve 0930-1600)."""
+    return norm_tf(tf).isdigit()
+
+
+class TableLineError(ValueError):
+    """A table line (`| ... |`) of a queue doc that no table the parser reads holds."""
+
+
+def orphan_table_lines(lines) -> list:
+    """[(line number, line)] of every `|` line that no table `iter_tables` reads holds (a fenced block is no table).
+    ⚰️ 2026-11-21: a doc edit split a table with a line between its rows. The rows after it had no header and
+    separator, so no table held them: they read as nothing, the derived queue went from 543 targets to 540, and
+    `queue --check` passed."""
+    inside = set()
+    for start, _header, rows in iter_tables(lines):
+        inside.update((start, start + 1))
+        inside.update(ln - 1 for ln, _cells in rows)
+    out, fence = [], False
+    for i, ln in enumerate(lines):
+        if ln.lstrip().startswith("```"):
+            fence = not fence
+        elif not fence and ln.lstrip().startswith("|") and i not in inside:
+            out.append((i + 1, ln))
+    return out
+
+
+class DispositionError(ValueError):
+    """A `not a capture` disposition the queue cannot honour: no reason, an unknown disposition, or no such row."""
+
+
+def row_id(cells, line_no) -> str:
+    """A row's id, as its key carries it: the first cell, cleaned, whitespace folded, at most 60 characters."""
+    rid = clean_cell(cells[0]) if cells else ""
+    return re.sub(r"\s+", " ", rid)[:60] or f"L{line_no}"
+
+
+def read_dispositions(path: pathlib.Path, lines) -> dict:
+    """{row id: {disposition, reason, line}} from the doc's `not a capture` tables. Refuses a bad one."""
+    out = {}
+    for _start, header, trows in iter_tables(lines):
+        if not header or header[0] != DISPOSITION_HEAD:
+            continue
+        for line_no, cells in trows:
+            rid = row_id(cells, line_no)
+            kind = clean_cell(cells[1]).lower() if len(cells) > 1 else ""
+            reason = clean_cell(" | ".join(cells[2:])) if len(cells) > 2 else ""
+            where = f"{path.name}:{line_no} ({rid!r})"
+            if kind not in DISPOSITIONS:
+                raise DispositionError(f"{where}: disposition {kind!r} is not one of {sorted(DISPOSITIONS)}")
+            if not reason:
+                raise DispositionError(f"{where}: a `not a capture` disposition needs a reason")
+            if rid in out:
+                raise DispositionError(f"{where}: the row is disposed of twice")
+            out[rid] = {"disposition": kind, "reason": re.sub(r"\s+", " ", reason), "line": line_no}
+    return out
+
+
 def parse_doc(world: World, path: pathlib.Path) -> dict:
     text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
+    # ⛔ A ROW NO TABLE HOLDS REFUSES THE QUEUE, by name: it would read as nothing (`orphan_table_lines`)
+    stray_lines = orphan_table_lines(lines)
+    if stray_lines:
+        n, ln = stray_lines[0]
+        raise TableLineError(f"{path.name}:{n}: {len(stray_lines)} table line(s) outside every table, the first "
+                             f"{ln.strip()[:100]!r}: a line between a table's rows (a blank one included) ends the table, "
+                             "and the rows after it are read as nothing. Rejoin the table, or give the rest its own "
+                             "header and separator")
+    dispositions = read_dispositions(path, lines)
+    disposed = set()
     m = DOC_RX.match(path.stem)
     date, tag = (m.group(1), m.group(2) or m.group(1)) if m else ("", path.stem)
     first_table = next((i for i, ln in enumerate(lines) if ln.lstrip().startswith("|")), len(lines))
@@ -565,6 +889,8 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
         # ⭐ THE SECTION DECIDES: a section naming its own .pine is asked (two of them is ambiguous, so
         # nothing is inherited); the preamble speaks only for a section that names none.
         inherit_from = lead_sources if lead_sources else pre_sources
+        if header and header[0] == DISPOSITION_HEAD:
+            continue        # read above: a disposition table asks for nothing
         if (set(header) & LEDGER_HEADERS) or (header and header[0] in LEDGER_FIRST_HEADERS):
             context += 1
             continue
@@ -573,15 +899,22 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             continue
         stated_cols = [i for i, h in enumerate(header) if STATED_HEAD_RX.search(h)]
         for line_no, cells in trows:
-            rid = clean_cell(cells[0]) if cells else ""
-            rid = re.sub(r"\s+", " ", rid)[:60] or f"L{line_no}"
+            rid = row_id(cells, line_no)
             ids[rid] += 1
             key = f"{path.stem}#{rid}" + (f"~{ids[rid]}" if ids[rid] > 1 else "")
             rtext = " | ".join(cells)
-            sources, owed, fx = resolve_sources(world, rtext)
+            # ⛔ Only the row's REQUEST cells can ask for a probe; a prose cell ("covered by `x`", "the old `y.pine`
+            # read 0") only refers to one.
+            prose = [ci < len(header) and bool(PROSE_HEAD_RX.match(header[ci])) for ci in range(len(cells))]
+            request = " | ".join(c for c, pr in zip(cells, prose) if not pr)
+            sources, owed, fx = resolve_sources(world, request)
+            ref_sources, ref_why = resolve_references(world, request)
+            sources = sources + [s for s in ref_sources if s not in sources]
+            _, _, fx_prose = resolve_sources(world, " | ".join(c for c, pr in zip(cells, prose) if pr), refs_only=True)
+            fx = fx + [x for x in fx_prose if x not in fx]
             inherited = False
             variant = bool(VARIANT_RX.search(rtext))
-            if not sources and not owed and not NO_PROBE_RX.search(rtext) and len(inherit_from) == 1 \
+            if not sources and not owed and not ref_why and not NO_PROBE_RX.search(rtext) and len(inherit_from) == 1 \
                     and not re.search(r"\bprobe(?: shape)?:|indicator\(", rtext):
                 sources = list(inherit_from)
                 inherited = True
@@ -598,6 +931,8 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             if not sources:
                 if NO_PROBE_RX.search(rtext):
                     needs_probe = needs_probe or "the row says no probe"
+                elif ref_why:
+                    needs_probe = needs_probe or "; ".join(ref_why)
                 elif owed:
                     needs_probe = needs_probe or f"probe file owed: {', '.join(owed)}"
                 else:
@@ -619,6 +954,16 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
             defaulted = chart_source == "default"
             if defaulted:
                 charts = [DEFAULT_CHART]
+            # ⭐ THE SESSION is read beside the chart, from the text the chart came from: the row's cells that name a
+            # chart (never a prose remark in another cell), or the section's / preamble's lines that name one
+            if chart_source == "row":
+                beside = [c for c in cells if parse_charts(c)]
+            elif chart_source in ("section", "preamble"):
+                beside = [ln for ln in (lead if chart_source == "section" else preamble).splitlines()
+                          if parse_charts(ln, prose=True)]
+            else:
+                beside = []
+            session = chart_session(beside, f"{path.name}:{line_no} ({rid!r})")
             listing = bool(LISTING_RX.search(rtext)
                            or (chart_source == "section" and LISTING_RX.search(lead))
                            or (chart_source == "preamble" and LISTING_RX.search(preamble)))
@@ -636,13 +981,22 @@ def parse_doc(world: World, path: pathlib.Path) -> dict:
                 "charts": [list(c) for c in charts], "chartDefaulted": defaulted, "chartSource": chart_source,
                 "unparsedCharts": unparsed,
                 "fromListing": listing,
-                "needsLive": bool(LIVE_RX.search(rtext)),
+                "needsLive": row_needs_live(header, cells, rtext, f"{path.name}:{line_no} ({rid!r})"),
+                "needsXTable": row_needs_x_table(header, cells, f"{path.name}:{line_no} ({rid!r})"),
+                "phase": row_phase(header, cells, f"{path.name}:{line_no} ({rid!r})"),
+                "session": session,
                 "needsProbe": needs_probe,
                 "guards": sorted(set(GUARD_RX.findall(rtext))),
                 "namedScripts": sorted(set(SLUG_RX.findall(rtext))),
                 "statedUnblocks": stated,
                 "fixtureRefs": fx,
+                "notCapture": dispositions.get(rid),
             })
+            if rid in dispositions:
+                disposed.add(rid)
+    stray = sorted(set(dispositions) - disposed)
+    if stray:
+        raise DispositionError(f"{path.name}: `not a capture` names no row of this doc: {stray}")
     return {"doc": rel(path), "date": date, "wave": tag, "rows": rows, "contextTables": context}
 
 
@@ -659,20 +1013,32 @@ def licence_of(world: World, kind: str, path: pathlib.Path) -> str:
         return "held"
 
 
-def fixture_status(world: World, path, sha: str, symbol: str, tf: str):
+def fixture_status(world: World, path, sha: str, symbol: str, tf: str, phase=None, needs_x_table=False, session=None):
+    """⛔ BY PHASE TOO: a phased target is answered only by a capture whose id carries THAT phase, an unphased
+    target only by an unphased capture (an in-session capture does not answer a question asked after the close).
+    ⛔ AND BY x TABLE (`X_TABLE_HEAD`): a target a row asks the x table of is answered only by a capture that records
+    one; the local ledger cannot say so, so it never answers such a target.
+    ⛔ AND BY SESSION (`SESSION_WORD_RX`): a target asking for an intraday chart's hours is answered only by a capture
+    that RECORDED those hours (its own `symbol.session`); a target asking none, by any. The ledger records no session,
+    so it never answers a session target."""
     t = norm_tf(tf)
-    exact = [f for f in world.fixture_index if f["sha"] == sha and f["symbol"] == symbol.upper() and f["tf"] == t]
+    exact = [f for f in world.fixture_index if f["sha"] == sha and f["symbol"] == symbol.upper() and f["tf"] == t
+             and f["phase"] == phase and (session is None or f.get("session") == session)
+             and (not needs_x_table or f.get("xTable"))]
     if exact:
         return "CAPTURED", [f["file"] for f in exact]
-    for r in world.ledger:
+    for r in ([] if needs_x_table or session is not None else world.ledger):
+        has_verdict = r.get("verdict") or any(isinstance(v, dict) and v.get("verdict")
+                                              for v in (r.get("verdicts") or {}).values())
         if r.get("sourceSha256") == sha and str(r.get("symbol", "")).upper() == symbol.upper() \
-                and norm_tf(r.get("timeframe")) == t and r.get("verdict"):
+                and norm_tf(r.get("timeframe")) == t and has_verdict and el.capture_phase(r.get("captureId")) == phase:
             return "VERDICT_LOCAL", [r.get("captureId")]
     # a capture of an OLDER version of this file, found by its capture stem (never a sibling probe's
     # `x-v4-...` fixture, never another corpus file's that shares the slug: that one carries its -sha8)
     lead = f"{capture_stem(world, path)}-{slugify(symbol.split(':')[-1])}-"
     stale = [f for f in world.fixture_index if f["id"].startswith(lead) and f["symbol"] == symbol.upper()
-             and f["tf"] == t and f["sha"] != sha]
+             and f["tf"] == t and f["sha"] != sha and f["phase"] == phase
+             and (session is None or f.get("session") == session)]
     if stale:
         return "STALE", [f["file"] for f in stale]
     return None, []
@@ -685,17 +1051,23 @@ def build_queue(world: World | None = None) -> dict:
     docs = [parse_doc(world, p) for p in sorted(world.docs_dir.glob("capture-queue-*.md"))]
     targets = {}
 
-    def target_for(kind, path, symbol, tf, listing, origin, chart_source):
+    def target_for(kind, path, symbol, tf, listing, origin, chart_source, phase=None, session=None):
         raw = path.read_bytes()
         sha = sha256_bytes(raw)
-        tid = f"{path.stem}@{symbol}@{norm_tf(tf)}"
+        # ⭐ a PHASED row is its own target (`@<phase>`): one probe on one chart in two session states is two
+        # captures. An unphased row's id is exactly what it was before phases existed, so it merges as it did.
+        # ⭐ so is a row asking for an intraday chart's HOURS (`@regular` / `@extended`, before the phase, as the
+        # capture id has it); a row asking none keeps its id, and a D / W / M chart never carries one.
+        tid = f"{path.stem}@{symbol}@{norm_tf(tf)}" + (f"@{session}" if session else "") + (f"@{phase}" if phase else "")
         t = targets.get(tid)
         if t is None:
             t = targets[tid] = {
                 "id": tid, "path": path, "source": rel(path), "sourceKind": kind, "sha256": sha, "bytes": len(raw),
-                "stem": path.stem, "symbol": symbol, "tf": rig_tf(tf), "fromListing": False,
+                "stem": path.stem, "symbol": symbol, "tf": rig_tf(tf), "phase": phase, "session": session,
+                "fromListing": False,
                 "licence": licence_of(world, kind, path), "rows": [], "origins": [],
-                "needsLive": False, "guards": set(), "named": set(), "direct": set(), "stated": [],
+                "needsLive": False, "needsXTable": False, "guards": set(), "named": set(), "direct": set(), "stated": [],
+                "publishedScript": published_script(world, path.stem) if kind == "reference" else None,
                 "docWaves": set(), "docDates": set(), "chartSources": set(), "unparsed": set(),
             }
         t["fromListing"] = t["fromListing"] or listing
@@ -704,28 +1076,42 @@ def build_queue(world: World | None = None) -> dict:
             t["origins"].append(origin)
         return t
 
-    rows_out, needs_probe = [], []
+    rows_out, needs_probe, not_capture = [], [], []
+    phase_groups = collections.defaultdict(list)    # (source, symbol, tf, session) -> [(row, phase)]: `phase_refusals`
     for d in docs:
         for r in d["rows"]:
             rows_out.append(r)
+            if r["notCapture"]:
+                not_capture.append(r)       # the doc says why: listed and counted, never a target
+                continue
             if r["needsProbe"]:
                 needs_probe.append(r)
                 continue
             for s in r["sources"]:
                 p = REPO / s["path"] if not pathlib.Path(s["path"]).is_absolute() else pathlib.Path(s["path"])
                 for sym, tf in r["charts"]:
-                    t = target_for(s["kind"], p, sym, tf, r["fromListing"], "queue-doc", r["chartSource"])
+                    sess = r.get("session") if is_intraday(tf) else None    # a D / W / M chart: regular by construction
+                    phase_groups[(rel(p), sym, norm_tf(tf), sess)].append((r, r.get("phase")))
+                    t = target_for(s["kind"], p, sym, tf, r["fromListing"], "queue-doc", r["chartSource"],
+                                   r.get("phase"), sess)
                     t["rows"].append(r["key"])
                     t["unparsed"].update(r["unparsedCharts"])
                     t["needsLive"] = t["needsLive"] or r["needsLive"]
+                    t["needsXTable"] = t["needsXTable"] or r.get("needsXTable", False)
                     t["guards"].update(r["guards"])
                     t["named"].update(f"committed:{x}" for x in r["namedScripts"])
                     if s["kind"] == "corpus":
                         t["direct"].add(f"committed:{p.stem}")
+                    if s["kind"] == "reference":
+                        t["direct"].add(f"reference:{p.stem}")
                     if r["statedUnblocks"] is not None:
                         t["stated"].append(r["statedUnblocks"])
                     t["docWaves"].add(r["docWave"])
                     t["docDates"].add(r["docDate"])
+    # ⛔ THE PHASE CHECK: phased rows that would collide REFUSE the whole queue (and so `queue --check`), by name
+    clash = phase_refusals(phase_groups)
+    if clash:
+        raise PhaseError("phased rows of one probe on one chart must each name a distinct phase: " + "; ".join(clash))
 
     # the census pool (wave E-census): transfers today, never MATCHed
     held = []
@@ -752,7 +1138,8 @@ def build_queue(world: World | None = None) -> dict:
         by_sha[f["sha"]].add(f"{f['symbol']} {f['tf']}")
     out_targets = []
     for t in targets.values():
-        st, ev = fixture_status(world, t["path"], t["sha256"], t["symbol"], t["tf"])
+        st, ev = fixture_status(world, t["path"], t["sha256"], t["symbol"], t["tf"], t["phase"], t["needsXTable"],
+                                t["session"])
         chart_source = min(t["chartSources"], key=CHART_RANK.__getitem__)
         chart_defaulted = chart_source == "default"     # no row, section, preamble or pool named this chart
         # ⛔ THE CHART GUARD: a target whose chart nobody named is NEEDS_CHART whatever is on disk for the
@@ -768,11 +1155,14 @@ def build_queue(world: World | None = None) -> dict:
         out_targets.append({
             "id": t["id"], "status": st, "evidence": ev,
             "source": t["source"], "sourceKind": t["sourceKind"], "sha256": t["sha256"], "bytes": t["bytes"],
-            "stem": t["stem"], "captureStem": capture_stem(world, t["path"]),
+            "stem": t["stem"], "captureStem": capture_stem(world, t["path"]), "capturePhase": t["phase"],
+            **({"captureSession": t["session"]} if t["session"] else {}),
             "symbol": t["symbol"], "tf": t["tf"], "fromListing": t["fromListing"],
             "chartDefaulted": chart_defaulted, "chartSource": chart_source, "unparsedCharts": sorted(t["unparsed"]),
             "capturedOn": sorted(by_sha.get(t["sha256"], ())),
             "licence": t["licence"], "needsLive": t["needsLive"],
+            **({"needsXTable": True} if t["needsXTable"] else {}),
+            **({"publishedScript": t["publishedScript"]} if t["publishedScript"] else {}),
             "priority": u["priority"], "unblocks": u,
             "statedUnblocks": max(t["stated"]) if t["stated"] else None,
             "guards": sorted(t["guards"]), "planWave": plan_wave(t["guards"], t["direct"], bucket),
@@ -781,6 +1171,9 @@ def build_queue(world: World | None = None) -> dict:
         })
     out_targets.sort(key=priority_key)
     counts = summarise(out_targets, needs_probe, held)
+    counts["rowsNotCaptureQuestions"] = len(not_capture)
+    counts["rowsNotCaptureByDisposition"] = dict(sorted(collections.Counter(
+        r["notCapture"]["disposition"] for r in not_capture).items()))
     counts["rowsNamingUnreadableCharts"] = sum(1 for r in rows_out if r["unparsedCharts"])
     return {
         "schema": QUEUE_SCHEMA,
@@ -798,11 +1191,19 @@ def build_queue(world: World | None = None) -> dict:
             "chartSource": "where the chart was read: row | section (the heading above the table) | preamble "
                            "(explicit EXCH:SYM only) | census (the E-census pool's house chart, on purpose) | default",
             "capturedOn": "every chart a committed capture of this exact source sha is on (any directory)",
+            "rowsNotCaptureQuestions": "rows their own doc disposes of in a `| not a capture | disposition | reason |` "
+                                       "table: never a target, never counted in rowsNeedingProbe",
+            "dispositions": DISPOSITIONS,
         },
         "counts": counts,
         "targets": out_targets,
         "rowsNeedingProbe": [{k: r[k] for k in ("key", "doc", "line", "docWave", "needsProbe", "needsLive",
                                                 "guards", "namedScripts", "text")} for r in needs_probe],
+        "rowsNotCaptureQuestions": [{"key": r["key"], "doc": r["doc"], "line": r["line"], "docWave": r["docWave"],
+                                     "disposition": r["notCapture"]["disposition"],
+                                     "reason": r["notCapture"]["reason"],
+                                     "dispositionLine": r["notCapture"]["line"], "text": r["text"]}
+                                    for r in not_capture],
         "licenceHeldCensus": held,
         "docs": [{"doc": d["doc"], "wave": d["wave"], "rows": len(d["rows"]), "contextTables": d["contextTables"]}
                  for d in docs],
@@ -847,7 +1248,7 @@ def door_flag_state():
 
 def build_manifest(queue: dict, top: int | None = None, wave: str | None = None, plan: str | None = None,
                    statuses=("QUEUED",), include_stale=False, only=None, world: World | None = None) -> dict:
-    from batch_capture import KNOWN_LISTING  # noqa: E402 — the one listing authority
+    from batch_capture import KNOWN_LISTING, SESSION_LAYOUT  # noqa: E402 — the one listing / rig-layout authority
     world = world or World()
     want = set(statuses) | ({"STALE"} if include_stale else set())
     # ⛔ A GUESSED CHART IS NEVER BATCHED, whatever statuses were asked for: no manifest takes a target
@@ -863,7 +1264,13 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
     picked.sort(key=lambda t: (order[band(t["priority"])], t["symbol"], t["tf"], priority_key(t)))
     scripts, seen = [], set()
     for t in picked:
-        slug = slugify(f"{t['stem']}--{t['symbol'].split(':')[-1]}-{norm_tf(t['tf'])}")
+        phase = t.get("capturePhase")
+        session = t.get("captureSession")
+        # a phased target's slug carries its phase: the slug keys the run's result and scratch files, and two
+        # phases of one probe on one chart are two scripts (an unphased slug is what it always was). A session
+        # target's slug carries its session the same way (`-rth` / `-ext`, as its capture id does).
+        slug = slugify(f"{t['stem']}--{t['symbol'].split(':')[-1]}-{norm_tf(t['tf'])}"
+                       + el.SESSION_SUFFIX.get(session, "") + (f"-{phase}" if phase else ""))
         if slug in seen:
             continue
         seen.add(slug)
@@ -875,10 +1282,15 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
             "plots": None, "drawsObjects": None, "largestWindow": None,
             "symbol": t["symbol"], "tf": t["tf"],
             "captureStem": capture_stem(world, p),
+            **({"capturePhase": phase} if phase else {}),
+            # ⭐ the batch READS the row's session after its resolution (never sets it) and runs the row only on the
+            # layout saved with those hours (`batch_capture.SESSION_LAYOUT`); a target asking none names neither
+            **({"session": session, "layout": SESSION_LAYOUT[session]} if session else {}),
             "listingDate": KNOWN_LISTING.get(t["symbol"].upper()) if t["fromListing"] else None,
             "chartDefaulted": bool(t.get("chartDefaulted")), "chartSource": t.get("chartSource"),
             "queueTargetId": t["id"], "rows": t["rows"], "priority": t["priority"],
             "planWave": t["planWave"], "localOnly": t["licence"] == "held",
+            **({"publishedScript": t["publishedScript"]} if t.get("publishedScript") else {}),
         })
     state, source = door_flag_state()
     return {"schema": MANIFEST_SCHEMA, "generatedBy": "tools/vendor_harness/evidence_engine.py manifest",
@@ -889,7 +1301,8 @@ def build_manifest(queue: dict, top: int | None = None, wave: str | None = None,
 
 
 # ─── V: the fixture gate ─────────────────────────────────────────────────────
-ID_RX = re.compile(r"^[a-z0-9][a-z0-9.-]*-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])-\d{4}-\d{2}-\d{2}$")
+ID_RX = re.compile(r"^[a-z0-9][a-z0-9.-]*-[a-z0-9.!]+-(?:\d+|1?[dwm]|[0-9]+[dwm])" + el.SESSION_SUFFIX_RX
+                   + r"-\d{4}-\d{2}-\d{2}" + el.PHASE_SUFFIX_RX + "$")
 
 
 def licence_of_capture(world: World, capture: dict) -> str:
@@ -904,8 +1317,9 @@ def licence_of_capture(world: World, capture: dict) -> str:
         return "held"
 
 
-def gate_capture(world: World, path: pathlib.Path, verifier, fixtures_dir: pathlib.Path) -> dict:
-    """Every problem with promoting this capture, plus its licence class. Never raises."""
+def gate_capture(world: World, path: pathlib.Path, verifier, fixtures_dir: pathlib.Path, manifest_entry=None) -> dict:
+    """Every problem with promoting this capture, plus its licence class. Never raises.
+    `manifest_entry`: the run manifest's own script entry for this capture (or None)."""
     path = pathlib.Path(path)
     problems = []
     try:
@@ -919,16 +1333,24 @@ def gate_capture(world: World, path: pathlib.Path, verifier, fixtures_dir: pathl
         problems.append(f"verify_capture.mjs refused it ({v.get('verdict')}): {v.get('tail')}")
     if cid != path.stem:
         problems.append(f"the file is {path.name} but the capture id is {cid!r}")
-    # ⛔ THE ID RULE: for a source the world knows, the id must open with THAT source's capture stem (the
-    # one the manifest asked the driver for); for any other source, the house form.
-    src = world.sources_by_sha.get((cap.get("source") or {}).get("sha256"))
+    # ⛔ THE ID RULE: the id must open with the capture stem the driver was ASKED for. That is the run manifest's
+    # own `captureStem`, taken when the manifest entry is for this very source (same sha): the stem of a
+    # source depends on which other files share its slug TODAY, and a same-slug file added between the capture and
+    # the promote must not make a valid capture unpromotable (nor the packet differ from what was read).
+    # With no such entry: the stem of the source the world knows by sha; for any other source, the house form.
+    sha = (cap.get("source") or {}).get("sha256")
+    src = world.sources_by_sha.get(sha)
+    asked = (manifest_entry or {}).get("captureStem")
+    if not (isinstance(asked, str) and STEM_RX.fullmatch(asked) and (manifest_entry or {}).get("sha256") == sha):
+        asked = None
     if not isinstance(cid, str):
         problems.append(f"id {cid!r} is not <script>-<sym>-<tf>-<yyyy-mm-dd>")
-    elif src is not None:
-        want = capture_stem(world, src[1])
+    elif asked is not None or src is not None:
+        want = asked if asked is not None else capture_stem(world, src[1])
         if not (cid.startswith(want + "-") and TAIL_RX.fullmatch(cid[len(want) + 1:])):
-            problems.append(f"id {cid!r} is not {want}-<sym>-<tf>-<yyyy-mm-dd>: {want} is the capture stem of its "
-                            f"source, {rel(src[1])}")
+            why = (f"the captureStem the run manifest asked the driver for" if asked is not None
+                   else f"the capture stem of its source, {rel(src[1])}")
+            problems.append(f"id {cid!r} is not {want}-<sym>-<tf>-<yyyy-mm-dd>: {want} is {why}")
     elif not ID_RX.match(cid):
         problems.append(f"id {cid!r} is not <script>-<sym>-<tf>-<yyyy-mm-dd>")
     # ⛔ NEVER REPLACED: not in the directory it would be filed in, and not anywhere in the fixture tree
@@ -979,7 +1401,8 @@ def build_packet(run_dir: pathlib.Path, world: World | None = None, verifier=Non
     items = []
     caps = sorted((run_dir / "captures").glob("*.json")) if (run_dir / "captures").exists() else []
     for f in caps:
-        g = gate_capture(world, f, verifier, fixtures_dir)
+        man = by_slug.get((by_capture.get(f.stem) or {}).get("slug")) or {}
+        g = gate_capture(world, f, verifier, fixtures_dir, manifest_entry=man)
         cap = g.pop("capture") or {}
         res = by_capture.get(g["id"]) or {}
         man = by_slug.get(res.get("slug")) or {}
@@ -994,6 +1417,8 @@ def build_packet(run_dir: pathlib.Path, world: World | None = None, verifier=Non
             "symbol": (cap.get("symbol") or {}).get("pro_name"), "timeframe": cap.get("timeframe"),
             "bars": (cap.get("bars") or {}).get("count"), "startsAtBar0": (cap.get("history") or {}).get("startsAtBar0"),
             "verdict": (v or {}).get("verdict"), "reason": (v or {}).get("reason"),
+            # ⭐ L7 — the substituted inputs the grade ran with (filed on the ledger lane)
+            "substituted": (v or {}).get("substituted"),
             "firstDivergence": first_divergence(v),
             "licence": g["licence"], "queueTargetId": man.get("queueTargetId"), "rows": man.get("rows") or [],
             # was this chart ASKED (by a row, a section, a preamble, the census pool) or a guess? None: the
@@ -1004,8 +1429,40 @@ def build_packet(run_dir: pathlib.Path, world: World | None = None, verifier=Non
             "action": ("REFUSE" if problems else "LEDGER_ONLY" if held else "PROMOTE"),
         })
     body = {"schema": PACKET_SCHEMA, "runDir": run_dir.name, "items": items,
-            "counts": dict(collections.Counter(i["action"] for i in items))}
+            "counts": dict(collections.Counter(i["action"] for i in items)),
+            "lane": read_lane(run_dir), "gradeStamp": read_grade_stamp(run_dir)}
     return body
+
+
+#: Written by `grade` beside verdicts.json: the engine and grader the verdicts were graded AT.
+GRADE_STAMP = "grade-stamp.json"
+
+
+def write_grade_stamp(run_dir: pathlib.Path) -> dict:
+    stamp = {"scriptEngineVersion": el.engine_version(), "graderVersion": el.grader_version(),
+             "gradedAtUTC": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+    write_atomic(pathlib.Path(run_dir) / GRADE_STAMP, json.dumps(stamp, sort_keys=True) + "\n")
+    return stamp
+
+
+def read_grade_stamp(run_dir: pathlib.Path):
+    try:
+        d = json.loads((pathlib.Path(run_dir) / GRADE_STAMP).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(d, dict) or not isinstance(d.get("scriptEngineVersion"), int) or not d.get("graderVersion"):
+        return None
+    return {k: d.get(k) for k in ("scriptEngineVersion", "graderVersion", "gradedAtUTC")}
+
+
+def read_lane(run_dir: pathlib.Path) -> str:
+    """The lane the run's verdicts.json was graded in (a file that names none is production)."""
+    try:
+        d = json.loads((pathlib.Path(run_dir) / "verdicts.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return el.LANES[0]
+    lane = d.get("lane") if isinstance(d, dict) else None
+    return lane if lane in el.LANES else el.LANES[0]
 
 
 def packet_text(body: dict) -> str:
@@ -1045,25 +1502,9 @@ class PromoteRefused(Exception):
 
 
 def append_ledger(path: pathlib.Path, rows) -> int:
-    path = pathlib.Path(path)
-    have = set()
-    if path.exists():
-        for ln in path.read_text(encoding="utf-8").splitlines():
-            try:
-                r = json.loads(ln)
-                have.add((r.get("captureId"), r.get("receipt")))
-            except ValueError:
-                continue
-    new = [r for r in rows if (r["captureId"], r["receipt"]) not in have]
-    if not new:
-        return 0
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with io.open(path, "a", encoding="utf-8", newline="\n") as fh:
-        for r in new:
-            fh.write(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n")
-        fh.flush()
-        os.fsync(fh.fileno())
-    return len(new)
+    """Append ledger rows: each checked (`evidence_ledger.row_problems`: no source text, no field
+    outside the schema), each capture filed once per engine x grader (`evidence_ledger.row_key`)."""
+    return el.append(path, rows)
 
 
 def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, verifier=None,
@@ -1085,6 +1526,11 @@ def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, 
         raise PromoteRefused("the run changed since the packet was written (a capture, a verdict or a fixture "
                              "moved): run `packet` again and read the new one")
     body = json.loads(on_disk.decode("utf-8"))
+    gs = body.get("gradeStamp")
+    if not gs:
+        raise PromoteRefused(f"the run carries no {GRADE_STAMP} (the engine and grader its verdicts were graded "
+                             "at): run `grade` again, then `packet`")
+    lane = body.get("lane") or el.LANES[0]
     promoted, filed, refused = [], [], []
     ledger_rows = []
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1104,20 +1550,396 @@ def promote(run_dir: pathlib.Path, packet_sha: str, world: World | None = None, 
             promoted.append(i["id"])
         else:
             filed.append(i["id"])
-        ledger_rows.append({
-            "schema": LEDGER_SCHEMA, "filedAtUTC": stamp, "packetSha256": sha,
-            "captureId": i["id"], "receipt": i["receipt"], "sourceSha256": i["sourceSha256"],
-            "symbol": i["symbol"], "timeframe": i["timeframe"], "bars": i["bars"], "startsAtBar0": i["startsAtBar0"],
-            "verdict": i["verdict"], "reason": i["reason"], "firstDivergence": i["firstDivergence"],
-            "licence": i["licence"], "promoted": i["action"] == "PROMOTE",
-            "fixture": (rel(pathlib.Path(fixtures_dir) / f"{i['id']}.json") if i["action"] == "PROMOTE" else None),
-            "queueTargetId": i["queueTargetId"], "rows": i["rows"], "chartDefaulted": i.get("chartDefaulted"),
-            "provenance": i["provenance"],
-        })
+        src_path = REPO / i["file"] if not pathlib.Path(i["file"]).is_absolute() else pathlib.Path(i["file"])
+        cap_bytes = src_path.read_bytes()
+        # ⛔ the row is the VERDICT and what re-checks it: never the source, never the provenance/account
+        ledger_rows.append(el.make_row(
+            capture=json.loads(cap_bytes.decode("utf-8")), capture_bytes=cap_bytes,
+            verdicts={lane: {"verdict": i["verdict"], "reason": i["reason"],
+                             **({"substituted": i["substituted"]} if i.get("substituted") else {})}},
+            filed_by="promote",
+            licence=i["licence"], engine=gs["scriptEngineVersion"], grader=gs["graderVersion"],
+            stamp=gs.get("gradedAtUTC") or stamp, packetSha256=sha, firstDivergence=i["firstDivergence"],
+            promoted=i["action"] == "PROMOTE",
+            fixture=(rel(pathlib.Path(fixtures_dir) / f"{i['id']}.json") if i["action"] == "PROMOTE" else None),
+            queueTargetId=i["queueTargetId"], rows=i["rows"], chartDefaulted=i.get("chartDefaulted")))
     n = append_ledger(ledger, ledger_rows)
     log(f"[promote] promoted {len(promoted)} · ledger-only {len(filed)} · refused {len(refused)} · ledger +{n}")
     log("[promote] nothing was committed: review `git status`, then commit with the packet sha in the message")
     return {"promoted": promoted, "ledgerOnly": filed, "refused": refused, "ledgerRows": n, "packetSha256": sha}
+
+
+# ─── W9-T2: the broker pin ledger (design rule 7) ────────────────────────────
+RT_DIR = REPO / "app" / "src" / "components" / "chart" / "engine" / "runtime"
+PINS_SRC = RT_DIR / "brokerPins.json"
+PINS_OUT = RT_DIR / "brokerPins.resolved.json"
+PINS_SCHEMA = "uct.broker-pins/v1"
+PINS_RESOLVED_SCHEMA = "uct.broker-pins.resolved/v1"
+#: U14: one verdict file per graded strategy capture, written by the strategy harness
+#: (`__tests__/vendorHarness/strategyHarness.js`) and kept current by its rail
+#: (`strategyGrading.test.js` re-grades every one at today's engine and compares).
+STRATEGY_VERDICTS_DIR = DOCS / "vendor-harness" / "strategy-verdicts"
+STRATEGY_VERDICT_SCHEMA = "uct.strategy-verdict/v1"
+FILLS_REFUSED = "MATCH-WITHOUT-FILLS"
+#: value read-backs (2026-11-15): a strategy MATCH that compared no value series (the script's own plots, bar
+#: by bar) is a fill match only. It pins nothing: a rule's values are what a member's script reads.
+VALUES_REFUSED = "MATCH-WITHOUT-VALUES"
+NOT_EXERCISED = "MATCH-WITHOUT-EXERCISING-THE-RULE"
+
+
+class PinResolveError(Exception):
+    """A pin names a fixture with no committed verdict, or the source is malformed."""
+
+
+def read_ledger_rows(path: pathlib.Path = LEDGER) -> list:
+    rows = []
+    path = pathlib.Path(path)
+    if not path.exists():
+        return rows
+    for ln in path.read_text(encoding="utf-8").splitlines():
+        if not ln.strip():
+            continue
+        rows.append(json.loads(ln))
+    return rows
+
+
+# ─── W9-T6 r1/r2: the settings read-back is a PRECONDITION on every pin fixture, not a broker rule ───────
+# Design 5.1: "every capture reads its settings back". A broker fill's timing rests on six Properties
+# settings (TradingView changed several of them in July 2026, design 0.2 finding 5; W9-J1 is the read-back
+# of their defaults on Q-S1-core). If a capture ran with any of them other than what its own source asks
+# for, every rule it pins is void. So a fixture counts as MATCH only when EVERY committed row of it:
+#   - names its source (`sourceSha256`) and that source is committed here (a probe or the committed corpus);
+#   - carries a read-back (`provenance.strategySettings.properties`, W9-T3a);
+#   - reads back, for each of the six, EXACTLY what its source's `strategy()` declares as a literal, and the
+#     R6 default for each it does not declare (a declaration that is not a literal fails closed).
+# The expected values are DERIVED from the capture's own source; the Properties names, the `strategy()`
+# parameter of each and how its literal is read come from `strategy_capture.mjs::PROPERTY_TABLE`, the
+# capture side's one table. Only the R6 defaults are stated here: each is R6 `strategy()`'s "The default is".
+SETTINGS_DEFAULTS = {
+    "process_orders_on_close": False,        # order execution delay: one tick (W9-P1 moves it)
+    "calc_on_order_fills": False,            # (W9-P1b / W9-P2 move it)
+    "calc_on_every_tick": False,             # (W9-P3 moves it)
+    "backtest_fill_limits_assumption": 0,    # limit order execution: 0 ticks
+    "use_bar_magnifier": False,              # bar detalization: off
+    "calc_on_every_history_tick": False,     # history-bar ticks: off
+}
+STRATEGY_CAPTURE_MJS = HERE / "strategy_capture.mjs"
+SETTINGS_REFUSED = "MATCH-WITHOUT-SETTINGS-READBACK"
+
+
+def settings_property_table(path: pathlib.Path = STRATEGY_CAPTURE_MJS) -> dict:
+    """{key: {name, param, kind}} for the checked keys, parsed from PROPERTY_TABLE."""
+    text = pathlib.Path(path).read_text(encoding="utf-8")
+    out = {}
+    for key in SETTINGS_DEFAULTS:
+        m = re.search(r"\{ key: '" + re.escape(key) + r"', name: (['\"])(.*?)\1, param: (null|'(\w+)'), kind: '(\w+)'([^\n]*)", text)
+        if not m:
+            raise PinResolveError(f"strategy_capture.mjs PROPERTY_TABLE names no `{key}` (name, param, kind)")
+        since = re.search(r"sinceVersion: (\d+)", m.group(6))
+        out[key] = {"name": m.group(2), "param": m.group(4), "kind": m.group(5),
+                    "sinceVersion": int(since.group(1)) if since else None}
+    return out
+
+
+def _pine_version(source: str):
+    """The `//@version=N` of a source (strategy_capture.mjs::pineVersionOf's rule), or None."""
+    m = re.search(r"^[ \t]*//[ \t]*@version[ \t]*=[ \t]*(\d+)", str(source or ""), re.M)
+    return int(m.group(1)) if m else None
+
+
+def _strategy_call_args(source: str):
+    """{param: raw text} of the source's `strategy(...)` named arguments (comments and strings respected);
+    None when there is no `strategy(` call."""
+    text = str(source or "")
+    i, n, start = 0, len(text), None
+    while i < n:                       # find `strategy(` outside comments and strings
+        ch = text[i]
+        if text.startswith("//", i):
+            i = text.find("\n", i)
+            i = n if i < 0 else i
+            continue
+        if ch in "\"'":
+            j = i + 1
+            while j < n and text[j] != ch and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            i = j + 1
+            continue
+        m = re.compile(r"(?<![\w.])strategy\s*\(").match(text, i)
+        if m and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] in "_.")):
+            start = m.end()
+            break
+        i += 1
+    if start is None:
+        return None
+    args, depth, cur, q, k = {}, 0, "", None, start
+
+    def flush(c):
+        mm = re.match(r"^\s*([A-Za-z_]\w*)\s*=(?!=)\s*([\s\S]*?)\s*$", c)
+        if mm:
+            args[mm.group(1)] = mm.group(2)
+    while k < n:
+        ch = text[k]
+        if q:
+            cur += ch
+            if ch == "\\":
+                cur += text[k + 1] if k + 1 < n else ""
+                k += 1
+            elif ch == q:
+                q = None
+            k += 1
+            continue
+        if ch in "\"'":
+            q = ch
+            cur += ch
+            k += 1
+            continue
+        if text.startswith("//", k):
+            nl = text.find("\n", k)
+            k = n if nl < 0 else nl
+            continue
+        if ch in "([":
+            depth += 1
+        elif ch in ")]":
+            if depth == 0:
+                flush(cur)
+                return args
+            depth -= 1
+        if ch == "," and depth == 0:
+            flush(cur)
+            cur = ""
+            k += 1
+            continue
+        cur += ch
+        k += 1
+    return None   # unbalanced: no declaration this can read
+
+
+def _literal(raw: str, kind: str):
+    t = str(raw).strip()
+    if kind == "bool":
+        return True if t == "true" else False if t == "false" else None
+    if kind == "num":
+        return float(t) if re.fullmatch(r"[-+]?\d+(\.\d+)?", t) else None
+    return None
+
+
+def expected_settings(source: str, table: dict):
+    """The six settings this capture's source asks for: its literal declarations, R6 defaults for the
+    rest. None when the source has no `strategy(` call or declares one of them as a non-literal."""
+    args = _strategy_call_args(source)
+    if args is None:
+        return None
+    out = {}
+    for key, default in SETTINGS_DEFAULTS.items():
+        param = table[key]["param"]
+        if param and param in args:
+            lit = _literal(args[param], table[key]["kind"])
+            if lit is None:
+                return None
+            out[key] = lit
+        else:
+            out[key] = default
+    return out
+
+
+def _same(value, expected) -> bool:
+    if isinstance(expected, bool):
+        if isinstance(value, str):
+            value = value.strip().lower()
+            return value == ("true" if expected else "false") or value == ("1" if expected else "0")
+        return value is expected or (not isinstance(value, bool) and value == int(expected))
+    if isinstance(value, bool):
+        return False
+    try:
+        return float(value) == float(expected)
+    except (TypeError, ValueError):
+        return False
+
+
+def settings_readback_ok(row: dict, source: str, table: dict) -> bool:
+    """True only when the row's read-back shows exactly what `source` asks for, for all six."""
+    expected = expected_settings(source, table) if source is not None else None
+    if expected is None:
+        return False
+    ss = ((row.get("provenance") or {}).get("strategySettings") or {})
+    props = ss.get("properties") if isinstance(ss, dict) else None
+    if not isinstance(props, list):
+        return False
+    by_name = {" ".join(str(p.get("name", "")).split()).lower(): p for p in props if isinstance(p, dict)}
+    version = _pine_version(source)
+    for key, want in expected.items():
+        since = table[key].get("sinceVersion")
+        if since is not None and version is not None and version < since:
+            # U14: the input does not exist below `sinceVersion` (PROPERTY_TABLE, measured on s25 / s26), so the
+            # run takes the R6 default and there is nothing to read back. A source with no //@version is still
+            # held to every input (fail closed).
+            continue
+        p = by_name.get(" ".join(table[key]["name"].split()).lower())
+        if p is None or "value" not in p or not _same(p["value"], want):
+            return False
+    return True
+
+
+def committed_sources_by_sha() -> dict:
+    """{sha256: source text} over every committed probe and corpus file. A capture hashes its source TEXT
+    (`adapters.mjs`), so an autocrlf checkout is hashed as LF too."""
+    out = {}
+    for d in (*PROBE_DIRS, CORPUS / "committed"):
+        if not d.exists():
+            continue
+        for p in sorted(d.rglob("*.pine")):
+            b = p.read_bytes()
+            text = b.decode("utf-8", errors="replace")
+            for variant in (b, b.replace(b"\r\n", b"\n")):
+                out.setdefault(sha256_bytes(variant), text.replace("\r\n", "\n"))
+    return out
+
+
+def read_strategy_verdicts(directory: pathlib.Path = STRATEGY_VERDICTS_DIR) -> list:
+    """Every committed strategy verdict file, as a pin row. A file that is not a verdict of this
+    schema, or whose name is not its own capture id, is an ERROR (never skipped: a verdict the
+    resolve step cannot read could be the one that un-pins a rule)."""
+    rows = []
+    directory = pathlib.Path(directory)
+    if not directory.exists():
+        return rows
+    for f in sorted(directory.glob("*.json")):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError as e:
+            raise PinResolveError(f"{f.name}: not JSON ({e})") from e
+        if not isinstance(d, dict) or d.get("schema") != STRATEGY_VERDICT_SCHEMA:
+            raise PinResolveError(f"{f.name}: not a {STRATEGY_VERDICT_SCHEMA} verdict")
+        if d.get("captureId") != f.stem:
+            raise PinResolveError(f"{f.name}: names capture {d.get('captureId')!r}, not its own file name")
+        if not isinstance(d.get("rulesExercised"), list):
+            raise PinResolveError(f"{f.name}: rulesExercised must be a list")
+        rows.append(d)
+    return rows
+
+
+def pin_rows(ledger: pathlib.Path = LEDGER, verdicts_dir: pathlib.Path = STRATEGY_VERDICTS_DIR) -> list:
+    """What the resolve step reads: the evidence ledger's rows and the strategy verdict files."""
+    return read_ledger_rows(ledger) + read_strategy_verdicts(verdicts_dir)
+
+
+def culprit_scope(row: dict):
+    """Ruling D11 (docs/pine/W9-DECISIONS-2026-11-07.md): the rules a DIVERGE strategy verdict un-pins, or None
+    for the STRICT rule (everything it exercised). The exception needs EVERY recorded field, and fails closed:
+      * `prefixExact` is exactly True (every graded step equal on the bars strictly before the first difference);
+      * `firstDifference` is `{bar, step}`, both integers;
+      * `culprit` is a NON-EMPTY list of rules, `afterDifference` a list, both inside `rulesExercised` and disjoint.
+    Then only `culprit` (the rules first exercised AT the differing event) and `afterDifference` (first exercised
+    after it) are un-pinned; a rule exercised only before the event is neither un-pinned nor pinned by the row."""
+    if row.get("schema") != STRATEGY_VERDICT_SCHEMA or row.get("verdict") != "DIVERGE":
+        return None
+    if row.get("prefixExact") is not True:
+        return None
+    fd = row.get("firstDifference")
+    is_int = lambda x: isinstance(x, int) and not isinstance(x, bool)  # noqa: E731
+    if not (isinstance(fd, dict) and is_int(fd.get("bar")) and is_int(fd.get("step"))):
+        return None
+    ex, culprit, after = row.get("rulesExercised"), row.get("culprit"), row.get("afterDifference")
+    names = lambda xs: isinstance(xs, list) and all(isinstance(x, str) and x for x in xs)  # noqa: E731
+    if not (names(ex) and names(culprit) and names(after)) or not culprit:
+        return None
+    if not set(culprit) <= set(ex) or not set(after) <= set(ex) or set(culprit) & set(after):
+        return None
+    return set(culprit) | set(after)
+
+
+def resolve_pins(pins: dict, ledger_rows: list, sources: dict | None = None) -> dict:
+    """A rule is kept with its fixtures ONLY when every committed verdict for every one of those
+    fixtures is MATCH. A DIVERGE or INCONCLUSIVE verdict (or any non-MATCH) un-pins the rule; a
+    fixture with NO committed verdict, an empty fixture list or a malformed source is an ERROR (a
+    missing fixture fails, it never silently un-pins). A MATCH row also needs its settings read-back
+    to show what its own source asks for (`settings_readback_ok`); without it the row is not MATCH.
+    `sources` ({sha256: text}) defaults to the committed probes and corpus.
+
+    U14 (D1, pin before serve: "a rule is pinned only when every capture that exercises it MATCHes"):
+      * a fixture pins a rule only when its row says it EXERCISED that rule (`rulesExercised`, what
+        our broker reached on the capture); a row that states nothing it exercised pins nothing;
+      * a strategy verdict pins only when it graded the fills (`graded.fills`), not the trade list alone;
+      * and only when it graded at least one value series (`graded.values`: the capture's plots against
+        ours, bar by bar), not the fills alone (value read-backs, 2026-11-15);
+      * ANY committed row that exercised the rule and is not MATCH un-pins it, whether or not
+        `brokerPins.json` lists that capture;
+      * ruling D11, the one exception: a DIVERGE row that records a proven first difference un-pins only its
+        culprit set (`culprit_scope`); the rules it exercised only before that event are not un-pinned by it
+        (and it is never MATCH evidence for them: a listed capture must still MATCH)."""
+    if not isinstance(pins, dict) or pins.get("schema") != PINS_SCHEMA or not isinstance(pins.get("rules"), dict):
+        raise PinResolveError(f"brokerPins.json must be {{schema: {PINS_SCHEMA!r}, rules: {{...}}}}")
+    pinned_ids = {i for ids in pins["rules"].values() if isinstance(ids, list) for i in ids}
+    verdicts = {}
+    exercised_by = {}   # rule -> [verdict of every row that exercised it]
+    table = None
+    for r in ledger_rows:
+        # ⭐ 2026-11-17 (Q-S1i, B-MARGIN-CALL) — the evidence ledger's own row (LEDGER_SCHEMA) is the INDICATOR
+        # harness's grade of a capture, one verdict per lane (`verdicts: {production, runtime-on}`), and states no
+        # broker verdict at all (no top-level `verdict`). A strategy capture promoted through that harness (the
+        # 2026-11-16 night's captures) carries one beside its strategy verdict file. ⚰️ Read as a broker row, its
+        # missing `verdict` was a non-MATCH, so such a capture could never pin a rule, whatever its broker grade.
+        # The strategy verdict file is the broker's grade; a capture with only a ledger row is still "no committed
+        # verdict" (an ERROR below, never a silent un-pin).
+        if r.get("schema") == LEDGER_SCHEMA and "verdict" not in r:
+            continue
+        cid = r.get("captureId")
+        if cid:
+            v = r.get("verdict")
+            if el.is_match(v) and r.get("schema") == STRATEGY_VERDICT_SCHEMA:
+                g = r.get("graded") if isinstance(r.get("graded"), dict) else {}
+                n_values = g.get("values")
+                if g.get("fills") is not True:
+                    v = FILLS_REFUSED   # a trade-list match is not a fill-by-fill match
+                elif not (isinstance(n_values, int) and not isinstance(n_values, bool) and n_values > 0):
+                    v = VALUES_REFUSED  # a fill match that compared no value series
+            # ⛔ L7: only a PROVEN-exact MATCH pins a broker rule; MATCH_SUBSTITUTED un-pins it, like any
+            # non-MATCH (`el.is_match`)
+            if el.is_match(v) and cid in pinned_ids:
+                table = table or settings_property_table()
+                if sources is None:
+                    sources = committed_sources_by_sha()
+                if not settings_readback_ok(r, sources.get(r.get("sourceSha256")), table):
+                    v = SETTINGS_REFUSED   # design 5.1: the precondition failed, so not MATCH
+            ex = r.get("rulesExercised")
+            verdicts.setdefault(cid, []).append((v, set(ex) if isinstance(ex, list) else None))
+            scope = culprit_scope(r)   # D11: None = strict
+            for rule in (ex if isinstance(ex, list) else []):
+                if scope is not None and rule not in scope:
+                    continue           # exercised only before the first difference: this row says nothing of it
+                exercised_by.setdefault(rule, []).append(v)
+    kept = {}
+    for rule in sorted(pins["rules"]):
+        ids = pins["rules"][rule]
+        if not isinstance(ids, list) or not ids or not all(isinstance(i, str) and i for i in ids):
+            raise PinResolveError(f"rule {rule!r}: a non-empty list of fixture ids is required")
+        missing = [i for i in ids if i not in verdicts]
+        if missing:
+            raise PinResolveError(f"rule {rule!r}: no committed verdict for fixture(s) {sorted(missing)}")
+        listed_ok = all(el.is_match(v) and ex is not None and rule in ex for i in ids for v, ex in verdicts[i])
+        every_exerciser_ok = all(el.is_match(v) for v in exercised_by.get(rule, []))
+        if listed_ok and every_exerciser_ok:
+            kept[rule] = sorted(set(ids))
+    return {"schema": PINS_RESOLVED_SCHEMA, "rules": kept}
+
+
+def canonical_pins_text(doc: dict) -> str:
+    """Sorted keys at every level, no spaces, one trailing newline: what the JS lock rail's
+    `canonicalJson` produces byte for byte."""
+    return json.dumps(doc, sort_keys=True, separators=(",", ":"), ensure_ascii=True) + "\n"
+
+
+def cmd_pins(check: bool = False, src=PINS_SRC, out=PINS_OUT, ledger=LEDGER, verdicts_dir=STRATEGY_VERDICTS_DIR) -> int:
+    text = canonical_pins_text(resolve_pins(json.loads(pathlib.Path(src).read_text(encoding="utf-8")),
+                                            pin_rows(ledger, verdicts_dir)))
+    out = pathlib.Path(out)
+    if check:
+        have = out.read_bytes().decode("utf-8").replace("\r\n", "\n") if out.exists() else ""  # autocrlf checkouts
+        print(f"VERDICT: {'PASS' if have == text else 'FAIL'} ({rel(out)} {'is' if have == text else 'is NOT'} the resolution of its sources)")
+        return 0 if have == text else 1
+    write_atomic(out, text)
+    print(f"[pins] wrote {rel(out)}; the coordinator appends a brokerPins.lock.json entry with the bump")
+    return 0
 
 
 # ─── the CLI ─────────────────────────────────────────────────────────────────
@@ -1128,6 +1950,8 @@ def print_counts(q: dict) -> None:
     print(f"[queue] by priority band: {json.dumps(c['byPriorityBand'])}")
     print(f"[queue] rows needing a probe file: {c['rowsNeedingProbe']} ({c['rowsNeedingProbeLive']} of them live) · "
           f"licence-held census scripts: {c['licenceHeldCensus']}")
+    print(f"[queue] rows their doc says are not capture questions: {c.get('rowsNotCaptureQuestions', 0)} "
+          f"{json.dumps(c.get('rowsNotCaptureByDisposition', {}))}")
     top = [t for t in q["targets"] if t["status"] == "QUEUED"][:10]
     for t in top:
         print(f"[queue]   p={t['priority']:>3} up={t['unblocks']['upper']:>3} {t['planWave']:>3} {t['id']}")
@@ -1135,6 +1959,148 @@ def print_counts(q: dict) -> None:
 
 def queue_text(q: dict) -> str:
     return dump(q)
+
+
+# ─── the derived set against a ref (`queue --check --against REF`) ──────────────
+# ⚰️ 2026-11-21: `queue --check` passed while a doc edit dropped 3 targets (a split table: 543 -> 540). It proved the
+# docs derive A queue, never that they still derive the rows they did. `--against REF` derives the queue twice, with
+# THIS code and THIS world (probes, fixtures, census): once from REF's queue docs, once from the working tree's, so the
+# docs are the only difference. A row that asked for a capture at REF (it was in a target there) must still be in a
+# target, or be disposed of in its doc (`not a capture`), or be GONE (its line deleted or rewritten). A row whose line
+# is still in the docs and that derives nothing (it now needs a probe; its table reads as a ledger or a finished
+# record; no table holds it) refuses the check by name. The pine heavy `derived-evidence` job runs it against a PR's
+# base.
+QUEUE_DOC_RX = re.compile(r"capture-queue-.*\.md")
+
+
+class RefError(RuntimeError):
+    """git could not read the queue docs at a ref."""
+
+
+def docs_at_ref(ref: str, docs_dir: pathlib.Path = DOCS) -> dict:
+    """{file name: text} of every capture-queue doc at the git `ref` (`git ls-tree`, then `git show`)."""
+    def git(*a):
+        try:
+            p = subprocess.run(["git", *a], cwd=str(REPO), capture_output=True, timeout=120)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise RefError(f"git {' '.join(a)}: {exc}") from exc
+        if p.returncode != 0:
+            raise RefError(f"git {' '.join(a)}: {p.stderr.decode('utf-8', 'replace').strip()[:300]}")
+        return p.stdout.decode("utf-8")
+    where = rel(docs_dir).rstrip("/") + "/"
+    out = {}
+    for path in git("ls-tree", "--name-only", ref, "--", where).splitlines():
+        name = path.rsplit("/", 1)[-1]
+        if QUEUE_DOC_RX.fullmatch(name):
+            out[name] = git("show", f"{ref}:{path}")
+    if not out:
+        raise RefError(f"no capture-queue doc under {where} at {ref}")
+    return out
+
+
+def doc_row_lines(world: World) -> dict:
+    """{row key: (doc name, the row's line, stripped)} for every row a queue doc's tables hold."""
+    out = {}
+    for p in sorted(world.docs_dir.glob("capture-queue-*.md")):
+        lines = p.read_text(encoding="utf-8").splitlines()
+        for r in parse_doc(world, p)["rows"]:
+            out[r["key"]] = (p.name, lines[r["line"] - 1].strip())
+    return out
+
+
+def shrink_refusals(base: World, base_q: dict, head: World, head_q: dict) -> list:
+    """Every row that asked for a capture in `base_q` and, still in `head`'s docs, derives nothing in `head_q`:
+    one sentence each, by name. A row is matched by its key or by its exact line (a doc renamed, a row renumbered)."""
+    asked = collections.defaultdict(list)            # row key -> the targets it was in at the ref
+    for t in base_q["targets"]:
+        for k in t["rows"]:
+            asked[k].append(t["id"])
+    answered = {k for t in head_q["targets"] for k in t["rows"]} | {r["key"] for r in head_q["rowsNotCaptureQuestions"]}
+    needs = {r["key"]: r["needsProbe"] for r in head_q["rowsNeedingProbe"]}
+    base_lines, head_lines = doc_row_lines(base), doc_row_lines(head)
+    by_line = collections.defaultdict(set)
+    for k, (_doc, line) in head_lines.items():
+        by_line[line].add(k)
+    every_line = set()
+    for p in head.docs_dir.glob("capture-queue-*.md"):
+        every_line.update(ln.strip() for ln in p.read_text(encoding="utf-8").splitlines())
+    out = []
+    for k in sorted(asked):
+        doc, line = base_lines.get(k, ("?", ""))
+        now = ({k} if k in head_lines else set()) | by_line.get(line, set())
+        if now & answered:
+            continue
+        held = sorted(x for x in now if x in needs)
+        if held:
+            why = f"it needs a probe now ({needs[held[0]]})"
+        elif now:
+            why = "it is a row and derives no target"
+        elif line and line in every_line:
+            why = "its line is still in the docs and no table reads it as a row (a ledger or finished-record table, or none)"
+        else:
+            continue                                  # deleted or rewritten: an edit someone made on purpose
+        out.append(f"{k} ({doc}) asked for {', '.join(sorted(asked[k]))} and derives nothing now: {why}")
+    return out
+
+
+def queue_diff_lines(base_q: dict, head_q: dict, ref: str, limit: int = 40) -> list:
+    """What changed between the two derivations, for the log: targets only at the ref, only here, and by status."""
+    b, h = _target_map(base_q), _target_map(head_q)
+    gone, new = sorted(set(b) - set(h)), sorted(set(h) - set(b))
+    moved = sorted(i for i in set(b) & set(h) if b[i]["status"] != h[i]["status"])
+    out = [f"[queue] against {ref}: {len(b)} targets there, {len(h)} here; {len(gone)} only there, {len(new)} only "
+           f"here, {len(moved)} changed status"]
+    out += [f"[queue]   only there: {i} ({b[i]['status']})" for i in gone[:limit]]
+    out += [f"[queue]   only here:  {i} ({h[i]['status']})" for i in new[:limit]]
+    out += [f"[queue]   status:     {i} {b[i]['status']} -> {h[i]['status']}" for i in moved[:limit]]
+    return out
+
+
+def _target_map(q: dict) -> dict:
+    return {t["id"]: t for t in q["targets"]}
+
+
+def check_against(world: World, head_q: dict, ref: str, reader=None) -> int:
+    """0 when every row that asked for a capture at `ref` still asks here (or was disposed of, or deleted), 1 when a
+    row still in the docs derives nothing, 2 when the ref's docs cannot be read or derived (never a pass)."""
+    try:
+        texts = (reader or docs_at_ref)(ref)
+    except RefError as exc:
+        print(f"VERDICT: INCONCLUSIVE (the queue docs at {ref} could not be read: {exc})")
+        return 2
+    with tempfile.TemporaryDirectory(prefix="uct-queue-ref-") as tmp:
+        for name, text in texts.items():
+            (pathlib.Path(tmp) / name).write_text(text, encoding="utf-8", newline="\n")
+        base = world.with_docs(tmp)
+        try:
+            base_q = build_queue(base)
+        except ValueError as exc:
+            print(f"VERDICT: INCONCLUSIVE (the queue docs at {ref} do not derive a queue with this code: {exc})")
+            return 2
+        refused = shrink_refusals(base, base_q, world, head_q)
+    for line in queue_diff_lines(base_q, head_q, ref):
+        print(line)
+    if refused:
+        for line in refused:
+            print(f"[queue] LOST {line}")
+        print(f"VERDICT: FAIL ({len(refused)} row(s) that asked for a capture at {ref} derive nothing now and are "
+              "still in the docs: restore the row's table, name its probe, or dispose of it in a `not a capture` "
+              "table with a reason)")
+        return 1
+    print(f"[queue] against {ref}: every row that asked for a capture there still does, is disposed of, or was deleted")
+    return 0
+
+
+def snapshot_tracked(path: pathlib.Path):
+    """Is `path` a file git tracks? True / False, or None when git could not answer (never guessed)."""
+    try:
+        proc = subprocess.run(["git", "ls-files", "--error-unmatch", "--", rel(path)], cwd=str(REPO),
+                              capture_output=True, text=True, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if proc.returncode == 0:
+        return True
+    return False if proc.returncode == 1 else None
 
 
 def heavy_lock_tool():
@@ -1165,7 +2131,116 @@ def cmd_grade(run_dir) -> int:
         print(f"[grade] REFUSED: {no_lock_reason()}. Grading runs the corpus harness, a heavy job: never unlocked.")
         return 2
     print(f"[grade] {' '.join(wrapped)}")
-    return subprocess.call(wrapped, cwd=str(REPO))
+    code = subprocess.call(wrapped, cwd=str(REPO))
+    if code == 0:
+        write_grade_stamp(pathlib.Path(run_dir))
+    return code
+
+
+# ─── R: the local regrade (LEDGER_ONLY evidence stays fresh across engine bumps) ─────────────────
+def harness_lane(captures_dir: pathlib.Path, out_dir: pathlib.Path, lane: str) -> dict:
+    """Run the corpus harness over `captures_dir` in `lane` (the production or runtime-on lane,
+    `tools/pine_coverage/runtime_lane.mjs`) and return its verdicts.json. ⛔ Called only under the
+    heavy lock (`cmd_regrade` holds it)."""
+    from batch_capture import CORPUS_TEST  # noqa: E402 -- the harness the batch grades with
+    node = shutil.which("node")
+    if not node:
+        raise RuntimeError("node is not on PATH")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    env = dict(os.environ, VENDOR_HARNESS_DIR=str(captures_dir), VENDOR_HARNESS_OUT=str(out_dir),
+               VENDOR_HARNESS_RUNTIME_ON="1" if lane == "runtime-on" else "0")
+    proc = subprocess.run([node, "node_modules/vitest/vitest.mjs", "run", CORPUS_TEST, "--maxWorkers=1"],
+                          cwd=str(REPO / "app"), env=env, capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", timeout=7200)
+    (out_dir / "grade.log").write_text((proc.stdout or "") + (proc.stderr or ""), encoding="utf-8")
+    vd = json.loads((out_dir / "verdicts.json").read_text(encoding="utf-8"))
+    got = vd.get("lane") or el.LANES[0]
+    if got != lane:
+        raise RuntimeError(f"the harness graded lane {got!r}, not {lane!r} (see {out_dir / 'grade.log'})")
+    return vd
+
+
+def store_captures(store: pathlib.Path, exclude_runs=()) -> list:
+    """Every capture under `<store>/*/captures/*.json`, once per (id, receipt): [(path, capture)].
+    Every run directory is read, so a new capture session's run is picked up with no configuration;
+    `exclude_runs` names run directories to leave out (a session still writing its captures)."""
+    seen, out = set(), []
+    skip = set(exclude_runs or ())
+    for f in sorted(pathlib.Path(store).glob("*/captures/*.json")):
+        if f.parent.parent.name in skip:
+            continue
+        try:
+            cap = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if not isinstance(cap, dict) or not cap.get("id") or not (cap.get("source") or {}).get("sha256"):
+            continue
+        k = (cap.get("id"), (cap.get("receipt") or {}).get("fnv1a"))
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append((f, cap))
+    return out
+
+
+def regrade(store: pathlib.Path, ledger: pathlib.Path = LEDGER, lanes=el.LANES, world: World | None = None,
+            grade=harness_lane, log=print, exclude_runs=()) -> dict:
+    """Re-grade every capture in the out-of-git store at TODAY's engine, both lanes, and append one
+    fresh ledger row per capture. The captures (and their source) never leave the store's side:
+    they are staged into a temp dir for the harness and only the verdict is filed."""
+    world = world or World()
+    engine, grader = el.engine_version(), el.grader_version()
+    if not isinstance(engine, int):
+        raise RuntimeError("SCRIPT_ENGINE_VERSION could not be read; nothing is graded")
+    caps = store_captures(store, exclude_runs)
+    if not caps:
+        log(f"[regrade] no captures under {store}")
+        return {"captures": 0, "ledgerRows": 0}
+    stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    with tempfile.TemporaryDirectory(prefix="uct-regrade-") as tmp:
+        stage = pathlib.Path(tmp) / "captures"
+        stage.mkdir()
+        for f, cap in caps:
+            shutil.copyfile(f, stage / f"{cap['id']}.json")
+        per_lane = {}
+        for lane in lanes:
+            vd = grade(stage, pathlib.Path(tmp) / f"out-{lane}", lane)
+            per_lane[lane] = {r.get("id"): r for r in vd.get("results") or [] if r.get("id")}
+    rows = []
+    for f, cap in caps:
+        verdicts = {lane: per_lane.get(lane, {}).get(cap["id"]) for lane in el.LANES}
+        if not any(verdicts.values()):
+            continue
+        rows.append(el.make_row(capture=cap, capture_bytes=f.read_bytes(), verdicts=verdicts, filed_by="regrade",
+                                licence=licence_of_capture(world, cap), engine=engine, grader=grader, stamp=stamp))
+    n = append_ledger(ledger, rows)
+    # a legacy (v1, engine-less) row the regrade has now filed again as v2 is retired
+    legacy = el.retire_legacy(ledger)
+    log(f"[regrade] {len(caps)} captures · {len(rows)} graded · ledger +{n} (engine {engine}, grader {grader})"
+        f" · legacy rows retired {len(legacy['retired'])}, still without a v2 row {len(legacy['kept'])}")
+    return {"captures": len(caps), "graded": len(rows), "ledgerRows": n, "engine": engine, "grader": grader,
+            "legacyRetired": legacy["retired"], "legacyKept": legacy["kept"]}
+
+
+def cmd_regrade(store, ledger, lanes, locked: bool, exclude_runs=()) -> int:
+    store = pathlib.Path(store) if store else el.capture_store()
+    if not locked:
+        cmd = [sys.executable, str(HERE / "evidence_engine.py"), "regrade", "--store", str(store),
+               "--ledger", str(ledger), "--lanes", ",".join(lanes), "--locked"]
+        for run in exclude_runs or ():
+            cmd += ["--exclude-run", run]
+        wrapped = heavy("evidence-regrade", cmd)
+        if wrapped is None:
+            print(f"[regrade] REFUSED: {no_lock_reason()}. The regrade runs the corpus harness: never unlocked.")
+            return 2
+        return subprocess.call(wrapped, cwd=str(REPO))
+    try:
+        regrade(store, pathlib.Path(ledger), lanes=tuple(lanes), exclude_runs=tuple(exclude_runs or ()))
+    except (RuntimeError, ValueError, OSError) as exc:
+        print(f"[regrade] FAILED: {exc}")
+        return 1
+    print("[regrade] nothing was committed: review `git diff docs/pine/vendor-harness/evidence-ledger.jsonl`")
+    return 0
 
 
 def main(argv=None) -> int:
@@ -1176,7 +2251,10 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="The evidence engine (docs/pine/EVIDENCE-ENGINE-DESIGN.md).")
     sub = ap.add_subparsers(dest="cmd")
     q = sub.add_parser("queue")
-    q.add_argument("--check", action="store_true", help="compare with the committed snapshot, write nothing")
+    q.add_argument("--check", action="store_true", help="derive, write nothing; fails if a snapshot is committed")
+    q.add_argument("--against", default=None, metavar="REF",
+                   help="with --check: also derive REF's queue docs and fail when a row that asked for a capture "
+                        "there derives nothing here while still in the docs (check_against)")
     q.add_argument("--out", default=str(QUEUE_OUT))
 
     def sel(p):
@@ -1184,7 +2262,6 @@ def main(argv=None) -> int:
         p.add_argument("--wave", default=None, help="a queue doc's wave tag, e.g. wsc-history or E-census")
         p.add_argument("--plan-wave", default=None, help="W1..W9 or E")
         p.add_argument("--include-stale", action="store_true")
-        p.add_argument("--local-evidence", action="store_true", help="also take LICENCE_HOLD targets (kept out of git)")
         p.add_argument("--only", action="append", default=None, help="a queue target id (repeatable)")
 
     m = sub.add_parser("manifest")
@@ -1205,21 +2282,59 @@ def main(argv=None) -> int:
     pr.add_argument("--run-dir", required=True)
     pr.add_argument("--packet-sha", required=True)
     pr.add_argument("--only", action="append", default=None)
+    rg_ = sub.add_parser("regrade", help="re-grade the out-of-git capture store at today's engine, file ledger rows")
+    rg_.add_argument("--store", default=None, help=f"default ${el.CAPTURE_STORE_ENV} or {el.DEFAULT_CAPTURE_STORE}")
+    rg_.add_argument("--ledger", default=str(LEDGER))
+    rg_.add_argument("--lanes", default=",".join(el.LANES))
+    rg_.add_argument("--exclude-run", action="append", default=[],
+                     help="a run directory under the store to leave out (a capture session still running)")
+    rg_.add_argument("--locked", action="store_true", help=argparse.SUPPRESS)
+    pn = sub.add_parser("pins", help="resolve brokerPins.json against the committed verdicts (W9-T2)")
+    pn.add_argument("--check", action="store_true")
     args = ap.parse_args(argv)
 
+    if args.cmd == "pins":
+        return cmd_pins(check=args.check)
+
+    if args.cmd == "regrade":
+        lanes = [x for x in args.lanes.split(",") if x]
+        if not lanes or set(lanes) - set(el.LANES):
+            print(f"[regrade] --lanes must name lanes of {list(el.LANES)}")
+            return 2
+        return cmd_regrade(args.store, args.ledger, lanes, args.locked, exclude_runs=args.exclude_run)
+
     if args.cmd == "queue":
-        qd = build_queue(World())
+        if args.against and not args.check:
+            print("[queue] --against is a check: run 'queue --check --against REF'")
+            return 2
+        # build_queue REFUSES by name (a malformed doc, a disposition naming no row): that refusal is the check
+        world = World()
+        qd = build_queue(world)
         text = queue_text(qd)
         out = pathlib.Path(args.out)
         if args.check:
-            old = out.read_text(encoding="utf-8") if out.exists() else ""
-            same = json.loads(old or "{}").get("targets") == qd["targets"] if old else False
+            # ⚰️ Until 2026-11-16 this compared a COMMITTED snapshot with the derivation (see QUEUE_OUT). The
+            # queue is derived on demand now, so the check is: the docs derive a queue (above), and nobody has
+            # committed a snapshot again (a merge that kept the file would bring every conflict back).
+            tracked = snapshot_tracked(QUEUE_OUT)
             print_counts(qd)
-            print(f"VERDICT: {'PASS' if same else 'FAIL'} ({rel(out)} {'matches' if same else 'differs from'} the docs)")
-            return 0 if same else 1
+            if tracked is None:
+                print(f"VERDICT: INCONCLUSIVE (git could not say whether {rel(QUEUE_OUT)} is tracked)")
+                return 2
+            if tracked:
+                print(f"VERDICT: FAIL ({rel(QUEUE_OUT)} is committed. It is a local view, derived on demand: "
+                      f"run 'git rm --cached {rel(QUEUE_OUT)}' and commit that)")
+                return 1
+            if args.against:
+                rc = check_against(world, qd, args.against)
+                if rc:
+                    return rc
+            print(f"VERDICT: PASS (the docs derive a queue of {qd['counts']['targets']} targets; "
+                  f"{rel(QUEUE_OUT)} is a local view, not committed)")
+            return 0
         write_atomic(out, text)
         print_counts(qd)
-        print(f"[queue] wrote {rel(out)}")
+        print(f"[queue] wrote {rel(out)} (a local view: git ignores it, never commit it)")
         return 0
 
     if args.cmd in ("manifest", "batch"):
@@ -1234,7 +2349,7 @@ def main(argv=None) -> int:
             if heavy_lock_tool() is None:
                 print(f"[batch] REFUSED before any browser: {no_lock_reason()}; the grade step would refuse.")
                 return 2
-        statuses = ("QUEUED", "LICENCE_HOLD") if args.local_evidence else ("QUEUED",)
+        statuses = ("QUEUED",)
         world = World()
         qd = build_queue(world)
         man = build_manifest(qd, top=args.top, wave=args.wave, plan=args.plan_wave, statuses=statuses,

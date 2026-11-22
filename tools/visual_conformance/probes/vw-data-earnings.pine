@@ -1,0 +1,34 @@
+//@version=6
+indicator("UCTPROBE_VW_DATA_EARNINGS", overlay = false)
+
+// PROVENANCE: written 2026-11-19 (Pine data unit S4-2, Q-S4-E, docs/pine/capture-queue-2026-11-19-s4-data.md).
+// NEVER COMPILED ON TRADINGVIEW.
+//
+// ─── WHERE `request.earnings` PLACES EACH REPORT ON THE CHART'S BARS, AND WHAT EACH FIELD CARRIES ───
+//
+// The data unit serves `request.earnings` from UCT's own earnings data only where a capture says on which bar
+// TradingView places a report, for each `gaps` / `lookahead` pairing. Nothing about the placement is assumed:
+// the reference sentences for `request.earnings` are not held in the repo, so this capture is the licence.
+// The VALUES are expected to differ (TradingView's earnings provider is not UCT's); the grade feeds this
+// capture's own values to our side and grades the placement exactly.
+//
+//   E01   earnings.actual,       gaps_on,  lookahead_on   (the built-in VWAP's own pairing: non-na on the report bar only?)
+//   E02   earnings.actual,       gaps_on,  lookahead_off  (the same report one bar later, or the same bar?)
+//   E03   earnings.actual,       gaps_off, lookahead_on   (carried forward from the report bar?)
+//   E04   earnings.actual,       the defaults             (gaps_off, lookahead_off)
+//   E05   earnings.estimate,     gaps_on,  lookahead_on
+//   E06   earnings.standardized, gaps_on,  lookahead_on   (no source we hold carries it: recorded, never served)
+//   E07   time                   (the bar's open, to name each bar)
+//   E08   time_close             (the bar's close: is an after-the-close report on the report day's bar?)
+//
+// `ignore_invalid_symbol = true` on every call, as the built-in VWAP writes it, so an ETF (AMEX:SPY, the
+// control: no reports) loads and shows what the series holds there.
+
+plot(request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true), "E01 actual gaps_on lookahead_on")
+plot(request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_on, barmerge.lookahead_off, ignore_invalid_symbol = true), "E02 actual gaps_on lookahead_off")
+plot(request.earnings(syminfo.tickerid, earnings.actual, barmerge.gaps_off, barmerge.lookahead_on, ignore_invalid_symbol = true), "E03 actual gaps_off lookahead_on")
+plot(request.earnings(syminfo.tickerid, earnings.actual, ignore_invalid_symbol = true), "E04 actual defaults")
+plot(request.earnings(syminfo.tickerid, earnings.estimate, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true), "E05 estimate gaps_on lookahead_on")
+plot(request.earnings(syminfo.tickerid, earnings.standardized, barmerge.gaps_on, barmerge.lookahead_on, ignore_invalid_symbol = true), "E06 standardized gaps_on lookahead_on")
+plot(time, "E07 bar time")
+plot(time_close, "E08 bar close time")

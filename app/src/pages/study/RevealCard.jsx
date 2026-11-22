@@ -21,12 +21,19 @@
  */
 import { useEffect, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
-import { appendForwardBars, studyFetch } from './useStudySession'
+import StudyMark from '../../components/study/StudyMark'
+import { appendForwardBars, normalizeBars, studyFetch } from './useStudySession'
 import { feedbackPrefs, revealFeedback } from './studyFeedback'
-import { FEEDBACK_KINDS, VERDICTS, feedbackUrl, lessonParts } from './revealCardHelpers'
+import { FEEDBACK_KINDS, VERDICTS, answerWord, feedbackUrl, lessonParts } from './revealCardHelpers'
+import { brandWords } from './drills/types'
+import Emph from './ui/emphasize'
+import TradeReview from './ui/TradeReview'
+import { setupName } from './challenges/challengeBank'
 import styles from './RevealCard.module.css'
 
 export { appendForwardBars }
+
+const DEEPER_LABELS = [['example', 'Example'], ['counter', 'The other side'], ['trap', 'The common trap']]
 
 export const CORRECT_WORD = 'Correct'
 export const WRONG_WORD = 'Not quite'
@@ -37,16 +44,6 @@ export function lessonHrefFor(reveal) {
   return `/desk?section=courses&lesson=${encodeURIComponent(key)}`
 }
 
-function answerWord(reveal) {
-  const a = reveal?.answer
-  if (a == null) return null
-  if (typeof a === 'string' || typeof a === 'number') return String(a)
-  if (typeof a === 'object') {
-    if (a.answer != null && typeof a.answer !== 'object') return String(a.answer)
-    if (a.shares != null) return `${a.shares} shares${a.dollars != null ? `, $${Math.round(a.dollars)} at risk` : ''}`
-  }
-  return null
-}
 
 function dateRange(reveal) {
   const from = reveal?.start || reveal?.from
@@ -128,7 +125,7 @@ export function FeedbackBar({ itemId, attemptId = null, reviewer = false, post =
 
 export default function RevealCard({
   correct, reveal, item, profile, onContinue, fire = true, className = '',
-  attemptId = null, reviewer = false, feedback = true, post = studyFetch,
+  attemptId = null, reviewer = false, feedback = true, post = studyFetch, hideVerdict = false, picked = null,
 }) {
   const fired = useRef(false)
   useEffect(() => {
@@ -142,21 +139,34 @@ export default function RevealCard({
   const ref = reveal?.ref || null
   const parts = lessonParts(reveal)
   const lesson = reveal?.lesson || reveal?.mini_lesson || ''
+  // an upgraded course question (docs/study/OVERBUILD_PLAN.md): one plain line first, the full answer one tap away
+  const simple = typeof reveal?.simple === 'string' ? reveal.simple.trim() : ''
+  const deeper = reveal?.deeper && typeof reveal.deeper === 'object'
+    ? DEEPER_LABELS.filter(([k]) => typeof reveal.deeper[k] === 'string' && reveal.deeper[k].trim())
+    : []
   const next = reveal?.what_happened_next || reveal?.outcome_text || reveal?.next || ''
   const prov = reveal?.provenance || {}
+  // a course question (docs/study/courses): its cited pages, and why the member's own wrong pick was wrong
+  const cites = (Array.isArray(reveal?.depth?.sources) ? reveal.depth.sources : []).filter((c) => c && c.name)
+  const wrongWhy = !correct && picked != null && reveal?.wrong ? reveal.wrong[String(picked)] : null
   const href = lessonHrefFor(reveal)
   const key = answerWord(reveal)
   const forwardCount = Array.isArray(reveal?.forward_bars) ? reveal.forward_bars.length : 0
+  // the setup's trade, reviewed against what followed (the owner's rule 8, on every screen that teaches a setup):
+  // the plan comes with the reveal (api/services/study_trade.py), the signal is the item's last visible bar
+  const vis = reveal?.trade ? normalizeBars(item?.bars) : []
+  const signal = vis.length ? vis[vis.length - 1] : null
 
   return (
     <section className={`${styles.card} ${className}`.trim()} data-testid="reveal-card" data-correct={correct ? '1' : '0'}>
-      <p className={`${styles.verdict} ${correct ? styles.verdictCorrect : styles.verdictWrong}`} role="status" aria-live="polite">
+      {!hideVerdict && <StudyMark mood={correct ? 'happy' : 'oops'} size={44} className={styles.mark} />}
+      {!hideVerdict && <p className={`${styles.verdict} ${correct ? styles.verdictCorrect : styles.verdictWrong}`} role="status" aria-live="polite">
         <span className={styles.verdictIcon} aria-hidden="true">
           <UIcon name={correct ? 'check' : 'x'} size={20} gold={!!correct} />
         </span>
         <span className={styles.verdictWord}>{correct ? CORRECT_WORD : WRONG_WORD}</span>
         {!correct && key && <span className={styles.verdictKey}>The answer: {key}</span>}
-      </p>
+      </p>}
       {(sym || dates || ref) && (
         <p className={styles.meta}>
           {sym && <span className={styles.sym}>{sym}</span>}
@@ -165,22 +175,61 @@ export default function RevealCard({
           {ref && <span className={styles.ref} data-testid="item-ref">ref {ref}</span>}
         </p>
       )}
+      {wrongWhy && (
+        <p className={styles.wrongWhy} data-testid="wrong-why">
+          <span className={styles.whyLabel}>Why not {brandWords(String(picked))}</span>
+          {brandWords(wrongWhy)}
+        </p>
+      )}
+      {simple && (
+        <p className={styles.simple} data-testid="reveal-simple">
+          <span className={styles.whyLabel}>In one line</span>
+          <Emph>{brandWords(simple)}</Emph>
+        </p>
+      )}
       {parts ? (
         <dl className={styles.lessonParts} data-testid="lesson-parts">
           {parts.map((p) => (
             <div key={p.key} className={styles.part}>
               <dt className={styles.partLabel}>{p.label}</dt>
-              <dd className={styles.partText}>{p.text}</dd>
+              <dd className={styles.partText}><Emph>{brandWords(p.text)}</Emph></dd>
             </div>
           ))}
         </dl>
+      ) : simple ? (
+        (lesson || deeper.length > 0) && (
+          <details className={styles.why} data-testid="full-answer">
+            <summary className={styles.whySummary}>The full answer</summary>
+            <div className={styles.whyBody}>
+              {lesson && <p className={styles.lesson}><Emph>{brandWords(lesson)}</Emph></p>}
+              {deeper.map(([k, label]) => (
+                <p key={k} className={styles.whyLine} data-testid={`deeper-${k}`}>
+                  <span className={styles.whyLabel}>{label}</span>
+                  {brandWords(reveal.deeper[k])}
+                </p>
+              ))}
+            </div>
+          </details>
+        )
       ) : (
-        lesson && <p className={styles.lesson}>{lesson}</p>
+        lesson && <p className={styles.lesson}><Emph>{brandWords(lesson)}</Emph></p>
       )}
+      {reveal?.trade && signal ? <TradeReview plan={reveal.trade} signal={signal} forward={normalizeBars(reveal.forward_bars)} name={setupName(item?.skill_id)} /> : null}
       <details className={styles.why}>
         <summary className={styles.whySummary}>Why</summary>
         <div className={styles.whyBody}>
-          {(prov.source_kind || prov.source_ref) && (
+          {cites.length > 0 && (
+            <p className={styles.whyLine} data-testid="reveal-sources">
+              <span className={styles.whyLabel}>{cites.length > 1 ? 'Sources' : 'Source'}</span>
+              {cites.map((c, i) => (
+                <span key={`${c.url || c.name}-${i}`}>
+                  {i > 0 && <span aria-hidden="true"> · </span>}
+                  {c.url ? <a className={styles.lessonLink} href={c.url} target="_blank" rel="noopener noreferrer">{c.name}</a> : c.name}
+                </span>
+              ))}
+            </p>
+          )}
+          {cites.length === 0 && (prov.source_kind || prov.source_ref) && (
             <p className={styles.whyLine}>
               <span className={styles.whyLabel}>Source</span>
               {[prov.source_kind, prov.source_ref].filter(Boolean).join(' · ')}
@@ -189,7 +238,7 @@ export default function RevealCard({
           {next && (
             <p className={styles.whyLine}>
               <span className={styles.whyLabel}>What happened next</span>
-              {next}
+              {brandWords(next)}
             </p>
           )}
           {!next && forwardCount > 0 && (

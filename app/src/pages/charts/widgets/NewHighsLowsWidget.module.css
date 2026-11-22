@@ -353,3 +353,41 @@
   .scopeSelect { max-width: 74px; }
   .scopeValue { max-width: 96px; }
 }
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      universe tabs as plain normal-case text, the active one white with a short gold bar;
+      the + and gear quiet icon buttons — the chart widget's style. ── */
+:global(.uct-frame) .toolbar { align-items: stretch; }
+:global(.uct-frame) .toolbar > :not(.uniTabs) { align-self: center; }
+:global(.uct-frame) .uniTabs { gap: 2px; align-items: stretch; }
+:global(.uct-frame) .uniTabs > .uniAdd { align-self: center; }
+:global(.uct-frame) .uniTab {
+  padding: 0 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: 12.5px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--widget-text, var(--nh-text, var(--text-muted, #cfcac0)));
+}
+:global(.uct-frame) .uniTab:hover { background: none; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .uniTabActive,
+:global(.uct-frame) .uniTabActive:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-weight: 700; background: none; border: none; }
+:global(.uct-frame) .uniTabActive::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+:global(.uct-frame) .uniTabCount { font-size: 11px; }
+:global(.uct-frame) .uniAdd { width: 24px; height: 22px; border: none; border-radius: 6px; color: var(--widget-text, var(--nh-text, #cfcac0)); }
+:global(.uct-frame) .uniAdd:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .gear { width: 24px; color: var(--widget-text, var(--nh-text, #cfcac0)); }
+:global(.uct-frame) .gear:hover,
+:global(.uct-frame) .gearOn { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .sideTitle { font-size: calc(12px * var(--nh-font-scale, 1)); font-weight: 700; letter-spacing: 0.2px; }

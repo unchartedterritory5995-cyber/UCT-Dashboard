@@ -44,7 +44,7 @@ describe('chart.replay — the Replay dialog\'s own write, view only, exact Undo
     expect(h.charts.read('c').replay).toBe(null)                               // the snapshot carries the shared cutoff
     const { p, env } = await plan(h, [op('2026-10-15')])
     expect(p.ok).toBe(true)
-    expect(p.lines).toEqual(['Replay Mode: the linked charts show bars up to Thu, Oct 15 and hide what came after (a view only — nothing is saved; exit replay to see every bar again)'])
+    expect(p.lines).toEqual(['Replay Mode: every chart in this workspace shows bars up to Thu, Oct 15 and hides what came after (a view only — nothing is saved; exit replay to see every bar again)'])
     const res = await commitPlan(h, p, { env })
     expect(res.ok).toBe(true)
     expect(r.calls).toEqual(['2026-10-15'])
@@ -65,7 +65,7 @@ describe('chart.replay — the Replay dialog\'s own write, view only, exact Undo
     expect((await undoEntry(h, res.undo)).ok).toBe(true)
     expect(r.cutoff).toBe(`${new Date().getUTCFullYear()}-10-15`)
     const c = await plan(h, [op(null)])
-    expect(c.p.lines).toEqual(['Exited Replay Mode — every bar is back on the linked charts'])
+    expect(c.p.lines).toEqual(['Exited Replay Mode — every bar is back on every chart'])
     await commitPlan(h, c.p, { env: c.env })
     expect(r.cutoff).toBe(null)
     const d = await plan(h, [op(null)])
@@ -108,7 +108,7 @@ describe('through the REAL panel (panelHarness)', () => {
     h.charts = { ...base, list: () => base.list().map(s => ({ ...s, replay: r.cutoff })), read: (ref) => { const s = base.read(ref); return s ? { ...s, replay: r.cutoff } : null }, setReplay: (iso) => { r.source.set(iso); return true } }
     p.st.envelopes.push(p.env('apply', [{ action: 'chart.replay', target: 'c', args: { date: '2026-10-15' } }]))
     const out = await say('replay from Oct 15')
-    expect(out).toMatch(/Replay Mode: the linked charts show bars up to Thu, Oct 15/)
+    expect(out).toMatch(/Replay Mode: every chart in this workspace shows bars up to Thu, Oct 15/)
     expect(r.cutoff).toBe('2026-10-15')
     expect(screen.queryAllByTestId('agent-proposal').length).toBe(0)
     await say('undo')

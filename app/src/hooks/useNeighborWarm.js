@@ -1,5 +1,5 @@
-import { useEffect, useMemo } from 'react'
-import { warmMemFromIDB, prefetchBarsToIDB } from '../utils/prefetchBars'
+import { useEffect, useMemo, useRef } from 'react'
+import { warmMemFromIDB, prefetchBarsToIDB, prefetchBars, createNeighborHold } from '../utils/barsWarm'
 import { registerTickers } from './livePriceStore'
 
 // ── Shared "instant scan" neighbor-warm ──────────────────────────────────────
@@ -48,12 +48,25 @@ export function useNeighborWarm(orderedSymbols, selectedSym, tf, { radius = 6 } 
   }, [orderedSymbols, selectedSym, radius])
   const neighborsKey = neighbors.join(',')
 
+  // The store keeps the neighbors in memory while they are neighbors (barsWarm.createNeighborHold).
+  const holdRef = useRef(null)
+  if (!holdRef.current) holdRef.current = createNeighborHold()
+  useEffect(() => () => holdRef.current.clear(), [])
+
   // Warm the neighbors' BARS into sync-mem + IDB → same-frame HISTORY paint.
   useEffect(() => {
     if (!neighbors.length) return
     const onTf = tf || 'D'
+    // Pinned in the store's memory; the row on either side also loads its older history once the
+    // member rests here (`deep`, createNeighborHold), so a flip paints it deep.
+    holdRef.current.set(neighbors, onTf, { deep: neighbors.slice(0, 2) })
     warmMemFromIDB(neighbors, [onTf])                      // durable → sync mem (no network)
     prefetchBarsToIDB(neighbors, onTf, { priority: true }) // cold → IDB + mem, jump the queue
+    // ⭐ The row on either side, URGENT (2026-11-17): the line above is held while the daily
+    // pack ingests (a first visit: 90 s+), so a flip to either one waited on its own request.
+    // `neighbors` starts with the +1 / -1 rows (the loop above adds them first). Only the
+    // latest urgent call stays urgent, so a fast scan aborts the rows it has passed.
+    prefetchBars(neighbors.slice(0, 2), onTf, { urgent: true })
   }, [neighborsKey, tf])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pre-poll the WHOLE list's LIVE PRICE (incl. day_open) into livePriceStore, keyed

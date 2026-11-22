@@ -4,7 +4,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, within, cleanup, act } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { SWRConfig } from 'swr'
+import useSWR, { SWRConfig } from 'swr'
 
 const clock = vi.hoisted(() => ({ state: { isOpen: true, isPremarket: false, isExtended: false } }))
 const live = vi.hoisted(() => ({ prices: {}, asked: [] }))
@@ -14,6 +14,7 @@ vi.mock('../../../hooks/useLivePrices', () => ({
 }))
 
 import WatchlistPanel, { FLAGGED_URL, LISTS_URL, PERF_URL, memberLists, pickList } from './WatchlistPanel'
+import { USER_LISTS_URL, userListsFetcher } from '../../../hooks/useUserTickerSet'
 
 const LISTS = [
   { id: 'ab12', name: 'Semis', items: [{ sym: 'NVDA' }, { sym: 'AMD' }, { sym: 'nvda' }] },
@@ -174,6 +175,78 @@ describe('MON — empty and failed', () => {
     renderPanel()
     await screen.findByText('1W and 1M could not be read just now; prices are still live.')
     expect(screen.getByTestId('terminal-watchlist-row-NVDA').textContent).toContain('182.40')
+  })
+})
+
+// The lists key is shared with the app shell (LogoPrewarm at the app root, the Terminal's watch
+// marks). The shell's fetcher stores the route's BARE ARRAY under it; this panel's stores
+// `{ body, receivedAt }`. SWR keeps one entry per key, and on a cold open the shell asks first.
+describe('MON: a cold open beside the app shell (one cache key, two answer shapes)', () => {
+  function ShellReader() {
+    useSWR(USER_LISTS_URL, userListsFetcher, { refreshInterval: 60000, revalidateOnFocus: false })
+    return null
+  }
+  // SWR's own 2 s dedupe, as in the app: the panel's first read joins the shell's request.
+  function renderColdOpen(props = {}) {
+    return render(
+      <MemoryRouter>
+        <SWRConfig value={{ provider: () => new Map() }}>
+          <ShellReader />
+          <WatchlistPanel {...props} />
+        </SWRConfig>
+      </MemoryRouter>,
+    )
+  }
+  const listReads = () => globalThis.fetch.mock.calls.filter(([u]) => String(u) === LISTS_URL).length
+  const NO_FLAGS = { id: 'fl', items: [] }
+
+  it('shows the lists when the shell read the shared key first', async () => {
+    expect(USER_LISTS_URL).toBe(LISTS_URL)   // the premise: it IS one key
+    serve({ [LISTS_URL]: LISTS, [FLAGGED_URL]: NO_FLAGS, [PERF_URL]: {} })
+    renderColdOpen()
+    await screen.findByTestId('terminal-watchlist-table')
+    expect(listReads()).toBe(1)   // one request: the panel's read was deduped behind the shell's
+    expect(symsInTable()).toEqual(['NVDA', 'AMD'])
+    expect(screen.getByTestId('terminal-watchlist-pick-2').textContent).toContain('Software')
+    expect(screen.queryByTestId('terminal-watchlist-empty')).toBeNull()
+  })
+
+  it('a bare empty array may be the shell\'s refused read: the panel asks the route itself', async () => {
+    let n = 0
+    serve({
+      [LISTS_URL]: () => (++n === 1 ? new Response('{"detail":"x"}', { status: 500 }) : new Response(JSON.stringify(LISTS), { status: 200 })),
+      [FLAGGED_URL]: NO_FLAGS, [PERF_URL]: {},
+    })
+    renderColdOpen()
+    await screen.findByTestId('terminal-watchlist-table')
+    expect(symsInTable()).toEqual(['NVDA', 'AMD'])
+    expect(listReads()).toBe(2)   // the shell's (refused, kept as []) and the panel's own
+    expect(screen.queryByTestId('terminal-watchlist-empty')).toBeNull()
+  })
+
+  it('when the panel\'s own read is refused too it is an error with Retry, never "no watchlists"', async () => {
+    serve({ [LISTS_URL]: 500, [FLAGGED_URL]: 500 })
+    renderColdOpen()
+    const err = await screen.findByTestId('terminal-watchlist-error')
+    expect(err.textContent).toContain('Your watchlists could not be read just now.')
+    expect(screen.getByText('Retry')).toBeTruthy()
+    expect(screen.queryByTestId('terminal-watchlist-empty')).toBeNull()
+  })
+
+  it('a member who really has no lists is told so once the panel\'s own read agrees', async () => {
+    serve({ [LISTS_URL]: [], [FLAGGED_URL]: NO_FLAGS })
+    renderColdOpen()
+    const empty = await screen.findByTestId('terminal-watchlist-empty')
+    expect(empty.textContent).toContain('You have no watchlists yet.')
+    expect(listReads()).toBe(2)
+  })
+
+  it('the panel\'s own envelope with no lists is believed at once: no second ask', async () => {
+    // no shell here, so the shared key holds what this panel's own fetcher stored
+    serve({ [LISTS_URL]: [], [FLAGGED_URL]: NO_FLAGS })
+    renderPanel()
+    await screen.findByTestId('terminal-watchlist-empty')
+    expect(listReads()).toBe(1)
   })
 })
 

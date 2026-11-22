@@ -20,6 +20,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { AuthContext } from '../../../context/AuthContext'
@@ -65,18 +66,20 @@ const flush = async () => {
 const noop = () => {}
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
-const field = () => screen.getByLabelText('Formula')
-const englishBox = () => screen.getByLabelText(/plain English/i)
-const openConditions = () => fireEvent.click(screen.getByRole('tab', { name: /conditions/i }))
+const field = () => formulaBox()
+const englishBox = () => screen.getByLabelText('Describe it')
+const openConditions = () => openSource('picker')
 
 async function settle() {
   await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 1) })
@@ -86,7 +89,7 @@ async function settle() {
 async function askFor(text) {
   fireEvent.change(englishBox(), { target: { value: text } })
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: /draft a formula/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^write it$/i }))
   })
   await flush()
 }
@@ -157,6 +160,8 @@ describe('🔴 the English box on the CONDITIONS tab asks for a SCAN, and the an
     // BuilderSheet.test.jsx pins the admin+flag side)
     mount()
     expect(screen.queryByTestId('converse')).toBeNull()
+    // Direction A: in the editor the one-shot is the "Ask the UCT Agent" tab
+    openTab(/Ask the UCT Agent/)
     expect(screen.getByTestId('concierge-box').dataset.kind).toBe('indicator')
 
     openConditions()
@@ -226,7 +231,7 @@ describe('🔴 the English box on the CONDITIONS tab asks for a SCAN, and the an
 
     // The Save button opens only once the formula is named — the same gate a
     // typed formula meets, unchanged by the door the source came through.
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Leaders pulling back' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'Leaders pulling back' } })
     await flush()
     expect(screen.getByRole('button', { name: /^Sav/ })).not.toBeDisabled()
   })

@@ -11,6 +11,7 @@ Non-invasive: never auto-applies profile changes — every signal is just
 a suggestion. Reuses the existing profile_suggestions table.
 """
 
+from api.services import llm_models
 import json
 import logging
 import os
@@ -18,7 +19,7 @@ from typing import Any
 
 _log = logging.getLogger(__name__)
 
-_HAIKU_MODEL = "claude-haiku-4-5-20251001"
+_HAIKU_MODEL = llm_models.HAIKU
 _MAX_SUGGESTIONS_PER_SESSION = 4
 _MIN_TRANSCRIPT_TURNS = 4   # Don't bother with tiny sessions
 
@@ -66,10 +67,11 @@ def extract_suggestions_from_transcript(transcripts: list[dict]) -> list[str]:
 
     try:
         from anthropic import Anthropic
-        client = Anthropic(api_key=api_key, timeout=20)
+        client = Anthropic(api_key=api_key, timeout=20, max_retries=0)
         resp = client.messages.create(
             model=_HAIKU_MODEL,
             max_tokens=400,
+            **llm_models.plain(_HAIKU_MODEL),
             system=_EXTRACT_SYSTEM,
             messages=[{"role": "user", "content": f"Transcript:\n\n{convo}"}],
         )

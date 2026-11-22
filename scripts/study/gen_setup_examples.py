@@ -68,10 +68,18 @@ SETUPS = {
                     "does not reclaim is a failed gap. The gap day itself is a PEG, not gap support, and a gap never revisited "
                     "is nothing (owner rulings 2026-10-26/27).", "uct_gap_support"),
     "Go Signal": ("setup.intraday.go_signal",
-                  "Go Signal, daily footprint (detector definition, owner ruling pending): in a stock that has already shown it "
-                  "can move, the session opens weak, sweeps a nearby support, and buyers turn it to a strong close. The real "
-                  "trigger is intraday.", "uct_go_signal"),
+                  "Go Signal, daily footprint: the Go Signal itself is an HOURLY signal, in the family of the Oops Reversal and "
+                  "the UNR: a stock that has advanced forms a notable hourly flag, a slight range off a higher low; in the first "
+                  "hour of a session it undercuts that range and quickly goes red to green (owner rulings 2026-10-27). A daily "
+                  "chart cannot show the signal. This daily bar is only its footprint: the session opened weak, swept a nearby "
+                  "support, and buyers turned it to a strong close.", "uct_go_signal"),
 }
+
+
+def _abs(v) -> str:
+    """A percentage for prose, sign dropped (the sentence carries the direction);
+    the grounding check accepts either sign of a stored fact."""
+    return f"{abs(float(v))}"
 
 
 def fact_line(setup: str, ex: dict) -> str:
@@ -104,7 +112,9 @@ def fact_line(setup: str, ex: dict) -> str:
             # pass 2 (owner 2026-10-24): the setup behind the day
             level = ("the 21 or 50-day average" if f.get("low_near_ma") else
                      "a prior swing low" if f.get("low_near_swing_low") else "no obvious level")
-            line += (f" The setup was already there: the stock was above its 200-day, had pulled back {f.get('pullback_pct')}% "
+            # find_oops (bank v2) does not require the 200-day: say so where it was under it (no earlier item was)
+            where = "under its 200-day" if f.get("above_200") is False else "above its 200-day"
+            line += (f" The setup was already there: the stock was {where}, had pulled back {f.get('pullback_pct')}% "
                      f"from its 20-day high, the dip tested {level}, and the close "
                      + ("reclaimed the 21-day average" if f.get("reclaims_e21") else "stayed under the 21-day average")
                      + (" on its earnings report." if f.get("earnings_day") else "."))
@@ -115,36 +125,61 @@ def fact_line(setup: str, ex: dict) -> str:
                  else f"a {r['rally_pct']}% rally that peaked {r['bars_ago']} sessions earlier" if r else "the drive before it")
         if f.get("pullback_sessions") is not None and f.get("close_pos_pct") is not None:
             # pass 2 (owner review 2026-10-25): the pullback and the trigger day, measured
+            # the trigger day's gap: `trigger_gap_pct` where the curation stored it, else the finder's own
+            # `gap_pct` (the same measurement, pct(open, prior close) on the trigger bar); no number, no clause
+            tg = f.get("trigger_gap_pct", f.get("gap_pct"))
+            gap_clause = f", gapping {tg}%." if tg is not None else "."
             return (f"Here the drive was {drive}; the pullback ran {f.get('pullback_sessions')} sessions and "
                     f"{f.get('pullback_depth_abs_pct')}% deep under the 4-day average of the highs; the trigger day closed up "
-                    f"{f.get('day_pct')}% at {f.get('close_pos_pct')}% of its range, gapping {f.get('trigger_gap_pct')}%.")
-        return f"Here the drive was {drive}; the trigger day gapped only {f.get('trigger_gap_pct')}%."
+                    f"{f.get('day_pct')}% at {f.get('close_pos_pct')}% of its range" + gap_clause)
+        tg = f.get("trigger_gap_pct", f.get("gap_pct"))
+        return f"Here the drive was {drive}" + (f"; the trigger day gapped only {tg}%." if tg is not None else ".")
     if setup == "Gap Support":
-        kinds = {"held": "held the gap-up day's low and kept the gap open",
-                 "slight_breach": "slightly breached the gap-up day's low and closed back above it",
-                 "fill_reclaim": "filled down to the gap-fill spot (the prior day's high) and reclaimed the gap-up low"}
-        line = f"Here the gap was {f.get('gap_pct')}% {f.get('bars_since_gap')} sessions earlier; the test "
-        if f.get("test_kind") in kinds:
-            line += kinds[f["test_kind"]]
-            if f.get("close_vs_gap_low_pct") is not None:
-                line += f", closing {f.get('close_vs_gap_low_pct')}% above that low"
-        else:
-            words = {"top": "the gap top (the prior day's high)", "glow": "the gap day's low", "mid": "the middle of the gap",
-                     "gopen": "the gap day's open"}
-            levels = [words.get(x, x) for x in (f.get("levels_touched") or [])]
-            line += f"touched {', '.join(levels) or 'a gap level'} and closed {f.get('close_vs_gap_top_pct')}% above the gap top"
+        # The geometry against the GAP-UP DAY'S LOW (owner rulings 2026-10-26/27),
+        # measured by scripts/study/fill_setup_facts.py from the chart's own bars.
+        # No verdict word: the finder's one-day held / breached / failed rule called
+        # charts the owner graded great "failed" (the close sat under the low for a
+        # day or two, then reclaimed it). The owner's grade ranks the example.
+        line = f"Here the gap was {f.get('gap_pct')}% {f.get('bars_since_gap')} sessions earlier."
+        low, close_low, close_top = (f.get("test_low_vs_gap_low_pct"), f.get("close_vs_gap_low_pct"),
+                                     f.get("close_vs_gap_top_pct"))
+        if low is not None and close_low is not None:
+            if low > 0.5:
+                line += f" The test day's low stayed {_abs(low)}% above the gap-up day's low"
+            elif low >= -0.5:
+                line += f" The test day held the gap-up day's low to within {_abs(low)}%"
+            else:
+                line += f" The test day undercut the gap-up day's low by {_abs(low)}%"
+            line += (f" and closed {_abs(close_low)}% above it" if close_low >= 0
+                     else f" and closed {_abs(close_low)}% under it")
+            if close_top is not None:
+                line += (f", {_abs(close_top)}% above the gap top, so the gap stayed open" if close_top >= 0
+                         else f", {_abs(close_top)}% under the gap top, so the gap filled")
+            if close_low < 0:
+                k = f.get("reclaim_sessions")
+                if k is None:
+                    line += f"; no close back above the gap-up low in the next {FORWARD} sessions"
+                else:
+                    line += ("; the close was back above the gap-up low the next session" if k == 1
+                             else f"; the close was back above the gap-up low {k} sessions later")
+            line += "."
         if f.get("first_test") is not None:
-            line += ", the first test of the gap" if f.get("first_test") else ", not the first test of the gap"
-        line += f"; the day closed at {f.get('dcr_pct')}% of its range." if f.get("dcr_pct") is not None else "."
+            line += " It was the first test of the gap" if f.get("first_test") else " It was not the first test of the gap"
+            line += f", and the day closed at {f.get('dcr_pct')}% of its range." if f.get("dcr_pct") is not None else "."
+        elif f.get("dcr_pct") is not None:
+            line += f" The day closed at {f.get('dcr_pct')}% of its range."
         return line
     if setup == "Go Signal":
         words = {"prior_low": "the prior day's low", "5bar_low": "the five-day low", "ema9": "the 9-day average",
                  "ema20": "the 20-day average", "sma50": "the 50-day average"}
         swept = [words.get(x, x) for x in (f.get("swept") or [])]
-        line = (f"Here the session opened {f.get('open_vs_prior_close_pct')}% against the prior close, swept "
-                f"{', '.join(swept) or 'a nearby support'}, and closed at {f.get('dcr_pct')}% of the range")
+        o = f.get("open_vs_prior_close_pct")
+        opened = ("opened weak" if o is None else f"opened {_abs(o)}% under the prior close" if o < 0
+                  else f"opened {_abs(o)}% above the prior close" if o > 0 else "opened at the prior close")
+        line = f"Here the session {opened}, swept {', '.join(swept) or 'a nearby support'}"
+        line += f", and closed at {f.get('dcr_pct')}% of the range" if f.get("dcr_pct") is not None else ""
         line += " and back above the prior close (red to green)." if f.get("red_to_green") else "."
-        return line + " The daily bar is the footprint; the real trigger is intraday."
+        return line
     return ""
 
 
@@ -168,7 +203,7 @@ def items_for(examples: list[dict]) -> list[dict]:
             facts["ma_periods"] = [8, 20, 21, 30, 50, 200]
         ex = dict(ex, facts=facts)
         reveal = {"detector": detector, "setup": setup, "fires": True, "quote": definition,
-                  "facts": facts, "source": ref, "window_bars": WINDOW,
+                  "facts": facts, "source": ref, "window_bars": WINDOW, "forward_bars": FORWARD,
                   "example": {"sym": ex["sym"], "asof": ex["asof"], "found_by": "pod_find_setups.py (read-only scan)"}}
         out.append(make_item(
             type="spot", skill_id=skill, q=f"Does the firm's {setup} setup fire on the last bar of this chart?",

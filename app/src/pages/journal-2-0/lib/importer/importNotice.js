@@ -31,6 +31,9 @@ const named = {
 
   decodeFailed: 'decode_failed',
   missingResource: 'missing_resource',
+  // Live audit 2026-11-03 (F3): an Obsidian embed of a file the vault does not hold, the live
+  // lane's own reason (the plugin's `missing` ref -> `not-found`), so both read one sentence.
+  notFound: 'not_found',
 }
 for (const code of Object.values(named)) {
   if (!COPY_REASONS.includes(code)) throw new Error(`importNotice: "${code}" is not in importNoticeText's NOTICE_REASONS`)

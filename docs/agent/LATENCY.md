@@ -253,3 +253,49 @@ passes after a build). None touch Agent files. Not fixed (out of scope).
 — 3 requests × plain/streamed (≤ 12 calls, hard worst case $0.27, expected ≈ $0.05; no web search). Measures
 first-streamed-text vs total model time, tokens, cache reads. Single cheapest check: `--cats explain
 --modes stream --max-usd 0.05` (worst $0.045).
+
+## Constant schema (2026-11-05)
+
+**Problem.** Model time per call went from about 3 s to about 6 s after mid-October, on the same model and with the same output size. Production ledger (`agent_spend`, 137 turn calls, keyed by the exact cached-prefix size):
+
+| Call | Calls | p50 | p90 |
+|---|---|---|---|
+| Prompt and schema never seen | 97 | 7 s | 8 s |
+| Prompt cached | 34 | 3 s | 4 s |
+| Prompt cold, same prompt seen 5 min to 24 h ago (schema compiled) | 4 | 2 s | 3 s |
+
+The provider caches compiled schemas for 24 hours and prompts for 5 minutes. A cold prompt alone is not slow, which points at schema compilation. The middle evidence is thin (4 calls, whole seconds), so the production comparison below decides it. Routing made nearly every schema new: 173 model-path requests carried 57 schemas.
+
+**Change.** `UCT_AGENT_CONSTANT_SCHEMA` (default on; `0`, `false`, `off` or `no` restores the routed schema and one prompt block, no deploy needed):
+- The schema no longer depends on the request: compact ops always, `action` a plain string, `need_groups` always present.
+- The rules sit in their own cache block ahead of the routed actions, so they stay a cached prefix whichever actions routing picks.
+
+**Why this is safe.** The schema was never the gate. `expand_compact_ops` refuses an action outside the request's manifest and checks args against the capability's own schema; `sanitize_envelope` drops unknown groups; the browser re-validates and applies approval, protected-layout and isolation rules. The schema names no action, group or workspace value. Routing still decides which actions the model sees.
+
+**What it gives up.** Routes of 10 actions or fewer (46 of 173) lose strict per-action args and use `args_json`, as every larger route already does. An action the model invents now fails the turn closed instead of being impossible to write. Both show up in the `failed` rows below.
+
+**Free comparison** (the 173 captured requests; no model):
+
+| | Routed | Constant |
+|---|---|---|
+| Distinct schemas | 57 | 1 |
+| Schema chars, p50 / max | 2,114 / 7,070 | 1,216 / 1,216 |
+| Stable rules block | none | 1 (same bytes on all 173) |
+| Worst-case $ per call, p50 / max | 0.0606 / 0.093 | 0.0558 / 0.0901 |
+| Requests with a higher worst case | | 0 |
+
+All 175 canonical corpus ops on these routes pass the constant path's checks unaltered. This proves the mechanism and the safety rails. It does not measure latency or how a real model behaves.
+
+**Reading the result in production.** After real admin use (no paid evaluation needed):
+
+```
+railway ssh --service web "python tools/agent_latency_telemetry.py --days 1"
+```
+
+The report prints `schema_mode` rows (model p50 / p90, cache read share, calls per turn, mean cost, failed plans), browser `visible_ms` / `verified_ms` by path, and cost per verified change. New rows carry the mode, so to compare, set the switch to `0` for one session and repeat the same tasks.
+
+- **Success:** model p50 returns toward 3 s, with `failed_unreadable` no higher than routed.
+- **Roll back** with `UCT_AGENT_CONSTANT_SCHEMA=0` if failed plans rise, or if tasks complete less often.
+- **Wrong diagnosis:** if model p50 stays near 6 s, schema compilation was not the cause. Turn it off and read the stage logs.
+
+Expect one slow call per day: the first call after the 24-hour schema cache expires still compiles.

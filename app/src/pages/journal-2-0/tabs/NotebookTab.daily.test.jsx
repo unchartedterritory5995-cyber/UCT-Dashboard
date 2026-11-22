@@ -19,7 +19,6 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 vi.mock('../../../hooks/usePreferences', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -62,13 +61,16 @@ describe('Today', () => {
     renderTab()
     fireEvent.click(screen.getByRole('button', { name: /Today/ }))
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'day1'))
-    expect(posts).toEqual([{ date: '2031-01-02', templateId: 'tpl-daily' }])
+    // Simplify pass 2, fix round 1: one door, one note -- the list's button seeds a note it makes with today's plan,
+    // as the Daily brief's Start does (the server applies the seed only when this call makes the note).
+    expect(posts).toEqual([{ date: '2031-01-02', templateId: 'tpl-daily', seedToday: true }])
   })
 
   it('Ctrl+Alt+D and Cmd+Option+D do the same, from anywhere on the page', async () => {
     renderTab()
     fireEvent.keyDown(window, { code: 'KeyD', key: '∂', altKey: true, metaKey: true })
     await waitFor(() => expect(posts).toHaveLength(1))
+    expect(posts[0]).toMatchObject({ seedToday: true })
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'day1'))
   })
 
@@ -79,6 +81,48 @@ describe('Today', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Your daily template no longer exists, so today's note started blank.")
     // WAITED for, never sampled: the open lands in a router transition, after the alert's commit.
     await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'day1'))
+  })
+
+  // Audit 2026-11-05, spec S2 (B12): a new day's note lands in a daily folder the server makes (A3: "Daily notes", or an existing "Daily"). Say so.
+  it('a NEW day’s note says where it went: "Saved with your daily notes."', async () => {
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: /Today/ }))
+    await waitFor(() => expect(screen.getByTestId('bulk-notice')).toHaveTextContent('Saved with your daily notes.'))
+    expect(screen.getByTestId('bulk-notice')).toHaveAttribute('role', 'status')
+  })
+
+  it('reopening a day’s note that already exists says nothing about folders', async () => {
+    answer = () => ({ ok: true, status: 200, json: async () => ({ note: { id: 'day1' }, created: false, templateMissing: false }) })
+    renderTab()
+    fireEvent.click(screen.getByRole('button', { name: /Today/ }))
+    await waitFor(() => expect(screen.getByTestId('note-editor')).toHaveAttribute('data-note-id', 'day1'))
+    expect(screen.queryByText('Saved with your daily notes.')).toBeNull()
+  })
+
+  // Audit 2026-11-05, S5 (B11): the Notebook's home named the tab "Journal".
+  it('the Notebook home names the browser tab "Notebook · UCT Intelligence"', async () => {
+    document.title = 'Journal — UCT Intelligence'
+    renderTab()
+    await waitFor(() => expect(document.title).toBe('Notebook · UCT Intelligence'))
+  })
+
+  // Fix round 1 (review finding 7): a door OUTSIDE the Notebook (Today, the Compass recap, Insights)
+  // that made the day's note queues the sentence; the Notebook says it when it opens.
+  it('a queued notice from another door is said once when the Notebook opens', async () => {
+    const { queueNotebookNotice } = await import('../lib/dailyNote')
+    queueNotebookNotice('Saved with your daily notes.')   // no note named: any Notebook visit may say it
+    renderTab()
+    await waitFor(() => expect(screen.getByTestId('bulk-notice')).toHaveTextContent('Saved with your daily notes.'))
+    expect(sessionStorage.getItem('uct.nb.pendingNotice')).toBeNull()
+  })
+
+  it('a notice queued for ANOTHER note is dropped, not said on this visit (fix round 2, N3)', async () => {
+    const { queueNotebookNotice } = await import('../lib/dailyNote')
+    queueNotebookNotice('Saved with your daily notes.', { noteId: 'someOtherNote' })
+    renderTab()
+    await new Promise((r) => setTimeout(r, 30))
+    expect(screen.queryByText('Saved with your daily notes.')).toBeNull()
+    expect(sessionStorage.getItem('uct.nb.pendingNotice')).toBeNull()
   })
 
   it('a refusal says nothing was created', async () => {

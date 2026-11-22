@@ -1,0 +1,14 @@
+//@version=6
+indicator("UCTPROBE_VW_CS1_RCI_P1", overlay = false)
+
+// PROVENANCE: written 2026-11-14 for the Pine parity programme, capture session S1
+// (objects-lane REMAINING-SCOPE-2026-11-14 section 4; s6-bugs-1114 probe P1).
+// RCI on a composed source (its own leading na) and on a flat window (math.round(close / 1000) is 0 on RDDT):
+// where the first value lands and what a window of ties answers.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(ta.rci(close, 10), "A01_rci_close_10_CONTROL")
+plot(ta.rci(ta.sma(close, 5), 10), "P01_rci_sma5_10")
+plot(ta.rci(math.round(close / 1000), 10), "P02_rci_flat_10")
+plot(math.round(close / 1000), "P03_flat_source")

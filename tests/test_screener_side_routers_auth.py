@@ -1,7 +1,8 @@
 """The paywall rail for the two screener side routers that `test_screener_backtest_auth`'s
 census found ungoverned (2026-10-05): `screen_promote.py` (to-watchlist, spec alerts) and
 `screener_nl.py` (plain-English compile). Joined 2026-10-17 by `screener_new_today.py`
-(the New today membership diff, #358), which the same census caught ungoverned.
+(the New today membership diff, #358), which the same census caught ungoverned, and on
+2026-11-17 by `screener_layout_gallery.py` (community scan-board layouts), added with its router.
 
 Every route is swept with its feature switch ARMED, so the 404 dark gate cannot hide the
 paid gate: an anonymous caller gets 401 and a free member gets 402, on every method of every
@@ -17,10 +18,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
-from api.routers import screen_promote, screener_new_today, screener_nl
+from api.routers import screen_promote, screener_layout_gallery, screener_new_today, screener_nl
 
 FREE_USER = {"id": "free1", "role": "member", "plan": "free"}
-MODULES = [screen_promote, screener_nl, screener_new_today]
+MODULES = [screen_promote, screener_nl, screener_new_today, screener_layout_gallery]
 
 
 def _client(mod, user):

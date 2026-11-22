@@ -27,13 +27,37 @@ _GROUP_OF = {"chart": "charts", "volume": "charts", "widget": "workspace", "layo
              "pane": "indicatorSetup", "definition": "definitions", "chartGrid": "chartGrid", "board": "boardEdit",
              "guide": "guide",
              # W1-B (2026-11-02): indicator alerts in their own fillLast group (app/src/agent/routing.js)
-             "indicatorAlert": "indicatorAlerts"}
+             "indicatorAlert": "indicatorAlerts",
+             # Charts family (2026-11-12): a chart's Volume Profile overlay, its own words-only group (app/src/agent/routing.js)
+             "volumeProfile": "volumeProfile",
+             "indicatorTemplate": "chartSetup",
+             # Charts family (2026-11-12): the UCT Intelligence chart indicator, its own words-only group (app/src/agent/routing.js)
+             "uctIntelligence": "uctIntelligence",
+             # Wave 3 (2026-11-03): the coach's own fillLast group (registered only while UCT_AGENT_COACH is on)
+             "coach": "coach", "journal": "coach", "calendar": "calendar",
+             # family C (2026-11-11): the chart's right-click Ask AI + watermark Reset, own words-only group
+             "chartMenu": "chartMenu",
+             # Charts family (2026-11-12): the chart's Company Info panel + Earnings Strip, own words-only group
+             "chartFeatures": "chartFeatures",
+             # Charts family (2026-11-12): ONE chart's bar replay playback, own words-only group
+             "chartReplay": "chartReplay",
+             # C3-205..207 (pl-exec6): Tools → Custom-Period Sort, its own words-only group (app/src/agent/routing.js)
+             "periodSort": "periodSort",
+             # Charts family (2026-11-12): Tools → Compare Symbols' Rotation / Overlay view, its own words-only group
+             "compare": "comparePanel",
+             # Charts family (2026-11-15): the UCT News library, its own words-only group
+             "newsLibrary": "newsLibrary",
+             # #1030 (2026-11-10): the Multi Chart grid family, its own fillLast group (app/src/agent/routing.js)
+             "multiChart": "multiChart"}
+#: membership by ACTION NAME (routing.js `actions`), ahead of the domain — hotfix 2026-11-03: agent.undo's own group
+_GROUP_BY_ACTION = {"agent.undo": "undo", "indicatorTemplate.list": "chartSetup", "indicatorTemplate.apply": "chartSetup",
+                    "indicatorTemplate.save": "chartSetup", "indicatorTemplate.delete": "chartSetup"}
 
 
 def _requests():
     groups = {}
     for c in CAPS:
-        groups.setdefault(_GROUP_OF[c["name"].split(".")[0]], []).append(c)
+        groups.setdefault(_GROUP_BY_ACTION.get(c["name"]) or _GROUP_OF[c["name"].split(".")[0]], []).append(c)
     agent = groups.pop("agent", [])
     return [(g, cs + agent) for g, cs in groups.items()]
 
@@ -45,6 +69,7 @@ def test_server_limits_equal_the_shared_contract():
     assert turn.MAX_HINTS == L["maxHints"]
     assert turn.MAX_CONTEXT_BYTES == L["maxContextBytes"]
     assert turn.MAX_OPS == L["maxOps"]
+    assert turn.MAX_SHAPE == L["maxShape"]          # W1.1 R-01: a capability's exact-shape example
     assert CONTRACT["manifestVersion"] in turn.MANIFEST_VERSIONS
     assert GOLDEN["manifestVersion"] == CONTRACT["manifestVersion"]
 
@@ -92,16 +117,20 @@ def test_every_compact_op_example_round_trips_through_args_match():
     for c in [c for _, req in _requests() for c in turn.validate_manifest(req)]:
         props = c["args"]["properties"]
         sample = {}
-        for k, p in props.items():
+        # (W1.1 R-01: args_match now checks anyOf / nested objects as the grammar does, so a sample is built the same
+        # way all the way down — an anyOf arg from its first branch, an object arg from its own properties)
+        def sample_of(p):
+            p = p["anyOf"][0] if isinstance(p.get("anyOf"), list) and p["anyOf"] else p
             if p.get("enum"):
-                sample[k] = next(v for v in p["enum"] if v is not None) if any(v is not None for v in p["enum"]) else None
-            else:
-                t = p.get("type")
-                t = t[0] if isinstance(t, list) else t
-                sample[k] = {"string": "x", "number": 1, "integer": 1, "boolean": True, "null": None,
-                             "array": [], "object": {}}.get(t, None)
+                return next(v for v in p["enum"] if v is not None) if any(v is not None for v in p["enum"]) else None
+            if isinstance(p.get("properties"), dict):
+                return {k: sample_of(v) for k, v in p["properties"].items()}
+            t = p.get("type")
+            t = t[0] if isinstance(t, list) else t
+            return {"string": "x", "number": 1, "integer": 1, "boolean": True, "null": None, "array": [], "object": {}}.get(t, None)
+        sample = {k: sample_of(p) for k, p in props.items()}
         if any(v is None and "null" not in json.dumps(props[k]) for k, v in sample.items()):
-            continue  # an anyOf/object arg with no simple sample; the browser re-validates it
+            continue  # an arg with no simple sample; the browser re-validates it
         assert turn.args_match(c["args"], sample), c["name"]
 
 
@@ -147,6 +176,15 @@ def test_catalog_contract_distinguishes_catalog_from_request():
     assert cat["maxGroupSize"] < CONTRACT["routingThreshold"] <= CONTRACT["limits"]["maxCapabilities"]
 
 
+def test_v2_capability_cap_equals_client_catalog_cap():
+    """Planner v2 sends the WHOLE available catalog in one request and REFUSES the request whole when it is over
+    MAX_CAPABILITIES_V2 (turn_v2 -> turn.validate_manifest). The browser's catalog is bounded by
+    catalog.maxRegistered (agentContracts.test.js, against the MAX-ARMED catalog). A split between the two would
+    make v2 refuse every request once the catalog outgrows the smaller one, so they move TOGETHER."""
+    from api.services.uct_agent import turn_v2
+    assert turn_v2.MAX_CAPABILITIES_V2 == CONTRACT["catalog"]["maxRegistered"]
+
+
 def _union_enum_nodes(node, path="", out=None):
     out = [] if out is None else out
     if isinstance(node, dict):
@@ -176,3 +214,59 @@ def test_model_safe_schema_keeps_the_same_values():
     s = turn.model_safe_schema({"type": ["string", "null"], "enum": ["asc", "desc"]})
     assert s == {"anyOf": [{"type": "string", "enum": ["asc", "desc"]}]}
     assert turn.model_safe_schema({"type": "string", "enum": ["a"]}) == {"type": "string", "enum": ["a"]}
+
+
+# ── schema-subset rail (2026-11-11, #1076): the server leaves out any capability whose args schema uses a keyword
+# outside its structured-output subset (minItems, maxItems, minimum, pattern…). That must fail HERE, by name and
+# keyword, never reach production as an action the model silently can't call.
+def _outside_subset(caps):
+    return {c["name"]: turn.schema_problems(c["args"]) for c in caps if turn.schema_problems(c["args"])}
+
+
+def test_every_manifest_capability_is_inside_the_server_schema_subset():
+    assert _outside_subset(CAPS) == {}, "these actions would be dropped by the server (bounds belong in code)"
+
+
+def _planted(name="drawing.plantedControl"):
+    planted = json.loads(json.dumps(BY["agent.capabilities"]))
+    planted["name"] = name
+    planted["args"] = {"type": "object", "additionalProperties": False, "required": ["levels"],
+                       "properties": {"levels": {"type": "array", "minItems": 1, "maxItems": 3,
+                                                 "items": {"type": "string", "enum": ["stop", "target"]}}}}
+    return planted
+
+
+def test_control_a_planted_minitems_capability_fails_the_rail_and_is_dropped_loudly(caplog, monkeypatch):
+    monkeypatch.setattr(turn, "_SCHEMA_DROP_LOGGED", set())
+    base = BY["agent.capabilities"]
+    planted = _planted()
+    assert _outside_subset(CAPS + [planted]) == {
+        "drawing.plantedControl": ["args.levels: unsupported keyword(s) maxItems, minItems"]}
+    with caplog.at_level("ERROR", logger=turn.__name__):
+        kept = turn.validate_manifest([base, planted])
+    assert [c["name"] for c in kept] == [base["name"]]
+    msg = " ".join(r.getMessage() for r in caplog.records if r.levelname == "ERROR")
+    assert "drawing.plantedControl left out" in msg and "minItems" in msg
+
+
+def test_schema_problems_names_each_kind_of_violation():
+    assert turn.schema_problems({"type": "object", "properties": {}, "required": [], "additionalProperties": False}) == []
+    assert turn.schema_problems({"type": "object", "properties": {"a": {"type": "string"}},
+                                 "required": [], "additionalProperties": False}) == ["args: required is not every property"]
+    assert turn.schema_problems({"type": "object", "properties": {"n": {"type": "integer", "minimum": 0}},
+                                 "required": ["n"], "additionalProperties": False}) == [
+        "args.n: unsupported keyword(s) minimum"]
+    assert turn.schema_problems({"type": "object", "properties": {"x": {"anyOf": [{"type": "null"}, {"type": "string", "pattern": "^a"}]}},
+                                 "required": ["x"], "additionalProperties": False}) == [
+        "args.x.anyOf[1]: unsupported keyword(s) pattern"]
+
+
+def test_a_dropped_capability_is_logged_once_per_process_but_dropped_every_turn(caplog, monkeypatch):
+    monkeypatch.setattr(turn, "_SCHEMA_DROP_LOGGED", set())
+    base, planted = BY["agent.capabilities"], _planted("drawing.plantedOnce")
+    with caplog.at_level("ERROR", logger=turn.__name__):
+        first = turn.validate_manifest([base, planted])
+        second = turn.validate_manifest([base, planted])
+    assert [c["name"] for c in first] == [c["name"] for c in second] == [base["name"]]
+    errors = [r for r in caplog.records if r.levelname == "ERROR" and "drawing.plantedOnce" in r.getMessage()]
+    assert len(errors) == 1

@@ -44,6 +44,8 @@ function Host({ dock: initialDock = {}, seen, scrollTo = null, withFeatures = tr
 }
 
 const openTab = () => fireEvent.click(screen.getByRole('tab', { name: /Indicators/i }))
+// ⭐ UCT Signature: the section lists what is on the chart; discovery is its own Indicators window.
+const openWin = () => fireEvent.click(screen.getByTestId('add-enter'))
 const catTabs = () => within(screen.getByRole('tablist', { name: 'Indicator categories' }))
   .getAllByRole('tab').map((t) => t.textContent.trim())
 const result = (key) => document.body.querySelector(`[data-result-key="${key}"]`)
@@ -98,26 +100,26 @@ describe('discovery catalog — the Research tab and its rows (pure)', () => {
 
 describe('Add to Chart — Research in the Indicators surface', () => {
   it('shows a Research tab only when the host provides features', () => {
-    render(<Host withFeatures={false} />); openTab()
+    render(<Host withFeatures={false} />); openTab(); openWin()
     expect(catTabs()).not.toContain('Research')
     cleanup()
-    render(<Host />); openTab()
+    render(<Host />); openTab(); openWin()
     expect(catTabs()).toContain('Research')
   })
 
   it('the Research tab lists both features with ＋ Add, and their descriptions as the row tooltip', () => {
-    render(<Host />); openTab()
+    render(<Host />); openTab(); openWin()
     fireEvent.click(screen.getByRole('tab', { name: 'Research' }))
     const es = result('feature:earningsStrip')
     const ci = result('feature:companyInfo')
     expect(es.getAttribute('title')).toBe('Quarterly EPS and revenue, with growth and estimates, in a strip below the chart.')
     expect(ci.getAttribute('title')).toBe("Overview, financials, earnings, ownership and news for the company you're charting.")
-    expect(es.textContent).toMatch(/＋ Add/)
-    expect(ci.textContent).toMatch(/＋ Add/)
+    expect(es.textContent).toMatch(/\+ Add/)
+    expect(ci.textContent).toMatch(/\+ Add/)
   })
 
   it('search "earnings" returns the Earnings Strip alongside the other results; "company" returns Company Info', () => {
-    render(<Host />); openTab()
+    render(<Host />); openTab(); openWin()
     fireEvent.change(searchBox(), { target: { value: 'earnings' } })
     expect(result('feature:earningsStrip')).toBeTruthy()
     fireEvent.change(searchBox(), { target: { value: 'company' } })
@@ -127,7 +129,7 @@ describe('Add to Chart — Research in the Indicators surface', () => {
   it('adding the Earnings Strip writes the DOCK, never chart settings, and lands on its management row', () => {
     const seen = []
     const docks = []
-    render(<Host seen={seen} onDock={(d) => docks.push(d)} />); openTab()
+    render(<Host seen={seen} onDock={(d) => docks.push(d)} />); openTab(); openWin()
     fireEvent.click(screen.getByRole('tab', { name: 'Research' }))
     fireEvent.click(result('feature:earningsStrip'))
     expect(docks.at(-1).strip).toBe(true)
@@ -139,10 +141,10 @@ describe('Add to Chart — Research in the Indicators surface', () => {
 
   it('an added feature reads Active, offers no Add another, and clicking it selects its row instead of adding again', () => {
     const docks = []
-    render(<Host dock={{ strip: true }} onDock={(d) => docks.push(d)} />); openTab()
+    render(<Host dock={{ strip: true }} onDock={(d) => docks.push(d)} />); openTab(); openWin()
     fireEvent.click(screen.getByRole('tab', { name: 'Research' }))
     const es = result('feature:earningsStrip')
-    expect(within(es).getByText('Active')).toBeTruthy()
+    expect(within(es).getByText('On chart')).toBeTruthy()
     expect(within(es).queryByRole('button', { name: /Add another/ })).toBeNull()
     fireEvent.click(es)
     expect(docks).toEqual([])                                // duplicate add refused: nothing written
@@ -207,9 +209,9 @@ describe('Add to Chart — Research in the Indicators surface', () => {
     expect(screen.queryByText(/Nothing on this chart yet/)).toBeNull()
   })
 
-  it('the door at the foot of the list reads ＋ Add to Chart', () => {
+  it('the one primary door reads + Add indicator (UCT Signature)', () => {
     render(<Host />); openTab()
-    expect(screen.getByTestId('add-enter').textContent.replace(/\s+/g, '')).toBe('＋AddtoChart')
+    expect(screen.getByTestId('add-enter').textContent.replace(/\s+/g, '')).toBe('Addindicator')
   })
 
   it('opened from the chart’s Add to Chart control it lands IN the add surface, on Indicators, not Price Style', () => {

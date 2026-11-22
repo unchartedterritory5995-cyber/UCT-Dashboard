@@ -6,8 +6,12 @@
 // corpus, and 29 of its members are `storage: "local-only"` in MANIFEST.json:
 // their recorded licence does not contemplate redistribution (owner ruling
 // 2026-09-09, docs/pine/LICENSING.md), so #145 (e855f62cd) gitignored their
-// source and it has NEVER been in git history. A fresh checkout — every new
-// worktree, and CI — has the other 30 and none of these.
+// source here. A fresh checkout — every new worktree, and CI — has the other
+// 30 and none of these.
+// ⚰️ "IT HAS NEVER BEEN IN GIT HISTORY" WAS FALSE: the same commit put byte
+// copies of 13 of them in `tools/c0_*_fixtures`. Those were removed on
+// 2026-11-15 (docs/pine/LICENSING.md §2d; `licenceHeld.js` reads them from the
+// local store); the old commits still hold them.
 //
 // ⚰️ WHAT THAT DID: every rail that needed one of them died on `ENOENT` or on a
 // population floor ("expected 30 to be 59") and master carried ~20 reds that

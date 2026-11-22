@@ -1,0 +1,5 @@
+//@version=5
+indicator("hp hostile varip", overlay=false)
+varip int ticks = 0
+ticks += 1
+plot(ticks, "ticks")

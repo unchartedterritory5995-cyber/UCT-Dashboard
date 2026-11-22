@@ -1,0 +1,29 @@
+const fs = require('fs')
+const m = JSON.parse(fs.readFileSync(process.argv[2], 'utf8')), z = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'))
+const out = { n: m.n, skipped: m.skipped, nz: z.n }
+for (const v of ['v1', 'v2']) {
+  const c = { inin: 0, outin: 0, outout: 0, inout: 0, noexp: 0, differ: 0, withExp: 0, mIn: 0, zIn: 0, chartViewRows: 0, onlyChartViewAdded: 0, other: 0 }
+  const rows = []
+  m.rows.forEach((a, i) => {
+    const b = z.rows[i]
+    if (a.id !== b.id) throw new Error('row mismatch ' + i)
+    const inn = (names) => (a.plans ? a.plans.some(p => p.every(n => names.includes(n))) : null)
+    const ai = inn(a[v + 'n']), bi = inn(b[v + 'n'])
+    if (a.plans) { c.withExp++; if (ai) c.mIn++; if (bi) c.zIn++ }
+    if (b[v].includes('chartView')) c.chartViewRows++
+    const same = a[v].join(',') === b[v].join(',')
+    if (same) return
+    c.differ++
+    const minus = b[v].filter(g => g !== 'chartView')
+    const removed = a[v].filter(g => !b[v].includes(g)), added = b[v].filter(g => !a[v].includes(g))
+    if (minus.join(',') === a[v].join(',')) c.onlyChartViewAdded++; else c.other++
+    let res = 'no expectation'
+    if (a.plans) res = ai && bi ? 'in→in' : !ai && bi ? 'out→in' : ai && !bi ? 'in→out' : 'out→out'
+    if (res === 'in→in') c.inin++; else if (res === 'out→in') c.outin++; else if (res === 'in→out') c.inout++; else if (res === 'out→out') c.outout++; else c.noexp++
+    rows.push({ id: a.id, set: a.set, held: a.held, plans: a.plans, res, master: a[v].join(','), zoom: b[v].join(','), added, removed })
+  })
+  out[v] = { counts: c, rows }
+}
+fs.writeFileSync(process.argv[4], JSON.stringify(out, null, 1))
+console.log(JSON.stringify({ n: out.n, skipped: out.skipped, v1: out.v1.counts, v2: out.v2.counts }))
+for (const v of ['v1', 'v2']) for (const r of out[v].rows) console.log(v, r.id, r.res, 'added=' + r.added.join('+'), 'removed=' + r.removed.join('+'))

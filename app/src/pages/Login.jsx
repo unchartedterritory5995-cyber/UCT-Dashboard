@@ -49,7 +49,7 @@ export default function Login() {
     // the same chokepoint isPaid mirrors) straight off THIS response — never
     // re-derived, and never read from context, which would still be the
     // PRE-login value at this point in the render.
-    navigate(data?.paid_equiv ? '/dashboard' : UPGRADE_PATH, { replace: true })
+    navigate(data?.paid_equiv ? '/charts' : UPGRADE_PATH, { replace: true })
   }
 
   const handleSubmit = async (e) => {

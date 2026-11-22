@@ -22,6 +22,7 @@ import ast
 import datetime as dt
 import importlib.util
 import json
+import re
 import os
 import pathlib
 from zoneinfo import ZoneInfo
@@ -495,8 +496,16 @@ def test_CONTROL_with_no_ops_channel_the_rollup_falls_back_to_admin_never_silenc
     assert _capture_post_url(mon, monkeypatch) == "https://discord.example/admin"
 
 
-def test_the_flag_is_declared_in_the_ledger_as_dark():
+def test_the_flag_is_declared_in_the_ledger_and_arming_it_was_a_persons_act():
+    """The roll-up posts to humans every day, so it shipped dark and arming it is a person's act.
+    ⚰️ This asserted `status == "dark"` and has been red since the owner armed it on 2026-09-29: the
+    ledger was updated to `armed` with a note saying who set it and when, and the test was not.
+    What it holds now is the rule itself: the entry is declared, and an ARMED entry's note says who
+    armed it and on what date (a dark one needs only its reason)."""
     ledger = json.loads((_REPO / "docs" / "feature_flags.json").read_text(encoding="utf-8"))
     mon = _load(_MON, "tnmon_ledger")
     entry = ledger["flags"][mon.ROLLUP_FLAG]
-    assert entry["status"] == "dark" and entry["note"]
+    assert entry["status"] in ("dark", "armed") and entry["note"]
+    if entry["status"] == "armed":
+        assert "owner" in entry["note"].lower(), "armed, but the note does not say who armed it"
+        assert re.search(r"\b20\d\d-\d\d-\d\d\b", entry["note"]), "armed, but the note does not say when"

@@ -42,6 +42,28 @@ function store(initial = []) {
 beforeEach(() => { __resetNotebookFlags(); __resetTemplateReveals() })
 afterEach(() => { __resetNotebookFlags(); vi.restoreAllMocks() })
 
+// Pass 2 final fix M6: the built-in note kind property is "Kind of note" on the server and "Note type" on screen. A
+// template definition named either is taken by the built-in (never reused: it is not the member's), so the next name
+// is tried -- never a member "Note type" made beside the built-in one the member already reads as "Note type".
+describe('M6 -- the built-in note kind answers to both of its names', () => {
+  const builtin = { id: 'builtin:note_kind', name: 'Kind of note', type: 'select', source: 'user_set' }
+  for (const name of ['Note type', 'Kind of note', ' note TYPE ']) {
+    it(`a template definition named "${name}" is never made under that name beside the built-in`, async () => {
+      const s = store([builtin])
+      const out = await ensureTemplatePropertyDefs({ propertyDefinitions: [{ key: 'k', name, type: 'select' }] },
+        { listDefs: s.listDefs, createDef: s.createDef })
+      expect(s.creates.map((c) => c.name)).toEqual([`${name} (select)`])
+      expect(out.resolved.k.id).not.toBe('builtin:note_kind')
+    })
+  }
+  it('CONTROL: with no built-in in the list, "Note type" is made under its own name', async () => {
+    const s = store([])
+    await ensureTemplatePropertyDefs({ propertyDefinitions: [{ key: 'k', name: 'Note type', type: 'select' }] },
+      { listDefs: s.listDefs, createDef: s.createDef })
+    expect(s.creates.map((c) => c.name)).toEqual(['Note type'])
+  })
+})
+
 describe('12B-2 -- the Position Tracker declares its definitions as data', () => {
   it('five number properties and three formula properties, by the spec\'s names', () => {
     const decl = tracker.propertyDefinitions

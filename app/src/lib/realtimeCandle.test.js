@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as rc from './realtimeCandle'
 
 const T = 1_800_000_000            // some minute boundary
@@ -38,5 +38,117 @@ describe('applyTick volume — the tick carries the bar CUMULATIVE, not a delta'
     rc.applyTick('SOXL', 104.0, 300, inMinute(3))
     const c = rc.getCandle('SOXL', '1')
     expect(c).toMatchObject({ o: 105.0, h: 106.0, l: 104.0, c: 104.0, v: 300 })
+  })
+})
+
+describe('applyBarClose — D1: the 1m bar_close payload carries {t,c,v} and NO o/h/l', () => {
+  beforeEach(() => rc._reset())
+
+  it('merges with the developing candle so o/h/l are never undefined', () => {
+    rc.applyTick('SYN', 50.0, 100, inMinute(1))
+    rc.applyTick('SYN', 51.0, 200, inMinute(10))
+    rc.applyTick('SYN', 49.5, 300, inMinute(40))
+    rc.applyBarClose('SYN', '1', { t: T, c: 50.2, v: 350 })   // server shape, stream.py:243-249
+    const c = rc.getCandle('SYN', '1')
+    expect(c).toMatchObject({ t: T, o: 50.0, h: 51.0, l: 49.5, c: 50.2, v: 350 })
+    for (const k of ['o', 'h', 'l', 'c']) expect(Number.isFinite(c[k])).toBe(true)
+  })
+
+  it('with nothing to merge from, the close stands in for missing extremes (never undefined)', () => {
+    rc.applyBarClose('SYN', '1', { t: T, c: 50.2, v: 10 })
+    const c = rc.getCandle('SYN', '1')
+    expect(c).toMatchObject({ o: 50.2, h: 50.2, l: 50.2, c: 50.2 })
+  })
+
+  it('a close for an OLDER minute never clobbers the developing one', () => {
+    rc.applyTick('SYN', 50.0, 100, T + 60 + 2)
+    rc.applyBarClose('SYN', '1', { t: T, c: 49.0, v: 999 })
+    expect(rc.getCandle('SYN', '1')).toMatchObject({ t: T + 60, c: 50.0, v: 100 })
+  })
+
+  it('payload fields that ARE present win (full bar / correction)', () => {
+    rc.applyTick('SYN', 50.0, 100, inMinute(1))
+    rc.applyCorrection('SYN', '1', { t: T, o: 49.9, h: 50.6, l: 49.8, c: 50.1, v: 400 })
+    expect(rc.getCandle('SYN', '1')).toMatchObject({ o: 49.9, h: 50.6, l: 49.8, c: 50.1, v: 400 })
+  })
+})
+
+describe('applyTick — late prior-minute print at the boundary', () => {
+  beforeEach(() => rc._reset())
+
+  it('does not reset the developing minute back to the older bucket', () => {
+    rc.applyTick('SYN', 50.0, 100, T + 60 + 1)       // new minute opened
+    rc.applyTick('SYN', 49.0, 5_000, inMinute(59))   // late print from the previous minute
+    const c = rc.getCandle('SYN', '1')
+    expect(c.t).toBe(T + 60)
+    expect(c).toMatchObject({ o: 50.0, h: 50.0, l: 50.0, c: 50.0, v: 100 })
+  })
+
+  it('records the tick receipt time per symbol for fallback arbitration', () => {
+    expect(rc.getLastTickAt('syn')).toBe(0)
+    rc.applyTick('SYN', 50.0, 1, inMinute(1))
+    expect(rc.getLastTickAt('syn')).toBeGreaterThan(0)
+  })
+})
+
+describe('W-O I6: a minute is authoritative only when the registry tracked the previous one', () => {
+  it('first tick → partial; contiguous next minute → not partial; after a feed gap → partial again', () => {
+    rc._reset()
+    const m = 1794400200
+    rc.applyTick('GAPX', 10, 1, m + 30)
+    expect(rc.getCandle('GAPX', '1').partial).toBe(true)
+    rc.applyTick('GAPX', 10.1, 1, m + 61)
+    expect(rc.getCandle('GAPX', '1').partial).toBe(false)
+    // the feed dropped the symbol for minutes; _state survived — the rejoined minute is partial
+    rc.applyTick('GAPX', 10.4, 1, m + 60 * 7 + 20)
+    expect(rc.getCandle('GAPX', '1').partial).toBe(true)
+  })
+})
+
+describe('getLastTrade — the last APPLIED trade at its own trade time (BarStore tick arbitration)', () => {
+  beforeEach(() => rc._reset())
+  it('records price + trade time (s → ms) of applied ticks only; a rejected earlier-minute print never moves it', () => {
+    expect(rc.getLastTrade('SIM')).toBe(null)
+    rc.applyTick('sim', 10.5, 100, 1_700_000_130)
+    expect(rc.getLastTrade('SIM')).toMatchObject({ price: 10.5, tradeMs: 1_700_000_130_000 })
+    rc.applyTick('SIM', 10.4, 120, 1_700_000_050)   // an EARLIER minute: not applied
+    expect(rc.getLastTrade('SIM')).toMatchObject({ price: 10.5, tradeMs: 1_700_000_130_000 })
+    rc._reset()
+    expect(rc.getLastTrade('SIM')).toBe(null)
+  })
+})
+
+describe('tick repaint hold: 250 ms by default (LIVE_CANDLE_CADENCE_MS), the per-browser override when set', () => {
+  const KEY = 'uct.liveCadenceMs'
+  beforeEach(() => { rc._reset(); vi.useFakeTimers() })
+  afterEach(() => { vi.useRealTimers(); localStorage.removeItem(KEY); rc._reset() })
+  const run = () => {
+    let paints = 0
+    const off = rc.subscribe('SOXL', () => { paints++ })
+    rc.applyTick('SOXL', 105.0, 1_000, inMinute(1))     // leading edge paints at once
+    rc.applyTick('SOXL', 105.1, 2_000, inMinute(2))     // held for the window
+    return { paints: () => paints, off }
+  }
+  it('default', () => {
+    const r = run()
+    expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(249); expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(1); expect(r.paints()).toBe(2)
+    r.off()
+  })
+  it('override 1000 (the old default) still holds a browser to 1 s', () => {
+    localStorage.setItem(KEY, '1000')
+    const r = run()
+    vi.advanceTimersByTime(999); expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(1); expect(r.paints()).toBe(2)
+    r.off()
+  })
+  it('override 50', () => {
+    localStorage.setItem(KEY, '50')
+    const r = run()
+    expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(49); expect(r.paints()).toBe(1)
+    vi.advanceTimersByTime(1); expect(r.paints()).toBe(2)
+    r.off()
   })
 })

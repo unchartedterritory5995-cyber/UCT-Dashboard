@@ -1,0 +1,35 @@
+//@version=6
+indicator("UCTPROBE_VW_PT_TR_TRUE", overlay = false, max_bars_back = 5000)
+
+// --- 2026-11-07 prod-ternary - `ta.tr(true)` IN A `?:` ARM ---
+//
+// docs/pine/capture-queue-2026-10-31-prod-ternary.md, "Shapes this branch does
+// NOT stamp", row 3: `up ? ta.tr(true) : 0`. The plot lane WITHHOLDS it where
+// `up` varies (every `ta.*` call is read as holding history). If `ta.tr` reads
+// the chart's own previous close on its first run after a skip, it is pure and
+// the stamp over-withholds it.
+//
+//   R01  the shape itself
+//   E02  the same arm fed by the every-bar `ta.tr(true)` (pure reading)
+//   P01  the per-run reading: the previous close is the close of the previous
+//        bar the arm RAN on (`high - low` before any run, as `true` asks)
+//
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+// NEVER COMPILED ON TRADINGVIEW: a row that does not compile names its line.
+
+up = close > open
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(up ? 1 : 0, "A01_test_CONTROL")
+
+e_tr = ta.tr(true)
+plot(e_tr, "E01_tr_true_every_bar")
+plot(up ? ta.tr(true) : 0, "R01_tr_true_in_true_arm")
+plot(up ? e_tr : 0, "E02_tr_true_arm_fed_by_every_bar")
+
+var float prevRunClose = na
+float perRun = 0
+if up
+    perRun := na(prevRunClose) ? high - low : math.max(high - low, math.abs(high - prevRunClose), math.abs(low - prevRunClose))
+    prevRunClose := close
+plot(perRun, "P01_tr_true_per_run_reference")

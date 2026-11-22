@@ -221,3 +221,91 @@ describe('through the REAL panel (panelHarness): one approval card, the hook\'s 
     expect(p.turns()).toBe(1)
   }, 40000)
 })
+
+// ── A DUPLICATE is the same alert WATCHING THE SAME THING: the settings it is evaluated with count, read as the server reads them ──
+describe('indicatorAlert.create — a duplicate compares the effective settings, never just the name', () => {
+  const RSI14 = { instanceId: 'inst:rsi:2', defId: 'rsi', inputs: { period: 14 } }
+  const RSI_DEFAULT = { instanceId: 'inst:rsi:3', defId: 'rsi', inputs: {} }
+  const MACD_8 = { instanceId: 'inst:macd:2', defId: 'macd', inputs: { fastPeriod: 8 } }
+  const MACD_8_21 = { instanceId: 'inst:macd:3', defId: 'macd', inputs: { fastPeriod: 8, slowPeriod: 21, signalPeriod: 5 } }
+  const row = (o) => ({ id: 7, sym: 'NVDA', indicator: 'rsi', condition: 'above', threshold: 70, tf: 'D', active: true, params_json: { period: 7 }, ...o })
+  const wants = (instance, extra = {}) => ({ ...CREATE, instance, ...extra })
+  const DUP = /already have an active alert/
+  const allowed = async (h, args) => (await plan(h, [op('indicatorAlert.create', 'indicatorAlerts', args)])).p.ok
+
+  it('RSI(7) above 70 does not block RSI(14) above 70: proposed, armed with its own period, both on the server, the receipt lands', async () => {
+    const h = host([RSI, RSI14])
+    srv.rows.push(row())
+    const { p, env } = await plan(h, [op('indicatorAlert.create', 'indicatorAlerts', wants('inst:rsi:2'))])
+    expect(p.ok).toBe(true)
+    expect(p.lines[0]).toMatch(/^Indicator alert: NVDA RSI/)
+    const res = await commitPlan(h, p, { env })
+    expect(res.ok).toBe(true)
+    expect(srv.rows.map(r => r.params_json)).toEqual([{ period: 7 }, { period: 14 }])
+  })
+  it('…and the other way round: RSI(14) does not block RSI(7)', async () => {
+    srv.rows.push(row({ params_json: { period: 14 } }))
+    expect(await allowed(host([RSI, RSI14]), wants('inst:rsi:1'))).toBe(true)
+  })
+  it.each([
+    ['the same period', { period: 7 }, 'inst:rsi:1'],
+    ['the same period stored as text', { period: '7' }, 'inst:rsi:1'],
+    ['the same period stored as JSON text', '{"period":7}', 'inst:rsi:1'],
+    ['a stored knob the plot does not declare', { period: 7, legacy: 1 }, 'inst:rsi:1'],
+    ['a stored null: the default, and the chart is on the default', null, 'inst:rsi:2'],
+    ['a stored empty object: the default', {}, 'inst:rsi:3'],
+    ['a stored null knob: the default', { period: null }, 'inst:rsi:2'],
+  ])('a genuine duplicate is still refused: %s', async (_n, params_json, instance) => {
+    srv.rows.push(row({ params_json }))
+    expect(await refuse(host([RSI, RSI14, RSI_DEFAULT]), wants(instance))).toMatch(DUP)
+  })
+  it('a stored null is the DEFAULT period, so it does not block a non-default one', async () => {
+    srv.rows.push(row({ params_json: null }))
+    expect(await allowed(host([RSI, RSI14]), wants('inst:rsi:1'))).toBe(true)
+  })
+  it('several knobs: a partly stored row reads the rest from the defaults; any one knob differing is a different alert', async () => {
+    const h = host([MACD, MACD_8, MACD_8_21])
+    const m = (instance) => ({ ...CREATE, instance, plot: 'macd.signal', condition: 'cross_zero', threshold: null })
+    srv.rows.push(row({ indicator: 'macd.signal', condition: 'cross_zero', threshold: null, params_json: { fast: 8 } }))
+    expect(await refuse(h, m('inst:macd:2'))).toMatch(DUP)
+    expect(await allowed(h, m('inst:macd:1'))).toBe(true)
+    expect(await allowed(h, m('inst:macd:3'))).toBe(true)
+  })
+  it('what already made two alerts different still does: symbol, level, condition, timeframe; a PAUSED twin never blocks', async () => {
+    const h = host([RSI])
+    for (const o of [{ sym: 'AMD' }, { threshold: 80 }, { condition: 'below' }, { tf: 'W' }, { active: false }]) {
+      srv.rows.length = 0
+      srv.rows.push(row(o))
+      expect(await allowed(h, CREATE)).toBe(true)
+    }
+  })
+  it('in one request: 7 and 14 are two alerts; the same one twice is refused', async () => {
+    const h = host([RSI, RSI14])
+    const two = await plan(h, [op('indicatorAlert.create', 'indicatorAlerts', wants('inst:rsi:1')), op('indicatorAlert.create', 'indicatorAlerts', wants('inst:rsi:2'))])
+    expect(two.p.ok).toBe(true)
+    expect(two.p.plans[0].patch.create.map(c => c.params)).toEqual([{ period: 7 }, { period: 14 }])
+    const same = await plan(h, [op('indicatorAlert.create', 'indicatorAlerts', wants('inst:rsi:1')), op('indicatorAlert.create', 'indicatorAlerts', wants('inst:rsi:1'))])
+    expect(same.p.ok).toBe(false)
+    expect(same.p.refusals[0].reason).toMatch(DUP)
+  })
+  it('the check at commit: a twin armed in another tab since the card refuses; an alert on another period does not', async () => {
+    const h = host([RSI])
+    const first = await plan(h, [op('indicatorAlert.create', 'indicatorAlerts', CREATE)])
+    srv.rows.push(row())
+    expect((await commitPlan(h, first.p, { env: first.env })).ok).toBe(false)
+    expect(srv.rows).toHaveLength(1)
+
+    srv.rows.length = 0
+    const second = await plan(h, [op('indicatorAlert.create', 'indicatorAlerts', CREATE)])
+    srv.rows.push(row({ id: 8, params_json: { period: 21 } }))
+    expect((await commitPlan(h, second.p, { env: second.env })).ok).toBe(true)
+    expect(srv.rows).toHaveLength(2)
+  })
+  it('what the member reads tells them apart: the list and the refusal use the server\'s instance label', async () => {
+    const h = host([RSI])
+    srv.rows.push(row({ instance_label: 'RSI(7)' }), row({ id: 8, params_json: { period: 14 }, instance_label: 'RSI(14)' }))
+    const a = await getCapability('indicatorAlert.list').answer(null, { symbol: null, status: null })
+    expect(a.table.rows.map(r => r.indicator)).toEqual(['RSI(7)', 'RSI(14)'])
+    expect(await refuse(h, CREATE)).toBe('You already have an active alert for NVDA RSI(7) above 70 (D).')
+  })
+})

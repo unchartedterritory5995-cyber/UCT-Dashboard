@@ -1,0 +1,94 @@
+/* WEEKEND WATCHLIST (docs/study/GAMES.md, kind `watchlist`). Only what the Study kit lacks: the board of small charts
+   (the board measures its own column: two across in the challenge's 880px lesson column, four only in a column wider
+   than 1040px, a stacked list under 560px, so a phone), each card's head, its reveal and its flag, the foot that keeps Lock in
+   reach while the list scrolls, the takeover's result chips and the focused review's bar. On the kit's own tokens
+   (study.module.css .kit: --k-gold, --k-ink, --k-line, --k-up, --k-down ...) and the greens, reds and golds the kit
+   already uses; no new colour. */
+
+/* ── the status line: a pip per chart, numbered while it is flagged ──────────────────────────────────────────── */
+.pipNum { font-style: normal; font-size: 10px; line-height: 1; font-weight: 900; color: var(--k-gold-ink); font-variant-numeric: tabular-nums; }
+
+/* ── the board ────────────────────────────────────────────────────────────────────────────────────────────── */
+.boardWrap { container-type: inline-size; }
+.board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@container (min-width: 1040px) { .board { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (max-width: 560px) { .board { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+
+.card { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 8px 8px 10px; border-radius: 18px;
+  border: 1px solid var(--k-line); background: var(--k-glass), var(--k-plate);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .04);
+  transition: border-color .25s ease, box-shadow .25s ease; animation: wlDeal .45s var(--k-ease) both; animation-delay: calc(var(--i, 0) * 45ms); }
+.card.flagged { border-color: rgba(220, 187, 94, .75); box-shadow: 0 0 0 1px rgba(220, 187, 94, .3), 0 14px 34px rgba(0, 0, 0, .45), 0 0 26px rgba(220, 187, 94, .2); }
+.card.right { border-color: rgba(47, 175, 104, .6); box-shadow: 0 0 0 1px rgba(47, 175, 104, .22), 0 14px 34px rgba(0, 0, 0, .45); }
+.card.wrong { border-color: rgba(223, 70, 70, .6); box-shadow: 0 0 0 1px rgba(223, 70, 70, .22), 0 14px 34px rgba(0, 0, 0, .45); }
+
+.cardHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; padding: 0 2px; }
+.num { flex: none; display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; font-size: 14px; font-weight: 900;
+  font-variant-numeric: tabular-nums; color: var(--k-gold-bright); border: 1px solid rgba(220, 187, 94, .4); background: linear-gradient(180deg, #1c1709, #0f0d06); }
+.chip { display: inline-flex; align-items: center; gap: 6px; min-width: 0; height: 26px; padding: 0 10px; border-radius: 999px; overflow: hidden;
+  font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; white-space: nowrap;
+  color: var(--k-ink-dim); border: 1px solid var(--k-line); }
+.chip svg { flex: none; display: block; }
+.chipText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flagged .chip.flagChip { color: var(--k-gold-ink); border-color: transparent; background: linear-gradient(180deg, #f6e2a0, #c9a548); box-shadow: 0 0 12px rgba(220, 187, 94, .35); }
+.chip.fired { color: var(--k-gold-bright); border-color: rgba(220, 187, 94, .5); background: rgba(220, 187, 94, .1); }
+.chip.none { color: var(--k-ink-soft); }
+
+/* the reveal under each chart, after the lock */
+.reveal { display: grid; gap: 4px; padding: 2px 4px 0; animation: wlRise .4s var(--k-ease) both; animation-delay: calc(var(--i, 0) * 60ms); }
+.where { font-size: 11.5px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--k-ink-dim); font-variant-numeric: tabular-nums; }
+.move { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 850; color: var(--k-ink); font-variant-numeric: tabular-nums; }
+.note { margin: 0; font-size: 13px; line-height: 1.45; color: var(--k-ink-soft); }
+.open { justify-self: start; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin: 0 0 -6px -8px; padding: 0 8px; border: 0; border-radius: 10px;
+  background: none; cursor: pointer; font: inherit; font-size: 13px; font-weight: 850; letter-spacing: .04em; color: var(--k-gold-bright); }
+.open:hover { background: rgba(220, 187, 94, .08); }
+.open:focus-visible { outline: 2px solid rgba(233, 205, 119, .6); outline-offset: 2px; }
+.flagTile { min-height: 52px; }
+
+/* ── the foot: Lock (then See the run) stays in reach while the board scrolls ─────────────────────────────── */
+/* the fade is the challenge arena's own base (DrillPlayer.module.css .sheetBody, #050506), the black every challenge
+   stands on, so the foot reads as the floor of the screen rather than a lighter band */
+.foot { position: sticky; bottom: 0; z-index: 6; display: flex; gap: 10px; align-items: center; margin-top: 2px;
+  padding: 18px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(5, 5, 6, 0), rgba(5, 5, 6, .92) 30%); }
+.foot > :last-child { flex: 1; min-width: 0; }
+.way { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+.heldNote { margin: 0; font-size: 14px; line-height: 1.5; color: var(--k-ink-soft); }
+
+/* ── the takeover's line of results, one chip per chart ───────────────────────────────────────────────────── */
+.tkChips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 2px 0 10px; }
+.tkChip { display: inline-flex; align-items: center; gap: 3px; height: 28px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--k-line);
+  font-size: 12px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--k-ink-dim); }
+.tkChip svg { display: block; }
+.tkOk { color: #8fe3b1; border-color: rgba(47, 175, 104, .55); background: rgba(47, 175, 104, .12); }
+.tkBad { color: #ff9d9d; border-color: rgba(223, 70, 70, .55); background: rgba(223, 70, 70, .12); }
+.tkLine { display: block; margin-top: 3px; }
+.tkMiss { display: block; margin-top: 3px; color: var(--k-ink); font-weight: 700; }
+
+/* ── the focused review ───────────────────────────────────────────────────────────────────────────────────── */
+.focusBar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.focusNav { display: inline-flex; align-items: center; gap: 8px; }
+.focusIdx { font-size: 12px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--k-ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.navBtn { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; border-radius: 12px; cursor: pointer;
+  color: var(--k-ink); border: 1px solid var(--k-line); background: var(--k-glass), var(--k-plate); transition: border-color .2s ease; }
+.navBtn:hover:not(:disabled) { border-color: var(--k-line-lit); }
+.navBtn:disabled { opacity: .35; cursor: default; }
+.navBtn:focus-visible { outline: 2px solid rgba(233, 205, 119, .6); outline-offset: 2px; }
+
+@keyframes wlDeal { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes wlRise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 640px) {
+  .card { padding: 8px 6px 10px; }
+  .open { margin-left: -6px; }   /* the card's padding is 6px here: the button's tap area stays inside the card */
+  .move { font-size: 14.5px; }
+  .foot { padding-top: 14px; }
+  /* the takeover cannot scroll: on a phone its body is a size smaller so the button stays on screen */
+  .tkChips { gap: 5px; margin-bottom: 6px; }
+  .tkChip { height: 24px; padding: 0 7px; font-size: 11px; }
+  .tkLine, .tkMiss { font-size: 14px; line-height: 1.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card, .reveal { animation: none; }
+  .card { transition: none; }
+}

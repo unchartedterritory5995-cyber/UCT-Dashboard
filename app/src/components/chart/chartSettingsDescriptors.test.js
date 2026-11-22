@@ -15,7 +15,7 @@ function leafPaths(o, prefix = '') {
   }
   return out
 }
-const AGENT = /^(eligible|known|internal|specialized:[a-z]+\.[a-zA-Z]+|owned:[a-z]+)$/
+const AGENT = /^(eligible|known|internal|specialized:[a-zA-Z]+\.[a-zA-Z]+|owned:[a-z]+)$/
 
 describe('chart settings descriptors — the completeness rail', () => {
   it('🔴 every key the settings allow-list keeps is CLASSIFIED (a new setting fails here until it has a row)', () => {
@@ -30,7 +30,7 @@ describe('chart settings descriptors — the completeness rail', () => {
     for (const d of CHART_SETTING_DESCRIPTORS) expect(d.agent, d.id).toMatch(AGENT)
     for (const d of ELIGIBLE_SETTINGS) {
       expect(d.label && d.section && d.ui, d.id).toBeTruthy()
-      expect(['bool', 'enum', 'color', 'number'], d.id).toContain(d.type)
+      expect(['bool', 'enum', 'color', 'number', 'statLabel'], d.id).toContain(d.type)
       if (d.type === 'enum') expect(d.options.length, d.id).toBeGreaterThan(1)
       if (d.type === 'number') { expect(Number.isFinite(d.min) && Number.isFinite(d.max) && d.min < d.max, d.id).toBe(true) }
       if (d.requires?.setting) expect(settingDescriptor(d.requires.setting), `${d.id} requires an unknown setting`).toBeTruthy()
@@ -45,7 +45,7 @@ describe('chart settings descriptors — the completeness rail', () => {
       if (r.chartType) b = { ...b, chartType: r.chartType[0] }
       if (r.setting) {
         const dep = settingDescriptor(r.setting)
-        b = withSetting(b, dep, 'value' in r ? r.value : (dep.boolMap ? dep.boolMap.true : true))
+        b = withSetting(b, dep, 'value' in r ? r.value : r.not === true ? false : (dep.boolMap ? dep.boolMap.true : true))
       }
     }
     return b
@@ -53,8 +53,13 @@ describe('chart settings descriptors — the completeness rail', () => {
   it('a row never points at a key the allow-list would DROP (an eligible write must survive a reload)', () => {
     for (const d of ELIGIBLE_SETTINGS) {
       const base = ready(d)
-      expect(settingUnavailable(d, base), d.id).toBe(null)
+      expect(settingUnavailable(d, base), d.id).toBe(d.inert ?? null)
       const cur = settingValue(base, d)
+      if (d.type === 'statLabel') {   // a map row: one stat renamed, read back as the cleaned map (R2, owner 11-16)
+        const written = withSetting(base, d, { key: 'mcap', label: 'MCap' })
+        expect(settingValue(mergeChartSettings(written), d), d.id).toEqual({ mcap: 'MCap' })
+        continue
+      }
       const want = d.type === 'bool' ? !cur : d.type === 'color' ? (cur === '#123456' ? '#654321' : '#123456') : d.type === 'number' ? (cur === d.min ? d.max : d.min) : d.options.find(o => o !== cur)
       const written = withSetting(base, d, want)
       expect(settingValue(mergeChartSettings(written), d), d.id).toEqual(want)
@@ -111,7 +116,7 @@ describe('chart settings descriptors — UI-equivalent writes', () => {
     expect(settingUnavailable(settingDescriptor('bgGradient.top'), mergeChartSettings({}))).toMatch(/Gradient first/)
     expect(settingUnavailable(settingDescriptor('bgGradient.top'), { ...mergeChartSettings({}), bgMode: 'gradient' })).toBe(null)
     expect(settingUnavailable(settingDescriptor('darkPool.barColor'), mergeChartSettings({}))).toMatch(/dark-pool levels on first/)
-    expect(settingUnavailable(settingDescriptor('volume.paneHeightPct'), mergeChartSettings({}))).toMatch(/own pane first/)
+    expect(settingUnavailable(settingDescriptor('volume.paneHeightPct'), withSetting(mergeChartSettings({}), settingDescriptor('volume.visible'), false))).toMatch(/Show Volume first/)
     expect(settingUnavailable(settingDescriptor('markers.ipoColor'), mergeChartSettings({}))).toBe(null)   // ipo marker is on by default
     // the header Info-row flags stay known (header.fields is the stored truth) — KNOWING ≠ DOING
     for (const id of ['header.showMarketCap', 'header.showNextEarnings', 'header.showUctRating', 'volume.plotStyle', 'theme']) expect(settingDescriptor(id).agent, id).toBe('known')
@@ -153,7 +158,8 @@ describe('the crosshair option lists match the colour panel the dialog shows (no
     // vitest runs from app/ (this file's environment is jsdom, so import.meta.url is not a file: URL)
     const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), 'src/components/chart/ColorPanel.jsx'), 'utf8')
     const { CROSSHAIR_WIDTHS, CROSSHAIR_STYLES } = await import('./chartSettingsDescriptors')
-    expect(src).toContain(`{[${CROSSHAIR_WIDTHS.join(', ')}].map((w) =>`)
+    // the widths are now a ChoiceMenu option list (UCT Signature, owner 11-15) — same literal list, no JSX brace
+    expect(src).toContain(`[${CROSSHAIR_WIDTHS.join(', ')}].map((w) =>`)
     expect(src).toContain(`[${CROSSHAIR_STYLES.map(([v, n]) => `[${v}, '${n}']`).join(', ')}]`)
   })
 })

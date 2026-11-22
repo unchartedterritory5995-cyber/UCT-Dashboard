@@ -73,7 +73,6 @@ import notebook_perf_harness as h  # noqa: E402
 import notebook_fin_walk as fw  # noqa: E402  -- flag_sets, settle_first_run, BENIGN, VIEWPORTS
 
 VIEWPORTS = fw.VIEWPORTS
-LIBRARY_FLAGS = ["NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_JOURNAL_STYLES_ENABLED", "NOTEBOOK_STYLE_LIBRARY_ENABLED"]
 HUB_PORT = 8077     # the hub sandbox owns it (CLAUDE.md); this walk refuses it
 STEPS_PER_VIEWPORT = 7
 # Step 4 expects "the image was never read", which holds only while OCR is dark. The flag is not a NOTEBOOK_ name, so
@@ -102,8 +101,7 @@ def _const(rel: str, name: str) -> str:
 
 STY = "app/src/pages/journal-2-0/components/notebook/styles"
 GAL_PY = "api/services/journal_two/template_gallery.py"
-#: The server-only example switch (R-P3b-6: no auth-payload row), read from template_gallery.py, never typed twice.
-EXAMPLE_FLAG = _const(GAL_PY, "EXAMPLE_FLAG")
+#: (The server-only example switch, EXAMPLE_FLAG, was retired as always on, 2026-11-04: nothing to arm.)
 SENT = _const(f"{STY}/ShareStyleForm.jsx", "SENT_SENTENCE")
 ADD_EXAMPLE = _const(f"{STY}/AddExampleNoteDoor.jsx", "ADD_EXAMPLE_LABEL")
 PICKER_TITLE = _const(f"{STY}/ExampleNotePicker.jsx", "PICKER_TITLE")
@@ -624,7 +622,7 @@ def story(browser, base: str, vp: str, run: str) -> None:
 # ── boot ──────────────────────────────────────────────────────────────────────────────────
 
 def set_env(fs: dict) -> list[str]:
-    on = sorted(set(fs["c1"]) | set(LIBRARY_FLAGS) | {EXAMPLE_FLAG})
+    on = sorted(set(fs["c1"]))   # the gallery, library and styles switches were retired as always on
     for name in fs["all_names"]:
         os.environ.pop(name, None)
     os.environ.pop(OCR_FLAG, None)

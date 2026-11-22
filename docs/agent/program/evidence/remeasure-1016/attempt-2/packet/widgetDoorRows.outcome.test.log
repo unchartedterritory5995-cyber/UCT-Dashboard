@@ -1,0 +1,168 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T03:03:31Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx --reporter=default --reporter=json
+[bn] free memory GB: 40.7
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mSend to Journal over the real widgets' own capture doors (C3-184, C3-156, C3-163, C3-177)[2m > [22m[2mC3-156 "calendar": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mSend to Journal over the real widgets' own capture doors (C3-184, C3-156, C3-163, C3-177)[2m > [22m[2mC3-177 "themes": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mthe Scanner widget (C3-110 read its conditions, C3-120 send it to the Journal)[2m > [22m[2mC3-120 "send this scan to my journal": shown first; on Apply the Journal receives the scan’s own capture
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mthe Notebook widget (C3-201 open a note by its name)[2m > [22m[2m"open my NVDA note in the notebook": the widget opens that note (its own row’s openNote); Undo goes back to the list
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mthe Notebook widget (C3-201 open a note by its name)[2m > [22m[2m"show the AMD breakout plan note": the widget opens that note (its own row’s openNote); Undo goes back to the list
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mthe Notebook widget (C3-201 open a note by its name)[2m > [22m[2m"show the AMD breakout plan note": the widget opens that note (its own row’s openNote); Undo goes back to the list
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mthe Notebook widget: create a note through its own New control (C3-202)[2m > [22m[2m"start a fresh note in the notebook widget": shown first; on Apply the widget creates a blank note and opens it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mthe Notebook widget: create a note through its own New control (C3-202)[2m > [22m[2mAUDIT S1-C/S1-A: after a create, "undo" never times out and the note stays; the door ignores a list handed to it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mthe Notebook widget: create a note through its own New control (C3-202)[2m > [22m[2mAUDIT S1-C/S1-A: after a create, "undo" never times out and the note stays; the door ignores a list handed to it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mthe Notebook widget: create a note through its own New control (C3-202)[2m > [22m[2mAUDIT S1-C/S1-A: after a create, "undo" never times out and the note stays; the door ignores a list handed to it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx[2m > [22m[2mthe Notebook widget: create a note through its own New control (C3-202)[2m > [22m[2mAUDIT S1-C/S1-A: after a create, "undo" never times out and the note stays; the door ignores a list handed to it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/qa/chartsOutcome/widgetDoorRows.outcome.test.jsx [2m([22m[2m19 tests[22m[2m)[22m[33m 20339[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-121 "make the volume surge watch my Core list": the widget scans that list; its scope pill reads it; Undo goes back [33m 1415[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-158 "take the up 4% reading off the breadth widget": the reading is hidden by the widget's own list; Undo shows it again [33m 1113[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-192 / C3-193: add the Nasdaq 100 to the Market Map, plot it by day change on Y and size by market cap; remove it again [33m 1362[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE: an axis the map does not offer is refused with its own list; nothing changes [33m 994[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-184 "indexes": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked [33m 1120[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-156 "calendar": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked [33m 1086[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-163 "breadth": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked [33m 1647[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-177 "themes": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked [33m 1057[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE: Dismiss sends nothing [33m 1028[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-110 "what are the conditions on my scanner": the widget’s own criteria, read through its door; nothing changes [33m 992[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-120 "send this scan to my journal": shown first; on Apply the Journal receives the scan’s own capture [33m 1057[2mms[22m[39m
+     [33m[2m✓[22m[39m "open my NVDA note in the notebook": the widget opens that note (its own row’s openNote); Undo goes back to the list [33m 1075[2mms[22m[39m
+     [33m[2m✓[22m[39m "show the AMD breakout plan note": the widget opens that note (its own row’s openNote); Undo goes back to the list [33m 1086[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE: a name that fits two notes, or none, is refused with the widget’s own list; nothing opens [33m 960[2mms[22m[39m
+     [33m[2m✓[22m[39m "start a fresh note in the notebook widget": shown first; on Apply the widget creates a blank note and opens it [33m 1099[2mms[22m[39m
+     [33m[2m✓[22m[39m "open a new blank note for me in the notebook": shown first; on Apply the widget creates a blank note and opens it [33m 1075[2mms[22m[39m
+     [33m[2m✓[22m[39m AUDIT S1-C/S1-A: after a create, "undo" never times out and the note stays; the door ignores a list handed to it [33m 1149[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE: Dismiss creates nothing [33m 1023[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m19 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m 22:03:33
+[2m   Duration [22m 27.47s[2m (transform 4.96s, setup 265ms, import 6.30s, tests 20.34s, environment 430ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-2/packet/widgetDoorRows.outcome.test.json
+# exit=0 end 03:04:01Z

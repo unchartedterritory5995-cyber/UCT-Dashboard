@@ -51,6 +51,8 @@ import {
 } from '../../lib/reviewDrafts'
 import { compassScope } from '../../hooks/compassScope'
 import styles from './InsightsHub.module.css'
+import { DAILY_FOLDER_NOTICE, DAILY_TEMPLATE_PREF, queueNotebookNotice } from '../../lib/dailyNote'
+import usePreferences from '../../../../hooks/usePreferences'
 
 // The six hub sections. `key` is the `?ins=` value; order = the sub-nav order.
 const SECTIONS = [
@@ -196,13 +198,19 @@ export function ReviewDraftsSection({ accountId }) {
   const navigate = useNavigate()
   const [busy, setBusy] = useState(null) // 'daily' | 'weekly' | 'monthly' | null
   const [error, setError] = useState(null)
+  // Pass 2 final fix (R1): today's recap that MAKES today's note makes it from the member's daily template, with the
+  // plan lines, like the Notebook's recap doors.
+  const { prefs } = usePreferences()
+  const templateId = prefs?.[DAILY_TEMPLATE_PREF] || ''
 
   const run = useCallback(async (period, fn) => {
     if (busy) return
     setBusy(period)
     setError(null)
     try {
-      const { note } = await fn()
+      const { note, created } = await fn()
+      // Fix round 1 (finding 7): today's recap that MADE the day's note says where it went.
+      if (period === 'daily' && created) queueNotebookNotice(DAILY_FOLDER_NOTICE, { noteId: note.id })
       navigate(`/journal/notebook?note=${encodeURIComponent(note.id)}`)
     } catch (e) {
       // `memberMessage` is a sentence the door wrote for the member (the note is still syncing).
@@ -236,7 +244,7 @@ export function ReviewDraftsSection({ accountId }) {
         <button
           type="button"
           className="btn btn-secondary touchTarget"
-          onClick={() => run('daily', () => draftDailyReview({ accountId: scope, day: todayDayIso() }))}
+          onClick={() => run('daily', () => draftDailyReview({ accountId: scope, day: todayDayIso(), templateId, seedToday: true }))}
           disabled={Boolean(busy)}
         >
           {busy === 'daily' ? 'Drafting…' : 'Draft today’s recap'}

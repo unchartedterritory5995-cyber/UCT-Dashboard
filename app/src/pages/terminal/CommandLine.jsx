@@ -269,7 +269,7 @@ function searchTickers(q) {
 }
 
 export default function CommandLine({
-  onSubmit, inputRef: externalRef, placeholder, aliases = {}, stats = {}, boards = null, recentTickers = [],
+  onSubmit, inputRef: externalRef, placeholder, prompt = null, aliases = {}, stats = {}, boards = null, recentTickers = [],
   history = null, onHistory = null,
 }) {
   // The member's history when the shell passes it (useCommandHistory); this browser's otherwise.
@@ -333,7 +333,9 @@ export default function CommandLine({
 
   const parsed = useMemo(() => (text.trim() ? parseCommand(text, { aliases }) : null), [text, aliases])
   // Only a security the command will USE is checked (`NVDA DASH` ignores NVDA anyway).
-  const parsedSym = parsed?.ok && parsed.type === 'function' && BY_CODE[parsed.code]?.ticker ? parsed.sym : null
+  // A stock board (`NVDA STOCK`) opens four panels on its ticker, so that ticker is checked too.
+  const parsedSym = parsed?.ok && ((parsed.type === 'function' && BY_CODE[parsed.code]?.ticker) || parsed.type === 'stock-board')
+    ? parsed.sym : null
 
   // The echo's "did you mean": does the ticker search know the security this line names?
   useEffect(() => {
@@ -488,7 +490,7 @@ export default function CommandLine({
       </div>
       <div className="sr-only" aria-live="polite" aria-atomic="true" data-testid="terminal-echo-announce">{announce}</div>
       <div className={styles.cmdWrap}>
-        <span className={styles.cmdPrompt} aria-hidden="true">&gt;</span>
+        <span className={styles.cmdPrompt} aria-hidden="true">{prompt || '>'}</span>
         <Input
           ref={ref}
           className={styles.cmdInput}

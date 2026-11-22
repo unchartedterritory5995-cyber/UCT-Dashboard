@@ -1,0 +1,50 @@
+{
+  "enml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Scanner rule:</div><div style=\"box-sizing: border-box; padding: 8px; font-family: monospace; -en-codeblock: true;\"><div>def rs(a, b):</div><div>    return a / b if b else 0</div><div><br/></div><div>  # end &lt;rule&gt;</div></div><div>after the code</div><div style=\"-en-codeblock:true\"><div>x = 1</div><div><en-media hash=\"78be4697f74308567b03fded6354fb22\" type=\"image/png\"/></div></div></en-note>",
+  "id": "07-codeblock",
+  "note": {
+    "created": "20260101T090000Z",
+    "guid": "11111111-0000-4000-8000-000000000007",
+    "notebook": "Trading",
+    "notes": {},
+    "resources": [
+      {
+        "data_b64": "dWN0LWZpeHR1cmUtaW1hZ2UtY29kZQ==",
+        "hash": "78be4697f74308567b03fded6354fb22",
+        "mime": "image/png",
+        "name": "code.png"
+      }
+    ],
+    "title": "Code note"
+  },
+  "server": {
+    "blocks": [
+      {
+        "text": "Scanner rule:",
+        "type": "paragraph"
+      },
+      {
+        "text": "def rs(a, b):\n    return a / b if b else 0\n\n  # end <rule>",
+        "type": "codeBlock"
+      },
+      {
+        "text": "after the code",
+        "type": "paragraph"
+      },
+      {
+        "text": "x = 1",
+        "type": "codeBlock"
+      },
+      {
+        "text": "",
+        "type": "image"
+      }
+    ],
+    "chips": [],
+    "images": [
+      "78be4697f74308567b03fded6354fb22"
+    ],
+    "links": [],
+    "notices": [],
+    "task_checked": []
+  }
+}

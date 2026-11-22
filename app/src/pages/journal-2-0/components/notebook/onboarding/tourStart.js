@@ -141,7 +141,7 @@ export async function resolveStart(entry, location, { fetchImpl = globalThis.fet
 export const UNREACHABLE_COPY = Object.freeze({
   note: Object.freeze({
     title: 'This walkthrough runs inside a note',
-    body: 'You do not have a note it can open yet. Write a note, or add the sample notebook from Learn, then start it again from Learn.',
+    body: 'You do not have a note it can open yet. Write a note, or add the sample notebook from your empty notes list, then start it again from Walkthroughs on the Support page.',
     exitLabel: 'Go to the Notebook',
     exitPath: NOTEBOOK_ROOT,
   }),
@@ -151,7 +151,7 @@ export const UNREACHABLE_COPY = Object.freeze({
   // notes they did not ask for (sample_notebook.py, ruling D-C6; R15).
   chart: Object.freeze({
     title: 'This walkthrough needs a chart in a note',
-    body: 'None of your notes has a chart yet. Type /chart in any note to add one, then start this walkthrough again from Learn.',
+    body: 'None of your notes has a chart yet. Type /chart in any note to add one, then start this walkthrough again from Walkthroughs on the Support page.',
     exitLabel: 'Go to my notes',
     exitPath: NOTEBOOK_ROOT,
   }),
@@ -160,7 +160,7 @@ export const UNREACHABLE_COPY = Object.freeze({
   // (GenericTourEngine.jsx adds it through sampleNotebook.js, then restarts the tour).
   chartNoNotes: Object.freeze({
     title: 'This walkthrough needs a chart in a note',
-    body: 'None of your notes has a chart yet. Add the sample notebook, which has one, or type /chart in any note to add your own. Then start the walkthrough again from Learn.',
+    body: 'None of your notes has a chart yet. Add the sample notebook, which has one, or type /chart in any note to add your own. Then start the walkthrough again from Walkthroughs on the Support page.',
     action: 'add-sample',
     actionLabel: 'Add the sample notebook',
     exitLabel: 'Go to my notes',
@@ -182,13 +182,13 @@ export const UNREACHABLE_COPY = Object.freeze({
   }),
   trade: Object.freeze({
     title: 'This walkthrough runs on a closed trade',
-    body: 'You do not have a trade in your journal yet. Once you log or import one, start it again from Learn.',
+    body: 'You do not have a trade in your journal yet. Once you log or import one, start it again from Walkthroughs on the Support page.',
     exitLabel: 'Go to your trades',
     exitPath: '/journal/trades',
   }),
   error: Object.freeze({
     title: 'This walkthrough could not start',
-    body: 'We could not look up where it starts. Check your connection and start it again from Learn.',
+    body: 'We could not look up where it starts. Check your connection and start it again from Walkthroughs on the Support page.',
     exitLabel: null,
     exitPath: null,
   }),

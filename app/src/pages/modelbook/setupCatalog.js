@@ -48,13 +48,15 @@ export const FAMILY_CHIP = {
 export const SETUP_CATALOG = [
   // ── Bases & Breakouts ──────────────────────────────────────────────────────
   {
-    // Flat Base Breakout — base breakout with a VCP-style contraction glyph.
+    // Flat Base Breakout — a strong advance, then a tight sideways rest near the highs (IBD: five weeks or more, no more
+    // than 15% deep), and the buy is the move through the top of the range. (Corrected 2026-11-09: the card used to
+    // describe a VCP, each pullback smaller than the last; docs/study/setups/research/01-flat-base.md section 5.9.)
     name: 'Flat Base Breakout',
     family: 'Bases & Breakouts',
     direction: 'long',
-    essence: 'A coiling price structure where each pullback is smaller than the last, reflecting drying-up selling pressure and compressed volatility before the move through resistance.',
-    candles: [9, -6, 7.5, -4, 5, -2.5, 3, -1.2, 0.6, [6.5, 0, 0.3]],
-    pivot: { idx: 2, side: 'h' },
+    essence: 'After a strong advance the stock rests sideways for five weeks or more in a tight range no more than 15% deep, near its highs; the buy is the move through the top of the range.',
+    candles: [7, 6, 5, -1.5, 1.2, -1, 0.8, -0.6, 0.5, [5, 0, 0.3]],
+    pivot: { idx: 3, side: 'h' },
     emas: [9, 20],
   },
   {

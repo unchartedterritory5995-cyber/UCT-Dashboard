@@ -1,26 +1,116 @@
 /* Focus layout: the screen menu, Save/Help, the name dialog and the shortcuts sheet.
-   Kept apart from FocusScreener.module.css so menu polish does not touch the page's sheet. */
+   Kept apart from FocusScreener.module.css so menu polish does not touch the page's sheet.
+   UCT Signature (docs/uct-signature-style.md). */
+
+/* The Signature values, once, for the Screener and the sheets it opens outside itself. They
+   live in THIS file because Screener.jsx imports it directly (for the Stocks | Options switch),
+   so they are set before any layout of the page draws. Dark is the spec; the light theme has no
+   Signature design yet (spec section 6), so there each name points at the app's own light token
+   and the page keeps the new structure with the light colours. */
+:global(:root) {
+  --scr-menu: #111214;
+  --scr-card: #1a1b1f;
+  --scr-raised: #222327;
+  --scr-selected: #2c2e33;
+  --scr-well: #0f1012;
+  --scr-outline: #383b41;
+  --scr-line: #26282c;
+  --scr-text: #ededed;
+  --scr-bright: #f8f7f3;
+  --scr-dim: #a9a59b;
+  --scr-rest: #c9c6be;
+  --scr-faint: #93939a;
+  --scr-soft: rgba(248, 247, 243, 0.06);
+  --scr-soft-hi: rgba(248, 247, 243, 0.11);
+  --scr-soft-top: rgba(248, 247, 243, 0.08);
+  --scr-soft-top-hi: rgba(248, 247, 243, 0.13);
+  --scr-ring: rgba(248, 247, 243, 0.45);
+  --scr-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  --scr-shadow-window: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+:global([data-theme='light']) {
+  --scr-menu: var(--bg-elevated);
+  --scr-card: var(--bg-surface);
+  --scr-raised: #eceef0;
+  --scr-selected: #e3e5e7;
+  --scr-well: var(--bg);
+  --scr-outline: var(--border-accent);
+  --scr-line: var(--border);
+  --scr-text: var(--text);
+  --scr-bright: var(--text-bright);
+  --scr-dim: var(--text-muted);
+  --scr-rest: var(--text-muted);
+  --scr-faint: var(--text-muted);
+  --scr-soft: rgba(0, 0, 0, 0.05);
+  --scr-soft-hi: rgba(0, 0, 0, 0.09);
+  --scr-soft-top: rgba(0, 0, 0, 0.07);
+  --scr-soft-top-hi: rgba(0, 0, 0, 0.12);
+  --scr-ring: rgba(0, 0, 0, 0.5);
+  --scr-shadow: var(--shadow-popover);
+  --scr-shadow-window: var(--shadow-modal);
+}
+
+/* The Stocks | Options switch, first on the page's top bar (Screener.jsx hands it in): two plain
+   tabs, the open one bright with the gold underline, then a hairline before the screen's name. */
+.modeTabs { display: inline-flex; align-items: stretch; gap: 2px; flex: none; padding-right: 10px; margin-right: 4px; border-right: 1px solid var(--scr-line); }
+.modeTab { position: relative; border: 0; border-radius: 6px; background: transparent; padding: 0 10px; height: 30px; font-family: var(--font-sans); font-size: 13px; font-weight: 600; line-height: 1; color: var(--scr-rest); cursor: pointer; white-space: nowrap; }
+.modeTab:hover { color: var(--scr-bright); background: var(--scr-soft); }
+.modeTab[aria-selected='true'] { color: var(--scr-bright); }
+.modeTab[aria-selected='true']::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 1px; height: 2px; border-radius: 1px; background: var(--ut-gold); }
+.modeTab:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
+/* The same switch on its own slim bar: the Options tab, and Table view (neither has the top bar). */
+.modeBar { display: flex; align-items: center; flex: none; box-sizing: border-box; min-height: 44px; padding: 6px 52px 6px 16px; background: var(--bg); border-bottom: 1px solid var(--scr-line); }
+.modeBar .modeTabs { border-right: 0; }
+
+/* The screen picker's group rail (spec "Settings window" rail): the groups down the left, the
+   open one bright with the 2px gold bar; a grey count of each group's screens. */
+.smRail { flex: 0 0 176px; display: flex; flex-direction: column; gap: 1px; padding: 5px; border-right: 1px solid var(--scr-line); overflow-y: auto; scrollbar-width: thin; }
+.smRailBtn { display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; background: transparent; border: 0; border-radius: 6px; padding: 7px 10px; min-height: 32px; font: inherit; font-family: var(--font-sans); font-size: 13px; font-weight: 500; color: var(--scr-rest); cursor: pointer; white-space: nowrap; }
+.smRailBtn:hover { background: var(--scr-card); color: var(--scr-bright); }
+.smRailBtn[aria-pressed='true'] { color: var(--scr-bright); font-weight: 600; background: var(--scr-card); box-shadow: inset 2px 0 0 var(--ut-gold); }
+.smRailBtn:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: -2px; }
+.smRailN { color: var(--scr-faint); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; }
+/* the tick on the open screen (spec 2b, mark 3) */
+.smTick { flex: none; color: var(--ut-gold); font-size: 12px; line-height: 1; }
+/* nothing in this group matches the search */
+.smNoMatch { margin: 0; padding: 14px 10px; color: var(--scr-faint); font-size: 12.5px; line-height: 1.45; }
+@media (max-width: 640px) {
+  /* in the phone's bottom sheet the rail runs across, and scrolls sideways */
+  .smRail { flex: none; flex-direction: row; border-right: 0; border-bottom: 1px solid var(--scr-line); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  .smRailBtn[aria-pressed='true'] { box-shadow: inset 0 -2px 0 var(--ut-gold); }
+  .smRailN { display: none; }
+  .modeTabs { padding-right: 6px; margin-right: 0; }
+  .modeTab { padding: 0 8px; }
+  .modeTab[aria-selected='true']::after { left: 8px; right: 8px; bottom: 8px; }
+}
+@media (max-width: 1024px) {
+  .modeTab, .smRailBtn { min-height: var(--tap-min); }
+}
 
 /* Screen menu: a screen with nothing in it today is still offered, but reads as such (P3). */
 .smEmpty { opacity: 0.6; }
 .smEmpty:hover { opacity: 0.85; }
-.smNone { color: var(--text-faint); font-size: var(--text-base); font-style: italic; min-width: 64px; text-align: right; white-space: nowrap; }
+.smNone { color: var(--scr-faint); font-size: 12px; font-style: italic; min-width: 64px; text-align: right; white-space: nowrap; }
 .pinIcon { display: block; margin: 0 auto; }
+/* Screen menu: the one-line note shown when the search text is exactly "rsi". Text, not a row:
+   no hover, no pointer, the same muted type as a screen's description, and it wraps. */
+.smHint { margin: 0; padding: 8px 10px 4px; color: var(--scr-dim); font-size: 12px; line-height: 1.45; }
 
 /* The screen button while the landing screen is still being chosen (B12). */
-.landing { color: var(--text-muted); font-style: italic; }
+.landing { color: var(--scr-dim); font-style: italic; }
 
 /* NameDialog: a note under the name, e.g. saving a screen with no matches today (B17). */
+.dialogInfo { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--scr-rest); }
 .dialogNote { margin: 0; font-size: var(--text-base); line-height: var(--lh-snug); color: var(--warn); background: var(--warn-bg); border: 1px solid var(--warn-border); border-radius: var(--radius-lg); padding: 8px 10px; }
 
 /* Keyboard shortcuts sheet (B10/N6). */
 .keys { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; align-items: center; font-size: var(--text-md); }
 .keyRow { display: contents; }
 .keys dt { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
-.keysOr { display: inline-flex; gap: 4px; align-items: center; margin-left: 4px; font-size: var(--text-base); color: var(--text-muted); }
-.keys dd { margin: 0; color: var(--text); }
-.kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; padding: 2px 7px; border: 1px solid var(--border-accent); border-bottom-width: 2px; border-radius: var(--radius-md); background: var(--bg-elevated); color: var(--text-heading); font: inherit; font-size: var(--text-base); font-weight: 600; font-variant-numeric: tabular-nums; }
-.keysNote { margin: 14px 0 0; font-size: var(--text-base); color: var(--text-muted); }
+.keysOr { display: inline-flex; gap: 4px; align-items: center; margin-left: 4px; font-size: 12px; color: var(--scr-faint); }
+.keys dd { margin: 0; color: var(--scr-text); }
+.kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; padding: 3px 7px; border: 0; border-radius: 6px; background: var(--scr-soft-hi); color: var(--scr-bright); font: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.keysNote { margin: 14px 0 0; font-size: 12px; color: var(--scr-faint); }
 
 /* Menu: a trigger that cannot open yet. aria-disabled, so it keeps focus and its title. */
 .triggerDisabled { opacity: 0.5; cursor: not-allowed; }

@@ -8,7 +8,7 @@ import path from 'node:path'
 /** ⛔ THE SHAPE BEFORE ANY DATA, IN ONE PLACE. It gained `exchange` on 2026-09-13
  *  (T5b) and six cases asserted it field-for-field; naming it once is what makes
  *  the next field a one-line change instead of a six-line one. */
-const NULL_META = { name: null, sector: null, industry: null, theme: null, exchange: null }
+const NULL_META = { name: null, sector: null, industry: null, theme: null, exchange: null, security_type: null }
 
 const wrapper = ({ children }) => (
   <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>{children}</SWRConfig>
@@ -70,8 +70,10 @@ describe('useTickerMeta', () => {
       const src = fs.readFileSync(
         path.resolve(process.cwd(), '..', 'api/services/ticker_meta.py'), 'utf8')
       const at = src.indexOf('def get_ticker_meta')
-      const m = /\{([a-z_,\s]+)\}/.exec(src.slice(at, at + 400))
-      return m ? m[1].split(',').map((k) => k.trim()).filter(Boolean) : []
+      // `[, security_type]` marks a key present only when known (a9f7c8cde7): it is still a key the
+      // endpoint declares, so the brackets are read as part of the list, never as its end.
+      const m = /\{([a-z_,\s[\]]+)\}/.exec(src.slice(at, at + 400))
+      return m ? m[1].replace(/[[\]]/g, '').split(',').map((k) => k.trim()).filter(Boolean) : []
     })()
 
     it('the contract is readable, and this test can see it', () => {
@@ -129,7 +131,7 @@ describe('useTickerMeta', () => {
       const { result } = renderHook(() => useTickerMeta('TSLA'), { wrapper })
       await waitFor(() => expect(result.current.name).toBe('Tesla Inc'))
       const stored = JSON.parse(localStorage.getItem('tmeta:TSLA'))
-      expect(stored.d).toEqual({ name: 'Tesla Inc', sector: 'Consumer Cyclical', industry: 'Auto Manufacturers', theme: 'EV', exchange: null })
+      expect(stored.d).toEqual({ name: 'Tesla Inc', sector: 'Consumer Cyclical', industry: 'Auto Manufacturers', theme: 'EV', exchange: null, security_type: null })
       expect(typeof stored.t).toBe('number')
     })
 
@@ -215,7 +217,7 @@ describe('useTickerMeta', () => {
       })
       await expect(fetcher('/api/ticker-meta/ENPH')).resolves.toEqual({
         name: 'Enphase Energy, Inc.', sector: 'Technology', industry: 'Solar', theme: 'Clean Energy',
-        exchange: null,
+        exchange: null, security_type: null,
       })
     })
   })

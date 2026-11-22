@@ -52,6 +52,19 @@ def run_due_sync_blocking() -> None:
         log.warning("scheduled note-connector due-sources tick failed: %s", e)
 
 
+def run_follow_up_sync_blocking() -> None:
+    """Synchronous wrapper for `BackgroundScheduler`: the quick follow-up passes
+    (`engine.sync_follow_up_sources`) for sources a provider's rate limit cut short (live gate
+    2026-11-03). A cheap no-op when no source is stamped. Never raises into the scheduler."""
+    if not enabled():
+        return
+    from . import engine
+    try:
+        asyncio.run(engine.sync_follow_up_sources())
+    except Exception as e:  # noqa: BLE001
+        log.warning("scheduled note-connector follow-up tick failed: %s", e)
+
+
 def run_full_nightly_sync_blocking() -> None:
     """Synchronous wrapper for `BackgroundScheduler`. Bypasses every
     source's cooldown/interval via `full=True, manual=True` (see

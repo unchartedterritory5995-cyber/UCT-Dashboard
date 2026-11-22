@@ -1,0 +1,20 @@
+//@version=6
+indicator("UCTPROBE_VW_CS2_LABEL_NUMBER_FORMAT", overlay = true, max_labels_count = 20)
+
+// PROVENANCE: written 2026-11-15 (session S10, PROBES-NEXT item 6; the S1 label-formatting finding).
+// NEVER COMPILED ON TRADINGVIEW before this session.
+// How does a label print a number with no format argument? Every label is on the last bar and its
+// text is "Fnn <what>|<text>"; read the text after the bar. F07 has no text at all: its y is close.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+f(id, s) => label.new(bar_index, close, id + "|" + s, style = label.style_label_left)
+
+if barstate.islast
+    f("F01 close", str.tostring(close))
+    f("F02 close/3", str.tostring(close / 3))
+    f("F03 0.8175176096085278", str.tostring(0.8175176096085278))
+    f("F04 close/7", str.tostring(close / 7))
+    f("F05 1/3", str.tostring(1.0 / 3.0))
+    f("F06 close*1000/3", str.tostring(close * 1000 / 3))
+    label.new(bar_index, close)
+plot(close, "C01_close_CONTROL")

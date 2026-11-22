@@ -7,6 +7,7 @@ import CompassOrb from '../../../components/voice/CompassOrb'
 import VoiceInputButton from '../../journal-2-0/components/VoiceInputButton'
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
@@ -17,6 +18,7 @@ import styles from './AiSearchWidget.module.css'
 import Provenance from '../../../components/provenance/Provenance'
 import { resolveCashtags } from '../../../lib/tickerResolver'
 import { failureDetail, readSuccessBody } from '../../../lib/responseBody'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // TERM-087: the editable-object card (and, behind it, the builder) load only when
 // an answer actually carries a `scan_object`.
@@ -599,6 +601,9 @@ export default function AiSearchWidget({
   // is a remount). Read ONCE at mount: the restored turns are the widget's own
   // output in the widget's own shape, never re-derived by the caller.
   const [thread, setThread] = useState(() => (Array.isArray(initialThread) ? initialThread : []))
+  const buildAiSearchCapture = () => ({ thread: thread.slice(-10), settings: aisSettings })
+  const label = thread[thread.length - 1]?.q ? `"${String(thread[thread.length - 1].q).slice(0, 32)}"` : 'AI answer'
+  useWidgetDoor(() => ({ capture: () => (chrome && !readOnly && thread.length > 0 ? { kind: 'aisearch', capture: buildAiSearchCapture(), label } : null) }))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [limitMsg, setLimitMsg] = useState(null)
@@ -1062,7 +1067,7 @@ export default function AiSearchWidget({
     >
       {chrome && settingsOpen && (
         <NewsSettingsPanel
-          title="AI Search Settings"
+          title="AI Search settings"
           widgetType="aisearch"
           showPerf={false}
           settings={aisSettings}
@@ -1075,8 +1080,6 @@ export default function AiSearchWidget({
         />
       )}
       {chrome && !readOnly && thread.length > 0 && (() => {
-        const buildAiSearchCapture = () => ({ thread: thread.slice(-10), settings: aisSettings })
-        const label = thread[thread.length - 1]?.q ? `"${String(thread[thread.length - 1].q).slice(0, 32)}"` : 'AI answer'
         return (
           <>
             <button
@@ -1114,14 +1117,14 @@ export default function AiSearchWidget({
       })()}
       <JournalToast msg={journalMsg} style={{ top: 26, right: 6 }} />
       {chrome && (
-        <button
+        <UctCtrlPortal><button
           ref={gearRef}
           type="button"
           className={styles.gearBtn}
           onClick={() => setSettingsOpen(o => !o)}
-          title="AI Search settings"
+          data-guide="widget.settings" title="AI Search settings"
           aria-label="AI Search settings"
-        ><UIcon name="gear" size={13} /></button>
+        ><UIcon name="gear" size={13} /></button></UctCtrlPortal>
       )}
       {/* Saved answers used to vanish the moment a thread existed (empty-state
           only) — exactly when a member wants to pull one up for comparison. */}
@@ -1153,7 +1156,7 @@ export default function AiSearchWidget({
           <div className={styles.empty}>
             <span className={styles.emptySpark}><Spark size={34} /></span>
             <div className={styles.emptyTitle}>
-              {scopeSym ? `Ask AI about ${scopeSym}` : 'Ask the markets anything'}
+              {scopeSym ? `Ask the UCT Agent about ${scopeSym}` : 'Ask the markets anything'}
             </div>
             <div className={styles.emptySub}>
               {scopeSym
@@ -1251,6 +1254,7 @@ export default function AiSearchWidget({
             ? 'Ask a follow-up…'
             : (scopeSym ? `Ask anything about ${scopeSym}…` : 'Ask anything about the markets…')}
           aria-label={scopeSym ? `Ask anything about ${scopeSym}` : 'Ask anything about the markets'}
+          data-guide="aisearch.ask"
           value={query}
           rows={1}
           onChange={(e) => setQuery(e.target.value)}

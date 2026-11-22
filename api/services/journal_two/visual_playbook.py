@@ -32,15 +32,6 @@ from api.services.journal_two import sample_marker
 from api.services.journal_two import tech_fingerprint as tfp
 from api.services.journal_two.timeutil import compute_trading_day_et
 from api.services.journal_two.trade_refs import resolve_trade_by_ref, trade_ref_for_row
-from api.services.notebook_flags import flag_on
-
-#: The enablement gate for the grid, the suggestion and before/after (plan section 3.6).
-FLAG = "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED"
-
-
-def enabled() -> bool:
-    """Read PER CALL through the one Notebook flag parse (unset = OFF)."""
-    return flag_on(FLAG, False)
 
 
 #: Fingerprint fields a range filter may name: the scalar NUMBERS. The rest of
@@ -61,12 +52,6 @@ _RESULT_OUTCOME = {"Win": "win", "Loss": "loss", "BE": "breakeven"}
 MAX_SETUPS = 40
 #: The most range clauses one request may carry.
 MAX_RANGES = 8
-
-#: While 13E's gate (`NOTEBOOK_ENTRY_CONTEXT_ENABLED`) is OFF the regime filter stays the
-#: labelled placeholder it was before 13E landed -- this sentence and the payload shape are
-#: byte-identical to that build (wave 14 playbook fixes: "flag off, behaviour unchanged").
-REGIME_UNAVAILABLE = ("Filtering by market regime needs the entry context lane (13E), "
-                      "which is not built yet.")
 
 #: The regime labels, DERIVED from the one classifier (`regime.classify_regime`) by sweeping
 #: the UCT Exposure Rating's whole 0-150 scale, best first. Never a typed list: a fifth tier
@@ -316,13 +301,9 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
     parsed = [parse_range(r) for r in (ranges or [])]
     if len(parsed) > MAX_RANGES:
         raise PlaybookRequestError(f"at most {MAX_RANGES} ranges at once")
-    # 13E's gate, read per call. OFF: the regime parameter is ignored exactly as it was before
-    # this filter existed (an unknown query parameter), and the payload is unchanged.
-    regime_on = entry_context.enabled()
+    # The regime filter rides 13E's entry context, always on since its flag was retired.
     regime = (regime or "").strip().lower() or None
-    if not regime_on:
-        regime = None
-    elif regime is not None and regime not in REGIMES:
+    if regime is not None and regime not in REGIMES:
         raise PlaybookRequestError(f"regime is one of {', '.join(REGIMES)}")
 
     owned = conn is None
@@ -339,12 +320,10 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
         note_ids = {b["noteId"] for b in blocks}
         links = linked_trades(conn, user_id, note_ids)
         images = _archived_images(conn, user_id, note_ids)
-        contexts: dict[str, dict | None] = {}
-        if regime_on:
-            primaries = [ts[0] for ts in links.values() if ts]
-            contexts = entry_context.contexts_for_trades(
-                user_id, [{"id": t["id"], "symbol": t["symbol"], "entryDate": t["entry_date"]}
-                          for t in primaries], conn=conn)
+        primaries = [ts[0] for ts in links.values() if ts]
+        contexts: dict[str, dict | None] = entry_context.contexts_for_trades(
+            user_id, [{"id": t["id"], "symbol": t["symbol"], "entryDate": t["entry_date"]}
+                      for t in primaries], conn=conn)
 
         facets_setups: dict[str, int] = {}
         facets_tf: dict[str, int] = {}
@@ -356,15 +335,14 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
             if counted:
                 facets_setups[b["setupTag"]] = facets_setups.get(b["setupTag"], 0) + 1
                 facets_tf[b["timeframe"]] = facets_tf.get(b["timeframe"], 0) + 1
-            if regime_on:
-                rg = _regime_of(links.get((b["noteId"], (b["symbol"] or "").upper()), []), contexts)
-                regime_by_block[i] = rg
-                if not counted:
-                    continue
-                if rg["value"]:
-                    facets_regime[rg["value"]] += 1
-                else:
-                    regime_unknown += 1
+            rg = _regime_of(links.get((b["noteId"], (b["symbol"] or "").upper()), []), contexts)
+            regime_by_block[i] = rg
+            if not counted:
+                continue
+            if rg["value"]:
+                facets_regime[rg["value"]] += 1
+            else:
+                regime_unknown += 1
 
         excluded_missing: dict[str, int] = {}
         excluded_no_regime = 0
@@ -380,12 +358,11 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
             card["example"] = b["noteId"] in sample
             if outcome is not None and card["outcome"] != outcome:
                 continue
-            if regime_on:
-                card["regime"] = regime_by_block[i]
-                if regime is not None and card["regime"]["value"] != regime:
-                    if card["regime"]["value"] is None and not card["example"]:
-                        excluded_no_regime += 1
-                    continue
+            card["regime"] = regime_by_block[i]
+            if regime is not None and card["regime"]["value"] != regime:
+                if card["regime"]["value"] is None and not card["example"]:
+                    excluded_no_regime += 1
+                continue
             missing_field = None
             passes = True
             for field, lo, hi in parsed:
@@ -408,13 +385,12 @@ def cards(user_id: str, conn: sqlite3.Connection | None = None, *,
         own = [c for c in kept if not c["example"]]
         examples = [c for c in kept if c["example"]]
 
-        regime_payload: dict[str, Any] = (
-            {"available": True, "values": list(REGIMES), "selected": regime,
-             "facets": facets_regime, "unknown": regime_unknown,
-             "excludedUnknown": excluded_no_regime,
-             "unknownReasons": REGIME_UNKNOWN,
-             "source": "entry_context (13E, at_entry rows only)"}
-            if regime_on else {"available": False, "reason": REGIME_UNAVAILABLE})
+        regime_payload: dict[str, Any] = {
+            "available": True, "values": list(REGIMES), "selected": regime,
+            "facets": facets_regime, "unknown": regime_unknown,
+            "excludedUnknown": excluded_no_regime,
+            "unknownReasons": REGIME_UNKNOWN,
+            "source": "entry_context (13E, at_entry rows only)"}
         return {
             "cards": own + examples,
             "count": len(own),

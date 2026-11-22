@@ -13,6 +13,7 @@
  */
 
 import { isOfferable } from './kindOfNoteOffer'
+import { asNoteTypeName } from './noteKinds'
 
 // ⛔ ONE FACT IN TWO FILES with `property_autofill.AUTOFILL_TYPES`, pinned by
 // tests/test_property_autofill.py (it PARSES this array). Keep it a literal.
@@ -63,7 +64,8 @@ export async function requestAutofill(noteId, { signal } = {}) {
     throw err
   }
   return {
-    suggestions: Array.isArray(body?.suggestions) ? body.suggestions : [],
+    // Simplify pass 2 (A4): a suggestion for `builtin:note_kind` reads "Note type".
+    suggestions: Array.isArray(body?.suggestions) ? body.suggestions.map((s) => asNoteTypeName(s, 'propertyId')) : [],
     model: typeof body?.model === 'string' ? body.model : null,
   }
 }

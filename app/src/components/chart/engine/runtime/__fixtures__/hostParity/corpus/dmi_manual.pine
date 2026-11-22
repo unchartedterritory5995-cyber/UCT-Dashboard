@@ -1,0 +1,15 @@
+//@version=5
+indicator("hp dmi manual", overlay=false)
+len = 14
+up = ta.change(high)
+dn = -ta.change(low)
+pdm = na(up) ? na : (up > dn and up > 0 ? up : 0)
+mdm = na(dn) ? na : (dn > up and dn > 0 ? dn : 0)
+tr = ta.rma(ta.tr(true), len)
+pdi = 100 * ta.rma(pdm, len) / tr
+mdi = 100 * ta.rma(mdm, len) / tr
+s = pdi + mdi
+adx = 100 * ta.rma(math.abs(pdi - mdi) / (s == 0 ? 1 : s), len)
+plot(pdi, "pdi")
+plot(mdi, "mdi")
+plot(adx, "adx")

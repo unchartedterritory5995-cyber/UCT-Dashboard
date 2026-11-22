@@ -36,11 +36,14 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def _put(ticker, tf, iso_dates):
-    bars = [
-        {"t": d, "o": 10.0, "h": 11.0, "l": 9.0, "c": 10.5, "v": 1000}
-        for d in iso_dates
-    ]
-    bars_sqlite.put_bars(ticker, tf, bars, date_tf=True)
+    """Seed rows RAW, as an old writer / an R2 snapshot left them: the write door now
+    refuses a mis-keyed W row (`date_bar_keys`), and the purge exists for the ones
+    already stored."""
+    c = bars_sqlite._conn()
+    c.executemany(
+        "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+        [(ticker, tf, int(d.replace("-", "")), 10.0, 11.0, 9.0, 10.5, 1000) for d in iso_dates])
+    c.commit()
 
 
 class TestPurgeMisKeyedWeeklyRows:

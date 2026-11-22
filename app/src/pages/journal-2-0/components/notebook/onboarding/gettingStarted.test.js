@@ -5,10 +5,10 @@ import { describe, it, expect } from 'vitest'
 import {
   CHECKLIST_PREF, CHECKLIST_STATES, CHECKLIST_COPY, readChecklistPref, checklistClosed,
   checklistRecord, ownHomeNotes, isTemplateNote, deriveChecklistItems,
-  checklistEnabled, recordedDone, withDone, closedAs, CHECKLIST_MAX_ITEMS,
+  checklistEnabled, recordedDone, withDone, closedAs, CHECKLIST_MAX_ITEMS, countedItems,
 } from './gettingStarted'
 import { TOUR_REGISTRY, BASE_TOUR_ID, replayableTours } from './tourRegistry'
-import { WALKTHROUGH_TITLE } from '../../../lib/templateBlocks'
+import { WALKTHROUGH_TITLE, LEGACY_WALKTHROUGH_TITLE } from '../../../lib/templateBlocks'
 import { TEMPLATES } from '../../../lib/notebookTemplates'
 import { extractPlainText } from '../../../lib/tiptap'
 
@@ -104,6 +104,9 @@ describe('own notes exclude the sample', () => {
 describe('a template note is recognised by the walkthrough every template ends with', () => {
   it('reads the walkthrough title off the note body', () => {
     expect(isTemplateNote(note('a', { bodyPlain: `Thesis\n${WALKTHROUGH_TITLE}\n1. Do this` }))).toBe(true)
+    // S7 fix round 2: a note made before the walkthrough was renamed carries the old title, and still counts.
+    expect(isTemplateNote(note('l', { bodyPlain: `Thesis\n${LEGACY_WALKTHROUGH_TITLE}\n1. Do this` }))).toBe(true)
+    expect(WALKTHROUGH_TITLE).not.toMatch(/use this template/i)
     expect(isTemplateNote(note('b', { bodyPlain: 'my own words' }))).toBe(false)
     expect(isTemplateNote(note('c', { bodyPlain: undefined }))).toBe(false)
   })
@@ -209,5 +212,19 @@ describe('deriveChecklistItems -- ONE tour step, the base tour; every other tour
     const items = deriveChecklistItems({ flag: (k) => k === 'notebook_onboarding_enabled' })
     expect(items.map((i) => i.id)).toContain(`tour:${BASE_TOUR_ID}`)
     expect(byId(items)[`tour:${BASE_TOUR_ID}`].label).toBe('Take the Notebook basics tour')
+  })
+})
+
+// ⛔ Audit 2026-11-05, spec S5 (B3): "1 of 4" on the first screen, then "2 of 3" -- the sample step
+// counted, then dropped out once the member had a note. The sample is optional now: shown while it
+// can be had, never counted, so the total is the same list before and after.
+describe('S5 (B3): the total does not change under the member', () => {
+  it('the sample is listed while it can be had, but never counted', () => {
+    const before = deriveChecklistItems({ prefs: {}, home: null, hasAnyNotes: false, canAddSample: true, flag: () => false })
+    const after = deriveChecklistItems({ prefs: {}, home: null, hasAnyNotes: true, canAddSample: false, flag: () => false })
+    expect(before.some((i) => i.id === 'sample')).toBe(true)
+    expect(after.some((i) => i.id === 'sample')).toBe(false)
+    expect(countedItems(before).length).toBe(countedItems(after).length)
+    expect(countedItems(before).map((i) => i.id)).not.toContain('sample')
   })
 })

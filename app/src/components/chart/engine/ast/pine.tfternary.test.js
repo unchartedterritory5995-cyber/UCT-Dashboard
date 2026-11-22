@@ -1,15 +1,19 @@
+// ⭐⭐ ENGINE 55 — a look-ahead-off `request.security(…, 'W'|'M')` translates to `tf_merge`
+// (TradingView's merge: the period's value on the bar that closes it), no longer `tf`;
+// the pins below were flipped deliberately with it (formula `tf` is unchanged).
 import { describe, it, expect } from 'vitest'
 
 import { translatePine } from './pine.js'
 
 /**
- * `res = useCurrentRes ? period : resCustom` — the MTF toggle idiom.
+ * `tf = followChart ? timeframe.period : pickedTf` — the MTF toggle idiom (in our own
+ * names: the community scripts it comes from are licence-held, LICENSING.md §2d).
  *
  * ⚰️⚰️ `pine.security.test.js` RECORDED THIS AS UNWINNABLE IN THOSE WORDS: "a
  * TERNARY. No literal exists to fold to." Every clause is true and the conclusion
  * is still wrong, because nobody has to fold the ternary to a literal — the
  * CONDITION folds to a constant, and a constant condition names which branch the
- * script actually runs. `useCurrentRes = input(true, …)` is `true`, so `res` IS
+ * script actually runs. `followChart = input(true, …)` is `true`, so `tf` IS
  * `period`, which this door has read as the chart's own timeframe since the day
  * `tf` landed.
  *
@@ -35,15 +39,18 @@ describe('a timeframe chosen by a ternary', () => {
 
   // ─── the idiom, both ways round ────────────────────────────────────────────
 
-  it('⭐⭐ a TRUE default takes `period` — the chart\'s own timeframe, so no tf node', () => {
+  // ⚰️ (bt, Engine 66 (#1473)) these v4 scripts wrote the bare `period`, which TradingView's v4 compiler
+  // refuses ("Undeclared identifier 'period'"), so they spell it `timeframe.period`
+  // (`pine.js::legacyPeriodUndeclared`); a script's OWN `period` binding (below) is unchanged.
+  it('⭐⭐ a TRUE default takes `timeframe.period` — the chart\'s own timeframe, so no tf node', () => {
     // What scripts 19 and 20 actually are: a wrapper that, at its shipped
     // defaults, reads this chart. Translating it as anything else would be
     // translating a script the author did not write.
     const ast = treeOf(translatePine(src(
-      `useCurrentRes = input(true, title="Use Current Chart Resolution?")
-resCustom = input(title="Other", type=resolution, defval="60")
-res = useCurrentRes ? period : resCustom
-plot(security(tickerid, res, sma(close, 10)))`)))
+      `followChart = input(true, title="Follow the chart")
+pickedTf = input(title="Timeframe", type=resolution, defval="60")
+tf = followChart ? timeframe.period : pickedTf
+plot(security(tickerid, tf, sma(close, 10)))`)))
     expect(ast).toEqual({
       type: 'call', name: 'sma',
       args: [{ type: 'series', name: 'close' }, { type: 'num', value: 10 }],
@@ -56,10 +63,10 @@ plot(security(tickerid, res, sma(close, 10)))`)))
     // minute bars — as the chart's own. That is a silent mistranslation of the
     // timeframe, the single thing this node exists to be exact about.
     const out = translatePine(src(
-      `useCurrentRes = input(false, title="Use Current Chart Resolution?")
-resCustom = input(title="Other", type=resolution, defval="60")
-res = useCurrentRes ? period : resCustom
-plot(security(tickerid, res, sma(close, 10)))`))
+      `followChart = input(false, title="Follow the chart")
+pickedTf = input(title="Timeframe", type=resolution, defval="60")
+tf = followChart ? timeframe.period : pickedTf
+plot(security(tickerid, tf, sma(close, 10)))`))
     expect(out.refusal).toBeTruthy()
     expect(out.refusal.guard).toBe('pine:request')
   })
@@ -70,9 +77,9 @@ plot(security(tickerid, res, sma(close, 10)))`))
     const ast = treeOf(translatePine(src(
       `useCurrent = input(false)
 other = input(title="Other", type=resolution, defval="W")
-res = useCurrent ? period : other
+res = useCurrent ? timeframe.period : other
 plot(security(tickerid, res, close))`)))
-    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+    expect(ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   // ─── what must NOT fold ────────────────────────────────────────────────────
@@ -81,7 +88,7 @@ plot(security(tickerid, res, close))`)))
     // `close > open` is a different answer on every bar, so there is no single
     // timeframe this script reads. Picking either branch would be inventing one.
     const out = translatePine(src(
-      `res = close > open ? period : "W"
+      `res = close > open ? timeframe.period : "W"
 plot(security(tickerid, res, close))`))
     expect(out.refusal).toBeTruthy()
     expect(out.refusal.guard).toBe('pine:request')
@@ -95,7 +102,7 @@ plot(security(tickerid, res, close))`))
     const ast = treeOf(translatePine(src(
       `period = "W"
 plot(security(tickerid, period, close))`)))
-    expect(ast).toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+    expect(ast).toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⛔ and a shadow onto a timeframe off the ladder still refuses', () => {
@@ -114,10 +121,10 @@ plot(security(tickerid, period, close))`))
     // A fold that changes what a script means and says nothing is how a member
     // saves a scan that answers a question they did not ask.
     const out = translatePine(src(
-      `useCurrentRes = input(true, title="Use Current Chart Resolution?")
-resCustom = input(title="Other", type=resolution, defval="60")
-res = useCurrentRes ? period : resCustom
-plot(security(tickerid, res, close))`))
+      `followChart = input(true, title="Follow the chart")
+pickedTf = input(title="Timeframe", type=resolution, defval="60")
+tf = followChart ? timeframe.period : pickedTf
+plot(security(tickerid, tf, close))`))
     const row = out.outputs.find((o) => o.refusal === null)
     const folded = (row.inputsFolded || []).map((f) => f.call)
     expect(folded).toContain('input')
@@ -162,7 +169,7 @@ plot(request.security(syminfo.tickerid, flag == false ? timeframe.period : TF, t
 plot(request.security(syminfo.tickerid, not flag ? timeframe.period : "W", close))`
     expect(treeOf(translatePine(v6(body('false'))))).toEqual({ type: 'series', name: 'close' })
     expect(treeOf(translatePine(v6(body('true')))))
-      .toEqual({ type: 'tf', value: 'W', args: [{ type: 'series', name: 'close' }] })
+      .toEqual({ type: 'tf_merge', value: 'W', args: [{ type: 'series', name: 'close' }] })
   })
 
   it('⛔ a comparison that reads the BARS never folds — `bar_index == 0 ? …` refuses', () => {

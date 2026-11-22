@@ -1,0 +1,10 @@
+{
+ "control": "Tests  85 passed (85)",
+ "results": [
+  {
+   "mutant": "M26 second full exit reserved even while B-EXIT-QTY is unpinned",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  }
+ ]
+}

@@ -13,8 +13,10 @@
 // someone else in the same tab never shows the previous member's history.
 //
 // ⛔ WHAT IS RECORDED: a member's own indicator change that hides, shows, adds or removes
-// something (`describeIndicatorChange`). Input edits are not recorded (a refusal on the
-// same instance keeps Undo honest — see `indicatorHistory.js`). The Agent's writes are
+// something, and (since 2026-11-13) an edit of an indicator's inputs, folded per edit
+// session and never toasted (`describeIndicatorChange`). ⚰️ Input edits used to be left
+// unrecorded, which stranded the entry beneath them: "Undo: UCT RS added" stayed on the
+// button after a "Scale to rating" change and then refused. The Agent's writes are
 // never recorded here: the Agent keeps its own exact Undo.
 
 import { useSyncExternalStore } from 'react'
@@ -125,7 +127,7 @@ const labelsOf = (ids, byId, labelOf) => {
 }
 
 /** What kind of change `before → after` is, for the record and its toast. `null` when it
- *  hides, shows, adds and removes nothing (an input edit, or no change at all). */
+ *  hides, shows, adds, removes and edits nothing (a placement write, or no change at all). */
 export function describeIndicatorChange(before, after, labelOf) {
   const live = (cs) => new Map(((readBack(cs) || {}).indicatorInstances || [])
     .filter((i) => isObj(i) && typeof i.instanceId === 'string' && !isInstanceTombstone(i)).map((i) => [i.instanceId, i]))
@@ -135,14 +137,47 @@ export function describeIndicatorChange(before, after, labelOf) {
   const removed = [...a.keys()].filter((id) => !b.has(id))
   const hid = [...a.keys()].filter((id) => b.has(id) && a.get(id).hidden !== true && b.get(id).hidden === true)
   const showed = [...a.keys()].filter((id) => b.has(id) && a.get(id).hidden === true && b.get(id).hidden !== true)
-  const kinds = [added.length && 'add', removed.length && 'remove', hid.length && 'hide', showed.length && 'show'].filter(Boolean)
-  if (!kinds.length) return null
   const say = (ids, byId, verb) => labelsOf(ids, byId, labelOf).map(([n, c]) => (c > 1 ? `${n} ${verb} (${c})` : `${n} ${verb}`)).join(', ')
+  const kinds = [added.length && 'add', removed.length && 'remove', hid.length && 'hide', showed.length && 'show'].filter(Boolean)
+  if (!kinds.length) {
+    // ⭐ 2026-11-13 — AN INPUT EDIT IS A CHANGE TOO. Found live: add UCT RS Line, change
+    // its "Scale to rating", and the panel still offered "Undo: UCT RS added", which
+    // then refused (`changed-since`: the instance it added had moved) and left the
+    // indicator on the chart. Unrecorded, an edit silently strands the entry beneath it.
+    // Recorded, Undo undoes the edit first and the add after it. Only `inputs` count
+    // (pane drags and other placement writes stay unrecorded, as before).
+    const sameInputs = (x, y) => JSON.stringify(x.inputs || {}) === JSON.stringify(y.inputs || {})
+    const edited = [...a.keys()].filter((id) => b.has(id) && !sameInputs(a.get(id), b.get(id)))
+    if (!edited.length) return null
+    return { kind: 'edit', label: say(edited, b, 'edited'), instanceIds: edited }
+  }
   if (kinds.length > 1) return { kind: 'mixed', label: 'Indicators changed' }
   if (kinds[0] === 'hide') return { kind: 'hide', label: say(hid, a, 'hidden') }
   if (kinds[0] === 'show') return { kind: 'show', label: say(showed, b, 'shown') }
   if (kinds[0] === 'add') return { kind: 'add', label: say(added, b, 'added') }
   return { kind: 'remove', label: labelsOf(removed, a, labelOf).map(([n, c]) => (c > 1 ? `Removed ${c} ${n}` : `Removed ${n}`)).join(', ') }
+}
+
+/** How close together two input edits must land to fold into one Undo entry. */
+export const EDIT_COALESCE_MS = 2500
+
+const pathSig = (p) => JSON.stringify(p.path)
+
+/** `older` then `newer`, as one record: the same paths, `older`'s before and `newer`'s
+ *  after, with any path that ends where it began dropped. Null when the two records do
+ *  not touch exactly the same paths (they are then two changes, kept apart). */
+function mergeEditRecords(older, newer) {
+  if (!isObj(older) || !isObj(newer) || !Array.isArray(older.paths) || !Array.isArray(newer.paths)) return null
+  if (older.paths.length !== newer.paths.length) return null
+  const byPath = new Map(older.paths.map((p) => [pathSig(p), p]))
+  const paths = []
+  for (const p of newer.paths) {
+    const o = byPath.get(pathSig(p))
+    if (!o || o.order || p.order) return null
+    if (JSON.stringify(o.after) !== JSON.stringify(p.before)) return null   // something moved in between
+    if (JSON.stringify(o.before) !== JSON.stringify(p.after)) paths.push({ path: p.path, before: o.before, after: p.after })
+  }
+  return { ...newer, paths }
 }
 
 /**
@@ -164,9 +199,27 @@ export function recordIndicatorChange(surfaceKey, before, after, opts = {}) {
   // sink it writes through is the same record twice; the second is dropped.
   const top = st.past[st.past.length - 1]
   if (top && JSON.stringify(top.record) === JSON.stringify(record) && Date.now() - top.at < 5000) return top
+  // ⭐ 2026-11-13 — ONE EDIT SESSION, ONE ENTRY. Typing a length or dragging a colour
+  // writes on every step; consecutive edits of the same instance(s) within
+  // `EDIT_COALESCE_MS` fold into the newest entry (its `before` kept, the new
+  // `after` taken), so one Undo puts the inputs back as they were. An edit that
+  // returns to where the session began drops its entry.
+  if (what.kind === 'edit' && top && top.kind === 'edit' && Date.now() - top.at < EDIT_COALESCE_MS) {
+    const merged = mergeEditRecords(top.record, record)
+    if (merged) {
+      st.past = merged.paths.length
+        ? [...st.past.slice(0, -1), { ...top, at: Date.now(), record: merged }]
+        : st.past.slice(0, -1)
+      st.future = []
+      persist(opts.userId, surfaceKey, st)
+      emit()
+      return merged.paths.length ? st.past[st.past.length - 1] : null
+    }
+  }
   const entry = {
     id: `h${Date.now().toString(36)}${(seq++).toString(36)}`, label: what.label, kind: what.kind,
-    origin: opts.origin ?? null, at: Date.now(), toast: opts.toast !== false, record,
+    // an input edit is undone from the panel's buttons; it never raises the chart's toast
+    origin: opts.origin ?? null, at: Date.now(), toast: opts.toast !== false && what.kind !== 'edit', record,
   }
   st.past = [...st.past, entry].slice(-HISTORY_DEPTH)
   st.future = []

@@ -67,23 +67,29 @@ const refusalOf = (src) => {
 }
 
 describe('request.security', () => {
-  it('reads another symbol on the same grid, one bar behind', () => {
-    // ⛔ ONE BAR BEHIND IS THE MEASURED RULE. Chart bar i sees the requested
-    // series' last COMPLETED bar, which on a matching grid is bar i-1.
+  it('reads another symbol on the same grid on the SAME bar (its own session date)', () => {
+    // ⭐⭐ RS RATING L5 — the alignment is the host lane's (`interpret.js::requestAlignment`,
+    // read by `vm.js::runRequest`): a series at the chart's own timeframe is read on the bar
+    // of the same `t`, as Pine's look-ahead-off `request.security` reads a same-timeframe
+    // symbol (C29: bare "SPY" == "AMEX:SPY" bar for bar on RDDT 1D). ⚰️ This rail said "one
+    // bar behind": the strictly-before rule, right for M1's `"D"` read on a 5-minute bar
+    // (the merge's mid-session answer), applied to a same-timeframe series it reads
+    // yesterday. That merge is served for weekly / monthly reads by the supplied path.
     const { out } = run(
       'x = request.security("OTHER", "D", close)\nplot(x)\n',
       { 'OTHER|D': OTHER })
-    expect(out[0]).toBeNaN()
-    for (let i = 1; i < N; i += 1) expect(out[i]).toBe(OTHER[i - 1].c)
+    for (let i = 0; i < N; i += 1) expect(out[i]).toBe(OTHER[i].c)
   })
 
   it('⛔ a symbol with no bars is `na`, and the run REPORTS it', () => {
     const { out, requested } = run(
-      'x = request.security("MISSING", "D", close)\nplot(x)\n', {})
+      // ⭐ ENGINE 55 — a US-listing-shaped ticker no store holds: a bare `"MISSING"` (seven
+      // letters, no US listing's shape) is now refused at translate by name, every door.
+      'x = request.security("ZZZZ", "D", close)\nplot(x)\n', {})
     expect(out.every(Number.isNaN)).toBe(true)
     // ⭐ The report is what makes the second pass possible — the host fetches
     // exactly what the script asked for and runs it again.
-    expect(requested).toContain('MISSING|D')
+    expect(requested).toContain('ZZZZ|D')
   })
 
   it('a symbol only known while the script RUNS is still discovered', () => {
@@ -104,7 +110,7 @@ describe('request.security', () => {
     const first = run(src, {})
     expect(first.out.every(Number.isNaN)).toBe(true)
     const second = run(src, { 'OTHER|D': OTHER })
-    expect(second.out[1]).toBe(OTHER[0].c)
+    expect(second.out[1]).toBe(OTHER[1].c)
   })
 
   it('an EXPRESSION is evaluated in the requested symbol\'s context', () => {
@@ -112,32 +118,47 @@ describe('request.security', () => {
     const { out } = run(
       'x = request.security("OTHER", "D", high - low)\nplot(x)\n',
       { 'OTHER|D': OTHER })
-    expect(out[2]).toBe(OTHER[1].h - OTHER[1].l)
+    expect(out[2]).toBe(OTHER[2].h - OTHER[2].l)
   })
 
   it('history inside the request is the requested symbol\'s history', () => {
     const { out } = run(
       'x = request.security("OTHER", "D", close[1])\nplot(x)\n',
       { 'OTHER|D': OTHER })
-    // bar 2 sees the requested series' bar 1, whose `close[1]` is its bar 0
-    expect(out[2]).toBe(OTHER[0].c)
+    // bar 2 sees the requested series' bar 2, whose `close[1]` is its bar 1
+    expect(out[2]).toBe(OTHER[1].c)
   })
 
   it('a TUPLE request unpacks in order', () => {
     const { out } = run(
       '[a, b] = request.security("OTHER", "D", [close, volume])\nplot(a * 100000 + b)\n',
       { 'OTHER|D': OTHER })
-    expect(out[1]).toBe(OTHER[0].c * 100000 + OTHER[0].v)
+    expect(out[1]).toBe(OTHER[1].c * 100000 + OTHER[1].v)
   })
 
-  it('⛔ lookahead_on is refused BY NAME — its half of M1 is unmeasured', () => {
+  it('⛔ lookahead_on at W/M is served (witnessed); a look-ahead the host cannot read is refused BY NAME', () => {
     // ⚠️ The vendor packet's M1 measured the HISTORICAL half only; the realtime
     // half needs an open market. Serving lookahead on a guess would put a
     // number on screen that nobody could have traded on, which is the most
     // valuable-LOOKING wrong answer available.
+    // ⭐ RS RATING L5 — asked of a WEEKLY read: look-ahead decides something only above the
+    // chart's own timeframe. The host reads `lookahead_on` at the chart's own period as the
+    // same read as `lookahead_off` (`pine.js::requestTargetOf`: "nothing to model"), so the
+    // daily spelling this rail used is now that ordinary read, and builds.
+    // ⭐⭐ REQ (coverage unit, 2026-11-16) — a WEEKLY look-ahead read now builds: its pick is witnessed
+    // (`vw-request-htf-alignment-spy-1d-2026-10-02` A01 / A04 / A06, `vendorHarness.reqLookaheadAlignment`),
+    // and the supply serves it (`requestSupply.js`). A look-ahead spelling the host cannot read still refuses.
+    const weekly = buildRuntimeIr(`${head}x = request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_on)\nplot(x)\n`,
+      { bars: BARS, inputs: {} })
+    expect(weekly.ok, weekly.ok ? '' : weekly.refusal.message).toBe(true)
+    expect(weekly.ir.requests[0].target).toMatchObject({ own: true, code: 'W', live: true })
     const r = refusalOf(
-      'x = request.security("OTHER", "D", close, lookahead = barmerge.lookahead_on)\nplot(x)\n')
+      'la = input.bool(true)\nx = request.security(syminfo.tickerid, "W", close, lookahead = la)\nplot(x)\n')
     expect(r.message).toMatch(/lookahead/i)
+    const sameTf = buildRuntimeIr(`${head}x = request.security("OTHER", "D", close, lookahead = barmerge.lookahead_on)\nplot(x)\n`,
+      { bars: BARS, inputs: {} })
+    expect(sameTf.ok, sameTf.ok ? '' : sameTf.refusal.message).toBe(true)
+    expect(sameTf.ir.requests[0].target).toMatchObject({ ticker: 'OTHER', live: false })
   })
 
   it('⛔ REQUEST_COUNT is bounded by name', () => {
@@ -234,14 +255,13 @@ describe('request.security', () => {
     expect(r).toBeTruthy()
   })
 
-  it("⛔ a column reached WITHOUT a call is refused the same way", () => {
-    // `(high - low)[1]` inside a request is not a bare series read, so it
-    // lowers through the columnar seam — the non-call half of the same guard.
-    const r = refusalOf(
-      'y = request.security(\"OTHER\", \"D\", (high - low)[1])\n'
-      + 'plot(y)\n')
-    expect(r.guard).toBe('runtime:request')
-    expect(r.message).toMatch(/columnar lane/)
+  it("⭐ a pure expression's past inside a request is the REQUESTED symbol's past, never a column", () => {
+    // `(close * 2)[1]` inside a request is not a bare series read. It used to lower through the columnar seam and
+    // refuse here (a column holds THIS chart's bars). Since the U-REQ-HOIST-COLUMN lowering it is the request
+    // region's own committed series, read through its ring: the OTHER symbol's previous close, doubled.
+    const { out } = run('y = request.security("OTHER", "D", (close * 2)[1])\nplot(y)\n', { 'OTHER|D': OTHER })
+    expect(Number.isNaN(out[0])).toBe(true)
+    for (let i = 1; i < N; i += 1) expect(out[i]).toBe(OTHER[i - 1].c * 2)
   })
 
   it('CONTROL: a script with no request is unaffected', () => {

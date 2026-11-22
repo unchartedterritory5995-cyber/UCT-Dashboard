@@ -66,6 +66,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import { parseFormula } from './parse.js'
+import { strategyScorecardWording, pinnedBrokerRules } from './strategyScorecard.js'
+import { BROKER_RULE_IDS } from '../runtime/brokerRules.js'
 
 const STRATEGY_PINE = `//@version=6
 strategy("mine", overlay=true)
@@ -111,8 +113,10 @@ describe('a strategy is ruled out because of what it ANSWERS', () => {
     // bar is stated. If the ruling rested on expressibility it would be wrong.
     const flag = `//@version=6
 indicator("s")
+up = ta.crossover(close, ta.sma(close, 50))
+dn = ta.crossunder(close, ta.sma(close, 50))
 inPos = 0.0
-inPos := na(inPos[1]) ? 0.0 : (ta.crossover(close, ta.sma(close, 50)) ? 1.0 : (ta.crossunder(close, ta.sma(close, 50)) ? 0.0 : inPos[1]))
+inPos := na(inPos[1]) ? 0.0 : (up ? 1.0 : (dn ? 0.0 : inPos[1]))
 plot(inPos > 0 ? 1 : 0)
 `
     const out = translatePine(flag)
@@ -158,5 +162,90 @@ plot(ta.crossover(close, ta.sma(close, 50)) ? 1 : 0)
     expect(parseFormula(screen.outputs[screen.selected].formula).ok).toBe(true)
     // …and wrapped in an order, it is refused. Same maths, different question.
     expect(translatePine(STRATEGY_PINE).ok).toBe(false)
+  })
+})
+
+// ─── W9-T15, RULING D7: THE SCORECARD'S STRATEGY-BACKTEST WORDING ──────────────
+//
+// The ruling above stays: a strategy is not a screen. D7 adds one plain row for the
+// OTHER door, the single-symbol backtest W9 builds. It says three things and nothing
+// else: how many broker rules are pinned (verified against TradingView captures), that
+// an unpinned rule refuses by name, and that strategy backtests are not served yet.
+// Counts come from the committed ledger, so the row cannot claim a pin that is not there.
+describe('D7: the strategy-backtest scorecard wording', () => {
+  it('states the pinned count from the ledger, the refusal by name, and that it is not served', () => {
+    // 32 since 2026-11-16: B-FUNDS (Q-S1i), pinned by w9-q-s1a-size-v6 grading MATCH
+    // 34 since 2026-11-17: B-FUNDS-SHORT and B-MARGIN-CALL (Q-S1i), pinned by w9-q-s1i-short-v6 grading MATCH
+    // 39 since 2026-11-17 (the reversal slice): B-QTY-REVERSE, B-FUNDS-REVERSE, B-MARGIN-CALL-ALL, B-ENTRY-ORDER and
+    // B-PYR, pinned by w9-q-s1b-defaults-v6 grading MATCH (B-PYR with w9-d11-late-first-use-rpt too)
+    // 40 since 2026-11-17 (Pine v2 / v3): B-V3, pinned by w9-q-s1a-size-v2 and w9-g1-v3-properties grading MATCH
+    // 41 since 2026-11-17 (ruling D12b): B-V4-MARGIN0, pinned by the two v4 captures grading MATCH
+    // 42 at train e80 (ruling 2026-11-18 (a)): B-EXEC, pinned by the in-session capture supertrend-strategy-is-rddt-1d-2026-11-18
+    // 46 since 2026-11-19 (the strategy unit): B-EXIT-NA, B-QTY-REVERSE-M0 and B-ROUND-LEVEL, pinned by the community capture
+    // macd-shortlong-strategy-is-rddt-1d-2026-11-18 grading MATCH, and B-MARGIN-ZERO by w9-q-s1b-v4-shape-b grading MATCH
+    // 47 since 2026-11-20 (the strategy-only daily window): B-START-DEEP, pinned by Q-SU-7 / Q-SU-8 (supertrend-strategy on
+    // SPY 1D from 1993 and AAPL 1D from 1980, each scrolled back to its listing) grading MATCH
+    expect(pinnedBrokerRules()).toHaveLength(47)
+    expect(strategyScorecardWording()).toBe(
+      `47 of ${BROKER_RULE_IDS.length} broker rules are pinned, each verified against a TradingView capture. `
+      + 'A backtest that reaches an unpinned rule stops and refuses by name (runtime:strategy-unpinned). '
+      + 'Strategy backtests are not served to members yet.')
+    // ⭐ THE ONE PLACE THE VOCABULARY'S SIZE IS PINNED (dated 2026-11-08): 22 S1/T1 rules + 6 W9-T6
+    // fill-timing rules (B-POC, B-POC-PRICE, B-POC-PYR, B-POC-FILLS, B-FILLS, B-TICK-HIST) + 8 W9-T7 rules
+    // (B-TRAIL, B-EXIT-QTY, B-CLOSE-QTY, B-OCA, B-ORDER, B-IMMEDIATELY, B-STOP-LIMIT, B-EXIT-LEVELS).
+    // W9-J1 is a pin-resolver precondition and fill limits refuse at build (T6 r1): neither is a rule.
+    // + 5 W9-T5 cost rules (dated 2026-11-08), one per capture row the design names for T5: B-COMM-PCT
+    // (W9-K1), B-COMM-CONTRACT (W9-K2), B-COMM-ORDER (W9-K3), B-SLIPPAGE (W9-K4), B-POC-COST (W9-P1,
+    // design T6's "costs are taken at the close").
+    // Every other rail DERIVES the count; a rule added without moving this line is the drift it catches.
+    // + 3 W9-T8 risk rules (dated 2026-11-08), one per probe that calls its command: B-RISK-ALLOW (W9-R1,
+    // allow_entry_in), B-RISK-DDOWN (W9-R1, max_drawdown), B-RISK-INTRADAY-ORDERS (W9-R1i,
+    // max_intraday_filled_orders). The three commands no probe calls refuse at build and are not rules.
+    // + 6 value read-back rules (dated 2026-11-15), each witnessed by the committed strategy captures and by no
+    // text: B-ROUND (a fill on an off-grid open), B-ROUND-MARK (the mark of open trades on an off-grid close),
+    // B-TXT-CLOSE-ID, B-TXT-CLOSE-ALL-ID, B-TXT-ENTRY-CLOSE-ID (the exit ids TradingView generates) and
+    // B-TXT-NO-COMMENT (an exit comment with no comment reads the exit id).
+    // + 1 (dated 2026-11-16, the strategy coverage unit): B-PYR-PRICE (Q-S1g), a price entry reached at the
+    // pyramiding limit is not kept waiting, witnessed by the VALUES of vw-s1-q-s1g-blocked-stop-entry and
+    // pinned only by a re-take with the Strategy Tester report.
+    // + 1 (dated 2026-11-16, Q-S1i answered): B-FUNDS, a flat long market entry at the v6 default size (100% of
+    // equity) and margin 100% that needs more than the equity at its fill is rejected, witnessed by the committed
+    // report capture w9-q-s1a-size-v6 (7 trades taken, 13 entries absent).
+    // + 2 (dated 2026-11-17, Q-S1i's short answered): B-FUNDS-SHORT (the short twin of B-FUNDS) and B-MARGIN-CALL
+    // (TradingView's margin call on one short trade at margin 100), both witnessed by the committed report capture
+    // w9-q-s1i-short-v6 (9 entries taken, 11 absent; 13 margin calls, share for share).
+    // + 4 (dated 2026-11-17, the reversal at the v6 default answered): B-QTY-REVERSE (the reversal's size), B-FUNDS-REVERSE
+    // (rejected past the equity it was sized from), B-MARGIN-CALL-ALL (a margin call above the trade closes it all),
+    // B-ENTRY-ORDER (market entries on one opening tick in the order placed), witnessed by w9-q-s1b-defaults-v6.
+    // + 1 (dated 2026-11-17, Pine v2 / v3): B-V3, the order calls and the Properties read back on the two committed
+    // v2 / v3 report captures (w9-q-s1a-size-v2, w9-g1-v3-properties).
+    // + 1 (dated 2026-11-17, ruling D12b): B-V4-MARGIN0, the v4 margin TradingView read back (0) for exactly the
+    // declaration shape of the two committed v4 captures.
+    // + 3 (dated 2026-11-19, the strategy unit): B-ROUND-LEVEL (a short's off-grid exit level fills at the first tick past
+    // it), B-QTY-REVERSE-M0 (the reversal's size at margins 0, never rejected for funds), both witnessed by the community
+    // capture macd-shortlong-strategy-is-rddt-1d-2026-11-18, and B-MARGIN-ZERO (at margin 0 a negative equity is carried),
+    // witnessed by w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17.
+    // + 1 (dated 2026-11-19, the strategy-only daily window, coordinator ruling D9): B-START-DEEP (a run from the
+    // listing deeper than the shared window), unpinned until Q-SU-7 / Q-SU-8 grade MATCH.
+    expect(BROKER_RULE_IDS.length).toBe(64)
+  })
+
+  it('counts a pin only when the ledger holds it, and only for a rule the broker names', () => {
+    const ledger = { rules: { 'B-MARKET': ['fx'], 'B-FILL': ['fx'], 'NOT-A-RULE': ['fx'] } }
+    expect(pinnedBrokerRules(ledger)).toEqual(['B-FILL', 'B-MARKET'])
+    expect(strategyScorecardWording({ ledger })).toMatch(new RegExp(`^2 of ${BROKER_RULE_IDS.length} broker rules are pinned`))
+  })
+
+  it('drops the not-served sentence only when the caller says it is served', () => {
+    expect(strategyScorecardWording({ served: true })).not.toMatch(/not served/)
+    expect(strategyScorecardWording()).toMatch(/not served to members yet\.$/)
+  })
+
+  it('is plain: no em dash, no marketing words, and the screener ruling is untouched', () => {
+    const w = strategyScorecardWording()
+    expect(w).not.toMatch(/—|–/)
+    expect(w).not.toMatch(/coming soon|powerful|seamless|best|world-class|instant|!/i)
+    expect(PINE_REFUSALS['pine:declaration-strategy'])
+      .toBe('a strategy places orders to be backtested, and a screen filters symbols')
   })
 })

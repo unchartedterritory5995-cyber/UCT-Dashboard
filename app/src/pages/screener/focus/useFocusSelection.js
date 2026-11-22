@@ -1,7 +1,7 @@
 // useFocusSelection.js
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNeighborWarm } from '../../../hooks/useNeighborWarm'
-import { prefetchBars, prefetchBarsToIDB, prewarmVisibleList, warmMemFromIDB } from '../../../utils/prefetchBars'
+import { createNeighborHold, prefetchBars, prefetchBarsToIDB, prewarmVisibleList, warmMemFromIDB } from '../../../utils/barsWarm'
 
 // A focus walk is mostly downward: warm 4 ahead and 1 behind (not a symmetric
 // ±6), and let the NEXT 2 rows bypass the cold-start pack-ingest hold.
@@ -63,6 +63,15 @@ export default function useFocusSelection({
   // warm is asymmetric, so it is done below.
   useNeighborWarm(symbols, selected?.ticker ?? null, tf, { radius: 0 })
   const selTicker = selected?.ticker ?? null
+  // ⭐ The store's neighbor hold, as the watchlist and theme lists have it (2026-11-19). The focus walk
+  // warmed its next rows' recent bars only: they could be evicted from the store's memory before the
+  // member arrived, and on daily every flip onto a row not opened before fetched its deep history at
+  // the flip (the watchlist's measured 112 ms median, or a shallow paint and the rest a beat later).
+  // The hold pins the ±MEM_AROUND rows and, once the selection rests, joins the next URGENT_NEXT rows'
+  // deep history (createNeighborHold `deep`: intraday windows / the lake, D/W/M sealed history).
+  const holdRef = useRef(null)
+  if (!holdRef.current) holdRef.current = createNeighborHold()
+  useEffect(() => () => holdRef.current.clear(), [])
   // Watchlist parity: the whole result list into durable IDB on the chart's timeframe, top
   // rows promoted to mem (`prewarmVisibleList`, the call Watchlists.jsx makes). Bounded,
   // queued behind the visible chart's own fetch, and already-warm tickers skip.
@@ -77,6 +86,7 @@ export default function useFocusSelection({
       ...symbols.slice(Math.max(0, at - MEM_AROUND), at)].filter(Boolean)
     if (memAround.length) warmMemFromIDB(memAround, [onTf])   // durable -> sync mem, no network
     const ahead = symbols.slice(at + 1, at + 1 + WARM_AHEAD).filter(Boolean)
+    holdRef.current.set(memAround, onTf, { deep: ahead.slice(0, URGENT_NEXT) })
     const behind = symbols.slice(Math.max(0, at - WARM_BEHIND), at).filter(Boolean)
     const around = [...ahead, ...behind]
     if (!around.length) return

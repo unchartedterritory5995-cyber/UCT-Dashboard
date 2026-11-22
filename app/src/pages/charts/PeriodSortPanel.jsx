@@ -86,8 +86,8 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
           className={styles.colorDot}
           style={{ background: DOT_HEX[panelColor] }}
           onClick={() => setPanelColor((c) => nextGroup(c, extraGroupsOn))}
-          title={`Colour group: ${panelColor === 'N' ? 'not linked' : panelColor} (click to change)`}
-          aria-label="Colour group"
+          title={`Color group: ${panelColor === 'N' ? 'not linked' : panelColor} (click to change)`}
+          aria-label="Color group"
         />
         <div className={styles.headBtns} data-no-drag>
           {onAddAsTab && tabTargets.length > 0 && (

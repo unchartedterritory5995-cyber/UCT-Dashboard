@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 
 // RiskExitsSection (reused unchanged for Exit Quality) imports echarts — stub it
@@ -79,6 +79,12 @@ vi.mock('../../lib/reviewDrafts', () => ({
   todayDayIso: () => '2026-10-02',
   mondayOfIso: () => '2026-09-28',
   thisMonthIso: () => '2026-10',
+}))
+
+// Pass 2 final fix (R1): the member's daily template, as the Reviews door reads it.
+let hubPrefs = {}
+vi.mock('../../../../hooks/usePreferences', () => ({
+  default: () => ({ prefs: hubPrefs, setPref: () => {} }),
 }))
 
 // P2 Tier 3 Task 6: the winners checklist is a lazy leaf. Mocked so the hub's gate and its lazy
@@ -277,6 +283,37 @@ describe('InsightsHub — Reviews section (wave 13 lane 13F)', () => {
     expect(screen.getByRole('button', { name: /this month.s review/i })).toBeInTheDocument()
     // Other sections unmounted — only one at a time, the same discipline every tab follows.
     expect(screen.queryByText('Playbook mounted')).not.toBeInTheDocument()
+  })
+
+  // Fix round 1 (review finding 7): today's recap that MADE the day's note queues the Daily-folder
+  // sentence for the Notebook (this door navigates away).
+  it("Draft today's recap that made the note queues \"Saved with your daily notes.\"", async () => {
+    reviewDraftsFlagOn = true
+    sessionStorage.clear()
+    const { draftDailyReview } = await import('../../lib/reviewDrafts')
+    draftDailyReview.mockResolvedValueOnce({ note: { id: 'd1' }, created: true })
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
+    fireEvent.click(screen.getByRole('button', { name: /today.s recap/i }))
+    const { takeQueuedNotebookNotice } = await import('../../lib/dailyNote')
+    await waitFor(() => expect(sessionStorage.getItem('uct.nb.pendingNotice')).toBeTruthy())
+    expect(takeQueuedNotebookNotice({ noteId: 'd1' })).toBe('Saved with your daily notes.')
+  })
+
+  // Pass 2 final fix (R1): "Draft today's recap" can be the first door of the day; the note it makes starts from the
+  // member's daily template with today's plan lines, as the Notebook's recap doors make it.
+  it("Draft today's recap sends the member's daily template and the seed", async () => {
+    reviewDraftsFlagOn = true
+    hubPrefs = { notebook_daily_template: 'tpl7' }
+    const { draftDailyReview } = await import('../../lib/reviewDrafts')
+    draftDailyReview.mockClear()
+    draftDailyReview.mockResolvedValueOnce({ note: { id: 'd1' }, created: true })
+    renderHub()
+    fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
+    fireEvent.click(screen.getByRole('button', { name: /today.s recap/i }))
+    await waitFor(() => expect(draftDailyReview).toHaveBeenCalledTimes(1))
+    expect(draftDailyReview.mock.calls[0][0]).toMatchObject({ day: '2026-10-02', templateId: 'tpl7', seedToday: true })
+    hubPrefs = {}
   })
 
   it('a refusal the door wrote for the member is shown in its own words, not the generic line', async () => {

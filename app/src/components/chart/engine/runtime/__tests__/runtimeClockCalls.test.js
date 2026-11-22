@@ -205,8 +205,10 @@ describe('⭐⭐ the session clock, through the columnar lane\'s own reading', (
     const [o] = runAll(`${HEAD5}${STATE}plot(not na(time("", "0930-1000:23456", "America/New_York")) ? 1 : x * 0)\n`)
     expect(inSession(o)).toEqual(want)
   })
-  it('a session a call site fixes — `BarInSession(sess) => time(period, sess) != 0`', () => {
-    const [o] = runAll(`//@version=4\nstudy("t")\n${STATE}BarInSession(sess) => time(period, sess) != 0\nplot(BarInSession("0930-1000:23456") ? 1 : x * 0)\n`)
+  // ⚰️ (bt, Engine 66 (#1473)) was `time(period, sess)` in v4: TradingView's v4 compiler refuses the bare
+  // `period` ("Undeclared identifier 'period'"), so v4 spells it `timeframe.period`.
+  it('a session a call site fixes — `BarInSession(sess) => time(timeframe.period, sess) != 0`', () => {
+    const [o] = runAll(`//@version=4\nstudy("t")\n${STATE}BarInSession(sess) => time(timeframe.period, sess) != 0\nplot(BarInSession("0930-1000:23456") ? 1 : x * 0)\n`)
     expect(inSession(o)).toEqual(want)
   })
   it('two call sites, two sessions', () => {

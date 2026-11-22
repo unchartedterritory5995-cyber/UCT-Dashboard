@@ -6,7 +6,7 @@
 // ⛔ AN ITEM IS TICKED BY WHAT THE MEMBER DID, NEVER BY A CLICK ON THE LIST. Each item's
 // `done` is read off an authority that already exists for that thing:
 //   note      a note of the member's own (not one of the sample's tracked ids) is on
-//             Research Home's one aggregated read (`/api/j2/notebook/home`);
+//             the Notebook's one aggregated home read (`/api/j2/notebook/home`);
 //   template  one of those own notes carries the walkthrough every catalog template
 //             ends with (`WALKTHROUGH_TITLE`, lib/templateBlocks.js -- the SAME constant
 //             the catalog builds the toggle from, and the toggle summary is plain text,
@@ -26,12 +26,11 @@
 // `CHECKLIST_MAX_ITEMS` is the ceiling and gettingStarted.test.js holds the derivation to it
 // with every flag armed.
 //
-// ⛔ THE OTHER TOURS ARE STILL DERIVED, NEVER LISTED -- in the LEARN MENU now, not here.
-// Research Home's "Learn" button (LearnMenu.jsx, rules in learnTours.js) lists one item per
-// REGISTERED, REPLAYABLE tour that is live for this member (`tourLive`), in registry order --
-// the same derivation Help > Walkthroughs makes. A tour W14-B adds tomorrow appears there the
-// day its flag arms, with no edit to either file. This list names only the base tour, and
-// reads it off the registry rather than restating it.
+// ⛔ THE OTHER TOURS ARE STILL DERIVED, NEVER LISTED -- in Help > Walkthroughs, not here.
+// Help (Support.jsx) lists one item per REGISTERED, REPLAYABLE tour that is live for this member
+// (`tourLive`), in registry order. A tour W14-B adds tomorrow appears there the day its flag arms,
+// with no edit to either file. This list names only the base tour, and reads it off the registry
+// rather than restating it. (Research Home's Learn menu made the same derivation until go-live wave 1.)
 //
 // ⛔ ONE PREFERENCE KEY, `notebook_getting_started` -- its reader and writer live in
 // `gettingStartedPref.js` (shared with the eager gate) and are re-exported here.
@@ -40,10 +39,10 @@
 // was ticked) both close the list for good. A capability that arms later adds its tour to
 // the Learn menu and to Help > Walkthroughs (Support.jsx), never to this list, so a closed
 // list has nothing to reopen for.
-import { WALKTHROUGH_TITLE } from '../../../lib/templateBlocks'
+import { WALKTHROUGH_TITLES } from '../../../lib/templateBlocks'
 import { BASE_TOUR_ID, TOUR_REGISTRY, getTourEntry, tourLive } from './tourRegistry'
 import { TOUR_PREF, readTourPref } from './tourPref'
-import { SAMPLE_PREF, readSamplePref } from './sampleNotebook'
+import { SAMPLE_PREF, readSamplePref } from './sampleNotebookKeys'
 
 import { CHECKLIST_PREF as CHECKLIST_PREF_KEY, recordedDone } from './gettingStartedPref'
 
@@ -68,6 +67,8 @@ export const CHECKLIST_COPY = Object.freeze({
   template: 'Start a note from a template',
   sample: 'Open the sample notebook',
   sampleAdding: 'Adding the sample…',
+  // Final fix (A4): beside the one step the "n of N done" line does not count (the optional sample).
+  optional: 'Optional',
   tour: (title) => `Take the ${title} tour`,
 })
 
@@ -76,7 +77,7 @@ export const CHECKLIST_MAX_ITEMS = 5
 
 const HOME_SECTIONS = ['continueWorking', 'favorites', 'activeTheses', 'openPositionResearch', 'needsReview']
 
-/** Every note summary on Research Home's aggregated read that is the member's own
+/** Every note summary on the aggregated home read that is the member's own
  *  (not one of the sample's tracked ids), de-duplicated by id. */
 export function ownHomeNotes(home, sampleIds = []) {
   const skip = new Set(sampleIds)
@@ -92,7 +93,7 @@ export function ownHomeNotes(home, sampleIds = []) {
 
 /** A note built from a catalog template still carries its walkthrough toggle. */
 export function isTemplateNote(note) {
-  return typeof note?.bodyPlain === 'string' && note.bodyPlain.includes(WALKTHROUGH_TITLE)
+  return typeof note?.bodyPlain === 'string' && WALKTHROUGH_TITLES.some((t) => note.bodyPlain.includes(t))
 }
 
 /** The base tour ticks from its own key, and only on `done` (a dismissed tour is not taken). */
@@ -117,6 +118,9 @@ function baseTourDone(prefs) {
  * plus `tourId` on the tour item. A step recorded as ticked in `notebook_getting_started`
  * stays ticked whatever the current evidence says (a step never unticks).
  */
+/** The steps the "n of N done" line counts: every item but the optional sample. */
+export const countedItems = (items) => items.filter((i) => !i.optional)
+
 export function deriveChecklistItems({
   prefs = {}, home = null, hasAnyNotes = false, canAddSample = false,
   flag, registry = TOUR_REGISTRY,
@@ -131,8 +135,12 @@ export function deriveChecklistItems({
   ]
   // The sample is offered only where it can be had (the server refuses it to a member
   // with notes), and shown ticked once it was.
+  // ⛔ Audit 2026-11-05, spec S5 (B3): the sample is OPTIONAL -- shown while it can be had, never
+  // counted. It used to count, and it drops out the moment the member has a note of their own
+  // (the server refuses the sample then), so the first screen said "1 of 4" and the next "2 of 3".
+  // The total is `countedItems` of this one list, and it never changes under the member.
   if (sample || canAddSample || recordedDone(prefs?.[CHECKLIST_PREF_KEY]).has('sample')) {
-    items.push({ id: 'sample', kind: 'sample', label: CHECKLIST_COPY.sample, done: Boolean(sample) })
+    items.push({ id: 'sample', kind: 'sample', label: CHECKLIST_COPY.sample, done: Boolean(sample), optional: true })
   }
   const base = getTourEntry(BASE_TOUR_ID, registry)
   if (base && base.replayable && tourLive(base, flag)) {

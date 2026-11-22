@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import WidgetHost from '../../charts/WidgetHost'
+import { useWorkspace } from '../../charts/WorkspaceContext'
 import { clampSplit, LIST_WIDGET_ID, SPLIT_MIN, SPLIT_MAX } from './drillBoardPrefs'
 import styles from './BreadthDrillBoard.module.css'
 
@@ -17,7 +18,16 @@ import styles from './BreadthDrillBoard.module.css'
 // two-widget modal has nothing to rearrange. Lifting renderGrid out into a shared
 // board is the follow-up.
 
-export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, poppedIds = [], mobilePane = 'list' }) {
+// Optional Scan Deck slots — every one defaults to "absent", so a caller that
+// passes none gets the board exactly as it always was:
+//   hosted         widgets render WITHOUT their /charts header bar (WidgetHost's
+//                  `merged` mode). The scan window owns the identity, layout and
+//                  close, so the dot / + / tab strip / pop-out had nowhere to go.
+//   listTop        a node above the list widget (filters, composition, groups).
+//   wrapChartPane  (node) => node — frames the chart pane (toolbar above, facts
+//                  and triage below) without the board knowing what they are.
+export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, poppedIds = [], mobilePane = 'list',
+  hosted = false, listTop = null, wrapChartPane = null }) {
   const { widgets, split } = board
   const wrapRef = useRef(null)
   const [dragging, setDragging] = useState(false)
@@ -98,6 +108,11 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
   // No chart widget at all (the MVP trial's withdrawal block hands the board over without
   // one) is laid out like a popped chart: the list takes the whole board, no divider.
   const chartGone = chartPopped || !chartWidget
+  // ⛔ NO CHART UNTIL THERE IS A STOCK (owner 2026-11-20). A chart whose colour group has no symbol
+  // yet falls back to SPY (ChartWidget), so while the list was still loading the window painted the
+  // S&P 500 and then switched. The pane stays an empty panel until the list's first row is picked.
+  const { groupSyms } = useWorkspace()
+  const chartSym = chartWidget ? groupSyms?.[chartWidget.color || 'A'] : null
   // With one pane ejected the other takes the whole board: a frozen split would
   // leave a dead gap where the popped widget used to be.
   const soloed = listPopped !== chartGone
@@ -111,6 +126,16 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
       onOptsChange={(opts) => patchOpts(w.id, opts)}
       onReplaceWidget={replaceWidget}
       onPopOut={onPopOut ? () => onPopOut(w.id) : undefined}
+      merged={hosted}
+      // ⭐ The chart wears the /charts widget design (owner 2026-11-19): ONE compact header bar
+      // (symbol + name, 1D/1W/1M, the date stepper, Market Cap / Next Earnings, RTH/PM, the
+      // clock), then a single drawing-tools row — the same integrated header the /charts board
+      // gives a single chart, not the old StockChart rows.
+      integratedChartHeader={w.type === 'chart'}
+      // Both panes wear the /charts frame (owner 2026-11-19): the list gets the UCT watchlist look
+      // (hover star, no gold header or gear) and its top edge lines up with the chart's.
+      uctFrame
+      noTabs
     />
   )
 
@@ -131,13 +156,14 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
     // read: useMediaQuery seeds at mount and only updates on a `change` event, so
     // in a fixed mobile viewport a render-time read can be stale on first paint.
     // Above 640px this attribute selects nothing.
-    <div className={styles.board} ref={wrapRef} data-pane={mobilePane}>
+    <div className={`${styles.board}${hosted ? ' ' + styles.boardHosted : ''}`} ref={wrapRef} data-pane={mobilePane}>
       {!listPopped && (
         <div
           className={`${styles.pane} ${styles.paneList}${soloed ? ' ' + styles.paneGrow : ''}`}
           style={soloed ? undefined : { width: split, flex: '0 0 auto' }}
         >
-          {listWidget && host(listWidget)}
+          {listTop}
+          {listWidget && (listTop ? <div className={styles.paneFill}>{host(listWidget)}</div> : host(listWidget))}
         </div>
       )}
       {!soloed && (
@@ -157,7 +183,10 @@ export default function BreadthDrillBoard({ board, onBoardChange, onPopOut, popp
       )}
       {!chartGone && (
         <div className={`${styles.pane} ${styles.paneGrow} ${styles.paneChart}`}>
-          {chartWidget && host(chartWidget)}
+          {chartWidget && (() => {
+            const body = chartSym ? host(chartWidget) : <div className={styles.chartWaiting} data-testid="drill-chart-waiting" />
+            return wrapChartPane ? wrapChartPane(body) : body
+          })()}
         </div>
       )}
     </div>

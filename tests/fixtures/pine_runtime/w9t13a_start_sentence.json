@@ -1,0 +1,37 @@
+{
+ "why": "W9-T13a r1, ruling D2: written by w9T13aBrokerReport.test.js from strategyRecord.js; read by tests/test_pine_strategy_backtest.py",
+ "cases": [
+  {
+   "name": "ASX 2024-03-21 session, 10:00 AEDT",
+   "startTime": 1710975600,
+   "fromListing": false,
+   "startDate": "2024-03-20",
+   "recordSentence": "this backtest starts on 2024-03-20 (UTC); TradingView may start elsewhere",
+   "reportSentence": "this backtest starts on 2024-03-20 (UTC); TradingView may start elsewhere"
+  },
+  {
+   "name": "NYSE 2024-01-02 session, 09:30 ET",
+   "startTime": 1704205800,
+   "fromListing": false,
+   "startDate": "2024-01-02",
+   "recordSentence": "this backtest starts on 2024-01-02 (UTC); TradingView may start elsewhere",
+   "reportSentence": "this backtest starts on 2024-01-02 (UTC); TradingView may start elsewhere"
+  },
+  {
+   "name": "TSE 2024-03-21 session, 09:00 JST",
+   "startTime": 1710979200,
+   "fromListing": false,
+   "startDate": "2024-03-21",
+   "recordSentence": "this backtest starts on 2024-03-21 (UTC); TradingView may start elsewhere",
+   "reportSentence": "this backtest starts on 2024-03-21 (UTC); TradingView may start elsewhere"
+  },
+  {
+   "name": "NYSE 2024-01-02 session, 09:30 ET, from the listing",
+   "startTime": 1704205800,
+   "fromListing": true,
+   "startDate": "2024-01-02",
+   "recordSentence": "this backtest starts on 2024-01-02 (UTC); TradingView may start elsewhere",
+   "reportSentence": "this backtest starts on 2024-01-02 (UTC); TradingView may start elsewhere"
+  }
+ ]
+}

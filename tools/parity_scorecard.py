@@ -6,6 +6,7 @@
                                                              #   (--rev HEAD: "has the code moved since?")
     python tools/parity_scorecard.py --dry-run [--pages DIR] # build in memory, check, write nothing
     python tools/parity_scorecard.py --write   [--pages DIR] # rebuild the scorecard
+    python tools/parity_scorecard.py --write-index           # rebuild §0 alone, at HEAD (2026-11-18)
 
 WHAT IT NEEDS. Nothing over the network: this tool never fetches. It reads the gap ledger, the plan,
 the committed evidence of waves 5-10 (wave 9's browser check under
@@ -54,9 +55,11 @@ redesign keeps that property through the squash:
       `git merge-tree --write-tree <squash>^ <head>` == `<squash>^{tree}` (F3 fix round 3: a squash onto
       a master that moved is a 3-way merge, so a file both sides touched holds the merge, not the head's
       blob); non-vacuous: a head that changed nothing against merge-base(head, squash^) fails.
-      Wave 10's L1c has no squash yet: its tag is created at the final L1c tip; while that head is in
-      HEAD's own history it is its own landing, and after the squash the tool finds the earliest
-      commit of HEAD's history (topological order) that carries the head by that rule;
+      A wave whose squash is not recorded (tip and squash None, its tag cut at its final tip): while that
+      head is in HEAD's own history it is its own landing, and after the squash the tool finds the
+      earliest commit of HEAD's history (topological order) that carries the head by that rule. That
+      search walks every later master commit, so once a squash is known it is RECORDED (2026-11-18:
+      L1c's #228, and #281 for waves 12 C2, 13 and 15, which landed together);
   (3) unchanged -- every cited evidence file's blob at its wave's landing equals its blob at HEAD;
   (4) reachable -- every tree a browser check or walk measured is an ancestor of the tag of the
       declared wave it was on, and that wave passed (1), (2) and (5). A ref that is not HEAD or a
@@ -2166,11 +2169,18 @@ def verify_quotes(pages_dir=None):
 
 
 def _flags_of(text):
-    """The flag ledger's `flags` map from its JSON text (None when there is no text)."""
+    """The flag ledger's `flags` map from its JSON text (None when there is no text).
+
+    A gate RETIRED AS ALWAYS ON (the ledger's `retired` section, 2026-11-04) reads as `armed`: the capability is
+    on for every member, so a cell that records it armed still holds. It never overrides a live `flags` row."""
     if not text:
         return None
     d = json.loads(text)
-    return d.get('flags', d)
+    flags = dict(d.get('flags', d))
+    for name, row in (d.get('retired') or {}).items() if isinstance(d, dict) else ():
+        if isinstance(row, dict) and row.get('state') == 'always on' and name not in flags:
+            flags[name] = {**row, 'status': 'armed'}
+    return flags
 
 
 def _flags_now():
@@ -2424,6 +2434,17 @@ WAVE13SC_TAG = 'notebook-wave13-landing-2026-10-03'
 # way 'wave 12 C2' and 'wave 13' are. Also the B0_TIPS anchor for tip 674012eb1 (fix round 1, review
 # I-3: no measured tree leans on literal HEAD, which a squash would leave behind).
 WAVE15SC_TAG = 'notebook-wave15-sc-2026-10-04'
+# Index follow-up (2026-11-18): PR #281's head 4a06aa6e7 (feat/notebook-w14-land), the head squashed as 2265f4ac3:
+# waves 12 C2, 13 and 15 landed TOGETHER in that one squash. The tag was cut on 2026-10-11 for exactly this
+# ("pins waves 12 C2, 13 and 15 for the parity scorecard's evidence index") and never wired, so the three waves
+# stayed recorded with tip and squash None: once #281 squashed them, none of their own tags was an ancestor of
+# HEAD, and `_find_squash` walked every later master commit for one that ties to each wave's OWN head. None can
+# (#281 carries all four waves: `_tie` of aa9ff0d14 / 69355d352 / 215d58aed against 2265f4ac3 leaves 2, 4 and
+# 2,956 files that differ; of 4a06aa6e7, none), so each search ran to the end of a history that grows with every
+# master commit -- the evidence-index rail's 300 s timeout, and three refusals had it finished. The QR/RS/SC
+# precedent: the waves are tied to the head that WAS squashed, pinned by its tag. W12C2_TAG, WAVE13SC_TAG and
+# WAVE15SC_TAG stay defined above as the record of where each lane cut its tag; pushed tags are never moved.
+W12_15_TIP_TAG = 'notebook-wave12-15-tip-2026-10-07'
 B0_WAVES = (
     ('wave 5', 'notebook-wave5-tip2-2026-09-25', 'd251cbb98', '2c3ed3093'),
     ('wave 6', 'notebook-wave6-tip-2026-09-26', '96051c043', '271a078b6'),
@@ -2432,7 +2453,10 @@ B0_WAVES = (
     ('wave 9', 'notebook-wave9-tip-2026-09-26', 'e7c196f38', '1c4b0bf74'),
     ('wave 10 L1a', 'notebook-wave10-L1a-tip2-2026-09-26', '6777b3335', '4f708a0d2'),
     ('wave 10 L1b', 'notebook-wave10-L1b-tip-2026-09-27', '7748c3691', 'd9e887ca0'),
-    ('wave 10 L1c', L1C_TAG, None, None),
+    # Index follow-up (2026-11-18): L1c tied to its REAL squash, #228's 38bb9a421 -- the commit `_find_squash` found
+    # and §0 already printed as the landing. Recorded so the index stops re-walking every later master commit (the
+    # search cost 78 s on 2026-11-18, growing with master); the tag still pins the head it squashed, 0020c76ce.
+    ('wave 10 L1c', L1C_TAG, '0020c76ce', '38bb9a421'),
     # Integrator, 2026-09-29: both RS waves tied to their REAL squashes. RS's evidence reached master
     # inside L5 (#252, head a01573e66 -> squash 0812b5ec3) and RS2's inside L8 (#255, head 0bb2f1c33 ->
     # squash 6f563c158). The self-referential stopgap tags above could never be proven once the
@@ -2452,9 +2476,11 @@ B0_WAVES = (
     # Lane 12C phase 2 (2026-10-02): QR tied to its REAL squash, as RS/SC/L13 were. QR_TAG (2ac47cae1) is an
     # ancestor of PR #264's head, not the head it squashed; the integrator's tag below pins that head.
     ('wave 10 QR', QR_TIP_TAG, 'f09727453', '88e68c94e'),
-    ('wave 12 C2', W12C2_TAG, None, None),
-    ('wave 13', WAVE13SC_TAG, None, None),
-    ('wave 15', WAVE15SC_TAG, None, None),
+    # Index follow-up (2026-11-18): waves 12 C2, 13 and 15 landed together in #281 (squash 2265f4ac3, head
+    # 4a06aa6e7) -- tied to that head by its tag, the QR/RS/SC precedent (see W12_15_TIP_TAG above).
+    ('wave 12 C2', W12_15_TIP_TAG, '4a06aa6e7', '2265f4ac3'),
+    ('wave 13', W12_15_TIP_TAG, '4a06aa6e7', '2265f4ac3'),
+    ('wave 15', W12_15_TIP_TAG, '4a06aa6e7', '2265f4ac3'),
 )
 # (an evidence file this scorecard cites, the wave that landed it -- its squash SHA, or the wave's name).
 # ⛔ Hand-typed on purpose: WHICH squash landed a file is a fact about history that the scorecard's cells
@@ -2587,8 +2613,12 @@ B0_TIPS = (
     ('0555889ef', L1C_TAG),                            # F4's keyboard re-walk
     ('7ee21a7fc', L1C_TAG),                            # F6's recall baseline
     ('4d2a4edfa', L13_TIP_TAG),                        # lane G62's consensus walk, run 3
-    ('1ad04a0383', W12C2_TAG),                         # 12D's sandbox walk (G-003, G-045)
-    ('674012eb1', WAVE15SC_TAG),                       # W15-UCT's browser pass (G-041, G-153)
+    # 2026-11-18 (index follow-up): the two walked trees of waves 12 C2 and 15 map to the head #281 squashed, as
+    # 4d2a4edfa maps to L13_TIP_TAG -- each is an ancestor of it (1ad04a0383 via aa9ff0d14, 674012eb1 via
+    # 215d58aed). Their lanes' own tags (W12C2_TAG, WAVE15SC_TAG) are not the head #281 squashed, so neither
+    # can tie and neither stays the ref; both stay defined above, and pushed tags are never moved.
+    ('1ad04a0383', W12_15_TIP_TAG),                    # 12D's sandbox walk (G-003, G-045)
+    ('674012eb1', W12_15_TIP_TAG),                     # W15-UCT's browser pass (G-041, G-153)
 )
 _PATHSPEC_CHUNK = 40   # paths per `git log` call when looking for a squash (a Windows command line is finite)
 
@@ -2759,6 +2789,76 @@ def evidence_index(head='HEAD', waves=None, evidence=None, tips=None):
         if not reach:
             problems.append(f'B0 tip {sha} is not reachable from {frm}')
     return rows, problems
+
+
+def b0_section(rows, problems, regenerated=None):
+    """§0 as the scorecard prints it: the heading, what the index proves, the table, the verdict line (no trailing
+    blank). ONE renderer for `build()` (the whole document) and `--write-index` (§0 alone). ``regenerated`` is
+    ``(sha, date)`` when §0 is rebuilt on its own: the heading then names the revision it was verified at, and a line
+    says the rest of the document is still as written at the revision its header records."""
+    head = (f'## §0 — B0: the evidence index, verified at `{regenerated[0]}`' if regenerated
+            else '## §0 — B0: the evidence index, verified at the revision above')
+    out = [head, '']
+    if regenerated:
+        out += [f'*Regenerated on its own on {regenerated[1]} by `python tools/parity_scorecard.py --write-index`, at '
+                f'`{regenerated[0]}`: this index is verified at that revision. Every section after it is as written at '
+                'the revision the header records.*', '']
+    out += [
+        'Waves 5-10 land on master as squash merges, so a wave\'s head is never an ancestor of master; wave 9\'s "every tip '
+        'SHA is an ancestor" could hold only on a wave\'s own branch. What the index proves instead: (1) each wave\'s '
+        'SQUASHED head is pinned by a tag and resolves to the recorded SHA (waves 5 and 7 by new `-tip2-` tags: their '
+        '`-tip-` tags are not the heads the PRs squashed, and are left where they are); (2) each wave\'s squash is an '
+        'ancestor of this tree; (5) the squash carries the head: its tree is the head merged onto the squash\'s parent '
+        '(`git merge-tree --write-tree <squash>^ <head>` equals `<squash>^{tree}`, so a squash onto a master that moved '
+        'still ties; a wave whose squash is not recorded is its own landing while its tagged head is in this tree\'s '
+        'history, and after its squash the tool finds the earliest commit of this tree\'s history that carries it -- a '
+        'search over every later commit, so a known squash is recorded: L1c\'s, and #281\'s for waves 12 C2, 13 and 15, '
+        'which landed together); (3) every cited evidence file is byte-identical here to the file '
+        'its landing carried; and (4) every tree a browser or walk measured is an ancestor of its declared wave\'s tag, '
+        'and that wave landed; a ref that is not a declared wave tag (a bare SHA, an undeclared tag) is refused. Every '
+        'evidence file and walked tree the cells below cite is one of these rows, or `--write` refuses.',
+        '',
+        '| item | command | result |',
+        '|---|---|---|',
+        *[f'| {a} | `{b}` | {c} |' for a, b, c in rows],
+        '',
+        'Every property holds.' if not problems else f'{len(problems)} propert(ies) do NOT hold (see the rows above).',
+    ]
+    return out
+
+
+def write_index(path=None):
+    """`--write-index`: rebuild §0 ALONE in the committed scorecard, from `evidence_index('HEAD')` through the same
+    `b0_section` the full build prints. For when the index's inputs move (a squash recorded, a tag mapped) but the
+    rest of the document still stands at the revision its header records -- a full `--write` re-verifies every
+    citation at HEAD, which a later edit elsewhere in the code base can refuse. Refuses while any §0 property does
+    not hold, or if the rebuilt document cites an evidence file or walked tree §0 does not check. Returns 0 / 1."""
+    path = path or os.path.join(ROOT, SCORECARD)
+    text = open(path, 'rb').read().decode('utf-8').replace('\r\n', '\n')
+    rows, problems = evidence_index('HEAD')
+    if problems:
+        print('REFUSING TO WRITE §0 —', len(problems), 'propert(ies) do not hold:')
+        for p in problems:
+            print('  -', p)
+        return 1
+    start = text.find('## §0')
+    end = text.find('\n## ', start + 5) if start >= 0 else -1
+    if start < 0 or end < 0:
+        print('REFUSING TO WRITE §0 — the scorecard has no §0 section followed by another')
+        return 1
+    sha = git('rev-parse', '--short=9', 'HEAD')[1]
+    date = git('log', '-1', '--format=%cs', 'HEAD')[1]
+    new = text[:start] + '\n'.join(b0_section(rows, problems, regenerated=(sha, date))) + '\n' + text[end:]
+    gaps = cited_b0_gaps(new)
+    if gaps:
+        print('REFUSING TO WRITE §0 —', len(gaps), 'citation(s) §0 does not check:')
+        for g in gaps:
+            print('  -', g)
+        return 1
+    with open(path, 'wb') as fh:
+        fh.write(new.encode('utf-8'))
+    print(f'wrote §0 of {SCORECARD}: {len(rows)} rows at {sha}, every property holds')
+    return 0
 
 
 _B0_WALK_TIP = re.compile(r'WALK `[^`]+`:[\w.-]+ \w+ — report `([^`]+)`, (?:product trees of )?tip ([0-9a-f]{7,40})')
@@ -3755,7 +3855,13 @@ def build(pages_dir=None):
       'the search term is empty (R20) -- a flat recents list, not the synthesized Continue working/Active theses '
       'view UCT ships, but PARITY as named, the same modest reading the scorecard already gives Notion on this row. '
       'Evernote PARITY by controller ruling (2026-10-04, wave 14 evidence pass; R21): its desktop tabs are restored exactly as left '
-      'when the app reopens -- a resumption surface in the same modest sense, desktop only.')
+      'when the app reopens -- a resumption surface in the same modest sense, desktop only. '
+      # 2026-11-18 (index follow-up): a recorded fact, NOT a re-score -- the verdicts stand as measured at the revision
+      # the header records, and re-scoring this row is the Notebook owners' call.
+      'RECORDED 2026-11-18, not re-scored: Research home, the file this row\'s code citation reads, was deleted by '
+      'a3e226e11d on 2026-11-12, so its "Continue working" evidence is gone from the product. Today\'s resumption surface '
+      'is the Notebook sidebar\'s Recents and Favorites (FolderSidebar.jsx). The verdicts above are the measurement at '
+      'the revision this document records.')
     R('G-111', 'NA', [code(f'{JT}/ticker_research.py', 200, 'def get_ticker_research_summary(')], {'N': NA, 'E': NA, 'O': NA},
       'UCT-unique (plan §1: research assembled per security).')
     R('G-112', 'NA', [code('app/src/pages/research/ResearchPage.jsx', 37, 'import TickerResearchWorkspace'), walk9('B17_older_rows'),
@@ -3946,7 +4052,7 @@ def build(pages_dir=None):
       'B07: the Scan control is there at 390 px; the OCR that makes a photo searchable is now armed (W14 walked image '
       'OCR on a sandbox). The scan-to-search chain has never run on a device, so no comparative verdict.',
       'a real-device scan, then search its words (G-164)')
-    R('G-160', ('NV', 'P', 'NV'), [code(f'{JT}/document_extraction.py', 56, 'IMAGE_DOCX_GATE = "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED"'),
+    R('G-160', ('NV', 'P', 'NV'), [code(f'{JT}/document_extraction.py', 440, 'Extraction (xlsx, stdlib only) — wave 10, G-160'),
                                   flag('NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED', 'armed'), walk7('W14_image_ocr_document'),
                                   walk10('B3_xlsx_cell_found')],
       {'N': ['N_importdocx'], 'E': ['E_searchimg'], 'O': NFO},
@@ -4690,26 +4796,7 @@ def build(pages_dir=None):
       'checked verbatim against the fetched text before it was entered (R16; Evernote\'s browser reads against the committed '
       'evidence file; R18\'s against the text of its own fetch). The date beside a quote is the date its page was fetched.')
     w('')
-    w('## §0 — B0: the evidence index, verified at the revision above')
-    w('')
-    w('Waves 5-10 land on master as squash merges, so a wave\'s head is never an ancestor of master; wave 9\'s "every tip '
-      'SHA is an ancestor" could hold only on a wave\'s own branch. What the index proves instead: (1) each wave\'s '
-      'SQUASHED head is pinned by a tag and resolves to the recorded SHA (waves 5 and 7 by new `-tip2-` tags: their '
-      '`-tip-` tags are not the heads the PRs squashed, and are left where they are); (2) each wave\'s squash is an '
-      'ancestor of this tree; (5) the squash carries the head: its tree is the head merged onto the squash\'s parent '
-      '(`git merge-tree --write-tree <squash>^ <head>` equals `<squash>^{tree}`, so a squash onto a master that moved '
-      'still ties; L1c, not squashed yet, has its tagged head in this tree\'s own history; after its squash the tool finds '
-      'the earliest commit of this tree\'s history that carries it); (3) every cited evidence file is byte-identical here to the file '
-      'its landing carried; and (4) every tree a browser or walk measured is an ancestor of its declared wave\'s tag, '
-      'and that wave landed; a ref that is not a declared wave tag (a bare SHA, an undeclared tag) is refused. Every '
-      'evidence file and walked tree the cells below cite is one of these rows, or `--write` refuses.')
-    w('')
-    w('| item | command | result |')
-    w('|---|---|---|')
-    for a, b, c in B0_ROWS:
-        w(f'| {a} | `{b}` | {c} |')
-    w('')
-    w('Every property holds.' if not B0_PROBLEMS else f'{len(B0_PROBLEMS)} propert(ies) do NOT hold (see the rows above).')
+    out.extend(b0_section(B0_ROWS, B0_PROBLEMS))
     w('')
     # ── B1 inventory ──
     INV = [
@@ -4990,6 +5077,8 @@ def main(argv=None):
     g.add_argument('--verify', action='store_true')
     g.add_argument('--dry-run', action='store_true')
     g.add_argument('--write', action='store_true')
+    g.add_argument('--write-index', action='store_true',
+                   help='rebuild §0 alone from the evidence index at HEAD (the rest of the document is left as written)')
     ap.add_argument('--rev', default=None,
                     help='--verify at this revision instead of the one the scorecard records (e.g. HEAD)')
     ap.add_argument('--pages', default=None, help='the fetched page texts, to re-verify every quote verbatim')
@@ -5007,6 +5096,8 @@ def main(argv=None):
             print('  FAIL', p)
         print('VERIFY:', 'PASS' if not problems else f'FAIL ({len(problems)})')
         return 0 if not problems else 1
+    if a.write_index:
+        return write_index()
     text, problems, summary = build(a.pages)
     if not a.pages:
         print('quotes checked for length only (no --pages): the verbatim check needs the fetched page texts')

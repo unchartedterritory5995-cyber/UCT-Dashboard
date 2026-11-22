@@ -1,31 +1,20 @@
-// Wave 14, lane W14-C2: the base tour's Replay on a COLD load opened at step 2.
+// The base tour's Replay (Help's Walkthroughs, the Support article's link: `state.startTour`).
 //
-// Cause (reproduced here before the fix): Help's Replay -- and the Support article's "Take
-// the tour" link -- arrive with `state.startTour`, and NotebookTour opened the tour after a
-// fixed AUTO_START_DELAY_MS on whatever anchors were on screen THEN. On a cold load the
-// Notebook is still loading its notes at that moment: the sidebar is painted, the first-run
-// screen (which carries step 1's `first-run` anchor) is not, so the tour began at step 2,
-// "Folders and tags" (W14-0's walk.json, both widths).
-//
-// Fix: that door now waits, bounded, for step 1's anchor while it can still arrive -- the
-// note count is unknown, or known to be zero. A member WITH notes never sees the first-run
-// screen, so for them it opens exactly as before. The existing base-tour rails are
-// unchanged; this file is the new evidence.
+// ⚰️ Wave 14, lane W14-C2 made this door wait, bounded (8 s), for step 1's anchor on an EMPTY notebook: that step was
+// `first-run`, on Research Home's first-run screen, which painted after the notes loaded. Go-live wave 1 removed the
+// step with Research Home, and the wait with it (brief C4: "so the tour opens at once"). This file is the evidence that
+// the door now opens on its first step after the one paint moment (AUTO_START_DELAY_MS), empty notebook or not.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useEffect, useState } from 'react'
 import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { SWRConfig } from 'swr'
-import NotebookTour, { AUTO_START_DELAY_MS, REPLAY_FIRST_STEP_WAIT_MS } from './NotebookTour'
+import NotebookTour, { AUTO_START_DELAY_MS } from './NotebookTour'
 import { TOUR_STEPS } from './tourSteps'
 import { TOUR_STEP_COPY } from './tourCopy'
 import { __resetTourControl } from './tourControl'
 import { AuthContext } from '../../../../../context/AuthContext'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../../lib/offline/notebookFlags'
 import { installTourLayout } from './__fixtures__/tourLayout'
-
-const FIRST = TOUR_STEPS[0]
-const REST = TOUR_STEPS.slice(1).map((s) => s.anchor)
 
 beforeEach(() => {
   __resetNotebookFlags()
@@ -40,21 +29,14 @@ beforeEach(() => {
   })
   installTourLayout()
 })
-afterEach(() => { __resetNotebookFlags(); vi.restoreAllMocks() })
+afterEach(() => { __resetNotebookFlags(); vi.restoreAllMocks(); vi.useRealTimers() })
 
-/** A cold Notebook: the sidebar's anchors are painted at once; the note count and the
- *  first-run screen arrive `lateMs` later. */
-function ColdNotebook({ lateMs, hasNotes = false }) {
-  const [loaded, setLoaded] = useState(false)
-  useEffect(() => {
-    const t = setTimeout(() => setLoaded(true), lateMs)
-    return () => clearTimeout(t)
-  }, [lateMs])
+/** A Notebook whose anchors are painted at once; the note count is known (`notesKnown`) or still loading. */
+function Notebook({ hasNotes, notesKnown }) {
   return (
     <div>
-      {REST.map((a) => <div key={a} data-tour={a}>anchor {a}</div>)}
-      {loaded && !hasNotes && <div data-tour={FIRST.anchor}>Welcome to your Notebook</div>}
-      <NotebookTour hasAnyNotes={loaded && hasNotes} notesKnown={loaded} />
+      {TOUR_STEPS.map((s) => <div key={s.anchor} data-tour={s.anchor}>anchor {s.anchor}</div>)}
+      <NotebookTour hasAnyNotes={hasNotes} notesKnown={notesKnown} />
     </div>
   )
 }
@@ -64,40 +46,29 @@ function Page(props) {
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <AuthContext.Provider value={{ isPaid: true }}>
         <MemoryRouter initialEntries={[{ pathname: '/journal/notebook', state: { startTour: true } }]}>
-          <Routes><Route path="*" element={<ColdNotebook {...props} />} /></Routes>
+          <Routes><Route path="*" element={<Notebook {...props} />} /></Routes>
         </MemoryRouter>
       </AuthContext.Provider>
     </SWRConfig>
   )
 }
 
-const dialog = () => screen.findByRole('dialog', {}, { timeout: 4000 })
-
-describe('Replay on a cold load', () => {
-  it('opens at STEP ONE when the first-run screen arrives after the door\'s first look', async () => {
-    render(<Page lateMs={AUTO_START_DELAY_MS + 700} />)
-    const d = await dialog()
-    expect(d).toHaveAccessibleName(TOUR_STEP_COPY[FIRST.id].title)
+describe('Replay opens at once on step one (no wait for a first-run screen)', () => {
+  it.each([
+    ['an empty notebook', { hasNotes: false, notesKnown: true }],
+    ['a notebook whose count is still loading', { hasNotes: false, notesKnown: false }],
+    ['a member with notes', { hasNotes: true, notesKnown: true }],
+  ])('%s: the card is up on step one right after the paint moment', async (_name, props) => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    render(<Page {...props} />)
+    await act(async () => { await vi.advanceTimersByTimeAsync(AUTO_START_DELAY_MS + 50) })
+    const d = screen.getByRole('dialog')
+    expect(d).toHaveAccessibleName(TOUR_STEP_COPY[TOUR_STEPS[0].id].title)
     expect(screen.getByText(`Step 1 of ${TOUR_STEPS.length}`)).toBeInTheDocument()
   })
 
-  it('a member WITH notes (no first-run screen) is not kept waiting: it opens on the first visible step', async () => {
-    const started = Date.now()
-    render(<Page lateMs={AUTO_START_DELAY_MS + 200} hasNotes />)
-    const d = await dialog()
-    expect(d).toHaveAccessibleName(TOUR_STEP_COPY[TOUR_STEPS[1].id].title)
-    expect(Date.now() - started).toBeLessThan(REPLAY_FIRST_STEP_WAIT_MS)
-  })
-
-  it('the wait is bounded: a first-run screen that never comes still opens on what IS there', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    try {
-      render(<Page lateMs={10 * REPLAY_FIRST_STEP_WAIT_MS} />)
-      await act(async () => { await vi.advanceTimersByTimeAsync(AUTO_START_DELAY_MS + REPLAY_FIRST_STEP_WAIT_MS + 500) })
-      const d = screen.getByRole('dialog')
-      expect(d).toHaveAccessibleName(TOUR_STEP_COPY[TOUR_STEPS[1].id].title)
-    } finally {
-      vi.useRealTimers()
-    }
+  it('step one is the folders panel now (the first-run step left with Research Home)', () => {
+    expect(TOUR_STEPS[0].id).toBe('sidebar')
+    expect(TOUR_STEPS.some((s) => s.id === 'first-run')).toBe(false)
   })
 })

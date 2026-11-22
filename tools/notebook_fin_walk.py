@@ -73,42 +73,27 @@ CAL_FILE = "fin-walk-sandbox-calendar.json"
 # Sandbox degradation every lane's sandbox already serves (13X's list, reused, not widened).
 BENIGN = ("/api/j2/broker/sync", "/api/stream/bars", "/api/live-prices", "warm=1", "/api/stream/prices")
 
-# The switches waves 11-14 and P1/P2 add and production has not armed (count them from the list,
-# never from this line). Read against the ledger at run time (`flag_sets`), so a name that is not a
-# real flag refuses the run.
+# The switches waves 11-14 and P1/P2 add that the walk arms in c2 (count them from the list, never
+# from this line). Read against the ledger at run time (`flag_sets`), so a name that is not a real
+# flag refuses the run. The other wave 11-14 and P1-P5 switches were retired as ALWAYS ON
+# (2026-11-04, `auth.NOTEBOOK_ALWAYS_ON_KEYS`): there is nothing to arm, every config serves them.
 WAVE_FLAGS = [
-    "NOTEBOOK_FORMULAS_ENABLED", "NOTEBOOK_TEMPLATE_GALLERY_ENABLED",
-    "NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED", "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
-    "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED", "NOTEBOOK_PLAYBOOK_ENABLED",
-    "NOTEBOOK_SETUPS_BOARD_ENABLED", "NOTEBOOK_FIND_SIMILAR_ENABLED", "NOTEBOOK_EARNINGS_PREP_ENABLED",
-    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED", "NOTEBOOK_PASSED_SETUPS_ENABLED",
-    "AWARENESS_NOTE_RESURFACE_ENABLED", "NOTEBOOK_THESIS_CHIPS_ENABLED", "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
-    "NOTEBOOK_GETTING_STARTED_ENABLED",
-    # Notebook P1 (journal styles), dark in production; walked in c2 by the `styles` step.
-    "NOTEBOOK_JOURNAL_STYLES_ENABLED",
-    # Notebook P2 Tier 2 part A (alert chip, screenshot chip), dark in production.
-    "NOTEBOOK_SMART_CHIPS_ENABLED",
-    # Notebook P2 Tier 2 part B (earnings follow-up), dark in production.
-    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED",
-    # Notebook P4a (page layouts: Customize on Today and the trade page), dark in production; walked in c2 by `page_layouts`.
+    "AWARENESS_NOTE_RESURFACE_ENABLED",
+    # Notebook P4a (page layouts: Customize on Today and the trade page); walked in c2 by `page_layouts`.
     "JOURNAL_PAGE_LAYOUTS_ENABLED",
-    # Notebook P3a (community style library), dark in production.
-    "NOTEBOOK_STYLE_LIBRARY_ENABLED",
-    # Notebook P5 (starter packs), dark in production.
-    "NOTEBOOK_STARTER_PACKS_ENABLED",
 ]
 # Armed in c2 for the meaning-search TOUR only (the tour lists only while its flag is on). The
 # search itself needs an embedding key and is recorded NOT_RUN.
 TOUR_ONLY_FLAGS = ["NOTEBOOK_SEMANTIC_SEARCH_ENABLED"]
-# c3: the dependents ON, their prerequisites OFF.
-C3_ON = ["NOTEBOOK_VISUAL_PLAYBOOK_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED", "NOTEBOOK_REVIEW_DRAFTS_ENABLED",
-         "NOTEBOOK_GETTING_STARTED_ENABLED"]
-C3_OFF = ["NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED"]
+# c3: the dependents ON, their prerequisites OFF. RETIRED 2026-11-04: every dependent and every
+# prerequisite it switched was retired as always on, so the state c3 walked can no longer exist.
+C3_ON: list[str] = []
+C3_OFF: list[str] = []
 # keyed: the AI features, walked with the two model keys the owner authorised (sandbox only).
 # Voice notes and meaning search stay OFF in production; they are armed here in the sandbox.
 KEYED_EXTRA = ["NOTEBOOK_WRITING_HELP_ENABLED", "NOTEBOOK_ASK_INSERT_ON", "NOTEBOOK_ATTACHMENTS_ON",
                "NOTEBOOK_AI_ACTIONS_ENABLED", "NOTEBOOK_VOICE_NOTES_ENABLED", "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
-               "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "COMPASS_NOTES_TOOL_ENABLED", "J2_OCR_ENABLED"]
+               "COMPASS_NOTES_TOOL_ENABLED", "J2_OCR_ENABLED"]
 MODEL_KEY_NAMES = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")   # presence is read; a value is never printed
 # Ledger-armed names that are jobs / infrastructure / a mode, not a member-facing gate: left unset.
 NOT_MEMBER_GATES = {"NOTEBOOK_DOOR_GUARD", "J2_ATTACHMENT_BACKUP_ENABLED", "J2_ATTACHMENT_GC_ENABLED", "J2_OCR_ENABLED"}
@@ -399,19 +384,105 @@ def member(browser, admin_req, base: str, tag: str, vp: str):
     return ctx, email, me
 
 
+FIRST_RUN_SHEET = "Make the Notebook yours"   # FirstRunSheet.jsx, the 60-second first run (S16)
+
+
+def base_tour_card(pg):
+    """The base tour's card: NotebookTour.jsx draws a modal dialog (role=dialog, aria-modal) with a "Skip tour"
+    button, NOT the registry tours' `[data-tour-card]`."""
+    return pg.locator("[role=dialog][aria-modal=true]").filter(has=pg.get_by_role("button", name="Skip tour", exact=True))
+
+
 def settle_first_run(pg) -> dict:
-    """Close what a new member meets first, the way a member does. Returns what was there."""
-    seen = {"base_tour": False, "compass": False}
-    d = pg.locator("[role=dialog][aria-modal=true]")
-    try:
-        d.first.wait_for(state="visible", timeout=6000)
-        if "Welcome to your Notebook" in (d.first.inner_text() or ""):
-            seen["base_tour"] = True
-            pg.keyboard.press("Escape")
-            d.first.wait_for(state="hidden", timeout=5000)
-    except Exception:  # noqa: BLE001
-        pass
+    """Close what a new member meets first, the way a member does. Returns what was there.
+    Go-live wave 2: the empty notes list is the first screen. A brand-new member can meet the 60-second first run
+    (a dialog, closed with "Skip for now") and the base tour's card (step one is "Folders and tags" since the
+    Research home's "Welcome to your Notebook" step was removed; closed with "Skip tour"). The tour waits for the first
+    run (S16), so it can arrive a moment AFTER the sheet is closed: the loop keeps looking until nothing new comes."""
+    seen = {"base_tour": False, "compass": False, "first_run_sheet": False, "both_at_once": False}
+    sheet = pg.locator("[role=dialog]").filter(has_text=FIRST_RUN_SHEET)
+    card = base_tour_card(pg)
+    # Measured on the c2 sandbox (go-live wave 2): the tour's card can arrive 6 to 10 s after the page, once its chunk
+    # and the preferences have answered and the first run (if any) is closed.
+    quiet_until = time.time() + 15.0
+    while time.time() < quiet_until:
+        try:
+            s_on = sheet.count() > 0 and sheet.first.is_visible()
+            c_on = card.count() > 0 and card.first.is_visible()
+        except Exception:  # noqa: BLE001 -- a navigation mid-read
+            s_on = c_on = False
+        if s_on and c_on:
+            seen["both_at_once"] = True
+        try:
+            if s_on:
+                seen["first_run_sheet"] = True
+                sheet.first.get_by_role("button", name="Skip for now", exact=True).click(timeout=5000)
+                sheet.first.wait_for(state="hidden", timeout=5000)
+                quiet_until = time.time() + 10.0
+                continue
+            if c_on:
+                seen["base_tour"] = True
+                seen["base_tour_title"] = (card.first.locator("h2").first.inner_text() or "").strip()
+                skip = card.first.get_by_role("button", name="Skip tour", exact=True)
+                if skip.count():
+                    skip.first.click(timeout=5000)
+                else:
+                    pg.keyboard.press("Escape")
+                card.first.wait_for(state="hidden", timeout=5000)
+                quiet_until = time.time() + 2.0
+                continue
+        except Exception:  # noqa: BLE001 -- recorded by what `seen` says; the step that needs the page reads it
+            pass
+        pg.wait_for_timeout(300)
     return seen
+
+
+_ONBOARDING_DIR = REPO / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "onboarding"
+# Read from the product's own files, never retyped: the empty list's standalone button and the Get started card's row.
+SAMPLE_ADD_BUTTON = re.search(r"\badd: '([^']+)'", (_ONBOARDING_DIR / "sampleNotebook.js").read_text(encoding="utf-8")).group(1)
+CHECKLIST_SAMPLE_ROW = re.search(r"\bsample: '([^']+)'", (_ONBOARDING_DIR / "gettingStarted.js").read_text(encoding="utf-8")).group(1)
+
+
+def sample_door(pg, timeout: int = 20000) -> dict:
+    """The door a brand-new member has to the sample notebook on the empty notes list (final fix, C4): while the Get
+    started card is on screen with its sample row not done, the card's row ("Open the sample notebook") is THE door
+    and the standalone "Add a sample notebook" is not drawn; with no card (switch off, hidden, closed) the standalone
+    button is. Returns {"door": "card" | "standalone" | None, "loc": locator or None, "standalone_with_card": bool};
+    `standalone_with_card` true is the C4 defect (two sample doors on one screen) and a step must read it."""
+    card = pg.locator("section").filter(has=pg.get_by_role("heading", name="Get started", exact=True))
+    row = card.get_by_role("button", name=CHECKLIST_SAMPLE_ROW, exact=True)
+    lone = pg.get_by_role("button", name=SAMPLE_ADD_BUTTON, exact=True)
+    def on(loc):
+        try:
+            return loc.count() > 0 and loc.first.is_visible()
+        except Exception:  # noqa: BLE001 -- a navigation mid-read
+            return False
+
+    deadline = time.time() + timeout / 1000
+    first_seen = None
+    while time.time() < deadline:
+        if on(row) or on(lone):
+            first_seen = "card" if on(row) else "standalone"
+            # Both pieces are lazy: give the other one its chance to arrive before reading the screen as settled.
+            pg.wait_for_timeout(2500)
+            break
+        pg.wait_for_timeout(300)
+    r_on, l_on = on(row), on(lone)
+    if r_on:
+        return {"door": "card", "loc": row.first, "standalone_with_card": l_on, "first_seen": first_seen}
+    if l_on:
+        return {"door": "standalone", "loc": lone.first, "standalone_with_card": False, "first_seen": first_seen}
+    return {"door": None, "loc": None, "standalone_with_card": False, "first_seen": first_seen}
+
+
+def press_through(pg, loc, timeout: int = 10000) -> None:
+    """Press `loc` the way a member would: if a first-visit card that arrived late (the base tour's card is modal: its
+    layer takes the pointer) is in the way, close it as a member does, then press again. Any other failure raises."""
+    try:
+        loc.click(timeout=timeout)
+    except Exception:  # noqa: BLE001 -- retried once after the member closes what covers the page
+        settle_first_run(pg)
+        loc.click(timeout=timeout)
 
 
 # ── the absence census (c1) -- the same selectors c2 must find PRESENT ─────────────────────
@@ -424,7 +495,8 @@ SURFACES = {
     "tour_explainer": ("css", "[data-tour-explainer]"),
     "reporting_soon": ("css", "[data-reporting-soon]"),
     "passed_setups": ("css", "[data-passed-setups]"),
-    "review_box_home": ("text", "Reviews that write themselves"),
+    # (Research home's "Reviews that write themselves" box was retired by go-live wave 1; its door is the list's New menu
+    #  Reviews group, which is not drawn at rest, so it has no census line: the c2 `reviews` step presses it.)
     "fingerprint_panel": ("css", '[data-testid="fingerprint-panel"]'),
     "chart_plan_panel": ("css", "[data-chart-plan-panel]"),
     "chart_plan_button": ("embedbtn", "Plan"),
@@ -443,9 +515,9 @@ SURFACES = {
     "my_playbook_door": ("css", '[data-testid="open-my-playbook"]'),
     "my_playbook": ("css", '[data-testid="my-playbook"]'),
     "setups_board_card": ("css", "[data-board-card]"),
-    "setups_board_heading": ("heading", "Active setups"),
+    "setups_board_heading": ("heading", "Setups"),   # S7 renamed "Active setups"
     "find_similar_button": ("buttonprefix", "Find more like"),
-    "gallery_door": ("button", "Browse the community gallery"),
+    "gallery_door": ("button", "Browse the Template library"),   # S7 renamed "Browse the community gallery"
     "transcript_door": ("button", "Save from a transcript"),
     "help_walkthroughs": ("text", "Walkthroughs"),
     "help_whats_new": ("css", "section[aria-labelledby='support-whats-new']"),
@@ -774,25 +846,31 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
 
     @G("first run")
     def first_run():
+        # Go-live wave 2: Research home's "Welcome to your Notebook" screen is gone; a new member lands on the empty notes list.
         goto(pg, base, "/journal/notebook")
-        ok = vis_loc(pg.get_by_role("heading", name="Welcome to your Notebook", level=2), 30000)
+        ok = vis_loc(pg.get_by_text("Your notebook is empty.", exact=True), 30000)
         seen = settle_first_run(pg)
         pg.wait_for_timeout(2500)
-        shape = pg.evaluate("""() => { const row = document.querySelector("[data-tour='first-run']"); const root = row && row.parentElement;
-            return { children: root ? [...root.children].map(e => e.tagName) : null,
-                     buttons: row ? [...row.querySelectorAll('button')].map(b => b.innerText.trim()) : null } }""")
+        shape = {"buttons": [t.strip() for t in pg.locator("[data-empty], [class*='_empty_']").first.get_by_role("button").all_inner_texts()]
+                 if pg.locator("[class*='_empty_']").count() else None}
         found = census(pg)
-        step(pg, inst, "first run", "empty Notebook: welcome renders, no wave 12-15 surface",
-             "PASS" if ok and not found else "FAIL", welcome=ok, base_tour_autostarted=seen["base_tour"],
-             surfaces_found=found, **shape)
+        step(pg, inst, "first run", "empty Notebook: the empty notes list renders, no wave 12-15 surface",
+             "PASS" if ok and not found else "FAIL", empty_list=ok, base_tour_autostarted=seen["base_tour"],
+             first_run_sheet=seen["first_run_sheet"], surfaces_found=found, **shape)
     first_run()
 
     marker = f"finwalk{vp}zebra"
     @G("note CRUD")
     def crud():
-        pg.get_by_role("button", name="Start a note", exact=True).first.click()
+        # Research home's "Start a note" is gone: the list's "+ New" (not drawn on a phone, where the empty list's
+        # template picker carries the blank page)
+        new_btn = pg.get_by_role("button", name="+ New", exact=True).filter(visible=True)
+        if new_btn.count():
+            new_btn.first.click()
+        else:
+            pg.get_by_role("button", name=re.compile(r"^Blank")).filter(visible=True).first.click()
         pg.locator(".ProseMirror").first.wait_for(state="visible", timeout=60000)
-        title = pg.locator('input[aria-label="Note title"]').first
+        title = pg.locator('[aria-label="Note title"]').first
         title.fill(f"Fin walk note {vp}")
         pm = pg.locator(".ProseMirror").first
         pm.click()
@@ -912,9 +990,17 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
         goto(pg, base, "/journal/notebook?view=all")
         tp_err, door = None, None
         try:
-            pg.get_by_role("button", name="Templates", exact=True).first.click(timeout=15000)
+            # the template sheet: the "+ New" arrow, From a template (the toolbar's Templates button folded into that
+            # menu, simplify Task 3; on a phone the More menu's New from a template)
+            caret = pg.get_by_role("button", name="More ways to start a note", exact=True).filter(visible=True)
+            if caret.count():
+                caret.first.click(timeout=15000)
+                pg.get_by_role("menuitem", name="From a template", exact=True).first.click(timeout=10000)
+            else:
+                pg.get_by_role("button", name="More notebook actions", exact=True).first.click(timeout=15000)
+                pg.get_by_role("menuitem", name="New from a template", exact=True).first.click(timeout=10000)
             pg.wait_for_timeout(1200)
-            door = pg.get_by_role("button", name="Browse the community gallery").count()
+            door = pg.get_by_role("button", name="Browse the Template library").count()
         except Exception as e:  # noqa: BLE001
             tp_err = str(e)[:200]
         step(pg, inst, "editor menus", "template picker: no community gallery door",
@@ -933,7 +1019,8 @@ def c1_viewport(browser, admin, base: str, vp: str, fs: dict) -> None:
         step(None, inst, "journal", "one open position and one closed trade exist (member API)",
              "PASS" if s1 in (200, 201) and s3 == 200 and tid else "FAIL", position=s1, close=s3, trade=tid, shot=False)
         pages = [
-            ("Research Home with notes", "/journal/notebook", None),
+            ("the notes list with notes", "/journal/notebook", None),
+            ("the Daily brief", "/journal/notebook?view=today", None),
             ("Open Positions rows", "/journal?j2tab=positions", None),
             ("closed trades table", "/journal/trades?seg=closed", None),
             ("trade page", f"/journal-2-0/trade/{tid}", None),
@@ -1040,6 +1127,8 @@ def run_c1(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
 # ── c3: a dependent switched on without its prerequisite ────────────────────────────────────
 
 def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
+    if not (C3_ON or C3_OFF):
+        raise h.SetupFailed("c3 is retired: the switches it paired were retired as always on (2026-11-04)")
     cfg = "c3"
     ctx, email, me = member(browser, admin.request, base, "c3m", "1280")
     inst = Inst(ctx, cfg, "1280")
@@ -1086,18 +1175,22 @@ def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
             goto(pg, base, "/journal/notebook/setups")
             pg.wait_for_timeout(5000)
             step(pg, inst, "setups board without chart plan", "the board page: an honest message, not an error", "INFO",
-                 heading=pg.get_by_role("heading", name="Active setups").count(), cards=pg.locator("[data-board-card]").count(),
+                 heading=pg.get_by_role("heading", name="Setups", exact=True).count(), cards=pg.locator("[data-board-card]").count(),
                  alerts=[a[:200] for a in pg.get_by_role("alert").all_inner_texts()], page_text=page_text())
         except Exception as e:  # noqa: BLE001
             step(pg, inst, "setups board without chart plan", "driver exception", "FAIL", error=str(e)[:400])
         # 3) review drafts without plan grading
         try:
+            # Research home's review box is gone (go-live wave 1); simplify pass 2 (C2): the door is the list's "+ New"
+            # arrow > "Draft a review" > Today's recap (the second view of that one row).
             goto(pg, base, "/journal/notebook")
-            box = pg.locator('[data-tour="review-drafts-home"]')
+            box = pg.get_by_role("button", name="More ways to start a note", exact=True)
             present = vis_loc(box, 20000)
             created, body_text, err = None, None, None
             if present:
-                pg.locator('[data-tour="review-drafts-daily"]').first.click()
+                box.first.click()
+                pg.get_by_role("menuitem", name="Draft a review", exact=True).first.click(timeout=10000)
+                pg.locator('[data-tour="review-drafts-daily"]').first.click(timeout=10000)
                 try:
                     pg.wait_for_url(lambda u: "note=" in u, timeout=45000)
                     created = pg.url.split("note=")[-1].split("&")[0]
@@ -1105,7 +1198,7 @@ def run_c3(browser, admin, base: str, fs: dict, data_dir: Path, only) -> None:
                     body_text = pg.locator(".ProseMirror").first.inner_text()[:1500]
                 except Exception as e:  # noqa: BLE001
                     err = str(e)[:200]
-            step(pg, inst, "review drafts without plan grading", "Draft today from Home: a note, with the discipline part honest", "INFO",
+            step(pg, inst, "review drafts without plan grading", "Draft a review > Today's recap from the list: a note, with the discipline part honest", "INFO",
                  review_box=present, note=created, note_text=body_text, wait_error=err,
                  alerts=[a[:200] for a in pg.get_by_role("alert").all_inner_texts()])
             goto(pg, base, "/journal/insights?ins=reviews")

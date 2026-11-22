@@ -75,6 +75,25 @@ def test_the_oracle_really_carries_the_shapes_this_rail_exists_for():
     assert any(not r["shapes"] for r in rows)
 
 
+def test_no_timed_out_script_contributes_a_tree():
+    """⛔ ALL OR NOTHING. A script whose walk ended in ``pine:timeout`` contributed
+    whatever it finished before it stopped, so the oracle changed with machine
+    load (608, 607, 605 trees on one commit, 2026-11-06). The writer now drops such
+    a unit whole and names it in ``timed_out``, sorted; this reads that list back
+    and refuses a row from any unit on it."""
+    doc = _load()
+    units = doc["timed_out"]
+    assert isinstance(units, list)
+    keys = [(u["from"], u["lane"]) for u in units]
+    assert keys == sorted(keys), "timed_out must be sorted, so the file is stable"
+    out = set(keys)
+    leaked = [f"  {r['from']} [{r['lane']}] {r['hash']}" for r in doc["rows"]
+              if (r["from"], r["lane"]) in out]
+    assert not leaked, (
+        "trees from a script whose walk ended in `pine:timeout`:\n"
+        + "\n".join(leaked[:8]))
+
+
 def test_both_python_readers_answer_the_same_number_on_every_tree():
     bad = []
     for r in _load()["rows"]:
@@ -111,6 +130,26 @@ def test_the_python_readers_agree_with_the_javascript_ones():
         "A member's script would install on one side and refuse on the other. "
         "The shared walks are `parse.js::bindFoldableWindow` and "
         "`ast_table.bind_foldable_window`; they must admit the same shapes.")
+
+
+def test_an_unbounded_forward_leaf_still_has_a_bounded_back_on_both_readers():
+    """Engine 66 (#1473) (bt) -- `lastbaryear` declares lookback 0 and forward "unbounded": it
+    reads no earlier bar, so a tree holding one reaches back exactly as far as the rest of it.
+    The linter answered UNKNOWN for the back half because the FORWARD half was unbounded,
+    which disagreed with the interpreter on chart-champions' "Sun-2DVWAP" once its sessions
+    translated. The twin of `lintUnboundedForwardBack.test.js`; the repaint verdict stays."""
+    from api.services.ast_lint import lint_repaint
+
+    leaf = {"type": "series", "name": "lastbaryear"}
+    tree = {"type": "op", "name": "?:", "args": [
+        {"type": "op", "name": "==", "args": [{"type": "series", "name": "year"}, leaf]},
+        {"type": "call", "name": "sma", "args": [{"type": "series", "name": "close"},
+                                                  {"type": "num", "value": 20}]},
+        {"type": "num", "value": 0}]}
+    i, lv = _read_both(tree)
+    assert i is not None and lv == i, (i, lv)
+    assert lint_max(leaf) == 0
+    assert lint_repaint(tree)["mode"] == "repaints"
 
 
 def test_CONTROL_the_python_readers_really_can_disagree():

@@ -18,14 +18,37 @@ export function traceStart(label) {
   if (traces.length > KEEP) traces.shift()
 }
 
+// ── WORKING SIGNAL: is a website write in flight right now? ───────────────────────────────────
+// Read from the same marks as the trace, so the panel header shows real execution, never a guess. It
+// lives outside the trace: mark() always reaches it, with or without an open trace or turn. A commit
+// runs through its 'persist' mark (the write AND the save that follows it; Undo's save runs in useAgent.js,
+// after 'undo:end'). A throw skips that mark, so traceEnd() and turnEnd() (both in a finally) clear it too.
+const WORK_STARTS = new Set(['commit:start', 'undo:start'])
+const WORK_ENDS = new Set(['persist', 'undo:end'])
+let working = false
+const workingSubs = new Set()
+function setWorking(next) {
+  if (working === next) return
+  working = next
+  for (const fn of workingSubs) { try { fn() } catch { /* a status reader never breaks a write */ } }
+}
+export const isWorking = () => working
+export function subscribeWorking(fn) {
+  workingSubs.add(fn)
+  return () => { workingSubs.delete(fn) }
+}
+
 /** Mark a phase of the current trace (no-op when none is open). Also marks the open TURN. */
 export function mark(phase, detail = null) {
+  if (WORK_STARTS.has(phase)) setWorking(true)
+  else if (WORK_ENDS.has(phase)) setWorking(false)
   turnMark(phase, detail)
   if (!cur) return
   cur.marks.push(detail == null ? [phase, Math.round(now() - cur.t0)] : [phase, Math.round(now() - cur.t0), detail])
 }
 
 export function traceEnd(outcome) {
+  setWorking(false)
   if (!cur) return
   mark(`end:${outcome}`)
   cur = null
@@ -76,10 +99,19 @@ export function turnOutput(role) {
   if (!turn || turn.output != null) return
   turn.output = since(turn)
   turn.outputRole = role
+  // a User Timing measure of the Agent's OWN time to its first useful output (path + role, never content): readable in a
+  // profiler and by a test that must not count render, polling or the queue around the turn
+  try { performance.measure(`uct-agent:output:${turn.path || 'none'}:${role}`, { start: turn.t0, end: now() }) } catch { /* no User Timing */ }
+}
+/** ms from the start of the open turn to the first mark of `phase` (null when none yet / no turn). */
+export function turnMarkMs(phase) {
+  const m = turn?.marks.find(x => x[0] === phase)
+  return m ? m[1] : null
 }
 /** ms from the start of the open turn to its first useful output (null when none yet / no turn). */
 export const turnOutputMs = () => (turn && turn.output != null ? turn.output : null)
 export function turnEnd() {
+  setWorking(false)
   if (!turn) return
   turn.done = since(turn)
   turn = null

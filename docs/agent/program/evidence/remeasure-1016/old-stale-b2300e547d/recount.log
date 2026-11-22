@@ -1,0 +1,37 @@
+{
+ "execution": {
+  "inScope": 484,
+  "documentVerified": 158,
+  "counted": 188,
+  "raisedByTest": 0,
+  "raisedByBrowser": 0,
+  "notReproved": 37
+ },
+ "browser": {
+  "rows": 0,
+  "p0": 0,
+  "p0Total": 74,
+  "failed": 0
+ },
+ "panelP0": {
+  "verified": 58,
+  "total": 74
+ },
+ "teaching": {
+  "total": 499,
+  "states": {
+   "VERIFIED": 295,
+   "ASSIGNED / NOT REACHED": 60,
+   "NO WALKTHROUGH": 46,
+   "NO ASSIGNED WALKTHROUGH": 75,
+   "ROUTED / BROWSER FAILED": 23
+  }
+ },
+ "tests": {
+  "total": 9883,
+  "passed": 9845,
+  "failed": 0,
+  "skipped": 14,
+  "files": 314
+ }
+}

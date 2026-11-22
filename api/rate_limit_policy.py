@@ -150,6 +150,11 @@ TIER_INTAKE = "60/minute"
 #: minute. 2,400 is that plus 20%. The bytes are immutable (7-day Cache-Control), so
 #: only a member's first view of a post spends this at all.
 TIER_IMAGES = "2400/minute"
+#: A member's own historical study (EVST): each NEW spec runs a whole-history computation on the
+#: server, far heavier than a cached read. A member runs one study per click; the panel re-asks
+#: every few seconds while one is computing and reads the series menu once per open. 30 a minute is
+#: a run every two seconds, well past a person at the form, and a twentieth of the research tier.
+TIER_STUDY = "30/minute"
 
 
 class Family(NamedTuple):
@@ -179,7 +184,9 @@ FAMILIES: dict[str, Family] = {
          "/api/maintenance", "/api/adjustment-basis",
          # The Breadth Pack's manifest + immutable shards (the barspack's twin) and the
          # point-in-time market-cap series the chart draws: chart data, fetched in bursts.
-         "/api/breadthpack", "/api/marketcap"),
+         "/api/breadthpack", "/api/marketcap",
+         # Currency pairs (BTC/USD): the pair list and its quote, polled like any other quote.
+         "/api/crypto"),
     ),
     "options-flow": Family(
         TIER_BULK,
@@ -241,6 +248,13 @@ FAMILIES: dict[str, Family] = {
          # chart's pattern side panel and the Trader Archive page, one per view or click.
          "/api/wisdom"),
     ),
+    "research-studies": Family(
+        TIER_STUDY,
+        "EVST, a member's own historical event study and its series menu: every new spec computes over "
+        "the whole stored history (on a two-worker pool, held per spec per evening), so it gets a "
+        "TIGHTER bucket than the research reads its prefix sits under (longest prefix wins).",
+        ("/api/research/event-study",),
+    ),
     "screener": Family(
         TIER_STANDARD,
         "Screener, scans, patterns, backtests, user definitions, indicator "
@@ -256,7 +270,13 @@ FAMILIES: dict[str, Family] = {
          # The Pine support loop (gap counts + opt-in mismatch reports).
          "/api/indicator-support",
          # The Pine library store the chart's translators fetch an `import` line from.
-         "/api/pine"),
+         "/api/pine",
+         # Chart IQ (934f2673e7, paid and dark behind CHART_IQ_ENABLED): pattern recognition
+         # drawn on a daily chart, the sibling of /api/patterns. One read per daily chart the
+         # toggle shows (SWR-deduped 60 s, never polled, cached server-side), one POST per vote,
+         # and the admin-only pack status/build/export. Its engine already runs at most 2 at
+         # once behind the router's own semaphore; this is the member's per-action ceiling.
+         "/api/chart-iq"),
     ),
     "member-workspace": Family(
         TIER_STANDARD,
@@ -320,10 +340,19 @@ FAMILIES: dict[str, Family] = {
     "public-intake": Family(
         TIER_INTAKE,
         "Writes an anonymous browser can make (waitlist, landing analytics, client "
-        "error reports, the Q1 probe sink, the live trading room call request): "
-        "a few per page view at most.",
+        "error reports, the Q1 probe sink, the live trading room call request, and the "
+        "two telemetry beacons): a few per page view at most. The beacons -- the speed "
+        "report (/api/perf/beacon, one sendBeacon per page load, no session read) and "
+        "the desktop shell's event door (/api/desktop/event, session optional: launch "
+        "and crash come before sign-in) -- each keep their OWN durable hourly quota per "
+        "key plus a global hourly cap, counted from stored rows (perf_beacon.RATE_LIMIT "
+        "/ GLOBAL_LIMIT_PER_HOUR, desktop_events.RATE_LIMIT / GLOBAL_LIMIT_PER_HOUR). "
+        "Those stay the real limit and answer 200 with the excess dropped; this family "
+        "is the HTTP ceiling above them, bounding the body read and the count query "
+        "that an over-quota flood still costs.",
         ("/api/waitlist", "/api/landing-analytics", "/api/client-errors", "/api/ltr",
-         "/api/q1-probe-result", "/api/q1-probe-results"),
+         "/api/q1-probe-result", "/api/q1-probe-results",
+         "/api/perf/beacon", "/api/desktop/event"),
     ),
     "inbound-alerts": Family(
         TIER_BULK,
@@ -393,6 +422,9 @@ EXEMPT: dict[str, str] = {
     "/api/health": "Platform healthchecks and uptime monitors; they must answer "
                    "while the pod is under exactly the load a limit would react to.",
     "/api/ready": "Readiness probe; same reason as /api/health.",
+    "/build.json": "The frontend's identity, polled by every open tab's update watcher "
+                   "(two short strings read from a cached manifest); a 429 here only "
+                   "delays a member learning that a new version is ready.",
     "/api/webhooks": "Stripe's webhook sender, from shared egress IPs with its own "
                      "retry schedule; a 429 costs a payment event.",
     "/api/desk/zoom-webhook": "Zoom's recording.completed sender; a 429 loses a "
@@ -409,6 +441,14 @@ EXEMPT: dict[str, str] = {
     "/api/discord/interactions": "Discord posts every member's slash command from "
                                  "its own IPs; a 429 is a failed command. The "
                                  "per-member /chart budget lives in the handler.",
+    # ecb22ce7f0: the Massive Discord cards' author icon. The exact file path, never a
+    # /api/brand prefix: a dynamic route added beside it must fail the census and be decided.
+    "/api/brand/massive-card-logo.png": "One static 256px PNG (24 h Cache-Control, no "
+                                        "auth) that Discord's media proxy fetches "
+                                        "anonymously from its own shared IPs as the "
+                                        "Massive cards' author icon; a 429 is a broken "
+                                        "icon on a card in the member channel. The same "
+                                        "shape as /og-image.png.",
     # ── app/dist only (see DIST_ONLY) ─────────────────────────────────────────
     "/assets": "Hashed static bundle from app/dist, edge-cacheable; a page load "
                "fetches dozens, and limiting them throttles page loads, not API use.",

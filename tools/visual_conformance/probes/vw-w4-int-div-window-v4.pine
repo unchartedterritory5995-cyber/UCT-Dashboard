@@ -1,0 +1,44 @@
+//@version=4
+study("UCTPROBE_VW_W4_INT_DIV_WINDOW_V4", overlay = false)
+
+// PROVENANCE: written 2026-11-03 for the Pine parity programme, W4-T17 (docs/pine/W4-BREAKDOWN.md
+// section T17), capture row W4-D1. NEVER COMPILED ON TRADINGVIEW: a line that does not compile
+// IS a reading - record its text and delete only that line, then capture the rest.
+//
+// QUESTION: what does an integer division ('/' between two ints) mean as a WINDOW LENGTH or a
+// history OFFSET, per Pine version and per operand qualifier (literal / const / input.int)?
+//   v4, v5: '/' on two int constants was documented to give a float; a length given a float
+//           is truncated or rounded - the capture says which.
+//   v6    : the migration guide says int/int is a true division returning a fraction.
+// Each division row sits beside its two integer neighbours so the candidate rules read as a
+// different NUMBER, never as a hidden fold:
+//   9/2 = 4.5   truncate -> wma(4)   round-half-up -> wma(5)   (the two controls below)
+//   21/2 = 10.5 truncate 10, round 11; the offset rows add 1: close[10.5+1]
+// CAPTURE: AMEX:SPY 1D, then NYSE:RDDT 1D, inputs at defaults (len = 9, dlen = 21).
+// READ: for each R row, which control (C row) it equals on every bar past the warm-up. A row
+// equal to NEITHER is a third rule (record it). 'na' on every bar = the call was rejected at
+// runtime. R rows named *_INPUT use an input operand; *_CONST a const; *_LIT a literal.
+
+len  = input(9,  type = input.integer, title = "len")
+dlen = input(21, type = input.integer, title = "dlen")
+CLEN = 9
+CDLEN = 21
+
+plot(bar_index, title = "A00_bar_index_CONTROL")
+
+plot(wma(close, 4),  title = "C01_wma_4")
+plot(wma(close, 5),  title = "C02_wma_5")
+plot(close[10],      title = "C03_close_10")
+plot(close[11],      title = "C04_close_11")
+plot(close[12],      title = "C05_close_12")
+
+plot(wma(close, 9 / 2),    title = "R01_wma_LIT_9div2")
+plot(close[21 / 2 + 1],    title = "R02_offset_LIT_21div2p1")
+plot(wma(close, CLEN / 2), title = "R03_wma_CONST_len_div2")
+plot(close[CDLEN / 2 + 1], title = "R04_offset_CONST_dlen_div2p1")
+plot(wma(close, len / 2),  title = "R05_wma_INPUT_len_div2")
+plot(close[dlen / 2 + 1],  title = "R06_offset_INPUT_dlen_div2p1")
+plot(wma(2 * wma(close, len / 2) - wma(close, len), round(sqrt(len))), title = "R07_hma_shape_INPUT")
+plot(close - sma(close, dlen)[dlen / 2 + 1], title = "R08_dpo_shape_INPUT")
+plot(wma(close, 8 / 2),    title = "R09_wma_LIT_8div2_exact")
+plot(wma(close, 4),        title = "R10_wma_4_same_as_C01")

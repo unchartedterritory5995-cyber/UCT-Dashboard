@@ -1,0 +1,24 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "e89 follow-up (no engine number): the held withholds are a DECLARED door of the runtime gate's test grant (testing/runtimeGate.js), so a hook outside any test that applies them fails the next test by name (GATE-BLIND), and every test starts with them ignored.",
+ "mutants": [
+  {
+   "id": "G1",
+   "mutant": "the held withholds left out of the gate state (a beforeAll that applies them is silently re-granted)",
+   "file": "app/src/testing/runtimeGate.js",
+   "from": "    hostKnownDivergenceActive(), runtimeCapabilityAdmissionOn(), heldWithholdsState(),",
+   "to": "    hostKnownDivergenceActive(), runtimeCapabilityAdmissionOn(),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/testing/runtimeGate.test.js",
+   "expectRed": "a beforeAll that applies the held withholds fails the next test"
+  },
+  {
+   "id": "G2",
+   "mutant": "the grant no longer ignores the held withholds (a test that applied them leaks into the next)",
+   "file": "app/src/testing/runtimeGate.js",
+   "from": "  __ignoreHostKnownDivergenceForTests()\n  __ignoreHeldWithholdsForTests()\n}",
+   "to": "  __ignoreHostKnownDivergenceForTests()\n}",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/testing/runtimeGate.test.js",
+   "expectRed": "the next test starts with the list ignored"
+  }
+ ]
+}

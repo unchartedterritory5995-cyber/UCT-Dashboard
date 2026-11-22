@@ -31,3 +31,23 @@ describe('rendererPaneIndexOf -- a pane readout goes where its series drew', () 
     expect(rendererPaneIndexOf('inst:a', noPaneApi, hostOf)).toBe(undefined)
   })
 })
+
+// ⭐ UCT RS 3-14 — the band the arrangement reserved for a pane that drew nothing.
+import { reservedEmptyPaneIndex } from '../paneReadoutPlacement'
+describe('reservedEmptyPaneIndex', () => {
+  const pane = (n) => ({ getSeries: () => Array.from({ length: n }, () => ({})) })
+  it('the slot, when the renderer pane there exists and holds no series', () => {
+    expect(reservedEmptyPaneIndex(2, [pane(1), pane(1), pane(0)])).toBe(2)
+  })
+  it('null when the pane at the slot holds somebody\'s series (never steal a caption)', () => {
+    expect(reservedEmptyPaneIndex(1, [pane(1), pane(2)])).toBeNull()
+  })
+  it('null when there is no pane at the slot, no pane API, or a bad slot', () => {
+    expect(reservedEmptyPaneIndex(3, [pane(1), pane(0)])).toBeNull()
+    expect(reservedEmptyPaneIndex(1, [pane(1), {}])).toBeNull()
+    expect(reservedEmptyPaneIndex(1, null)).toBeNull()
+    expect(reservedEmptyPaneIndex(-1, [pane(0)])).toBeNull()
+    expect(reservedEmptyPaneIndex(1.5, [pane(0), pane(0)])).toBeNull()
+    expect(reservedEmptyPaneIndex(0, [{ getSeries: () => { throw new Error('x') } }])).toBeNull()
+  })
+})

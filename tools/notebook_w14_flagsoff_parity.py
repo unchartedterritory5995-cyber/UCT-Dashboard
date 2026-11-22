@@ -69,7 +69,8 @@ MUTATION = ("app/src/pages/journal-2-0/components/notebook/onboarding/tourRegist
 #     the New note menu (P0.1), the search input (P0.13, whose box the 10/10 UX pass made a button),
 #     the Active setups box (P0.5, which REPLACES the lane NAV door that stood here: that link is no
 #     longer in HEAD, so its entry is rewritten, not kept beside the new one) and the note's Ask door
-#     renamed "Ask this note" (P0.7, 4a4c2503e2: one button, its name and its text).
+#     renamed "Ask this note" (P0.7, 4a4c2503e2: one button, its name and its text); simplify pass 2 (A6)
+#     renamed it "Ask about this note".
 #   REMOVED, because their targets are gone from HEAD and the cause is not P0's: the passed-setups
 #     status line (fin-a11y M-5) and the reviews heading's id/tabindex. Both vanished with the 10/10
 #     UX pass (53188edfff, on master, an ancestor of the P0 base eec73eede5): the passed-setups box now
@@ -153,8 +154,8 @@ EXPECTED = (
                   "rendered by the review-drafts box, so only while that capability is on.",
     },
     {
-        "name": "note Ask door is named 'Ask this note' (P0.7)",
-        "head": '<button type="button" class="_askToggle_" aria-expanded="false" aria-label="Ask this note" data-ask-toggle="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"><defs><linearGradient id="uig" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a8823a"></stop><stop offset="40%" stop-color="#d4b25a"></stop><stop offset="50%" stop-color="#e8d18c"></stop><stop offset="60%" stop-color="#cba954"></stop><stop offset="100%" stop-color="#8f6f2c"></stop></linearGradient></defs><path d="M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"></path></svg>Ask this note</button>',
+        "name": "note Ask door is named 'Ask about this note' (P0.7; simplify pass 2 A6)",
+        "head": '<button type="button" class="_askToggle_" aria-expanded="false" aria-label="Ask about this note" data-ask-toggle="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"><defs><linearGradient id="uig" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a8823a"></stop><stop offset="40%" stop-color="#d4b25a"></stop><stop offset="50%" stop-color="#e8d18c"></stop><stop offset="60%" stop-color="#cba954"></stop><stop offset="100%" stop-color="#8f6f2c"></stop></linearGradient></defs><path d="M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"></path></svg>Ask about this note</button>',
         "base": '<button type="button" class="_askToggle_" aria-expanded="false" aria-label="Ask a question about this note" data-ask-toggle="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="url(#uig)" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" style="color: rgb(230, 205, 138); filter: drop-shadow(0 0 1.6px rgba(201,168,76,0.32)); vertical-align: -2px; margin-right: 4px;"><defs><linearGradient id="uig" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#a8823a"></stop><stop offset="40%" stop-color="#d4b25a"></stop><stop offset="50%" stop-color="#e8d18c"></stop><stop offset="60%" stop-color="#cba954"></stop><stop offset="100%" stop-color="#8f6f2c"></stop></linearGradient></defs><path d="M12 3l1.9 5.6L19 10l-5.1 1.5L12 17l-1.9-5.5L5 10l5.1-1.4z"></path></svg>Ask</button>',
         "surface": "open note",
         "needs": None,
@@ -163,7 +164,10 @@ EXPECTED = (
         "reason": "The note's header door was 'Ask' (named 'Ask a question about this note'); P0.7 renamed "
                   "it 'Ask this note', visibly and to a screen reader, so it cannot be mistaken for the "
                   "Notebook-wide Ask section on Home. One button: its accessible name and its text. "
-                  "ALWAYS ON: it is in every open note, with every flag off as well. Ruling R9.",
+                  "ALWAYS ON: it is in every open note, with every flag off as well. Ruling R9. Simplify "
+                  "pass 2 (A6, 2026-11-12) renamed it 'Ask about this note', the words every other door to "
+                  "the note's Ask uses (name and text; this head is the rename applied to the recorded one, "
+                  "not a fresh capture).",
     },
     {
         "name": "editor formatting toolbar is one Tab stop (lane KEYS)",

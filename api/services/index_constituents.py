@@ -56,6 +56,40 @@ def _looks_us(sym: str) -> bool:
     return bool(sym) and len(sym) <= 6 and bool(_US_TICKER.match(sym))
 
 
+#: ⛔ WHEN-ISSUED LINES ARE NOT MEMBERS (2026-11-11). Around a spin-off, a holdings file
+#: lists the parent under its temporary when-issued line -- Nasdaq symbology's FIFTH
+#: letter `V` ("when-issued / when-distributed"): HONAV for HONA, VSNTV for VSNT, ANGIV for
+#: ANGI. That line trades for days and then never again, so the prebuilt S&P 100 kept a
+#: member whose every chart answered 503 with 0 bars, forever. A member is the REGULAR
+#: listing: the when-issued suffix is mapped back to its base symbol at this door.
+_WHEN_ISSUED = re.compile(r"^([A-Z]{4})V$")
+
+
+def normalize_member(sym: str) -> str:
+    """The regular-way listing an index member trades under (when-issued -> base)."""
+    s = str(sym or "").strip().upper()
+    m = _WHEN_ISSUED.match(s)
+    return m.group(1) if m else s
+
+
+def is_resolvable_member(sym: str) -> bool:
+    """True for a symbol a prebuilt list may hold: a plain US listing, never a temporary
+    when-issued line (see `normalize_member`)."""
+    s = str(sym or "").strip().upper()
+    return _looks_us(s) and normalize_member(s) == s
+
+
+def normalize_members(syms) -> list:
+    """`normalize_member` over a list, de-duplicated, order kept."""
+    seen, out = set(), []
+    for t in syms or []:
+        n = normalize_member(t)
+        if n and n not in seen:
+            seen.add(n)
+            out.append(n)
+    return out
+
+
 def _get(url: str):
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     with urllib.request.urlopen(req, timeout=60) as r:
@@ -74,13 +108,8 @@ def _fetch_one(kind: str, source: str, key: str) -> list:
     rows = _get(url)
     if not isinstance(rows, list):
         return []
-    seen, out = set(), []
-    for r in rows:
-        t = str((r or {}).get(field) or "").strip().upper()
-        if _looks_us(t) and t not in seen:
-            seen.add(t)
-            out.append(t)
-    return out
+    return normalize_members(
+        t for t in (str((r or {}).get(field) or "").strip().upper() for r in rows) if _looks_us(t))
 
 
 def fetch_index_lists(key: str | None = None) -> dict:

@@ -17,6 +17,7 @@
 // expected sentence is what the chart's bind (`computeFor`) answers — off the
 // listing, which is what a server lane always is.
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import { stripParamInputs } from '../paramInputs'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -80,7 +81,8 @@ function buildDoc() {
         key,
         definition: {
           meta: def.meta.blockRuns ? { blockRuns: def.meta.blockRuns } : {},
-          inputs: def.inputs || [],
+          // the STORED document's inputs (the server's): the load-time settings are a view, never stored
+          inputs: stripParamInputs(def).inputs || [],
         },
         expected,
       }

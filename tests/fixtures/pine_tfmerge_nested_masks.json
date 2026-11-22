@@ -1,0 +1,171 @@
+{
+ "_": "The weekly ta.stoch flat-run shape of engine57Builtins.test.js (F5), as the Pine door translates it, and the daily bars the ROOT's builtin witness mask withholds on it today. Read by app/src/components/chart/engine/ast/tfMergeNestedMasks.test.js (which holds `tree` to the translator's own output) and tests/test_pine_tfmerge_nested_masks.py. No committed capture plots a window call inside a weekly request, so these bars stay withheld (docs/pine/capture-queue-2026-11-16-tick-tie-and-htf-windows.md, H01-H05).",
+ "source": "//@version=6\nindicator(\"e57 htf flat\")\nfloat y = bar_index >= 60 and bar_index < 75 ? 1000.0 : close\nplot(request.security(syminfo.tickerid, \"W\", ta.stoch(close, y, y, 5)))",
+ "bars": "tests/fixtures/vendor/harness/support-and-resistance-5f95e90f-rddt-1d-2026-11-13.json",
+ "opts": {
+  "historyFromListing": true,
+  "newestBarIsForming": false,
+  "tf": "D"
+ },
+ "rootWithheld": {
+  "first": 64,
+  "last": 99,
+  "count": 36,
+  "code": "stoch:flat-window"
+ },
+ "weeklyReadWithheld": {
+  "first": 308,
+  "last": 360,
+  "count": 53
+ },
+ "tree": {
+  "type": "op",
+  "name": "?:",
+  "args": [
+   {
+    "type": "op",
+    "name": "!=",
+    "args": [
+     {
+      "type": "num",
+      "value": 86400
+     },
+     {
+      "type": "series",
+      "name": "periodseconds"
+     }
+    ]
+   },
+   {
+    "type": "op",
+    "name": "/",
+    "args": [
+     {
+      "type": "num",
+      "value": 0
+     },
+     {
+      "type": "num",
+      "value": 0
+     }
+    ]
+   },
+   {
+    "type": "tf_merge",
+    "value": "W",
+    "args": [
+     {
+      "type": "call",
+      "name": "stochPine",
+      "args": [
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "&&",
+          "args": [
+           {
+            "type": "op",
+            "name": ">=",
+            "args": [
+             {
+              "type": "series",
+              "name": "barindex"
+             },
+             {
+              "type": "num",
+              "value": 60
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "<",
+            "args": [
+             {
+              "type": "series",
+              "name": "barindex"
+             },
+             {
+              "type": "num",
+              "value": 75
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 1000
+         },
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "&&",
+          "args": [
+           {
+            "type": "op",
+            "name": ">=",
+            "args": [
+             {
+              "type": "series",
+              "name": "barindex"
+             },
+             {
+              "type": "num",
+              "value": 60
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "<",
+            "args": [
+             {
+              "type": "series",
+              "name": "barindex"
+             },
+             {
+              "type": "num",
+              "value": 75
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 1000
+         },
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       },
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "num",
+        "value": 5
+       }
+      ]
+     }
+    ]
+   }
+  ]
+ }
+}

@@ -1,25 +1,24 @@
 // app/src/pages/research/tabs/OwnershipTab.labels.test.jsx
 //
-// The tab renders TWO institutional-ownership percentages from two different
-// providers, and they disagree by an order of magnitude on essentially every
-// ticker (live 2026-08-06: AAPL 65.95% vs 6.38%; ATROB 71.85% vs 0.47%).
-// Both were labeled "Institutional ownership", so the page read as though it
-// contradicted itself. They are different measures — the aggregate stake vs
-// the positions inside one quarter's 13F filings — and the labels have to say
-// so. This pins that they never collapse back to the same words.
+// The tab prints the institutional percent in TWO places: the headline in the
+// Institutional ownership card and the 13F card's own stat with its change over
+// the quarter. Both were once labeled "Institutional ownership" (and came from
+// two providers that disagreed), so the page read as though it contradicted
+// itself. Both now read the Form 13F summary, and the labels still have to say
+// what each one is. This pins that they never collapse back to the same words.
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 
 const data = {
   sym: 'ATROB',
   entity: { status: 'resolved', entityId: 'em_atrob' },
-  institutional: { pct_held: 71.85, holders: [] },
-  short: { shares_short: 1e5, short_pct_float: 0.4, days_to_cover: 1.1 },
+  institutional: { state: 'ok', pct_held: 71.86, quarter: '2026Q2' },
+  short: { state: 'ok', shares_short: 1e5, short_pct_float: 0.4, days_to_cover: 1.1, settlement_date: '2026-10-30' },
   share_counts: { float_shares: 19093178, shares_outstanding: 35851963, _meta: null },
   insider: [],
   thirteen_f: {
     quarter: '2026Q2',
-    summary: { ownership_pct: 0.4693, investors_holding: 8, total_invested: 13633685 },
+    summary: { ownership_pct: 71.86, ownership_change: 0.4693, investors_holding: 8, total_invested: 13633685 },
     holders: [],
     _meta: null,
   },
@@ -33,10 +32,11 @@ describe('OwnershipTab — the two ownership figures are distinguishable', () =>
   it('shows both numbers under labels that are not the same words', () => {
     render(<OwnershipTab sym="ATROB" />)
 
-    // Both figures are still present — the fix is disambiguation, not hiding
-    // one of them. A member auditing a 13F needs the 13F number.
-    expect(screen.getByText('71.85%')).toBeInTheDocument()
-    expect(screen.getByText('0.5%')).toBeInTheDocument()
+    // Both places are still present — the fix is disambiguation, not hiding
+    // one of them. A member auditing a 13F needs the 13F stat and its change.
+    expect(screen.getByText('71.86%')).toBeInTheDocument()
+    expect(screen.getByText('71.9%')).toBeInTheDocument()
+    expect(screen.getByText('+0.47pp')).toBeInTheDocument()
 
     // The aggregate figure names its denominator; the 13F figure names its
     // source. Neither reads as the bare, ambiguous "Institutional ownership".
@@ -59,6 +59,6 @@ describe('OwnershipTab — the two ownership figures are distinguishable', () =>
   it('the 13F block still carries the quarter it belongs to', () => {
     render(<OwnershipTab sym="ATROB" />)
     // Without the quarter, "Held by 13F filers" is an undated claim.
-    expect(screen.getByText(/2026Q2/)).toBeInTheDocument()
+    expect(within(screen.getByTestId('ownership-funds')).getByText(/Q2 2026/)).toBeInTheDocument()
   })
 })

@@ -103,8 +103,10 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // ⭐ `mintick` joined `pending_measurement` on 2026-09-28: served where a
     // capture backs the exchange, refused with THIS roster's sentence where not.
     expect(Object.keys(SYMBOL_SCOPE.pending_measurement).filter((k) => !k.startsWith('_')).sort())
-      .toEqual(['basecurrency', 'currency', 'mintick', 'pointvalue', 'prefix', 'root', 'session',
-        'tickerid', 'timezone'])
+      // ⭐ RS Rating L3 (2026-11-15): `industry` / `sector` joined, refused here when a symbol
+      // carries no classification at all (`classification` serves a witnessed or substituted one)
+      .toEqual(['basecurrency', 'currency', 'industry', 'mincontract', 'mintick', 'pointvalue', 'prefix', 'root',
+        'sector', 'session', 'tickerid', 'timezone'])
     expect(Object.keys(BUILTIN_SYMBOL_UNSERVED)).not.toContain('syminfo.mintick')
   })
 
@@ -132,6 +134,29 @@ describe('(h) — three syminfo fields retire by name, from the roster', () => {
     // ⭐ AND 43 → 44 ON 2026-09-27, AGAIN NOT BECAUSE OF (h). The vocabulary wave
     // declared `pine:budget`: a SCREENER column wrapping the session-long `vwap()`
     // translated and then could not be saved. Named in PARITY-PROGRAMME.md.
-    expect(Object.keys(REFUSALS).length).toBe(44)
+    //
+    // ⭐ AND 44 → 45 ON 2026-11-07, AGAIN NOT BECAUSE OF (h). I6a-N4 declared
+    // `pine:indent`: an `if` / `else` / `for` / `while` / `switch` (a nested
+    // `0 => switch k` included) whose every line beneath sits at an indent that is
+    // not a multiple of four has no local block by the manual's rule ("A local
+    // block must be indented by a tab or four spaces"; any other indent is a wrap),
+    // and master served it. Both lanes now refuse it by that name
+    // (`pine.js::refuseOffBlockIndent`, rail `runtime/__tests__/i6aN4BlockIndent.test.js`).
+    //
+    // ⭐ AND 45 → 47 ON 2026-11-15 (landing train 1), AGAIN NOT BECAUSE OF (h): two inputs each declared one.
+    // CBC-FMT: `pine:calc-bars-count-expr` (a `calc_bars_count` that is not a positive whole-number
+    // literal, TradingView's own compile error; rail `calcBarsWindow.cbcfmt.test.js`). Legacy semantics
+    // B3: `pine:fn-history-in-block` (a script function reading a chart series at an offset, called
+    // inside a block, at v1 on both lanes and v2 / v3 on the host lane; rail
+    // `vendorHarness.b3FnHistoryInBlock.test.js`).
+    // ⭐ AND 47 → 51 ON 2026-11-16 (landing train 2), AGAIN NOT BECAUSE OF (h). U15 Phase A declared four names for a
+    // library the store holds and will not compile: `pine:library-no-sha` (no verified sha256),
+    // `pine:library-changed` (other code than the document was saved against),
+    // `pine:library-licence` (a non-commercial licence) and `pine:library-denied` (the deny list).
+    // Rail: `pineLibraryPinning.test.js`.
+    // ⭐ AND 51 → 52 ON 2026-11-16 (U15 Phase B), AGAIN NOT BECAUSE OF (h): `pine:library-version` (a v5
+    // library in a v6 script whose reached code holds a construct the v6 migration guide changed).
+    // Rail: `pineLibraryVersion.test.js`.
+    expect(Object.keys(REFUSALS).length).toBe(52)
   })
 })

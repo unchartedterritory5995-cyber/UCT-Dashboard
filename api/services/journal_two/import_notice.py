@@ -52,7 +52,11 @@ CLIENT_REASONS: tuple[str, ...] = (
     "storage_full")
 #: Plan C (the Obsidian plugin), plugin-only meanings. Codes converted to snake_case.
 PLUGIN_REASONS: tuple[str, ...] = (
-    "obsidian_plugin_outdated", "obsidian_attachments_unavailable", "not_found", "sync_off")
+    "obsidian_plugin_outdated", "obsidian_attachments_unavailable", "not_found", "sync_off",
+    # Live audit 2026-11-03: a vault file whose bytes never reached the server and that no
+    # update would bring (attachment sync off for the account, or a 0.2.0+ plugin that did not
+    # list it). Final; names no remedy.
+    "not_sent")
 #: Plan F (the import repair). `missing_from_import` marks media an earlier import lost; it is
 #: final (only `fetch_failed` retries) and names the way back, Re-import to recover. Appended
 #: LAST: the client list must match this one in order.
@@ -91,6 +95,7 @@ NOTICE_COPY: Mapping[str, str] = MappingProxyType({
     "obsidian_attachments_unavailable": "{name} wasn't synced yet. It will be retried on the next sync.",
     "not_found": "{name} wasn't found in the vault.",
     "sync_off": "{name} wasn't synced because image and file sync is turned off in the plugin settings.",
+    "not_sent": "{name} wasn't sent from Obsidian, so it isn't shown here.",
     # Plan F (import repair): final, and it names the way back.
     "missing_from_import": (
         "{name} didn't come over in the original import. Import the same export again with "

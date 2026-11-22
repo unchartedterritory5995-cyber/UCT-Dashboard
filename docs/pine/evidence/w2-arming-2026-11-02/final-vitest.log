@@ -1,0 +1,35 @@
+ RUN  v4.0.18 C:/Users/pgosz/uct-worktrees/pine-w2/app
+
+ ✓ src/components/chart/engine/ast/listingSeed.test.js (25 tests) 1486ms
+     ✓ a pass whose trajectories × bars would pass the ceiling is NOT taken — the bounded window answers  992ms
+ ✓ src/components/chart/engine/__tests__/runtimeSwitchOn.test.js (15 tests) 977ms
+     ✓ ⛔ an EMPTY list attaches nothing (and nothing latched is an empty list)  748ms
+ ✓ src/components/chart/engine/__tests__/vendorHarness/runtimeAllowlistParity.test.js (4 tests) 5785ms
+     ✓ ⛔ control: a runtime-only script the allowlist does not name is declined BY THE GATE, by name  5594ms
+ ✓ src/components/chart/engine/runtime/__tests__/runtimePaneSafety.test.jsx (19 tests) 584ms
+ ✓ src/components/chart/engine/runtime/__tests__/carriedState.test.js (81 tests) 189ms
+ ✓ src/components/chart/engine/__tests__/vendorHarness/vendorHarness.h4Loops.test.js (14 tests) 684ms
+ ✓ src/components/chart/engine/runtime/__tests__/conditionalReviewFollowups.test.js (34 tests) 212ms
+ ✓ src/components/chart/engine/runtime/__tests__/conditionalArmsParams.test.js (15 tests) 193ms
+ ✓ src/components/chart/engine/runtime/__tests__/c18WhileAndLastBar.test.js (25 tests) 247ms
+ ✓ src/components/chart/engine/runtime/__tests__/conditionalCallSite.test.js (23 tests) 289ms
+ ✓ src/components/chart/engine/runtime/__tests__/elseGuardShape.test.js (8 tests) 92ms
+ ✓ src/components/chart/engine/runtime/__tests__/blockValuedBinding.test.js (11 tests) 56ms
+ ✓ src/components/chart/engine/runtime/__tests__/elseIfChain.test.js (14 tests) 70ms
+ ✓ src/components/chart/engine/__tests__/runtimeKillSwitch.test.js (3 tests) 112ms
+ ✓ src/components/chart/engine/runtime/__tests__/functionBodyBlockValue.test.js (9 tests) 66ms
+ ✓ src/components/chart/engine/runtime/__tests__/graphRuntimeDifferential.test.js (28 tests) 106ms
+ ✓ src/components/chart/engine/runtime/__tests__/runtimeStopBeacon.test.js (7 tests) 111ms
+ ✓ src/components/chart/engine/runtime/__tests__/loops.test.js (18 tests) 61ms
+ ✓ src/components/chart/engine/runtime/__tests__/arrays.test.js (22 tests) 65ms
+ ✓ src/components/chart/engine/runtime/__tests__/callForEffect.test.js (15 tests) 60ms
+ ✓ src/components/chart/engine/runtime/__tests__/runtimeStringMemory.test.js (5 tests) 80ms
+ ✓ src/components/chart/engine/runtime/__tests__/declarationPersistence.test.js (8 tests) 66ms
+ ✓ src/lib/runtimePaneRevocation.test.js (10 tests) 10ms
+ ✓ src/components/chart/engine/__tests__/runtimeRunGate.test.js (6 tests) 9ms
+ ✓ src/components/chart/engine/runtime/__tests__/functionGlobalReads.test.js (11 tests) 23ms
+
+ Test Files  25 passed (25)
+      Tests  430 passed (430)
+   Start at  20:46:32
+   Duration  48.01s (transform 16.25s, setup 11.47s, import 33.98s, tests 11.63s, environment 32.39s)

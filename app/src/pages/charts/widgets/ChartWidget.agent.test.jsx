@@ -7,7 +7,18 @@ import { WorkspaceContext } from '../WorkspaceContext'
 // UCT Agent's chart adapter on the REAL ChartWidget: it must read the active
 // tab's own settings / tf / colour group, and write through the widget's own
 // sinks — settings + tf in ONE onOptsChange, the ticker through the group.
-vi.mock('../../../components/StockChart', () => ({ default: () => <div data-testid="chart" /> }))
+// The stand-in chart runs StockChart's REAL anchor migration, with the anchor a drawn pane would derive.
+const WM_ANCHOR = { ax: 'left', dx: 40, ay: 'top', dy: 60 }
+vi.mock('../../../components/StockChart', async () => {
+  const { useRef } = await vi.importActual('react')
+  const { default: useWatermarkAnchorMigration } = await vi.importActual('../../../components/chart/useWatermarkAnchorMigration')
+  function StandInChart({ watermarkX, watermarkAnchor, onWatermarkAnchor }) {
+    const wmCtrlRef = useRef({ getAnchor: () => WM_ANCHOR })
+    useWatermarkAnchorMigration({ chartReady: true, watermarkAdjusting: false, watermarkX, watermarkAnchor, onWatermarkAnchor, wmCtrlRef })
+    return <div data-testid="chart" />
+  }
+  return { default: StandInChart }
+})
 vi.mock('../../../components/chart/SymbolSearch', () => ({ default: () => <span>search</span> }))
 vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => <span>share</span> }))
 vi.mock('../../../components/chart/ChartSettingsModal', () => ({ default: () => null }))
@@ -24,7 +35,8 @@ vi.mock('../../../hooks/useTickerMeta', () => ({ default: () => null }))
 vi.mock('../../../hooks/useMarketOpen', () => ({ default: () => ({ isOpen: false, isPremarket: false, isExtended: false }) }))
 
 import ChartWidget from './ChartWidget'
-import { buildWorkspaceHost } from '../../../agent/host'
+import { buildWorkspaceHost, optsSignature } from '../../../agent/host'
+import { getTargetKind } from '../../../agent/capabilities'
 import { registerBuiltins } from '../../../agent/builtins'
 import { planOps, collectTargets } from '../../../agent/executor'
 import { commitPlan, undoEntry } from '../../../agent/runtime'
@@ -83,6 +95,82 @@ test('extra chart tab: reads and writes ONLY that tab', () => {
   expect(o.settings).toBeUndefined()
   expect(o.chartTabs[0]).toMatchObject({ id: 't1', tf: 'D' })
   expect(o.chartTabs[0].settings.chartType).toBe('line')
+})
+
+test('the watermark position: the widget-level opts.watermarkPos the chart draws, on any tab, read back from there', () => {
+  render(<Wrap initialOpts={{ tf: 'D', chartTabs: [{ id: 't1', color: 'B', tf: '5', settings: null }], activeChartTab: 1 }} />)
+  const pos = { x: 0.2, y: 0.5, anchor: null }
+  act(() => { adapter().commit({ watermarkPos: pos }) })
+  expect(optsLog[0].watermarkPos).toEqual(pos)
+  expect(optsLog[0].chartTabs[0].settings).toBe(null)   // the tab is untouched
+  expect(adapter().read().watermarkPos).toEqual(pos)
+  act(() => { adapter().commit({ watermarkPos: null }) })
+  expect(adapter().read().watermarkPos).toBe(null)
+})
+
+describe('a watermark move survives the chart storing its anchor (about 300 ms later, the real migration)', () => {
+  const settle = () => act(async () => { await new Promise(r => setTimeout(r, 380)) })
+  const offAct = async (fn) => {
+    const prevAct = globalThis.IS_REACT_ACT_ENVIRONMENT
+    globalThis.IS_REACT_ACT_ENVIRONMENT = false
+    try { return await fn() } finally { globalThis.IS_REACT_ACT_ENVIRONMENT = prevAct }
+  }
+  const hostOf = () => buildWorkspaceHost({
+    chartApiById: api.chartApiById,
+    getWidgets: () => [{ id: 'w1', type: 'chart', color: 'A', x: 0, y: 0, w: 24, h: 20, opts: api.opts }],
+    widgetLabel: (t) => t,
+  })
+  async function move(host, value = 0.2) {
+    const plan = planOps(collectTargets(host, ['chart']), [{ action: 'chart.setSetting', target: 'w1', args: { setting: 'watermark.x', value } }], {}, { surface: 'charts' })
+    expect(plan.ok).toBe(true)
+    const res = await offAct(() => commitPlan(host, plan))
+    expect(res.ok).toBe(true)
+    expect(api.opts.watermarkPos).toMatchObject({ x: value, anchor: null })
+    await settle()
+    expect(api.opts.watermarkPos.anchor).toEqual(WM_ANCHOR)              // the migration really ran on the Agent's write
+    return res
+  }
+
+  test('Undo after the migration: from a centred mark, back to centred', async () => {
+    render(<Wrap initialOpts={{ tf: 'D' }} />)
+    const host = hostOf()
+    const res = await move(host)
+    const u = await offAct(() => undoEntry(host, res.undo))
+    expect(u.reason).toBeUndefined()
+    expect(u.ok).toBe(true)
+    expect(api.opts.watermarkPos).toBe(null)
+  })
+  test('Undo after the migration: a hand-placed mark gets its own x/y and its own anchor back, and nothing re-derives it', async () => {
+    const placed = { x: 0.8, y: 0.3, anchor: { ax: 'right', dx: 12, ay: 'top', dy: 20 } }
+    render(<Wrap initialOpts={{ tf: 'D', watermarkPos: placed }} />)
+    const host = hostOf()
+    const res = await move(host)
+    expect((await offAct(() => undoEntry(host, res.undo))).ok).toBe(true)
+    await settle()
+    expect(api.opts.watermarkPos).toEqual(placed)
+  })
+  test('a real later edit still refuses: the member dragged the mark somewhere else', async () => {
+    render(<Wrap initialOpts={{ tf: 'D' }} />)
+    const host = hostOf()
+    const res = await move(host)
+    const dragged = { x: 0.6, y: 0.5, anchor: WM_ANCHOR }
+    act(() => { adapter().commit({ watermarkPos: dragged }) })
+    const u = await offAct(() => undoEntry(host, res.undo))
+    expect(u.ok).toBe(false)
+    expect(u.reason).toMatch(/has changed since/)
+    expect(api.opts.watermarkPos).toEqual(dragged)
+  })
+  test('the read-back itself: a receipt taken after the migration landed still counts as landed', async () => {
+    render(<Wrap initialOpts={{ tf: 'D' }} />)
+    const host = hostOf()
+    await move(host)
+    expect(getTargetKind('chart').landed(getTargetKind('chart').read(host, 'w1'), { watermarkPos: { x: 0.2, y: 0.5, anchor: null } })).toBe(true)
+  })
+  test('the whole-widget signatures (add-chart Undo, layout approval) do not read the anchor as an edit either', async () => {
+    expect(optsSignature({ tf: 'D', watermarkPos: { x: 0.2, y: 0.5, anchor: null } })).toBe(optsSignature({ tf: 'D', watermarkPos: { x: 0.2, y: 0.5, anchor: WM_ANCHOR } }))
+    expect(optsSignature({ tf: 'D', watermarkPos: { x: 0.2, y: 0.5 } })).not.toBe(optsSignature({ tf: 'D', watermarkPos: { x: 0.3, y: 0.5 } }))
+    expect(optsSignature({ tf: 'D', watermarkPos: { x: 0.2, y: 0.5 } })).not.toBe(optsSignature({ tf: 'D' }))
+  })
 })
 
 test('end to end through the real host: plan → one write → read-back ACK → undo', async () => {

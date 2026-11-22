@@ -136,7 +136,7 @@ describe('compound creation: several charts, each configured, one transaction', 
     const { host, state } = makeBoard(tiles)
     const p = wsPlan(host, build(['SPY', 'QQQ', 'NVDA']))
     expect(p.ok).toBe(false)
-    expect(p.refusals.some(r => /holds 16/.test(r.reason))).toBe(true)
+    expect(p.refusals.some(r => /at most 16 widgets/.test(r.reason))).toBe(true)
     expect(state.widgets).toHaveLength(14)
   })
   it('not enough open space → refused before mutation; nothing moved or resized', () => {

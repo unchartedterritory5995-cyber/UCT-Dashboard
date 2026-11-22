@@ -119,8 +119,28 @@ export const PUBLISH_PUBLIC_SENTENCE =
 export const FOLDER_PUBLISH_SCOPE_SENTENCE =
   'Publishes up to 500 notes in this folder and the folders inside it. A note added later appears when you update the page in Settings.'
 
-/** The sentence when a publish is refused and the server sent none of its own. */
-export const PUBLISH_FAILED_SENTENCE = 'Could not publish. Try again.'
+/** The sentence when a publish is refused and the server sent none of its own. Audit
+ *  2026-11-05, spec S1: it says what did NOT happen, because the member just confirmed a
+ *  publish and needs to know nothing went public. */
+export const PUBLISH_FAILED_SENTENCE = "Couldn't publish. Nothing was made public."
+
+/** Audit 2026-11-05, spec S1: the editor's confirm step, asked before anything is sent. */
+export const PUBLISH_CONFIRM_NOTE_TITLE = 'Publish to the web?'
+
+/** The confirm step's body for one note. A note with no title is named "Untitled". */
+export function publishConfirmNoteSentence(title) {
+  const name = (typeof title === 'string' && title.trim()) ? title.trim() : 'Untitled'
+  return `"${name}" will be readable by anyone with its address. Search engines are asked not to index it. Price charts are not shown. You can unpublish anytime.`
+}
+
+/** The confirm step's title for a folder. `count` is the server's number of live notes in the
+ *  folder tree (capped at 500); a server that predates the field sends none, and the title
+ *  then names no number rather than guess one. */
+export function publishConfirmFolderTitle(folderName, count) {
+  const n = Number.isFinite(count) ? count : null
+  if (n == null) return `Publish "${folderName}" and the notes inside it?`
+  return `Publish "${folderName}" and the ${n} ${n === 1 ? 'note' : 'notes'} inside it?`
+}
 
 /** After a copy: the link is on the clipboard, or the member copies it by hand. */
 export function pageCopiedSentence(copied) {
@@ -132,4 +152,19 @@ export function pageCopiedSentence(copied) {
 export function publishedSentence(folderName, copied) {
   const what = folderName == null ? 'Published' : `Published "${folderName}"`
   return `${what}. ${pageCopiedSentence(copied)}`
+}
+
+/** S20 (audit 2026-11-05): a publish undone within this long is a TRUST INCIDENT (the member did not mean it). */
+export const TRUST_UNDO_WINDOW_MS = 10 * 60 * 1000
+
+/** How long ago `pub` was published, in ms, when it is inside TRUST_UNDO_WINDOW_MS; else null. A stamp with no zone
+ *  is read as UTC (the server writes UTC); an unreadable one is null, never an incident. */
+export function publishUndoneMs(pub, now = Date.now()) {
+  const raw = typeof pub?.createdAt === 'string' ? pub.createdAt.trim() : ''
+  if (!raw) return null
+  const iso = raw.includes('T') ? raw : raw.replace(' ', 'T')
+  const t = Date.parse(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`)
+  if (!Number.isFinite(t)) return null
+  const ms = now - t
+  return ms >= 0 && ms <= TRUST_UNDO_WINDOW_MS ? ms : null
 }

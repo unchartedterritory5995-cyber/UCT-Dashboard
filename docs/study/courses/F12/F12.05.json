@@ -1,0 +1,1986 @@
+{
+ "unit": "F12.05",
+ "track": "F12",
+ "title": "The weekly and monthly review",
+ "teaches": "Log every trade on the day, in R, with its setup and any rule you broke. Each week, turn the biggest leak into one concrete change and check last week's first. Each month, break every trade down by setup (count, win rate, average win and loss, average R), read it next to the market, and judge a setup only on a fair sample.",
+ "skills": [
+  {
+   "id": "process.review",
+   "title": "The weekly and monthly review"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "Three Common Mistakes Traders Make With Their Trading Reviews (2020-07-08)",
+   "url": "https://traderfeed.blogspot.com/2020/07/three-common-mistakes-traders-make-with.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Brett Steenbarger, Ph.D., is named in the contract's Tier 2 list of trading authors (Wiley: The Psychology of Trading, Enhancing Trader Performance, The Daily Trading Coach) and coaches traders at financial firms. TraderFeed is his own signed, dated blog, so this is his published writing, not a summary by someone else."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "Best Practices in Trading: Conducting Structured Performance Reviews (2015-03-10)",
+   "url": "https://traderfeed.blogspot.com/2015/03/best-practices-in-trading-conducting.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's own signed, dated post (see s1). The monthly post-analysis lines are money manager Ryan Worch's, quoted by Steenbarger; the file attributes them that way."
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "FIGS: Focused, Intensive Goal Setting (2021-06-25)",
+   "url": "https://traderfeed.blogspot.com/2021/06/figs-focused-intensive-goal-setting.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's own signed, dated post (see s1), drawn from the performance reviews of the traders he coaches."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "The Importance of Measuring Your Trading Results (2014-04-01)",
+   "url": "https://traderfeed.blogspot.com/2014/04/the-importance-of-measuring-your.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's own signed, dated post (see s1)."
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "Best Practices in Trading: Conducting Video Reviews (2015-03-24)",
+   "url": "https://traderfeed.blogspot.com/2015/03/best-practices-in-trading-conducting_24.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's own signed, dated post (see s1). Only his own opening paragraph is quoted."
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "Rigorously Reviewing Your Trading (2018-11-30)",
+   "url": "https://traderfeed.blogspot.com/2018/11/rigorously-reviewing-your-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's own signed, dated post (see s1), describing his own review process."
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "Best Practices in Trading (daily entries, October 2026)",
+   "url": "https://traderfeed.blogspot.com/2026/10/best-practices-in-trading.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's own signed, dated post (see s1), drawn from his work with traders in proprietary and hedge fund settings."
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "The Three R's: Winning Practices of Successful Traders (2015-03-25)",
+   "url": "https://traderfeed.blogspot.com/2015/03/the-three-rs-winning-practices-of.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's own signed, dated post (see s1)."
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "Best Practices in Trading: Creating Checkups for Your Trading (2015-03-20)",
+   "url": "https://traderfeed.blogspot.com/2015/03/best-practices-in-trading-creating.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's signed, dated post quoting Mike Bellafiore and Steve Spencer of SMB Capital on their PlayBook Checkup. The quoted line is theirs, attributed to them."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "The Power of Trading Journals (2014-04-24)",
+   "url": "https://traderfeed.blogspot.com/2014/04/the-power-of-trading-journals.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger's own signed, dated post (see s1)."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "CME Group",
+   "title": "Building a Trade Plan, Step 5: Keep a Trade Log",
+   "url": "https://www.cmegroup.com/education/courses/building-a-trade-plan/keep-a-trade-log",
+   "accessed": "2026-11-09",
+   "why_reliable": "An education course page from CME Group, the exchange operator; the contract lists CME Group education pages under Tier 2."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "10 Steps To Building a Winning Trading Plan (Cedric Thompson, updated 2026-07-01)",
+   "url": "https://www.investopedia.com/articles/trading/04/042104.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Breaking Bad Trade Behaviors (Kevin Horner, 2025-10-01)",
+   "url": "https://www.schwab.com/learn/story/breaking-bad-trade-behaviors",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Common Trading Mistakes to Avoid (2024-02-15)",
+   "url": "https://www.schwab.com/learn/story/common-trading-mistakes-to-avoid",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Tharp Think Trading Concepts",
+   "url": "https://vantharpinstitute.com/tharp-think-trading-concepts/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The Van Tharp Institute's own page of Dr. Van K. Tharp's core concepts. Tharp (Ph.D. in psychology) coached traders for decades, wrote Trade Your Way to Financial Freedom, popularised R-multiples and expectancy, and is interviewed in Jack Schwager's Market Wizards. F9.03 and F12.03 cite the same pages."
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Statistical Significance",
+   "url": "https://vantharpinstitute.com/glossary/statistical-significance",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same institute as s15: Tharp's own glossary of his terms."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Expectancy",
+   "url": "https://vantharpinstitute.com/glossary/expectancy",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same institute as s15: Tharp's own glossary of his terms."
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Win Rate",
+   "url": "https://vantharpinstitute.com/glossary/win-rate",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same institute as s15: Tharp's own glossary of his terms."
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Van Tharp Institute",
+   "title": "Glossary: Market Type",
+   "url": "https://vantharpinstitute.com/glossary/market-type",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same institute as s15: Tharp's own glossary of his terms."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Sample Size Neglect: Cognitive Bias Explained (Jason Fernando, updated 2026-01-30)",
+   "url": "https://www.investopedia.com/terms/s/sample-size-neglect.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Trading Win/Loss Ratio: Definition, Formula, and Examples (Will Kenton, updated 2026-02-25)",
+   "url": "https://www.investopedia.com/terms/w/win-loss-ratio.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Jared Tendler (jaredtendler.com)",
+   "title": "Effective Journaling (2025-08-11)",
+   "url": "https://jaredtendler.com/effective-journaling/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Jared Tendler, MS, LMHC: licensed mental health counselor and mental game coach to traders and poker players, author of The Mental Game of Trading. A signed, dated post on his own site. The site refuses the quote checker's client; both quotes (f60, f62) were confirmed verbatim with WebFetch and plain curl on 2026-11-09."
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "CMC Markets",
+   "title": "Trading review: learning from your mistakes (2024-04-15)",
+   "url": "https://www.cmcmarkets.com/en-au/cfd/learn/trading-strategies/learning-from-your-mistakes",
+   "accessed": "2026-11-09",
+   "why_reliable": "The education centre of CMC Markets, a broker listed on the London Stock Exchange and licensed in Australia (AFSL 238054, shown on the page). The contract lists broker education centres under Tier 2. Dated on the page."
+  },
+  {
+   "id": "s25",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hwr",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-17"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "A good review is an efficient review, targeting our greatest successes and shortcomings on the day or week and then making those the focus on our efforts at improvement.",
+   "claim": "A good review picks out the biggest successes and the biggest shortcomings of the day or week, and makes those the focus."
+  },
+  {
+   "id": "f02",
+   "source": "s1",
+   "quote": "Working on fewer goals more intensively leads to more lasting change. If we look at everything, we internalize very little.",
+   "claim": "A few goals worked on hard change more than a long list; look at everything and little sticks."
+  },
+  {
+   "id": "f03",
+   "source": "s1",
+   "quote": "A review should finish with a highly concrete game plan for the next day, week, etc. A review without a plan is merely a look in the rear view mirror.",
+   "claim": "A review ends with a concrete plan for the next period, or it is only a look back."
+  },
+  {
+   "id": "f04",
+   "source": "s1",
+   "quote": "\"I traded too large, so I need to be more careful with my sizing tomorrow\" might be a journal entry. That doesn't cut it. What, specifically will you do to be careful with your sizing?",
+   "claim": "A vague note like \"be more careful with sizing\" is not a plan; the plan says exactly what you will do."
+  },
+  {
+   "id": "f05",
+   "source": "s1",
+   "quote": "They are throwaway - Once we conduct a review and set goals and plans, we need to then return to that review and those goals and plans after our next day or week of trading",
+   "claim": "A review you never come back to is a throwaway; after the next week, go back to its goals."
+  },
+  {
+   "id": "f06",
+   "source": "s1",
+   "quote": "If not, we need to tweak our plans for the next time period. If we did succeed, we need to make note of what we did so that those actions can become more consistent",
+   "claim": "Missed the goal: adjust the plan. Hit it: write down what worked so you keep doing it."
+  },
+  {
+   "id": "f07",
+   "source": "s1",
+   "quote": "If we don't revisit our goals and plans, we aren't truly holding ourselves accountable.",
+   "claim": "Goals you never check are goals nobody holds you to."
+  },
+  {
+   "id": "f08",
+   "source": "s2",
+   "quote": "At the end of each month, I perform a post-analysis on all of my trades.",
+   "claim": "A money manager Steenbarger quotes reviews every one of his trades at the end of each month."
+  },
+  {
+   "id": "f09",
+   "source": "s2",
+   "quote": "Sometimes breakouts are working, or mean reversion, or pullback trades. The only way to determine this is by breaking down every trade at the end of each month.",
+   "claim": "Which kind of setup is working changes, and a monthly breakdown of every trade shows which one it is."
+  },
+  {
+   "id": "f10",
+   "source": "s2",
+   "quote": "Some quantitative examples are: % winners vs. losers; average win vs. loss; % of equity risked",
+   "claim": "The monthly numbers include the share of winners and the average win against the average loss."
+  },
+  {
+   "id": "f11",
+   "source": "s2",
+   "quote": "That insight can also help him take more risk in favorable environments and pull back his risk taking in murky ones.",
+   "claim": "What the review shows can guide more risk when conditions suit you and less when they are murky."
+  },
+  {
+   "id": "f12",
+   "source": "s2",
+   "quote": "The successful money managers I've worked with have had structured processes for previewing markets, viewing markets during trading hours, and reviewing trading once the day and week are finished.",
+   "claim": "The successful managers Steenbarger has worked with review their trading when each day and each week is done."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "From this, I can set goals for the next month.",
+   "claim": "The monthly review sets the goals for the next month."
+  },
+  {
+   "id": "f14",
+   "source": "s3",
+   "quote": "Invariably these reviews summarize what they did wrong over this period and how they could improve. They set lots of goals, but then that's often the last I hear about those goals until the next review period!",
+   "claim": "When a review sets lots of goals, Steenbarger often hears nothing more about them until the next review."
+  },
+  {
+   "id": "f15",
+   "source": "s3",
+   "quote": "What if, at any given time, we worked on one goal and one goal only. Suppose we worked on it every single day and made it the focus on each day's efforts.",
+   "claim": "Steenbarger suggests working on one goal at a time, every day."
+  },
+  {
+   "id": "f16",
+   "source": "s3",
+   "quote": "A trader may set a goal of trading with greater discipline, so that they stop overtrading.",
+   "claim": "\"Trade with greater discipline\" is Steenbarger's example of a goal a trader sets against overtrading."
+  },
+  {
+   "id": "f17",
+   "source": "s3",
+   "quote": "A vague goal is only a good intention; it's not likely to energize or shape performance. My experience is that vague goals get the least follow-through.",
+   "claim": "A vague goal is only a good intention, and it gets the least follow-through."
+  },
+  {
+   "id": "f18",
+   "source": "s4",
+   "quote": "Under what market conditions do I tend to make money? Lose money?",
+   "claim": "Measuring your results shows in which market conditions you make money and in which you lose it."
+  },
+  {
+   "id": "f19",
+   "source": "s4",
+   "quote": "Which markets or types of trades tend to make and lose me money?",
+   "claim": "Measuring your results shows which types of trade make money and which lose it."
+  },
+  {
+   "id": "f20",
+   "source": "s4",
+   "quote": "Still, the alternative to measurement is not intuition; it is ignorance.",
+   "claim": "Without measuring your results, what you have is not intuition but ignorance."
+  },
+  {
+   "id": "f21",
+   "source": "s5",
+   "quote": "Our memories are biased by our emotions, as well as hindsight and the factors that most stick out in our mind.",
+   "claim": "Memory of a trade bends with emotion, hindsight and whatever stood out."
+  },
+  {
+   "id": "f22",
+   "source": "s6",
+   "quote": "My general observation is that the frequency and intensity of review processes is associated with learning and performance improvement.",
+   "claim": "In Steenbarger's experience, reviewing more often and more deeply goes with learning and improving."
+  },
+  {
+   "id": "f23",
+   "source": "s6",
+   "quote": "Review at the end of trading to assess whether rules were followed and especially to look at how a following of the rules could have improved the day's trading",
+   "claim": "The end-of-day review checks whether you followed your rules and what following them would have changed."
+  },
+  {
+   "id": "f24",
+   "source": "s6",
+   "quote": "Targeting one or more rules to focus on for the coming session to improve trading.",
+   "claim": "The review picks the rule or rules to work on in the next session."
+  },
+  {
+   "id": "f25",
+   "source": "s7",
+   "quote": "when we review only the things we do wrong--the result is a negative environment for our development.",
+   "claim": "Reviewing only what you did wrong makes a negative place to learn."
+  },
+  {
+   "id": "f26",
+   "source": "s7",
+   "quote": "A best trading practice is using both successes and setbacks as fuel for learning and improvement.",
+   "claim": "Successes and setbacks are both material for learning."
+  },
+  {
+   "id": "f27",
+   "source": "s7",
+   "quote": "The better trader makes active use of that journal to structure specific goals for the coming trading session/week and then holds themselves accountable for progress on those goals in their daily review.",
+   "claim": "The better trader sets specific goals for the coming week and checks progress on them every day."
+  },
+  {
+   "id": "f28",
+   "source": "s8",
+   "quote": "They review their performance--good and bad--and they made dedicated efforts to learn from mistakes and best practices.",
+   "claim": "The best traders Steenbarger has worked with review both their good and their bad trading."
+  },
+  {
+   "id": "f29",
+   "source": "s9",
+   "quote": "Eliminate setups not worth their intellectual, financial, and emotional capital",
+   "claim": "SMB's PlayBook Checkup, as Bellafiore and Spencer describe it, helps traders drop setups not worth their money and attention."
+  },
+  {
+   "id": "f30",
+   "source": "s10",
+   "quote": "They are a way of focusing on process, rather than anchoring our moods and self-esteem to the ups and downs of P/L.",
+   "claim": "A journal keeps the focus on process instead of on the swings of P&L."
+  },
+  {
+   "id": "f31",
+   "source": "s11",
+   "quote": "If you win a trade, then you want to know exactly why and how. More importantly, you want to know the same when you lose, so you don't repeat unnecessary mistakes.",
+   "claim": "Find out why and how on winners as well as losers, so you don't repeat mistakes."
+  },
+  {
+   "id": "f32",
+   "source": "s11",
+   "quote": "After each trading day, adding up your profit or loss is secondary to knowing the why and how of your trading performance.",
+   "claim": "At the end of each day, knowing why and how you traded matters more than the P&L total."
+  },
+  {
+   "id": "f33",
+   "source": "s11",
+   "quote": "Write down your daily conclusions in your trading journal so that you can reference them again later.",
+   "claim": "Write each day's conclusions down so you can come back to them later."
+  },
+  {
+   "id": "f34",
+   "source": "s11",
+   "quote": "Constant assessment of your trading is one of the best ways to avoid repeating mistakes and to remind yourself of what has worked.",
+   "claim": "Assessing your trading all the time is one of the best ways to avoid repeat mistakes and remember what worked."
+  },
+  {
+   "id": "f35",
+   "source": "s11",
+   "quote": "Be sure to save your trading records so you can go back and analyze elements such as: Profit or loss for a particular system or trading strategy",
+   "claim": "Keep your records so you can measure the profit or loss of each strategy."
+  },
+  {
+   "id": "f36",
+   "source": "s11",
+   "quote": "Honesty and self-awareness are important traits for this exercise.",
+   "claim": "Reviewing your log takes honesty and self-awareness."
+  },
+  {
+   "id": "f37",
+   "source": "s12",
+   "quote": "You should write a plan that has clear signals that aren't subject to change while you're trading, but they should be subject to reevaluation when the markets are closed.",
+   "claim": "The plan's signals are clear and fixed during the session, and you reevaluate them when the market is closed."
+  },
+  {
+   "id": "f38",
+   "source": "s12",
+   "quote": "Refine your plan over time to adjust for changing market and economic circumstances.",
+   "claim": "A plan needs refining over time as markets change."
+  },
+  {
+   "id": "f39",
+   "source": "s12",
+   "quote": "A frequent review and evaluation of trades is necessary to becoming a good trader.",
+   "claim": "Frequent review of your trades is part of becoming a good trader."
+  },
+  {
+   "id": "f40",
+   "source": "s12",
+   "quote": "Evaluating and reviewing your past trades will allow you to identify patterns, strengths, and areas for improvement.",
+   "claim": "Reviewing past trades shows your patterns, your strengths and what to improve."
+  },
+  {
+   "id": "f41",
+   "source": "s13",
+   "quote": "Losing streaks can happen to the best of us, but sometimes a bout of bad luck can actually reflect a problem with our trading strategy.",
+   "claim": "Losing streaks happen to good traders, though sometimes a streak does point to a real problem."
+  },
+  {
+   "id": "f42",
+   "source": "s13",
+   "quote": "Attributing successes to our own skills but failures to uncontrollable outside forces is known as self-attribution bias.",
+   "claim": "Crediting wins to your skill and blaming losses on outside forces is self-attribution bias."
+  },
+  {
+   "id": "f43",
+   "source": "s13",
+   "quote": "To begin, traders should look at whether they're losing or making money on a net basis, then look for patterns in their wins and losses.",
+   "claim": "After a losing streak, check whether you are up or down overall, then look for patterns in the wins and losses."
+  },
+  {
+   "id": "f44",
+   "source": "s13",
+   "quote": "For example, if winning trades employ fundamental analysis and losing trades are based on technical analysis, a trader might want to focus more on fundamentals for a while.",
+   "claim": "If one kind of trade wins and another loses, lean toward the kind that wins for a while."
+  },
+  {
+   "id": "f45",
+   "source": "s13",
+   "quote": "As a trader works to figure out what needs fixing, there's no harm in reducing the size of your trades.",
+   "claim": "While you work out what needs fixing, trading smaller is fine."
+  },
+  {
+   "id": "f46",
+   "source": "s14",
+   "quote": "For example, if a long position starts losing money, traders may start buying more positions at lower prices or opening short positions on the same stock, thinking it's a way to get even with the market.",
+   "claim": "Buying more of a falling long to get even with the market is an emotional trading mistake."
+  },
+  {
+   "id": "f47",
+   "source": "s14",
+   "quote": "There are many ways to avoid admitting you've made a mistake, but it's generally better to acknowledge a small loss than to keep digging in and lose more.",
+   "claim": "Better to take a small loss than to keep digging in and lose more."
+  },
+  {
+   "id": "f48",
+   "source": "s15",
+   "quote": "Well, perhaps you didn't keep your word about taking a $1000 loss and failed to exit when you should have. Perhaps the market gapped down against you.",
+   "claim": "A loss bigger than planned can come from not taking the planned loss, or from a gap."
+  },
+  {
+   "id": "f49",
+   "source": "s15",
+   "quote": "Losses bigger than 1R happen all the time. Your goal as a trader (or as an investor) is to keep your losses at 1R or less.",
+   "claim": "The goal is to keep every loss at 1R or less."
+  },
+  {
+   "id": "f50",
+   "source": "s15",
+   "quote": "if you tend to blame someone else (your broker, your spouse, the person giving you tips) or even the market for the results that you get, then you will tend to repeat the same mistakes over and over again.",
+   "claim": "Blame others or the market for your results and you will tend to repeat the same mistakes."
+  },
+  {
+   "id": "f51",
+   "source": "s15",
+   "quote": "If the total amount of money lost is greater than the total amount of money gained, you are a net loser and have a negative expectancy.",
+   "claim": "When the losses add up to more than the gains, the expectancy is negative."
+  },
+  {
+   "id": "f52",
+   "source": "s15",
+   "quote": "it is much more efficient to think of the profits and losses of your trades as a ratio of the initial risk taken (R).",
+   "claim": "Think of every profit and loss as a multiple of the risk you took at entry, R."
+  },
+  {
+   "id": "f53",
+   "source": "s16",
+   "quote": "Generally speaking, a sample needs more than thirty results before it can be considered having any statistical significance.",
+   "claim": "As a rough rule, a sample needs more than thirty results before it means much."
+  },
+  {
+   "id": "f54",
+   "source": "s17",
+   "quote": "Expectancy is best stated in terms of how much you can make per dollar you risk. Expectancy is the mean R of an R-multiple distribution generated by a trading system.",
+   "claim": "Expectancy is the average R per trade: what a system makes per dollar risked."
+  },
+  {
+   "id": "f55",
+   "source": "s18",
+   "quote": "The percentage of closed trades in which you make money.",
+   "claim": "Win rate is the share of closed trades that make money."
+  },
+  {
+   "id": "f56",
+   "source": "s19",
+   "quote": "Trading system performance varies by market type allowing traders to develop optimally performing trading systems for each type or to vary position sizing strategies by type.",
+   "claim": "A system's results vary with the kind of market, so traders can size differently in each kind."
+  },
+  {
+   "id": "f57",
+   "source": "s20",
+   "quote": "When a sample size is too small, accurate and trustworthy conclusions cannot be drawn.",
+   "claim": "Too small a sample gives no trustworthy conclusion."
+  },
+  {
+   "id": "f59",
+   "source": "s22",
+   "quote": "Even with a high win rate, a poor risk/reward ratio can lead to losses.",
+   "claim": "A high win rate can still lose money when the losses are big next to the wins."
+  },
+  {
+   "id": "f60",
+   "source": "s23",
+   "quote": "You've also stopped journaling when your performance has been so bad you don't want to review it and make yourself feel worse.",
+   "claim": "Tendler's readers have stopped journaling when results were so bad they didn't want to review them."
+  },
+  {
+   "id": "f61",
+   "source": "s24",
+   "quote": "Is there a common mistake that is cropping up time and again that you need to focus on to avoid this in the future?",
+   "claim": "The review looks for the mistake that keeps cropping up, so you can focus on it."
+  },
+  {
+   "id": "f62",
+   "source": "s23",
+   "quote": "I know you don't want to. You want to move on and not focus on it anymore. But you can't.",
+   "claim": "After a bad session you won't want to journal about it, and Tendler says do it anyway."
+  },
+  {
+   "id": "f63",
+   "source": "s2",
+   "quote": "Note that Ryan is reviewing both the market environment and his specific trades.",
+   "claim": "The money manager's monthly review covers the market environment as well as his own trades."
+  },
+  {
+   "id": "f64",
+   "source": "s15",
+   "quote": "In order to really get a clear picture of the system's expectancy, you should actually have somewhere between 100 and 200.",
+   "claim": "A clear picture of a system's expectancy takes somewhere between 100 and 200 trades."
+  },
+  {
+   "id": "f65",
+   "source": "s24",
+   "quote": "Ideally this should be done away from the excitement and gyrations of the market, so weekends can be a good idea.",
+   "claim": "Review away from the live market; the weekend is a good time."
+  },
+  {
+   "id": "f66",
+   "source": "s25",
+   "quote": "Journal every trade the same day and review the week every weekend, ideally.",
+   "claim": "UCT's rule: journal every trade the same day, and review the week every weekend, ideally."
+  },
+  {
+   "id": "f67",
+   "source": "s25",
+   "quote": "Each month, review the numbers: win rate, average win and loss in R, expectancy, and other statistics.",
+   "claim": "UCT's rule: each month, review the win rate, the average win and loss in R, the expectancy and other statistics."
+  },
+  {
+   "id": "f68",
+   "source": "s25",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "UCT's rule: the full size goes on at one price with one stop, and you never add to it."
+  },
+  {
+   "id": "f69",
+   "source": "s25",
+   "quote": "No setup, no trade: never force a trade to have something on; cash is a position.",
+   "claim": "UCT's rule: no setup, no trade. Never force a trade just to have something on."
+  },
+  {
+   "id": "f70",
+   "source": "s25",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "UCT's rule: no chasing. Never buy more than 4% above the buy point."
+  },
+  {
+   "id": "f71",
+   "source": "s25",
+   "quote": "Risk 0.25% to 2% of the account on a trade, picked by setup quality, recent results, the market and your edge.",
+   "claim": "UCT's rule: the risk on a trade is picked by setup quality, recent results, the market and your edge."
+  },
+  {
+   "id": "f72",
+   "source": "s25",
+   "quote": "No losing-streak rule: size is cut only by the drawdown ladder, in percent",
+   "claim": "UCT's rule: there is no losing-streak rule; size is cut by the drawdown ladder, in percent."
+  },
+  {
+   "id": "f73",
+   "source": "s25",
+   "quote": "A drawdown is how far the account is below its highest value, open trades included, checked at least weekly.",
+   "claim": "UCT's rule: a drawdown is how far the account sits below its highest value, open trades included, checked at least weekly."
+  },
+  {
+   "id": "aw_r",
+   "source": "hwr",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Day, week, month",
+   "steps": [
+    "Every day, log each trade while it's fresh: the setup, the result in R, and any rule you broke.",
+    "Every weekend, check last week's goal first. Then find the biggest leak and turn it into one concrete change.",
+    "Every month, sort every trade by setup. See which kind the market's paying for, and set next month's goals."
+   ],
+   "facts": [
+    "f32",
+    "f21",
+    "f52",
+    "f23",
+    "f05",
+    "f01",
+    "f03",
+    "f12",
+    "f08",
+    "f09",
+    "f13",
+    "f66"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "A setup's numbers",
+   "steps": [
+    "For each setup, count the trades, the win rate, and the average win against the average loss.",
+    "Add up the results in R and divide by the count. That average R is what the setup pays per trade.",
+    "A handful of trades proves nothing. You want over thirty for a rough read, and 100 to 200 for a clear one."
+   ],
+   "facts": [
+    "f10",
+    "f54",
+    "f53",
+    "f64"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The mistake audit",
+   "steps": [
+    "Go back through your recent trades and tag every rule you broke.",
+    "Add up what each kind of mistake cost you in R.",
+    "The costliest one becomes next week's only goal. Write exactly what you'll do differently, not 'be more careful.'",
+    "Next Sunday, check that goal before you set anything new."
+   ],
+   "facts": [
+    "f23",
+    "f52",
+    "f34",
+    "f01",
+    "f61",
+    "f15",
+    "f04",
+    "f05",
+    "f65"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "process.review",
+   "rung": 1,
+   "format": "tf",
+   "q": "Your plan has worked three months straight. Time to drop the weekly review.",
+   "answer": "False",
+   "why": "False. A plan that's working is the one you most want to keep working, and the market keeps changing under it. The weekly review is how you catch the drift while it's still small. So keep going. We journal every trade the same day and review the week every weekend, ideally. A good run is actually the best time to write down what's working, so you keep doing it on purpose.",
+   "lesson_line": "The plan gets you started. The review keeps it working.",
+   "facts": [
+    "f39",
+    "f38",
+    "f22",
+    "f06",
+    "f66"
+   ],
+   "simple": "False. The market keeps changing under every plan, so the weekly review keeps going, good run or not.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "cites the owner's rulebook (B27)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia's guide to a trading plan says to refine the plan over time as markets change, and that frequent review of your trades is part of becoming a good trader. Brett Steenbarger, a coach to traders at big firms, finds that reviewing more often and more deeply goes with learning and getting better."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "process.review",
+   "rung": 1,
+   "format": "tf",
+   "q": "Sunday review: you skip your three winners and spend the whole hour on the four losers. That's how a good review works.",
+   "answer": "False",
+   "why": "No. The losers show you what to fix. The winners show you what to repeat, and that's half the job. Go back through each winner and ask why it worked: the setup, the entry, how you sold it. Then do more of that. A review that's nothing but mistakes also turns into a beatdown, and that's a bad place to learn from. So split the hour. Both sides get a look.",
+   "lesson_line": "Study the winners as hard as the losers. They show you what to repeat.",
+   "facts": [
+    "f31",
+    "f28",
+    "f25",
+    "f26"
+   ],
+   "simple": "False. Winners show you what to repeat, so they get looked at as hard as the losers.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "CME's trade-log course says to find out exactly why and how when you win, and the same when you lose. Steenbarger says the best traders he has worked with review both their good and their bad trading, and that reviewing only what you did wrong makes a negative place to learn."
+   }
+  },
+  {
+   "key": "q03",
+   "skill": "process.review",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Monthly review. Trade A risked $200 and made $500. Trade B risked $1,000 and made $1,500. Which paid you more for its risk?",
+   "choices": [
+    "Trade A, it made 2.5x its risk",
+    "Trade B, it made $1,500 in all",
+    "Neither, the sizes differ too much",
+    "Can't tell without the win rate"
+   ],
+   "answer": "Trade A, it made 2.5x its risk",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "gain_a / risk_a",
+     "gain_a": 500,
+     "risk_a": 200
+    }
+   },
+   "why": "Trade A. Divide each gain by what it risked. $500 over $200 is 2.5R. $1,500 over $1,000 is only one and a half R. B made more dollars, but it needed five times the risk to get there. That's why we log every result in R, the risk you set at entry. It puts a small trade and a big one on the same scale. B's still a fine trade. A just paid you more for the risk.",
+   "lesson_line": "Log every result in R. Then a small trade and a big one compare fairly.",
+   "facts": [
+    "f52",
+    "f54",
+    "f55"
+   ],
+   "wrong": {
+    "Neither, the sizes differ too much": "That's exactly what R fixes. Divide each result by its risk and both trades sit on one scale.",
+    "Trade B, it made $1,500 in all": "More dollars, but on five times the risk. Per dollar risked, B paid less.",
+    "Can't tell without the win rate": "Win rate is for a stack of trades. One trade gets read in R: its gain over its risk."
+   },
+   "simple": "Trade A, because it made 2.5 times what it risked. B made more dollars on far more risk.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "size",
+    "title": "Two trades",
+    "rows": [
+     {
+      "key": "trade_a_risked",
+      "label": "Trade A risked",
+      "value": 200,
+      "fmt": "$"
+     },
+     {
+      "key": "trade_a_made",
+      "label": "Trade A made",
+      "value": 500,
+      "fmt": "$"
+     },
+     {
+      "key": "trade_b_risked",
+      "label": "Trade B risked",
+      "value": 1000,
+      "fmt": "$"
+     },
+     {
+      "key": "trade_b_made",
+      "label": "Trade B made",
+      "value": 1500,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Trade A, times its risk",
+     "as": "times"
+    }
+   },
+   "deeper": {
+    "example": "Van Tharp, who wrote the book on R-multiples, says it's far more efficient to think of every profit and loss as a ratio of the risk you took at entry. That ratio is R."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "process.review",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the word.",
+   "sentence": "Each month, sort every trade by ___ to see which kinds of trade are paying.",
+   "bank": [
+    "setup",
+    "share price",
+    "broker",
+    "account"
+   ],
+   "answer": "setup",
+   "why": "Setup. A money manager Steenbarger quotes breaks down every trade at the end of each month. That shows whether breakouts, mean reversion or pullbacks are working right now. CME's trade-log course says to keep records so you can measure the profit or loss of each strategy. Sorting by price, broker or account mixes different kinds of trade together and hides which one pays.",
+   "lesson_line": "One pile per setup. The piles show where your money really comes from.",
+   "facts": [
+    "f08",
+    "f09",
+    "f35",
+    "f19"
+   ],
+   "wrong": {
+    "share price": "A stock's price doesn't tell you what kind of trade it was.",
+    "broker": "Your broker fills the orders. It doesn't change which setups work.",
+    "account": "Sorting by account mixes every kind of trade back together."
+   },
+   "simple": "Setup, because sorting by setup shows which kinds of trade are really paying you.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q05",
+   "skill": "process.review",
+   "rung": 2,
+   "format": "tf",
+   "q": "Breakouts went cold for you this month. What the market did that month belongs in your review, not just your trades.",
+   "answer": "True",
+   "why": "True. A setup's numbers come out of a market. Breakouts can pay for months and then stall when the market turns choppy, even though you're trading them the same way. So read each setup's month next to the market it came from. That's how you tell a setup that's broken from one that's just out of season. It also tells you where to press: more risk when the market suits you, less when it's murky.",
+   "lesson_line": "A setup can be out of season without being broken. The market tells you which.",
+   "facts": [
+    "f63",
+    "f09",
+    "f18",
+    "f56",
+    "f11"
+   ],
+   "simple": "True. Setups pay better in some markets than others, so read the month's numbers next to the market.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "A money manager quoted on Steenbarger's blog breaks down every trade at the end of each month, because sometimes breakouts are working, sometimes mean reversion, sometimes pullbacks. Steenbarger notes he reviews the market environment as well as his own trades, and Tharp writes that a system's results vary with the kind of market."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "process.review",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Month's over and you're writing one line per setup in your review. What numbers go on each line?",
+   "choices": [
+    "Count, win rate, average win and loss",
+    "Win rate and number of trades only",
+    "Total dollar P&L and trade count",
+    "The month's best and worst trades"
+   ],
+   "answer": "Count, win rate, average win and loss",
+   "why": "Count, win rate, and the average win and loss. Every month we look at the win rate, the average win and loss in R, and the expectancy. The count tells you how far to trust the rest. The win rate says how often the setup pays. The average win and loss say how much. Put them together and you get the average R it has paid per trade. In our Journal, tag the setup on every closed trade and the Analytics tab splits the numbers out for you.",
+   "lesson_line": "Win rate is half the story. How big the wins and losses run is the other half.",
+   "facts": [
+    "f10",
+    "f55",
+    "f59",
+    "f54",
+    "f52",
+    "f53",
+    "f67"
+   ],
+   "wrong": {
+    "Win rate and number of trades only": "That's how often, with nothing on how much. A setup can win most of the time and still lose money if the losses run big.",
+    "Total dollar P&L and trade count": "Dollars mix big trades with small ones, and there's no win rate in it. We read wins and losses in R.",
+    "The month's best and worst trades": "Two extremes tell you little about the rest. You want the whole setup: how often it won and by how much."
+   },
+   "simple": "Count, win rate and the average win and loss, because together they show what the setup paid per trade.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "cites the owner's rulebook (E59)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "The money manager quoted on Steenbarger's blog tracks the share of winners and the average win against the average loss each month. Tharp calls the average R per trade the expectancy, and wants more than thirty results before a sample means much."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "process.review",
+   "rung": 3,
+   "format": "tf",
+   "q": "A year of trading pullbacks and you feel sure they're your best setup. That feeling is as good as checking your stats.",
+   "answer": "False",
+   "why": "False. Check the ledger. Memory bends. The trade that stung and the one that ran big stick with you, and the quiet ones fade. So the feeling is built on a handful of trades. Your stats count every one. Pull up the pullbacks, count them, and look at the win rate and the average R. If the feeling's right, the numbers will say so. If it's wrong, better to find out now than after another year.",
+   "lesson_line": "Trust the ledger over the feeling. The feeling remembers the trades that stood out.",
+   "facts": [
+    "f20",
+    "f21",
+    "f40",
+    "f43"
+   ],
+   "simple": "False. Memory holds on to the trades that stood out, and your stats count every trade.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Steenbarger puts it bluntly: the alternative to measurement is not intuition, it's ignorance. He adds that memory is biased by emotion, hindsight and whatever sticks out in your mind."
+   }
+  },
+  {
+   "key": "q08",
+   "skill": "process.review",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Sunday review. You overtraded again: trade after trade on slow days, and most of the extras lost. Which note actually changes next week?",
+   "choices": [
+    "Write a daily trade cap and keep it",
+    "Be more careful with my plan",
+    "Trade with more discipline",
+    "Make fewer mistakes next week"
+   ],
+   "answer": "Write a daily trade cap and keep it",
+   "why": "Write a daily trade cap and keep it. That's one action, and next Sunday you can answer yes or no to whether you kept it. 'More discipline' and 'be more careful' sound good. But they don't tell you what to do Tuesday morning when you're bored and something's moving. Vague goals get the least follow-through. The cap is your fix for your own leak, not a rule of ours. Our own line is simpler: no setup, no trade. Cash is a position.",
+   "lesson_line": "If you can't check it next week, it isn't a plan.",
+   "facts": [
+    "f04",
+    "f17",
+    "f16",
+    "f37",
+    "f69"
+   ],
+   "wrong": {
+    "Be more careful with my plan": "Careful how, exactly. There's nothing in it you can check next Sunday.",
+    "Trade with more discipline": "Sounds like a plan, but it's a wish. It doesn't say what you'll do differently.",
+    "Make fewer mistakes next week": "It doesn't say which mistakes or how. Vague goals get the least follow-through."
+   },
+   "simple": "The trade cap, because it's one thing you'll do, and next Sunday you can check if you did it.",
+   "deeper": {
+    "trap": "'Trade with more discipline' feels like a plan. It's Steenbarger's own example of a vague goal against overtrading, and he says a vague goal is only a good intention. Test any goal with one question: next Sunday, can you answer yes or no to whether you kept it? A written cap passes. 'Be more careful' doesn't."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q09",
+   "skill": "process.review",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Your last ten breakouts, in R: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What's your win rate?",
+   "answer": "40%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "wins / trades * 100",
+     "wins": 4,
+     "trades": 10
+    }
+   },
+   "suffix": "%",
+   "why": "40%. Count the winners: +2, +3, +2.5 and +2.5. That's 4 of the 10, and 4 over 10 is 40%. Watch the -0.5. It lost less than a full R, but it still lost, so it's not a win. And 40% on its own says nothing about money. Six losers sounds bad until you see the winners ran 2R to 3R and most losers stopped at 1R. Always read it next to the average win and loss.",
+   "lesson_line": "Win rate tells you how often. It says nothing about how much.",
+   "facts": [
+    "f55",
+    "f10"
+   ],
+   "simple": "40 percent, because 4 of the 10 trades made money. The small loss still counts as a loss.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "67%",
+    "60%",
+    "50%",
+    "40%"
+   ],
+   "wrong": {
+    "60%": "That's the six losers, not the four winners.",
+    "50%": "You counted the -0.5 as a win. It lost less than 1R, but it still lost.",
+    "67%": "You divided the 4 wins by the six losers instead of by all 10 trades."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "process.review",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Same ten breakouts: +2, -1, -1, +3, -1.5, +2.5, -1, -0.5, +2.5, -1. What has the setup paid you per trade?",
+   "answer": "0.4R",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(wins - losses) / n",
+     "wins": 10,
+     "losses": 6,
+     "n": 10
+    }
+   },
+   "suffix": "R",
+   "why": "+0.4R a trade. Add the winners: 2, 3, 2.5 and 2.5 make 10R. Add the losers: 1, 1, 1.5, 1, 0.5 and 1 make 6R. 10 minus 6 is 4R, and 4R over 10 trades is 0.4R. That's the expectancy so far, what the setup has paid per dollar risked. Six of the ten lost and it still made money, because the winners ran bigger. Ten trades is a first read though, not proof.",
+   "lesson_line": "Average R tells you what a setup pays. A low win rate can still make money.",
+   "facts": [
+    "f54",
+    "f10",
+    "f53",
+    "f64"
+   ],
+   "simple": "Plus 0.4R a trade. Six of the ten lost, but the winners ran bigger than the losers.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "0.4R",
+    "-0.6R",
+    "-0.4R",
+    "1.6R"
+   ],
+   "wrong": {
+    "1.6R": "You dropped the minus signs and averaged the size of every trade.",
+    "-0.6R": "You added only the six losers and left the winners out.",
+    "-0.4R": "Right size, wrong sign. You counted the wins as losses."
+   },
+   "deeper": {
+    "example": "Tharp defines expectancy as the mean R of your trades: what you make per dollar risked. He wants more than thirty results before a sample means much, and somewhere between 100 and 200 trades for a clear picture."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "process.review",
+   "rung": 4,
+   "format": "scenario",
+   "story": "Sunday review. You wrote down eight things to fix. Chased entries show up again and again, and they cost you the most R by far.",
+   "q": "What goes on next week's plan?",
+   "choices": [
+    "One fix, for the costliest leak",
+    "All eight, so nothing gets missed",
+    "Nothing yet, review again next week",
+    "The easiest one, for a quick win"
+   ],
+   "answer": "One fix, for the costliest leak",
+   "why": "One fix, the chasing. It keeps showing up and it costs the most, so that's where the R is. Write it as one thing you'll do: no buys more than 4% over the buy point. Then work on it every day and check it next Sunday. Try to fix eight things at once and you end up fixing none of them. The other seven don't go away. They wait their turn.",
+   "lesson_line": "One leak at a time. Plug the biggest one first.",
+   "facts": [
+    "f01",
+    "f61",
+    "f02",
+    "f15",
+    "f14",
+    "f03",
+    "f70"
+   ],
+   "wrong": {
+    "All eight, so nothing gets missed": "Long lists fade by Tuesday. Work on everything and very little sticks.",
+    "Nothing yet, review again next week": "A review with no plan is just a look in the rear view mirror. Meanwhile the chasing keeps costing you.",
+    "The easiest one, for a quick win": "Feels good, but the costliest leak stays open. Go after the biggest one first."
+   },
+   "simple": "One fix, the chasing, because it keeps coming back and costs the most.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Steenbarger says working on fewer goals more intensively leads to more lasting change, and that if we look at everything we take in very little. CMC Markets says the review looks for the common mistake cropping up time and again, so you can focus on it."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "process.review",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Last Sunday you set one goal: no new trades in the first 15 minutes. A week's gone by and you sit down for the review.",
+   "q": "Where does this review start?",
+   "choices": [
+    "Check if you kept last week's goal",
+    "Set new goals for the coming week",
+    "Add up the week's profit and loss",
+    "Start a clean page for next week"
+   ],
+   "answer": "Check if you kept last week's goal",
+   "why": "With last week's goal. Check whether you kept it. If you did, write down what made it work so you keep doing it. If you didn't, figure out where it slipped and tweak the plan. Only then set the next goal. Skip this step and goals just pile up, with nobody holding you to any of them. We review the week every weekend, ideally, and this is how it opens.",
+   "lesson_line": "Every review opens with last week's goal. A goal nobody checks was only a wish.",
+   "facts": [
+    "f05",
+    "f06",
+    "f07",
+    "f27",
+    "f33",
+    "f32",
+    "f14",
+    "f66"
+   ],
+   "wrong": {
+    "Set new goals for the coming week": "New goals stacked on an unchecked one is how goals pile up and fade. Check the old one first.",
+    "Add up the week's profit and loss": "The P&L is the score. The why and how of your week matter more than the total.",
+    "Start a clean page for next week": "Then last week's goal never gets checked, and the whole review was a throwaway."
+   },
+   "simple": "Last week's goal first, because a goal nobody checks is just a wish.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "cites the owner's rulebook (B27)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Steenbarger calls a review you never come back to a throwaway, and says that if we don't revisit our goals, we aren't truly holding ourselves accountable. CME says knowing the why and how of your trading matters more than adding up the P&L."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "process.review",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Twenty trades this month. The 14 you took by your rules made +9R. The 6 where you broke one lost 7R. Where do you net out?",
+   "answer": "+2R",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "clean + broke",
+     "clean": 9,
+     "broke": -7
+    }
+   },
+   "suffix": "R",
+   "why": "+2R. The clean 14 made 9R. The 6 rule breaks gave back 7R. 9 minus 7 is 2. So your mistakes ate most of a good month. Take those six out and you'd have made +9R on fewer trades. That's why every rule break gets tagged in your journal the day it happens. At month end, add up the R by tag and you see exactly what each habit costs you.",
+   "lesson_line": "Price your mistakes in R. Then you know what each one really costs.",
+   "facts": [
+    "f23",
+    "f34",
+    "f24",
+    "f52"
+   ],
+   "simple": "Plus 2R. The rule breaks gave back 7R of the 9R the clean trades made.",
+   "deeper": {
+    "example": "Tag each rule break as you log it: chased entry, late exit, added to a loser. At the review, add up the R for each tag. Here 6 tagged trades cost 7R. Steenbarger's end-of-day review asks the same thing: were the rules followed, and how would following them have changed the day?"
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "+16R",
+    "+2R",
+    "+9R",
+    "-2R"
+   ],
+   "wrong": {
+    "+16R": "You added the 7R as if the rule breaks made money.",
+    "+9R": "That's only the clean 14. The 6 rule breaks count too.",
+    "-2R": "Backwards. You took the 9R away from the 7R."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Twenty trades",
+    "rows": [
+     {
+      "key": "rule-breakers",
+      "label": "Rule-breakers",
+      "value": 6,
+      "fmt": "count"
+     },
+     {
+      "key": "r_lost_on_them",
+      "label": "R lost on them",
+      "value": 7,
+      "fmt": "count"
+     },
+     {
+      "key": "other_trades",
+      "label": "Other trades",
+      "value": 14,
+      "fmt": "count"
+     },
+     {
+      "key": "r_won_on_them",
+      "label": "R won on them",
+      "value": 9,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "All 20 trades, in R",
+     "as": "r"
+    }
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "process.review",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Your last ten losses, in R: 1, 1, 1.2, 0.8, 1, 2.5, 1, 1, 1, 1.5. A loss at the stop is 1R. What's the average loss?",
+   "answer": "1.2R",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(l1 + l2 + l3 + l4 + l5 + l6 + l7 + l8 + l9 + l10) / n",
+     "l1": 1,
+     "l2": 1,
+     "l3": 1.2,
+     "l4": 0.8,
+     "l5": 1,
+     "l6": 2.5,
+     "l7": 1,
+     "l8": 1,
+     "l9": 1,
+     "l10": 1.5,
+     "n": 10
+    }
+   },
+   "suffix": "R",
+   "why": "1.2R. The ten add up to 12R, and 12 over 10 is 1.2R. A loss at your stop is 1R, so three of these ran past it: 1.2, 2.5 and 1.5. The 2.5 alone does most of the damage. Go find that trade and see if it was a gap or a stop you didn't take. A gap you can't control. A stop you sat through is a habit, and that one you fix. The 0.8 is fine. Smaller than planned is never the problem.",
+   "lesson_line": "An average loss above 1R is a leak. Find the trades that ran past the stop.",
+   "facts": [
+    "f49",
+    "f48",
+    "f52",
+    "f10"
+   ],
+   "simple": "1.2R. A few losses ran past the 1R stop, so the average sits above it.",
+   "deeper": {
+    "trap": "An average hides where the leak is. Here one 2.5R loss does much of the damage. Tharp names the two ways a loss runs past plan: you didn't take the loss you planned, or the market gapped against you. Only the first one is a habit you can fix. His goal is every loss at 1R or less."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "1.2R",
+    "1.0R",
+    "0.8R",
+    "0.1R"
+   ],
+   "wrong": {
+    "1.0R": "That assumes every loss was the planned 1R. Three of them ran past it.",
+    "0.8R": "That's the smallest loss, not the average of all ten.",
+    "0.1R": "A decimal slip, ten times too small."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "process.review",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You added a new pullback setup this month. Four trades, four losses, each about 1R. You followed your rules every time.",
+   "q": "What's your read on it?",
+   "choices": [
+    "Too few trades to judge it yet",
+    "It's broken, so drop it now",
+    "Double up to win it back",
+    "Tweak its rules after losses"
+   ],
+   "answer": "Too few trades to judge it yet",
+   "why": "Too few trades to judge it yet. Four results tell you almost nothing. Losing streaks happen to good setups. You followed your rules and every loss stopped at about 1R, so the risk side did its job. Keep taking it by the rules and keep logging it. A rough bar is more than thirty results before the numbers start to mean much. A clear picture takes 100 to 200 trades.",
+   "lesson_line": "Judge a setup on a sample, not a streak.",
+   "facts": [
+    "f53",
+    "f57",
+    "f64",
+    "f41"
+   ],
+   "wrong": {
+    "It's broken, so drop it now": "That's a verdict off four trades. A sample that small can't tell you anything you can trust.",
+    "Double up to win it back": "That's more risk right when you know the least. Nothing here says it deserves more.",
+    "Tweak its rules after losses": "Then you never trade one setup long enough to judge it. Every change starts the count over."
+   },
+   "simple": "Too early. Four trades say almost nothing, and you traded it right.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Tharp's rough bar is more than thirty results for any significance, and 100 to 200 trades for a clear picture of expectancy. Investopedia adds that too small a sample gives no trustworthy conclusion, and Schwab notes losing streaks happen to the best traders."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "process.review",
+   "rung": 6,
+   "format": "tf",
+   "q": "A string of losses means your strategy has stopped working.",
+   "answer": "False",
+   "why": "False. Losing streaks happen to good strategies too. Schwab adds that sometimes a streak does point to a real problem. So a streak is a reason to look, not a verdict. Check whether you are up or down overall, then look for patterns in the wins and losses. A handful of trades gives no trustworthy conclusion either way.",
+   "lesson_line": "A streak is a question, not an answer. Your ledger answers it.",
+   "facts": [
+    "f41",
+    "f43",
+    "f57"
+   ],
+   "simple": "False. Good strategies have losing streaks too, so check the record before you decide.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q17",
+   "skill": "process.review",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your weekly notes: three winners, all great reads. Five losers, blamed on bad luck, a rigged market and surprise news.",
+   "q": "Anything wrong with this review?",
+   "choices": [
+    "Wins get credit, losses get excuses",
+    "Nothing, losses are often bad luck",
+    "It has too many losing trades",
+    "It should have looked only at losers"
+   ],
+   "answer": "Wins get credit, losses get excuses",
+   "why": "Wins get credit, losses get excuses. Some losses really are bad luck. But five for five, next to three wins that were all skill, isn't the market. That's the story you're telling yourself. And it costs you, because if every loss is someone else's fault there's nothing to fix, so you keep repeating it. Go back through each loser and write one thing you could have done differently.",
+   "lesson_line": "Own the losers as fully as the winners. That's where the lessons are.",
+   "facts": [
+    "f42",
+    "f50",
+    "f36",
+    "f31"
+   ],
+   "wrong": {
+    "Nothing, losses are often bad luck": "Some are. All five, while every win was skill, is the bias talking.",
+    "It has too many losing trades": "The count isn't the problem. Blaming every loser on something outside you is.",
+    "It should have looked only at losers": "Looking at the winners is right. The problem is how the losers got explained away."
+   },
+   "simple": "Every win was skill and every loss was luck. That bias hides the lessons in the losers.",
+   "deeper": {
+    "trap": "Each excuse sounds fair on its own. The tell is the pattern: every win was skill and every loss was outside forces. Schwab calls it self-attribution bias. Tharp warns that if you blame the market for your results, you'll repeat the same mistakes. If you write 'nothing I could do' five times, read your review again."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "process.review",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your plan caps every loss at 1R. One line in your ledger reads -3R. There was no gap that day. You bought more twice as it fell.",
+   "q": "How do you log that loss?",
+   "choices": [
+    "A rule break: adding to a loser",
+    "Bad luck: it just kept falling",
+    "A setup problem: drop the setup",
+    "A normal loss: losses past 1R happen"
+   ],
+   "answer": "A rule break: adding to a loser",
+   "why": "A rule break: adding to a loser. A loss runs past 1R one of two ways. Either it gapped on you, or you didn't take the loss you planned. No gap here. You bought more twice on the way down, so the loss grew by choice. We put the full size on at one price with one stop, and we never add to a loser. This is exactly the trade that rule exists to stop. Tag it as a rule break so it shows up in the month's numbers.",
+   "lesson_line": "A loss past 1R is a flag. Find the rule that bent.",
+   "facts": [
+    "f48",
+    "f49",
+    "f46",
+    "f47",
+    "aw_r"
+   ],
+   "wrong": {
+    "Bad luck: it just kept falling": "Falling is what the stop was for. Buying more on the way down is what made it big.",
+    "A setup problem: drop the setup": "The setup risked 1R. The extra loss came from your adds, not the entry.",
+    "A normal loss: losses past 1R happen": "They do, after a gap. This one grew from your own buys."
+   },
+   "simple": "A rule break. There was no gap, so the loss grew because you bought more as it fell.",
+   "deeper": {
+    "trap": "Tharp says losses bigger than 1R happen all the time, which tempts you to file this as normal. The cause decides the file. A gap is a risk you take on. Buying more on the way down is a choice, and Schwab lists it as an emotional mistake: trying to get even with the market."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "cites the owner's rulebook (A5)",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "process.review",
+   "rung": 7,
+   "format": "tf",
+   "q": "Rough week, so you write one goal for the next: make $2,000. That's a solid goal to come out of a review.",
+   "answer": "False",
+   "why": "False. You can't make the market pay you a number. Some weeks it hands you nothing good to buy, and a dollar goal pushes you to force trades anyway. That's backwards. No setup, no trade. Cash is a position. A goal from the review is something you'll do, like only buying names on your written list. You can check that next Sunday. The money follows from doing it well.",
+   "lesson_line": "Set goals for how you trade. The money is the result, not the plan.",
+   "facts": [
+    "f30",
+    "f32",
+    "f04",
+    "f69"
+   ],
+   "simple": "False. You can't make the market pay a set amount, so a good goal names what you'll do.",
+   "deeper": {
+    "trap": "A dollar target sounds concrete, but it names a result, not something you'll do. Steenbarger says a journal keeps you focused on process, not the ups and downs of P&L. CME says knowing the why and how of your trading matters more than the total."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "deeper cites the owner's rulebook (D44)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "process.review",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Your breakouts paid for months. This month the market chopped sideways, and they lost on 9 of 11 tries, all taken by your rules.",
+   "q": "What does the review do with breakouts?",
+   "choices": [
+    "Cut breakout size for now",
+    "Keep full size, they'll come back",
+    "Drop breakouts for good",
+    "Take more breakouts to catch up"
+   ],
+   "answer": "Cut breakout size for now",
+   "why": "Cut breakout size for now. Tharp notes a system's results vary by market type, and traders can vary their sizing by type. The money manager Steenbarger quotes takes less risk when conditions are murky. Schwab adds there is no harm in trading smaller while you work it out. UCT's own rule picks the risk on a trade by setup quality, recent results and the market. This is not a verdict on the setup. Months of results say it works when the market suits it.",
+   "lesson_line": "Size follows the market. Less when it fights your setup, more when it pays it.",
+   "facts": [
+    "f56",
+    "f11",
+    "f45",
+    "f46",
+    "f71"
+   ],
+   "wrong": {
+    "Keep full size, they'll come back": "Maybe they will, but nothing promises it. Results vary with the kind of market, and this one isn't paying breakouts.",
+    "Drop breakouts for good": "Eleven tries in one kind of market isn't the whole record. Months of results say the setup works when the market suits it.",
+    "Take more breakouts to catch up": "More tries in a market that isn't paying breakouts means more losses. Trading to get even with the market is an emotional mistake."
+   },
+   "simple": "Cut breakout size for now, because this sideways market is not paying breakouts, though months of results say they work.",
+   "deeper": {
+    "trap": "Two errors pull opposite ways here. Nine losses in eleven tempt you to drop the setup. But eleven tries in one kind of market is not its whole record. Months of wins tempt you to keep full size, but results vary with the kind of market. Smaller size keeps the setup in play until the market suits it again."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (A1), which may sit against B17 (no losing-streak rule)",
+     "sizing view could change with his ruling"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q21",
+   "skill": "process.review",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Your earnings-gap setup: 45 trades over five months, all by your rules. It averaged -0.3R a trade.",
+   "q": "What's the call on it?",
+   "choices": [
+    "Bench it and work out why",
+    "Too few trades to judge yet",
+    "Size up to win the losses back",
+    "Keep it, it's due to turn"
+   ],
+   "answer": "Bench it and work out why",
+   "why": "Bench it and work out why. 45 trades is past the rough bar of thirty, and -0.3R means it's lost about a third of an R a trade, on average. That's not a streak anymore. It's not proof either, since a clear picture takes 100 to 200 trades. So stop paying for it while you dig in. Maybe the market stopped paying gaps. Maybe one of your rules stopped fitting. Find the cause, then decide.",
+   "lesson_line": "A setup that loses over a fair sample, traded right, gets benched. Not sized up.",
+   "facts": [
+    "f53",
+    "f64",
+    "f51",
+    "f29",
+    "f44",
+    "f54"
+   ],
+   "wrong": {
+    "Too few trades to judge yet": "45 is past the rough bar of thirty. Not proof, but enough to stop paying for it while you find out why.",
+    "Size up to win the losses back": "More size on a negative average just loses more, faster.",
+    "Keep it, it's due to turn": "Nothing in its record says it's due. It's averaged a loss across 45 trades."
+   },
+   "simple": "Bench it and find out why. Forty-five trades by the rules have lost money on average.",
+   "deeper": {
+    "trap": "45 trades sits past Tharp's rough bar of thirty but short of the 100 to 200 he wants for a clear picture. So the verdict is 'bench it and dig in', not 'proven dead'. SMB's playbook checkup does the same: drop setups that aren't worth their money and attention."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "process.review",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Worst week of the year. Down on almost every trade. The last thing you want on Sunday is to open the journal.",
+   "q": "Do you still do the review?",
+   "choices": [
+    "Run it as usual, losses and all",
+    "Skip it and start fresh Monday",
+    "Review only the winners this week",
+    "Look only at the week's P&L"
+   ],
+   "answer": "Run it as usual, losses and all",
+   "why": "Run it, losses and all. This week matters more than any other. Everybody wants to skip the journal after a beating, and that's exactly when the useful stuff is in there. Split the losses first: the ones that broke a rule, and the ones taken right that just didn't work. The rule breaks are next week's fix. The clean losses are the cost of doing business. Skip it and Monday starts with the same problem in place.",
+   "lesson_line": "The week you least want to review is the one you most need to.",
+   "facts": [
+    "f60",
+    "f62",
+    "f43",
+    "f31",
+    "f32",
+    "f66",
+    "f23"
+   ],
+   "wrong": {
+    "Skip it and start fresh Monday": "Then Monday starts with whatever caused the losses still in place.",
+    "Review only the winners this week": "Skip the losers and you skip the lesson. That's where the fix is.",
+    "Look only at the week's P&L": "The total tells you it was bad. It doesn't tell you why."
+   },
+   "simple": "Run it as usual. The worst week is when you most need to find what went wrong.",
+   "deeper": {
+    "example": "Jared Tendler, who coaches traders on the mental game, notes that people stop journaling when results are so bad they don't want to look. His answer: I know you don't want to, but you can't skip it. Steenbarger's review checks the same split: were the rules followed?"
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "cites the owner's rulebook (B27)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "process.review",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Your last 20 trades. Breakouts: 9 trades, +6R. Gap plays: 4 trades, +1R. Pullbacks: 7 trades, -5R, where 5 chased entries lost 6R and 2 clean ones made 1R.",
+   "q": "Where do you start?",
+   "choices": [
+    "Fix the chasing on pullbacks",
+    "Drop the pullback setup for good",
+    "Drop gap plays, too few trades",
+    "Trade only breakouts from now on"
+   ],
+   "answer": "Fix the chasing on pullbacks",
+   "why": "Fix the chasing. Look inside the pullback line. Five chased entries lost 6R. The two you took right made 1R. So the setup made money when you traded it by the rules. The leak is you, not the pullback. And seven trades can't judge a setup either way. Our line on chasing: never buy more than 4% over the buy point. Make that next week's one fix, and let the setup build a fair sample.",
+   "lesson_line": "Fix the behavior before you blame the setup.",
+   "facts": [
+    "f23",
+    "f01",
+    "f53",
+    "f43",
+    "f70"
+   ],
+   "wrong": {
+    "Drop gap plays, too few trades": "Too few trades is a reason to keep logging, not to drop it. Four results say little either way.",
+    "Trade only breakouts from now on": "Nine trades don't prove breakouts either. And the biggest leak here is a habit, not a setup.",
+    "Drop the pullback setup for good": "The chasing made those losses. You'd be firing the setup for your own mistake."
+   },
+   "simple": "Fix the chasing. The chased entries made the losses, and the clean pullbacks made money.",
+   "deeper": {
+    "trap": "The -5R line tempts you to drop pullbacks. Split it first: 5 chased entries lost 6R, and 2 clean ones made 1R. Taken by the rules, the setup made money. Steenbarger's review asks how following the rules would have changed the result. Here it's the whole answer."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "cites the owner's rulebook (C28)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q24",
+   "skill": "process.review",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Both setups traded by your rules. Setup A: 40 trades, won 70%, averaged -0.1R. Setup B: 40 trades, won 35%, averaged +0.4R.",
+   "q": "Which one gets more of your size next month?",
+   "choices": [
+    "Setup B, it pays more per trade",
+    "Setup A, it wins twice as often",
+    "Neither, both samples are too small",
+    "Both equally, to spread the risk"
+   ],
+   "answer": "Setup B, it pays more per trade",
+   "why": "Setup B. Look at the average, not the win rate. A wins 70% of the time and still averages -0.1R, so it loses a little on every trade. Its losses must run bigger than its wins. B wins only 35%, but averages +0.4R, so on average each trade has paid you four-tenths of an R. Forty trades each is past the rough bar of thirty. That's a fair first read, not proof. But the gap is wide, and size follows the average.",
+   "lesson_line": "Size goes where the average R is, not where the win rate is.",
+   "facts": [
+    "f54",
+    "f59",
+    "f51",
+    "f53",
+    "f64"
+   ],
+   "wrong": {
+    "Setup A, it wins twice as often": "Winning often isn't the goal. A loses a little on average every time you take it.",
+    "Neither, both samples are too small": "Forty each is past the rough bar of thirty. A first read, not proof, and the gap between them is wide.",
+    "Both equally, to spread the risk": "Splitting size onto a setup with a negative average just feeds it. More trades, more losses."
+   },
+   "simple": "Setup B, because its average R is positive. A high win rate can still lose money.",
+   "deeper": {
+    "trap": "Setup A's 70% win rate feels safer. But at -0.1R a trade, its 40 trades have lost money. Tharp's expectancy is the average R per trade, what a system makes per dollar risked, and he wants 100 to 200 trades for a clear picture. Win rate says how often. Average R says how much."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q25",
+   "skill": "process.review",
+   "rung": 6,
+   "format": "tf",
+   "q": "Five losses in a row, but the account's only 3% off its high. We don't cut your size just for the streak.",
+   "answer": "True",
+   "simple": "True. Size gets cut by how far the account is off its high, not by losses in a row.",
+   "why": "True. We don't have a losing-streak rule. Size gets cut by the drawdown: how far the account sits below its highest value, open trades included, in percent. We check it at least weekly. Here you're only 3% off the high, so nothing changes. Five in a row feels like a big deal, but they didn't cost much. Do look at all five in your weekend review, though. If they share a mistake, that's your fix. If they were clean, that's just trading.",
+   "lesson_line": "A streak doesn't cut your size. The drawdown does.",
+   "facts": [
+    "f72",
+    "f73",
+    "f41"
+   ],
+   "house": true,
+   "deeper": {
+    "trap": "A run of losses feels like it should trigger a fixed size cut. We don't have one. The drawdown ladder does the cutting, and it measures the account's fall from its highest value, open trades included, in percent. A streak can still be worth a look in the review, but it isn't what sets your size."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B17)",
+     "B17 sits beside A1's 'recent results' and F65's market reading"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q26",
+   "skill": "process.review",
+   "rung": 3,
+   "format": "tf",
+   "q": "Two quick stop-outs and you want to rewrite your stop rule mid-session. That change should wait until the market's closed.",
+   "answer": "True",
+   "simple": "True. Keep the rules fixed while you trade, and rethink them after the close.",
+   "why": "Wait till the close. Two stop-outs in a row feel like proof the rule's wrong. Two trades prove nothing. And a rule you rewrite mid-session isn't a rule anymore. So jot the idea down and keep trading the plan as written. Look at it after the close or on the weekend. If it still holds up with the numbers in front of you, change it then.",
+   "lesson_line": "Fixed rules during the session. Changes after the close.",
+   "facts": [
+    "f37",
+    "f65",
+    "f66"
+   ],
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "cites the owner's rulebook (B27)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia's trading-plan guide says a plan's signals shouldn't change while you're trading, but should be open to a rethink when the markets are closed. CMC Markets says to review away from the excitement of the market, and that weekends can be a good time."
+   }
+  }
+ ],
+ "conflicts": [
+  "Sample size: Tharp's glossary says a sample needs 'more than thirty results' for any significance (f53); his concepts page says 'a minimum of thirty trades' for a good idea of expectancy and 'somewhere between 100 and 200' for a clear picture (f64, added by the checker). The file uses 'more than thirty' only as a rough first bar (w2, q15, q21, q24), never as proof: w2 now names the 100 to 200, q21's key is 'bench it and work out why' (not 'drop it'), and q21/q24's notes say 'not proof'.",
+  "Cadence: the unit row says 'weekly setup stats'. A swing trader's week holds only a few trades per setup, which the sample-size facts (f53, f57) say cannot support a conclusion, so this file puts setup stats in the monthly (or longer) review, as the money manager quoted in s2 does (f08, f09), and keeps the weekly review for the one biggest leak and last week's goal (f01, f05). Owner's call if he wants weekly stats.",
+  "The monthly post-analysis (f08, f09, f10, f13) is money manager Ryan Worch's practice, quoted on Steenbarger's blog, not Steenbarger's own rule; the questions say 'a money manager Steenbarger quotes'. f11 is Steenbarger's own comment on it.",
+  "CME's trade-log page lists 'Drawdowns (maximum loss per trade using a trading system)', which is not the usual meaning of drawdown (peak-to-trough fall in the account). Not used.",
+  "Steenbarger's single-goal advice (f02, f15) is his coaching view; CME (f34) and Investopedia (f40) agree the review is for finding and fixing mistakes but do not say 'one at a time'. Checker: CME was q11's only second publisher and does not back focusing on one mistake, so f61 (CMC Markets: the 'common mistake that is cropping up time and again that you need to focus on') was added, the story now says the chasing keeps showing up, and the key was softened from 'nothing else' to 'One fix, for the chasing'. Steenbarger stays credited by name for 'look at everything'.",
+  "Steenbarger (2026-10 entries) also lists reviewing the trades you missed as a best practice; no second publisher in this pass says it, so it is not asked."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "f32 (CME), f21, f01, f12, f08, f09, f13 (TraderFeed) confirmed in context on the live pages; f08/f09/f13 are Worch's words and stay attributed. Changed: step 2 put 'check last week's change first' last; it now leads. Added f52, f23, f05, f03 so the R, rule-break and check-back parts of the steps have a source."
+  },
+  "w2": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "f10 (Worch's monthly stats), f54 and f53 (Tharp glossary) confirmed live. Changed: 'what the setup pays' to 'has paid' (a past average, not a promise); added f64 from Tharp's concepts page (100 to 200 trades for a clear picture) so the thirty bar reads as a rough first read, which the page itself says."
+  },
+  "w3": {
+   "status": "pass",
+   "fixed": true,
+   "by": "checker",
+   "notes": "f23 (Steenbarger's end-of-day rule check), f34 (CME), f01, f15, f05 confirmed. Added f52 (pricing in R), f04 (write exactly what you'll do), f61 (CMC: focus on the mistake that keeps cropping up) and f65 (CMC: weekends are a good time to review), so each step has a source."
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok: False rests on f39/f38/f22, our weekend review is f66 with 'ideally' kept. Voice reads like a mentor; authors in deeper only."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok (f31/f28/f25/f26). Fix: q01 and q02 were neighbors both opening 'False.'; q02 now opens with the verdict in plain words."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 500/200 = 2.5R, 1500/1000 = 1.5R, risk ratio 5x. Key and wrongs right. Plain trade-review voice."
+  },
+  "q04": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True rests on f09/f63/f56/f11. 'Out of season vs broken' is a good mentor line. No new numbers."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "f67 states our monthly numbers as ours. Wrong notes name the real mistakes. Journal tagging how is a fair app pointer."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Sounds like him: 'Check the ledger. Memory bends.' f20/f21 support it."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "TRUTH/FIT: the writer changed the leak from overtrading to 'impulse buys that weren't on your list', so the keyed fix (a daily trade cap) no longer answers the leak; the natural fix to off-list buys is 'only buy from the list', which is not a choice. Restored the overtrading situation (f16 is Steenbarger's overtrading example, which the deeper trap already cites) and gave it a real screen."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: winners 2, 3, 2.5, 2.5 = 4 of 10 = 40%; 67% = 4/6; 50% counts the -0.5. Steps shown."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: wins 10R, losses 1+1+1.5+1+0.5+1 = 6R, 4R/10 = 0.4R; 1.6R = 16/10 absolute; -0.6R = losers only. Calc backs the steps."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "One fix for the costliest leak (f01/f02/f15/f61); written as our 4% chasing line (f70). Good."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Check last week's goal first (f05/f06/f07). The 15-minute goal is the member's own, not stated as ours (we have no time-of-day rule), fine."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed 9 - 7 = +2R; +16 adds, -2 reversed, +9 drops the breaks. Practical tagging how."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: sum 12.0R / 10 = 1.2R; 1.2, 2.5, 1.5 ran past 1R; 2.5 is most of the excess. Gap vs habit split from f48."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Four losses at 1R, traded right: too few to judge. Thirty / 100-200 from f53/f64 stated as rough bars, not ours."
+  },
+  "q16": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Natural voice ('That's the story you're telling yourself'). Self-attribution named in deeper only."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Agrees: 'never add to a loser' on a -3R loser. Answer clear. Voice 4."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Blunt and in his register: 'No setup, no trade. Cash is a position.' (f69)."
+  },
+  "q20": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "45 trades past the rough thirty, short of 100-200; -0.3R about a third of an R. 'Bench it and dig in', not 'dead'. Right."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads like him after a bad week. Split rule-break losses from clean ones is the practical how."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: pullbacks -6R + 1R = -5R; 9 + 4 + 7 = 20 trades. Fix the chasing (f70) before blaming the setup."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "A at 70% and -0.1R must have losses bigger than wins; B +0.4R a trade. Forty each past the rough bar, not proof. Right."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok (B17 via f72/f73; 3% off the high is no cut). Voice was repetitive ('Check it at least weekly.' dangling, 'Sometimes it does' then restating the cut). Rewritten to walk the situation and say what you do with the streak in the review."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok (f37/f65). Fix: q25 and q26 were neighbors both opening 'True.'; q26 now opens on the verdict in his words and tightens the middle."
+  }
+ }
+}

@@ -15,6 +15,11 @@ import styles from './ScannerPro.module.css'
 import Input from '../../components/ui/Input'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../../components/artifactHistory/ArtifactHistory'
 import RecentlyDeleted from '../../components/artifactHistory/RecentlyDeleted'
+import { GROUPS, FALLBACK_GROUP, offeredStarters } from './focus/screenGroups'
+import { usePhonePanel } from './shell/phonePanel'
+import { useInRouterContext } from 'react-router-dom'
+import { scanIdFromSearch, withoutScanParam, resolveScanHint } from './scanLink'
+import ScanHintOut from './ScanHintOut'
 
 // ⭐ THE ONE BUILDER, LAZY. `ChartToolbar` mounts `BuilderSheet` statically;
 // this is its SECOND opener (spec §5.5 "`/screener` authoring door") and it
@@ -230,6 +235,45 @@ function scanName(row) {
   return name || (row && row.def_id) || 'Untitled screen'
 }
 
+/** ⭐ STARTERS GROUPED BY THE GROUP THE DATA DECLARES (spec A7 / C6, 2026-11-07).
+ *  Every starter `saved_screens.starters()` sends carries a `group` label, and this
+ *  menu used to ignore it: 23 starters in one flat run, the seven RS starters
+ *  indistinguishable from the momentum ones above them. Groups come out in the
+ *  order the API FIRST sends each one, starters inside a group in API order.
+ *
+ *  The label is normalised through `screenGroups.GROUPS` (the Focus menu's table,
+ *  read here, never edited), so both menus spell a group the same way — including
+ *  "Chart Patterns" filing under "Bases & chart patterns" as `groupOf` does. A
+ *  label that table does not know shows AS DECLARED (never folded into Momentum:
+ *  a new server group should appear, not hide). A starter with no `group` falls
+ *  back to `FALLBACK_GROUP` by id, else to an unlabelled run with no sub-header,
+ *  so a list in which nothing declares a group renders exactly as it did. */
+export function groupStarters(starters) {
+  const out = []
+  const byKey = new Map()
+  for (const s of starters || []) {
+    const raw = String(s?.group || '').trim()
+    const low = raw.toLowerCase()
+    let g = null
+    if (raw) {
+      g = GROUPS.find(x => x.label.toLowerCase() === low || x.key === low)
+        || (low === 'chart patterns' ? GROUPS.find(x => x.key === 'bases') : null)
+        || { key: `declared:${low}`, label: raw }
+    } else if (FALLBACK_GROUP[s?.id]) {
+      g = GROUPS.find(x => x.key === FALLBACK_GROUP[s.id]) || null
+    }
+    const key = g ? g.key : ''
+    let bucket = byKey.get(key)
+    if (!bucket) {
+      bucket = { key, label: g ? g.label : null, items: [] }
+      byKey.set(key, bucket)
+      out.push(bucket)
+    }
+    bucket.items.push(s)
+  }
+  return out
+}
+
 export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const { saved, starters, create, update, remove, refresh: refreshSaved, error: savedError } = useSavedScreens()
   // ─── FAVORITES: pin the ones a member reaches for to the TOP ────────────────
@@ -299,6 +343,30 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   // `SavedScreensPanel`'s single selected-screen + single session state.
   const [detailId, setDetailId] = useState(null)
   const [session, setSession] = useState(defaultSession)
+  // ⭐ R1 / R13 (2026-11-17, Studio track; this file is the Screener's) — A CHART CAN HAND OVER ONE OF THE
+  // MEMBER'S INDICATORS: `/screener?scan=<def_id>` opens THIS menu on that indicator's existing detail.
+  // Read ONCE, after the member's own rows have loaded, then removed from the address so a refresh or a
+  // later visit does not reopen it. ⛔ The id is a hint: one that is malformed, unknown or not this
+  // member's opens nothing and says nothing (`scanLink.resolveScanHint`).
+  // ⛔ REMOVED THROUGH THE ROUTER (`ScanHintOut`), never behind its back: `replaceState` alone leaves
+  // the router's own location holding the hint, and the next navigation built from it puts it back.
+  // The bare `replaceState` below is only for a mount with no router around it.
+  const inRouter = useInRouterContext()
+  const [scanHintRead, setScanHintRead] = useState(false)
+  const scanHintRef = useRef(typeof window !== 'undefined' ? scanIdFromSearch(window.location.search) : null)
+  useEffect(() => {
+    const id = scanHintRef.current
+    if (!id || !Array.isArray(defRows)) return
+    scanHintRef.current = null
+    const hint = resolveScanHint(id, scans, unscannable)
+    if (hint.open) { setOpen(true); if (hint.detailId) setDetailId(hint.detailId) }
+    setScanHintRead(true)
+    if (inRouter) return
+    try {
+      const { pathname, search, hash } = window.location
+      window.history.replaceState(window.history.state, '', `${pathname}${withoutScanParam(search)}${hash}`)
+    } catch { /* the address is cosmetic */ }
+  }, [defRows, scans, unscannable, inRouter])
   // The on-demand run currently on screen: `{defId, session, payload}`. Matched,
   // never assumed — see the header note.
   const [run, setRun] = useState(null)
@@ -344,6 +412,12 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
   const { data: spyBars } = useSWR(builder ? SPY_WINDOW : null, barsFetcher,
     { revalidateOnFocus: false })
   const wrapRef = useRef(null)
+  // Phone (<= 640 px): the menu becomes a viewport-pinned panel, 8 px from each
+  // edge (spec A7). `undefined` everywhere else, so desktop keeps its CSS placement.
+  const phonePanel = usePhonePanel(open, wrapRef)
+  // A starter the server marked `hidden` (RS screens contract, 2026-11-14) is not listed under
+  // UCT Preset Scans. One a member favourited still shows in Favorites, above, and opens.
+  const starterGroups = useMemo(() => groupStarters(offeredStarters(starters)), [starters])
 
   useEffect(() => {
     if (!open) return
@@ -456,11 +530,13 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
 
   return (
     <div className={styles.saveMenuWrap} ref={wrapRef}>
-      <button type="button" className="btn btn-primary" onClick={() => setOpen(o => !o)}>
+      {inRouter && scanHintRead && <ScanHintOut />}
+      <button type="button" className="btn btn-primary" data-guide="screener.screens" onClick={() => setOpen(o => !o)}>
         Screener ▾
       </button>
       {open && (
-        <div className={styles.saveMenuPop} role="menu">
+        <div className={styles.saveMenuPop} role="menu" style={phonePanel}
+          data-phone-panel={phonePanel ? '' : undefined}>
           {/* 🔴 THE AUTHORING DOOR, LED WITH. It was the last row in the menu and
               got no attention; it is the primary action here, so it leads and
               wears the gold `btn-primary` accent. Closes the menu first for the
@@ -500,22 +576,30 @@ export default function ScreensManager({ currentSpec, onApply, onUseScan }) {
           {starters.length > 0 && (
             <div className={styles.saveMenuSection}>
               <div className={styles.saveMenuHdr}>UCT Preset Scans</div>
-              {starters.map(s => {
-                const favKey = `starter:${s.id}`
-                const fav = favSet.has(favKey)
-                return (
-                  <div key={s.id} className={styles.saveMenuItem}>
-                    <button type="button" className={styles.saveMenuName} onClick={() => apply(s)}>{s.name}</button>
-                    <span className={styles.saveMenuAct}>
-                      <button type="button" aria-pressed={fav}
-                        aria-label={fav ? `Unfavorite ${s.name}` : `Favorite ${s.name}`}
-                        onClick={() => toggleFav(favKey)}>
-                        <UIcon name={fav ? 'star-fill' : 'star'} size={12} />
-                      </button>
-                    </span>
-                  </div>
-                )
-              })}
+              {/* One sub-header per declared group, in API order (spec A7). The
+                  unlabelled run (no group, no fallback) gets no sub-header. */}
+              {starterGroups.map(g => (
+                <div key={g.key || 'ungrouped'} role={g.label ? 'group' : undefined}
+                  aria-label={g.label || undefined} data-starter-group={g.key || undefined}>
+                  {g.label && <div className={styles.saveMenuGroupHdr}>{g.label}</div>}
+                  {g.items.map(s => {
+                    const favKey = `starter:${s.id}`
+                    const fav = favSet.has(favKey)
+                    return (
+                      <div key={s.id} className={styles.saveMenuItem}>
+                        <button type="button" className={styles.saveMenuName} onClick={() => apply(s)}>{s.name}</button>
+                        <span className={styles.saveMenuAct}>
+                          <button type="button" aria-pressed={fav}
+                            aria-label={fav ? `Unfavorite ${s.name}` : `Favorite ${s.name}`}
+                            onClick={() => toggleFav(favKey)}>
+                            <UIcon name={fav ? 'star-fill' : 'star'} size={12} />
+                          </button>
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              ))}
             </div>
           )}
 

@@ -1,0 +1,12 @@
+[
+ {
+  "mutant": "control-comment-merge",
+  "file": "app/src/components/chart/engine/runtime/broker.js",
+  "verdict": "SURVIVED"
+ },
+ {
+  "mutant": "T4xT6 tickPx sizing refusal off",
+  "file": "app/src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED"
+ }
+]

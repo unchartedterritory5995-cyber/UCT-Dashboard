@@ -59,7 +59,8 @@ const stripComments = (src) => src
 /** The V2 render block — from the row inputs it derives through to the inline
  *  legend branch that follows it. */
 function v2Block() {
-  const start = STOCK_CHART.indexOf('const indChips = crosshairData.chips')
+  // The legend reads the chips through `legendRows` (one row per name, 2026-11-16).
+  const start = STOCK_CHART.indexOf('const indRows = legendRows(crosshairData.chips')
   if (start < 0) throw new Error('marker moved: the legend no longer reads `crosshairData.chips`')
   const end = STOCK_CHART.indexOf('<span className={styles.legendTime}', start)
   if (end < 0) throw new Error('marker moved: the inline legend branch is no longer after the V2 one')
@@ -105,29 +106,36 @@ describe('⚰ THE PERMANENT CHEVRON IS RETIRED — and stays retired', () => {
     }
   })
 
-  it('⭐⭐ COLOUR = WHICH SERIES, WHITE = THE VALUE', () => {
-    // §3. ⚰ BOTH the label and the value used to wear the plot's hue, which read as
-    // a rainbow at five series AND made the NUMBER as legible as whatever colour
-    // the member happened to pick. The label keeps the hue — it is the identity —
-    // and the number is always the same bright neutral.
+  it('⭐⭐ COLOUR = WHICH SERIES (THE BAR), GREY = THE NAME, WHITE = THE VALUE', () => {
+    // UCT Signature (owner-approved lab, 2026-11-15, L1 · Rows): the 3×13 bar is the
+    // only thing that wears the plot's hue; the name is grey and the value bright
+    // neutral, both from the stylesheet. ⚰ The coloured label (§3) is retired.
     const h = { onOpen: vi.fn() }
     render(<LegendRow rowId="ma:0" label="EMA 9" value="325.97" color="#4ade80" vertical {...h} />)
     const row = document.querySelector('[data-legend-row="ma:0"]')
-    expect(row.style.color, 'the row lost its series colour').toBe('rgb(74, 222, 128)')
-    // ⚠ children[0] IS THE MICRO-RAIL NOW — the label and value shifted by one.
-    const [, label, value] = row.children
-    expect(label.style.color, 'the label stopped inheriting the series colour').toBe('inherit')
+    expect(row.style.color, 'the row is inked in the series colour again').toBe('')
+    const [rail, label, value] = row.children
+    expect(rail.style.background, 'the bar lost the series colour').toBe('rgb(74, 222, 128)')
+    expect(label.style.color, 'the name is wearing the series colour again').toBe('')
     expect(value.style.color, 'the value is wearing the series colour again').toBe('')
   })
 
+  it('⭐ …and the grid chip row follows the same rule', () => {
+    render(<IndicatorChip chip={chipOf()} grid onMenu={vi.fn()} />)
+    const row = document.querySelector('span[role="button"]')
+    expect(row.style.color, 'the chip row is inked in the series colour again').toBe('')
+    expect(row.querySelector('[data-instance-id]').style.color).toBe('')
+    expect(row.querySelector('i').style.background).toBe('rgb(139, 127, 214)')
+  })
+
   it('⛔ …and a row with NO series colour leaves both to the stylesheet', () => {
-    render(<LegendRow rowId="volume" label="Vol" value="31.7M" vertical onOpen={vi.fn()} />)
+    render(<LegendRow rowId="volume" label="Volume" value="31.7M" vertical onOpen={vi.fn()} />)
     const row = document.querySelector('[data-legend-row="volume"]')
     expect(row.style.color).toBe('')
     expect(row.children[0].style.color).toBe('')
   })
 
-  it('⛔ THE VALUE IS THE BRIGHT INK AND THE LABEL IS NOT — in the stylesheet', () => {
+  it('⭐ LABEL AND VALUE SHARE ONE INK AND ONE WEIGHT; a coloured value wears its series colour — in the stylesheet', () => {
     for (const [name, css, lab, val] of [
       ['LegendRow', ROW_CSS, /(?:^|\n)\.vLabel\s*\{([^}]*)\}/, /(?:^|\n)\.vVal,\s*\.flatVal\s*\{([^}]*)\}/],
       ['IndicatorChip', CHIP_CSS, /(?:^|\n)\.chipGridLabel\s*\{([^}]*)\}/, /(?:^|\n)\.chipGridVal\s*\{([^}]*)\}/],
@@ -138,8 +146,14 @@ describe('⚰ THE PERMANENT CHEVRON IS RETIRED — and stays retired', () => {
       // On a chart each reads its ROLE's ink (chart/legendInk.js, published by StockChart): the
       // app token where it reads on the canvas, the canvas ink where it would not. Outside a
       // chart (a portaled row) neither variable exists and the old neutral pair is the fallback.
-      expect(L[1], `${name}'s label is not the muted neutral`).toMatch(/color:\s*var\(--legend-ink-muted, var\(--text-muted\)\)/)
-      expect(V[1], `${name}'s value is not the bright neutral`).toMatch(/color:\s*var\(--legend-ink-bright, var\(--text-bright\)\)/)
+      // Owner 11-16: "make sure they're all the same contrast and brightness" — the label reads the
+      // shared pair ink (legendInk.js LEGEND_PAIR_ROLE) and a neutral value reads THE SAME ink.
+      expect(L[1], `${name}'s label is not the shared pair ink`).toMatch(/color:\s*var\(--legend-ink-pair, var\(--text-muted\)\)/)
+      expect(V[1], `${name}'s value is not series colour → the label's own ink`).toMatch(/color:\s*var\(--(?:row|chip)-color, var\(--legend-ink-pair, var\(--text-muted\)\)\)/)
+      // …and the same weight (owner 11-16 experiment): label and value are both 500.
+      expect(L[1], `${name}'s label weight`).toMatch(/font-weight:\s*500/)
+      expect(V[1], `${name}'s value weight`).toMatch(/font-weight:\s*500/)
+      expect(V[1], `${name}'s value is heavier than its label`).not.toMatch(/font-weight:\s*[6-9]00/)
       // ⛔ AND NO RESTING OPACITY ON THE LABEL. It existed to separate label from
       // value back when both wore the hue; dimming a member's chosen series colour
       // only made it look wrong.
@@ -157,13 +171,24 @@ describe('⭐ THE MICRO-RAIL — series identity, subordinate by construction', 
   })
 
   it('⛔ A ROW WITH NO COLOUR STILL EMITS IT, UNPAINTED — that is what aligns the labels', () => {
-    // The owner's target prints `Vol` with its label on the same x as `EMA 9`'s,
-    // not hanging two pixels to its left. An unpainted rail is invisible and costs
-    // exactly the width it reserves.
-    render(<LegendRow rowId="volume" label="Vol" value="31.7M" vertical onOpen={vi.fn()} />)
+    // The owner's target prints an uncoloured row with its label on the same x as
+    // `EMA 9`'s, not hanging two pixels to its left. An unpainted rail is invisible
+    // and costs exactly the width it reserves. (On the chart Volume now passes its
+    // series colour — see the case below; this is the component's no-colour contract.)
+    render(<LegendRow rowId="volume" label="Volume" value="31.7M" vertical onOpen={vi.fn()} />)
     const rail = document.querySelector('[data-legend-row="volume"] i')
     expect(rail, 'the indent disappeared with the colour').toBeTruthy()
     expect(rail.style.background, 'volume was given a fabricated colour').toBe('')
+  })
+
+  it('⭐ Owner 11-16 (Option C) — the price stack names it "Volume" and inks its value in the volume colour', () => {
+    const at = STOCK_CHART.indexOf("if (it.kind === 'vol') {")
+    expect(at, 'the price stack lost its volume row').toBeGreaterThan(0)
+    const block = STOCK_CHART.slice(at, at + 1600)
+    expect(block).toContain('label="Volume"')
+    expect(block, 'the price stack still abbreviates Volume').not.toContain('label="Vol"')
+    expect(block).toContain('color={opaqueColor(cs.volume?.upColor)}')
+    expect(block).toContain('{...legendRowHandlers}')
   })
 
   it('⛔ IT IS NOT A CONTROL, AND NOT A SECOND TARGET', () => {
@@ -176,12 +201,10 @@ describe('⭐ THE MICRO-RAIL — series identity, subordinate by construction', 
     expect(rail.getAttribute('tabindex')).toBeNull()
   })
 
-  it('⛔ SUBORDINATE BY CONSTRUCTION — a rule, not a chip', () => {
-    // ⚰⚰ TWO COLOURED MARKS DIED BEFORE THIS ONE. Track B's 2×9 rail REPLACED the
-    // coloured label and read as nine little tabs; the composition pass's 5×5
-    // SQUARE read as a bullet and as DeepView's signature. This one accompanies a
-    // coloured label and is a hairline: at 3px wide it becomes a bar chart down the
-    // left edge, which is the "rainbow barcode" a dense stack invites.
+  it('⛔ THE SIGNATURE BAR — 3×13, never a square or a block', () => {
+    // UCT Signature (owner-approved 2026-11-15): the name is grey now, so the bar is
+    // the key and is drawn at 3×13 (radius 2) — still a bar, not a 5×5 SQUARE (the
+    // DeepView bullet retired earlier) and not a block wider than 3px.
     for (const [name, css] of [['LegendRow', ROW_CSS], ['IndicatorChip', CHIP_CSS]]) {
       // ⚠️ THE SELECTOR IS A GROUP IN `LegendRow` SINCE 2026-09-16 — `.rail,
       // .railFlat` share one geometry block, because the horizontal strip's rule
@@ -192,8 +215,9 @@ describe('⭐ THE MICRO-RAIL — series identity, subordinate by construction', 
       expect(rule, `${name} has no rail rule`).toBeTruthy()
       const w = Number(/width:\s*(\d+)px/.exec(rule[1])[1])
       const h = Number(/height:\s*(\d+)px/.exec(rule[1])[1])
-      expect(w, `${name}'s rail is a bar, not a rule`).toBeLessThanOrEqual(2)
-      expect(h, `${name}'s rail is taller than the line it marks`).toBeLessThanOrEqual(11)
+      expect(w, `${name}'s rail is wider than the signature 3px bar`).toBe(3)
+      expect(h, `${name}'s rail is not the signature 13px bar`).toBe(13)
+      expect(h, `${name}'s rail became a square`).toBeGreaterThan(w * 3)
       expect(rule[1], `${name}'s rail can be squeezed`).toMatch(/flex:\s*none/)
       // ⛔ NO BACKGROUND IN THE RULE — the colour is inline, from the caller's
       // already-resolved series colour. A default here would paint a fabricated
@@ -327,7 +351,7 @@ describe('§3 — pane ownership, with no pane-0 assumption', () => {
   it('⭐ a pane readout is the same vertical row, grouped the same way', () => {
     const readout = between(STOCK_CHART, 'A PANE READOUT IS A STUDY STACK', 'controlLabel={paneReadoutLabel(')
     expect(readout).toContain('vertical')
-    expect(readout).toContain('secondary={ci > 0 && row.chips[ci - 1].instanceId === c.instanceId}')
+    expect(readout).toContain('secondary={ci > 0 && paneRows[ci - 1].chip.instanceId === c.instanceId}')
   })
 })
 
@@ -407,37 +431,28 @@ describe('§8 — the geometric fold', () => {
     expect(pred).toContain('a.c.instanceId === b.c.instanceId')
   })
 
-  it('⭐⭐ VOLUME PRINTS WHERE ITS PANE IS, AND THE PANE IS ASKED — never an index', () => {
+  it('⭐⭐ VOLUME IN THE PRICE STACK PRINTS LAST — overlaid, its bars sit at the bottom of Price', () => {
     // §13/§14. Volume used to head the stack, inherited from the old legend where
-    // it sat under the O/H/L/C rows. The stack is PLOTS now, so it reads in pane
-    // order: the things drawn on Price, then the thing drawn beneath it.
-    // ⛔ AND THE TWO PANE INDICES ARE ONLY EVER COMPARED WITH EACH OTHER. Price is
-    // not pane 0 and Volume is not pane 1; both are asked of their own series by
-    // identity, which is the only form of the question that survives a reorder.
-    const pred = between(STOCK_CHART, 'const volumeBelowPrice = useCallback(', '}, [])')
-    expect(pred).toContain('candleSeriesRef.current?.getPane?.()?.paneIndex?.()')
-    expect(pred).toContain('volumeSeriesRef.current?.getPane?.()?.paneIndex?.()')
-    expect(pred, 'the predicate compares against a literal pane index')
-      .toMatch(/return v > p/)
-    expect(pred, 'a hard-coded pane number crept in').not.toMatch(/[=<>]\s*[01]\b/)
-    // ⭐⭐ AND SINCE 2026-09-16 THE QUESTION IS ASKED ONE STEP EARLIER (owner §15).
-    // Volume in a pane of its own has its readout in THAT pane — `volPaneRows` —
-    // so it is not in the price stack at all, and `Vol 9.1M` is printed once
-    // rather than once here and once six pixels below. `volRowInPriceStack` is the
-    // gate; it is `volLegendRowVisible && !volumeOwnsItsPane`, so a BANDED volume
-    // (drawn INSIDE Price) still keeps the head position it always had.
+    // it sat under the O/H/L/C rows. The stack is PLOTS now.
+    // ⭐⭐ SINCE 2026-09-16 (owner §15) Volume in a pane of its own has its readout in
+    // THAT pane — `volPaneRows` — so it is not in the price stack at all, and `Vol 9.1M`
+    // is printed once. `volRowInPriceStack` is the gate; it is
+    // `volLegendRowVisible && !volumeOwnsItsPane`.
     // ⚠️ AGAINST THE FILE, NOT `block()`: the gate is derived with the rest of the
     // row inputs, ABOVE the `indChips` line this block starts at.
     expect(STOCK_CHART).toContain('const volRowInPriceStack = volLegendRowVisible && !volumeOwnsItsPane')
-    expect(block()).toContain('const studyVolLast = volRowInPriceStack && volumeBelowPrice()')
-    // ⚰️ IT WAS `const studyHeadN = (volRowInPriceStack && !studyVolLast) ? 1 : 0`,
-    // a row COUNT used as an offset into two concatenated blocks. The stack is one
-    // array now (`studyItems`), so the same decision is the ternary that puts the
-    // volume entry at its head or its tail — same predicate, same two positions,
-    // no arithmetic for anything downstream to get wrong.
-    expect(block()).toContain(
-      "...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
+    // ⭐⭐ OWNER 11-16 — so a Volume in this stack is OVERLAID on Price, and it is listed
+    // below every price-pane study, AFTER the member's row order is applied.
+    // ⚰️ IT WAS `volRowInPriceStack && volumeBelowPrice()` — the renderer's two pane
+    // indices compared — which in this stack always answered false (one shared pane), so
+    // Volume headed it. Behaviour is pinned in `StockChart.volumeOverlay.test.jsx`.
+    expect(block()).toContain('const studyVolLast = volRowInPriceStack')
+    expect(stripComments(block()), 'the retired pane-index question is asked again').not.toContain('volumeBelowPrice')
+    expect(block(), 'volume can still head the stack')
+      .not.toContain("...(volRowInPriceStack && !studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
     expect(block()).toContain("...(studyVolLast ? [{ kind: 'vol', id: 'volume' }] : []),")
+    expect(block(), 'the member order can lift volume off the bottom again')
+      .toContain("[...studyRows.filter((it) => it.kind !== 'vol'), ...studyRows.filter((it) => it.kind === 'vol')]")
   })
 
   it('⛔ AND THE BUDGET IS BOTH A ROOM TEST AND A SHARE OF THE PANE', () => {
@@ -526,19 +541,34 @@ describe('§5 — hover restyles nothing but text', () => {
     }
   })
 
-  it('⭐⭐ HOVER IS A BRIGHTNESS FILTER, SO IT WORKS ON EVERY HUE', () => {
-    // ⛔ NOT A COLOUR SWAP. Re-inking a label to white on hover would throw away
-    // the series identity for exactly as long as the pointer is on it — the one
-    // thing the label is FOR. `brightness` lifts a blue label, a gold one and a
-    // neutral `Vol` by the same perceptual step and keeps every hue.
-    // ⛔ AND A FILTER REPAINTS; IT DOES NOT REFLOW.
-    for (const [name, css, sel] of [['LegendRow', ROW_CSS, '.vRow'],
-      ['IndicatorChip', CHIP_CSS, '.chipGridRow']]) {
-      const re = new RegExp(sel.replace('.', '\\.') + '\\.rowLive:hover[^{]*\\{([^}]*)\\}', 'g')
-      const bodies = [...css.matchAll(re)].map((m) => m[1]).join(' ')
-      expect(bodies, `${name}'s hover no longer brightens`).toMatch(/filter:\s*brightness/)
-      expect(bodies, `${name}'s hover re-inks the label and loses the series colour`)
-        .not.toMatch(/color:\s*var\(--text-bright\)/)
+  it('⭐⭐ UCT SIGNATURE: HOVER IS A SOFT CARD THAT MOVES NOTHING', () => {
+    // The owner-approved lab (2026-11-15): a hovered row sits on a soft card
+    // (rgba(17,18,20,.85) + inset 1px #26282c, radius 6) with its controls. ⛔ The
+    // card is a `::before` with NO pointer events (it must not widen the hit box into
+    // empty chart) and the strip is absolutely positioned and `display: none` at rest,
+    // so the row box, the pitch and every value's x are identical hovered and at rest.
+    const card = /\.rowActs::before\s*\{([^}]*)\}/.exec(ROW_CSS)
+    expect(card, 'the hover card rule is gone').toBeTruthy()
+    expect(card[1]).toMatch(/position:\s*absolute/)
+    expect(card[1]).toMatch(/pointer-events:\s*none/)
+    expect(card[1]).toMatch(/background:\s*rgba\(17, 18, 20, 0\.85\)/)
+    expect(card[1]).toMatch(/box-shadow:\s*inset 0 0 0 1px #26282c/)
+    expect(card[1]).toMatch(/border-radius:\s*6px/)
+    expect(card[1], 'the card shows at rest').toMatch(/opacity:\s*0/)
+    expect(ROW_CSS).toMatch(/\.rowActs:hover::before[^{]*\{[^}]*opacity:\s*1/)
+    const acts = /(?:^|\n)\.acts\s*\{([^}]*)\}/.exec(ROW_CSS)
+    expect(acts, 'the strip rule is gone').toBeTruthy()
+    expect(acts[1], 'the strip is in flow and would move the row').toMatch(/position:\s*absolute/)
+    expect(acts[1], 'the strip shows at rest').toMatch(/display:\s*none/)
+    // ⛔ FLUSH WITH THE ROW: a margin would be a gap that belongs to neither box.
+    expect(acts[1]).toMatch(/left:\s*100%/)
+    expect(acts[1]).not.toMatch(/margin/)
+    // the icons are grey, gold only under the pointer (§2b rule 6)
+    expect(/(?:^|\n)\.act\s*\{([^}]*)\}/.exec(ROW_CSS)[1]).toMatch(/color:\s*#a9a59b/)
+    expect(/\.act:hover\s*\{([^}]*)\}/.exec(ROW_CSS)[1]).toMatch(/color:\s*var\(--ut-gold/)
+    // and no brightness filter is left on either stack row
+    for (const [name, css] of [['LegendRow', ROW_CSS], ['IndicatorChip', CHIP_CSS]]) {
+      expect(stripComments(css), `${name} still brightens on hover`).not.toMatch(/filter:\s*brightness/)
     }
   })
 

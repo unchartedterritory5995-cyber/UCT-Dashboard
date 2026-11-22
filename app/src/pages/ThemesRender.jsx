@@ -8,16 +8,16 @@
 // (tick axes, "Semiconductor Equi…") that was hard to read on a phone.
 //
 // Public route (no AuthGuard). Data from /api/r/themes?token= (token-gated read of
-// the engine's wire["themes"]). ?token= checked vs VITE_CHART_RENDER_TOKEN.
+// the engine's wire["themes"]). ?token= is checked by the server on that read.
 // Params: period (1D/1W/1M/3M/1Y/YTD, default 1W) · n rows per side (3-10,
 // default 5) · holds tickers shown under each name (0-10, default 3; 0 hides
 // them) · w width (560-1000, default 760).
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
-import { renderTokenOk } from '../lib/renderToken'
+import { renderReadError } from '../lib/renderToken'
 
 const GREEN = '#22c55e'
 const RED = '#ef4444'
@@ -99,12 +99,12 @@ export default function ThemesRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
+    // The server checks ?token= on this read; a refused read (401/403) shows "unauthorized".
     // The API clamps holds to >= 1; holds=0 hides them here instead.
     fetch(`/api/r/themes?token=${encodeURIComponent(token)}&period=${encodeURIComponent(period)}&n=${n}&holds=${Math.max(1, holds)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then(setData)
-      .catch(() => setErr('data unavailable'))
+      .catch((e) => setErr(renderReadError(e)))
   }, [token, period, n, holds])
 
   useEffect(() => {

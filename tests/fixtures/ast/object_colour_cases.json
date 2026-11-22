@@ -64,7 +64,11 @@
       "transparent",
       "currentColor",
       "token:info",
-      "token:up@2"
+      "token:up@2",
+      "chart.fg_color",
+      "chart.bg_color",
+      "chart.fg_color@85",
+      "chart.bg_color@0"
     ],
     "reject": [
       "url(https://evil.example/x)",
@@ -81,7 +85,12 @@
       " #fff",
       "image-set(\"x\")",
       "rgb(1,2)",
-      "#12345"
+      "#12345",
+      "chart.fg_color@",
+      "chart.fg_color@1000",
+      "chart.xx_color",
+      "chart.fg_color;x:y",
+      "chart.fg_color url(x)"
     ]
   },
   "safeCss": {
@@ -96,7 +105,9 @@
       "token:info",
       "url(x)",
       "var(--x)",
-      "red;x:y"
+      "red;x:y",
+      "chart.fg_color",
+      "chart.bg_color@85"
     ]
   }
 }

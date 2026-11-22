@@ -1,0 +1,1803 @@
+{
+ "unit": "F6.07",
+ "track": "F6",
+ "title": "Gamma",
+ "teaches": "Gamma is how much an option's delta changes for each $1 move in the stock; it is highest at the money and near expiry, positive when you buy options and negative when you sell them, so near-expiry at-the-money positions move fastest and sellers carry that risk.",
+ "skills": [
+  {
+   "id": "options.gamma",
+   "title": "Gamma"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Gamma",
+   "url": "https://www.optionseducation.org/advancedconcepts/gamma",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Delta",
+   "url": "https://www.optionseducation.org/advancedconcepts/delta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Volatility & the Greeks",
+   "url": "https://www.optionseducation.org/advancedconcepts/volatility-the-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Theta",
+   "url": "https://www.optionseducation.org/advancedconcepts/theta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "0DTE Options Primer: What Investors Should Know About Expiration-Day Positions (June 2023)",
+   "url": "https://www.optionseducation.org/news/0dte-options-primer-what-investors-should-know-about-expiration-day-positions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Straddle",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-straddle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Short Straddle",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/short-straddle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Zeroing In on an Options Trading Strategy: 0DTE (page dated June 4, 2026)",
+   "url": "https://www.finra.org/investors/insights/zeroing-in-options-trading-strategy",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "Board of Governors of the Federal Reserve System",
+   "title": "Federal Reserve issues FOMC statement (December 18, 2024)",
+   "url": "https://www.federalreserve.gov/newsevents/pressreleases/monetary20241218a.htm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Options Greeks: Gamma Explained (September 1, 2023)",
+   "url": "https://www.schwab.com/learn/story/options-greeks-gamma-explained",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Are 0DTE Options? Learn the Basics (December 2, 2025)",
+   "url": "https://www.schwab.com/learn/story/zeroing-on-0dte-options-learn-basics",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "CME Group",
+   "title": "Options Gamma - The Greeks",
+   "url": "https://www.cmegroup.com/education/courses/option-greeks/options-gamma-the-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Mastering Gamma: How It Impacts Your Trading Strategy (James Chen, CMT; updated August 21, 2026)",
+   "url": "https://www.investopedia.com/terms/g/gamma.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Fidelity",
+   "title": "Getting to know the Greeks for options trading (webinar transcript, 2020)",
+   "url": "https://www.fidelity.com/bin-public/060_www_fidelity_com/documents/learning-center/Transcript_Getting-to-know-Greeks_v2.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Interactive Brokers Campus (Montreal Exchange, Option Matters)",
+   "title": "Gamma, Your Option's Silent Accelerator and Decelerator Pedal (Tony Zhang, June 2021)",
+   "url": "https://www.interactivebrokers.com/campus/traders-insight/securities/options/gamma-your-options-silent-accelerator-and-decelerator-pedal/",
+   "accessed": "2026-11-09",
+   "why_reliable": "Interactive Brokers' education site, republishing with permission an article from the Montreal Exchange's (Bourse de Montreal, TMX Group) options education blog. Named author: Tony Zhang, Chief Strategist at OptionsPlay. Used only for the long-gamma / short-gamma behaviour that OIC, Fidelity and Investopedia also state."
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Cboe Global Markets",
+   "title": "Volatility Insights: Much Ado About 0DTEs (Mandy Xu, September 8, 2023)",
+   "url": "https://www.cboe.com/insights/posts/volatility-insights-evaluating-the-market-impact-of-spx-0-dte-options",
+   "accessed": "2026-11-09",
+   "why_reliable": "The exchange's own research post, by a named Cboe author, on how gamma hedging works. Counted as Tier 2 (an exchange's education and insight page, not a rule page)."
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Associated Press (via PBS News)",
+   "title": "Stocks fall sharply after Federal Reserve signals fewer rate cuts than expected for 2025 (December 18, 2024)",
+   "url": "https://www.pbs.org/newshour/economy/stocks-fall-sharply-after-federal-reserve-signals-fewer-rate-cuts-than-expected-for-2025",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "How Delta is expected to change given a $1 move in the underlying is called Gamma.",
+   "claim": "Gamma is how much an option's delta is expected to change for a $1 move in the stock."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "OICX is trading at $50 per share. The OICX Jan $50 call is trading for $2, has a Delta of .50 and a Gamma of .06.",
+   "claim": "In OIC's example, with the stock at 50, the 50 call has a delta of .50 and a gamma of .06."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "The new Delta of this $50 strike call at an OICX price of $51 should be around 0.56 (simply adding the Gamma of .06 to the old Delta of .50).",
+   "claim": "After a $1 rise, the new delta is about the old delta plus the gamma: .50 plus .06 is about 0.56."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "Long options, either calls or puts, always yield positive Gamma. Short calls and short puts will have negative Gamma.",
+   "claim": "Bought calls and bought puts have positive gamma; sold calls and sold puts have negative gamma."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "Underlying stock positions will not have Gamma because their Delta is always 1.00 (long) or -1.00 (short) and will not change.",
+   "claim": "Shares have no gamma: their delta is fixed at 1.00 long or -1.00 short."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "Positive Gamma means that the Delta of long calls will become more positive and move toward +1.00 when the stock price rises, and less positive and move toward 0 when the stock price falls.",
+   "claim": "A long call's delta climbs toward 1.00 as the stock rises and shrinks toward 0 as it falls."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "Long Gamma also means that the Delta of a long put will become more negative and move toward –1.00 if the stock price falls, and less negative and move toward 0 when the stock price rises.",
+   "claim": "A long put's delta moves toward -1.00 as the stock falls and toward 0 as it rises."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "For a short call with negative Gamma, the Delta will become more negative as the stock rises, and less negative as it drops.",
+   "claim": "A short call's delta gets more negative as the stock rises."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "Gamma is higher for options that are at-the-money and closer to expiration.",
+   "claim": "Gamma is higher at the money and closer to expiry."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "With higher Gamma, investors can see more dramatic shifts in Delta as the underlying moves, especially with the underlying around the strike at expiration.",
+   "claim": "High gamma means big swings in delta, most of all with the stock near the strike at expiry."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "With the stock right at a strike at expiration, an option’s Gamma will be at its highest as the Delta will be potentially moving from 1.00 toward 0 or vice versa as the underlying crosses a strike.",
+   "claim": "Gamma peaks with the stock right at the strike at expiry, where delta can flip between 1.00 and 0."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "Deep-in-the-money or far-out-of-the-money options have lower Gamma than at- the-money options.",
+   "claim": "Deep in-the-money and far out-of-the-money options have less gamma than at-the-money options."
+  },
+  {
+   "id": "f13",
+   "source": "s1",
+   "quote": "If the options become deeper in-the-money, the Delta will move toward 1.00 (or -1.00 for puts) and the Gamma will decrease because the Delta cannot move past 1.00.",
+   "claim": "Deep in the money, delta nears 1.00 and gamma falls, because delta cannot go past 1.00."
+  },
+  {
+   "id": "f14",
+   "source": "s1",
+   "quote": "For example, let’s say OICX is trading at $30. A $25 strike call is trading for $5.80 and has a Delta around .85 and a Gamma of .03.",
+   "claim": "In OIC's second example, with the stock at 30, the 25 call has a delta of about .85 and a gamma of .03."
+  },
+  {
+   "id": "f15",
+   "source": "s1",
+   "quote": "Should the stock decline to $25, we’d estimate Delta to be around .50. If the Gamma stayed around .03, the option would still have a .70 Delta with the stock at $25.",
+   "claim": "If the stock falls to 25, the delta is about .50; holding gamma fixed at .03 would wrongly give .70."
+  },
+  {
+   "id": "f16",
+   "source": "s1",
+   "quote": "However, since Gamma typically increases as options become closer to at-the-money, the new Gamma of this contract may be around .09.",
+   "claim": "Gamma grows as the option nears the money; here it may rise to about .09."
+  },
+  {
+   "id": "f17",
+   "source": "s1",
+   "quote": "Gamma is highest when the Delta is in the .40-.60 range, or typically when an option is at-the-money.",
+   "claim": "Gamma is highest when delta is between .40 and .60, typically at the money."
+  },
+  {
+   "id": "f18",
+   "source": "s1",
+   "quote": "As Deltas approach 0 or 1.00 (or 0 or -1.00 for puts), Gamma is usually at its lowest point.",
+   "claim": "Gamma is usually lowest when delta is near 0 or near 1.00."
+  },
+  {
+   "id": "f19",
+   "source": "s2",
+   "quote": "Delta is a theoretical estimate of how much an option’s premium may change given a $1 move in the underlying.",
+   "claim": "Delta estimates how much the option's price changes for a $1 move in the stock."
+  },
+  {
+   "id": "f20",
+   "source": "s2",
+   "quote": "short puts have a positive Delta (technically a negative Delta multiplied by a negative number of contracts); short calls have negative Delta (technically a positive Delta times a negative number of contracts).",
+   "claim": "A short put has positive delta; a short call has negative delta."
+  },
+  {
+   "id": "f21",
+   "source": "s2",
+   "quote": "Call Deltas range from 0.00 to 1.00 while put Delta ranges from 0.00 to -1.00.",
+   "claim": "Call deltas run from 0 to 1.00 and put deltas from 0 to -1.00."
+  },
+  {
+   "id": "f22",
+   "source": "s2",
+   "quote": "As expiration nears, in-the-money call Deltas increase toward 1.00, at-the-money call Deltas remain around .50 and out-of-the-money call Deltas fall toward 0 provided other inputs remain constant.",
+   "claim": "Near expiry, in-the-money call deltas head to 1.00, at-the-money stay near .50, and out-of-the-money fall toward 0."
+  },
+  {
+   "id": "f23",
+   "source": "s3",
+   "quote": "Gamma is the sensitivity of Delta to a one-unit change in the underlying. For example, a Gamma of 0.150 indicates the Delta increases or decreases by 0.150 if the underlying price increases or decreases by $1.00.",
+   "claim": "A gamma of 0.150 means the delta rises or falls by 0.150 for a $1 rise or fall in the stock."
+  },
+  {
+   "id": "f24",
+   "source": "s3",
+   "quote": "if the underlying price increases or decreases by $1.00. Results will usually not be exact.",
+   "claim": "Gamma's estimate of the new delta is usually not exact."
+  },
+  {
+   "id": "f25",
+   "source": "s3",
+   "quote": "Theta is the sensitivity of an option’s premium to change in time.",
+   "claim": "Theta is how the option's price changes as time passes."
+  },
+  {
+   "id": "f26",
+   "source": "s3",
+   "quote": "Vega is the sensitivity of option value to changes in implied volatility.",
+   "claim": "Vega is how the option's price changes with implied volatility."
+  },
+  {
+   "id": "f27",
+   "source": "s4",
+   "quote": "Thus, the amount of decay indicated by Theta tends to be gradual at first and accelerates as expiration approaches.",
+   "claim": "Time decay starts slow and speeds up as expiry approaches."
+  },
+  {
+   "id": "f28",
+   "source": "s5",
+   "quote": "Due to the risk profile of expiring options, large moves in the underlying can yield significant losses over a short period of time for sellers of 0DTE options",
+   "claim": "A big move can hand sellers of same-day (0DTE) options significant losses in a short time."
+  },
+  {
+   "id": "f29",
+   "source": "s5",
+   "quote": "Theta (or time decay) is generally considered to be a favorable function for sellers of options and unfavorable to buyers",
+   "claim": "Time decay works for option sellers and against option buyers."
+  },
+  {
+   "id": "f30",
+   "source": "s5",
+   "quote": "buyers of 0DTE options have a defined risk profile, which includes the potential to lose up to the total amount paid for the option",
+   "claim": "A buyer of same-day options can lose up to the whole premium paid, and no more."
+  },
+  {
+   "id": "f31",
+   "source": "s6",
+   "quote": "A long straddle is a combination of buying a call and buying a put, both with the same strike price and expiration.",
+   "claim": "A long straddle is a bought call plus a bought put, same strike and same expiry."
+  },
+  {
+   "id": "f32",
+   "source": "s6",
+   "quote": "every day that passes without a move in the stock's price will cause the total premium of this position to suffer a significant erosion of value.",
+   "claim": "With no move in the stock, a long straddle loses value to time decay."
+  },
+  {
+   "id": "f33",
+   "source": "s7",
+   "quote": "A short straddle is a combination of writing uncovered calls (bearish) and writing uncovered puts (bullish), both with the same strike price and expiration.",
+   "claim": "A short straddle is a sold call plus a sold put, same strike and same expiry."
+  },
+  {
+   "id": "f34",
+   "source": "s7",
+   "quote": "However, the risks are substantial on the downside and unlimited on the upside, should a large move occur.",
+   "claim": "A short straddle's risk is substantial on the downside and unlimited on the upside."
+  },
+  {
+   "id": "f35",
+   "source": "s7",
+   "quote": "The maximum gain is limited to the premiums received at the outset.",
+   "claim": "A short straddle can make no more than the premium collected."
+  },
+  {
+   "id": "f36",
+   "source": "s8",
+   "quote": "Any strategy that can quickly earn profits can quickly bring losses as well. That includes 0DTE options, which are very sensitive to changes in the price of the asset underlying the option.",
+   "claim": "Same-day (0DTE) options are very sensitive to the stock's price and can lose money fast."
+  },
+  {
+   "id": "f37",
+   "source": "s8",
+   "quote": "multiplied by 10 call option contracts multiplied by 100 shares per option contract",
+   "claim": "One option contract covers 100 shares."
+  },
+  {
+   "id": "f38",
+   "source": "s8",
+   "quote": "uncovered call writers (sellers) face the risk of unlimited potential loss if the market for the underlying security rises sharply.",
+   "claim": "Selling an uncovered call carries unlimited potential loss."
+  },
+  {
+   "id": "f39",
+   "source": "s9",
+   "quote": "December 18, 2024 Federal Reserve issues FOMC statement For release at 2:00 p.m. EST",
+   "claim": "The Fed's statement on December 18, 2024 came out at 2:00 p.m. Eastern."
+  },
+  {
+   "id": "f40",
+   "source": "s10",
+   "quote": "Gamma measures the potential increase or decrease in an option's delta when the stock price changes by $1.",
+   "claim": "Gamma is the change in delta for a $1 move in the stock."
+  },
+  {
+   "id": "f41",
+   "source": "s10",
+   "quote": "XYZ's 102-strike call with .40 delta has a theoretical risk similar to 40 shares of XYZ. When XYZ's price went up, the 102-strike call had a risk similar to 43 shares",
+   "claim": "A .40 delta call acts like 40 shares; after a $1 rise and .03 of gamma, it acts like 43."
+  },
+  {
+   "id": "f42",
+   "source": "s10",
+   "quote": "Gamma is also highest for ATM options closer to expiration. It gets successively lower the more time to expiration an option has.",
+   "claim": "At-the-money gamma is highest close to expiry and lower with more time left."
+  },
+  {
+   "id": "f43",
+   "source": "s10",
+   "quote": "the 3020-strike call with seven days to expiration (DTE) has a gamma of .0088, while the 3020-strike call with 60 DTE has a gamma of .0031",
+   "claim": "With the S&P 500 index at 3020, the 7-day 3020 call had gamma .0088 and the 60-day one .0031."
+  },
+  {
+   "id": "f44",
+   "source": "s10",
+   "quote": "The deltas of those 3020-strike call options were relatively the same at .52 and .54 for the seven-day and 60-day expiration, respectively.",
+   "claim": "The two calls had nearly the same delta, .52 and .54."
+  },
+  {
+   "id": "f45",
+   "source": "s10",
+   "quote": "As an option approaches expiration, its gamma can increase a lot more than its delta. Therefore, simply looking at delta doesn't tell the whole story about risk.",
+   "claim": "Near expiry gamma can jump far more than delta, so delta alone understates the risk."
+  },
+  {
+   "id": "f46",
+   "source": "s10",
+   "quote": "If a trader is short an option in pursuit of positive theta, an option with less time to expiration will have a theoretically high positive theta. But that option will also have theoretically high negative gamma.",
+   "claim": "A short option near expiry collects high theta but carries high negative gamma."
+  },
+  {
+   "id": "f47",
+   "source": "s10",
+   "quote": "the position's delta can change so dramatically when gamma is high that a relatively small change in the stock price can wipe out a profit, turn a winning trade into a losing trade",
+   "claim": "With high gamma, a small move can erase a profit or flip a winner to a loser."
+  },
+  {
+   "id": "f48",
+   "source": "s10",
+   "quote": "Index (DJX) is trading at 260, the 259-strike put with four DTE might have a delta of –.39 and a gamma of .08.",
+   "claim": "With DJX at 260, the 259 put with four days left might have delta -.39 and gamma .08."
+  },
+  {
+   "id": "f49",
+   "source": "s10",
+   "quote": "Assume a trader sold that put a couple of months earlier for a $4 credit. Now it's worth about $1.25, giving an unrealized $2.75 profit",
+   "claim": "Sold for 4, now worth 1.25: an open profit of 2.75."
+  },
+  {
+   "id": "f50",
+   "source": "s10",
+   "quote": "If DJX drops $1, the short 259-strike put's delta would theoretically go from –.39 to –.47, more than a 20% increase in risk. Rather than assume that risk, some traders might prefer to close the trade",
+   "claim": "A 1-point drop takes the put's delta from -.39 to -.47, over 20% more risk, so closing is a sensible choice."
+  },
+  {
+   "id": "f51",
+   "source": "s10",
+   "quote": "the 259-strike put has, say, 18 days until expiration. It has –.43 delta and .04 gamma.",
+   "claim": "With 18 days left the 259 put has delta -.43 and gamma .04."
+  },
+  {
+   "id": "f52",
+   "source": "s10",
+   "quote": "rolling the 259-strike put with 18 DTE to the 259-strike put with 53 DTE and a –.41 delta but only .02 gamma. Rolling maintains roughly the same delta exposure but cuts gamma in half.",
+   "claim": "Rolling the short put from 18 to 53 days keeps delta about the same (-.41) and halves gamma (.02)."
+  },
+  {
+   "id": "f53",
+   "source": "s10",
+   "quote": "Combined, a long and short options position will have a lower gamma than each option alone.",
+   "claim": "A long option paired with a short one has less gamma than either alone."
+  },
+  {
+   "id": "f54",
+   "source": "s10",
+   "quote": "Consider a DJX 259-strike put with 50 DTE with the index at 260. The put has –.43 delta and .033 gamma.",
+   "claim": "Schwab's hedge example starts with a short 259 put at .033 gamma."
+  },
+  {
+   "id": "f55",
+   "source": "s10",
+   "quote": "The adjustment would create a short 254-259 put vertical spread with –.15 delta and .008 gamma.",
+   "claim": "Buying the 254 put against it leaves a spread with .008 gamma."
+  },
+  {
+   "id": "f56",
+   "source": "s10",
+   "quote": "The trade-off is that the cost of the long put detracts from any returns the short put could generate.",
+   "claim": "The long put used as a hedge costs some of the short put's income."
+  },
+  {
+   "id": "f57",
+   "source": "s10",
+   "quote": "As expiration approaches, the risk on a short option can go from mild to hair-raising quickly if the stock price moves around a lot.",
+   "claim": "Near expiry, a short option's risk can jump quickly when the stock moves."
+  },
+  {
+   "id": "f58",
+   "source": "s11",
+   "quote": "on December 18, 2024, the SPX plunged after Fed Chair Jerome Powell said future rate cuts would likely be fewer than previously stated. The index quickly lost almost 3%",
+   "claim": "On December 18, 2024 the S&P 500 index dropped almost 3% after the Fed signalled fewer rate cuts."
+  },
+  {
+   "id": "f59",
+   "source": "s11",
+   "quote": "Because the Fed's announcement came, as expected, around 2 p.m. ET, traders only had two hours before the close to exit or adjust positions.",
+   "claim": "The announcement came around 2 p.m. ET, leaving two hours to react before the close."
+  },
+  {
+   "id": "f60",
+   "source": "s11",
+   "quote": "The call buyers most likely suffered a maximum loss as well; the put sellers were also likely to face significant losses.",
+   "claim": "That afternoon, same-day put sellers likely took significant losses."
+  },
+  {
+   "id": "f61",
+   "source": "s11",
+   "quote": "While this Fed-driven price shift was unusual, this is a textbook example of why 0DTE options can be risky, especially around scheduled events.",
+   "claim": "Same-day options are especially risky around scheduled events."
+  },
+  {
+   "id": "f62",
+   "source": "s12",
+   "quote": "If you think of speed as your delta, then the change in your speed is your gamma. In other words, gamma is your acceleration.",
+   "claim": "If delta is speed, gamma is acceleration."
+  },
+  {
+   "id": "f63",
+   "source": "s12",
+   "quote": "At the money options have the highest gamma, because their deltas are the most sensitive to underlying price changes.",
+   "claim": "At-the-money options have the highest gamma."
+  },
+  {
+   "id": "f64",
+   "source": "s13",
+   "quote": "Gamma is highest for at-the-money options and declines for options that are in or out of the money.",
+   "claim": "Gamma is highest at the money and lower in or out of the money."
+  },
+  {
+   "id": "f65",
+   "source": "s13",
+   "quote": "Gamma is always positive for long options and negative for short options.",
+   "claim": "Long options have positive gamma; short options have negative gamma."
+  },
+  {
+   "id": "f66",
+   "source": "s13",
+   "quote": "For options positions that are short gamma, there is a risk that price movements in the underlying will cause compounding losses.",
+   "claim": "Short-gamma positions risk losses that compound as the stock moves."
+  },
+  {
+   "id": "f67",
+   "source": "s13",
+   "quote": "The risk, however, is that if the deltas are bought at these ever-higher prices, the underlying asset can reverse direction and fall, creating long deltas on the way down, compounding those earlier losses.",
+   "claim": "Hedging short gamma means buying at higher prices, and a reversal then compounds the losses."
+  },
+  {
+   "id": "f68",
+   "source": "s13",
+   "quote": "Gamma is also largest for options with near-term expirations relative to longer-dated options.",
+   "claim": "Near-term options have more gamma than longer-dated ones."
+  },
+  {
+   "id": "f69",
+   "source": "s14",
+   "quote": "Positive gamma increases delta as the underlying moves in your favor and it decreases delta as it moves against you. So, the way we were taught, Konstantin, it kind of accelerates your gains. And it actually decelerates your losses.",
+   "claim": "Positive gamma speeds up gains and slows losses."
+  },
+  {
+   "id": "f70",
+   "source": "s14",
+   "quote": "that negative gamma actually, right, slows down your gains. It decreases the delta as it moves in your favor. But conversely, it increases the delta as it goes against you. So, it kind of accelerates your losses.",
+   "claim": "Negative gamma slows gains and speeds up losses."
+  },
+  {
+   "id": "f71",
+   "source": "s14",
+   "quote": "It’s because of that positive theta. The short option, right, seller can win in more ways than the person buying so we kind of refer to this as the gamma theta tradeoff.",
+   "claim": "Sellers accept negative gamma for positive theta: the gamma-theta trade-off."
+  },
+  {
+   "id": "f72",
+   "source": "s15",
+   "quote": "Long gamma works in the investor’s favour when the stock moves in the expected direction by accelerating the gains. Moreover, if the stock moves in the opposite direction, it can decelerate the losses.",
+   "claim": "Long gamma speeds up gains and slows losses."
+  },
+  {
+   "id": "f73",
+   "source": "s15",
+   "quote": "Short gamma strategies work against the investor when the stock moves in the opposite direction than what is expected by accelerating losses, while decelerating gains as the stock moves in the expected direction.",
+   "claim": "Short gamma speeds up losses and slows gains."
+  },
+  {
+   "id": "f74",
+   "source": "s16",
+   "quote": "Being short gamma means market makers would be hedging in the same direction of the market move – if SPX index rallies, market makers have to buy more futures, and if it falls, market makers have to sell",
+   "claim": "A hedged short-gamma position buys as the market rises and sells as it falls."
+  },
+  {
+   "id": "f75",
+   "source": "s17",
+   "quote": "The S&P 500 fell 2.9 percent, just shy of its biggest loss for the year from the summer",
+   "claim": "On December 18, 2024 the S&P 500 closed down 2.9%."
+  },
+  {
+   "id": "f76",
+   "source": "s18",
+   "quote": "Options occasionally; no further rules. The premium paid is the stop.",
+   "claim": "Rule B25: we use options occasionally, and the premium paid is the stop."
+  },
+  {
+   "id": "f77",
+   "source": "s18",
+   "quote": "Trade shares; options are only a defined-risk alternative.",
+   "claim": "Rule A6: we trade shares, and options are only a defined-risk alternative."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Gamma moves delta",
+   "steps": [
+    "Think of delta as your speed: how much the option moves for each $1 in the stock.",
+    "Gamma is the acceleration. It's how much that delta changes for the same $1.",
+    "Say the stock's at $50. The 50 call has a delta of .50 and a gamma of .06.",
+    "Stock goes to $51 and delta's now about 0.56. The next dollar up pays you more than the last."
+   ],
+   "facts": [
+    "f19",
+    "f1",
+    "f2",
+    "f3"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Where gamma is biggest",
+   "steps": [
+    "Gamma's biggest at the money. Deep in the money or far out, there's less of it.",
+    "At the money it climbs as expiry gets close, and peaks right at the end.",
+    "On expiry day, right at the strike, a call's delta can swing from near 0 to near 1.00. That's fast."
+   ],
+   "facts": [
+    "f17",
+    "f12",
+    "f9",
+    "f11"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Who gamma helps, who it hurts",
+   "steps": [
+    "Buy a call or a put and you're long gamma. That's the side we're on when we buy one.",
+    "Long gamma speeds up your gains and slows your losses.",
+    "Sell one and you're short gamma. When the stock runs at you, the losses speed up.",
+    "Sellers take that risk to collect time decay. That's their trade, not ours."
+   ],
+   "facts": [
+    "f4",
+    "f69",
+    "f72",
+    "f70",
+    "f73",
+    "f71",
+    "f29"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.gamma",
+   "rung": 1,
+   "format": "mcq",
+   "q": "You pull up an option chain and see a column marked gamma. What's it telling you?",
+   "choices": [
+    "How much delta changes per $1",
+    "How much it moves per $1",
+    "How much it loses each day",
+    "How much it moves per IV point"
+   ],
+   "answer": "How much delta changes per $1",
+   "term": "Gamma",
+   "why": "How much the delta changes. Delta is about how much your option moves for each $1 in the stock. Gamma is how much that delta itself shifts on the same $1. Think of delta as your speed and gamma as your acceleration. Here's why you care. With a lot of gamma, your option doesn't move at one steady pace. Own it, and each dollar your way pays a bit more than the last. Theta and vega have their own columns: time decay and implied volatility.",
+   "lesson_line": "Delta is your speed. Gamma is how fast that speed changes.",
+   "facts": [
+    "f1",
+    "f19",
+    "f40",
+    "f62",
+    "f25",
+    "f26",
+    "f69"
+   ],
+   "wrong": {
+    "How much it moves per $1": "That's delta, the option's move for each $1 in the stock. Gamma is how much that delta changes.",
+    "How much it loses each day": "That's theta, the time decay. Different column.",
+    "How much it moves per IV point": "That's vega, how the option reacts to implied volatility."
+   },
+   "simple": "Gamma is how much an option's delta changes when the stock moves one dollar.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "options.gamma",
+   "rung": 1,
+   "format": "tf",
+   "q": "To protect shares you hold, you buy a put. A put's delta is negative, so your gamma is negative too.",
+   "answer": "False",
+   "why": "False. You bought it, so your gamma is positive, call or put. The minus sign on a put's delta only says it gains when the stock falls. Gamma's sign tells you whether you bought or sold. Watch your hedge work. As the stock drops, the put's delta heads toward -1.00. Each dollar down pays you a bit more than the one before. That's positive gamma on your side.",
+   "lesson_line": "Bought it, positive gamma. Sold it, negative gamma. Call or put doesn't change that.",
+   "facts": [
+    "f4",
+    "f7",
+    "f65",
+    "f21"
+   ],
+   "simple": "False, because any option you buy, call or put, has positive gamma.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q03",
+   "skill": "options.gamma",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "You own 100 shares and no options. Your position has ___ gamma.",
+   "bank": [
+    "zero",
+    "positive",
+    "negative",
+    "small"
+   ],
+   "answer": "zero",
+   "why": "Zero. A share's delta never moves. Long, it's 1.00. Short, it's -1.00. Gamma measures how delta changes, so there's nothing for it to measure. That's the plain difference between shares and options. With shares, every dollar is worth the same to you, up or down. With an option, the next dollar can be worth more or less than the last one. We trade shares, so your risk stays simple: shares times the distance to your stop.",
+   "lesson_line": "Shares never change their delta. Options do, and gamma tells you by how much.",
+   "facts": [
+    "f5"
+   ],
+   "simple": "Zero, because a share's delta never changes, so there's nothing for gamma to measure.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one cited fact only (f5, OIC, Tier 1)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q04",
+   "skill": "options.gamma",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You like the stock, so you sell a put to open instead of buying shares. What does that do to your gamma?",
+   "choices": [
+    "Negative, it's a short option",
+    "Positive, the trade is bullish",
+    "Zero until it goes in the money",
+    "It depends on the strike you pick"
+   ],
+   "answer": "Negative, it's a short option",
+   "why": "Negative. You sold it, and any option you sell carries negative gamma. Your bullish view lives in delta: a short put has positive delta, so a rising stock helps you. Gamma is the part that bites. If the stock falls, the short put acts like more and more shares long, and each dollar down hurts more than the last. The strike changes how much gamma you carry, never the sign. That's the seller's side, and it isn't ours. We trade shares, and when we use an option we buy it, so the premium paid is the stop.",
+   "lesson_line": "Bullish or bearish lives in delta. Sell an option and your gamma's negative, period.",
+   "facts": [
+    "f4",
+    "f20",
+    "f65",
+    "f12",
+    "f70",
+    "f76",
+    "f77"
+   ],
+   "wrong": {
+    "Positive, the trade is bullish": "Bullish shows up in delta, and a short put's delta is positive. Gamma comes from selling, so it's negative.",
+    "Zero until it goes in the money": "Gamma is there the moment you sell. Your short put carries negative gamma at any strike.",
+    "It depends on the strike you pick": "The strike sets how big your gamma is, not its sign. A short put is negative gamma."
+   },
+   "simple": "Negative, because any option you sell has negative gamma, even a bullish short put.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q05",
+   "skill": "options.gamma",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Same stock, same expiry. One call is deep in the money, one at the money, one far out. Whose delta jumps most on a $1 move?",
+   "choices": [
+    "An at-the-money option",
+    "A deep in-the-money option",
+    "A far out-of-the-money option",
+    "They all change the same"
+   ],
+   "answer": "An at-the-money option",
+   "why": "The at-the-money one. Gamma peaks when delta sits around .40 to .60, and that's right at the money. Deep in the money, delta is already near 1.00 and can't go past it. Not much room left to change. Far out of the money, delta sits near 0 and barely budges. So if you ever buy an option for a move, this is where the action is. An at-the-money call reacts fastest once the stock starts going your way.",
+   "lesson_line": "Gamma lives at the money. That's where delta moves fastest.",
+   "facts": [
+    "f17",
+    "f12",
+    "f13",
+    "f18",
+    "f63",
+    "f64"
+   ],
+   "wrong": {
+    "A deep in-the-money option": "Its delta is already near 1.00 and can't go past it. Low gamma.",
+    "A far out-of-the-money option": "Its delta sits near 0 and barely moves. Gamma is lowest out there.",
+    "They all change the same": "Gamma depends on the strike. At the money carries the most, deep in and far out the least."
+   },
+   "simple": "The at-the-money one, because gamma is highest when the stock sits near the strike.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "options.gamma",
+   "rung": 3,
+   "format": "tf",
+   "q": "You're holding an at-the-money call into its final week. As expiry gets closer, its gamma goes up.",
+   "answer": "True",
+   "why": "True. At the money, gamma climbs as expiry gets close, and more time left means less of it. For you as a buyer, that cuts both ways. In the last days a small move can swing your delta hard, for you or against you. So a near-dated at-the-money option gets jumpy. Know that before you hold one into its final week.",
+   "lesson_line": "Near the money and near expiry, that's when an option starts moving fast.",
+   "facts": [
+    "f9",
+    "f42",
+    "f68"
+   ],
+   "simple": "True, because an at-the-money option's gamma climbs as expiry gets closer.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "options.gamma",
+   "rung": 3,
+   "format": "mcq",
+   "q": "You sold a call to open. Now the stock's ripping higher. What's happening to your position's delta?",
+   "choices": [
+    "It gets more negative",
+    "It gets less negative",
+    "It stays the same",
+    "It turns positive"
+   ],
+   "answer": "It gets more negative",
+   "why": "It gets more negative. A short call has negative gamma. As the stock rises, your delta goes further below zero, so you get shorter right as the stock runs at you. Each dollar up costs you more than the one before. A short call's delta stays between 0 and -1.00, so it never flips positive. That's what a call seller signs up for, and it's a seat we don't take. Own the option instead and gamma is on your side.",
+   "lesson_line": "A short option gets bigger against you when the stock runs. That's negative gamma.",
+   "facts": [
+    "f8",
+    "f20",
+    "f4",
+    "f21",
+    "f77"
+   ],
+   "wrong": {
+    "It gets less negative": "That's what a drop does. A rise pushes your short call's delta further below zero.",
+    "It stays the same": "Only shares have a fixed delta. Your short call has negative gamma, so its delta keeps moving.",
+    "It turns positive": "A short call's delta stays between 0 and -1.00. A rise pushes it further below zero, never above."
+   },
+   "simple": "More negative, because a short call has negative gamma, so a rising stock makes you shorter.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-seller-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "options.gamma",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You own a call with a 0.45 delta and a 0.05 gamma. The stock pops $1. Roughly what's your delta now?",
+   "answer": "0.50",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "delta + gamma * move",
+     "delta": 0.45,
+     "gamma": 0.05,
+     "move": 1
+    }
+   },
+   "why": "About 0.50. The stock went up $1, so you add the gamma to the delta: 0.45 plus 0.05 is 0.50. Your call now acts a bit more like stock, so the next dollar up pays a bit more. It's an estimate, not an exact number, because gamma shifts too as the stock moves. Close enough to know what your option will do at the screen.",
+   "lesson_line": "Stock up a dollar, and your new delta is about the old delta plus the gamma.",
+   "facts": [
+    "f1",
+    "f3",
+    "f23",
+    "f24"
+   ],
+   "simple": "About 0.50, because the stock rose a dollar, so you add the 0.05 gamma to the 0.45 delta.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "0.40",
+    "0.95",
+    "0.45",
+    "0.50"
+   ],
+   "wrong": {
+    "0.40": "You subtracted the gamma. The stock went up, so you add it.",
+    "0.95": "You slipped a decimal on the gamma. It's 0.05, not a half.",
+    "0.45": "That's the old delta. A $1 move changes it by about the gamma."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Gamma's step",
+    "rows": [
+     {
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.45,
+      "fmt": "count"
+     },
+     {
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.05,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "New delta",
+     "as": "num",
+     "unit": "delta"
+    }
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "options.gamma",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You own a put as a hedge. Its delta is -0.30 and its gamma is 0.05. The stock drops $1.",
+   "q": "Roughly where's your put's delta now?",
+   "choices": [
+    "-0.35",
+    "-0.25",
+    "-0.30",
+    "-0.05"
+   ],
+   "answer": "-0.35",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "delta + gamma * move",
+     "delta": -0.3,
+     "gamma": 0.05,
+     "move": -1
+    }
+   },
+   "why": "About -0.35. You bought the put, so your gamma is positive. A falling stock pushes its delta toward -1.00, by about the gamma for each $1. So -0.30 minus 0.05 gets you to -0.35. In plain terms, your hedge just got a little bigger. The further the stock falls, the faster that grows. That's the payoff of being long gamma.",
+   "lesson_line": "Your put picks up delta as the stock falls. Gamma tells you how fast.",
+   "facts": [
+    "f7",
+    "f23",
+    "f4"
+   ],
+   "wrong": {
+    "-0.25": "That moves the delta the wrong way. A falling stock makes your put's delta more negative.",
+    "-0.30": "That's the old delta. Puts have gamma too, so a $1 drop changes it.",
+    "-0.05": "That's only the change. Add it to the old -0.30 and you get about -0.35."
+   },
+   "simple": "About -0.35, because a falling stock pushes your put's delta toward -1.00 by about the gamma.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "size",
+    "title": "Gamma's step",
+    "rows": [
+     {
+      "key": "put_delta,_a_negativ",
+      "label": "Put delta, a negative",
+      "value": 0.3,
+      "fmt": "count"
+     },
+     {
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.05,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_drops",
+      "label": "Stock drops",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Put's new delta",
+     "as": "num",
+     "unit": "delta"
+    }
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "options.gamma",
+   "rung": 4,
+   "format": "scenario",
+   "story": "It's expiry day with an hour left, and the stock trades at 100. You're watching the 80, 90, 100 and 110 calls.",
+   "q": "Which call's delta can swing hardest on a $1 move?",
+   "choices": [
+    "The 100 call",
+    "The 110 call",
+    "The 90 call",
+    "The 80 call"
+   ],
+   "answer": "The 100 call",
+   "why": "The 100 call. The stock's sitting right on its strike with an hour left, and that's where gamma peaks. Its delta can swing from near 0 to near 1.00 as the stock crosses 100. The 110 call is out of the money with no time left, so its delta sits near 0. The 80 and 90 calls are in the money, delta near 1.00 with nowhere to go. On expiry day, watch the strike the stock is sitting on. That's where you get whipped around.",
+   "lesson_line": "On expiry day, watch the strike the stock is sitting on. That's where things move fast.",
+   "facts": [
+    "f11",
+    "f10",
+    "f22",
+    "f18",
+    "f13",
+    "f12"
+   ],
+   "wrong": {
+    "The 110 call": "Out of the money with an hour left, its delta sits near 0. Very little gamma there.",
+    "The 80 call": "Deep in the money, its delta is near 1.00 and can't go past it. Low gamma.",
+    "The 90 call": "In the money with an hour left, its delta heads toward 1.00 and stops there. Low gamma."
+   },
+   "simple": "The 100 call, because with the stock right at its strike near expiry, its gamma is highest.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker split the why)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "options.gamma",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You own one call, delta 0.35, gamma 0.04. The stock rises $1. How many shares does that contract act like now?",
+   "answer": "39 shares",
+   "suffix": "shares",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(delta + gamma * move) * shares_per_contract",
+     "delta": 0.35,
+     "gamma": 0.04,
+     "move": 1,
+     "shares_per_contract": 100
+    }
+   },
+   "why": "39 shares. Read delta as share exposure: at 0.35, one contract acts like 35 shares. After a $1 rise, add the gamma: 0.35 plus 0.04 is 0.39. One contract covers 100 shares, so 0.39 times 100 is 39 shares. That's the useful way to size up an option next to a share position. Your exposure isn't fixed. It grows as the stock goes your way and shrinks as it goes against you.",
+   "lesson_line": "A call's share exposure grows as the stock rises. Gamma sets the pace.",
+   "facts": [
+    "f41",
+    "f3",
+    "f37",
+    "f6",
+    "f24"
+   ],
+   "simple": "39 shares, because the delta rises by the gamma, and one contract covers 100 shares.",
+   "deeper": {
+    "example": "Schwab's example: a .40 delta call acts like 40 shares. After the stock went up, the same call acted like 43 shares. Each dollar the stock climbs, gamma adds a few more shares of exposure to a long call. The same works in reverse on the way down, where the exposure shrinks."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "39 shares",
+    "35 shares",
+    "43 shares",
+    "390 shares"
+   ],
+   "wrong": {
+    "35 shares": "That's the old delta. You left out the gamma.",
+    "390 shares": "You slipped a decimal. One contract is 100 shares, so it's 39.",
+    "43 shares": "You added the gamma twice. One $1 move adds it once."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Gamma's step",
+    "rows": [
+     {
+      "key": "call_delta",
+      "label": "Call delta",
+      "value": 0.35,
+      "fmt": "count"
+     },
+     {
+      "key": "gamma",
+      "label": "Gamma",
+      "value": 0.04,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 1.0,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "One contract acts like",
+     "as": "shares"
+    }
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "options.gamma",
+   "rung": 5,
+   "format": "tf",
+   "q": "You own a call and the stock is sliding. All else equal, each dollar lower costs you a bit more than the one before.",
+   "answer": "False",
+   "why": "False. Each dollar down costs you a bit less. As the stock falls, your call's delta shrinks toward 0, so the next dollar hits a smaller delta. That's long gamma working for you. It slows your losses and speeds up your gains. Losses that speed up belong to the seller, who's short gamma. One catch: all else equal leaves out time, and decay keeps eating a call you hold. Your stop is still the premium you paid.",
+   "lesson_line": "Long gamma slows your losses and speeds up your gains.",
+   "facts": [
+    "f6",
+    "f19",
+    "f69",
+    "f72",
+    "f70",
+    "f29"
+   ],
+   "simple": "False, because your call's delta shrinks as the stock falls, so each next dollar down costs you less.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q13",
+   "skill": "options.gamma",
+   "rung": 5,
+   "format": "scenario",
+   "story": "The S&P 500 index sits at 3020. Two 3020 calls: one has 7 days left and a .52 delta, the other 60 days and a .54 delta.",
+   "q": "The deltas look about the same. If the index jumps, whose delta moves more?",
+   "choices": [
+    "The 7-day call, less time left",
+    "The 60-day call, more time left",
+    "About the same, deltas match",
+    "Can't tell without the gammas"
+   ],
+   "answer": "The 7-day call, less time left",
+   "why": "The 7-day call. At the money, gamma is highest close to expiry and lower with more time. Here the 7-day call carried a gamma of .0088 and the 60-day just .0031. That's almost three times as much, with deltas nearly the same at .52 and .54. So don't stop at delta when you compare two options. Delta is your exposure right now. Gamma is how fast it changes, and the short-dated one gets jumpy.",
+   "lesson_line": "Same delta doesn't mean same risk. Near expiry, check the gamma.",
+   "facts": [
+    "f43",
+    "f44",
+    "f45",
+    "f9",
+    "f42"
+   ],
+   "wrong": {
+    "About the same, deltas match": "Delta is today's exposure. Gamma is how fast it changes, and the 7-day call has far more.",
+    "The 60-day call, more time left": "More time means less gamma, so the 60-day's delta is the steadier one.",
+    "Can't tell without the gammas": "The days left tell you. At the money, less time means more gamma."
+   },
+   "simple": "The 7-day call, because near expiry an at-the-money option's gamma is far higher, even with the same delta.",
+   "deeper": {
+    "trap": "Trap: two options with matching deltas can carry very different risk. As an option nears expiry, its gamma can rise far more than its delta. So delta alone doesn't tell the whole story. Check the gamma before you trust a delta that looks the same."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q14",
+   "skill": "options.gamma",
+   "rung": 6,
+   "format": "scenario",
+   "story": "Two months ago you sold the 259 put on the DJX index for a $4 credit. DJX is at 260 with four days left, and the put is worth $1.25. Its delta is -.39 and its gamma is .08.",
+   "q": "You've banked most of the credit with four days to go. What do you do?",
+   "choices": [
+    "Close it and keep the profit",
+    "Hold it, decay is fastest now",
+    "Sell another put for more decay",
+    "Hold, it's still out of the money"
+   ],
+   "answer": "Close it and keep the profit",
+   "why": "Close it and take the money. You sold for $4 and it's worth $1.25, so $2.75 is yours on paper. Only $1.25 is left to earn. Now look at the risk. With four days left, gamma is .08. A $1 drop takes delta from -.39 to -.47, over 20% more exposure. A small move can wipe out a good profit. Most of the reward is gone, and the risk keeps climbing into expiry. We don't sell options ourselves. But if you're ever on this side, here's your spot to take it and move on.",
+   "lesson_line": "Most of the credit in hand, expiry week, gamma climbing. Take it and move on.",
+   "facts": [
+    "f48",
+    "f49",
+    "f50",
+    "f47",
+    "f27",
+    "f9",
+    "f76",
+    "f77"
+   ],
+   "wrong": {
+    "Hold it, decay is fastest now": "Decay is fast, but so is gamma. A $1 drop takes delta from -.39 to -.47, over 20% more risk.",
+    "Sell another put for more decay": "That piles more negative gamma on top of a lot. More decay, a lot more risk.",
+    "Hold, it's still out of the money": "Barely, by one point. With gamma at .08, a small drop can wipe out the profit."
+   },
+   "simple": "Close it, because you're up most of the credit, and with gamma this high a small drop can wipe that out.",
+   "deeper": {
+    "example": "The trade-off in numbers: you sold for $4 and $2.75 is already an open profit, so only $1.25 is left to earn. With gamma at .08, a $1 drop takes the put's delta from -.39 to -.47. Little reward is left, and each dollar down adds risk."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "seller-side judgment touches the owner's rulebook (A6, B25: options only as a defined-risk alternative)",
+     "fixed before (checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "options.gamma",
+   "rung": 6,
+   "format": "mcq",
+   "q": "Option sellers know they're short gamma. So why do they sell at all?",
+   "choices": [
+    "To collect the time decay",
+    "To cap their risk at the credit",
+    "To slow losses on big moves",
+    "To leave gamma risk to buyers"
+   ],
+   "answer": "To collect the time decay",
+   "why": "They're getting paid by the clock. Time decay works for the seller and against the buyer. A short option near expiry collects a lot of theta, but it carries a lot of negative gamma too. That's the gamma-theta trade-off. Sit still and the seller wins. Move hard against them and the losses speed up. When we use an option, we buy it and the premium paid is the stop. So we're on the other side, paying the clock for a chance at the move.",
+   "lesson_line": "Sellers get paid by the clock. Buyers get paid by the move. Know which side you're on.",
+   "facts": [
+    "f29",
+    "f71",
+    "f46",
+    "f38",
+    "f35",
+    "f70",
+    "f73",
+    "f4",
+    "f76"
+   ],
+   "wrong": {
+    "To cap their risk at the credit": "The credit caps the seller's gain, not the risk. An uncovered short call can lose without limit.",
+    "To slow losses on big moves": "Negative gamma does the opposite. It speeds up losses when the stock moves against you.",
+    "To leave gamma risk to buyers": "Buyers are long gamma, and it works for them. Sellers carry the negative side."
+   },
+   "simple": "To collect time decay, because the clock works for the seller, and negative gamma is the price of that.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q16",
+   "skill": "options.gamma",
+   "rung": 7,
+   "format": "scenario",
+   "story": "It's 3 p.m. ET on expiry day and the stock sits right at 450. You own the 450 call and the 450 put, a long straddle.",
+   "q": "The stock pops $3 in ten minutes. Where's your straddle's delta now?",
+   "choices": [
+    "It turns sharply positive",
+    "It stays near zero, it's hedged",
+    "It barely moves, gamma fades",
+    "It goes negative, led by the put"
+   ],
+   "answer": "It turns sharply positive",
+   "why": "Sharply positive. You started near zero, a call and a put at the same strike. Right at the strike on expiry day, gamma is at its peak on both legs. Up $3, your call's delta races toward 1.00 and your put's fades toward 0. So you're suddenly long, and it happened fast. That's what you pay for with a straddle: the move. No move, and the clock eats both legs.",
+   "lesson_line": "A long straddle starts flat and picks up delta whichever way the stock breaks. No break, and the clock eats it.",
+   "facts": [
+    "f31",
+    "f6",
+    "f7",
+    "f11",
+    "f10",
+    "f36",
+    "f32",
+    "f22",
+    "f21"
+   ],
+   "wrong": {
+    "It stays near zero, it's hedged": "It starts near zero, but both deltas move. Up $3, your call gains delta and your put loses it.",
+    "It barely moves, gamma fades": "Late on expiry day, right at the strike, gamma is at its highest. Nothing's fading.",
+    "It goes negative, led by the put": "Backwards for a rise. Your put's delta shrinks toward 0 while the call's climbs toward 1.00."
+   },
+   "simple": "It turns sharply positive, because at the strike on expiry day the call's delta races up while the put's fades.",
+   "deeper": {
+    "trap": "Trap: a delta near zero at the start is not a hedge. A long straddle is long gamma, so its delta follows the break. Up, it gets long. Down, it gets short. The flip side is time: every day without a move erodes the premium you paid."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker split the why, then ET added to the story)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "options.gamma",
+   "rung": 7,
+   "format": "scenario",
+   "story": "It's expiry day. At 10 a.m. you sold the 450 call and the 450 put, a short straddle, for $3.00 in total. At 3:15 p.m. ET the stock breaks hard below 445.",
+   "q": "What happened to your losses as the stock broke down?",
+   "choices": [
+    "They sped up with each drop",
+    "Decay covered the move",
+    "They're capped at the premium",
+    "The call leg offset them"
+   ],
+   "answer": "They sped up with each drop",
+   "why": "They sped up with each drop. A short straddle is a sold call plus a sold put at the same strike. It has negative gamma, which speeds up losses when the stock moves against you. Near the strike on expiry day, that gamma is at its peak. So each dollar down added to the put's loss faster. The most you can make is the $3.00 collected. The downside risk is substantial.",
+   "lesson_line": "Sell a straddle on expiry day and a hard break past the strike hurts fast. Know your exit first.",
+   "facts": [
+    "f33",
+    "f28",
+    "f70",
+    "f57",
+    "f73",
+    "f35",
+    "f34",
+    "f30",
+    "f4",
+    "f13"
+   ],
+   "wrong": {
+    "Decay covered the move": "The $3.00 you collected is the most you can make. Below 445, the put alone is worth more than that.",
+    "They're capped at the premium": "That's the buyer's risk. A short straddle's risk is substantial on the downside and unlimited on the upside.",
+    "The call leg offset them": "The short call can only earn its premium. The put's loss keeps growing as the stock falls."
+   },
+   "simple": "They sped up, because a short straddle has negative gamma, so each drop made the next one hurt more.",
+   "deeper": {
+    "example": "Below 445, the 450 put alone is worth more than the $3.00 you collected. As it goes deeper in the money its delta heads toward -1.00, so each further dollar down costs about a full dollar. The short call can only earn its share of the premium, so it cannot offset that."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q18",
+   "skill": "options.gamma",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A stock trades at 30. The 25 call has a delta of .85 and a gamma of .03. The stock slides to 25.",
+   "q": "What's the call's delta likely to be now?",
+   "choices": [
+    "Near .50, it's at the money now",
+    "Near .70, as the math says",
+    "Still near .85, gamma is tiny",
+    "Near 0, it's out of the money now"
+   ],
+   "answer": "Near .50, it's at the money now",
+   "why": "Near .50. At 25 the call's right at the money, and an at-the-money delta sits around .50. The .70 answer takes .03 off for each of the five dollars, as if gamma never changes. It does. Gamma grows as an option nears the money, maybe to .09 here. So delta falls faster than the straight math says. Gamma math is fine for a dollar or two. After a five-point move, pull up the chain and read the new delta.",
+   "lesson_line": "Gamma math is for small moves. After a big one, look up the new delta.",
+   "facts": [
+    "f14",
+    "f15",
+    "f16",
+    "f24"
+   ],
+   "wrong": {
+    "Near .70, as the math says": "That holds gamma at .03 the whole way down. It grows near the money, maybe to .09 here.",
+    "Still near .85, gamma is tiny": "A .03 gamma still moves delta on every dollar down, and it grows as the call nears the money.",
+    "Near 0, it's out of the money now": "At 25 the call is at the money, not out of it. Delta there sits around .50."
+   },
+   "simple": "Near .50, because gamma grows as the call nears the money, so delta falls faster than straight math says.",
+   "deeper": {
+    "trap": "Trap: gamma is a snapshot, not a constant. Hold it at .03 for five points and you get .70, but gamma grows toward the money, maybe to .09. For a big move, look up the new delta instead of stretching one gamma across the whole move."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "options.gamma",
+   "rung": 8,
+   "format": "scenario",
+   "story": "You're short a put with 18 days left. The put's delta is -.43 and its gamma .04. You still like the stock, but expiry week is coming.",
+   "q": "You want about the same exposure but less gamma before expiry week hits. What's the move?",
+   "choices": [
+    "Roll to a later expiry",
+    "Roll to an earlier expiry",
+    "Hedge the put with shares",
+    "Hold, expiry week is safer"
+   ],
+   "answer": "Roll to a later expiry",
+   "why": "Roll it out to a later expiry. At -.43 delta the put is near the money, and there gamma drops the more time you buy. Here the same 259 strike with 53 days left had a -.41 delta and .02 gamma. Your 18-day put is -.43 and .04. So the roll keeps about the same delta and cuts gamma in half. You give up some of the fast decay a near-dated short collects. Less income, a steadier position.",
+   "lesson_line": "Roll a near-the-money short out in time and you keep the delta while cutting the gamma.",
+   "facts": [
+    "f51",
+    "f52",
+    "f17",
+    "f9",
+    "f42",
+    "f4",
+    "f46",
+    "f47",
+    "f5"
+   ],
+   "wrong": {
+    "Roll to an earlier expiry": "Less time means more gamma near the money. That makes it worse.",
+    "Hold, expiry week is safer": "Near the money, gamma is highest close to expiry. Holding into expiry week raises it.",
+    "Hedge the put with shares": "Shares have no gamma, so the put's gamma stays. Shares also move the delta you wanted to keep."
+   },
+   "simple": "Roll to a later expiry, because near the money the same strike with more time keeps a similar delta with less gamma.",
+   "deeper": {
+    "trap": "Trap: holding into expiry week because the end is close. Near the money, gamma is highest close to expiry, so a relatively small move can wipe out a profit. Rolling out trades some of that fast decay for a steadier delta."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "options.gamma",
+   "rung": 8,
+   "format": "tf",
+   "q": "You're short a put. Buying a cheaper put further out of the money against it lowers your gamma risk.",
+   "answer": "True",
+   "why": "True. The long put's positive gamma cancels part of the short put's negative gamma. Here's how much. A short 259 put with 50 days left carried .033 of gamma. Buy the 254 put against it, and the spread carries .008. Most of the gamma is gone. The catch: the long put costs money, so it eats into what the short put can earn. You trade some income for a position that won't hurt you as fast.",
+   "lesson_line": "Put a long option against a short one and the gamma shrinks. You pay for that in income.",
+   "facts": [
+    "f53",
+    "f54",
+    "f55",
+    "f56",
+    "f4"
+   ],
+   "simple": "True, because the long put's positive gamma cancels part of the short put's negative gamma.",
+   "deeper": {
+    "trap": "Trap: the hedge lowers gamma, it does not remove it. The spread in Schwab's example still had .008 of gamma. And the long put is not free: its cost comes out of whatever the short put could earn."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q21",
+   "skill": "options.gamma",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Dec 18, 2024. A trader sold same-day S&P 500 index puts near the money that morning. The Fed statement came out at 2 p.m. ET.",
+   "q": "The index quickly lost almost 3%. Why did his losses pile up so fast?",
+   "choices": [
+    "Short gamma kept adding exposure",
+    "Time decay turned against him",
+    "Gamma is near zero on expiry day",
+    "The puts' deltas shrank as it fell"
+   ],
+   "answer": "Short gamma kept adding exposure",
+   "why": "Short gamma. Near the money on expiry day, gamma is at its peak. Every leg down pushed his puts' deltas toward -1.00, so each point cost him more than the last. Time decay was still on his side, but it couldn't keep up. The statement hit at 2 p.m. Eastern, about two hours before the close. The index quickly lost almost 3% and closed down 2.9%. Same-day put sellers likely took big losses. Selling same-day options into a scheduled event can hurt an account in one afternoon. We'd never be in that spot. When we touch options at all, we're buying.",
+   "lesson_line": "Short same-day options into a scheduled event can unravel in hours.",
+   "facts": [
+    "f58",
+    "f59",
+    "f75",
+    "f39",
+    "f28",
+    "f11",
+    "f7",
+    "f60",
+    "f61",
+    "f29",
+    "f13",
+    "f77"
+   ],
+   "wrong": {
+    "Gamma is near zero on expiry day": "Not near the money. At the strike on expiry day, gamma is at its highest.",
+    "The puts' deltas shrank as it fell": "The opposite. A falling market pushes a put's delta toward -1.00, so his short exposure grew.",
+    "Time decay turned against him": "Decay still worked for him as a seller. It just couldn't keep up with a move that size."
+   },
+   "simple": "Short gamma, because near the money on expiry day each drop pushed the puts' deltas toward -1.00, so losses grew faster.",
+   "deeper": {
+    "example": "The timeline: the statement came out at 2:00 p.m. Eastern, leaving about two hours to the close. The index quickly lost almost 3% and closed down 2.9%. For a short put near the money on its last day, that move came while gamma was at its peak."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "dated market event (December 18, 2024) with quoted numbers",
+     "lesson line touches the owner's rulebook (C32: no news-day rule)"
+    ]
+   },
+   "batch": "voice-8-seller-2026-11-17",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2024-12-17",
+    "window": 120,
+    "forward": 5
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "options.gamma",
+   "rung": 9,
+   "format": "tf",
+   "q": "A market maker is short gamma and keeps delta hedged. That means buying as the price rises and selling as it falls.",
+   "answer": "True",
+   "why": "True. As price rises, a short-gamma book gets shorter, so the hedge has to buy. As price falls, the book gets longer, so the hedge sells. The hedge chases the move both ways. You'll never run that hedge yourself. But see the trap: you keep buying higher, the market turns, and those buys become losses on the way down.",
+   "lesson_line": "Hedging short gamma means chasing the move: buying higher, selling lower.",
+   "facts": [
+    "f74",
+    "f67",
+    "f66",
+    "f8"
+   ],
+   "simple": "True, because short gamma makes you shorter as price rises and longer as it falls, so the hedge chases the move.",
+   "deeper": {
+    "trap": "Trap: the hedge does not fix short gamma, it just keeps delta near flat. By design it buys after rises and sells after drops. When the price whips back and forth, each reversal turns the earlier hedge trades into losses."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "options.gamma",
+   "rung": 3,
+   "format": "mcq",
+   "house": true,
+   "q": "We trade shares, but now and then we use an option, and the premium paid is the stop. What gamma does that option carry?",
+   "choices": [
+    "Positive, it's a bought option",
+    "Negative, options lose to decay",
+    "Zero, the premium caps the loss",
+    "It depends on call or put"
+   ],
+   "answer": "Positive, it's a bought option",
+   "why": "Positive. If the premium is the stop, you bought the option, and any option you buy carries positive gamma. Call or put doesn't change that. That's how we use options: now and then, as a defined-risk alternative to shares. The most you can lose is what you paid. Gamma works for you on top of that. A move your way speeds up the gains, and a move against you slows the losses.",
+   "simple": "Positive, because a premium paid means you bought the option, and bought options have positive gamma.",
+   "lesson_line": "We trade shares. An option we buy has positive gamma, and the premium paid is the stop.",
+   "facts": [
+    "f76",
+    "f77",
+    "f4",
+    "f65",
+    "f29",
+    "f6",
+    "f21"
+   ],
+   "wrong": {
+    "Negative, options lose to decay": "Decay works against you as a buyer, but that's theta, not gamma. Your bought option still has positive gamma.",
+    "Zero, the premium caps the loss": "The premium is your stop, but it doesn't remove gamma. Your call's delta still moves with the stock.",
+    "It depends on call or put": "Calls and puts you buy both have positive gamma. Call or put sets the sign of delta, not gamma."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A6, B25)",
+     "reads B25's 'premium paid' as a bought option"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "Implied volatility and gamma: OIC's gamma page (s1) says that when implied volatility rises, the gamma of in-the-money and out-of-the-money options decreases. The Black-Scholes model (which OIC's own Black-Scholes page describes) has at-the-money gamma falling but far-from-the-money gamma rising as volatility rises. The file asks nothing about volatility and gamma and quotes neither sentence.",
+  "Sign of gamma: CME Group's gamma page ends with a quiz whose answer is 'All options have positive gamma values', meaning the option as held. OIC (f4), Investopedia (f65), Fidelity (f69, f70) and Schwab say short options carry negative gamma. The file keys the sign by bought or sold (q02, q04, q07, q15) on OIC, Tier 1, and cites no CME fact for the sign.",
+  "Delta of a short option: Schwab's examples (f48, f50, f51) quote the put's own delta (-.39, -.43) when the trader is short it; OIC's delta page (f20) gives the short put a positive position delta. Stories q14 and q19 say 'the put's delta' or 'delta' in Schwab's sense; q04 and q07 use OIC's position delta and say so ('your position's delta').",
+  "Gamma and theta: Merrill Edge's gamma page (read, not cited) says 'As Gamma increases, the cost of owning an option over time (Theta) decreases'; Schwab (f46) and OIC (gamma and decay both peak at the money near expiry) say the opposite pairing. The file follows OIC and Schwab and does not cite Merrill.",
+  "CME Group's gamma page (s12) is written for options on futures; its gamma statements match OIC's for stock options, and every question citing a CME fact also cites a Tier 1 fact."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Sources re-read 2026-11-09 in context, quote check 75/75 found. OIC, FINRA, Fed, AP/PBS, IBKR, Cboe pages and the Fidelity PDF by plain curl; Schwab (refuses curl and WebFetch: 'unable to authorize'), CME and Investopedia read from the quote checker's own fetch. Step 1 said delta is how much the option 'should' move; f19 (OIC) calls it a 'theoretical estimate' of what it 'may' do, so it now reads 'Delta estimates how much the option moves'. Steps 2-4 are OIC's own example (f1, f2, f3): .50 + .06 = .56.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "Sources re-read 2026-11-09 in context, quote check 75/75 found. OIC, FINRA, Fed, AP/PBS, IBKR, Cboe pages and the Fidelity PDF by plain curl; Schwab (refuses curl and WebFetch: 'unable to authorize'), CME and Investopedia read from the quote checker's own fetch. f17, f12 (OIC: highest at the money, lower deep ITM / far OTM), f9 (higher closer to expiry), f11 (at the strike at expiration delta can move between 1.00 and 0). All read in context; matches CME, Investopedia, Schwab.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "Sources re-read 2026-11-09 in context, quote check 75/75 found. OIC, FINRA, Fed, AP/PBS, IBKR, Cboe pages and the Fidelity PDF by plain curl; Schwab (refuses curl and WebFetch: 'unable to authorize'), CME and Investopedia read from the quote checker's own fetch. f4 (OIC long = positive, short = negative gamma); f69/f70 (Fidelity) and f72/f73 (Montreal Exchange via IBKR) agree on accelerate gains / slow losses and the reverse; f71 (Fidelity, 'gamma theta tradeoff') and f29 (OIC primer) back the last step.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth right (f1, f19, f25, f26). Stem leaned on 'right next to delta' and the key was the only choice saying delta, a giveaway; stem now just names the gamma column. Why says 'about how much' (f19 calls delta an estimate) and ties the speed-up to a bought option (f69 added)."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth right (f4, f7, f65). The put was framed as a bearish bet on a breakdown, which reads as a short-side trade; it is now a put bought to protect shares, the way we'd use one. Why kept, hedge wording."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Zero is right (f5). Ties it to how we size shares off the stop. Good."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth right (f4, f20, f65, f12, f70). But the stem has the member sell a put 'instead of buying shares', the opposite of how we trade (A6), and nothing said so. Added one line in our words: that's the seller's side, we buy when we use an option and the premium is the stop (f76, f77 added)."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "At the money is right (f17, f12, f13, f18). Ties it to where a buyer gets the action. Good."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True (f9, f42, f68). Plain claim, buyer's view in the why."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "seller framing reframed; answer unchanged"
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "0.45 + 0.05 = 0.50 checked; 0.95 is the 0.5 slip, 0.40 the subtraction. Steps shown, estimate caveat from f24."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "-0.30 - 0.05 = -0.35 checked (calc gamma*move = -0.05). Hedge framing, plain."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "100 call right (f11); each strike walked in plain words; 'that's where you get whipped around' sounds like him."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "0.35 + 0.04 = 0.39, times 100 = 39 checked; 43 = gamma added twice (0.43) checked. Steps shown."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False (f6, f69, f72). Theta caveat and premium-as-stop close it well."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "7-day call right (f42, f43, f44). .0088 vs .0031 is about 2.8x, 'almost three times' holds. Stem no longer leads."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Numbers checked: 4 - 1.25 = 2.75; -.39 to -.47 is a 20.5% rise, 'over 20%' holds. Truth catch: the closing line 'I'd rather lock it in' put the mentor in a short put he doesn't trade (A6, B25). Now says we don't sell options, and what to do if you're ever on that side. 'Risk near its peak' softened to 'keeps climbing into expiry' (f9)."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Time decay right (f29, f71, f46). Wrong notes grounded in f38, f70, f4. Sets our side clearly (f76)."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Sharply positive right (f6, f7, f11). Bought straddle is defined risk. Good."
+  },
+  "q17": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stays cut, as the earlier checker ruled in wave7."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Answer right (f15, f16). Stem 'Straight gamma math says .70. Where's the delta more likely...' told the member .70 was the trap. Stem now just asks for the delta, so the .70 choice is a real mistake to catch; why shows where .70 comes from without a new number."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Roll out is right (f51, f52): -.43/.04 to -.41/.02, gamma halved. Seller's side, but the why is mechanics and the cost is named."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "True (f53-f56). Why said 'In this example' with no example in the stem; now sets the example up itself (259 put, 50 days, .033 to .008, all in the f54/f55 quotes)."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "seller framing reframed; answer unchanged"
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "True (f74, f67). Why named Cboe mid-explanation, which reads like a citation, not a mentor. Source dropped; the idea said plainly."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Positive is right (f76, f77, f4). 'Rulebook' and the 'Our rule' stem are gone; the key no longer stands out by length."
+  }
+ }
+}

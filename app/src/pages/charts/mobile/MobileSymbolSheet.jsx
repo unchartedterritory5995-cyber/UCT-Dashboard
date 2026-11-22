@@ -5,7 +5,7 @@ import UIcon from '../../../components/ui/UIcon'
 import haptics from '../../../components/mobile/haptics'
 import { POPULAR_RESULTS, CHIPS, INDICES_PRESET, matchQ, rowIdentity, shownTicker, isBreadthRow, breadthChipRows, canonicalTicker } from '../../../components/chart/symbolSearchModel'
 import useMarketIndicators from '../../../hooks/useMarketIndicators'
-import uctMark from '../../../components/intro/assets/compass-mark.png'
+import uctMark from '../../../components/intro/assets/compass-mark.webp'
 import { listRecents } from './mobileRecents'
 import styles from './MobileCharts.module.css'
 

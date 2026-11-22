@@ -9,10 +9,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import PrepWireBlock from './PrepWireBlock'
+import { PREP_NAMES_ASK } from './PrepCapture'
 import PrepEarningsBlock from './PrepEarningsBlock'
 import PrepMoversBlock from './PrepMoversBlock'
 import PrepLevelsBlock from './PrepLevelsBlock'
 import { contractBody } from '../../../__fixtures__/contract'
+import { FINAL_WORDS } from './PrepCapture'
 
 const FAILED = "This couldn't be read just now. Nothing was changed."
 const wire = () => contractBody('trader-blocks.prep.wire.held')
@@ -130,11 +132,29 @@ describe('a frozen block', () => {
 })
 
 describe('each gap is named', () => {
-  it('a part with nothing to show says why, from the server', () => {
+  // S9 fix round 1 (review finding 7): a gap that fills itself (no earnings yet) is said in the block's own words: the
+  // past tense once nothing will fill it (this recorded snapshot is from another day), never "Capture again".
+  it('a part with nothing to show says why', () => {
     const empty = contractBody('trader-blocks.prep.earnings')
+    expect(empty.missing).toBe('no_earnings_yet')                     // non-vacuity: the recorded gap
     render(<PrepEarningsBlock params={{ snapshot: empty }} setParams={vi.fn()} editable />)
-    expect(screen.getByText(empty.detail)).toBeTruthy()
+    expect(screen.getByText(FINAL_WORDS.no_earnings_yet)).toBeTruthy()
     expect(screen.queryByText(/Before the open/)).toBeNull()
+  })
+
+  it("CONTROL: a gap that never fills itself is the server's own sentence (read-only)", () => {
+    const empty = { ...contractBody('trader-blocks.prep.earnings'), missing: 'no_names', detail: 'Add names to a watchlist.' }
+    render(<PrepEarningsBlock params={{ snapshot: empty }} setParams={vi.fn()} />)
+    expect(screen.getByText('Add names to a watchlist.')).toBeTruthy()
+  })
+
+  it('S17: an editable block with no names ASKS for them (sentence, input, three suggestions), with no Capture button', () => {
+    const empty = { ...contractBody('trader-blocks.prep.earnings'), missing: 'no_names', detail: 'Add names to a watchlist.' }
+    render(<PrepEarningsBlock params={{ snapshot: empty }} setParams={vi.fn()} editable />)
+    expect(screen.getByTestId('prep-names-ask')).toBeTruthy()
+    expect(screen.getByText(PREP_NAMES_ASK)).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /^Add (NVDA|SPY|QQQ)$/ })).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: /Capture/ })).toBeNull()
   })
 
   it('the wire with nothing published names its gap', () => {
@@ -143,8 +163,10 @@ describe('each gap is named', () => {
     expect(screen.getByText('The morning wire has not published yet today.')).toBeTruthy()
   })
 
-  it('key levels with the setups board off says what it needs', () => {
-    render(<PrepLevelsBlock params={{ snapshot: contractBody('trader-blocks.prep.levels.off') }} setParams={vi.fn()} editable />)
+  it('key levels frozen while the setups board was off still says what it needed', () => {
+    // A snapshot stored in a note before the board's switch was retired as always on (2026-11-04).
+    const snapshot = { capturedAt: '2026-10-05T14:30:00Z', detail: null, missing: null, needs: 'the active setups board', part: 'levels' }
+    render(<PrepLevelsBlock params={{ snapshot }} setParams={vi.fn()} editable />)
     expect(screen.getByText('This block needs the active setups board, which is not on for you.')).toBeTruthy()
   })
 })

@@ -4,9 +4,12 @@ import GroupControls from '../grouping/GroupControls'
 import useBreadthGrouping from '../grouping/useBreadthGrouping'
 import { ChartsSymContext } from '../../charts/ChartsSymContext'
 import { useWorkspace } from '../../charts/WorkspaceContext'
-import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
-import { prefetchListDeep } from '../../../utils/prefetchBars'
+import { DRILL_COLS_KEY, DRILL_TABLE_COLS_KEY } from './drillListCols'
+import { prefetchListDeep } from '../../../utils/barsWarm'
 import { useDrillSource } from './DrillSourceContext'
+import { FilterButton, GroupSwitch, FilterChips } from './scan/ScanFilters'
+import GroupHeader from './scan/GroupHeader'
+import { GROUP_HUES } from './scan/scanDeckModel'
 import styles from './BreadthDrillList.module.css'
 
 // The breadth cell's constituents, rendered through the REAL watchlist table.
@@ -24,22 +27,38 @@ const pctOf = (r) => r?.pct
 // ⛔ MODULE SCOPE. `drill?.items ?? []` allocates a NEW array whenever items is
 // absent, which is a fresh identity on every render and churns every memo below.
 const NO_ITEMS = []
+// The rows warmed the moment a list arrives (before it renders and reports what is on screen).
+export const OPEN_WARM_ROWS = 16
+// Section colours, in group order (largest group first). Muted so they tag,
+// not shout.
 
 // First-run column layout. Sorted by % change desc because that is what a
 // breadth cell IS — the stocks that moved — and it matches the order the
 // endpoint already returns.
+// Focus list (owner, 2026-11-08): Symbol, % Chg, Price, Vol — in that order —
+// with the three number columns one width, so the table ends on the Vol edge.
+export const DRILL_NUM_COL_W = 73
 const DRILL_DEFAULT_COLS = {
-  order: ['flag', 'sym', 'price', 'chg', 'rvol'],
+  order: ['flag', 'sym', 'chg', 'price', 'vol'],
+  sort: { key: 'chg', dir: 'desc' },
+  widths: { chg: DRILL_NUM_COL_W, price: DRILL_NUM_COL_W, vol: DRILL_NUM_COL_W },
+}
+// The Scan Deck's TABLE mode gives the list most of the window, so it opens with
+// the columns a screener would: who the company is, where it sits, how big, and
+// how stretched. Its OWN key, so arranging Table never rearranges the compact
+// Scan list (and vice versa). Every column here is one the drill CAN fill — the
+// meta batch, the theme map, or the drill payload itself.
+const DRILL_TABLE_DEFAULT_COLS = {
+  order: ['flag', 'sym', 'name', 'price', 'chg', 'rvol', 'sector', 'theme', 'mcap', 'rating', 'atr', 'a50', 'earn'],
   sort: { key: 'chg', dir: 'desc' },
 }
-// Namespaced off the watchlist key the same way the scanner namespaces its own.
-const DRILL_COLS_KEY = `${WL_COLS_LS}.breadthDrill`
 
 export default function BreadthDrillList({ color, settingsOverride = null, onSettingsPersist = null }) {
   const { groupSyms, setGroupSym, groupTfs, activeWatchlistRef } = useWorkspace() || {}
   const drill = useDrillSource()
   const widgetId = useId()
   const items = drill?.items ?? NO_ITEMS
+  const tableMode = drill?.mode === 'table'
   // Scoped sym context: a row click publishes into THIS widget's colour group so
   // the paired chart follows — identical wiring to ScannerResults/WatchlistWidget.
   const setSym = useCallback((s) => { if (color) setGroupSym?.(color, s) }, [color, setGroupSym])
@@ -54,7 +73,7 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
   // so List|Grouped and Sector|Industry behave exactly as they did.
   const {
     viewMode, setViewMode, dimension, setDimension, grouped,
-  } = useBreadthGrouping(items, { tickerOf, pctOf })
+  } = useBreadthGrouping(items, { tickerOf, pctOf, meta: drill?.groupMeta || undefined })
 
   // ⛔ THE WATCHLIST UPPERCASES EVERY ROW SYM (it is built for tickers), so a group
   // NAME renders and keys as its uppercase form. scanSymbols / scanGroups /
@@ -123,7 +142,9 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
       out[sym] = {
         price: Number.isFinite(it.c) ? it.c : null,
         change_pct: Number.isFinite(it.pct) ? it.pct : null,
-        volume: null,
+        // Raw volume (`v`); never the RVOL ratio. The recorded-day route fills
+        // `v` from that session's daily bars (the stored lists only hold RVOL).
+        volume: Number.isFinite(it.v) ? it.v : null,
       }
     }
     return out
@@ -136,12 +157,15 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
   // only while the group is empty, so a user's own selection is never stomped.
   const seededSymRef = useRef(false)
   useEffect(() => {
+    // The scan window picks its own first stock (the top gainer) and re-picks
+    // it for every new list, so the list does not seed one here.
+    if (drill?.deckHosted) return
     if (seededSymRef.current || !color) return
     const first = items.length ? String(tickerOf(items[0]) || '').toUpperCase() : ''
     if (!first) return
     seededSymRef.current = true
     if (!groupSyms?.[color]) setGroupSym?.(color, first)
-  }, [items, color, groupSyms, setGroupSym])
+  }, [items, color, groupSyms, setGroupSym, drill?.deckHosted])
 
   // ⭐ WARM THE BARS THE USER IS ABOUT TO OPEN. Clicking a row swaps the paired
   // chart's symbol, and with nothing warmed every click is a cold fetch. The drill
@@ -150,26 +174,41 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
   // helper as theirs on purpose: `prefetchListDeep` warms Daily FIRST (the timeframe
   // the chart is showing) then W/M, is idle-deferred, bounded, and self-capping at
   // DEEP_WARM_CAP — so a 2,667-name universe drill costs no more than a 40-name cell.
+  // ⛔ ONLY THE CHART'S TIMEFRAME, ONLY THE TOP OF THE LIST (2026-11-20). This warmed EVERY name
+  // (up to 120) in D, W AND M at open, and the visible-row warm below asked D/W/M again on every
+  // scroll. Each warm reads that name's whole history out of IndexedDB, and the read is unpacked on
+  // the main thread (~11 ms for a deep daily set): measured on production, a drill open queued
+  // ~180 reads and held the main thread ~95% busy for 3+ s — exactly while the member started
+  // scanning, so arrow keys lagged 1-2 s. The rows on screen are warmed by `warmVisible` (the
+  // list reports them as it renders and scrolls); here only the first rows, so the first flips
+  // are warm before the list has even measured itself. W/M warm when the chart switches to them.
+  const chartTf = (color ? groupTfs?.[color] : null) || 'D'
   const warmedRef = useRef(null)
   useEffect(() => {
     const syms = items.map(i => String(tickerOf(i) || '').toUpperCase()).filter(Boolean)
     if (!syms.length) return
     // Keyed on the CELL, not the array identity, so a re-render never re-warms.
-    const key = `${drill?.label || ''}|${drill?.date || ''}|${drill?.live ? 'live' : ''}|${syms.length}`
+    const key = `${drill?.label || ''}|${drill?.date || ''}|${drill?.live ? 'live' : ''}|${syms.length}|${chartTf}`
     if (warmedRef.current === key) return
     warmedRef.current = key
-    prefetchListDeep(syms)
-  }, [items, drill?.label, drill?.date, drill?.live])
+    prefetchListDeep(syms.slice(0, OPEN_WARM_ROWS), { tfs: [chartTf], priority: true })
+  }, [items, drill?.label, drill?.date, drill?.live, chartTf])
 
-  // What is ON SCREEN jumps ahead of that background trickle, so the row you are
-  // about to click is warm before you reach it. `prefetchListDeep` dedupes over a
-  // 5-minute window and is bounded, so firing this per scroll is cheap.
+  // What is ON SCREEN (and the rows just past it) is what a scan reaches next. `prefetchListDeep`
+  // dedupes over a 5-minute window and is bounded, so firing this per scroll is cheap.
   const warmVisible = useCallback((syms) => {
-    if (syms?.length) prefetchListDeep(syms, { cap: 60, priority: true })
-  }, [])
+    if (syms?.length) prefetchListDeep(syms, { tfs: [chartTf], cap: 60, priority: true })
+  }, [chartTf])
 
   const stockCount = items.length
-  const scanFooter = (
+  const fullCount = Number.isFinite(drill?.total) ? drill.total : stockCount
+  const scanFooter = drill?.deckHosted ? (
+    <div className={styles.footer}>
+      <span className={styles.count}>
+        {stockCount !== fullCount ? `${stockCount.toLocaleString()} of ${fullCount.toLocaleString()} stocks` : `${stockCount.toLocaleString()} ${stockCount === 1 ? 'stock' : 'stocks'}`}
+      </span>
+    </div>
+  ) : (
     <div className={styles.footer}>
       <span className={styles.count}>{stockCount} {stockCount === 1 ? 'stock' : 'stocks'}</span>
       {drill?.live
@@ -177,6 +216,42 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
         : drill?.date && <span className={styles.when}>· {drill.date}</span>}
     </div>
   )
+
+  // Section headers (Scan Deck): the group's own-case name, count, average move
+  // and a colour that also edges its rows. Keyed by the UPPERCASE row sym.
+  const groupInfo = useMemo(() => {
+    if (!groups) return null
+    const out = {}
+    groups.forEach((g, i) => {
+      out[String(g.key).toUpperCase()] = { name: g.key, count: g.count, avgPct: g.avgPct, color: GROUP_HUES[i % GROUP_HUES.length] }
+    })
+    return out
+  }, [groups])
+  const renderGroupRow = useCallback(({ sym, expanded, onToggle }) => {
+    const g = groupInfo?.[sym]
+    return (
+      <GroupHeader name={g?.name || sym} count={g?.count ?? 0} total={items.length} avgPct={g?.avgPct}
+        color={g?.color || 'var(--ut-gold)'} expanded={expanded} onToggle={onToggle} />
+    )
+  }, [groupInfo, items.length])
+  const groupAccent = useCallback((sym) => groupInfo?.[sym]?.color || null, [groupInfo])
+
+  // In the Scan Deck the window already names the list, so the list's title row
+  // carries the scan controls instead: Filters, and how to group.
+  const groupValue = viewMode === 'grouped' ? dimension : 'none'
+  const onGroup = (k) => {
+    if (k === 'none') { setViewMode('list'); return }
+    setDimension(k)
+    setViewMode('grouped')
+  }
+  const deckFilters = drill?.deckHosted ? drill.filters : null
+  const titleSlot = deckFilters ? (
+    <div className={styles.deckControls}>
+      <FilterButton filters={deckFilters} total={fullCount} shown={stockCount} />
+      <GroupSwitch value={groupValue} onChange={onGroup} />
+    </div>
+  ) : null
+  const subHeader = deckFilters ? <FilterChips filters={deckFilters} /> : null
 
   // ⛔ A FAILED LOAD IS NOT AN EMPTY RESULT. Rendering the table here would show
   // "No stocks matched this filter" — a confident, wrong answer that reads as a
@@ -205,7 +280,7 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
     <div className={styles.wrap}>
       {/* The grouping controls live INSIDE the widget, not in the modal's bar, so
           they travel with it if it is ever ejected into its own window. */}
-      {items.length > 0 && (
+      {items.length > 0 && !drill?.deckHosted && (
         <div className={styles.ctrlBar}>
           <GroupControls
             viewMode={viewMode}
@@ -218,6 +293,13 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
       <div className={styles.tableWrap}>
         <ChartsSymContext.Provider value={scopedSymContext}>
           <Watchlists
+            // Remount on a mode change (the table reads its column layout once)
+            // AND on a new list. The scan window steps between sessions and lists
+            // without closing, and a table kept mounted across two different
+            // memberships kept a stale % Chg sort — measured in the harness: the
+            // Dn 4%+ list rendered -4.0, -8.2, -39.7, -31.7… after a switch.
+            // Filters do NOT remount: they narrow the same list.
+            key={`${tableMode ? 'table' : 'list'}|${drill?.label || ''}|${drill?.live ? 'live' : drill?.date || ''}`}
             embedded
             pickList="__scan__"
             scanSymbols={symbols}
@@ -234,25 +316,32 @@ export default function BreadthDrillList({ color, settingsOverride = null, onSet
             activeRef={activeWatchlistRef}
             widgetKey={widgetId}
             scanGroups={scanGroups}
-            // All industries open at once, each independently collapsible —
-            // seeing which dominate the cohort IS the read.
-            groupExpand="multi"
+            // In the Scan Deck: sections, ONE open at a time, the top one first
+            // (owner pick, like Theme Tracker). Elsewhere: all open, each
+            // independently collapsible.
+            groupExpand={drill?.deckHosted ? 'accordion' : 'multi'}
+            openFirstGroup={!!drill?.deckHosted}
+            stableGutter={!!drill?.deckHosted}
+            renderGroupRow={drill?.deckHosted ? renderGroupRow : null}
+            groupAccent={drill?.deckHosted ? groupAccent : null}
             // ⛔ The drill keeps its OWN column layout, and that is the
             // consistent choice rather than a divergence: ScannerResults already
             // gives every scan its own key, for exactly this reason.
             //
             // Sharing the global watchlist key was tried and shipped a DEAD
             // column. A watchlist's `Vol` means RAW volume, which works fine on
-            // /charts and can never be filled from a recorded breadth snapshot
-            // (the payload carries the RATIO). With one shared layout, whichever
+            // /charts; a recorded breadth snapshot stores only the RATIO (the
+            // route now adds the shares from that day's bars). With one shared layout, whichever
             // surface the user did not arrange for keeps a column of em-dashes.
             // Its own key lets the drill lead with RVOL — which it CAN fill —
             // while the user's watchlists keep their arrangement untouched.
-            colStorageKey={DRILL_COLS_KEY}
-            defaultColCfg={DRILL_DEFAULT_COLS}
+            colStorageKey={tableMode ? DRILL_TABLE_COLS_KEY : DRILL_COLS_KEY}
+            defaultColCfg={tableMode ? DRILL_TABLE_DEFAULT_COLS : DRILL_DEFAULT_COLS}
             metaOverride={metaOverride}
             quoteOverride={quoteOverride}
             scanFooter={scanFooter}
+            pickTitleSlot={titleSlot}
+            pickSubHeader={subHeader}
             onScanVisibleSyms={warmVisible}
             // `loading` is "not answered yet"; a genuinely empty answer is the
             // only thing allowed to say nothing matched.

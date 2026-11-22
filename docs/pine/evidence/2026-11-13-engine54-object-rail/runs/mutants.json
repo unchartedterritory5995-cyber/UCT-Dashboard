@@ -1,0 +1,386 @@
+[
+ {
+  "id": "C0",
+  "mutant": "control: no edit",
+  "files": [],
+  "verdict": "GREEN",
+  "restoredBlobEqual": true,
+  "killedBy": []
+ },
+ {
+  "id": "N1",
+  "mutant": "the object rail always agrees",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× a compared drawing that differs (an anchor past the tolerance, a colour, a style) is refused 30ms",
+   "× ⛔ SITE IDS ARE THE PAIRING: the same line made at another call is not the host's line 18ms",
+   "× ⛔ the run WITHHOLDS a drawing the host draws (a warm-up, a collector, anything): refused 16ms",
+   "× ⛔ made on another bar is another drawing 16ms"
+  ]
+ },
+ {
+  "id": "N2a",
+  "mutant": "the door ignores a site the run does not make at the same call",
+  "files": [
+   "app/src/components/chart/builder/memberPane/memberPaneDefinition.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× ⛔ a host site the run does not make at the same call (or of another family) declines the run half 18ms"
+  ]
+ },
+ {
+  "id": "N2b",
+  "mutant": "the rail pairs by family, ignoring the site id",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× ⛔ SITE IDS ARE THE PAIRING: the same line made at another call is not the host's line 31ms",
+   "× a fill is compared by which compared lines it spans 2ms"
+  ]
+ },
+ {
+  "id": "N3",
+  "mutant": "a host object the run withholds (warm-up) is ignored",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× ⛔ SITE IDS ARE THE PAIRING: the same line made at another call is not the host's line 22ms",
+   "× ⛔ the run WITHHOLDS a drawing the host draws (a warm-up, a collector, anything): refused 24ms"
+  ]
+ },
+ {
+  "id": "N4",
+  "mutant": "nothing comparable is served",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× ⭐ ENGINE 54 — nothing the host draws to compare: refused (no comparable object), the sentence said 21ms"
+  ]
+ },
+ {
+  "id": "N5",
+  "mutant": "the bind ignores the program digest",
+  "files": [
+   "app/src/components/chart/engine/nativeRegistry.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× an edited tree, an edited object program, an edited site map, a missing stamp: refused; re-stamped: served 29ms"
+  ]
+ },
+ {
+  "id": "N6",
+  "mutant": "the telemetry beacon carries the source",
+  "files": [
+   "app/src/components/chart/engine/runHalfTelemetry.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× one count per refusal entered (not per paint), one beacon per (script, code), no source 41ms",
+   "× ⛔ a code outside the pattern (a sentence) is never sent 2ms"
+  ]
+ },
+ {
+  "id": "N7",
+  "mutant": "an unregistered rail serves",
+  "files": [
+   "app/src/components/chart/engine/nativeRegistry.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× ⛔ an unregistered rail is a refusal, never a pass 19ms"
+  ]
+ },
+ {
+  "id": "N8",
+  "mutant": "anchors are not compared (any number agrees)",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× a compared drawing that differs (an anchor past the tolerance, a colour, a style) is refused 32ms",
+   "× the host line, none of the run's labels, and the sentence in words 30ms",
+   "× one count per refusal entered (not per paint), one beacon per (script, code), no source 24ms"
+  ]
+ },
+ {
+  "id": "N9",
+  "mutant": "a family the host withholds in part is compared anyway",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× a family the host withholds WHOLE is not comparable; one it withholds in part refuses 6ms"
+  ]
+ },
+ {
+  "id": "N10",
+  "mutant": "the door stamps no program digest",
+  "files": [
+   "app/src/components/chart/builder/memberPane/memberPaneDefinition.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× ⛔ no stamp, or a stamp naming another script: refused; CONTROL: the honest document is served 23ms",
+   "× X5: the script's own runtime.error, reached on these bars, refuses the run half before the run is asked 40ms",
+   "× X7: na against a number is a disagreement, in either direction 24ms",
+   "× ⭐ ENGINE 54 — nothing the host draws to compare: refused (no comparable object), the sentence said 10ms"
+  ]
+ },
+ {
+  "id": "N11",
+  "mutant": "telemetry counts every paint",
+  "files": [
+   "app/src/components/chart/engine/runHalfTelemetry.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× one count per refusal entered (not per paint), one beacon per (script, code), no source 20ms"
+  ]
+ },
+ {
+  "id": "N12",
+  "mutant": "one capture of evidence admits",
+  "files": [
+   "app/src/components/chart/engine/runHalfRailSeam.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× refused with no evidence, with one capture, with a non-MATCH; admitted with two MATCH captures 25ms"
+  ]
+ },
+ {
+  "id": "N13",
+  "mutant": "a fill's lines are not compared",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× a fill is compared by which compared lines it spans 5ms"
+  ]
+ },
+ {
+  "id": "N14",
+  "mutant": "the created bar is not compared",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× ⛔ made on another bar is another drawing 25ms"
+  ]
+ },
+ {
+  "id": "N15",
+  "mutant": "the run stamps no site on its objects",
+  "files": [
+   "app/src/components/chart/engine/runtime/objectStore.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× ⛔ no stamp, or a stamp naming another script: refused; CONTROL: the honest document is served 71ms",
+   "× X7: na against a number is a disagreement, in either direction 33ms",
+   "× served: the run's labels ride beside the host columns, which are untouched 49ms",
+   "× ⛔ a revoked latch: refused on the next run, and the memo key moves with it 19ms"
+  ]
+ },
+ {
+  "id": "N16a",
+  "mutant": "the client schema accepts any source call",
+  "files": [
+   "app/src/components/chart/engine/defSchema.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× engine 54: a source call that is not line:column → compute.runtimeObjects.sites.s1 5ms",
+   "× engine 54: a source call that is a number → compute.runtimeObjects.sites.s1 1ms",
+   "× engine 54: a source call with a trailing newline → compute.runtimeObjects.sites.s1 1ms"
+  ],
+  "note": "re-run on c2c888e12a, after the parity file field-list fix (its control, the unedited file, green)"
+ },
+ {
+  "id": "N16b",
+  "mutant": "the server schema accepts any source call",
+  "files": [
+   "api/services/presentation_schema.py"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "FAILED tests/test_runtime_objects_schema_parity.py::test_the_rule_set[engine 54: a source call that is not line:column]",
+   "FAILED tests/test_runtime_objects_schema_parity.py::test_the_rule_set[engine 54: a source call that is a number]",
+   "FAILED tests/test_runtime_objects_schema_parity.py::test_the_rule_set[engine 54: a source call with a trailing newline]"
+  ]
+ },
+ {
+  "id": "N17",
+  "mutant": "the server telemetry accepts a free-text code",
+  "files": [
+   "api/routers/pine_runtime_telemetry.py"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "FAILED tests/test_run_half_refusal_telemetry.py::test_anything_free_form_is_refused[bad1]",
+   "FAILED tests/test_run_half_refusal_telemetry.py::test_anything_free_form_is_refused[bad2]",
+   "FAILED tests/test_run_half_refusal_telemetry.py::test_anything_free_form_is_refused[bad3]",
+   "FAILED tests/test_run_half_refusal_telemetry.py::test_anything_free_form_is_refused[bad4]"
+  ]
+ },
+ {
+  "id": "N18",
+  "mutant": "a run object from an uncompared site is served (the review gap)",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× auto-trendlines shape, pure: labels compared and equal, plus lines from a lost call: refused 6ms",
+   "× at the bind: the line compared and equal, the loop labels from a lost call: refused; evidence admits 28ms"
+  ],
+  "note": "review round, on 7dc188f159"
+ },
+ {
+  "id": "N19",
+  "mutant": "the evidence hook always admits an uncompared site",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× auto-trendlines shape, pure: labels compared and equal, plus lines from a lost call: refused 6ms",
+   "× at the bind: the line compared and equal, the loop labels from a lost call: refused; evidence admits 27ms"
+  ],
+  "note": "review round, on 7dc188f159"
+ },
+ {
+  "id": "C0-review",
+  "mutant": "control: no edit",
+  "files": [],
+  "verdict": "GREEN",
+  "restoredBlobEqual": true,
+  "killedBy": [],
+  "note": "review round, on 7dc188f159"
+ },
+ {
+  "id": "C0-review2",
+  "mutant": "control: no edit",
+  "files": [],
+  "verdict": "GREEN",
+  "restoredBlobEqual": true,
+  "killedBy": [],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N20",
+  "mutant": "every string compared as a colour (the review-2 blocker)",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× pure: colour-shaped text and tooltips that differ are refused; a colour slot is still a colour 5ms",
+   "× pure: a table cell's text is exact, its colours are colours 1ms",
+   "× at the bind: a run label whose text or tooltip is the colour-shaped spelling of the host's is refused 14ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N21",
+  "mutant": "rows drawn with no theme (theme blind spot)",
+  "files": [
+   "app/src/components/chart/engine/runHalfObjectRail.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× host chart.fg_color against the run's #2962FF (the slot default) is refused; the same reference agrees 5ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N22",
+  "mutant": "G7: an object op is interned without its site",
+  "files": [
+   "app/src/components/chart/engine/runtime/lowerIr.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× G7: label.new on lines 6 and 7, same arguments: two sites in the probe, the door and the run; served 12ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N23",
+  "mutant": "G8: a setter is a no-op in the run",
+  "files": [
+   "app/src/components/chart/engine/runtime/objectStore.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× G8: the host and the run agree at the label's FINAL text and y; a run at its create-time props is refused 26ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N24",
+  "mutant": "the server site key reads Unicode digits",
+  "files": [
+   "api/services/presentation_schema.py"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "FAILED tests/test_runtime_objects_schema_parity.py::test_the_rule_set[engine 54: a source call in non-ASCII digits]"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ },
+ {
+  "id": "N25",
+  "mutant": "an unstamped run half is said as changed",
+  "files": [
+   "app/src/components/chart/engine/nativeRegistry.js"
+  ],
+  "verdict": "KILLED",
+  "restoredBlobEqual": true,
+  "killedBy": [
+   "× an edited tree, an edited object program, an edited site map, a missing stamp: refused; re-stamped: served 40ms"
+  ],
+  "note": "review 2, on 1ffb5add59"
+ }
+]

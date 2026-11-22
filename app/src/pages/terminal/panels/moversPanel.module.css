@@ -234,3 +234,55 @@
   font-weight: 700;
   text-decoration: underline;
 }
+
+/* FOLD FIT (2026-11-18): at 390px this table was 165px wider than the screen and scrolled sideways.
+   Where the table folds (a phone screen, a panel at most 460px wide, or a panel no wider than the
+   step on the table's own `data-fold`: the fold ladder, see marketPanels.module.css and
+   ../panelFit.js) the share count steps aside (Vol x avg stays), the Why label may take two lines,
+   and the cells sit closer. A wider panel is unchanged. `:where()` adds no specificity, so each
+   rule sorts exactly as it did inside the old phone query. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .phoneHide {
+  display: none;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td {
+  padding-inline: var(--space-xs);
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td.whyCell,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th.whyCell {
+  white-space: normal;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td.whyCell .whyBtn {
+  text-align: left;
+  white-space: normal;
+}
+
+/* The "gapper · volume" tag drops under the symbol, on its own line, so the name column is no
+   wider than the tag itself. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .asideTag {
+  display: block;
+  padding-left: 0;
+}
+
+/* SMALL PHONES (2026-11-20): at 360px the table was still 28px wider than the screen, 48px at 340px.
+   Two things gave the room back without taking a column away: the words "by size" sit under
+   "% Chg" (the header was the widest thing in its column, 30px wider than any figure), and the tag
+   above starts at the row's left edge instead of under the symbol (22px). */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .bySize {
+  display: block;
+}
+
+/* The first and the last cell also give up their outer padding where the table folds: the panel
+   body already has its own, so that 8px was empty room at the two edges of the table. */
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th:first-child,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td:first-child {
+  padding-left: 0;
+}
+
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table th:last-child,
+:where([data-fit~='narrow'], [data-fit~='fold590'] [data-fold='590'], [data-fit~='fold570'] [data-fold='570'], [data-fit~='fold550'] [data-fold='550'], [data-fit~='fold530'] [data-fold='530'], [data-fit~='fold510'] [data-fold='510'], [data-fit~='fold480'] [data-fold='480']) .table td:last-child {
+  padding-right: 0;
+}

@@ -93,6 +93,9 @@
   // ── reading helpers ────────────────────────────────────────────────────────
   const num = (x) => (typeof x === 'number' && Number.isFinite(x) ? x : null)
   const tryOr = (fn, dflt) => { try { const v = fn(); return v === undefined ? dflt : v } catch (e) { return dflt } }
+  // A model array / object as a plain JSON copy (no functions, no cycles), or null when the model holds none.
+  const arrOrNull = (x) => (Array.isArray(x) ? tryOr(() => JSON.parse(JSON.stringify(x)), null) : null)
+  const objOrNull = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? tryOr(() => JSON.parse(JSON.stringify(x)), null) : null)
 
   /** A TradingView property node → a plain object. `properties().state()` throws
    *  on some studies ("(e ?? []) is not iterable"), hence the walker
@@ -187,7 +190,7 @@
    *  `graphics().dwglines()` etc. are Map(name → Map(flag → collection)) whose
    *  collections carry `_primitivesDataById` (object-semantics capture,
    *  2026-09-08). Walked defensively: an unreadable family is reported, not zero. */
-  function readGraphics(ds) {
+  function readGraphics(ds, series) {
     const g = tryOr(() => (typeof ds.graphics === 'function' ? ds.graphics() : null), null)
     if (!g) return null
     const families = { lines: 'dwglines', labels: 'dwglabels', boxes: 'dwgboxes', tables: 'dwgtables', tableCells: 'dwgtablecells', linefills: 'dwglinefills' }
@@ -210,7 +213,93 @@
     }
     out.texts.labels = (out.records.labels || []).map((r) => (r && r.t !== undefined ? String(r.t) : ''))
     out.texts.tableCells = (out.records.tableCells || []).map((r) => (r && r.t !== undefined ? String(r.t) : ''))
+    out.xIndex = readXIndex(ds, g, series)
     return out
+  }
+
+  // ── U13: THE x TABLE, so an object's x can be graded ──────────────────────
+  //
+  // ⭐ A line's `x1` / `x2`, a label's `x`, a box's `x1` / `x2` in
+  // `_primitivesDataById` are NOT bar indices and NOT times: each is a POSITION
+  // in the study's own `_indexes` array, whose entries are MODEL bar indices
+  // (the index space of `mainSeries().bars()`). Measured 2026-09-08
+  // (tests/fixtures/vendor/visual/object-semantics-spy-1d-2026-09-08.json):
+  // `_indexes = [259, 264, …, 299]`, the anchor line's x1 = 4, x2 = 10 resolve to
+  // model bars 279 and 299, the 20-bar span `bar_index - 20 .. bar_index` asks for.
+  // No capture before U13 recorded that table, so no x could be graded.
+  //
+  // Recorded here: the table verbatim, the bar time at each entry, and the model
+  // indices of the loaded bars (so a reader maps an entry to the capture's own
+  // `bars.rows` without guessing).
+  // ⛔ READ-ONLY: own data properties are read through their descriptors — no
+  // getter runs and nothing is called. The probe named the table "the study's own
+  // `_indexes`" without the object it hangs off, so the graphics object and the
+  // data source are searched (and any own `*graphics*` object below them, two
+  // levels deep). NOT FOUND IS SAID, with the own keys that were looked at, never
+  // an empty table; TWO DIFFERENT tables is `ambiguous`, never a pick.
+  const X_INDEX_KEYS = ['_indexes', 'indexes']
+  const ownValue = (o, k) => {
+    const d = tryOr(() => Object.getOwnPropertyDescriptor(o, k), null)
+    return d && 'value' in d ? d.value : undefined
+  }
+  function intList(v) {
+    if (!v || typeof v !== 'object') return null
+    const arr = Array.isArray(v) ? v : (ArrayBuffer.isView(v) && !(v instanceof DataView) ? Array.from(v) : null)
+    if (!arr) return null
+    return arr.every((x) => Number.isInteger(x)) ? arr.slice() : null
+  }
+  function readXIndex(ds, g, series) {
+    const hits = []
+    const looked = []
+    const seen = new Set()
+    const visit = (node, at, depth) => {
+      if (!node || typeof node !== 'object' || seen.has(node) || depth > 2) return
+      seen.add(node)
+      const keys = tryOr(() => Object.getOwnPropertyNames(node), [])
+      for (const k of keys) {
+        const v = ownValue(node, k)
+        if (X_INDEX_KEYS.includes(k)) {
+          const list = intList(v)
+          if (list) hits.push({ path: `${at}.${k}`, indexes: list })
+          else looked.push(`${at}.${k}: ${v === null ? 'null' : Array.isArray(v) ? 'array (not all integers)' : typeof v}`)
+        } else if (v && typeof v === 'object' && /graphic/i.test(k)) visit(v, `${at}.${k}`, depth + 1)
+      }
+    }
+    visit(g, 'graphics()', 0)
+    visit(ds, 'dataSource', 0)
+    // ⭐ CONFIRMED AT `graphics()._indexes` (capture session S10, 2026-11-15: read as
+    // `g._indexes` into xmap sidecars, verified 96/96 RDDT and 503/503 SPY against printed
+    // `bar_index` labels). If it is not an own data property on this build (an accessor), read
+    // THAT ONE NAMED property as the capture agent did — never a call, never another name.
+    if (!hits.length) {
+      const list = intList(tryOr(() => g._indexes, undefined))
+      if (list) hits.push({ path: 'graphics()._indexes (accessor)', indexes: list })
+    }
+    // the model index of every loaded bar (the SENTINEL padding is not a bar)
+    const timeAt = new Map()
+    const b = tryOr(() => series.bars(), null)
+    const put = (i, v) => { if (i > SENTINEL && v && num(v[0]) !== null) timeAt.set(i, num(v[0])) }
+    if (b && typeof b.each === 'function') tryOr(() => b.each((i, v) => { put(i, v); return false }), null)
+    else if (b && Array.isArray(b._items)) b._items.forEach((r) => put(r.index, r.value))
+    const idx = [...timeAt.keys()].sort((x, y) => x - y)
+    const modelBars = idx.length
+      ? { first: idx[0], last: idx[idx.length - 1], count: idx.length, contiguous: idx[idx.length - 1] - idx[0] + 1 === idx.length }
+      : null
+    const base = { schema: 'uct.object-x-index/v1', unit: 'an object x is a position in `indexes`; each entry is a model bar index (mainSeries().bars()); `times` is that bar\'s time (unix-s), null off the loaded bars', modelBars }
+    if (!hits.length) {
+      const ownKeys = tryOr(() => Object.getOwnPropertyNames(g), []).slice(0, 80)
+      return { ...base, found: false, reason: 'no own `_indexes` / `indexes` integer array on graphics() or the data source', looked, graphicsOwnKeys: ownKeys }
+    }
+    // one entry per distinct table, the FIRST (shallowest) path found for it
+    const byTable = new Map()
+    for (const h of hits) if (!byTable.has(JSON.stringify(h.indexes))) byTable.set(JSON.stringify(h.indexes), h)
+    const distinct = [...byTable.values()]
+    if (distinct.length > 1) {
+      return { ...base, found: false, ambiguous: true, reason: `${distinct.length} different x tables`, candidates: distinct.map((h) => ({ path: h.path, indexes: h.indexes })) }
+    }
+    const t = distinct[0]
+    return { ...base, found: true, path: t.path, alsoAt: hits.filter((h) => h.path !== t.path).map((h) => h.path),
+      indexes: t.indexes, times: t.indexes.map((i) => (timeAt.has(i) ? timeAt.get(i) : null)) }
   }
 
   // ── is the newest bar still forming? ──────────────────────────────────────
@@ -348,8 +437,149 @@
   }
 
   const declaredTitle = (src) => {
-    const m = /\bindicator\s*\(\s*(?:title\s*=\s*)?"([^"]*)"/.exec(String(src || ''))
+    const m = /\b(?:indicator|strategy)\s*\(\s*(?:title\s*=\s*)?"([^"]*)"/.exec(String(src || ''))
     return m ? m[1] : null
+  }
+
+  // ── W9-T3a: strategies ─────────────────────────────────────────────────────
+  // ⛔ READ-ONLY, like everything here. No `exportData()`, no pixels, no CSV.
+  // ⛔ Where the strategy REPORT lives in the chart model is W9-C0, which only the owner can
+  // take: `_strategyKeys()` is that spike (names and types, depth 2, never a value, never a call).
+  // `strategyReport({reportPath})` reads only the path the owner names after that walk; with no
+  // path it REFUSES by name. Which key means which tester figure is Node's `strategy_report_slots.json`.
+  const STRATEGY_ID_RX = /^StrategyScript\$/
+  const isStrategyDs = (ds) => {
+    const mi = tryOr(() => ds.metaInfo(), {}) || {}
+    return [mi.id, mi.fullId].some((x) => typeof x === 'string' && STRATEGY_ID_RX.test(x))
+  }
+  const typeOf = (v) => (v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v)
+
+  function strategyDs() {
+    const { mm } = model()
+    const c = census(mm)
+    const hits = c.indicators.filter((r) => isStrategyDs(r.ds))
+    if (hits.length !== 1) throw new Error(`strategy-keys: ${hits.length} strategies on the chart — need exactly one`)
+    return hits[0].ds
+  }
+
+  /** W9-C0: the depth-2 key walk of the strategy data source. Names and types only. It never
+   *  calls a function and never reads a value, so it cannot change anything or leak a number. */
+  function strategyKeys() {
+    const ds = strategyDs()
+    const names = (o) => {
+      const out = new Set()
+      for (let p = o, d = 0; p && p !== Object.prototype && d < 4; p = Object.getPrototypeOf(p), d += 1) {
+        for (const k of Object.getOwnPropertyNames(p)) if (k !== 'constructor') out.add(k)
+      }
+      return Array.from(out).sort()
+    }
+    // ⛔ DESCRIPTORS ONLY: walk the prototype chain to the object that owns `k` and read ITS descriptor.
+    // `o[k]` or `proto[k]` would run an inherited getter (with the chart model as receiver); a getter is
+    // reported as 'accessor' and is never invoked.
+    const describe = (o, k) => tryOr(() => {
+      for (let p = o, d = 0; p && p !== Object.prototype && d < 6; p = Object.getPrototypeOf(p), d += 1) {
+        const ds = Object.getOwnPropertyDescriptor(p, k)
+        if (!ds) continue
+        if ('value' in ds) return typeOf(ds.value)
+        return 'accessor'
+      }
+      return 'inherited'
+    }, 'unreadable')
+    const level1 = names(ds).map((k) => ({ name: k, type: describe(ds, k) }))
+    const level2 = {}
+    for (const k of names(ds)) {
+      const d = tryOr(() => Object.getOwnPropertyDescriptor(ds, k), null)
+      const v = d && 'value' in d ? d.value : undefined
+      if (v && typeof v === 'object') level2[k] = names(v).map((n) => ({ name: n, type: describe(v, n) }))
+    }
+    return { walk: 'strategy data source, depth 2, names and types only, no calls', level1, level2 }
+  }
+
+  const REPORT_DENY = /^(set|add|remove|delete|clear|reset|apply|dispose|destroy|update|create|save|request|fetch|send|run|start|stop|toggle|show|hide|open|close|export|import|post|put)/i
+  const STEP_OK = /^[A-Za-z_$][\w$]*$/
+
+  /** Deep-serialise to JSON-safe data with hard limits. A truncation is REPORTED, never silent. */
+  function jsonSafe(root, lim) {
+    const seen = new Set()
+    const notes = []
+    let nodes = 0
+    const walk = (x, depth, path) => {
+      nodes += 1
+      if (nodes > lim.nodes) { notes.push(`node limit ${lim.nodes} hit at ${path}`); return null }
+      if (x === null || x === undefined) return null
+      const t = typeof x
+      if (t === 'number') return Number.isFinite(x) ? x : { $nonfinite: String(x) }
+      if (t === 'string' || t === 'boolean') return x
+      if (t === 'function' || t === 'symbol') { notes.push(`skipped ${t} at ${path}`); return null }
+      if (t === 'bigint') return { $bigint: String(x) }
+      if (seen.has(x)) { notes.push(`cycle at ${path}`); return { $cycle: path } }
+      if (depth > lim.depth) { notes.push(`depth limit ${lim.depth} hit at ${path}`); return null }
+      seen.add(x)
+      let out
+      if (x instanceof Date) out = { $date: tryOr(() => x.toISOString(), null) }
+      else if (x instanceof Map) out = { $map: Array.from(x.entries(), ([k, v]) => [walk(k, depth + 1, `${path}<key>`), walk(v, depth + 1, `${path}[${String(k)}]`)]) }
+      else if (x instanceof Set) out = { $set: Array.from(x.values(), (v, i) => walk(v, depth + 1, `${path}{${i}}`)) }
+      else if (Array.isArray(x)) out = x.map((v, i) => walk(v, depth + 1, `${path}[${i}]`))
+      else {
+        out = {}
+        for (const k of Object.keys(x)) out[k] = walk(x[k], depth + 1, `${path}.${k}`)
+      }
+      seen.delete(x)
+      return out
+    }
+    return { tree: walk(root, 0, '$'), notes }
+  }
+
+  /** The tester report, read at the owner-named path. Statuses: ok | partial | refused | not-requested. */
+  function strategyReport(opts) {
+    const o = opts || {}
+    if (!Array.isArray(o.reportPath) || !o.reportPath.length) {
+      return { status: 'refused', reason: 'strategy-report:unpinned: no reportPath (W9-C0 not taken: run __uctVH._strategyKeys() and name the path)' }
+    }
+    for (const s of o.reportPath) {
+      if (typeof s !== 'string' || !STEP_OK.test(s)) return { status: 'refused', reason: `strategy-report:bad-step ${JSON.stringify(s)}` }
+      if (REPORT_DENY.test(s)) return { status: 'refused', reason: `strategy-report:denied-step ${s} (a name that looks like a mutator or an export)` }
+    }
+    let cur
+    try { cur = strategyDs() } catch (e) { return { status: 'refused', reason: String((e && e.message) || e) } }
+    for (const s of o.reportPath) {
+      let parent = cur
+      try {
+        cur = cur[s]
+        if (typeof cur === 'function') cur = cur.call(parent)      // a zero-argument accessor only
+      } catch (e) { return { status: 'refused', reason: `strategy-report:step ${s} threw ${String((e && e.message) || e)}` } }
+      if (cur === undefined || cur === null) return { status: 'refused', reason: `strategy-report:step ${s} is ${cur === null ? 'null' : 'undefined'}` }
+    }
+    const { tree, notes } = jsonSafe(cur, { depth: 10, nodes: 50000 })
+    const truncated = notes.filter((n) => /limit/.test(n))
+    if (truncated.length) return { status: 'partial', reason: truncated.join('; '), path: o.reportPath, notes, tree }
+    return { status: 'ok', path: o.reportPath, notes, tree }
+  }
+
+  /** `provenance.strategySettings`: every Properties input the strategy carries (hidden ones, e.g. the
+   *  encoded script, are left out), plus the raw dividend / back-adjustment reads. Which input means
+   *  what is Node's PROPERTY_TABLE; here nothing is interpreted. */
+  function readStrategySettings(inputs, mm) {
+    const properties = inputs.filter((i) => i && !i.isHidden && i.id !== '__profile')
+      .map((i) => ({ id: i.id, name: i.name, type: i.type, value: i.value, defval: i.defval }))
+    const adjustments = []
+    const rx = /adjust|dividend/i
+    const walkProps = (node, path, depth) => {
+      if (!node || depth > 6) return
+      const names = tryOr(() => (typeof node.childNames === 'function' ? node.childNames() : []), [])
+      for (const n of names) {
+        const c = tryOr(() => node.child(n), null)
+        if (!c) continue
+        const p = `${path}.${n}`
+        if (typeof c.value === 'function' && typeof c.childNames !== 'function') {
+          if (rx.test(p)) adjustments.push({ path: p, value: tryOr(() => c.value(), null) })
+        } else walkProps(c, p, depth + 1)
+      }
+    }
+    tryOr(() => walkProps(mm.mainSeries().properties(), 'mainSeries', 0), null)
+    const si = tryOr(() => mm.mainSeries().symbolInfo(), {}) || {}
+    for (const k of Object.keys(si)) if (rx.test(k)) adjustments.push({ path: `symbolInfo.${k}`, value: si[k] })
+    return { properties, chartData: { adjustments } }
   }
 
   let staged = null
@@ -401,7 +631,7 @@
     // `allowEmptyPlots: true` AND the study holds at least one drawing, so the
     // empty plotValues is recorded as the vendor's answer, by name, in warnings.
     if (!onGrid.length && declaredPlots > 0) {
-      const g0 = o.allowEmptyPlots === true ? readGraphics(ds) : null
+      const g0 = o.allowEmptyPlots === true ? readGraphics(ds, series) : null
       const drawn = g0 ? Object.values(g0.counts || {}).reduce((a, b) => a + (b || 0), 0) : 0
       if (!drawn) throw new Error('the study has no rows on the bar grid — is it still computing? (status ' + JSON.stringify(status) + ')')
       warnings.push(`allowEmptyPlots: the study declares ${declaredPlots} plot(s) and data() holds no rows on the bar grid; it holds ${drawn} drawing(s), which are the whole answer`)
@@ -469,11 +699,29 @@
       warnings.push(`the source declares indicator(${JSON.stringify(srcTitle)}) but the study on the chart is ${JSON.stringify(title)} — is this the right source?`)
     }
 
+    // ⭐ W9-T3a. A strategy capture is written as tool v3 and carries `provenance`; every other
+    // capture keeps v2 and no `provenance` key, so existing captures are byte-identical.
+    const isStrategy = isStrategyDs(ds)
+    let provenance = null
+    if (isStrategy) {
+      const gm = o.gradeMethod
+      if (!['a', 'b', 'none'].includes(gm)) {
+        throw new Error('capture({gradeMethod}) — a strategy capture must say how it is graded: "a" (RDDT from the listing), "b" (a gradeRange window) or "none" (a fact capture)')
+      }
+      provenance = { strategySettings: readStrategySettings(inputs, mm), gradeMethod: gm }
+      if (gm === 'b') {
+        const g = o.gradeRange || {}
+        provenance.gradeRange = { fromTime: g.fromTime, toTime: g.toTime, warmupBars: g.warmupBars }
+        if (g.variantOfSha256) provenance.gradeRange.variantOfSha256 = g.variantOfSha256
+      }
+      provenance.report = Array.isArray(o.reportPath) ? strategyReport({ reportPath: o.reportPath }) : { status: 'not-requested' }
+    }
+
     const body = {
       schema: 'uct.vendor-capture/v1',
       id: o.id || String(srcTitle || title || 'capture').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
       capturedAtUTC: new Date(capturedMs).toISOString(),
-      tool: { snippet: 'tools/vendor_harness/tv_capture.js', version: 2 },
+      tool: { snippet: 'tools/vendor_harness/tv_capture.js', version: isStrategy ? 3 : 2 },
       page: { url: tryOr(() => location.href, null), visibilityState: tryOr(() => document.visibilityState, null), hasFocus: tryOr(() => document.hasFocus(), null) },
       symbol: {
         name: si.name || null, full_name: si.full_name || null, pro_name: si.pro_name || null,
@@ -503,6 +751,24 @@
         styleState: (state && state.styles) || null,
         palettes,
         paletteState: (state && state.palettes) || null,
+        // ⭐ HLINES AND FILLS (objects agent, 2026-11-19, the output-contract unit): an `hline` is a metaInfo BAND and
+        // a `fill` a metaInfo FILLED AREA, neither a plot, so `plots` / `styles` / `styleState` never carried them and
+        // an hline's style, colour and level or a fill's colour could not be graded. Recorded the way plots are: what
+        // the script declares (`metaInfo().bands` / `.filledAreas`), its declared defaults (`metaInfo().defaults.bands`
+        // / `.filledAreasStyle`) and the chart's live values (`properties().state().bands` / `.filledAreasStyle`).
+        // ⛔ null = the model held no such key on this study (a script with no hline / fill), never "unread".
+        bands: arrOrNull(mi.bands),
+        bandDefaults: arrOrNull(mi.defaults && mi.defaults.bands),
+        bandState: arrOrNull(state && state.bands),
+        filledAreas: arrOrNull(mi.filledAreas),
+        filledAreaDefaults: objOrNull(mi.defaults && mi.defaults.filledAreasStyle),
+        filledAreaState: objOrNull(state && state.filledAreasStyle),
+        // ⭐ CANDLES (objects agent, W4-P1): a `plotcandle` / `plotbar` is a metaInfo OHLC PLOT (keyed by its id), its
+        // body, wick and border colours and drawWick / drawBorder in `defaults.ohlcPlots`, the chart's live values in
+        // the state's `ohlcPlots`. Same three layers, same null rule; the keys are unwitnessed until the first capture.
+        ohlcPlots: objOrNull(mi.ohlcPlots),
+        ohlcPlotDefaults: objOrNull(mi.defaults && mi.defaults.ohlcPlots),
+        ohlcPlotState: objOrNull(state && state.ohlcPlots),
         inputs,
       },
       window: {
@@ -512,7 +778,8 @@
       },
       bars: { fields: ['time', 'open', 'high', 'low', 'close', 'volume'], timeUnit: 'unix-s', count: bars.length, rows: bars },
       plotValues: { fields: ['time', ...plots.map((p) => p.id)], rows: valueRows },
-      objects: readGraphics(ds),
+      objects: readGraphics(ds, series),
+      ...(provenance ? { provenance } : {}),
       warnings,
     }
     const text0 = JSON.stringify(body)
@@ -530,6 +797,13 @@
       studyRows: rows.length,
       plots: plots.map((p) => `${p.id}:${p.type}:${p.title}`),
       objects: body.objects ? body.objects.counts : null,
+      // ⭐ U13 — read this on the FIRST capture of a session: `found: false` means the
+      // drawings' x cannot be graded (capture-procedure.md, "THE OBJECT x TABLE")
+      objectsX: body.objects && body.objects.xIndex
+        ? { found: body.objects.xIndex.found, path: body.objects.xIndex.path || null,
+          entries: Array.isArray(body.objects.xIndex.indexes) ? body.objects.xIndex.indexes.length : null,
+          reason: body.objects.xIndex.reason || null }
+        : null,
       newestBarIsForming: forming,
       newestBarIsFormingSource: formingSource,
       census: c.control,
@@ -555,6 +829,6 @@
     return { globalsLeft: window.__uctVH === undefined ? [] : ['__uctVH'] }
   }
 
-  window.__uctVH = { studies, capture, chunk, cleanup, _fnv1a: fnv1a, _sha256Hex: sha256Hex, _newestBarState: newestBarState }
+  window.__uctVH = { studies, capture, chunk, cleanup, _strategyKeys: strategyKeys, strategyReport, _fnv1a: fnv1a, _sha256Hex: sha256Hex, _newestBarState: newestBarState }
   return 'uct vendor harness ready: __uctVH.studies(), .capture({study, source, …}), .chunk(i), .cleanup()'
 })()

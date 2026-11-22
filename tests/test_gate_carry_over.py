@@ -196,7 +196,7 @@ def test_a_C0_MISS_falls_through_to_C1_C3_and_is_NOT_a_failure():
 # ⚰️ THE FALSE REASSURANCE THIS EXISTS FOR. On 2026-09-16 a landing carrying ONLY Python
 # got `C0 IDENTICAL — short-circuit` while master's merge had brought 32 files into
 # `tests/`, including `tests/conftest.py`. `GATE_READ_PATHS` describes what the VITEST
-# gate reads; it contains no Python path at all. The conftest change happened to be
+# gate reads; it contained no Python path then (it now names only the Python sources vitest reads). The conftest change happened to be
 # inert — the tool did not know that and could not have.
 # ══════════════════════════════════════════════════════════════════════════════════════
 

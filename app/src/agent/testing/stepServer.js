@@ -38,9 +38,16 @@ export function installStepServer(harness, script, { planner = 'v2', board = nul
       srv.stream.close()
       return
     }
-    srv.steps += 1
-    srv.stream.emit({ t: 'step', turnId: srv.turnId, id: `s${srv.steps}`, round: srv.steps, action: item.action, target: item.target,
-      args: item.args || {}, mode: item.mode || 'apply' })
+    // V2-G2: `{ group: [step, …] }` — ONE plan group (turn_v2._send_group): every step emitted back to back with
+    // `group: {id, index, size}`; the server reads all their results before it goes on (or pauses on a card)
+    const items = item.group ? item.group.map(x => (typeof x === 'function' ? x(ctx()) : x)) : [item]
+    const gid = items.length > 1 ? `g${srv.steps + 1}` : null
+    srv.waiting = { left: items.length, proposed: false }
+    items.forEach((it, i) => {
+      srv.steps += 1
+      srv.stream.emit({ t: 'step', turnId: srv.turnId, id: `s${srv.steps}`, round: srv.steps, action: it.action, target: it.target,
+        args: it.args || {}, mode: it.mode || 'apply', ...(gid ? { group: { id: gid, index: i, size: items.length } } : {}) })
+    })
   }
 
   globalThis.fetch = async (url, init = {}) => {
@@ -56,7 +63,11 @@ export function installStepServer(harness, script, { planner = 'v2', board = nul
     }
     if (u === '/api/agent/turn/step') {
       srv.results.push(body)
-      if (body.status === 'proposed') {
+      const w = srv.waiting || { left: 1, proposed: false }
+      w.left -= 1
+      w.proposed = w.proposed || body.status === 'proposed'
+      if (w.left > 0) return json({ ok: true })              // more results of this plan group to come
+      if (w.proposed) {
         srv.stream.emit({ t: 'paused', turnId: srv.turnId, id: body.id })
         srv.stream.emit({ t: 'final', conversationId: 'ac_1', turnId: null, usage: {},
           envelope: { disposition: 'answer', reply: '', question: null, ops: [], unsupported_category: null, planner: 'v2', paused: true } })

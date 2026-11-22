@@ -1,16 +1,20 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createGroupTfRegistry } from './groupTfRegistry'
 import { dropAverages } from '../../components/chart/maAdoption'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
-import usePreferences, { parsePref, refreshPreferences } from '../../hooks/usePreferences'
-import { beginPrefsOp, onPrefsUserChange } from '../../lib/prefsSession'
+import usePreferences, { parsePref, refreshPreferences, mergeIntoPreferenceCache } from '../../hooks/usePreferences'
+import { beginPrefsOp, onPrefsUserChange, prefsUser } from '../../lib/prefsSession'
 import { onWorkspaceConflict, hasWorkspaceConflict } from '../../lib/workspaceConflict'
+import { markDeskHidden } from './deskKeyGate'
 import { whenWritesSettle } from '../../hooks/usePreferences'
 import useMediaQuery from '../../hooks/useMediaQuery'
 import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
+import useIndicatorDoors from '../../components/indicatorKit/useIndicatorDoors'
 import { WorkspaceContext } from './WorkspaceContext'
+import { GROUP_SAVE_MS, GROUP_SCAN_GAP_MS, GROUP_SCAN_SAVE_MS } from './groupSymSavePace'
 // UCT Agent (admin-dark): lazy, so nothing of the Agent reaches the board's chunk
 // for anyone who never opens it. The host only READS the chart registry below.
 import useSWR, { useSWRConfig } from 'swr'
@@ -19,6 +23,7 @@ import AgentDock from '../../agent/AgentDock'
 import { buildWorkspaceHost } from '../../agent/host'
 import { useInRouterContext } from 'react-router-dom'
 import AgentNavBridge from '../../agent/AgentNavBridge'
+import { useAgentPageHost } from '../../agent/agentApp'
 import { setIndicatorAgentRoute, resolveAgentChart } from '../../agent/indicatorEntry'
 const loadAgentPanel = () => import('../../agent/AgentPanel')
 const AgentPanel = lazy(loadAgentPanel)
@@ -27,7 +32,8 @@ const AgentPanel = lazy(loadAgentPanel)
 // created once per mount, so mounting it cannot re-render anything (H14 / PERF-4).
 import { ContextChannelsProvider } from '../../lib/context/contextChannels'
 import LayoutDock from './LayoutDock'
-import { UCT_DEFAULT_ID, arrangementSig, layoutAutoSaves } from './layoutDockPins'
+import WorkspaceShotButton from './WorkspaceShotButton'
+import { UCT_DEFAULT_ID, UCT_DEFAULT_OFFERED, arrangementSig, layoutAutoSaves } from './layoutDockPins'
 import { observeActive, recentLayouts } from './layoutTrail'
 import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
@@ -35,6 +41,7 @@ import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsF
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
 import { BASIC_WIDGET_DEFAULTS, mergeBasicWidgetSettings, basicDefaultsForTheme } from './widgets/basicWidgetSettings'
 import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
+import { applyAppearanceToOtherCharts, countOtherCharts } from './chartAppearanceAll'
 import { patchOptsWithTheme, themeAllChartWidgets, patchWidgetOptsWithTheme, mapThemeToWidgetSettings, WIDGET_GLOBAL_PREF_KEYS, CHART_THEME_BY_ID, appThemeToChartTheme, appThemeSurface, themeWithAppSurface, tagAppTheme, resolveGlobalPrefSettings } from '../../components/chart/chartThemes'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome, chartTypeCanvasEntry } from './widgetChrome'
@@ -50,26 +57,35 @@ import GhostPreview from './placement/GhostPreview'
 import MultiChartGrid from './grid/MultiChartGrid'
 import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
+import useGridAgentControl from './grid/useGridAgentControl'
 import { deviceClassOf } from './presentation/devicePresentation'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
+import CreateIndicatorTopBarButton from './CreateIndicatorTopBarButton'
+import { chartForCreateIndicator, openCreateIndicatorOn } from './createIndicatorEntry'
 import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import useDoorParam from '../../hooks/useDoorParam'
 import PoppedLayout from './popout/PoppedLayout'
+import { saveRecord, listOrphans, confirmRestored, holdOwnerLock, boardWindowName, widgetWindowName, planDeskRepop } from './popout/deskStore'
+import { hasDesktopFeature, reportDesktopEvent } from '../../lib/desktopBridge'
+import { announceDeskLaunchBlocked, finishDeskLaunch } from '../../lib/popoutRegistry'
 import PeriodSortPanel from './PeriodSortPanel'
 import FloatingWidgetPanel from './FloatingWidgetPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
+import { COMPARE_OPEN_EVENT, compareChartApi } from './compareGroups'
+import { compareAgentSource } from './compareAgent'
 import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
 import VersionHistoryPanel, { VersionHistoryMenuItem, useVersionHistoryAvailable, keyLabel } from './VersionHistory'
 import vhStyles from './VersionHistory.module.css'
 import { recordBoardWrites, replayBoardWrites, applyColumnsSteps, boardDocumentPatch, commitBoardDocument, planColumnsFold } from './boardDocument'
 import { isWorkspaceDocArmed } from '../../lib/workspaceDoc'
-import { addWidgetTab } from './widgetTabs'
+import { addWidgetTab, resolveActiveTab } from './widgetTabs'
 import { createEmptyNamedLayout } from './dockCreate'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import { WIDGET_REGISTRY, WORKSPACE_PICKER_TYPES, labelMap, menuGroups, catalogMeta } from '../../widgets/registry'
+import { GRID_COLS, repackAroundMoved } from './repackAroundMoved'
 import useTracingsSync from '../../components/chart/useTracingsSync'
 import styles from './ChartsWorkspace.module.css'
 import { boardWidgetCount, boardCanGrow, boardMayBecome, boardRefusalSentence, boardLayoutRefusalSentence, boardOverBoundSentence } from './boardBound'
@@ -78,6 +94,10 @@ import Input from '../../components/ui/Input'
 import { isSuspendedGroup } from './colorGroups'
 import useExtraGroupsEnabled from './useExtraGroupsEnabled'
 import { planLayoutUndo, layoutUndoDecision } from './layoutUndo'
+import { createGroupSymsStore } from './groupSymsStore'
+import { beginGroupSwitch, chartGroupKey } from '../../hooks/handoffGroups'
+// Owner 11-16: the "Switched to “X” · Undo" banner on a member's layout switch is OFF.
+const LAYOUT_SWITCH_BANNER = false
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
 
@@ -86,7 +106,7 @@ const ResponsiveGridLayout = WidthProvider(Responsive)
 // old-column steps — e.g. the Theme widget now has a width between the old "1 col
 // (too thin)" and "2 cols". Every breakpoint is doubled in lockstep so relative
 // sizing is unchanged; legacy 12-col saved layouts are migrated in parseLayout().
-const GRID_COLS = 24
+// (the number itself lives beside the drop rule: ./repackAroundMoved.js)
 // EVERY breakpoint uses the SAME column count on purpose — do not re-introduce a
 // narrowing ladder (md:20, sm:12, …). We persist ONE arrangement (layout.widgets),
 // so a breakpoint whose col count differs made RGL re-map x/w to fit the narrower
@@ -100,6 +120,7 @@ const GRID_COLS = 24
 const COLS = { lg: GRID_COLS, md: GRID_COLS, sm: GRID_COLS, xs: GRID_COLS, xxs: GRID_COLS }
 const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
 const FIXED_ROWS = _FIXED_ROWS   // viewport-locked row count (see ./rowHeight.js)
+const BOARD_NO_ROOM = 'There is no room left on this board for that widget. Close or shrink one first.'
 // A12 CP2 (2026-09-25): the watchKey forms a Watchlist widget accepts (registry.js
 // paramsSchema: 'flagged' | user:<id> | community:<id> | tag:<color>). The ?openWatchlist=
 // door validates against this before touching the board; anything else degrades to a no-op.
@@ -114,6 +135,14 @@ const WATCH_KEY_RE = /^(flagged|user:[A-Za-z0-9_-]+|community:[A-Za-z0-9_-]+|tag
 // question, GATE-S1-CP3 §6), so this starts at the Multi-Chart Grid's own proven
 // default and is tunable in one place without a schema change.
 export const PANEL_MOUNT_CAP = 3
+// A chart panel holds its slot until it reports bars (the 5 s default is its dead-symbol safety);
+// any other panel has no ready signal, so it frees its slot after this short pause instead of
+// that 5 s timer -- the cap still paces them, at this rate, rather than blanking them for 5 s.
+const NON_CHART_SLOT_MS = 300
+// Every panel type joins the board at most this often, whatever released its slot: a chart reports
+// ready when IndexedDB answers, with its fetches still pending, so readiness alone would let a
+// warm board mount all at once.
+const PANEL_ADMIT_INTERVAL_MS = 300
 // Smart adaptive placement (docs/superpowers/plans/2026-08-23-smart-adaptive-
 // widget-placement.md). When true, a newly ADDED widget is positioned/sized by
 // planPlacement (region + type affinity, fill-empty-then-resize) instead of the
@@ -156,6 +185,11 @@ const DEFAULT_LAYOUT = {
 
 // The classic watchlist + chart + themes arrangement, offered as a one-click
 // "Starter layout" on the get-started panel.
+// Owner 11-14: the widget Float button (⧉, float a widget on top of another) is switched
+// off for now. The feature itself stays (handleFloatWidget, FloatingWidget, the header's
+// button): flip this back to true to offer it again.
+const FLOAT_BUTTON_ON = false
+
 const STARTER_LAYOUT = {
   widgets: [
     { id: 'w-watchlist', type: 'watchlist', color: 'A', x: 0, y: 0, w: 4,  h: 7,  opts: {} },
@@ -178,10 +212,10 @@ const STARTER_LAYOUT = {
 const UCT_DEFAULT_LAYOUT = {
   widgets: [
     { id: 'uctd-themes',       type: 'themes',       color: 'A', x: 0,  y: 0,  w: 3,  h: 20, opts: {} },
-    { id: 'uctd-chart',        type: 'chart',        color: 'A', x: 3,  y: 0,  w: 17, h: 17, opts: {} },
-    { id: 'uctd-fundamentals', type: 'fundamentals', color: 'A', x: 3,  y: 17, w: 17, h: 3,  opts: {} },
-    { id: 'uctd-watchlist',    type: 'watchlist',    color: 'A', x: 20, y: 0,  w: 4,  h: 11, opts: {} },
-    { id: 'uctd-aisearch',     type: 'aisearch',     color: 'A', x: 20, y: 11, w: 4,  h: 9,  opts: {} },
+    // Owner 2026-11-13: Fundamentals + AI Search are hidden widgets (registry HIDDEN_WIDGETS),
+    // so the default drops them — the chart takes the full height, the watchlist the full column.
+    { id: 'uctd-chart',        type: 'chart',        color: 'A', x: 3,  y: 0,  w: 17, h: 20, opts: {} },
+    { id: 'uctd-watchlist',    type: 'watchlist',    color: 'A', x: 20, y: 0,  w: 4,  h: 20, opts: {} },
   ],
   cols: GRID_COLS,
 }
@@ -329,6 +363,14 @@ const WIDGET_DEFAULTS = Object.fromEntries(
 // A blocked window.open returns null with no error, so this is the only way the
 // user learns why their board didn't appear on the other monitor.
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
+// A lock the browser never grants must not strand the desk behind it.
+const DESK_LOCK_WAIT_MS = 3000
+// Restoring the desk needs a quit that keeps its records, so a bridge without it behaves as a browser.
+const deskRestoresItself = () => hasDesktopFeature('before-quit')
+// A widget's own desk record, kept in the desktop app so its window comes back at launch.
+const widgetRecordId = (widgetId) => `pw-${widgetId}`
+const POPOUT_NOT_CRASH_SAFE_MSG = 'This pop-out is not crash-safe: it could not be recorded on this device, so a reload or crash would lose it. Close the window to bring the board back here.'
+const DESK_RECORD_SAVE_MS = 500
 
 // Docking makes room by SPLITTING an existing widget in two: `candidate` keeps the top
 // half, the docked widget takes the bottom half (same column). Returns the adjusted
@@ -477,82 +519,25 @@ function clampWidgetsToRows(widgets) {
   })
 }
 
-function clampOne(w, cols, rows) {
-  const def = WIDGET_DEFAULTS[w.type] || {}
-  const minH = def.minH || 3, minW = def.minW || 2
-  const x = Math.max(0, Math.min(w.x | 0, cols - minW))
-  let cw = Math.max(minW, Math.min(w.w | 0, cols)); if (x + cw > cols) cw = cols - x
-  const y = Math.max(0, Math.min(w.y | 0, rows - minH))
-  let h = Math.max(minH, Math.min(w.h | 0, rows)); if (y + h > rows) h = rows - y
-  return { ...w, x, y, w: cw, h }
+// A board coming back from a pop-out. Straight onto an empty board; otherwise each widget keeps its
+// own size and is given a free slot, so it does not land on top of what was built meanwhile.
+function placeReturningWidgets(boardWidgets, returning) {
+  if (!boardWidgets.length) return returning
+  const widgets = [...boardWidgets]
+  for (const w of returning) {
+    // minW/minH come from the type defaults, but w/h must be the widget's
+    // OWN size — spreading the defaults last would resize every docking
+    // widget back to its type's default dimensions.
+    const spec = { ...(WIDGET_DEFAULTS[w.type] || {}), w: w.w, h: w.h }
+    widgets.push({ ...w, ...findPlacement(widgets, spec, COLS.lg, FIXED_ROWS) })
+  }
+  return widgets
 }
 
-// On-DROP re-pack (the grid uses allowOverlap so NOTHING moves while you drag — the
-// board only rearranges once, here, when you let go). The moved widget keeps exactly
-// the slot it was dropped on (clamped inside the grid). Every OTHER widget is then
-// re-tiled around it, BIGGEST-first — so the large chart claims the big open region
-// and small panels tuck into the leftover corners. Each keeps its native size when it
-// fits; otherwise it shrinks (height preserved, width first) to the largest size that
-// does, landing as close to where it already was as possible. Every widget is placed
-// STRICTLY inside the grid (a full 2-D fit test, not a vertical push), so a displaced
-// widget can never overlap the newcomer or shoot off the visible canvas. `rect` is the
-// dropped {x,y,w,h}; `movedId` the dragged widget's id.
-export function repackAroundMoved(widgets, movedId, rect, cols = GRID_COLS, rows = FIXED_ROWS) {
-  const moved0 = widgets.find(w => w.id === movedId)
-  if (!moved0) return widgets
-  const moved = clampOne({ ...moved0, x: rect.x, y: rect.y, w: rect.w, h: rect.h }, cols, rows)
-  // AUTO-SHRINK the dropped widget so it fits BELOW whatever it was dropped under,
-  // instead of getting stuck: the board is height-locked, so a tall widget dragged
-  // low simply caps its height to the rows left beneath its top. A normal drop (it
-  // already fits) is untouched — this only bites when y sits near the bottom.
-  const movedMinH = (WIDGET_DEFAULTS[moved.type] || {}).minH || 3
-  moved.h = Math.max(movedMinH, Math.min(moved.h, rows - moved.y))
-
-  // Cell-occupancy grid. Seed it with the moved widget; everything else fits around it.
-  const occ = Array.from({ length: rows }, () => new Array(cols).fill(false))
-  const fill = (r) => {
-    for (let y = r.y; y < r.y + r.h && y < rows; y++)
-      for (let x = r.x; x < r.x + r.w && x < cols; x++) occ[y][x] = true
-  }
-  const freeAt = (x, y, w, h) => {
-    if (x < 0 || y < 0 || x + w > cols || y + h > rows) return false
-    for (let yy = y; yy < y + h; yy++)
-      for (let xx = x; xx < x + w; xx++) if (occ[yy][xx]) return false
-    return true
-  }
-  fill(moved)
-
-  const rest = widgets.filter(w => w.id !== movedId).map(w => clampOne(w, cols, rows))
-  rest.sort((a, b) => (b.w * b.h) - (a.w * a.h) || (a.y - b.y) || (a.x - b.x))
-
-  const placed = [moved]
-  for (const w of rest) {
-    const def = WIDGET_DEFAULTS[w.type] || {}
-    const minW = def.minW || 2, minH = def.minH || 3
-    let best = null
-    // Keep native size if it fits; otherwise shrink height LAST (a chart stays tall,
-    // narrowing first). Among the free spots at the chosen size, land nearest to where
-    // the widget already was so it doesn't teleport across the board.
-    for (let th = Math.min(w.h, rows); th >= minH && !best; th--) {
-      for (let tw = Math.min(w.w, cols); tw >= minW && !best; tw--) {
-        let spot = null
-        for (let y = 0; y <= rows - th; y++) {
-          for (let x = 0; x <= cols - tw; x++) {
-            if (!freeAt(x, y, tw, th)) continue
-            const d = Math.abs(x - w.x) + Math.abs(y - w.y)
-            if (!spot || d < spot.d) spot = { x, y, d }
-          }
-        }
-        if (spot) best = { x: spot.x, y: spot.y, w: tw, h: th }
-      }
-    }
-    if (!best) best = { x: 0, y: Math.max(0, rows - minH), w: minW, h: minH } // grid full — unreachable with a handful of widgets
-    fill(best)
-    placed.push({ ...w, x: best.x, y: best.y, w: best.w, h: best.h })
-  }
-  const byId = Object.fromEntries(placed.map(p => [p.id, p]))
-  return widgets.map(w => byId[w.id] || w)
-}
+// The on-drop re-pack (the moved widget keeps its slot, every other widget re-tiles around it,
+// biggest first, strictly inside the grid) lives in ./repackAroundMoved.js so a board can use it
+// without loading this module. Re-exported here: existing imports of it from this file hold.
+export { repackAroundMoved }
 
 // tallest / widest widget in a list — used to pick which one yields space when a
 // new widget can't find a free slot (make-room strategies below).
@@ -760,12 +745,43 @@ function DeleteConfirm({ onYes, onCancel }) {
 // preferences through the boot path (the hydration gate and all). The first answer of /me is not a
 // change of member and does not remount. The unmounting board's pending save is dropped by its op.
 const prefsGeneration = () => beginPrefsOp().gen
-export default function ChartsWorkspace() {
-  const generation = useSyncExternalStore(onPrefsUserChange, prefsGeneration, prefsGeneration)
-  return <ChartsWorkspaceBoard key={generation} />
+// `hidden`: ChartsDeskHost is keeping this workspace alive behind another page because a board or
+// widget is popped out. A hidden board keeps its pop-outs and its state and does nothing in the main
+// window: no grid, no toolbar, no main-window widgets, no shortcuts (see `boardHidden` below).
+// A top-bar menu row's content (owner 11-14): gold glyph · label · ✓ (active) or › (submenu).
+// The glyphs are decorative (aria-hidden), so each button's accessible name is its label.
+function TbItem({ icon, label, hint = null, on = false, sub = false }) {
+  return (
+    <>
+      <span className={styles.tbGlyph} aria-hidden="true">{icon && <UIcon name={icon} size={15} gold={false} />}</span>
+      <span className={styles.tbLbl}>{label}{hint && <span className={styles.tbHint}>{hint}</span>}</span>
+      {on && <span className={styles.tbCheck} aria-hidden="true"><UIcon name="check" size={13} gold={false} /></span>}
+      {sub && <span className={styles.tbChev} aria-hidden="true"><UIcon name="chevronRight" size={12} gold={false} /></span>}
+    </>
+  )
 }
 
-function ChartsWorkspaceBoard() {
+export default function ChartsWorkspace({ hidden = false }) {
+  const generation = useSyncExternalStore(onPrefsUserChange, prefsGeneration, prefsGeneration)
+  return <ChartsWorkspaceBoard key={generation} boardHidden={hidden === true} />
+}
+
+// ⛔ Kept out of the hook call's default so the empty list is one stable identity.
+const NO_MAIN_BOARD_WIDGETS = []
+const BOARD_HIDDEN_STYLE = { display: 'none' }
+// Board chrome the workspace screenshot leaves out (resize handles, the merged-mode drag grip, the
+// resize placeholder): CSS-module names, handed to the lazy capture so it imports no stylesheet.
+const SHOT_EXCLUDE_CLASSES = [styles.rzHandle, styles.rzPlaceholder, styles.mergedGrip]
+// The save dot's tooltip (owner 11-16: the resting words left the row; the dot says them on hover).
+const SAVE_STATE_TIPS = {
+  auto: 'Saves automatically',
+  saved: 'Saved',
+  saving: 'Saving…',
+  dirty: 'Unsaved changes — this layout doesn’t save automatically',
+  failed: 'Couldn’t save the latest changes. Click retry.',
+}
+
+function ChartsWorkspaceBoard({ boardHidden = false }) {
   const isPhonePortrait = useMediaQuery('(max-width: 640px)')
   // A rotated phone (coarse pointer, short landscape viewport) also gets the
   // chart-first shell — TradingView's rotate-to-fullscreen. Without this the
@@ -786,13 +802,16 @@ function ChartsWorkspaceBoard() {
   // mounted for a frame and REMOUNTED the shell, wiping every bit of its state
   // (open sheet, open widget page, pending opens). Discovery journey
   // `rotate-midsheet` caught the sheet vanishing; one MQL cannot have a gap.
-  const isMobile = useMediaQuery(
+  const isMobileViewport = useMediaQuery(
     '(max-width: 640px), '
     + '(pointer: coarse) and (orientation: landscape) and (max-height: 500px), '
     + '(pointer: coarse) and (min-width: 641px) and (max-width: 1024px) and (min-height: 501px)',
   )
+  // Hidden behind another page the phone shell must not mount (it would paint over that page and
+  // set html[data-mobile-chart-shell]); the pop-outs keep running from the desktop branch below.
+  const isMobile = isMobileViewport && !boardHidden
   const shellTablet = isTabletTouch && !isPhonePortrait && !isPhoneLandscape
-  const { prefs, setPref, setPrefMerged, loading: prefsLoading } = usePreferences()
+  const { prefs, setPref, setPrefMerged, loading: prefsLoading, readFailed: prefsReadFailed } = usePreferences()
   // Read at WRITE time by the Watchlist-columns fold below (it runs from the autosave, 500 ms
   // after the render that scheduled it), so it must be the latest prefs, not a closure's.
   const prefsRef = useRef(prefs)
@@ -860,7 +879,15 @@ function ChartsWorkspaceBoard() {
     const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [computeRowHeight, merged])
+    // boardHidden: the body is not rendered while hidden, so returning has to measure it again.
+  }, [computeRowHeight, merged, boardHidden])
+
+  // While hidden, keys typed on the page in the main window are not the desk's (deskKeyGate.js).
+  useEffect(() => {
+    if (!boardHidden) return undefined
+    markDeskHidden(true)
+    return () => markDeskHidden(false)
+  }, [boardHidden])
 
   // Layout state — seed from prefs or default.
   const [layout, setLayout] = useState(() => parseLayout(prefs?.charts_workspace_layout) || DEFAULT_LAYOUT)
@@ -882,7 +909,7 @@ function ChartsWorkspaceBoard() {
   const boardHasRoom = boardCanGrow(boardCount)
   const boardOverBound = boardOverBoundSentence(boardCount)
   // A refusal describes a full board; once a widget is closed it is no longer true.
-  useEffect(() => { if (boardHasRoom) setBoardRefusal(null) }, [boardHasRoom])
+  useEffect(() => { if (boardHasRoom) setBoardRefusal(null) }, [boardHasRoom, boardCount])
 
   // If prefs arrive AFTER initial render (async fetch), pick them up.
   const loadedFromPrefsRef = useRef(false)
@@ -930,7 +957,11 @@ function ChartsWorkspaceBoard() {
   extraGroupsOnRef.current = extraGroupsOn
 
   // Color-group state — seed from prefs or empty.
-  const [groupSyms, setGroupSymsState] = useState(() => {
+  // ⭐ (switch render cuts, 2026-11-20) A STORE, NOT THIS BOARD'S STATE: a symbol switch re-renders the
+  // components that read the workspace (`useWorkspace()` subscribes), never this board, its grid or the
+  // widget hosts (groupSymsStore.js). `groupSyms` is deliberately not a name in this scope: a reader here
+  // takes `groupSymsStore.get()` when it runs.
+  const [groupSymsStore] = useState(() => createGroupSymsStore((() => {
     try {
       const raw = prefs?.charts_workspace_groups
       if (raw) {
@@ -941,7 +972,8 @@ function ChartsWorkspaceBoard() {
       }
     } catch {}
     return { A: null, B: null, C: null, D: null }
-  })
+  })()))
+  const setGroupSymsState = groupSymsStore.set
 
   // The linked ticker updates INSTANTLY (state), but persisting it is debounced —
   // otherwise fast arrow-scanning fires a POST /api/auth/preferences per keypress
@@ -955,7 +987,30 @@ function ChartsWorkspaceBoard() {
     if (!pending || pending.op.stale()) return
     setPref('charts_workspace_groups', JSON.stringify(pending.next))
   }, [setPref])
+  // ⭐ (2026-11-14) A SCAN IS SAVED ONCE, WHERE IT STOPS (groupSymSavePace.js). A change that
+  // follows another within GROUP_SCAN_GAP_MS is a scan: its save waits GROUP_SCAN_SAVE_MS after
+  // the LAST change instead of 400 ms after each. A pick on its own is saved as before. The
+  // same symbol announced again for one move (a list and its chart both report it) is not a
+  // second change.
+  const groupsScanTimerRef = useRef(null)     // armed by each change; a change while armed is a scan
+  const groupsScanningRef = useRef(false)     // how the pending save was scheduled
+  const groupsLastSetRef = useRef({})         // color -> the symbol last announced for it
   const setGroupSym = useCallback((color, sym) => {
+    const repeat = groupsLastSetRef.current[color] === sym
+    groupsLastSetRef.current[color] = sym
+    // ⭐⭐ ONE SYNCHRONOUS PASS FROM THE KEYDOWN (2026-11-21): before the symbol is written, the group's charts are
+    // asked whether every one of them can show it in this task (hooks/handoffGroups.js). When they all can, the
+    // decision goes out with the symbol and the charts take it in the ONE render the symbol arrives in: one
+    // commit, one frame. Otherwise each chart takes today's path (its handoff, then the group round).
+    // ⭐ (2026-11-21, the cold switch) and first, every chart's device read starts here, in the press
+    // (beginGroupSwitch: primeGroup, then decideGroupShow)
+    if (!repeat && groupSymsStore.get()[color] !== sym) beginGroupSwitch(groupSymsStore, chartGroupKey(color), sym)
+    if (!repeat) {
+      groupsScanningRef.current = groupsScanTimerRef.current != null
+      if (groupsScanTimerRef.current) clearTimeout(groupsScanTimerRef.current)
+      groupsScanTimerRef.current = setTimeout(() => { groupsScanTimerRef.current = null }, GROUP_SCAN_GAP_MS)
+    }
+    const wait = groupsScanningRef.current ? GROUP_SCAN_SAVE_MS : GROUP_SAVE_MS
     setGroupSymsState(prev => {
       const next = { ...prev, [color]: sym }
       if (groupsSaveTimerRef.current) clearTimeout(groupsSaveTimerRef.current)
@@ -965,17 +1020,27 @@ function ChartsWorkspaceBoard() {
         groupsSaveTimerRef.current = null
         groupsPendingRef.current = null
         writeGroups(pending)
-      }, 400)
+      }, wait)
       return next
     })
-  }, [writeGroups])
-  useEffect(() => () => {
-    if (!groupsSaveTimerRef.current) return
-    clearTimeout(groupsSaveTimerRef.current)
-    groupsSaveTimerRef.current = null
-    const pending = groupsPendingRef.current
-    groupsPendingRef.current = null
-    writeGroups(pending)
+  }, [writeGroups, setGroupSymsState, groupSymsStore])
+  useEffect(() => {
+    // Leaving the board, or the page going away, saves a pending symbol now (a scan's save
+    // can be 1.5 s out; a refresh inside that must still open on the symbol left).
+    const flush = () => {
+      if (!groupsSaveTimerRef.current) return
+      clearTimeout(groupsSaveTimerRef.current)
+      groupsSaveTimerRef.current = null
+      const pending = groupsPendingRef.current
+      groupsPendingRef.current = null
+      writeGroups(pending)
+    }
+    window.addEventListener('pagehide', flush)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      if (groupsScanTimerRef.current) { clearTimeout(groupsScanTimerRef.current); groupsScanTimerRef.current = null }
+      flush()
+    }
   }, [writeGroups])
 
   // Which timeframe each color group's chart is showing right now. Broadcast by
@@ -995,6 +1060,12 @@ function ChartsWorkspaceBoard() {
     // new object every time would re-render every workspace consumer per paint.
     setGroupTfsState(prev => (prev[color] === tf ? prev : { ...prev, [color]: tf }))
   }, [])
+  // ⭐ EVERY CHART'S TIMEFRAME, PER COLOUR GROUP (2026-11-19): a linked list warms each chart's
+  // timeframe, not only the last one published (groupTfRegistry.js). Ephemeral, like groupTfs.
+  const [groupTfSets, setGroupTfSets] = useState({})
+  const tfRegistryRef = useRef(null)
+  if (!tfRegistryRef.current) tfRegistryRef.current = createGroupTfRegistry(setGroupTfSets)
+  const registerGroupTf = useCallback((color, id, tf) => tfRegistryRef.current.register(color, id, tf), [])
 
   // If prefs arrive AFTER initial render (the SWR fetch usually resolves a beat after
   // mount), pick up the saved group syms — otherwise the useState seed above ran while
@@ -1013,7 +1084,7 @@ function ChartsWorkspaceBoard() {
         groupsLoadedFromPrefsRef.current = true
       }
     } catch { /* malformed pref → keep current */ }
-  }, [prefs?.charts_workspace_groups])
+  }, [prefs?.charts_workspace_groups, setGroupSymsState])
 
   // Crosshair sync bus: a stable pub/sub so a hovered chart can broadcast its
   // crosshair to same-color-group siblings WITHOUT re-rendering the grid at
@@ -1039,6 +1110,8 @@ function ChartsWorkspaceBoard() {
   // setPercentScale}). Each ChartWidget registers here on mount; the Compare
   // Symbols tool reads/writes the active chart's comparison overlays through it.
   const chartApiByIdRef = useRef(new Map())
+  // A door asked for from outside the chart (the command palette) opens on the active chart.
+  useIndicatorDoors(chartApiByIdRef, activeChartRef)
   // Same idea for watchlists: the last hovered/focused Watchlist widget owns the
   // arrow keys + its own scroll-into-view, so 4 watchlists don't all fight over one
   // keypress (first-mounted-wins race) or all force a reflow on every selection.
@@ -1098,7 +1171,16 @@ function ChartsWorkspaceBoard() {
       .map(w => w.id),
     [layout.widgets, poppedWidgetIds, floatingWidgetIds],
   )
-  const { mountedIds: mainBoardMountedIds } = useStaggeredMount(mainBoardWidgetIds, { limit: PANEL_MOUNT_CAP })
+  // Hidden, nothing is on the main board: an empty list purges the mounted set, so the return staggers
+  // the widgets back in through the same cap instead of mounting them all at once.
+  const { mountedIds: mainBoardMountedIds, release: releaseMainBoardSlot } = useStaggeredMount(boardHidden ? NO_MAIN_BOARD_WIDGETS : mainBoardWidgetIds, {
+    limit: PANEL_MOUNT_CAP,
+    minAdmitIntervalMs: PANEL_ADMIT_INTERVAL_MS,
+    slotTimeoutFor: (id) => {
+      const w = layout.widgets.find(x => x.id === id)
+      return w && resolveActiveTab(w).type !== 'chart' ? NON_CHART_SLOT_MS : undefined
+    },
+  })
 
   const widgetCanvasByType = useMemo(() => {
     // Resolve like the widgets themselves (resolveGlobalPrefSettings) so the FRAME
@@ -1166,6 +1248,10 @@ function ChartsWorkspaceBoard() {
   // Tools → Compare Symbols: the floating panel that overlays other tickers' % on
   // the active chart (auto-opens a chart widget if none exists).
   const [compareOpen, setCompareOpen] = useState(false)
+  // The `uct:compare-open` detail that opened it ({tab: 'rotation', sym, group}, unit 3-09), or null.
+  const [compareIntent, setCompareIntent] = useState(null)
+  // The tab the open panel shows ('overlay' | 'rotation'), as the panel reports it (onTabChange); null while it is closed.
+  const [compareTab, setCompareTab] = useState(null)
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
   // Tools → Replay Mode: the dedicated replay dialog (separate from Custom-Period Sort;
@@ -1194,9 +1280,15 @@ function ChartsWorkspaceBoard() {
   const floatNewWidgetRef = useRef(null)
   const applyThemeAllRef = useRef(null)
   const applyThemeAllWidgetsRef = useRef(null)
+  const applyAppearanceAllRef = useRef(null)
+  // ⭐ `canOpenCompare` (UCT RS 3-09): this workspace mounts the Compare Symbols
+  // panel and opens it on a `uct:compare-open` event, on desktop only (the phone
+  // shell mounts no panel and ignores the event). A chart widget reads it and
+  // offers a readout row's "Open the rotation map" only where it is true.
+  // `groupSyms` reads the store when it is read; `useWorkspace()` replaces it with a subscribed snapshot.
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme) }),
-    [groupSyms, setGroupSym, groupTfs, setGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
+    () => ({ groupSymsStore, get groupSyms() { return groupSymsStore.get() }, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick, floatNewWidget: (type, at) => floatNewWidgetRef.current?.(type, at), applyThemeToAllCharts: (theme) => applyThemeAllRef.current?.(theme), applyThemeToAllWidgets: (theme) => applyThemeAllWidgetsRef.current?.(theme), countOtherCharts: (source) => countOtherCharts(layoutRef.current?.widgets, source), applyAppearanceToOtherCharts: (source, settings) => applyAppearanceAllRef.current?.(source, settings) ?? 0, canOpenCompare: !isMobile }),
+    [groupSymsStore, setGroupSym, groupTfs, setGroupTf, groupTfSets, registerGroupTf, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick, isMobile],
   )
 
   // ── TERM-021 read-new: the Watchlist column layout rides the board document ──
@@ -1234,6 +1326,8 @@ function ChartsWorkspaceBoard() {
   // save waits. A save landing between the head read and the apply would move the head
   // and make the member's own board change answer 409.
   const boardCommitInFlightRef = useRef(false)
+  const boardCommitSeqRef = useRef(0)                      // the newest board change
+  const boardCommitChainRef = useRef(Promise.resolve())   // board writes land one at a time
 
   // Debounced layout persist (500ms).
   const saveTimerRef = useRef(null)
@@ -1242,14 +1336,37 @@ function ChartsWorkspaceBoard() {
   // `op` is the member the change was made for (captured by scheduleSave): a save that outlived a
   // change of member is dropped, never written into the next member's account.
   const saveOpRef = useRef(null)
+  // ⛔ DESK RECORDS: a popped board's record is the only copy of its widgets, so a docked board's
+  // record goes only with a confirmed save that HOLDS those widgets. A refused save leaves the entry
+  // here, and the next save may be a different board (a layout opened, a version restored): one that
+  // does not hold them leaves the record for the next load to offer.
+  const deskUidRef = useRef(null)
+  const deskOwnerRef = useRef(null)
+  const dockedRecordsRef = useRef(new Map())   // popId -> ids of the widgets that came back
+  const settleDockedRecords = useCallback((saved, savedLayout) => {
+    const onBoard = new Set((savedLayout?.widgets || []).map(w => w.id))
+    const ids = [...dockedRecordsRef.current]
+      .filter(([, widgetIds]) => widgetIds.every(id => onBoard.has(id)))
+      .map(([id]) => id)
+    if (!ids.length) return
+    const uid = deskUidRef.current
+    Promise.resolve(saved).then((result) => {
+      if (result === false) return
+      for (const id of ids) {
+        confirmRestored(uid, id, deskOwnerRef.current)
+        dockedRecordsRef.current.delete(id)
+      }
+    }).catch(() => { /* not confirmed: the record stays */ })
+  }, [])
   const autosaveLayout = useCallback((nextLayout, op = null) => {
     if (op && op.stale()) return false
     if (storedLayoutUnreadableRef.current) return false
     if (boardCommitInFlightRef.current) return false
-    setPref('charts_workspace_layout', serializeLayout(nextLayout))
+    const saved = setPref('charts_workspace_layout', serializeLayout(nextLayout))
     foldWatchlistColumns()
-    return true
-  }, [setPref, foldWatchlistColumns])
+    settleDockedRecords(saved, nextLayout)
+    return saved
+  }, [setPref, foldWatchlistColumns, settleDockedRecords])
   const scheduleSave = useCallback((nextLayout) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     const op = beginPrefsOp()
@@ -1371,7 +1488,8 @@ function ChartsWorkspaceBoard() {
     const el = e.currentTarget.parentElement
     const op = el?.offsetParent
     if (!el || !op || !widget.w || !widget.h) return
-    const gap = MARGIN_Y
+    // The board's real gap (0 when merged) — the pitch and the pixel boxes use the same one.
+    const gap = gridGap
     const unitW = (el.offsetWidth + gap) / widget.w   // column pitch (colWidth + gap)
     const unitH = (el.offsetHeight + gap) / widget.h  // row pitch
     const aL = el.offsetLeft, aT = el.offsetTop
@@ -1403,12 +1521,33 @@ function ChartsWorkspaceBoard() {
       aL, aT, aW: el.offsetWidth, aH: el.offsetHeight,
       minWpx: (def.minW || 2) * unitW - gap,
       minHpx: (def.minH || 3) * unitH - gap,
-      pixel: null, snapKey: '', resolved: null, raf: 0,
+      pixel: null, snapKey: '', resolved: null, raf: 0, gap, ptr: null,
     }
-    const onMove = (ev) => {
-      if (resizeRef.current !== st) return
-      const dx = ev.clientX - st.startX, dy = ev.clientY - st.startY
-      // 1) Pixel box — exact mouse follow, written straight to the DOM every event.
+    // ── Ultra-smooth (owner 11-14) ──────────────────────────────────────────────
+    // 1) Pointer events only RECORD the latest position; ONE requestAnimationFrame per
+    //    screen frame applies it. A fast mouse fires several pointermoves per frame —
+    //    writing the box on each made the widget (and the chart inside, via its resize
+    //    observers) lay out several times a frame: the "skippy" feel.
+    // 2) Neighbours yield by writing THEIR pixel boxes straight to the DOM too — no React
+    //    re-render of the whole board on every grid-cell crossing. The board commits ONCE,
+    //    on release (the same resolveResize result, so where things land is unchanged).
+    const boxOf = (g) => ({
+      left: st.minL + g.x * st.unitW, top: st.minT + g.y * st.unitH,
+      width: g.w * st.unitW - st.gap, height: g.h * st.unitH - st.gap,
+    })
+    const elOf = (id) => (id === st.id ? el : op.querySelector(`[data-widget-id="${CSS.escape(String(id))}"]`))
+    const writeBox = (node, bx) => {
+      node.style.transition = 'none'
+      node.style.left = `${bx.left}px`; node.style.top = `${bx.top}px`
+      node.style.width = `${bx.width}px`; node.style.height = `${bx.height}px`
+    }
+    st.touched = new Set()
+    const frame = () => {
+      st.raf = 0
+      if (resizeRef.current !== st || !st.ptr) return
+      const { x: cx, y: cy } = st.ptr
+      const dx = cx - st.startX, dy = cy - st.startY
+      // a) The active widget's pixel box — exact cursor follow, bounded by the canvas only.
       let left = st.aL, top = st.aT, width = st.aW, height = st.aH
       if (handle.includes('e')) width = st.aW + dx
       if (handle.includes('s')) height = st.aH + dy
@@ -1416,56 +1555,56 @@ function ChartsWorkspaceBoard() {
       if (handle.includes('n')) { top = st.aT + dy; height = st.aH - dy }
       if (width < st.minWpx) { if (handle.includes('w')) left -= (st.minWpx - width); width = st.minWpx }
       if (height < st.minHpx) { if (handle.includes('n')) top -= (st.minHpx - height); height = st.minHpx }
-      // Bound to the CANVAS only (never a neighbour) so the drag can't get stuck.
       if (left < st.minL) { width += left - st.minL; left = st.minL }
       if (top < st.minT) { height += top - st.minT; top = st.minT }
       if (left + width > st.maxR) width = st.maxR - left
       if (top + height > st.maxB) height = st.maxB - top
       st.pixel = { left, top, width, height }
       applyActivePx(st)
-      // 2) Snapped grid target — only re-render (neighbour shrink) on cell crossing,
-      //    resolved against the STABLE base so shrink never compounds.
-      const g = resizeGeomAt(st, ev.clientX, ev.clientY)
+      // b) Neighbours: only when the snapped target crosses a grid cell, resolved against
+      //    the STABLE start layout (shrink never compounds), written straight to the DOM.
+      const g = resizeGeomAt(st, cx, cy)
       const key = `${g.x},${g.y},${g.w},${g.h}`
-      if (key !== st.snapKey) {
-        st.snapKey = key
-        // Keep the ACTIVE widget's React geom FROZEN at its start value during the
-        // drag — only the neighbours update live. Its box is owned entirely by the
-        // pixel-follow (applyActivePx + the useLayoutEffect), so letting RGL repaint
-        // it at interim snapped sizes just churns its contents (the chart's bottom
-        // jumping mid-corner-drag). It commits to its final geom on release.
-        const full = resolveResize(st.baseWidgets, g, handle)
-        st.resolved = full.map(w => (w.id === st.id
-          ? { ...w, x: st.geom.x, y: st.geom.y, w: st.geom.w, h: st.geom.h } : w))
-        if (!st.raf) st.raf = requestAnimationFrame(() => {
-          st.raf = 0
-          if (resizeRef.current === st && st.resolved) {
-            setLayout(prev => {
-              const ids = new Set(st.resolved.map(w => w.id))
-              const preserved = prev.widgets.filter(w => !ids.has(w.id))  // floated/popped
-              return { ...prev, widgets: [...st.resolved, ...preserved] }
-            })
-          }
-        })
+      if (key === st.snapKey) return
+      st.snapKey = key
+      const full = resolveResize(st.baseWidgets, g, handle)
+      const base = Object.fromEntries(st.baseWidgets.map(w => [w.id, w]))
+      for (const w of full) {
+        if (w.id === st.id) continue
+        const b0 = base[w.id]
+        const moved = !b0 || b0.x !== w.x || b0.y !== w.y || b0.w !== w.w || b0.h !== w.h
+        if (!moved && !st.touched.has(w.id)) continue
+        const node = elOf(w.id)
+        if (!node) continue
+        writeBox(node, boxOf(w))
+        st.touched.add(w.id)
       }
+    }
+    const onMove = (ev) => {
+      if (resizeRef.current !== st) return
+      st.ptr = { x: ev.clientX, y: ev.clientY }
+      if (!st.raf) st.raf = requestAnimationFrame(frame)
     }
     const onUp = (ev) => {
       if (resizeRef.current !== st) return
       if (st.raf) { cancelAnimationFrame(st.raf); st.raf = 0 }
       const g = resizeGeomAt(st, ev.clientX, ev.clientY)
       const resolved = resolveResize(st.baseWidgets, g, handle)
-      const rg = resolved.find(w => w.id === st.id) || g
-      // Pin the element to the RESOLVED (flush-against-neighbour) pixel box so it
-      // matches the committed grid geom exactly — do NOT clear width/left (that
-      // collapses the item to CSS `auto` width, and React skips the no-op re-render
-      // so it stays stuck narrow until an unrelated repaint).
-      el.style.left = `${st.minL + rg.x * st.unitW}px`
-      el.style.top = `${st.minT + rg.y * st.unitH}px`
-      el.style.width = `${rg.w * st.unitW - MARGIN_Y}px`
-      el.style.height = `${rg.h * st.unitH - MARGIN_Y}px`
-      el.style.zIndex = ''; el.style.transition = ''
+      // Pin every element we moved (the active one + each neighbour) to its RESOLVED
+      // pixel box, so the DOM already matches the committed grid geometry — React may
+      // skip a no-op style write (a neighbour that ended where it began), and must never
+      // be left showing an interim drag box. Then restore transitions.
+      for (const w of resolved) {
+        if (w.id !== st.id && !st.touched.has(w.id)) continue
+        const node = elOf(w.id)
+        if (!node) continue
+        writeBox(node, boxOf(w))
+        node.style.zIndex = ''
+        node.style.transition = ''
+      }
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
       resizeRef.current = null
       setResizingId(null)
       setLayout(prev => {
@@ -1480,7 +1619,8 @@ function ChartsWorkspaceBoard() {
     setResizingId(widget.id)
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
-  }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds])
+    window.addEventListener('pointercancel', onUp)
+  }, [resizeGeomAt, applyActivePx, scheduleSave, floatingWidgetIds, poppedWidgetIds, gridGap])
 
   const handleRemoveWidget = useCallback((id) => {
     // Tell the auto-save this shrink is YOURS, so it is allowed to persist a
@@ -1581,6 +1721,28 @@ function ChartsWorkspaceBoard() {
   }, [scheduleSave, prefs.chart_settings])
   applyThemeAllRef.current = applyThemeToAllCharts
 
+  // Chart Settings → "Apply to all charts" (owner 11-16): THIS chart's look onto every other chart surface in the open
+  // layout (base widgets, their chart tabs, chart widget-tabs) — never another layout, never the global chart_settings.
+  // What "look" means is chartAppearance.js (symbol, timeframe, indicators, drawings, panes, compare symbols stay each
+  // chart's own). ONE setLayout + the normal scheduleSave, so the board is dirty / saved exactly like a manual change.
+  // Returns how many charts changed (the dialog says "Applied to N charts").
+  const applyAppearanceAll = useCallback((source, settings) => {
+    if (!source || !settings) return 0
+    const seed = mergeChartSettings(prefs.chart_settings)
+    const cur = layoutRef.current || layout
+    const { count } = applyAppearanceToOtherCharts(cur.widgets, source, settings, seed)
+    if (!count) return 0
+    setLayout(prev => {
+      const r = applyAppearanceToOtherCharts(prev.widgets, source, settings, seed)
+      if (!r.count) return prev
+      const next = { ...prev, widgets: r.widgets }
+      scheduleSave(next)
+      return next
+    })
+    return count
+  }, [scheduleSave, prefs.chart_settings, layout])
+  applyAppearanceAllRef.current = applyAppearanceAll
+
   // "All widgets": every widget in the layout — chart or not — adopts the theme.
   // Charts get the full chart skin; watchlist/scanner/theme-tracker/fundamentals/
   // breadth get their canvas + text + up/down + grid/tint; news/profile/alerts/
@@ -1642,6 +1804,7 @@ function ChartsWorkspaceBoard() {
   // ⛔ Declared AFTER applyTfToCharts on purpose (it reads it).
   const deepLinkAppliedRef = useRef(false)
   useEffect(() => {
+    if (boardHidden) { deepLinkAppliedRef.current = false; return }
     if (deepLinkAppliedRef.current || prefsLoading) return
     const link = readChartsLink(typeof window !== 'undefined' ? window.location.search : '')
     deepLinkAppliedRef.current = true
@@ -1654,7 +1817,7 @@ function ChartsWorkspaceBoard() {
       window.history.replaceState(window.history.state, '', `${window.location.pathname}${rest}`)
     } catch { /* history unavailable — lingering params are harmless */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefsLoading])
+  }, [prefsLoading, boardHidden])
 
   // Replace a whole widget object in place — used by the widget-level tab system,
   // which routes every tab add/close/select and per-active-tab color/opts edit
@@ -1697,23 +1860,25 @@ function ChartsWorkspaceBoard() {
     // its first render loads that ticker, never the yellow group's or SPY's.
     // Seeded BEFORE the layout update so the widget never renders without it.
     const bornUnlinked = !!(unlinkedSymbol && !float)
-    if (bornUnlinked) setGroupSym(`N:${newId}`, String(unlinkedSymbol).toUpperCase())
     // Smart-placement: the ghost preview appears ONLY when placing the widget requires
     // resizing/moving an existing one (plan.mutations non-empty). When it fits in empty
     // space, fall through and place it immediately — no confirm step. (Float-on-create
     // and the instant/legacy paths below are unaffected; `instant` also skips the ghost
     // for programmatic prerequisite adds, e.g. Compare/Replay auto-opening a chart.)
-    if (!float && !instant && SMART_PLACEMENT && !freeSlot(layoutRef.current?.widgets)) {
-      const base = layoutRef.current?.widgets || []
-      const plan = planPlacement(base, type, COLS.lg, FIXED_ROWS)
-      if (plan.mutations && plan.mutations.length > 0) {
-        setPendingAdd({ type, seedOpts: seedOpts ?? null, newId, place: plan.place, mutations: plan.mutations })
-        return
-      }
-      // else: fits in empty space → place immediately via the setLayout path below.
+    const plan = !float && SMART_PLACEMENT && !freeSlot(layoutRef.current?.widgets)
+      ? planPlacement(layoutRef.current?.widgets || [], type, COLS.lg, FIXED_ROWS) : null
+    // No widget can give up room: refused, the board stays as it is (a widget placed on top
+    // of it would shove one off the bottom, out of reach). Before the symbol is saved below,
+    // so a refused add leaves no N:<id> ticker behind.
+    if (plan && !plan.place) { setBoardRefusal(BOARD_NO_ROOM); return }
+    if (bornUnlinked) setGroupSym(`N:${newId}`, String(unlinkedSymbol).toUpperCase())
+    if (plan && !instant && plan.mutations && plan.mutations.length > 0) {
+      setPendingAdd({ type, seedOpts: seedOpts ?? null, newId, place: plan.place, mutations: plan.mutations })
+      return
     }
+    // else: fits in empty space → place immediately via the setLayout path below.
     setLayout(prev => {
-      const color = bornUnlinked ? 'N' : pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
+      const color = bornUnlinked ? 'N' : pickWidgetColor(prev.widgets, groupSymsStore.get(), extraGroupsOnRef.current)
       const defaults = WIDGET_DEFAULTS[type]
       let widgets = prev.widgets
       let place
@@ -1735,6 +1900,7 @@ function ChartsWorkspaceBoard() {
         // shrinks to its top half so the new chart takes the bottom) — apply them
         // before adding the newcomer at `place`.
         const plan = planPlacement(prev.widgets, type, COLS.lg, FIXED_ROWS)
+        if (!plan.place) return prev              // the board filled since the check above
         place = plan.place
         if (plan.mutations.length) {
           const byId = Object.fromEntries(plan.mutations.map(m => [m.id, m]))
@@ -1810,7 +1976,7 @@ function ChartsWorkspaceBoard() {
       const y = at ? Math.max(56, Math.min(at.y, window.innerHeight - SPAWN_H - 8)) : null
       setFloatSpawns(prev => ({ ...prev, [newId]: { w: SPAWN_W, h: SPAWN_H, x, y } }))
     }
-  }, [scheduleSave, groupSyms, refuseIfBoardFull, setGroupSym])
+  }, [scheduleSave, groupSymsStore, refuseIfBoardFull, setGroupSym])
   // Expose the float-on-create path to the workspace context (a chart's right-click
   // "Add widget" submenu). Assigned here now that handleAddWidget exists.
   floatNewWidgetRef.current = (type, at) => handleAddWidget(type, undefined, { float: true, at })
@@ -1843,13 +2009,16 @@ function ChartsWorkspaceBoard() {
   // docs/superpowers/specs/2026-08-30-dashboard-session-cockpit-design.md.
   const ensureWidgetAppliedRef = useRef(false)
   useEffect(() => {
+    // A workspace kept alive behind another page comes back through this door too, so a URL that
+    // arrives on the return is read the same way a fresh mount reads it.
+    if (boardHidden) { ensureWidgetAppliedRef.current = false; return }
     if (ensureWidgetAppliedRef.current || prefsLoading) return
     ensureWidgetAppliedRef.current = true
     const want = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '').get('ensure')
     if (!want) return
     if (layoutRef.current?.widgets?.some(w => w.type === want)) return
     handleAddWidget(want, undefined, { instant: true })
-  }, [prefsLoading, handleAddWidget])
+  }, [prefsLoading, handleAddWidget, boardHidden])
 
 
   // Commit a pending smart-placement add (Place / Enter / click the ghost). Mirrors
@@ -1862,7 +2031,7 @@ function ChartsWorkspaceBoard() {
     // The ghost was offered while the board had room; something else may have filled it since.
     if (refuseIfBoardFull()) { setPendingAdd(null); return }
     setLayout(prev => {
-      const color = pickWidgetColor(prev.widgets, groupSyms, extraGroupsOnRef.current)
+      const color = pickWidgetColor(prev.widgets, groupSymsStore.get(), extraGroupsOnRef.current)
       let widgets = prev.widgets
       if (cur.mutations && cur.mutations.length) {
         const byId = Object.fromEntries(cur.mutations.map(m => [m.id, m]))
@@ -1896,7 +2065,7 @@ function ChartsWorkspaceBoard() {
       return next
     })
     setPendingAdd(null)
-  }, [groupSyms, scheduleSave, refuseIfBoardFull])
+  }, [groupSymsStore, scheduleSave, refuseIfBoardFull])
   const cancelPendingAdd = useCallback(() => setPendingAdd(null), [])
   // Ghost-mode arrows: move the pending widget one slot in a direction (recomputing
   // its place + the widgets it displaces) before the user commits with Place.
@@ -1915,6 +2084,25 @@ function ChartsWorkspaceBoard() {
     if (!layout.widgets.some(w => w.type === 'chart')) handleAddWidget('chart', undefined, { instant: true })
     setCompareOpen(true)
   }, [layout, handleAddWidget])
+  // The panel's own close (its ×, Escape) — UCT Agent's compare.openView Undo closes it the same way.
+  const closeCompare = useCallback(() => { setCompareOpen(false); setCompareIntent(null); setCompareTab(null) }, [])
+
+  // UCT RS Phase 3, unit 3-12: a `uct:compare-open` window event (unit 3-09's "see the rotation"
+  // link) opens the panel, on the tab it names. The panel listens too, for an open while it is up.
+  // Desktop only: the phone shell mounts no Compare panel, so the event is ignored there.
+  const openCompareRef = useRef(openCompare)
+  openCompareRef.current = openCompare
+  const isMobileRef = useRef(isMobile)
+  isMobileRef.current = isMobile
+  useEffect(() => {
+    const onOpen = (e) => {
+      if (isMobileRef.current) return
+      setCompareIntent(e?.detail || null)
+      openCompareRef.current()
+    }
+    window.addEventListener(COMPARE_OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(COMPARE_OPEN_EVENT, onOpen)
+  }, [])
 
   // Tools → Replay Mode. Auto-adds a chart if none exists (like openCompare), then opens
   // the dialog. `startReplay` sets the shared cutoff + switches every chart to the chosen
@@ -1932,10 +2120,29 @@ function ChartsWorkspaceBoard() {
   // "Pick on chart": close the dialog + arm the drag so the chart is visible to click on.
   const armReplayPick = useCallback(() => { setReplayOpen(false); setReplayArmPick(true) }, [])
 
+  // Custom-Period Sort → Sort: the config popover's own write, ONE function shared with UCT Agent (periodSort.run). Opens
+  // the floating results panel for [start, end] (YYYYMMDD) and `group`; sets or CLEARS the shared Replay cutoff (End date)
+  // and the start marker exactly as the popover always has; switches every chart to `tf` only when one is given (the
+  // popover always gives one; the Agent never does).
+  const runPeriodSort = useCallback((start, end, replay, group, tf, markStart) => {
+    setPeriodSortPanel({ start, end, group: group || null })
+    // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
+    const s = String(end)
+    setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
+    // Mark start date on every chart: gold vertical line ('line') or gold start
+    // candle ('candle'). 'off' → no marker.
+    const st = String(start)
+    setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
+    if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
+    // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
+    applyTfToCharts(tf)
+  }, [applyTfToCharts])
   // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
+  // Returns the new widget's id (UCT Agent's periodSort.dock reads it back and its Undo removes exactly it).
   const handleDockPeriodSort = useCallback((start, end, group = null) => {
     setPeriodSortPanel(null)
+    const id = `w-periodsort-${Date.now()}`
     setLayout(prev => {
       const defaults = WIDGET_DEFAULTS.periodsort
       const fit = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
@@ -1954,9 +2161,9 @@ function ChartsWorkspaceBoard() {
           || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
         if (split) { widgets = split.widgets; place = split.place }
       }
-      const color = pickWidgetColor(widgets, groupSyms, extraGroupsOnRef.current)
+      const color = pickWidgetColor(widgets, groupSymsStore.get(), extraGroupsOnRef.current)
       const newWidget = {
-        id: `w-periodsort-${Date.now()}`,
+        id,
         type: 'periodsort', color,
         x: place.x, y: place.y, w: place.w, h: place.h,
         opts: { start, end, group: group || null },
@@ -1965,7 +2172,8 @@ function ChartsWorkspaceBoard() {
       scheduleSave(next)
       return next
     })
-  }, [scheduleSave, groupSyms])
+    return id
+  }, [scheduleSave, groupSymsStore])
   const handlePeriodSortToTab = useCallback((widgetId, start, end, group = null) => {
     setPeriodSortPanel(null)
     setLayout(prev => {
@@ -2050,33 +2258,54 @@ function ChartsWorkspaceBoard() {
     // A pending autosave belongs to the board being replaced, and landing now would
     // move the head under this write.
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    // ⭐ OWNER 11-17 — A LAYOUT SWITCH IS INSTANT. It used to wait for three round trips (head read,
+    // write, preferences re-read) before the board changed. Now the board and the preference cache
+    // the new widgets read switch AT ONCE (the cache only: nothing is posted from here), and the
+    // one document write follows. A write that fails puts back exactly what was on screen.
+    const keys = [...new Set(steps.filter(s => s.kind === 'pref').map(s => s.key))]
+    const beforePrefs = Object.fromEntries(keys.map(k => [k, prefsRef.current?.[k]]))
+    const beforeLayout = layoutRef.current
+    let beforeCols = null
+    try { beforeCols = localStorage.getItem('uct.watchlist.cols') } catch { /* storage off */ }
+    const putColsBack = () => { try { if (beforeCols == null) localStorage.removeItem('uct.watchlist.cols'); else localStorage.setItem('uct.watchlist.cols', beforeCols) } catch { /* storage off */ } }
+    const seq = ++boardCommitSeqRef.current
     boardCommitInFlightRef.current = true
+    for (const s of steps) if (s.kind === 'pref') mergeIntoPreferenceCache(s.key, s.serialized, op)
+    applyColumnsSteps(steps)
+    applyLocal()
+    loadedFromPrefsRef.current = true
+    // ⛔ ONE WRITE AT A TIME. Clicking through tabs queues writes; each reads the head only after
+    // the previous one landed, so quick switching can never answer 409 against itself.
+    const prior = boardCommitChainRef.current
     let r
-    try {
-      r = await commitBoardDocument(boardDocumentPatch(steps))
-    } finally {
-      boardCommitInFlightRef.current = false
-    }
-    if (op.stale()) return 'stale'
+    const run = prior.then(() => commitBoardDocument(boardDocumentPatch(steps))).then((x) => { r = x }, () => { r = { status: 'failed' } })
+    boardCommitChainRef.current = run
+    await run
+    const latest = seq === boardCommitSeqRef.current
+    if (latest) boardCommitInFlightRef.current = false
+    // another member signed in meanwhile: nothing of this write is theirs, so the board goes back
+    if (op.stale()) { if (latest) { putColsBack(); setLayout(beforeLayout) } return 'stale' }
     if (r.status === 'dark') { legacy(); return 'legacy' }
     if (r.status === 'applied') {
-      // Re-read BEFORE the board switches, so the widgets it mounts read the values the
-      // document now holds (the same fresh read a version restore makes).
-      const fresh = await refreshPreferences()
-      applyColumnsSteps(steps)
-      applyLocal()
-      loadedFromPrefsRef.current = true
       onCommitted?.()
-      if (!fresh) workspaceNoticeRef.current?.('The layout was saved, but the board could not be reloaded. Reload the page to see it.')
+      // the board is already on screen; this re-read only adopts the server's revision
+      if (latest) refreshPreferences()
       return 'applied'
     }
+    // A later switch already replaced this board: its own write decides what stays.
+    if (!latest) return r.status === 'conflict' ? 'conflict' : 'failed'
     if (r.status === 'conflict') {
       const fresh = await refreshPreferences()
       const current = fresh ? parseLayout(fresh.charts_workspace_layout) : null
-      if (current) { setLayout(current); loadedFromPrefsRef.current = true }
+      putColsBack()
+      setLayout(current || beforeLayout)
       workspaceNoticeRef.current?.('Your board changed in another tab or window before this could be applied, so nothing was changed. Try again.')
       return 'conflict'
     }
+    // failed: put back exactly what was on screen before the switch
+    for (const k of keys) mergeIntoPreferenceCache(k, beforePrefs[k] === undefined ? undefined : (typeof beforePrefs[k] === 'string' ? beforePrefs[k] : JSON.stringify(beforePrefs[k])), op)
+    putColsBack()
+    setLayout(beforeLayout)
     workspaceNoticeRef.current?.('That did not go through, and your board was not changed. Try again in a moment.')
     return 'failed'
   }, [setPref])
@@ -2111,7 +2340,7 @@ function ChartsWorkspaceBoard() {
     // charts_workspace_layout arrangement blob.
     const { chartSettings, watchlistSettings, themeTrackerSettings, fundamentalsSettings, breadthSettings, watchlistColumns, ...boardLayout } = parseLayout(tpl.layout) || tpl.layout
     commitBoard({
-      applyLocal: () => setLayout(boardLayout),
+      applyLocal: () => { setLayout(boardLayout); setOpenMenuOpen(false) },
       onCommitted: () => { setOpenMenuOpen(false); flashSaved() },
       build: (setPref, setWatchlistColumns) => {
         setPref('charts_workspace_layout', serializeLayout(boardLayout))
@@ -2247,21 +2476,30 @@ function ChartsWorkspaceBoard() {
   // `quiet` (TERM-010 first run): the same apply, without closing a menu nobody opened or
   // flashing "Saved" at a member who has not done anything yet. A click passes the
   // event, whose `quiet` is undefined, so the menu path is unchanged.
-  const applyUctDefault = useCallback(({ quiet = false } = {}) => {
+  // `keepBoard` (first visit while UCT Default is hidden): write the starting LOOK only and leave
+  // the board as it is — it is already the blank DEFAULT_LAYOUT, or holds the one widget a
+  // legacy ?ensure= door just seeded, which a blank replace would wipe (the clobber the ensure
+  // effect's ⛔ note describes; UCT_DEFAULT_LAYOUT only hid it by containing those types).
+  const applyUctDefault = useCallback(({ quiet = false, keepBoard = false } = {}) => {
     flushNamedSaveRef.current?.()
     userRemovedRef.current = false
     suppressAutoSave()
-    const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
+    // UCT Default HIDDEN (UCT_DEFAULT_OFFERED, owner 11-16): every path into it — first visit,
+    // a stored 'uct-default' pointer, deleting the open layout — opens a BLANK board instead,
+    // with the same styling reset, and names no layout (the 'null' New Layout writes).
+    const normalized = UCT_DEFAULT_OFFERED
+      ? (parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT)
+      : { widgets: [], cols: GRID_COLS }
     // On the LIGHT app theme, UCT Default paints a WHITE chart (chartDefaultsForTheme
     // 'light') and light-theme widget appearances; on dark it keeps the frozen owner
     // capture + the dark defaults. Parsed fresh each apply so the constants are never
     // mutated.
     const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
     commitBoard({
-      applyLocal: () => setLayout(normalized),
+      applyLocal: () => { if (!keepBoard) setLayout(normalized) },
       onCommitted: () => { if (!quiet) { setOpenMenuOpen(false); flashSaved() } },
       build: (setPref, setWatchlistColumns) => {
-        setPref('charts_workspace_layout', serializeLayout(normalized))
+        if (!keepBoard) setPref('charts_workspace_layout', serializeLayout(normalized))
         setPref('chart_settings', appTheme === 'light' ? JSON.stringify(chartDefaultsForTheme('light')) : uctDefaultChartSettings())
         // Watchlist / Theme Tracker / Fundamentals / Breadth appearance are part of the
         // default too → reset them to the theme-appropriate defaults (light = white canvas
@@ -2281,7 +2519,9 @@ function ChartsWorkspaceBoard() {
         // id names it without inventing a row. Safe for every existing reader:
         // handleSaveLayout's `list.some(t => t.id === active.id)` can never match it,
         // and handleDeleteTemplate compares against numeric row ids.
-        setPref('charts_active_template', JSON.stringify({ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' }))
+        setPref('charts_active_template', UCT_DEFAULT_OFFERED
+          ? JSON.stringify({ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' })
+          : 'null')
       },
     })
   }, [commitBoard, flashSaved, prefs.theme, suppressAutoSave])
@@ -2294,6 +2534,7 @@ function ChartsWorkspaceBoard() {
     if (tpl?.layout?.widgets?.length) {
       return { layout: parseLayout(tpl.layout) || tpl.layout, groups: tpl.groups || null, fromTemplate: true }
     }
+    if (!UCT_DEFAULT_OFFERED) return { layout: DEFAULT_LAYOUT, groups: null, fromTemplate: false }
     return { layout: parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT, groups: null, fromTemplate: false }
   }, [globalLayouts, myLayouts])
 
@@ -2303,7 +2544,17 @@ function ChartsWorkspaceBoard() {
   useEffect(() => {
     if (appliedDefaultRef.current) return
     if (prefsLoading || templatesLoading) return
-    if (parseLayout(prefs?.charts_workspace_layout)) { appliedDefaultRef.current = true; return }
+    if (parseLayout(prefs?.charts_workspace_layout)) {
+      appliedDefaultRef.current = true
+      // UCT Default HIDDEN: a member whose open layout is still the 'uct-default' sentinel is
+      // moved ONCE to the blank board (applyUctDefault now writes a blank board + a 'null'
+      // pointer, so this cannot re-fire on the next load). Their stored board WAS the UCT
+      // Default arrangement — a frozen layout that never auto-saved into anything.
+      if (!UCT_DEFAULT_OFFERED && parsePref(prefs?.charts_active_template, null)?.id === UCT_DEFAULT_ID) {
+        applyUctDefault({ quiet: true })
+      }
+      return
+    }
     appliedDefaultRef.current = true
     const d = resolveDefaultLayout()
     // TERM-010 (owner ruling 2026-09-29: "UCT Default layout"): a member with NO board and NO
@@ -2317,12 +2568,13 @@ function ChartsWorkspaceBoard() {
     // (live 2026-09-29 to 09-30). They get the default on screen and no write, below.
     const storedUnreadable = isUnreadableStoredLayout(prefs?.charts_workspace_layout)
     if (!d.fromTemplate && !prefs?.chart_settings && !storedUnreadable) {
-      applyUctDefault({ quiet: true })
+      applyUctDefault({ quiet: true, keepBoard: !UCT_DEFAULT_OFFERED })
       return
     }
-    setLayout(d.layout)
+    // UCT Default hidden: the board is already blank (or holds an ?ensure= seed) — leave it.
+    if (UCT_DEFAULT_OFFERED || d.fromTemplate) setLayout(d.layout)
     if (d.groups) setGroupSymsState({ A: null, B: null, C: null, D: null, ...d.groups })
-  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, resolveDefaultLayout, applyUctDefault])
+  }, [prefsLoading, templatesLoading, prefs?.charts_workspace_layout, prefs?.chart_settings, prefs?.charts_active_template, resolveDefaultLayout, applyUctDefault, setGroupSymsState])
 
   // New layout → wipe to a blank workspace (no widgets) so the user can build a
   // fresh board from scratch. Clears the color groups too. Persisted like any edit,
@@ -2359,7 +2611,7 @@ function ChartsWorkspaceBoard() {
         setPref('charts_active_template', activeTemplate ? JSON.stringify(activeTemplate) : 'null')
       },
     })
-  }, [commitBoard, suppressAutoSave])
+  }, [commitBoard, suppressAutoSave, setGroupSymsState])
 
   /* `nameArg`/`scopeArg` are OPTIONAL. The desktop menu calls this bare (and as an
      onClick, so arg 0 can be a MouseEvent — hence the typeof guard); the phone's
@@ -2426,7 +2678,7 @@ function ChartsWorkspaceBoard() {
     // copied into the open layout's saved row — that is how a stale tab contaminated a layout.
     const [boardOk, groupsOk] = await Promise.all([
       setPref('charts_workspace_layout', serializeLayout(layout)),
-      setPref('charts_workspace_groups', JSON.stringify(groupSyms)),
+      setPref('charts_workspace_groups', JSON.stringify(groupSymsStore.get())),
     ])
     // `false` is setPref's "refused / not saved"; anything else (a confirmed write) goes on.
     // The RESULT is returned for UCT Agent's layout.saveCurrent receipt; the button ignores it.
@@ -2450,7 +2702,7 @@ function ChartsWorkspaceBoard() {
     }
     flashSaved()
     return { ok: named !== 'failed', named }
-  }, [layout, groupSyms, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
+  }, [layout, groupSymsStore, setPref, flashSaved, prefs?.charts_active_template, prefs?.chart_settings, prefs?.watchlist_settings, prefs?.theme_tracker_settings, prefs?.fundamentals_settings, isAdmin, globalLayouts, myLayouts, saveLayout])
 
   const handleDeleteTemplate = useCallback(async (id) => {
     // Fall back BEFORE awaiting the delete: if the layout you just deleted was
@@ -2472,17 +2724,26 @@ function ChartsWorkspaceBoard() {
   // `popoutRemoveWidgetId` (./popout/popoutState.js) — named and tested so a
   // future caller has a stable shape to call rather than re-deriving these two
   // one-liners. Byte-identical to the inline callbacks these replaced.
+  const saveWidgetRecord = useCallback((id) => {
+    saveRecord(deskUidRef.current, { kind: 'widget', id: widgetRecordId(id), widgetId: id, windowName: widgetWindowName(id) }, deskOwnerRef.current)
+  }, [])
+  const dropWidgetRecord = useCallback((id) => {
+    if (deskRestoresItself()) confirmRestored(deskUidRef.current, widgetRecordId(id), deskOwnerRef.current)
+  }, [])
   const handlePopOutWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => popoutAddWidgetId(prev, id))
-  }, [])
+    if (deskRestoresItself()) saveWidgetRecord(id)
+  }, [saveWidgetRecord])
   const handleDockWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => popoutRemoveWidgetId(prev, id))
-  }, [])
+    dropWidgetRecord(id)
+  }, [dropWidgetRecord])
   // Closing a widget from inside its own window should delete it, not dock it.
   const handleRemovePoppedWidget = useCallback((id) => {
     setPoppedWidgetIds(prev => popoutRemoveWidgetId(prev, id))
+    dropWidgetRecord(id)
     handleRemoveWidget(id)
-  }, [handleRemoveWidget])
+  }, [handleRemoveWidget, dropWidgetRecord])
 
   // ── In-canvas float: pop a widget onto another widget, dock it back, move it
   //    into another widget's tabs, or close it. Mirrors the pop-out handlers. ──
@@ -2522,54 +2783,113 @@ function ChartsWorkspaceBoard() {
     })
   }, [scheduleSave])
 
+  // ── Desk records: what keeps a popped board alive across a reload, crash or route change. ──
+  // The id stays the one this mount started with: the workspace is keyed by member, so an instance
+  // only ever moves from "not known yet" to one member, and at unmount prefsUser() may already be
+  // the NEXT member. Reading the ref, never prefsUser(), is what files A's board under A.
+  const deskUid = useSyncExternalStore(onPrefsUserChange, prefsUser, prefsUser) ?? null
+  deskUidRef.current = deskUid
+  // Owner identity is per MOUNT, not per page: a route change frees this mount's lock, and the
+  // next mount of /charts in this same tab has to see that record as orphaned.
+  if (!deskOwnerRef.current) {
+    deskOwnerRef.current = { tabId: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`, granted: new Set() }
+  }
+  const poppedBoardsRef = useRef(new Map())   // popId -> the widgets as they stand now
+  const deskSaveTimerRef = useRef(null)
+  const flushDeskRecordsRef = useRef(null)
+  const notCrashSafeRef = useRef(new Set())   // boards the member has already been told about
+  const deskLockRef = useRef(null)            // resolves once this mount holds its owner lock
+  const saveBoardRecord = useCallback((id, widgets) => {
+    const ok = saveRecord(deskUidRef.current, { kind: 'board', id, widgets, windowName: boardWindowName(id) }, deskOwnerRef.current)
+    if (ok) notCrashSafeRef.current.delete(id)
+    else if (!notCrashSafeRef.current.has(id)) {
+      notCrashSafeRef.current.add(id)
+      setPopoutNotice(POPOUT_NOT_CRASH_SAFE_MSG)
+    }
+    return ok
+  }, [])
+  flushDeskRecordsRef.current = () => {
+    if (deskSaveTimerRef.current) { clearTimeout(deskSaveTimerRef.current); deskSaveTimerRef.current = null }
+    for (const [id, widgets] of poppedBoardsRef.current) saveBoardRecord(id, widgets)
+  }
+  // The owner lock lives as long as this workspace does. Its release is what makes a record
+  // recoverable, so a route change frees it at once; a page that dies frees it with the page.
+  useEffect(() => {
+    if (!deskUid) return undefined
+    let gone = false
+    let release = null
+    const lock = holdOwnerLock(deskUid, deskOwnerRef.current)
+    deskLockRef.current = lock
+    lock.then((r) => { if (gone) r(); else release = r })
+    const flush = () => flushDeskRecordsRef.current?.()
+    window.addEventListener('beforeunload', flush)
+    return () => {
+      window.removeEventListener('beforeunload', flush)
+      flush()                 // the record, not the unmount, carries the board from here
+      gone = true
+      release?.()
+    }
+  }, [deskUid])
+
   // Deliberately NOT done inside a setLayout updater: React invokes updaters
   // twice under StrictMode, which would queue a second popped board and open a
   // duplicate window.
   const handlePopOutLayout = useCallback(() => {
     const live = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id))
     if (!live.length) return
-    setPoppedLayouts(ls => [...ls, { id: `pl-${Date.now()}`, widgets: live }])
+    const id = `pl-${Date.now()}`
+    // ⛔ BEFORE the save below: the moment that lands, this record is the only copy of these widgets.
+    poppedBoardsRef.current.set(id, live)
+    saveBoardRecord(id, live)
+    setPoppedLayouts(ls => [...ls, { id, widgets: live }])
     // Main goes back to a blank board so another layout can be built and popped
     // onto the next monitor.
     const next = { ...layout, widgets: layout.widgets.filter(w => poppedWidgetIds.includes(w.id)) }
     setLayout(next)
     scheduleSave(next)
-  }, [layout, poppedWidgetIds, scheduleSave])
+  }, [layout, poppedWidgetIds, scheduleSave, saveBoardRecord])
 
   const handleDockLayout = useCallback((popId, returning) => {
     setPoppedLayouts(ls => ls.filter(l => l.id !== popId))
+    // Off the tracked list so nothing writes the record back, and queued for deletion by the save
+    // the updater below schedules. Outside the updater: React runs updaters twice under StrictMode.
+    poppedBoardsRef.current.delete(popId)
+    dockedRecordsRef.current.set(popId, returning.map(w => w.id))
     setLayout(prev => {
-      // Straight back into an empty board. If a new layout has been built here
-      // meanwhile, re-place the returning widgets so they don't land on top of it.
-      let widgets
-      if (!prev.widgets.length) {
-        widgets = returning
-      } else {
-        widgets = [...prev.widgets]
-        for (const w of returning) {
-          // minW/minH come from the type defaults, but w/h must be the widget's
-          // OWN size — spreading the defaults last would resize every docking
-          // widget back to its type's default dimensions.
-          const spec = { ...(WIDGET_DEFAULTS[w.type] || {}), w: w.w, h: w.h }
-          widgets.push({ ...w, ...findPlacement(widgets, spec, COLS.lg, FIXED_ROWS) })
-        }
-      }
-      const next = { ...prev, widgets: clampWidgetsToRows(widgets) }
+      const next = { ...prev, widgets: clampWidgetsToRows(placeReturningWidgets(prev.widgets, returning)) }
       scheduleSave(next)
       return next
     })
   }, [scheduleSave])
+
+  // Every edit made inside a popped window follows it into the record, debounced like the board's
+  // own save and flushed at the two moments a debounce would lose it (unload and unmount, above).
+  const trackPoppedBoard = useCallback((popId, widgets) => {
+    const tracked = poppedBoardsRef.current
+    if (!tracked.has(popId) || tracked.get(popId) === widgets) return
+    tracked.set(popId, widgets)
+    if (deskSaveTimerRef.current) return
+    deskSaveTimerRef.current = setTimeout(() => {
+      deskSaveTimerRef.current = null
+      flushDeskRecordsRef.current?.()
+    }, DESK_RECORD_SAVE_MS)
+  }, [])
 
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
   // MOB-08 — the grid's `mode` is DEVICE-SCOPED. `isMobile` is already the one
   // authority for which shell renders (a single MQL, deliberately), so the
   // device class is derived from it rather than from a second opinion.
   const mc = useMultiChartState(deviceClassOf(isMobile))
+  // ⭐ UCT Agent: the grid's own writers, for the Agent host below (useGridAgentControl — stable, read live)
+  const gridAgentControl = useGridAgentControl(mc)
   const [, setMcMenuOpen] = useState(false)  // nested under Layouts ▾
   // Consolidated top-level toolbar dropdowns: "Widgets" and "Layouts". Each shows a small
   // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
   const [widgetsMenuOpen, setWidgetsMenuOpen] = useState(false)
   const [widgetsSub, setWidgetsSub] = useState(null)   // null | 'add'
+  // UCT Signature top row (owner 11-15): the Add-widget picker's hovered widget (its blurb shows at the foot).
+  // No search box: eleven widgets read at a glance (owner 11-15).
+  const [wHover, setWHover] = useState(null)
   const [layoutsMenuOpen, setLayoutsMenuOpen] = useState(false)
   const [layoutsSub, setLayoutsSub] = useState(null)   // null | 'open' | 'save' | 'mc'
   const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
@@ -2654,7 +2974,7 @@ function ChartsWorkspaceBoard() {
     } else {
       showWorkspaceNotice(`Restored version ${v}. Your board now matches it.`)
     }
-  }, [showWorkspaceNotice, suppressAutoSave])
+  }, [showWorkspaceNotice, suppressAutoSave, setGroupSymsState])
   const historyAvailableForNotice = useVersionHistoryAvailable(storedLayoutUnreadable && !isMobile)
   // (Flyout grace-timer machinery removed: Multi Chart is now its own header
   // button with a plain click-toggled dropdown — the hover flyout it guarded
@@ -2670,11 +2990,12 @@ function ChartsWorkspaceBoard() {
   // workspace-level listener names the gesture. Grid cells don't implement
   // capture, so the hint would mislead there.
   const [jwHotkeyMsg, setJwHotkeyMsg] = useJournalToast()
-  const jwHotkeyCtx = useRef({ gridMode })
-  jwHotkeyCtx.current = { gridMode }
+  const jwHotkeyCtx = useRef({ gridMode, boardHidden })
+  jwHotkeyCtx.current = { gridMode, boardHidden }
   useEffect(() => {
     const onKey = (e) => {
       if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
+      if (jwHotkeyCtx.current.boardHidden) return
       if (jwHotkeyCtx.current.gridMode) return
       if (activeChartRef.current != null) return
       e.preventDefault()
@@ -2702,7 +3023,7 @@ function ChartsWorkspaceBoard() {
   // board). Defined here, above the mobile return, only because wsGlobal/wsMy
   // are; the dock itself renders in the desktop branch alone.
   const dockEntries = useMemo(() => ([
-    { id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' },
+    ...(UCT_DEFAULT_OFFERED ? [{ id: UCT_DEFAULT_ID, name: 'UCT Default', scope: 'global' }] : []),
     ...wsGlobalLayouts.map(t => ({ id: t.id, name: t.name, scope: 'global' })),
     ...wsMyLayouts.map(t => ({ id: t.id, name: t.name, scope: 'user' })),
   ]), [wsGlobalLayouts, wsMyLayouts])
@@ -2737,10 +3058,19 @@ function ChartsWorkspaceBoard() {
   }, [dockActiveId, globalLayouts, myLayouts, layout])
   const dockDirty = !!dockCompare?.dirty
 
+  // ── UCT Signature top row (owner 11-15): the open layout's name + its save state ──
+  const dockActiveEntry = dockEntries.find(e => e.id === dockActiveId) || null
+  const layoutTitle = gridMode ? 'Multi Chart' : (dockActiveEntry?.name || dockActiveTpl?.name || 'My board')
+  const canSaveActive = !!dockActiveEntry && dockActiveId !== UCT_DEFAULT_ID && (dockActiveEntry.scope === 'user' || isAdmin)
+
   // ⭐ AUTO-SAVE — only ever into YOUR OWN layouts. The rule is
   // `layoutAutoSaves` (layoutDockPins.js), not restated here: Settings publishes
   // which layouts save themselves by calling the same function (TERM-052).
   const dockAutoSaves = layoutAutoSaves(dockActiveTpl)
+  // The auto-save's own progress, for the save dot beside the layout name (owner 11-16):
+  // in flight, and the arrangement whose save was refused (cleared by the next good save).
+  const [autoSaveInFlight, setAutoSaveInFlight] = useState(false)
+  const [autoSaveFailSig, setAutoSaveFailSig] = useState(null)
 
   // Refs assigned during render (the idiom this file already uses for layoutRef):
   // they let the switch paths above — defined earlier — reach the save without a
@@ -2772,8 +3102,156 @@ function ChartsWorkspaceBoard() {
   const shrinkBlocked = !!dockCompare?.shrunk && !userRemovedRef.current
   const autoSaveOk = autoSaveReady && dockAutoSaves && dockDirty && !shrinkBlocked
 
+  // The save dot beside the layout name (owner 11-16). null = say nothing (UCT Default is frozen;
+  // a board with no named layout has nothing to save into). Words show only for 'saving' and
+  // 'failed' (and a "Save" link on an unsaved layout that does not save itself); the resting
+  // states are the dot and its tooltip. A refused save stays 'failed' until the board moves
+  // (which schedules a fresh attempt) or a retry lands.
+  const autoSaveFailed = !!autoSaveFailSig && dockDirty && autoSaveFailSig === arrangementSig(layout)
+  const saveState = gridMode ? null
+    : autoSaveFailed ? 'failed'
+    : (autoSaveInFlight || autoSaveOk) ? 'saving'
+    : savedFlash ? 'saved'
+    : dockDirty ? 'dirty'
+    : (dockActiveEntry && dockActiveId !== UCT_DEFAULT_ID) ? (dockAutoSaves ? 'auto' : 'saved')
+    : null
+
+  // ── Restoring a board a closed page left behind. ──
+  // Offered, never docked by itself, and only once the board has loaded: a dock onto the default
+  // board would be overwritten by the prefs answer, and its save would replace the real board.
+  // Records are read here and deleted only after the save that holds their widgets is confirmed.
+  // ⛔ A failed read is not a loaded board: between SWR's retries nothing is loading and no stored
+  // board is present, so autoSaveReady reads true over the default board. A restore then would
+  // save the default plus the orphan over the member's real board.
+  const deskRestoreReady = autoSaveReady && !prefsReadFailed
+  const offerDeskRestoreRef = useRef(null)
+  const restoringRef = useRef(false)
+  const restoreDeskRecord = useCallback(async (recordId) => {
+    if (restoringRef.current) return
+    restoringRef.current = true
+    try {
+      const uid = deskUidRef.current
+      const owner = deskOwnerRef.current
+      const op = beginPrefsOp()            // the member this restore is for, before its await
+      const rec = (await listOrphans(uid, owner)).find(r => r.id === recordId)
+      if (op.stale()) return               // signed out or switched while reading: not their board
+      if (!rec || !Array.isArray(rec.widgets)) {       // another tab got there first
+        setWorkspaceNotice(null)
+        offerDeskRestoreRef.current?.()
+        return
+      }
+      const current = layoutRef.current
+      const taken = new Set([
+        ...current.widgets.map(w => w.id),
+        ...[...poppedBoardsRef.current.values()].flat().map(w => w.id),
+      ])
+      const adding = rec.widgets.filter(w => {
+        if (!w?.id || taken.has(w.id)) return false
+        taken.add(w.id)
+        return true
+      })
+      const nextCount = current.widgets.length + adding.length
+      if (!boardMayBecome(nextCount, current.widgets.length)) {
+        showWorkspaceNotice(`This popped board could not be restored. ${boardRefusalSentence(nextCount)} It is still kept: close enough widgets, then restore it.`, {
+          persistent: true,
+          action: { label: 'Restore', run: () => restoreDeskRecord(recordId) },
+        })
+        return
+      }
+      if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+      const next = { ...current, widgets: clampWidgetsToRows(placeReturningWidgets(current.widgets, adding)) }
+      layoutRef.current = next
+      setLayout(next)
+      let result = false
+      try { result = await autosaveLayout(next, op) } catch { result = false }
+      if (result === false) {
+        // Not saved, so not restored: a board on screen that is not saved would read as done.
+        const addedIds = new Set(adding.map(w => w.id))
+        setLayout(prev => ({ ...prev, widgets: prev.widgets.filter(w => !addedIds.has(w.id)) }))
+        showWorkspaceNotice('The popped board was not restored because your board could not be saved. It is still kept: reload to try again.', {
+          persistent: true,
+          action: { label: 'Reload', run: () => window.location.reload() },
+        })
+        return
+      }
+      confirmRestored(uid, recordId, owner)
+      showWorkspaceNotice(adding.length
+        ? `Restored ${adding.length} widget${adding.length === 1 ? '' : 's'} to this board.`
+        : 'Those widgets are already on this board.')
+      offerDeskRestoreRef.current?.()
+    } finally {
+      restoringRef.current = false
+    }
+  }, [autosaveLayout, showWorkspaceNotice])
+  offerDeskRestoreRef.current = async () => {
+    const uid = deskUidRef.current
+    const owner = deskOwnerRef.current
+    const all = await listOrphans(uid, owner)
+    // A widget's record means nothing here: the widget never left the layout.
+    for (const r of all) if (r.kind === 'widget') confirmRestored(uid, r.id, owner)
+    const orphans = all.filter(r => r.kind === 'board' && Array.isArray(r.widgets))
+    for (const r of orphans) if (!r.widgets.length) confirmRestored(uid, r.id, owner)   // nothing to bring back
+    const rec = orphans.find(r => r.widgets.length)
+    if (!rec) return
+    const n = rec.widgets.length
+    showWorkspaceNotice(`A popped board (${n} widget${n === 1 ? '' : 's'}) was closed. Restore it to this board?`, {
+      persistent: true,
+      action: { label: 'Restore', run: () => restoreDeskRecord(rec.id) },
+    })
+  }
+  // ── The desktop app brings the desk back by itself. ──
+  // Boards return to their named windows, placed by the shell, and no widget touches the main
+  // board, so nothing is written. A window the shell refuses comes back through onBlocked and
+  // docks, which keeps its record until that save lands.
+  const deskRepopStartedRef = useRef(false)
+  const [deskRepopSettled, setDeskRepopSettled] = useState(false)
+  const repopDeskRef = useRef(null)
+  repopDeskRef.current = async () => {
+    if (deskRepopStartedRef.current) return
+    deskRepopStartedRef.current = true
+    try {
+      // A re-popped board writes its record, which needs this page's lock granted first.
+      await Promise.race([deskLockRef.current, new Promise(resolve => setTimeout(resolve, DESK_LOCK_WAIT_MS))])
+      const uid = deskUidRef.current
+      const owner = deskOwnerRef.current
+      const op = beginPrefsOp()
+      const orphans = await listOrphans(uid, owner)
+      if (op.stale()) return
+      const plan = planDeskRepop(orphans, layoutRef.current.widgets.map(w => w.id))
+      for (const id of plan.drop) confirmRestored(uid, id, owner)
+      for (const { id, widgets } of plan.boards) {
+        poppedBoardsRef.current.set(id, widgets)
+        saveBoardRecord(id, widgets)                // re-owned by this page: no longer an orphan
+      }
+      if (plan.boards.length) setPoppedLayouts(ls => [...ls, ...plan.boards])
+      if (plan.widgetIds.length) {
+        plan.widgetIds.forEach(saveWidgetRecord)
+        setPoppedWidgetIds(prev => plan.widgetIds.reduce(popoutAddWidgetId, prev))
+      }
+      // Telemetry (plan 5.1): a saved desk came back at launch.
+      if (plan.boards.length || plan.widgetIds.length) reportDesktopEvent('desk_restored')
+    } finally {
+      setDeskRepopSettled(true)
+    }
+  }
+  useEffect(() => {
+    if (!deskRestoreReady || !deskUid || isMobile) return
+    if (deskRestoresItself()) repopDeskRef.current?.()
+    else offerDeskRestoreRef.current?.()
+  }, [deskRestoreReady, deskUid, isMobile])
+  // ⛔ An effect, not the finally above: this runs after the commit that mounts the windows, and a
+  // child's effect (registerPopout) runs before its parent's. Clearing the signal sooner lets
+  // ChartsDeskHost see no signal and no window, and unmount the desk it was asked to hold.
+  useEffect(() => {
+    if (deskRepopSettled || isMobile || storedLayoutUnreadable) finishDeskLaunch()
+  }, [deskRepopSettled, isMobile, storedLayoutUnreadable])
+
   const runNamedSave = useCallback(() => {
-    namedSaveRef.current?.()
+    const sig = arrangementSig(layoutRef.current)
+    setAutoSaveInFlight(true)
+    Promise.resolve(namedSaveRef.current?.())
+      .then((r) => setAutoSaveFailSig(r && r.ok === false ? sig : null), () => setAutoSaveFailSig(sig))
+      .finally(() => setAutoSaveInFlight(false))
     userRemovedRef.current = false
   }, [])
 
@@ -2875,6 +3353,7 @@ function ChartsWorkspaceBoard() {
   // can be a no-op (a layout with no widgets, a refused board size, an unknown entry), and the
   // toast must never say "Switched to “X”" when nothing switched (Agent review, 2026-10-13).
   const [layoutUndo, setLayoutUndo] = useState(null)   // { plan, note, shown, at }
+  // Owner 11-16: no "Switched to …" banner. The state above still runs (cheap, and the switch can come back).
   const rememberLayoutOpen = useCallback((to) => {
     if (!to || to.id == null || String(to.id) === String(dockActiveId)) return
     setLayoutUndo({ plan: planLayoutUndo(agentLayoutsRef.current, to), note: null, shown: false, at: Date.now() })
@@ -2957,7 +3436,8 @@ function ChartsWorkspaceBoard() {
   // The host reads the charts through chartApiById (each ChartWidget's own agent
   // adapter) and the visible board below — it never writes prefs itself.
   const agentFlag = useAgentFlag()
-  const agentAllowed = agentFlag && isAdmin
+  // A hidden board is not the page showing: it offers no Agent and registers no page host for it.
+  const agentAllowed = agentFlag && isAdmin && !boardHidden
   // The panel's code is fetched in the background before the first open, so that open slides
   // in on the first click instead of waiting on the download.
   useEffect(() => {
@@ -2986,9 +3466,7 @@ function ChartsWorkspaceBoard() {
   // widget.add / its undo go through the SAME handlers the Widgets menu and a
   // widget's ✕ use — read through a ref so the host never holds a stale closure.
   const agentWidgetOpsRef = useRef(null)
-  // The link-group tickers as of this render (what a chart's symbol IS, mounted or not).
-  const agentGroupSymsRef = useRef(groupSyms)
-  agentGroupSymsRef.current = groupSyms
+  // The link-group tickers (what a chart's symbol IS, mounted or not) are read from `groupSymsStore` when asked.
   agentWidgetOpsRef.current = {
     // `init` (optional): { tf, symbol } a new chart is BORN with (unlinked, on that
     // ticker and timeframe) instead of being created on a default and then changed;
@@ -3001,15 +3479,19 @@ function ChartsWorkspaceBoard() {
     // this tab's current board; anything else means it is on screen but NOT saved. The
     // autosave's own guards apply: an unreadable stored board or a board commit in flight is
     // never written over, and is reported as not confirmed rather than bypassed.
-    persist: async () => {
+    // `settle` (W2 audit, live 2026-11-04: a 2×2 grid's receipt waited ~20 s behind the NEW charts' own chart_settings
+    // writes as they loaded): the other preference writes to wait for. A change that is only the board's widgets
+    // (arrangement, adds, removals, tickers / timeframes of its charts) passes [] — its own writes are the layout and
+    // the link-group tickers, and their conflicts are still checked; everything else waits exactly as before.
+    persist: async ({ settle = ['charts_active_template', 'chart_settings'] } = {}) => {
       if (storedLayoutUnreadableRef.current || boardCommitInFlightRef.current) return { ok: false, conflict: false, reason: 'not-saved' }
       if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
       if (groupsSaveTimerRef.current) { clearTimeout(groupsSaveTimerRef.current); groupsSaveTimerRef.current = null }
       const [board, groups] = await Promise.all([
         setPref('charts_workspace_layout', serializeLayout(layoutRef.current)),
-        setPref('charts_workspace_groups', JSON.stringify(agentGroupSymsRef.current)),
+        setPref('charts_workspace_groups', JSON.stringify(groupSymsStore.get())),
       ])
-      await whenWritesSettle(['charts_active_template', 'chart_settings'])
+      if (settle.length) await whenWritesSettle(settle)
       const conflict = hasWorkspaceConflict(['charts_workspace_layout', 'charts_workspace_groups', 'charts_active_template', 'chart_settings'])
       return { ok: board !== false && groups !== false && !conflict, conflict, reason: conflict ? 'conflict' : (board === false || groups === false ? 'not-saved' : null) }
     },
@@ -3054,6 +3536,11 @@ function ChartsWorkspaceBoard() {
   // (and are flushed on switch); edits on UCT Default, a prebuilt or a blank board
   // are dropped by a switch — the manual product does the same, silently.
   const agentLayoutsRef = useRef(null)
+  // C3-037..039: the Layout Dock's own door to its RAIL (pin, move, take off the bar) — set by
+  // LayoutDock itself on every render (LayoutDock.jsx agentRef), read through host.layoutDock.
+  const agentDockRef = useRef(null)
+  // { openLibrary } — the Layouts menu's "Layout library…" row (LayoutDock.jsx controlRef).
+  const dockCtlRef = useRef(null)
   // This tab's layout trail (layoutTrail.js): every change of the open-layout pointer, from the
   // Dock or the Agent alike, so "switch back to the previous layout" has an answer.
   const layoutTrailRef = useRef({ last: null, trail: [] })
@@ -3069,7 +3556,7 @@ function ChartsWorkspaceBoard() {
     const known = active?.id != null && dockEntries.some(e => e.id === active.id)
     let unsaved
     if (dockAutoSaves && known) unsaved = false
-    else if (active?.id === UCT_DEFAULT_ID) unsaved = arrangementSig(layout) !== arrangementSig(parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT)
+    else if (UCT_DEFAULT_OFFERED && active?.id === UCT_DEFAULT_ID) unsaved = arrangementSig(layout) !== arrangementSig(parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT)
     else if (known) unsaved = dockDirty
     else unsaved = (layout.widgets?.length || 0) > 0
     agentLayoutsRef.current = {
@@ -3110,12 +3597,58 @@ function ChartsWorkspaceBoard() {
   // UCT Agent's settings + navigation reach: the SAME preference writer the Settings page
   // uses (resolves true only once the server accepted it) and the router's navigate().
   const agentPrefsRef = useRef(null)
-  agentPrefsRef.current = { prefs, setPref }
+  agentPrefsRef.current = { prefs, setPref, setPrefMerged }
   const agentNavRef = useRef(null)
   // ⭐ W1-B B-06: Replay Mode for UCT Agent — the SAME handlers the Replay dialog uses (startReplay with no timeframe
   // change / exitReplayMode) and the shared cutoff, read through a ref so the host memo stays dependency-free.
   const agentReplayRef = useRef(null)
   agentReplayRef.current = { cutoff: replayCutoff, start: startReplay, exit: exitReplayMode }
+  // Tools → Compare Symbols for UCT Agent (compare.openView, pages/charts/compareAgent.js): the panel's open state, the tab
+  // it reports, the last `uct:compare-open` detail, and the panel's own close — through a ref (the host memo stays
+  // dependency-free). `hasChart` is openCompare's own test; `percentOn` reads the chart the panel will resolve.
+  const agentCompareRef = useRef(null)
+  agentCompareRef.current = {
+    mobile: isMobile, grid: gridMode, open: compareOpen, tab: compareTab, intent: compareIntent,
+    hasChart: () => (layoutRef.current?.widgets || []).some(w => w.type === 'chart'),
+    percentOn: () => { try { return !!compareChartApi(chartApiByIdRef.current, activeChartRef.current)?.getPercentScale?.() } catch { return false } },
+    close: closeCompare,
+  }
+  // Custom-Period Sort for UCT Agent (periodSort.run / periodSort.dock): the popover's own runPeriodSort, the panel's own
+  // Dock (handleDockPeriodSort), and the state they write, read through a ref (the host memo stays dependency-free).
+  const agentPeriodSortRef = useRef(null)
+  agentPeriodSortRef.current = {
+    panel: periodSortPanel, cutoff: replayCutoff, marker: startMarker, markerStyle: startMarkerStyle,
+    run: runPeriodSort, dock: handleDockPeriodSort, widgets: () => layoutRef.current?.widgets || [],
+    // Undo of a run: the panel, cutoff and marker exactly as they were (the same setters the popover and Exit replay use)
+    restore: (was) => {
+      setPeriodSortPanel(was.panel ? { ...was.panel } : null)
+      setReplayCutoff(was.cutoff ?? null)
+      setStartMarker(was.marker ?? null)
+      if (was.markerStyle) setStartMarkerStyle(was.markerStyle)
+    },
+    // Undo of a Dock: the board writer the Agent's widget changes use (remove the docked widget, put back any widget the
+    // dock's split resized), then the floating panel it came from
+    undock: ({ remove, set, panel }) => {
+      agentWidgetOpsRef.current.applyBoard({ remove: [remove], set: set || {} })
+      setPeriodSortPanel(panel ? { ...panel } : null)
+    },
+  }
+  // ⭐ THE TOP BAR'S "CREATE INDICATOR" (`createIndicatorEntry.js`). The chart is found AT THE PRESS, from
+  // what the refs hold then: the chart last clicked on this board, else the one the member is on, else the
+  // first in reading order. ⛔ Nothing here is state the board renders from on a chart switch.
+  const [createIndicatorMsg, setCreateIndicatorMsg] = useJournalToast()
+  const openCreateIndicatorFromTopBar = useCallback(() => {
+    closeToolbarMenus()
+    const clicked = selectedChartRef.current
+    const answer = openCreateIndicatorOn(chartForCreateIndicator({
+      apiById: chartApiByIdRef.current,
+      widgets: agentWidgetsRef.current,
+      selectedWidgetId: clicked && clicked.layoutId === dockActiveIdRef.current ? clicked.widgetId : null,
+      activeId: activeChartRef.current,
+    }))
+    if (!answer.ok) setCreateIndicatorMsg(answer.message)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs and a state setter: all stable
+  }, [closeToolbarMenus])
   const inRouter = useInRouterContext()
   const agentHost = useMemo(() => buildWorkspaceHost({
     chartApiById: chartApiByIdRef,
@@ -3133,8 +3666,9 @@ function ChartsWorkspaceBoard() {
       remove: (id) => agentWidgetOpsRef.current.remove(id),
       color: (id, c) => agentWidgetOpsRef.current.color(id, c),
       cancelPending: () => agentWidgetOpsRef.current.cancelPending(),
-      groupSyms: () => agentGroupSymsRef.current,
-      persist: () => agentWidgetOpsRef.current.persist(),
+      raiseBound: (sentence) => setBoardRefusal(sentence),
+      groupSyms: () => groupSymsStore.get(),
+      persist: (opts) => agentWidgetOpsRef.current.persist(opts),
       grid: () => agentWidgetOpsRef.current.grid(),
       minOf: (w) => agentWidgetOpsRef.current.minOf(w),
       repack: (ws, id, rect) => agentWidgetOpsRef.current.repack(ws, id, rect),
@@ -3145,6 +3679,7 @@ function ChartsWorkspaceBoard() {
       extraGroups: () => extraGroupsOnRef.current === true,
     },
     layouts: () => agentLayoutsRef.current,
+    layoutDock: () => agentDockRef.current,
     watchlists: {
       getLists: () => agentWatchlistsRef.current.lists,
       revalidate: () => agentWatchlistsRef.current.revalidate(),
@@ -3162,16 +3697,39 @@ function ChartsWorkspaceBoard() {
           alert_sound_type: (x) => sp('alert_sound_type', x),
           // the member's saved chart templates (a JSON list) — the key Chart Settings → Templates writes
           chart_templates: (x) => sp('chart_templates', x),
+          // the Volume pane's height on every chart — the key dragging its separator writes (ChartPane.handleVolPaneResize)
+          charts_vol_pane_pct: (x) => sp('charts_vol_pane_pct', x),
         }[k]
         return w ? w(v) : Promise.resolve(false)
       },
+      // the member's saved indicator templates: a list another tab may be writing, so merged, as the Indicator templates bar writes it
+      merge: (k, updater) => (k === 'indicator_templates'
+        ? agentPrefsRef.current.setPrefMerged('indicator_templates', updater)
+        : Promise.resolve(false)),
     },
     navigate: (to) => agentNavRef.current?.(to),
+    compare: compareAgentSource(() => agentCompareRef.current),
+    periodSort: {
+      read: () => {
+        const r = agentPeriodSortRef.current
+        if (!r) return null
+        return { panel: r.panel ? { ...r.panel } : null, cutoff: r.cutoff ?? null, marker: r.marker ?? null, markerStyle: r.markerStyle || 'line' }
+      },
+      run: (a) => { const r = agentPeriodSortRef.current; if (!r) return false; r.run(a.start, a.end, !!a.replay, a.group || null, null, a.markStart || 'off'); return true },
+      restore: (was) => { const r = agentPeriodSortRef.current; if (!r) return false; r.restore(was); return true },
+      // the panel's own Dock, on the panel that is open now; the new widget's id (null when no panel is open)
+      dock: () => { const r = agentPeriodSortRef.current; const p = r?.panel; return p ? r.dock(p.start, p.end, p.group) : null },
+      widgets: () => agentPeriodSortRef.current?.widgets?.() || [],
+      undock: (u) => { const r = agentPeriodSortRef.current; if (!r) return false; r.undock(u); return true },
+    },
     replay: {
       read: () => agentReplayRef.current?.cutoff ?? null,
       set: (iso) => { const r = agentReplayRef.current; if (!r) return; if (iso) r.start(iso, null); else r.exit() },
     },
-  }), [])
+    gridControl: gridAgentControl,
+  }), [])   // eslint-disable-line react-hooks/exhaustive-deps
+  // ⭐ W2-C1: the app-level Agent host knows this page's host; /charts keeps its own dock + panel below (`owned`).
+  useAgentPageHost(boardHidden ? null : 'charts', agentHost, { owned: true })
   // ⭐ INDICATORS ⇄ AGENT (2026-10-12) — while the Agent is available here, a chart's Create Indicator /
   // Modify door opens the Agent on THAT chart (it asks what to build) instead of the chart-side dock.
   // The toolbar names its chart `chartId` or `chartId:tabId`; the host names it `chartId~tabId`. A
@@ -3287,6 +3845,9 @@ function ChartsWorkspaceBoard() {
   // slot frees up and the grid recompacts while it's away, and its stored
   // position is still there to dock back into.
   const visibleWidgets = layout.widgets.filter(w => !poppedWidgetIds.includes(w.id) && !floatingWidgetIds.includes(w.id))
+  // How many of each widget type are on this board — the Add-widget menu marks them with the gold dot
+  // ("current", UCT Signature gold mix, owner 11-15).
+  const onBoardCount = visibleWidgets.reduce((m, w) => { m[w.type] = (m[w.type] || 0) + 1; return m }, {})
 
   agentWidgetsRef.current = visibleWidgets
   const poppedWidgets = layout.widgets.filter(w => poppedWidgetIds.includes(w.id))
@@ -3408,16 +3969,19 @@ function ChartsWorkspaceBoard() {
               widget={w}
               headerAtBottom={false}
               merged={merged}
+              integratedChartHeader
+              uctFrame
               // Only the main board passes `h.onPopOut`/`h.onFloat` from
               // `mainGridHandlers` — a popped-out board's `renderGrid` call omits
               // both, so `isMainBoard` never mis-caps a secondary monitor's board.
               mounted={h.onPopOut ? mainBoardMountedIds.has(w.id) : true}
+              onPanelReady={h.onPopOut ? releaseMainBoardSlot : undefined}
               onRemove={() => h.onRemove(w.id)}
               onColorChange={(c) => h.onColorChange(w.id, c)}
               onOptsChange={(opts) => h.onOptsChange(w.id, opts)}
               onReplaceWidget={h.onReplaceWidget}
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
-              onFloat={h.onFloat ? () => h.onFloat(w.id) : undefined}
+              onFloat={FLOAT_BUTTON_ON && h.onFloat ? () => h.onFloat(w.id) : undefined}
             />
             {/* Merged mode: a FULLY-FREE widget (no shared edge) gets a small drag grip
                 so it can be moved even though the header chrome is hidden. Carries the
@@ -3441,6 +4005,7 @@ function ChartsWorkspaceBoard() {
                   <div
                     key={dir}
                     onPointerDown={(e) => h.onStartResize(e, w, dir)}
+                    data-guide={`widget.resize.${dir}`}
                     className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}${merged ? ' ' + styles.rzNoMark : ''}` : styles.rzHandle}
                     style={{ ...style, cursor }}
                   />
@@ -3453,6 +4018,13 @@ function ChartsWorkspaceBoard() {
       })}
     </GridComp>
     )
+  }
+
+  // The board's notice shows only with the board, so a refusal behind another page goes to the
+  // app-level toast. The workspace itself may unmount right after, taking the notice with it.
+  const showPopupBlocked = () => {
+    setPopoutNotice(POPUP_BLOCKED_MSG)
+    if (boardHidden) announceDeskLaunchBlocked()
   }
 
   const mainGridHandlers = {
@@ -3468,18 +4040,26 @@ function ChartsWorkspaceBoard() {
     onFloat: handleFloatWidget,
   }
 
+  // ⭐ Hidden, everything that belongs to the MAIN window is left out, and the pop-outs below stay
+  // where they are: the two conditional blocks keep the pop-outs at the same place in the tree, so
+  // React never remounts them and never closes a window. The main-window widgets unmount, which is
+  // what stops their charts, streams and key listeners while another page is showing.
   return (
     <ContextChannelsProvider>
     <WorkspaceContext.Provider value={workspaceValue}>
-      <div className={styles.workspace} data-charts-theme={chartsTheme}>
+      <div className={styles.workspace} data-charts-theme={chartsTheme} style={boardHidden ? BOARD_HIDDEN_STYLE : undefined}>
+        {!boardHidden && (<>
         {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
             that has no widget anchor). Below the popup band (8500+). */}
         <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
+        <JournalToast msg={createIndicatorMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
         {/* TERM-001: a refused add, or a board already over the bound, is stated in words.
             Nothing is removed from an over-bound board; it simply cannot grow. */}
         {/* ⭐ A1.3b — a member's layout open, undoable under the Agent's rules. When the
             switch discarded unsaved board state, it says so and offers NO Undo. */}
-        {layoutUndo && layoutUndo.shown && layoutUndo.plan.to && (
+        {/* Owner 11-16: "We don't need anything saying you switched" — the banner is off
+            (LAYOUT_SWITCH_BANNER). Going back = click the previous tab, or ask the UCT Agent. */}
+        {LAYOUT_SWITCH_BANNER && layoutUndo && layoutUndo.shown && layoutUndo.plan.to && (
           <div className={styles.boardBoundStatus} role="status" data-testid="layout-undo-toast">
             <span>
               {layoutUndo.note || (layoutUndo.plan.discarded
@@ -3487,7 +4067,7 @@ function ChartsWorkspaceBoard() {
                 : `Switched to “${layoutUndo.plan.to.name || 'layout'}”.`)}
             </span>
             {!layoutUndo.note && !layoutUndo.plan.discarded && layoutUndo.plan.from && (
-              <button type="button" onClick={undoLayoutOpen}>Undo</button>
+              <button type="button" data-guide="workspace.layoutUndo" onClick={undoLayoutOpen}>Undo</button>
             )}
             <button type="button" aria-label="Dismiss" onClick={() => setLayoutUndo(null)}>×</button>
           </div>
@@ -3500,87 +4080,58 @@ function ChartsWorkspaceBoard() {
             )}
           </div>
         )}
+        {/* Top-bar menu rows (owner 11-14): the widgets' menu look — a gold glyph, the label,
+            and on the right a ✓ for an active mode or a › for a submenu. */}
         <header className={styles.workspaceHeader}>
-          <span className={styles.workspaceTitle}><UIcon name="equity" size={18} style={{ verticalAlign: "-3px", marginRight: 8 }} />Charts</span>
-          {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
-          {!gridMode && (
-          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              data-guide="workspace.widgets"
-              onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWidgetsMenuOpen(n) }}
-            >Widgets ▾</button>
-            {widgetsMenuOpen && (
-              <div className={`${styles.addMenu} ${styles.wAddMenu}`} data-guide="workspace.widgetsMenu" onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
-                {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
-                    click to drop a widget onto the board via smart placement. */}
-                {/* TERM-001: a full board says why in words and offers nothing to add. */}
-                {!boardHasRoom && (
-                  <div className={styles.boardBoundNote} role="note" data-testid="board-bound-note">
-                    {boardOverBound || boardRefusalSentence(boardCount + 1)}
-                  </div>
-                )}
-                {WIDGET_MENU_GROUPS.map(group => (
-                  <div key={group.key} className={styles.wAddGroup}>
-                    <div className={styles.addMenuGroupLabel}>{group.label}</div>
-                    <div className={styles.wAddGrid}>
-                      {group.items.map(t => {
-                        const meta = catalogMeta(t)
-                        return (
-                          <button
-                            key={t}
-                            type="button"
-                            className={styles.wAddChip}
-                            data-guide={`workspace.widgets.${t}`}
-                            disabled={!boardHasRoom}
-                            title={meta.blurb || WIDGET_LABELS[t]}
-                            onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}
-                          >
-                            <UIcon name={meta.icon} size={14} />
-                            <span className={styles.wAddChipLbl}>{WIDGET_LABELS[t]}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-                <div className={styles.menuDivider} />
-                <button
-                  type="button"
-                  className={styles.addMenuItem}
-                  style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-                  onClick={() => { toggleMerged(); setWidgetsMenuOpen(false) }}
-                  title={merged
-                    ? 'Unlock the board and restore widget borders'
-                    : 'Lock the board in place, remove all borders, and blend every widget together'}
-                >{merged ? '⧉ Unmerge Widgets' : '⧉ Merge Widgets'}</button>
-              </div>
-            )}
-          </div>
-          )}
-
-          {/* LAYOUTS — new / open / save / multi-chart / pop-out. Shown in BOTH modes;
+          {/* PINNED LAYOUT TABS (owner 11-16): the Layout Dock moved up here from its rail under the
+              board — same tabs, ＋, ⋯ overflow, right-click menu and library. */}
+          <LayoutDock
+            entries={dockEntries}
+            activeId={dockActiveId}
+            loading={templatesLoading}
+            merged={merged}
+            isAdmin={isAdmin}
+            dirty={saveState === 'dirty' || saveState === 'failed'}
+            onOpen={memberDockOpen}
+            onCreate={handleDockCreate}
+            onSave={handleSaveLayout}
+            onDuplicate={handleDockDuplicate}
+            onDelete={handleDockDelete}
+            onRename={handleDockRename}
+            onRestored={handleDockRestored}
+            agentRef={agentDockRef}
+            controlRef={dockCtlRef}
+          />
+          {/* LAYOUTS — the open layout's NAME is the button (owner 11-15, UCT Signature): it says
+              where you are and opens new / open / save / Multi Chart / pop out. Shown in BOTH modes;
               grid mode surfaces only the layout-relevant actions (Open + Multi Chart). */}
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
-              className={styles.toolbarBtn}
-              style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              className={gridMode ? styles.tbName : styles.tbTabList}
+              data-guide="workspace.layoutsMenuBtn"
+              data-grid={gridMode ? '' : undefined}
+              aria-haspopup="menu"
+              aria-expanded={layoutsMenuOpen}
+              aria-label={`Layouts — ${layoutTitle}`}
+              title="Layouts: switch, save, Multi Chart, pop out"
               onClick={() => { const n = !layoutsMenuOpen; closeToolbarMenus(); setLayoutsMenuOpen(n) }}
-            >Layouts ▾</button>
+            >{/* Owner 11-16 (top-bar option A): a small ▾ after the browser-style tabs, like a browser's
+                 tab list — the open layout's name lives ONLY on its tab. Multi Chart keeps its name here. */}{gridMode && <span className={styles.tbNameText}>{layoutTitle}</span>}<UIcon name="chevronDown" size={15} gold={false} /></button>
             {layoutsMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 230 }} onMouseLeave={() => { setLayoutsMenuOpen(false); setLayoutsSub(null); setConfirmDeleteId(null) }}>
+              <div className={`${styles.addMenu} ${styles.tbMenu}`} style={{ minWidth: 240 }} data-guide="workspace.layoutsMenu" onMouseLeave={() => { setLayoutsMenuOpen(false); setLayoutsSub(null); setConfirmDeleteId(null) }}>
                 {layoutsSub === 'open' ? (<>
-                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
+                  <button type="button" className={`${styles.addMenuItem} ${styles.tbBack}`} onClick={() => setLayoutsSub(null)}><UIcon name="chevronLeft" size={12} gold={false} aria-hidden="true" /><span>Back</span></button>
                   <div className={styles.menuDivider} />
-                  <div className={styles.menuSection}>Prebuilt</div>
+                  {(UCT_DEFAULT_OFFERED || wsGlobalLayouts.length > 0) && <div className={styles.menuSection}>Prebuilt</div>}
+                  {UCT_DEFAULT_OFFERED && (
                   <div className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen({ id: UCT_DEFAULT_ID, name: 'UCT Default' }); applyUctDefault(); closeToolbarMenus() }}>UCT Default</button>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen({ id: UCT_DEFAULT_ID, name: 'UCT Default' }); applyUctDefault(); closeToolbarMenus() }}><span className={styles.tbLbl}>UCT Default</span>{dockActiveId === UCT_DEFAULT_ID && <span className={styles.tbCheck} aria-label="open now"><UIcon name="check" size={13} gold={false} /></span>}</button>
                   </div>
+                  )}
                   {wsGlobalLayouts.map(t => (
                     <div key={`g${t.id}`} className={styles.menuRow}>
-                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}><span className={styles.tbLbl}>{t.name}</span>{t.id === dockActiveId && <span className={styles.tbCheck} aria-label="open now"><UIcon name="check" size={13} gold={false} /></span>}</button>
                       {isAdmin && (confirmDeleteId === t.id ? (
                         <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
                       ) : (
@@ -3591,7 +4142,7 @@ function ChartsWorkspaceBoard() {
                   {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
                   {wsMyLayouts.map(t => (
                     <div key={`m${t.id}`} className={styles.menuRow}>
-                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { rememberLayoutOpen(t); applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}><span className={styles.tbLbl}>{t.name}</span>{t.id === dockActiveId && <span className={styles.tbCheck} aria-label="open now"><UIcon name="check" size={13} gold={false} /></span>}</button>
                       {confirmDeleteId === t.id ? (
                         <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
                       ) : (
@@ -3600,9 +4151,9 @@ function ChartsWorkspaceBoard() {
                     </div>
                   ))}
                 </>) : layoutsSub === 'save' ? (<>
-                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
+                  <button type="button" className={`${styles.addMenuItem} ${styles.tbBack}`} onClick={() => setLayoutsSub(null)}><UIcon name="chevronLeft" size={12} gold={false} aria-hidden="true" /><span>Back</span></button>
                   <div className={styles.menuDivider} />
-                  <button type="button" className={styles.addMenuItem} onClick={() => { handleSaveLayout(); closeToolbarMenus() }}>Save current arrangement</button>
+                  <button type="button" className={styles.addMenuItem} data-guide="workspace.saveCurrent" onClick={() => { handleSaveLayout(); closeToolbarMenus() }}><TbItem icon="save" label="Save current arrangement" /></button>
                   <div className={styles.menuDivider} />
                   <div className={styles.menuForm}>
                     <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
@@ -3620,29 +4171,120 @@ function ChartsWorkspaceBoard() {
                         Prebuilt (available to all users)
                       </label>
                     )}
-                    <button type="button" className={styles.toolbarBtn} style={{ alignSelf: 'flex-start' }} onClick={handleSaveAsTemplate}>Save template</button>
+                    <button type="button" className={styles.toolbarBtn} data-guide="workspace.saveTemplate" style={{ alignSelf: 'flex-start' }} onClick={handleSaveAsTemplate}>Save template</button>
                     {saveErr && <div className={styles.menuErr}>{saveErr}</div>}
                   </div>
                 </>) : layoutsSub === 'mc' ? (
                   <MultiChartMenu mc={mc} onClose={() => { setLayoutsMenuOpen(false); setLayoutsSub(null) }} />
                 ) : (<>
-                  {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => { handleNewLayout(); closeToolbarMenus() }}>New Layout</button>}
-                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('open')}>Open Layout ▸</button>
-                  {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('save')}>{savedFlash ? 'Saved ✓' : 'Save Layout ▸'}</button>}
-                  {!gridMode && <VersionHistoryMenuItem className={styles.addMenuItem} onOpen={openVersionHistory} />}
+                  {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.newLayout" onClick={() => { handleNewLayout(); closeToolbarMenus() }}><TbItem icon="plus" label="New layout" /></button>}
+                  <button type="button" className={styles.addMenuItem} data-guide="workspace.openLayout" onClick={() => setLayoutsSub('open')}><TbItem icon="board" label="Open layout" sub /></button>
+                  {/* The layout library (owner 11-16: its button left with the bottom rail). Opens the
+                      Layout Dock's own library popover, under the tabs. */}
+                  <button type="button" className={styles.addMenuItem} data-guide="workspace.layoutLibrary" onClick={() => { closeToolbarMenus(); dockCtlRef.current?.openLibrary() }}><TbItem icon="library" label="Layout library…" /></button>
+                  {!gridMode && <button type="button" className={styles.addMenuItem} data-guide="workspace.saveLayout" onClick={() => setLayoutsSub('save')}><TbItem icon="save" label={savedFlash ? 'Saved' : 'Save layout'} on={savedFlash} sub={!savedFlash} /></button>}
+                  {!gridMode && <VersionHistoryMenuItem className={styles.addMenuItem} glyphClass={styles.tbGlyph} labelClass={styles.tbLbl} onOpen={openVersionHistory} />}
                   <button
                     type="button"
                     className={styles.addMenuItem}
-                    style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                    aria-pressed={gridMode}
+                    aria-label="Multi Chart"
+                    data-guide="workspace.multiChart"
                     onClick={() => setLayoutsSub('mc')}
-                  >{gridMode ? '✓ ' : ''}▦ Multi Chart ▸</button>
+                  ><TbItem icon="rows" label="Multi Chart" on={gridMode} sub /></button>
                   {!gridMode && (
-                    <button type="button" className={styles.addMenuItem} disabled={!visibleWidgets.length} onClick={() => { handlePopOutLayout(); closeToolbarMenus() }}>⧉ Pop Out Layout</button>
+                    <button type="button" className={styles.addMenuItem} data-guide="workspace.popOutLayout" disabled={!visibleWidgets.length} onClick={() => { handlePopOutLayout(); closeToolbarMenus() }}><TbItem icon="popOut" label="Pop out layout" /></button>
                   )}
                 </>)}
               </div>
             )}
           </div>
+          {/* SAVE STATE (owner 11-16): after the tabs; at rest the open tab's own dot says it (option 2). Words only while saving or after a
+              failed save, so the row never shifts at rest; the dot's tooltip says the rest. */}
+          {saveState && saveState !== 'saved' && saveState !== 'auto' && (
+            <span
+              className={`${styles.tbState}${saveState === 'dirty' ? ' ' + styles.tbStateDirty : ''}${saveState === 'failed' ? ' ' + styles.tbStateFailed : ''}`}
+              data-testid="layout-save-state"
+              data-state={saveState}
+              title={SAVE_STATE_TIPS[saveState]}
+            >
+              <span className={styles.tbStateDot} aria-hidden="true" />
+              {saveState === 'saving' ? 'Saving…'
+                : saveState === 'failed' ? <button type="button" className={styles.tbStateSave} onClick={runNamedSave}>Couldn’t save — retry</button>
+                : (saveState === 'dirty' && canSaveActive) ? <button type="button" className={styles.tbStateSave} onClick={() => handleSaveLayout()}>Save</button>
+                : <span className="sr-only">{SAVE_STATE_TIPS[saveState]}</span>}
+            </span>
+          )}
+          {/* Owner 11-16: Add widget + Tools sit on the LEFT, right after the tabs' ▾. */}
+          <span className={styles.tbSep} aria-hidden="true" />
+          {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
+          {!gridMode && (
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={styles.tbPrim}
+              data-guide="workspace.widgets"
+              aria-haspopup="menu"
+              aria-expanded={widgetsMenuOpen}
+              onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWHover(null); setWidgetsMenuOpen(n) }}
+            ><UIcon name="plus" size={13} gold />Add widget</button>
+            {widgetsMenuOpen && (
+              <div className={`${styles.addMenu} ${styles.wAddMenu} ${styles.tbMenu}`} data-guide="workspace.widgetsMenu" onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
+                {/* Grouped, iconified quick-add — a compact anchored menu (no modal), one
+                    click to drop a widget onto the board via smart placement. */}
+                {/* TERM-001: a full board says why in words and offers nothing to add. */}
+                {!boardHasRoom && (
+                  <div className={styles.boardBoundNote} role="note" data-testid="board-bound-note">
+                    {boardOverBound || boardRefusalSentence(boardCount + 1)}
+                  </div>
+                )}
+                <div className={styles.wPickScroll}>
+                {WIDGET_MENU_GROUPS.map(group => {
+                  const items = group.items
+                  if (!items.length) return null
+                  return (
+                  <div key={group.key} className={styles.wAddGroup}>
+                    <div className={styles.addMenuGroupLabel}>{group.label}</div>
+                    <div className={styles.wAddGrid}>
+                      {items.map(t => {
+                        const meta = catalogMeta(t)
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            className={styles.wAddChip}
+                            data-guide={`workspace.widgets.${t}`}
+                            disabled={!boardHasRoom}
+                            title={meta.blurb || WIDGET_LABELS[t]}
+                            onMouseEnter={() => setWHover(t)}
+                            onFocus={() => setWHover(t)}
+                            onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false) }}
+                          >
+                            <UIcon name={meta.icon} size={15} gold={false} />
+                            <span className={styles.wAddChipLbl}>{WIDGET_LABELS[t]}</span>
+                            {onBoardCount[t] > 0 && (
+                              <span className={styles.wOnBoard} title={onBoardCount[t] > 1 ? `${onBoardCount[t]} on this board` : 'On this board'}>
+                                {onBoardCount[t] > 1 && <span className={styles.wOnBoardN}>{onBoardCount[t]}</span>}
+                                <span className={styles.wOnBoardDot} aria-hidden="true" />
+                                <span className="sr-only">{onBoardCount[t] > 1 ? `${onBoardCount[t]} on this board` : 'on this board'}</span>
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  )
+                })}
+                </div>
+                <div className={styles.wPickDesc} aria-live="polite">
+                  {wHover ? <><b>{WIDGET_LABELS[wHover] || wHover}</b><br />{catalogMeta(wHover).blurb || ''}</>
+                    : boardHasRoom ? 'Hover a widget to see what it shows.' : 'Close a widget, or open another tab, to add one.'}
+                </div>
+              </div>
+            )}
+          </div>
+          )}
 
           {/* TOOLS — chart-analysis utilities. Custom-Period Sort ranks the whole US
               market by % change over a time period you highlight on the chart. */}
@@ -3650,60 +4292,102 @@ function ChartsWorkspaceBoard() {
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
-              className={styles.toolbarBtn}
-              style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              className={`${styles.tbSoft}${(periodSortMode || compareOpen || replayCutoff) ? ' ' + styles.tbModeOn : ''}`}
+              data-guide="workspace.tools"
+              aria-haspopup="menu"
+              aria-expanded={toolsMenuOpen}
               onClick={() => { const n = !toolsMenuOpen; closeToolbarMenus(); setToolsMenuOpen(n) }}
-            >Tools ▾</button>
+            >Tools<UIcon name="chevronDown" size={12} gold={false} /></button>
             {toolsMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 200 }} onMouseLeave={() => setToolsMenuOpen(false)}>
+              <div className={`${styles.addMenu} ${styles.tbMenu}`} style={{ minWidth: 220 }} data-guide="workspace.toolsMenu" onMouseLeave={() => setToolsMenuOpen(false)}>
                 <button
                   type="button"
                   className={styles.addMenuItem}
-                  style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  aria-pressed={periodSortMode}
+                  aria-label="Custom-Period Sort"
+                  data-guide="workspace.tools.periodSort"
                   onClick={() => { setPeriodSortSel(null); setPeriodSortMode(true); closeToolbarMenus() }}
-                >{periodSortMode ? '✓ ' : ''}Custom-Period Sort</button>
+                ><TbItem icon="sliders" label="Custom-Period Sort" on={periodSortMode} /></button>
                 <button
                   type="button"
                   className={styles.addMenuItem}
-                  style={compareOpen ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  aria-pressed={compareOpen}
+                  aria-label="Compare Symbols"
+                  data-guide="workspace.tools.compare"
                   onClick={() => { openCompare(); closeToolbarMenus() }}
-                >{compareOpen ? '✓ ' : ''}Compare Symbols</button>
+                ><TbItem icon="graph" label="Compare Symbols" on={compareOpen} /></button>
                 <button
                   type="button"
                   className={styles.addMenuItem}
-                  style={replayCutoff ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  aria-pressed={!!replayCutoff}
+                  aria-label="Replay Mode"
+                  data-guide="workspace.tools.replay"
                   onClick={() => { openReplay(); closeToolbarMenus() }}
-                >{replayCutoff ? '✓ ' : ''}Replay Mode</button>
+                ><TbItem icon="play" label="Replay Mode" on={!!replayCutoff} /></button>
               </div>
             )}
           </div>
           )}
 
+          {/* CREATE INDICATOR: the page's one visible door to the builder (`createIndicatorEntry.js`).
+              A direct child of the header and never inside a `toolbarBtnGroup`: it opens no menu. */}
+          {!gridMode && <CreateIndicatorTopBarButton className={styles.tbSoft} onOpen={openCreateIndicatorFromTopBar} />}
+
           {gridMode && (
-            <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
+            <button type="button" className={styles.tbSoft} data-guide="workspace.exitGrid" onClick={mc.exitGrid}>
               Workspace
             </button>
+          )}
+          <span className={styles.tbSpacer} aria-hidden="true" />
+          {/* Screenshot workspace (owner 11-16): captures ONLY <main> (bodyRef) — never the site rail,
+              or this top row (with its layout tabs). Capture code is loaded on the click (workspaceShot.js). */}
+          <WorkspaceShotButton getBoard={() => bodyRef.current} layoutName={layoutTitle} excludeClasses={SHOT_EXCLUDE_CLASSES} onBeforeCapture={closeToolbarMenus} />
+          {/* Merge Widgets is a mode you switch, so it is a toggle here, not a buried menu row
+              (owner 11-15). On = the gold 1D underline. */}
+          {!gridMode && (
+            <button
+              type="button"
+              className={styles.tbIcon}
+              aria-pressed={merged}
+              aria-label={merged ? 'Unmerge Widgets' : 'Merge Widgets'}
+              data-guide="workspace.merge"
+              title={merged
+                ? 'Unmerge widgets: unlock the board and restore widget borders'
+                : 'Merge widgets: lock the board in place, remove all borders, and blend every widget together'}
+              onClick={toggleMerged}
+            ><UIcon name="columns" size={16} gold={false} /></button>
           )}
           {agentAllowed && (
             <button
               type="button"
-              className={styles.toolbarBtn}
-              style={{ marginLeft: 'auto', ...(agentOpen ? { color: 'var(--ut-gold, #c9a84c)' } : null) }}
+              className={`${styles.tbSoft}${agentOpen ? ' ' + styles.tbModeOn : ''}`}
               aria-pressed={agentOpen}
               data-testid="agent-launch"
               onClick={() => setAgentOpen(!agentOpen)}
-            >UCT Agent</button>
+            ><UIcon name="sparkle" size={13} gold={false} className={styles.tbSpark} />UCT Agent</button>
           )}
         </header>
-        {/* UCT Agent: <main> + the Layout Dock become one column so the Agent can
-            sit at the FAR RIGHT of the whole workspace; the ResizeObserver on
-            .workspaceBody re-tiles the grid into the narrower column on its own. */}
+        {/* UCT Agent: <main> sits in one column so the Agent can sit at the FAR RIGHT of
+            the whole workspace; the ResizeObserver on .workspaceBody re-tiles the grid into
+            the narrower column on its own. (The Layout Dock moved into the top row 11-16.) */}
         <div className={styles.workspaceRow}>
         <div className={styles.workspaceMainCol}>
         <main className={`${styles.workspaceBody} ${merged ? styles.workspaceBodyMerged : ''}`} ref={bodyRef}>
           {gridMode ? (
             <MultiChartGrid mc={mc} />
           ) : renderGrid(visibleWidgets, mainGridHandlers)}
+          {/* Owner 11-16: a blank workspace (new members start here) says what to do. */}
+          {!gridMode && layout.widgets.length === 0 && !pendingAdd && (
+            <div className={styles.emptyBoard} data-testid="empty-board">
+              <div className={styles.emptyBoardTitle}>This workspace is empty</div>
+              <button
+                type="button"
+                className={styles.emptyBoardBtn}
+                onClick={() => { closeToolbarMenus(); setWHover(null); setWidgetsMenuOpen(true) }}
+              ><UIcon name="plus" size={14} gold />Add widget</button>
+              <div className={styles.emptyBoardHint}>Start with a chart, a watchlist or a scanner.</div>
+            </div>
+          )}
           {/* Smart-placement ghost: preview where a newly added widget will land
               (and which existing widgets shrink) before committing. */}
           {!gridMode && pendingAdd && (
@@ -3744,25 +4428,6 @@ function ChartsWorkspaceBoard() {
             />
           )}
         </main>
-
-        {/* The Layout Dock closes the frame the header opens. It is a flex
-            sibling of <main>, so the ResizeObserver on .workspaceBody re-tiles
-            the grid for its 29px on its own — no layout math changes. Desktop
-            only by construction: the phone returns above this. */}
-        <LayoutDock
-          entries={dockEntries}
-          activeId={dockActiveId}
-          loading={templatesLoading}
-          merged={merged}
-          isAdmin={isAdmin}
-          onOpen={memberDockOpen}
-          onCreate={handleDockCreate}
-          onSave={handleSaveLayout}
-          onDuplicate={handleDockDuplicate}
-          onDelete={handleDockDelete}
-          onRename={handleDockRename}
-          onRestored={handleDockRestored}
-        />
         </div>
         {agentAllowed && (
           <AgentDock open={agentOpen}>
@@ -3773,6 +4438,7 @@ function ChartsWorkspaceBoard() {
         )}
         {agentAllowed && agentOpen && inRouter && <AgentNavBridge navRef={agentNavRef} />}
         </div>
+        </>)}
 
         {/* Pop-outs live OUTSIDE <main> but INSIDE the provider: each renders
             through a portal into its own OS window, while its state, hooks and
@@ -3782,15 +4448,17 @@ function ChartsWorkspaceBoard() {
           <PopoutWindow
             key={w.id}
             title={`UCT — ${WIDGET_LABELS[w.type] || w.type}`}
+            windowName={widgetWindowName(w.id)}
             width={900}
             height={700}
             onClose={() => handleDockWidget(w.id)}
-            onBlocked={() => { handleDockWidget(w.id); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+            onBlocked={() => { handleDockWidget(w.id); showPopupBlocked() }}
           >
             <PopoutShell theme={chartsTheme}>
               <WidgetHost
                 widget={w}
                 merged={false}
+                uctFrame
                 onRemove={() => handleRemovePoppedWidget(w.id)}
                 onColorChange={(c) => handleColorChange(w.id, c)}
                 onOptsChange={(opts) => handleOptsChange(w.id, opts)}
@@ -3804,6 +4472,7 @@ function ChartsWorkspaceBoard() {
           <PoppedLayout
             key={pl.id}
             title="UCT — Layout"
+            windowName={boardWindowName(pl.id)}
             theme={chartsTheme}
             initialWidgets={pl.widgets}
             renderGrid={renderGrid}
@@ -3811,10 +4480,12 @@ function ChartsWorkspaceBoard() {
             initialRowHeight={rowHeight}
             merged={merged}
             onClose={(widgets) => handleDockLayout(pl.id, widgets)}
-            onBlocked={(widgets) => { handleDockLayout(pl.id, widgets); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+            onBlocked={(widgets) => { handleDockLayout(pl.id, widgets); showPopupBlocked() }}
+            onWidgetsChange={(widgets) => trackPoppedBoard(pl.id, widgets)}
           />
         ))}
 
+        {!boardHidden && (<>
         {popoutNotice && (
           <div className={styles.popoutNotice} role="alert">
             {popoutNotice}
@@ -3829,17 +4500,7 @@ function ChartsWorkspaceBoard() {
             onCancel={() => setPeriodSortSel(null)}
             onSort={(start, end, replay, group, tf, markStart) => {
               setPeriodSortSel(null)
-              setPeriodSortPanel({ start, end, group: group || null })
-              // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
-              const s = String(end)
-              setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
-              // Mark start date on every chart: gold vertical line ('line') or gold start
-              // candle ('candle'). 'off' → no marker.
-              const st = String(start)
-              setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
-              if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
-              // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
-              applyTfToCharts(tf)
+              runPeriodSort(start, end, replay, group, tf, markStart)
             }}
           />
         )}
@@ -3875,6 +4536,7 @@ function ChartsWorkspaceBoard() {
                 widget={w}
                 merged={false}
                 floating
+                uctFrame
                 onHeaderDragStart={onDragPointerDown}
                 onDock={() => handleDockFloatWidget(w.id)}
                 onRemove={() => handleRemoveFloatWidget(w.id)}
@@ -3892,7 +4554,9 @@ function ChartsWorkspaceBoard() {
           <CompareSymbolsPanel
             chartApiById={chartApiByIdRef}
             activeChartRef={activeChartRef}
-            onClose={() => setCompareOpen(false)}
+            initialIntent={compareIntent}
+            onClose={closeCompare}
+            onTabChange={setCompareTab}
           />
         )}
         {replayOpen && (
@@ -3913,6 +4577,7 @@ function ChartsWorkspaceBoard() {
           />
         )}
         {noticeHost}
+        </>)}
       </div>
     </WorkspaceContext.Provider>
     </ContextChannelsProvider>

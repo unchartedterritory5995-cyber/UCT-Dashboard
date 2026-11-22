@@ -1,0 +1,9 @@
+//@version=5
+indicator("hp array sort", overlay=false)
+b = array.new_float(0)
+for i = 0 to 9
+    array.push(b, nz(close[i]) - nz(open[i]))
+array.sort(b, order.ascending)
+plot(array.get(b, 0), "lo")
+plot(array.get(b, 9), "hi")
+plot(array.sum(b), "sum")

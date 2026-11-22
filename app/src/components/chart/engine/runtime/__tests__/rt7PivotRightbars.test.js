@@ -29,16 +29,14 @@ const prelude = 'var float k = 0.0\nk := k + 1\n'
 describe('RT7 — a fixed `rightbars` is read as the number it is', () => {
   it('a call site fixing `rightbars` through a parameter no longer refuses "plain whole number"', () => {
     const r = build(`f(src, int len) => ta.pivothigh(src, len, len)\n${prelude}plot(f(high + 0 * k, 2))\n`)
-    expect(r.ok).toBe(false)
-    expect(String(r.refusal.message)).not.toMatch(PLAIN)
-    expect(String(r.refusal.message)).not.toMatch(/counts backwards in whole bars/)
-    expect(r.refusal.guard).toBe('runtime:history-expression')
+    // W4-T7 made the hoist of `src` succeed inside the frame; the next wall (a windowed built-in
+    // fed by a mutable variable) is then served by W4 T10 (a pivot over values the run computes).
+    expect(String(r.ok ? '' : r.refusal.message)).not.toMatch(PLAIN)
+    expect(r.ok, r.ok ? '' : `${r.refusal.guard}: ${r.refusal.message}`).toBe(true)
   })
   it('a literal `rightbars` in a function body reaches the same named wall', () => {
     const r = build(`f(src) => ta.pivotlow(src, 3, 2)\n${prelude}plot(f(low + 0 * k))\n`)
-    expect(r.ok).toBe(false)
-    expect(String(r.refusal.message)).not.toMatch(/counts backwards in whole bars/)
-    expect(r.refusal.guard).toBe('runtime:history-expression')
+    expect(r.ok, r.ok ? '' : `${r.refusal.guard}: ${r.refusal.message}`).toBe(true)
   })
   it('control: a `rightbars` only known while the bar runs keeps the builder\'s own refusal', () => {
     const r = build(`${prelude}r = int(k)\nplot(ta.pivothigh(high + 0 * k, 2, r))\n`)

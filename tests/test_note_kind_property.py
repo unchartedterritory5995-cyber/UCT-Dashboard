@@ -27,8 +27,7 @@ def _def(user_id):
     return next(d for d in np.list_property_defs(user_id) if d["id"] == "builtin:note_kind")
 
 
-def test_note_kind_def_is_present_with_the_switch_off(db_path, monkeypatch):
-    monkeypatch.delenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", raising=False)
+def test_note_kind_def_is_present(db_path, monkeypatch):
     d = _def("u1")
     assert d["type"] == "select" and d["source"] == "user_set" and d["name"] == "Kind of note"
     assert [o["id"] for o in d["options"]][:2] == ["trade_plan", "daily_prep"]

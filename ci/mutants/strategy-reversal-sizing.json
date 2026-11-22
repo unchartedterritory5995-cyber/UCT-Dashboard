@@ -1,0 +1,66 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "RV1",
+   "mutant": "B-QTY-REVERSE off: a reversal's percent default size stops by name again (the v6 capture DIVERGEs)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "        if (!sameSide && open.every((t) => t.dir !== dir) && kind === 'entry' && type === 'market' && v === 100",
+   "to": "        if (false && !sameSide && open.every((t) => t.dir !== dir) && kind === 'entry' && type === 'market' && v === 100",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1b-defaults-v6\"",
+   "expectRed": "w9-q-s1b-defaults-v6"
+  },
+  {
+   "id": "RV2",
+   "mutant": "B-FUNDS-REVERSE checks the equity re-marked at the fill instead of the equity the reversal was sized from",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "        if (o.qty * price0 * pointvalue > o.sizeEquity) {",
+   "to": "        if (o.qty * price0 * pointvalue > equityAt(bar, 'mutant') + sum(open, (t) => (price0 - C[bar]) * t.dir * t.qty)) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1b-defaults-v6\"",
+   "expectRed": "w9-q-s1b-defaults-v6"
+  },
+  {
+   "id": "RV2b",
+   "mutant": "B-FUNDS-REVERSE off: a reversal past its sizing equity is filled",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "        if (o.qty * price0 * pointvalue > o.sizeEquity) {",
+   "to": "        if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9Reversal.test.js"
+  },
+  {
+   "id": "RV3",
+   "mutant": "B-MARGIN-CALL-ALL off: a size above the trade is not capped",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    if (units > t.qty) { rule('B-MARGIN-CALL-ALL'); units = t.qty }",
+   "to": "    if (false) { rule('B-MARGIN-CALL-ALL'); units = t.qty }",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1b-defaults-v6\"",
+   "expectRed": "w9-q-s1b-defaults-v6"
+  },
+  {
+   "id": "RV4",
+   "mutant": "B-ENTRY-ORDER takes the entries of one opening tick in REVERSE placement order",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "      for (const [k, m] of markets.entries()) {",
+   "to": "      for (const [k, m] of markets.slice().reverse().entries()) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1b-defaults-v6\"",
+   "expectRed": "w9-q-s1b-defaults-v6"
+  },
+  {
+   "id": "RV5",
+   "mutant": "a same-side percent order is never sized lazily (it stops at its placement again)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "        } else if (sameSide && kind === 'entry' && type === 'market' && out) {",
+   "to": "        } else if (false && sameSide && kind === 'entry' && type === 'market' && out) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1b-defaults-v6\"",
+   "expectRed": "w9-q-s1b-defaults-v6"
+  },
+  {
+   "id": "RV6",
+   "mutant": "a lazily sized order that WOULD fill is filled with no size check (the stop at its fill removed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "    if (o.lazySize && !(o.kind === 'entry' && allow === null && open.length >= maxEntries && open[0].dir === o.dir)) {",
+   "to": "    if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9Reversal.test.js"
+  }
+ ]
+}

@@ -21,11 +21,23 @@ import styles from './ContextPopover.module.css'
  * An item may carry an optional `hint`: one sentence saying what the row does, for a label
  * too short to say it. It becomes the row's `title` (the pointer tooltip) and its
  * `aria-description` (read after the name). An item without one renders exactly as before.
+ *
+ * ⭐ UCT SIGNATURE (opt-in, docs/uct-signature-style.md §2b). One item field and one prop,
+ * neither of which any other caller passes, so every other surface renders exactly as before:
+ *   `{ groupLabel: 'This line' }` — a small grey sentence-case label over a group of rows. NOT a
+ *       row: a plain (generic) div, never focusable, so a `role="menu"` still holds only items.
+ *   (A row's dimmed value, ▸ and gold ✦ are drawn by the CALLER into `label` / `icon` —
+ *   StockChart `chipMenuSigRow` — so the Notebook's first-open bytes don't carry them.)
+ *   `signature` (prop) — the highlighted row's icon turns gold, and an item's boolean `checked`
+ *       renders as a gold ✓ with `role="menuitemcheckbox"` + `aria-checked` (desktop) or
+ *       `aria-pressed` (touch). Without the prop `checked` is ignored, as it always was.
  */
 // Nothing at all when there is no hint, so a caller that never passes one is unchanged.
 const hintProps = (it) => (it.hint ? { title: it.hint, 'aria-description': it.hint } : null)
 
 export default function ContextPopover({
+  /** A stable name for UCT Agent's product guide (agent/guide/targets.js): no behaviour. */
+  guide,
   open,
   onClose,
   anchor,
@@ -64,6 +76,22 @@ export default function ContextPopover({
   // escaping any scoped theme tokens (the chart's Sunrise), exactly like every
   // other Sheet. Desktop's anchored menu ignores it (menu-dark by design).
   sheetClassName = '',
+  /** ⭐ OPT-IN, BOTH BRANCHES: a REF (`{ current }`) to the element focus returns
+   *  to on close, used only while it is still connected; otherwise focus goes back
+   *  to where it was on open. The touch branch hands it to `Sheet`'s own
+   *  `returnFocusTo`. A menu the CHART opened on its own (the RS tour) has no
+   *  opener in focus, so without it focus fell back to the chart region rather
+   *  than the chip it is about (a11y gate §12.2, 2026-11-08).
+   *
+   *  ⭐ INITIAL FOCUS IS NOT A PROP: a child marked `data-autofocus` takes focus on
+   *  open (desktop), else the first focusable one. The RS tour marks "Next", its
+   *  primary action, not "Skip tour", first in reading order.
+   *  ⛔ Both stay this small ON PURPOSE: this module ships in the Notebook's
+   *  first-open JS (`tools/notebook_perf_budgets.py`), so a caller's own focus
+   *  logic (which element, resolved how) lives with the caller, not here. */
+  returnFocusTo,
+  /** ⭐ UCT SIGNATURE, OPT-IN — see the header: gold hover icons and a gold ✓ for `checked`. */
+  signature,
 }) {
   const isTouch = useIsTouch()
   const menuRef = useRef(null)
@@ -113,7 +141,7 @@ export default function ContextPopover({
     const takeFocus = () => {
       const el = menuRef.current
       if (!el) return
-      const first = focusableWithin(el)[0]
+      const first = el.querySelector('[data-autofocus]') || focusableWithin(el)[0]
       ;(first || el).focus?.()
       if (!el.contains(document.activeElement) && tries < 12) {
         tries += 1
@@ -129,8 +157,14 @@ export default function ContextPopover({
     // test written for it could not fail, and a test that cannot fail reads as
     // coverage while providing none. Optional chaining is the whole guard: it
     // handles `restoreTo` being null, which IS distinguishable.
-    return () => { cancelAnimationFrame(raf); restoreTo?.focus?.() }
-  }, [open, isTouch, pos])
+    // `returnFocusTo` is read from this closure on purpose (not a dep): it is a
+    // ref, read at close, and a new ref identity must never re-run this latch.
+    return () => {
+      cancelAnimationFrame(raf)
+      const to = returnFocusTo?.current
+      ;(to?.isConnected ? to : restoreTo)?.focus?.()
+    }
+  }, [open, isTouch, pos]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Desktop: dismiss on outside click / Escape
   useEffect(() => {
@@ -153,43 +187,51 @@ export default function ContextPopover({
   // items (axe: aria-required-children, critical), so its rows are `role="menuitem"` and its
   // separators `role="separator"`. The touch branch is a Sheet (a dialog), where the rows stay
   // plain buttons.
+  const sig = signature ? ' ' + styles.signature : ''
   const renderItems = (asMenu = false) =>
-    items?.map((it, i) =>
-      it.separator ? (
-        <div key={`sep${i}`} className={styles.separator} role={asMenu ? 'separator' : undefined} />
-      ) : it.href ? (
-        // A real link (middle-click and cmd-click open a tab). Same row look, same close-on-pick;
-        // a link cannot be `disabled`, so a caller that needs that passes no `href`.
-        <a
+    items?.map((it, i) => {
+      // A separator, or a ⭐ group label — ⛔ NOT A ROW: presentation, no tabindex, so a menu holds only menu items
+      // (axe). One branch for both: this module is in the Notebook's first-open bytes budget.
+      if (it.separator || it.groupLabel != null) {
+        return (
+          <div key={'s' + i} className={it.separator ? styles.separator : styles.groupLabel}
+            role={it.separator && asMenu ? 'separator' : undefined}>{it.groupLabel}</div>
+        )
+      }
+      // ⚠️ KEPT SMALL: this module is in the Notebook's first-open bytes budget — ONE element for both
+      // kinds of row. `href` makes it a real link (middle-click and cmd-click open a tab; same look, same
+      // close-on-pick; a link cannot be `disabled`, so a caller that needs that passes no `href`).
+      // `check`: a menuitemcheckbox + aria-checked (desktop); a touch sheet's plain button + aria-pressed.
+      // (The ✓ itself is the caller's, in `label` — StockChart `chipMenuSigRow`.)
+      const check = signature && it.checked != null
+      const Row = it.href ? 'a' : 'button'
+      return (
+        <Row
           key={it.key ?? it.label ?? i}
-          role={asMenu ? 'menuitem' : undefined}
+          data-menu-id={it.key}
+          role={asMenu ? 'menuitem' + (check ? 'checkbox' : '') : undefined}
+          {...{ [asMenu ? 'aria-checked' : 'aria-pressed']: check ? it.checked : undefined }}
           className={`${styles.item} ${it.danger ? styles.danger : ''}`}
           href={it.href}
-          {...hintProps(it)}
-          onClick={(e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }}
-        >
-          {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
-          <span className={styles.label}>{it.label}</span>
-        </a>
-      ) : (
-        <button
-          key={it.key ?? it.label ?? i}
-          role={asMenu ? 'menuitem' : undefined}
-          className={`${styles.item} ${it.danger ? styles.danger : ''}`}
           disabled={it.disabled}
           {...hintProps(it)}
           onClick={(e) => { it.onClick?.(e); if (!it.keepOpen) onClose?.() }}
         >
           {it.icon != null && <span className={styles.icon}>{it.icon}</span>}
           <span className={styles.label}>{it.label}</span>
-        </button>
-      ),
-    )
+          {it.aside != null && <span className={styles.aside}>{it.aside}</span>}
+        </Row>
+      )
+    })
 
   // Touch → bottom sheet
   if (isTouch) {
     return (
-      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName}>
+      // VIS-7 (audit 2026-11-05, axe aria-dialog-name): the sheet is a dialog and needs a name. The same rule as the
+      // anchored menu below: the title when it is plain text (named BY the visible title), else Options / Actions.
+      <Sheet open={open} onClose={onClose} variant="bottom-sheet" title={title} className={sheetClassName} returnFocusTo={returnFocusTo}
+        labelledByTitle={typeof title === 'string' && Boolean(title)}
+        ariaLabel={typeof title === 'string' && title ? undefined : (children != null ? 'Options' : 'Actions')}>
         <div className={styles.sheetList}>
           {children ?? <>{header}{renderItems()}</>}
         </div>
@@ -220,7 +262,7 @@ export default function ContextPopover({
   return createPortal(
     <div
       ref={menuRef}
-      className={`${styles.menu}${dense ? ' ' + styles.menuDense : ''}`}
+      className={`${styles.menu}${dense ? ' ' + styles.menuDense : ''}${sig}`}
       style={{
         left: pos?.left ?? anchor?.x ?? 0,
         top: pos?.top ?? anchor?.y ?? 0,
@@ -230,6 +272,7 @@ export default function ContextPopover({
       // The role follows the content. An action list is a menu of menu items. Custom
       // children (a form, a picker) are not menu items, so that form is a named dialog.
       role={children != null ? 'dialog' : 'menu'}
+      data-guide={guide}
       // Both need a name. The title when it is plain text.
       aria-label={typeof title === 'string' && title ? title : (children != null ? 'Options' : 'Actions')}
       tabIndex={-1}

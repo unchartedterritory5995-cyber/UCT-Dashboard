@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "about": "KN-1 derived setup criteria (pilot). One entry per UCT setup template: named conditions mapped to measurable ids from the closed list in docs/agent/program/contracts/KN-1-knowledge.md, so an Agent capability can test each one against served bars/indicators and report evidence vs interpretation. DERIVED from the Brain Pack's setup_templates (not the partner's pipeline). RULES: `value` only when the number (or the plain meaning of above/below) is literally in the template field named by `locator`; otherwise null. basis 'stated' = comparison and value are literal; 'interpreted' = a window, unit or mapping was chosen by us (listed in `assumptions`). `strength` = required | preferred, as the template words it. NOTHING here is served until an entry is reviewed: setup.playbook adds `criteria` only for entries with reviewed: true.",
+  "measurables_contract": "docs/agent/program/contracts/KN-1-knowledge.md#measurables",
+  "templates": [
+    {
+      "template": "Stage 2 Breakout", "vocab_id": null, "reviewed": false,
+      "conditions": [
+        {"id": "above_30w_ma", "role": "entry", "locator": "entry_triggers.primary", "measurable": "close_vs_sma30w", "op": ">", "value": 0, "unit": "pct", "timeframe": "weekly", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "breakout_volume", "role": "entry", "locator": "entry_triggers.volume_min", "measurable": "rel_volume_weekly_10w", "op": ">=", "value": 1.5, "unit": "x", "timeframe": "weekly", "basis": "interpreted", "strength": "required", "assumptions": ["average window not stated: 10 weeks"]},
+        {"id": "back_below_30w_ma", "role": "invalidation", "locator": "invalidation.structural", "measurable": "close_vs_sma30w", "op": "<", "value": 0, "unit": "pct", "timeframe": "weekly", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "max_stop", "role": "risk", "locator": "stop_methods.max_pct", "measurable": "stop_distance_pct", "op": "<=", "value": 10.0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []}
+      ]
+    },
+    {
+      "template": "EP", "vocab_id": null, "reviewed": false,
+      "conditions": [
+        {"id": "gap_size", "role": "entry", "locator": "entry_triggers.timing", "measurable": "gap_pct", "op": ">=", "value": 10, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "preferred", "assumptions": ["the template scans for 10-15% gappers; 10 is the lower bound"]},
+        {"id": "gap_day_volume", "role": "entry", "locator": "invalidation.volume", "measurable": "rel_volume_50d", "op": ">", "value": null, "unit": "x", "timeframe": "daily", "basis": "interpreted", "strength": "required", "assumptions": ["template says volume must be dramatically above average; no number stated"]},
+        {"id": "quiet_base_before", "role": "context", "locator": "trend_requirements", "measurable": "prior_run_pct_60d", "op": "<=", "value": null, "unit": "pct", "timeframe": "daily", "basis": "interpreted", "strength": "preferred", "assumptions": ["template prefers a flat or declining base with no big prior uptrend; no number stated; 60-session window chosen"]},
+        {"id": "holds_gap_day_low", "role": "invalidation", "locator": "invalidation.structural", "measurable": "close_vs_gap_day_low", "op": "<", "value": 0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "max_stop", "role": "risk", "locator": "stop_methods.max_pct", "measurable": "stop_distance_pct", "op": "<=", "value": 8.0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []}
+      ]
+    },
+    {
+      "template": "VCP", "vocab_id": "vcp", "reviewed": false,
+      "conditions": [
+        {"id": "sma50_over_sma200", "role": "context", "locator": "ma_alignment", "measurable": "sma50_above_sma200", "op": "==", "value": true, "unit": "bool", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "sma50_rising", "role": "context", "locator": "ma_alignment", "measurable": "sma50_rising", "op": "==", "value": true, "unit": "bool", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "sma200_rising", "role": "context", "locator": "ma_alignment", "measurable": "sma200_rising", "op": "==", "value": true, "unit": "bool", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "above_50", "role": "context", "locator": "trend_requirements", "measurable": "close_vs_sma50", "op": ">", "value": 0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "above_150", "role": "context", "locator": "trend_requirements", "measurable": "close_vs_sma150", "op": ">", "value": 0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "above_200", "role": "context", "locator": "trend_requirements", "measurable": "close_vs_sma200", "op": ">", "value": 0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "relative_strength", "role": "context", "locator": "rs_requirements", "measurable": null, "op": null, "value": null, "unit": null, "timeframe": "daily", "basis": "interpreted", "strength": "required", "blocked": "F-16: the template asks for RS rank in the top 20%; UCT's RS rank is a proprietary score that never reaches the model. Needs an owner-approved public alternative.", "assumptions": []},
+        {"id": "breakout_volume", "role": "entry", "locator": "liquidity_min", "measurable": "rel_volume_50d", "op": ">=", "value": 1.4, "unit": "x", "timeframe": "daily", "basis": "interpreted", "strength": "required", "assumptions": ["template states 40-50%+ volume expansion on breakout day; 40% expansion read as 1.4x the 50-session average"]},
+        {"id": "max_stop", "role": "risk", "locator": "stop_methods.max_pct", "measurable": "stop_distance_pct", "op": "<=", "value": 8.0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []}
+      ]
+    },
+    {
+      "template": "HTF", "vocab_id": null, "reviewed": false,
+      "conditions": [
+        {"id": "prior_run", "role": "context", "locator": "trend_requirements", "measurable": "prior_run_pct_40d", "op": ">=", "value": 30, "unit": "pct", "timeframe": "daily", "basis": "interpreted", "strength": "required", "assumptions": ["template states a 30-100%+ run in 2-8 weeks; 40 sessions chosen as the window"]},
+        {"id": "tight_flag", "role": "context", "locator": "invalidation.structural", "measurable": "range_pct_10", "op": "<=", "value": 12, "unit": "pct", "timeframe": "daily", "basis": "interpreted", "strength": "required", "assumptions": ["template invalidates a flag wider than 10-12%; 12 is the upper bound; the flag lasts 2-5 weeks, measured here over 10 sessions"]},
+        {"id": "above_10ema", "role": "context", "locator": "ma_alignment", "measurable": "close_vs_ema10", "op": ">", "value": 0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []},
+        {"id": "breakout_volume", "role": "entry", "locator": "entry_triggers.secondary", "measurable": "rel_volume_50d", "op": ">=", "value": 2, "unit": "x", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": ["average window not stated: 50 sessions"]},
+        {"id": "volatility", "role": "context", "locator": "liquidity_min", "measurable": "adr_pct_20", "op": ">=", "value": 4, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": ["ADR% window not stated: 20 sessions"]},
+        {"id": "max_stop", "role": "risk", "locator": "stop_methods.max_pct", "measurable": "stop_distance_pct", "op": "<=", "value": 7.0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []}
+      ]
+    },
+    {
+      "template": "U&R", "vocab_id": "undercut_and_rally", "reviewed": false,
+      "conditions": [
+        {"id": "prior_uptrend", "role": "context", "locator": "trend_requirements", "measurable": "sma50_rising", "op": "==", "value": true, "unit": "bool", "timeframe": "daily", "basis": "interpreted", "strength": "preferred", "assumptions": ["template wants a prior uptrend with ideally rising MAs; rising 50-day chosen as the test"]},
+        {"id": "quick_reclaim", "role": "entry", "locator": "ma_alignment", "measurable": "undercut_reclaim_sessions", "op": "<=", "value": 5, "unit": "sessions", "timeframe": "daily", "basis": "stated", "strength": "preferred", "assumptions": []},
+        {"id": "max_stop", "role": "risk", "locator": "stop_methods.max_pct", "measurable": "stop_distance_pct", "op": "<=", "value": 8.0, "unit": "pct", "timeframe": "daily", "basis": "stated", "strength": "required", "assumptions": []}
+      ]
+    }
+  ]
+}

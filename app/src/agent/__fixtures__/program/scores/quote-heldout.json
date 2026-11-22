@@ -42,7 +42,7 @@
   {"id": "H39", "text": "and msft?", "expect": null},
   {"id": "H40", "text": "nvda close on friday", "expect": null},
   {"id": "H41", "text": "AAPL 10 day change", "expect": {"action": "stock.dailyBars", "symbol": "AAPL", "measure": "change", "sessions": 10}},
-  {"id": "H42", "text": "how far is nvda from its 52 week high", "expect": null, "either": [{"action": "stock.dailyBars", "symbol": "NVDA", "measure": "range52w"}]},
+  {"id": "H42", "text": "how far is nvda from its 52 week high", "expect": null, "either": [{"action": "stock.dailyBars", "symbol": "NVDA", "measure": "range52w"}, {"action": "stock.dailyBars", "symbol": "NVDA", "measure": "offHigh"}]},
   {"id": "H43", "text": "whats the price of nvda in euros", "expect": null},
   {"id": "H44", "text": "amzn last price before earnings", "expect": null}
  ]

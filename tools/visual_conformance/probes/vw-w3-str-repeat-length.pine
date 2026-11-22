@@ -1,0 +1,17 @@
+//@version=6
+indicator("vw-w3-str-repeat-length", overlay = true)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w3.md, W3 S1, row Q-W3-7 (shape S1-F). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: str.repeat(s, n) and str.length(s) in a cell text, outside and inside a loop. Read the eight cell texts.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+if barstate.islast
+    var table t = table.new(position.top_right, 2, 4)
+    table.cell(t, 0, 0, str.repeat("x", str.length("abc")))
+    table.cell(t, 1, 0, str.repeat("ab", 3))
+    for k = 1 to 3
+        string s = "+" + str.tostring(k * 1000000.0, format.volume)
+        table.cell(t, 0, k, s)
+        table.cell(t, 1, k, str.repeat("x", str.length(s)))

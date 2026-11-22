@@ -154,7 +154,7 @@ export default function OpenFlow() {
                   <td className={styles.num}>{fmtMoney(r.bull)}</td>
                   <td className={styles.num}>{fmtMoney(r.bear)}</td>
                   <td className={`${styles.num} ${r.net >= 0 ? styles.up : styles.down}`}>{fmtMoney(r.net)}</td>
-                  <td className={styles.num}>{fmtPct(r.bullPct * 100)}</td>
+                  <td className={styles.num}>{fmtPct(r.bullPct)}</td>
                   <td>{contractLine(r)}</td>
                   <td>{r.since || '—'}</td>
                   <td className={`${styles.num} ${(r.perf ?? 0) >= 0 ? styles.up : styles.down}`}>{fmtPerf(r.perf)}</td>

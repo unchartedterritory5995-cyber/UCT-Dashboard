@@ -16,7 +16,6 @@ def db_path(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     from api.services import auth_db
     importlib.reload(auth_db)
     auth_db.init_db()
@@ -164,14 +163,3 @@ def test_the_edit_route_says_why_a_rule_is_not_editable(db_path):
         got = c.put(f"/api/j2/trader-blocks/rules/{rid}", json={"beforeEntry": True})
         assert (got.status_code, got.json()["detail"]) == (404, rt.NOT_FOUND), rid
 
-
-def test_the_edit_route_with_the_switch_off_is_a_plain_not_found(db_path, monkeypatch):
-    from api.routers import notebook_journal_styles as rt
-    app = FastAPI()
-    app.include_router(rt.router)
-    app.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": "u1", "role": "member", "plan": "pro"}
-    c = TestClient(app)
-    r = _rule()
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    got = c.put(f"/api/j2/trader-blocks/rules/{r['id']}", json={"beforeEntry": True})
-    assert (got.status_code, got.json()["detail"]) == (404, rt.NOT_FOUND)

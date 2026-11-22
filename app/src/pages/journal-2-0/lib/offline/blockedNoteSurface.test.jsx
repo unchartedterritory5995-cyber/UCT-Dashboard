@@ -28,6 +28,7 @@ import { drainOutbox } from './outboxDrain'
 import { listBlockedNoteIds } from './blockedNotes'
 import { BLOCKED_BADGE, BLOCKED_TITLE, blockedLabel, unsyncedLabel, savedLocally } from './unsyncedCopy'
 import { AuthContext } from '../../../../context/AuthContext'
+import { chooseView } from '../../tabs/__tests__/toolbarDoors'
 
 Range.prototype.getClientRects = () => []
 Range.prototype.getBoundingClientRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 })
@@ -56,7 +57,6 @@ vi.mock('../../components/notebook/NoteEditorPage', () => ({ default: ({ noteId 
 vi.mock('../../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../../components/notebook/export/ExportDialog', () => ({ default: () => null }))
 vi.mock('../../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="home" /> }))
 
 const entryFor = (noteId, text, base) => ({
   mutationId: `note:${noteId}`,
@@ -96,10 +96,9 @@ afterEach(() => {
   __resetNotebookConnections()
 })
 
-/** ⛔ `?view=all` is not decoration — without it `isHome` is true and the tab
- *  renders ResearchHome, so every assertion below would be reading a screen
- *  that has no note list on it at all. That is how a list rail passes or fails
- *  for a reason that has nothing to do with the list. */
+/** `?view=all` was not decoration while a bare address rendered Research Home (a screen with no note list on it).
+ *  Since the Notebook opens on the list it is the explicit form of the same address, kept so the rail names the
+ *  screen it reads. */
 async function renderTab() {
   const NotebookTab = (await import('../../tabs/NotebookTab')).default
   render(
@@ -252,7 +251,9 @@ describe('⭐ THE TABLE VIEW SAYS THE SAME THING', () => {
     await settleIdb()
 
     await renderTab()
-    await act(async () => { screen.getByTitle('Table view').click(); await settleIdb(4) })
+    // S11: the member's own control is the View menu's Table row now.
+    chooseView('Table')
+    await act(async () => { await settleIdb(4) })
 
     await waitFor(() => expect(screen.getByText(BLOCKED_BADGE)).toBeInTheDocument())
   })

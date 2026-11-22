@@ -473,11 +473,9 @@
       "scope": "cross-device",
       "surface": "Notebook",
       "kind": "state",
-      "label": "Sample notebook strip dismissed",
+      "label": "Sample notebook",
       "serverAllowlisted": true,
-      "files": [
-        "app/src/pages/journal-2-0/components/notebook/ResearchHome.jsx"
-      ]
+      "files": []
     },
     {
       "key": "notebook_starter_pack",
@@ -592,6 +590,30 @@
       ]
     },
     {
+      "key": "screener_rs_controls",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "setting",
+      "label": "RS screen quick controls",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
+      "key": "screener_rs_note_seen",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens first-visit note dismissed",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/screener/focus/FocusScreener.jsx"
+      ]
+    },
+    {
       "key": "shared_tag_colors",
       "store": "server-preference",
       "scope": "cross-device",
@@ -611,6 +633,18 @@
       "serverAllowlisted": true,
       "files": [
         "app/src/hooks/useTagColors.js"
+      ]
+    },
+    {
+      "key": "terminal_board_tabs",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "UCT Terminal",
+      "kind": "state",
+      "label": "Open terminal board tabs and each tab's working copy",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/terminal/useBoardTabs.js"
       ]
     },
     {
@@ -696,6 +730,298 @@
       "serverAllowlisted": true,
       "files": [
         "app/src/components/chart/useTracingsSync.js"
+      ]
+    },
+    {
+      "key": "study.blitz.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Blitz score",
+      "files": [
+        "app/src/pages/study/StudyLanding.jsx",
+        "app/src/pages/study/challenges/BlitzChallenge.jsx"
+      ]
+    },
+    {
+      "key": "study.blitz.tutorialSeen",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "The Blitz tutorial was shown",
+      "files": [
+        "app/src/lab/pieces/Piece47BlitzV2.jsx",
+        "app/src/lab/pieces/Piece53BlitzV3.jsx"
+      ]
+    },
+    {
+      "key": "study.daily.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "work",
+      "label": "Each day's Daily Chart result (the last 60 days)",
+      "pattern": true,
+      "files": [
+        "app/src/pages/study/challenges/DailyChartGame.jsx"
+      ]
+    },
+    {
+      "key": "study.daily.streak",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your Daily Chart streak",
+      "files": [
+        "app/src/pages/study/challenges/DailyChartGame.jsx"
+      ]
+    },
+    {
+      "key": "study.earnings.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Earnings Desk score",
+      "files": [
+        "app/src/pages/study/challenges/EarningsDeskGame.jsx"
+      ]
+    },
+    {
+      "key": "study.greeks.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Greeks Lab score",
+      "files": [
+        "app/src/pages/study/challenges/GreeksLabGame.jsx"
+      ]
+    },
+    {
+      "key": "study.history.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best History Detective score",
+      "files": [
+        "app/src/pages/study/challenges/HistoryDetectiveGame.jsx"
+      ]
+    },
+    {
+      "key": "study.howto.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "\"how it plays\" cards already shown",
+      "pattern": true,
+      "files": [
+        "app/src/pages/study/ui/HowItPlays.jsx"
+      ]
+    },
+    {
+      "key": "study.match.best.*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Word Match scores",
+      "pattern": true,
+      "files": [
+        "app/src/pages/study/challenges/WordMatchGame.jsx"
+      ]
+    },
+    {
+      "key": "study.mistake.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Spot the Mistake score",
+      "files": [
+        "app/src/pages/study/challenges/SpotMistakeGame.jsx"
+      ]
+    },
+    {
+      "key": "study.outbox",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "work",
+      "label": "Answers waiting to send when back online",
+      "files": [
+        "app/src/pages/study/studyOutbox.js"
+      ]
+    },
+    {
+      "key": "study.payoff.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Options Payoff score",
+      "files": [
+        "app/src/pages/study/challenges/OptionsPayoffGame.jsx"
+      ]
+    },
+    {
+      "key": "study.sectors.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Sector Race score",
+      "files": [
+        "app/src/pages/study/challenges/SectorRaceGame.jsx"
+      ]
+    },
+    {
+      "key": "study.set.cache",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "cache",
+      "label": "The lesson in progress, for a quick reopen",
+      "files": [
+        "app/src/pages/study/useStudySession.js"
+      ]
+    },
+    {
+      "key": "study.sfx.muted",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "setting",
+      "label": "Game sound effects muted",
+      "files": [
+        "app/src/lab/sfx.js"
+      ]
+    },
+    {
+      "key": "study.size.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Size It score",
+      "files": [
+        "app/src/pages/study/challenges/SizeItGame.jsx"
+      ]
+    },
+    {
+      "key": "study.survive.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Survive score",
+      "files": [
+        "app/src/pages/study/challenges/SurviveGame.jsx"
+      ]
+    },
+    {
+      "key": "study.tf.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best True or False score",
+      "files": [
+        "app/src/pages/study/challenges/TrueFalseGame.jsx"
+      ]
+    },
+    {
+      "key": "study.ticket.best",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "state",
+      "label": "Your best Order Ticket score",
+      "files": [
+        "app/src/pages/study/challenges/OrderTicketGame.jsx"
+      ]
+    },
+    {
+      "key": "uct.deskUsage.sent",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Platform",
+      "kind": "internal",
+      "label": "Daily usage report marker",
+      "files": [
+        "app/src/hooks/useDeskUsage.js"
+      ]
+    },
+    {
+      "key": "uct.indwarm.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/engine/serverWarm.js",
+        "app/src/lib/symbolResourceWarm.js"
+      ]
+    },
+    {
+      "key": "uct.plotwindow.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/engine/plotWindow.js"
+      ]
+    },
+    {
+      "key": "uct.restgate.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/lib/symbolPace.js"
+      ]
+    },
+    {
+      "key": "uct.rsdisk.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/engine/serverColumnsDisk.js"
+      ]
+    },
+    {
+      "key": "uct.rslane.tfs",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "state",
+      "label": "Timeframes you use, so their indicator lines are loaded ahead",
+      "files": [
+        "app/src/components/chart/engine/serverCompute.js"
+      ]
+    },
+    {
+      "key": "uct.signedIn.v1",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "internal",
+      "label": "Whether this browser was signed in last time, so your settings load alongside the sign-in check",
+      "files": [
+        "app/src/lib/bootFetch.js"
       ]
     },
     {
@@ -1182,7 +1508,18 @@
       "scope": "device-local",
       "surface": "App",
       "kind": "state",
-      "label": "Day the intro animation last played",
+      "label": "Day the intro animation last played (the old daily key: read once into the weekly key, then removed)",
+      "files": [
+        "app/src/components/intro/introStorage.js"
+      ]
+    },
+    {
+      "key": "uct_intro_last_full_et_day",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "state",
+      "label": "Day the intro animation last played in full (it plays once a week)",
       "files": [
         "app/src/components/intro/introStorage.js"
       ]
@@ -1576,6 +1913,39 @@
       ]
     },
     {
+      "key": "uct.barStore",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart data rollout switch",
+      "files": [
+        "app/src/components/chart/barStoreSwitch.js"
+      ]
+    },
+    {
+      "key": "uct.barsgrace.off",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Chart loading rollout switch",
+      "files": [
+        "app/src/components/chart/useLegacyChartBars.js"
+      ]
+    },
+    {
+      "key": "uct.barspack.deltaProgress",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Daily market data update progress",
+      "files": [
+        "app/src/lib/barsPackClient.js"
+      ]
+    },
+    {
       "key": "uct.barsFetchMax",
       "store": "localStorage",
       "scope": "device-local",
@@ -1617,6 +1987,28 @@
       "label": "Chart loading rollout switch",
       "files": [
         "app/src/components/StockChart.jsx"
+      ]
+    },
+    {
+      "key": "uct.liveCadenceMs",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Live candle paint cadence (measurement switch)",
+      "files": [
+        "app/src/utils/streamStatus.js"
+      ]
+    },
+    {
+      "key": "uct.historyLake",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "Deep intraday history from the edge (rollout switch)",
+      "files": [
+        "app/src/data/barStore/historyFeed.js"
       ]
     },
     {
@@ -1803,7 +2195,8 @@
       "kind": "state",
       "label": "Locked chart view (zoom and position)",
       "files": [
-        "app/src/components/StockChart.jsx"
+        "app/src/components/StockChart.jsx",
+        "app/src/components/chart/viewLockHeal.js"
       ]
     },
     {
@@ -1815,7 +2208,19 @@
       "label": "Locked view for each workspace chart",
       "pattern": true,
       "files": [
-        "app/src/components/StockChart.jsx"
+        "app/src/components/StockChart.jsx",
+        "app/src/components/chart/viewLockHeal.js"
+      ]
+    },
+    {
+      "key": "uct.charts.viewLockHeal.v1",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "internal",
+      "label": "One-time repair of chart views squeezed by an old scaling bug (done marker)",
+      "files": [
+        "app/src/components/chart/viewLockHeal.js"
       ]
     },
     {
@@ -1882,6 +2287,18 @@
       "label": "Tickers panel sort",
       "files": [
         "app/src/components/video/VideoDockSlot.jsx"
+      ]
+    },
+    {
+      "key": "uct.desk.v1:*:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "work",
+      "label": "Popped-out chart boards, kept so a reload or crash does not lose them",
+      "pattern": true,
+      "files": [
+        "app/src/pages/charts/popout/deskStore.js"
       ]
     },
     {
@@ -2400,6 +2817,39 @@
       ]
     },
     {
+      "key": "uct.notebook.list.layout",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "setting",
+      "label": "Notes list layout (rows or cards)",
+      "files": [
+        "app/src/pages/journal-2-0/tabs/NotebookTab.jsx"
+      ]
+    },
+    {
+      "key": "uct.notebook.sidebar.moreOpen",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Folders panel More fold open",
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx"
+      ]
+    },
+    {
+      "key": "uct.notebook.sidebar.tagsOpen",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "Folders panel Tags fold open",
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/FolderSidebar.jsx"
+      ]
+    },
+    {
       "key": "uct.notebook.tickersOpen",
       "store": "localStorage",
       "scope": "device-local",
@@ -2463,6 +2913,18 @@
       "surface": "Screener",
       "kind": "cache",
       "label": "Pinned screens to open on, per member",
+      "pattern": true,
+      "files": [
+        "app/src/pages/screener/focus/landing.js"
+      ]
+    },
+    {
+      "key": "uct.screener.lastScreen:*",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "The screen the Screener reopens on, per member",
       "pattern": true,
       "files": [
         "app/src/pages/screener/focus/landing.js"
@@ -2566,6 +3028,17 @@
       "label": "Chart loading rollout switch",
       "files": [
         "app/src/hooks/useRealtimePrices.js"
+      ]
+    },
+    {
+      "key": "uct.study.sound",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Study",
+      "kind": "setting",
+      "label": "Sound and haptics on or off",
+      "files": [
+        "app/src/pages/study/studySound.js"
       ]
     },
     {
@@ -2682,12 +3155,23 @@
       ]
     },
     {
-      "key": "uct.watchlist.cols.breadthDrill",
+      "key": "uct.watchlist.cols.breadthDrill.focus7",
       "store": "localStorage",
       "scope": "device-local",
       "surface": "Breadth",
       "kind": "setting",
       "label": "Drill-down list columns",
+      "files": [
+        "app/src/pages/Watchlists.jsx"
+      ]
+    },
+    {
+      "key": "uct.watchlist.cols.breadthDrill.table",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "Breadth",
+      "kind": "setting",
+      "label": "Drill-down table columns",
       "files": [
         "app/src/pages/Watchlists.jsx"
       ]
@@ -2914,6 +3398,17 @@
       ]
     },
     {
+      "key": "uct.screener.rsMarketHidden",
+      "store": "sessionStorage",
+      "scope": "device-local",
+      "surface": "Screener",
+      "kind": "state",
+      "label": "RS screens market note hidden for today",
+      "files": [
+        "app/src/pages/screener/focus/rsMarket.js"
+      ]
+    },
+    {
       "key": "uct.terminal.revertLayout",
       "store": "sessionStorage",
       "scope": "device-local",
@@ -2922,6 +3417,40 @@
       "label": "Terminal layout to return to after opening a shared board",
       "files": [
         "app/src/pages/terminal/TerminalShell.jsx"
+      ]
+    },
+    {
+      "key": "notebook_tips",
+      "store": "server-preference",
+      "scope": "cross-device",
+      "surface": "Notebook",
+      "kind": "state",
+      "label": "One-time Notebook tips already seen",
+      "serverAllowlisted": true,
+      "files": [
+        "app/src/pages/journal-2-0/components/notebook/NotebookTipSlot.jsx"
+      ]
+    },
+    {
+      "key": "uct.debug.layoutShift",
+      "store": "localStorage",
+      "scope": "device-local",
+      "surface": "App",
+      "kind": "internal",
+      "label": "Debug only: log layout shifts to the console (off unless set by hand)",
+      "files": [
+        "app/src/lib/clsDebug.js"
+      ]
+    },
+    {
+      "key": "uct_server_columns_v1/entries",
+      "store": "indexedDB",
+      "scope": "device-local",
+      "surface": "Charts",
+      "kind": "cache",
+      "label": "Indicator lines from the server, kept so a chart you have seen draws at once",
+      "files": [
+        "app/src/components/chart/engine/serverColumnsDisk.js"
       ]
     }
   ]

@@ -1,0 +1,258 @@
+{
+ "_": "THE QUESTIONS THE DOOR ASKS ITSELF (Create Indicator, clarify first). Owner direction, 2026-11-18: when a choice that changes the maths is not settled, ask ONE short question with the options before building; never guess. Each entry is a question the door can ask with no model call: `text` is what the member reads, `choices` what they can tap. Every choice is a phrase the door reads back as that choice, so tapping it (or typing it) settles the question; `tests/test_clarify_registry.py` holds each one to that. WHEN a question is open is code, not data (`definition_conversation.open_questions`), read from what the planner already found. The ORDER here is the order asked: one question per turn, the first that is open. A choice that is a convention the product already holds (RSI 14 of the close, MACD 12/26/9, a library entry's own numbers) is never a question here. `also` lists the plain words a member may TYPE for a choice (\"simple\", \"exponential\"); an answer holding one is read as that choice. `remember` says what an ANSWER does next time (api/services/indicator_memory.py, the member's own account): `default` = the door uses the member's last answer instead of asking and says so (`as_before`); `offer` = the question is still asked, with their last answer first. `values` names each choice's closed value; nothing a member typed is ever stored. `title` is what the question is called in Settings (\"What Create Indicator remembers\"). A question with an `acronym` is asked when a request uses those letters and names neither indicator they could mean: `rows` maps each choice to the name-catalogue row it stands for (the likeliest first), and the answer follows that row's own path (a library entry builds checked; a withheld name is built with the name withheld; any other name gets the unknown-name answer). A question marked `number` takes any whole number of bars as its answer; its choices are the usual ones, and a choice may say more after the number (\"252 (about 52 weeks)\").",
+ "contract": "uct.clarify-questions/1",
+ "questions": [
+  {
+   "id": "average_kind",
+   "open_when": "the request says moving average (or MA, DMA) and names no kind of average",
+   "text": "Which kind of moving average?",
+   "choices": [
+    "Simple (SMA)",
+    "Exponential (EMA)",
+    "Weighted (WMA)",
+    "Hull (HMA)",
+    "Volume-weighted (VWMA)",
+    "Kaufman adaptive (KAMA)"
+   ],
+   "also": {
+    "Simple (SMA)": [
+     "simple"
+    ],
+    "Exponential (EMA)": [
+     "exponential"
+    ],
+    "Weighted (WMA)": [
+     "weighted"
+    ],
+    "Hull (HMA)": [
+     "hull"
+    ],
+    "Volume-weighted (VWMA)": [
+     "volume weighted",
+     "volume-weighted"
+    ],
+    "Kaufman adaptive (KAMA)": [
+     "kaufman",
+     "adaptive"
+    ]
+   },
+   "remember": "default",
+   "values": {
+    "Simple (SMA)": "sma",
+    "Exponential (EMA)": "ema",
+    "Weighted (WMA)": "wma",
+    "Hull (HMA)": "hma",
+    "Volume-weighted (VWMA)": "vwma",
+    "Kaufman adaptive (KAMA)": "kama"
+   },
+   "as_before": "Using {choice}, as you chose before. Name another kind to change it.",
+   "said": {
+    "Simple (SMA)": "a simple average",
+    "Exponential (EMA)": "an exponential average",
+    "Weighted (WMA)": "a weighted average",
+    "Hull (HMA)": "a Hull average",
+    "Volume-weighted (VWMA)": "a volume-weighted average",
+    "Kaufman adaptive (KAMA)": "Kaufman's adaptive average"
+   },
+   "title": "Kind of moving average"
+  },
+  {
+   "id": "average_length",
+   "open_when": "the request asks for an average and gives no number anywhere",
+   "text": "How many bars should the average use?",
+   "choices": [
+    "10",
+    "20",
+    "50",
+    "200"
+   ],
+   "remember": "offer",
+   "title": "Length of an average",
+   "number": true
+  },
+  {
+   "id": "cross_meaning",
+   "open_when": "the request says price crosses something and does not say whether on the close or as soon as it trades through",
+   "text": "When should a cross count?",
+   "choices": [
+    "When the bar closes across it",
+    "As soon as price trades through it"
+   ],
+   "remember": "default",
+   "values": {
+    "When the bar closes across it": "close",
+    "As soon as price trades through it": "touch"
+   },
+   "as_before": "A cross counts {choice}, as you chose before. Say otherwise to change it.",
+   "said": {
+    "When the bar closes across it": "when the bar closes across it",
+    "As soon as price trades through it": "as soon as price trades through it"
+   },
+   "title": "When a cross counts"
+  },
+  {
+   "id": "acronym_dmi",
+   "acronym": "dmi",
+   "capitals_only": false,
+   "open_when": "the request says DMI and names neither indicator it could mean",
+   "text": "DMI could mean two indicators. Which one?",
+   "choices": [
+    "Directional Movement Index (+DI, -DI, ADX)",
+    "Dynamic Momentum Index"
+   ],
+   "remember": "default",
+   "values": {
+    "Directional Movement Index (+DI, -DI, ADX)": "directional",
+    "Dynamic Momentum Index": "dynamic"
+   },
+   "rows": {
+    "Directional Movement Index (+DI, -DI, ADX)": "directional_movement_index",
+    "Dynamic Momentum Index": "dynamic_momentum_index"
+   },
+   "as_before": "Reading DMI as {choice}, as you chose before. Name the other one to change it.",
+   "said": {
+    "Directional Movement Index (+DI, -DI, ADX)": "the Directional Movement Index",
+    "Dynamic Momentum Index": "the Dynamic Momentum Index"
+   },
+   "title": "What DMI means"
+  },
+  {
+   "id": "acronym_adl",
+   "acronym": "adl",
+   "capitals_only": false,
+   "open_when": "the request says ADL and names neither indicator it could mean",
+   "text": "ADL could mean two indicators. Which one?",
+   "choices": [
+    "Accumulation Distribution Line",
+    "Advance Decline Line"
+   ],
+   "remember": "default",
+   "values": {
+    "Accumulation Distribution Line": "accumulation",
+    "Advance Decline Line": "advance"
+   },
+   "rows": {
+    "Accumulation Distribution Line": "accumulation_distribution_line",
+    "Advance Decline Line": "advance_decline_line"
+   },
+   "as_before": "Reading ADL as {choice}, as you chose before. Name the other one to change it.",
+   "said": {
+    "Accumulation Distribution Line": "the Accumulation Distribution Line",
+    "Advance Decline Line": "the Advance Decline Line"
+   },
+   "title": "What ADL means"
+  },
+  {
+   "id": "acronym_ad",
+   "acronym": "ad",
+   "capitals_only": true,
+   "open_when": "the request says AD in capitals and names neither indicator it could mean",
+   "text": "AD could mean two indicators. Which one?",
+   "choices": [
+    "Accumulation Distribution Line",
+    "Advance Decline Line"
+   ],
+   "remember": "default",
+   "values": {
+    "Accumulation Distribution Line": "accumulation",
+    "Advance Decline Line": "advance"
+   },
+   "rows": {
+    "Accumulation Distribution Line": "accumulation_distribution_line",
+    "Advance Decline Line": "advance_decline_line"
+   },
+   "as_before": "Reading AD as {choice}, as you chose before. Name the other one to change it.",
+   "said": {
+    "Accumulation Distribution Line": "the Accumulation Distribution Line",
+    "Advance Decline Line": "the Advance Decline Line"
+   },
+   "title": "What AD means"
+  },
+  {
+   "id": "benchmark",
+   "text": "Compared with which symbol?",
+   "choices": [
+    "S&P 500 (SPY)",
+    "Nasdaq 100 (QQQ)",
+    "Russell 2000 (IWM)",
+    "S&P 500 equal weight (RSP)"
+   ],
+   "open_when": "the request asks for relative strength, or a comparison with the market, and names no symbol to compare with",
+   "also": {
+    "S&P 500 (SPY)": [
+     "spy",
+     "s and p"
+    ],
+    "Nasdaq 100 (QQQ)": [
+     "qqq",
+     "nasdaq"
+    ],
+    "Russell 2000 (IWM)": [
+     "iwm",
+     "russell"
+    ],
+    "S&P 500 equal weight (RSP)": [
+     "rsp",
+     "equal weight"
+    ]
+   },
+   "remember": "default",
+   "values": {
+    "S&P 500 (SPY)": "spy",
+    "Nasdaq 100 (QQQ)": "qqq",
+    "Russell 2000 (IWM)": "iwm",
+    "S&P 500 equal weight (RSP)": "rsp"
+   },
+   "as_before": "Comparing with {choice}, as you chose before. Name another symbol to change it.",
+   "said": {
+    "S&P 500 (SPY)": "SPY",
+    "Nasdaq 100 (QQQ)": "QQQ",
+    "Russell 2000 (IWM)": "IWM",
+    "S&P 500 equal weight (RSP)": "RSP"
+   },
+   "title": "Benchmark for relative strength"
+  },
+  {
+   "id": "breakout_window",
+   "text": "How many bars back should a breakout look?",
+   "choices": [
+    "20",
+    "50",
+    "100",
+    "252 (about 52 weeks)"
+   ],
+   "open_when": "the request asks for a breakout or a new high or low, gives no number, and does not name what it breaks out of",
+   "remember": "offer",
+   "number": true,
+   "title": "How far back a breakout looks"
+  },
+  {
+   "id": "stochastic_kind",
+   "text": "Which Stochastic?",
+   "choices": [
+    "Slow Stochastic (14, 3, 3)",
+    "Fast Stochastic (14, 1, 3)"
+   ],
+   "open_when": "the request asks for the Stochastic Oscillator and says neither slow, fast or full nor any number",
+   "also": {
+    "Slow Stochastic (14, 3, 3)": [
+     "slow"
+    ],
+    "Fast Stochastic (14, 1, 3)": [
+     "fast"
+    ]
+   },
+   "remember": "default",
+   "values": {
+    "Slow Stochastic (14, 3, 3)": "slow",
+    "Fast Stochastic (14, 1, 3)": "fast"
+   },
+   "as_before": "Using the {choice}, as you chose before. Say slow or fast to change it.",
+   "said": {
+    "Slow Stochastic (14, 3, 3)": "slow Stochastic (14, 3, 3)",
+    "Fast Stochastic (14, 1, 3)": "fast Stochastic (14, 1, 3)"
+   },
+   "title": "Slow or fast Stochastic"
+  }
+ ]
+}

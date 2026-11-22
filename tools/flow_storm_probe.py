@@ -119,8 +119,12 @@ def one_run(pw, rig, email, password, idx, start="/dashboard"):
         up0 = rig._uptime()
         t_run = time.monotonic()
         rig._pace_login()
-        r = ctx.request.post(BASE + "/api/auth/login",
-                             data={"email": email, "password": password})
+        # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+        try:
+            from tools import synthetic_session as S  # noqa: PLC0415 -- package import
+        except ImportError:
+            import synthetic_session as S  # noqa: PLC0415 -- script import (tools/ on sys.path)
+        r = S.sign_in_playwright(ctx, BASE, credentials=(email, password)).response
         if r.status != 200:
             sw, why = rig._swap_verdict(up0, rig._uptime(), time.monotonic() - t_run)
             if r.status == 429:

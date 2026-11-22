@@ -359,6 +359,9 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.INFO, stream=sys.stdout,
                         format="%(asctime)s %(message)s")
+    # ⛔ credentials never reach a log line: filter on the handlers basicConfig just made
+    from api.services.log_redaction import install as _install_log_redaction
+    _install_log_redaction()
     legs = [(("uct", "us"), "2008-01-02", "2010-12-31"),
             (ALL_UNIVERSES, "2011-01-03", args.to)]
     t0 = time.time()

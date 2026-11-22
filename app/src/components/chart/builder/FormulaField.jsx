@@ -457,7 +457,7 @@ export default function FormulaField({
   const readAs = result && result.dialect === 'pcf' ? 'pcf' : null
 
   return (
-    <div className={styles.fieldWrap}>
+    <div className={styles.fieldWrap} {...(label === 'Formula' ? { 'data-guide': 'builder.formula' } : null)}>
       <label className={styles.label} htmlFor={inputId}>{label}</label>
       <textarea
         id={inputId}

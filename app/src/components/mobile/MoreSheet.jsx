@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext'
 import Sheet from './Sheet'
 import UIcon from '../ui/UIcon'
 import styles from './MoreSheet.module.css'
-import uctLogo from '../intro/assets/compass-mark.png'
+import uctLogo from '../intro/assets/compass-mark.webp'
 import { FREE_PAGES } from '../../constants/freePages'
 import { useTerminalNavPath } from '../../pages/terminal/TerminalRoutes'
 import { TERMINAL_PATH } from '../../pages/terminal/terminalGate'
@@ -18,7 +18,7 @@ const NAV_SECTIONS = [
   {
     label: 'Core',
     items: [
-      { to: '/dashboard', label: 'Dashboard', icon: 'dashboard' },
+      // ⚰️ Dashboard hidden (owner 2026-11-11) — /dashboard redirects to /charts.
       { to: '/morning-wire', label: 'Morning Wire', icon: 'wire' },
       { to: '/uct-20', label: 'UCT 20', icon: 'star' },
     ],

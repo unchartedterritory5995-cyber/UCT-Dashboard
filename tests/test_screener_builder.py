@@ -488,6 +488,65 @@ def test_stalest_does_not_turn_a_missing_universe_into_a_whole_rebuild(tmp_path,
     assert b._stalest([], 10) == []
 
 
+# ───────────── one row per listing: a class share's second spelling ─────────────
+
+def _fresh_builder(tmp_path, monkeypatch, name):
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / name))
+    import api.services.screener.snapshot_db as sdb
+    import api.services.screener.snapshot_builder as b
+    importlib.reload(sdb)
+    importlib.reload(b)
+    sdb.init_db()
+    return sdb, b
+
+
+def _tickers(sdb):
+    with sdb.connect() as conn:
+        return sorted(r[0] for r in conn.execute("SELECT ticker FROM screener_rows"))
+
+
+def test_a_second_spelling_row_is_deleted_when_the_hyphen_row_exists(tmp_path, monkeypatch):
+    """BRK.B beside BRK-B is one stock on two rows (eleven such pairs were live on
+    2026-11-15, each taking its own place in every ranking). `_stalest` would rebuild
+    the dot row forever; `_prune_second_spellings` deletes it, and only it."""
+    sdb, b = _fresh_builder(tmp_path, monkeypatch, "dup.db")
+    sdb.upsert_rows([{"ticker": t, "price": 1.0, "built_at": 1} for t in
+                     ("BRK-B", "BRK.B", "BRK-A", "LEN.B", "BF.A", "CRNX", "NVDA")])
+    universe = ["BRK-A", "BRK-B", "BF-A", "LEN.B", "NVDA"]
+    assert b._prune_second_spellings(universe) == ["BRK.B"]
+    # BF.A stays: BF-A is in the universe but has no row yet, and a listing must never
+    # vanish for a night. LEN.B stays: it is the only spelling held. CRNX stays: an
+    # orphan is rebuilt, not pruned (the rule above).
+    assert _tickers(sdb) == ["BF.A", "BRK-A", "BRK-B", "CRNX", "LEN.B", "NVDA"]
+    assert b._prune_second_spellings(universe) == []          # nothing left to do
+    # the dot row is no longer an orphan the target set drags along
+    assert "BRK.B" not in b._stalest(universe, 100)
+    # once BF-A has its own row, the next build drops BF.A
+    sdb.upsert_rows([{"ticker": "BF-A", "price": 1.0, "built_at": 2}])
+    assert b._prune_second_spellings(universe) == ["BF.A"]
+
+
+def test_the_prune_needs_the_hyphen_name_in_the_universe_and_a_universe_at_all(tmp_path, monkeypatch):
+    """Two rows that look like a pair are NOT a pair unless the universe holds the
+    hyphen name (a retired BRK-B row beside a live BRK.B must not delete the live one),
+    and an empty universe (missing or unreadable file) deletes nothing."""
+    sdb, b = _fresh_builder(tmp_path, monkeypatch, "dup2.db")
+    sdb.upsert_rows([{"ticker": t, "price": 1.0, "built_at": 1} for t in ("BRK-B", "BRK.B")])
+    assert b._prune_second_spellings(["BRK.B", "NVDA"]) == []
+    assert b._prune_second_spellings([]) == []
+    assert b._prune_second_spellings(None) == []
+    assert _tickers(sdb) == ["BRK-B", "BRK.B"]
+
+
+def test_a_prune_that_cannot_read_the_table_costs_the_build_nothing(tmp_path, monkeypatch):
+    sdb, b = _fresh_builder(tmp_path, monkeypatch, "dup3.db")
+
+    def _boom(*a, **k):
+        raise RuntimeError("locked")
+    monkeypatch.setattr(b.snapshot_db, "connect", _boom)
+    assert b._prune_second_spellings(["BRK-B"]) == []
+
+
 # ───────────── market_cap keeps ONE meaning on a stale row ─────────────
 
 def _stub_run_build_readers(monkeypatch, b, tickers, bars, got):

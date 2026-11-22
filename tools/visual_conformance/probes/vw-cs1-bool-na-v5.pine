@@ -1,0 +1,57 @@
+//@version=5
+indicator("UCTPROBE_VW_CS1_BOOL_NA_V5", overlay=false)
+
+// PROVENANCE: written 2026-11-14 for the Pine parity programme, capture session S1
+// (objects-lane REMAINING-SCOPE-2026-11-14 section 4; s3-bugs-1114 "CAPTURE PROBES NEEDED" A3).
+// Bool-na rule A3: what a comparison with an na operand is (true / false / na) on the warm-up bars
+// where na_s = sma(close, 20) is na, and what ==, !=, not, and, or make of it. Each B row is encoded
+// 1 = true, 0 = false, -1 = na(x) is true; each R row is the same value read as plain x ? 1 : 0 (the
+// na-blind read, so a row where na() of a bool is always false still says something).
+// N rows: the same operators on a declared `bool nb = na`.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+na_s = ta.sma(close, 20)
+c = close > na_s
+bool nb = na
+enc(x) => na(x) ? -1 : x ? 1 : 0
+raw(x) => x ? 1 : 0
+
+plot(bar_index, title="A00_bar_index_CONTROL")
+plot(na_s, title="A01_na_s")
+plot(na(na_s) ? 1 : 0, title="A02_na_s_is_na")
+plot(enc(c), title="B00_c")
+plot(enc(c == false), title="B01_c_eq_false")
+plot(enc(c != false), title="B02_c_ne_false")
+plot(enc(c == true), title="B03_c_eq_true")
+plot(enc(not c), title="B04_not_c")
+plot(enc(c and true), title="B05_c_and_true")
+plot(enc(c or true), title="B06_c_or_true")
+plot(enc(c and false), title="B07_c_and_false")
+plot(enc(c or false), title="B08_c_or_false")
+plot(enc(nb), title="N00_nb")
+plot(enc(nb == false), title="N01_nb_eq_false")
+plot(enc(nb != false), title="N02_nb_ne_false")
+plot(enc(nb == true), title="N03_nb_eq_true")
+plot(enc(not nb), title="N04_not_nb")
+plot(enc(nb and true), title="N05_nb_and_true")
+plot(enc(nb or true), title="N06_nb_or_true")
+plot(enc(nb and false), title="N07_nb_and_false")
+plot(enc(nb or false), title="N08_nb_or_false")
+plot(raw(c), title="RB00_c")
+plot(raw(c == false), title="RB01_c_eq_false")
+plot(raw(c != false), title="RB02_c_ne_false")
+plot(raw(c == true), title="RB03_c_eq_true")
+plot(raw(not c), title="RB04_not_c")
+plot(raw(c and true), title="RB05_c_and_true")
+plot(raw(c or true), title="RB06_c_or_true")
+plot(raw(c and false), title="RB07_c_and_false")
+plot(raw(c or false), title="RB08_c_or_false")
+plot(raw(nb), title="RN00_nb")
+plot(raw(nb == false), title="RN01_nb_eq_false")
+plot(raw(nb != false), title="RN02_nb_ne_false")
+plot(raw(nb == true), title="RN03_nb_eq_true")
+plot(raw(not nb), title="RN04_not_nb")
+plot(raw(nb and true), title="RN05_nb_and_true")
+plot(raw(nb or true), title="RN06_nb_or_true")
+plot(raw(nb and false), title="RN07_nb_and_false")
+plot(raw(nb or false), title="RN08_nb_or_false")

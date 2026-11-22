@@ -1,0 +1,6 @@
+//@version=5
+indicator("hp rma alma", overlay=true)
+plot(ta.rma(close, 14), "rma")
+plot(ta.alma(close, 9, 0.85, 6), "alma")
+plot(ta.hma(close, 16), "hma")
+plot(ta.linreg(close, 20, 0), "linreg")

@@ -262,8 +262,17 @@ def main(argv=None) -> int:
         finger = Finger(cdp)
 
         page.goto(f"{args.base}/login", wait_until="domcontentloaded", timeout=45000)
-        r = page.request.post(f"{args.base}/api/auth/login",
-                              data={"email": args.email, "password": args.password})
+        # tools/synthetic_session.py signs this session OUT when the run ends, however it ends.
+        try:
+            from tools import synthetic_session as S  # noqa: PLC0415 — package import
+        except ImportError:
+            import synthetic_session as S  # noqa: PLC0415 — script import (tools/ on sys.path)
+        try:
+            r = S.sign_in_playwright(page, args.base, credentials=(args.email, args.password))
+        except S.SignInError as exc:
+            say(f"⛔ INCONCLUSIVE — could not sign in ({exc}); nothing measured.")
+            br.close()
+            return 2
         say(f"  login: {r.status}")
         if r.status != 200:
             say("⛔ INCONCLUSIVE — could not sign in; nothing measured.")

@@ -50,7 +50,18 @@ DUE_WRONG_DAYS = 1
 XP_CORRECT = 10                   # per correct answer, × difficulty
 XP_WRONG = 2                      # showing up is worth something, never zero
 XP_PER_LEVEL = 500
+# the trophies a member earns from their own record (record_attempt 4b; the shelf's catalog is app/src/pages/study/studyBadges.js)
+BADGE_STREAKS = (3, 7, 30)
+BADGE_LEVELS = (5, 10, 20)
 DAILY_GOAL_DEFAULT = 50
+# the computed games (docs/study/GAMES.md, owner 2026-11-08 "be creative and awesome"): XP for a finished run, capped so a
+# game is never a faster XP farm than the lessons; bank-backed answers earn through record_attempt instead
+GAME_KINDS = ("size", "ticket", "payoff", "greeks", "survive", "watchlist", "story", "tf", "match", "mistake",
+              "daily", "history", "sectors", "earnings")
+GAME_XP_PER_RIGHT = 2
+GAME_XP_PER_RUN = 30
+GAME_XP_PER_KIND_DAY = 150
+GAME_MAX_TOTAL = 200
 MASTERY_MIN_REPS = 8              # minimum attempts to leave Learning (§7.1)
 BAND_PRACTISED = 50.0
 BAND_PROFICIENT = 80.0
@@ -139,6 +150,20 @@ CREATE TABLE IF NOT EXISTS study_bars (
   bars_json    TEXT NOT NULL,                        -- [{t,o,h,l,c,v}] through asof
   forward_json TEXT,                                 -- bars after asof; reveal/step only
   sha256       TEXT
+);
+
+-- the replay within the day (2026-11-08): a chart's forward days as their regular-session 30-minute (or hourly) bars,
+-- only the days that add up to the daily candle the chart draws (study_intraday.build); filled once on the server
+-- (scripts/study/fill_replay_intraday.py), served only after the member's own attempt
+CREATE TABLE IF NOT EXISTS study_intraday (
+  bars_id      TEXT PRIMARY KEY,                     -- study_bars.id
+  tf           TEXT NOT NULL,                        -- '30' or '60' (minutes)
+  days_json    TEXT NOT NULL,                        -- {"YYYYMMDD": [[t,o,h,l,c,v], ...]}
+  passed       INTEGER NOT NULL DEFAULT 0,
+  failed       INTEGER NOT NULL DEFAULT 0,
+  why_json     TEXT,
+  source       TEXT,
+  fetched_at   TEXT
 );
 
 CREATE TABLE IF NOT EXISTS study_corrections (
@@ -255,6 +280,19 @@ CREATE TABLE IF NOT EXISTS study_badges (
   earned_at TEXT NOT NULL,
   PRIMARY KEY (user_id, badge_id)
 );
+
+CREATE TABLE IF NOT EXISTS study_game_runs (
+  user_id    TEXT NOT NULL,
+  run_id     TEXT NOT NULL,
+  kind       TEXT NOT NULL,
+  day_et     TEXT NOT NULL,
+  right_n    INTEGER NOT NULL,
+  total_n    INTEGER NOT NULL,
+  xp         INTEGER NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, run_id)
+);
+CREATE INDEX IF NOT EXISTS idx_study_game_runs_day ON study_game_runs(user_id, kind, day_et);
 
 CREATE TABLE IF NOT EXISTS study_checkpoints (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -460,9 +498,14 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
     """Insert or update bank items. `review_status` defaults to 'draft' and a
     re-import with a HIGHER version resets an approved item to draft (nothing
     goes live unreviewed, §8.8); a re-import at the same version keeps the
-    status the owner gave it. Returns {inserted, updated, ids}."""
+    status the owner gave it, and his grade on the example (review 'grade'
+    writes reveal_json.example_grade, which the bank never carries). A row
+    whose version is HIGHER than the bank's was edited on the pod (review
+    'fix' bumps it: the owner's own words on a lesson, 2026-10-25) and is
+    KEPT as it stands; the bank at a lower version never writes over it.
+    Returns {inserted, updated, kept, ids}."""
     stamp = _iso(now or _now_utc())
-    inserted = updated = 0
+    inserted = updated = kept = 0
     ids: list[str] = []
     with _write() as c:
         for raw in items:
@@ -479,7 +522,7 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
             vals["review_lane"] = vals.get("review_lane") or "manual"
             version = int(it.get("version") or 1)
             status = it.get("review_status") or STATUS_DRAFT
-            row = c.execute("SELECT version, review_status FROM study_items WHERE id=?",
+            row = c.execute("SELECT version, review_status, reveal_json FROM study_items WHERE id=?",
                             (iid,)).fetchone()
             if row is None:
                 c.execute(
@@ -490,9 +533,27 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
                 )
                 inserted += 1
             else:
+                row_version = int(row["version"] or 1)
+                if version < row_version:
+                    # The pod row outranks the bank: its version was raised by an
+                    # owner fix on the pod, so the bank at a lower version keeps its
+                    # hands off (a bank that means to replace the row carries a
+                    # higher version, and the row goes back to draft for review).
+                    kept += 1
+                    ids.append(iid)
+                    continue
                 new_status = row["review_status"]
                 reviewed = None
-                if version > int(row["version"] or 1):
+                if version == row_version:
+                    # the owner's grade on the example rides a same-version re-import
+                    old_reveal = _loads(row["reveal_json"], {}) or {}
+                    new_reveal = _loads(vals["reveal_json"], {}) or {}
+                    if (isinstance(old_reveal, dict) and isinstance(new_reveal, dict)
+                            and old_reveal.get("example_grade") is not None
+                            and new_reveal.get("example_grade") is None):
+                        new_reveal["example_grade"] = old_reveal["example_grade"]
+                        vals["reveal_json"] = _dumps(new_reveal)
+                if version > row_version:
                     new_status = STATUS_DRAFT
                 elif status == STATUS_APPROVED and row["review_status"] == STATUS_DRAFT:
                     # The save file carries the owner's approval (corrections.py
@@ -507,15 +568,14 @@ def upsert_items(items: Iterable[dict], *, now: Optional[datetime] = None) -> di
                 sets = ", ".join(f"{k}=?" for k in _ITEM_CONTENT_FIELDS)
                 c.execute(
                     f"UPDATE study_items SET {sets}, version=?, review_status=? WHERE id=?",
-                    (*[vals[k] for k in _ITEM_CONTENT_FIELDS],
-                     max(version, int(row["version"] or 1)), new_status, iid),
+                    (*[vals[k] for k in _ITEM_CONTENT_FIELDS], version, new_status, iid),
                 )
                 if reviewed:
                     c.execute("UPDATE study_items SET reviewed_by=?, reviewed_at=? WHERE id=?",
                               (reviewed, stamp, iid))
                 updated += 1
             ids.append(iid)
-    return {"inserted": inserted, "updated": updated, "ids": ids}
+    return {"inserted": inserted, "updated": updated, "kept": kept, "ids": ids}
 
 
 def upsert_bars(bars_id: str, tf: str, bars: list, forward: Optional[list] = None,
@@ -561,6 +621,11 @@ def get_item_prompt(item_id: str, *, approved_only: bool = True) -> Optional[dic
         return None
     d = dict(row)
     d["prompt_json"] = _loads(d.get("prompt_json"), {})
+    # The generators tag a recall prompt with its `subject` (the term the question is about), which IS the
+    # answer for a "which name fits" item; a member payload must never carry it (found 2026-11-03: every
+    # live candle item named its answer in the network tab).
+    if isinstance(d["prompt_json"], dict):
+        d["prompt_json"] = {k: v for k, v in d["prompt_json"].items() if k != "subject"}
     d["has_chart"] = bool(d.pop("bars_ref", None))
     return d
 
@@ -591,6 +656,58 @@ def get_forward_bars(item_id: str) -> list:
     return _loads(row["forward_json"], []) if row else []
 
 
+def upsert_intraday(bars_id: str, tf: str, built: dict, *, source: str = "") -> None:
+    """Store one chart's replay within the day (`study_intraday.build`'s result). A re-fill replaces the row."""
+    with _write() as c:
+        c.execute(
+            "INSERT INTO study_intraday (bars_id, tf, days_json, passed, failed, why_json, source, fetched_at) "
+            "VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(bars_id) DO UPDATE SET tf=excluded.tf, days_json=excluded.days_json, "
+            "passed=excluded.passed, failed=excluded.failed, why_json=excluded.why_json, source=excluded.source, "
+            "fetched_at=excluded.fetched_at",
+            (bars_id, str(tf), _dumps(built.get("days") or {}), int(built.get("passed") or 0),
+             int(built.get("failed") or 0), _dumps(built.get("why") or {}), source or None,
+             datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))
+
+
+#: An index history chart's adjustment_basis (scripts/study/courses_lib.INDEX_BASIS; a test pins the two): its bars are
+#: index levels the pod's fill stored. Nothing from bars.db or the stock provider is ever added to them (2026-11-16).
+INDEX_BASIS = "index level"
+
+
+def intraday_candidates() -> list[dict]:
+    """Approved daily chart items that name their symbol: what the replay within the day can be filled for. One row per
+    item (several items can share a chart snapshot; the fill groups by `bars_ref`). An index history chart is not one:
+    the stock provider's bars under its name are not that index."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT i.id, i.type, i.skill_id, i.sym, i.bars_ref FROM study_items i JOIN study_bars b ON b.id=i.bars_ref "
+            "WHERE i.review_status=? AND b.tf='D' AND i.sym IS NOT NULL AND i.sym != '' "
+            "AND COALESCE(i.adjustment_basis, '') != ? ORDER BY i.id",
+            (STATUS_APPROVED, INDEX_BASIS)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def intraday_filled(*, with_days_only: bool = False) -> set:
+    """The chart snapshots that already have a replay within the day stored; `with_days_only`: only those where at least
+    one day added up (so a re-try skips just those)."""
+    q = "SELECT bars_id FROM study_intraday" + (" WHERE passed > 0" if with_days_only else "")
+    with contextlib.closing(_connect()) as c:
+        return {r["bars_id"] for r in c.execute(q)}
+
+
+def get_intraday(item_id: str) -> Optional[dict]:
+    """An item's replay within the day: {tf, days}. ⛔ Like the forward bars, callers must have verified the member's own
+    attempt at this item first (the days ARE the forward bars, finer)."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT d.tf, d.days_json FROM study_items i JOIN study_intraday d ON d.bars_id=i.bars_ref "
+            "WHERE i.id=?", (item_id,)).fetchone()
+    if not row:
+        return None
+    days = _loads(row["days_json"], {}) or {}
+    return {"tf": row["tf"], "days": days} if days else None
+
+
 def reveal_for(item: dict) -> dict:
     """The post-scoring reveal from a FULL item row: ticker, dates, provenance,
     lesson, the recorded outcome. Forward bars are added by the router."""
@@ -608,12 +725,21 @@ def reveal_for(item: dict) -> dict:
 
 
 def list_bank(*, status: str = STATUS_APPROVED, types: Optional[Iterable[str]] = None,
-              limit: int = 5000) -> list[dict]:
+              limit: int = 50000, skill_id: Optional[str] = None) -> list[dict]:
     """Lightweight candidate rows for the set composer: id, type, skill_id,
-    difficulty, has_chart. Never the key, never the ticker."""
+    difficulty, has_chart. Never the key, never the ticker. `skill_id` filters
+    IN THE QUERY: a skill session must never filter after the row cap, or once
+    the approved bank passes `limit` a random share of every skill's items
+    silently stops being drawn (found 2026-11-09 while the course bank grew).
+    The default cap was 5000 for the same reason the daily set and Spot the
+    Setup draw from the whole bank: it is 50000 now, far above any real bank,
+    so it guards memory without ever trimming the draw."""
     q = ("SELECT id, type, skill_id, difficulty, (bars_ref IS NOT NULL) AS has_chart "
          "FROM study_items WHERE review_status=?")
     args: list = [status]
+    if skill_id:
+        q += " AND skill_id=?"
+        args.append(skill_id)
     if types:
         ts = list(types)
         q += f" AND type IN ({','.join('?' for _ in ts)})"
@@ -625,6 +751,14 @@ def list_bank(*, status: str = STATUS_APPROVED, types: Optional[Iterable[str]] =
     return [{"id": r["id"], "type": r["type"], "skill_id": r["skill_id"],
              "difficulty": int(r["difficulty"] or 1), "has_chart": bool(r["has_chart"])}
             for r in rows]
+
+
+def get_skill_band(user_id: str, skill_id: str) -> str:
+    """The member's band on one skill ('learning' until they have a row): the unit composer leans its picks to it."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT band FROM study_skill WHERE user_id=? AND skill_id=?", (user_id, skill_id)).fetchone()
+    band = row["band"] if row else "learning"
+    return band if band in BANDS else "learning"
 
 
 def list_walkthroughs(skill_id: str, *, status: str = STATUS_APPROVED) -> list[dict]:
@@ -753,6 +887,87 @@ def _ensure_profile(c: sqlite3.Connection, user_id: str, stamp: str) -> sqlite3.
                   (user_id, DAILY_GOAL_DEFAULT, stamp))
         row = c.execute("SELECT * FROM study_profile WHERE user_id=?", (user_id,)).fetchone()
     return row
+
+
+def record_game_run(user_id: str, kind: str, run_id: str, right: int, total: int, *,
+                    now: Optional[datetime] = None) -> dict:
+    """A finished run of a COMPUTED game (docs/study/GAMES.md §2): grant XP for it once. XP = GAME_XP_PER_RIGHT per right
+    answer, at most GAME_XP_PER_RUN per run and GAME_XP_PER_KIND_DAY per game kind per ET day; a resent `run_id` grants
+    nothing. Level trophies are granted here too (the streak is the daily set's, never a game's). Raises ValueError on a
+    bad kind or count. Returns {xp_gained, xp, level, weekly_xp, week_et, badges_new, duplicate, capped}."""
+    if kind not in GAME_KINDS:
+        raise ValueError(f"unknown game kind {kind!r}")
+    run_id = str(run_id or "").strip()
+    if not run_id or len(run_id) > 64:
+        raise ValueError("run_id must be 1-64 characters")
+    right, total = int(right), int(total)
+    if total < 0 or right < 0 or right > total or total > GAME_MAX_TOTAL:
+        raise ValueError("right/total out of range")
+    now = now or _now_utc()
+    stamp = _iso(now)
+    today = et_day_of(now)
+    week = week_of(today)
+    with _write() as c:
+        prof = _ensure_profile(c, user_id, stamp)
+        if c.execute("SELECT 1 FROM study_game_runs WHERE user_id=? AND run_id=?", (user_id, run_id)).fetchone():
+            wk = c.execute("SELECT xp FROM study_weekly_xp WHERE user_id=? AND week_et=?", (user_id, week)).fetchone()
+            return {"xp_gained": 0, "xp": int(prof["xp"] or 0), "level": int(prof["level"] or 1),
+                    "weekly_xp": int(wk["xp"]) if wk else 0, "week_et": week, "badges_new": [],
+                    "duplicate": True, "capped": False}
+        earned_today = int(c.execute("SELECT COALESCE(SUM(xp), 0) AS n FROM study_game_runs WHERE user_id=? AND kind=? "
+                                     "AND day_et=?", (user_id, kind, today)).fetchone()["n"])
+        want = min(right * GAME_XP_PER_RIGHT, GAME_XP_PER_RUN)
+        gained = max(0, min(want, GAME_XP_PER_KIND_DAY - earned_today))
+        c.execute("INSERT INTO study_game_runs (user_id, run_id, kind, day_et, right_n, total_n, xp, created_at) "
+                  "VALUES (?,?,?,?,?,?,?,?)", (user_id, run_id, kind, today, right, total, gained, stamp))
+        xp = int(prof["xp"] or 0) + gained
+        level = 1 + xp // XP_PER_LEVEL
+        c.execute("UPDATE study_profile SET xp=?, level=?, updated_at=? WHERE user_id=?", (xp, level, stamp, user_id))
+        new_badges = []
+        for n in BADGE_LEVELS:
+            if level >= n:
+                cur = c.execute("INSERT OR IGNORE INTO study_badges (user_id, badge_id, earned_at) VALUES (?,?,?)",
+                                (user_id, f"level_{n}", stamp))
+                if cur.rowcount:
+                    new_badges.append(f"level_{n}")
+        c.execute("INSERT INTO study_weekly_xp (user_id, week_et, xp) VALUES (?,?,?) "
+                  "ON CONFLICT(user_id, week_et) DO UPDATE SET xp = xp + excluded.xp", (user_id, week, gained))
+        wk = c.execute("SELECT xp FROM study_weekly_xp WHERE user_id=? AND week_et=?", (user_id, week)).fetchone()
+    return {"xp_gained": gained, "xp": xp, "level": level, "weekly_xp": int(wk["xp"]) if wk else gained,
+            "week_et": week, "badges_new": new_badges, "duplicate": False, "capped": gained < right * GAME_XP_PER_RIGHT}
+
+
+def game_pool(kind: str, size: int = 20) -> list[dict]:
+    """Approved material for a pool game (docs/study/GAMES.md §2). `tf`: true/false prompts (prompts only; the member
+    answers through POST /attempts, so the key never leaves the server before scoring). `match`: word + meaning pairs
+    from approved vocabulary items that ask what a word means ({id, term, meaning}); a word appears once."""
+    size = max(1, min(int(size or 20), 60))
+    with contextlib.closing(_connect()) as c:
+        if kind == "tf":
+            rows = c.execute("SELECT id FROM study_items WHERE review_status=? AND type='recall' "
+                             "AND json_extract(prompt_json, '$.kind')='tf' ORDER BY random() LIMIT ?",
+                             (STATUS_APPROVED, size)).fetchall()
+            ids = [r["id"] for r in rows]
+        elif kind == "match":
+            rows = c.execute("SELECT id, prompt_json, answer_json FROM study_items WHERE review_status=? "
+                             "AND type='recall' AND skill_id LIKE 'vocab.%' ORDER BY random() LIMIT ?",
+                             (STATUS_APPROVED, size * 6)).fetchall()
+            out, seen = [], set()
+            for r in rows:
+                p, a = _loads(r["prompt_json"], {}) or {}, _loads(r["answer_json"], {}) or {}
+                term, meaning = str(p.get("subject") or "").strip(), str(a.get("answer") or "").strip()
+                if not term or not meaning or term.casefold() == meaning.casefold() or len(meaning) > 60:
+                    continue
+                if "#" in term or term.casefold() in seen:   # a course item's subject is its unit#key, not a word
+                    continue
+                seen.add(term.casefold())
+                out.append({"id": r["id"], "term": term, "meaning": meaning})
+                if len(out) >= size:
+                    break
+            return out
+        else:
+            raise ValueError(f"unknown pool kind {kind!r}")
+    return [p for p in (get_item_prompt(i) for i in ids) if p]
 
 
 def get_profile(user_id: str, *, create: bool = True) -> Optional[dict]:
@@ -1016,6 +1231,7 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
         last_day = prof["last_done_day"]
         freeze_week = prof["freeze_used_week"]
         daily_done = False
+        perfect_set = False
         if session_id:
             sess = c.execute(
                 "SELECT kind, day_et, finished_at, item_ids_json FROM study_sessions "
@@ -1039,11 +1255,32 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
                                    session_id))
                         streak, best, last_day, freeze_week = _streak_after(
                             prof, sess["day_et"] or today)
+                        perfect_set = int(n_right) >= len(ids)
         c.execute(
             "UPDATE study_profile SET xp=?, level=?, streak=?, streak_best=?, last_done_day=?, "
             "freeze_used_week=?, updated_at=? WHERE user_id=?",
             (xp, level, streak, best, last_day, freeze_week, stamp, user_id),
         )
+
+        # 4b. trophies (2026-11-08: award_badge was defined and never called, so no member had ever earned one). Each is
+        #     the member's own record crossing a line, granted once, in the same transaction as the answer.
+        new_badges = []
+
+        def _grant(badge_id: str) -> None:
+            cur = c.execute("INSERT OR IGNORE INTO study_badges (user_id, badge_id, earned_at) VALUES (?,?,?)",
+                            (user_id, badge_id, stamp))
+            if cur.rowcount:
+                new_badges.append(badge_id)
+        if daily_done:
+            _grant("first_set")
+            if perfect_set:
+                _grant("perfect_set")
+        for n in BADGE_STREAKS:
+            if streak >= n:
+                _grant(f"streak_{n}")
+        for n in BADGE_LEVELS:
+            if level >= n:
+                _grant(f"level_{n}")
 
         # 5. weekly xp
         c.execute(
@@ -1055,7 +1292,7 @@ def record_attempt(user_id: str, item_id: str, answer_json, correct: bool, score
                        (user_id, week)).fetchone()
     return {
         "attempt_id": attempt_id, "due_at": due_at, "xp_gained": gained, "xp": xp,
-        "level": level, "streak": streak, "streak_best": best, "daily_done": daily_done,
+        "level": level, "streak": streak, "streak_best": best, "daily_done": daily_done, "badges_new": new_badges,
         "unscored": False,
         "skill": {"skill_id": skill_id, "mastery": mastery, "band": band, "reps": reps},
         "week_et": week, "weekly_xp": int(wk["xp"]) if wk else gained,

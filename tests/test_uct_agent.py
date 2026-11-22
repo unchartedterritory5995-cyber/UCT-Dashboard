@@ -66,6 +66,7 @@ def _no_cost(monkeypatch):
 
 # ── the contract: built from the MANIFEST, never from a list in this module ──
 
+@pytest.mark.usefixtures("routed_schema")
 def test_the_schema_is_built_from_the_manifest_and_is_closed():
     caps = turn.validate_manifest(CAPS)
     sch = turn.envelope_schema(caps)
@@ -101,6 +102,7 @@ def test_the_server_names_no_capability_of_its_own():
     assert "widget.addCharts" in named   # the rail really reads the prompt
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_EXTENSIBILITY_a_new_capability_joins_through_the_manifest_alone():
     """A future feature registers `example.setSomething` in the browser; the
     server offers it to the model with NO change to this module."""
@@ -531,12 +533,14 @@ def _many_caps(n):
     return out
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_up_to_the_budget_the_schema_stays_strict_per_action():
     caps = turn.validate_manifest(_many_caps(turn.STRICT_OP_VARIANTS_MAX))
     assert not turn.compact_ops(caps)
     assert "anyOf" in turn.envelope_schema(caps)["properties"]["ops"]["items"]
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_past_the_budget_the_op_shape_is_compact_and_still_closed():
     caps = turn.validate_manifest(_many_caps(turn.STRICT_OP_VARIANTS_MAX + 3))
     items = turn.envelope_schema(caps)["properties"]["ops"]["items"]
@@ -657,6 +661,7 @@ def _refusing_then(*resps, message="Error code: 400 - The compiled grammar is to
     return caller
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_a_schema_refusal_is_retried_once_compact_and_args_are_still_checked_strictly():
     few = _many_caps(3)                                   # small → embedded first
     assert not turn.compact_ops(turn.validate_manifest(few))
@@ -670,7 +675,7 @@ def test_a_schema_refusal_is_retried_once_compact_and_args_are_still_checked_str
     assert out["envelope"]["ops"] == [{"action": "example.set1", "target": "c1", "args": {"level": "high", "note": None}}]
     assert out["usage"]["schema_fallback"] is True and out["usage"]["model_calls"] == 1
     bad = {"action": "example.set1", "target": "c1", "args_json": json.dumps({"level": "max", "note": None})}
-    with pytest.raises(turn.TurnError, match="couldn.t fill in the details of one of the steps, so nothing was changed"):
+    with pytest.raises(turn.TurnError, match=r"couldn.t (?:read the [a-z]|fill in one of the steps).*nothing was changed"):
         turn.run_turn(message="set it", context=CTX, history=[], capabilities=few, caller=_refusing_then(_resp(env("apply", ops=[bad]))))
 
 
@@ -689,6 +694,7 @@ def test_an_already_compact_request_is_never_retried():
     assert len(c.calls) == 1
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_a_second_refusal_after_the_fallback_is_not_retried_again():
     calls = []
 

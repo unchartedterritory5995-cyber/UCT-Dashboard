@@ -162,16 +162,25 @@ export function commandBarFor(canvasColor) {
   const ink = light ? [26, 28, 24] : [236, 234, 226]
   const gold = light ? '#7a5c16' : '#dcbb5e'
   return {
-    icon: rgbStr(mix(rgb, ink, light ? 0.66 : 0.62)),
-    iconHover: rgbStr(mix(rgb, ink, light ? 0.88 : 0.84)),
+    // UCT Signature (owner 11-16): on a dark canvas the resting ink is the
+    // "resting nav" #c9c6be (one step brighter than the old ~#989791) and hover is
+    // text-bright #f8f7f3 — fixed values, both well over 9:1 on any dark canvas.
+    // The light canvas keeps its canvas-derived warm near-black.
+    icon: light ? rgbStr(mix(rgb, ink, 0.66)) : '#c9c6be',
+    iconHover: light ? rgbStr(mix(rgb, ink, 0.88)) : '#f8f7f3',
     // Clearly subdued, but NOT gone: the shipped disabled state composited to
     // 1.34:1, which is invisible rather than unavailable.
     iconDisabled: rgbStr(mix(rgb, ink, light ? 0.34 : 0.30)),
     // Surfaces are alpha over the canvas, not opaque mixes, so a control that
     // happens to sit over a candle tints it instead of punching a hole in it.
-    surfaceHover: light ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.07)',
+    surfaceHover: light ? 'rgba(0, 0, 0, 0.06)' : 'rgba(248, 247, 243, 0.07)',
     surfaceActive: light ? 'rgba(122, 92, 22, 0.12)' : 'rgba(220, 187, 94, 0.12)',
-    surfacePressed: light ? 'rgba(0, 0, 0, 0.11)' : 'rgba(255, 255, 255, 0.12)',
+    surfacePressed: light ? 'rgba(0, 0, 0, 0.11)' : 'rgba(248, 247, 243, 0.11)',
+    // Disabled = the resting ink at this opacity. 0.3 per the Signature spec on
+    // dark; the light canvas's ink is lighter-on-white, so it needs a touch more.
+    disabledOpacity: light ? '0.4' : '0.3',
+    // The 1px hairline between tool groups.
+    divider: light ? 'rgba(0, 0, 0, 0.10)' : 'rgba(248, 247, 243, 0.08)',
     iconActive: gold,
     // One restrained edge on the armed control — inset so it can never change a
     // button's box and shift its neighbours.

@@ -1,0 +1,155 @@
+rail src/pages/command/keyListenerCensus.test.js
+## TERM-063 ΓÇö the raw key-listener ratchet > no file holds MORE raw key listeners than its baseline (new ones go through the registry)
+"app/src/components/FeedbackWidget.jsx": {
+"app/src/components/IntradayDayPopover.jsx": {
+"app/src/components/StockChart.jsx": {
+"app/src/components/TickerPopup.jsx": {
+"app/src/components/chart/BoardsToolButton.jsx": {
+"app/src/components/chart/ChartContextMenu.jsx": {
+"app/src/components/chart/ChartDrawingOverlay.jsx": {
+"app/src/components/chart/ChartSettingsModal.jsx": {
+"app/src/components/chart/ChartThemesModal.jsx": {
+"app/src/components/chart/EarningsMarkerPopover.jsx": {
+"app/src/components/chart/KeyboardHelpOverlay.jsx": {
+"app/src/components/chart/PatternSidePanel.jsx": {
+"app/src/components/chart/SymbolSearch.jsx": {
+"app/src/components/chart/builder/editor/CodeEditor.jsx": {
+"app/src/components/chart/keyboardShortcuts.js": {
+"app/src/components/intro/IntroAnimation.jsx": {
+"app/src/components/mobile/ContextPopover.jsx": {
+"app/src/components/mobile/Sheet.jsx": {
+"app/src/components/mobile/useFocusTrap.js": {
+"app/src/components/research-kit/InfoTip.jsx": {
+"app/src/components/research/EarningsResearchModal.jsx": {
+"app/src/components/voice/AgentPicker.jsx": {
+"app/src/components/voice/AudioPlayerBar.jsx": {
+"app/src/components/voice/VisionAttachButton.jsx": {
+"app/src/lab/pieces/Piece14ReplayV3.jsx": {
+"app/src/lab/pieces/Piece18ReplayV4.jsx": {
+"app/src/lab/pieces/Piece21LoopDuo.jsx": {
+"app/src/lab/pieces/Piece26LoopV4.jsx": {
+"app/src/lab/pieces/Piece31LoopV5.jsx": {
+"app/src/lab/pieces/Piece37HitBuy.jsx": {
+"app/src/lab/pieces/Piece41Blitz.jsx": {
+"app/src/lab/pieces/Piece47BlitzV2.jsx": {
+"app/src/lab/pieces/Piece48BossV2.jsx": {
+"app/src/lab/pieces/Piece49HardV2.jsx": {
+"app/src/lab/pieces/Piece53BlitzV3.jsx": {
+"app/src/lab/pieces/Piece54BossV3.jsx": {
+"app/src/lab/pieces/Piece55HardV3.jsx": {
+"app/src/lib/todayPackClient.js": {
+"app/src/pages/Admin.jsx": {
+"app/src/pages/Calendar.jsx": {
+"app/src/pages/DarkPool.jsx": {
+"app/src/pages/Landing.jsx": {
+"app/src/pages/LiveFlowMassive.jsx": {
+"app/src/pages/ModelBook.jsx": {
+"app/src/pages/OptionsFlow_admin.jsx": {
+"app/src/pages/Settings.jsx": {
+"app/src/pages/ThemeTrackerPage.jsx": {
+"app/src/pages/Watchlists.jsx": {
+"app/src/pages/breadth/BreadthDateNav.jsx": {
+"app/src/pages/breadth/BreadthViews.jsx": {
+"app/src/pages/breadth/BreadthViewsCustomizePanel.jsx": {
+"app/src/pages/breadth/CustomizePanel.jsx": {
+"app/src/pages/breadth/PresetRow.jsx": {
+"app/src/pages/breadth/drill/BreadthDrillModal.jsx": {
+"app/src/pages/breadth/drill/scan/ScanFilters.jsx": {
+"app/src/pages/breadth/drill/scan/ScanGrid.jsx": {
+"app/src/pages/calendar/CalendarHeader.jsx": {
+"app/src/pages/calendar/DayDetailDrawer.jsx": {
+"app/src/pages/charts/ChartsWorkspace.jsx": {
+"app/src/pages/charts/CompareSymbolsPanel.jsx": {
+"app/src/pages/charts/LayoutDock.jsx": {
+"app/src/pages/charts/WidgetHeader.jsx": {
+"app/src/pages/charts/grid/MultiChartGrid.jsx": {
+"app/src/pages/charts/placement/GhostPreview.jsx": {
+"app/src/pages/charts/popout/PopoutWindow.jsx": {
+"app/src/pages/charts/widgets/BreadthSettingsPanel.jsx": {
+"app/src/pages/charts/widgets/BreadthWidget.jsx": {
+"app/src/pages/charts/widgets/ChartDateNav.jsx": {
+"app/src/pages/charts/widgets/ChartWidget.jsx": {
+"app/src/pages/charts/widgets/FundamentalsSettingsPanel.jsx": {
+"app/src/pages/charts/widgets/LeverageInverseControl.jsx": {
+"app/src/pages/charts/widgets/NewsSettingsPanel.jsx": {
+"app/src/pages/charts/widgets/NhnlSettingsPanel.jsx": {
+"app/src/pages/charts/widgets/NhnlUniverseMenu.jsx": {
+"app/src/pages/charts/widgets/ScatterWidget.jsx": {
+"app/src/pages/charts/widgets/TimeframeMenu.jsx": {
+"app/src/pages/community/components/ProfileCard.jsx": {
+"app/src/pages/desk/ArticleReader.jsx": {
+"app/src/pages/desk/VideosSection.jsx": {
+"app/src/pages/journal-2-0/components/AddPositionModal.jsx": {
+"app/src/pages/journal-2-0/components/AddTradeModal.jsx": {
+"app/src/pages/journal-2-0/components/ClosePositionModal.jsx": {
+"app/src/pages/journal-2-0/components/ColumnsPicker.jsx": {
+"app/src/pages/journal-2-0/components/ConfirmModal.jsx": {
+"app/src/pages/journal-2-0/components/DeleteAllModal.jsx": {
+"app/src/pages/journal-2-0/components/EditPositionModal.jsx": {
+"app/src/pages/journal-2-0/components/GenerateReportModal.jsx": {
+"app/src/pages/journal-2-0/components/ImportCsvModal.jsx": {
+"app/src/pages/journal-2-0/components/PortfolioSettingsModal.jsx": {
+"app/src/pages/journal-2-0/components/ShortcutCheatSheet.jsx": {
+"app/src/pages/journal-2-0/components/TradeDrawer.jsx": {
+"app/src/pages/journal-2-0/components/accounts/AccountSelector.jsx": {
+"app/src/pages/journal-2-0/components/accounts/DeleteAccountModal.jsx": {
+"app/src/pages/journal-2-0/components/accounts/NewAccountModal.jsx": {
+"app/src/pages/journal-2-0/components/calendar/MiniMonthNav.jsx": {
+"app/src/pages/journal-2-0/components/notebook/CaptureHost.jsx": {
+"app/src/pages/journal-2-0/components/notebook/TableToolbar.jsx": {
+"app/src/pages/journal-2-0/components/notebook/UnsentTrashDialog.jsx": {
+"app/src/pages/journal-2-0/components/notebook/WidgetPalette.jsx": {
+"app/src/pages/journal-2-0/components/notebook/onboarding/NotebookTour.jsx": {
+"app/src/pages/journal-2-0/components/options/AddOptionStrategyModal.jsx": {
+"app/src/pages/journal-2-0/components/options/CloseOptionStrategyModal.jsx": {
+"app/src/pages/journal-2-0/components/scope/ScopeBar.jsx": {
+"app/src/pages/journal-2-0/components/trade/TradeDetailPage.jsx": {
+"app/src/pages/journal-2-0/components/trade/TradeScreenshots.jsx": {
+"app/src/pages/journal-2-0/lib/blockHandle.js": {
+"app/src/pages/journal-2-0/lib/calloutNode.js": {
+"app/src/pages/journal-2-0/lib/codeBlockNode.js": {
+"app/src/pages/journal-2-0/lib/mathNodes.js": {
+"app/src/pages/journal-2-0/tabs/NotebookTab.jsx": {
+"app/src/pages/modelbook/SetupsView.jsx": {
+"app/src/pages/screener/shell/ColumnDesc.jsx": {
+"app/src/pages/screener/shell/FilterRail.jsx": {
+"app/src/pages/screener/shell/ScreenerReviewOverlay.jsx": {
+"app/src/pages/study/challenges/BlitzChallenge.jsx": {
+"app/src/pages/study/challenges/BossChallenge.jsx": {
+"app/src/pages/study/challenges/HardChallenge.jsx": {
+"app/src/pages/study/ui/StartLooks.jsx": {
+"app/src/pages/study/ui/StudyButton.jsx": {
+"app/src/pages/theme-tracker/ThemeTrackerSettingsPanel.jsx": {
+"app/src/pages/watchlist/WatchlistSettingsPanel.jsx": {
+"literal": 1
+"literal": 2
+"literal": 3
+"orphan": 1
++   "app/src/components/FeedbackWidget.jsx: literal 1 > baseline 0",
++   "app/src/components/StockChart.jsx: literal 3 > baseline 2",
++   "app/src/lab/pieces/Piece14ReplayV3.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece18ReplayV4.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece21LoopDuo.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece26LoopV4.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece31LoopV5.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece37HitBuy.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece41Blitz.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece47BlitzV2.jsx: literal 2 > baseline 0",
++   "app/src/lab/pieces/Piece48BossV2.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece49HardV2.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece53BlitzV3.jsx: literal 2 > baseline 0",
++   "app/src/lab/pieces/Piece54BossV3.jsx: literal 1 > baseline 0",
++   "app/src/lab/pieces/Piece55HardV3.jsx: literal 1 > baseline 0",
++   "app/src/pages/breadth/drill/BreadthDrillModal.jsx: literal 2 > baseline 1",
++   "app/src/pages/breadth/drill/scan/ScanFilters.jsx: literal 1 > baseline 0",
++   "app/src/pages/breadth/drill/scan/ScanGrid.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/challenges/BlitzChallenge.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/challenges/BossChallenge.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/challenges/HardChallenge.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/ui/StartLooks.jsx: literal 1 > baseline 0",
++   "app/src/pages/study/ui/StudyButton.jsx: literal 1 > baseline 0",
++ Received
+
+## TERM-063 ΓÇö the raw key-listener ratchet > the baseline sits at or under the stated CEILING, and the CEILING is tight
++ 136
++ Received

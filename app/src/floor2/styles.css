@@ -324,7 +324,7 @@
 .floorx .trend-title { font-size: 13px; color: var(--text-bright); font-weight: 600; line-height: 1.35; }
 .floorx .trend-meta { font-size: 12px; color: var(--fx-faint); font-variant-numeric: tabular-nums; }
 /* live activity feed */
-.floorx .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ut-green-bright, #34d17c); box-shadow: 0 0 0 3px var(--ut-green-dim, #2d8c4e30); flex: none; animation: livePulse 2s ease-in-out infinite; }
+.floorx .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ut-green-bright, #34d17c); box-shadow: 0 0 0 3px var(--ut-green-dim, #2d8c4e30); flex: none; animation: livePulse 2s ease-in-out 3; } /* finite: nothing always on screen may animate forever (2026-11-10) */
 @keyframes livePulse { 0%, 100% { box-shadow: 0 0 0 3px var(--ut-green-dim, #2d8c4e30); } 50% { box-shadow: 0 0 0 5px transparent; } }
 .floorx .act-list { display: flex; flex-direction: column; }
 .floorx .act-row { display: flex; align-items: flex-start; gap: 10px; width: 100%; text-align: left; border: none; background: none; padding: 8px 6px; border-radius: var(--radius-md); cursor: pointer; }

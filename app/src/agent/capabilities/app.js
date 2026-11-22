@@ -37,8 +37,12 @@ const labelFor = ({ page, section, symbol }) => (page === 'research' ? `${upper(
   : page === 'settings' && section ? `Settings → ${section[0].toUpperCase()}${section.slice(1)}` : DESTINATIONS[page]?.label || page)
 
 const appSnap = (host) => ({ ref: 'app', label: 'UCT', here: host?.location?.() || '/charts' })
+// ⭐ W2-C1: the page the Agent is on (a page host says where it is; the Charts host says nothing = Charts)
+export const pageLabel = (path) => Object.values(DESTINATIONS).find(d => d.to === String(path || '').split('?')[0])?.label || 'Charts'
 export const appKind = {
   name: 'app',
+  source: 'navigate',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Opening other pages isn't available here.",
   undoable: false,                      // navigation: no Undo (agentContracts.test.js rails its capabilities)
   boardScoped: false,
   selfDescribing: true,
@@ -64,15 +68,15 @@ export function registerAppCapabilities() {
   if (registered) return
   registered = true
   registerTargetKind(appKind)
-  registerContextProvider({ key: 'app', build: (host, refFor) => (host?.navigate ? [{ ref: refFor('app', 'app'), label: 'UCT pages (open one here)', current: 'Charts' }] : undefined) })
+  registerContextProvider({ key: 'app', build: (host, refFor) => (host?.navigate ? [{ ref: refFor('app', 'app'), label: 'UCT pages (open one here)', current: pageLabel(host.location?.()) }] : undefined) })
 
   registerCapability({
     name: 'app.open',
     // Navigation has no Undo (the member uses Back); it is not destructive, so it may still apply.
     undo: 'none',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'app',
-    summary: 'Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Dashboard, Breadth, Settings, a stock\'s Research page, etc. This closes this panel (the conversation is kept).',
+    summary: 'Open another UCT page for the member, exactly like clicking it in the sidebar: the Screener, Breadth, Settings, a stock\'s Research page, etc. This closes this panel (the conversation is kept).',
     hints: `target = the ref of the app entry. page: one of ${Object.entries(DESTINATIONS).map(([k, d]) => `${k} (${d.label})`).join(', ')}. `
       + `section: only for page settings — ${SETTINGS_SECTIONS.join(' | ')} — else null. symbol: only for page research (the ticker) — else null. `
       + 'Use this only when they ask to GO somewhere ("open / take me to / go to"); a question about data is answered here instead. Watchlists and Theme Tracker live on Charts (this page).',
@@ -86,11 +90,14 @@ export function registerAppCapabilities() {
       required: ['page', 'section', 'symbol'], additionalProperties: false,
     },
     fastWhole: true,
-    fast: ({ lower }) => {
+    fast: ({ lower, typed }) => {
       const m = /^(?:open|go to|take me to|show me|bring up)(?: the)? (.+?)(?: page)?[.!]?$/.exec(lower)
       if (!m) return null
       const want = m[1].trim()
       const hit = Object.entries(DESTINATIONS).find(([k, d]) => k !== 'research' && (d.label.toLowerCase() === want || k === want))
+      // C1-127: "open the settings for the AAPL chart" reaches here as "open the settings" (the chart is lifted off first):
+      // settings asked about a CHART are that chart's Chart Settings (chartSetup.openSettings), never the Settings page
+      if (hit?.[0] === 'settings' && /\bcharts?\b|\bchart'?s\b/i.test(String(typed || lower))) return null
       return hit ? { page: hit[0], section: null, symbol: null } : null
     },
     async prepare(ops) {
@@ -114,7 +121,7 @@ export function registerAppCapabilities() {
       if (!path || path === st.here) return st
       return { ...st, go: { path, label: labelFor(args) } }
     },
-    noop: () => 'You are already on Charts',
-    describe: (b, a) => (a.go ? `Opening ${a.go.label} — this panel closes; your conversation is kept (it reopens on Charts), but Undo for earlier changes won't be available` : null),
+    noop: (st) => `You are already on ${pageLabel(st.here)}`,
+    describe: (b, a) => (a.go ? `Opening ${a.go.label} — this panel closes; your conversation is kept (it reopens where UCT Agent is available), but Undo for earlier changes won't be available` : null),
   })
 }

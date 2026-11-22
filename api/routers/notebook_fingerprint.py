@@ -12,8 +12,6 @@ The services are `api/services/journal_two/tech_fingerprint.py` (the ONE authori
 chart's fingerprint) and `api/services/journal_two/chart_blocks.py` (the index and the freeze
 ledger). The API contract 13I-2 and 13J build on is `docs/notebook/wave13-13i1.md`.
 
-  * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_TA_FINGERPRINT_ENABLED` off answers the one
-    404 for every route before the session, the plan or a parameter is read.
   * PAID: every route takes this router's own `require_paid`. The fingerprint is the
     Screener's columns and the pattern engine's confirmed verdicts, both paid surfaces
     (`screener.require_paid`, `patterns.require_paid`); a free door here would make
@@ -42,17 +40,9 @@ log = logging.getLogger(__name__)
 UNREADABLE_SENTENCE = "The chart data could not be read just now. Try again in a minute."
 
 
-def _require_enabled() -> None:
-    """Router-level, so it runs BEFORE any route's own dependencies: an off gate reads no
-    session, checks no plan, parses no parameter, and answers the one not-found."""
-    if not tfp.enabled():
-        raise public.not_found()
-
-
 router = APIRouter(
     prefix="/api/j2/notebook-fingerprint",
     tags=["journal-2-0", "notebook-fingerprint"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 

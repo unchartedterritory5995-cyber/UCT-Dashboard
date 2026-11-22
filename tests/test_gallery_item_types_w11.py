@@ -119,16 +119,6 @@ def test_use_refuses_every_tool_type(conn, lib_on, monkeypatch, item_type, wave1
     assert gallery.use_template("viewer", outline, conn=conn) is not None
 
 
-@pytest.mark.parametrize("item_type", gallery.TOOL_ITEM_TYPES)
-def test_library_off_hides_the_tool_types_even_with_wave_11_on(conn, monkeypatch, item_type):
-    gid = _row(conn, item_type=item_type, user_id="author")
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    monkeypatch.setenv(W11, "1")
-    assert item_type in gallery._hidden_item_types()
-    assert gid not in {x["id"] for x in gallery.list_gallery("viewer", conn=conn)}
-    assert gallery.get_item("admin", gid, is_admin=True, conn=conn) is None
-
-
 # ── official rows read as UCT ─────────────────────────────────────────────────────────────────────
 
 def _kind_row(conn, kind: str, user_id: str | None) -> str:
@@ -140,7 +130,6 @@ def _kind_row(conn, kind: str, user_id: str | None) -> str:
 
 def test_official_author_label_is_uct(conn, lib_on, monkeypatch):
     monkeypatch.setenv(W11, "1")
-    monkeypatch.setenv("NOTEBOOK_STARTER_PACKS_ENABLED", "1")
     conn.execute("INSERT INTO users (id, email, password_hash, display_name) VALUES ('author', 'a@x.test', 'x', 'Pat')")
     conn.commit()
     ids = {"official": _kind_row(conn, "official", None), "firm": _kind_row(conn, "firm", None),

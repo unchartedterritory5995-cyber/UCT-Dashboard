@@ -17,10 +17,11 @@
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { translatePine, PINE_TRANSLATE_BUDGET_MS, PINE_TRANSLATE_MAX_STEPS } from './pine.js'
 
-const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\//, ''))
+const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '../../../../../..')
 
 // ⚰⚰ THE VEHICLE MOVED ON 2026-09-12, AND WHY IT MOVED IS THE LESSON. This was

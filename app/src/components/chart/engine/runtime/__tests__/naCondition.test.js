@@ -24,7 +24,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
-import { BINARY, pineBool, naConditionIsFalse, NA_CONDITION_FALSE_FROM_VERSION } from '../../ast/interpret.js'
+import { BINARY, pineBool, naConditionIsFalse, pineNaConditionIsFalse, NA_CONDITION_FALSE_FROM_VERSION } from '../../ast/interpret.js'
 import { lowerIrProgram, naTestsOf } from '../lowerIr.js'
 import { execute } from '../vm.js'
 
@@ -62,10 +62,13 @@ describe('⭐ ONE AUTHORITY: the lowering\'s `x != 0` IS `pineBool`', () => {
     expect(pineBool(NaN)).toBe(0)
   })
 
-  it('the version gate reads the lexed pragma, and claims nothing below v4 or without one', () => {
-    expect(NA_CONDITION_FALSE_FROM_VERSION).toBe(4)
-    expect([null, undefined, 1, 2, 3, NaN].map(naConditionIsFalse)).toEqual([false, false, false, false, false, false])
-    expect([4, 5, 6, '5'].map(naConditionIsFalse)).toEqual([true, true, true, true])
+  it('the version gate reads the lexed pragma: every Pine version (S1 v2, s18 v1 / v3, rt1 v4-v6); `null` is the house language', () => {
+    // ⚰️ WAS: 4, nothing claimed below it (engine 55 and before)
+    expect(NA_CONDITION_FALSE_FROM_VERSION).toBe(1)
+    expect([null, undefined, NaN].map(naConditionIsFalse)).toEqual([false, false, false])
+    expect([1, 2, 3, 4, 5, 6, '5'].map(naConditionIsFalse)).toEqual([true, true, true, true, true, true, true])
+    // a PINE script with no `//@version` is v1 (TradingView compiles it so)
+    expect([null, undefined].map(pineNaConditionIsFalse)).toEqual([true, true])
   })
 })
 
@@ -77,10 +80,15 @@ describe('⭐⭐ a `?:` whose test is `na` takes the ELSE arm from v4', () => {
     expect(naTests).toBe(0)
   })
 
-  it('v3: nothing is claimed — `na` as before, and counted for the member door', () => {
-    const { out, naTests } = runPine(3, 'x = 0.0\nx := close[1]\nplot(x ? 1 : 2)\n')
-    expect(Number.isNaN(out[0])).toBe(true)
+  it.each([1, 2, 3])('v%i (S1, s18): the else arm on bar 0 as from v4, and nothing counted (was: `na`, counted)', (v) => {
+    const { out, naTests } = runPine(v, 'x = 0.0\nx := close[1]\nplot(x ? 1 : 2)\n')
+    expect(out[0]).toBe(2)
     expect(out.slice(1)).toEqual(Array(N - 1).fill(1))
+    expect(naTests).toBe(0)
+  })
+  it('off the listing nothing is claimed at v3 either: `na`, counted', () => {
+    const { out, naTests } = runPine(3, 'x = 0.0\nx := close[1]\nplot(x ? 1 : 2)\n', false)
+    expect(Number.isNaN(out[0])).toBe(true)
     expect(naTests).toBe(1)
   })
 

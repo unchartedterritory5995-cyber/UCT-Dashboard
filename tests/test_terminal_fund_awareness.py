@@ -125,11 +125,9 @@ def test_the_marker_never_mutates_a_cached_composer_result(monkeypatch, typed):
 
 def test_a_zero_share_count_reads_as_not_reported():
     from api.services.research import ownership as own
-    assert own._reconcile_share_counts({"floatShares": 0, "sharesOutstanding": 0},
-                                       {"float_shares": 0.0, "shares_outstanding": 0.0}) == (None, None)
-    # an FMP zero falls through to Yahoo's real figure rather than winning
-    assert own._reconcile_share_counts({"floatShares": 9e8, "sharesOutstanding": 9.2e8},
-                                       {"float_shares": 0.0, "shares_outstanding": 0.0}) == (9e8, 9.2e8)
+    assert own._reconcile_share_counts({"float_shares": 0.0, "shares_outstanding": 0.0}) == (None, None)
+    # one zero does not take the other count with it
+    assert own._reconcile_share_counts({"float_shares": 0.0, "shares_outstanding": 9.2e8}) == (None, 9.2e8)
 
 
 # ── the helper, and the cold boot ───────────────────────────────────────────────────

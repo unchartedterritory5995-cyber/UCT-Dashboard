@@ -14,7 +14,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { CHART_THEMES, applyThemeToSettings, legendInkForCanvas, legendCanvasRgb, legendTextContrast, LEGEND_INK_ON_DARK, LEGEND_INK_ON_LIGHT } from './chartThemes'
-import { legendInkVars, LEGEND_ROLES } from './legendInk'
+import { legendInkVars, LEGEND_ROLES, legibleInk, LEGEND_PAIR_ROLE, LEGEND_PAIR_LIFT, mixInk, oklchLightness, legendValueBand, legendValueBandVars, LEGEND_VALUE_BAND_FALLBACK } from './legendInk'
 import { parseColor as parseColorRgb, parseColorAlpha } from '../../utils/dividerColor'
 import { CHART_DEFAULTS, PRESETS } from './chartDefaults'
 import { allThemes, parseColor, resolveVars } from '../../pages/terminal/a11y/__tests__/terminalContrast'
@@ -98,23 +98,33 @@ describe('the legend reads it: every neutral legend text rule, and StockChart pu
     // (the volume strip and pane legend rows read the same names: their containers re-point them
     // to the LOW sample, railed below)
     [STOCK_CSS, '.legend', 'muted', 'var(--text-muted)'],
-    [STOCK_CSS, '.legendTime', 'text', 'var(--text)'],
-    [STOCK_CSS, '.legendLabel', 'text', 'var(--text)'],
-    [STOCK_CSS, '.legendVal', 'bright', 'var(--text-bright)'],
-    [STOCK_CSS, '.barDate', 'muted', 'var(--text-muted)'],
-    [STOCK_CSS, '.barKey', 'muted', 'var(--text-muted)'],
     [STOCK_CSS, '.barVal', 'bright', 'var(--text-bright)'],
-    [STOCK_CSS, '.volLegLabel', 'text', 'var(--text)'],
-    [STOCK_CSS, '.volLegVal', 'bright', 'var(--text-bright)'],
     [STOCK_CSS, '.vlLabel', 'text', 'var(--text)'],
     [STOCK_CSS, '.vlVal', 'bright', 'var(--text-bright)'],
     [STOCK_CSS, '.paneLegendTitle', 'bright', 'var(--text-bright)'],
     [STOCK_CSS, '.paneLegendNote', 'muted', 'var(--text-muted)'],
-    [ROW_CSS, '.vLabel', 'muted', 'var(--text-muted)'],
-    [ROW_CSS, '.vVal, .flatVal', 'bright', 'var(--text-bright)'],
-    [CHIP_CSS, '.chipGridLabel', 'muted', 'var(--text-muted)'],
-    [CHIP_CSS, '.chipGridVal', 'bright', 'var(--text-bright)'],
   ]
+  // ⭐ Owner 11-16 — "same contrast and brightness": every label/value pair reads ONE ink, the shared
+  // `--legend-ink-pair` (LEGEND_PAIR_ROLE's ink); a coloured value wears its line colour over it.
+  const PAIR = 'var(--legend-ink-pair, var(--text-muted))'
+  const PAIR_RULES = [
+    [STOCK_CSS, '.legendTime', PAIR],
+    // owner 11-16: the bar strip's date and O/H/L/C keys read the same bright pair ink as the labels
+    [STOCK_CSS, '.barDate', PAIR],
+    [STOCK_CSS, '.barKey', PAIR],
+    [STOCK_CSS, '.legendLabel', PAIR],
+    [STOCK_CSS, '.legendVal', PAIR],
+    [STOCK_CSS, '.volLegLabel', PAIR],
+    [STOCK_CSS, '.volLegVal', PAIR],
+    [ROW_CSS, '.vLabel', PAIR],
+    [ROW_CSS, '.vVal, .flatVal', `var(--row-color, ${PAIR})`],
+    [CHIP_CSS, '.chipGridLabel', PAIR],
+    [CHIP_CSS, '.chipGridVal', `var(--chip-color, ${PAIR})`],
+  ]
+  it.each(PAIR_RULES)('pair %#: %s', (css, sel, want) => {
+    expect(colorOf(css, sel), sel).toBe(want)
+    expect(`var(${LEGEND_ROLES[LEGEND_PAIR_ROLE].token})`).toBe('var(--text-muted)')
+  })
   it.each(RULES)('%#: %s', (css, sel, role, token) => {
     // the role's resolved ink, with the old token as the fallback OUTSIDE a chart (a portaled row)
     expect(colorOf(css, sel), sel).toBe(`var(--legend-ink-${role}, ${token})`)
@@ -128,13 +138,19 @@ describe('the legend reads it: every neutral legend text rule, and StockChart pu
     for (const role of Object.keys(LEGEND_ROLES)) {
       expect(m[1]).toMatch(new RegExp(`--legend-ink-${role}:\\s*var\\(--legend-ink-${role}-low, var\\(${LEGEND_ROLES[role].token}\\)\\)`))
     }
+    // owner 11-16: the shared pair ink and the coloured-value band come from the same LOW sample
+    expect(m[1]).toMatch(/--legend-ink-pair:\s*var\(--legend-ink-pair-low, var\(--text-muted\)\)/)
+    expect(m[1]).toMatch(/--legend-val-lmin:\s*var\(--legend-val-lmin-low\)/)
+    expect(m[1]).toMatch(/--legend-val-lmax:\s*var\(--legend-val-lmax-low\)/)
   })
 
   it('StockChart publishes legendInkVars from the DOM-read tokens and the canvas samples', () => {
-    expect(STOCK_JSX).toMatch(/import \{ legendInkVars, readLegendContext \} from '\.\/chart\/legendInk'/)
+    expect(STOCK_JSX).toMatch(/import \{ legendInkVars, readLegendContext, legibleInk, legendValueBandVars \} from '\.\/chart\/legendInk'/)
     expect(STOCK_JSX).toMatch(/const \{ tokens, under \} = readLegendContext\(el\)/)
     expect(STOCK_JSX).toMatch(/legendInkVars\(\{ tokens, top: canvasSample\.top, low: canvasSample\.low, under, legendColor \}\)/)
-    expect(STOCK_JSX).toMatch(/style=\{\{ height, \.\.\.panelVars, \.\.\.legendInks \}\}/)
+    // the measured inks (and the band measured from them) spread LAST, over the pre-measure fallback band
+    expect(STOCK_JSX).toMatch(/style=\{\{ height, \.\.\.panelVars, \.\.\.legendValueBounds, \.\.\.legendInks \}\}/)
+    expect(STOCK_JSX).toMatch(/const legendValueBounds = useMemo\(\(\) => legendValueBandVars\(topCanvasIsLight\), \[topCanvasIsLight\]\)/)
     // re-run on an app theme change, not only on a canvas change
     // through the app's ONE theme observer (lib/theme/useThemeInk.js), never a second per chart
     expect(STOCK_JSX).toMatch(/import \{ useThemeVersion \} from '\.\.\/lib\/theme\/useThemeInk'/)
@@ -240,5 +256,143 @@ describe('the one colour parser reads what a computed style can answer', () => {
     expect(parseColorRgb('#fff8')).toEqual([255, 255, 255])
     expect(parseColorRgb('#ffffffcc')).toEqual([255, 255, 255])
     expect(parseColorRgb('transparent')).toBeNull()
+  })
+})
+
+// ⭐ 2026-11-13 — the RS Line's end tag ("RS 96") wore the line's own colour, #6ba3be,
+// which reads 2.7:1 on a white canvas. A plot colour is text only where it reads.
+describe('legibleInk: a plot colour as legend text only where it reads >= 4.5:1', () => {
+  it('the RS line blue: kept on the dark canvas, refused on every light-family theme', () => {
+    expect(legibleInk('#6ba3be', CHART_DEFAULTS.background)).toBe('#6ba3be')
+    for (const t of CHART_THEMES.filter((x) => x.family === 'light')) {
+      expect(legibleInk('#6ba3be', t.bg), t.id).toBe(null)
+    }
+  })
+  it('a dark plot colour on white is kept; unreadable inputs keep the colour (nothing to judge)', () => {
+    expect(legibleInk('#1f4e79', '#ffffff')).toBe('#1f4e79')
+    expect(legibleInk('#6ba3be', 'nonsense')).toBe('#6ba3be')
+    expect(legibleInk(null, '#ffffff')).toBe(null)
+  })
+  it('StockChart routes the end tag through it and keeps the colour as the swatch', () => {
+    const jsx = STOCK_JSX
+    expect(jsx).toMatch(/color=\{legibleInk\(c\.color, canvasSample\.low\) \|\| undefined\}\s*swatch=\{c\.color\}/)
+  })
+})
+
+// ⭐ 2026-11-13 — FOUND LIVE on a light chart canvas: the RS ranks strip's "1M 3M 6M 9M 12M RS"
+// were near-invisible light grey. The strip reads `--legend-ink-*-low`, and an explicit legend
+// colour won there unconditionally, so a colour stored for a dark canvas (#d6d8dd, what every
+// dark theme stores) stayed on after the background went white.
+describe('the explicit legend colour wins only where it reads', () => {
+  it('a dark-canvas legend colour over a white canvas gives way to the canvas ink, every role, both samples', () => {
+    const v = legendInkVars({ tokens: {}, top: '#ffffff', low: '#ffffff', legendColor: LEGEND_INK_ON_DARK })
+    for (const role of Object.keys(LEGEND_ROLES)) {
+      expect(v[`--legend-ink-${role}`], role).toBe(LEGEND_INK_ON_LIGHT)
+      expect(v[`--legend-ink-${role}-low`], role).toBe(LEGEND_INK_ON_LIGHT)
+    }
+  })
+  it('a gradient: kept at the dark top, replaced at the light bottom where the RS pane sits', () => {
+    const v = legendInkVars({ tokens: {}, top: '#0e0f0d', low: '#f4f4f4', legendColor: LEGEND_INK_ON_DARK })
+    expect(v['--legend-ink-muted']).toBe(LEGEND_INK_ON_DARK)
+    expect(v['--legend-ink-muted-low']).toBe(LEGEND_INK_ON_LIGHT)
+  })
+  it("every theme, dark and light: the strip's inks (bright and muted, low sample) read >= 4.5:1 on its own canvas, even with the OTHER family's legend colour left behind", () => {
+    for (const t of CHART_THEMES) {
+      const bg = t.bgGradient ? t.bgGradient.bottom : t.bg
+      for (const stale of [LEGEND_INK_ON_DARK, LEGEND_INK_ON_LIGHT]) {
+        const v = legendInkVars({ tokens: {}, top: bg, low: bg, legendColor: stale })
+        for (const role of ['bright', 'muted']) {
+          const c = legendTextContrast(v[`--legend-ink-${role}-low`], legendCanvasRgb(bg), LEGEND_ROLES[role].opacity)
+          expect(c, `${t.id} ${role} (stale ${stale})`).toBeGreaterThanOrEqual(4.5)
+        }
+      }
+    }
+  })
+})
+
+// ⭐ Owner 11-16 — "make sure they're all the same contrast and brightness": label and value share one
+// ink; a coloured value's OKLCH lightness is clamped to a narrow band centred on THAT ink, per canvas sample.
+describe('oklchLightness + the coloured-value band follow the label ink', () => {
+  const themes = allThemes()
+  const tokensOf = (theme) => Object.fromEntries(Object.entries(LEGEND_ROLES).map(([r, { token }]) => [r, resolveVars(`var(${token})`, themes[theme])]))
+  // a neutral grey at OKLCH lightness L (for a grey, L = cbrt(linear luminance))
+  const greyAt = (L) => {
+    const lin = L ** 3
+    const v = lin <= 0.0031308 ? lin * 12.92 : 1.055 * lin ** (1 / 2.4) - 0.055
+    const h = Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, '0')
+    return `#${h}${h}${h}`
+  }
+  const SUNRISE_TOP = '#cbe6f7'
+  const SUNRISE_BOTTOM = '#fbf1c9'
+
+  it('oklchLightness: reference values, every colour form, translucency composited', () => {
+    expect(oklchLightness('#ffffff')).toBeCloseTo(1, 3)
+    expect(oklchLightness('#000000')).toBeCloseTo(0, 3)
+    expect(oklchLightness('#cfcac0')).toBeCloseTo(0.8402, 3)
+    expect(oklchLightness('#1c2128')).toBeCloseTo(0.2458, 3)
+    expect(oklchLightness('rgb(207, 202, 192)')).toBeCloseTo(0.8402, 3)
+    expect(oklchLightness('color(srgb 1 1 1)')).toBeCloseTo(1, 3)
+    // white at 50% over black reads as the grey it shows
+    expect(oklchLightness('rgba(255, 255, 255, 0.5)', [0, 0, 0])).toBeCloseTo(oklchLightness('#808080'), 2)
+    expect(oklchLightness('nonsense')).toBeNull()
+    expect(oklchLightness(null)).toBeNull()
+  })
+
+  it('legendValueBand: label L ± 0.03; unknown → the canvas fallback', () => {
+    expect(legendValueBand(0.84)).toEqual({ lmin: 0.81, lmax: 0.87 })
+    expect(legendValueBand(null)).toEqual(LEGEND_VALUE_BAND_FALLBACK.dark)
+    expect(legendValueBand(null, true)).toEqual(LEGEND_VALUE_BAND_FALLBACK.light)
+    expect(legendValueBandVars(false)['--legend-val-lmin-low']).toBe('0.89')
+    expect(legendValueBandVars(true)['--legend-val-lmax']).toBe('0.4')
+  })
+
+  it('default dark canvas, dark app theme: the pair is the muted token lifted toward bright (owner 11-16) and the band sits on it', () => {
+    const t = tokensOf('dark')
+    const v = legendInkVars({ tokens: t, top: CHART_DEFAULTS.background, low: CHART_DEFAULTS.background })
+    expect(LEGEND_PAIR_ROLE).toBe('muted')
+    const lifted = mixInk(t.muted, v['--legend-ink-bright'], LEGEND_PAIR_LIFT)
+    expect(v['--legend-ink-pair']).toBe(lifted)
+    expect(v['--legend-ink-pair-low']).toBe(lifted)
+    // brighter than the muted token, still a step under the bright (title) ink
+    expect(oklchLightness(lifted)).toBeGreaterThan(oklchLightness(t.muted))
+    expect(oklchLightness(lifted)).toBeLessThan(oklchLightness(v['--legend-ink-bright']))
+    const L = oklchLightness(lifted)
+    expect(Number(v['--legend-val-lmin'])).toBeCloseTo(L - 0.03, 3)
+    expect(Number(v['--legend-val-lmax'])).toBeCloseTo(L + 0.03, 3)
+    expect(Number(v['--legend-val-lmax-low'])).toBeCloseTo(L + 0.03, 3)
+  })
+
+  it('Sunrise (light gradient): each sample gets its own pair + band, and both clear 4.5:1', () => {
+    for (const theme of Object.keys(themes)) {
+      const v = legendInkVars({ tokens: tokensOf(theme), top: SUNRISE_TOP, low: SUNRISE_BOTTOM })
+      for (const [sfx, bg] of [['', SUNRISE_TOP], ['-low', SUNRISE_BOTTOM]]) {
+        const pair = v[`--legend-ink-pair${sfx}`]
+        expect(legendTextContrast(pair, legendCanvasRgb(bg), 1), `${theme} pair${sfx}`).toBeGreaterThanOrEqual(4.5)
+        const L = oklchLightness(pair)
+        expect(Number(v[`--legend-val-lmax${sfx}`])).toBeCloseTo(L + 0.03, 3)
+        // the band's lightest grey still reads on this sample (a hue at that L reads no lighter)
+        const lightest = greyAt(Number(v[`--legend-val-lmax${sfx}`]))
+        expect(legendTextContrast(lightest, legendCanvasRgb(bg), 1), `${theme} ${lightest} on ${bg}`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
+  it('every app theme x every catalogued canvas: the band edge nearest the canvas still clears 4.5:1', () => {
+    for (const name of Object.keys(themes)) {
+      for (const bg of CANVASES) {
+        const v = legendInkVars({ tokens: tokensOf(name), top: bg, low: bg })
+        const light = legendInkForCanvas(bg) === LEGEND_INK_ON_LIGHT
+        const edge = greyAt(Number(v[light ? '--legend-val-lmax' : '--legend-val-lmin']))
+        expect(legendTextContrast(edge, legendCanvasRgb(bg), 1), `${name} on ${bg}: ${edge}`).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+
+  it('the coloured-value clamp: LegendRow (vertical + flat) and IndicatorChip (grid + inline), chroma capped', () => {
+    const CLAMP = /oklch\(from var\(--(row|chip)-color\) clamp\(var\(--legend-val-lmin, 0\), l, var\(--legend-val-lmax, 1\)\) min\(c, 0\.14\) h \/ 1\)/
+    expect(ROW_CSS).toMatch(CLAMP)
+    expect(ROW_CSS).toMatch(/\.vRow:not\(\.rowHidden\) \.vVal\[style\*="--row-color"\],\s*\.flat:not\(\.rowHidden\) \.flatVal\[style\*="--row-color"\]/)
+    expect(CHIP_CSS).toMatch(CLAMP)
+    expect(CHIP_CSS).toMatch(/\.chip\[style\*="--chip-color"\]:not\(\.chipHidden\) \.chipVal:not\(\.chipValStale\)/)
   })
 })

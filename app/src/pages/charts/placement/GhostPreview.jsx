@@ -61,11 +61,11 @@ export default function GhostPreview({
 
   if (!plan) return null
 
-  // Gold on dark themes; on the light theme gold washes out on white, so use a
-  // readable slate grey for the ghost fill/outlines/arrows instead.
-  const GOLD = light ? '#4b5563' : '#c9a84c'
-  const LIGHT = light ? '#64748b' : '#e6d29a'   // ghost box fill/border + arrows
-  const GLOW = light ? 'rgba(71,85,105,0.30)' : 'rgba(201,168,76,0.28)'
+  // UCT Signature (owner 11-15): the ghost is NEUTRAL — a soft white outline/fill on dark themes (slate on
+  // light) — and Place is the white confirm button. Gold is only for "current / chosen", not for previews.
+  const GOLD = light ? '#4b5563' : '#f8f7f3'    // the Place button
+  const LIGHT = light ? '#64748b' : '#ededed'   // ghost box fill/border + arrows
+  const GLOW = light ? 'rgba(71,85,105,0.30)' : 'rgba(0,0,0,0.45)'
   // metrics can be unmeasurable (e.g. a zero-size jsdom grid); the confirm bar still
   // renders so the action is always reachable — only the on-grid rects are skipped.
   const ghost = metrics ? toPx(plan.place, metrics, rowHeight) : null
@@ -166,27 +166,28 @@ export default function GhostPreview({
           position: 'absolute', top: bar.top, left: bar.left, transform: bar.transform,
           pointerEvents: 'auto',
           display: 'flex', alignItems: 'center', gap: 8,
-          background: 'rgba(18,18,20,0.92)', border: `1px solid ${GOLD}66`, borderRadius: 8,
-          padding: '6px 8px', boxShadow: '0 6px 20px rgba(0,0,0,0.45)',
+          background: '#111214', border: '1px solid #383b41', borderRadius: 10,
+          padding: '5px 6px 5px 5px', boxShadow: '0 14px 36px rgba(0,0,0,0.55)',
         }}
       >
         <button
+          data-guide="workspace.place"
           type="button"
           onClick={onConfirm}
           style={{
-            background: GOLD, color: light ? '#fff' : '#1a1a1a', border: 'none', borderRadius: 5,
-            padding: '4px 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            background: GOLD, color: light ? '#fff' : '#111214', border: 'none', borderRadius: 7,
+            height: 28, padding: '0 12px', fontSize: 12, fontWeight: 700, cursor: 'pointer',
           }}
         >Place</button>
         <button
           type="button"
           onClick={onCancel}
           style={{
-            background: 'transparent', color: '#ccc', border: '1px solid #555', borderRadius: 5,
-            padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+            background: 'rgba(248,247,243,0.06)', color: '#ededed', border: 'none', borderRadius: 7,
+            height: 28, padding: '0 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
           }}
         >Cancel</button>
-        <span style={{ fontSize: 10, color: '#888', whiteSpace: 'nowrap' }}>Enter · Esc</span>
+        <span style={{ fontSize: 10.5, color: '#93939a', whiteSpace: 'nowrap', padding: '0 2px' }}>Enter · Esc</span>
       </div>
     </div>
   )

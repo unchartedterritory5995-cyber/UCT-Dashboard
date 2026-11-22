@@ -60,7 +60,9 @@ def test_a_malformed_table_is_refused():
     assert any("42" in w for w in A.validate_table(bad))
     # no row in the table is doorless any more (task 14b built the last two); the rule still holds
     bad = json.loads(json.dumps(rows))
-    next(r for r in bad if r["audit_row"] == 29)["door"] = False
+    r29 = next(r for r in bad if r["audit_row"] == 29)
+    r29["door"] = False
+    r29.pop("reason", None)        # go-live wave 2: row 29 carries a HARD reason now; a doorless row with none is the case
     assert any("written reason" in w for w in A.validate_table(bad))
     bad = json.loads(json.dumps(rows))
     next(r for r in bad if r["audit_row"] == 15)["reason"] = "a bare string is no longer a reason"
@@ -280,19 +282,28 @@ def row_of(audit_row):
     return next(r for r in table() if r["audit_row"] == audit_row)
 
 
-def test_rows_29_and_53_are_reached_through_learn_and_the_sheet_names_them():
-    """The door is Research Home > Learn > What your Notebook can do > the entry's label in the Sheet.
-    The labels are the catalogue's own (capabilityList.js), read from the file, never retyped."""
+def test_rows_29_and_53_are_reached_through_help_and_the_section_names_them():
+    """Go-live wave 2: the Learn menu was dropped by ruling (go-live wave 1, A5/A6) and "What your Notebook can do" is
+    a section of Help, after Walkthroughs. The door is the Help & Feedback button > Tours (Help, at Walkthroughs) > the
+    entry's label in the section. The labels are the catalogue's own (capabilityList.js), never retyped, and the
+    section is Support.jsx's own."""
+    support = (REPO / "app" / "src" / "pages" / "Support.jsx").read_text(encoding="utf-8")
+    assert "export function NotebookCapabilitiesSection" in support and "armedCapabilities()" in support
     cap = (REPO / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "onboarding" / "capabilityList.js").read_text(encoding="utf-8")
     for audit_row, label in ((29, "Compass can read your notes"), (53, "Terminal commands in notes")):
         assert f"label: '{label}'" in cap, f"capabilityList.js no longer carries {label!r}"
         r = row_of(audit_row)
         assert r.get("door") is not False, "a door was built: the row is measured, not declared doorless"
-        assert r["steps"] == [{"click": "button|Learn"}, {"click": "menuitem|What your Notebook can do"}]
+        assert r["steps"] == [{"click": "button|Help"}, {"click": "menuitem|Tours"}]
+        assert r["steps_by_viewport"]["390"][0] == {"click": "button|Open menu"} and "support" in json.dumps(r["steps_by_viewport"]["390"][1])
         assert r["target"] == {"text": label}
-        assert "reason" not in r and not r.get("unmeasurable_here"), "the old NO DOOR reason must be gone"
+        assert not r.get("unmeasurable_here"), "the old NO DOOR reason must be gone"
+        # go-live wave 2: Help lists every tour above the section, so the line is graded HARD; the only reason that may
+        # clear it is the HARD one naming the ruling that put it there (A6)
+        rs = r.get("reason")
+        assert rs is None or (rs["verdict"] == "HARD" and "A6" in rs["text"]), rs
         assert set(r["viewports"]) == {"1280", "390"}
-        assert r["target_wait_ms"] >= 10000, "the Sheet loads the catalogue's chunk on first open"
+        assert r["target_wait_ms"] >= 10000, "Help loads the catalogue after the page's own reads"
     assert row_of(29)["flag"] == "COMPASS_NOTES_TOOL_ENABLED"
     assert row_of(53)["flag"] == "NOTEBOOK_TERMINAL_LINKS_ENABLED"
     assert A.validate_table(table()) == []
@@ -309,7 +320,10 @@ def test_a_text_target_is_a_valid_target_and_an_empty_one_is_not():
 def test_row_42_is_graded_by_measurement_and_needs_the_seed_not_a_written_excuse():
     r = row_of(42)
     assert r["needs_seed"] == "find_similar"
-    assert "unmeasurable_here" not in r and "reason" not in r, "the NOT_MEASURED reason is dropped"
+    assert "unmeasurable_here" not in r, "the NOT_MEASURED reason is dropped"
+    # go-live wave 2: at 390 the board is behind the folders drawer and the Daily brief (by ruling); only a HARD
+    # reason may stand here, never a NOT_MEASURED excuse
+    assert (r.get("reason") or {"verdict": "HARD"})["verdict"] == "HARD"
     assert r["target"]["name"] == "~^Find more like"
     assert r["target_wait_ms"] >= 20000, "the board fills after its own fetches; a 5 s wait would read it absent"
     assert set(r["viewports"]) == {"1280", "390"}

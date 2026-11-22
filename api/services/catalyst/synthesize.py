@@ -88,6 +88,57 @@ Output ONLY the JSON object — no markdown fences, no commentary, no
 "Rationale" section before or after it."""
 
 
+def _bucket(value, *, step: float | None = None, rel: float | None = None):
+    """A number reduced to its band for the skip hash; non-numbers pass through."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return value
+    if v != v:  # NaN
+        return None
+    import math
+    if rel is not None:
+        if v <= 0:
+            return 0
+        return round(math.log(v) / math.log(1 + rel))
+    return math.floor(v / step)
+
+
+# rss sources whose text is a market-wide model answer regenerated on every run (its
+# first 400 chars usually describe some OTHER ticker): their presence matters to the
+# skip hash, their wording does not.
+_GENERATED_RSS_SOURCES = frozenset({
+    "Perplexity (discovery)", "Perplexity (finance news)", "Perplexity (EOD setup)",
+})
+SEARCH_TWEET_VIA = "search"   # set by engine._enrich_with_twitter_search
+
+
+def _tweets_identity(tweets) -> dict:
+    curated, n_search = set(), 0
+    for t in tweets or []:
+        if not isinstance(t, dict):
+            continue
+        if t.get("via") == SEARCH_TWEET_VIA:
+            n_search += 1
+            continue
+        curated.add(str(t.get("id") or t.get("url") or (t.get("text") or "")[:120]))
+    # bit_length: 0 | 1 | 2-3 | 4-7 | 8-15 | 16-31 — stable while a busy name sits at the cap
+    return {"curated": sorted(curated), "search_band": n_search.bit_length()}
+
+
+def _rss_identity(rss) -> list:
+    out = set()
+    for h in rss or []:
+        if not isinstance(h, dict):
+            continue
+        src = str(h.get("source") or "")
+        if src in _GENERATED_RSS_SOURCES:
+            out.add(src)
+        else:
+            out.add("|".join((src, str(h.get("url") or ""), str(h.get("title") or ""))))
+    return sorted(out)
+
+
 def compute_signals_hash(candidate: dict) -> str:
     """SHA1 of a stable JSON serialization of the candidate's source signals.
     Used to skip re-synthesizing when nothing has changed."""
@@ -99,6 +150,25 @@ def compute_signals_hash(candidate: dict) -> str:
                    "gap_pct", "vol_x", "price", "hunter_headline",
                    "brain_grade", "av_news")
     payload = {k: candidate.get(k) for k in signal_keys}
+    # ⛔ The two lists are hashed by CONTENT IDENTITY, never as raw dicts (2026-11-11
+    # AI-spend review). Measured on prod that day: 472 Opus syntheses, 21 skips — the top
+    # names re-synthesized on EVERY one of 24 runs, and NVDA's prompt was the same 2,998
+    # tokens six runs in a row. Two causes, both noise the thesis never reads:
+    #   * Perplexity discovery / earnings items are stamped `time_published=time.time()`
+    #     at injection, so the raw item differed on every run by its clock alone;
+    #   * the Twitter "Latest" search refills with random retail posts on every call.
+    # So: an rss item is its (source, url, title); a market-wide generated blurb counts by
+    # presence only; a curated tweet is its id; search tweets count by a doubling band.
+    # A new headline, a new curated tweet, or a material move still refreshes the thesis.
+    payload["tweets"] = _tweets_identity(candidate.get("tweets"))
+    payload["rss"] = _rss_identity(candidate.get("rss"))
+    # ⛔ The three live numbers move on every tick, so hashing them raw made "skip if
+    # nothing changed" never skip: ~22 ticks x top 12 names re-synthesized on Opus each
+    # weekday, held only by the dollar cap (2026-11-10 cost audit). Hash them BUCKETED,
+    # so a thesis refreshes when the move is material, not when the tape ticks.
+    payload["price"] = _bucket(candidate.get("price"), rel=0.02)     # 2% price bands
+    payload["gap_pct"] = _bucket(candidate.get("gap_pct"), step=2.0)  # 2-point gap bands
+    payload["vol_x"] = _bucket(candidate.get("vol_x"), step=0.5)      # 0.5x volume bands
     blob = json.dumps(payload, sort_keys=True, default=str)
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()
 
@@ -311,6 +381,12 @@ def _call_anthropic(model: str, prompt: str, system: str) -> tuple:
         else:
             raise
     return msg, msg.usage.input_tokens, msg.usage.output_tokens
+
+
+def _ledger_request(prompt: str, system: str) -> dict:
+    """What a failed `_call_anthropic` asked for, for the worst-case charge."""
+    return {"system": system, "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": SYNTH_MAX_TOKENS}
 
 
 def _extract_text(msg) -> str:
@@ -544,6 +620,9 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
             logger.warning("[catalyst-synth] %s model %s failed for %s: %s: %s",
                            stage, model, candidate["ticker"],
                            type(e).__name__, str(e)[:300])
+            cost_guard.charge_unreported_call(
+                market_date, candidate["ticker"], model,
+                _ledger_request(prompt, system_prompt), e)
             continue
         got_output = True
         in_tokens += in_i
@@ -581,14 +660,11 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
 
     # No-sources enforcement: re-prompt once if missing required phrase
     if not _validate_no_sources_phrasing(parsed, has_sources):
+        retry_prompt = (prompt + "\n\nIMPORTANT: This ticker has no real source signals. "
+                                "Your thesis MUST contain the literal phrase 'no clear catalyst'. "
+                                "Re-output the JSON.")
         try:
-            msg2, in2, out2 = _call_anthropic(
-                used_model,
-                prompt + "\n\nIMPORTANT: This ticker has no real source signals. "
-                        "Your thesis MUST contain the literal phrase 'no clear catalyst'. "
-                        "Re-output the JSON.",
-                system_prompt,
-            )
+            msg2, in2, out2 = _call_anthropic(used_model, retry_prompt, system_prompt)
             in_tokens += in2
             out_tokens += out2
             cost_guard.record(market_date, candidate["ticker"], used_model,
@@ -605,7 +681,10 @@ def synthesize_ticker(candidate: dict, market_date: str) -> dict:
                     "catalyst_type": "None",
                     "source_urls": [],
                 }
-        except Exception:
+        except Exception as e:
+            cost_guard.charge_unreported_call(
+                market_date, candidate["ticker"], used_model,
+                _ledger_request(retry_prompt, system_prompt), e)
             parsed = {
                 "thesis": "No clear catalyst identified. Source pool was thin.",
                 "tag": candidate.get("tag", CATALYST_TAG.GAPPER),

@@ -104,6 +104,11 @@ def update_account(handle: str = Path(...),
         tweet_store.update_account_notes(handle, body["notes"])
     if "is_official" in body:
         tweet_store.set_account_official(handle, bool(body["is_official"]))
+    if "content_kind" in body:
+        try:
+            tweet_store.set_account_content_kind(handle, body["content_kind"])
+        except ValueError as e:
+            raise HTTPException(400, str(e))
     return tweet_store.list_accounts()
 
 
@@ -118,6 +123,24 @@ def delete_account(handle: str = Path(...), user=Depends(require_admin)):
 def force_poll(handle: str = Path(...), user=Depends(require_admin)):
     summary = tweet_poller.poll_account(handle)
     return summary
+
+
+@router.get("/twitter-poll-shadow")
+def twitter_poll_shadow(hours: int = 24, user=Depends(require_admin)):
+    """Timeline-vs-roster-search comparison (TWEET_POLL_MODE=shadow).
+    Read-only; the window never starts before the shadow cursor existed, so
+    tweets from before shadow mode began cannot read as 'only_timeline'."""
+    hours = max(1, min(int(hours), 24 * 7))
+    state = tweet_store.get_search_state("roster_shadow") or {}
+    since = int(time.time()) - hours * 3600
+    started = state.get("started_at")
+    if started:
+        since = max(since, int(started))
+    return {
+        "mode": tweet_poller.poll_mode(),
+        "shadow_state": state,
+        "report": tweet_store.shadow_report(since) if started else None,
+    }
 
 
 @router.get("/twitter-stats")

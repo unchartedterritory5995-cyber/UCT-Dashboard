@@ -192,6 +192,9 @@ const ACKNOWLEDGED_CHART = [
   // T3 (2026-09-12) — the member-pane path. Run green (11/11) BEFORE this
   // line was added, which is the order this rail asks for.
   'src/components/chart/builder/memberPane',
+  // Studio R5 (2026-11-17): Inspect a bar. Run green (4 files / 50 tests) BEFORE this line was
+  // added; `test:builder` and `test:chart` both cover it.
+  'src/components/chart/builder/inspect',
   // Economic data Phase 2 UI (2026-09-30): econUi words + fixtures. Run green
   // (1 file / 18 tests) BEFORE this line was added.
   'src/components/chart/economic',
@@ -214,6 +217,10 @@ const ACKNOWLEDGED_CHART = [
   // The Pine support loop, Phase A (2026-10-30, docs/pine/support-loop/PHASE-A.md).
   // Run green (4 files / 22 tests) BEFORE this line was added; `test:chart` covers it.
   'src/components/chart/supportLoop',
+  // P0 chart-data invariant rails (2026-11-11): fuzz suite, writer census ratchet, one-key
+  // rails, bucket-grid parity. Run green (5 files / 37 tests) BEFORE this line was added;
+  // `test:chart` covers it.
+  'src/components/chart/rails',
 ]
 
 /** Every `src/`-ish path that any `test*` script hands to vitest. */

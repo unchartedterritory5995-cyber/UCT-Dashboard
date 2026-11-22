@@ -390,14 +390,19 @@ describe('what still refuses, and by WHICH name', () => {
     // ⭐ C11 (2026-09-29): a method declared ONCE now binds
     // (`methodsAndArrayMembers.test.js`); what keeps this guard is an OVERLOADED
     // name, which Pine resolves by the receiver's type and this lane does not.
+    // ⭐ W6-T9 (2026-11-06): overloads on DIFFERENT receiver types are now served by
+    // the receiver's type (`w6ReceiverTypes.test.js` serves this test's former
+    // `Point` / `array<float>` pair). What keeps this guard is an overload the
+    // receiver's type cannot settle: two declarations on the SAME receiver type
+    // (Pine then chooses by the other arguments, which this lane does not resolve).
     const r = refusalOf(
       'type Point\n'
       + '    float x = 0.0\n'
       + 'method bump(Point this, float d) =>\n'
       + '    this.x := this.x + d\n'
       + '    this.x\n'
-      + 'method bump(array<float> this, float d) =>\n'
-      + '    this.push(d)\n'
+      + 'method bump(Point this, string d) =>\n'
+      + '    this.x\n'
       + 'plot(close)\n')
     expect(r.guard).toBe('runtime:udt-method')
     expect(r.message).toContain('bump')

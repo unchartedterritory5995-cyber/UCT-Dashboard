@@ -62,6 +62,18 @@ const LEGACY_SAR = {
   crosshairMarkerVisible: false,
 }
 
+/** ⭐ THE ONE DELIBERATE DEVIATION FROM THE TRANSCRIPTION (2026-11-06, UCT RS
+ *  review fix unit 6): a dot plot's zero-width line is hidden OUTRIGHT. The canvas
+ *  IGNORES a zero `lineWidth` (HTML spec: "zero, negative, infinite, and NaN values
+ *  must be ignored"), so the shipped block — `lineWidth: 0` under the library
+ *  default `lineVisible: true` — had LWC's `walkLine` stroke a one-device-pixel
+ *  chord between consecutive SAR dots in the dot colour. Beneath SAR's 6 px dots on
+ *  every bar it was all but invisible; beneath a SPARSE dot column (UCT RS's
+ *  new-high dots, finite only on event bars) it was a straight line across the
+ *  pane. `pool.seriesOptionsForPlot` therefore sets `lineVisible: false` for every
+ *  `markers` plot (`markerPixels.test.js`). Every other key is the transcription. */
+const ENGINE_SAR = { ...LEGACY_SAR, lineVisible: false }
+
 /** `createIfNeeded(ref, opts)` at `:6464-6480` — the shared tail every one of the
  *  five Ichimoku series gets, spread AFTER the per-plot `opts`. */
 const LEGACY_ICHI_SHARED = {
@@ -108,7 +120,7 @@ const LWC_LINE_DEFAULTS_RESTATED = {
   pointMarkersVisible: false,
   pointMarkersRadius: 3,
   lineVisible: true,     // lineStyleDefaults.lineVisible ("Last value horizontal" turns it off)
-  priceFormat: { type: 'price', precision: 2 },
+  priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
 }
 
 // ⭐ B5 TASK 12 — AND WHY THIS FILE ALONE NEEDS NO `__setPaneModeForTest`.
@@ -173,11 +185,11 @@ describe('sar transcription — the first markers plot the engine has ever bound
     expect(seriesOptionsForPlot(plotFor('sar', 'sar'),
       { scaleId: 'right', autoscale: 'exclude', LineStyle: null, LineType: null }))
       .toEqual({
-        ...LEGACY_SAR,
+        ...ENGINE_SAR,
         visible: true,
         lineStyle: 0,
         lineType: 0,
-        priceFormat: { type: 'price', precision: 2 },
+        priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
         autoscaleInfoProvider: AUTOSCALE_EXCLUDE,
       })
   })
@@ -215,13 +227,13 @@ describe('sar transcription — the first markers plot the engine has ever bound
     expect(F.callsOf('addSeries')).toHaveLength(1)
     expect(F.callsOf('addSeries')[0].args[0]).toBe(F.LWC.LineSeries)
     expect(F.callsOf('addSeries')[0].args[2], 'a price overlay lives in pane 0').toBe(0)
-    expect(opts(F)).toMatchObject(LEGACY_SAR)
+    expect(opts(F)).toMatchObject(ENGINE_SAR)
     expect(opts(F)).toEqual({
-      ...LEGACY_SAR,
+      ...ENGINE_SAR,
       visible: true,
       lineStyle: 0,
       lineType: 0,
-      priceFormat: { type: 'price', precision: 2 },
+      priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
       autoscaleInfoProvider: AUTOSCALE_EXCLUDE,
     })
   })

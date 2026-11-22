@@ -232,12 +232,12 @@ def _clean_subs():
     """Reset the module subscription/listener globals around each test."""
     import api.services.bar_stream as bs
     with bs._state_lock:
-        bs._active.clear(); bs._sub_owners.clear()
+        bs._active.clear(); bs._sub_owners.clear(); bs._active_channels.clear()
         bs._pending_subscribe.clear(); bs._pending_unsubscribe.clear()
     bs._trade_listeners.clear()
     yield bs
     with bs._state_lock:
-        bs._active.clear(); bs._sub_owners.clear()
+        bs._active.clear(); bs._sub_owners.clear(); bs._active_channels.clear()
         bs._pending_subscribe.clear(); bs._pending_unsubscribe.clear()
     bs._trade_listeners.clear()
 
@@ -247,10 +247,10 @@ def test_two_owners_share_a_symbol_last_owner_wins(_clean_subs):
     bs.subscribe_symbols(["AAPL"], owner="bars")
     bs.subscribe_symbols(["AAPL"], owner="nhnl")
     assert "AAPL" in bs._active
-    assert bs._sub_owners["AAPL"] == {"bars", "nhnl"}
+    assert set(bs._sub_owners["AAPL"]) == {"bars", "nhnl"}
     # bars drops it — nhnl still wants it, so it stays subscribed.
     bs.unsubscribe_symbols(["AAPL"], owner="bars")
-    assert "AAPL" in bs._active and bs._sub_owners["AAPL"] == {"nhnl"}
+    assert "AAPL" in bs._active and set(bs._sub_owners["AAPL"]) == {"nhnl"}
     # last owner drops it → genuinely unsubscribed + queued for protocol unsub.
     bs.unsubscribe_symbols(["AAPL"], owner="nhnl")
     assert "AAPL" not in bs._active and "AAPL" not in bs._sub_owners
@@ -260,7 +260,7 @@ def test_two_owners_share_a_symbol_last_owner_wins(_clean_subs):
 def test_default_owner_is_bars_backward_compatible(_clean_subs):
     bs = _clean_subs
     bs.subscribe_symbols(["MSFT"])            # no owner kwarg → "bars"
-    assert bs._sub_owners["MSFT"] == {"bars"}
+    assert set(bs._sub_owners["MSFT"]) == {"bars"}
     bs.unsubscribe_symbols(["MSFT"])          # symmetric default
     assert "MSFT" not in bs._active
 

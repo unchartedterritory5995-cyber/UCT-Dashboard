@@ -17,6 +17,26 @@ const complete = {
   pagesTotal: 3, pagesWithText: 3, pagesAwaitingOcr: 0, textComplete: true,
 }
 
+describe('a captured web source is not a scan', () => {
+  // The row `tweet_capture_sync.remove_post` leaves behind: the document stays, its page does not.
+  const removedPost = {
+    id: 'x1', name: '@north_ledger on X', status: 'ready', sourceKind: 'web',
+    attachmentUrl: 'x:1990000000000000004',
+    pagesTotal: 0, pagesWithText: 0, pagesAwaitingOcr: 0, textComplete: false,
+  }
+
+  it('says nothing about a post that left X', () => {
+    expect(documentTextNotice(removedPost)).toBeNull()
+    const { container } = render(<DocumentTextStatus documents={[removedPost]} imageUrls={new Set()} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('still calls a real file with no text a scan (the guard is the source kind, not the numbers)', () => {
+    const scan = { ...removedPost, name: 'Scanned.pdf', sourceKind: 'attachment', attachmentUrl: '/a/Scanned.pdf' }
+    expect(documentTextNotice(scan).text).toMatch(/looks like a scan/)
+  })
+})
+
 describe('it speaks only when there is something to disclose', () => {
   it('renders NOTHING for a fully readable document', () => {
     const { container } = render(<DocumentTextStatus documents={[complete]} />)
@@ -186,5 +206,48 @@ describe('a complete document still discloses that it was scanned', () => {
       id: 'd12', name: 'older-bundle.pdf', status: 'ready',
       pagesTotal: 2, pagesWithText: 2, pagesAwaitingOcr: 0, textComplete: true,
     })).toBeNull()
+  })
+})
+
+// ⛔ Audit 2026-11-05, spec S5 (B4): a note holding only widgets showed FOUR "Image — Text read
+// from a scanned page" lines, and a plain screenshot showed "Image looks like a scan". Root cause:
+// every widget's archived snapshot PNG is uploaded through the image door (lib/embedArchive.js),
+// which makes each one an OCR document; OCR then reads the chart's axis numbers. An image document
+// is spoken of only when the note holds that image, and only while it is pending or has no text.
+describe('S5 (B4): images are spoken of only when the note holds them', () => {
+  const img = (id, file, extra) => ({
+    id, name: 'Image', attachmentUrl: `/api/j2/notes/attachments/u1/n1/inline/${file}`,
+    pagesTotal: 1, pagesWithText: 1, pagesFromOcr: 1, pagesAwaitingOcr: 0, textComplete: true,
+    status: 'ready', ...extra,
+  })
+  const snapshotOcr = img('d1', 'snap1.png')                                     // a widget's archive PNG
+  const noText = img('d2', 'shot.png', { pagesWithText: 0, pagesFromOcr: 0, textComplete: false, status: 'no_text' })
+  const pending = img('d3', 'new.png', { pagesTotal: 0, pagesWithText: 0, pagesFromOcr: 0, textComplete: false, status: 'pending' })
+
+  it('widget snapshots (images the note does not hold) say nothing', () => {
+    const { container } = render(<DocumentTextStatus documents={[snapshotOcr, noText, pending]} imageUrls={[]} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('an image the note holds whose text WAS read says nothing (no scan disclosure for a picture)', () => {
+    const { container } = render(<DocumentTextStatus documents={[snapshotOcr]}
+      imageUrls={['/api/j2/notes/attachments/u1/n1/inline/snap1.png']} />)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('an image the note holds that is pending or has no text is said, without calling it a scan', () => {
+    render(<DocumentTextStatus documents={[noText, pending]}
+      imageUrls={['/api/j2/notes/attachments/u1/n1/inline/shot.png', '/api/j2/notes/attachments/u1/n1/inline/new.png']} />)
+    const region = screen.getByRole('status', { name: 'Attachment text status' })
+    expect(region).toHaveTextContent('Image has no readable text, so Search and Ask cannot use it.')
+    expect(region).toHaveTextContent('Image is still being read…')
+    expect(region.textContent).not.toMatch(/scan/i)
+  })
+
+  it('CONTROL: a PDF is unchanged, whatever the body holds', () => {
+    const pdf = { id: 'p', name: 'Deck.pdf', attachmentUrl: '/api/j2/notes/attachments/u1/n1/file/deck.pdf',
+      status: 'ready', pagesTotal: 2, pagesWithText: 0, pagesAwaitingOcr: 0, textComplete: false }
+    render(<DocumentTextStatus documents={[pdf]} imageUrls={[]} />)
+    expect(screen.getByRole('status')).toHaveTextContent('looks like a scan')
   })
 })

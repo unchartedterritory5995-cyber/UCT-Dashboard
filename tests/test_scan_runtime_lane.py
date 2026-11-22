@@ -1,0 +1,1393 @@
+"""W5-T14 rails: a stored RUNTIME document in the scan lanes (sweep, live, on-demand).
+
+`docs/pine/SERVER-RUNTIME-DESIGN.md` section 7 T14 and 3.7 rule 3. The scan evaluator sends
+a runtime document's universe to the pine-runtime service in chunks and maps the service's
+outcomes onto its own four counts. NO NETWORK and NO REAL BARS STORE: the client talks to
+`tests/fakes/pine_runtime_fake.PineRuntimeFake` (T11's), bars are stubbed at `_read_bars`,
+the two per-call admission questions are faked (and, in section 9, the REAL ones are read
+with the stage variables unset). Nothing here sets a flag outside `monkeypatch`.
+"""
+from __future__ import annotations
+
+import base64
+import datetime
+import logging
+import math
+from zoneinfo import ZoneInfo
+
+import pytest
+
+from api.services import pine_runtime_client as prc
+from api.services import pine_runtime_codec as codec
+from api.services import runtime_definitions, scan_definition, user_definitions
+from api.services.screener import scan_evaluator as ev
+from api.services.screener import scan_run, scan_runtime, scan_store
+from tests.fakes.pine_runtime_fake import FIXTURE_IDENTITY, FIXTURE_SECRET, PineRuntimeFake
+
+T0 = 1_762_200_000          # the fake's "now"
+SESSION = 20261103
+SOURCE = "//@version=6\nindicator('cond')\nplot(close > open)"
+DEF_ID = "u_0123456789ab"
+OUT = "cond"
+
+
+def _doc(outputs=None, source=SOURCE):
+    return {"id": DEF_ID, "meta": {}, "plots": [{"key": OUT, "style": "line"}],
+            "compute": {"kind": "runtime", "source": source,
+                        "outputs": {OUT: 0} if outputs is None else outputs}}
+
+
+def _row(**kw):
+    row = {"def_id": DEF_ID, "version": 3, "user_id": "user-42", "definition": _doc(), "requirements": None}
+    row.update(kw)
+    return row
+
+
+def _days(n, end=SESSION):
+    """n consecutive WEEKDAY dates as YYYYMMDD ints, the last being `end`."""
+    d = datetime.date(end // 10000, (end // 100) % 100, end % 100)
+    out = []
+    while len(out) < n:
+        if d.weekday() < 5:
+            out.append(d.year * 10000 + d.month * 100 + d.day)
+        d -= datetime.timedelta(days=1)
+    return out[::-1]
+
+
+def _bars(n=6, up=True, end=SESSION):
+    days = _days(n, end)
+    out, c = [], 100.0
+    for i, t in enumerate(days):
+        c += 1.0 if (up or i < n - 1) else -1.0      # the LAST bar decides `up`
+        out.append({"t": t, "o": c - 0.5, "h": c + 1, "l": c - 1, "c": c, "v": 1000.0 + i})
+    return out
+
+
+def cond_script(cols):
+    c = cols["c"]
+    return {OUT: [float("nan")] + [1.0 if c[i] > c[i - 1] else 0.0 for i in range(1, len(c))]}
+
+
+@pytest.fixture(autouse=True)
+def _fresh_signing_memory():
+    prc._forget_signing_times()
+    yield
+    prc._forget_signing_times()
+
+
+class Switches:
+    def __init__(self):
+        self.verdict = None
+        self.refusal = None
+        self.asked = []
+        self.flip_after = None           # (n calls to the admission, then refuse with this)
+
+    def engine_withheld_reason(self, row, current=None):
+        self.asked.append("verdict")
+        return self.verdict
+
+    def server_lane_refusal(self, row, *, lane):
+        self.asked.append(("admission", lane))
+        if self.flip_after is not None:
+            n, why = self.flip_after
+            if sum(1 for a in self.asked if isinstance(a, tuple)) > n:
+                return why
+        return self.refusal
+
+
+class World:
+    def __init__(self, sw, fake, store):
+        self.sw, self.fake, self.store = sw, fake, store
+        self.bars = {}
+        self.reads = []
+        self.hits_written = []
+        self.cov_written = []
+
+
+@pytest.fixture
+def world(monkeypatch):
+    sw = Switches()
+    monkeypatch.setattr(user_definitions, "engine_withheld_reason", sw.engine_withheld_reason)
+    monkeypatch.setattr(runtime_definitions, "server_lane_refusal", sw.server_lane_refusal, raising=False)
+    fake = PineRuntimeFake(script=cond_script)
+    w = World(sw, fake, None)
+
+    monkeypatch.setattr(ev, "_runtime_client", lambda: prc.PineRuntimeClient(
+        url="http://pine-runtime.test", secret=FIXTURE_SECRET, identity=FIXTURE_IDENTITY,
+        transport=fake, clock=lambda: T0, sleep=lambda s: None))
+
+    def _read(sym, tf, want):
+        w.reads.append(sym)
+        return list(w.bars.get(sym, []))
+    monkeypatch.setattr(ev, "_read_bars", _read)
+    monkeypatch.setattr(scan_store, "record_hits", lambda *a, **k: w.hits_written.append((a, k)))
+    monkeypatch.setattr(scan_store, "record_coverage", lambda *a, **k: w.cov_written.append((a, k)))
+    return w
+
+
+def _doc_of(row=None):
+    return scan_runtime.runtime_scan_doc(row or _row())
+
+
+def _run(w, symbols, *, mode="nightly", doc=None, **kw):
+    return ev.evaluate_one(doc or _doc_of(), "D", universe=symbols, as_of=SESSION, mode=mode,
+                           tick=T0, **kw)
+
+
+def _request_bars(call, i=0):
+    b = call["jobs"][i]["bars"]
+    return {k: codec.decode_column(base64.b64decode(b[k])) for k in ("t", "o", "h", "l", "c", "v")}
+
+
+# ═══ 1. the four outcomes ═══════════════════════════════════════════════════
+
+def test_hit_and_non_hit_are_answered_and_the_hit_row_carries_the_stored_bar_key(world):
+    world.bars = {"UP": _bars(up=True), "DN": _bars(up=False)}
+    out = _run(world, ["UP", "DN"])
+    assert (out["evaluated"], out["answered"], out["dropped"], out["not_computable"], out["withheld"]) == (2, 2, 0, 0, 0)
+    assert out["hits"] == ["UP"]
+    assert out["hit_rows"] == [{"symbol": "UP", "value": 1.0, "bar_time": SESSION}]
+    assert out["def_hash"] == runtime_definitions.handle(_doc())
+    assert out["def_hash"].startswith(runtime_definitions.HASH_PREFIX)
+    assert out["rev"] is None and out["recorded"] == 0 and out["record_refused"] == 0
+
+
+def test_no_bars_and_stale_bars_are_dropped_by_name(world):
+    world.bars = {"UP": _bars(), "OLD": _bars(end=20261030)}
+    out = _run(world, ["UP", "NONE", "OLD"])
+    assert (out["evaluated"], out["answered"], out["dropped"]) == (3, 1, 2)
+    reasons = {e["ticker"]: e["reason"] for e in out["dropped_symbols"]}
+    assert reasons == {"NONE": "no-bars", "OLD": "stale-bars"}
+    # a dropped symbol is never sent
+    assert [j["symbol"]["ticker"] for c in world.fake.calls for j in c["jobs"]] == ["UP"]
+
+
+def test_a_withheld_symbol_is_withheld_never_answered_and_never_a_non_hit(world):
+    world.bars = {"UP": _bars(), "BAD": _bars(), "DN": _bars(up=False)}
+    world.fake.withhold["1:BAD"] = ("runtime:limit", "the script ran past its instruction budget")
+    out = _run(world, ["UP", "BAD", "DN"])
+    assert out["withheld"] == 1 and out["runtime_withheld"] == 1
+    assert out["evaluated"] == 2 and out["answered"] == 2          # BAD is in neither
+    assert out["hits"] == ["UP"]
+    assert out["withheld_reason"] == "runtime:limit"
+    assert out["runtime_withheld_guards"] == {"runtime:limit": 1}
+    assert out["runtime_withheld_symbols"][0]["ticker"] == "BAD"
+    assert "BAD" not in {e["ticker"] for e in out["dropped_symbols"]}
+    assert out["evaluated"] + out["withheld"] == 3                 # the universe closes
+
+
+def test_a_per_plot_refusal_is_not_computable_with_the_guards_sentence(world):
+    world.bars = {"UP": _bars(), "X": _bars()}
+    world.fake.refuse_output[OUT] = ("runtime:calc-bars-count", "needs more bars than this symbol has")
+    out = _run(world, ["UP", "X"])
+    assert out["not_computable"] == 2 and out["answered"] == 0 and out["withheld"] == 0
+    assert out["hits"] == []
+    assert all("runtime:calc-bars-count" in e["detail"] and "needs more bars" in e["detail"]
+               for e in out["dropped_symbols"])
+    assert {e["reason"] for e in out["dropped_symbols"]} == {ev.NOT_COMPUTABLE_REASON}
+
+
+def test_a_plot_that_is_not_a_0_1_condition_is_not_computable_not_the_whole_universe(world):
+    # a price-like plot: `!= 0` would answer "hit" for every symbol (the fail-closed direction)
+    world.fake.script = lambda cols: {OUT: list(cols["c"])}
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    out = _run(world, ["UP", "DN"])
+    assert out["hits"] == [] and out["answered"] == 0 and out["not_computable"] == 2
+    assert all("not a 0/1 condition" in e["detail"] for e in out["dropped_symbols"])
+
+
+def test_na_on_the_as_of_bar_is_not_computable_but_na_in_warmup_is_fine(world):
+    world.fake.script = lambda cols: {OUT: [float("nan")] * (len(cols["c"]) - 1) + [float("nan")]}
+    world.bars = {"A": _bars()}
+    out = _run(world, ["A"])
+    assert (out["answered"], out["not_computable"]) == (0, 1)
+    assert "na on the as-of bar" in out["dropped_symbols"][0]["detail"]
+    world.fake.script = cond_script                                  # bar 0 is na, the rest 0/1
+    world.bars = {"A": _bars(up=True)}
+    assert _run(world, ["A"])["answered"] == 1
+
+
+def test_duplicate_universe_entries_are_two_jobs_with_distinct_ids(world):
+    world.bars = {"UP": _bars()}
+    out = _run(world, ["UP", "UP"])
+    assert out["evaluated"] == 2 and out["answered"] == 2 and out["hits"] == ["UP", "UP"]
+    ids = [j["job"] for j in world.fake.calls[0]["jobs"]]
+    assert len(set(ids)) == 2
+
+
+# ═══ 2. bar time units and the as-of cut ════════════════════════════════════
+
+def _et_open(y, m, d):
+    return float(int(datetime.datetime(y, m, d, 9, 30, tzinfo=ZoneInfo("America/New_York")).timestamp()))
+
+
+def test_a_daily_bar_is_sent_at_its_0930_new_york_open_in_unix_seconds(world):
+    bars = _bars(n=4, end=SESSION)
+    world.bars = {"UP": bars}
+    _run(world, ["UP"])
+    sent = _request_bars(world.fake.calls[0])["t"]
+    want = [_et_open(t // 10000, (t // 100) % 100, t % 100) for t in (b["t"] for b in bars)]
+    assert sent == want
+    assert sent[-1] == _et_open(2026, 11, 3) == 1_762_182_600.0 or sent[-1] == _et_open(2026, 11, 3)
+    assert all(s > 1_000_000_000 for s in sent), "a YYYYMMDD int must never reach the service"
+
+
+def test_the_utc_offset_follows_new_york_daylight_time(world):
+    jul = _days(3, end=20260701)
+    world.bars = {"UP": [{"t": t, "o": 1, "h": 2, "l": 1, "c": 1.5 + i, "v": 5.0} for i, t in enumerate(jul)]}
+    ev.evaluate_one(_doc_of(), "D", universe=["UP"], as_of=20260701, tick=T0)
+    sent = _request_bars(world.fake.calls[0])["t"]
+    assert sent[-1] == _et_open(2026, 7, 1)
+    assert datetime.datetime.fromtimestamp(sent[-1], datetime.timezone.utc).hour == 13   # EDT = UTC-4
+
+
+def test_an_unreadable_bar_time_makes_the_symbol_not_computable_and_is_never_guessed(world):
+    bars = _bars()
+    bars[2] = {**bars[2], "t": 20261399}          # month 13
+    world.bars = {"BAD": bars, "UP": _bars()}
+    out = _run(world, ["BAD", "UP"])
+    assert out["not_computable"] == 1 and out["answered"] == 1
+    assert "time could not be read" in out["dropped_symbols"][0]["detail"]
+    assert [j["symbol"]["ticker"] for c in world.fake.calls for j in c["jobs"]] == ["UP"]
+
+
+def test_bars_after_the_runs_session_are_cut_before_sending(world):
+    world.bars = {"UP": _bars(n=8, end=SESSION)}
+    ev.evaluate_one(_doc_of(), "D", universe=["UP"], as_of=_days(8)[5], tick=T0)
+    sent = _request_bars(world.fake.calls[0])["t"]
+    assert len(sent) == 6                          # bars 0..5; the later two never leave this pod
+
+
+# ═══ 3. chunking and the request ═════════════════════════════════════════════
+
+def test_the_sweep_is_sent_in_chunks_of_the_clients_sweep_size_under_profile_sweep(world):
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars() for s in syms}
+    out = _run(world, syms)
+    assert [len(c["jobs"]) for c in world.fake.calls] == [50, 50, 20]
+    assert {c["profile"] for c in world.fake.calls} == {"sweep"}
+    assert prc.SWEEP_CHUNK == ev._RUNTIME_CHUNK == 50
+    assert out["answered"] == 120 and out["evaluated"] == 120
+
+
+def test_a_request_carries_the_document_the_owner_the_version_and_one_wanted_plot(world):
+    world.bars = {"UP": _bars()}
+    _run(world, ["UP"])
+    call = world.fake.calls[0]
+    assert call["definition"]["def_id"] == DEF_ID and call["definition"]["version"] == 3
+    assert call["jobs"][0]["want"] == [OUT]
+    assert call["jobs"][0]["ctx"]["newestBarIsForming"] is False
+    assert call["jobs"][0]["ctx"]["runtimeInputs"] == {}
+    assert call["owner"].startswith("hmac:") and "user-42" not in call["owner"]
+
+
+def test_on_demand_runs_under_its_own_profile_and_writes_nothing(world):
+    world.bars = {"UP": _bars()}
+    out = _run(world, ["UP"], mode="on-demand")
+    assert world.fake.calls[0]["profile"] == "on-demand"
+    assert out["persisted"] is False and out["mode"] == "on-demand"
+    assert world.hits_written == [] and world.cov_written == []
+
+
+def test_the_profile_each_mode_would_use_is_sweep_for_nightly_and_live_on_demand_for_a_run():
+    assert ev._RUNTIME_PROFILES == {"nightly": "sweep", "live": "sweep", "on-demand": "on-demand"}
+    assert set(ev._RUNTIME_PROFILES.values()) <= set(prc.PROFILES)
+
+
+# ═══ 4. the receipt ══════════════════════════════════════════════════════════
+
+def test_a_clean_nightly_run_files_hits_and_coverage_under_the_runtime_handle(world):
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    out = _run(world, ["UP", "DN"])
+    assert out["persisted"] is True
+    [(hargs, hkw)] = world.hits_written
+    [(cargs, ckw)] = world.cov_written
+    handle = runtime_definitions.handle(_doc())
+    assert hargs[0] == cargs[0] == handle and handle.startswith("runtime:sha256:")
+    assert hargs[3] == ["UP"] and hkw["values"] == {"UP": 1.0}
+    assert (ckw["evaluated"], ckw["answered"], ckw["dropped"], ckw["not_computable"]) == (2, 2, 0, 0)
+    assert ckw["freshness"] == "unknown"
+
+
+def test_partial_service_failure_files_no_receipt_and_says_so_in_a_coverage_line(world, caplog):
+    world.bars = {"UP": _bars(), "BAD": _bars()}
+    world.fake.withhold["1:BAD"] = ("runtime:server-worker-oom", "the worker ran out of memory")
+    with caplog.at_level(logging.WARNING, logger=ev.log.name):
+        out = _run(world, ["UP", "BAD"])
+    assert out["persisted"] is False
+    assert world.hits_written == [] and world.cov_written == []
+    assert out["hits"] == ["UP"], "what answered is still handed back, just not filed as a receipt"
+    assert "WITHHELD 1 (runtime:server-worker-oom x1)" in out["coverage_line"]
+    assert "evaluated 1 of 2" in out["coverage_line"]
+    assert any("NO receipt filed" in r.getMessage() and "runtime:server-worker-oom" in r.getMessage()
+               for r in caplog.records)
+
+
+def test_a_service_that_is_unreachable_withholds_every_symbol_and_files_nothing(world):
+    world.bars = {s: _bars() for s in ("A", "B", "C")}
+    world.fake.script_next = [(503, b"{}")] * 5
+    out = _run(world, ["A", "B", "C"])
+    assert out["withheld"] == 3 and out["evaluated"] == 0 and out["answered"] == 0
+    assert out["hits"] == [] and out["persisted"] is False
+    assert out["withheld_reason"] == prc.UNAVAILABLE
+
+
+def test_the_toolkit_history_gate_still_withholds_the_whole_definition(world):
+    world.bars = {"UP": _bars()}
+
+    class Lim:
+        max_history_bars = 10
+        max_symbols = None
+    out = _run(world, ["UP"], limits=Lim())
+    assert out["withheld"] == 1 and out["withheld_reason"] == ev.HISTORY_WITHHELD
+    assert world.fake.calls == [] and world.reads == [] and out["persisted"] is False
+
+
+def test_the_symbol_cap_is_the_toolkits_and_the_universe_closes(world):
+    world.bars = {s: _bars() for s in ("A", "B", "C")}
+
+    class Lim:
+        max_history_bars = None
+        max_symbols = 2
+    out = _run(world, ["A", "B", "C"], limits=Lim())
+    assert out["evaluated"] == 2 and out["withheld"] == 1 and out["withheld_reason"] == ev.SYMBOLS_WITHHELD
+    assert out["runtime_withheld"] == 0
+
+
+def test_no_rule_record_is_read_or_written_for_a_runtime_document(world, monkeypatch):
+    from api.services import definition_record
+
+    def boom(*a, **k):
+        raise AssertionError("the rule record is a tree's (W5-T16)")
+    monkeypatch.setattr(definition_record, "latest_through_by_symbol", boom)
+    monkeypatch.setattr(ev, "_write_rule_record", boom)
+    world.bars = {"UP": _bars()}
+    assert _run(world, ["UP"])["recorded"] == 0
+
+
+# ═══ 5. the admission: asked first, asked again per chunk, never decided once ═
+
+def test_a_refused_admission_refuses_the_run_before_a_bar_is_read_or_a_request_sent(world):
+    world.sw.refusal = ("runtime:killed", "this script is on the server's kill list")
+    world.bars = {"UP": _bars()}
+    with pytest.raises(ev.ScanRunRefused) as e:
+        _run(world, ["UP"])
+    assert e.value.gate == "not-scannable" and "kill list" in e.value.detail
+    assert world.reads == [] and world.fake.calls == []
+
+
+def test_a_stored_verdict_binds_first_and_names_itself(world):
+    world.sw.verdict = "engine-refused: today's script engine refuses this script"
+    world.sw.refusal = ("runtime:killed", "later")
+    with pytest.raises(ev.ScanRunRefused) as e:
+        _run(world, ["UP"])
+    assert "engine-refused" in e.value.detail
+    assert [a for a in world.sw.asked if isinstance(a, tuple)] == [], "the verdict is asked BEFORE admission"
+
+
+def test_a_kill_between_chunks_withholds_the_rest_and_sends_nothing_more(world):
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars() for s in syms}
+    # 1 ask at the door + 1 for chunk 1 pass; chunk 2 onwards is refused
+    world.sw.flip_after = (2, ("runtime:killed", "killed mid-run"))
+    out = _run(world, syms)
+    assert len(world.fake.calls) == 1 and len(world.fake.calls[0]["jobs"]) == 50
+    assert out["evaluated"] == 50 and out["answered"] == 50
+    assert out["withheld"] == 70 and out["withheld_reason"] == "runtime:killed"
+    assert out["persisted"] is False
+    assert out["evaluated"] + out["withheld"] == 120
+
+
+def test_the_admission_is_asked_in_the_lane_of_the_run(world):
+    world.bars = {"UP": _bars()}
+    _run(world, ["UP"], mode="on-demand")
+    assert {a[1] for a in world.sw.asked if isinstance(a, tuple)} == {"on-demand"}
+    world.sw.asked.clear()
+    _run(world, ["UP"])
+    assert {a[1] for a in world.sw.asked if isinstance(a, tuple)} == {"sweep"}
+
+
+# ═══ 6. live: closed bars only (ruling Q3) ═══════════════════════════════════
+
+def test_live_mode_refuses_a_runtime_document_by_gate_cadence_before_reading_a_bar(world):
+    world.bars = {"UP": _bars()}
+    with pytest.raises(ev.ScanRunRefused) as e:
+        _run(world, ["UP"], mode="live")
+    assert e.value.gate == "cadence" and "CLOSED bars" in e.value.detail
+    assert world.reads == [] and world.fake.calls == []
+
+
+def test_the_live_cycle_counts_a_runtime_document_as_refused_cadence_and_the_receipt_closes(world, monkeypatch):
+    receipts = {}
+    monkeypatch.setattr(ev, "live_enabled", lambda: True)
+    monkeypatch.setattr(ev, "_live_session_state", lambda now: None)
+    monkeypatch.setattr(ev, "previous_session", lambda s: 20261102)
+    monkeypatch.setattr(ev, "_finish_live", lambda receipt, started, **kw: receipts.update(receipt, **kw) or receipt)
+    monkeypatch.setattr(scan_store, "last_live_cycle", lambda tf: None)
+    from api.services import scan_volume
+    monkeypatch.setattr(scan_volume, "full_market_snapshot", lambda: {})
+    monkeypatch.setattr(ev.snapshot_builder, "build_in_flight", lambda: False)
+    def _never(*a, **k):
+        raise AssertionError("phase 1 refuses a runtime document; evaluate_one is not reached")
+    monkeypatch.setattr(ev, "evaluate_one", _never)
+    ev._run_live_cycle([_doc_of()], "D", universe=["UP"])
+    assert receipts["refused"] == 1 and not receipts["swept"]
+    assert receipts["refusals"][0]["gate"] == "cadence"
+    assert world.fake.calls == [] and world.reads == []
+
+
+# ═══ 7. scannability and identity ════════════════════════════════════════════
+
+def test_a_runtime_document_is_scannable_only_with_exactly_one_plot():
+    spec = scan_runtime.runtime_scan_spec(_doc())
+    assert spec == {"def_hash": runtime_definitions.handle(_doc()), "plot": OUT}
+    for outs in ({}, {"a": 0, "b": 1}):
+        with pytest.raises(scan_definition.ScanRefused) as e:
+            scan_runtime.runtime_scan_spec(_doc(outputs=outs))
+        assert e.value.gate == "tree" and "ONE plot" in e.value.detail
+    with pytest.raises(scan_definition.ScanRefused) as e:
+        scan_runtime.runtime_scan_spec({"compute": {"kind": "ast"}})
+    assert e.value.gate == "kind"
+
+
+def test_the_runtime_handle_is_the_stores_own_and_cannot_collide_with_a_tree_hash():
+    h = ev._scannable_handle(_doc())
+    assert h == ev._result_handle(_doc()) == runtime_definitions.HASH_PREFIX + runtime_definitions.source_hash(SOURCE)
+    assert not h.startswith("sha256:")
+
+
+def test_a_dict_copy_loses_the_row_and_the_run_refuses_by_name(world):
+    world.bars = {"UP": _bars()}
+    bare = dict(_doc_of())                      # not a RuntimeScanDoc
+    with pytest.raises(ev.ScanRunRefused) as e:
+        _run(world, ["UP"], doc=bare)
+    assert e.value.gate == "not-scannable" and "without its stored row" in e.value.detail
+    assert world.fake.calls == []
+
+
+def test_the_scan_doc_remembers_its_row_and_is_still_the_document():
+    row = _row()
+    doc = scan_runtime.runtime_scan_doc(row)
+    assert doc == row["definition"] and doc.lane_row is row
+    assert runtime_definitions.is_runtime(doc)
+
+
+# ═══ 8. the sweep candidate filter ═══════════════════════════════════════════
+
+@pytest.fixture
+def live_rows(monkeypatch):
+    rows = []
+    monkeypatch.setattr(user_definitions, "live_definitions", lambda: list(rows))
+    return rows
+
+
+def test_the_sweep_admits_a_runtime_row_only_when_the_lane_admission_says_so(world, live_rows):
+    live_rows.append(_row())
+    world.sw.refusal = ("runtime:server-stage", "not switched on")
+    assert ev.definitions_to_sweep() == []
+    world.sw.refusal = None
+    [doc] = ev.definitions_to_sweep()
+    assert isinstance(doc, scan_runtime.RuntimeScanDoc) and doc.lane_row["def_id"] == DEF_ID
+    assert ("admission", "sweep") in world.sw.asked
+
+
+def test_the_sweep_filter_still_honours_the_verdict_and_the_consumer_contract(world, live_rows):
+    live_rows.append(_row())
+    world.sw.verdict = "engine-refused: ..."
+    assert ev.definitions_to_sweep() == []
+
+
+def test_two_members_with_the_same_script_share_one_sweep_entry(world, live_rows):
+    live_rows += [_row(user_id="a"), _row(user_id="b", def_id="u_0123456789ac")]
+    assert len(ev.definitions_to_sweep()) == 1
+
+
+def test_a_tree_definition_is_swept_exactly_as_before(world, live_rows):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    tree_def = _definition(_op(">", _series("close"), _num(100)), def_id="u_00000000aaaa")
+    live_rows.append({"def_id": "u_00000000aaaa", "version": 1, "user_id": "x",
+                      "definition": tree_def, "requirements": None})
+    live_rows.append(_row())
+    world.sw.refusal = ("runtime:server-stage", "off")
+    assert ev.definitions_to_sweep() == [tree_def]
+
+
+def test_run_sweep_resolves_a_runtime_entry_to_its_handle_and_sweeps_it(world, monkeypatch):
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_resume_order", lambda entries, tf, as_of, **k: list(entries))
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=ZoneInfo("America/New_York")))
+    monkeypatch.setattr(ev, "sweep_deadline", lambda now=None: datetime.datetime(2026, 11, 4, 9, 0, tzinfo=ZoneInfo("America/New_York")))
+    receipt = ev.run_sweep([_doc_of()], universe=["UP", "DN"], as_of=SESSION)
+    assert receipt["swept"] == 1 and receipt["refused"] == 0 and receipt["hits"] == 1
+    assert world.hits_written[0][0][0] == runtime_definitions.handle(_doc())
+
+
+# ═══ 8b. track 6 PR-B: the Q2 cap of runtime documents per nightly sweep ═══════
+
+def _distinct_rows(n, start=0):
+    """n admitted runtime rows of DIFFERENT scripts (so n distinct handles), one per member."""
+    return [_row(def_id="u_%012x" % (0xabc000 + i), user_id=f"member-{i}",
+                 definition=_doc(source=SOURCE + f"\n// variant {i}")) for i in range(start, start + n)]
+
+
+def _on_day(monkeypatch, ordinal):
+    day = datetime.date.fromordinal(ordinal)
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(day.year, day.month, day.day, 5, 0,
+                                                                  tzinfo=ZoneInfo("America/New_York")))
+
+
+def _swept_runtime_handles():
+    return {ev._result_handle(d) for d in ev.definitions_to_sweep() if runtime_definitions.is_runtime(d)}
+
+
+def test_the_cap_is_q2s_25_and_a_sweep_under_it_runs_every_admitted_document(world, live_rows, monkeypatch, caplog):
+    assert ev.RUNTIME_SWEEP_CAP == 25 and ev.RUNTIME_SWEEP_CAP_GUARD == "runtime:sweep-cap"
+    _on_day(monkeypatch, 740_000)
+    live_rows += _distinct_rows(25)
+    with caplog.at_level("INFO"):
+        assert len(_swept_runtime_handles()) == 25
+    assert "sweep cap" not in caplog.text
+
+
+def test_over_the_cap_tonight_runs_exactly_the_cap_and_says_how_many_rotated_out(world, live_rows, monkeypatch, caplog):
+    _on_day(monkeypatch, 740_000)
+    live_rows += _distinct_rows(30)
+    with caplog.at_level("INFO"):
+        swept = _swept_runtime_handles()
+    assert len(swept) == 25
+    assert "runtime sweep cap: 25 of 30" in caplog.text and "the other 5" in caplog.text
+    assert "runtime:sweep-cap x5" in caplog.text, "counted under its guard in the not-admitted line"
+
+
+def test_every_admitted_document_is_swept_within_ceil_n_over_cap_nights(world, live_rows, monkeypatch):
+    live_rows += _distinct_rows(60)
+    every = set()
+    for day in (740_000, 740_001, 740_002):              # ceil(60 / 25) = 3 nights
+        _on_day(monkeypatch, day)
+        tonight = _swept_runtime_handles()
+        assert len(tonight) == 25
+        every |= tonight
+    assert len(every) == 60, "a document the rotation never reaches is a scan that silently never runs"
+
+
+def test_the_same_night_picks_the_same_documents(world, live_rows, monkeypatch):
+    live_rows += _distinct_rows(40)
+    _on_day(monkeypatch, 740_123)
+    first = _swept_runtime_handles()
+    live_rows.reverse()                                  # the store's order is not the turn's
+    assert _swept_runtime_handles() == first
+
+
+def test_tree_definitions_never_take_a_slot_and_are_never_capped(world, live_rows, monkeypatch):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    _on_day(monkeypatch, 740_000)
+    trees = []
+    for i in range(30):
+        d = _definition(_op(">", _series("close"), _num(100 + i)), def_id="u_%012x" % (0xdef000 + i))
+        trees.append(d)
+        live_rows.append({"def_id": d["id"] if "id" in d else "u_%012x" % (0xdef000 + i), "version": 1,
+                          "user_id": f"tree-{i}", "definition": d, "requirements": None})
+    live_rows += _distinct_rows(30)
+    out = ev.definitions_to_sweep()
+    assert sum(1 for d in out if not runtime_definitions.is_runtime(d)) == 30
+    assert sum(1 for d in out if runtime_definitions.is_runtime(d)) == 25
+
+
+def test_a_refused_document_or_a_second_copy_never_takes_a_slot(world, live_rows, monkeypatch):
+    _on_day(monkeypatch, 740_000)
+    rows = _distinct_rows(25)
+    # the same 25 scripts again under other members: deduped BEFORE the cap
+    copies = [dict(r, user_id=r["user_id"] + "-copy", def_id="u_%012x" % (0xccc000 + i)) for i, r in enumerate(rows)]
+    live_rows += rows + copies
+    assert len(_swept_runtime_handles()) == 25
+    # 10 more scripts the lane REFUSES: they must not push an admitted one out
+    refused = _distinct_rows(10, start=100)
+    refused_ids = {r["def_id"] for r in refused}
+    live_rows += refused
+
+    def refusal(row, *, lane):
+        world.sw.asked.append(("admission", lane))
+        return ("runtime:server-stage", "off") if row["def_id"] in refused_ids else None
+    monkeypatch.setattr(runtime_definitions, "server_lane_refusal", refusal)
+    assert _swept_runtime_handles() == {ev._result_handle(scan_runtime.runtime_scan_doc(r)) for r in rows}
+
+
+def test_the_turn_is_a_pure_window_over_the_sorted_handles():
+    hs = [f"h{i:02d}" for i in range(7)]
+    assert ev._runtime_sweep_turn(hs, 10, 3) == set(hs)
+    assert ev._runtime_sweep_turn(hs, 3, 0) == {"h00", "h01", "h02"}
+    assert ev._runtime_sweep_turn(hs, 3, 1) == {"h03", "h04", "h05"}
+    assert ev._runtime_sweep_turn(hs, 3, 2) == {"h06", "h00", "h01"}, "wraps"
+    assert ev._runtime_sweep_turn(list(reversed(hs)), 3, 1) == {"h03", "h04", "h05"}, "order-free"
+
+
+# ═══ 8c. track 6 PR-C: the Q2 per-member quota (at the effective stage `all`) ═══════
+
+def _owned_rows(owner, n, start=0):
+    """n admitted runtime rows of DIFFERENT scripts, all owned by ``owner``."""
+    return [_row(def_id="u_%012x" % (0xa00000 + start + i), user_id=owner,
+                 definition=_doc(source=SOURCE + f"\n// {owner} {i}")) for i in range(n)]
+
+
+def _stage(monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv(runtime_definitions.STAGE_ENV, raising=False)
+        monkeypatch.delenv(runtime_definitions.SERVER_STAGE_ENV, raising=False)
+    else:
+        monkeypatch.setenv(runtime_definitions.STAGE_ENV, value)
+        monkeypatch.setenv(runtime_definitions.SERVER_STAGE_ENV, value)
+
+
+def _swept_by_owner():
+    out = {}
+    for d in ev.definitions_to_sweep():
+        if runtime_definitions.is_runtime(d):
+            out.setdefault(d.lane_row["user_id"], set()).add(ev._result_handle(d))
+    return out
+
+
+def test_the_quota_is_q2s_3_and_at_stage_all_one_member_runs_at_most_3_a_night(world, live_rows, monkeypatch, caplog):
+    assert ev.RUNTIME_SWEEP_PER_MEMBER == 3 and ev.RUNTIME_SWEEP_QUOTA_GUARD == "runtime:sweep-member-quota"
+    _stage(monkeypatch, "all")
+    _on_day(monkeypatch, 740_000)
+    live_rows += _owned_rows("heavy", 5) + _distinct_rows(4)
+    with caplog.at_level("INFO"):
+        got = _swept_by_owner()
+    assert len(got["heavy"]) == 3
+    assert sum(len(v) for k, v in got.items() if k != "heavy") == 4, "every other member still runs"
+    assert "member quota: 2 runtime document(s)" in caplog.text
+    assert "runtime:sweep-member-quota x2" in caplog.text
+
+
+@pytest.mark.parametrize("stage", [None, "admins", "cohort"])
+def test_below_stage_all_the_cap_alone_governs(world, live_rows, monkeypatch, stage):
+    _stage(monkeypatch, stage)
+    _on_day(monkeypatch, 740_000)
+    live_rows += _owned_rows("operator", 12)
+    assert len(_swept_by_owner()["operator"]) == 12
+
+
+def test_one_members_documents_rotate_through_the_nights(world, live_rows, monkeypatch):
+    _stage(monkeypatch, "all")
+    live_rows += _owned_rows("heavy", 7)
+    every = set()
+    for day in (740_000, 740_001, 740_002):              # ceil(7 / 3) = 3 nights
+        _on_day(monkeypatch, day)
+        tonight = _swept_by_owner()["heavy"]
+        assert len(tonight) == 3
+        every |= tonight
+    assert len(every) == 7
+
+
+def test_the_quota_comes_before_the_cap_so_one_member_cannot_crowd_out_the_rest(world, live_rows, monkeypatch):
+    _stage(monkeypatch, "all")
+    _on_day(monkeypatch, 740_000)
+    live_rows += _owned_rows("heavy", 30) + _distinct_rows(10)
+    got = _swept_by_owner()
+    assert len(got["heavy"]) == 3
+    assert sum(len(v) for k, v in got.items() if k != "heavy") == 10, "all ten other members run"
+
+
+def test_many_members_within_quota_still_meet_the_cap(world, live_rows, monkeypatch):
+    _stage(monkeypatch, "all")
+    _on_day(monkeypatch, 740_000)
+    for m in range(20):
+        live_rows += _owned_rows(f"m{m}", 2, start=m * 10)
+    assert sum(len(v) for v in _swept_by_owner().values()) == 25
+
+
+# ═══ 9. NOTHING reaches members while PINE_RUNTIME_SERVER_STAGE is unset ═════
+
+_REAL_SERVER_LANE_REFUSAL = runtime_definitions.server_lane_refusal
+
+
+def test_with_the_server_stage_unset_no_runtime_document_is_swept_run_or_sent(world, monkeypatch):
+    """The REAL `server_lane_refusal` and the REAL stage variables (only the world around
+    them pinned): with `PINE_RUNTIME_SERVER_STAGE` unset nothing is swept, run or sent."""
+    monkeypatch.setattr(runtime_definitions, "server_lane_refusal", _REAL_SERVER_LANE_REFUSAL)
+    _real_world_without_switches(monkeypatch, world)
+
+
+def _real_world_without_switches(monkeypatch, world):
+    from api.services import runtime_definitions as rd
+    monkeypatch.setattr(rd, "not_graded", lambda source, graded_only=False: None)
+    monkeypatch.setattr(rd, "_owner_role", lambda owner_id: "member")
+    monkeypatch.setattr(rd, "kill_list", lambda: [])
+    monkeypatch.setattr(user_definitions, "engine_withheld_reason", lambda row, current=None: None)
+    monkeypatch.setenv(rd.STAGE_ENV, "all")
+    monkeypatch.setenv(rd.SERVICE_URL_ENV, "http://pine-runtime.test")
+    monkeypatch.setenv(rd.SERVICE_SECRET_ENV, FIXTURE_SECRET)
+    monkeypatch.delenv(rd.SERVER_STAGE_ENV, raising=False)
+    monkeypatch.setattr(user_definitions, "live_definitions", lambda: [_row()])
+    monkeypatch.setattr(ev, "_runtime_client", lambda: prc.PineRuntimeClient(
+        url="http://pine-runtime.test", secret=FIXTURE_SECRET, identity=FIXTURE_IDENTITY,
+        transport=world.fake, clock=lambda: T0, sleep=lambda s: None))
+    monkeypatch.setattr(ev, "_read_bars", lambda sym, tf, want: world.reads.append(sym) or _bars())
+    monkeypatch.setattr(runtime_definitions, "stage", runtime_definitions.stage)
+    # 1. the sweep's candidate filter
+    assert ev.definitions_to_sweep() == []
+    # 2. the evaluator, handed a runtime document directly
+    with pytest.raises(ev.ScanRunRefused) as e:
+        ev.evaluate_one(scan_runtime.runtime_scan_doc(_row()), "D", universe=["UP"], as_of=SESSION, tick=T0)
+    assert "server runs" in e.value.detail
+    # 3. the on-demand door
+    monkeypatch.setattr(user_definitions, "get", lambda uid, did, version=None: _row())
+    with pytest.raises(scan_run.RunRefused) as r:
+        scan_run._load_definition("user-42", DEF_ID)
+    assert r.value.gate == "gate:not-scannable" and "server runs" in str(r.value)
+    # and not one request, not one bar
+    assert world.fake.calls == [] and world.reads == []
+    # positive control: the SAME world with the server stage on admits it all
+    monkeypatch.setenv(rd.SERVER_STAGE_ENV, "all")
+    assert len(ev.definitions_to_sweep()) == 1
+    assert scan_run._load_definition("user-42", DEF_ID)["def_id"] == DEF_ID
+    out = ev.evaluate_one(scan_runtime.runtime_scan_doc(_row()), "D", universe=["UP"], as_of=SESSION, tick=T0, mode="on-demand")
+    assert len(world.fake.calls) == 1 and out["evaluated"] == 1
+
+
+# ═══ 10. the on-demand door (scan_run) ═══════════════════════════════════════
+
+def test_load_definition_turns_a_runtime_refusal_into_gate_not_scannable_with_the_guards_sentence(world, monkeypatch):
+    monkeypatch.setattr(user_definitions, "get", lambda uid, did, version=None: _row())
+    world.sw.refusal = ("runtime:killed", "THE-GUARDS-OWN-SENTENCE")
+    with pytest.raises(scan_run.RunRefused) as e:
+        scan_run._load_definition("user-42", DEF_ID)
+    assert e.value.gate == "gate:not-scannable" and "THE-GUARDS-OWN-SENTENCE" in str(e.value)
+    assert ("admission", "on-demand") in world.sw.asked
+
+
+def test_load_definition_asks_the_verdict_before_the_admission(world, monkeypatch):
+    monkeypatch.setattr(user_definitions, "get", lambda uid, did, version=None: _row())
+    world.sw.verdict = "engine-refused: held"
+    world.sw.refusal = ("runtime:killed", "later")
+    with pytest.raises(scan_run.RunRefused) as e:
+        scan_run._load_definition("user-42", DEF_ID)
+    assert "engine-refused" in str(e.value)
+
+
+def test_load_definition_leaves_a_tree_row_alone(world, monkeypatch):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    row = {"def_id": "u_00000000aaaa", "definition": _definition(_op(">", _series("close"), _num(1)),
+                                                                   def_id="u_00000000aaaa")}
+    monkeypatch.setattr(user_definitions, "get", lambda uid, did, version=None: row)
+    world.sw.refusal = ("runtime:killed", "must never be asked of a tree")
+    assert scan_run._load_definition("u", "u_00000000aaaa") is row
+    assert not [a for a in world.sw.asked if isinstance(a, tuple)]
+
+
+def test_submit_run_accepts_an_admitted_runtime_row_and_the_job_runs_through_the_service(world, monkeypatch):
+    monkeypatch.setattr(user_definitions, "get", lambda uid, did, version=None: _row())
+    monkeypatch.setattr(scan_run._POOL, "submit", lambda fn, *a, **k: None)   # run it by hand below
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_note_demand", lambda s: None, raising=False)
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    job_id = scan_run.submit_run("user-42", DEF_ID, symbols=["UP", "DN"], as_of=SESSION)
+    scan_run._run_job(job_id)
+    st = scan_run.job_status(job_id, "user-42")
+    assert st["state"] == "done", st
+    assert [h["symbol"] for h in st["hits"]] == ["UP"]
+    assert world.fake.calls[0]["profile"] == "on-demand"
+    assert world.hits_written == [] and world.cov_written == []
+    scan_run._JOBS.pop(job_id, None)
+
+
+def test_submit_run_refuses_a_runtime_row_with_two_plots_by_gate_not_scannable(world, monkeypatch):
+    row = _row(definition=_doc(outputs={"a": 0, "b": 1}))
+    monkeypatch.setattr(user_definitions, "get", lambda uid, did, version=None: row)
+    with pytest.raises(scan_run.RunRefused) as e:
+        scan_run.submit_run("user-42", DEF_ID, symbols=["UP"], as_of=SESSION)
+    assert e.value.gate == "gate:not-scannable" and "ONE plot" in str(e.value)
+    assert world.fake.calls == []
+
+
+# ═══ 11. closed doors named in the mutation table ═══════════════════════════
+
+@pytest.mark.parametrize("tf", ["5", "W", "60"])
+def test_a_runtime_scan_is_daily_only_in_every_mode(world, tf):
+    world.bars = {"UP": _bars()}
+    for mode in ("nightly", "on-demand"):
+        with pytest.raises(ev.ScanRunRefused) as e:
+            ev.evaluate_one(_doc_of(), tf, universe=["UP"], as_of=SESSION, mode=mode, tick=T0)
+        assert e.value.gate == "tf"
+    assert world.reads == [] and world.fake.calls == []
+
+
+@pytest.mark.parametrize("hole", ["def_id", "version", "user_id"])
+def test_a_row_missing_its_id_version_or_owner_refuses_by_name(world, hole):
+    row = _row()
+    row[hole] = None
+    world.bars = {"UP": _bars()}
+    with pytest.raises(ev.ScanRunRefused) as e:
+        _run(world, ["UP"], doc=scan_runtime.runtime_scan_doc(row))
+    assert e.value.gate == "not-scannable" and world.fake.calls == []
+
+
+def test_a_handle_without_the_runtime_prefix_is_refused(monkeypatch):
+    monkeypatch.setattr(runtime_definitions, "handle", lambda d: "sha256:" + "0" * 64)
+    with pytest.raises(scan_definition.ScanRefused) as e:
+        scan_runtime.runtime_scan_spec(_doc())
+    assert e.value.gate == "hash"
+
+
+def test_a_symbol_whose_bars_use_unix_seconds_already_is_passed_through(world):
+    bars = _bars(n=4)
+    secs = [{**b, "t": _et_open(b["t"] // 10000, (b["t"] // 100) % 100, b["t"] % 100)} for b in bars]
+    world.bars = {"UP": secs}
+    monkeypatch_session = None  # the session check reads the ET date of the epoch
+    out = _run(world, ["UP"])
+    assert out["answered"] == 1
+    assert _request_bars(world.fake.calls[0])["t"] == [b["t"] for b in secs]
+
+
+# ═══ 12. FIX r1: the engine's warm-up is na (NaN) and the lane reads it as na ═
+
+def _warm_script(k):
+    """First `k` bars na (the engine's warm-up), then a 0/1 condition."""
+    def script(cols):
+        c = cols["c"]
+        return {OUT: [float("nan")] * k + [1.0 if c[i] > c[i - 1] else 0.0 for i in range(k, len(c))]}
+    return script
+
+
+def test_warmup_na_bars_are_skipped_by_the_condition_check_and_the_symbol_answers(world):
+    world.fake.script = _warm_script(3)
+    world.fake.withheld_bars = 3
+    world.bars = {"UP": _bars(n=8), "DN": _bars(n=8, up=False)}
+    out = _run(world, ["UP", "DN"])
+    assert (out["answered"], out["not_computable"], out["withheld"]) == (2, 0, 0)
+    assert out["hits"] == ["UP"]
+
+
+def test_a_symbol_whose_whole_run_is_warmup_is_not_computable_never_a_non_hit(world):
+    world.bars = {"UP": _bars(n=6)}
+    world.fake.script = _warm_script(6)
+    world.fake.withheld_bars = 6
+    out = _run(world, ["UP"])
+    assert (out["answered"], out["not_computable"], out["hits"]) == (0, 1, [])
+    assert "na on the as-of bar" in out["dropped_symbols"][0]["detail"]
+
+
+def test_a_non_condition_value_AFTER_the_warmup_is_still_not_computable(world):
+    world.fake.script = lambda cols: {OUT: [float("nan"), float("nan"), 7.0] + [1.0] * (len(cols["c"]) - 3)}
+    world.fake.withheld_bars = 2
+    world.bars = {"UP": _bars(n=6)}
+    out = _run(world, ["UP"])
+    assert out["not_computable"] == 1 and "not a 0/1 condition" in out["dropped_symbols"][0]["detail"]
+
+
+def test_admission_is_the_public_server_lane_admission_with_the_plot(world, monkeypatch):
+    from api.services import runtime_server_lane
+    seen = []
+    real = runtime_server_lane.admission
+    monkeypatch.setattr(runtime_server_lane, "admission", lambda row, plot, lane: seen.append((plot, lane)) or real(row, plot, lane))
+    world.bars = {"UP": _bars()}
+    _run(world, ["UP"], mode="on-demand")
+    assert seen and set(seen) == {(OUT, "on-demand")}
+
+
+def test_the_shared_store_time_helper_is_the_one_conversion():
+    assert scan_runtime.store_time_seconds(20261103) == _et_open(2026, 11, 3)
+    assert scan_runtime.store_time_seconds(_et_open(2026, 11, 3)) == _et_open(2026, 11, 3)
+    assert scan_runtime.store_time_seconds(20261399) is None
+    assert scan_runtime.store_time_seconds(True) is None and scan_runtime.store_time_seconds(None) is None
+
+
+def test_an_admission_that_cannot_answer_admits_nothing():
+    got = scan_runtime.runtime_admission(_row(), "no-such-lane", OUT)      # T11's admission raises
+    assert got is not None and got[0] == "runtime:server-unavailable"
+
+
+def test_a_finite_value_inside_the_warmup_withholds_the_symbol_never_a_non_hit(world):
+    """A service that disagrees with the engine's curtain (finite values inside the warm-up, honest
+    digest) is refused by T11 r2 as integrity: the lane counts that symbol `withheld` -- not answered,
+    not a hit, not a non-hit -- and files no receipt."""
+    from tests.fakes.pine_runtime_fake import b64_column, redigest
+
+    def finite_warmup(reply):
+        for r in reply["results"]:
+            n = len(codec.decode_column(base64.b64decode(r["columns"][OUT])))
+            r["columns"][OUT] = b64_column([1.0] * n)
+            r["digest"] = redigest(FIXTURE_IDENTITY, r, n)
+        return reply
+    world.fake.withheld_bars = 3
+    world.fake.tamper = finite_warmup
+    world.bars = {"UP": _bars(n=8)}
+    out = _run(world, ["UP"])
+    assert (out["withheld"], out["answered"], out["evaluated"], out["hits"]) == (1, 0, 0, [])
+    assert out["withheld_reason"] == prc.INTEGRITY
+    assert "warm-up" in out["runtime_withheld_symbols"][0]["sentence"]
+    assert out["persisted"] is False and world.hits_written == []
+
+
+# ═══ 8d. 2026-11-22: an UNSCANNABLE runtime document is handed on, never counted ══════════════
+#
+# The 05:00 ET sweep of 2026-11-22 swept NOTHING for anyone: `definitions_to_sweep` RAISED on one admin's
+# three-plot runtime document ("a scan reads ONE plot and this script maps 3"), because the cap counted
+# `_result_handle` of every runtime document, and a multi-plot one has none. Such a document is kept so
+# `run_sweep` refuses it BY NAME; it must take no cap or quota slot and must never take the night down.
+# Mutation proof: count it again (the old `[_result_handle(d) for d in out if is_runtime(d)]`) -> RED here.
+
+def _multi_plot_row(i=0, owner="admin-1"):
+    return _row(def_id="u_%012x" % (0xbad000 + i), user_id=owner,
+                definition=_doc(outputs={"value": 0, "out2": 1, "out3": 2}, source=SOURCE + f"\n// three plots {i}"))
+
+
+@pytest.mark.parametrize("stage", [None, "admins", "all"])
+@pytest.mark.parametrize("scannable", [3, 30])
+def test_a_multi_plot_runtime_document_never_takes_the_night_down(world, live_rows, monkeypatch, stage, scannable):
+    _stage(monkeypatch, stage)
+    _on_day(monkeypatch, 740_000)
+    live_rows += _distinct_rows(scannable) + [_multi_plot_row(0), _multi_plot_row(1, owner="member-0")]
+    out = ev.definitions_to_sweep()                     # raised ScanRefused before the fix
+    runtime = [d for d in out if runtime_definitions.is_runtime(d)]
+    multi = [d for d in runtime if len(d["compute"]["outputs"]) > 1]
+    assert len(multi) == 2, "handed on, so run_sweep refuses each BY NAME"
+    assert len(runtime) - len(multi) == min(scannable, ev.RUNTIME_SWEEP_CAP), "and it took no slot"
+
+
+def test_the_sweep_job_runs_and_refuses_the_multi_plot_document_by_name(world, live_rows, monkeypatch, caplog):
+    _on_day(monkeypatch, 740_000)
+    live_rows += [_multi_plot_row(0)]
+    seen = {}
+    monkeypatch.setattr(ev, "run_sweep", lambda defs, *a, **k: seen.setdefault("defs", list(defs)) and None)
+    with caplog.at_level("INFO"):
+        ev.sweep_job()
+    assert "could not read the definitions to sweep" not in caplog.text
+    assert len(seen.get("defs") or []) == 1
+
+
+def test_a_sweep_over_good_poison_good_answers_both_good_documents(world, live_rows, monkeypatch, caplog):
+    """⛔⛔ PER-DOCUMENT ISOLATION (coordinator, 2026-11-22): ANY row the sweep cannot read -- here a gate that
+    RAISES -- is counted under its guard, named in one line and skipped; both good documents are still swept.
+    Mutation proof: let the raise escape the row loop -> RED."""
+    good1, poison, good2 = _distinct_rows(1)[0], _row(def_id="u_00000bad0001", user_id="member-x",
+                                                      definition=_doc(source=SOURCE + "\n// poison")), _distinct_rows(1, start=1)[0]
+    live_rows += [good1, poison, good2]
+    real = user_definitions.engine_withheld_reason
+
+    def gate(row):
+        if row.get("def_id") == "u_00000bad0001":
+            raise RuntimeError("a gate that cannot answer")
+        return real(row)
+
+    monkeypatch.setattr(user_definitions, "engine_withheld_reason", gate)
+    _on_day(monkeypatch, 740_000)
+    with caplog.at_level("INFO"):
+        out = ev.definitions_to_sweep()
+    assert sorted(d.lane_row["def_id"] for d in out) == sorted([good1["def_id"], good2["def_id"]])
+    assert "sweep skipped definition u_00000bad0001" in caplog.text
+    assert f"{ev.SWEEP_UNREADABLE_GUARD} x1" in caplog.text
+    # and the sweep itself answers both
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_resume_order", lambda entries, tf, as_of, **k: list(entries))
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=ZoneInfo("America/New_York")))
+    monkeypatch.setattr(ev, "sweep_deadline", lambda now=None: datetime.datetime(2026, 11, 4, 9, 0, tzinfo=ZoneInfo("America/New_York")))
+    receipt = ev.run_sweep(out, universe=["UP", "DN"], as_of=SESSION)
+    assert receipt["swept"] == 2 and receipt["refused"] == 0
+
+
+# ═══ 8e. 2026-11-22 FAIRNESS: a member's tree definition is never queued behind a runtime document ═══
+#
+# The 2026-11-22 boot catch-up handed 25 runtime documents (~9-10 min each) and 41 members' tree
+# definitions. On `_resume_order`'s one bit ("no receipt for the previous session leads") every runtime
+# document sorted AHEAD of every tree: about four hours of service work in front of them against the
+# 05:00-09:00 ET window, so the trees were never reached. The order is now tier first (trees, then runtime
+# documents), the resume bit second. The sweep below runs on a FAKE clock: each evaluation advances it by
+# its kind's cost (a tree 2 s, a runtime document 600 s) and nothing is computed. The runtime documents run
+# as ONE group (`_evaluate_runtime_group`, section 8f), faked here in the real group's shape: 74 chunks
+# (~3,700 symbols / 50), the stop checked between chunks, and a stopped group files nothing.
+# Mutation proof: restore the one-bit order (`sorted(entries, key=_swept_last_time)`) -> RED here.
+
+_ET = ZoneInfo("America/New_York")
+_FAIR_PREV = 20261102
+_FAIR_START = datetime.datetime(2026, 11, 3, 5, 0, tzinfo=_ET)
+_FAIR_DEADLINE = datetime.datetime(2026, 11, 3, 9, 0, tzinfo=_ET)
+
+
+def _fair_trees(n):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    return [_definition(_op(">", _series("close"), _num(100 + i)), def_id="u_%012x" % (0xfee000 + i))
+            for i in range(n)]
+
+
+def _fair_sweep(monkeypatch, handed, *, receipts=(), tree_cost_s=2, doc_cost_s=600, prev=_FAIR_PREV):
+    """Run the REAL `run_sweep` (its real `_resume_order`) from 05:00 ET to a 09:00 ET deadline on a fake
+    clock. ``receipts``: the handles that carry a scan_coverage row for the previous session.
+    Returns ``(order swept, receipt)``."""
+    now = {"t": _FAIR_START}
+    order = []
+    have = set(receipts)
+    monkeypatch.setattr(ev, "_now_et", lambda: now["t"])
+    monkeypatch.setattr(ev, "previous_session", lambda as_of: prev)
+    monkeypatch.setattr(scan_store, "coverage",
+                        lambda h, tf, as_of: {"as_of": as_of} if (as_of == _FAIR_PREV and h in have) else None)
+
+    def _evaluate(definition, tf, **kw):
+        assert not runtime_definitions.is_runtime(definition), "a runtime document goes to the group"
+        order.append(ev._scannable_handle(definition))
+        now["t"] += datetime.timedelta(seconds=tree_cost_s)
+        return {"hits": [], "recorded": 0, "stale_excluded": 0}
+
+    def _group(definitions, tf, *, stop_reason=None, **kw):
+        per_chunk = datetime.timedelta(seconds=doc_cost_s * len(definitions) / 74)
+        for _chunk in range(74):
+            stopped = stop_reason() if stop_reason is not None else None
+            if stopped:
+                return [None] * len(definitions), stopped
+            now["t"] += per_chunk
+        order.extend(ev._scannable_handle(d) for d in definitions)
+        return [{"hits": [], "recorded": 0, "stale_excluded": 0} for _ in definitions], None
+
+    monkeypatch.setattr(ev, "evaluate_one", _evaluate)
+    monkeypatch.setattr(ev, "_evaluate_runtime_group", _group)
+    receipt = ev.run_sweep(list(handed), "D", universe=["UP"], as_of=SESSION, deadline=_FAIR_DEADLINE)
+    return order, receipt
+
+
+def _handles(defs):
+    return [ev._scannable_handle(d) for d in defs]
+
+
+@pytest.mark.parametrize("handed_order", ["trees-first", "runtime-first", "interleaved"])
+def test_FAIRNESS_every_tree_definition_completes_under_a_deadline_beside_25_runtime_documents(
+        monkeypatch, handed_order):
+    """⛔⛔ THE PRODUCTION SHAPE: the trees carry the previous session's receipt (they were swept), the runtime
+    documents carry none (new, rotated by the cap, or withheld). 41 trees + 25 runtime documents, a deadline
+    the runtime documents alone overrun. EVERY tree is swept, before ANY runtime document, whatever order
+    the caller handed them in; the deadline still bites (the control: the runtime group is stopped between
+    two chunks, so none of its documents is filed)."""
+    trees = _fair_trees(41)
+    docs = [_doc_of(r) for r in _distinct_rows(25)]
+    handed = {"trees-first": trees + docs, "runtime-first": docs + trees,
+              "interleaved": [x for pair in zip(docs, trees) for x in pair] + trees[len(docs):]}[handed_order]
+    order, receipt = _fair_sweep(monkeypatch, handed, receipts=_handles(trees))
+    tree_h, doc_h = set(_handles(trees)), set(_handles(docs))
+    assert tree_h <= set(order), (
+        f"{len(tree_h - set(order))} of 41 members' tree definitions were never swept: the runtime documents "
+        "went first and the deadline stopped the sweep before it reached them")
+    assert order[:41] == [h for h in _handles(handed) if h in tree_h], "trees first, in the caller's order"
+    assert set(order[41:]) <= doc_h
+    assert receipt["stopped_early"] and receipt["unswept"] == 25, "the control: the deadline did bite"
+    assert set(receipt["unswept_definitions"]) == doc_h, "only the runtime documents are left unswept"
+
+
+@pytest.mark.parametrize("prev", [_FAIR_PREV, None])
+def test_FAIRNESS_with_no_receipts_anywhere_the_trees_still_go_first(monkeypatch, prev):
+    """The first night (nobody swept last time), or a calendar with no previous session (``None``): the
+    resume bit says nothing, so the old order was the caller's, and a caller that lists runtime documents
+    first starved the trees."""
+    trees, docs = _fair_trees(10), [_doc_of(r) for r in _distinct_rows(25)]
+    order, receipt = _fair_sweep(monkeypatch, docs + trees, prev=prev)
+    assert order == _handles(trees)
+    assert receipt["swept"] == 10 and receipt["unswept"] == 25
+
+
+def test_FAIRNESS_within_each_tier_the_last_runs_tail_still_leads(monkeypatch):
+    """The resume bit still orders INSIDE each tier (the tail the last run never reached leads it), and the
+    caller's order survives inside each bucket (`sorted` is stable). No deadline pressure here."""
+    trees, docs = _fair_trees(4), [_doc_of(r) for r in _distinct_rows(4)]
+    th, dh = _handles(trees), _handles(docs)
+    swept_last_time = {th[0], th[2], dh[1]}
+    order, receipt = _fair_sweep(monkeypatch, docs + trees, receipts=swept_last_time, doc_cost_s=60)
+    assert order == [th[1], th[3], th[0], th[2], dh[0], dh[2], dh[3], dh[1]]
+    assert receipt["stopped_early"] is False
+
+
+def test_FAIRNESS_the_live_cycles_order_puts_trees_first_too():
+    """The five-minute cycle hands its own predicate (`swept_last_time`); the tier is still the first key."""
+    trees, docs = _fair_trees(2), [_doc_of(r) for r in _distinct_rows(2)]
+    entries = [(ev._scannable_handle(d), d) for d in (docs + trees)]
+    out = ev._resume_order(entries, "D", SESSION, swept_last_time=lambda h: h == entries[2][0])
+    assert [h for h, _ in out] == [entries[3][0], entries[2][0], entries[0][0], entries[1][0]]
+
+
+# ═══ 8f. 2026-11-22 THROUGHPUT: the night's runtime documents run as ONE group, each symbol read ONCE ═══
+#
+# The L-cohort's sweep of 25 runtime documents ran at ~400 jobs/min (~4 h against a 60-min bar) while the
+# service sat near idle: per job, reading, converting and encoding the bars was ~92% of the web side's
+# time (measured locally), and none of it depends on the document. `_evaluate_runtime_group` is
+# CHUNK-OUTER, DOCUMENT-INNER: each chunk is read and encoded once and sent once per document, and every
+# per-document rule (admission per chunk, the receipt rule, one document's failure is its own) holds.
+# Mutation proof: see each test's last line.
+
+def _group_docs(n):
+    return [_doc_of(r) for r in _distinct_rows(n)]
+
+
+def _mixed_universe(world):
+    """122 symbols over 3 chunks: hits, non-hits, one with no bars, one with stale bars."""
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars(up=(i % 3 != 0)) for i, s in enumerate(syms)}
+    world.bars["OLD"] = _bars(end=20261030)
+    return syms + ["NONE", "OLD"]
+
+
+def _group(docs, syms, *, mode="nightly", stop_reason=None):
+    return ev._evaluate_runtime_group(docs, "D", universe=syms, as_of=SESSION, limits=None, mode=mode,
+                                      tick=T0, stop_reason=stop_reason)
+
+
+def test_THROUGHPUT_the_group_reads_and_encodes_each_symbol_ONCE_for_every_document(world, monkeypatch):
+    syms = _mixed_universe(world)
+    docs = _group_docs(5)
+    encoded = []
+    real = prc.encode_bars
+    monkeypatch.setattr(prc, "encode_bars", lambda bars: (encoded.append(1), real(bars))[1])
+    outs, stopped = _group(docs, syms)
+    assert stopped is None and all(isinstance(o, dict) and o["answered"] == 120 for o in outs)
+    assert sorted(world.reads) == sorted(syms), "each symbol's bars are read ONCE for the whole group"
+    assert len(encoded) == 120, "and encoded once (not once per document)"
+    assert len(world.fake.calls) == 3 * 5, "3 chunks, sent once per document"
+    assert len(world.cov_written) == 5
+    # mutants T1 (run_sweep without the group) and T2 (no encode_once) -> RED here
+
+
+@pytest.mark.parametrize("mode", ["nightly", "on-demand"])
+def test_THROUGHPUT_each_documents_answer_receipt_and_requests_are_exactly_what_it_got_alone(world, mode):
+    syms = _mixed_universe(world)
+    world.fake.withhold["7:S007"] = ("runtime:limit", "the script ran past its instruction budget")
+    docs = _group_docs(3)
+    alone = [ev._evaluate_runtime(d, "D", universe=syms, as_of=SESSION, limits=None, mode=mode, tick=T0)
+             for d in docs]
+    calls_alone, cov_alone, hits_alone = list(world.fake.calls), list(world.cov_written), list(world.hits_written)
+    world.fake.calls.clear()
+    world.cov_written.clear()
+    world.hits_written.clear()
+    outs, _ = _group(docs, syms, mode=mode)
+    assert outs == alone
+    key = lambda c: (c["definition"]["def_id"], c["jobs"][0]["job"])     # noqa: E731
+    assert sorted(world.fake.calls, key=key) == sorted(calls_alone, key=key), "the same requests, per document"
+    assert world.cov_written == cov_alone and world.hits_written == hits_alone
+    assert all(o["withheld"] == 1 for o in outs), "the withheld symbol is withheld for every document"
+
+
+def test_THROUGHPUT_an_encoded_once_job_sends_the_bytes_the_raw_bars_would_have(world):
+    bars = [{"t": 1_700_000_000 + 86_400 * i, "o": 1.0 + i, "h": 2.0 + i, "l": 0.5, "c": 1.5 + i, "v": 10.0}
+            for i in range(30)]
+    bodies = []
+
+    def transport(url, body, headers, timeout):
+        bodies.append(body)
+        return world.fake(url, body, headers, timeout)
+
+    client = prc.PineRuntimeClient(url="http://pine-runtime.test", secret=FIXTURE_SECRET, identity=FIXTURE_IDENTITY,
+                                   transport=transport, clock=lambda: T0, sleep=lambda s: None)
+    raw = prc.Job(job="0:X", ticker="X", tf="D", bars=bars, want=(OUT,))
+    enc = prc.encode_once(bars)
+    assert isinstance(enc, prc.EncodedBars)
+    r_raw = client.run(def_id=DEF_ID, version=3, doc=_doc(), owner_id="u", profile="sweep", jobs=[raw])
+    r_enc = client.run(def_id=DEF_ID, version=3, doc=_doc(), owner_id="u", profile="sweep",
+                       jobs=[prc.Job(job="0:X", ticker="X", tf="D", bars=enc, want=(OUT,))])
+    assert bodies[0] == bodies[1], "byte-identical request"
+    assert r_raw[0].status == r_enc[0].status == "ok"
+    assert r_raw[0].digest == r_enc[0].digest, "the same answer (NaN != NaN, so the digest is compared)"
+    # a refused encoding has ONE authority: encode_once says None, the raw bars ride on, `run` withholds by name
+    bad = list(bars)
+    bad[3] = {**bad[3], "c": float("nan")}
+    assert prc.encode_once(bad) is None
+    [w] = client.run(def_id=DEF_ID, version=3, doc=_doc(), owner_id="u", profile="sweep",
+                     jobs=[prc.Job(job="0:X", ticker="X", tf="D", bars=bad, want=(OUT,))])
+    assert w.status == "withheld" and w.refusals[0].guard == prc.INTEGRITY
+    # mutant T6 (the encoded columns sent in another order) -> RED here
+
+
+def test_THROUGHPUT_the_admission_is_still_asked_per_chunk_and_per_document(world, monkeypatch):
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars() for s in syms}
+    docs = _group_docs(2)
+    ok_id, killed = docs[0].lane_row["def_id"], docs[1].lane_row["def_id"]
+    asked = []
+
+    def admission(row, lane, plot):
+        asked.append(row["def_id"])
+        if row["def_id"] == killed and asked.count(killed) > 2:      # its door + chunk 1 pass, then killed
+            return ("runtime:killed", "killed mid-run")
+        return None
+
+    monkeypatch.setattr(scan_runtime, "runtime_admission", admission)
+    outs, _ = _group(docs, syms)
+    assert asked.count(ok_id) == 1 + 3 and asked.count(killed) == 1 + 3, "the door, then every chunk"
+    assert outs[0]["answered"] == 120 and outs[0]["withheld"] == 0 and outs[0]["persisted"] is True
+    assert (outs[1]["answered"], outs[1]["withheld"], outs[1]["withheld_reason"]) == (50, 70, "runtime:killed")
+    assert outs[1]["persisted"] is False
+    assert [c["definition"]["def_id"] for c in world.fake.calls].count(killed) == 1
+    # mutant T3 (the admission asked for the first chunk only) -> RED here
+
+
+def test_THROUGHPUT_one_documents_failure_is_its_own(world, monkeypatch):
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    docs = _group_docs(3)
+    bad = docs[1].lane_row["def_id"]
+    real_client = ev._runtime_client
+
+    def client():
+        c = real_client()
+        run = c.run
+
+        def run_or_fail(**kw):
+            if kw["def_id"] == bad:
+                raise RuntimeError("a bug in one document's request")
+            return run(**kw)
+
+        c.run = run_or_fail
+        return c
+
+    monkeypatch.setattr(ev, "_runtime_client", client)
+    outs, stopped = _group(docs, ["UP", "DN"])
+    assert stopped is None and isinstance(outs[1], RuntimeError)
+    assert outs[0]["answered"] == outs[2]["answered"] == 2
+    assert len(world.cov_written) == 2
+    # and the sweep books it as one refusal beside two receipts
+    world.cov_written.clear()
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=_ET))
+    receipt = ev.run_sweep(docs, universe=["UP", "DN"], as_of=SESSION,
+                           deadline=datetime.datetime(2026, 11, 4, 9, 0, tzinfo=_ET))
+    assert (receipt["swept"], receipt["refused"], receipt["unswept"]) == (2, 1, 0)
+    assert receipt["refusals"][0]["def_hash"] == ev._scannable_handle(docs[1])
+    assert "RuntimeError" in receipt["refusals"][0]["detail"]
+    # mutant T4 (a document's failure aborts the group) -> RED here
+
+
+def test_THROUGHPUT_a_group_stopped_between_chunks_files_nothing_and_names_every_document(world, monkeypatch):
+    syms = [f"S{i:03d}" for i in range(120)]
+    world.bars = {s: _bars() for s in syms}
+    docs = _group_docs(3)
+    asks = []
+
+    def stop():
+        asks.append(1)
+        return ev.UNSWEPT_REASON if len(asks) > 1 else None            # before chunk 2
+
+    outs, stopped = _group(docs, syms, stop_reason=stop)
+    assert stopped == ev.UNSWEPT_REASON and outs == [None, None, None]
+    assert world.cov_written == [] and world.hits_written == [], "a partial universe is never filed"
+    assert len(world.fake.calls) == 3, "chunk 1, once per document; the overrun is one chunk"
+    # through the sweep: every document is named unswept, none is refused or swept
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    now = {"t": datetime.datetime(2026, 11, 4, 5, 0, tzinfo=_ET)}
+    monkeypatch.setattr(ev, "_now_et", lambda: now["t"])
+    real_prepare = ev._runtime_prepare
+
+    def prepare_and_tick(*a, **k):
+        now["t"] += datetime.timedelta(hours=3)                         # past the deadline after chunk 1
+        return real_prepare(*a, **k)
+
+    monkeypatch.setattr(ev, "_runtime_prepare", prepare_and_tick)
+    receipt = ev.run_sweep(docs, universe=syms, as_of=SESSION,
+                           deadline=datetime.datetime(2026, 11, 4, 7, 0, tzinfo=_ET))
+    assert (receipt["swept"], receipt["refused"], receipt["unswept"]) == (0, 0, 3) and receipt["stopped_early"]
+    assert sorted(receipt["unswept_definitions"]) == sorted(ev._scannable_handle(d) for d in docs)
+    assert world.cov_written == []
+    # mutant T5 (a stopped group files its documents) -> RED here
+
+
+def test_THROUGHPUT_run_sweep_hands_the_nights_runtime_documents_to_ONE_group(world, monkeypatch):
+    from tests.test_scan_evaluator import _definition, _num, _op, _series
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    docs = _group_docs(4)
+    tree = _definition(_op(">", _series("close"), _num(100)), def_id="u_00000000aaaa")
+    groups, singles = [], []
+    real_group = ev._evaluate_runtime_group
+    monkeypatch.setattr(ev, "_evaluate_runtime_group",
+                        lambda defs, *a, **k: (groups.append(len(defs)), real_group(defs, *a, **k))[1])
+    monkeypatch.setattr(ev, "evaluate_one", lambda d, *a, **k: (singles.append(d), {"hits": [], "recorded": 0})[1])
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=_ET))
+    receipt = ev.run_sweep(docs + [tree], universe=["UP", "DN"], as_of=SESSION,
+                           deadline=datetime.datetime(2026, 11, 4, 9, 0, tzinfo=_ET))
+    assert groups == [4] and singles == [tree], "the tree alone, then the four runtime documents as one group"
+    assert receipt["swept"] == 5 and receipt["hits"] == 4
+    assert sorted(world.reads) == ["DN", "UP"], "each symbol read once for the four documents"
+    assert len(world.cov_written) == 4
+    # mutant T1 (run_sweep without the group) -> RED here
+
+
+# ═══ 8g. 2026-11-22 ITEM 2b: a named withhold is an ANSWER; a refusal at resolution is remembered ═══
+#
+# Coordinator ruling (2026-11-22). (1) A symbol withheld or refused BY NAME (e.g. `runtime:warmup-never-converges`
+# on a young listing) is an answer: the receipt is filed and counts it as not computable with its guard; only a
+# TRANSPORT outcome (`pine_runtime_client.transport_guard`) or the admission withdrawing the document blocks it.
+# (2) A definition refused at resolution is remembered under its content + the engine number and not handed again
+# by the nightly sweep or the boot catch-up until that key moves. No computed value changes.
+# Mutation proof: see each test's last line.
+
+def test_RECEIPT_a_named_withhold_is_an_answer_and_the_receipt_counts_it(world):
+    world.bars = {"UP": _bars(), "YOUNG": _bars(), "DN": _bars(up=False)}
+    world.fake.withhold["1:YOUNG"] = ("runtime:warmup-never-converges", "the script's warm-up never ends here")
+    out = _run(world, ["UP", "YOUNG", "DN"])
+    assert out["persisted"] is True
+    assert (out["withheld"], out["runtime_withheld"], out["evaluated"]) == (1, 1, 2), "the envelope is unchanged"
+    [(hargs, _hkw)] = world.hits_written
+    [(_cargs, ckw)] = world.cov_written
+    assert hargs[3] == ["UP"]
+    assert (ckw["evaluated"], ckw["answered"], ckw["dropped"], ckw["not_computable"]) == (3, 2, 0, 1), \
+        "every symbol of the universe has an answer in the receipt"
+    [young] = [d for d in ckw["dropped_symbols"] if d["ticker"] == "YOUNG"]
+    assert young["reason"] == ev.NOT_COMPUTABLE_REASON
+    assert young["detail"].startswith("withheld runtime:warmup-never-converges")
+    # mutants R1 (every withhold blocks) and R3 (the named withhold left out of the receipt) -> RED here
+
+
+@pytest.mark.parametrize("guard", ["runtime:server-busy", "runtime:server-unavailable", "runtime:server-failed",
+                                   "runtime:time-budget"])
+def test_RECEIPT_one_transport_outcome_blocks_it_even_beside_named_withholds(world, guard):
+    world.bars = {"UP": _bars(), "YOUNG": _bars(), "LOST": _bars()}
+    world.fake.withhold["1:YOUNG"] = ("runtime:warmup-never-converges", "the script's warm-up never ends here")
+    world.fake.withhold["2:LOST"] = (guard, "no answer this time")
+    out = _run(world, ["UP", "YOUNG", "LOST"])
+    assert out["persisted"] is False and world.cov_written == [] and world.hits_written == []
+    assert prc.transport_guard(guard) and not prc.transport_guard("runtime:warmup-never-converges")
+    # mutant R2 (no withhold blocks) -> RED here
+
+
+@pytest.fixture
+def refusal_store(tmp_path, monkeypatch):
+    monkeypatch.setenv("SCREENER_DB_PATH", str(tmp_path / "screener.db"))
+    return tmp_path
+
+
+def test_REFUSED_AT_RESOLUTION_is_remembered_and_not_handed_again_until_its_key_moves(world, refusal_store,
+                                                                                      monkeypatch):
+    world.bars = {"UP": _bars(), "DN": _bars(up=False)}
+    multi = _doc_of(_multi_plot_row(0))
+    good = _doc_of(_distinct_rows(1)[0])
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "_now_et", lambda: datetime.datetime(2026, 11, 4, 5, 0, tzinfo=_ET))
+    deadline = datetime.datetime(2026, 11, 4, 9, 0, tzinfo=_ET)
+    first = ev.run_sweep([multi, good], universe=["UP", "DN"], as_of=SESSION, deadline=deadline)
+    assert (first["swept"], first["refused"]) == (1, 1), "the first night refuses it BY NAME"
+    key = ev._refusal_key(multi)
+    row = scan_store.refusal(key, "D")
+    assert row is not None and row["as_of"] == SESSION and row["gate"] == "tree"
+    # the next run does not hand it again
+    assert ev._without_known_refusals([multi, good], "D") == [good]
+    handed = []
+    monkeypatch.setattr(ev, "definitions_to_sweep", lambda: [multi, good])
+    monkeypatch.setattr(ev, "run_sweep", lambda defs, *a, **k: handed.append(list(defs)) and None)
+    ev.sweep_job()
+    assert handed == [[good]], "the nightly sweep does not re-hand it"
+    # a new version with new content, or a new engine number, is checked again
+    edited = _doc_of(_multi_plot_row(0, owner="admin-1") | {"definition": _doc(
+        outputs={"value": 0, "out2": 1, "out3": 2}, source=SOURCE + "\n// three plots 0, edited")})
+    assert ev._without_known_refusals([edited], "D") == [edited]
+    monkeypatch.setattr(user_definitions, "SCRIPT_ENGINE_VERSION", user_definitions.SCRIPT_ENGINE_VERSION + 1)
+    assert ev._without_known_refusals([multi], "D") == [multi]
+    # mutants R4 (sweep_job without the filter) and R5 (the key ignores the engine) -> RED here
+
+
+def test_REFUSED_AT_RESOLUTION_is_not_missing_for_the_boot_catch_up(world, refusal_store, monkeypatch):
+    multi = _doc_of(_multi_plot_row(0))
+    good = _doc_of(_distinct_rows(1)[0])
+    ev._remember_refusal(multi, "D", SESSION, "tree", "a scan reads ONE plot and this script maps 3")
+    now = datetime.datetime(2026, 11, 4, 6, 0, tzinfo=_ET)
+    monkeypatch.setattr(ev, "_now_et", lambda: now)
+    monkeypatch.setattr(ev, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(ev, "definitions_to_sweep", lambda: [multi, good])
+    swept = []
+    monkeypatch.setattr(ev, "run_sweep", lambda defs, *a, **k: swept.append(list(defs)) and None)
+    ev.sweep_catch_up()
+    assert swept == [[good]], "only the scannable definition is missing; the refused one is not re-handed"
+    # mutant R6 (the catch-up without the filter) -> RED here

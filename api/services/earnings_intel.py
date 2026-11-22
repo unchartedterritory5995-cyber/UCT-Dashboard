@@ -32,14 +32,17 @@ two tiers joinable at all.
 SOURCE PRECEDENCE — explicit, not "whoever answered first":
   1. FMP / Finnhub via earnings_estimates — the only sources carrying CONSENSUS
      estimates, so the only ones that can produce a surprise.
-  2. yfinance quarterly income statement via financial_statements — reported EPS
-     and revenue ACTUALS only. Free, keyless, already cached for the Financials
-     tab, and the source of the fiscal anchors.
+  2. The quarterly income statement via financial_statements — reported EPS
+     and revenue ACTUALS only. Already cached for the Financials tab, and the
+     source of the fiscal anchors. financial_statements reads FMP first and
+     Yahoo Finance (yfinance) only for a ticker FMP holds no statements for;
+     each row and `meta.actuals_source` name the one that answered
+     (`fmp-statement` / `yfinance-statement`).
 Actuals from tier 2 never invent an estimate, and a quarter whose actual and
 estimate come from different bases never gets a surprise.
 
 EPS BASIS — the trap in earnings data. FMP's `epsActual` is the
-consensus-comparable figure (typically adjusted/non-GAAP); a yfinance income
+consensus-comparable figure (typically adjusted/non-GAAP); an income
 statement's Diluted EPS is GAAP. Comparing one against the other's estimate
 would manufacture a fake surprise, so every quarter records `eps_basis` and a
 surprise is computed ONLY when actual and estimate share a basis.
@@ -152,11 +155,54 @@ def _year_ago_fiscal(fy, fq):
 
 
 # ── the company's fiscal calendar ───────────────────────────────────────────
+# The calendar has always been built from the newest four fiscal-year ends and
+# the newest five quarter ends, because that is what the statements carried. The
+# FMP statements reach back twelve years and twenty-four quarters, and the
+# calendar reads ALL of what it is given:
+#   * every year end goes into deciding whether the company keeps a 52/53-week
+#     year, so a fiscal-year-end change a decade ago (a December year end moved
+#     to June, say) would read as that drift and shift the quarter numbers of a
+#     company that has changed nothing since;
+#   * a filed quarter end replaces a generated one when a report is placed, and
+#     on a calendar read as 52/53-week the two are not the same date.
+# So the calendar keeps reading the window it always read, and the fiscal labels
+# of a company do not depend on which source answered. The deeper history still
+# reaches the statements themselves (tier 2 below reads every quarter).
+_ANCHOR_YEARS = 4
+_ANCHOR_QUARTERS = 5
+_SOURCE_FMP = "FMP"                    # financial_statements.SOURCE_LICENSED
+
+
+def _statement_source(statements: dict) -> str:
+    """The tier-2 source token for the statements that answered."""
+    src = ((statements or {}).get("meta") or {}).get("source")
+    return "fmp-statement" if src == _SOURCE_FMP else "yfinance-statement"
+
+
+def _newest(rows, keep: int) -> list:
+    rows = [p for p in (rows or []) if isinstance(p, dict)]
+    return sorted(rows, key=lambda p: str(p.get("period") or ""), reverse=True)[:keep]
+
+
+def _anchor_view(statements: dict) -> dict:
+    """The statements as the calendar reads them: the same payload with the
+    income periods cut to the newest `_ANCHOR_YEARS` years and
+    `_ANCHOR_QUARTERS` quarters when FMP supplied them. A Yahoo Finance payload
+    is passed through untouched."""
+    inc = (statements or {}).get("income")
+    if (not isinstance(inc, dict)
+            or ((statements.get("meta") or {}).get("source") != _SOURCE_FMP)):
+        return statements
+    return {**statements, "income": {**inc,
+                                     "annual": _newest(inc.get("annual"), _ANCHOR_YEARS),
+                                     "quarterly": _newest(inc.get("quarterly"), _ANCHOR_QUARTERS)}}
+
+
 def _calendar_for(statements: dict) -> FiscalCalendar | None:
     """Anchored on the company's own filed fiscal-year ends where possible; a
     fiscal-year-end MONTH is the weaker fallback; nothing at all is the honest
     third case, in which quarters go unlabelled rather than guessed."""
-    cal = FiscalCalendar.from_statements(statements)
+    cal = FiscalCalendar.from_statements(_anchor_view(statements))
     if cal:
         return cal
     fye = ((statements or {}).get("meta") or {}).get("fiscal_year_end")   # "MM-DD"
@@ -168,12 +214,14 @@ def _calendar_for(statements: dict) -> FiscalCalendar | None:
     return None
 
 
-# ── tier 2: free quarterly ACTUALS from the statements we already cache ─────
+# ── tier 2: quarterly ACTUALS from the statements we already cache ──────────
 def _actuals_from_statements(statements: dict, cal: FiscalCalendar | None) -> dict:
     """{(fiscal_year, fiscal_quarter): row} of reported EPS/revenue from the
-    yfinance quarterly income statement. GAAP diluted EPS — labelled as such,
-    never silently mixed with a consensus estimate."""
+    quarterly income statement. GAAP diluted EPS — labelled as such, never
+    silently mixed with a consensus estimate. Each row's `source` names the
+    statements source that answered."""
     out = {}
+    source = _statement_source(statements)
     rows = ((statements or {}).get("income") or {}).get("quarterly") or []
     for p in rows:
         period = str(p.get("period") or "")[:10]
@@ -185,8 +233,8 @@ def _actuals_from_statements(statements: dict, cal: FiscalCalendar | None) -> di
             continue
         v = p.get("values") or {}
         rev, ni = v.get("revenue"), v.get("net_income")
-        # yfinance sometimes returns a trailing period with every figure blank
-        # (Walmart's 2025-01-31 column, observed 2026-09-07). Carrying it would
+        # A source can return a trailing period with every figure blank (yfinance:
+        # Walmart's 2025-01-31 column, observed 2026-09-07). Carrying it would
         # put a row of em dashes in the table — an empty cell is a design
         # failure, not data. Tier 1 already drops its equivalent.
         if rev is None and v.get("eps_diluted") is None:
@@ -203,7 +251,7 @@ def _actuals_from_statements(statements: dict, cal: FiscalCalendar | None) -> di
             "revenue_actual": rev,
             "net_margin_pct": margin,
             "eps_basis": "gaap_diluted",
-            "source": "yfinance-statement",
+            "source": source,
         }
     return out
 
@@ -389,7 +437,7 @@ def _reporting_currency(sym: str) -> str | None:
     """The company's reporting currency (TSM -> "TWD"), or None when unread.
 
     Every revenue figure here is in it whichever leg supplied it (FMP's consensus
-    and statements, Yahoo's statements); EPS is NOT reliably so, because the
+    and statements, or Yahoo's statements); EPS is NOT reliably so, because the
     Finnhub gap-fill leg can carry a per-ADR figure in another currency, so the
     frontend labels revenue with this and shows EPS without a symbol for a
     non-USD filer. Never raises; nothing is converted."""
@@ -443,7 +491,7 @@ def _build(sym: str) -> dict:
 
     ordered = sorted(merged.values(),
                      key=lambda q: (q["fiscal_year"], q["fiscal_quarter"]), reverse=True)
-    used = ("fmp/finnhub" if tier1 else "yfinance-statement" if tier2 else None)
+    used = ("fmp/finnhub" if tier1 else _statement_source(statements) if tier2 else None)
     quarters = ordered[:_QUARTERS_BACK]
     for q in quarters:
         q["label"] = fiscal_label(q.get("fiscal_year"), q.get("fiscal_quarter"))

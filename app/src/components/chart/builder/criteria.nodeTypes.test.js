@@ -329,6 +329,19 @@ const TYPES_NOT_PICKABLE = Object.freeze({
       + 'reads back as a sentence, and is graded on TradingView\'s own bars in '
       + '`vendorHarness.c41LowerTfServe.test.js`.',
   },
+  tf_merge: {
+    guard: 'picker:no-row',
+    why: '🔴 ENGINE 55 — THE FIFTH MODIFIER WITH NO ROW, AND ONE A SCREEN CANNOT RUN. '
+      + '`tf_merge(expr, "W")` is Pine’s look-ahead-off `request.security` as TradingView '
+      + 'merges it: a week’s value appears on the bar that CLOSES the week, and the newest '
+      + 'finished bar — whose week end is the next session’s date — is withheld. A screen '
+      + 'reads exactly that bar, so `scan_definition.assert_scannable` refuses a `tf_merge` '
+      + 'tree by name and a picker row would build a condition no sweep can answer. It is '
+      + 'written by the Pine member door alone and drawn on a chart; a formula keeps `tf` '
+      + '(the last closed week), which the picker already offers. ⛔ The exemption is about '
+      + 'the PICKER only: it parses, hashes, reads back as a sentence, and is graded on '
+      + 'TradingView’s own bars (`support-and-resistance-multi-time-frame` captures).',
+  },
 })
 
 /** The types the picker is on record as having no row for — subtracted wherever

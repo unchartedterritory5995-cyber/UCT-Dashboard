@@ -1,0 +1,39 @@
+// W6-T9 (2026-11-06) - probe W6-U1 for the capture lane. Queue: docs/pine/capture-queue-2026-11-06-w6.md
+// Chart: AMEX:SPY 1D, inputs at defaults (none), AFTER THE CLOSE.
+// ⛔ READING, run cq1-2026-11-16 (PR #1472): this file did not compile: "Could not find {kind} '{fullName}'",
+// with the values unsubstituted, so the row could not be named. SPLIT 2026-11-16 by the UDT unit: every row that
+// may not compile, or that raises, has its own file now (one question each):
+//   U03  vw-w6-receivers-get-float.pine   U04  vw-w6-receivers-get-int.pine   U07  vw-w6-receivers-na-field.pine
+//   U08  vw-w6-receivers-pick-int.pine    U09  vw-w6-receivers-m-int.pine
+// What is left here is what W6-T9 serves, to confirm it (no user `get` beside the built-in any more: it could
+// change how U05's `foos.get(0)` resolves). A00 is the control.
+//
+//   U01-U02  two `method clr` overloads (array<string>, array<bool>): each on its own receiver (1, 2)
+//   U05      a chain a.get(0).f over array<Foo>
+//   U06      Foo.copy aliasing: copy.f := 5 leaves the original's f (1) and shares its array (size 1)
+// ac6 READING (run ac6, 2026-11-16): this file did not compile: "The {argName} argument is not used. The first
+// method argument should be used." Its methods never read their receiver. Each now reads it at no cost to the
+// value (`array.size(<receiver>) * 0`), so the question asked is the one in the QUESTION line again.
+//@version=6
+indicator("vw-w6-receivers", overlay = false)
+plot(bar_index, "A00 bar_index control")
+type Foo
+    float f = 1
+    array<float> xs
+method clr(array<string> id) =>
+    array.size(id) * 0 + 1
+method clr(array<bool> id) =>
+    array.size(id) * 0 + 2
+s = array.new<string>()
+b = array.new<bool>()
+plot(s.clr(), "U01 clr on array<string>")
+plot(b.clr(), "U02 clr on array<bool>")
+foos = array.new<Foo>()
+foos.push(Foo.new(close, array.new<float>()))
+plot(foos.get(0).f, "U05 chain a.get(0).f")
+o = Foo.new(1, array.new<float>())
+c = o.copy()
+c.f := 5
+c.xs.push(1)
+plot(o.f, "U06a original f after copy write")
+plot(o.xs.size(), "U06b original array size after copy push")

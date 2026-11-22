@@ -1,10 +1,8 @@
 import { spawn } from 'node:child_process'
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { tempProfile, trackChrome } from '../../../../app/src/econHarness/cdp.mjs'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const PORT = 9800 + Math.floor(Math.random() * 100)
-const chrome = spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), 'econp-'))}`, 'about:blank'], { stdio: 'ignore' })
+const chrome = trackChrome(spawn('C:/Program Files/Google/Chrome/Application/chrome.exe', ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${tempProfile('econp-')}`, 'about:blank'], { stdio: 'ignore' }))
 let wsu
 for (let i = 0; i < 50 && !wsu; i++) { try { const l = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json(); wsu = (l.find((t) => t.type === 'page') || {}).webSocketDebuggerUrl } catch {} await sleep(200) }
 const ws = new WebSocket(wsu); await new Promise((r) => ws.addEventListener('open', r, { once: true }))

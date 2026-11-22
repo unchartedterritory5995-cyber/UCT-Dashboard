@@ -167,6 +167,9 @@ def fetch(path: str, pub_id: str | None = None) -> dict:
         "sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
         "licence": licence,
         "licenceBasis": basis,
+        # ⭐ U15: recorded so the store's licence gate (`pine_library_store.licence_problem`)
+        # reads a flag as well as the id; a non-commercial library is never SERVED.
+        "nonCommercial": bool(store.licence_problem({"licence": licence})),
         "attribution": "%s v%d by %s, published on TradingView as an open-source library" % (name, version, author),
         "url": "https://www.tradingview.com/u/%s/#published-scripts" % author,
         "pubId": pub,
@@ -186,7 +189,7 @@ def main(argv=None) -> int:
     args = ap.parse_args(argv)
     root = store.store_root()
     if args.list:
-        for e in store.list_entries(root):
+        for e in store.list_entries(root, served=False):
             print("%-48s %-10s %s" % (e["path"], e["licence"], e.get("licenceBasis") or ""))
         return 0
     queue = list(args.paths)
@@ -205,7 +208,8 @@ def main(argv=None) -> int:
         if path in seen:
             continue
         seen.add(path)
-        existing = store.read_entry(path, root=root)
+        # what the store HOLDS (promoted or not): a held version is never silently re-fetched
+        existing = store.stored_entry(path, root=root)
         if existing and not args.refetch:
             print("have  %s" % path)
             if args.recursive:

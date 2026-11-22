@@ -28,7 +28,7 @@ import jsx from 'acorn-jsx'
 import {
   CEILINGS, LAYOUT_KINDS, densityCeilings, ceilingDisplay, layoutAutosaveMatrix,
 } from './personalization'
-import { layoutAutoSaves, UCT_DEFAULT_ID } from '../../pages/charts/layoutDockPins'
+import { layoutAutoSaves, UCT_DEFAULT_ID, UCT_DEFAULT_OFFERED } from '../../pages/charts/layoutDockPins'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '../../../..')
@@ -206,6 +206,7 @@ describe('the layouts that save themselves are the workspace rule\'s own answer'
     const probed = new Set(LAYOUT_KINDS.map((k) => k.probe.scope))
     expect([...written].filter((s) => !probed.has(s))).toEqual([])
     expect([...probed].filter((s) => !written.has(s))).toEqual([])
-    expect(LAYOUT_KINDS.some((k) => k.probe.id === UCT_DEFAULT_ID)).toBe(true)
+    // UCT Default is a kind only while it is offered (owner 11-16: hidden for now).
+    expect(LAYOUT_KINDS.some((k) => k.probe.id === UCT_DEFAULT_ID)).toBe(UCT_DEFAULT_OFFERED)
   })
 })

@@ -135,6 +135,67 @@ def test_a_failed_flush_resends_everything_it_carried():
     assert T0 in [r[1] for r in rows]
 
 
+# ── 1m: the payload's `m1` (BARS_LIVE_1M_ENABLED, 2026-11-16) ─────────────────────
+
+_PAYLOAD_KEYS = {"epoch_ms", "seq", "first_full_bucket_ms", "watermark_ms", "rows", "minutes"}
+
+
+def _session():
+    ing.mark_connected(now_ms=(T0 + 30) * 1000)     # boundary bucket T0, first full T0+300
+    _am("AAA", T0 + 60, 10, 11, 9, 10, 100)          # boundary-bucket minute
+    _am("AAA", T0 + 300, 10, 12, 9, 11, 50)
+    _am("AAA", T0 + 360, 11, 13, 10, 12, 60)
+    _am("BBB", T0 + 300, 5, 5, 5, 5, 1)
+
+
+def test_with_the_1m_flag_off_the_payload_is_unchanged(monkeypatch):
+    monkeypatch.delenv("BARS_LIVE_1M_ENABLED", raising=False)
+    _session()
+    p = ing.take_payload()
+    assert set(p) == _PAYLOAD_KEYS
+    assert "m1_sent" not in ing.status() and "m1_enabled" not in ing.status()
+
+
+def test_m1_carries_every_minute_of_each_dirty_bucket_and_the_boundary(monkeypatch):
+    monkeypatch.delenv("BARS_LIVE_1M_ENABLED", raising=False)
+    _session()
+    off = ing.take_payload()
+    ing._reset_for_tests()
+    monkeypatch.setenv("BARS_LIVE_1M_ENABLED", "1")
+    _session()
+    on = ing.take_payload()
+    assert {k: v for k, v in on.items() if k != "m1"} == {**off, "epoch_ms": on["epoch_ms"]}
+    assert sorted(on["m1"]) == sorted([
+        ["AAA", T0 + 300, 10.0, 12.0, 9.0, 11.0, 50],
+        ["AAA", T0 + 360, 11.0, 13.0, 10.0, 12.0, 60],
+        ["BBB", T0 + 300, 5.0, 5.0, 5.0, 5.0, 1],
+        ["AAA", T0 + 60, 10.0, 11.0, 9.0, 10.0, 100],
+    ])
+
+
+def test_m1_a_repeated_minute_replaces_itself(monkeypatch):
+    monkeypatch.setenv("BARS_LIVE_1M_ENABLED", "1")
+    ing.mark_connected(now_ms=(T0 - 10) * 1000)
+    _am("AAA", T0, 10, 11, 9, 10, 100)
+    _am("AAA", T0, 10, 11, 9, 10.5, 120)
+    assert ing.take_payload()["m1"] == [["AAA", T0, 10.0, 11.0, 9.0, 10.5, 120]]
+
+
+def test_m1_follows_rows_through_a_failed_and_an_acknowledged_flush(monkeypatch):
+    monkeypatch.setenv("BARS_LIVE_1M_ENABLED", "1")
+    ing.mark_connected(now_ms=(T0 - 10) * 1000)
+    _am("AAA", T0, 1, 1, 1, 1, 1)
+    p = ing.take_payload()
+    ing.requeue(p)                                   # the POST failed
+    q = ing.take_payload()
+    assert q["m1"] == p["m1"] == [["AAA", T0, 1.0, 1.0, 1.0, 1.0, 1]]
+    ing.flushed(q, {"accepted": 1})
+    assert ing.take_payload()["m1"] == []            # acknowledged: not sent again
+    assert ing.status()["m1_sent"] == 1
+    _am("AAA", T0 + 60, 2, 2, 2, 2, 2)               # the bucket's next minute
+    assert [m[1] for m in ing.take_payload()["m1"]] == [T0, T0 + 60]
+
+
 def test_holding_too_many_unflushed_buckets_starts_a_new_epoch():
     ing.mark_connected(now_ms=(T0 - 10) * 1000)
     e0 = ing.take_payload()["epoch_ms"]
@@ -142,3 +203,71 @@ def test_holding_too_many_unflushed_buckets_starts_a_new_epoch():
         _am("AAA", T0 + 300 * k, 1, 1, 1, 1, 1)
     assert ing.status()["overflows"] >= 1
     assert ing.take_payload()["epoch_ms"] != e0
+
+
+def _run_one_flush(monkeypatch):
+    """Drive `_flush_loop` through exactly one flush; return (post kwargs, to_thread calls)."""
+    import asyncio
+    import httpx
+    posts, threads = [], []
+    sleeps = {"n": 0}
+
+    async def fake_sleep(_s):
+        sleeps["n"] += 1
+        if sleeps["n"] > 1:
+            raise asyncio.CancelledError()      # end the loop after one flush
+
+    real_to_thread = asyncio.to_thread
+
+    async def spy_to_thread(fn, *a, **k):
+        threads.append(fn)
+        return await real_to_thread(fn, *a, **k)
+
+    class FakeResp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"accepted": 1}
+
+    class FakeClient:
+        def __init__(self, *a, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, **kw):
+            posts.append(kw)
+            return FakeResp()
+
+    monkeypatch.setenv("BARS_ORIGIN_URL", "http://bars-api.test:8080")
+    monkeypatch.setattr(ing.asyncio, "sleep", fake_sleep)
+    monkeypatch.setattr(ing.asyncio, "to_thread", spy_to_thread)
+    monkeypatch.setattr(httpx, "AsyncClient", FakeClient)
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(ing._flush_loop())
+    return posts, threads
+
+
+def test_with_1m_the_flush_body_is_encoded_off_the_event_loop(monkeypatch):
+    monkeypatch.setenv("BARS_LIVE_1M_ENABLED", "1")
+    _session()
+    posts, threads = _run_one_flush(monkeypatch)
+    assert len(posts) == 1 and "json" not in posts[0]
+    assert threads == [ing._encode_payload]                       # the ~2 MB encode ran on a thread
+    body = json.loads(posts[0]["content"])
+    assert body["m1"] and body["rows"]
+    assert posts[0]["headers"]["Content-Type"] == "application/json"
+
+
+def test_without_1m_the_flush_posts_exactly_as_before(monkeypatch):
+    monkeypatch.delenv("BARS_LIVE_1M_ENABLED", raising=False)
+    _session()
+    posts, threads = _run_one_flush(monkeypatch)
+    assert len(posts) == 1 and "json" in posts[0] and "content" not in posts[0]
+    assert threads == []
+    assert "m1" not in posts[0]["json"]

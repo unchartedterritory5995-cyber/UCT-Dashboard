@@ -22,6 +22,7 @@ import { adoptOverlayAverages } from './maAdoption'
 import { migrateLegacyCotGroups } from './legacyCotGroups'
 import { sanitizeUctIntelligence } from './uctIntelligence'
 import { sanitizeInfoValues, INFO_VALUES_KEY } from './engine/infoValues'
+import { sanitizeScaleTime } from './chartViewOptions'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -525,6 +526,43 @@ export function chartDefaultsForTheme(theme) {
 
 // ─── Deep merge user settings over defaults ──────────────────────────────────
 
+/**
+ * ⭐ VA2 — `cs.indicatorDefaults`, kept to its shape: `{ [defId]: { inputs: {key: scalar} } }`.
+ * A definition id and an input key are short identifier strings; a value is a
+ * string, a finite number or a boolean (an input value is never an object, and a
+ * `source` input is never saved). Anything else is dropped. `null` when nothing
+ * survives, so the key stays absent.
+ */
+const _DEFAULTS_ID_RE = /^[A-Za-z_][A-Za-z0-9_:.-]{0,63}$/
+const _DEFAULTS_MAX_DEFS = 200
+const _DEFAULTS_MAX_INPUTS = 80
+export function sanitizeIndicatorDefaults(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const out = {}
+  let n = 0
+  for (const [defId, entry] of Object.entries(raw)) {
+    if (n >= _DEFAULTS_MAX_DEFS) break
+    if (!_DEFAULTS_ID_RE.test(defId) || !entry || typeof entry !== 'object' || Array.isArray(entry)) continue
+    const src = entry.inputs
+    if (!src || typeof src !== 'object' || Array.isArray(src)) continue
+    const inputs = {}
+    let k = 0
+    for (const [key, v] of Object.entries(src)) {
+      if (k >= _DEFAULTS_MAX_INPUTS) break
+      if (!_DEFAULTS_ID_RE.test(key)) continue
+      const ok = typeof v === 'boolean' || (typeof v === 'number' && Number.isFinite(v))
+        || (typeof v === 'string' && v.length <= 200)
+      if (!ok) continue
+      inputs[key] = v
+      k += 1
+    }
+    if (!k) continue
+    out[defId] = { inputs }
+    n += 1
+  }
+  return n ? out : null
+}
+
 export function mergeChartSettings(userSettings) {
   // ⭐ EVERY RETURN IS ADOPTED — see `maAdoption.js`. A member with no stored blob
   // reads the defaults, and the defaults' four averages are instances too; a blob
@@ -705,6 +743,27 @@ function mergeChartSettingsRaw(userSettings) {
     // The UCT Intelligence indicator's own block (uctIntelligence.js). NO default and no key at all when
     // absent or malformed, so a chart that never added it merges byte-identically to before.
     ...(sanitizeUctIntelligence(parsed.uctIntelligence) ? { uctIntelligence: sanitizeUctIntelligence(parsed.uctIntelligence) } : {}),
+    // ⭐ VA2 (UCT RS §17.8) — "Save as my default": the inputs a member saved for NEW
+    // copies of an indicator, per definition id (`engine/instanceControls`
+    // `saveInstanceAsDefault`). NO default and no key unless one was saved, so every
+    // blob that never saved one merges byte-identically to before (the pinned
+    // merged-blob digests). SANITISED here to scalars only; each value is validated
+    // against its definition again where it is applied (`memberDefaultInputs`).
+    ...(sanitizeIndicatorDefaults(parsed.indicatorDefaults) ? { indicatorDefaults: sanitizeIndicatorDefaults(parsed.indicatorDefaults) } : {}),
+    // Canvas → Margins / Scale & time (chartViewOptions.js): right margin, price decimals, 12/24-hour times.
+    // NO default and no key unless the member set one (sanitised to valid, non-default values), so an untouched
+    // blob merges byte-identically to before. An undeclared key would be dropped here, so it must stay listed.
+    ...(sanitizeScaleTime(parsed.scaleTime) ? { scaleTime: sanitizeScaleTime(parsed.scaleTime) } : {}),
+    // Canvas → Grid → Session breaks / Markers → Pre-market high & low (chartViewOptions.js): kept only while ON,
+    // so an untouched (or switched-off) blob merges byte-identically. Undeclared keys are dropped here — keep listed.
+    ...(parsed.sessionBreaks === true ? { sessionBreaks: true } : {}),
+    ...(parsed.preMarketLevels === true ? { preMarketLevels: true } : {}),
+    // Markers → Events → Next earnings date (chartViewOptions.js): same rule — kept only while ON, keep listed.
+    ...(parsed.nextEarningsMarker === true ? { nextEarningsMarker: true } : {}),
+    // Markers → Your activity → Price alerts (chartViewOptions.js): same rule — kept only while ON, keep listed.
+    ...(parsed.priceAlertLines === true ? { priceAlertLines: true } : {}),
+    // Markers → Your activity → My trades (chartViewOptions.js): same rule — kept only while ON, keep listed.
+    ...(parsed.myTradeMarkers === true ? { myTradeMarkers: true } : {}),
     showPriceLabels: parsed.showPriceLabels ?? CHART_DEFAULTS.showPriceLabels,
     showMaLabels: parsed.showMaLabels ?? CHART_DEFAULTS.showMaLabels,
     darkPool: { ...CHART_DEFAULTS.darkPool, ...(parsed.darkPool || {}) },

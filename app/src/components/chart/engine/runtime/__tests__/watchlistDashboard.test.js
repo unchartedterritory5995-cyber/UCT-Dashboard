@@ -31,8 +31,11 @@ import { buildObjectLane, runObjectLane } from '../objectLane.js'
 // 09:30 ET on a Wednesday, 30-minute chart bars.
 const T0 = Date.UTC(2023, 10, 15, 14, 30, 0) / 1000
 const N = 40
+// ⭐ RS RATING L5 — a DAILY chart: the `"D"` requests are the chart's own timeframe, read on
+// the same session (`interpret.js::requestAlignment`). A `"D"` read on an intraday chart is a
+// merge the supplied path refuses by name; this rail is about the dashboard, not that merge.
 const BARS = Array.from({ length: N }, (_, i) => (
-  { t: T0 + i * 1800, o: 99 + i, h: 101 + i, l: 98 + i, c: 100 + i, v: 1000 + i }))
+  { t: T0 - (N - 1 - i) * 86400, o: 99 + i, h: 101 + i, l: 98 + i, c: 100 + i, v: 1000 + i }))
 const SERIES = ['o', 'h', 'l', 'c', 'v'].map((k) => Float64Array.from(BARS.map((b) => b[k])))
 const TIMES = BARS.map((b) => b.t)
 

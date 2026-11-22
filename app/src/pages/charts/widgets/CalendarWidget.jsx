@@ -12,6 +12,7 @@ import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { buildCalendarCapture, calendarCaptureSettings } from './captures/calendarCapture'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
@@ -34,6 +35,9 @@ import { mondayOf, lastSessionDay } from '../../calendar/weekAnchor'
 import { calendarWidgetStyleVars } from './calendarWidgetSettings'
 import styles from './CalendarWidget.module.css'
 import { nextSort } from '../../../lib/presentation/dataGrid'
+import { useUctHeaderSlotAlways, useUctControlsSlot } from '../uctHeaderSlot'
+import CalendarTimeline from './CalendarTimeline'
+// LOCAL PREVIEW fakes (dev only, only while the local week has no earnings) — remove before shipping.
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
 
 // TERM-065: a section header click asks the DataGrid seed which way the sort
@@ -152,6 +156,7 @@ const EarnRow = memo(function EarnRow({ c, im, onSelect, selected }) {
     <div
       className={`${styles.earnRow}${selected ? ' ' + styles.earnRowSelected : ''}`}
       data-earn-sym={c.sym}
+      data-guide="calendar.row"
       onClick={() => onSelect(c.sym)}
       title={`Show ${c.sym} on the linked chart`}
     >
@@ -332,6 +337,11 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
     setJournalMsg('sending…')
     setJournalMsg(await sendCaptureToJournal('calendar', buildDayCapture(), { label: `UCT Terminal ${selected}` }))
   }, [buildDayCapture, selected])
+  useWidgetDoor(() => ({
+    read: () => ({ day: selected, tbdOpen }),
+    write: (key, v) => { if (key === 'day') setSelected(v); else if (key === 'tbdOpen') setTbdOpen(v === true) },
+    capture: () => (journalDoor ? { kind: 'calendar', capture: buildDayCapture(), label: `UCT Terminal ${selected}` } : null),
+  }))
 
   // ── Data — the whole week for the selected date (same-week nav reuses the cache).
   // full_impact=1 gets ALL econ impacts + an `impact` level for the star filter. ──
@@ -386,11 +396,57 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
   const tbd = useMemo(() => [...(day?.tbd || [])].sort((a, b) => mcapOf(mcapMap, b) - mcapOf(mcapMap, a)), [day, mcapMap])
   const nothing = !isLoading && day && !hasAnyEcon && bmo.length === 0 && amc.length === 0 && tbd.length === 0
 
+  // ── UCT board (owner 11-14: Calendar look B1 "Simple") — the title row carries ‹ date ›,
+  // the window-control group the filter · Journal · ⚙, and the body is one quiet timeline.
+  // Same data, same handlers, same settings; off the board the widget below is unchanged. ──
+  const uctRow = useUctHeaderSlotAlways('calendar')
+  const uctCtrls = useUctControlsSlot()
+  if (uctRow && uctCtrls) {
+    return (
+      <CalendarTimeline
+        rootRef={rootRef} rootStyle={rootStyle} uctRow={uctRow} uctCtrls={uctCtrls}
+        selected={selected} setSelected={setSelected} todayView={todayView} todayET={todayET()}
+        addTradingDay={addTradingDay} week={data?.days || null} day={day} isLoading={isLoading}
+        econItems={econItems} econStars={econStars} setEconStars={setEconStars}
+        bmo={bmo} amc={amc} tbd={tbd} imMap={imMap} mcapMap={mcapMap}
+        onRowSelect={onRowSelect} selectedSym={selectedSym} listRef={listRef} onListKeyDown={onListKeyDown}
+        opts={opts} onOptsChange={onOptsChange}
+        journalDoor={journalDoor} sendDayToJournal={sendDayToJournal}
+        openCaptureMenu={(e) => setCaptureMenu({ anchor: { x: e.clientX, y: e.clientY }, capture: buildDayCapture() })}
+        journalToast={<JournalToast msg={journalMsg} style={{ top: 44, right: 10, left: 'auto' }} />}
+        captureMenu={captureMenu && (
+          <CaptureMenu open onClose={() => setCaptureMenu(null)} anchor={captureMenu.anchor} widgetId="calendar"
+            capture={captureMenu.capture} label={`UCT Terminal ${selected}`} onSent={setJournalMsg} />
+        )}
+        settingsPanel={settingsOpen && (
+          <NewsSettingsPanel
+            title="Calendar settings" widgetType="calendar" showPerf={false} textHint="names & EPS"
+            extraSections={[
+              { label: 'Symbol', rows: [{ key: 'symbolColor', label: 'Symbol color', hint: 'earnings tickers' }] },
+              { label: 'Surprise colors', rows: [
+                { key: 'posColor', label: 'Upside surprise', hint: 'beat' },
+                { key: 'negColor', label: 'Downside surprise', hint: 'miss' },
+              ] },
+              { label: 'High impact', rows: [{ key: 'highBoxColor', label: 'Dot color', hint: 'high-impact events' }] },
+              { label: 'Text size', rows: [{ key: 'textSize', label: 'Size', type: 'segmented', options: [
+                { key: 's', label: 'S' }, { key: 'm', label: 'M' }, { key: 'l', label: 'L' },
+              ] }] },
+            ]}
+            settings={settings} onChange={patchSettings} onReset={resetSettings} onClose={() => setSettingsOpen(false)}
+            gearEl={settingsBtnRef.current} hostEl={rootRef.current} themeVars={menuVars} uct
+          />
+        )}
+        settingsOpen={settingsOpen} toggleSettings={() => setSettingsOpen(o => !o)} settingsBtnRef={settingsBtnRef}
+        menuVars={menuVars} Earnings={EarningsSection}
+      />
+    )
+  }
+
   return (
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="UCT Terminal Settings"
+          title="UCT Terminal settings"
           widgetType="calendar"
           showPerf={false}
           textHint="names & EPS"
@@ -416,7 +472,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
       )}
 
       {/* Header: ◀ date ▶ + gear */}
-      <div className={styles.bar}>
+      <div className={styles.bar} data-guide="calendar.days">
         <button type="button" className={styles.navBtn} onClick={() => setSelected(addTradingDay(selected, -1))} aria-label="Previous day">‹</button>
         <span className={styles.dateWrap}>
           <span className={styles.dateMain}>{fmtMain(selected)}</span>
@@ -458,7 +514,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="UCT Terminal widget settings"
         ><UIcon name="gear" size={13} /></button>
         <JournalToast msg={journalMsg} style={{ top: 'calc(100% + 4px)' }} />
@@ -487,6 +543,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
                   <button
                     key={n}
                     type="button"
+                    data-guide="calendar.stars"
                     className={`${styles.starBtn}${n <= econStars ? ' ' + styles.starOn : ''}`}
                     onClick={() => setEconStars(n)}
                     title={n === 1 ? 'All events' : n === 2 ? 'Medium & high impact' : 'High impact only'}

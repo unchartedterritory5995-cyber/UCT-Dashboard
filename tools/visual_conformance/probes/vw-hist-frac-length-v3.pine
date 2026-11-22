@@ -1,0 +1,29 @@
+//@version=3
+study("UCTPROBE_VW_HIST_FRAC_LENGTH_V3", overlay = false)
+
+// PROVENANCE: written 2026-11-16 for the Pine parity programme, coverage unit "runtime history"
+// (queue row HIST-F1). The v3 form of vw-hist-frac-length.pine, in the shape `range-filter-v1`
+// writes: a helper whose parameter is an input, `wper = (t / 3) - 1`, `sma(x, wper)`.
+// 25 / 3 = 8.33: truncate -> wper 7; fraction kept -> 7.33 (then sma(7) or sma(8)?).
+// 26 / 3 = 8.67: truncate -> wper 7; round -> 8; fraction kept -> 7.67.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading.
+// CAPTURE: AMEX:SPY 1D, then NYSE:RDDT 1D, inputs at defaults (per = 25, per2 = 26).
+
+per  = input(defval = 25, minval = 1, title = "per")
+per2 = input(defval = 26, minval = 1, title = "per2")
+
+f(x, t) =>
+    wper = (t / 3) - 1
+    sma(x, wper)
+g(t) => (t / 3) - 1
+
+plot(cum(1) - 1, title = "A00_bar_index_CONTROL")
+plot(g(per),  title = "A01_wper_of_25_value")
+plot(g(per2), title = "A02_wper_of_26_value")
+plot(sma(close, 7), title = "C01_sma_7")
+plot(sma(close, 8), title = "C02_sma_8")
+plot(sma(close, 9), title = "C03_sma_9")
+plot(f(close, per),  title = "R01_sma_wper_of_25")
+plot(f(close, per2), title = "R02_sma_wper_of_26")
+plot(sma(close, per / 3),  title = "R03_sma_25_div3")
+plot(sma(close, per2 / 3), title = "R04_sma_26_div3")

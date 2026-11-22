@@ -1,0 +1,27 @@
+//@version=6
+indicator("UCTPROBE_VW_W4_SESSION_PARAM", overlay = false)
+
+// W4 T3, row W4-T2. A SESSION AND A TIMEFRAME THROUGH A FUNCTION PARAMETER, A JOIN AND A CONSTANT.
+//
+// The runtime lane folds a session text that is fixed before bar 0 and hands it to the same
+// session clock the columnar lane uses (`pine.js::sessionClockOf`). This probe says the vendor
+// answers a session reached THROUGH a UDF parameter, a `+` join, an input and a `var` exactly as it
+// answers the literal. Every row is `na ? 1 : 0`; rows P2..P6 must equal P1 bar for bar.
+//
+// ⛔ CAPTURE: AMEX:SPY 5, inputs at defaults (the input default is the literal in P1). A 5-minute
+// chart is the one that separates a bar from its session (60 minutes would hide an off-by-one grid).
+
+isNa(t) => na(t) ? 1 : 0
+inS(r, s) => isNa(time(r, s))
+inJoin(s) => isNa(time(timeframe.period, s + ":23456"))
+
+sess = input.session("0930-1000:23456", "Session")
+var string FIXED = "0930-1000:23456"
+
+plot(bar_index, "P0_bar_index_CONTROL")
+plot(isNa(time(timeframe.period, "0930-1000:23456")), "P1_na_literal_REFERENCE")
+plot(inS(timeframe.period, "0930-1000:23456"), "P2_na_udf_param_and_own_timeframe")
+plot(inS(timeframe.period, sess), "P3_na_input_session_through_udf")
+plot(inJoin("0930-1000"), "P4_na_joined_text")
+plot(isNa(time(timeframe.period, FIXED)), "P5_na_constant_var")
+plot(inS("", "0930-1000:23456"), "P6_na_empty_timeframe_is_main")

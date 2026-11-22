@@ -29,6 +29,7 @@ import { SWRConfig } from 'swr'
 import { Text } from '@codemirror/state'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { toDiagnostics } from './editor/diagnostics'
@@ -54,13 +55,15 @@ function stubFetch() {
 }
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={() => {}} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 const settle = async () => { await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 10) }) }
 const type = async (el, value) => {
@@ -182,9 +185,9 @@ describe('(2) the save door reads the same grammar the popup does', () => {
     // `period` on the real form, types the real shadowing source, and the
     // refusal has to travel the whole chain to reach the chip.
     mount()
-    await act(async () => { fireEvent.click(screen.getByTestId('add-input')) })
+    await act(async () => { fireEvent.click((openInputs(), screen.getByTestId('add-input'))) })
     await act(async () => { fireEvent.change(screen.getByLabelText('Input 1 name'), { target: { value: 'period' } }) })
-    await type(screen.getByLabelText('Formula'), 'let period = 5\nsma(close, period)')
+    await type(formulaBox(), 'let period = 5\nsma(close, period)')
     await act(async () => { fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'x' } }) })
 
     const chip = screen.getByTestId('formula-error')
@@ -197,7 +200,7 @@ describe('(2) the save door reads the same grammar the popup does', () => {
     // Without this the case above would pass against a sheet that refused every
     // `let` source, which is the opposite defect.
     mount()
-    await type(screen.getByLabelText('Formula'), 'let period = 5\nsma(close, period)')
+    await type(formulaBox(), 'let period = 5\nsma(close, period)')
     await act(async () => { fireEvent.change(screen.getByLabelText(/^Name/i), { target: { value: 'x' } }) })
     expect(screen.queryByTestId('formula-error')).toBeNull()
     expect(screen.getByRole('button', { name: /^Sav/ })).not.toBeDisabled()

@@ -144,7 +144,7 @@ N_PICK = {
     "tag": "Your tags are left out; people pick their own.",
     "symbol": "Your symbols are left out; people pick their own.",
     "folder": "Your folders are left out; people pick their own.",
-    "note_kind": "Your kinds of note are left out; people pick their own.",
+    "note_kind": "Your note types are left out; people pick their own.",
     "property": "Your properties are left out; people pick their own.",
     "routine": "Your routine is left out; people pick their own.",
     "tracker": "Your tracker is left out; people pick their own.",

@@ -19,6 +19,7 @@ import {
   lineStyleValue,
   AUTOSCALE_EXCLUDE,
   AUTOSCALE_DEFAULT,
+  includeRangeProvider,
   autoscaleProvider,
   AUTOSCALE_PROVIDER_MODES,
 } from './pool'
@@ -456,7 +457,7 @@ describe('seriesOptionsForPlot', () => {
 
   it('a histogram gets a price format and NOT line options', () => {
     const o = seriesOptionsForPlot(plotOf('macd', 'histogram'), { scaleId: 'macd' })
-    expect(o.priceFormat).toEqual({ type: 'price', precision: 5 })
+    expect(o.priceFormat).toEqual({ type: 'price', precision: 5, minMove: 0.00001 })
     expect(o.lineWidth).toBeUndefined()
     expect(o.crosshairMarkerVisible).toBeUndefined()
   })
@@ -466,6 +467,37 @@ describe('seriesOptionsForPlot', () => {
     expect(o.lineWidth).toBe(0)
     expect(o.pointMarkersVisible).toBe(true)
     expect(o.pointMarkersRadius).toBe(3)
+    // …and the zero-width line is hidden OUTRIGHT (2026-11-06): the canvas ignores a
+    // zero `lineWidth`, so without this LWC strokes a hairline chord between the dots.
+    expect(o.lineVisible).toBe(false)
+  })
+
+  // ⭐ 2a-13 — a `markers` plot WITH a `marker` block is a GLYPH, drawn by the
+  // series-marker lane riding this series. The series itself draws nothing: no
+  // point marker under the glyph (there used to be a 2 px disc, invisible beneath
+  // the 13 px gold circle — the second renderer), no line between event bars.
+  it('a markers plot with a `marker` glyph draws NO point marker and no line — the glyph lane paints it', () => {
+    for (const key of ['dotNHbeforePx', 'dotNHred']) {
+      const p = plotOf('rsLine', key)
+      expect(p.marker, key).toBeTruthy()
+      const o = seriesOptionsForPlot(p, { scaleId: 'rsLine' })
+      expect(o.lineWidth, key).toBe(0)
+      expect(o.pointMarkersVisible, key).toBe(false)
+      expect(o.lineVisible, key).toBe(false)
+      // the key set stays uniform — the radius is emitted (inert) exactly as for a line
+      expect(o.pointMarkersRadius, key).toBe(1)
+    }
+    // the same plot WITHOUT its glyph block is the plain-dot case: point markers on
+    const { marker: _glyph, ...plain } = plotOf('rsLine', 'dotNHbeforePx')
+    const o = seriesOptionsForPlot(plain, { scaleId: 'rsLine' })
+    expect(o.pointMarkersVisible).toBe(true)
+    expect(o.pointMarkersRadius).toBe(1)
+    expect(o.lineVisible).toBe(false)
+    // and a glyph on a synthetic plot, so the rule is the block's, not UCT RS's
+    const synthetic = { key: 'g', style: 'markers', color: '#abcdef', width: 2, marker: { shape: 'square', position: 'aboveBar' } }
+    expect(seriesOptionsForPlot(synthetic, { scaleId: 'x' })).toMatchObject({ pointMarkersVisible: false, pointMarkersRadius: 2, lineVisible: false, lineWidth: 0 })
+    // a `marker` that is not an object is not a glyph block (defSchema refuses it; this is the second lock)
+    expect(seriesOptionsForPlot({ ...synthetic, marker: 'circle' }, { scaleId: 'x' }).pointMarkersVisible).toBe(true)
   })
 
   it('an unmappable plot has no options at all', () => {
@@ -488,7 +520,11 @@ describe('seriesOptionsForPlot', () => {
         for (const [k, v] of Object.entries(o)) {
           if (typeof v !== 'function') continue
           expect(k, `${def.id}.${plot.key}.${k} is an uncomparable function`).toBe('autoscaleInfoProvider')
-          expect([AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT], `${def.id}.${plot.key}: not a singleton`).toContain(v)
+          // rsLine rev 5: a plot's `autoscaleInclude` gets the include-range provider,
+          // MEMOISED by range (the same identity on every bind), so it is comparable too
+          const inc = plot.autoscaleInclude ? [includeRangeProvider(plot.autoscaleInclude.min, plot.autoscaleInclude.max)] : []
+          expect([AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, ...inc], `${def.id}.${plot.key}: not a singleton`).toContain(v)
+          expect(seriesOptionsForPlot(plot, { scaleId: 'x' })[k], `${def.id}.${plot.key}: a fresh provider per bind`).toBe(v)
           sawProvider++
         }
       }
@@ -551,6 +587,10 @@ const COMPLETE_KEYS = {
     'topLineColor', 'bottomLineColor',
     'topFillColor1', 'topFillColor2', 'bottomFillColor1', 'bottomFillColor2',
   ],
+  // W4-T13 - the two OHLC styles a document may now declare (`candles`, `ohlcBars`). A bare one
+  // carries the base set (their colours ride the data points); a bar adds its two geometry keys.
+  candlestick: [...BASE_KEYS],
+  bar: [...BASE_KEYS, 'openVisible', 'thinBars'],
 }
 
 describe('the COMPLETE series option set — one key set per pool key, every call', () => {
@@ -726,7 +766,8 @@ describe('signColorsForPlot — colorMode "sign" is two colours or it is nothing
       .toEqual({ up: 'rgba(76,175,80,0.75)', down: 'rgba(244,67,54,0.75)' })
   })
 
-  const SIGNED_TIER1 = new Set(['ppo.histogram', 'balanceOfPower.bop', 'chaikinMoneyFlow.cmf', 'squeeze.momentum'])
+  // `rsVsEma.dist` joined at the UCT RS split (U6, 2026-11-09): the distance histogram is blue above / red below by design.
+  const SIGNED_TIER1 = new Set(['ppo.histogram', 'balanceOfPower.bop', 'chaikinMoneyFlow.cmf', 'squeeze.momentum', 'rsVsEma.dist'])
   it('every OTHER shipped plot has none — sign colouring is not the default', () => {
     for (const def of registry.listDefinitions()) {
       for (const plot of def.plots) {
@@ -798,19 +839,19 @@ describe('`plots[].precision` is honoured on every pool key', () => {
   it('a declared precision reaches the series on EVERY pool key', () => {
     for (const style of ['line', 'area', 'baseline', 'histogram', 'stepline', 'markers']) {
       const o = seriesOptionsForPlot(withPrecision(style, 5), {})
-      expect(o.priceFormat, style).toEqual({ type: 'price', precision: 5 })
+      expect(o.priceFormat, style).toEqual({ type: 'price', precision: 5, minMove: 0.00001 })
     }
   })
 
   it("silence means LWC's OWN default, so a Flip A migration sees no change", () => {
     // 2 is `seriesOptionsDefaults.priceFormat.precision` in the installed bundle
-    // (asserted against the real value, not a hand-copy). That is what makes it
-    // safe to emit this key unconditionally: for every plot that says nothing —
-    // which today is every plot except MACD's histogram — the object the engine
-    // applies is the state the series is already in.
+    // (asserted against the real value, not a hand-copy), and 0.01 is its
+    // `minMove`. That is what makes it safe to emit this key unconditionally: for
+    // every plot that says nothing, the object the engine applies is the state
+    // the series is already in.
     for (const style of ['line', 'area', 'baseline', 'histogram']) {
       expect(seriesOptionsForPlot(bareplot(style), {}).priceFormat, style)
-        .toEqual({ type: 'price', precision: 2 })
+        .toEqual({ type: 'price', precision: 2, minMove: 0.01 })
     }
   })
 
@@ -818,12 +859,14 @@ describe('`plots[].precision` is honoured on every pool key', () => {
     // `defSchema` rejects these at registration; this is the second lock, and it
     // matters because `priceFormat` is one of the few options that can throw
     // inside the renderer rather than just look wrong.
-    for (const bad of [undefined, null, NaN, Infinity, '3', {}]) {
+    // 2.5 and -1 joined the list with decision B1: `minMove` is derived from the
+    // precision, and 10^-2.5 or 10^1 is not a step any axis should round to.
+    for (const bad of [undefined, null, NaN, Infinity, '3', {}, 2.5, -1]) {
       expect(seriesOptionsForPlot({ ...bareplot('line'), precision: bad }, {}).priceFormat)
-        .toEqual({ type: 'price', precision: 2 })
+        .toEqual({ type: 'price', precision: 2, minMove: 0.01 })
     }
     expect(seriesOptionsForPlot({ ...bareplot('line'), precision: 0 }, {}).priceFormat)
-      .toEqual({ type: 'price', precision: 0 })
+      .toEqual({ type: 'price', precision: 0, minMove: 1 })
   })
 
   it("MACD's shipped histogram still asks for 5, exactly as the legacy call did", () => {
@@ -832,7 +875,9 @@ describe('`plots[].precision` is honoured on every pool key', () => {
     // why this whole field was latent: engine and legacy already agreed.
     const hist = registry.getDefinition('macd').plots.find(p => p.key === 'histogram')
     expect(hist.precision).toBe(5)
-    expect(seriesOptionsForPlot(hist, {}).priceFormat).toEqual({ type: 'price', precision: 5 })
+    // Decision B1 adds the matching `minMove`; the legacy call left LWC's 0.01,
+    // which rounded the five decimals it printed to two.
+    expect(seriesOptionsForPlot(hist, {}).priceFormat).toEqual({ type: 'price', precision: 5, minMove: 0.00001 })
   })
 
   it("a pooled series cannot inherit the last tenant's precision", () => {
@@ -842,6 +887,57 @@ describe('`plots[].precision` is honoured on every pool key', () => {
     const macdHist = registry.getDefinition('macd').plots.find(p => p.key === 'histogram')
     expect(seriesOptionsForPlot(macdHist, {}).priceFormat.precision).toBe(5)
     expect(seriesOptionsForPlot(bareplot('histogram'), {}).priceFormat.precision).toBe(2)
+  })
+})
+
+// ─── B1: `minMove` follows `precision` ───────────────────────────────────────
+//
+// LWC 5.2.0's PriceFormatter rounds to `minMove` and only pads to `precision`,
+// so a 4-decimal plot left at LWC's `minMove: 0.01` printed 0.2500 for 0.2477
+// (the real-chart proof is `__tests__/priceFormatMinMove.realChart.test.js`).
+// ⛔ The expected steps are LITERALS, not `10 ** -p`: the exponent operator is not
+// correctly rounded on every engine (V8 in Node 20 — CI's Node — gives
+// 0.00009999999999999999 for `10 ** -4`), so an expectation built from it agreed
+// with an implementation built from it and both were one ulp off together. A
+// number literal is correctly rounded everywhere. (2026-11-08)
+const STEP = [1, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001, 1e-7, 1e-8, 1e-9, 1e-10]
+describe('B1: every engine priceFormat carries minMove = 10^-precision', () => {
+  it('for every precision 0..10, and the step times 10^p is exactly 1', () => {
+    // LWC builds its formatter from `minMove * 10^precision`; anything but 1 there
+    // means a step that is not one unit of the last printed decimal.
+    for (let p = 0; p <= 10; p++) {
+      const pf = seriesOptionsForPlot({ ...bareplot('line'), precision: p }, {}).priceFormat
+      expect(pf, `precision ${p}`).toEqual({ type: 'price', precision: p, minMove: STEP[p] })
+      expect(pf.minMove * 10 ** p, `precision ${p}`).toBe(1)
+    }
+  })
+
+  it('every shipped plot that declares a precision gets its matching step', () => {
+    // Walks the real registry, so a new plot that declares a precision is covered
+    // without editing this test. The census guards against walking nothing.
+    const seen = []
+    for (const def of registry.listDefinitions()) {
+      for (const plot of def.plots || []) {
+        if (!Number.isInteger(plot.precision) || !poolKey(plot)) continue
+        const pf = seriesOptionsForPlot(plot, {}).priceFormat
+        expect(pf, `${def.id}.${plot.key}`).toEqual({ type: 'price', precision: plot.precision, minMove: STEP[plot.precision] })
+        seen.push(`${def.id}.${plot.key}`)
+      }
+    }
+    expect(seen).toEqual(expect.arrayContaining(['macd.histogram', 'rsLine.rsLine', 'rsLine.rsMa']))
+  })
+
+  it('the step is emitted on EVERY bind, so a pooled series cannot keep a custom step', () => {
+    // LWC's `merge` keeps any `priceFormat` key the new object omits. A fundamental's
+    // custom format sets `minMove: 1`; a plot re-using that series must overwrite it.
+    for (const style of ['line', 'area', 'baseline', 'histogram', 'stepline', 'markers']) {
+      expect(seriesOptionsForPlot(bareplot(style), {}).priceFormat, style).toHaveProperty('minMove', 0.01)
+    }
+  })
+
+  it('a caller-supplied priceFormat (a fundamental or the candle axis) still wins untouched', () => {
+    const custom = Object.freeze({ type: 'custom', minMove: 1, formatter: (v) => String(v) })
+    expect(seriesOptionsForPlot({ ...bareplot('line'), precision: 4 }, { priceFormat: custom }).priceFormat).toBe(custom)
   })
 })
 

@@ -27,6 +27,9 @@ export const WHAT_TO_DO = Object.freeze({
   revoked: 'Ask them for a new link.',
   gone: 'They have deleted it, so there is nothing to install.',
   'table-version': 'Ask them to open it and share it again — that will re-issue the link against the current engine.',
+  // ⭐ MODERATION (2026-11-16). The server's message already says what happened and what
+  // still works; this is the one thing the member can do about it.
+  'taken-down': 'If you think that is a mistake, write to UCT from the Support page.',
 })
 
 /** The advice for a reason, or `''` when there is none to give. */

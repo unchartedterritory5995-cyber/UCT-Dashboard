@@ -30,10 +30,17 @@
 //      has one: a test fixed before bar 0 (input, literal, the chart's timeframe), a
 //      test true on every bar of the chart, a test true then false for good, a call
 //      bound above the ternary, a call in the test, the smoothed-MA / alligator
-//      `na(x[1]) ? ta.sma(…) : …` seed, Pine v5 `and` / `or` (strict), v4 `?:` and
-//      `iff` (not witnessed: see `docs/pine/capture-queue-2026-10-31-prod-ternary.md`);
+//      `na(x[1]) ? ta.sma(…) : …` seed, Pine v5 `and` / `or` (strict), v4 `iff` (both
+//      values every bar, the to-v5 guide), and Pine v1 (no pragma) / v2 / v3 `?:` — EAGER,
+//      WITNESSED: probe P2 (`vw-ternary-arm-legacy-v1/v2/v3`, run s17, RDDT 1D from the listing:
+//      every arm call equals its every-bar value on every bar), and `cci-coded-obv` /
+//      `trade-archer-obv-mas-v1` (no pragma) equal the eager OBV on 666 / 666 bars, the lazy one
+//      mismatches 662 / 666 (`condTaLanes.test.js` 2c). ⚰️ v4 `?:` was on this list as "not
+//      witnessed": probe 10 (`vw-cs2-v4-ternary-lazy`, run s17) shows it LAZY, so COND-TA withholds
+//      it where its test varies, exactly as v5 / v6;
 //   5. nothing is refused at TRANSLATION, so the parameters a plot mints do not move,
-//      and the screener lane (which binds no chart) reads as it always has;
+//      and the screener lane (which binds no chart) REFUSES each such row by name
+//      (COND-TA, engine 58: its every-bar reading was this capture's wrong number);
 //   6. (review round 2) an `if` used as an EXPRESSION (`y = if up` / `ta.sma(…)` /
 //      `else` / `close`) is the same rule — its branches are blocks, which C48's
 //      statement-form mark never covered (H2); a `var` initialiser runs once, on
@@ -46,7 +53,7 @@ import { loadCapture } from './harness'
 import { toProductBars, enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
 import * as registry from '../../nativeRegistry'
 import { BLOCK_RUNS_GUARD } from '../../blockRuns'
-import { translatePine } from '../../ast/pine'
+import { translatePine, SCREEN_GATE_SENTENCE } from '../../ast/pine'
 import { createBinder } from '../../binder'
 import { createFakeChart } from '../fakeChart'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
@@ -518,13 +525,26 @@ describe('C45 — ⛔ what stays drawn, TradingView\'s number where a capture ho
     expect(door.def.meta.blockRuns).toBeUndefined()
   })
 
-  it('Pine v4 `?:` and `iff` are not witnessed — drawn as before (queued: capture-queue-2026-10-31-prod-ternary.md)', () => {
-    drawn(['//@version=4', 'study("v4")', 'y = close > open ? sma(close, 5) : close', 'plot(y, "Y")'].join('\n'), (i) => (up[i] ? e03[i] : B[i].c))
+  // ⭐⭐ COND-TA (engine 58+) — FLIPPED, DELIBERATELY, FROM EVIDENCE. This pinned v4 `?:` "not
+  // witnessed — drawn as before", which drew the EVERY-BAR number. Probe 10 (run s17,
+  // `vw-cs2-v4-ternary-lazy`, RDDT 1D from the listing) witnesses the v4 arm LAZY (bar 7:
+  // TradingView na, the eager sma 53.72), as the v4 User Manual says ("`barssince` is not called on
+  // every bar because it is inside a ternary operator's conditional branch"), so a v4 arm whose
+  // test varies is stamped and WITHHELD BY NAME where it runs after a skip, as v5 / v6 are.
+  // `iff` stays drawn: the to-v5 guide says it "always evaluated both values" (`ast/condTaLanes.test.js`).
+  it('Pine v4 `?:` is documented lazy — withheld by name where its test varies; v4 `iff` (both values every bar) stays drawn', () => {
+    for (const source of [
+      ['//@version=4', 'study("v4")', 'y = close > open ? sma(close, 5) : close', 'plot(y, "Y")'].join('\n'),
+      // the VERSION decides, not the spelling: a v4 helper reading its own history is read as a v5 one is
+      ['//@version=4', 'study("v4 f")', 'f(s) => s - s[1]', 'y = close > open ? f(close) : close', 'plot(y, "Y")'].join('\n'),
+    ]) {
+      const { door, cols, errors } = bind(cap, source)
+      expect(door.def, door.refusal || '').toBeTruthy()
+      expect(door.def.meta.blockRuns, source).toBeTruthy()
+      expect(cols.value, source).toBeUndefined()
+      expect(errors.value.guard, source).toBe(BLOCK_RUNS_GUARD)
+    }
     drawn(['//@version=4', 'study("v4 iff")', 'y = iff(close > open, sma(close, 5), close)', 'plot(y, "Y")'].join('\n'), (i) => (up[i] ? e03[i] : B[i].c))
-    // ⛔ the VERSION decides, not the spelling: a v4 helper reading its own history is
-    // read the same way a v5 one is (`f`), and still drawn as before in v4
-    drawn(['//@version=4', 'study("v4 f")', 'f(s) => s - s[1]', 'y = close > open ? f(close) : close', 'plot(y, "Y")'].join('\n'),
-      (i) => (i === 0 ? (up[0] ? null : B[0].c) : up[i] ? B[i].c - B[i - 1].c : B[i].c))
   })
 
   it('a `request.*` in an arm is evaluated in the requested context — not stamped (queued, not witnessed)', () => {
@@ -684,10 +704,20 @@ describe('C45 — ⛔ nothing moves at translation', () => {
     expect(t.inputParams.map((p) => [p.id, p.label || p.title])).toEqual([
       ['__uct_param_1001', 'Arm length'], ['__uct_param_1002', 'Mult'], ['__uct_param_1003', 'Other length']])
     expect(t.outputs[0].formula).toBe('(close > open ? sma(close, 5) : close) * 2')
+    // ⭐⭐ COND-TA (engine 58) — FLIPPED, DELIBERATELY: the screener lane's "reads as it
+    // always has" was the every-bar number (T03 / K02 above: wrong on 291 / 317 of RDDT's
+    // bars), with no chart bound there to withhold it. Each stamped row is refused by name.
     const screen = translatePine(source, { paramManifest: true })
     expect(screen.mode).toBe('screener')
     expect(screen.blockRuns).toBeUndefined()
-    expect(screen.outputs.map((o) => o.formula)).toEqual(t.outputs.map((o) => o.formula))
+    // ⛔ INTERIM (coordinator ruling B, 2026-11-16): the `?:` arm is refused; the right side of the
+    // v6 `and` is still SERVED every-bar on this lane, a known TradingView difference (stated by the
+    // to-v6 guide, not captured) pinned in `ast/condTaLanes.test.js` section 8. The middle entry
+    // goes back to `pine:block` when the follow-up unit switches that refusal on.
+    expect(screen.outputs.map((o) => (o.refusal ? o.refusal.guard : 'ok'))).toEqual(['pine:block', 'ok', 'ok'])
+    expect(screen.outputs[0].refusal.message).toMatch(/`ta\.sma` is called in one arm of a `\?:`/)
+    expect(screen.outputs[0].refusal.message).toContain(SCREEN_GATE_SENTENCE)
+    expect(screen.outputs[2].formula).toBe(t.outputs[2].formula)
   })
 })
 

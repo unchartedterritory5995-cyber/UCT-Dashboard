@@ -456,53 +456,43 @@ def corpus() -> Dict[str, dict]:
     return out
 
 
-#: ⭐⭐ A TREE THE LINTER BRANDS `repaints` AND EVERY OTHER STAGE ACCEPTS — and
-#: finding one is itself a finding.
+#: ⭐⭐ A TREE THE LINTER BRANDS REPAINTING AND EVERY OTHER STAGE ACCEPTS: a call that READS
+#: AHEAD. The manifest now declares `forward` reaches (`pivothigh(series, left, right)` reads
+#: `right` bars past the bar it writes), so the linter answers `preview-repaints` from the
+#: DECLARATION, not from a fail-closed branch. Derived by that declaration and by shape, never
+#: by name, so a renamed or added forward-reaching entry is picked up the day it lands.
 #:
-#: With the SHIPPED manifest no table-legal tree has a forward reach at all (Task
-#: 8's declared property: every `lookback` is ≥ 0 or `"argK"`), so `repaints` is
-#: only reachable through the linter's FAIL-CLOSED branch: a window it cannot
-#: BOUND. The obvious construction — a computed window like `5 != 5` — never
-#: reaches the linter, because `check_budget` → `max_lookback` refuses it at
-#: `resolve:window` first.
-#:
-#: ⚠️ SO THIS IS THE PINNED DIVERGENCE, AND IT IS A REAL ONE. An INTEGRAL FLOAT
-#: window (`5.0`) is accepted by `ast_interpret._window_literal`
-#: (`float(v).is_integer()`) and computes normally, while
-#: `ast_lint._resolve_declaration` requires `isinstance(value, int)` and answers
-#: UNKNOWN → `repaints`. Measured, not assumed (the assertions below run all three
-#: modules). It is safe in the fail-closed direction and it is out of reach of the
-#: ONE parser — `jsep('5.0')` yields the number 5 — but a MODEL emitting JSON can
-#: write `5.0`, which is exactly why the concierge needs the lint gate to be
-#: reachable. A fix on either side breaks this case, which is the point of pinning
-#: it: the two modules must move together or say why.
+#: ⚰️ WHAT THIS REPLACED (2026-11-15). This used to be `WINDOWED(close, 5.0)`: an integral FLOAT
+#: window the interpreter accepted and the linter answered UNKNOWN, the divergence this note
+#: pinned with "a fix on either side breaks this case". 50e43e7459 (2026-10-07, "lint integral
+#: float lengths like integers") made that fix, the linter read 5.0 as 5, and the five lint cases
+#: had been red since (`5.0` was accepted where a refusal was asserted). The fail-closed branch is
+#: still there for genuinely unboundable windows; it is simply no longer the only way to a
+#: repaint verdict.
+FORWARD = next(f for f in FUNCTIONS
+               if TABLE[ast_table.FUNCTIONS_SECTION][f].get("forward")
+               and list(TABLE[ast_table.FUNCTIONS_SECTION][f]["args"]) == ["series", "int", "int"]
+               and _slots_are_free(f))
+
+
 def repainting_tree() -> dict:
-    return {"type": "call", "name": WINDOWED, "args": [s(), n(5.0)]}
+    return {"type": "call", "name": FORWARD, "args": [s(), n(5), n(5)]}
 
 
-#: A tree that is BOTH over the node budget AND unreadable to the linter. Section
-#: 6 uses it to prove the budget stage runs BEFORE the lint stage: delete the
-#: budget call and the same input comes back as a REPAINT refusal — a correct
-#: answer from the wrong door.
+#: A tree that is BOTH over the node budget AND repainting. Section 6 uses it to prove the budget
+#: stage runs BEFORE the lint stage: delete the budget call and the same input comes back as a
+#: REPAINT refusal, a correct answer from the wrong door.
 def over_budget_and_repainting() -> dict:
-    """⚰️ EVERY LEAF NOW CARRIES A DIFFERENT WINDOW, AND THAT IS LOAD-BEARING.
+    """⚰️ EVERY LEAF CARRIES A DIFFERENT WINDOW, AND THAT IS LOAD-BEARING.
 
-    This used to repeat ONE identical `repainting_tree()` forty times. The node
-    budget counts DISTINCT subtrees — because the interpreter memoises them, so a
-    term written forty times is computed once — and forty identical copies are ONE
-    shape. The tree was 163 nodes and 43 shapes, so it stopped being over budget
-    the hour this lane gained the memo, and the case silently began testing the
-    LINTER instead of the budget: it still refused, at `lint:repaint`, which is a
-    correct answer from the wrong door and exactly what this section exists to
-    tell apart.
-
-    ⛔ SO THE FIX IS NOT A BIGGER NUMBER — IT IS GENUINE DISTINCTNESS. A tree is
-    over the budget when it really costs that much to evaluate, and varying the
-    window per leaf makes each one a subtree the engine must actually compute.
+    The node budget counts DISTINCT subtrees (the interpreter memoises them, so a term written
+    forty times is computed once), so forty identical copies are ONE shape and stop being over
+    budget. Varying the window per leaf makes each one a subtree the engine must actually
+    compute, and every leaf reads ahead, so the whole tree is repainting too.
     """
-    tree = {"type": "call", "name": WINDOWED, "args": [s(), n(2.0)]}
+    tree = repainting_tree()
     for i in range(140):
-        leaf = {"type": "call", "name": WINDOWED, "args": [s(), n(float(i + 3))]}
+        leaf = {"type": "call", "name": FORWARD, "args": [s(), n(i + 3), n(i + 3)]}
         tree = {"type": "op", "name": BINARY_OP, "args": [tree, leaf]}
     return tree
 
@@ -2342,13 +2332,13 @@ def test_a_sampling_PARAMETER_IS_NEVER_SENT_so_a_proposal_is_ONE_round_trip(conc
 
 def test_a_FAILED_ATTEMPT_IS_BILLED_BUT_UNLEDGERED_so_THE_ATTEMPTS_ARE_BOUNDED(
         concierge, model):
-    """⛔ A TIMED-OUT CALL IS BILLED AND INVISIBLE. Tokens are billed as GENERATED,
-    but a timeout returns no ``usage``, so `cost_guard.record` never sees them and
-    the daily caps count the attempt as ZERO. The SDK retries twice by default,
-    which makes that up to THREE billed-and-invisible attempts per model call.
+    """⛔ A TIMED-OUT CALL IS BILLED AND REPORTS NOTHING. Tokens are billed as GENERATED,
+    but a timeout returns no ``usage``. The SDK retries twice by default, which would
+    make that up to THREE billed attempts per model call.
 
-    ⭐ HALF ONE, THE HAZARD, MEASURED: a failed attempt really does leave the
-    ledger at $0. That is what makes the attempt COUNT the thing worth bounding.
+    ⭐ HALF ONE, THE HAZARD, CLOSED: a failed attempt used to leave the ledger at $0, so
+    the daily caps never saw it. It is now charged its worst case
+    (`charge_unreported`), so the member's allowance and the $4 limit both move.
 
     ⭐ HALF TWO, THE BOUND, PINNED AT THE WIRE and derived from the constant — a
     caller that stops configuring the client records an empty options dict.
@@ -2361,9 +2351,8 @@ def test_a_FAILED_ATTEMPT_IS_BILLED_BUT_UNLEDGERED_so_THE_ATTEMPTS_ARE_BOUNDED(
     client = model([RuntimeError("Request timed out.")])
     res = concierge.propose("average it", user_id=USER, bars=bars())
     assert res["ok"] is False and res["gate"] == "model:transport"
-    assert concierge.spend_for(USER) == 0.0, (
-        "the hazard is gone — reread this test: a failed attempt used to be "
-        "invisible to the ledger, which is the reason attempts are bounded")
+    assert concierge.spend_for(USER) > 0.0, (
+        "a failed attempt is invisible to the ledger again: the caps count it as $0")
 
     assert client.options.get("max_retries") == concierge.MAX_HTTP_RETRIES, (
         f"the concierge configured {client.options!r} — the retry bound never "
@@ -2856,7 +2845,11 @@ def test_the_propose_route_is_MOUNTED_and_PAID_GATED_like_every_other(app, conci
     # 2026-10-02 (RT1): 16 -> 17 with `GET /runtime-kill`, moved with its siblings.
     # 2026-10-06 (P2 server): 17 -> 18 with `POST /converse`, moved with its siblings.
     # 2026-10-07 (Phase 4): 18 -> 19 with `POST /{def_id}/fork`, moved with its siblings.
-    assert len(routes) == 20
+    # 2026-11-13 (WS-I Part 2): 20 -> 21 with `POST /runtime-admission`, moved with its siblings.
+    # 2026-11-15 (U5): 21 -> 22 with `GET /capability-worker` (its OWN require_paid, then require_admin in the body).
+    # 2026-11-17 (Studio R4): 24 -> 25 with `POST /{def_id}/status-headline`, moved with its siblings.
+    # 2026-11-18 (what Create Indicator remembers): 25 -> 28 with `GET`/`PUT`/`DELETE /assistant-memory`, moved with its siblings.
+    assert len(routes) == 28
     propose = [r for r in routes if r.path.endswith("/propose")]
     assert len(propose) == 1 and propose[0].methods == {"POST"}
     assert router_mod.require_paid in [d.call for d in propose[0].dependant.dependencies]

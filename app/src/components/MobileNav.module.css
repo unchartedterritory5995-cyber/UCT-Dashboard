@@ -51,7 +51,9 @@
 .pageTitle {
   flex: 1;
   font-family: var(--font-sans);
-  font-size: 15px;
+  /* Finish batch (2026-11-05, owner-approved app-wide): 15 px was off the type scale on every touch screen; 16 is the
+     step the touch folder names and headings beside it already use, and keeps the title the bar's largest text. */
+  font-size: 16px;
   font-weight: 600;
   color: var(--text-bright);
   white-space: nowrap;

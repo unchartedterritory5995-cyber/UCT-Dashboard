@@ -29,11 +29,19 @@ import { configure } from '@testing-library/react'
 // the waitFor error deterministic, which is what you actually read at 2am.
 // The ceiling still dwarfs the 250ms debounce that motivated it.
 configure({ asyncUtilTimeout: 4000 })
-import { beforeEach, vi } from 'vitest'
+import { beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { cache as swrCache, SWRGlobalState } from 'swr/_internal'
-import { __permitRuntimePaneForTests } from './components/chart/engine/runtimePaneGate'
-import { __allowEveryRuntimeScriptForTests } from './components/chart/engine/runtimeKill'
+import { __ignoreHostKnownDivergenceForTests } from './components/chart/engine/hostKnownDivergence'
+import { __ignoreHeldWithholdsForTests } from './components/chart/engine/heldWithholds'
+import { grantRuntimeGate, gateState, gateNarrowedOutsideTest } from './testing/runtimeGate'
+// ⭐ W5-T2 — as in the app, where the registry imports it: the lower-timeframe gate is
+// registered at the door (`lowerTfServing.js`), so a suite that stubs its flag still flips it.
+import './components/chart/engine/lowerTfGate.js'
 import { __setWarmRetryDelaysForTests } from './utils/warmRetry'
+import { __setFirstLiveWidgetForTests } from './pages/journal-2-0/lib/notebookTelemetry'
+import { __setTodayLandingForTests } from './pages/journal-2-0/lib/todayHome'
+import { __setRsTelemetryOffForTests } from './lib/rsTelemetry'
+import { __setBenchmarkTailFetcherForTests } from './components/chart/engine/liveTail'
 
 // ── GT (2026-10-02): the runtime pane's per-member gate and starter allowlist ──
 // Production is FAIL-CLOSED on both: nothing latched = not permitted, nothing
@@ -42,10 +50,45 @@ import { __setWarmRetryDelaysForTests } from './utils/warmRetry'
 // here as a PERMITTED member with EVERY script graded, and keep measuring the lane
 // rather than these two doors. ⛔ The doors themselves are railed with both reset,
 // in `components/chart/engine/__tests__/runtimeSwitchOn.test.js`.
-beforeEach(() => {
-  __permitRuntimePaneForTests()
-  __allowEveryRuntimeScriptForTests()
+// ── HOST KNOWN-DIVERGENCE (owner decision 2026-11-17): the measuring suites (the vendor harness, the
+// coverage census) grade what the host lane WOULD draw, so the list stays derivable from their verdicts;
+// the census applies the list in its predicate. ⛔ The doors themselves are railed with it reset, in
+// `components/chart/engine/hostKnownDivergence.test.js`. Also at load: a suite that measures while it is
+// COLLECTED (module scope, before any `beforeEach`) measures the engine too.
+// ── ⛔⛔ GATE-BLIND (test-grant census, 2026-11-19): the grant is re-applied before EVERY test, so a
+// suite that narrowed these doors once, in `beforeAll`, ran every "member" assertion under the grant
+// (three suites did; one hid 31 red cases). Before it re-grants, the hook below asks whether a hook
+// OUTSIDE any test moved the gate away from the grant since the last test ended, and if so fails this
+// test by name instead of silently undoing it. A suite tests the member's doors with
+// `asMember({...})` (a `beforeEach`), or inside a test body. Module / describe-body narrowing runs
+// before every hook, so it is railed statically (`testing/runtimeGateScope.rail.test.js`).
+// The decision is `testing/runtimeGate.js::gateNarrowedOutsideTest`, railed in `runtimeGate.test.js`.
+__ignoreHostKnownDivergenceForTests()
+// ── HELD WITHHOLDS (coordinator ruling 2026-11-19): the same, by name, for the narrow withholds licence-held captures
+// ask for (`engine/heldWithholds.js`): the measuring suites and the regrade see the picture the ENGINE draws, so a
+// regrade can lift a withhold when it matches. ⛔ The member door applies them, railed in
+// `components/chart/builder/memberPane/heldWithholds.door.test.js` (both sides). At load (a suite that measures while
+// it is collected), and before every test as a DECLARED door of the runtime gate's grant (`grantRuntimeGate`, its
+// state in `gateState`), so a hook outside any test that applies the list fails the next test by name, GATE-BLIND,
+// as the other doors do; a suite applies it with `asMember({ held: true })`.
+__ignoreHeldWithholdsForTests()
+let __gateGranted = null
+let __gateAfter = null
+beforeAll(() => {
+  grantRuntimeGate()
+  __gateGranted = gateState()
+  __gateAfter = __gateGranted
 })
+beforeEach(() => {
+  const now = gateState()
+  const blind = gateNarrowedOutsideTest({ granted: __gateGranted, after: __gateAfter, now })
+  __gateAfter = now
+  if (blind) throw new Error(blind)
+  grantRuntimeGate()
+})
+// ⚠️ After-hooks run in STACK order, so this root one runs LAST: it reads the gate as the test and
+// every after-hook of its file left it.
+afterEach(() => { __gateAfter = gateState() })
 
 // ── 2026-10-06: the shared research fetchers re-ask a transient first failure once, after a
 // pause (utils/warmRetry.js: a cold pod after a deploy is not a failed read). The suites
@@ -53,6 +96,40 @@ beforeEach(() => {
 // ⛔ The retry itself is railed with it ON, through a real panel, in
 // `components/research/sections/sectionFetch.warmRetry.test.jsx`.
 beforeEach(() => { __setWarmRetryDelaysForTests([]) })
+
+// ── Audit 2026-11-05 (S20): the once-per-browser "first live widget" beacon. The widget suites written before it
+// pin "renders from params without a fetch"; the beacon is off here by default and railed ON in
+// `pages/journal-2-0/lib/notebookTelemetry.test.js` and `components/notebook/EmptyNamesAsk.test.jsx`.
+beforeEach(() => { __setFirstLiveWidgetForTests(false) })
+
+// ── UCT RS split, U7 (2026-11-09): `VITE_RS_SPLIT_ENABLED` picks which `rsLine` definition `nativeRegistry.js`
+// REGISTERS at module load (the slim UCT RS Line under '1', today's UCT Relative Strength otherwise). The suite's
+// default is OFF, as the build's is: the 60-odd RS files pin today's shape, and a developer's shell env must not flip
+// them. The slim definition is railed through its exported raw (`rsSplitSlim.test.js`, `rsSplitMigration.test.js`),
+// and the registration under '1' through a stubbed env + `vi.resetModules()` (`rsSplitFlagOn.test.jsx`).
+try { delete import.meta.env.VITE_RS_SPLIT_ENABLED } catch { /* a read-only env object: the default is already off */ }
+
+// ── UCT RS split, F2 (2026-11-10): the benchmark tail store (`engine/liveTail.js`) asks for a benchmark's forming bar
+// only through a request its HOST registers; the chart door (`engine/serverCompute.js`) registers the browser's on
+// import, and it used to disarm itself under `import.meta.env.MODE === 'test'` — a build-flag read that the runtime
+// lane's compute closure may not hold (`tools/pine_runtime_closure.mjs`). This is the test host's side of that seam:
+// the request is taken away before every test, so a suite that counts `fetch` calls never meets a GET it did not
+// arm. A suite that wants the tail arms a counting one with `__setBenchmarkTailFetcherForTests(fn)` itself
+// (`liveTail.test.js`, `__tests__/liveTailLane.test.js`). ⚠️ This reaches the module instance imported HERE: a file
+// that `vi.resetModules()` and re-imports the chart door gets a fresh, armed store for that test, as the browser does.
+beforeEach(() => { __setBenchmarkTailFetcherForTests(null) })
+
+// ── UCT RS (2026-11-07): the six RS counts are ON by default in a build since the server lists them. The chart
+// suites written while they were dark mount RS copies under fetch mocks that count calls, so the counts are off here
+// by default; the real gate (on by default, `VITE_RS_TELEMETRY_ENABLED=0` the kill switch) is railed in
+// `lib/rsTelemetry.test.js`, and a test sink opens it wherever a suite reads the events.
+beforeEach(() => { __setRsTelemetryOffForTests(true) })
+
+// ── Audit 2026-11-05 (S15), Notebook simplify Task 5: the Notebook opens on the notes list whatever this switch says;
+// it decides only where the 60-second first run's Done lands (the Daily brief when on, today's note when off). The
+// suites written before the Daily brief expect today's note, so it is off here; the production value (on) is railed
+// in `pages/journal-2-0/tabs/NotebookTab.landing.test.jsx`.
+beforeEach(() => { __setTodayLandingForTests(false) })
 
 // ── SWR cache isolation between tests ─────────────────────────────────────
 // SWR keeps a module-global cache PLUS concurrent-request (dedupe) markers

@@ -11,6 +11,7 @@ forget_review(review_id, *, conn=None) -> None
 Production Anthropic calls go through AnthropicClient; tests inject FakeClient.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import json
 import os
@@ -43,7 +44,7 @@ class CoachClientProto(Protocol):
 class AnthropicClient:
     """Thin wrapper around the Anthropic Python SDK for Compass coach calls."""
 
-    DEFAULT_MODEL = "claude-sonnet-4-6"
+    DEFAULT_MODEL = llm_models.SONNET
 
     def __init__(self, api_key: str | None = None) -> None:
         import anthropic  # deferred so the module is importable without the package installed
@@ -62,6 +63,7 @@ class AnthropicClient:
             api_key=key,
             timeout=llm_timeouts.seconds("COMPASS_REVIEW_LLM_TIMEOUT_SECS",
                                          llm_timeouts.REQUEST_PATH_LONG),
+            max_retries=0,
         )
 
     # ------------------------------------------------------------------
@@ -76,7 +78,7 @@ class AnthropicClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
-            temperature=0.4,
+            **llm_models.plain(self.DEFAULT_MODEL, temperature=0.4),
             metadata={"user_id": f"compass_weekly_review:{user_id}"},
             system=[
                 {
@@ -87,7 +89,7 @@ class AnthropicClient:
             ],
             messages=[{"role": "user", "content": user_message}],
         )
-        body = msg.content[0].text if msg.content else ""
+        body = llm_models.text_of(msg)
         summary = _extract_first_paragraph(body)
         return {"body": body, "summary": summary, "key_observations": []}
 
@@ -103,7 +105,7 @@ class AnthropicClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
-            temperature=0.3,
+            **llm_models.plain(self.DEFAULT_MODEL, temperature=0.3),
             metadata={"user_id": f"compass_profile_update:{user_id}"},
             system=[
                 {
@@ -114,7 +116,7 @@ class AnthropicClient:
             ],
             messages=[{"role": "user", "content": user_message}],
         )
-        text = msg.content[0].text if msg.content else ""
+        text = llm_models.text_of(msg)
         return {"updated_profile": text.strip()}
 
     # ------------------------------------------------------------------
@@ -126,7 +128,7 @@ class AnthropicClient:
         msg = self._client.messages.create(
             model=self.DEFAULT_MODEL,
             max_tokens=1200,
-            temperature=0.5,
+            **llm_models.plain(self.DEFAULT_MODEL, temperature=0.5),
             metadata={"user_id": f"compass_eod_recap:{user_id}"},
             system=[
                 {
@@ -137,7 +139,7 @@ class AnthropicClient:
             ],
             messages=[{"role": "user", "content": user_message}],
         )
-        body = msg.content[0].text if msg.content else ""
+        body = llm_models.text_of(msg)
         summary = _extract_first_paragraph(body)
         return {"body": body, "summary": summary, "key_observations": []}
 
@@ -475,6 +477,46 @@ def forget_review(review_id: str, *, user_id: str | None = None, conn=None) -> i
             )
         _conn.commit()
         return cur.rowcount
+    finally:
+        if _should_close:
+            _conn.close()
+
+
+def restore_review(review_id: str, *, user_id: str, conn=None) -> int:
+    """Undo `forget_review` when the regeneration that replaced it failed."""
+    _conn, _should_close = _get_conn(conn)
+    try:
+        cur = _conn.execute(
+            "UPDATE j2_coach_outputs SET forgotten = 0 WHERE id = ? AND user_id = ?",
+            (review_id, user_id),
+        )
+        _conn.commit()
+        return cur.rowcount
+    finally:
+        if _should_close:
+            _conn.close()
+
+
+def replaces_forgotten(
+    user_id: str, account_id: str, output_type: str, period_key: str, period: str, *, conn=None,
+) -> bool:
+    """Would a generate for this period re-buy an output the member forgot?
+
+    Forget is free and must stay free, and generate is idempotent only while a live
+    row exists, so forget + generate was the regenerate door without its daily
+    ceiling. `period_key` is a code constant (`week_start`, `day`)."""
+    _conn, _should_close = _get_conn(conn)
+    try:
+        row = _conn.execute(
+            f"""
+            SELECT MIN(forgotten)
+              FROM j2_coach_outputs
+             WHERE user_id = ? AND account_id = ? AND output_type = ?
+               AND json_extract(metadata, '$.{period_key}') = ?
+            """,
+            (user_id, account_id, output_type, period),
+        ).fetchone()
+        return bool(row[0])          # NULL: never generated. 0: a live row answers it.
     finally:
         if _should_close:
             _conn.close()

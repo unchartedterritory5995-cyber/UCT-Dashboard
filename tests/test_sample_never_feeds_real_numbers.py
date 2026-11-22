@@ -46,7 +46,6 @@ def db(monkeypatch, tmp_path):
     path = str(tmp_path / "i3.db")
     monkeypatch.setattr(auth_db, "_DB_PATH", path)
     monkeypatch.setenv("NOTEBOOK_ONBOARDING_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_GETTING_STARTED_ENABLED", "1")
     auth_db.init_db()
     c = auth_db.get_connection()
     try:
@@ -399,6 +398,9 @@ GUARDED = {
     "api/services/journal_two/passed_setups.py": "names saved from a scan and not traded",
     "api/services/journal_two/similar_matches.py": "the templates the nightly market match runs on",
     "api/services/journal_two/setups_board.py": "the board's count: an example card is shown, marked, and not counted",
+    "api/services/journal_two/import_repair/runner.py": "the link repair's plan and its dry-run counts: classify() "
+                                                        "skips the sample (sample_marker.is_sample, ruling C6), so an "
+                                                        "example note is never repaired or counted",
     "api/services/journal_two/visual_playbook.py": "the playbook's count, facets and slice numbers: an example card "
                                                     "is shown, marked, and in none of them",
     "api/services/journal_two/note_kinds.py": "the kind-mapping offer's count and the notes its apply writes; the "
@@ -435,6 +437,11 @@ GUARDED = {
     "api/services/journal_two/gallery_suggest.py": "a template's suggested values (Task 11.9): the member's "
                                                     "most-used folder, kind of note and property; an example "
                                                     "note is never a note the member wrote",
+    "api/services/journal_two/notebook_today.py": "the Daily brief's On this day: an example note is never one "
+                                                   "the member wrote on this date in an earlier year "
+                                                   "(sample_marker.not_sample_sql); its other reads are the "
+                                                   "member's own daily notes, by daily_date, which the sample "
+                                                   "never sets (pinned below)",
     "api/routers/notebook_widget_definitions.py": "the builder's note tag and ticker pickers (Task 10.9): the "
                                                   "values the notes widget can count (its own predicate, "
                                                   "compile.note_membership_sql), so an example note's tag "
@@ -458,6 +465,10 @@ EXEMPT = {
     "api/services/journal_two/evidence_candidates.py": _NOTE_ITSELF,
     "api/services/journal_two/enrichment.py": "the import arrival screen's ticker offer, for notes the member names",
     "api/services/journal_two/stage_a_validation.py": "an offline validation tool, not a member surface",
+    "api/services/journal_two/note_daily.py": "the daily note door: which folder the member's newest daily note "
+                                              "sits in, and whether today's daily note exists; a folder and a "
+                                              "yes/no about daily notes (daily_date), which the sample never "
+                                              "writes (pinned below), never a count or a fact shown",
     "api/services/journal_two/notebook_soak.py": "the soak monitor's population counts, not a member surface",
     "api/services/journal_two/db.py": "schema and migrations",
     "api/services/user_playbook/service.py": "titles of notes the member linked to a playbook entry by hand",
@@ -468,6 +479,27 @@ EXEMPT = {
     "api/services/journal_two/widget_engine/run.py": "the widget result cache's freshness stamp (COUNT and "
                                                      "MAX(updated_at) of notes, folders, kinds, properties); it "
                                                      "only decides when to recompute, never a shown number",
+    # Connector fidelity (Plans A, E, F): import plumbing that stores, links or repairs the note itself.
+    "api/services/journal_two/import_repair/links.py": "repairs links inside the member's own imported notes; "
+                                                       "the note itself, never a fact about the member",
+    "api/services/journal_two/note_connectors/adoption.py": "matches a live connector note to the member's own "
+                                                            "file-imported copy of it; the note itself",
+    "api/services/journal_two/note_connectors/corpora/corpora_gen.py": "the connector certification corpora "
+                                                                       "generator, an offline tool, not a member "
+                                                                       "surface",
+    "api/services/journal_two/note_connectors/dest_folder.py": "the connector's destination folder and its repair; "
+                                                               "folders and ownership, never a shown count",
+    "api/services/journal_two/note_connectors/link_keys.py": "the link heal pass: an imported note's placeholder "
+                                                             "links become in-app links; the note itself",
+    "api/services/journal_two/note_connectors/providers/obsidian.py": "the Obsidian sync writes and reconciles the "
+                                                                      "member's vault notes; the note itself",
+    # Import a tweet (#987, 8cac747d65 / dd1965db4b, 2026-11-09): unclassified here since, and this file went red on it.
+    "api/services/journal_two/tweet_capture.py": "saves an imported post into the member's own note as a cited "
+                                                 "excerpt (document, page, excerpt) and reads those rows back only to "
+                                                 "de-duplicate and stamp it; the note itself, never a count or fact shown",
+    "api/services/journal_two/tweet_capture_sync.py": "the nightly removal of saved posts that left X: which tweet "
+                                                      "ids are captured and whether a note still holds one; "
+                                                      "bookkeeping on the member's own captures, never a shown number",
 }
 for _name in ("ai_actions", "ask_retrieval", "attachment_gc", "capture_destinations", "document_ocr",
               "document_search", "excerpt_search", "note_computed", "note_connectors/engine", "note_mentions",
@@ -542,6 +574,19 @@ def test_no_ledger_entry_is_stale():
     readers = _readers()
     gone = sorted((set(GUARDED) | set(EXEMPT)) - set(readers))
     assert not gone, "listed but no longer reading a note table: " + ", ".join(gone)
+
+
+def test_the_sample_never_writes_a_daily_date():
+    """Follow-up B, item 4d: two ledger reasons (note_daily.py, notebook_today.py) rest on this. A note's `daily_date`
+    is set only through `create_note(..., daily_date=...)` (never from a payload); the two sample writers never pass
+    it, so no example note is ever a daily note. A writer that starts passing it reds here, and the reasons above must
+    then be revisited."""
+    for m in ("api/services/journal_two/sample_notebook.py", "api/services/journal_two/sample_examples.py"):
+        code = "\n".join(_code_strings(ast.parse((REPO / m).read_text(encoding="utf-8"))))
+        src = (REPO / m).read_text(encoding="utf-8")
+        assert "daily_date" not in code and not re.search(r"\bdaily_date\s*=", src), m
+    # control: the predicate sees a writer that passes it
+    assert re.search(r"\bdaily_date\s*=", "notes.create_note(uid, payload, daily_date=day)")
 
 
 def test_every_guarded_reader_uses_the_one_predicate():

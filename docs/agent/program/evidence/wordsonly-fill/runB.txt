@@ -1,0 +1,33 @@
+[reach] widget held-out v1 {"model":"24/24","action":"21/24","list":"21/24"} misses: (held-out row ids in the PR doc; texts omitted)
+ ✓ src/agent/agentScanSat1Requests.test.jsx (62 tests) 30515ms
+[reach] widget held-out v2 {"model":"24/24","action":"21/24","list":"21/24"} misses: (held-out row ids in the PR doc; texts omitted)
+NL-1 selection coverage (dev / exposed only; budget 55 shipped, 60 for comparison)
+  corpus.json      n 182  first call 174 (95.6%)  +reroute  8 (→ 100.0%)  not reachable 0  actions median 43 max 55
+  dev-nl1.json     n  43  first call  43 (100.0%)  +reroute  0 (→ 100.0%)  not reachable 0  actions median 46 max 55
+  heldout-v1.json  n 165  first call 164 (99.4%)  +reroute  1 (→ 100.0%)  not reachable 0  actions median 41 max 55
+  corpus.json      n 182  first call 176 (96.7%)  +reroute  6 (→ 100.0%)  not reachable 0  actions median 46 max 59
+  dev-nl1.json     n  43  first call  43 (100.0%)  +reroute  0 (→ 100.0%)  not reachable 0  actions median 46 max 59
+  heldout-v1.json  n 165  first call 164 (99.4%)  +reroute  1 (→ 100.0%)  not reachable 0  actions median 42 max 59
+ ✓ src/agent/agentNl1SelectionCoverage.test.js (1 test) 70229ms
+[reach] widget tune v1 {"model":"24/24","action":"20/24","list":"21/24"} misses: (held-out row ids in the PR doc; texts omitted)
+ ✓ src/agent/qa/capabilityRegression/golden.test.jsx (71 tests) 85612ms
+[reach] widget tune v2 {"model":"24/24","action":"21/24","list":"21/24"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] list held-out v1 {"model":"8/8","action":"7/8"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] list held-out v2 {"model":"8/8","action":"8/8"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] list tune v1 {"model":"5/5","action":"5/5"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] list tune v2 {"model":"5/5","action":"5/5"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] name held-out2 v1 {"model":"6/6","action":"5/6","list":"5/6"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] name held-out2 v2 {"model":"6/6","action":"5/6","list":"5/6"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] door held-out2 v1 {"model":"4/4","action":"4/4","list":"4/4"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] door held-out2 v2 {"model":"4/4","action":"4/4","list":"4/4"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] journal held-out2 v1 {"model":"4/4","action":"4/4"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] journal held-out2 v2 {"model":"4/4","action":"4/4"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] widget tune2 v1 {"model":"5/5","action":"5/5","list":"5/5"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] widget tune2 v2 {"model":"5/5","action":"5/5","list":"5/5"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] journal tune2 v1 {"model":"4/4","action":"4/4"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] journal tune2 v2 {"model":"4/4","action":"4/4"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] search held-out7 v1 {"model":"3/3","action":"3/3","list":"3/3"} misses: (held-out row ids in the PR doc; texts omitted)
+[reach] search held-out7 v2 {"model":"3/3","action":"3/3","list":"3/3"} misses: (held-out row ids in the PR doc; texts omitted)
+ ✓ src/agent/agentExecReach.test.jsx (23 tests) 173211ms
+ Test Files  4 passed (4)
+      Tests  157 passed (157)

@@ -108,15 +108,21 @@ describe('BreadthDrillList — it feeds the REAL table, it does not build one', 
     expect(lastProps.metaOverride.SRPT.rvol).toBeCloseTo(240)
   })
 
-  it('⛔ leads with RVOL and keeps its OWN column key — Vol can never be filled', () => {
-    // Sharing the global watchlist key shipped a dead column: `Vol` means RAW
-    // volume, which a recorded snapshot has no way to supply, so every row
-    // showed an em-dash there for anyone whose watchlists include it.
+  it('⭐ Focus opens on Symbol, % Chg, Price, Vol — the three number columns one width — with its OWN column key', () => {
+    // Owner preset (2026-11-08). Its own key, so the member's /charts watchlists
+    // keep their arrangement and an older drill layout cannot shadow this one.
     mount(LIVE)
-    expect(lastProps.defaultColCfg.order).toContain('rvol')
-    expect(lastProps.defaultColCfg.order).not.toContain('vol')
-    expect(lastProps.colStorageKey).toBeTruthy()
-    expect(lastProps.colStorageKey).toMatch(/breadthDrill$/)
+    expect(lastProps.defaultColCfg.order).toEqual(['flag', 'sym', 'chg', 'price', 'vol'])
+    const w = lastProps.defaultColCfg.widths
+    expect(w.chg).toBe(w.price)
+    expect(w.price).toBe(w.vol)
+    expect(lastProps.colStorageKey).toMatch(/breadthDrill\.focus7$/)
+  })
+
+  it('⛔ Vol is RAW volume from the payload (`v`) on a recorded day — never the RVOL ratio', () => {
+    mount({ ...LIVE, live: false, date: '2026-11-06', items: [{ t: 'AAA', c: 10, pct: 5, vr: 2.5, v: 1234567 }, { t: 'BBB', c: 3, pct: 4, vr: 1.1 }] })
+    expect(lastProps.quoteOverride.AAA.volume).toBe(1234567)
+    expect(lastProps.quoteOverride.BBB.volume).toBeNull()
   })
 
   it('offers no dead back button — there is no picker to return to', () => {

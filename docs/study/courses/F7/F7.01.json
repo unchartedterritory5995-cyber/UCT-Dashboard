@@ -1,0 +1,2142 @@
+{
+ "unit": "F7.01",
+ "track": "F7",
+ "title": "How markets move",
+ "teaches": "Name where an index sits: a correction (down more than 10% from the high), a bear market (down 20% or more, on closes, dated from the peak), a bull market (up 20% or more off a low, dated from the low), how long each has tended to last, and Weinstein's four stages read against a 30-week average.",
+ "skills": [
+  {
+   "id": "history.how_markets_move",
+   "title": "How markets move: corrections, bear and bull markets, the four stages"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Bear Market",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/bear-market",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Bull Market",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/bull-market",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Market Correction: What Does It Mean? (Mark Riepe, Schwab Center for Financial Research, 2025-03-14)",
+   "url": "https://www.schwab.com/learn/story/market-correction-what-does-it-mean",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Morningstar",
+   "title": "What's the Difference Between a Bear Market and a Correction? (Margaret Giles, 2025-04-03)",
+   "url": "https://www.morningstar.com/markets/whats-difference-between-bear-market-correction",
+   "accessed": "2026-11-09",
+   "why_reliable": "Morningstar, Inc. is a major independent investment research and data firm (Schwab's own correction study cites 'data provided by Morningstar, Inc.'). The article has a named author and date, and its count (six of 27 corrections since 1975 became bear markets) matches Schwab's independently published count."
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "S&P 500 is in official bear market, according to S&P Dow Jones Indices (Scott Schnipper, 2022-06-13)",
+   "url": "https://www.cnbc.com/2022/06/13/sp-500-is-in-official-bear-market-according-to-sp-dow-jones-indices.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "How 20% declines in stocks came to be known as 'bear markets' on Wall Street (Bob Pisani, 2025-04-08)",
+   "url": "https://www.cnbc.com/2025/04/08/how-20percent-declines-in-stocks-came-to-be-known-as-bear-markets-on-wall-street.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Stock market news for April 8, 2025 (live updates)",
+   "url": "https://www.cnbc.com/2025/04/07/stock-market-today-live-updates.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Stock market news for April 7, 2025 (live updates)",
+   "url": "https://www.cnbc.com/2025/04/06/stock-market-today-live-updates.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Bull market officially lives on with fresh S&P record, nears 1000 days (Jesse Pound, 2025-06-27)",
+   "url": "https://www.cnbc.com/2025/06/27/bull-market-officially-lives-on-with-fresh-sp-record-nears-1000-days.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "Small-cap benchmark Russell 2000 becomes first major U.S. stock measure to enter bear market (Sean Conlon, 2025-04-03)",
+   "url": "https://www.cnbc.com/2025/04/03/small-cap-benchmark-russell-2000-becomes-first-major-us-stock-measure-to-enter-bear-market.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Dow Theory",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/dow-theory",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Wyckoff Market Analysis",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/wyckoff-market-analysis",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "Maximizing Profits: Three Stocks in Three Phases (David Keller, CMT, The Mindful Investor, 2023-10-06)",
+   "url": "https://stockcharts.com/articles/mindfulinvestor/2023/10/maximizing-profits-three-stock-974.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "A StockCharts.com column, not ChartSchool. The author, David Keller, CMT, is a former President of the CMT Association (bio on the page). Only his two moving-average lines are cited, never his phase names (see conflicts)."
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Thomas N. Bulkowski, thepatternsite.com",
+   "title": "Bulkowski's on Four Stages of Price Movement (Stan Weinstein's method)",
+   "url": "https://www.thepatternsite.com/Stages.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Thomas N. Bulkowski, thepatternsite.com",
+   "title": "Bear Markets",
+   "url": "https://www.thepatternsite.com/BearMarkets.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Thomas N. Bulkowski, thepatternsite.com",
+   "title": "Bulkowski on How Long Bull Markets Last (last updated 2015-03-13)",
+   "url": "https://www.thepatternsite.com/MarketLongevity.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Thomas N. Bulkowski, thepatternsite.com",
+   "title": "Trade with the Trend",
+   "url": "https://www.thepatternsite.com/TradeWithTrend.html",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Investor's Business Daily",
+   "title": "IBD University, CAN SLIM: Market Direction",
+   "url": "https://www.investors.com/ibd-university/can-slim/market-direction/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s1",
+   "quote": "A time when stock prices are declining and market sentiment is pessimistic. Generally, a bear market occurs when a broad market index falls by 20% or more over at least a two-month period.",
+   "claim": "The SEC's investor site: a bear market is a time of falling prices and pessimism, generally a fall of 20% or more in a broad market index over at least two months."
+  },
+  {
+   "id": "f02",
+   "source": "s2",
+   "quote": "A time when stock prices are rising and market sentiment is optimistic. Generally, a bull market occurs when there is a rise of 20% or more in a broad market index over at least a two-month period.",
+   "claim": "The SEC's investor site: a bull market is a time of rising prices and optimism, generally a rise of 20% or more in a broad market index over at least two months."
+  },
+  {
+   "id": "f03",
+   "source": "s3",
+   "quote": "The general definition of a market correction is a market decline that is more than 10%, but less than 20%. A bear market is usually defined as a decline of 20% or greater.",
+   "claim": "A correction is generally a decline of more than 10% but less than 20%; a bear market is usually a decline of 20% or more."
+  },
+  {
+   "id": "f04",
+   "source": "s3",
+   "quote": "There's no universally accepted definition of a correction",
+   "claim": "There is no single official definition of a correction."
+  },
+  {
+   "id": "f05",
+   "source": "s3",
+   "quote": "Nobody can predict with any degree of certainty whether a correction will reverse or turn into a bear market",
+   "claim": "Nobody can reliably predict whether a correction will reverse or become a bear market."
+  },
+  {
+   "id": "f06",
+   "source": "s3",
+   "quote": "There have been 27 market corrections since November 1974—including the current one—and only six of them became bear markets",
+   "claim": "Schwab counts 27 corrections in the S&P 500 since November 1974, counting the one under way in March 2025, and only six became bear markets."
+  },
+  {
+   "id": "f07",
+   "source": "s3",
+   "quote": "Since 1966, the average bear market has lasted roughly 14 months, far shorter than the average bull market.",
+   "claim": "Since 1966 the average bear market lasted about 14 months, far shorter than the average bull market."
+  },
+  {
+   "id": "f08",
+   "source": "s3",
+   "quote": "the S&P 500's pandemic-fueled bear market in early 2020, which lasted a mere 33 days from the previous high on February 19 to the trough on March 23",
+   "claim": "The 2020 S&P 500 bear market lasted 33 days, from the February 19 high to the March 23 low."
+  },
+  {
+   "id": "f09",
+   "source": "s3",
+   "quote": "Bear markets are defined as periods with cumulative declines of at least 20% from the previous peak close.",
+   "claim": "In Schwab's study a bear market is a decline of at least 20% from the previous peak close."
+  },
+  {
+   "id": "f10",
+   "source": "s3",
+   "quote": "Its duration is measured as the number of days from the previous peak close to the lowest close reached after it has fallen at least 20%, and includes weekends and holidays.",
+   "claim": "A bear market's length is counted from the previous peak close to its lowest close, so the whole decline is part of it."
+  },
+  {
+   "id": "f11",
+   "source": "s4",
+   "quote": "A “correction” refers to a market decline greater than 10% but less than 20%. The 10% threshold is arbitrary, but it represents a significant decline.",
+   "claim": "A correction is a decline of more than 10% but less than 20%, and the 10% line is an arbitrary convention."
+  },
+  {
+   "id": "f12",
+   "source": "s4",
+   "quote": "Stock market corrections are fairly common (there have been 10 of them since the year 2000) and usually short-lived. Historically, market corrections have lasted an average of three to four months.",
+   "claim": "Corrections are fairly common and usually short, lasting three to four months on average."
+  },
+  {
+   "id": "f13",
+   "source": "s4",
+   "quote": "The start and end of a bear market, however, can only be determined after the fact.",
+   "claim": "Where a bear market starts and ends is only known after the fact."
+  },
+  {
+   "id": "f14",
+   "source": "s4",
+   "quote": "Although a bear market is declared once the stock market falls at least 20% from its previous high, the entire decline is considered part of the bear market.",
+   "claim": "A bear market is declared at the 20% mark, but the whole decline from the high counts as the bear market."
+  },
+  {
+   "id": "f15",
+   "source": "s4",
+   "quote": "The bear market in 2020 was the shortest ever, lasting only a month. Previously, bear markets have lasted an average of about nine and a half months. Still, these periods of decline have been shorter than periods of growth.",
+   "claim": "The 2020 bear market lasted about a month, the shortest ever; bear markets have been shorter than bull markets."
+  },
+  {
+   "id": "f16",
+   "source": "s4",
+   "quote": "In fact, most market corrections have not led to bear markets. Going back to 1975, only six of the 27 market corrections have turned into bear markets.",
+   "claim": "Most corrections have not become bear markets: six of 27 since 1975."
+  },
+  {
+   "id": "f17",
+   "source": "s4",
+   "quote": "there is also no surefire way to predict whether a market correction is actually the start of a bear market.",
+   "claim": "There is no sure way to tell whether a correction is the start of a bear market."
+  },
+  {
+   "id": "f18",
+   "source": "s4",
+   "quote": "Wall Street considers bear markets over when the stock market closes at a new record high.",
+   "claim": "Some on Wall Street count a bear market as over only when the market closes at a new record high."
+  },
+  {
+   "id": "f19",
+   "source": "s5",
+   "quote": "S&P Global says a 20% decline in the S&P 500 on a closing basis from its previous peak is all it takes to define a bear market.",
+   "claim": "S&P Dow Jones Indices defines a bear market as a 20% decline in the S&P 500, on a closing basis, from its previous peak."
+  },
+  {
+   "id": "f20",
+   "source": "s5",
+   "quote": "Which means that this bear market is already more than five months old, since the S&P 500 all-time high came on January 3.",
+   "claim": "When the 2022 bear market became official on June 13, it was already more than five months old, dated from the January 3 high."
+  },
+  {
+   "id": "f21",
+   "source": "s5",
+   "quote": "Stocks had been flirting with a bear market for the past several weeks on an intraday basis, but had never actually closed below 3837, the level S&P Global needed to see in order to officially declare one.",
+   "claim": "In 2022 the S&P 500 flirted with the 20% line intraday for weeks, but it was not official until it closed below it."
+  },
+  {
+   "id": "f22",
+   "source": "s5",
+   "quote": "So, how does S&P Global define the end of a bear market? When the index reaches its low and later rises by 20%. Unfortunately for investors, that can only be known in hindsight.",
+   "claim": "S&P Dow Jones Indices dates the end of a bear market at its low, once the index later rises 20%, which is only known in hindsight."
+  },
+  {
+   "id": "f23",
+   "source": "s5",
+   "quote": "Since the modern S&P 500 index began in the late 1920s, the average bear market has translated into a 38% price decline lasting an average of almost 19 months.",
+   "claim": "Since the late 1920s the average S&P 500 bear market fell 38% and lasted almost 19 months."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "Prior bear markets for the S&P 500 Start date End date Start price End price Months S&P 500 % change Prior Bull mkt % gain",
+   "claim": "S&P Dow Jones Indices' table lists each prior S&P 500 bear market's start and end date, start and end price, length in months and % change."
+  },
+  {
+   "id": "f25",
+   "source": "s5",
+   "quote": "3/6/1937 4/29/1942 18.68 7.47 61.8 -60",
+   "claim": "In that table, the bear market from 3/6/1937 to 4/29/1942 lasted 61.8 months and fell 60%."
+  },
+  {
+   "id": "f26",
+   "source": "s5",
+   "quote": "2/19/2020 3/23/2020 3386.15 2237.40 1.1 -33.9",
+   "claim": "In that table, the 2020 bear market ran from 2/19/2020 to 3/23/2020, 1.1 months, down 33.9%."
+  },
+  {
+   "id": "f27",
+   "source": "s5",
+   "quote": "1/3/2022 6/13/2022 4796.56 3749.63 5.3 -21.8",
+   "claim": "In that table, the 2022 bear market is dated from 1/3/2022; by 6/13/2022 it was 5.3 months old and down 21.8%."
+  },
+  {
+   "id": "f28",
+   "source": "s6",
+   "quote": "The whole idea of labeling a decline of 10% to 20% a \"correction\" and 20% or more a \"bear market\" was largely the work of one man. Alan Shaw was one of the legendary founders of technical analysis.",
+   "claim": "The 10% correction and 20% bear market labels came largely from one technician, Alan Shaw."
+  },
+  {
+   "id": "f29",
+   "source": "s6",
+   "quote": "He would say anything up to 10% was a consolidation, 10% to 20% was a correction, and more than 20% was considered a bear market",
+   "claim": "Shaw called a drop of up to 10% a consolidation, 10% to 20% a correction, and more than 20% a bear market."
+  },
+  {
+   "id": "f30",
+   "source": "s6",
+   "quote": "Louise noted that other technicians have their own definition of what constitutes a bear market",
+   "claim": "Other technicians use their own definitions of a bear market."
+  },
+  {
+   "id": "f31",
+   "source": "s6",
+   "quote": "One point everyone agrees on: determining a 20% decline is based on closing prices, not intraday.",
+   "claim": "A 20% decline is measured on closing prices, not intraday prices."
+  },
+  {
+   "id": "f32",
+   "source": "s6",
+   "quote": "the historic closing high for the S & P 500 was February 19 when it ended the day at 6,144.15. To get to a 20% decline, the S & P 500 would have to close at 4,915.32.",
+   "claim": "S&P Dow Jones Indices said the S&P 500's record close was 6,144.15 on February 19, 2025, so a 20% decline meant a close at 4,915.32."
+  },
+  {
+   "id": "f33",
+   "source": "s6",
+   "quote": "closing at or below 4,915.32 is not the start of the bear market. The start of the bear market would date from the day of the market high, February 19.",
+   "claim": "A close past the 20% line does not start the bear market; it is dated from the day of the high."
+  },
+  {
+   "id": "f34",
+   "source": "s6",
+   "quote": "\"A bear market starts with the 1st downtick after the final price high,\" Tom McClellan, editor of The McClellan Market Report, told me. \"It does not start once you reach 20%.",
+   "claim": "Tom McClellan: a bear market starts right after the final high, not when the drop reaches 20%."
+  },
+  {
+   "id": "f35",
+   "source": "s6",
+   "quote": "If you say we are down 20%, it doesn't do you any good, it doesn't tell you what will happen next,",
+   "claim": "McClellan: knowing the market is down 20% doesn't tell you what happens next."
+  },
+  {
+   "id": "f36",
+   "source": "s6",
+   "quote": "Go with the trend, unless you have a compelling reason to go against the trend.",
+   "claim": "McClellan's advice: go with the trend unless you have a strong reason not to."
+  },
+  {
+   "id": "f37",
+   "source": "s6",
+   "quote": "a Bear Market Rally which Alan defined as a rally of 10% or more that follows a market decline of 20% or more,\" Yamada noted, \"after which the market declines to a new low.",
+   "claim": "Shaw defined a bear market rally as a rally of 10% or more after a 20%-plus decline, followed by a new low."
+  },
+  {
+   "id": "f38",
+   "source": "s6",
+   "quote": "Ever the market historian, Yamada noted the average bear market rally for the S & P 500 from 1929 thru 2020 is 18% over 31 trading days.",
+   "claim": "Louise Yamada: from 1929 to 2020 the average S&P 500 bear market rally was 18% over 31 trading days."
+  },
+  {
+   "id": "f39",
+   "source": "s7",
+   "quote": "The S&P 500 declined 1.57% to end at 4,982.77. The index was inches away from closing in a bear market, down nearly 19% from its February record",
+   "claim": "On April 8, 2025 the S&P 500 closed at 4,982.77, nearly 19% below its February record, just short of a bear market close."
+  },
+  {
+   "id": "f40",
+   "source": "s8",
+   "quote": "S&P 500 shed 0.23% to end at 5,062.25. The broad market average was down 4.7% at the lows of the session. It briefly entered bear market territory during the session",
+   "claim": "On April 7, 2025 the S&P 500 briefly traded in bear market territory during the session but closed at 5,062.25."
+  },
+  {
+   "id": "f41",
+   "source": "s8",
+   "quote": "Stocks began Monday in the red, with the S&P 500 following the Nasdaq Composite to enter bear market territory.",
+   "claim": "On April 7, 2025 the Nasdaq Composite was already in bear market territory before the S&P 500 got there."
+  },
+  {
+   "id": "f42",
+   "source": "s9",
+   "quote": "For example, the bull market between 2009 and 2020 lasted 3,999 days and delivered a 400% return.",
+   "claim": "The S&P 500 bull market from 2009 to 2020 lasted 3,999 days."
+  },
+  {
+   "id": "f43",
+   "source": "s9",
+   "quote": "That was a razor thin margin call for the bull market, which technically would have stopped if the index closed down 20% on any day from its previous high.",
+   "claim": "The bull market would have ended had the S&P 500 closed down 20% from its previous high on any day."
+  },
+  {
+   "id": "f44",
+   "source": "s10",
+   "quote": "The Russell 2000 benchmark entered a bear market on Thursday, down more than 20% from a 52-week high.",
+   "claim": "On April 3, 2025 the small-cap Russell 2000 fell into a bear market, more than 20% below its 52-week high."
+  },
+  {
+   "id": "f45",
+   "source": "s10",
+   "quote": "The index’s decline marks the first major U.S. benchmark to reach that territory",
+   "claim": "The Russell 2000 was the first major U.S. index to reach bear market territory in that sell-off."
+  },
+  {
+   "id": "f46",
+   "source": "s11",
+   "quote": "Primary moves, which can last from a few months to many years, represent the broad underlying trend of the market.",
+   "claim": "In Dow Theory, primary moves are the main trend and last from a few months to many years."
+  },
+  {
+   "id": "f90",
+   "source": "s11",
+   "quote": "Daily fluctuations can move with or against the primary trend and last from a few hours to a few days, but usually not more than a week.",
+   "claim": "In Dow Theory, daily fluctuations last hours to days, usually not more than a week."
+  },
+  {
+   "id": "f89",
+   "source": "s11",
+   "quote": "Secondary (or reaction) movements, which can last from a few weeks to a few months, move counter to the primary trend.",
+   "claim": "In Dow Theory, secondary moves run against the main trend and last from a few weeks to a few months."
+  },
+  {
+   "id": "f47",
+   "source": "s11",
+   "quote": "These movements are typically referred to as bull and bear markets.",
+   "claim": "Primary moves are what we call bull and bear markets."
+  },
+  {
+   "id": "f48",
+   "source": "s11",
+   "quote": "In a bull market, a secondary move is considered a correction. In a bear market, secondary moves are sometimes called reaction rallies.",
+   "claim": "A move against the trend is a correction in a bull market and a reaction rally in a bear market."
+  },
+  {
+   "id": "f49",
+   "source": "s11",
+   "quote": "Hamilton noted that reaction rallies during bear markets were quite swift and sharp.",
+   "claim": "Rallies inside bear markets tend to be fast and sharp."
+  },
+  {
+   "id": "f50",
+   "source": "s11",
+   "quote": "Hamilton noted that the first stage of a bull market was essentially indistinguishable from the last reaction rally of a bear market.",
+   "claim": "At first, a new bull market looks just like another bear market rally."
+  },
+  {
+   "id": "f51",
+   "source": "s11",
+   "quote": "The reality of the situation is that nobody knows where and when the primary trend will end.",
+   "claim": "Nobody knows where or when the main trend will end."
+  },
+  {
+   "id": "f52",
+   "source": "s11",
+   "quote": "Trying to predict the length and the duration of the trend is an exercise in futility.",
+   "claim": "Trying to predict how long a trend will last is futile."
+  },
+  {
+   "id": "f53",
+   "source": "s11",
+   "quote": "A downtrend is considered valid until a higher low forms and the ensuing advance off of the higher low surpasses the previous reaction high.",
+   "claim": "A downtrend stands until a higher low forms and the next advance clears the previous rally high."
+  },
+  {
+   "id": "f55",
+   "source": "s11",
+   "quote": "An uptrend began with the Oct-98 lows and the DJIA formed a series of higher highs and higher lows over the next 11 months.",
+   "claim": "An uptrend is a series of higher highs and higher lows."
+  },
+  {
+   "id": "f56",
+   "source": "s11",
+   "quote": "These trading ranges indicate either accumulation or distribution, but it was virtually impossible to tell which of the two it was until there was a break to the upside or the downside.",
+   "claim": "A sideways trading range can be accumulation or distribution, and you can't tell which until it breaks up or down."
+  },
+  {
+   "id": "f57",
+   "source": "s11",
+   "quote": "He also warned against attempting to anticipate the breakout.",
+   "claim": "Hamilton warned against trying to guess the breakout before it happens."
+  },
+  {
+   "id": "f58",
+   "source": "s12",
+   "quote": "Wyckoff notes that an uptrend starts with an accumulation phase, entering a markup phase as prices move steadily higher.",
+   "claim": "In Wyckoff's view an uptrend starts with a base (accumulation) and then a markup as prices climb."
+  },
+  {
+   "id": "f59",
+   "source": "s12",
+   "quote": "A downtrend starts with a distribution phase and then enters a markdown phase as prices move steadily lower.",
+   "claim": "In Wyckoff's view a downtrend starts with a top (distribution) and then a markdown as prices fall."
+  },
+  {
+   "id": "f60",
+   "source": "s13",
+   "quote": "Note how the price is above two upward-sloping moving averages, which speaks to the well-established uptrend that continues to drive prices ever higher.",
+   "claim": "In an established uptrend, price sits above rising moving averages."
+  },
+  {
+   "id": "f61",
+   "source": "s13",
+   "quote": "While GOOGL was above two upward-sloping moving averages, here we find the price is below two downward-sloping moving averages.",
+   "claim": "In a downtrend, price sits below falling moving averages."
+  },
+  {
+   "id": "f62",
+   "source": "s14",
+   "quote": "Weinstein's strategy revolves around two themes: identifying which stage the stock is in and using a 30-week moving average to help with timing and identification.",
+   "claim": "Stan Weinstein's method names the stage a chart is in, using a 30-week moving average."
+  },
+  {
+   "id": "f63",
+   "source": "s14",
+   "quote": "Switch to the weekly scale on the stock of your choice and look for these four stages",
+   "claim": "The method reads a weekly chart and looks for four stages."
+  },
+  {
+   "id": "f64",
+   "source": "s14",
+   "quote": "Stage 1 is the horizontal trading range that begins the method. After declining out of stage 4, price moves sideways, sometimes rising above the 30-week moving average and sometimes not. The moving average flattens out, following price horizontally.",
+   "claim": "Stage 1 is a sideways base after a decline: price moves around a flattening 30-week average."
+  },
+  {
+   "id": "f65",
+   "source": "s14",
+   "quote": "Stage 2 is the uphill run. Price breaks out of the trading range of stage 1 on impressive volume, which helps power the stock upward, leaving the moving average trailing behind.",
+   "claim": "Stage 2 is the advance: price breaks out of the Stage 1 range on strong volume and climbs."
+  },
+  {
+   "id": "f66",
+   "source": "s14",
+   "quote": "The moving average turns up. Price makes higher highs and higher lows",
+   "claim": "In Stage 2 the average turns up and price makes higher highs and higher lows."
+  },
+  {
+   "id": "f67",
+   "source": "s14",
+   "quote": "If you don't see higher lows, then it's not stage 2. Price will remain above the moving average. If it does not, then consider taking profits. Weinstein says that stage 2 is the ideal time to buy.",
+   "claim": "Stage 2 needs higher lows and price holding above the average; Weinstein calls Stage 2 the ideal time to buy."
+  },
+  {
+   "id": "f68",
+   "source": "s14",
+   "quote": "Stage 3 is the top. Price levels out and begins to move horizontally again. The moving average is climbing but flattens out, eventually catching price, slicing through it.",
+   "claim": "Stage 3 is the top: after the climb, price goes sideways and the flattening average slices through it."
+  },
+  {
+   "id": "f69",
+   "source": "s14",
+   "quote": "Weinstein says traders should take profits in this stage, but investors can hold on by selling half their position.",
+   "claim": "In Stage 3, Weinstein has traders take profits and investors sell half."
+  },
+  {
+   "id": "f70",
+   "source": "s14",
+   "quote": "If price moves up, forming another stage 2 advance, then continue to hold. A downward breakout from the trading range should cause a sale.",
+   "claim": "If Stage 3 breaks up into a new advance, hold; a downward break from the range is a sell."
+  },
+  {
+   "id": "f71",
+   "source": "s14",
+   "quote": "Stage 4 is the downhill run. Volume is not the key to this stage because it can be heavy or light as price drops. Price breaks out downward from the stage 3 top and may pullback into the trading range.",
+   "claim": "Stage 4 is the decline: price breaks down from the Stage 3 top and may bounce back into the range."
+  },
+  {
+   "id": "f72",
+   "source": "s14",
+   "quote": "After that, though, price continues down. The moving average usually remains above the stock as price drops.",
+   "claim": "In Stage 4 price keeps falling, usually under its moving average."
+  },
+  {
+   "id": "f73",
+   "source": "s14",
+   "quote": "The worst performance came from buying and selling stocks in stage 4.",
+   "claim": "In Bulkowski's own trades, buying and selling in Stage 4 did worst."
+  },
+  {
+   "id": "f74",
+   "source": "s15",
+   "quote": "A bear market is a swing from high to low of at least 20%, and a bull market is a swing from low to high of at least 20%. That's the most common definition and it applies to market indices",
+   "claim": "The most common definition: a bear market is a 20% swing from high to low, a bull market a 20% swing from low to high, applied to market indexes."
+  },
+  {
+   "id": "f75",
+   "source": "s15",
+   "quote": "I show the Dow industrials from 1931. The index peaked at 196.96 before dropping to a bear market low of 119.89, for a decline of 39%.",
+   "claim": "In 1931 the Dow fell 39%, from 196.96 to a bear market low of 119.89."
+  },
+  {
+   "id": "f76",
+   "source": "s15",
+   "quote": "After that, the index climbed to 156.74, or 24% above the low of 119.89. By traditional measures, the bear market ended and the index was back into bull market territory",
+   "claim": "Bulkowski's 1931 Dow example: the index climbed from the 119.89 low to 156.74, which by the traditional 20% rule ended the bear market (his '24%' does not match his own prices; see conflicts)."
+  },
+  {
+   "id": "f77",
+   "source": "s15",
+   "quote": "Look what happened next. The index started sliding again, dropping about in half to point A",
+   "claim": "After that rally the Dow slid again, losing about half."
+  },
+  {
+   "id": "f78",
+   "source": "s15",
+   "quote": "I consider this bull market rise (of 24%) as just a retrace in a downtrend.",
+   "claim": "Bulkowski treats that rally as a bounce inside a downtrend, not a real bull market."
+  },
+  {
+   "id": "f79",
+   "source": "s15",
+   "quote": "The Nasdaq (with data starting in January 1972), had 16 bear markets with 11 of them showing 30% declines or worse.",
+   "claim": "Bulkowski found 16 Nasdaq bear markets since 1972, 11 of them 30% or worse."
+  },
+  {
+   "id": "f80",
+   "source": "s15",
+   "quote": "The S&P 500 index started with data from 1950 and I found 16 bear markets, with 6 of them dropping 30% or more.",
+   "claim": "Bulkowski found 16 S&P 500 bear markets since 1950, 6 of them 30% or worse."
+  },
+  {
+   "id": "f81",
+   "source": "s16",
+   "quote": "I define a bull market as one in which price rises at least 20% as measured from low to high. A bear market is a drop of at least 20% from high to low.",
+   "claim": "Bulkowski measures a bull market from the low (a 20% rise) and a bear market from the high (a 20% drop)."
+  },
+  {
+   "id": "f82",
+   "source": "s16",
+   "quote": "The current bull market began on March 6, 2009 and is longer than 91% of all bull markets as of 3/13/2015. That suggests the market is old, but it does not mean a bear market is imminent.",
+   "claim": "In 2015 the bull market that began in 2009 was older than 91% of past bulls, which Bulkowski says did not mean a bear market was imminent."
+  },
+  {
+   "id": "f83",
+   "source": "s16",
+   "quote": "The current bull market is 6 years long. That is longer than the average length (3 years) and it also beats the median length of 2.5 years.",
+   "claim": "In Bulkowski's Dow data the average bull market lasted 3 years."
+  },
+  {
+   "id": "f84",
+   "source": "s17",
+   "quote": "When the S&P index closed higher over the holding period for each trade and stocks in the same industry also closed higher, the trades gained an average of 15%, the best result of the bunch.",
+   "claim": "In Bulkowski's trades, when the S&P 500 and the stock's industry both rose over the hold, trades gained 15% on average, the best result."
+  },
+  {
+   "id": "f85",
+   "source": "s17",
+   "quote": "When both the index and industry closed lower, the trades lost an average of 10%. That's the worst combination.",
+   "claim": "When the index and the industry both fell over the hold, his trades lost 10% on average, the worst result."
+  },
+  {
+   "id": "f86",
+   "source": "s18",
+   "quote": "You can have all the other six traits lined up, but if the overall market is in a downtrend, it will be very hard for even the best stocks to move higher.",
+   "claim": "In a market downtrend, even the best stocks find it very hard to rise."
+  },
+  {
+   "id": "f87",
+   "source": "s18",
+   "quote": "That's because 3 of 4 stocks move in the same direction as the general market, either up or down.",
+   "claim": "IBD's rule of thumb: 3 of 4 stocks move in the same direction as the general market."
+  },
+  {
+   "id": "f88",
+   "source": "s18",
+   "quote": "Making new buys in a correction is riskier, since most stocks will follow the market's downward trend.",
+   "claim": "New buys are riskier when the market is falling, since most stocks follow it down."
+  },
+  {
+   "id": "f91",
+   "source": "s9",
+   "quote": "The S & P 500 punched through to a new record high on Friday, creating another milestone for a bull market that is now approaching its third birthday.",
+   "claim": "On June 27, 2025 the S&P 500 set a new record high and its bull market was still alive, so the spring 2025 sell-off never became a bear market."
+  },
+  {
+   "id": "f92",
+   "source": "s18",
+   "quote": "Make new purchases only in a market uptrend",
+   "claim": "IBD's rule: make new buys only when the market is in an uptrend."
+  },
+  {
+   "id": "f93",
+   "source": "s15",
+   "quote": "By traditional measures, the bear market ended and the index was back into bull market territory (because it climbed, low to high, more than 20%).",
+   "claim": "In Bulkowski's 1931 Dow example the rally climbed more than 20% off the low, so by the traditional rule it counted as a new bull market."
+  },
+  {
+   "id": "f94",
+   "source": "s5",
+   "quote": "10/9/2007 3/9/2009 1565.15 676.53 17 -56.8",
+   "claim": "In S&P Dow Jones Indices' table, the 2007-09 bear market ended on 3/9/2009; the next one began on 2/19/2020 (f26), 3,999 days later by the calendar."
+  },
+  {
+   "id": "h01",
+   "source": "s19",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "Our rule (F65): the app's market reading guides size and count: Yellow smaller and fewer, Orange only A+ setups, Red mostly cash and shorts."
+  },
+  {
+   "id": "h02",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
+  },
+  {
+   "id": "h03",
+   "source": "s19",
+   "quote": "Total open risk and position size by market condition are guides that vary, not hard caps.",
+   "claim": "Our rule (A10): sizing by market condition is a guide that varies, not a hard cap."
+  },
+  {
+   "id": "rd21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Our rule: the course teaches the 9 and 20 EMA, with the 50 and 200 SMA."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Two lines, measured from the high",
+   "steps": [
+    "Measure every drop from the last peak close. Closing prices count, not the intraday lows.",
+    "Down more than 10% off that high is a correction. Down 20% or more is a bear market.",
+    "Up 20% or more off a low is a bull market. Those lines are conventions people agreed on, not laws."
+   ],
+   "facts": [
+    "f09",
+    "f31",
+    "f03",
+    "f01",
+    "f02",
+    "f74",
+    "f04",
+    "f11",
+    "f28",
+    "f30"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Bulls run long, bears run fast",
+   "steps": [
+    "Bulls last a lot longer than bears. Since 1966 the average bear lasted roughly 14 months.",
+    "Corrections are common, and most stop short. Since November 1974 there were 27, and only six became bear markets.",
+    "When the 20% close finally comes, the bear gets dated back to the high. You only know the low afterward."
+   ],
+   "facts": [
+    "f07",
+    "f15",
+    "f12",
+    "f06",
+    "f16",
+    "f33",
+    "f14",
+    "f22",
+    "f13"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Four stages on one chart",
+   "steps": [
+    "Pull up a weekly chart with the 30-week moving average. Weinstein says every chart is in one of four stages.",
+    "Stage 1 is the sideways base after a decline. Price chops around and the average goes flat.",
+    "Stage 2 is the uptrend. It breaks out and climbs over a rising average, with higher highs and higher lows.",
+    "Stage 3 goes sideways after the climb and the average flattens. Stage 4 falls, usually under a falling average."
+   ],
+   "facts": [
+    "f62",
+    "f63",
+    "f64",
+    "f65",
+    "f66",
+    "f68",
+    "f71",
+    "f72",
+    "f61",
+    "f58",
+    "f59"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "history.how_markets_move",
+   "rung": 1,
+   "format": "mcq",
+   "term": "correction",
+   "q": "The S&P 500 is sliding off its record close and the news is calling it a correction. How big a drop does that word mean?",
+   "choices": [
+    "A drop of 10% to 20% from the high",
+    "A drop of over 20% from the high",
+    "A dip of under 10% from the high",
+    "Any losing week after a rally"
+   ],
+   "answer": "A drop of 10% to 20% from the high",
+   "wrong": {
+    "A drop of over 20% from the high": "That's a bear market. A correction stops short of 20%.",
+    "A dip of under 10% from the high": "Too small. Alan Shaw called anything up to 10% a consolidation, not a correction.",
+    "Any losing week after a rally": "One red week isn't a correction. The word means a drop of more than 10% off the peak."
+   },
+   "why": "A drop of 10% to 20% from the high. That's the line most people use. More than 10% off the peak is a correction, and 20% or more is a bear market. Alan Shaw, one of the founders of technical analysis, gave us these labels. Anything under 10% he called a consolidation. Don't treat the lines as laws though. Schwab says no definition is universally accepted, and Morningstar calls the 10% line arbitrary. They're a quick way to say how deep the damage is. Know them so you read the headlines right, then get back to your charts.",
+   "lesson_line": "More than 10% off the high is a correction. 20% or more is a bear market.",
+   "facts": [
+    "f03",
+    "f11",
+    "f29",
+    "f28",
+    "f04"
+   ],
+   "simple": "A correction is a drop of more than 10% but less than 20% from the high.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "history.how_markets_move",
+   "rung": 1,
+   "format": "tf",
+   "q": "Today the S&P 500 closes 20% below its last record close. By the usual definition, that's a bear market.",
+   "answer": "True",
+   "why": "True. 20% off the high is the usual bear market line. The SEC's investor site uses it, and S&P Dow Jones Indices measures it on closes from the previous peak. The SEC adds that the fall runs over at least two months, and that part's loose. The 2020 bear lasted just 33 days and still counted. So you don't wait for a calendar. When the close is 20% under the high, you're in a bear market.",
+   "lesson_line": "A close 20% off the high is a bear market.",
+   "facts": [
+    "f01",
+    "f19",
+    "f08"
+   ],
+   "simple": "True, a close 20% or more under the high is the usual line for a bear market.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q03",
+   "skill": "history.how_markets_move",
+   "rung": 2,
+   "format": "fill",
+   "term": "bull",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A rise of 20% or more in a broad index, measured from a low, is generally called a ___ market.",
+   "bank": [
+    "bull",
+    "bear",
+    "sideways",
+    "recovery"
+   ],
+   "answer": "bull",
+   "why": "Bull. The SEC's investor site generally calls a rise of 20% or more in a broad market index a bull market. Bulkowski measures it from the low to the high, the mirror of a bear market's 20% drop from the high. The SEC adds that the rise generally runs over at least two months.",
+   "lesson_line": "20% up off the low is a bull. 20% down off the high is a bear.",
+   "facts": [
+    "f02",
+    "f74",
+    "f81"
+   ],
+   "simple": "Bull, because a rise of 20% or more off a low is the usual line for a bull market.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q04",
+   "skill": "history.how_markets_move",
+   "rung": 2,
+   "format": "mcq",
+   "q": "The index is hovering right at the 20% line. Which prices decide whether it's officially a bear market?",
+   "choices": [
+    "Daily closing prices",
+    "Intraday lows",
+    "Weekly closing prices",
+    "Opening prices"
+   ],
+   "answer": "Daily closing prices",
+   "wrong": {
+    "Intraday lows": "They don't count. In 2022 the S&P 500 flirted with the line intraday for weeks, and it wasn't official until a close got there.",
+    "Weekly closing prices": "No need to wait for Friday. A close 20% under the peak on any day does it.",
+    "Opening prices": "The open isn't used. It's the close that counts."
+   },
+   "why": "Daily closes. S&P Dow Jones Indices runs the 20% test on closing prices, measured from the previous peak close. An intraday dip past the line doesn't count. And you don't wait for a weekly close either. Any day's close does it. In 2022 the S&P 500 flirted with the line intraday for weeks. It only became official once it closed under it. So when you see a scary low during the session, wait for the close before you call it anything.",
+   "lesson_line": "A bear market is called on the close, not on an intraday low.",
+   "facts": [
+    "f19",
+    "f21",
+    "f27",
+    "f31",
+    "f43",
+    "f09"
+   ],
+   "simple": "Daily closes, because the 20% line only counts when the index closes past it.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q05",
+   "skill": "history.how_markets_move",
+   "rung": 3,
+   "format": "mcq",
+   "q": "The market's been falling for months and a friend says bears drag on for years. Historically, how have bears compared with bulls?",
+   "choices": [
+    "Bears have been much shorter",
+    "Bears have run much longer",
+    "They've run about the same",
+    "There's no pattern"
+   ],
+   "answer": "Bears have been much shorter",
+   "wrong": {
+    "Bears have run much longer": "The reverse. The declines have been the shorter stretches.",
+    "They've run about the same": "Not close. Schwab puts the average bear far shorter than the average bull.",
+    "There's no pattern": "There is one. Schwab and Morningstar both find bears shorter than bulls."
+   },
+   "why": "Much shorter. Schwab's count since 1966 puts the average bear at roughly 14 months, far shorter than the average bull. Morningstar finds the same thing: the declines have been shorter than the stretches of growth. The exact averages change with the years you measure, so I don't lean on any one number. The direction is the point. Bears hurt fast, and bulls take their time. Don't let a bear scare you so much that you're not ready when the next bull starts.",
+   "lesson_line": "Bears hurt fast. Bulls take their time.",
+   "facts": [
+    "f07",
+    "f15",
+    "f83"
+   ],
+   "simple": "Much shorter, since bear markets have ended far sooner than bull markets on average.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "averages depend on the period studied and move with each new bear"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "history.how_markets_move",
+   "rung": 3,
+   "format": "mcq",
+   "q": "The Dow is in a long bull market and starts pulling back against the trend. In Dow Theory, how long can a move like that last?",
+   "choices": [
+    "A few weeks to a few months",
+    "A few hours to a few days",
+    "A few months to many years",
+    "As long as the rally before it"
+   ],
+   "answer": "A few weeks to a few months",
+   "wrong": {
+    "A few hours to a few days": "That's the daily noise. A secondary move runs bigger and longer.",
+    "A few months to many years": "That's the primary move, the bull or bear market itself.",
+    "As long as the rally before it": "Dow Theory gives secondary moves their own window: a few weeks to a few months."
+   },
+   "why": "A few weeks to a few months. Dow Theory sorts moves by size. The big one is the primary trend, the bull or bear market itself, running a few months to many years. Inside it you get the secondary move, the pullback against that trend. In a bull market that's your correction, and it runs a few weeks to a few months. Below that sits the daily noise, hours to days, rarely past a week. Morningstar's average correction of three to four months lands right in that window. So a few weeks of selling inside a bull doesn't tell me the bull is over. I keep my list ready and watch which names hold up best.",
+   "lesson_line": "A correction runs against the trend for weeks or months. The main trend runs months to years.",
+   "facts": [
+    "f89",
+    "f46",
+    "f47",
+    "f48",
+    "f90",
+    "f12"
+   ],
+   "simple": "A few weeks to a few months, between the daily noise and the main trend.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "history.how_markets_move",
+   "rung": 2,
+   "format": "mcq",
+   "q": "A stock breaks out of a long sideways base on the weekly chart. In Weinstein's Stage 2, where does price sit against its 30-week average?",
+   "choices": [
+    "Above it, and the average rises",
+    "Below it, and the average falls",
+    "Back and forth across a flat average",
+    "Below it, while the average rises"
+   ],
+   "answer": "Above it, and the average rises",
+   "wrong": {
+    "Below it, and the average falls": "That's Stage 4, the downhill run.",
+    "Back and forth across a flat average": "That's a sideways stage: Stage 1 after a decline, Stage 3 after a climb.",
+    "Below it, while the average rises": "In Stage 2 price holds above the average. When it slips under, Weinstein says consider taking profits."
+   },
+   "why": "Above it, and the average rises. Stage 2 is the uphill run. Price breaks out of the Stage 1 base on big volume and leaves the average trailing behind. Then the average turns up, and price makes higher highs and higher lows. Weinstein calls Stage 2 the ideal time to buy. He gives you the warning sign too. If price can't hold above the average, consider taking profits. That's what I like about a rising average. It gives you a line to judge the trade against.",
+   "lesson_line": "Stage 2: price over a rising 30-week average, higher highs, higher lows.",
+   "facts": [
+    "f65",
+    "f66",
+    "f67",
+    "f60",
+    "f64",
+    "f68",
+    "f71"
+   ],
+   "simple": "Above a rising average, because Stage 2 is the climb with higher highs and higher lows.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "history.how_markets_move",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill the blank.",
+   "sentence": "In an uptrend, price makes higher highs and higher ___.",
+   "bank": [
+    "lows",
+    "volume",
+    "gaps",
+    "ranges"
+   ],
+   "answer": "lows",
+   "why": "Lows. ChartSchool describes an uptrend as a series of higher highs and higher lows. Bulkowski's account of Weinstein says the same of Stage 2: if you don't see higher lows, it isn't Stage 2.",
+   "lesson_line": "Higher highs and higher lows. When the lows stop rising, the uptrend is in doubt.",
+   "facts": [
+    "f55",
+    "f66",
+    "f67"
+   ],
+   "simple": "Lows, because an uptrend is a series of higher highs and higher lows.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q09",
+   "skill": "history.how_markets_move",
+   "rung": 3,
+   "format": "tf",
+   "q": "In Weinstein's Stage 4, the downhill run, price mostly stays under a falling 30-week average.",
+   "answer": "True",
+   "why": "True. Stage 4 is the slide. Price breaks down out of the Stage 3 top, may pop back into the old range, then keeps falling. The average stays above price most of the way down. Not every single week, but that's the picture you'll see. This is where you get hurt trying to catch the bottom. I don't go looking for longs here. Wait for the stock to stop falling and build a base first.",
+   "lesson_line": "Stage 4 is price under a falling average. Not where I go looking to buy.",
+   "facts": [
+    "f71",
+    "f72",
+    "f73",
+    "f61"
+   ],
+   "simple": "True, because in Stage 4 price keeps falling and stays under its average most of the time.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Bulkowski tested Weinstein's stages on his own trades. The worst results came from buying and selling stocks in Stage 4."
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "history.how_markets_move",
+   "rung": 3,
+   "format": "tf",
+   "q": "Once the market is down 10% and in a correction, it will most likely keep going into a bear market.",
+   "answer": "False",
+   "why": "False. Most corrections stop short. Schwab counted 27 corrections since November 1974, one still under way when it wrote, and only six became bear markets. Morningstar's count back to 1975 says the same, six of 27. So a 10% drop on its own isn't the big one. Nobody can tell ahead of time which correction turns into a bear. That's why I don't trade the headline. I let the charts tell me.",
+   "lesson_line": "Most corrections stop short of a bear market. Don't treat every 10% drop as the big one.",
+   "facts": [
+    "f06",
+    "f16",
+    "f03",
+    "f17"
+   ],
+   "simple": "False, only six of the 27 drops Schwab counted since 1974 went on to be bears.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a running count that grows with each new correction",
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "history.how_markets_move",
+   "rung": 4,
+   "format": "mcq",
+   "q": "The index's record close is 4,800. Today it closes at 4,080. How far off the high is it?",
+   "answer": "15%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(peak - trough) / peak * 100",
+     "peak": 4800,
+     "trough": 4080
+    }
+   },
+   "suffix": "%",
+   "why": "15%. Work it from the record. 4,800 minus 4,080 is 720 points. 720 divided by 4,800 is 15%. That's past 10% and short of 20%, so you're in correction territory. Always divide by the record close, not today's price. And measure from the last peak close, never from a bounce in between.",
+   "lesson_line": "Measure the drop from the last record close.",
+   "facts": [
+    "f03",
+    "f09"
+   ],
+   "simple": "15%, because the drop from 4,800 to 4,080 is 15% of the 4,800 record.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "18%",
+    "85%",
+    "1.5%",
+    "15%"
+   ],
+   "wrong": {
+    "18%": "That divides the 720-point drop by today's close. Divide by the 4,800 record.",
+    "85%": "That's today's close as a share of the record. You want how far below the record it is.",
+    "1.5%": "A decimal slipped. 720 over 4,800 is 15%."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "history.how_markets_move",
+   "rung": 4,
+   "format": "scenario",
+   "story": "The S&P 500 set a record close last month. It has slipped since. Today it closes 7% below that record.",
+   "q": "The headlines are getting loud. By the usual lines, what is this drop?",
+   "choices": [
+    "Not yet a correction",
+    "Already a correction",
+    "Already a bear market",
+    "The start of a bear market"
+   ],
+   "answer": "Not yet a correction",
+   "wrong": {
+    "The start of a bear market": "Nobody can know that now. If it ever falls 20%, the bear gets dated back to the record, after the fact.",
+    "Already a correction": "Not yet. A correction takes more than 10% off the peak, and this is 7%.",
+    "Already a bear market": "That takes a fall of 20% or more. This is 7%."
+   },
+   "why": "Not yet a correction. 7% off the record is a pullback, short of the 10% line most people use. Alan Shaw called anything up to 10% a consolidation. Whether it ever turns into a bear, nobody knows today. If it does, the bear gets dated back to the record, after the fact. So don't let the headlines label it for you. Do the math from the record close yourself.",
+   "lesson_line": "Under 10% off the high isn't a correction yet.",
+   "facts": [
+    "f03",
+    "f11",
+    "f29",
+    "f01",
+    "f13",
+    "f14",
+    "f33"
+   ],
+   "simple": "Not yet a correction, because 7% is short of the 10% drop most people use.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q13",
+   "skill": "history.how_markets_move",
+   "rung": 4,
+   "format": "tf",
+   "q": "When the general market is falling, most stocks fall with it, even ones with good charts.",
+   "answer": "True",
+   "why": "True. IBD's rule of thumb is that 3 of 4 stocks move the same way as the general market, up or down. So in a downtrend even the best stocks have a very hard time going up. That's why I read the market before I read the stock. A great chart in a falling market is swimming against the current. You can be right on the stock and still lose money.",
+   "lesson_line": "Read the market before you read the stock.",
+   "facts": [
+    "f87",
+    "f86",
+    "f84",
+    "f85"
+   ],
+   "simple": "True, about 3 of 4 stocks move the same way as the market, so a falling market drags most down.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Bulkowski checked his own trades. When the S&P and the stock's industry both closed higher over the hold, his trades gained 15% on average. When both closed lower, they lost 10%."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "history.how_markets_move",
+   "rung": 5,
+   "format": "tf",
+   "q": "Past S&P 500 bear markets have run about the same length, so you can roughly time how long the next one lasts.",
+   "answer": "False",
+   "why": "False. They're all over the place. In S&P Dow Jones Indices' table the 2020 bear lasted 1.1 months. The one that began in 1937 lasted 61.8 months. Schwab dates the 2020 bear at just 33 days, February 19 to March 23. The average since the late 1920s is almost 19 months, and that average hides the whole range. So don't plan around a calendar. Watch the charts and let price tell you when it's turning.",
+   "lesson_line": "An average hides a wide range. A bear can be over in weeks or drag on for years.",
+   "facts": [
+    "f24",
+    "f26",
+    "f25",
+    "f23",
+    "f08",
+    "f07",
+    "f13"
+   ],
+   "simple": "False, since the 2020 bear lasted 1.1 months and the one from 1937 lasted 61.8 months.",
+   "deeper": {
+    "trap": "The trap is planning around an average. Since the late 1920s the S&P 500's average bear fell 38% over almost 19 months. Yet the 2020 bear lasted 1.1 months and the one from 1937 lasted 61.8 months. Where a bear starts and ends is only known after the fact."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "averages move with each new bear",
+     "fixed before (track audit 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "history.how_markets_move",
+   "rung": 5,
+   "format": "scenario",
+   "story": "The index closes 12% below its record. A friend says it is clearly turning into a bear market.",
+   "q": "Your friend sounds sure. What do you actually know right now?",
+   "choices": [
+    "That it's in correction territory",
+    "That it has already hit a bear market",
+    "That a bear market is on the way",
+    "That the low of this drop is in"
+   ],
+   "answer": "That it's in correction territory",
+   "wrong": {
+    "That a bear market is on the way": "Nobody can know that. Schwab counted 27 corrections since November 1974, and only six became bears.",
+    "That it has already hit a bear market": "Not at 12%. A bear takes a fall of 20% or more from the high.",
+    "That the low of this drop is in": "You can't know that yet. Nobody can predict whether a correction will reverse."
+   },
+   "why": "That it's in correction territory, and that's it. 12% down is past the 10% line and short of 20%. That part's a fact. Everything else is a guess. Nobody can predict whether a correction reverses or turns into a bear. And history leans against your friend. Schwab counted 27 corrections since November 1974, and only six became bear markets. So I don't trade the forecast. I trade what the charts are doing in front of me.",
+   "lesson_line": "A correction is a label, not a forecast.",
+   "facts": [
+    "f03",
+    "f05",
+    "f17",
+    "f06",
+    "f16",
+    "f12"
+   ],
+   "simple": "That it's in correction territory, since 12% down is past 10% and short of 20%.",
+   "deeper": {
+    "counter": "Corrections are fairly common and usually short, Morningstar says, lasting three to four months on average. Schwab counted 27 since November 1974, and only six became bear markets. A friend who calls every correction the start of a bear would have been wrong most of the time since 1974."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "a running count that grows with each new correction",
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q16",
+   "skill": "history.how_markets_move",
+   "rung": 5,
+   "format": "mcq",
+   "q": "After a bear market, the S&P 500 makes a low and then rallies. By S&P Dow Jones Indices' rule, when is the bear over?",
+   "choices": [
+    "At its low, once a 20% rise follows",
+    "On the day it gets 20% off the low",
+    "When the index closes at a new record",
+    "Once it rallies 10% off the low"
+   ],
+   "answer": "At its low, once a 20% rise follows",
+   "wrong": {
+    "On the day it gets 20% off the low": "That's the day it becomes official. The end gets dated back to the low itself.",
+    "When the index closes at a new record": "That's another convention, one Morningstar describes. S&P Dow Jones Indices dates the end at the low.",
+    "Once it rallies 10% off the low": "Too small. Alan Shaw called a 10% rally after a 20% fall a bear market rally, when a new low follows it."
+   },
+   "why": "At the low, once a 20% rise follows. Here's how S&P Dow Jones Indices does it. The index makes a low, then later rallies 20% off it. The day that 20% shows up, the new bull is official. But the bear's end gets dated back to the low. So you only ever know the low looking back. Morningstar notes a second convention: some on Wall Street wait for a new record close. Either way, nobody rings a bell at the bottom. That's why I keep my watchlist built through the bear, so I'm ready when the leaders start setting up.",
+   "lesson_line": "The low is only clear looking back.",
+   "facts": [
+    "f22",
+    "f13",
+    "f02",
+    "f18",
+    "f10",
+    "f26",
+    "f37"
+   ],
+   "simple": "At the low, once the index later rises 20%, and then the end is dated back to the low.",
+   "deeper": {
+    "example": "In S&P Dow Jones Indices' table, the 2020 bear runs from 2/19/2020 to 3/23/2020, the low close. Nobody could name that day as the end while it happened. It took the later 20% rise to date it, which is why the end is only known in hindsight."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker and track audit 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "history.how_markets_move",
+   "rung": 6,
+   "format": "mcq",
+   "q": "The S&P 500's record close is 6,144.15, from February 2025. You want the bear market line marked. What close is exactly 20% down?",
+   "answer": "4,915.32",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "peak * (100 - drop) / 100",
+     "peak": 6144.15,
+     "drop": 20
+    }
+   },
+   "why": "4,915.32. Taking 20% off means keeping 80% of the record. 100 minus 20 is 80. 6,144.15 times 80, divided by 100, is 4,915.32. S&P Dow Jones Indices named that same level as the line in April 2025. A close at or under it would have made the bear official, dated back to the February 19 high. Mark it on your chart before the market gets there. Then you're reading the market, not reacting to it.",
+   "lesson_line": "Know where the 20% line sits before the market gets there.",
+   "facts": [
+    "f32",
+    "f19",
+    "f33"
+   ],
+   "simple": "4,915.32, because taking 20% off the 6,144.15 record close lands there.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "4,915.32",
+    "7,372.98",
+    "6,124.15",
+    "5,120.13"
+   ],
+   "wrong": {
+    "7,372.98": "That adds 20% to the record instead of taking it off.",
+    "6,124.15": "That takes 20 points off the record, not 20 percent.",
+    "5,120.13": "That divides the record by one plus the drop. Taking 20% off means keeping 80% of it."
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "history.how_markets_move",
+   "rung": 6,
+   "format": "mcq",
+   "q": "An index falls 25% from its record, then rallies 20% off the low. A new bull by the 20% rule. How far under the old record is it?",
+   "answer": "10%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "100 - (100 - fall) * (100 + rise) / 100",
+     "fall": 25,
+     "rise": 20
+    }
+   },
+   "suffix": "%",
+   "why": "10%. Call the record 100. The 25% fall leaves you at 75. The 20% rise works on 75, not on 100, so 75 times 120, divided by 100, gets you to 90. That's still 10% under the old record. Gains and losses don't cancel, because each one is figured on a different base. So a new bull by the 20% rule can sit well under the old high. Some on Wall Street wait for a new record close before they call a bear over.",
+   "lesson_line": "A new bull market can still sit well under the old high.",
+   "facts": [
+    "f02",
+    "f22",
+    "f81",
+    "f18"
+   ],
+   "simple": "10%, because the 20% rise is figured on a smaller base, so it can't win back the full 25% fall.",
+   "deeper": {
+    "trap": "Gains and losses are not symmetric. A fall and a rise of the same percent do not cancel, because each is figured on a different base. That is why a new bull market by the 20% rule can still sit well below the old record."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "10%",
+    "1%",
+    "5%",
+    "20%"
+   ],
+   "wrong": {
+    "5%": "That just subtracts 20 from 25. The rise works on a smaller base, so it wins back less.",
+    "20%": "That takes the 20% rise as the gap to the record. The gap is what's left after the bounce.",
+    "1%": "A decimal slipped. 75 times 120, divided by 100, is 90, which is 10% under the record."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Fall, then a bounce",
+    "rows": [
+     {
+      "key": "fall_from_the_record",
+      "label": "Fall from the record",
+      "value": 25,
+      "fmt": "%"
+     },
+     {
+      "key": "rise_off_the_low",
+      "label": "Rise off the low",
+      "value": 20,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Below the old record",
+     "as": "pct"
+    }
+   }
+  },
+  {
+   "key": "q19",
+   "skill": "history.how_markets_move",
+   "rung": 6,
+   "format": "scenario",
+   "story": "After a long slide, the index has gone sideways for months. Its 30-week moving average has flattened out. Price keeps crossing it.",
+   "q": "Pull up the weekly chart. Which of Weinstein's four stages is the index in?",
+   "choices": [
+    "Stage 1, a base",
+    "Stage 2, an advance",
+    "Stage 3, a top",
+    "Stage 4, a decline"
+   ],
+   "answer": "Stage 1, a base",
+   "wrong": {
+    "Stage 2, an advance": "Not yet. Stage 2 starts when price breaks out of the base and the average turns up.",
+    "Stage 3, a top": "Stage 3 is sideways too, but it comes after a long climb. This range came after a slide.",
+    "Stage 4, a decline": "The slide was Stage 4. Price has stopped falling and gone sideways."
+   },
+   "why": "Stage 1, a base. After a decline, price stops falling and goes sideways. Some weeks it's above the 30-week average, some weeks under. The average flattens out and follows price. Stage 3 looks a lot like this, but it comes after a long climb, not a slide. A base can break either way, and you don't know which until it breaks. So this is where I put it on my radar and wait. The breakout, with the average turning up, is what starts Stage 2.",
+   "lesson_line": "Sideways after a slide is a base. Put it on your radar and wait for the breakout.",
+   "facts": [
+    "f64",
+    "f65",
+    "f66",
+    "f68",
+    "f71",
+    "f58",
+    "f56",
+    "f57"
+   ],
+   "simple": "Stage 1, because price going sideways around a flat average after a long slide is a base.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "history.how_markets_move",
+   "rung": 7,
+   "format": "scenario",
+   "story": "The S&P 500's record close was 6,144.15 in February 2025. On April 7 it briefly traded past the 20% line. On April 8 it fell 1.57% to close at 4,982.77.",
+   "q": "You're watching the close. By S&P Dow Jones Indices' rule, did April 8 make it a bear market?",
+   "choices": [
+    "No, it closed 18.9% below the record",
+    "Yes, it fell past 20% during the session",
+    "Yes, nearly 19% down is close enough",
+    "No, it was only 1.57% off the record"
+   ],
+   "answer": "No, it closed 18.9% below the record",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(peak - trough) / peak * 100",
+     "peak": 6144.15,
+     "trough": 4982.77
+    },
+    "round": 1
+   },
+   "wrong": {
+    "Yes, it fell past 20% during the session": "Intraday doesn't count. S&P Dow Jones Indices measures the 20% on closing prices.",
+    "Yes, nearly 19% down is close enough": "Close isn't enough. The test is a close a full 20% under the record, and 18.9% falls short.",
+    "No, it was only 1.57% off the record": "That's the one-day move. The 20% is measured from the record close, and from there it closed 18.9% down."
+   },
+   "why": "No, it closed 18.9% below the record. The close was 4,982.77. 6,144.15 minus 4,982.77 is 1,161.38 points, and 1,161.38 over the 6,144.15 record is 18.9%. Inches short of the line. S&P Dow Jones Indices runs the 20% test on closes from the previous peak. So the dip past 20% on April 7 didn't count. The S&P 500 never closed a full 20% down in that sell-off. This is why I wait for the close. An intraday low makes the headlines, but the close is where the day settles.",
+   "lesson_line": "Closes make the call. A scary intraday low isn't a bear market until a close makes it official.",
+   "facts": [
+    "f31",
+    "f19",
+    "f39",
+    "f40",
+    "f43",
+    "f09",
+    "f32",
+    "f33",
+    "f91"
+   ],
+   "simple": "No, because it closed 18.9% below the record, short of 20%, and only closes count.",
+   "deeper": {
+    "trap": "The trap is reading the day's change. The S&P 500 fell 1.57% on April 8, a small daily move, yet it closed 18.9% below its record. S&P Dow Jones Indices runs its test from the previous peak close, never from yesterday's close."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "SPX",
+    "asof": "2025-04-08",
+    "window": 120,
+    "forward": 40
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "history.how_markets_move",
+   "rung": 7,
+   "format": "mcq",
+   "q": "June 13, 2022: the S&P 500 closes more than 20% under its January 3 record. What day does this bear market count from?",
+   "choices": [
+    "January 3, the record close",
+    "June 13, the first 20% close",
+    "The first day it traded 20% down",
+    "The day it hit its final low"
+   ],
+   "answer": "January 3, the record close",
+   "wrong": {
+    "June 13, the first 20% close": "That's the day it became official. The bear gets dated back to the peak.",
+    "The first day it traded 20% down": "Intraday dips don't count, and the start is the peak anyway, not the day a line gets crossed.",
+    "The day it hit its final low": "The low marks the end, not the start. The bear is dated from the peak."
+   },
+   "why": "January 3, the record close. The 20% close on June 13 is when it became official. But the whole decline from the high counts as the bear. So by the time the headline hit, the 2022 bear was already more than five months old. Tom McClellan puts it plainly: a bear market starts right after the final high, not once you reach 20%. That's why you never wait for the official call to protect yourself. Your stops do that job, one position at a time.",
+   "lesson_line": "A bear market starts at the high, not at the 20% mark.",
+   "facts": [
+    "f20",
+    "f19",
+    "f33",
+    "f34",
+    "f14",
+    "f27",
+    "f10",
+    "f22"
+   ],
+   "simple": "January 3, because a bear market is dated from the record high, not from the day it crosses 20%.",
+   "deeper": {
+    "example": "S&P Dow Jones Indices' table lists this bear from 1/3/2022. By 6/13/2022 it was 5.3 months old and down 21.8%. The months of decline before the official day were part of the bear all along."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2022-06-13",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "history.how_markets_move",
+   "rung": 8,
+   "format": "scenario",
+   "story": "The index is 30% off its record, below a falling 30-week average, with lower highs and lower lows. Then it rallies 15% in three weeks.",
+   "q": "What's that rally telling you on its own?",
+   "choices": [
+    "Its size fits a typical bear rally",
+    "The bear market is over, the low is in",
+    "Stage 2 has begun, time to buy it",
+    "The rally will fail, so short it"
+   ],
+   "answer": "Its size fits a typical bear rally",
+   "wrong": {
+    "The bear market is over, the low is in": "You can't know that yet. In 1931 the Dow rallied more than 20% off a bear market low, then slid about in half.",
+    "Stage 2 has begun, time to buy it": "Stage 2 comes after a base: a sideways stretch, then a breakout as the average turns up. A bounce straight off a slide skips the base.",
+    "The rally will fail, so short it": "Nobody knows that either. Early on, a new bull market looks just like another bear market rally."
+   },
+   "why": "Its size fits a typical bear rally, so not much yet. Rallies inside bear markets tend to be fast and sharp. Louise Yamada put the average S&P 500 bear market rally from 1929 to 2020 at 18% over 31 trading days. A 15% pop in three weeks fits right in. A downtrend stands until price makes a higher low and the next push clears the last rally high. That's what I wait for. Then I start looking for the leaders setting up.",
+   "lesson_line": "One sharp rally isn't a new bull. I want a higher low, then a break above the last rally high.",
+   "facts": [
+    "f49",
+    "f37",
+    "f38",
+    "f53",
+    "f50",
+    "f75",
+    "f93",
+    "f77",
+    "f64",
+    "f65",
+    "f66",
+    "f51"
+   ],
+   "simple": "Its size fits a typical bear rally, and bear rallies tend to be fast and sharp, so one proves little.",
+   "deeper": {
+    "trap": "Early on, a new bull and a bear market rally look the same. In 1931 the Dow fell 39% to a low of 119.89, then climbed more than 20% off that low. By the traditional rule that was a new bull. Then it slid again, losing about half."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "history.how_markets_move",
+   "rung": 8,
+   "format": "scenario",
+   "story": "April 3, 2025. The small-cap Russell 2000 falls more than 20% below its high.",
+   "q": "Small caps just hit bear market territory. Does that put the S&P 500 in a bear market too?",
+   "choices": [
+    "Only if it's 20% off its own high",
+    "Yes, one index in a bear is enough",
+    "Not yet, but it has to follow",
+    "Only once the Dow falls 20% too"
+   ],
+   "answer": "Only if it's 20% off its own high",
+   "wrong": {
+    "Yes, one index in a bear is enough": "It isn't. S&P Dow Jones Indices measures the S&P 500 from its own previous peak.",
+    "Not yet, but it has to follow": "Nobody can know that. In that sell-off the S&P 500 never closed 20% down, and its bull market lived on.",
+    "Only once the Dow falls 20% too": "Each index stands on its own. The S&P 500 only needs its own 20% close from its own peak."
+   },
+   "why": "Only if the S&P 500 closes 20% off its own high. Every index gets measured against its own peak, on closes. In that sell-off the Russell 2000 got there first, and the Nasdaq Composite got there before the S&P 500. The S&P 500 never closed 20% down, and by June it set a new record. So check each index on its own. Small caps can be in a bear while the big names hold up. Watch the one that matches what you're trading.",
+   "lesson_line": "Check each index against its own high. Small caps, the Nasdaq and the S&P 500 can sit in different places.",
+   "facts": [
+    "f44",
+    "f45",
+    "f19",
+    "f41",
+    "f43",
+    "f91",
+    "f01",
+    "f74"
+   ],
+   "simple": "Only if the S&P 500 itself closes 20% under its own high, since each index is measured on its own.",
+   "deeper": {
+    "counter": "Indexes can split. The Russell 2000 was the first major U.S. index in bear territory in that sell-off. The Nasdaq Composite got there next, ahead of the S&P 500. The S&P 500 only touched the line during a session and never closed 20% down. Small caps, the Nasdaq and the broad market can sit in different places at once."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "SPY",
+    "asof": "2025-04-03",
+    "window": 250,
+    "forward": 60
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "history.how_markets_move",
+   "rung": 8,
+   "format": "tf",
+   "q": "This bull market is already older than most bull markets before it. That makes it likely to end soon.",
+   "answer": "False",
+   "why": "False. Age alone doesn't end a bull market. In 2015 the bull that began in 2009 was already longer than 91% of past bulls. It kept going. The S&P 500's run lasted until 2020, 3,999 days in all. Nobody knows where or when a trend will end. So I don't sell a bull market because it's old. I stay with the trend until price breaks it.",
+   "lesson_line": "Nobody knows when a trend will end. Go with it until price breaks it.",
+   "facts": [
+    "f82",
+    "f42",
+    "f51",
+    "f52",
+    "f36",
+    "f24",
+    "f94",
+    "f26",
+    "f83"
+   ],
+   "simple": "False, because age alone doesn't end a bull market, and nobody knows when a trend will end.",
+   "deeper": {
+    "trap": "The trap is treating old as about to end. A bull past its average age is not on a timer. Bulkowski's Dow data put the average bull at 3 years. In 2015 the one he studied was already 6 years long, and he said that did not make a bear imminent. ChartSchool calls trying to predict how long a trend will last futile."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q25",
+   "skill": "history.how_markets_move",
+   "rung": 9,
+   "format": "scenario",
+   "story": "The S&P 500 sits 22% below its record close, under a falling 30-week average. A stock on your list breaks out of a base today.",
+   "q": "How do you treat that breakout?",
+   "choices": [
+    "Pass, or take it at a small size",
+    "Full size, a breakout is a breakout",
+    "Buy extra, bear markets make bargains",
+    "Full size, it's a market leader"
+   ],
+   "answer": "Pass, or take it at a small size",
+   "wrong": {
+    "Full size, a breakout is a breakout": "A breakout doesn't beat the market. IBD's rule of thumb is that 3 of 4 stocks move with the general market.",
+    "Buy extra, bear markets make bargains": "Cheaper isn't safer. IBD says new buys are riskier in a falling market, since most stocks follow it down.",
+    "Full size, it's a market leader": "Even leaders struggle here. IBD says that in a market downtrend it's very hard for even the best stocks to move higher."
+   },
+   "why": "Pass, or take it at a small size. IBD's rule of thumb is that 3 of 4 stocks move with the general market. In a market downtrend, even the best stocks find it very hard to rise. IBD's rule is to make new purchases only in a market uptrend. Tom McClellan's advice is the same: go with the trend unless you have a strong reason not to.",
+   "lesson_line": "In a bear market I buy less, or nothing. The market drags most stocks along with it.",
+   "facts": [
+    "f86",
+    "f87",
+    "f88",
+    "f92",
+    "f84",
+    "f36"
+   ],
+   "simple": "Pass or go small, because most stocks follow the market, and new buys are riskier while it falls.",
+   "deeper": {
+    "trap": "The trap is judging the stock alone. A clean base and breakout look the same in any market, but 3 of 4 stocks move with the market. With the index 22% below its record and under a falling average, the odds lean against new buys."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "must match the owner's market filter rules (B18, D46, F65)",
+     "fixed before (checker 2026-11-09)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q26",
+   "skill": "history.how_markets_move",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You hold a stock after a two-year climb. For months now it chops sideways. Its 30-week average has flattened, and price keeps slicing through it.",
+   "q": "You're still holding. What would Weinstein have you do here?",
+   "choices": [
+    "Trim it, and sell if it breaks down",
+    "Add more, it's resting for the next leg",
+    "Short it now, before the break",
+    "Hold it all, the long trend is up"
+   ],
+   "answer": "Trim it, and sell if it breaks down",
+   "wrong": {
+    "Add more, it's resting for the next leg": "That's guessing the break. If it breaks up into a new Stage 2, then you hold. Adding now is just a bet on direction.",
+    "Short it now, before the break": "That's guessing the break too. You can't tell which way a range will go until it goes, and Dow Theory warns against jumping early.",
+    "Hold it all, the long trend is up": "The climb has stalled. In Stage 3 the method takes profits, and a break down means sell."
+   },
+   "why": "Trim it, and sell if it breaks down. A long climb that goes flat while the 30-week average catches up and slices through price is Stage 3, the top area. Weinstein has traders take profits here and investors sell half. If it breaks up into a new Stage 2, you hold the rest. A break down out of the range is a sale. Our own exit is simpler. We trail the 9 EMA on fast movers and the 20 EMA on steadier ones. We sell what's left on a close below it. Either way, you're not sitting there hoping.",
+   "lesson_line": "A long climb that goes flat is a warning. Lighten up and let the break decide.",
+   "facts": [
+    "f68",
+    "f69",
+    "f70",
+    "f56",
+    "f57",
+    "f62",
+    "h02",
+    "rd21"
+   ],
+   "simple": "Trim it. A long climb that goes flat is Stage 3, and a break down out of the range means sell.",
+   "deeper": {
+    "trap": "The trap is acting before the break. A range can be accumulation or distribution, and you can't tell which until it breaks. Shorting early guesses the break, and adding early guesses it too. Weinstein's answer is to lighten up in Stage 3 and let the break decide the rest."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q27",
+   "skill": "history.how_markets_move",
+   "rung": 9,
+   "format": "scenario",
+   "house": true,
+   "story": "The S&P 500 sits 22% below its record close, under a falling 30-week average. The app's market reading is Red. A stock on your list breaks out of a base today.",
+   "q": "What's the play on that breakout?",
+   "choices": [
+    "Pass, or take it at a small size",
+    "Full size, a breakout is a breakout",
+    "Pass, the stock itself is in Stage 4",
+    "Buy now, the market will turn soon"
+   ],
+   "answer": "Pass, or take it at a small size",
+   "wrong": {
+    "Full size, a breakout is a breakout": "Not when the reading is Red. In a falling market even the best stocks find it very hard to go up.",
+    "Pass, the stock itself is in Stage 4": "Right to pass, wrong reason. A breakout from a base is how Stage 2 starts. You pass because the market reads Red.",
+    "Buy now, the market will turn soon": "Nobody knows where or when a trend will end. Until the reading changes, Red means mostly cash."
+   },
+   "simple": "Pass or go small, because a Red reading means mostly cash.",
+   "why": "Pass, or take it small. The market reading in our app tells us how much to trade. Green is full risk for the grade. Yellow is smaller and fewer. Orange is only our A+ setups, the cleanest ones. Red is mostly cash. With the S&P 500 22% under its record and the reading Red, a new long gets little or nothing. Not because the chart is bad. In a falling market even the best stocks find it very hard to go up. The readings are guides, not hard caps, so a small size is still on the table.",
+   "lesson_line": "Let the market reading set your size. In Red I buy little or nothing.",
+   "deeper": {
+    "trap": "The trap is judging the stock alone. IBD says that if the overall market is in a downtrend, even the best stocks find it very hard to move higher. A Red reading is our cue to sit mostly in cash."
+   },
+   "facts": [
+    "h01",
+    "h03",
+    "f86",
+    "f51",
+    "f61",
+    "f64",
+    "f65"
+   ],
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "teaches the owner's market reading (B18, F65, A10, D46) as ours",
+     "fixed before (checker 2026-11-12)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q97",
+   "skill": "history.how_markets_move",
+   "rung": 2,
+   "format": "mcq",
+   "q": "Your stock has been making higher highs and higher lows. Now a pullback undercuts the last pullback low. What's it telling you?",
+   "choices": [
+    "Higher lows stopped, so it's in doubt",
+    "It just made a new higher high",
+    "The uptrend got stronger",
+    "Nothing, only the highs matter"
+   ],
+   "answer": "Higher lows stopped, so it's in doubt",
+   "why": "Higher lows stopped, so it's in doubt. An uptrend is a string of higher highs and higher lows. No higher lows, no Stage 2. When a pullback goes under the last low, that string breaks. It's a warning, not proof the trend is over. If you're looking to buy, wait for it to build a new higher low first. I want the lows rising again before I trust it.",
+   "lesson_line": "Higher highs and higher lows. When the lows stop rising, the uptrend is in doubt.",
+   "facts": [
+    "f55",
+    "f66",
+    "f67"
+   ],
+   "wrong": {
+    "It just made a new higher high": "A higher high is a new peak above the last peak. Undercutting the last low is the opposite signal.",
+    "The uptrend got stronger": "A stronger uptrend keeps making higher lows. Undercutting the last low is a sign of weakness.",
+    "Nothing, only the highs matter": "An uptrend needs both higher highs and higher lows. When the lows stop rising, the trend is in doubt."
+   },
+   "simple": "An uptrend needs higher highs and higher lows, so a pullback under the last low puts it in doubt.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "When a bull market starts: the SEC's glossary (f02) and S&P Dow Jones Indices (via CNBC, f22) use a 20% rise, with S&P DJI dating the bear's end at the low. Morningstar (s4) says 'Wall Street considers bear markets over when the stock market closes at a new record high' and that the bull market 'is declared once the market reaches a new all-time high'. Every question that keys the end of a bear names S&P DJI's rule, and q16's wrong note says the record-high convention exists.",
+  "The two-month condition: the SEC glossary (f01, f02) says a bear or bull generally runs 'over at least a two-month period'. The 2020 decline lasted 33 days (Schwab f08), 1.1 months in S&P DJI's table (f26), 'only a month' (Morningstar f15), and all three call it a bear market. ChartSchool's Dow Theory page says the 1998 drop of 'just over 20%' was hard to call a bear because of 'the two-month timeframe'. Bulkowski used a 30-day minimum on his Bear Markets page and a three-month minimum on his longevity page. No question keys the two-month condition; q02's why quotes it as the SEC's wording.",
+  "Average lengths differ by period and method, so no average is keyed as THE number: S&P DJI since the late 1920s, almost 19 months and a 38% fall (f23); Schwab since 1966, roughly 14 months (f07); Morningstar, about nine and a half months before 2020 (f15); Bulkowski (Dow, 1928 to 2015, three-month filter), average bull 3 years. Only the direction (bears shorter than bulls, agreed by all) and the range in S&P DJI's own table are keyed.",
+  "April 8, 2025: CNBC's 2025-06-27 article (s9) says the S&P 500 'closed 19.8% below its previous record high' at its April 8 low. CNBC's April 8 live page (f39) gives the close as 4,982.77, 'down nearly 19%', and 4,982.77 against the 6,144.15 record (f32) is 18.9% down, by calc. The file uses the live-page close and the calc. The 19.8% line is never quoted.",
+  "S&P DJI's own table in the CNBC 2022 article lists 7/16/1990 to 10/11/1990, -19.9%, among 'Prior bear markets', short of the 20% rule the same article states. No question uses 1990, and no question claims S&P DJI never lists a drop under 20%.",
+  "The CNBC 2022 article's text says the longest bear 'lasted 62 months, between 1937 and 1946'; the table beside it shows 3/6/1937 to 4/29/1942, 61.8 months. q14 uses the table row (f25) only.",
+  "The S&P 500 never closed 20% below its record in 2025 (CNBC f39, f43), but the Nasdaq Composite and the Russell 2000 did reach bear territory (f41, f44). The Russell 2000 article was written during the April 3 session ('down about 6.6% during Thursday's session'); q23's story says only that it fell more than 20% below its high and was the first major U.S. index there, as the article's lead says.",
+  "Phase names: David Keller (StockCharts, s13) calls an uptrend the 'accumulation phase' and a downtrend the 'distribution phase'. Wyckoff (ChartSchool, f58, f59) and Dow Theory use accumulation for the base before a markup and distribution for the top before a markdown. The file cites only Keller's two moving-average lines and never uses his phase names. Stages are always Weinstein's numbers.",
+  "Dow Theory (ChartSchool) also describes three psychological 'stages' of a bull market and of a bear market, a different numbering from Weinstein's four. The file numbers only Weinstein's stages and cites Dow Theory only for primary and secondary moves, trend rules and trading ranges.",
+  "IBD uses 'market in correction' as one of its three market-status labels, a different use of the word from a 10% to 20% decline. The file keys the 10% to 20% meaning. IBD's line 'you have a 75% chance of being right' is not used; only '3 of 4 stocks move in the same direction as the general market' (f87) is.",
+  "Weinstein calls Stage 2 'the ideal time to buy' (f67). Bulkowski's own trades did better buying in Stage 1 than Stage 2, which he puts down to buying 'well after the breakout'. Not keyed either way; q07 and q19 only identify the stage.",
+  "ChartSchool's Dow Theory page states the uptrend rule as 'an uptrend is considered in place until a lower low forms and the ensuing decline exceeds the previous low'. Its own downtrend rule (f53: a higher low, then an advance past the previous reaction high) mirrors to 'lower high', so the uptrend line reads like a slip. It is not used; q08 rests on 'higher highs and higher lows' (ChartSchool f55, Bulkowski f66, f67).",
+  "Bulkowski dates the bull that followed 2007-09 from March 6, 2009 (his Dow data); the S&P 500's closing low was 3/9/2009 in S&P DJI's table. q24 says only 'the bull that began in 2009'.",
+  "Checker, 2026-11-09: Bulkowski's 1931 Dow example (s15) says the index 'climbed to 156.74, or 24% above the low of 119.89'. By his own prices that rise is 30.7% (156.74 / 119.89); 24% is the gain divided by the high (23.5%). The file never quotes the 24%: q22's wrong note says 'more than 20%', from his own line 'because it climbed, low to high, more than 20%' (f93). f76 and f78 stay in the facts list for the record but no question cites them.",
+  "Checker, 2026-11-09: Bulkowski's bear market research (s15, s16) measures high-to-low swings, including intraday lows (his Black Monday example uses the day's low of 1677.55), with a 30-day or three-month minimum. S&P Dow Jones Indices uses closes. Pisani's line 'One point everyone agrees on: determining a 20% decline is based on closing prices' (f31) is therefore not repeated as 'everyone agrees' in any reveal; q20's wrong note names S&P Dow Jones Indices' closing rule instead.",
+  "Checker, 2026-11-09: CNBC's 2022 article says the S&P 500 had been 'flirting with a bear market for the past several weeks on an intraday basis' (f21). The writer's text said it 'traded past the line intraday for weeks', which over-reads 'flirting'. f21's claim, q04's why and q04's wrong note now say 'flirted with the line'.",
+  "Checker, 2026-11-09: Bulkowski's 'Moving Average Studies & Stock Trends' page (https://www.thepatternsite.com/MarketStudy.html, read with WebFetch; the plain client got a 406) found his own buys made while the S&P 500 was below its moving averages had FEWER losing trades (323 of his trades, 1982-2007, no significance test). That cuts against IBD's 'make new purchases only in a market uptrend' (f92). q25 asks about a breakout buy, the case IBD's rule is written for; its key allows a small size, and no question keys 'never buy in a downtrend'.",
+  "Checker, 2026-11-09: CNBC's 3,999 days for 'the bull market between 2009 and 2020' (f42) does not name the index. S&P Dow Jones Indices' table (f94, f26) ends the 2007-09 bear on 3/9/2009 and starts the next on 2/19/2020, exactly 3,999 days apart by the calendar, so it is the S&P 500's count. Bulkowski's 2009 start (March 6) and his 91% are Dow data; q24 keeps the two apart.",
+  "Checker, 2026-11-09: Schwab's 27 corrections (f06) were counted to March 2025, 'including the current one', which was still under way. The walkthrough, q10 and q15 now say 'Schwab counted'. The point keyed (most corrections have not become bear markets) does not depend on later corrections.",
+  "Track audit 2026-11-09: q16's wrong note and q20's lesson line now say the 20% label becomes 'official' (as q04 and q21 already did) instead of 'confirmed'; F7.03 and F7.04 keep 'confirm' for price evidence of a turn. q14's average of almost 19 months now names its window (since the late 1920s), next to Schwab's roughly 14 months since 1966 in w2 and q05."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Read in context on fresh pages: f09, f10 (Schwab footnote to its bear market chart), f31 (CNBC/Pisani), f03 (Schwab), f01, f02 (SEC Investor.gov), f74 (Bulkowski), f04, f11 (Morningstar: 'The 10% threshold is arbitrary'), f28, f30. Each step matches its facts; 'conventions, not laws' is what f04, f11 and f30 say. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f07, f08 (Schwab), f15, f12, f16, f14, f13 (Morningstar), f33 (CNBC), f22 (CNBC/S&P DJI) confirmed in context. Step 2 said 'Of 27 since November 1974' as a live count; Schwab's 27 is a March 2025 count that included a correction still under way, so it now says 'Schwab counted 27 since November 1974'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f62-f72 confirmed on Bulkowski's Stages page (his account of Weinstein's 1988 book); f61 (Keller, StockCharts) and f58, f59 (ChartSchool Wyckoff) agree on the moving-average and base/top shapes. 'Every chart sits in one of four stages' stated Weinstein's model as a fact; now 'In his method, every chart sits in one of four stages.'",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok: 10-20% (f03, f11, f29); 'one of the founders of technical analysis' is f28's own words. Stem gives a real situation, not leading."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True per f01, f19; 33-day 2020 bear (f08) supports 'the two-month part is loose'. Plain one-claim T/F."
+  },
+  "q03": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Closes per f19, f21, f31. Good mentor close ('wait for the close before you call it anything')."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Direction only (f07, f15), no average keyed as THE number, matches conflicts note. Friend framing is fine, not leading."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok (f89, f46, f90, f12). Why read as a Dow Theory glossary with one line of judgment tacked on. Rewritten largest-to-smallest in plain words, ending on what I do in a pullback."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stage 2 per f65, f66, f67 (the take-profits line is f67's own). 'Big volume' is Weinstein's description, attributed, not taught as our must."
+  },
+  "q08": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "f71, f72 ('usually' rendered as 'most of the way down'); 'falling' average per f61. Bulkowski moved to deeper. Good mentor line on not catching the bottom."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False per f06, f16, f17. Numbers all cited."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 720/4800 = 15%; 720/4080 = 17.6 -> 18%; 4080/4800 = 85%. Steps shown. Number drives the label, not a drill for its own sake."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "7% under 10% (f03, f29); bear dated after the fact (f13, f33)."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "IBD's 3 of 4 (f87) is the question's own principle, so the name stays in the why (rule 13). 'Read the market before I read the stock' sounds like him."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "1.1 vs 61.8 months (f26, f25), 33 days (f08), ~19 months avg (f23). Stem carries a 'so' clause, but both halves are false, so it stays unambiguous."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "12% is correction territory (f03); 6 of 27 (f06); no prediction (f05, f17)."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok (f22, f13, f18, f37). Why restated S&P DJI's rule in near-textbook order. Rewritten to walk the sequence the way a trader lives it, same facts, and kept the watchlist line."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 6,144.15 x 0.8 = 4,915.32 (matches f32); 7,372.98 = x1.2; 5,120.13 = /1.2; 6,124.15 = minus 20 points. Steps shown; the number is a level to mark, not a drill."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 75 x 1.2 = 90, 10% under. Wrong notes name real mistakes."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stage 1 per f64, f68, f56, f57. 'Put it on my radar and wait' is his phrase."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 6,144.15 - 4,982.77 = 1,161.38; /6,144.15 = 18.9%. 1.57% day move is f39's own number. April 7 intraday per f40."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Jan 3 per f20, f27, f33, f34. Ends on stops doing the protecting, which is practical and his."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Yamada 18% over 31 days (f38); 1931 Dow (f75, f93, f77); trend rule (f53). Short choice correctly framed as a guess, no short taught."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Russell 2000 first (f44, f45), Nasdaq before S&P (f41), S&P never closed 20% down and set a record by June (f43, f91)."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'older than 91% of past bulls on the Dow' added a source detail f82 does not state (f82 gives no index). Dropped 'on the Dow' and said 'longer', f82's word. Rest is f42, f51."
+  },
+  "q25": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave6: see the resolver's notes"
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stage 3 per f68, f69, f70; our trail is the 9 and 20 EMA with a close below selling what's left (h02, rd21). No 10/21-day trail."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Market reading per h01, h03: Red is mostly cash, a guide not a hard cap, so 'or small' stays right. Does not state 'no buys in Red' as a rule. Shorts left out of member text, so no short is taught."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Higher highs and higher lows (f55); 'no higher lows, no Stage 2' is f67. Warning, not proof."
+  }
+ }
+}

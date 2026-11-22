@@ -65,9 +65,45 @@
   box-shadow:
     0 24px 70px var(--menu-shadow, rgba(0, 0, 0, 0.7)),
     0 0 0 1px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    inset 0 1px 0 rgb(var(--csm-ink, 255 255 255) / 0.03);
   overflow: hidden;
   animation: pop 140ms cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+/* ── App theme = Light: Chart Settings follows the page (decision B2, 2026-11-07) ──
+   Every popup menu wears the one dark --menu-* palette in every theme (tokens.css), and
+   this dialog did too. B2 makes Chart Settings the exception: it is a full window that
+   opens over the page, and in the light theme it reads as part of that page. The chart
+   CANVAS it edits keeps its own theme. The small menus it opens (the colour picker, the
+   chart-themes gallery, the ticker search) stay on the shared dark menu palette.
+
+   The dialog portals to <body>, so the page tokens are the real ones here, and every
+   value below is a page token: a catalog light theme carries its own. `!important`
+   because ChartPane hands the dialog the dark palette as an INLINE style (`themeVars`),
+   which a class cannot out-rank otherwise. `--csm-ink` is the colour of the dialog's own
+   faint washes (selected row, hovers, hairlines): white on the dark panel, black here.
+   Tiers measured against --bg-elevated and --bg-surface in every light theme, rail
+   `pages/charts/lightChrome.b2.test.js`: text >= 4.5:1 at every tier, accent too. */
+:global([data-theme='light']) .panel,
+:global([data-theme='light']) .fieldMenu {
+  --menu-bg: var(--bg-elevated) !important;
+  --menu-bg-top: var(--bg-surface) !important;
+  --menu-input-bg: var(--bg-surface) !important;
+  --menu-border: var(--border-accent) !important;
+  --menu-divider: var(--border) !important;
+  --menu-text: var(--text-bright) !important;
+  --menu-text-dim: color-mix(in srgb, var(--text-muted) 55%, var(--text)) !important;
+  --menu-text-faint: var(--text-muted) !important;
+  --menu-accent: var(--ut-gold) !important;
+  --menu-accent-bg: color-mix(in srgb, var(--ut-gold) 12%, transparent) !important;
+  --menu-hover: var(--bg-hover) !important;
+  --menu-shadow: rgba(0, 0, 0, 0.18) !important;
+  --csm-ink: 0 0 0;
+}
+/* The dark panel's 1px black ring and its 0.7 drop read as a heavy outline on white; the
+   page's own modal shadow is what every light dialog uses. */
+:global([data-theme='light']) .panel {
+  box-shadow: var(--shadow-modal), 0 0 0 1px rgb(0 0 0 / 0.06);
 }
 
 /* ⚰️⚰️ `.panelWide` STOOD HERE AND IS RETIRED, WITH THE ARGUMENT THAT MADE IT.
@@ -115,7 +151,8 @@
   border: 1px solid var(--menu-border, #2c2c30);
   color: var(--menu-text-dim, #8a8a8f);
   font-family: inherit;
-  font-size: 10.5px;
+  /* a11y 2026-11-08: no shared text under 11 px (was 10.5). */
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
   padding: 5px 10px;
@@ -159,7 +196,8 @@
   border: 1px solid var(--menu-border, #2c2c30);
   color: var(--menu-text-dim, #8a8a8f);
   font-family: inherit;
-  font-size: 10.5px;
+  /* a11y 2026-11-08: no shared text under 11 px (was 10.5). */
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.3px;
   padding: 5px 10px;
@@ -462,10 +500,22 @@
   height: 15px;
   border-radius: 50%;
   background: var(--menu-text-dim, #9a9a9a);
-  transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background 140ms;
+  transition: transform 160ms cubic-bezier(0.3, 1.4, 0.5, 1), background 140ms, box-shadow 140ms;
 }
-.toggleOn { background: var(--menu-accent-bg, rgba(220, 187, 94, 0.22)); border-color: var(--menu-accent, #dcbb5e); }
-.toggleOn .toggleKnob { transform: translateX(17px); background: var(--menu-accent, #e2c98a); }
+/* ⭐ THE MUTED GOLD TRACK (owner-delegated decision B5, 2026-11-07). On is a
+   `--ut-gold-dim` fill and a bright knob with a `--ut-gold` edge; off stays the
+   neutral track above. Never a full-gold track (gold is rationed to one look-here
+   mark per surface) and never green (green means money going up). The edge is an
+   INSET ring so the knob keeps its 15 px box and its travel. The same look is
+   written in `IndicatorSettingsDialog.module.css` (.toggle) and the phone sheet's
+   `MobileCharts.module.css` (.switch): three stylesheets, one switch. The tint
+   is LAYERED over the neutral track, so ON can never read darker than OFF. */
+.toggleOn { background: linear-gradient(var(--ut-gold-dim), var(--ut-gold-dim)), var(--menu-input-bg, #161618); }
+.toggleOn .toggleKnob {
+  transform: translateX(17px);
+  background: var(--menu-text, #ededed);
+  box-shadow: inset 0 0 0 1.5px var(--ut-gold);
+}
 /* A field the current surface doesn't honor (indicatorRegistry `disabled: reason`)
    — matches .indNum:disabled / .indSelect:disabled so inert reads the same
    everywhere in this tab. The reason rides the row's title. */
@@ -499,6 +549,8 @@
   background-position: right 9px center;
   transition: border-color 120ms;
 }
+/* B2: on the light page the dialog is light, so the native option list follows it. */
+:global([data-theme='light']) .sizeSelect { color-scheme: light; }
 .sizeSelect:hover { border-color: var(--menu-border, #3a3a3c); }
 .sizeSelect:focus { outline: none; border-color: var(--menu-accent, #dcbb5e); }
 
@@ -1047,9 +1099,9 @@
   box-sizing: border-box;
   margin-top: 12px;
   padding: 9px 12px;
-  border: 1px solid rgba(220, 187, 94, 0.38);
+  border: 1px solid color-mix(in srgb, var(--menu-accent, #dcbb5e) 38%, transparent);
   border-radius: 7px;
-  background: rgba(220, 187, 94, 0.05);
+  background: color-mix(in srgb, var(--menu-accent, #dcbb5e) 5%, transparent);
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -1082,7 +1134,10 @@
 .insLeftTitle {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 9.5px;
+  /* 9.5 → 11 px (owner-delegated decision B11, 2026-11-07): the plan's floor for
+     inspector section and group labels. The column's own name rises with the
+     group and section labels so it never reads smaller than what it heads. */
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1173,10 +1228,10 @@
 .insGroup + .insGroup {
   margin-top: 16px;
   padding-top: 11px;
-  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgb(var(--csm-ink, 255 255 255) / 0.04);
 }
 .insGroupHead {
-  font-size: 9.5px;
+  font-size: 11px;   /* B11 (2026-11-07): 9.5 → 11, the label floor */
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1276,10 +1331,10 @@
      supposed to ADD UP: a tonal step you notice without looking at it, a gold
      edge you find instantly, and a label a shade brighter. Any one of them alone
      would be too quiet; all three at full strength is the card. */
-  background: rgba(255, 255, 255, 0.045);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.045);
   border-left-color: var(--menu-accent, #dcbb5e);
 }
-.insRowSel:hover { background: rgba(255, 255, 255, 0.062); }
+.insRowSel:hover { background: rgb(var(--csm-ink, 255 255 255) / 0.062); }
 /* ⛔ 600, NOT 700, AND THE INK DOES THE REST. A weight jump big enough to see on
    its own re-flows the row's optical width and makes the list jitter as the
    selection moves; the brightness carries it. */
@@ -1620,7 +1675,9 @@
    by the amount of air between them and by the weight of their labels. */
 .insSection + .insSection { margin-top: 18px; }
 .insSectionLabel {
-  font-size: 9.5px;
+  /* B11 (owner-delegated, 2026-11-07): 9.5 → 11 px, the plan's floor. CORE and
+     APPEARANCE were the smallest words on the inspector while naming its parts. */
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -1669,9 +1726,15 @@
      `Display` — the words a member reads to find the control they want — into the
      same grey as `CORE`. SECONDARY keeps the hierarchy and gets the labels back. */
   color: var(--menu-text-dim, #b3b3b9);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* ⚰️ IT ELLIPSIZED: `nowrap` + `overflow: hidden` + `text-overflow: ellipsis`,
+     so `High before price` read `High before p…` and `Short-history dots` lost its
+     noun (UCT RS Phase 2a visual A6: "no ellipsis anywhere"). A label that fits
+     the 92px column still sits on one line; one that does not WRAPS to a second,
+     and the row grows. A label is how a member finds the control, so it is never
+     cut. */
+  white-space: normal;
+  overflow-wrap: break-word;
+  line-height: 1.3;
 }
 .insFieldCtl {
   flex: 1 1 auto;
@@ -1746,6 +1809,124 @@
   flex: 0 1 auto;
 }
 .insFieldCtl > div { min-width: 0; width: 100%; }
+
+/* ── UCT RS PHASE 2a VISUAL (A6): PRESET ROW, INPUT GROUPS, INERT CELLS ───────
+   The Inspector reaches the settings dialog's parity for a definition that
+   declares presets, groups or `activeWhen`. Nothing here applies to a definition
+   that declares none of them: the classes only render for those. `--menu-*`
+   inks only, the family the rest of this panel paints. */
+
+/* Preset: the select, then "Reset to preset", wrapping under it in a narrow
+   Inspector rather than pushing the row past the panel. */
+.insPresetCtl { flex-wrap: wrap; row-gap: 4px; }
+.insField[data-measure='wide'] > .insPresetCtl > select { flex: 1 1 150px; max-width: 210px; }
+.insPresetReset {
+  flex: none;
+  height: 24px;
+  padding: 0 9px;
+  background: transparent;
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 6px;
+  color: var(--menu-text-dim, #b3b3b9);
+  font: inherit;
+  font-size: 11.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 110ms, border-color 110ms;
+}
+.insPresetReset:hover:not(:disabled) { color: var(--menu-text, #ededed); border-color: var(--menu-text-faint, #93939a); }
+.insPresetReset:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); color: var(--menu-text, #ededed); }
+.insPresetReset:disabled { opacity: 0.45; cursor: default; }
+/* The preset's origin, under the row in the faint ink, aligned with the controls. */
+.insPresetOrigin {
+  margin: 1px 0 6px 104px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--menu-text-faint, #93939a);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A group head: a disclosure button in the section-label voice, one step quieter
+   than CORE (lighter weight, the faint ink), 28px tall, chevron on the right. Open
+   reads one ink brighter, never gold. */
+.insGroup { display: flex; flex-direction: column; }
+.insGroup + .insGroup, .insField + .insGroup { margin-top: 2px; }
+.insGroupHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 2px 0 0;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--menu-divider, #202022);
+  color: var(--menu-text-faint, #93939a);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+  transition: color 110ms;
+}
+.insGroupHead:hover { color: var(--menu-text-dim, #b3b3b9); }
+.insGroupHead[aria-expanded='true'] { color: var(--menu-text-dim, #b3b3b9); }
+.insGroupHead:focus-visible { outline: 1px solid var(--menu-accent, #dcbb5e); outline-offset: -1px; }
+.insGroupHeadText { white-space: nowrap; }
+.insGroupHeadIcon { display: flex; align-items: center; color: var(--menu-text-faint, #93939a); }
+.insGroupBody { display: flex; flex-direction: column; padding-bottom: 4px; }
+.insGroupBody > .insField + .insField { margin-top: 1px; }
+
+/* An inactive colour cell (`activeWhen` false): the swatch has no disabled state
+   of its own, so the cell takes no pointer and wears the off tier. */
+.insCtlOff { display: inline-flex; opacity: 0.6; pointer-events: none; }
+
+/* ⭐ UCT RS PHASE 3, UNIT 3-02b — THE TEXT BOX (a `string` input, `InspectorTextBox`).
+   The cell is a COLUMN — the box, then the miss line under it — at the `wide`
+   width (`min(210px, 100%)`, a maximum, not a fixed width) and `min-width: 0`, so
+   a narrow Inspector shrinks the box rather than pushing the row past the panel;
+   the 92/84px label column is not touched, so the label stays readable. The box
+   wears the same 24px geometry and inks as the panel's selects and number boxes.
+   A miss reads in the warning colour on the BORDER only; the words under it stay
+   in the quiet tier, like the dialog's `.textMiss`. */
+.insTextCell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  flex: 0 1 auto;
+  width: min(210px, 100%);
+  min-width: 0;
+  gap: 2px;
+}
+.insFieldCtl .insText {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  font-family: inherit;
+  font-size: 11.5px;
+  padding: 0 8px;
+  border-radius: 5px;
+  background: var(--menu-input-bg, #08080a);
+  border: 1px solid var(--menu-border, rgba(255, 255, 255, 0.09));
+  color: var(--menu-text, #ededed);
+  transition: border-color 110ms, background 110ms;
+}
+.insFieldCtl .insText::placeholder { color: var(--menu-text-faint, #6b6b6b); }
+.insFieldCtl .insText:hover:not(:disabled) { border-color: rgb(var(--csm-ink, 255 255 255) / 0.16); }
+.insFieldCtl .insText:focus-visible { outline: none; border-color: var(--menu-accent, #dcbb5e); }
+.insFieldCtl .insText[aria-invalid='true'] { border-color: var(--color-danger, #df4646); }
+.insFieldCtl .insText:disabled { opacity: 0.55; cursor: not-allowed; }
+.insTextMiss {
+  font-size: 10.5px;
+  line-height: 1.3;
+  color: var(--menu-text-faint, #6b6b6b);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
 
 /* ⭐ A NUMBER IS THREE CHARACTERS WIDE, AND 100px IS ROOM FOR FIVE. Wide enough
    for `-100`, `9999` and a caret; narrow enough that `200` does not look lost. */
@@ -1860,7 +2041,7 @@
 }
 .insSegBtn:hover:not(:disabled):not(.insSegBtnOn) {
   color: var(--menu-text, #ededed);
-  background: rgba(255, 255, 255, 0.05);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.05);
 }
 /* ⭐ RESTRAINED GOLD. The same three signals the selected ROW uses — a wash, a
    1px accent edge and brighter ink — at the same strength, so nothing on this
@@ -1929,7 +2110,7 @@
 }
 .insFieldCtl > select:hover:not(:disabled),
 .insFieldCtl .indSelect:hover:not(:disabled),
-.insFieldCtl .indNum:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.16); }
+.insFieldCtl .indNum:hover:not(:disabled) { border-color: rgb(var(--csm-ink, 255 255 255) / 0.16); }
 .insFieldCtl > select:focus-visible,
 .insFieldCtl .indSelect:focus-visible,
 .insFieldCtl .indNum:focus-visible {
@@ -1945,7 +2126,7 @@
   width: 18px;
   height: 18px;
   border-radius: 4px;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgb(var(--csm-ink, 255 255 255) / 0.14);
 }
 
 /* ── ACTIONS ──────────────────────────────────────────────────────────────── */
@@ -2027,7 +2208,7 @@
 .insAddBtn {
   margin-top: 4px;
   background: transparent;
-  border: 1px solid rgba(220, 187, 94, 0.4);
+  border: 1px solid color-mix(in srgb, var(--menu-accent, #dcbb5e) 40%, transparent);
   border-radius: 6px;
   padding: 5px 11px;
   font-family: inherit;
@@ -2076,7 +2257,7 @@
   padding: 5px 11px;
   border: 1px solid var(--menu-border, #33333a);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.03);
   font-family: inherit;
   font-size: 11.5px;
   color: var(--menu-text, #ededed);
@@ -2084,7 +2265,7 @@
   transition: background 120ms, border-color 120ms;
 }
 .insStartGhost:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.07);
   border-color: var(--menu-border, #45454c);
 }
 .insStartGhost:focus-visible {
@@ -2138,7 +2319,7 @@
   padding: 4px 10px;
   border: 1px solid var(--menu-border, #33333a);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.03);
   font-family: inherit;
   font-size: 11px;
   font-weight: 600;
@@ -2149,7 +2330,7 @@
 }
 .insNewFormula:hover {
   background: var(--menu-accent-bg, rgba(220, 187, 94, 0.12));
-  border-color: rgba(220, 187, 94, 0.5);
+  border-color: color-mix(in srgb, var(--menu-accent, #dcbb5e) 50%, transparent);
   color: var(--menu-accent, #e7cf8f);
 }
 .insNewFormula:focus-visible {
@@ -2230,7 +2411,7 @@
 .insTab:hover:not(.insTabOn) {
   color: var(--menu-text, #ededed);
   border-color: var(--menu-border, #3a3a3c);
-  background: rgba(255, 255, 255, 0.04);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.04);
 }
 .insTabOn,
 .insTabOn:hover {
@@ -2292,8 +2473,8 @@
    the rule stays and only its volume changes. */
 .insAdd .indSearch:focus,
 .insAdd .indSearch:focus-visible {
-  border-color: rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.04);
+  border-color: rgb(var(--csm-ink, 255 255 255) / 0.28);
+  background: rgb(var(--csm-ink, 255 255 255) / 0.04);
   box-shadow: none;
 }
 .insAddBody {
@@ -2463,9 +2644,9 @@
 }
 .insArrGroup + .insArrGroup {
   margin-top: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgb(var(--csm-ink, 255 255 255) / 0.05);
 }
-.insArrGroup:hover { background: rgba(255, 255, 255, 0.04); }
+.insArrGroup:hover { background: rgb(var(--csm-ink, 255 255 255) / 0.04); }
 .insArrGroup:active { cursor: grabbing; }
 .insArrGroup:not([draggable]) { cursor: default; }
 .insDragging { opacity: 0.45; }
@@ -2592,6 +2773,7 @@
     margin-right: 0;
   }
   .insFieldLabel { flex: 0 0 84px; }
+  .insPresetOrigin { margin-left: 96px; }
   .insEmpty { max-width: none; }
   .insArrBtn { width: 28px; height: 28px; }
 }
@@ -2616,6 +2798,9 @@
    query at both 390px and 820px, which is the relationship it exists to enforce. */
 @media (max-width: 1024px) and (pointer: coarse) {
   .insRow { min-height: var(--tap-min, 44px); padding-top: 8px; padding-bottom: 8px; }
+  /* A6 — the group heads and the preset reset take a finger too. */
+  .insGroupHead { min-height: var(--tap-min, 44px); }
+  .insPresetReset { min-height: var(--tap-min, 44px); }
 }
 
 
@@ -3318,7 +3503,9 @@
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 4px;
-  border: 1px solid var(--uct-border, rgba(255, 255, 255, 0.14));
+  /* --uct-border is defined nowhere, so its fallback IS the value: the ink wash, so it reads on
+     the light dialog too (B2). */
+  border: 1px solid var(--uct-border, rgb(var(--csm-ink, 255 255 255) / 0.14));
   background: transparent;
   color: var(--uct-text-muted, inherit);
   cursor: pointer;
@@ -3422,3 +3609,377 @@
   .indTplDangerBtn { min-height: var(--tap-min, 44px); }
   .indTplPanel .tplDelete { min-width: var(--tap-min, 44px); }
 }
+
+/* ═══ The board-menu look (owner 11-15) — Chart Settings in the widget settings menus' style
+   (Theme Tracker Settings, design B): the #111214 panel, sections as #1a1b1f cards with
+   hairline rows, sentence-case section titles, neutral selected tiles (not gold), soft pill
+   buttons and the monochrome switch. Dark only — the light theme keeps its own block above.
+   `!important` on the tokens because ChartPane hands the dialog its palette INLINE. Look only:
+   every control, tab and handler is unchanged. ═══ */
+:global(:root:not([data-theme='light'])) .panel,
+:global(:root:not([data-theme='light'])) .fieldMenu {
+  --menu-bg: #111214 !important;
+  --menu-bg-top: #1a1b1f !important;
+  --menu-input-bg: #0f1012 !important;
+  --menu-border: #383b41 !important;
+  --menu-divider: #26282c !important;
+  --menu-text: #ededed !important;
+  --menu-text-dim: #a9a59b !important;
+  --menu-text-faint: #93939a !important;
+  --menu-hover: rgba(248, 247, 243, 0.05) !important;
+  --menu-shadow: rgba(0, 0, 0, 0.5) !important;
+}
+:global(:root:not([data-theme='light'])) .panel { background: #111214; border-color: #383b41; border-radius: 12px; }
+:global(:root:not([data-theme='light'])) .panel .title { font-size: 15px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+:global(:root:not([data-theme='light'])) .panel .resetBtn,
+:global(:root:not([data-theme='light'])) .panel .tplBtn,
+:global(:root:not([data-theme='light'])) .panel .themesBarBtn {
+  border: none; border-radius: 7px; background: rgba(248, 247, 243, 0.06); color: #ededed;
+  font-weight: 600; text-transform: none; letter-spacing: 0;
+}
+:global(:root:not([data-theme='light'])) .panel .resetBtn:hover,
+:global(:root:not([data-theme='light'])) .panel .tplBtn:hover,
+:global(:root:not([data-theme='light'])) .panel .themesBarBtn:hover { background: rgba(248, 247, 243, 0.11); color: #f8f7f3; }
+:global(:root:not([data-theme='light'])) .panel .close { border-radius: 7px; background: rgba(248, 247, 243, 0.06); }
+:global(:root:not([data-theme='light'])) .panel .sectionLabel {
+  text-transform: none; letter-spacing: 0; font-size: 11.5px; font-weight: 600; color: #c9c6be; margin: 0 4px 6px;
+}
+:global(:root:not([data-theme='light'])) .panel .card { border: none; border-radius: 9px; }
+:global(:root:not([data-theme='light'])) .panel .field { min-height: 42px; }
+:global(:root:not([data-theme='light'])) .panel .fieldLabel { font-size: 12.5px; color: #ededed; }
+/* tiles: a quiet card, the chosen one lifted in a neutral shade (gold stays for the tab line) */
+:global(:root:not([data-theme='light'])) .panel .typeCard,
+:global(:root:not([data-theme='light'])) .panel .modeCard { background: #1a1b1f; border-color: transparent; }
+:global(:root:not([data-theme='light'])) .panel .typeCard:hover,
+:global(:root:not([data-theme='light'])) .panel .modeCard:hover { background: #222327; border-color: transparent; transform: none; }
+:global(:root:not([data-theme='light'])) .panel .typeCardActive,
+:global(:root:not([data-theme='light'])) .panel .typeCardActive:hover,
+:global(:root:not([data-theme='light'])) .panel .modeCardActive,
+:global(:root:not([data-theme='light'])) .panel .modeCardActive:hover {
+  background: #2c2e33; border-color: rgba(248, 247, 243, 0.22); color: #f8f7f3;
+}
+:global(:root:not([data-theme='light'])) .panel .modeCardActive .modeName { color: #f8f7f3; }
+/* segmented controls */
+:global(:root:not([data-theme='light'])) .panel .seg { border: none; border-radius: 7px; padding: 2px; gap: 2px; background: #0f1012; }
+:global(:root:not([data-theme='light'])) .panel .segBtn { border: none !important; border-radius: 5px; text-transform: none; letter-spacing: 0; }
+:global(:root:not([data-theme='light'])) .panel .segBtnActive { background: #2c2e33 !important; color: #f8f7f3 !important; }
+/* the monochrome switch (white when on), as in every widget settings menu */
+:global(:root:not([data-theme='light'])) .panel .toggle { width: 32px; height: 18px; border: none; background: rgba(248, 247, 243, 0.16); }
+:global(:root:not([data-theme='light'])) .panel .toggle .toggleKnob { top: 2px; left: 2px; width: 14px; height: 14px; background: #d8d6d0; box-shadow: none; }
+:global(:root:not([data-theme='light'])) .panel .toggleOn { background: #f8f7f3; }
+:global(:root:not([data-theme='light'])) .panel .toggleOn .toggleKnob { transform: translateX(14px); background: #111214; box-shadow: none; }
+/* colour swatches: the rounded squares of the widget menus */
+:global(:root:not([data-theme='light'])) .panel .cSwatch { border-radius: 6px; }
+:global(:root:not([data-theme='light'])) .panel .cGroupLabel { text-transform: none; letter-spacing: 0; font-weight: 600; color: #c9c6be; }
+:global(:root:not([data-theme='light'])) .panel .body { scrollbar-width: thin; scrollbar-color: rgba(248, 247, 243, 0.22) transparent; }
+:global(:root:not([data-theme='light'])) .panel { color-scheme: dark; }
+
+/* ═══ S2 · sidebar sections (owner 11-15) ═══ The window is a row: a 172px rail (title, the five
+   sections with grey icons — the open one brighter with a thin light bar — and, at its foot,
+   Templates · Save as template · Chart themes · Restore defaults) beside the content column.
+   The window grows by the rail's width so every tab keeps its full content width. */
+.panel { width: min(860px, 96vw); }
+.shell { flex: 1 1 auto; min-height: 0; display: flex; }
+.side {
+  flex: 0 0 172px; display: flex; flex-direction: column; min-height: 0;
+  border-right: 1px solid var(--menu-divider, #26282c); padding-bottom: 10px;
+}
+.side .header { border-bottom: none; background: none; padding: 16px 16px 12px; }
+.side .tabs { flex-direction: column; gap: 2px; padding: 0; border-bottom: none; }
+.side .tab {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 14px; text-align: left;
+  font-size: 12.5px; font-weight: 500; color: var(--menu-text-dim, #a9a59b);
+}
+.side .tab:hover { color: var(--menu-text, #ededed); background: var(--menu-hover, rgba(248, 247, 243, 0.04)); }
+.side .tabActive { color: var(--menu-text, #ededed); font-weight: 600; background: rgba(248, 247, 243, 0.04); box-shadow: inset 2px 0 0 var(--ut-gold); } /* gold mix: the open section's bar */
+.side .tabActive::after { display: none; }
+.side .tab svg, .side .tab svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.sideFoot {
+  margin-top: auto; display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+  padding: 10px 8px 0; border-top: 1px solid var(--menu-divider, #26282c); margin-left: 8px; margin-right: 8px;
+}
+.sideFoot .tplMenuWrap { position: relative; }
+.sideFoot .tplBtn, .sideFoot .resetBtn {
+  width: 100%; justify-content: flex-start; text-align: left; background: none !important; border: none !important;
+  padding: 6px 6px; font-size: 12px; font-weight: 500; color: var(--menu-text-dim, #a9a59b) !important; text-transform: none; letter-spacing: 0;
+}
+.sideFoot .tplBtn:hover, .sideFoot .resetBtn:hover { color: var(--menu-text, #ededed) !important; background: var(--menu-hover, rgba(248, 247, 243, 0.05)) !important; }
+.sideFoot .resetBtnConfirm { color: var(--danger-ink, #f0525a) !important; }
+.sideFoot .tplMenu { top: auto; bottom: calc(100% + 4px); left: 0; }
+.sideFoot .tplSaveRow { display: flex; flex-wrap: wrap; gap: 4px; }
+.sideFoot .tplInput { width: 100%; }
+.main { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.mainHead { display: flex; align-items: center; gap: 4px; padding: 14px 12px 6px 22px; cursor: move; min-height: 26px; }
+.mainHead .close { margin-left: auto; }
+.main .body { padding-top: 6px; }
+
+/* ═══ Option A · soft-square on/off, LEFT of the label (owner 11-15) ═══ Every row that carries
+   an on/off switch shows it first: a soft square — a faint outline when off, the selected grey
+   with a white ✓ when on (our own look, not TradingView's white box). The switch keeps its role,
+   label and handler; only its drawing and place change. The whole row toggles (JSX). */
+:global(:root:not([data-theme='light'])) .panel .field:has(> .toggle),
+:global(:root:not([data-theme='light'])) .panel .field:has(> .hdrRowCtl > .toggle) { position: relative; padding-left: 30px; cursor: pointer; }
+:global(:root:not([data-theme='light'])) .panel .field:has(> .toggle):hover,
+:global(:root:not([data-theme='light'])) .panel .field:has(> .hdrRowCtl > .toggle):hover { background: rgba(248, 247, 243, 0.02); }
+:global(:root:not([data-theme='light'])) .panel .field > .toggle,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggle {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; border-radius: 5px; border: none; padding: 0;
+  background: none; box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.22);
+  /* Owner 11-16: the ✓ appears / disappears at once, centered. The switch's own `background`
+     transition (the pill track) animated the ✓'s background-position from the top-left corner. */
+  transition: none;
+}
+:global(:root:not([data-theme='light'])) .panel .field > .toggle .toggleKnob,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggle .toggleKnob { display: none; }
+:global(:root:not([data-theme='light'])) .panel .field > .toggle:hover,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggle:hover { box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.5); }
+:global(:root:not([data-theme='light'])) .panel .field > .toggleOn,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggleOn {
+  background: #2c2e33 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%23f8f7f3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 11px no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28);
+}
+:global(:root:not([data-theme='light'])) .panel .field > .toggle:focus-visible,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggle:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 2px; }
+/* rows are label-left / controls-right; a toggle row keeps its other controls (swatches, menus) on the right */
+:global(:root:not([data-theme='light'])) .panel .field:has(> .toggle) { justify-content: flex-start; }
+
+/* ═══ Chart Settings redesign · pass 1 (owner 11-15, the Chart Settings Lab) ═══ The open section's
+   title + a quiet "Reset this section" icon in the main header; the window's one ✕ at the far right;
+   soft-square checklists for multi-picks (watermark lines, bar info); the stat picker in UCT Signature. */
+.mainTitle { margin: 0; font-size: 15px; font-weight: 700; color: var(--menu-text, #f8f7f3); letter-spacing: 0; text-transform: none; }
+:global(:root:not([data-theme='light'])) .panel .mainTitle { color: #f8f7f3; }
+.sectionReset {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; height: 26px; min-width: 26px; padding: 0 6px;
+  margin-left: 2px; border: 0; border-radius: 7px; background: none; cursor: pointer;
+  color: var(--menu-text-faint, #93939a); font: inherit; font-size: 12px; font-weight: 600; justify-content: center;
+}
+.sectionReset:hover { background: rgba(248, 247, 243, 0.07); color: var(--menu-text, #ededed); }
+.sectionReset:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.sectionResetConfirm, .sectionResetConfirm:hover { color: var(--menu-text, #ededed); background: rgba(248, 247, 243, 0.07); }
+/* the rail foot: an icon + a plain label per action */
+.sideFoot .tplBtn, .sideFoot .resetBtn { display: flex; align-items: center; gap: 9px; }
+.sideFoot .tplBtn svg, .sideFoot .resetBtn svg { flex: 0 0 auto; }
+/* hints beside a label / a section title (sentence case, faint) */
+.fieldHint, .sectionHint { margin-left: 6px; font-size: 11px; font-weight: 500; color: var(--menu-text-faint, #93939a); }
+/* soft-square checklists: 2 columns (watermark lines) or 4 (bar info) */
+.softGrid { display: grid; gap: 2px 12px; }
+.softGrid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.softGrid4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 520px) { .softGrid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.softItem {
+  display: flex; align-items: center; gap: 9px; min-width: 0; padding: 6px 2px; border: 0; border-radius: 6px;
+  background: none; cursor: pointer; text-align: left; font: inherit; font-size: 12.5px; font-weight: 500;
+  color: var(--menu-text, #ededed); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.softItem:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.softBox {
+  flex: 0 0 18px; width: 18px; height: 18px; border-radius: 5px;
+  box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.22); transition: none;
+}
+.softItem:hover .softBox { box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.5); }
+.softBoxOn, .softItem:hover .softBoxOn {
+  background: #2c2e33 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%23f8f7f3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 11px no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28);
+}
+:global([data-theme='light']) .softBox { box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.3); }
+:global([data-theme='light']) .softBoxOn { background-color: #e4e2dc; }
+/* "+ Add a stat": the section's one primary — a soft button, one step brighter (no gold) */
+:global(:root:not([data-theme='light'])) .panel .addFieldBtn {
+  gap: 5px; height: 26px; padding: 0 10px; border: 0; border-radius: 7px; background: rgba(248, 247, 243, 0.08);
+  color: #f8f7f3; font-size: 12px; font-weight: 600;
+}
+:global(:root:not([data-theme='light'])) .panel .addFieldBtn:hover { background: rgba(248, 247, 243, 0.13); color: #f8f7f3; border: 0; }
+/* the stat picker (portalled beside the window): the UCT Signature floating menu */
+.fieldFind {
+  display: flex; align-items: center; gap: 8px; margin: 6px; padding: 0 10px; height: 32px; border-radius: 7px;
+  background: var(--menu-input-bg, #0f1012); color: var(--menu-text-dim, #a9a59b);
+}
+.fieldFind .fieldSearch { flex: 1; min-width: 0; padding: 0; border: 0; background: none; height: 100%; font-size: 13px; }
+.fieldItemLabel { flex: 1; min-width: 0; }
+.fieldItemOn { font-weight: 600; }
+:global(:root:not([data-theme='light'])) .fieldMenu {
+  width: 290px; background: #111214; border: 1px solid #383b41; border-radius: 10px; box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+}
+:global(:root:not([data-theme='light'])) .fieldMenu .fieldList { padding: 0 5px 5px; }
+:global(:root:not([data-theme='light'])) .fieldMenu .fieldItem { gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; font-weight: 500; color: #ededed; }
+:global(:root:not([data-theme='light'])) .fieldMenu .fieldItem:hover { background: #1a1b1f; color: #f8f7f3; }
+:global(:root:not([data-theme='light'])) .fieldMenu .fieldItemOn { font-weight: 600; color: #f8f7f3; }
+/* gold mix §2b-3: the ✓ on a chosen option */
+.fieldMenu .fieldCheck { width: auto; margin-left: auto; font-size: 12px; color: var(--ut-gold, #dcbb5e); }
+
+/* ═══ Compact, like the approved Chart Settings Lab (owner 11-15) ═══ The window is the lab's size —
+   700 × 620 (was 860 × 660) — so the content fills it instead of floating in a wide frame; rows are
+   40px with regular-weight 13px labels; the sidebar is 168px. One size for every section. */
+.panel { width: min(700px, 96vw) !important; height: min(620px, 88vh) !important; }
+.side { flex-basis: 168px !important; }
+:global(:root:not([data-theme='light'])) .panel .field { min-height: 40px; }
+:global(:root:not([data-theme='light'])) .panel .fieldLabel { font-size: 13px; font-weight: 500; }
+
+/* Sidebar sections and foot buttons one step brighter (owner 11-15: "really dim and hard to see"):
+   resting #c9c6be — the left nav's resting shade — hover/active stay #ededed / #f8f7f3. */
+.side .tab { color: #c9c6be !important; }
+.side .tab:hover { color: #f8f7f3 !important; }
+.side .tabActive { color: #f8f7f3 !important; }
+.side .sideFoot .tplBtn, .side .sideFoot .resetBtn { color: #c9c6be !important; }
+.side .sideFoot .tplBtn:hover, .side .sideFoot .resetBtn:hover { color: #f8f7f3 !important; }
+.side .sideFoot .resetBtnConfirm { color: var(--danger-ink, #f0525a) !important; }
+
+/* ═══ "Soon" rows (owner 11-15, the approved Chart Settings Lab) ═══ Approved settings the chart cannot do
+   yet: visible, disabled, a small "Soon" tag after the label. The row reads at 0.55 and never looks
+   clickable; its controls are disabled and write nothing (see the JSX helper `soonRow`). */
+.soonTag {
+  display: inline-block; margin-left: 7px; padding: 1px 6px; border-radius: 4px; vertical-align: 1px;
+  font-size: 10.5px; font-weight: 600; line-height: 1.35; letter-spacing: 0; text-transform: none;
+  color: #93939a; background: rgba(248, 247, 243, 0.06);
+}
+.soonRow { opacity: 0.55; cursor: default !important; }
+.soonRow:hover { background: none !important; }
+.soonRow :disabled { opacity: 1 !important; cursor: default !important; }
+.soonCtl, .soonCtl:hover { cursor: default !important; }
+:global(:root:not([data-theme='light'])) .panel .field > .soonCtl:hover,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .soonCtl:hover { box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.22); }
+:global(:root:not([data-theme='light'])) .panel .field > .toggleOn.soonCtl:hover,
+:global(:root:not([data-theme='light'])) .panel .field > .hdrRowCtl > .toggleOn.soonCtl:hover { box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28); }
+.soonSwatch, .soonSwatch:hover { cursor: default; border-color: var(--menu-border, #2b2b2d); }
+/* Canvas → Margins · Right margin: a slider, its value ("Auto" or N bars), and an "Auto" link back once set */
+.marginRange { width: 120px; margin: 0; accent-color: #d6d3cb; cursor: pointer; }  /* soft white, not gold: gold is only for current/chosen (owner 11-16) */
+.marginValue { min-width: 48px; font-size: 12px; font-weight: 500; color: var(--menu-text-dim, #a9a59b); text-align: right; }
+.marginAuto { padding: 2px 6px; border: 0; border-radius: 4px; background: rgba(248, 247, 243, 0.06); color: var(--menu-text-dim, #a9a59b); font: inherit; font-size: 11px; cursor: pointer; }
+.marginAuto:hover { color: var(--menu-text, #f8f7f3); }
+/* Sidebar foot · "Apply to all charts" (owner 11-16, was Soon): a foot button like its neighbours, set off from them by
+   a hairline; its confirm is a small card in place of the button (no window.confirm), then a one-line "Applied to N charts". */
+.applyAll {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-bottom: 6px; margin-bottom: 4px;
+  border-bottom: 1px solid var(--menu-divider, #26282c);
+}
+.sideFoot .applyAll .tplBtn:disabled, .sideFoot .applyAll .tplBtn:disabled:hover {
+  opacity: 0.45; cursor: default; background: none !important; color: var(--menu-text-dim, #a9a59b) !important;
+}
+.side .sideFoot .applyAll .tplBtn:disabled:hover svg { color: inherit !important; }
+.applyAllHint, .applyAllDone { padding: 0 6px 2px 29px; font-size: 11px; line-height: 1.35; color: var(--menu-text-faint, #93939a); }
+.applyAllDone { color: var(--menu-text, #ededed); }
+.applyAllConfirm {
+  display: flex; flex-direction: column; gap: 8px; padding: 8px 9px; border-radius: 9px;
+  background: var(--menu-hover, rgba(248, 247, 243, 0.05));
+}
+.applyAllText { font-size: 12px; line-height: 1.4; color: var(--menu-text, #ededed); }
+.applyAllBtns { display: flex; gap: 6px; }
+.applyAllYes, .applyAllNo {
+  height: 26px; padding: 0 10px; border: 0; border-radius: 7px; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.applyAllYes { background: rgba(248, 247, 243, 0.08); color: #f8f7f3; }
+.applyAllYes:hover { background: rgba(248, 247, 243, 0.13); }
+.applyAllNo { background: none; color: var(--menu-text-dim, #a9a59b); }
+.applyAllNo:hover { background: rgba(248, 247, 243, 0.07); color: var(--menu-text, #ededed); }
+.applyAllYes:focus-visible, .applyAllNo:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+:global(:root[data-theme='light']) .applyAllYes { background: rgba(20, 24, 29, 0.08); color: #14181d; }
+:global(:root[data-theme='light']) .applyAllYes:hover { background: rgba(20, 24, 29, 0.13); }
+
+/* Sidebar section icons turn gold on hover (owner 11-15) — the action-list hover rule (§2b-6) applied to the rail. */
+.side .tab:hover svg, .side .tab:focus-visible svg { color: var(--ut-gold) !important; }
+/* Sidebar-foot buttons' icons turn gold on hover too (owner 11-15), like the sections above them. */
+.side .sideFoot .tplBtn:hover svg, .side .sideFoot .resetBtn:not(.resetBtnConfirm):hover svg,
+.side .sideFoot .tplBtn:focus-visible svg { color: var(--ut-gold) !important; }
+.side .sideFoot .tplBtn:hover svg *, .side .sideFoot .resetBtn:not(.resetBtnConfirm):hover svg * { stroke: currentColor !important; }
+
+/* ═══ Info row stats (owner 11-16, Release 1): the chosen list + the inline picker sub-page (HeaderStatPicker.jsx) ═══
+   UCT Signature: rows 36px, a faint grip, the name edits in place, hover-revealed row actions; the picker is the
+   floating-menu look laid inside the window — search well, faint group labels with `b / total`, soft squares left of
+   the label (grey/white, never gold), a description strip, a quiet footer. */
+.statEmpty { padding: 12px 4px; font-size: 12px; color: var(--menu-text-faint, #93939a); }
+.statRow { gap: 8px; min-height: 36px !important; }
+.statRowDrag { opacity: 0.4; }
+.statRowOver { box-shadow: inset 0 2px 0 var(--menu-text-bright, #f8f7f3); }
+.statGrip { flex: 0 0 12px; width: 12px; text-align: center; font-size: 11px; letter-spacing: -2px; color: var(--menu-text-faint, #93939a); cursor: grab; user-select: none; }
+.statName {
+  flex: 1 1 auto; min-width: 0; height: 26px; padding: 0 6px; margin-left: -6px; border: 1px solid transparent; border-radius: 6px;
+  background: none; color: var(--menu-text, #ededed); font: inherit; font-size: 13px; font-weight: 500;
+}
+.statName:hover { border-color: rgba(248, 247, 243, 0.10); cursor: text; }
+.statName:focus { outline: none; border-color: rgba(248, 247, 243, 0.3); background: var(--menu-input-bg, #0f1012); color: var(--menu-text-bright, #f8f7f3); }
+.statOrig { flex: 0 1 auto; min-width: 0; max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--menu-text-faint, #93939a); }
+.statActs { display: inline-flex; gap: 1px; margin-left: 4px; }
+.statIconBtn {
+  width: 24px; height: 24px; display: inline-grid; place-items: center; padding: 0; border: 0; border-radius: 6px;
+  background: none; color: var(--menu-text-dim, #a9a59b); cursor: pointer; opacity: 0; transition: opacity 120ms;
+}
+.statRow:hover .statIconBtn, .statRow:focus-within .statIconBtn { opacity: 1; }
+.statIconBtn:hover:not(:disabled) { background: rgba(248, 247, 243, 0.07); color: var(--menu-text, #ededed); }
+.statIconBtn:disabled { opacity: 0 !important; cursor: default; }
+.statRow:hover .statIconBtn:disabled, .statRow:focus-within .statIconBtn:disabled { opacity: 0.3 !important; }
+.statIconBtn:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; opacity: 1; }
+@media (hover: none) { .statIconBtn { opacity: 1; } }
+
+.statPicker { display: flex; flex-direction: column; min-height: 0; gap: 4px; }
+.statPickHead { display: flex; align-items: center; gap: 10px; padding: 0 2px 2px; }
+.statBack {
+  display: inline-flex; align-items: center; gap: 4px; padding: 4px 6px; border: 0; border-radius: 6px; background: none;
+  color: var(--menu-text-dim, #a9a59b); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.statBack:hover { background: rgba(248, 247, 243, 0.07); color: var(--menu-text, #ededed); }
+.statPickTitle { font-size: 13px; font-weight: 600; color: var(--menu-text, #ededed); }
+.statCount { margin-left: auto; font-size: 11.5px; color: var(--menu-text-faint, #93939a); }
+.statPicker .fieldFind { margin: 2px 0 4px; }
+.statPickList { display: flex; flex-direction: column; }
+.statGroupLabel { display: flex; align-items: center; padding: 10px 4px 4px; font-size: 11px; font-weight: 600; color: var(--menu-text-faint, #93939a); }
+.statGroupCount { margin-left: auto; font-weight: 500; }
+.statPickCard { padding: 2px 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
+@media (max-width: 520px) { .statPickCard { grid-template-columns: minmax(0, 1fr); } }
+.statPickItem { padding: 6px 2px; }
+.statPickLabel { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.statDesc {
+  position: sticky; bottom: 34px; margin-top: 6px; padding: 8px 10px; min-height: 34px; border-radius: 7px;
+  background: var(--menu-input-bg, #0f1012); font-size: 12px; line-height: 1.4; color: var(--menu-text-dim, #a9a59b);
+}
+.statDesc b { color: var(--menu-text, #ededed); font-weight: 600; }
+.statPickFoot { position: sticky; bottom: 0; display: flex; padding: 4px 0 2px; background: var(--menu-bg, #111214); border-top: 1px solid var(--menu-divider, #26282c);
+  /* the scroll pane's bottom padding sits BELOW a sticky bottom:0 bar, so list text showed through under it
+     (owner test 11-16): paint that strip with the bar's own background */
+  box-shadow: 0 18px 0 0 var(--menu-bg, #111214); }
+.statFootBtn { border: 0; background: none; color: var(--menu-text, #ededed); font: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 10px; border-radius: 6px; cursor: pointer; }
+.statFootBtn:hover { background: rgba(248, 247, 243, 0.07); }
+
+/* ═══ Custom stats (owner 11-16): the "Custom" group in the stat picker + the builder page (CustomStatBuilder.jsx) ═══
+   UCT Signature: grey/white only; the one primary ("Add to header") is the soft addFieldBtn; no gold anywhere here. */
+.csAddItem { gap: 8px; color: var(--menu-text-dim, #a9a59b); }
+.csAddItem:hover { color: var(--menu-text, #ededed); }
+.csDefItem { text-align: left; }
+.csIntro { padding: 0 4px 2px; font-size: 12px; line-height: 1.4; color: var(--menu-text-dim, #a9a59b); }
+.csChips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 2px 4px; }
+.csChip {
+  height: 26px; padding: 0 10px; border: 0; border-radius: 7px; background: rgba(248, 247, 243, 0.06);
+  color: var(--menu-text, #ededed); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.csChip:hover { background: rgba(248, 247, 243, 0.11); }
+.csChip:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.csNumWrap { display: inline-flex; align-items: center; gap: 8px; }
+.csNum {
+  width: 84px; height: 28px; padding: 0 8px; border: 1px solid rgba(248, 247, 243, 0.10); border-radius: 7px;
+  background: var(--menu-input-bg, #0f1012); color: var(--menu-text, #ededed); font: inherit; font-size: 13px; text-align: right;
+}
+.csNum:focus { outline: none; border-color: rgba(248, 247, 243, 0.3); }
+.csNum[aria-invalid='true'] { border-color: var(--danger-ink, #f0525a); }
+.csHint { font-size: 11px; color: var(--menu-text-faint, #93939a); }
+.statPickFoot .addFieldBtn:disabled { opacity: 0.4; cursor: default; }
+
+/* Per-stat look (owner 11-17): the row's "Aa" opens a second line — label color, shaded box, size — the same keys the
+   header stat's own menu edits (header.statStyle). Grey/white, no gold. */
+.statRow { flex-wrap: wrap; }
+.statIconBtnSet { opacity: 1 !important; color: var(--menu-text, #ededed); }
+.statStyleLine {
+  flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 2px 0 8px 20px;
+  font-size: 12px; color: var(--menu-text-dim, #a9a59b);
+}
+.statStyleItem { display: inline-flex; align-items: center; gap: 8px; }
+.statStyleReset { border: 0; background: none; padding: 2px 4px; border-radius: 4px; font: inherit; font-size: 11px; color: var(--menu-text-faint, #93939a); cursor: pointer; }
+.statStyleReset:hover { color: var(--menu-text, #ededed); background: rgba(248, 247, 243, 0.07); }
+.statSizes { display: inline-flex; gap: 2px; padding: 2px; border-radius: 7px; background: rgba(248, 247, 243, 0.05); }
+.statSize { min-width: 26px; height: 22px; padding: 0 6px; border: 0; border-radius: 5px; background: none; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--menu-text-dim, #a9a59b); cursor: pointer; }
+.statSize:hover { color: var(--menu-text, #ededed); background: rgba(248, 247, 243, 0.07); }
+.statSizeOn, .statSizeOn:hover { color: var(--menu-text-bright, #f8f7f3); background: rgba(248, 247, 243, 0.14); }
+.statSize:focus-visible, .statStyleReset:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+
+/* Thickness stepper (owner 11-17). */
+.statWeightName { min-width: 52px; text-align: center; align-self: center; font-size: 12px; color: var(--menu-text-bright, #f8f7f3); }
+.statSize:disabled { opacity: 0.35; cursor: default; background: none; }

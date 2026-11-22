@@ -8,8 +8,9 @@
 // green the whole time. Its own header says so: "necessary, not sufficient."
 // This asserts the floor EXISTS, which is the half that rail cannot see.
 //
-// ⛔ ONE SELECTOR, NOT A ROSTER. `.viewModeBtn` is the control this file added
-// and the one that is icon-only, so it needs BOTH axes. A hand-kept list of
+// ⛔ ONE SELECTOR, NOT A ROSTER. `.toolBtn` is every control on the list toolbar
+// (S11, 2026-11-05: View, Today, + New and its ▾, ⋯), two of them icon-only, so it
+// needs BOTH axes. (It was `.viewModeBtn`, the seven icon toggles S11 retired.) A hand-kept list of
 // every toolbar class is the artifact this repo keeps watching go stale.
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -84,14 +85,14 @@ describe('the notebook toolbar is finger-sized on a tablet', () => {
     // Without this, a parse that found nothing would make every assertion
     // below pass against an empty string.
     expect(tablet.length).toBeGreaterThan(0)
-    expect(tablet).toMatch(/viewModeBtn/)
+    expect(tablet).toMatch(/toolBtn/)
   })
 
-  it('gives the icon-only view toggles the floor on BOTH axes', () => {
+  it('gives the toolbar controls (two icon-only) the floor on BOTH axes', () => {
     // A 44px-tall, 32px-wide target is still a miss on the axis the finger
     // travels along, and these five sit shoulder to shoulder.
-    expect(pxOf(tablet, '.viewModeBtn', 'min-height')).toBeGreaterThanOrEqual(FLOOR)
-    expect(pxOf(tablet, '.viewModeBtn', 'min-width')).toBeGreaterThanOrEqual(FLOOR)
+    expect(pxOf(tablet, '.toolBtn', 'min-height')).toBeGreaterThanOrEqual(FLOOR)
+    expect(pxOf(tablet, '.toolBtn', 'min-width')).toBeGreaterThanOrEqual(FLOOR)
   })
 
   it('⭐ CONTROL — a phone-only floor does NOT satisfy this', () => {

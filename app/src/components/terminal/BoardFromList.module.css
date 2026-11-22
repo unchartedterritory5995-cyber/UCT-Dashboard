@@ -5,6 +5,10 @@
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
+  /* Never wider than the row it sits in: the picker is as wide as its longest option, which on a
+     small phone was wider than the panel and was cut off at its right edge (2026-11-20). */
+  min-width: 0;
+  max-width: 100%;
   gap: var(--space-xs);
   color: var(--text-muted);
   font-size: var(--text-xs);
@@ -16,6 +20,8 @@
 
 .select {
   font: inherit;
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--panel-row-h, 24px);
   padding: 1px var(--space-xs);
   border: 1px solid var(--border);

@@ -71,6 +71,7 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
@@ -89,6 +90,20 @@
 .btn:hover,
 .btn:focus-visible {
   background: var(--bg-hover, rgba(255, 255, 255, 0.06));
+}
+
+.ghost {
+  margin-right: auto;
+  border-color: transparent;
+  color: var(--text-muted, #9aa0a6);
+  font-size: 12px;
+  padding-inline: 6px;
+  white-space: nowrap;
+}
+
+.ghost + .ghost {
+  margin-right: auto;
+  margin-left: -8px;
 }
 
 .primary {

@@ -41,9 +41,32 @@ export const SURFACE_PATHS = MANIFEST
 
 const NAV_LABEL_BY_PATH = new Map(NAV_ITEMS.map((i) => [i.to, i.label]))
 
+/** ⛔ Audit 2026-11-05, spec S5 (B11): two pages the manifest + NAV_ITEMS cannot name.
+ *  Settings is pinned below the nav (not in NAV_ITEMS, not in the manifest), so its tab kept
+ *  index.html's build-time title -- "UCT Intelligence: Coming soon" while the pre-launch swap is
+ *  on. The Notebook lives under the Journal surface and read "Journal" on its home and on every
+ *  open note. These are the audit's own words, so they are named here, never derived. */
+export const SETTINGS_TITLE = `Settings · ${APP_BRAND}`
+export const NOTEBOOK_TITLE = `Notebook · ${APP_BRAND}`
+/** An open note's tab: "{title} · Notebook · UCT Intelligence" ("Untitled" for a blank one). */
+export function noteDocumentTitle(noteTitle) {
+  const t = typeof noteTitle === 'string' ? noteTitle.trim() : ''
+  return `${t || 'Untitled'} · Notebook · ${APP_BRAND}`
+}
+export const EXPLICIT_TITLES = [
+  ['/journal/notebook', NOTEBOOK_TITLE],
+  ['/settings', SETTINGS_TITLE],
+]
+
 /** The document title for `pathname`, or `null` when this route is out of
  * scope (the caller must leave `document.title` untouched, not clear it). */
-export function titleForPath(pathname) {
+export function titleForPath(pathname, search = '') {
+  // ⛔ Fix round 1 (review minor 16): an OPEN NOTE names the tab itself ("{title} · Notebook · …",
+  // NoteEditorPage). Its effect runs before Layout's, so a title here would overwrite it.
+  if ((pathname === '/journal/notebook' || pathname.startsWith('/journal/notebook/'))
+      && /(?:^|[?&])note=/.test(search || '')) return null
+  const named = EXPLICIT_TITLES.find(([p]) => pathname === p || pathname.startsWith(`${p}/`))
+  if (named) return named[1]
   const match = SURFACE_PATHS.find((p) => pathname === p || pathname.startsWith(`${p}/`))
   if (!match) return null
   const label = NAV_LABEL_BY_PATH.get(match)

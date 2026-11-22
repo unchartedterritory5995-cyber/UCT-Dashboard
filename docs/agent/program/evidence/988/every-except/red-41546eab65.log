@@ -1,0 +1,173 @@
+RED: rail on 41546eab65 product code (no lock, 1 file, BelowNormal, LinkType Junction)
+
+ RUN  v4.0.18 C:/w/pl-exec-dev/app
+
+ ❯ src/agent/agentEveryExceptSet.test.jsx (20 tests | 8 failed) 21182ms
+     × "set every chart to weekly except the one diagonally across from this one" (0) 1203ms
+     × "make all the charts weekly apart from the two on the left" (1) 1049ms
+     × "make every chart weekly except the one above this one" (2) 1015ms
+     × "put every chart on weekly except the one to the right of this" (3) 1012ms
+     ✓ "make every chart weekly except the top row" (4)  1264ms
+     ✓ "make every chart weekly except the left column" (5)  1238ms
+     × "make all of them weekly except the one to the left of this one" (6) 1013ms
+     ✓ "everything weekly except TSLA" (7)  1100ms
+     × "make every chart weekly except the one diagonally opposite this one" (8) 1041ms
+     × "set every chart to weekly except the one diagonally across from this one" (9) 1019ms
+     × "make all the charts weekly apart from the two on the left" (10) 1010ms
+     ✓ "make every chart weekly except this one" (11)  1092ms
+     ✓ "make the chart above this one weekly" (0)  1013ms
+     ✓ "make the chart above this one weekly" (1)  1000ms
+     ✓ "make the one next to the one I clicked weekly" (2)  1005ms
+     ✓ "make everything below this one weekly" (3)  1032ms
+     ✓ "make every chart below this one weekly" (4)  1023ms
+     ✓ "make every chart below this one weekly except the bottom row" (5)  1019ms
+     ✓ "make every chart to the right of this one weekly except the top row" (6)  1007ms
+     ✓ "make all the charts below this one weekly but not the bottom left" (7)  1025ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentEveryExceptSet.test.jsx > (a) every chart except …: one choice, the whole set, the click in it only when the quantifier covers it > "set every chart to weekly except the one diagonally across from this one" (0)
+ FAIL  src/agent/agentEveryExceptSet.test.jsx > (a) every chart except …: one choice, the whole set, the click in it only when the quantifier covers it > "set every chart to weekly except the one diagonally across from this one" (9)
+AssertionError: one choice, naming the whole set: expected [ 'Chart (c1)', 'Chart (c2)' ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+-   "Chart (c0), Chart (c1) and Chart (c2)",
++   "Chart (c1)",
++   "Chart (c2)",
+  ]
+
+ ❯ src/agent/agentEveryExceptSet.test.jsx:76:57
+     74|     expect(t).not.toMatch(/You said not/)
+     75|     const choices = choiceButtons(board)
+     76|     expect(choices, 'one choice, naming the whole set').toEqual([names…
+       |                                                         ^
+     77|     expect(right.includes(clicked)).toBe(!/\bexcept\s+this\s+one\b/.te…
+     78|     await m.click(names(right))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  src/agent/agentEveryExceptSet.test.jsx > (a) every chart except …: one choice, the whole set, the click in it only when the quantifier covers it > "make all the charts weekly apart from the two on the left" (1)
+ FAIL  src/agent/agentEveryExceptSet.test.jsx > (a) every chart except …: one choice, the whole set, the click in it only when the quantifier covers it > "make all the charts weekly apart from the two on the left" (10)
+AssertionError: one choice, naming the whole set: expected [ 'Chart (c1)', 'Chart (c4)', …(1) ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+-   "Chart (c1), Chart (c2), Chart (c4) and Chart (c5)",
++   "Chart (c1)",
++   "Chart (c4)",
++   "Chart (c5)",
+  ]
+
+ ❯ src/agent/agentEveryExceptSet.test.jsx:76:57
+     74|     expect(t).not.toMatch(/You said not/)
+     75|     const choices = choiceButtons(board)
+     76|     expect(choices, 'one choice, naming the whole set').toEqual([names…
+       |                                                         ^
+     77|     expect(right.includes(clicked)).toBe(!/\bexcept\s+this\s+one\b/.te…
+     78|     await m.click(names(right))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  src/agent/agentEveryExceptSet.test.jsx > (a) every chart except …: one choice, the whole set, the click in it only when the quantifier covers it > "make every chart weekly except the one above this one" (2)
+AssertionError: one choice, naming the whole set: expected [ 'Chart (c0)', 'Chart (c2)' ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+-   "Chart (c0), Chart (c2) and Chart (c3)",
++   "Chart (c0)",
++   "Chart (c2)",
+  ]
+
+ ❯ src/agent/agentEveryExceptSet.test.jsx:76:57
+     74|     expect(t).not.toMatch(/You said not/)
+     75|     const choices = choiceButtons(board)
+     76|     expect(choices, 'one choice, naming the whole set').toEqual([names…
+       |                                                         ^
+     77|     expect(right.includes(clicked)).toBe(!/\bexcept\s+this\s+one\b/.te…
+     78|     await m.click(names(right))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  src/agent/agentEveryExceptSet.test.jsx > (a) every chart except …: one choice, the whole set, the click in it only when the quantifier covers it > "put every chart on weekly except the one to the right of this" (3)
+AssertionError: one choice, naming the whole set: expected [ 'Chart (c2)', 'Chart (c3)' ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+-   "Chart (c0), Chart (c2) and Chart (c3)",
++   "Chart (c2)",
++   "Chart (c3)",
+  ]
+
+ ❯ src/agent/agentEveryExceptSet.test.jsx:76:57
+     74|     expect(t).not.toMatch(/You said not/)
+     75|     const choices = choiceButtons(board)
+     76|     expect(choices, 'one choice, naming the whole set').toEqual([names…
+       |                                                         ^
+     77|     expect(right.includes(clicked)).toBe(!/\bexcept\s+this\s+one\b/.te…
+     78|     await m.click(names(right))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  src/agent/agentEveryExceptSet.test.jsx > (a) every chart except …: one choice, the whole set, the click in it only when the quantifier covers it > "make all of them weekly except the one to the left of this one" (6)
+AssertionError: one choice, naming the whole set: expected [ 'Chart (c2)' ] to deeply equal [ 'Chart (c1) and Chart (c2)' ]
+
+- Expected
++ Received
+
+  [
+-   "Chart (c1) and Chart (c2)",
++   "Chart (c2)",
+  ]
+
+ ❯ src/agent/agentEveryExceptSet.test.jsx:76:57
+     74|     expect(t).not.toMatch(/You said not/)
+     75|     const choices = choiceButtons(board)
+     76|     expect(choices, 'one choice, naming the whole set').toEqual([names…
+       |                                                         ^
+     77|     expect(right.includes(clicked)).toBe(!/\bexcept\s+this\s+one\b/.te…
+     78|     await m.click(names(right))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  src/agent/agentEveryExceptSet.test.jsx > (a) every chart except …: one choice, the whole set, the click in it only when the quantifier covers it > "make every chart weekly except the one diagonally opposite this one" (8)
+AssertionError: one choice, naming the whole set: expected [ 'Chart (c1)', 'Chart (c2)', …(5) ] to deeply equal [ Array(1) ]
+
+- Expected
++ Received
+
+  [
+-   "Chart (c0), Chart (c1), Chart (c2), Chart (c3), Chart (c4), Chart (c5), Chart (c6) and Chart (c7)",
++   "Chart (c1)",
++   "Chart (c2)",
++   "Chart (c3)",
++   "Chart (c4)",
++   "Chart (c5)",
++   "Chart (c6)",
++   "Chart (c7)",
+  ]
+
+ ❯ src/agent/agentEveryExceptSet.test.jsx:76:57
+     74|     expect(t).not.toMatch(/You said not/)
+     75|     const choices = choiceButtons(board)
+     76|     expect(choices, 'one choice, naming the whole set').toEqual([names…
+       |                                                         ^
+     77|     expect(right.includes(clicked)).toBe(!/\bexcept\s+this\s+one\b/.te…
+     78|     await m.click(names(right))
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 12 passed (20)
+   Start at  22:34:41
+   Duration  27.19s (transform 4.18s, setup 231ms, import 5.29s, tests 21.18s, environment 379ms)
+

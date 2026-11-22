@@ -26,7 +26,7 @@ import useMarketOpen from '../../../hooks/useMarketOpen'
 import jsonFetcher from '../../../utils/jsonFetcher'
 import Select from '../../../components/ui/Select'
 import { sessionModel } from '../../../components/dashboard/sessionModel'
-import { PanelSkeleton, PanelState, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
+import { PanelSkeleton, PanelState, WatchMark, useInTerminalPanel, usePanelFreshness, usePanelLinkedSym } from '../../../components/terminal'
 import { formatNumber, formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import {
   DEFAULT_WINDOW, IMOV_WINDOWS, INDEX_FUNDS, POLL_MS, THEMES_URL, TOP_N,
@@ -80,6 +80,7 @@ function ContribTable({ title, rows, start, n, sym, onLoad, testId }) {
                   title={`Load ${r.sym} into the linked panels`}>
                   <span className={styles.rowNum}>{start + i + 1}</span>
                   <span className={styles.sym}>{r.sym}</span>
+                  <WatchMark sym={r.sym} overlay />
                 </button>
               </td>
               <td className={tone(r.ret)}>{formatPercent(r.ret, { decimals: 2, signed: true })}</td>

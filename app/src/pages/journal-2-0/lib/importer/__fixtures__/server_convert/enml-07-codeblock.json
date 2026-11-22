@@ -1,0 +1,64 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "Scanner rule:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "language": null
+        },
+        "content": [
+          {
+            "text": "def rs(a, b):\n    return a / b if b else 0\n\n  # end <rule>",
+            "type": "text"
+          }
+        ],
+        "type": "codeBlock"
+      },
+      {
+        "content": [
+          {
+            "text": "after the code",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "language": null
+        },
+        "content": [
+          {
+            "text": "x = 1",
+            "type": "text"
+          }
+        ],
+        "type": "codeBlock"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000007/78be4697f74308567b03fded6354fb22"
+        },
+        "type": "image"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": [
+    {
+      "kind": "image",
+      "mime": "image/png",
+      "name": "code.png",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000007/78be4697f74308567b03fded6354fb22"
+    }
+  ]
+}

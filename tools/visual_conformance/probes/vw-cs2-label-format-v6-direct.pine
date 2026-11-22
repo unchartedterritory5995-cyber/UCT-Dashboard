@@ -1,0 +1,19 @@
+//@version=6
+indicator("UCTPROBE_VW_CS2_LABEL_FORMAT_V6_DIRECT", overlay=true)
+
+// PROVENANCE: written 2026-11-15 for the Pine parity programme, capture session S21
+// (objects-lane PROBES-NEXT.md item 14, widening #1333's A2 rule). The S17 label-format probe
+// (vw-cs2-label-format, //@version=5, literals passed DIRECTLY) at //@version=6: is a numeric
+// literal still printed in full when str.tostring(literal) is passed straight to label.new?
+// One label per value on the last bar; objects.texts holds the exact strings.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+if barstate.islast
+    label.new(bar_index, close, str.tostring(close))
+    label.new(bar_index - 5, close, str.tostring(close / 3))
+    label.new(bar_index - 10, close, str.tostring(0.8175176096085278))
+    label.new(bar_index - 15, close, str.tostring(math.round(close)))
+    label.new(bar_index - 20, close, str.tostring(0.000012345678901234))
+    label.new(bar_index - 25, close, str.tostring(close, format.mintick))
+plot(close, "A00_close")
+plot(close / 3, "A01_close_over_3")

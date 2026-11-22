@@ -1353,3 +1353,688 @@
   cursor: pointer;
   flex-shrink: 0;
 }
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      the chart widget's style. Period tabs + Close/Open are plain normal-case text, the
+      active one white with a short gold bar; search is a soft field; the column header is
+      quiet normal-case text (no gold edge / diamond). The /themes page is unchanged. ── */
+:global(.uct-frame) .periodBar { gap: 2px; padding: 0 8px; align-items: stretch; }
+:global(.uct-frame) .periodBar > :not(.periodTab) { align-self: center; }
+:global(.uct-frame) .periodTab {
+  position: relative;
+  padding: 0 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: calc(12.5px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--widget-text, var(--tt-text, var(--text-muted, #cfcac0)));
+}
+:global(.uct-frame) .periodTab:hover { background: none; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .periodTabActive,
+:global(.uct-frame) .periodTabActive:hover {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 700;
+  background: none;
+}
+:global(.uct-frame) .periodTabActive::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+:global(.uct-frame) .basisToggle { border: none; border-radius: 0; gap: 2px; }
+:global(.uct-frame) .basisBtn {
+  position: relative;
+  padding: 2px 5px 4px;
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  letter-spacing: 0;
+  text-transform: none;
+  background: none;
+  color: var(--widget-text, var(--tt-text, var(--text-muted, #cfcac0)));
+}
+:global(.uct-frame) .basisBtnActive,
+:global(.uct-frame) .basisBtnActive:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-weight: 700; background: none; }
+:global(.uct-frame) .basisBtnActive::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+:global(.uct-frame) .settingsBtn { width: 24px; height: 22px; padding: 0; border-radius: 6px; opacity: 0.85; color: var(--widget-text, var(--tt-text, var(--text-muted))); }
+:global(.uct-frame) .settingsBtn:hover,
+:global(.uct-frame) .settingsBtnActive { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .searchBar { padding: 8px 10px; border-bottom: none; }
+:global(.uct-frame) .searchInput {
+  padding: 7px 26px 7px 11px;
+  border-radius: 8px;
+  border-color: transparent;
+  font-size: calc(12.5px * var(--tt-font-scale, 1));
+  background: color-mix(in srgb, var(--widget-text, #cfcac0) 8%, transparent);
+}
+:global(.uct-frame) .searchInput:focus { border-color: color-mix(in srgb, var(--widget-accent, var(--accent, #dcbb5e)) 32%, transparent); }
+:global(.uct-frame) .tableHeader { box-shadow: none; border-top: 1px solid var(--tt-divider, var(--border)); }
+:global(.uct-frame) .thMark { display: none; }
+:global(.uct-frame) .colLabel {
+  font-size: calc(11.5px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--widget-text, var(--tt-text, var(--text-muted, #cfcac0)));
+}
+:global(.uct-frame) .colLabelActive { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+/* Stars white instead of gold on the board (owner 11-13): grey outline, solid white when flagged. */
+:global(.uct-frame) .flagStar svg,
+:global(.uct-frame) .portfolioBadge svg { color: inherit !important; filter: none !important; }
+:global(.uct-frame) .flagStar svg *,
+:global(.uct-frame) .portfolioBadge svg * { stroke: currentColor !important; }
+:global(.uct-frame) .flagStar { color: var(--widget-text, var(--text-muted, #a9a59b)); }
+:global(.uct-frame) .flagStarActive,
+:global(.uct-frame) .flagStar:hover,
+:global(.uct-frame) .portfolioBadge { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .flagStarActive svg *,
+:global(.uct-frame) .portfolioBadge svg * { fill: currentColor; }
+
+/* ══ Theme Tracker, draft A "clean leaderboard" (owner 11-13) — /charts board only ══════════
+   The Watchlist's language, not its layout: set picker in the title row, gold-underlined
+   periods with Close / Open at the end, quiet headings, bold theme names with a quiet count,
+   a soft grey highlight on the open theme, the theme index then each stock, white stars,
+   and a footer with count · updated · refresh · ⋯ (Send to Journal, edit your set). */
+
+/* Close / Open as a small switch at the end of the period tabs (Today only). */
+:global(.uct-frame) .basisInTabs {
+  align-self: center;
+  display: inline-flex;
+  gap: 0;
+  padding: 2px;
+  border: none;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 6%, transparent);
+}
+:global(.uct-frame) .basisInTabs .basisBtn { padding: 3px 8px; border-radius: 5px; font-size: calc(11.5px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .basisInTabs .basisBtnActive,
+:global(.uct-frame) .basisInTabs .basisBtnActive:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 11%, transparent); color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .basisInTabs .basisBtnActive::after { content: none; }
+
+/* Theme-set picker in the title row: the set name as a quiet title button + Edit. */
+.setPickerInHeader { display: flex; align-items: center; min-width: 0; height: 100%; }
+.setPickerInHeader .setPickerBtn {
+  border: none;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: transparent;
+}
+.setPickerInHeader .setPickerBtn:hover { background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.setPickerInHeader .setEditBtn {
+  border: none;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  letter-spacing: 0;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  background: transparent;
+}
+.setPickerInHeader .setEditBtn:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+
+/* Column heading: quiet grey; the sorted period in white with its arrow. */
+:global(.uct-frame) .tableHeader { padding: 6px 12px; }
+:global(.uct-frame) .colLabelActive,
+:global(.uct-frame) .sortBtn { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-weight: 700; }
+:global(.uct-frame) .sortCaret { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-size: 0.7em; margin-left: 3px; }
+
+/* Theme rows: bold name, quiet count, the open theme softly highlighted. */
+:global(.uct-frame) .groupRow { min-height: 38px; align-items: center; border-bottom-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent); }
+:global(.uct-frame) .groupRow:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 4%, transparent); }
+:global(.uct-frame) .groupRowOpen,
+:global(.uct-frame) .groupRowOpen:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 7%, transparent); }
+:global(.uct-frame) .groupName { font-size: calc(13px * var(--tt-font-scale, 1)); letter-spacing: 0.1px; color: var(--widget-text-strong, var(--tt-sym, var(--text-bright, #f8f7f3))); }
+:global(.uct-frame) .groupName:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .groupCaret { color: var(--widget-text, var(--text-muted, #a9a59b)); }
+:global(.uct-frame) .groupRowOpen .groupCaret { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .groupCount {
+  margin-left: 8px;
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 500;
+  color: color-mix(in srgb, var(--widget-text, #a9a59b) 80%, transparent);
+}
+:global(.uct-frame) .ret { font-size: calc(12.5px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .retActive { font-size: calc(13px * var(--tt-font-scale, 1)); font-weight: 700; }
+
+/* An opened theme: the theme index first (white, no gold), then each stock. */
+:global(.uct-frame) .stockRow { min-height: 32px; background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 2%, transparent); }
+:global(.uct-frame) .stockRow:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent); }
+:global(.uct-frame) .stockRow.selected { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent); box-shadow: inset 2px 0 0 0 color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 30%, transparent); }
+:global(.uct-frame) .stockRow .sym { font-size: calc(12.5px * var(--tt-font-scale, 1)); font-weight: 700; letter-spacing: 0.2px; }
+:global(.uct-frame) .indexRow { border-bottom-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 6%, transparent); }
+:global(.uct-frame) .indexRow .sym { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .indexRow :global(svg) { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)) !important; filter: none !important; }
+:global(.uct-frame) .indexRow :global(svg) * { stroke: currentColor !important; }
+:global(.uct-frame) .indexBadge {
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+}
+
+/* Footer: the Watchlist footer's surface and type, plus the ⋯ menu. */
+:global(.uct-frame) .ttFooter {
+  min-height: 34px;
+  gap: 8px;
+  padding: 0 8px 0 12px;
+  font-size: calc(12px * var(--tt-font-scale, 1));
+  border-top: 1px solid var(--widget-divider, var(--border, #24262b));
+}
+:global(.uct-frame) .ttFooterCount { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .ttFooterUpdated { color: var(--widget-text, var(--text-muted, #a9a59b)); }
+:global(.uct-frame) .ttFooterRefresh { width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--widget-text, var(--text-muted, #a9a59b)); }
+:global(.uct-frame) .ttFooterRefresh:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.ttFooterMenuBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 24px; flex-shrink: 0; padding: 0;
+  border: none; border-radius: 6px; background: transparent; cursor: pointer;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+}
+.ttFooterMenuBtn:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.ttFooterMenuBtn:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+.ttFooterMenuBtn svg { color: inherit !important; filter: none !important; }
+.ttMenuBackdrop { position: fixed; inset: 0; z-index: 5999; }
+.ttMenu {
+  position: fixed; z-index: 6000; min-width: 236px; padding: 6px;
+  display: flex; flex-direction: column;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans);
+}
+.ttMenuItem {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border: none; border-radius: 6px; background: none;
+  font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+  color: var(--text, #e9e6de);
+}
+.ttMenuItem:hover:not(:disabled), .ttMenuItem:focus-visible { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); color: var(--text-bright, #f8f7f3); outline: none; }
+.ttMenuItem:disabled { opacity: 0.45; cursor: default; }
+.ttMenuItem svg { color: var(--text-muted, #a9a59b) !important; filter: none !important; }
+.ttMenuItem svg * { stroke: currentColor !important; }
+:global(.uct-frame) .groupName { text-transform: none; }
+/* Stars like the Watchlist: shown on row hover; a flagged one always shows (solid white). */
+:global(.uct-frame) .stockRow .flagStar:not(.flagStarActive) { opacity: 0; transition: opacity 0.12s ease; }
+:global(.uct-frame) .stockRow:hover .flagStar:not(.flagStarActive), :global(.uct-frame) .stockRow:focus-within .flagStar:not(.flagStarActive) { opacity: 0.6; }
+:global(.uct-frame) .stockRow .flagStar:not(.flagStarActive):hover { opacity: 1; }
+
+/* ── owner 11-13: the header matches the list (the page layer took the list panel's colour, so
+      the frame header — which wears the first painted surface — matches what you see), and
+      everything a notch smaller: it read as zoomed in. ── */
+:global(.uct-frame).page,
+:global(.uct-frame) .page { background: var(--tt-bg, var(--bg-surface)); }
+:global(.uct-frame) .periodTab { font-size: calc(12px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .searchBar { padding: 6px 10px; }
+:global(.uct-frame) .searchInput { padding: 5px 26px 5px 10px; font-size: calc(12px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .tableHeader { padding: 4px 12px; }
+:global(.uct-frame) .colLabel { font-size: calc(11px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .groupRow { min-height: 30px; }
+:global(.uct-frame) .groupName { font-size: calc(11.5px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .groupCount { font-size: calc(10.5px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .ret { font-size: calc(11.5px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .retActive { font-size: calc(11.5px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .stockRow { min-height: 26px; }
+:global(.uct-frame) .stockRow .sym { font-size: calc(11px * var(--tt-font-scale, 1)); }
+:global(.uct-frame) .ttFooter { min-height: 30px; font-size: calc(11px * var(--tt-font-scale, 1)); }
+
+/* Search: the Watchlist field (owner 11-13) — magnifying glass, soft rounded, crisp grey. */
+.searchGlyph { display: none; }
+:global(.uct-frame) .searchGlyph { position: absolute; left: 21px; top: 50%; transform: translateY(-50%); display: inline-flex; pointer-events: none; color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.8; }
+:global(.uct-frame) .searchGlyph svg { color: inherit !important; filter: none !important; }
+:global(.uct-frame) .searchGlyph svg * { stroke: currentColor !important; }
+:global(.uct-frame) .searchBar { padding: 8px 10px; }
+:global(.uct-frame) .searchInput {
+  padding: 7px 26px 7px 32px;
+  border-radius: 8px;
+  font-size: calc(12.5px * var(--tt-font-scale, 1));
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+}
+:global(.uct-frame) .searchInput::placeholder { color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.85; }
+:global(.uct-frame) .searchInput:focus { border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 22%, transparent); background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent); }
+
+/* ── Periods always in the title row (owner 11-13): on a widget narrower than ~560px the
+      longer periods (3M · 1Y · YTD) fold into a ▾ menu — the active one always stays out —
+      and Close / Open tightens up, so the row never drops a line. ── */
+.periodMoreBtn {
+  display: none;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  cursor: pointer;
+}
+.periodMoreBtn:hover, .periodMoreBtn[aria-expanded='true'] { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.periodMoreBtn:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+.ttMenuItemOn { color: var(--text-bright, #f8f7f3); font-weight: 700; background: var(--bg-hover, rgba(255, 255, 255, 0.07)); }
+@container uctw (max-width: 560px) {
+  .periodTabFold { display: none !important; }
+  .periodMoreBtn { display: inline-flex; }
+  :global(.uct-frame) .periodTab { padding: 0 6px; }
+  :global(.uct-frame) .basisInTabs .basisBtn { padding: 3px 6px; }
+}
+@container uctw (max-width: 400px) {
+  :global(.uct-frame) .periodTab { padding: 0 5px; font-size: calc(11.5px * var(--tt-font-scale, 1)); }
+  :global(.uct-frame) .basisInTabs .basisBtn { padding: 3px 5px; font-size: calc(11px * var(--tt-font-scale, 1)); }
+}
+/* Very narrow (~420px and below): 1M folds too (the ▾ menu lists it then — ThemeTrackerPage). */
+@container uctw (max-width: 420px) {
+  .periodTabFoldNarrow { display: none !important; }
+}
+
+/* ── Grouped themes (owner 11-13, step 1) — /charts board ─────────────────────────────────
+   An opened theme is one unit: a soft raised block, a thin guide line joining its stocks to
+   the theme, the index as the group's summary pill ("Index · equal weight", in UCT gold), and
+   a proper chevron that turns when the theme opens. */
+.groupBody {
+  padding: 2px 0 6px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 3.5%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent);
+}
+:global(.uct-frame) .groupRowOpen { border-bottom-color: transparent; }
+.groupBody .stockRow {
+  position: relative;
+  padding-left: 34px;
+  background: transparent;
+  border-bottom: none;
+}
+.groupBody .stockRow:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent); }
+.groupBody .stockRow::before,
+.groupBody .stockRow::after {
+  content: '';
+  position: absolute;
+  left: 17px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 15%, transparent);
+  pointer-events: none;
+}
+.groupBody .stockRow::before { top: 0; bottom: 0; width: 1px; }
+.groupBody .stockRow:last-of-type::before { bottom: 50%; }
+.groupBody .stockRow::after { top: 50%; width: 9px; height: 1px; }
+
+/* The index: the group's summary pill, in UCT gold. */
+.groupBody .indexRow {
+  margin: 4px 10px 4px 30px;
+  padding-left: 10px;
+  min-height: 26px;
+  border-radius: 7px;
+  border-bottom: none;
+  background: color-mix(in srgb, var(--ut-gold, #dcbb5e) 9%, transparent);
+}
+.groupBody .indexRow::before { left: -13px; top: -4px; bottom: -4px; }
+.groupBody .indexRow::after { left: -13px; }
+.groupBody .indexRow:hover { background: color-mix(in srgb, var(--ut-gold, #dcbb5e) 14%, transparent); }
+.indexName { color: var(--ut-gold, #dcbb5e) !important; font-weight: 700; }
+.groupBody .indexRow :global(svg) { color: var(--ut-gold, #dcbb5e) !important; filter: none !important; }
+.groupBody .indexRow :global(svg) * { stroke: currentColor !important; }
+.indexSub { margin-left: 7px; font-size: calc(10.5px * var(--tt-font-scale, 1)); color: var(--widget-text, var(--text-muted, #a9a59b)); }
+
+/* Chevron: drawn, not a ▸ glyph — larger to see and hit, turns 90° when the theme opens. */
+:global(.uct-frame) .groupCaret {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  font-size: 0;
+  vertical-align: middle;
+  transition: transform 0.14s ease;
+}
+:global(.uct-frame) .groupCaret::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 4px;
+  width: 5px;
+  height: 5px;
+  border-right: 1.8px solid currentColor;
+  border-bottom: 1.8px solid currentColor;
+  transform: rotate(-45deg);
+}
+:global(.uct-frame) .groupRowOpen .groupCaret { transform: rotate(90deg); }
+@media (prefers-reduced-motion: reduce) { :global(.uct-frame) .groupCaret { transition: none; } }
+
+/* ── Theme groups, option B (owner 11-13) — replaces the guide line + index pill above ──────
+   A down-chevron on the left that flips when the theme opens; the count plain; an opened
+   theme's stocks on a slightly lighter band, simply indented — no lines; the index a plain row
+   with its label in UCT gold; a selected stock a soft grey highlight only (no gold edge, no
+   shifted padding — that edge is what read as off-centre). */
+.groupBody { padding: 0 0 4px; background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 3%, transparent); }
+.groupBody .stockRow::before,
+.groupBody .stockRow::after { content: none; }
+.groupBody .stockRow { padding-left: 32px; }
+.groupBody .indexRow {
+  margin: 0;
+  padding-left: 32px;
+  min-height: 28px;
+  border-radius: 0;
+  background: transparent;
+}
+.groupBody .indexRow:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent); }
+:global(.uct-frame) .stockRow.selected,
+:global(.uct-frame) .groupBody .stockRow.selected {
+  border-left: none;
+  padding-left: 32px;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+}
+:global(.uct-frame) .groupRowOpen,
+:global(.uct-frame) .groupRowOpen:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent); }
+
+/* Chevron: points down, flips up when the theme is open. */
+:global(.uct-frame) .groupCaret::before { left: 4px; top: 3px; transform: rotate(45deg); }
+:global(.uct-frame) .groupRowOpen .groupCaret { transform: rotate(180deg); }
+:global(.uct-frame) .groupCaret { color: var(--widget-text, var(--text-muted, #a9a59b)); }
+
+/* owner 11-13: no chevron at all (the open band and highlight show what is open), and the index
+   and stocks start just under the theme name instead of far in. */
+:global(.uct-frame) .groupCaret { display: none; }
+.groupBody .stockRow, .groupBody .indexRow, :global(.uct-frame) .groupBody .stockRow.selected { padding-left: 14px; }
+
+/* ~360px and below (owner 11-13: the top row overlapped): 1W folds too, and Close / Open moves
+   into the ▾ menu (ThemeTrackerPage lists it there then). */
+.ttMenuSep { height: 1px; margin: 4px 6px; background: var(--border, #2a2c31); }
+.ttMenuLabel { padding: 6px 10px 2px; font-size: 11px; font-weight: 600; color: var(--text-muted, #a9a59b); }
+@container uctw (max-width: 360px) {
+  .periodTabFoldTiny { display: none !important; }
+  :global(.uct-frame) .basisInTabs { display: none !important; }
+}
+
+/* Stocks start right under the theme name: the flag star floats in the left margin (still
+   shown on hover), so it no longer pushes the logo in. */
+.groupBody .stockLabel { position: relative; }
+:global(.uct-frame) .groupBody .stockRow .flagStar { position: absolute; left: -15px; top: 50%; transform: translateY(-50%); margin: 0; }
+.groupBody .stockRow, .groupBody .indexRow, :global(.uct-frame) .groupBody .stockRow.selected { padding-left: 18px; }
+
+/* Opened theme = a recessed drawer (owner 11-13, option 2): its stocks sit slightly DARKER than
+   the list with a soft inner shadow at the top, as if the theme slid open. No grey-on-grey. */
+.groupBody {
+  background: rgba(0, 0, 0, 0.28);
+  box-shadow: inset 0 6px 8px -6px rgba(0, 0, 0, 0.7), inset 0 -1px 0 color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 4%, transparent);
+}
+:global(.uct-frame) .groupRowOpen, :global(.uct-frame) .groupRowOpen:hover { background: transparent; }
+:global(.uct-frame) .groupRowOpen:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 4%, transparent); }
+:global([data-theme='light']) .groupBody { background: rgba(0, 0, 0, 0.05); box-shadow: inset 0 6px 8px -6px rgba(0, 0, 0, 0.18); }
+
+/* Star ↔ logo gap like the Watchlist's (owner 11-13): the star a little further out, the logo a touch in. */
+.groupBody .stockRow, .groupBody .indexRow, :global(.uct-frame) .groupBody .stockRow.selected { padding-left: 22px; }
+:global(.uct-frame) .groupBody .stockRow .flagStar { left: -21px; width: 14px; display: inline-flex; justify-content: center; }
+
+/* ── Theme sets on the board (UCT frame, owner 11-13) — the set picker, its menu and the edit
+      bar restyled to the widget look. Same elements and handlers as the sets v2 UI above;
+      these classes only render on the board. ── */
+.setPickerUct {
+  height: 30px;
+  gap: 6px;
+  padding: 0 9px 0 11px;
+  max-width: 150px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent);
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-size: calc(12px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.setPickerUct:hover,
+.setPickerUctOpen { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 9%, transparent); }
+.setPickerUct:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+.setPickerUct svg { flex: 0 0 auto; color: var(--widget-text, var(--text-muted, #a9a59b)) !important; filter: none !important; transition: transform 0.15s ease; }
+.setPickerUct svg * { stroke: currentColor !important; }
+.setPickerUctOpen svg { transform: rotate(180deg); }
+.setPickerUctName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Menus (set list + add theme): the board menu look (same as the footer ⋯). */
+.floatMenu.setMenuUct {
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans);
+}
+.setMenuUct .ttMenuItem { font-size: 13px; }
+.setUctRow { display: flex; align-items: center; gap: 2px; min-height: 34px; }
+.setUctItem { flex: 1 1 auto; min-width: 0; gap: 6px; }
+.setUctCheck { flex: 0 0 16px; display: inline-flex; justify-content: center; }
+.setUctCheck svg { color: var(--text-bright, #f8f7f3) !important; }
+.setUctName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setUctIcon {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border: none; border-radius: 6px; background: none; cursor: pointer;
+  color: var(--text-muted, #a9a59b);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.setUctRow:hover .setUctIcon, .setUctIcon:focus-visible { opacity: 1; }
+.setUctIcon:hover { color: var(--text-bright, #f8f7f3); background: var(--bg-hover, rgba(255, 255, 255, 0.07)); }
+.setUctIconDanger:hover { color: var(--danger-ink, #f0525a); background: color-mix(in srgb, var(--loss, #f0525a) 12%, transparent); }
+.setUctConfirm { flex: 1; display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; min-width: 0; }
+.setUctConfirmLabel { flex: 1; min-width: 0; font-size: 12.5px; color: var(--text, #e9e6de); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setUctDanger, .setUctQuiet {
+  flex: 0 0 auto;
+  height: 26px; padding: 0 10px;
+  border: none; border-radius: 6px; cursor: pointer;
+  font: 600 12px var(--font-sans);
+}
+.setUctDanger { background: color-mix(in srgb, var(--loss, #f0525a) 18%, transparent); color: var(--danger-ink, #f0525a); }
+.setUctDanger:hover { background: color-mix(in srgb, var(--loss, #f0525a) 28%, transparent); }
+.setUctQuiet { background: none; color: var(--text-muted, #a9a59b); }
+.setUctQuiet:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); color: var(--text-bright, #f8f7f3); }
+.setUctInput {
+  flex: 1; min-width: 0; height: 30px;
+  margin: 2px 0;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--text-bright, #f8f7f3) 22%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--text-bright, #f8f7f3) 6%, transparent);
+  color: var(--text-bright, #f8f7f3);
+  font: 600 12.5px var(--font-sans);
+  outline: none;
+}
+/* The add-theme menu inside the board look. */
+.setMenuUct .addThemeSearch {
+  height: 30px; padding: 0 10px; margin-bottom: 6px;
+  border: 1px solid transparent; border-radius: 7px;
+  background: color-mix(in srgb, var(--text-bright, #f8f7f3) 6%, transparent);
+  font-size: 12.5px;
+}
+.setMenuUct .addThemeSearch:focus { border-color: color-mix(in srgb, var(--text-bright, #f8f7f3) 22%, transparent); }
+.setMenuUct .addThemeItem { padding: 7px 10px; border-radius: 6px; font-size: 12.5px; }
+.setMenuUct .addThemeItem:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); }
+.setMenuUct .addThemeMark { color: var(--text-muted, #a9a59b); }
+.setMenuUct .setMenuSep { margin: 6px 4px; background: var(--border, #2a2c31); }
+.setMenuUct .setNewRow { gap: 6px; padding: 0; }
+.setMenuUct .setInline {
+  height: 30px; padding: 0 10px;
+  border: 1px solid transparent; border-radius: 7px;
+  background: color-mix(in srgb, var(--text-bright, #f8f7f3) 6%, transparent);
+  font-size: 12.5px;
+}
+.setMenuUct .setInline:focus { border-color: color-mix(in srgb, var(--text-bright, #f8f7f3) 22%, transparent); }
+.setMenuUct .setNewGo {
+  height: 30px; padding: 0 12px; border-radius: 7px;
+  font-size: 12px; font-weight: 700;
+  background: var(--accent, #dcbb5e); color: var(--bg, #121212);
+}
+
+/* Edit bar: one quiet row in place of the column header. */
+.editUctBar {
+  flex: 0 0 auto;
+  display: flex; align-items: center; gap: 4px;
+  height: 36px; padding: 0 8px 0 6px;
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.editUctAdd, .editUctQuiet {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 26px; padding: 0 8px;
+  border: none; border-radius: 6px; background: none; cursor: pointer;
+  font: 600 calc(12px * var(--tt-font-scale, 1)) var(--font-sans);
+}
+.editUctAdd { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.editUctAdd svg { color: inherit !important; filter: none !important; }
+.editUctAdd svg * { stroke: currentColor !important; }
+.editUctQuiet { color: var(--widget-text, var(--text-muted, #a9a59b)); }
+.editUctAdd:hover, .editUctQuiet:hover { background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.editUctStatus {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-width: 0;
+  font-size: calc(11.5px * var(--tt-font-scale, 1));
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  overflow: hidden; text-overflow: ellipsis;
+}
+.editUctStatus b { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-weight: 700; }
+.editUctStatus .setUctInput { height: 26px; width: 140px; flex: 0 1 auto; margin: 0; font-size: 12px; }
+.editUctName {
+  display: inline-flex; align-items: center; gap: 5px;
+  min-width: 0; height: 26px; padding: 0 6px;
+  border: none; border-radius: 6px; background: none; cursor: pointer;
+  font: 700 calc(12px * var(--tt-font-scale, 1)) var(--font-sans);
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+.editUctNameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editUctName svg { flex: 0 0 auto; color: var(--widget-text, var(--text-muted, #a9a59b)); opacity: 0; transition: opacity 0.12s ease; }
+.editUctName:hover { background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.editUctName:hover svg, .editUctName:focus-visible svg { opacity: 1; }
+.editUctSaved { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; font-size: calc(11px * var(--tt-font-scale, 1)); }
+.editUctSaved svg { color: inherit !important; filter: none !important; }
+.editUctSaved svg * { stroke: currentColor !important; }
+.editUctDone {
+  flex: 0 0 auto;
+  height: 26px; margin-left: 6px; padding: 0 12px;
+  border: none; border-radius: 6px; cursor: pointer;
+  font: 700 calc(12px * var(--tt-font-scale, 1)) var(--font-sans);
+  background: var(--accent, #dcbb5e); color: var(--bg, #121212);
+}
+.editUctDone:hover { filter: brightness(1.08); }
+.editUctAdd:focus-visible, .editUctQuiet:focus-visible, .editUctName:focus-visible, .editUctDone:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+.editHintRow.editUctHint {
+  padding: 6px 12px;
+  background: none;
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+}
+
+/* Edit rows on the board: a quiet ✕ (red only on hover) and the add-ticker field in the
+   search-field style instead of a dashed box. */
+:global(.uct-frame) .editRemove {
+  width: 24px; height: 24px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  opacity: 0.7;
+  font-size: 11px;
+}
+:global(.uct-frame) .editRemove:hover { opacity: 1; color: var(--danger-ink, #f0525a); background: color-mix(in srgb, var(--loss, #f0525a) 12%, transparent); }
+:global(.uct-frame) .addStockRow { padding-top: 4px; padding-bottom: 6px; }
+:global(.uct-frame) .addStockInput {
+  height: 28px; padding: 0 10px;
+  border: 1px solid transparent; border-radius: 7px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent);
+  font-size: calc(12px * var(--tt-font-scale, 1));
+}
+:global(.uct-frame) .addStockInput:focus { border-style: solid; border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 22%, transparent); background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent); }
+:global(.uct-frame) .addStockGo {
+  height: 28px; padding: 0 12px; margin-left: 6px; border-radius: 7px;
+  font-size: calc(12px * var(--tt-font-scale, 1)); font-weight: 700;
+  background: var(--accent, #dcbb5e); color: var(--bg, #121212);
+}
+
+/* ── owner 11-13: index row reads "<Theme> Index" + a quiet "Equal weight" tag; the set picker +
+      search row get room to breathe (the board search box kept its own 8px padding inside a fixed
+      34px row, so both controls pressed against the row's edges). ── */
+:global(.uct-frame) .indexRow .stockLabel { min-width: 0; }
+:global(.uct-frame) .indexName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:global(.uct-frame) .indexSub {
+  flex: 0 0 auto;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-weight: 500;
+  background: color-mix(in srgb, var(--widget-text-strong, var(--text-bright)) 6%, transparent);
+  color: var(--widget-text, var(--text-muted));
+}
+:global(.uct-frame) .searchRow {
+  height: auto;
+  padding: 8px 12px 9px;
+  gap: 8px;
+  border-bottom: 1px solid var(--tt-divider, var(--border));
+}
+:global(.uct-frame) .searchRow .searchBar { padding: 0; }
+:global(.uct-frame) .searchRow .searchInput { height: 30px; padding-top: 0; padding-bottom: 0; }
+:global(.uct-frame) .searchRow .searchGlyph { left: 11px; }
+/* owner 11-13: the search row sits a notch shorter than the 40px title row (26px controls). */
+:global(.uct-frame) .searchRow { padding: 6px 12px; }
+:global(.uct-frame) .searchRow .searchInput { height: 26px; font-size: calc(12px * var(--tt-font-scale, 1)); border-radius: 7px; }
+:global(.uct-frame) .searchRow .setPickerUct { height: 26px; border-radius: 7px; font-size: calc(11.5px * var(--tt-font-scale, 1)); }
+/* owner 11-13: the search row is the SAME height as the Watchlist library rail's tab row
+   (LibraryRail .seg: 36px incl. its 1px bottom line), 26px controls centred in it. */
+:global(.uct-frame) .searchRow { height: 36px; box-sizing: border-box; padding: 0 12px; }
+:global(.uct-frame) .searchRow .searchInput { height: 26px; font-size: calc(12px * var(--tt-font-scale, 1)); border-radius: 7px; }
+:global(.uct-frame) .searchRow .setPickerUct { height: 26px; border-radius: 7px; font-size: calc(11.5px * var(--tt-font-scale, 1)); }
+/* owner 11-13: the opened theme is marked like the selected list in the Watchlist library rail
+   (LibraryRail .itemOn) — the same grey highlight + a 2px gold inset rail on the left edge. */
+:global(.uct-frame) .groupRowOpen,
+:global(.uct-frame) .groupRowOpen:hover {
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.06));
+  box-shadow: inset 2px 0 0 var(--widget-accent, var(--accent, #dcbb5e));
+}
+/* owner 11-13: the set picker sits to the RIGHT of the search (as News: search left, lists right). */
+:global(.uct-frame) .searchRow .setPicker { order: 2; flex: 0 0 auto; }
+
+/* Light-theme pass (owner 11-14): the opened theme's drawer and the Index row follow the
+   widget's ACTUAL surface (WidgetHost --uct-recess / --uct-gold), not the app's data-theme —
+   a light Theme Tracker never gets the dark drawer, and its gold stays readable. */
+:global(.uct-frame) .groupBody,
+:global([data-theme='light']) :global(.uct-frame) .groupBody {
+  background: var(--uct-recess, rgba(0, 0, 0, 0.28));
+  box-shadow: var(--uct-recess-shadow, inset 0 6px 8px -6px rgba(0, 0, 0, 0.7));
+}
+:global(.uct-frame) .indexName { color: var(--uct-gold, var(--ut-gold, #dcbb5e)) !important; }
+:global(.uct-frame) .groupBody .indexRow :global(svg) { color: var(--uct-gold, var(--ut-gold, #dcbb5e)) !important; }
+:global(.uct-frame) .groupBody .indexRow { background: color-mix(in srgb, var(--uct-gold, #dcbb5e) 10%, transparent); }
+:global(.uct-frame) .groupBody .indexRow:hover { background: color-mix(in srgb, var(--uct-gold, #dcbb5e) 16%, transparent); }
+
+/* One menu colour (owner 11-14): the same panel, text and hover as the widget settings menu. */
+.ttMenu { background: #111214; }
+.ttMenuItem { color: #ededed; }
+.ttMenuItem:hover:not(:disabled), .ttMenuItem:focus-visible { background: #1a1b1f; color: #f8f7f3; }

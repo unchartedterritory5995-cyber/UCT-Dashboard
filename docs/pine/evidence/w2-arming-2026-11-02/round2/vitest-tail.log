@@ -1,0 +1,9 @@
+# colour codes removed; tree 93efdb607f
+ ✓ src/components/chart/engine/__tests__/runtimeRunGate.test.js (6 tests) 14ms
+ ✓ src/lib/runtimePaneRevocation.test.js (10 tests) 20ms
+
+ Test Files  27 passed (27)
+      Tests  455 passed (455)
+   Start at  04:18:07
+   Duration  84.55s (transform 29.53s, setup 17.38s, import 65.21s, tests 26.42s, environment 50.19s)
+

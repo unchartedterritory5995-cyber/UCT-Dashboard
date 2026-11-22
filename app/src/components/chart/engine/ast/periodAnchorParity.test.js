@@ -82,6 +82,32 @@ function sessionBars(start, sessions, step, extra = []) {
   }
   return out
 }
+/** ⭐ U-BUILTIN T-D EXT — extended-hours hourly bars (unix seconds), 04:00-19:00 New York on each of `sessions`
+ *  vendor sessions from a UTC date (winter dates: 04:00 is 09:00 UTC), the shape of
+ *  `vw-bi-time-d-extended-spy-60-2026-11-19`. `night`: overnight bars at 20:00, 23:00, 02:00 and 03:00 between
+ *  two sessions on consecutive days. */
+function extendedBars(start, sessions, night = false) {
+  const out = []
+  const d = new Date(Date.UTC(...start))
+  let prevOpen = null
+  const at = (t) => { const i = out.length; const c = 90 + Math.sin(i / 7) * 3; out.push({ t, o: c, h: c + 0.4, l: c - 0.4, c, v: 50 + i }) }
+  for (let s = 0; s < sessions; d.setUTCDate(d.getUTCDate() + 1)) {
+    if (tradingViewCloseMinute(Number(iso(d).replace(/-/g, ''))) === null) continue
+    const open = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 9, 0) / 1000
+    if (night && prevOpen !== null && open - prevOpen === 86400) {
+      for (const h of [16, 19, 22, 23]) at(prevOpen + h * 3600)
+    }
+    for (let h = 0; h < 16; h += 1) at(open + h * 3600)
+    prevOpen = open
+    s += 1
+  }
+  return out
+}
+/** Hourly bars on every hour of every day (a symbol that trades around the clock), from Wed 2025-01-08 00:00 UTC. */
+function aroundTheClockBars(n) {
+  const t0 = Date.UTC(2025, 0, 8, 0, 0) / 1000
+  return Array.from({ length: n }, (_, i) => { const c = 40000 + Math.cos(i / 6) * 300; return { t: t0 + i * 3600, o: c, h: c + 9, l: c - 9, c, v: 3 } })
+}
 /** `n` weekly bars keyed the way `/api/bars` keys them — the FRIDAY of the ISO week
  *  — or `n` monthly bars keyed by the 1st. */
 function periodBars(start, n, code) {
@@ -134,6 +160,14 @@ const BARSETS = {
   ext15: () => sessionBars([2025, 0, 2], 16, 15, [[2, 90]]),
   // 60-minute regular-session bars on the vendor's own grid (09:30, 10:30 … 15:30)
   rth60: () => sessionBars([2025, 0, 2], 16, 60),
+  // ⭐ U-BUILTIN T-D EXT — extended-hours hourly sessions, the same with overnight bars, and around the clock
+  ext60: () => extendedBars([2025, 0, 6], 8),
+  ext60night: () => extendedBars([2025, 0, 6], 8, true),
+  // regular-hours bars beside overnight ones, no pre-market or after-hours bar: neither shape
+  // (22:00 and 23:00 New York on Thursday 2025-01-02, UTC-5)
+  rth60night: () => [...sessionBars([2025, 0, 2], 4, 60), ...[22, 23].map((h, i) =>
+    ({ t: Date.UTC(2025, 0, 2, h + 5, 0) / 1000, o: 1, h: 1, l: 1, c: 1, v: 1 + i }))].sort((a, b) => a.t - b.t),
+  around60: () => aroundTheClockBars(24 * 9),
   // weekly bars keyed by the Friday of the ISO week; monthly bars keyed by the 1st
   // ⭐ 2026-10-31 — 40 vendor sessions from Wed 1985-01-02: a date-keyed series before
   // the 1990 unit floor, which blanked the whole clock until `etClockRead`
@@ -160,7 +194,21 @@ const PINE = {
   // C49 — a request for another timeframe of the chart's own symbol
   reqD: 'plot(request.security(syminfo.tickerid, "D", close))',
   'nz(reqW)': 'plot(nz(request.security(syminfo.tickerid, "W", close)))',
+  // ⭐⭐ HTF-MERGE-FIELD-AWARE (items 2 + 3) — the same merge of the HIGH, a field the first partial week gets wrong
+  'nz(reqWh)': 'plot(nz(request.security(syminfo.tickerid, "W", high)))',
   reqOwn: 'plot(request.security(syminfo.tickerid, timeframe.period, close))',
+  // ⭐⭐ U-BUILTIN T-D (2026-11-19) — `time("D")`, the session's 09:30 open, and `time("D", session)`
+  D: 'plot(time("D"))',
+  'change(D)': 'plot(ta.change(time("D")) != 0 ? 1 : 0)',
+  'D rth': 'plot(time("D", "0930-1600"))',
+  'D window': 'plot(time("D", "1000-1100"))',
+  // ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — a window that starts before the extended session, one that wraps, and
+  // the anchor read two bars back (its overnight reach)
+  'D premarket': 'plot(time("D", "0000-0930"))',
+  'D wrap': 'plot(time("D", "1800-0200"))',
+  'D[2]': 'plot(time("D")[2])',
+  // and under a function whose memory is unbounded: a count of new days
+  'cum(change(D))': 'plot(ta.cum(ta.change(time("D")) != 0 ? 1 : 0))',
 }
 /** Trees no translation writes TODAY but a saved document still carries. */
 const BUILT = {
@@ -227,7 +275,7 @@ const CASES = [
   // served on a daily chart and where no timeframe is stated (the server's daily consumers),
   // withheld whole and named on a chart that states another; the chart's OWN timeframe is
   // the identity everywhere
-  ...['reqD', 'nz(reqW)', 'reqOwn'].flatMap((k) => [
+  ...['reqD', 'nz(reqW)', 'nz(reqWh)', 'reqOwn'].flatMap((k) => [
     [`${k} · weekdays · D`, k, 'weekdays', { tf: 'D' }],
     [`${k} · weekdays · no tf`, k, 'weekdays', null],
     [`${k} · rth 15m · 15`, k, 'rth15', { tf: '15' }],
@@ -246,6 +294,38 @@ const CASES = [
   ...['sundays', 'saturdays'].map((set) => [`own · ${set} · D`, 'own', set, { tf: 'D' }]),
   // ⭐ a date-keyed series reaching before 1990 is READ, not blanked
   ...['W', 'closeW', 'own'].map((k) => [`${k} · 1985 sessions · D`, k, 'sessions1985', { tf: 'D' }]),
+  // ⭐⭐ U-BUILTIN T-D — served on Monday-to-Friday daily bars, regular-hours intraday bars, weekly and monthly
+  // bars and where no timeframe is stated; withheld by name off the regular session and on a daily chart that
+  // trades weekends; the daily gate withheld on any chart that states another timeframe
+  ...['D', 'change(D)', 'D rth', 'D window'].flatMap((k) => [
+    [`${k} · weekdays · D`, k, 'weekdays', { tf: 'D' }],
+    [`${k} · weekdays · no tf`, k, 'weekdays', null],
+    [`${k} · date ints · D (the scan sweep)`, k, 'dateInts', { tf: 'D' }],
+    [`${k} · rth 15m · 15`, k, 'rth15', { tf: '15' }],
+    [`${k} · rth 60m · 60`, k, 'rth60', { tf: '60' }],
+    [`${k} · rth 15m · 30 (no capture of that length)`, k, 'rth15', { tf: '30' }],
+    [`${k} · 15m with a pre-market bar · 15`, k, 'ext15', { tf: '15' }],
+    [`${k} · hourly past the close · 60`, k, 'hourly', { tf: '60' }],
+    [`${k} · every day · D`, k, 'everyDay', { tf: 'D' }],
+    [`${k} · saturdays · D`, k, 'saturdays', { tf: 'D' }],
+    [`${k} · weekly · W`, k, 'weekly', { tf: 'W' }],
+    [`${k} · monthly · M`, k, 'monthly', { tf: 'M' }],
+  ]),
+  // ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — an extended-hours chart (the anchor at 04:00 for a PINE evaluation, withheld
+  // as before for any other), its overnight bars withheld per bar, a chart that trades around the clock withheld
+  // whole by name; the windows on each
+  ...['D', 'change(D)', 'D rth', 'D window', 'D premarket', 'D wrap', 'D[2]'].flatMap((k) => [
+    [`${k} · extended 60m · 60 · pine`, k, 'ext60', { tf: '60', pineCompare: true }],
+    [`${k} · extended 60m · 60`, k, 'ext60', { tf: '60' }],
+    [`${k} · extended 60m, overnight bars · 60 · pine`, k, 'ext60night', { tf: '60', pineCompare: true }],
+    [`${k} · around the clock 60m · 60 · pine`, k, 'around60', { tf: '60', pineCompare: true }],
+    [`${k} · rth 60m · 60 · pine`, k, 'rth60', { tf: '60', pineCompare: true }],
+    [`${k} · weekdays · D · pine`, k, 'weekdays', { tf: 'D', pineCompare: true }],
+    [`${k} · every day · D · pine`, k, 'everyDay', { tf: 'D', pineCompare: true }],
+  ]),
+  ...['D', 'D rth'].map((k) => [`${k} · rth 60m, overnight bars · 60 · pine`, k, 'rth60night', { tf: '60', pineCompare: true }]),
+  ['cum(change(D)) · extended 60m · 60 · pine', 'cum(change(D))', 'ext60', { tf: '60', pineCompare: true }],
+  ['cum(change(D)) · extended 60m, overnight bars · 60 · pine', 'cum(change(D))', 'ext60night', { tf: '60', pineCompare: true }],
 ]
 
 function evaluate(ast, bars, opts) {
@@ -299,9 +379,32 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
     // `time-anchor:other-bars` needs a tree the translator refuses to write; it is
     // railed on a hand-built tree in both lanes' own tests.
     // ⭐ C45 — the two `bar-index:` codes are not a `time(<timeframe>)` reading
+    // (nor, since 2026-11-09, the two `running-total:` codes — `barIndexShift.test.js` holds them)
     // and have their own fixture, both lanes (`bar_index_shift_parity.json`).
     expect([...codes].sort()).toEqual(Object.keys(CHART_CLOCK_WITHHELD)
-      .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:')).sort())
+      .filter((k) => k !== 'time-anchor:other-bars' && !k.startsWith('bar-index:') && !k.startsWith('running-total:')
+        // engine HL: the window-hole codes are exercised by `engineHlHoles.test.js`
+        && !k.startsWith('var-origin:') && !k.startsWith('window-extreme:') && !k.startsWith('arg-extreme:')
+        // ⭐ ENGINE 56 — the two per-bar witness codes (`pine:bool-na-unwitnessed`, `pine:tie-unwitnessed`)
+        // read no clock; both lanes rail them in `engine56Values.test.js` / `tests/test_engine56_values.py`
+        && !k.startsWith('pine:')
+        // ⭐ ENGINE 57 (landing train 1) — the three built-in witness codes (`stoch:flat-window`,
+        // `stoch:left-edge`, `rci:left-edge`) read no clock either; `engine57Builtins.test.js` and
+        // `tests/test_engine57_builtins.py` rail them on both lanes
+        && !k.startsWith('stoch:') && !k.startsWith('rci:')
+        // ⭐ 2026-11-17 — the two opening-range codes are not a `time(<timeframe>)` reading either: a
+        // native call on bars it cannot be read from. Both lanes rail them on real bars in
+        // `sessionRegular.test.js` / `tests/test_ast_session_regular.py`
+        && !k.startsWith('opening-range:')
+        // ⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) — a look-ahead `request.security` read's first partial period is not a
+        // `time(<timeframe>)` reading; `htfLiveFirstPeriod.test.js` / `tests/test_pine_htf_live_first_period.py` rail it
+        && !k.startsWith('request:htf-lookahead-')
+        // ⭐⭐ Q-CLOSURE (2026-11-21) — a week the exchange's own calendar decides is a `request.security` read too;
+        // `htfSessionWeek.test.js` / `tests/test_pine_htf_session_week.py` rail it
+        && k !== 'request:htf-venue-calendar'
+        // ⭐ PERIOD −1 (2026-11-19) — a history read before the chart's first bar is not a `time(<timeframe>)` reading;
+        // `historyBeforeChart.test.js` / `tests/test_pine_history_before_chart.py` rail it
+        && !k.startsWith('history:')).sort())
     for (const code of codes) expect(typeof CHART_CLOCK_WITHHELD[code]('5')).toBe('string')
     for (const code of CHART_CLOCK_WHOLE) expect(Object.keys(CHART_CLOCK_WITHHELD)).toContain(code)
   })
@@ -310,6 +413,79 @@ describe('C36 · parity with the Python lane — one fixture, both lanes', () =>
 describe('C36 · the fixture is not vacuous', () => {
   const col = (name) => byName.get(name).expected
   const codes = (name) => byName.get(name).codes
+  it('⭐⭐ T-D EXT — an extended-hours chart: 04:00 for a Pine evaluation, each window its own start; withheld as before for any other evaluation', () => {
+    const bars = PARITY.bars.ext60
+    // 04:00 New York of the bar's session is 09:00 UTC in January; the 19:00 bar sits at 00:00 UTC the next day
+    const open = (t) => t - ((t - 32400) % 86400)
+    expect(col('D · extended 60m · 60 · pine')).toEqual(bars.map((b) => open(b.t) * 1000))
+    expect(codes('D · extended 60m · 60 · pine')).toEqual([])
+    expect(col('D · extended 60m · 60').every((v) => v === null)).toBe(true)
+    expect(codes('D · extended 60m · 60')).toEqual(['time-day:off-session'])
+    // the new day starts on the 04:00 bar, and only there (bar 0 has no bar before it)
+    const fires = col('change(D) · extended 60m · 60 · pine')
+    bars.forEach((b, i) => expect(fires[i], `bar ${i}`).toBe(i > 0 && b.t === open(b.t) ? 1 : 0))
+    // "0930-1600" is 09:30 inside it (14:30 UTC), never the 04:00 anchor; "1000-1100" its 10:00 bar
+    const rth = col('D rth · extended 60m · 60 · pine')
+    bars.forEach((b, i) => {
+      const m = ((b.t - 32400) % 86400) / 60 + 240
+      expect(rth[i], `bar ${i}`).toBe(m >= 570 && m < 960 ? (open(b.t) + 19800) * 1000 : null)
+    })
+    expect(col('D window · extended 60m · 60 · pine').filter((v) => v !== null).length).toBe(8)
+    // ⛔ a window that starts before 04:00, or wraps, is withheld by name
+    for (const k of ['D premarket', 'D wrap']) {
+      expect(col(`${k} · extended 60m · 60 · pine`).every((v) => v === null), k).toBe(true)
+      expect(codes(`${k} · extended 60m · 60 · pine`), k).toEqual(['time-session:day-on-other-chart'])
+    }
+  })
+  it('⭐⭐ T-D EXT — the overnight bars are withheld by name; the 04:00 bar after them starts the day; a read two back is withheld one bar further', () => {
+    const bars = PARITY.bars.ext60night
+    const hourNy = (t) => (((t - 18000) % 86400) + 86400) % 86400 / 3600
+    const night = bars.map((b) => { const h = hourNy(b.t); return h >= 20 || h < 4 })
+    // four per night between sessions on consecutive days (2025-01-09 is a closure: no night either side of it)
+    const nights = night.filter(Boolean).length
+    expect(nights % 4).toBe(0)
+    expect(nights).toBeGreaterThanOrEqual(16)
+    for (const k of ['D', 'change(D)', 'D rth', 'D window']) {
+      const c = col(`${k} · extended 60m, overnight bars · 60 · pine`)
+      night.forEach((n, i) => { if (n) expect(c[i], `${k} bar ${i}`).toBe(null) })
+      expect(codes(`${k} · extended 60m, overnight bars · 60 · pine`), k).toEqual(['time-day:overnight'])
+    }
+    // every in-session bar reads its own session's 04:00, as on the chart without the overnight bars
+    const d = col('D · extended 60m, overnight bars · 60 · pine')
+    const open = (t) => t - ((t - 32400) % 86400)
+    bars.forEach((b, i) => { if (!night[i]) expect(d[i], `bar ${i}`).toBe(open(b.t) * 1000) })
+    const fires = col('change(D) · extended 60m, overnight bars · 60 · pine')
+    const after = bars.map((_, i) => i).filter((i) => i > 0 && night[i - 1] && !night[i])
+    expect(after.length).toBe(nights / 4)
+    for (const i of after) expect(fires[i]).toBe(1)
+    const two = col('D[2] · extended 60m, overnight bars · 60 · pine')
+    for (const i of after) expect(two[i], `bar ${i}`).toBe(null)
+    for (const i of after) expect(two[i + 1], `bar ${i + 1}`).not.toBe(null)
+    // under an unbounded memory (a running count of new days) every bar from the first overnight one is withheld
+    const cum = col('cum(change(D)) · extended 60m, overnight bars · 60 · pine')
+    const first = night.indexOf(true)
+    expect(cum.slice(first).every((v) => v === null)).toBe(true)
+    expect(cum.slice(0, first).every((v) => v !== null)).toBe(true)
+    expect(codes('cum(change(D)) · extended 60m, overnight bars · 60 · pine')).toEqual(['time-day:overnight'])
+    // ⛔ CONTROL: without overnight bars the count is drawn on every bar
+    expect(col('cum(change(D)) · extended 60m · 60 · pine').every((v) => v !== null)).toBe(true)
+    // regular-hours bars beside overnight ones: neither shape, withheld whole by name
+    for (const k of ['D', 'D rth']) {
+      expect(codes(`${k} · rth 60m, overnight bars · 60 · pine`), k)
+        .toEqual([k === 'D' ? 'time-day:off-session' : 'time-session:day-on-other-chart'])
+    }
+  })
+  it('⭐⭐ T-D EXT — a chart that trades around the clock is withheld whole, by name, for the anchor and every window', () => {
+    for (const k of ['D', 'change(D)', 'D rth', 'D window', 'D[2]']) {
+      expect(col(`${k} · around the clock 60m · 60 · pine`).every((v) => v === null), k).toBe(true)
+      expect(codes(`${k} · around the clock 60m · 60 · pine`), k).toEqual(['time-day:exchange-zone'])
+    }
+    expect(codes('D · every day · D · pine')).toEqual(['time-day:exchange-zone'])
+    // ⛔ CONTROL: Monday-to-Friday daily bars and a regular-hours chart are served, Pine or not
+    expect(codes('D · weekdays · D · pine')).toEqual([])
+    expect(codes('D · rth 60m · 60 · pine')).toEqual([])
+    expect(col('D rth · rth 60m · 60 · pine')).toEqual(col('D rth · rth 60m · 60'))
+  })
   const nulls = (name) => col(name).filter((v) => v === null).length
   const dateAt = (set, i) => PARITY.bars[set][i].t
 
@@ -586,13 +762,35 @@ describe('C36 · the fixture is not vacuous', () => {
     expect(col('reqD · weekdays · D')).toEqual(closes('weekdays'))
     expect(col('reqD · weekdays · no tf')).toEqual(closes('weekdays'))
     expect(codes('reqD · weekdays · D').concat(codes('reqD · weekdays · no tf'))).toEqual([])
-    // the weekly one there is the last closed week (`nz` of the first partial week is Pine's 0)
-    expect(col('nz(reqW) · weekdays · D').slice(0, 2)).toEqual([0, 0])
-    expect(col('nz(reqW) · weekdays · D')[2]).toBe(PARITY.bars.weekdays[1].c)
-    expect(col('nz(reqW) · weekdays · no tf')).toEqual(col('nz(reqW) · weekdays · D'))
+    // ⭐⭐ ENGINE 55 — the weekly one is `tf_merge`, TradingView's merge: the week's close on the
+    // bar that CLOSES the week (Friday 2024-10-11, bar 1), the last closed week on the bars after
+    // it; `nz` of the first partial week's open is Pine's 0; the newest finished bar is withheld
+    // by name (`request:htf-newest-unconfirmed`), never `nz`'s confident 0.
+    // ⚰️ It was `tf`: [0, 0] and bar 2 = Friday's close — one bar late on every week's close.
+    // ⭐⭐ REVIEW L2 (PR #1264) — these bars do not start at the listing, and the first bar
+    // (Thursday 2024-10-10) does not open its week, so the first week's value would be built from
+    // two days of it. ⭐⭐ HTF-MERGE-FIELD-AWARE (item 3) — for a merge of CLOSE that value is the week's own
+    // close (Friday's, the week's last session), so Friday's closing bar and the next week's other bars (1-5) draw
+    // it and nothing is named; for a merge of the HIGH (`nz(reqWh)`, below) they are withheld by name
+    // (`request:htf-first-period-partial`), never `nz`'s confident 0. Friday 10-18 (bar 6) closes a whole week.
+    // ⭐⭐ REVIEW L3 — the newest bar (Friday 2025-12-19) certainly closes its week on this DAILY
+    // chart, so it is drawn; where no timeframe is stated nothing is certain, and it is withheld.
+    const w = col('nz(reqW) · weekdays · D')
+    const days = PARITY.bars.weekdays
+    expect(w.slice(0, 7)).toEqual([0, days[1].c, days[1].c, days[1].c, days[1].c, days[1].c, days[6].c])
+    expect(w[w.length - 1]).toBe(days[days.length - 1].c)
+    expect(codes('nz(reqW) · weekdays · D')).toEqual([])
+    const noTf = col('nz(reqW) · weekdays · no tf')
+    expect(noTf.slice(0, -1)).toEqual(w.slice(0, -1))
+    expect(noTf[noTf.length - 1]).toBe(null)
+    expect(codes('nz(reqW) · weekdays · no tf')).toEqual(['request:htf-newest-unconfirmed'])
+    const wh = col('nz(reqWh) · weekdays · D')
+    expect(wh.slice(0, 7)).toEqual([0, null, null, null, null, null, days[6].h])
+    expect(codes('nz(reqWh) · weekdays · D')).toEqual(['request:htf-first-period-partial'])
+    expect(codes('nz(reqWh) · weekdays · no tf')).toEqual(['request:htf-first-period-partial', 'request:htf-newest-unconfirmed'])
     // ⛔ on a 15-minute and a weekly chart both are withheld on every bar — never a 15-minute
     // close under the name of the daily one, never `nz`'s confident 0
-    for (const k of ['reqD', 'nz(reqW)']) {
+    for (const k of ['reqD', 'nz(reqW)', 'nz(reqWh)']) {
       for (const chart of ['rth 15m · 15', 'weekly · W']) {
         expect(col(`${k} · ${chart}`).every((v) => v === null), `${k} ${chart}`).toBe(true)
         expect(codes(`${k} · ${chart}`), `${k} ${chart}`).toEqual(['request:other-timeframe'])

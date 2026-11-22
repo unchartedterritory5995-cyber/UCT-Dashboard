@@ -1,0 +1,92 @@
+{
+ "_readme": [
+  "U3b mutation pass (2026-11-15): each mutant applied, its rail run, the file restored from a SAVED COPY (never",
+  "git checkout) and checked byte-equal. rc != 0 with a failed-test summary = KILLED."
+ ],
+ "mutants": [
+  {
+   "id": "U3b-M1",
+   "mutant": "registry data: obj:linefill re-added on its pre-x evidence (now objects v2 INCONCLUSIVE)",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "rail": "tests/test_pine_capability_admission.py -k \"A8 or linefill or committed_admitted_set\"",
+   "applied": true,
+   "rc": 1,
+   "summary": "1 failed, 126 deselected in 1.91s",
+   "seconds": 2.8,
+   "killed": true,
+   "restoredByteEqual": true
+  },
+  {
+   "id": "U3b-M2",
+   "mutant": "registry data: calc-bars admitted on its count (non-binding windows)",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "rail": "tests/test_pine_capability_admission.py -k \"calc_bars or committed_admitted_set\"",
+   "applied": true,
+   "rc": 1,
+   "summary": "1 failed, 128 deselected in 2.57s",
+   "seconds": 3.8,
+   "killed": true,
+   "restoredByteEqual": true
+  },
+  {
+   "id": "U3b-M3",
+   "mutant": "the A8 rail stops holding objectsX to the verdict's own x",
+   "file": "tests/test_pine_capability_admission.py",
+   "rail": "tests/test_pine_capability_admission.py -k A8",
+   "applied": true,
+   "rc": 1,
+   "summary": "1 failed, 1 passed, 128 deselected in 6.72s",
+   "seconds": 7.7,
+   "killed": true,
+   "restoredByteEqual": true
+  },
+  {
+   "id": "U3b-M4",
+   "mutant": "registry data: an obj:delete entry states x MATCH where the verdict says otherwise",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "rail": "tests/test_pine_capability_admission.py -k A8",
+   "applied": true,
+   "rc": 1,
+   "summary": "1 failed, 128 deselected in 6.60s",
+   "seconds": 7.9,
+   "killed": true,
+   "restoredByteEqual": true
+  },
+  {
+   "id": "U1-M2r",
+   "mutant": "count a pairedNothing capture as evidence (re-run on the U3b rails)",
+   "file": "api/services/rollout_gate.py",
+   "rail": "tests/test_pine_capability_admission.py -k A7",
+   "applied": true,
+   "rc": 1,
+   "summary": "1 failed, 1 passed, 116 deselected in 3.72s",
+   "seconds": 45.8,
+   "killed": true,
+   "restoredByteEqual": true
+  },
+  {
+   "id": "U1-M5r",
+   "mutant": "an x grade that DIVERGES no longer vetoes the family (re-run)",
+   "file": "api/services/rollout_gate.py",
+   "rail": "tests/test_pine_capability_admission.py -k A7",
+   "applied": true,
+   "rc": 1,
+   "summary": "1 failed, 9 passed, 116 deselected in 2.15s",
+   "seconds": 26.3,
+   "killed": true,
+   "restoredByteEqual": true
+  },
+  {
+   "id": "U3b-M5",
+   "mutant": "registry data: udt left on one script (Trendline Pivots entry renamed to the Ledger family)",
+   "file": "api/data/pine_runtime_allowlist.json",
+   "rail": "tests/test_pine_capability_admission.py -k \"committed_admitted_set or A8\"",
+   "applied": true,
+   "rc": 1,
+   "summary": "1 failed, 127 deselected in 1.48s",
+   "seconds": 16.7,
+   "killed": true,
+   "restoredByteEqual": true
+  }
+ ]
+}

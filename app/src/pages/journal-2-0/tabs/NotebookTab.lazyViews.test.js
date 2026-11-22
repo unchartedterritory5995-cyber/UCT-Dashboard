@@ -16,12 +16,29 @@ const JsxParser = Parser.extend(jsx())
 const FILE = path.join(path.resolve(__dirname), 'NotebookTab.jsx')
 const LAZY = [
   '../components/notebook/NoteGraphView',
+  // Tier 1a bytes: the table view mode, through `lazyView` like the others.
+  '../components/notebook/NotesTableView',
   '../components/notebook/NoteBoardView',
   '../components/notebook/NoteCalendarView',
   '../components/notebook/NoteTimelineView',
   '../components/notebook/NoteTasksView',
+  // Audit 2026-11-05, S15: the Today home (the Daily brief since Notebook simplify, Task 5), through `lazyView` -- its
+  // cards are a chunk of their own and the Notebook's first-open bytes pay only for lib/todayHome.js.
+  '../components/notebook/TodayHome',
+  // Notebook simplify, Task 5: Research Home is no longer routed (it left this list with its import). Its notebook-wide
+  // Ask (NotebookAiPanel) left this list in go-live wave 1, fix round 2: its one dynamic import is in
+  // components/notebook/NotebookAiPanelSlot.jsx (a warmed slot, never React.lazy), pinned below.
+  // Go-live wave 1, fix round 1 (first-open bytes): the View menu's saved views (a warmed slot since fix round 2,
+  // lib/heldModule.js), the zero-notes sample door through `lazyView` (null fallback), and the review drafting door,
+  // fetched on the first Reviews press (importWithOneRetry).
+  '../components/notebook/SavedViewsMenuGroup',
+  '../components/notebook/onboarding/SampleNotebookDoor',
+  '../lib/reviewDraftRun',
   // Wave 7 Task 7.3: the bulk bar, mounted on the first selection through `lazyView` (null fallback).
   '../components/notebook/BulkActionBar',
+  // Follow-up A (first-open bytes): the bulk actions' library, fetched on idle or on the first selection
+  // (`noteBatchLoader`, importWithOneRetry). It shipped without this entry (commit 8a5550bd89); follow-up C named it.
+  '../lib/noteBatch',
   // Wave 7 Task 7.4: the template picker (and the catalog it loads), through `lazyView` with its skeleton fallback.
   '../components/notebook/TemplatePicker',
   '../components/notebook/import/ImportWizard',
@@ -33,6 +50,10 @@ const LAZY = [
   '../components/notebook/VoiceNoteDialog',
   // Notebook P1 lane C: the Journal styles manager, on demand through `lazyDialog` (gated by the switch).
   '../components/notebook/styles/StylesManager',
+  // Tier 1b fix round 1: the phone "+" sheet, on its first open through `lazyDialog`.
+  '../components/notebook/NotebookPlusSheet',
+  // Tier 1b fix round 1: the phone note's folders sheet, on its first open through `lazyDialog`.
+  '../components/notebook/FolderSheet',
   // Wave 7 Task 7.6: the "Save view" name prompt, on its first open through `lazyDialog`.
   '../components/notebook/SavedViewEditor',
   // Wave 7 Task 7.6: the connected-apps sync line, after first paint through `lazyView` (null fallback).
@@ -94,6 +115,12 @@ describe('NotebookTab loads its opt-in views and dialogs on demand', () => {
   it('the tour is reached only through NotebookTourGate, never imported here', () => {
     expect(staticImports).toContain('../components/notebook/onboarding/NotebookTourGate')
     expect([...staticImports, ...dynamicImports].filter((s) => /onboarding\/NotebookTour$/.test(s))).toEqual([])
+  })
+
+  // Go-live wave 1, fix round 2: the AI section is reached through its slot, never imported here.
+  it('the AI section is reached only through NotebookAiPanelSlot', () => {
+    expect(staticImports).toContain('../components/notebook/NotebookAiPanelSlot')
+    expect([...staticImports, ...dynamicImports].filter((s) => /NotebookAiPanel$/.test(s))).toEqual([])
   })
 
   it('the editor, the first paint, stays static', () => {

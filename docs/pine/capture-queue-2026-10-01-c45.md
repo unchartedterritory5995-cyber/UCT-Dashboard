@@ -37,3 +37,16 @@ ONLY when the first loaded bar is the symbol's first bar on that timeframe.
 | `pine:statement` on `float = …`, `line = …` … | whether TradingView compiles the word as a name — Q-C45b |
 | `geometry:lost` / `content:lost` (a withheld object) | not a capture question: the object's setter is one this chart cannot carry (`update:target`: a target read out of a list in a loop; a loop or helper that was not converted; `line.set_xloc` and the point setters). Building those is new Pine coverage — named in § C45, "left" |
 | `withheld` at `assert_scannable` / alert arm | not a capture question: the server lanes hold date-keyed bars with no clock and no listing proof. A lane that carried a clock would lift the `time-*` half |
+
+## Not capture questions (queue dispositions)
+
+Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here leaves `rowsNeedingProbe` and is listed, with this reason, in `rowsNotCaptureQuestions` (dispositions: `DISPOSITIONS` in the engine).
+
+| not a capture | disposition | reason |
+|---|---|---|
+| `bar-index:window` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); Q-C45c (weekly / monthly) and Q-C45d (intraday) are its captures |
+| `bar-index:early-bars` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); settled as `bar-index:window`, by Q-C45c / Q-C45d |
+| a colour HELD `fn:conditional-history` (object lane) | withheld-ledger | a row of "What is still withheld or refused" (every column prose); its capture is Q-C45a |
+| `pine:statement` on `float = …`, `line = …` … | withheld-ledger | a row of "What is still withheld or refused" (every column prose); its capture is Q-C45b |
+| `geometry:lost` / `content:lost` (a withheld object) | engine-gap | not a capture question (the row says so): the object's setter is one this chart cannot carry; building it is new Pine coverage |
+| `withheld` at `assert_scannable` / alert arm | engine-gap | not a capture question (the row says so): the server lanes hold date-keyed bars with no clock and no listing proof |

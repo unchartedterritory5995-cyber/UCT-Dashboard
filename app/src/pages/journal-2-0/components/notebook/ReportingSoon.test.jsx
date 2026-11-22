@@ -16,7 +16,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('../../lib/offline/settleNoteWrite', () => ({ settleNoteWrite: vi.fn(async () => {}) }))
 
-import ReportingSoon, { UNREAD_RETRIES } from './ReportingSoon'
+import ReportingSoon, { REPORTING_ASK, UNREAD_RETRIES } from './ReportingSoon'
 import TickerResearchWorkspace from './TickerResearchWorkspace'
 import { Providers } from '../../a11y/fixtures'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
@@ -229,16 +229,29 @@ describe('ReportingSoon', () => {
     expect(screen.queryByText(/report in the next/)).toBeNull()
   })
 
-  it('an empty week carries its one help line', async () => {
+  it('an empty week with names carries its one help line', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true })
-    stub([[/\/api\/j2\/earnings-prep\/soon$/, contractBody('earnings-prep.soon.empty')]])
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, { ...contractBody('earnings-prep.soon.empty'), watched: 2 }]])
     render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
     expect(await screen.findByText(/None of your watchlist, flagged or open-position names report in the next 7 days/)).toBeTruthy()
+    expect(screen.queryByTestId('reporting-soon-ask')).toBeNull()
+  })
+
+  it('S17 (M7): with NO names at all (the server counts them: watched 0) it asks for them instead', async () => {
+    latchNotebookFlags({ notebook_earnings_prep_enabled: true })
+    const empty = contractBody('earnings-prep.soon.empty')
+    expect(empty.watched).toBe(0)                                     // non-vacuity: the real server's answer
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, empty]])
+    render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
+    expect(await screen.findByTestId('reporting-soon-ask')).toBeTruthy()
+    expect(screen.getByText(REPORTING_ASK)).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: /^Add (NVDA|SPY|QQQ)$/ })).toHaveLength(3)
+    expect(screen.queryByText(/None of your watchlist/)).toBeNull()
   })
 
   it('an empty week still carries the earnings-prep walkthrough\'s first anchor (W14-Q2)', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true })
-    stub([[/\/api\/j2\/earnings-prep\/soon$/, contractBody('earnings-prep.soon.empty')]])
+    stub([[/\/api\/j2\/earnings-prep\/soon$/, { ...contractBody('earnings-prep.soon.empty'), watched: 2 }]])
     const { container } = render(<Providers><ReportingSoon onOpenNote={() => {}} /></Providers>)
     await screen.findByText(/None of your watchlist/)
     const anchors = container.querySelectorAll('[data-tour="reporting-soon-list"]')

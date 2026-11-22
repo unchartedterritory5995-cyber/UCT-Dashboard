@@ -100,6 +100,61 @@ describe('ImportWizard — the report of what was kept, not copied, or not conne
     expect(screen.getByText(/Imported 1 note\./)).toBeInTheDocument()
   })
 
+  // ⛔ Audit 2026-11-05, spec S5 (B9): the breakdown said "Unfiled" for notes imported into a folder
+  // the member CHOSE -- it labelled each note by its own source folder, ignoring the destination.
+  it('a chosen destination folder is named in the breakdown, never "Unfiled"', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      const u = String(url)
+      if (u.endsWith('/import/check')) return new Response(JSON.stringify({ existing: {} }))
+      if (u.endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [{ id: 'f9', name: 'Swing ideas', parentId: null }] }))
+      if (u.endsWith('/enrichment/scan')) return new Response(JSON.stringify({ candidates: [], scanned: 0 }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    runImport.mockResolvedValue(RESULT())
+    await toPreview()
+    const select = await screen.findByRole('combobox', { name: /folder/i })
+    await waitFor(() => expect(within(select).getByRole('option', { name: 'Swing ideas' })).toBeInTheDocument())
+    fireEvent.change(select, { target: { value: 'f9' } })
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(screen.getByText('Import complete')).toBeInTheDocument(), { timeout: 10000 })
+    expect(runImport).toHaveBeenCalledWith(expect.objectContaining({ destFolderId: 'f9' }))
+    expect(screen.getByRole('row', { name: /^Swing ideas/ })).toBeInTheDocument()
+    expect(screen.queryByRole('row', { name: /^Unfiled/i })).toBeNull()
+  })
+
+  it('a note that arrived with a file that did not come over counts under Needs attention', async () => {
+    // Live audit 2026-11-03, F3: an Obsidian note whose `![[ov-gone.png]]` is not in the zip
+    // arrives with a not-found notice. The folder table said Needs attention "—" while the
+    // note held a notice; `attentionKeys` (a dropped media item, a failed final save) is the
+    // runImport field that names it. Each note counts once, so the row still sums.
+    runImport.mockResolvedValue(RESULT({
+      created: 2, outcomes: { 'file:a.md': 'created', 'file:b.md': 'created' },
+      attentionKeys: ['file:b.md'],
+      notices: [{ note: 'b', importKey: 'file:b.md', reason: 'not_found', name: 'ov-gone.png', sourceUrl: null }],
+    }))
+    await toPreview([mdFile('a.md'), mdFile('b.md')])
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(screen.getByText('Import complete')).toBeInTheDocument(), { timeout: 10000 })
+    const row = screen.getByRole('row', { name: /^Unfiled/i })
+    expect(within(row).getAllByRole('cell').map((c) => c.textContent)).toEqual(['Unfiled', '1', '0', '1'])
+    // Fix round 1, M-3: the headline agrees with the table (both notes are in the notebook).
+    expect(screen.getByText('Imported 2 notes (1 needs attention).')).toBeInTheDocument()
+    const notCopied = screen.getByRole('region', { name: "Couldn't be copied" })
+    expect(within(notCopied).getByText("ov-gone.png wasn't found in the vault.", { exact: false })).toBeInTheDocument()
+  })
+
+  it('the headline names how many imported notes need attention, in the plural too', async () => {
+    runImport.mockResolvedValue(RESULT({
+      created: 3, outcomes: { 'file:a.md': 'created', 'file:b.md': 'created', 'file:c.md': 'created' },
+      // a key with no arrived outcome is not an imported note and is not counted here
+      attentionKeys: ['file:a.md', 'file:b.md', 'file:gone.md'],
+    }))
+    await toPreview([mdFile('a.md'), mdFile('b.md'), mdFile('c.md')])
+    fireEvent.click(screen.getByRole('button', { name: /^import$/i }))
+    await waitFor(() => expect(screen.getByText('Import complete')).toBeInTheDocument(), { timeout: 10000 })
+    expect(screen.getByText('Imported 3 notes (2 need attention).')).toBeInTheDocument()
+  })
+
   it('Stop really stops the import: runImport is told, and the screen says what was saved', async () => {
     let seenCancel = null
     runImport.mockImplementation(async ({ isCancelled }) => {

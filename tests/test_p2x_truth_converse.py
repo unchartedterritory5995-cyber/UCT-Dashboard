@@ -234,7 +234,10 @@ def test_D1_telemetry_logs_shape_only_never_member_text_or_definition_content(
     assert set(record) == {"event", "user", "admin", "cap_usd", "model", "calls", "max_calls",
                            "per_call", "input_tokens", "output_tokens", "usd", "outcome",
                            "repair_gate",  # P3: a gate CODE or None, never content
+                           "browser_codes",  # WHICH browser rules sent a patch back (engine codes or None), never a sentence
                            "input_wrapper",  # P3S: the unwrapped wrapper NAME ("args") or None, never content
+                           "examples",  # L5: HOW MANY worked examples rode along (a count or None), never content
+                           "mended",  # WHICH deterministic mends the answer needed (names or None), never content
                            "conversation"}
     for rec in caplog.records:
         assert marker not in rec.getMessage()
@@ -337,7 +340,11 @@ def test_R4_every_refusal_gate_is_member_safe(conv, clean_env, model, monkeypatc
     monkeypatch.undo()
     monkeypatch.setattr(conv, "check_envelope", lambda *_a: (_ for _ in ()).throw(KeyError("ops[0]")))
     model([emits(GOOD())])
-    r = conv.converse("make it 80", user_id="u1", view=v)
+    # ⭐ 2026-11-17 -- A FRESH MEMBER FOR THIS STEP. The failed call two steps up is charged its worst
+    # case (a call that reports no usage may have been billed), which uses up "u1"'s allowance, so
+    # this step answered `cost:user` and `internal:error` was never reached. The step is about the
+    # safety net, not the allowance.
+    r = conv.converse("make it 80", user_id="u2", view=v)
     seen[r["gate"]] = r["reason"]
     assert {"envelope:schema", "envelope:revision", "unsupported:scalar", "unsupported:node",
             "converse:view", "converse:too-large", "concept:ambiguous", "model:transport",

@@ -173,7 +173,7 @@ describe('ConverseBox: the model reply is SECONDARY text beside the readback', (
   beforeEach(() => { _resetSessions(); clearUserDefinitions() })
   afterEach(() => { cleanup(); clearUserDefinitions() })
   const send = async (text) => {
-    fireEvent.change(screen.getByLabelText(/Describe the indicator|Change it/), { target: { value: text } })
+    fireEvent.change(screen.getByLabelText(/^Describe it$|^Change it$/), { target: { value: text } })
     fireEvent.click(screen.getByTestId('converse-send'))
     await flush()
   }
@@ -190,7 +190,7 @@ describe('ConverseBox: the model reply is SECONDARY text beside the readback', (
     expect(t).toMatch(/Updated preview\./)
     expect(t).not.toMatch(/I built an RSI above 70/)
     await send('add an average')
-    expect(screen.getAllByTestId('converse-assistant-reply').at(-1).textContent).toBe('Assistant: Two averages fit.')
+    expect(screen.getAllByTestId('converse-assistant-reply').at(-1).textContent).toBe('UCT Agent: Two averages fit.')
     expect(screen.getByTestId('converse-transcript').textContent).toMatch(/Which average\?/)
     // ⛔ P3S: and the next request does NOT carry the change's prose as context
     await send('EMA')

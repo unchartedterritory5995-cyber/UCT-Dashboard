@@ -13,7 +13,7 @@ import Watchlists from '../../Watchlists'
 import UIcon from '../../../components/ui/UIcon'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
-import { prefetchListDeep } from '../../../utils/prefetchBars'
+import { prefetchListDeep } from '../../../utils/barsWarm'
 import styles from './ScannerResults.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 

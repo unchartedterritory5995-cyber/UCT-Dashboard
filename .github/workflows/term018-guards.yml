@@ -47,12 +47,48 @@ on:
     branches: [master]
   pull_request:
 
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
+# workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
+# is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   static:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # A PULL REQUEST GETS A LIGHT CHECKOUT (2026-11-17). This rail runs on every push to every PR, and 56 s of
+      # its ~120 s was the checkout: 1.35 GB of history and a 2.3 GB tree for a rail that reads about 300 MB.
+      #   * `filter: blob:none` keeps the WHOLE commit graph (clause 6: an ancestor test and a commit message) and
+      #     leaves out old file contents, which the rail never asks git for. It is not a shallow clone.
+      #   * the sparse list is what the rail reads, MEASURED by running this job's own command under strace in a
+      #     full checkout: api/**, the files directly under tests/, docs/terminal-research, railway.json, two tools.
+      # 71 s became 12 s on a real runner (probe run 44004258840).
+      # ⛔ A MASTER PUSH KEEPS THE FULL CHECKOUT, the second step below, exactly as it was. Promotion reads the
+      #   master run, so a path this list ever misses is a red PR or a PR that disagrees with master, never a
+      #   promoted commit. tests/test_ci_cost_rails.py evaluates the two conditions for every event and holds the
+      #   list to the files this rail's own source and record name.
       - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/*/
+            /.github/
+            /api/
+            /tools/
+            /tests/*
+            !/tests/*/
+            /tests/*/__init__.py
+            /docs/terminal-research/
+
+      - uses: actions/checkout@v4
+        if: github.event_name != 'pull_request'
         with:
           fetch-depth: 0
 

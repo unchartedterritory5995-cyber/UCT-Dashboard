@@ -16,6 +16,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { translatePine } from './pine.js'
+import { fixtureLibraries } from './__tests__/libraryFixture.js'
 import { interpret } from './interpret.js'
 import { buildRuntimeIr } from './pineRuntimeFrontend.js'
 import { runtimeClockOpts } from './pineRuntimeClock.js'
@@ -55,10 +56,10 @@ rising = tr.rising()
 export pattern() =>
     rising and close > open
 `
-const LIBS = {
+const LIBS = fixtureLibraries({
   'tester/samename/1': { path: 'tester/samename/1', source: LIB, licence: 'MPL-2.0', attribution: 'samename (test fixture)' },
   'tester/outerpat/1': { path: 'tester/outerpat/1', source: OUTER, licence: 'MPL-2.0', attribution: 'outerpat (test fixture)' },
-}
+})
 const HEAD = '//@version=6\nindicator("t", overlay=true)\n'
 const LINKED = `${HEAD}import tester/samename/1 as sn
 plot(sn.both() ? 1 : 0)
@@ -133,7 +134,7 @@ library("plain")
 level = 2.0
 export f() => close * level
 `
-    const libs = { 'tester/plain/1': { path: 'tester/plain/1', source: lib2, licence: 'MPL-2.0', attribution: 'plain (test fixture)' } }
+    const libs = fixtureLibraries({ 'tester/plain/1': { path: 'tester/plain/1', source: lib2, licence: 'MPL-2.0', attribution: 'plain (test fixture)' } })
     const t = translatePine(`${HEAD}import tester/plain/1 as pl\nplot(pl.f())\n`, { libraries: libs, mode: 'host' })
     expect(t.refusal).toBeFalsy()
     const toks = JSON.stringify(t.outputs.map((o) => o.ast))

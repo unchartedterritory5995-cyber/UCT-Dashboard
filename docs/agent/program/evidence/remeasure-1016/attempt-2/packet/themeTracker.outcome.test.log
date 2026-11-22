@@ -1,0 +1,154 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T03:01:48Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx --reporter=default --reporter=json
+[bn] free memory GB: 36.8
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mTheme Tracker through its own door: what it ranks by is what it draws[2m > [22m[2mC3-174 "switch the theme tracker to my Mine set": the set the tracker shows; NEGATIVE: a set that does not exist is refused with the real list
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mAUDIT S1: theme set operations are one operation each, and name what they resolved to[2m > [22m[2mS1-A a set created while a delete card is open survives the Apply (the plan is stale; nothing of the new set is touched)
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mAUDIT S1: theme set operations are one operation each, and name what they resolved to[2m > [22m[2mS1-A a set created while a delete card is open survives the Apply (the plan is stale; nothing of the new set is touched)
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mAUDIT S1: theme set operations are one operation each, and name what they resolved to[2m > [22m[2mS1-A a set created while a delete card is open survives the Apply (the plan is stale; nothing of the new set is touched)
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mAUDIT S1: theme set operations are one operation each, and name what they resolved to[2m > [22m[2mS1-A a set created during the model call survives a rename: only the one set is renamed
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mAUDIT S1: theme set operations are one operation each, and name what they resolved to[2m > [22m[2mS1-A a set created during the model call survives a rename: only the one set is renamed
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mAUDIT S1: theme set operations are one operation each, and name what they resolved to[2m > [22m[2mS1-A a set created during the model call survives a rename: only the one set is renamed
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mAUDIT S1: theme set operations are one operation each, and name what they resolved to[2m > [22m[2mS1-A the door write is one operation: handed { op, id, name } it touches that set only; handed a whole list it does nothing
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mAUDIT S1: theme set operations are one operation each, and name what they resolved to[2m > [22m[2mS1-A the door write is one operation: handed { op, id, name } it touches that set only; handed a whole list it does nothing
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx[2m > [22m[2mAUDIT S1: theme set operations are one operation each, and name what they resolved to[2m > [22m[2mS1-B a rename of a fragment ("leaders") names the set it resolved to in the receipt
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/qa/chartsOutcome/themeTracker.outcome.test.jsx [2m([22m[2m19 tests[22m[2m)[22m[33m 17565[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-169 "show the theme tracker for the past month": the 1M tab ranks it; Undo goes back to Today [33m 1265[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-170 "sort the theme tracker ascending": the worst first [33m 1054[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-171 "theme tracker from the open": Today ranks by the move since the open, and the board keeps it [33m 994[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-172 "open the software theme in the theme tracker": by its name; the door reads it open [33m 1024[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-174 "switch the theme tracker to my Mine set": the set the tracker shows; NEGATIVE: a set that does not exist is refused with the real list [33m 1084[2mms[22m[39m
+     [33m[2m✓[22m[39m rename the Mine set to Growth (held-out phrasing): renamed in the set list; Undo renames it back [33m 1146[2mms[22m[39m
+     [33m[2m✓[22m[39m rename the Mine set to Leaders (held-out phrasing): renamed in the set list; Undo renames it back [33m 1167[2mms[22m[39m
+     [33m[2m✓[22m[39m delete the Mine set (held-out phrasing): shown first; nothing deleted before Apply; on Apply it is gone [33m 1181[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE: a set that does not exist, or a new name already taken, is refused with the real list; nothing changes [33m 1026[2mms[22m[39m
+     [33m[2m✓[22m[39m S1-A a set created while a delete card is open survives the Apply (the plan is stale; nothing of the new set is touched) [33m 1179[2mms[22m[39m
+     [33m[2m✓[22m[39m S1-A a set created during the model call survives a rename: only the one set is renamed [33m 1076[2mms[22m[39m
+     [33m[2m✓[22m[39m S1-B a fragment ("mine") resolves to "Mine growth": the card and the receipt name "Mine growth" [33m 1131[2mms[22m[39m
+     [33m[2m✓[22m[39m S1-B a rename of a fragment ("leaders") names the set it resolved to in the receipt [33m 1040[2mms[22m[39m
+     [33m[2m✓[22m[39m S1-C a delete offers no Undo: "undo" afterwards never times out on it, and the set stays deleted [33m 1151[2mms[22m[39m
+     [33m[2m✓[22m[39m rename my Mine theme set to Growth: one model call, carrying widget.setOption and the tracker’s sets [33m 1015[2mms[22m[39m
+     [33m[2m✓[22m[39m delete the Mine preset: one model call, carrying widget.setOption and the tracker’s sets [33m 967[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m19 passed[39m[22m[90m (19)[39m
+[2m   Start at [22m 22:01:50
+[2m   Duration [22m 22.98s[2m (transform 3.66s, setup 248ms, import 4.65s, tests 17.57s, environment 400ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-2/packet/themeTracker.outcome.test.json
+# exit=0 end 03:02:13Z

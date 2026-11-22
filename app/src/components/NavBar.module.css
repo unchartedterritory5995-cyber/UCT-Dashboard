@@ -31,15 +31,17 @@
      workspace, plus a 1px inner right-edge highlight so the panel edge is crisp
      against the dimmed page (the "slick" touch). */
   box-shadow: 6px 0 30px rgba(0, 0, 0, 0.40), inset -1px 0 0 color-mix(in srgb, var(--text-heading) 5%, transparent);
-  /* ⛔ HOVER-INTENT DELAY. The expand waits 0.22s after the cursor enters the
+  /* ⛔ HOVER-INTENT DELAY. The expand waits 0.08s after the cursor enters the
      60px column; a quicker pass-through never triggers it. This is the fix for
      "reaching toward the left rail pops the nav open over it" — the collapse is
      still instant (the base `.nav` transition carries no delay), so leaving snaps
      shut at once. (The old "menu shakes by itself" reason for removing a delay is
      gone: the rail is position:fixed, so a layout flick can't slide it under a
      stationary cursor and manufacture a spurious hover.) */
-  transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1) 0.22s,
-              box-shadow 0.18s ease 0.22s;
+  /* 0.22s -> 0.08s (owner 2026-11-11: "a bit delayed to open"). Same 0.18s open, just a
+     quicker start; still long enough that a fast pass across the rail does not open it. */
+  transition: width 0.18s cubic-bezier(0.4, 0, 0.2, 1) 0.08s,
+              box-shadow 0.18s ease 0.08s;
 }
 .brand {
   display: flex;
@@ -346,7 +348,9 @@
   min-width: 18px;
   height: 16px;
   padding: 0 5px;
-  font-size: 9px;
+  /* Finish batch (2026-11-05, owner-approved app-wide): onto the type scale (10 px here, the desktop sidebar); the
+     16 px pill height is unchanged. */
+  font-size: var(--text-xs);
   font-weight: 700;
   background: var(--ut-gold, var(--ut-gold));
   color: var(--bg);
@@ -363,3 +367,18 @@
     display: none;
   }
 }
+
+/* ═══ UCT Signature + gold mix (owner 11-15, docs/uct-signature-style.md) ═══
+   The rail's icons were ALL metallic gold (UIcon's default gradient + glow): twenty gold marks
+   down the page. Now they are the menus' grey and brighten on hover; gold marks only the page you
+   are on: its icon turns gold on a quiet neutral pill (no gold tint, no gold ring). The paid-tool
+   lock is grey too (gold means "you are here", not decoration). */
+.item .icon, .searchTrigger .icon { color: var(--ut-gold); transition: color 0.15s, opacity 0.15s; opacity: 0.85; } /* owner 11-15 (final): every nav icon is flat UCT gold (no metallic gradient / glow) */
+.item:hover .icon, .searchTrigger:hover .icon { color: var(--ut-gold); opacity: 1; }
+.item.active {
+  color: #f8f7f3 !important;
+  background: rgba(248, 247, 243, 0.07);
+  box-shadow: none;
+}
+.item.active .icon { color: var(--ut-gold); opacity: 1; } /* the current page: full-strength gold on its outlined pill */
+.lock { color: #93939a; }

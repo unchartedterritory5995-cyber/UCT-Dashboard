@@ -1,0 +1,18 @@
+//@version=6
+indicator("vw-w6-receivers-get-float", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit, split out of tools/visual_conformance/probes/vw-w6-receivers.pine
+// after capture queue run cq1-2026-11-16 (PR #1472) read that file as one compile error ("Could not find {kind}
+// '{fullName}'") whose text names no line or value. One question per file, so an error here IS this file's reading:
+// record its text. No licence-held text.
+// QUESTION: a user `method get(array<float> a, int i) => 99.0` beside the built-in, called as `af.get(0)` on an
+// `array<float>`: does it compile, and whose answer (U03 99 = the user method, 1 = the built-in)?
+// ac6 READING (run ac6, 2026-11-16): this file did not compile: "The {argName} argument is not used. The first
+// method argument should be used." Its methods never read their receiver. Each now reads it at no cost to the
+// value (`array.size(<receiver>) * 0`), so the question asked is the one in the QUESTION line again.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE. A00 is the control (it must plot on every bar).
+plot(bar_index, "A00_bar_index_CONTROL")
+method get(array<float> a, int i) =>
+    array.size(a) * 0 + 99.0
+af = array.from(1.0, 2.0)
+plot(af.get(0), "U03_user_get_on_array_float")

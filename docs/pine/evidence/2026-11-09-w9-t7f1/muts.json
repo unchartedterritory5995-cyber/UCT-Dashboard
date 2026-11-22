@@ -1,0 +1,247 @@
+[
+ {
+  "mutant": "M1 a fill does not record its size",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 22,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M2 a full close does not stamp the closing row",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 22,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M3 a partial close does not stamp the closing row",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M4 closingWith never sets the row",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 18,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M5 a bracket outlives its trade",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M6 a dropped entry stays placed",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 3,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M7 a pyramiding rejection is not logged",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M8 a forbidden entry is not rejected",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M9 the filled leg keeps the base comment",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M10 OCA reduce does not update the row size",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M11 a stop-limit trigger is not logged",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M12 an empty comment is kept as text",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M13 a modification leaves the row as first placed",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M14 an empty comment reads as an empty text",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M15 a computed comment reads as none",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M16 exit_id reads the row id, not the exit id",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M17 a reversal's exit comment is served",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M18 the log reads opened from oid of nothing",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 27,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M19 a reversing entry's id is an exit id",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 2,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M20 strategy.order's id is not an exit id",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M21 the label prefers the id over the comment",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M22 trades.exitId always null",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 13,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M23 shape: a trade opened twice passes",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M24 shape: exitId not checked against its order",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M25 shape: an unfilled order may link trades",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M26 record: trade numbers off by one",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 27,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M27 markers: an unknown label is drawn",
+  "file": "src/components/chart/engine/runtime/tradeMarkers.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M28 markers: the MK-LOOK pin is not asked",
+  "file": "src/components/chart/engine/runtime/tradeMarkers.js",
+  "verdict": "killed",
+  "failed": 8,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M29 report: a computed comment reads as TradingView-named",
+  "file": "src/components/chart/engine/runtime/brokerReport.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M30 report: signals ignore the log",
+  "file": "src/components/chart/engine/runtime/brokerReport.js",
+  "verdict": "killed",
+  "failed": 2,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M31 a computed comment is lowered",
+  "file": "src/components/chart/engine/ast/strategyBroker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "round": "r0 @c130ebabc2"
+ },
+ {
+  "mutant": "M32 r1: the reversal rule never fires",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 2,
+  "round": "r1"
+ },
+ {
+  "mutant": "M33 r1: the label rule ignores the reversal rule",
+  "file": "src/components/chart/engine/runtime/strategyRecord.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r1"
+ },
+ {
+  "mutant": "M34 r1: exit_comment ignores the reversal rule",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "killed",
+  "failed": 2,
+  "round": "r1"
+ },
+ {
+  "mutant": "M35 r1: the report gives the generic sentence for a reversal",
+  "file": "src/components/chart/engine/runtime/brokerReport.js",
+  "verdict": "killed",
+  "failed": 1,
+  "round": "r1"
+ }
+]

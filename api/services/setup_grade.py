@@ -85,19 +85,20 @@ _REALIZED_TTL = 24 * 3600
 # grade until restart). 6 gives one full request's worth of headroom even if a
 # previous request already leaked workers.
 #
-# CHOICE (documented per the review): `_avg_abs_realized`'s yfinance leg is
+# CHOICE (documented per the review): `_avg_abs_realized`'s price read (our own
+# daily bars first, Yahoo when they cannot answer) is
 # bounded via `yfinance_pool.run_in_pool(..., timeout=5)` — the SAME
 # nested-timeout precedent `_revisions` already relies on
 # (`research.estimates._fetch` wraps its own yfinance call the identical way).
 # That bound, not this pool's own `_SOURCE_TIMEOUT`, is what actually frees a
 # `_GATHER_POOL` worker: `fut.result(timeout=)` below only bounds how long the
 # CALLING thread waits, not how long the submitted callable keeps running once
-# started — without the inner bound, the worker thread itself stays pinned on
-# the raw `_yf.Ticker(sym).history()` call indefinitely.
+# started — without the inner bound, the worker thread itself would stay pinned
+# on whatever the price read is waiting for.
 _GATHER_POOL = _cf.ThreadPoolExecutor(max_workers=6, thread_name_prefix="setup-grade-gather")
 _SOURCE_TIMEOUT = 6.0   # hard per-source ceiling (seconds)
 _GRADE_BUDGET = 10.0    # overall wall-clock ceiling for one gather_inputs call
-_REALIZED_YF_TIMEOUT = 5.0  # bound on the yfinance leg inside _avg_abs_realized
+_REALIZED_YF_TIMEOUT = 5.0  # bound on the whole price read inside _avg_abs_realized
 
 # TTL + serve-stale front for `get_setup_grade`, mirroring
 # `implied_move.get_expected_move`'s composition exactly: a fresh TTL hit costs
@@ -232,13 +233,15 @@ def _avg_abs_realized(sym: str):
     """Average |next-day move| over the stored quarters. Cached 24h; a FAILED
     fetch is NEVER cached as a value (lesson_market_cap_cache_poison).
 
-    `get_historical_earnings_moves` reaches a raw `_yf.Ticker(sym).history()`
-    call with no timeout of its own — the one genuinely UNBOUNDED leg in this
-    module (see `_GATHER_POOL`'s comment). Bounded here at the call site via
-    `yfinance_pool.run_in_pool(..., timeout=_REALIZED_YF_TIMEOUT)` rather than
-    editing `earnings_enrichment.py` itself, which is shared with the
-    calendar's request path — the blast radius of a wrong timeout value stays
-    inside this module. A timeout raises `concurrent.futures.TimeoutError`,
+    The prices behind it are `get_historical_earnings_moves`'s: our own daily
+    bars first, Yahoo when they cannot answer. Both reads carry their own
+    bound there. The whole call (the quarterly history, then the price read)
+    is ALSO bounded here at the call site via
+    `yfinance_pool.run_in_pool(..., timeout=_REALIZED_YF_TIMEOUT)`, so the
+    blast radius of a wrong timeout value stays inside this module. That
+    wrapper is the shared Yahoo guard: while Yahoo is rate-limited it skips
+    the whole call, the read of our own bars included, and this input is
+    missing for that time. A timeout raises `concurrent.futures.TimeoutError`,
     which the caller (`gather_inputs`'s `_run`) already treats as a missing
     input, same as any other exception.
     """

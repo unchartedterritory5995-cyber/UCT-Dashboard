@@ -5,6 +5,7 @@ import haptics from '../../../components/mobile/haptics'
 import ArtifactHistory, { useArtifactVersionsAvailable } from '../../../components/artifactHistory/ArtifactHistory'
 import RecentlyDeleted from '../../../components/artifactHistory/RecentlyDeleted'
 import styles from './MobileCharts.module.css'
+import { UCT_DEFAULT_OFFERED } from '../layoutDockPins'
 
 /* The phone's door to the workspace/layout system the desktop already has.
  *
@@ -211,7 +212,7 @@ export default function MobileLayoutsSheet({
               onClick={submitSaveAs}
             >{busy ? 'Saving…' : 'Save layout'}</button>
             <div className={styles.layoutNote}>
-              Saves the arrangement and chart settings. The tickers in each colour group stay
+              Saves the arrangement and chart settings. The tickers in each color group stay
               as they are — opening a layout never swaps the symbol you are looking at.
             </div>
           </div>
@@ -234,7 +235,10 @@ export default function MobileLayoutsSheet({
             <span className={styles.rowRight}><UIcon name="chevronRight" size={14} gold={false} /></span>
           </button>
 
-          <div className={styles.sectionLabel}>Prebuilt</div>
+          {/* UCT Default is hidden while UCT_DEFAULT_OFFERED is false (owner 11-16) — and the
+              Prebuilt heading with it when no firm layout is published. */}
+          {(UCT_DEFAULT_OFFERED || prebuilt.length > 0) && <div className={styles.sectionLabel}>Prebuilt</div>}
+          {UCT_DEFAULT_OFFERED && (
           <button
             type="button"
             className={styles.row}
@@ -245,6 +249,7 @@ export default function MobileLayoutsSheet({
             <span className={styles.rowLabel}>UCT Default</span>
             <span className={styles.rowRight}><span className={styles.layoutBadge}>Firm</span></span>
           </button>
+          )}
           {prebuilt.map(t => renderRow(t, { deletable: isAdmin }))}
 
           <div className={styles.sectionLabel}>My layouts</div>

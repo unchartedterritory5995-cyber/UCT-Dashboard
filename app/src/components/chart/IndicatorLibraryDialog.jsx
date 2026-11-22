@@ -62,8 +62,12 @@
 // consumers. It is rendered here, VERBATIM, because this is the surface whose
 // job is to offer a member their own formulas and therefore the surface that
 // owes them a sentence when it cannot. See `indicatorCatalog.userRefusalRows`.
+import { withoutGuardIds } from './engine/ast/guardIdText'
 import { orderCategories } from './technicalCategories'
-import { useState, useMemo, useRef, useEffect, useCallback, useId } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, useId, useSyncExternalStore } from 'react'
+// ⭐ RS split U1 — a `meta.requiresServer` definition is offered only once the
+// live server lists it; the version is what re-lists when the answer lands.
+import { isCatalogRowOffered, subscribeServerDefinitions, serverDefinitionsVersion } from './engine/serverCompute'
 import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
 import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
@@ -72,6 +76,12 @@ import {
   BUILT_IN_ROWS,
 } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance, definitionVisibility } from './engine/instanceControls'
+import IndicatorMembersTab from './IndicatorMembersTab'
+import IndicatorHouseTab from './IndicatorHouseTab'
+import {
+  SHELF_ALL, SHELF_HOUSE, SHELF_MEMBERS, SHELF_MINE, shelfOptions, shelfHolds, optionText, validShelf,
+  isListShelf, emptyShelfText,
+} from './libraryShelves'
 // The blob-shape readers for the two BUILT-IN rows. They are not instances and
 // not settings slices, so `instanceControls` cannot answer for them — see
 // `isRowOn` below, and `chartDefaults`'s tombstone header for why removal is a
@@ -81,6 +91,7 @@ import { isUctIntelligenceAdded, addUctIntelligence, removeUctIntelligence } fro
 import { revivableSlotIndex, reviveSlot } from './maAdoption'
 import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
+import { isTouredFirstAdd } from './legend/indicatorTour'
 import styles from './IndicatorLibraryDialog.module.css'
 // ⭐⭐ THE SAME UNIFIED DOOR THE SETTINGS TAB OPENS. Symbols and breadth are
 // results in this list too, created through `createFromResult` — one discovery
@@ -88,10 +99,15 @@ import styles from './IndicatorLibraryDialog.module.css'
 // `QQQ` from Chart Settings and not from the toolbar has two products.
 import {
   LIBRARY_HIDDEN_IDS, hiddenLibraryIds, libraryRowFor, symbolLibraryRow,
-  createFromResult, CAPABILITY,
+  createFromResult, CAPABILITY, isDelistedResult,
 } from './discoveryCatalog'
 import useSymbolDiscovery from './useSymbolDiscovery'
 import { tagRestatesName } from './shortTag'
+// ⭐ UCT RS Phase 4, unit 4-03 — definition-level onboarding. The engine names no
+// indicator: a definition declares `meta.tour` / `meta.searchHint` (defSchema) and
+// this surface reads them generically.
+import { normalizeHintQuery } from './engine/defSchema'
+import useIndicatorTours from './useIndicatorTours'
 
 /** Does this row match the search box? Name, short name, id, category and tags —
  *  five ways in, because a user who knows an indicator as "BB", as "Bollinger",
@@ -105,6 +121,21 @@ export function matches(row, q) {
     || row.id.toLowerCase().includes(n)
     || row.category.toLowerCase().includes(n)
     || (row.tags || []).some((t) => String(t).toLowerCase().includes(n))
+}
+
+/** Does the search NAME this row exactly? The query equals its id, its short name, or
+ *  one whole word of its short name ("rs" names `UCT RS`, "rsi" names `RSI`).
+ *  ⭐ 2026-11-08, real-screen check: "rs" matched a dozen Momentum rows by substring
+ *  and the fixed heading order put Relative Strength sixth, so the indicator the
+ *  member typed the name of sat below RSI, MACD and ten oscillators. A row the query
+ *  names exactly now leads its section, and its section leads the results. Only an
+ *  EXACT word counts: "r" or "rel" never reorders anything. */
+export function namesRow(row, q) {
+  const n = String(q || '').trim().toLowerCase()
+  if (!n || !row) return false
+  const short = String(row.shortName || '').toLowerCase()
+  if (String(row.id || '').toLowerCase() === n || short === n) return true
+  return short.split(/[^a-z0-9]+/).includes(n)
 }
 
 /** Is this indicator on? Through the ONE reader for an engine row; through the
@@ -244,9 +275,28 @@ export function toggledRow(row, settings, registry) {
 // ⭐ `extraRows`: rows a HOST offers on top of the catalogue — today only the chart's UCT Intelligence row,
 // passed only while the pattern layer exists for this viewer (absent prop = absent row, the same rule as
 // `onCreateFormula`). Never part of `catalogRows()` or `BUILT_IN_ROWS`, whose consumers are railed id-for-id.
-export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, sheetClassName = '', extraRows = null }) {
+//
+// ⭐ `onFirstAdd(defId)` (Phase 4, unit 4-03): called when a click here adds the FIRST live instance of a
+// definition that declares `meta.tour` and whose tour this member has not seen (`useIndicatorTours`). Never on
+// showing a hidden instance, never on a second instance. The HOST shows the tour and calls `markSeen` when the
+// member finishes or skips it; this dialog only reports the add. Absent prop ⇒ no preferences read for it.
+export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula, onCreateIndicator = null, sheetClassName = '', extraRows = null, onFirstAdd = null }) {
   const [query, setQuery] = useState('')
+  // ⭐ MEMBERS, ON A PHONE AND A TABLET (2026-11-16). The published library is a tab of the
+  // Indicators window, and that window is not the indicators surface at 1024px and below:
+  // this sheet is (measured on production at 820 and 390: no Chart Settings control is
+  // visible). So the sheet opens the same list itself.
+  // ⭐⭐ ONE CHOICE OF LIST (owner decision 2026-11-17, mock-up B; `libraryShelves.js`). The two
+  // lists above used to be two door rows, each swapping the whole sheet for its own view with a
+  // way back. They are now two of the choices in one "Showing" control, beside "On this chart",
+  // "Your indicators" and each catalogue heading, every one with its count where it is known.
+  const [shelf, setShelf] = useState(SHELF_ALL)
+  // ⭐ how many UCT house indicators match a search on "All indicators" (the UCT set is its own file)
+  const [houseMatchCount, setHouseMatchCount] = useState(0)
+  useEffect(() => { if (!open) setShelf(SHELF_ALL) }, [open])
+  const { seen: tourSeen } = useIndicatorTours(typeof onFirstAdd === 'function')
   const searchRef = useRef(null)
+  const bodyRef = useRef(null)
 
   // Search-first: the box has focus the moment the dialog opens, so the flow is
   // "hit the chord, type three letters, Enter" without a pointer.
@@ -332,17 +382,23 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // hidden on an ordinary chart so browse shows one Moving Average, offered again
   // when there is a tombstoned overlay to revive. See `hiddenLibraryIds`.
   const hidden = hiddenLibraryIds(settings)
+  // ⭐ RS split U1 — AND A `meta.requiresServer` DEFINITION IS SUBTRACTED UNTIL
+  // THE LIVE SERVER LISTS IT (`isCatalogRowOffered`, the same fail-closed fetch
+  // as the per-input gate). Subtracted here, not inside `catalogRows()`, for the
+  // reason written above. `serverVersion` moves when the answer lands, so the
+  // row appears without a reopen.
+  const serverVersion = useSyncExternalStore(subscribeServerDefinitions, serverDefinitionsVersion, () => 0)
   // ⭐ AND THE REVEALED REVIVE ROW IS RENAMED — *Restore EMA 9*, not a second row
   // reading "Moving Average". See `discoveryCatalog.libraryRowFor`.
   const all = useMemo(
     () => [
       ...(Array.isArray(extraRows) ? extraRows : []),
       ...BUILT_IN_ROWS.filter((r) => !hidden.includes(r.id)).map((r) => libraryRowFor(r, settings)),
-      ...catalogRows(registry).filter((r) => !hidden.includes(r.id)),
+      ...catalogRows(registry).filter((r) => !hidden.includes(r.id) && isCatalogRowOffered(r, registry)),
       ...userCatalogRows(registry),
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version
-    [registry, generation, hidden, settings, extraRows],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version; `serverVersion` the gate's
+    [registry, generation, hidden, settings, extraRows, serverVersion],
   )
   // ⛔ ONE SEARCH, SHARED WITH THE SETTINGS TAB AND THE SOURCE PICKER. Same hook,
   // same endpoints, same debounce, same facade adapters — see the import block.
@@ -354,6 +410,12 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     const out = []
     const byKey = new Map()
     for (const res of symbolResults) {
+      // ⛔ A DELISTED SECURITY IS NOT OFFERED HERE (2026-11-08). `/api/ticker-search`
+      // folds the delisted registry into its reply, so "rsi" listed a dozen dead
+      // companies whose NAMES contain the letters (Mattersight, Tarsier, …), each a
+      // row that `createFromResult` refuses — clicking it did nothing. This is an
+      // INDICATOR library; the symbol search still finds them, with their reason.
+      if (isDelistedResult(res)) continue
       const row = symbolLibraryRow(res)
       if (!row) continue
       out.push(row)
@@ -363,10 +425,32 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   }, [symbolResults])
   // ⛔ THE REMOTE ROWS ARE ALREADY THE ANSWER TO THIS QUERY and are not re-filtered
   // by `matches` — see the settings tab's own note for the measured reason.
+  // A row the query names exactly (`namesRow`) leads; the rest keep catalogue order (a stable sort).
+  const indicatorRows = useMemo(() => {
+    const hit = all.filter((r) => matches(r, query))
+    return [...hit.filter((r) => namesRow(r, query)), ...hit.filter((r) => !namesRow(r, query))]
+  }, [all, query])
   const rows = useMemo(
-    () => [...all.filter((r) => matches(r, query)), ...symbolRows.rows],
-    [all, query, symbolRows],
+    () => [...indicatorRows, ...symbolRows.rows],
+    [indicatorRows, symbolRows],
   )
+
+  // ⭐ THE SHELVES. Counts are of the whole catalogue (`all`), never of what the search left: a
+  // count says how much a list holds. A shelf that is no longer offered falls back to everything.
+  const isOnChart = useCallback((row) => rowVisibility(row, settings).state !== 'absent', [settings])
+  const shelves = useMemo(
+    () => shelfOptions({ rows: all, categories: orderCategories([...new Set(all.map((r) => r.category))]), isOn: isOnChart }),
+    [all, isOnChart],
+  )
+  const shown = validShelf(shelf, shelves)
+  const shelfLabel = (shelves.find((o) => o.value === shown) || shelves[0]).label
+  /** The catalogue rows of the chosen shelf that match what is typed. Symbols are "All" only. */
+  const shelfRows = useMemo(
+    () => (shown === SHELF_ALL ? rows : indicatorRows.filter((r) => shelfHolds(shown, r, isOnChart))),
+    [shown, rows, indicatorRows, isOnChart],
+  )
+  /** A list shelf has its own box: switching shelves starts it empty, as the two doors did. */
+  const chooseShelf = (next) => { setQuery(''); setShelf(next) }
 
   // ─── THE FORMULAS THAT ARE NOT ON THAT LIST, AND WHY ──────────────────────
   const refusals = useMemo(
@@ -391,25 +475,80 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // ⛔ STILL DERIVED, NOT LISTED. The hoist is a PARTITION of the derived order on
   // `userDefined`, so a new native category continues to bring its own heading and
   // there is no second list to keep in step.
-  const groups = useMemo(() => {
+  //
+  // ⭐⭐ 2026-11-08 — INDICATORS FIRST WHEN THE QUERY MATCHES ANY; DISCOVERY AFTER.
+  // ⚰️ MEASURED ON THE REAL SCREEN: "rsi" is also a TICKER (Rush Street), so the
+  // exact-ticker hoist below put the whole Symbols group — RSI plus every company
+  // whose name contains "rsi" — ABOVE Momentum, and the RSI indicator and the UCT
+  // RS signpost ended up at the bottom of the INDICATOR library. And the remote
+  // reply lands ~150 ms to seconds after the local rows, so the hoist could MOVE
+  // the indicator sections under a member who had already reached RSI; a browser
+  // blurs a focused node that is moved, which fits the reported "first Enter was
+  // ignored while the row re-laid out" (inferred, not traced on a device).
+  // So the two halves are ranked apart: the indicator headings (in their fixed
+  // order, the member's own first), then the hint row, then the discovery
+  // headings. The exact-ticker hoist still decides the order AMONG the discovery
+  // headings, and when NO indicator matches (`QQQ`) it is still the first section.
+  // A discovery heading an indicator section already has (none today) joins that
+  // section instead of printing the heading twice.
+  const { indicatorGroups, discoveryGroups } = useMemo(() => {
     // ⭐ 2026-10-01 — THE TECHNICAL HEADINGS IN THEIR FIXED ORDER
     // (`technicalCategories.js`), never in whatever order the catalogue happened
     // to list its rows; any other heading keeps its first-appearance place after.
-    const order = orderCategories([...new Set(rows.map((r) => r.category))])
-    const mine = new Set(rows.filter((r) => r.userDefined).map((r) => r.category))
-    const ranked = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
-    // ⭐ AN EXACT TICKER OUTRANKS EVERYTHING (§9) — the same hoist the settings tab
-    // makes, on the same condition, because the two doors must rank alike.
+    const order = orderCategories([...new Set(indicatorRows.map((r) => r.category))])
+    const mine = new Set(indicatorRows.filter((r) => r.userDefined).map((r) => r.category))
+    const base = [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
+    // ⭐ The section holding a row the query names exactly (`namesRow`) goes first.
+    const named = new Set(indicatorRows.filter((r) => namesRow(r, query)).map((r) => r.category))
+    const ranked = [...base.filter((c) => named.has(c)), ...base.filter((c) => !named.has(c))]
+    const own = new Set(ranked)
+    const disc = orderCategories([...new Set(symbolRows.rows.map((r) => r.category))])
+      .filter((c) => !own.has(c))
+    // ⭐ AN EXACT TICKER OUTRANKS THE OTHER DISCOVERY RESULTS (§9) — the same
+    // condition the settings tab hoists on.
     const first = symbolRows.rows[0]
     const exact = first && String(first.id).toUpperCase() === String(query).trim().toUpperCase()
       ? first.category : null
-    return exact ? [exact, ...ranked.filter((c) => c !== exact)] : ranked
-  }, [rows, symbolRows, query])
+    const discRanked = exact && disc.includes(exact) ? [exact, ...disc.filter((c) => c !== exact)] : disc
+    return { indicatorGroups: ranked, discoveryGroups: discRanked }
+  }, [indicatorRows, symbolRows, query])
 
   // ⭐ A row's description id, for its title button's `aria-describedby`. The key
   // is encoded injectively (every non-alphanumeric becomes its code point).
   const blurbBase = useId()
   const blurbId = (row) => `${blurbBase}-blurb-${String(row.key || row.id).replace(/[^A-Za-z0-9]/g, (ch) => `_${ch.codePointAt(0)}_`)}`
+
+  // ─── THE SEARCH HINT (Phase 4, unit 4-03) ─────────────────────────────────
+  //
+  // A shipped definition may declare `meta.searchHint.queries`; when the WHOLE
+  // search equals one of them (in `normalizeHintQuery`'s form), one muted row is
+  // printed under the results. ⛔ AN EXACT COMPARISON, NEVER A SUBSTRING OR A
+  // REGEX: "rsi divergence" is a search for RSI and gets no correction, and a
+  // pattern over names matches more than one definition (see the warning in
+  // `IndicatorLibraryDialog.test.jsx` about a name lookup hitting two rows).
+  // A member's own formula never carries one here: its meta is member-written,
+  // and a hint is an editorial row. The first declaring definition in list order
+  // wins, so there is only ever one row.
+  const searchHint = useMemo(() => {
+    const q = normalizeHintQuery(query)
+    if (!q) return null
+    for (const row of all) {
+      if (row.userDefined || row.builtIn || row.carvedOut || row.restores) continue
+      const def = typeof registry?.getDefinition === 'function' ? registry.getDefinition(row.id) : null
+      const h = def && def.meta && def.meta.searchHint
+      if (h && Array.isArray(h.queries) && h.queries.includes(q)) return { row, def, hint: h }
+    }
+    return null
+  }, [all, query, registry])
+
+  /** Report a first add to the host (`isTouredFirstAdd`), unless the member has
+   *  seen the definition's tour. */
+  const reportFirstAdd = useCallback((row, before, after) => {
+    if (typeof onFirstAdd !== 'function' || !row) return
+    if (!isTouredFirstAdd(row, before, after, registry)) return
+    if (tourSeen(row.id)) return
+    onFirstAdd(row.id)
+  }, [onFirstAdd, registry, tourSeen])
 
   const toggle = useCallback((row) => {
     // ⭐ A DISCOVERY RESULT CREATES THROUGH THE FACADE. `toggledRow` speaks
@@ -427,8 +566,11 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     // the caller must be able to skip persisting. Calling `onChange`
     // unconditionally would persist a no-op and mark the preset custom for a
     // click that changed nothing.
-    if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-  }, [settings, onChange, registry, symbolRows])
+    if (next !== settings) {
+      onChange?.({ ...next, preset: 'custom' })
+      reportFirstAdd(row, settings, next)
+    }
+  }, [settings, onChange, registry, symbolRows, reportFirstAdd])
 
   /** ⭐ chart-UX-walls TASK 6 — "+ Add another", on a row that is already ON.
    *
@@ -452,22 +594,193 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     const next = row.builtIn
       ? toggledRow(row, settings, registry)
       : addInstance(settings, row.id, registry)
-    if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-  }, [settings, onChange, registry])
+    if (next !== settings) {
+      onChange?.({ ...next, preset: 'custom' })
+      reportFirstAdd(row, settings, next)
+    }
+  }, [settings, onChange, registry, reportFirstAdd])
+
+  /**
+   * ⭐ ↓ / ↑ THROUGH THE RESULTS (2026-11-08). ↓ in the search box moves to the
+   * first result; ↓ / ↑ walk the result title buttons and the hint's button in
+   * the order they are drawn; ↑ from the first returns to the box; Home / End
+   * jump to the ends. ROVING FOCUS on real buttons — the pattern the settings
+   * tab's structure list uses (`onStructureKeys`) — not `aria-activedescendant`,
+   * which needs a listbox of options, and this list is deliberately not one (a
+   * row holds a second button, "+ Add another"). Tab order is unchanged.
+   */
+  const onLibraryKeys = useCallback((e) => {
+    const k = e.key
+    if (k !== 'ArrowDown' && k !== 'ArrowUp' && k !== 'Home' && k !== 'End') return
+    const box = searchRef.current
+    const t = e.target
+    const fromBox = !!box && t === box
+    const onItem = !!t && t.getAttribute && t.getAttribute('data-library-nav') === 'true'
+    if (!fromBox && !onItem) return
+    if (fromBox && k !== 'ArrowDown') return   // Home / End / ↑ keep the caret's own keys
+    const items = Array.from(bodyRef.current?.querySelectorAll('[data-library-nav="true"]') || [])
+    if (!items.length) return
+    let next = null
+    if (fromBox) next = items[0]
+    else if (k === 'Home') next = items[0]
+    else if (k === 'End') next = items[items.length - 1]
+    else {
+      const at = items.indexOf(t)
+      if (k === 'ArrowDown') next = items[Math.min(items.length - 1, at + 1)]
+      else next = at <= 0 ? box : items[at - 1]
+    }
+    if (!next) return
+    e.preventDefault()
+    // ⚰️ MEASURED ON THE REAL SCREEN (2026-11-08, 1440×900, "rs"): scrolling the
+    // focused BUTTON into view is not enough. The button is only the title line;
+    // the ring and the description belong to the ROW around it, so ↓ onto a row
+    // whose title had just scrolled into view left its lower half and the bottom
+    // of the ring clipped under the sheet's edge. One more ↓ then hit a button
+    // that was wholly out of view, and the browser's own focus scroll CENTRED it,
+    // jumping the list ~400 px. So: focus without the browser's scroll, then
+    // bring the whole row (or the hint row) into view by the smallest move.
+    try { next.focus({ preventScroll: true }) } catch { next.focus() }
+    const frame = next.closest?.('li, [data-testid="library-search-hint"]') || next
+    try { frame.scrollIntoView?.({ block: 'nearest' }) } catch { /* jsdom */ }
+  }, [])
+
+  /** One heading and its rows — shared by the indicator half and the discovery half. */
+  const renderGroup = (category) => (
+    <section key={category} className={styles.group}>
+      <h3 className={styles.groupHead}>{category}</h3>
+      <ul className={styles.list} aria-label={category}>
+        {shelfRows.filter((r) => r.category === category).map((row) => {
+          // ⛔ A SYMBOL IS NEVER "ALREADY ON" — `isRowOn` answers per
+          // DEFINITION and a symbol row's id is a ticker. Three QQQ series on
+          // one chart is legitimate (§32), so the row keeps offering.
+          // ⭐ AND SO IS A RESTORE ROW — `discoveryCatalog.libraryRowFor`.
+          const creates = symbolRows.byKey.has(row.key) || row.restores === true
+          const vis = creates ? null : rowVisibility(row, settings)
+          const on = !!vis && vis.state === 'shown'
+          const hiddenRow = !!vis && vis.state === 'hidden'
+          return (
+            /* ⛔⛔ THE ROW IS NOT A CONTROL; ITS TITLE LINE IS. This `<li>`
+               was a `role="option"` with `tabIndex={0}`, and an ON row
+               carries "+ Add another" — a focusable control nested inside an
+               interactive one (axe `nested-interactive`, measured on
+               `movingAverage`, the one row on a default chart). An option
+               cannot hold a button, so the list is a plain list: the toggle
+               is the real `<button aria-pressed>` round the title line, its
+               click BUBBLES to this `onClick` (one writer for pointer and
+               keyboard), and "+ Add another" is its sibling. */
+            <li
+              key={row.key || row.id}
+              data-def-id={row.id}
+              data-result-kind={row.kind || undefined}
+              /* ⭐ THE PROVENANCE, ON THE ROW ITSELF. A member's formula is
+                 a different KIND of thing from a shipped indicator — they
+                 wrote it, only they have it, and it is theirs to delete —
+                 so it is marked structurally (this attribute + the class
+                 below + the pill) rather than only by which heading it
+                 happens to sit under. */
+              data-user-defined={row.userDefined ? 'true' : 'false'}
+              className={`${styles.row} ${on ? styles.rowOn : ''} ${row.userDefined ? styles.rowMine : ''}`}
+              onClick={() => toggle(row)}
+            >
+              <span className={styles.check} aria-hidden="true"
+                title={vis && vis.partial ? `${vis.visible} of ${vis.live} shown` : undefined}>
+                {on ? (vis.partial ? '✓◐' : '✓') : hiddenRow ? '○' : ''}
+              </span>
+              <span className={styles.main}>
+                {/* ⭐ THE KEYBOARD DOOR. No handler of its own: Enter and
+                    Space click a native button and the click bubbles to the
+                    row. `aria-pressed` is the state `aria-selected` used to
+                    carry; the description is named by reference. */}
+                <button
+                  type="button"
+                  className={`${styles.titleRow} ${styles.primary}`}
+                  data-result-primary="true"
+                  data-library-nav="true"
+                  /* ⭐ ENTER ADDS ON THE KEYDOWN, ONCE (2026-11-08). The native
+                     button turns Enter into a click that bubbles to the row; doing
+                     it here instead (and cancelling that click) makes a held key
+                     one add rather than an auto-repeating toggle, and leaves no
+                     gap between the key and the write for a re-layout to fall
+                     into. Space keeps the native click. */
+                  onKeyDown={(e) => {
+                    if (e.key !== 'Enter') return
+                    e.preventDefault()
+                    if (!e.repeat) toggle(row)
+                  }}
+                  aria-pressed={on}
+                  aria-describedby={row.description ? blurbId(row) : undefined}
+                >
+                  {/* The LONG name here — `meta.name`. Menus, region titles
+                      and compact strips take `shortName`; this surface and
+                      the generated settings rows take the full one. */}
+                  <span className={styles.name}>{row.name}</span>
+                  {/* ⛔ VISIBLE, NOT SPOKEN, ONLY WHEN THE NAME ALREADY SAYS IT
+                      word for word ("Parabolic SAR SAR"); see `shortTag.js`.
+                      Any other tag (ADX, RSI) is visible text and stays in
+                      the accessible name: WCAG 2.5.3 Label in Name. */}
+                  <span className={styles.chip}
+                    aria-hidden={tagRestatesName(row.name, row.shortName) ? 'true' : undefined}>{row.shortName}</span>
+                  {/* ⭐ NAMED, NOT JUST TINTED. A colour alone is not a
+                      distinction for a member who cannot see it, and the
+                      heading scrolls out of view on a long list. */}
+                  {row.userDefined && <span className={styles.mine}>Your indicator</span>}
+                  {hiddenRow && <span className={styles.pill} data-testid="row-hidden">Hidden</span>}
+                  {row.sessionOnly && <span className={styles.pill}>Intraday only</span>}
+                  {/* ⭐⭐ THE LINTER'S MEASUREMENT, PER PLOT — never the
+                      definition's declared badge. See `repaintNotice`. */}
+                  {repaintNotice(row)}
+                  {/* Tier is shown only when it is NOT free: a free row
+                      carries no badge, which is why the test asserts its
+                      ABSENCE on a free definition rather than its text.
+
+                      ⛔ AND NEVER ON THE MEMBER'S OWN FORMULA. A custom
+                      indicator IS premium-tier, so this badge was true and
+                      still wrong: beside "Your formula", on a row the member
+                      wrote themselves and already has on their chart, the
+                      word "Premium" reads as "you cannot use this". A tier
+                      badge is an offer to someone who does not have it, not
+                      a label on something you already own. */}
+                  {row.tier && row.tier !== 'free' && !row.userDefined && (
+                    <span className={styles.tier}>{row.tier}</span>
+                  )}
+                </button>
+                {row.description && <span className={styles.blurb} id={blurbId(row)}>{row.description}</span>}
+              </span>
+              {/* ⛔ ONLY ON A ROW THAT IS ON, AND NEVER ON THE CARVED-OUT ONE.
+                  `volumeProfile` has no definition, so `addInstance` returns
+                  the settings BY IDENTITY for it and the button would be a
+                  live control that writes nowhere — the exact defect this
+                  phase retires. A second volume profile is not a thing the
+                  canvas overlay can draw anyway. */}
+              {on && !row.carvedOut && !row.singleton && (
+                <button
+                  type="button"
+                  className={styles.addAnother}
+                  aria-label={`Add another ${row.name}`}
+                  title={`Add a second ${row.shortName} with the default settings`}
+                  onClick={(e) => addAnother(row, e)}
+                >+ Add another</button>
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </section>
+  )
 
   if (!open) return null
 
   return (
     <Sheet open={open} onClose={onClose} variant="auto" title="Indicators" ariaLabel="Indicator library" maxWidth={640} className={sheetClassName}>
       {/* The portal exemption. See the header. */}
-      <div className={styles.body} {...{ [PORTAL_POPUP_ATTR]: 'indicator-library' }}>
+      <div className={styles.body} ref={bodyRef} onKeyDown={onLibraryKeys} {...{ [PORTAL_POPUP_ATTR]: 'indicator-library' }}>
         <input
           ref={searchRef}
           type="search"
           role="searchbox"
           className={styles.search}
-          placeholder="Search indicators"
-          aria-label="Search indicators"
+          placeholder={shown === SHELF_HOUSE ? 'Search UCT indicators' : shown === SHELF_MEMBERS ? "Search members' indicators" : 'Search indicators'}
+          aria-label={shown === SHELF_HOUSE ? 'Search UCT indicators' : shown === SHELF_MEMBERS ? "Search members' indicators" : 'Search indicators'}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -478,16 +791,41 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             it is. It is NOT filtered by `query`: a member who searched and found
             nothing is exactly the member who needs it, so it must not vanish
             with the rows. */}
+        {/* ⭐ DESCRIBE AN INDICATOR, from the library (2026-11-15). This dialog is the ONLY way into
+            indicators on a phone, and it offered no door to Create Indicator: measured on production
+            at 390px the day the feature opened to every account. Offered only when the host passes
+            the door, which it does only for an account the chart's own button would open it for.
+            Like the row below, it is not filtered by `query`. */}
+        {onCreateIndicator && (
+          <button
+            type="button"
+            className={styles.createRow}
+            data-testid="library-describe"
+            data-guide="indicators.create"
+            onClick={() => onCreateIndicator()}
+          >
+            <span className={`${styles.createPlus} ${styles.createSpark}`} aria-hidden="true">✦</span>
+            <span className={styles.createMain}>
+              <span className={styles.createName}>Describe an indicator</span>
+              <span className={styles.createBlurb}>
+                Say what you want in plain words. It previews on this chart, and nothing is saved
+                until you say so.
+              </span>
+            </span>
+            <span className={styles.createArrow} aria-hidden="true">→</span>
+          </button>
+        )}
         {onCreateFormula && (
           <button
             type="button"
             className={styles.createRow}
             data-testid="library-new-formula"
+            data-guide="indicators.newFormula"
             onClick={() => onCreateFormula()}
           >
             <span className={styles.createPlus} aria-hidden="true">＋</span>
             <span className={styles.createMain}>
-              <span className={styles.createName}>New formula</span>
+              <span className={styles.createName}>Create indicator</span>
               <span className={styles.createBlurb}>
                 Build your own indicator or screen — pick conditions, describe it in
                 plain English, or start from one of the firm’s setups.
@@ -496,7 +834,66 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             <span className={styles.createArrow} aria-hidden="true">→</span>
           </button>
         )}
-        {rows.length === 0 && refusals.length === 0 && (
+        {/* ⭐⭐ SHOWING: every list of this sheet, in one control, with how much each holds. A native
+            select: on a phone it opens the system's own picker, which is the easiest thing to use
+            with a thumb, and it is the one control here that needs no layout of its own. */}
+        <label className={styles.shelf} data-testid="library-shelf-row">
+          <span className={styles.shelfLabel}>Showing</span>
+          <select className={styles.shelfSelect} data-testid="library-shelf" value={shown}
+            onChange={(e) => chooseShelf(e.target.value)}>
+            {shelves.map((o) => <option key={o.value} value={o.value}>{optionText(o)}</option>)}
+          </select>
+        </label>
+        {shown === SHELF_HOUSE && (
+          <div data-testid="library-house-view">
+            <IndicatorHouseTab
+              query={query}
+              listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+              isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+              onPutOnChart={(defId) => {
+                if (!defId || !registry?.getDefinition?.(defId)) return false
+                const next = addInstance(settings, defId, registry)
+                if (next === settings) return false
+                onChange?.({ ...next, preset: 'custom' })
+                onClose?.()
+                return true
+              }}
+            />
+          </div>
+        )}
+        {shown === SHELF_MEMBERS && (
+          <div data-testid="library-members-view">
+            <IndicatorMembersTab
+              query={query}
+              isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+              onPutOnChart={(defId) => {
+                if (!defId || !registry?.getDefinition?.(defId)) return false
+                // the same write a row's first add makes for a definition; a refused write
+                // returns `settings` itself and persists nothing
+                const next = addInstance(settings, defId, registry)
+                if (next === settings) return false
+                onChange?.({ ...next, preset: 'custom' })
+                onClose?.()
+                return true
+              }}
+            />
+          </div>
+        )}
+        {/* a catalogue shelf that shows nothing says which of the two reasons it is */}
+        {!isListShelf(shown) && shown !== SHELF_ALL && shelfRows.length === 0 && (
+          <div className={styles.empty} data-testid="library-shelf-empty">
+            {query.trim()
+              ? `Nothing in ${shelfLabel} matches “${query.trim()}”.`
+              : emptyShelfText(shown)}
+            {query.trim() && indicatorRows.length > 0 && (
+              <button type="button" className={styles.emptyDescribe} data-testid="library-shelf-all"
+                onClick={() => setShelf(SHELF_ALL)}>
+                {indicatorRows.length === 1 ? 'Show the 1 match in all indicators' : `Show the ${indicatorRows.length} matches in all indicators`}
+              </button>
+            )}
+          </div>
+        )}
+        {shown === SHELF_ALL && rows.length === 0 && refusals.length === 0 && !(query.trim() && houseMatchCount > 0) && (
           <div className={styles.empty}>
             {/* ⚠️ A REQUEST IN FLIGHT IS NOT A FINISHED ANSWER, AND BOTH FACTS GO IN
                 ONE SENTENCE. Replacing the line with a bare "Searching…" hid the
@@ -507,123 +904,47 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             {symbolsLoading
               ? `Nothing matches “${query}” yet — still searching symbols…`
               : `Nothing matches “${query}”.`}
+            {/* ⭐ DESCRIBE IT INSTEAD, with the typed words in Create Indicator's box (not sent). */}
+            {onCreateIndicator && query.trim() && !symbolsLoading && (
+              <button type="button" className={styles.emptyDescribe} data-testid="empty-describe"
+                onClick={() => onCreateIndicator({ seed: query.trim() })}>
+                Describe “{query.trim()}” instead
+              </button>
+            )}
           </div>
         )}
-        {groups.map((category) => (
-          <section key={category} className={styles.group}>
-            <h3 className={styles.groupHead}>{category}</h3>
-            <ul className={styles.list} aria-label={category}>
-              {rows.filter((r) => r.category === category).map((row) => {
-                // ⛔ A SYMBOL IS NEVER "ALREADY ON" — `isRowOn` answers per
-                // DEFINITION and a symbol row's id is a ticker. Three QQQ series on
-                // one chart is legitimate (§32), so the row keeps offering.
-                // ⭐ AND SO IS A RESTORE ROW — `discoveryCatalog.libraryRowFor`.
-                const creates = symbolRows.byKey.has(row.key) || row.restores === true
-                const vis = creates ? null : rowVisibility(row, settings)
-                const on = !!vis && vis.state === 'shown'
-                const hiddenRow = !!vis && vis.state === 'hidden'
-                return (
-                  /* ⛔⛔ THE ROW IS NOT A CONTROL; ITS TITLE LINE IS. This `<li>`
-                     was a `role="option"` with `tabIndex={0}`, and an ON row
-                     carries "+ Add another" — a focusable control nested inside an
-                     interactive one (axe `nested-interactive`, measured on
-                     `movingAverage`, the one row on a default chart). An option
-                     cannot hold a button, so the list is a plain list: the toggle
-                     is the real `<button aria-pressed>` round the title line, its
-                     click BUBBLES to this `onClick` (one writer for pointer and
-                     keyboard), and "+ Add another" is its sibling. */
-                  <li
-                    key={row.key || row.id}
-                    data-def-id={row.id}
-                    data-result-kind={row.kind || undefined}
-                    /* ⭐ THE PROVENANCE, ON THE ROW ITSELF. A member's formula is
-                       a different KIND of thing from a shipped indicator — they
-                       wrote it, only they have it, and it is theirs to delete —
-                       so it is marked structurally (this attribute + the class
-                       below + the pill) rather than only by which heading it
-                       happens to sit under. */
-                    data-user-defined={row.userDefined ? 'true' : 'false'}
-                    className={`${styles.row} ${on ? styles.rowOn : ''} ${row.userDefined ? styles.rowMine : ''}`}
-                    onClick={() => toggle(row)}
-                  >
-                    <span className={styles.check} aria-hidden="true"
-                      title={vis && vis.partial ? `${vis.visible} of ${vis.live} shown` : undefined}>
-                      {on ? (vis.partial ? '✓◐' : '✓') : hiddenRow ? '○' : ''}
-                    </span>
-                    <span className={styles.main}>
-                      {/* ⭐ THE KEYBOARD DOOR. No handler of its own: Enter and
-                          Space click a native button and the click bubbles to the
-                          row. `aria-pressed` is the state `aria-selected` used to
-                          carry; the description is named by reference. */}
-                      <button
-                        type="button"
-                        className={`${styles.titleRow} ${styles.primary}`}
-                        data-result-primary="true"
-                        aria-pressed={on}
-                        aria-describedby={row.description ? blurbId(row) : undefined}
-                      >
-                        {/* The LONG name here — `meta.name`. Menus, region titles
-                            and compact strips take `shortName`; this surface and
-                            the generated settings rows take the full one. */}
-                        <span className={styles.name}>{row.name}</span>
-                        {/* ⛔ VISIBLE, NOT SPOKEN, ONLY WHEN THE NAME ALREADY SAYS IT
-                            word for word ("Parabolic SAR SAR"); see `shortTag.js`.
-                            Any other tag (ADX, RSI) is visible text and stays in
-                            the accessible name: WCAG 2.5.3 Label in Name. */}
-                        <span className={styles.chip}
-                          aria-hidden={tagRestatesName(row.name, row.shortName) ? 'true' : undefined}>{row.shortName}</span>
-                        {/* ⭐ NAMED, NOT JUST TINTED. A colour alone is not a
-                            distinction for a member who cannot see it, and the
-                            heading scrolls out of view on a long list. */}
-                        {row.userDefined && <span className={styles.mine}>Your formula</span>}
-                        {hiddenRow && <span className={styles.pill} data-testid="row-hidden">Hidden</span>}
-                        {row.sessionOnly && <span className={styles.pill}>Intraday only</span>}
-                        {/* ⭐⭐ THE LINTER'S MEASUREMENT, PER PLOT — never the
-                            definition's declared badge. See `repaintNotice`. */}
-                        {repaintNotice(row)}
-                        {/* Tier is shown only when it is NOT free. Every native
-                            is free today, so this renders for nothing — which is
-                            why the test asserts its ABSENCE rather than its text.
-
-                            ⛔ AND NEVER ON THE MEMBER'S OWN FORMULA. A custom
-                            indicator IS premium-tier, so this badge was true and
-                            still wrong: beside "Your formula", on a row the member
-                            wrote themselves and already has on their chart, the
-                            word "Premium" reads as "you cannot use this". A tier
-                            badge is an offer to someone who does not have it, not
-                            a label on something you already own. */}
-                        {row.tier && row.tier !== 'free' && !row.userDefined && (
-                          <span className={styles.tier}>{row.tier}</span>
-                        )}
-                      </button>
-                      {row.description && <span className={styles.blurb} id={blurbId(row)}>{row.description}</span>}
-                    </span>
-                    {/* ⛔ ONLY ON A ROW THAT IS ON, AND NEVER ON THE CARVED-OUT ONE.
-                        `volumeProfile` has no definition, so `addInstance` returns
-                        the settings BY IDENTITY for it and the button would be a
-                        live control that writes nowhere — the exact defect this
-                        phase retires. A second volume profile is not a thing the
-                        canvas overlay can draw anyway. */}
-                    {on && !row.carvedOut && !row.singleton && (
-                      <button
-                        type="button"
-                        className={styles.addAnother}
-                        aria-label={`Add another ${row.name}`}
-                        title={`Add a second ${row.shortName} with the default settings`}
-                        onClick={(e) => addAnother(row, e)}
-                      >+ Add another</button>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        ))}
+        {/* ⭐ "All indicators" SEARCHES THE UCT SET TOO (2026-11-18): "Fred" found nothing while Fred RS sat on
+            the "UCT indicators" shelf. Its matches lead the results, under their own heading. */}
+        {shown === SHELF_ALL && query.trim() && (
+          <div data-testid="library-house-search">
+            <IndicatorHouseTab
+              query={query}
+              searchOnly
+              onMatches={setHouseMatchCount}
+              listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+              isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+              onPutOnChart={(defId) => {
+                if (!defId || !registry?.getDefinition?.(defId)) return false
+                const next = addInstance(settings, defId, registry)
+                if (next === settings) return false
+                onChange?.({ ...next, preset: 'custom' })
+                onClose?.()
+                return true
+              }}
+            />
+          </div>
+        )}
+        {!isListShelf(shown) && indicatorGroups.filter((c) => shelfRows.some((r) => r.category === c)).map(renderGroup)}
+        {/* ⭐ THE HINT ROW SITS UNDER THE INDICATOR RESULTS AND ABOVE ANY SYMBOL
+            RESULTS: it is a note about the indicators, so it must not end up
+            below a dozen tickers (2026-11-08). */}
+        {shown === SHELF_ALL && searchHint && renderSearchHint(searchHint, settings, toggle)}
+        {shown === SHELF_ALL && discoveryGroups.map(renderGroup)}
         {/* 🔴 SAVED, AND NOT OFFERED — WITH THE REASON. Rendered LAST, and only
             when something was actually refused, so a member whose formulas all
             install sees no new section, no empty heading and no warning about
             nothing. */}
-        {refusals.length > 0 && (
+        {(shown === SHELF_ALL || shown === SHELF_MINE) && refusals.length > 0 && (
           <section className={styles.group} data-testid="user-definition-refusals">
             <h3 className={styles.groupHead}>{REFUSED_CATEGORY}</h3>
             {/* The ONE sentence this surface writes for itself, and it says WHAT
@@ -631,7 +952,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                 untouched below it. Same split `useUserDefinitions` draws when it
                 refuses to paraphrase the store's refusal. */}
             <p className={styles.refusedLede}>
-              These saved formulas are not being offered on this chart. The reason
+              These saved indicators are not being offered on this chart. The reason
               below comes from the check that refused each one.
             </p>
             {/* ⛔ NOT a `role="listbox"` and NOT `role="option"`. There is no
@@ -648,7 +969,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                   <span className={styles.main}>
                     <span className={styles.titleRow}>
                       <span className={styles.name}>{row.name}</span>
-                      <span className={styles.mine}>Your formula</span>
+                      <span className={styles.mine}>Your indicator</span>
                     </span>
                     {/* ⛔ THE GATE'S OWN SENTENCE, WHOLE AND UNEDITED — including
                         the `<id>: ` prefix the door itself writes. A definition
@@ -670,6 +991,37 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
         )}
       </div>
     </Sheet>
+  )
+}
+
+/**
+ * ⭐ THE SEARCH HINT ROW (Phase 4, unit 4-03): the definition's own `line`, and
+ * one button that calls the dialog's `toggle` for the hinted row — the same door
+ * a click on the row itself uses. The label is `cta`, or "Add <meta.name>"; it
+ * never hard-codes an indicator.
+ *
+ * ⛔ THE BUTTON FOLLOWS THE ROW'S STATE. `toggle` on a SHOWN row hides it, so an
+ * "Add" button there would take the indicator off the chart. Shown ⇒ no button,
+ * a plain note instead; hidden ⇒ "Show <name>", which is what the toggle does.
+ */
+function renderSearchHint({ row, def, hint }, settings, toggle) {
+  const name = (def && def.meta && def.meta.name) || row.name
+  const state = rowVisibility(row, settings).state
+  return (
+    <div className={styles.hintRow} data-testid="library-search-hint" data-def-id={row.id}>
+      <span className={styles.hintLine}>{hint.line}</span>
+      {state === 'shown' ? (
+        <span className={styles.hintOn} data-testid="library-search-hint-on">{name} is already on this chart.</span>
+      ) : (
+        <button
+          type="button"
+          className={styles.hintButton}
+          data-testid="library-search-hint-add"
+          data-library-nav="true"
+          onClick={() => toggle(row)}
+        >{state === 'hidden' ? `Show ${name}` : (hint.cta || `Add ${name}`)}</button>
+      )}
+    </div>
   )
 }
 
@@ -725,7 +1077,7 @@ function repaintNotice(row) {
       data-repaint={mode}
       data-repaint-plots={notices.map((n) => n.plotKey).join(' ')}
       /* The linter's own settling sentence, per plot, untouched. */
-      title={notices.map((n) => `${n.label} — ${n.sentence}`).join(' ')}
+      title={notices.map((n) => `${n.label} — ${withoutGuardIds(n.sentence)}`).join(' ')}
     >{labelForRepaint(mode)}{notices.length ? ` — ${notices.map((n) => n.label).join(', ')}` : ''}</span>
   )
 }

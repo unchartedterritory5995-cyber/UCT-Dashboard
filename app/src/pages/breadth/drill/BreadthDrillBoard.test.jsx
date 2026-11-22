@@ -23,12 +23,18 @@ vi.mock('../../charts/WidgetHost', () => ({
 
 import BreadthDrillBoard from './BreadthDrillBoard'
 import { defaultBoard, LIST_WIDGET_ID, CHART_WIDGET_ID, SPLIT_MIN, SPLIT_MAX } from './drillBoardPrefs'
+import { WorkspaceContext, WORKSPACE_FALLBACK } from '../../charts/WorkspaceContext'
 
-function mount(props = {}) {
+// The chart is hosted once its colour group has a stock (the list's first row); `sym: null` is the
+// window while the list is still loading.
+function mount(props = {}, { sym = 'SIMX' } = {}) {
   hosted = []
   const board = defaultBoard()
+  const ws = { ...WORKSPACE_FALLBACK, groupSyms: { A: sym, B: sym, C: sym, D: sym } }
   return render(
-    <BreadthDrillBoard board={board} onBoardChange={() => {}} {...props} />,
+    <WorkspaceContext.Provider value={ws}>
+      <BreadthDrillBoard board={board} onBoardChange={() => {}} {...props} />
+    </WorkspaceContext.Provider>,
   )
 }
 
@@ -39,6 +45,12 @@ describe('BreadthDrillBoard — desktop geometry', () => {
     const { container } = mount()
     expect(hosted).toEqual([LIST_WIDGET_ID, CHART_WIDGET_ID])
     expect(container.querySelector('[role="separator"]')).toBeTruthy()
+  })
+
+  it('⛔ no stock yet (the list still loading) → an empty chart pane, never a stand-in symbol (SPY)', () => {
+    mount({}, { sym: null })
+    expect(hosted).toEqual([LIST_WIDGET_ID])
+    expect(screen.getByTestId('drill-chart-waiting')).toBeTruthy()
   })
 
   it('publishes data-pane for the stylesheet to key off', () => {
@@ -116,7 +128,7 @@ describe('BreadthDrillBoard — the split resizes from the keyboard', () => {
     const { container } = mount()
     const d = sep(container)
     expect(d.getAttribute('tabindex')).toBe('0')
-    expect(d.getAttribute('aria-valuenow')).toBe('340')
+    expect(d.getAttribute('aria-valuenow')).toBe('372')
     // ⛔ Read off the module, never retyped — a hand-copied bound is the pair that
     // drifts silently because nobody can see aria values.
     expect(d.getAttribute('aria-valuemin')).toBe(String(SPLIT_MIN))

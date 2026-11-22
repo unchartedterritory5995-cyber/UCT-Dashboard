@@ -1,0 +1,18 @@
+//@version=6
+indicator("UCTPROBE_I6AN4_SWITCH6", overlay = false)
+
+// I6a-N4 (2026-11-07), capture row I6A-N4-1b: `docs/pine/capture-queue-2026-11-07-i6a-n4.md`.
+// The question is whether TradingView COMPILES this file. Ours refuses it `pine:indent`. Read as for I6A-N4-1a.
+// Record isFailed() and, if it fails, status().errorDescription.editorError (code, message,
+// line, column): that text IS the measurement. Paste each file ALONE (a Pine script compiles
+// as a whole, so one invalid shape would hide the others).
+// Indents are SPACES, counted exactly; do not let the editor re-indent on paste.
+
+m = bar_index % 2
+k = bar_index % 3
+v = switch m
+    0 => switch k
+      0 => close
+      => low
+    => high
+plot(v, "N01_nested_at_6")

@@ -1,0 +1,30 @@
+{
+  "schema": "uct.strategy-report-slots/v1",
+  "status": "PINNED",
+  "why": "W9-C0 taken (run s25-2026-11-15, U14 phase 1): the Strategy Tester report lives at the chart model's `_reportData` (`reportPath`), and each slot is a key path INTO that tree, read off the committed capture tests/fixtures/vendor/harness/s1-broker-core-rddt-1d-2026-11-15.json. A null slot would refuse by name strategy-report:unpinned. Units as measured: every percentage is a FRACTION; grossLoss, avgLosingTrade and largestLosingTrade are POSITIVE magnitudes (strategy_reference.mjs REPORT_UNITS).",
+  "capturedFrom": "s1-broker-core-rddt-1d-2026-11-15",
+  "reportPath": ["_reportData"],
+  "slots": {
+    "netProfit": ["performance", "all", "netProfit"],
+    "grossProfit": ["performance", "all", "grossProfit"],
+    "grossLoss": ["performance", "all", "grossLoss"],
+    "maxDrawdown": ["performance", "maxStrategyDrawDown"],
+    "maxRunup": ["performance", "maxStrategyRunUp"],
+    "buyAndHoldReturn": ["performance", "buyHoldReturn"],
+    "totalClosedTrades": ["performance", "all", "totalTrades"],
+    "totalOpenTrades": ["performance", "all", "totalOpenTrades"],
+    "numberWinningTrades": ["performance", "all", "numberOfWiningTrades"],
+    "numberLosingTrades": ["performance", "all", "numberOfLosingTrades"],
+    "percentProfitable": ["performance", "all", "percentProfitable"],
+    "profitFactor": ["performance", "all", "profitFactor"],
+    "avgTrade": ["performance", "all", "avgTrade"],
+    "avgWinningTrade": ["performance", "all", "avgWinTrade"],
+    "avgLosingTrade": ["performance", "all", "avgLosTrade"],
+    "largestWinningTrade": ["performance", "all", "largestWinTrade"],
+    "largestLosingTrade": ["performance", "all", "largestLosTrade"],
+    "avgBarsInTrades": ["performance", "all", "avgBarsInTrade"],
+    "sharpeRatio": ["performance", "sharpeRatio"],
+    "sortinoRatio": ["performance", "sortinoRatio"],
+    "commissionPaid": ["performance", "all", "commissionPaid"]
+  }
+}

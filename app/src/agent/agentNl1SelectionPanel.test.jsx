@@ -216,8 +216,13 @@ describe('no substitution', () => {
     await say('add another chart with AMD, draw a line at 100 and put AMD on my watchlist')
     await waitFor(() => expect(transcript()).toMatch(/AMD/))
     await settle()
-    expect(sym(b, 'L')).toBe('NVDA')                                       // proposed, not run
+    expect(sym(b, 'L')).toBe('NVDA')                                       // never run
     expect(turns).toHaveLength(1)
+    // hotfix 11-13 (chart rail): "add ANOTHER chart" re-symbolling the existing chart is now refused outright (nothing
+    // proposed, nothing waiting) — before, it was held on a card. "cancel" then has nothing to cancel: the (scripted) model
+    // only answers, and the chart is still untouched.
+    expect(transcript()).toMatch(/you asked for more charts, but this would have changed the ones you have/)
+    script = () => answer({ reply: 'Nothing is waiting.' })
     await say('cancel')
     expect(sym(b, 'L')).toBe('NVDA')
   })

@@ -155,7 +155,14 @@ def test_the_declared_bars_still_state_the_recorded_baseline():
     becomes a deliberate, reviewable act (and raising one, likewise)."""
     assert sum(golden_set.RUNG_PASS_BARS.values()) == 12
     assert golden_set.RUNG_PASS_BARS == {1: 6, 2: 6, 3: 0, 4: 0, 5: 0}
-    assert sum(golden_set.rung_question_counts().values()) == 50
+    # 50 at the recorded baseline, plus the three UCT RS questions of unit 4-07
+    # (2026-11-08: R1-11-rs-nvda-leading, R2-11-rs-gold-dot, R2-12-rs-vs-rsi). The
+    # BARS above are unchanged: new questions raise a rung's denominator, never
+    # lower its bar.
+    # 57 since RS screens unit U11 (2026-11-14): four rung-1 questions for the two RS
+    # screens tools (R1-12-rs-leaders-today, R1-13-rs-new-highs-week,
+    # R1-14-rs-is-nvda-a-leader, R1-15-rs-new-highs-before-price). Bars unchanged.
+    assert sum(golden_set.rung_question_counts().values()) == 57
 
 
 def test_every_rung_in_the_golden_set_has_a_bar_and_the_bar_is_reachable():

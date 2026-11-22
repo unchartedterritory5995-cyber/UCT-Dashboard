@@ -31,7 +31,6 @@ import time
 from typing import Any, Literal
 from urllib.parse import quote, unquote
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, Field, ValidationError, model_validator
@@ -46,10 +45,9 @@ from api.middleware.auth_middleware import (
 from api.services import auth_service, crypto_box
 from api.services import request_body_cap as body_cap
 from api.services.auth_db import get_connection
-from api.services.journal_two import notes as notes_svc
 from api.services.journal_two import widget_request_body
 from api.services.journal_two.note_connectors import (
-    connections, engine, errors, obsidian_attachments, obsidian_link, obsidian_staging, oauth,
+    connections, dest_folder, engine, errors, obsidian_attachments, obsidian_link, obsidian_staging, oauth,
     registry,
 )
 from api.services.journal_two.note_connectors.providers.craft import parse_capability_url
@@ -180,7 +178,7 @@ def _verify_state(state: str, *, provider: str) -> str:
 
     ⛔ That "on ANY failure" claim was FALSE until the `compare_digest` call
     below was fixed to compare BYTES: `state` arrives as a raw URL query
-    value on the Notion/Dropbox/MS Graph OAuth callback, and a malformed one
+    value on the Notion/Evernote OAuth callback, and a malformed one
     can decode (base64 + `.decode("utf-8")`) into a `sig` half containing a
     non-ASCII character. `hmac.compare_digest` on two `str` raises
     `TypeError` (not a clean False) the instant either side is non-ASCII --
@@ -272,35 +270,14 @@ def _dashboard_url() -> str:
     return (os.environ.get("DASHBOARD_URL") or "https://uctintelligence.com").rstrip("/")
 
 
-def _dropbox_redirect_uri() -> str:
-    # Reuses oauth.py's OWN redirect-uri derivation (pure, no side effects,
-    # not keyed off oauth.py's `_PROVIDERS` registry at all — see its
-    # source) rather than re-deriving the `<PROVIDER>_REDIRECT_URI` override
-    # + DASHBOARD_URL + callback-path format a second time here. A second
-    # authority over that format drifting from the first is exactly this
-    # repo's most-repeated defect class.
-    return oauth._redirect_uri("dropbox")
-
-
-def _default_dest_folder_id(user_id: str, name: str) -> str | None:
-    """Best-effort default Notebook folder for a newly-connected source
-    (spec §5: "default: 'Roam — {graph}' root folder") — NEVER raises; a
-    failure here degrades to `None` (notes land at the Notebook root) rather
-    than blocking the connect flow."""
-    trimmed = (name or "").strip()[:80] or "Notebook Sync"
-    try:
-        folder = notes_svc.create_folder(user_id, trimmed)
-        return folder["id"]
-    except notes_svc.NoteValidationError:
-        try:
-            for f in notes_svc.list_folders(user_id):
-                if f["name"] == trimmed and not f.get("parentId"):
-                    return f["id"]
-        except Exception:  # noqa: BLE001
-            pass
-        return None
-    except Exception:  # noqa: BLE001
-        return None
+def _default_dest_folder_id(user_id: str, provider: str, display_name: str | None,
+                            remote_id: str | None) -> str | None:
+    """Best-effort default Notebook folder for a newly-connected source -- NEVER raises; a failure
+    degrades to `None` (notes land at the Notebook root) rather than blocking the connect flow.
+    The name and the make-or-reuse are `dest_folder`'s, the ONE authority the engine's self-heal
+    shares (a deleted destination folder is recreated under exactly this name)."""
+    return dest_folder.default_folder_id(
+        user_id, dest_folder.default_folder_name(provider, display_name, remote_id))
 
 
 # ── GET /status ───────────────────────────────────────────────────────────────
@@ -447,6 +424,12 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
             s["pluginSupportsAttachments"] = (
                 obsidian_link.plugin_version_supports_attachments(version) if attachments_on else None)
         s["counts"] = counts_by_source.get(s["id"], dict(_ZERO_COUNTS))
+        # Fix round 1 (I3): a pass for this source is running right now (this process's in-flight
+        # guard), so the row can read "syncing" after a background Sync now. D4-2: a pass that
+        # holds the guard but still waits for one of the shared pass slots is "queued" instead.
+        queued = engine.is_source_queued(s["id"])
+        s["queued"] = queued
+        s["syncing"] = engine.is_source_busy(s["id"]) and not queued
         s["pendingRemoval"] = int(pending.get(s["id"], 0))
         # None = the newest row's failures could not be read: the count is
         # unknown (null), and `lastFailuresUnreadable` keeps the card's path to
@@ -461,7 +444,7 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
         entry = registry.get_entry(name)
         connector = connectors.get(name)
         providers[name] = {
-            "configured": entry.configured(),
+            "configured": entry.configured() and registry.provider_allowed_for(name, user),
             "connectKind": entry.connect_kind,
             "connected": connector is not None,
             "status": connector["status"] if connector else None,
@@ -474,7 +457,6 @@ def get_status(user: dict = Depends(get_current_user)) -> dict[str, Any]:
 # ── POST /{provider}/connect ──────────────────────────────────────────────────
 
 async def _connect_token_provider(provider: str, body: ConnectBody, user_id: str) -> dict[str, Any]:
-    entry = registry.get_entry(provider)
     if provider == "roam":
         if not body.graphName or not body.token:
             raise HTTPException(status_code=400, detail="graphName and token are required")
@@ -504,7 +486,7 @@ async def _connect_token_provider(provider: str, body: ConnectBody, user_id: str
         await _aclose(provider_obj)
 
     _upsert_connector_or_503(user_id, provider, creds, account_label=info.label)
-    dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {info.label}")
+    dest_folder_id = _default_dest_folder_id(user_id, provider, info.label, remote_id)
     source = connections.create_source(
         user_id, provider, remote_id, display_name=info.label, dest_folder_id=dest_folder_id,
     )
@@ -531,6 +513,15 @@ def _mint_device_connect_code(provider: str, user_id: str) -> dict[str, Any]:
     return {"connectCode": code, "expiresInSeconds": obsidian_link._CONNECT_CODE_TTL_SECONDS}
 
 
+def _require_provider_allowed(provider: str, user: dict) -> None:
+    """Plan E Task 7: the per-member gate (`registry.provider_allowed_for`; only Evernote's
+    `admin` mode ever says no). The SAME 503 text as an unconfigured provider, so a member cannot
+    tell "admin-only" from "off". Disconnect and the log stay ungated: a paused member can leave."""
+    if not registry.provider_allowed_for(provider, user):
+        label = registry.get_entry(provider).label
+        raise HTTPException(status_code=503, detail=f"{label} is not configured on this server.")
+
+
 def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
     entry = registry.get_entry(provider)
     if not entry.configured():
@@ -540,15 +531,16 @@ def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
     except errors.NoteConnNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e))
     if provider in oauth._PROVIDERS:
-        # Generic path — Notion today, onenote/onedrive (Microsoft Graph)
-        # once their registry.py rows land (Task 3/7 of this plan): ZERO
-        # per-name code here, the branch is keyed on which providers
-        # `oauth.py` itself knows how to talk to.
+        # Generic path (Notion): keyed on which providers `oauth.py` itself knows how to talk to.
         url = oauth.authorize_url(provider, state)
-    else:  # dropbox -- owns its OAuth mechanics outside oauth.py, see this
-        # module's own docstring / oauth.py's docstring for why.
-        from api.services.journal_two.note_connectors.providers.dropbox import authorize_url as dbx_authorize_url
-        url = dbx_authorize_url(_dropbox_redirect_uri(), state)
+    elif provider == "evernote":
+        # Plan E Task 7. PKCE: the verifier is derived from the state.
+        from api.services.journal_two.note_connectors import evernote_oauth
+        url = evernote_oauth.authorize_url(state, _state_secret())
+    else:
+        # Every registered "oauth" provider is handled above (Dropbox, the only one that owned
+        # its OAuth outside oauth.py, was archived 2026-11-04).
+        raise HTTPException(status_code=404, detail=f"unknown OAuth provider {provider!r}")
     return {"redirectUrl": url}
 
 
@@ -559,6 +551,7 @@ async def connect(provider: str, user: dict = Depends(_paid), body: ConnectBody 
     if not body.consent:
         raise HTTPException(status_code=400, detail="Consent is required to connect a note source.")
 
+    _require_provider_allowed(provider, user)
     entry = registry.get_entry(provider)
     if entry.connect_kind == "oauth":
         return _start_oauth(provider, user["id"])
@@ -569,15 +562,19 @@ async def connect(provider: str, user: dict = Depends(_paid), body: ConnectBody 
 
 # ── GET /{provider}/callback (OAuth) ──────────────────────────────────────────
 
-# Generic-OAuth providers (`provider in oauth._PROVIDERS`) whose OWN token
-# response carries no natural source-identifying field (Notion's
-# `workspaceId`/`botId` vocabulary), but which STILL need exactly ONE
-# whole-account source auto-created on callback (Task 7, msgraph wave --
-# the Notion pattern, not Dropbox/OneDrive's connector-only-then-folder-
-# picker shape). Today: just `onenote`. Deliberately does NOT include
-# `onedrive` -- OneDrive must stay sourceless -> folder-picker, same as
-# Dropbox (see `_FOLDER_PICKER_PROVIDERS` below).
-_MSGRAPH_WHOLE_ACCOUNT_PROVIDERS = frozenset({"onenote"})
+# Plan E Task 7: the `reason=` an Evernote account that cannot use the MCP server lands with (a
+# 403 at validate, or a consent refusal whose description names the plan). The card offers the
+# `.enex` import path for it.
+EVERNOTE_PLAN_REASON = "evernote_plan"
+# The `reason=` when Evernote stopped being configured between connect and callback: member words,
+# the same as connect's 503, never the env var name an unconfigured `exchange_code` would carry.
+EVERNOTE_UNAVAILABLE_REASON = "Evernote is not configured on this server."
+_PLAN_WORDS = ("plan", "subscription", "upgrade", "premium", "personal", "professional", "tier")
+
+
+def _is_evernote_plan_refusal(error: str, description: str | None) -> bool:
+    text = (description or "").lower()
+    return error == "access_denied" and any(word in text for word in _PLAN_WORDS)
 
 
 
@@ -646,6 +643,7 @@ def _oauth_state_failure_page(provider: str) -> HTMLResponse:
 async def oauth_callback(
     provider: str, code: str | None = None, state: str | None = None, error: str | None = None,
     user: dict | None = Depends(get_current_user_optional),
+    error_description: str | None = None,
 ) -> RedirectResponse | HTMLResponse:
     """Fix-round-1 Important #2: the redirect from the provider is a
     top-level browser GET, so the user's OWN `Lax` session cookie arrives
@@ -661,6 +659,8 @@ async def oauth_callback(
     if not registry.is_known(provider) or registry.get_entry(provider).connect_kind != "oauth":
         raise HTTPException(status_code=404, detail=f"unknown OAuth provider {provider!r}")
 
+    if error and provider == "evernote" and _is_evernote_plan_refusal(error, error_description):
+        error = EVERNOTE_PLAN_REASON
     if error:
         return RedirectResponse(
             f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(error)}",
@@ -682,81 +682,55 @@ async def oauth_callback(
         return _oauth_state_failure_page(provider)
     user_id = state_user_id
     entry = registry.get_entry(provider)
+    if not registry.provider_allowed_for(provider, user):
+        # The flag can change between connect and callback: nothing is exchanged or stored.
+        return RedirectResponse(
+            f"{dashboard}/settings?section=connections&connector={provider}&connected=0",
+            status_code=302,
+        )
 
     try:
         if provider in oauth._PROVIDERS:
-            # Generic path (Task 1's own scope: Notion today, onenote/
-            # onedrive once their registry.py rows land) -- ZERO per-name
-            # code for the TOKEN EXCHANGE itself. `workspaceName`/
-            # `workspaceId`/`botId` are Notion's own fields
-            # (`_normalize_token_response` never invents them for a
-            # provider that doesn't return them, e.g. Microsoft Graph), so
-            # falling back to the registry's own label/None keeps this
-            # branch honest for a provider with no "workspace" concept at
-            # all rather than baking Notion's vocabulary into a generic
-            # branch.
+            # Generic path (Notion) -- ZERO per-name code for the TOKEN EXCHANGE itself.
+            # `workspaceName`/`workspaceId`/`botId` are Notion's own fields
+            # (`_normalize_token_response` never invents them), so falling back to the
+            # registry's own label/None keeps this branch honest for a provider with no
+            # "workspace" concept at all.
             creds = await oauth.exchange_code(provider, code)
             account_label = creds.get("workspaceName") or entry.label
             remote_id: str | None = creds.get("workspaceId") or creds.get("botId")
-            if remote_id is None and provider in _MSGRAPH_WHOLE_ACCOUNT_PROVIDERS:
-                # Task 7's named risk: OneNote is Notion-shaped ("the
-                # connector IS the one implicit source", spec §12), but
-                # unlike Notion its OAuth token response carries no
-                # workspace/bot id to key that source on -- Microsoft Graph
-                # has nothing resembling a "workspace." Left alone,
-                # `remote_id` would stay None and OneNote would land in
-                # Dropbox/OneDrive's connector-only, SOURCELESS state -- a
-                # dead end for a provider with no folder picker to complete
-                # it (OneNote is deliberately excluded from
-                # `_FOLDER_PICKER_PROVIDERS` below). `MSGraphClient.validate`
-                # (`GET /me`) is the SAME call every msgraph provider
-                # already makes for account-label resolution; its
-                # `AccountInfo.raw["id"]` is a real, stable Microsoft
-                # account id, reused here so the stored source reflects the
-                # actual connected account (and gives `account_label` a real
-                # display name instead of just repeating the registry's
-                # generic "OneNote" label) -- with a fixed "me" sentinel as
-                # a defensive fallback only if Graph's own `/me` response is
-                # ever missing its `id` field. A validate() failure here
-                # (e.g. a since-revoked token) is caught by the SAME
-                # `except errors.NoteConnError` below the dropbox branch,
-                # exactly like dropbox's own validate() call.
-                provider_obj = registry.build_provider(provider)
-                try:
-                    info = await provider_obj.validate(creds)
-                finally:
-                    await _aclose(provider_obj)
-                account_label = info.label or account_label
-                remote_id = (info.raw or {}).get("id") or "me"
-        else:  # dropbox -- no oauth.py entry (see providers/dropbox.py's own OAuth
-            # mechanics); exchanges directly against its documented private
-            # helper (the module's own docstring invites this: "the router
-            # task ... can call these directly", and the existing provider
-            # test suite already does the same).
-            from api.services.journal_two.note_connectors.providers import dropbox as dbx
-            client = httpx.AsyncClient(timeout=30.0)
+        elif provider == "evernote" and not entry.configured():
+            # Task 7 review nit: re-checked here; nothing is exchanged or stored.
+            return RedirectResponse(
+                f"{dashboard}/settings?section=connections&connector={provider}&connected=0"
+                f"&reason={quote(EVERNOTE_UNAVAILABLE_REASON)}",
+                status_code=302,
+            )
+        elif provider == "evernote":
+            # Plan E Task 7. The PKCE verifier is re-derived
+            # from the signed state; one whole-account source (a member has one connector).
+            from api.services.journal_two.note_connectors import evernote_oauth
+            from api.services.journal_two.note_connectors.providers.evernote import EvernoteProvider
+            creds = await evernote_oauth.exchange_code(code, state, _state_secret())
+            # Task 7 review m2: NO user, so validation proves the NEW token alone; a 401 here can
+            # never refresh (and rotate) a still-stored OLD connection.
+            provider_obj = EvernoteProvider(user_id=None)
             try:
-                token_data = await dbx._exchange_authorization_code(client, code, _dropbox_redirect_uri())
-            finally:
-                await client.aclose()
-            creds = {"accessToken": token_data.get("access_token")}
-            if token_data.get("refresh_token"):
-                creds["refreshToken"] = token_data["refresh_token"]
-            provider_obj = registry.build_provider("dropbox")
-            try:
-                info = await provider_obj.validate(creds)
+                await provider_obj.validate(creds)
             finally:
                 await _aclose(provider_obj)
-            account_label = info.label
-            # Dropbox needs a FOLDER before a source can exist -- picked
-            # separately via GET .../dropbox/folders + POST .../dropbox/sources
-            # (MUST-RESOLVE #3). The connector is fully connected here; the
-            # source is not auto-created (unlike Roam/Craft/Notion, where the
-            # connector IS the one implicit source).
-            remote_id = None
+            account_label = "Evernote"
+            remote_id = "account"
+        else:
+            # Unreachable: every registered "oauth" provider is handled above (the 404 at the
+            # top of this function already refused any other name).
+            raise HTTPException(status_code=404, detail=f"unknown OAuth provider {provider!r}")
     except errors.NoteConnError as e:
+        reason = str(e)
+        if provider == "evernote" and getattr(e, "code", None) == "evernote_forbidden":
+            reason = EVERNOTE_PLAN_REASON  # ruling: any 403 at validate reads as the plan message
         return RedirectResponse(
-            f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(str(e))}",
+            f"{dashboard}/settings?section=connections&connector={provider}&connected=0&reason={quote(reason)}",
             status_code=302,
         )
 
@@ -781,7 +755,8 @@ async def oauth_callback(
             status_code=302,
         )
     if remote_id:
-        dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {account_label}")
+        # Evernote's folder is just "Evernote" (Task 7 review m1): `dest_folder.default_folder_name`.
+        dest_folder_id = _default_dest_folder_id(user_id, provider, account_label, remote_id)
         source = connections.create_source(
             user_id, provider, remote_id, display_name=account_label, dest_folder_id=dest_folder_id,
         )
@@ -796,69 +771,31 @@ async def oauth_callback(
     return RedirectResponse(f"{dashboard}/settings?section=connections&connector={provider}&connected=1", status_code=302)
 
 
-# ── Folder picker (spec §7: "OWN folder picker") ──────────────────────────────
-# Dropbox originally; generalized to OneDrive (msgraph wave Task 3) — both
-# sync a PICKED FOLDER (source-level `remoteId`), unlike Notion/Roam/Craft/
-# OneNote which sync a whole workspace/graph/account and have no folder
-# concept to pick. Every provider in this set dispatches identically through
-# `provider_obj.list_folders` — no per-provider branch below.
-_FOLDER_PICKER_PROVIDERS = frozenset({"dropbox", "onedrive"})
-
-
-@router.get("/{provider}/folders")
-async def list_provider_folders(
-    provider: str, path: str = "", user: dict = Depends(_paid),
-) -> dict[str, Any]:
-    if provider not in _FOLDER_PICKER_PROVIDERS:
-        raise HTTPException(status_code=404, detail="this provider does not expose a folder picker")
-    label = registry.get_entry(provider).label
-    try:
-        # Fix-round Important #3: a connected-but-sourceless OneDrive
-        # connector (the exact state this endpoint exists to complete) gets
-        # NO sync ticks -- nothing else ever calls `refresh_if_needed` for
-        # it -- so its ~60-90min Graph access token expires long before the
-        # user opens the picker again ("choose a folder tomorrow" 401s
-        # permanently otherwise). Route through `engine._resolve_credentials`
-        # (the SAME refresh-then-read helper every sync tick already uses)
-        # rather than the plain `connections.get_token` read this used to
-        # do -- a no-op for Dropbox (not `oauth.is_registered`, byte-
-        # identical to the old read) and for a still-fresh msgraph token
-        # (no `expiresAt`/not-yet-near-expiry -> `refresh_if_needed` itself
-        # short-circuits, per its own docstring).
-        creds = await engine._resolve_credentials(user["id"], provider)
-    except errors.NoteConnError as e:
-        _raise_for_provider_error(e)
-    except Exception:  # noqa: BLE001 — crypto_box.CryptoBoxError etc. -> treat as needing reconnect
-        raise HTTPException(status_code=409, detail=f"Reconnect {label} — stored credentials are unreadable.")
-    if creds is None:
-        raise HTTPException(status_code=409, detail=f"Connect {label} first.")
-
-    provider_obj = registry.build_provider(provider)
-    try:
-        folders = await provider_obj.list_folders(creds, path)
-    except errors.NoteConnError as e:
-        _raise_for_provider_error(e)
-    finally:
-        await _aclose(provider_obj)
-    return {"folders": folders}
-
-
 # ── POST /{provider}/sources (add an additional source) ──────────────────────
+
+#: The answer to a second Evernote source (final review M1): Evernote syncs the whole account.
+EVERNOTE_ONE_SOURCE = ("Evernote syncs your whole account, and it is already connected. "
+                       "There is nothing more to add.")
+
 
 @router.post("/{provider}/sources")
 async def add_source(provider: str, user: dict = Depends(_paid), body: AddSourceBody = Depends(_json(AddSourceBody))) -> dict[str, Any]:
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
+    _require_provider_allowed(provider, user)
     if connections.get_connector(user["id"], provider) is None:
         raise HTTPException(status_code=409, detail=f"Connect {provider} first.")
     remote_id = (body.remoteId or "").strip()
     if not remote_id:
         raise HTTPException(status_code=400, detail="remoteId is required")
+    if provider == "evernote" and any(
+            src["provider"] == "evernote" for src in connections.list_sources(user["id"])):
+        # Final review M1: Evernote's import keys do not depend on the source, so a second source
+        # would sync the same notes under the same keys into a second folder.
+        raise HTTPException(status_code=409, detail=EVERNOTE_ONE_SOURCE)
 
-    entry = registry.get_entry(provider)
-    label = body.displayName or remote_id
     dest_folder_id = body.destFolderId or _default_dest_folder_id(
-        user["id"], f"{entry.label} — {label}")
+        user["id"], provider, body.displayName, remote_id)
     source = connections.create_source(
         user["id"], provider, remote_id, display_name=body.displayName, dest_folder_id=dest_folder_id,
     )
@@ -882,6 +819,12 @@ async def sync_source_now(
     source = connections.get_source(user["id"], source_id)
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
+    _require_provider_allowed(source["provider"], user)
+    # Evernote rate-limit fix round 1 (I3): a provider whose pass can wait out a rate limit
+    # (Evernote) always syncs in the background; the source row then reads "syncing", and the
+    # progress line when the pass records it.
+    if not background and registry.runs_sync_in_background(source["provider"]):
+        background = True
 
     if background:
         if engine.is_source_busy(source_id):
@@ -916,6 +859,7 @@ def update_source(source_id: str, user: dict = Depends(_paid), body: SourceUpdat
     source = connections.get_source(user["id"], source_id)
     if source is None:
         raise HTTPException(status_code=404, detail="source not found")
+    _require_provider_allowed(source["provider"], user)
     if body.syncEnabled is None and body.destFolderId is None:
         raise HTTPException(status_code=400, detail="nothing to update")
     if body.syncEnabled is not None:
@@ -927,30 +871,27 @@ def update_source(source_id: str, user: dict = Depends(_paid), body: SourceUpdat
 
 # ── DELETE /{provider} (disconnect) ───────────────────────────────────────────
 
-async def _best_effort_revoke_dropbox(user_id: str) -> None:
-    """Fix-round-1 Important #5 (spec §8: "revoke best-effort, purge
-    tokens, keep notes"). Dropbox exposes `POST /2/auth/token/revoke`
-    (`providers/dropbox.py::revoke_token`) — called here, BEFORE the token
-    is purged (it needs to still be readable), and NEVER allowed to block
-    or fail the disconnect: any failure (network, already-revoked, an
-    unreadable stored credential) is caught and logged, not raised.
-    Notion has no revoke endpoint for a third-party OAuth app (the user's
-    own Notion "Connections" settings is the only place that grant can be
-    pulled) and Roam/Craft credentials are user-pasted tokens they manage
-    themselves, never app-issued OAuth grants — there is nothing on our
-    side to revoke for either, so this is Dropbox-only by design, not an
-    oversight."""
+#: Final re-review N1: the whole best-effort Evernote revoke (two POSTs) may take at most this long,
+#: so a hanging Evernote never holds a member's Disconnect.
+EVERNOTE_REVOKE_BUDGET_S = 10.0
+
+
+async def _best_effort_revoke_evernote(user_id: str) -> None:
+    """Final review M5: Evernote publishes an RFC 7009 `revocation_endpoint`
+    (`evernote_oauth.revoke_token`), so Disconnect ends the grant there too: BEFORE the purge (the token must still be readable), and NEVER allowed to
+    block or fail the disconnect. Ungated by the flag, as Disconnect is: a member can always cut
+    the grant."""
     try:
-        creds = connections.get_token(user_id, "dropbox")
-    except Exception:  # noqa: BLE001 — crypto_box.CryptoBoxError etc. -> nothing readable to revoke
+        creds = connections.get_token(user_id, "evernote")
+    except Exception:  # noqa: BLE001 — an unreadable stored credential: nothing to revoke
         return
     if creds is None:
         return
     try:
-        from api.services.journal_two.note_connectors.providers.dropbox import revoke_token
-        await revoke_token(creds)
+        from api.services.journal_two.note_connectors import evernote_oauth  # lazy, as the doors above
+        await asyncio.wait_for(evernote_oauth.revoke_token(creds), EVERNOTE_REVOKE_BUDGET_S)
     except Exception as e:  # noqa: BLE001 — best-effort; must NEVER block or fail the disconnect
-        log.warning("[note_sync] Dropbox token revoke failed (disconnect proceeds regardless): %s", e)
+        log.warning("[note_sync] Evernote token revoke failed (disconnect proceeds regardless): %s", e)
 
 
 @router.delete("/{provider}")
@@ -969,17 +910,17 @@ async def disconnect(provider: str, user: dict = Depends(_paid)) -> dict[str, An
     believing they cut the plugin off, still had a plugin able to push
     notes into staging (reproduced before this fix landed — see
     `test_obsidian_ingest.py`'s disconnect-revokes-the-device-token tests).
-    Mirrors Dropbox's best-effort-revoke-before-purge shape immediately
+    Mirrors Evernote's best-effort-revoke-before-purge shape immediately
     below, generalized to whichever provider owns an out-of-band credential
-    store of its own (Dropbox: a third-party OAuth grant; Obsidian: a
+    store of its own (Evernote: a third-party OAuth grant; Obsidian: a
     locally-issued device token) — NOT best-effort, though: a failed revoke
     here must fail the whole disconnect rather than silently claim success
     while a device is still live (see `obsidian_link.revoke_devices`'s own
     docstring)."""
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
-    if provider == "dropbox":
-        await _best_effort_revoke_dropbox(user["id"])
+    if provider == "evernote":
+        await _best_effort_revoke_evernote(user["id"])
     if provider == "obsidian":
         obsidian_link.revoke_devices(user["id"])
     ok = connections.delete_connector(user["id"], provider)
@@ -1017,6 +958,7 @@ def source_log(source_id: str, limit: int = 20, user: dict = Depends(get_current
                 "skipped": r["notes_skipped"] or 0,
                 "conflicts": r["conflicts"] or 0,
                 "sourceDeleted": r["source_deleted"] or 0,
+                "adopted": r["adopted"] or 0,  # Plan E Task 8; NULL in older rows reads 0
                 "failures": failures,
                 "failuresUnreadable": unreadable,
             })
@@ -1154,8 +1096,7 @@ def obsidian_redeem(
     # encrypted the device secret with the same key.
     _upsert_connector_or_503(device["user_id"], "obsidian", {}, account_label=device["label"])
 
-    display_label = device["label"] or f"Vault ({vault_id})"
-    dest_folder_id = _default_dest_folder_id(device["user_id"], f"{entry.label} — {display_label}")
+    dest_folder_id = _default_dest_folder_id(device["user_id"], "obsidian", device["label"], vault_id)
     source = connections.create_source(
         device["user_id"], "obsidian", vault_id,
         display_name=device["label"], dest_folder_id=dest_folder_id,

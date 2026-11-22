@@ -219,7 +219,6 @@ vi.mock('../../components/notebook/NoteEditorPage', () => ({ default: () => null
 vi.mock('../../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../../components/notebook/export/ExportDialog', () => ({ default: () => null }))
 vi.mock('../../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="home" /> }))
 
 describe('⭐⭐ THE WIRE — the Notebook actually reports it', () => {
   beforeEach(() => {

@@ -132,6 +132,7 @@ const registry = await import('../nativeRegistry')
 const { repaintNotices, plotRepaintNotice, definitionRollUp } = await import('../repaintVerdict')
 const { validateDefinition, SCHEMA_VERSION } = await import('../defSchema')
 const { parseFormula, astHash } = await import('../ast/parse')
+const { measureTrailingPads, readGoldenFixtureDocs } = await import('./goldenTrailingPads.js')
 
 const BARS = bars200.bars
 
@@ -222,19 +223,19 @@ describe('the per-plot verdict separates ONE column from its siblings', () => {
     // `tests/test_indicator_golden.py`'s `TRAILING_PAD` comment names in as many
     // words: *"change the back-shift and this goes red with the two numbers in
     // hand."*
+    //
+    // ⭐ 2026-11-07 — AND IT MEASURES PADS, NOT SILENCE. This loop counted the
+    // trailing null run of EVERY fixture column, and went red on six sparse
+    // event/dot columns of the UCT RS fixtures (`rs_events.dotNL`,
+    // `rs_mansfield.dotMansfieldCross`, …): null wherever no event fired, so they
+    // end in nulls whenever the last event is not the last bar. That is not a
+    // forward read. The measurement now lives in `goldenTrailingPads.js` (shared
+    // with `ast/lint.test.js`) and counts a column only when a shipped
+    // definition DRAWS it as a continuous series at `<compute.fn>.<plotKey>` —
+    // the address the linter reads and the unit the badge is per. The controls
+    // below hold both halves of that rule.
     const dir = path.join(REPO_ROOT, 'tests', 'fixtures', 'indicators')
-    const pads = {}
-    for (const file of fs.readdirSync(dir).filter(f => f.endsWith('.json'))) {
-      const doc = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'))
-      const expected = doc && doc.expected
-      if (!expected || typeof expected !== 'object' || Array.isArray(expected)) continue
-      for (const [col, values] of Object.entries(expected)) {
-        if (!Array.isArray(values) || !values.length) continue
-        let trailing = 0
-        for (let i = values.length - 1; i >= 0 && values[i] === null; i--) trailing++
-        if (trailing && trailing !== values.length) pads[`${doc.kind}.${col}`] = trailing
-      }
-    }
+    const pads = measureTrailingPads(readGoldenFixtureDocs(dir), registry.listDefinitions())
     expect(Object.keys(pads).sort(),
       'the trailing-pad measurement over the committed golden fixtures found nothing (or found ' +
       'something new). Empty means the comparison below is between a declaration and silence.',
@@ -243,6 +244,63 @@ describe('the per-plot verdict separates ONE column from its siblings', () => {
       'the plot DECLARES a forward window the compute\'s own committed output does not show. The ' +
       'artefact wins: one of them is describing maths nobody is running.',
     ).toBe(chikou.forward)
+  })
+
+  // ── the measurement's own controls (2026-11-07) ───────────────────────────
+  //
+  // ⛔ A filter that answered "no pad" to everything would turn the case above
+  // red — but a filter that kept chikou by NAME would pass it. These run the
+  // shared measurement over synthetic documents, so each clause of the rule is
+  // held by a case it alone decides.
+  const tail = [null, null, 1, 2, 3, 4, null, null, null]
+  const probeDoc = (cols) => [{ file: 'probe.json', doc: { kind: 'probe', expected: cols } }]
+  const probeDef = (plot) => [{ id: 'probe', compute: { kind: 'native', fn: 'probe' }, plots: [{ key: 'value', ...plot }] }]
+
+  it('control: a GENUINE trailing pad on a continuous plot is measured, at its exact length', () => {
+    for (const style of ['line', 'histogram', 'area', 'stepline']) {
+      expect(measureTrailingPads(probeDoc({ value: tail }), probeDef({ style })),
+        `a ${style} plot's 3-slot back-shift pad went unmeasured — the filter is refusing real pads`,
+      ).toEqual({ 'probe.value': 3 })
+    }
+    // …and a continuous column that ends on a value has no pad at all.
+    expect(measureTrailingPads(probeDoc({ value: [null, 1, 2, 3] }), probeDef({ style: 'line' }))).toEqual({})
+  })
+
+  it('control: the SAME column is not a pad when its plot is blank by design, or when no plot draws it', () => {
+    for (const plot of [
+      { style: 'markers' },
+      { style: 'markers', marker: { shape: 'circle' } },
+      { style: 'line', sparse: true },
+    ]) {
+      expect(measureTrailingPads(probeDoc({ value: tail }), probeDef(plot)),
+        `a plot blank by design (${JSON.stringify(plot)}) was measured as padded — its trailing nulls ` +
+        'mean "no event fired", not "written n bars back"',
+      ).toEqual({})
+    }
+    // A column at an address no definition plots: nothing reads a fact there.
+    expect(measureTrailingPads(probeDoc({ other: tail }), probeDef({ style: 'line' }))).toEqual({})
+    expect(measureTrailingPads(probeDoc({ value: tail }), [])).toEqual({})
+  })
+
+  it('control: the real RS dot columns DO end in nulls — the rule, not their data, keeps them out', () => {
+    // ⚠️ Without this the cases above could stay green because the RS fixtures
+    // had simply stopped ending in nulls. Measured RAW (every column treated as
+    // a line plot of its own kind) the dots still trail nulls; through the
+    // shipped definitions, none of them is a pad.
+    const docs = readGoldenFixtureDocs(path.join(REPO_ROOT, 'tests', 'fixtures', 'indicators'))
+    const rsDots = registry.getDefinition('rsLine').plots.filter(p => p.style === 'markers').map(p => p.key)
+    expect(rsDots.length, 'rsLine draws no dot plots, so this control is about nothing').toBeGreaterThan(0)
+    const raw = {}
+    for (const { file, doc } of docs) {
+      const asLines = [{ compute: { fn: doc.kind }, plots: Object.keys(doc.expected).map(key => ({ key, style: 'line' })) }]
+      try { Object.assign(raw, measureTrailingPads([{ file, doc }], asLines)) } catch { /* an all-null column */ }
+    }
+    const trailingDots = Object.keys(raw).filter(a => rsDots.includes(a.split('.')[1]))
+    expect(trailingDots.length,
+      'no RS dot column ends in nulls any more, so this file no longer proves the rule is what excludes them',
+    ).toBeGreaterThan(0)
+    const measured = measureTrailingPads(docs, registry.listDefinitions())
+    expect(trailingDots.filter(a => a in measured)).toEqual([])
   })
 })
 

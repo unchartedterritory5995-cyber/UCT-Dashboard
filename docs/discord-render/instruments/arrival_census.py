@@ -35,8 +35,10 @@ log line that happened to survive; they are Discord's own record of when it call
     EDITS the existing message — it creates no new message, so it leaves no trace here. V2's
     runtime enqueues those exactly like a slash command (`commands.py` → `_enqueue` at itype 3),
     so they are real queue arrivals that this census misses.
-  * EPHEMERAL replies — a throttle, a refusal, `/buzz`, the settings picks — are visible only to
-    the member and are not in channel history.
+  * EPHEMERAL replies — a throttle, a refusal, the settings picks, and `/buzz` for any date
+    before 2026-11-13 (public from then on, owner ruling) — are visible only to the member and
+    are not in channel history. So `/buzz` counts are zero-by-construction before that date and
+    real after it; never compare the two periods as one series.
   * Anything in a channel this bot cannot read, and `/chart` used outside the guild at all
     (the command is PUBLIC + USER_INSTALL, so a member may run it in a DM).
   * Deleted messages.

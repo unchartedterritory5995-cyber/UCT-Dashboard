@@ -45,7 +45,71 @@
 // letter of the label to the last digit of the value, gaps included. Hover is
 // plain CSS `:hover` on that box; there is no hover state in React.
 import styles from './LegendRow.module.css'
-import { safeCssColour } from '../engine/objectColour'
+import { inkCssColour } from '../engine/objectColour'
+import UIcon from '../../ui/UIcon'
+import { LEGEND_ROW_VALUES_MAX } from './legendRows'
+import { rowMenuAnchor } from './legendMenuPlace'
+
+/**
+ * ⭐⭐ UCT SIGNATURE ROW CONTROLS (owner-approved lab "2 · Chart legend", L1 · Rows,
+ * 2026-11-15) — hide · settings · more, revealed on hover inside a soft card.
+ *
+ * ⚠️ THIS REVERSES THE 2026-09 "THE ROW IS THE CONTROL" RULING ON PURPOSE: the owner
+ * chose the hover strip in the signature lab. The row is STILL a door (click /
+ * right-click / Enter open the same popover), so nothing a member had is gone; the
+ * strip is a shortcut to three verbs that popover already offers.
+ *
+ * ⛔ NO GEOMETRY COST. The strip is `position: absolute` off the row's right edge
+ * and `display: none` at rest, and the card is a `::before` with negative insets,
+ * so the row's box, the stack's pitch (`STUDY_ROW_PX`) and every value's x are
+ * identical hovered and at rest.
+ *
+ * ⛔ NOT IN THE TAB ORDER (`tabIndex={-1}`). The keyboard path is the row itself:
+ * Enter opens the popover, which carries every one of these verbs. Three more tab
+ * stops per row on a nine-row legend would be a trap, not a feature.
+ *
+ * ⛔ EVERY CLICK STOPS AT THE BUTTON, so it never also opens the row's popover or
+ * reaches the chart underneath.
+ *
+ * Shared by `IndicatorChip`'s grid row so the two kinds of row look and behave alike.
+ */
+export function RowActs({ name, hidden = false, onToggleHidden, onSettings, onMore, menuOpen = false, actsClass, actClass, eyeClass }) {
+  const stop = (fn) => (e) => {
+    e.stopPropagation()
+    e.preventDefault?.()
+    fn(e)
+  }
+  // ⛔ the row's own key handler must not see a key pressed on a button
+  const keyStop = (e) => e.stopPropagation()
+  return (
+    <span className={actsClass} data-row-acts="">
+      {typeof onToggleHidden === 'function' ? (
+        <button type="button" tabIndex={-1} className={`${actClass} ${eyeClass}`}
+          aria-label={hidden ? `Show ${name}` : `Hide ${name}`} title={hidden ? 'Show' : 'Hide'}
+          aria-pressed={hidden}
+          onClick={stop(() => onToggleHidden())} onKeyDown={keyStop}>
+          <UIcon name={hidden ? 'eyeOff' : 'eye'} size={14} strokeWidth={1.6} gold={false} />
+        </button>
+      ) : null}
+      {!hidden && typeof onSettings === 'function' ? (
+        <button type="button" tabIndex={-1} className={actClass}
+          aria-label={`${name} settings`} title="Settings"
+          onClick={stop(() => onSettings())} onKeyDown={keyStop}>
+          <UIcon name="gear" size={14} strokeWidth={1.6} gold={false} />
+        </button>
+      ) : null}
+      {!hidden && typeof onMore === 'function' ? (
+        <button type="button" tabIndex={-1} className={actClass}
+          aria-label={`More for ${name}`} title="More"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen ? 'true' : undefined}
+          onClick={stop(onMore)} onKeyDown={keyStop}>
+          <UIcon name="more" size={14} strokeWidth={1.6} gold={false} />
+        </button>
+      ) : null}
+    </span>
+  )
+}
 
 /**
  * @param {string}   rowId        stable identity (`ma:2`, `volume`, an instanceId)
@@ -140,6 +204,20 @@ export default function LegendRow({
   plotKey,
   computed,
   onOpen,
+  /** ⭐ UCT SIGNATURE — the hover strip's two direct verbs, `(rowId) => void` each.
+   *  Optional and VERTICAL ONLY: without either, the row renders exactly the one-door
+   *  row it always was (a read-only mount, the flat strip, a caller that has not
+   *  opted in). Each is the door the popover's own row already calls. */
+  onToggleHidden,
+  onSettings,
+  /** ⭐ UCT SIGNATURE — this row's ⋯ menu (or one of its pages) is open: the row holds
+   *  its hover card + strip (`.rowActive`) and the ⋯ reports `aria-expanded`. */
+  menuOpen = false,
+  /** ⭐ ONE ROW PER NAME (owner, 2026-11-16) — the values of the indicator's OTHER drawn
+   *  plots that print this same name (`legendRows`): `[{key, text, color}]`, already
+   *  formatted. Each prints after the row's own value in its own line's colour. Absent or
+   *  empty, the row is exactly the row it was. */
+  moreValues = null,
   // ⚰️ `onHover` AND `hoverKey` ARE GONE. They drove the hover lift — a pixel
   // added to the drawn series while the pointer was on its label — retired by the
   // owner after production use: hovering a legend must not mutate the plot.
@@ -155,13 +233,14 @@ export default function LegendRow({
   //
   // ⭐ AND THE ANCHOR IS THE ROW, NOT THE POINTER — `currentTarget` is the row on
   // every path, so a keyboard activation lands in the same place a click does.
-  // `ContextPopover` clamps from there, so a row near the bottom still flips up.
+  // `ContextPopover` clamps from there, so a row near the bottom still flips up; and when
+  // that would cover this row, the chart moves the menu beside it (`legendMenuPlace.js`).
   const fire = (e) => {
     e.stopPropagation()
     e.preventDefault?.()
     const el = e.currentTarget
     const r = el && typeof el.getBoundingClientRect === 'function' ? el.getBoundingClientRect() : null
-    onOpen(rowId, r ? { x: r.left, y: r.bottom + 3 } : { x: e.clientX ?? 0, y: e.clientY ?? 0 })
+    onOpen(rowId, r ? rowMenuAnchor(r) : { x: e.clientX ?? 0, y: e.clientY ?? 0 })
   }
 
   /** The semantics of a menu trigger, or nothing at all.
@@ -178,6 +257,7 @@ export default function LegendRow({
     tabIndex: 0,
     'aria-haspopup': 'menu',
     'aria-label': `${ctlName} options`,
+    'data-guide': 'chart.chip',
     title: `${ctlName} — click for options`,
     onClick: fire,
     onContextMenu: fire,
@@ -196,9 +276,28 @@ export default function LegendRow({
      own colour — one source of truth per row, and nothing to keep in sync if the
      token changes. */
   // ⛔ a colour reaches CSS only through `safeCssColour` (objectColour.js) — a stored or shared value may carry anything
-  const color = safeCssColour(rawColor)
-  const ink = color ? { color } : undefined
-  const valInk = color ? { color: 'inherit' } : undefined
+  // ⭐ ENGINE 58 — through `inkCssColour`: a fully transparent colour reads in the legend's own ink.
+  const color = inkCssColour(rawColor)
+  /* ⭐ Owner 11-16 — EVERY legend row, flat or vertical: the name wears the shared label ink and the
+     value the line's colour (`--row-color`), clamped in CSS to the label's lightness band, so both read
+     at one brightness. A row with no colour prints both in the shared ink. */
+  const valInk = color ? { '--row-color': color } : undefined
+  /* ⭐ UCT SIGNATURE — THE VERTICAL ROW'S NAME IS NO LONGER INKED IN THE LINE'S COLOUR.
+     The 3×13 colour bar carries the series identity; the name is the signature grey
+     and a nine-line stack reads calmly instead of as a rainbow. Since 11-16 the flat strip
+     (volume pane, grouped pane legends, Model Book) follows the same rule. */
+  // The sibling plots' values this row carries: blanks dropped, and past
+  // `LEGEND_ROW_VALUES_MAX` values on the row the rest fold into a `+N` count.
+  const moreAll = (Array.isArray(moreValues) ? moreValues : [])
+    .filter((m) => m && typeof m.text === 'string' && m.text)
+  const moreVals = moreAll.slice(0, Math.max(0, LEGEND_ROW_VALUES_MAX - (value ? 1 : 0)))
+  const moreOver = moreAll.length - moreVals.length
+  const moreInk = (m) => { const c = inkCssColour(m.color); return c ? { '--row-color': c } : undefined }
+  const hasActs = interactive && (typeof onToggleHidden === 'function' || typeof onSettings === 'function')
+  const actsCount = hasActs
+    ? (hidden ? (typeof onToggleHidden === 'function' ? 1 : 0)
+      : (typeof onToggleHidden === 'function' ? 1 : 0) + (typeof onSettings === 'function' ? 1 : 0) + 1)
+    : 0
 
   // ─── HORIZONTAL: one inline span. The span IS the target ───────────────
   if (!vertical) {
@@ -210,7 +309,6 @@ export default function LegendRow({
         data-instance-id={instanceId}
         data-plot-key={plotKey}
         data-computed={computed === false ? 'false' : undefined}
-        style={ink}
         {...trigger}
       >
         {/* ⭐ THE MICRO-RAIL, IN THE HORIZONTAL STRIP TOO (owner §21, 2026-09-16).
@@ -226,6 +324,10 @@ export default function LegendRow({
             `O`, `H`, `L` and `C` in the flat legend. See `.railFlat`. */}
         {color ? <i className={styles.railFlat} style={{ background: color }} aria-hidden="true" /> : null}
         {label}{value ? <strong className={styles.flatVal} style={valInk}>{value}</strong> : null}
+        {moreVals.map((m) => (
+          <strong key={m.key} className={styles.flatVal} data-more-value={m.key} style={moreInk(m)}>{m.text}</strong>
+        ))}
+        {moreOver > 0 ? <span className={styles.valsOver} data-more-over="">+{moreOver}</span> : null}
       </span>
     )
   }
@@ -233,13 +335,14 @@ export default function LegendRow({
   // ─── VERTICAL: ONE subgrid row that spans the legend's own tracks ──────────
   return (
     <span
-      className={`${styles.vRow} ${tone} ${secondary ? styles.vRowSub : ''} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''}`}
+      className={`${styles.vRow} ${tone} ${secondary ? styles.vRowSub : ''} ${folded ? styles.rowFolded : ''} ${interactive ? styles.rowLive : ''} ${hasActs ? styles.rowActs : ''} ${hasActs && hidden ? styles.rowActsHidden : ''} ${hasActs && menuOpen ? styles.rowActive : ''}`}
       data-legend-row={rowId}
       data-hidden={hidden ? 'true' : 'false'}
       data-instance-id={instanceId}
       data-plot-key={plotKey}
       data-computed={computed === false ? 'false' : undefined}
-      style={ink}
+      /* the card behind a hovered row reaches over the strip: 22px a button + 6px of air */
+      style={actsCount ? { '--row-acts-w': `${actsCount * 22 + 6}px` } : undefined}
       {...trigger}
     >
       {/* ⛔ THE LABEL CELL NEEDS THE SAME `inherit` THE VALUE DOES, and for the
@@ -271,7 +374,7 @@ export default function LegendRow({
        * so the rail cannot disagree with the line it names. A hidden row dims both
        * together, because `.rowHidden` is on the ROW. */}
       <i className={styles.rail} style={color ? { background: color } : undefined} aria-hidden="true" />
-      <span className={styles.vLabel} style={valInk}>{label}</span>
+      <span className={styles.vLabel}>{label}</span>
       {/* ⭐⭐ §3 — THE VALUE IS BRIGHT NEUTRAL, NOT THE SERIES COLOUR, and that is
           the whole colour system: COLOUR = which series, WHITE = the market value.
           ⚰ IT USED TO TAKE `valInk` (`color: inherit`) so label and value both wore
@@ -280,7 +383,14 @@ export default function LegendRow({
           member had picked. The label keeps the hue — it is the identity — and the
           number is always the same crisp white, so the eye lands on it first at
           every hue. */}
-      <span className={styles.vVal}>{value}</span>
+      {/* Owner 11-16: the value wears the series colour via --row-color (clamped to the label's lightness); no colour → the shared ink. */}
+      <span className={styles.vVal} style={valInk}>{value}</span>
+      {/* ⭐ ONE ROW PER NAME — each sibling plot's value, in its own line's colour. Inside
+          the row box, so the row stays one continuous hover target. */}
+      {moreVals.map((m) => (
+        <span key={m.key} className={styles.vVal} data-more-value={m.key} style={moreInk(m)}>{m.text}</span>
+      ))}
+      {moreOver > 0 ? <span className={styles.valsOver} data-more-over="">+{moreOver}</span> : null}
       {/* ⛔ THE THIRD CELL IS STILL EMITTED, EMPTY. `.legendVertical` is ONE grid
           for the whole legend and fills by ORDER, so a row that emitted two cells
           would let the next row's label fall into the third track and cascade the
@@ -291,6 +401,14 @@ export default function LegendRow({
           still measures zero, because this grid fills by ORDER and a two-cell row
           would let the next row's label fall into the third track. */}
       <span className={styles.vCtl} />
+      {hasActs ? (
+        <RowActs name={ctlName} hidden={hidden}
+          onToggleHidden={typeof onToggleHidden === 'function' ? () => onToggleHidden(rowId) : undefined}
+          onSettings={typeof onSettings === 'function' ? () => onSettings(rowId) : undefined}
+          onMore={fire}
+          menuOpen={!!menuOpen}
+          actsClass={styles.acts} actClass={styles.act} eyeClass={styles.actEye} />
+      ) : null}
     </span>
   )
 }

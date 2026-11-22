@@ -1,0 +1,23 @@
+//@version=6
+indicator("vw-w4-plotcandle", overlay = false)
+
+// PROVENANCE: written 2026-11-04 in docs/pine/capture-queue-2026-11-04-w4-t13.md (W4-P1, the
+// W4-T13 plotcandle / plotbar capture), copied here as its probe file 2026-11-07 (code verbatim, this header added).
+// NEVER COMPILED ON TRADINGVIEW. Rows C01-C05 and B01 of that doc; each output is read per bar for
+// its open / high / low / close and its body, wick and border colours. Take a screenshot too: the
+// paint is the witness for C02 / C03 (the colours TradingView draws when a colour is not written).
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+up = close > open
+// C01: all three colours written, an na open on down bars
+plotcandle(up ? open : na, high, low, close, "C01_all_written", color = up ? color.green : color.red, wickcolor = color.blue, bordercolor = color.orange)
+// C02: only color written (what do the wick and the border draw?)
+plotcandle(open + 1, high + 1, low + 1, close + 1, "C02_color_only", color = color.purple)
+// C03: no colour written at all
+plotcandle(open + 2, high + 2, low + 2, close + 2, "C03_no_colour")
+// C04: wick na, border written (the Bollinger-bars idiom)
+plotcandle(open + 3, high + 3, low + 3, close + 3, "C04_wick_na", color = color.teal, wickcolor = na, bordercolor = color.teal)
+// C05: a colour that is na on some bars only
+plotcandle(open + 4, high + 4, low + 4, close + 4, "C05_na_border_some_bars", color = color.gray, wickcolor = color.gray, bordercolor = close > open ? color.red : na)
+// B01: plotbar with a colour that changes per bar
+plotbar(open - 1, high - 1, low - 1, close - 1, "B01_bar", color = up ? color.lime : color.maroon)

@@ -283,18 +283,55 @@ def _primary_theme(ticker: str):
         return None
 
 
+#: RS Rating L3 -- the instrument class (``Stock`` / ``ADR`` / ``ETF``), read from the ONE authority the
+#: screener already stamps on its rows (``screener_universe.types()``, which ``snapshot_builder`` turns into
+#: ``security_type`` and ``is_etf``), never a second classification. A local file read, held for an hour.
+_SECURITY_TYPES_TTL = 3600
+_security_types_at = 0.0
+_security_types_map: dict = {}
+
+
+def _security_type_field(ticker: str) -> dict:
+    """``{"security_type": <bucket>}`` for a ticker the screener universe types, ``{}`` for any other:
+    an unknown class is ABSENT, never guessed (the chart's ``syminfo.industry`` fold then has no class
+    row to apply). Never raises."""
+    global _security_types_at, _security_types_map
+    try:
+        now = time.time()
+        if now - _security_types_at > _SECURITY_TYPES_TTL:
+            from api.services.screener import screener_universe
+            _security_types_map = screener_universe.types() or {}
+            _security_types_at = now
+        ty = _security_types_map.get((ticker or "").upper().strip())
+    except Exception as e:  # noqa: BLE001 -- unknown stays unknown
+        _logger.info("ticker_meta security type lookup failed for %s: %s", ticker, e)
+        return {}
+    return {"security_type": ty} if isinstance(ty, str) and ty else {}
+
+
 def peek_ticker_meta(ticker: str):
     """get_ticker_meta for a CACHED ticker, None for any other: a cache read, never a provider."""
     ticker = (ticker or "").upper().strip()
     base = _peek_base(ticker) if ticker else None
-    return None if base is None else {**base, "theme": _primary_theme(ticker)}
+    return None if base is None else {**base, "theme": _primary_theme(ticker), **_security_type_field(ticker)}
+
+
+def peek_exchange(ticker: str):
+    """W9-T4-F1 r1 -- the ticker's CACHED exchange (our store's spelling), or None. A cache read only
+    (memory, then the 24h disk entry): never a provider call and never the theme lookup, so a request
+    path can ask it at no cost. The pine strategy backtest route reads ``syminfo.*``'s exchange here."""
+    ticker = (ticker or "").upper().strip()
+    base = _peek_base(ticker) if ticker else None
+    exch = base.get("exchange") if isinstance(base, dict) else None
+    return exch if isinstance(exch, str) and exch else None
 
 
 def get_ticker_meta(ticker: str) -> dict:
-    """{name, sector, industry, exchange, theme}. The first four are 24h-cached
-    (yfinance → FMP → Finnhub); theme is the live UCT-taxonomy primary theme."""
+    """{name, sector, industry, exchange, theme[, security_type]}. The first four are 24h-cached
+    (yfinance → FMP → Finnhub); theme is the live UCT-taxonomy primary theme; security_type is the
+    screener universe's instrument class, present only when known (RS Rating L3)."""
     base = _base_meta(ticker)
-    return {**base, "theme": _primary_theme(ticker)}
+    return {**base, "theme": _primary_theme(ticker), **_security_type_field(ticker)}
 
 
 _HEAL_FLAG = os.path.join(os.environ.get("DATA_DIR", "/data"), ".ticker_meta_name_heal_v1")

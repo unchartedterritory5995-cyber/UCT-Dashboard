@@ -1,0 +1,17 @@
+[
+ ["control:comment-only", "services/pine_runtime/Dockerfile", "# STAGE 2 - the runtime.", "# STAGE 2 - the runtime (control)."],
+ ["img:no-canary-copy", "services/pine_runtime/Dockerfile", "COPY services/pine_runtime/canary.mjs /app/services/pine_runtime/canary.mjs\n", ""],
+ ["img:no-cache-copy", "services/pine_runtime/Dockerfile", "COPY services/pine_runtime/cache.mjs /app/services/pine_runtime/cache.mjs\n", ""],
+ ["img:no-package-json", "services/pine_runtime/Dockerfile", "COPY app/package.json /app/app/package.json\n", ""],
+ ["img:no-fixtures", "services/pine_runtime/Dockerfile", "COPY app/src/components/chart/engine/runtime/__fixtures__/hostParity /app/app/src/components/chart/engine/runtime/__fixtures__/hostParity\n", ""],
+ ["img:no-tool", "services/pine_runtime/Dockerfile", "COPY tools/pine_runtime_host_parity.mjs /app/tools/pine_runtime_host_parity.mjs\n", ""],
+ ["img:unlisted-extra-copy", "services/pine_runtime/Dockerfile", "COPY app/package.json /app/app/package.json\n", "COPY app/package.json /app/app/package.json\nCOPY api/services/pine_runtime_codec.py /app/api/services/pine_runtime_codec.py\n"],
+ ["img:secret-arg", "services/pine_runtime/Dockerfile", "ARG VITE_PINE_RUNTIME_PANE_ENABLED\n", "ARG VITE_PINE_RUNTIME_PANE_ENABLED\nARG VITE_CHART_RENDER_TOKEN\n"],
+ ["img:arg-missing", "services/pine_runtime/Dockerfile", "ARG VITE_PINE_LOWER_TF_ENABLED\n", ""],
+ ["env:vite-allowlist-drift", "services/pine_runtime/server.mjs", "'VITE_PINE_LOWER_TF_ENABLED', 'VITE_PINE_RUNTIME_PANE_ENABLED',\n])", "'VITE_PINE_LOWER_TF_ENABLED',\n])"],
+ ["railway:no-tool-watch", "services/pine_runtime/railway.json", ",\n      \"tools/pine_runtime_host_parity.mjs\"", ""],
+ ["hp7:tool-reads-job", "tools/pine_runtime_host_parity.mjs", "  node: fileURLToPath(import.meta.url),\n})", "  node: fileURLToPath(import.meta.url),\n  job: join(REPO, 'services', 'pine_runtime', 'job.mjs'),\n})"],
+ ["hp7:service-budget-drift", "services/pine_runtime/job.mjs", "{ budgetMs: rt.RUNTIME_PANE_TIME_BUDGET_MS, incremental: false }", "{ budgetMs: 5000, incremental: false }"],
+ ["e2e:bars-in-ms", "tests/test_pine_runtime_result_integrity.py", "    times = [bar_open_instant(d.isoformat(), \"D\") for d in _session_days(N)]\n", "    times = [float(1_600_000_000_000 + i * 86_400_000) for i in range(N)]\n"],
+ ["e2e:utc-midnight", "tests/test_pine_runtime_result_integrity.py", "    times = [bar_open_instant(d.isoformat(), \"D\") for d in _session_days(N)]\n", "    times = [bar_open_instant(d.isoformat(), \"D\") - 34200 + 4 * 3600 for d in _session_days(N)]\n"]
+]

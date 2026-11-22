@@ -43,7 +43,7 @@ export const TOURS = Object.freeze([
   {
     id: 'setups-board',
     flag: 'notebook_setups_board_enabled',
-    title: 'Active setups and find more like this',
+    title: 'Setups',
     replayable: true,
     start: '/journal/notebook/setups',
     load: () => import('./setupsBoard.steps').then(steps),
@@ -53,7 +53,8 @@ export const TOURS = Object.freeze([
     flag: 'notebook_earnings_prep_enabled',
     title: 'Reporting soon and earnings prep',
     replayable: true,
-    start: '/journal/notebook',
+    // go-live wave 1: the box is on the Daily brief, folded; it unfolds while a walkthrough is wanted (TodayHome.jsx)
+    start: '/journal/notebook?view=today',
     load: () => import('./earningsPrep.steps').then(steps),
   },
   {
@@ -69,7 +70,8 @@ export const TOURS = Object.freeze([
     flag: 'notebook_passed_setups_enabled',
     title: 'Passed setups',
     replayable: true,
-    start: '/journal/notebook',
+    // go-live wave 1: the box is on the Daily brief, folded; it unfolds while a walkthrough is wanted (TodayHome.jsx)
+    start: '/journal/notebook?view=today',
     load: () => import('./passedSetups.steps').then(steps),
   },
   {

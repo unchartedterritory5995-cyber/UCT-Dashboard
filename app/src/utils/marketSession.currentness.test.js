@@ -24,6 +24,10 @@ const at = (iso, off = 4) => {
   return Math.floor(Date.UTC(y, m - 1, dd, h + off, mi) / 1000)
 }
 const setNow = (iso, off = 4) => vi.setSystemTime(at(iso, off) * 1000)
+// The start of a regular session's final bucket at `tf` (16:00 minus one bar): what a COMPLETE tail
+// holds. 15:55 is complete for 5m, not for 1m (15:56-15:59 missing), which the session-completeness
+// rule (ramped 2026-11-17) rightly calls behind.
+const finalBucket = (tf) => { const m = 960 - Number(tf); return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}` }
 
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => vi.useRealTimers())
@@ -89,7 +93,7 @@ describe('the matrix — every intraday timeframe', () => {
       })
       it('premarket (RTH view): a complete Friday tail is fresh with no expectation', () => {
         setNow('2026-09-28 08:00')
-        const t = at('2026-09-25 15:55')
+        const t = at(`2026-09-25 ${finalBucket(tf)}`)        // the session's final bucket for this tf (1m: 15:59)
         expect(classifyIntradayTail(t, tf)).toBe('fresh')
         expect(intradayBarCurrentness({ tf, tailT: t })).toBe(CURRENTNESS.NO_EXPECTATION)
       })
@@ -111,8 +115,8 @@ describe('the matrix — every intraday timeframe', () => {
       })
       it('weekend: complete Friday is fresh/no-expectation; Thursday is gapped and not settled', () => {
         setNow('2026-09-27 12:00')
-        expect(classifyIntradayTail(at('2026-09-25 15:55'), tf)).toBe('fresh')
-        expect(intradayBarCurrentness({ tf, tailT: at('2026-09-25 15:55') })).toBe(CURRENTNESS.NO_EXPECTATION)
+        expect(classifyIntradayTail(at(`2026-09-25 ${finalBucket(tf)}`), tf)).toBe('fresh')
+        expect(intradayBarCurrentness({ tf, tailT: at(`2026-09-25 ${finalBucket(tf)}`) })).toBe(CURRENTNESS.NO_EXPECTATION)
         expect(classifyIntradayTail(at('2026-09-24 15:55'), tf)).toBe('gapped')
         expect(isCurrentnessSettled(intradayBarCurrentness({ tf, tailT: at('2026-09-24 15:55') }))).toBe(false)
       })
@@ -152,11 +156,11 @@ describe('⛔ THE INVARIANT, swept minute by minute across whole sessions', () =
     }, 60_000)
   }
 
-  it('1h 09:30 anchoring: no hourly bucket has completed at 09:45, one has at 10:05', () => {
+  it('1h 09:30 anchoring: no hourly bucket has completed at 10:05, one has at 10:35', () => {
     const fri = at('2026-09-25 15:00')
-    setNow('2026-09-28 09:45')
-    expect(classifyIntradayTail(fri, '60')).toBe('fresh')
     setNow('2026-09-28 10:05')
+    expect(classifyIntradayTail(fri, '60')).toBe('fresh')
+    setNow('2026-09-28 10:35')
     expect(classifyIntradayTail(fri, '60')).toBe('behind')
   })
 })
@@ -180,9 +184,9 @@ describe('observed tolerance vs server-verified absence', () => {
     const t = at('2026-09-28 10:00')
     expect(intradayBarCurrentness({ tf: '5', tailT: t, verifiedThrough: t })).toBe(CURRENTNESS.UPDATING)
   })
-  it('1h: the 09:30 bucket is proven by a 10:01 check (it ends at 10:00, not 10:30)', () => {
-    setNow('2026-09-28 10:20')
-    expect(intradayBarCurrentness({ tf: '60', tailT: at('2026-09-25 15:00'), verifiedThrough: at('2026-09-28 10:01') }))
+  it('1h: the 09:30 bucket is proven by a 10:31 check (it ends at 10:30, TradingView-aligned)', () => {
+    setNow('2026-09-28 10:50')
+    expect(intradayBarCurrentness({ tf: '60', tailT: at('2026-09-25 15:00'), verifiedThrough: at('2026-09-28 10:31') }))
       .toBe(CURRENTNESS.CURRENT)
   })
   it('terminal no-data is UNAVAILABLE; no tail yet is UPDATING', () => {

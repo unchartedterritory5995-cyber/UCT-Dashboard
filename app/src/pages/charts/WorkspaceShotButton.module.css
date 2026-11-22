@@ -1,0 +1,36 @@
+/* "Screenshot workspace" — UCT Signature icon button + floating menu (owner 11-16).
+   Sentence case, no gold: nothing here is a "current/chosen" state. The colors are the
+   dark-only Signature tokens (--signature-*, styles/tokens.css). */
+.wrap { position: relative; display: inline-flex; align-items: center; }
+
+.btn {
+  display: inline-grid; place-items: center; width: 26px; height: 26px; padding: 0;
+  border: 0; border-radius: 6px; background: transparent; color: var(--signature-dim); cursor: pointer;
+}
+.btn svg, .btn svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.btn:hover, .btn[aria-expanded='true'] { background: color-mix(in srgb, var(--signature-bright) 7%, transparent); color: var(--signature-text); }
+.btn:focus-visible { outline: 2px solid color-mix(in srgb, var(--signature-bright) 40%, transparent); outline-offset: 1px; }
+.btn[aria-busy='true'] { cursor: progress; }
+
+.menu {
+  position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 120;
+  width: 232px; padding: 6px; display: flex; flex-direction: column; gap: 1px;
+  border-radius: 10px; background: var(--signature-panel); border: 1px solid var(--signature-outline);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans); color-scheme: dark;
+}
+.thumb {
+  display: block; width: 100%; max-height: 132px; object-fit: contain;
+  border-radius: 6px; background: var(--signature-well); border: 1px solid var(--signature-sel);
+}
+.meta { padding: 4px 4px 4px; font-size: 11px; color: var(--signature-faint); }
+.item {
+  display: flex; align-items: center; gap: 10px; min-height: 32px; padding: 7px 10px;
+  border: 0; border-radius: 6px; background: transparent; color: var(--signature-text);
+  font: 13px var(--font-sans); text-align: left; cursor: pointer;
+}
+.item:hover, .item:focus-visible { background: color-mix(in srgb, var(--signature-bright) 7%, transparent); color: var(--signature-bright); outline: none; }
+.glyph { width: 18px; flex: 0 0 18px; display: inline-flex; align-items: center; justify-content: center; color: var(--signature-dim); }
+.glyph svg, .glyph svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.status { padding: 8px 10px; font-size: 12.5px; color: color-mix(in srgb, var(--signature-bright) 68%, var(--signature-rest)); }
+.note { padding: 4px 10px 2px; font-size: 11.5px; color: var(--signature-dim); }

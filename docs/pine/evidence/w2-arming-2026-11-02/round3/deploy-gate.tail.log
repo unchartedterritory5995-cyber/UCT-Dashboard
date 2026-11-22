@@ -1,0 +1,60 @@
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[in the if CONDITION only] PASSED [ 90%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[top level after a block] PASSED [ 91%]
+tests/test_pine_coverage_conditional_ta.py::test_conditional_ta_is_not_found[top level only] PASSED [ 92%]
+tests/test_pine_coverage_conditional_ta.py::test_it_is_a_census_capability_through_usage_of PASSED [ 93%]
+tests/test_pine_coverage_conditional_ta.py::test_the_scan_stays_linear_on_a_long_block PASSED [ 95%]
+tests/test_pine_coverage_conditional_ta.py::test_engine_door_left_out_is_not_measured PASSED [ 96%]
+tests/test_pine_coverage_conditional_ta.py::test_engine_door_named_and_present_is_read PASSED [ 97%]
+tests/test_pine_coverage_conditional_ta.py::test_engine_door_named_but_missing_is_refused_by_name PASSED [ 98%]
+tests/test_pine_coverage_conditional_ta.py::test_main_refuses_a_missing_engine_door_before_it_reads_any_input PASSED [100%]
+
+============================== warnings summary ===============================
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: 2498 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:179: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(obj) or inspect.isasyncgenfunction(obj)
+
+..\..\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: 82 warnings
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:450: DeprecationWarning: 'asyncio.iscoroutinefunction' is deprecated and slated for removal in Python 3.16; use inspect.iscoroutinefunction() instead
+    return asyncio.iscoroutinefunction(func)
+
+<unknown>:964
+<unknown>:964
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+  <unknown>:964: SyntaxWarning: "\`" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\`"? A raw string is also an option.
+
+<unknown>:7
+<unknown>:7
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+  <unknown>:7: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  C:\Users\Patrick\AppData\Roaming\Python\Python314\site-packages\pytest_asyncio\plugin.py:1056: DeprecationWarning: 'asyncio.get_event_loop_policy' is deprecated and slated for removal in Python 3.16
+    return asyncio.get_event_loop_policy()
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:186: SyntaxWarning: "\[" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\["? A raw string is also an option.
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:968: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:262: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:55: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:3: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:1347: SyntaxWarning: "\d" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\d"? A raw string is also an option.
+
+tests/test_no_shadowed_definitions.py::test_the_sweep_actually_reads_the_whole_repo
+  <unknown>:627: SyntaxWarning: "\w" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\w"? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 82 passed, 2598 warnings in 199.10s (0:03:19) ================

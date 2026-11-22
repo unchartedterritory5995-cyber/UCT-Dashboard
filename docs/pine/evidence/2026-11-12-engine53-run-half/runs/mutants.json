@@ -1,0 +1,250 @@
+[
+ {
+  "id": "C0",
+  "what": "control: no edit",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx",
+   "src/components/chart/builder/memberPane/runHalf.pairing.rail.test.js"
+  ],
+  "exit": 0,
+  "verdict": "GREEN (control)",
+  "tail": "29 passed",
+  "restored_blob_equal": true,
+  "seconds": 11
+ },
+ {
+  "id": "M1",
+  "what": "route a clean host",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 9
+ },
+ {
+  "id": "M2",
+  "what": "drop the door's kill check",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 8
+ },
+ {
+  "id": "M3a",
+  "what": "drop the bind's kill check",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 10
+ },
+ {
+  "id": "M3b",
+  "what": "drop the bind's graded check",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "2 failed 21 passed",
+  "restored_blob_equal": true,
+  "seconds": 9
+ },
+ {
+  "id": "M4",
+  "what": "draw host and run together",
+  "file": "app/src/components/chart/engine/binder.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "3 failed 20 passed",
+  "restored_blob_equal": true,
+  "seconds": 8
+ },
+ {
+  "id": "M5",
+  "what": "the column rail always agrees",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 8
+ },
+ {
+  "id": "M6",
+  "what": "memoise a pending result",
+  "file": "app/src/components/chart/engine/binder.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 9
+ },
+ {
+  "id": "M7",
+  "what": "a revoked latch keeps the run's objects",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "2 failed 21 passed",
+  "restored_blob_equal": true,
+  "seconds": 9
+ },
+ {
+  "id": "M8",
+  "what": "moved inputs keep the run's objects",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 9
+ },
+ {
+  "id": "M9",
+  "what": "mint with the pane disabled",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 9
+ },
+ {
+  "id": "M10",
+  "what": "mint past 64 KiB",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 10
+ },
+ {
+  "id": "M11",
+  "what": "route an output-map mismatch",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.pairing.rail.test.js"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 5 passed",
+  "restored_blob_equal": true,
+  "seconds": 10
+ },
+ {
+  "id": "M12",
+  "what": "a run withholding a family the host draws is served",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 9
+ },
+ {
+  "id": "M13",
+  "what": "pending draws the host picture then swaps",
+  "file": "app/src/components/chart/engine/binder.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 8
+ },
+ {
+  "id": "M14a",
+  "what": "server schema loses the duplicate-index rule",
+  "file": "api/services/presentation_schema.py",
+  "tests": [
+   "tests/test_runtime_objects_schema_parity.py"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed, 22 passed",
+  "restored_blob_equal": true,
+  "seconds": 16
+ },
+ {
+  "id": "M14b",
+  "what": "client schema loses the undeclared-key rule",
+  "file": "app/src/components/chart/engine/defSchema.js",
+  "tests": [
+   "src/components/chart/engine/__tests__/runtimeObjectsSchemaParity.test.js"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "2 failed 21 passed",
+  "restored_blob_equal": true,
+  "seconds": 8
+ },
+ {
+  "id": "M15",
+  "what": "a guard id leaks into a sentence",
+  "file": "app/src/components/chart/engine/ast/objectLoss.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "2 failed 21 passed",
+  "restored_blob_equal": true,
+  "seconds": 9
+ },
+ {
+  "id": "M16",
+  "what": "a second copy of the row pairing",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.pairing.rail.test.js"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "see rail output",
+  "restored_blob_equal": true,
+  "seconds": 8
+ }
+]

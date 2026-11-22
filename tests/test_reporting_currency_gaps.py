@@ -120,6 +120,9 @@ def fin(monkeypatch):
     import api.services.research.financials as m
     monkeypatch.setattr(m, "cache", _Cache())
     monkeypatch.setattr(m, "resolve_entity", lambda s: (None, None))
+    # The fallback is read only for a ticker the FMP statements reader holds
+    # nothing for; that answer is given here, at the service's own seam.
+    monkeypatch.setattr(m, "_fetch_statements", lambda s, q: ({"sym": s, "periods": []}, True))
     monkeypatch.setattr(m, "_fetch_income", lambda s, q: (None, True))
 
     def run(sym, fund):

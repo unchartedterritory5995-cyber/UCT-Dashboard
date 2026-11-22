@@ -122,8 +122,9 @@ describe('RT6 — fvg-trend against its TradingView capture (RDDT 1D)', () => {
     // ⚠️ what keeps it from MATCH is NOT a colour: `plot(0, color=color.black)` is a
     // column that reads no bar, which the host translator hides (`hiddenReason:
     // 'constant'`) on both lanes. Named so a later change to that rule reads here.
-    const zero = v.plots.find((p) => p.verdict === 'INCONCLUSIVE')
-    expect(zero && zero.reason).toMatch(/did not carry this output/)
+    // ⭐ LEGACY SEMANTICS B7 (landing train 1): the runtime door now CARRIES a row the host had hidden
+    // as `constant` (TradingView draws the line), so that row is graded like the rest.
+    expect(v.plots.filter((p) => p.verdict !== 'MATCH').map((p) => [p.title, p.verdict, p.reason])).toEqual([])
   })
 
   it('the transparency rides the paint as written: `transp=90` over an opaque ternary', () => {
@@ -163,7 +164,8 @@ describe('RT6 — the style-transparency rules, on fvg-trend\'s own source (v4)'
     expect(q.withheld).toContain('fvgCounter')
     expect(q.definition.plots.filter((x) => !x.hidden).map((x) => x.label)).not.toContain('fvgCounter')
     expect(q.definition.paints).toEqual([expect.objectContaining({ kind: 'bgcolor', colorPacked: { transparency: 90 } })])
-    expect(q.notes.map((n) => n.note).join(' | ')).toMatch(/`fvgCounter` is not drawn: .*`transp =` applies over a colour that may carry its own/)
+    // (engine 58 colours: the sentence now says 'a transparency', as the `bgcolor` one above does)
+    expect(q.notes.map((n) => n.note).join(' | ')).toMatch(/`fvgCounter` is not drawn: .*a transparency applies over a colour that may carry its own/)
     // CONTROL — the same plot over fixed colours carries the transparency
     const r = variant('color=(fvgCounter > 0 ? color.green : color.red), title="fvgCounter"',
       'color=(fvgCounter > 0 ? color.green : color.red), transp=30, title="fvgCounter"')

@@ -1,17 +1,24 @@
 """Earnings preview/analysis enrichment helpers.
 
 Provides high-value pre-earnings data members care about:
-- Pre-earnings price-action context (5d / 30d returns)
-- Historical earnings-day moves (avg ± move over last N reports)
+- Pre-earnings price-action context (5d / 30d returns): our own daily bars
+  first, Yahoo when they cannot answer
+- Historical earnings-day moves (avg ± move over last N reports): our own
+  daily bars first, Yahoo when they cannot answer
 - Estimate / analyst revision trends (Finnhub recommendation-trends proxy)
 - Beat-magnitude history (surprise % per quarter for visualization)
-- Implied move from front-week ATM options straddle (yfinance; the SPOT comes
-  out of the chain response itself, not a second fetch — see section 5)
+- Implied move from the ATM options straddle. Two readers: the preview/analysis
+  enrichment (`enrich_earnings_response`) reads `implied_move.report_move`, our
+  own option chain read; `get_implied_move` here (yfinance; the SPOT comes out of
+  the chain response itself, not a second fetch — see section 5) is what the
+  Calendar's default enrichment path still calls
 - Key quotes extracted from the most recent earnings call transcript
 
 All helpers are best-effort — return None on any failure, never raise.
 Every yfinance call here goes through `yf_util.bounded_call` — see the guard
-note below; this module must never grow a pool or a deadline of its own.
+note below; this module must never grow a pool or a deadline of its own for
+Yahoo. The read of our own daily bars is bounded through the bars reader's own
+helper (section 0); it is not a Yahoo call and does not ride the Yahoo guard.
 The earnings router fans these out in parallel via ThreadPoolExecutor and
 folds the results into the existing _generate_earnings_preview /
 _generate_earnings_analysis responses.
@@ -20,10 +27,11 @@ from __future__ import annotations
 
 import datetime as _dt
 import inspect as _inspect
+import itertools
 import logging
 import math
 import threading
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from api.services import yf_util
 
@@ -104,14 +112,282 @@ def _finite_pct(v: float | None) -> float | None:
     return round(v, 1)
 
 
+# ─── 0. Our own daily bars first, Yahoo when they cannot answer ───────────────
+#
+# The run-up (section 1) and the past earnings-day moves (section 2) read daily
+# opens and closes. Both ask the house daily-bar reader first
+# (`earnings_reaction.daily_bars_since`, the reader the earnings reaction panel
+# uses, under the name other services call it by)
+# and go on to the Yahoo read they always made only when our bars cannot
+# answer. The arithmetic is shared: one function per section takes plain lists,
+# so the same bars give the same payload whichever source supplied them.
+#
+# OUR BARS CAN ANSWER only when ALL of these hold (`_own_frame`); else Yahoo:
+#   0. the local bar store ALREADY holds the current daily session for the
+#      symbol (`_store_is_current`: one local store read, asked before
+#      anything else). When it does not (no row, a row behind the latest
+#      session, or the check failing) the bars are not read at all: no
+#      thread, no wait, no refresh of a missing session and no first fetch is
+#      ever started from here. Catching the store up is the bars reader's own
+#      work for its own callers, never this path's;
+#   1. the read came back inside `_OWN_BARS_DEADLINE` with at least one bar;
+#   2. every bar has a date, in rising order, and a finite open and close
+#      above zero;
+#   3. the newest bar is not behind the latest session the bars reader expects
+#      (`bars_fetch._is_cold_stale_daily`), so a stale tail never stands in for
+#      the current one;
+#   4. the symbol's declared splits are known and the house detector
+#      (`bars_sanitize.unadjusted_splits`) finds none of them unapplied inside
+#      the frame. "Known" is the bars reader's own in-memory lookup: when it
+#      has not looked the symbol up yet it starts its background lookup (its
+#      own two-worker pool) and this module does not wait for it, so the first
+#      read of a symbol after a restart goes to Yahoo. Both sources are
+#      split-adjusted and not dividend-adjusted; a split the stored rows have
+#      not caught up with is the one place they can differ, and a gap measured
+#      across it is not a move.
+# Plus one rule per section, stated at each function: the run-up needs 22 bars,
+# the past moves need the session before the oldest report date.
+#
+# THE BOUND. With rule 0 the read is started only for a series the store holds
+# up to the current session, which the bars reader answers from memory or the
+# local store in milliseconds (it may start its own ordinary background top-up
+# of that series, as it does for any chart view; nothing here waits on one).
+# The reader's slow case, a wait of about a minute on the catch-up of a
+# missing session, is the case rule 0 keeps this path out of. The bound stays
+# for whatever is left (the store moving between the check and the read, a
+# slow disk): the read runs through the bars reader's own bounded helper
+# (`bars_fetch._bounded_job`) and this module waits at most
+# `_OWN_BARS_DEADLINE` for it. The job is never cancelled. On a timeout the
+# Yahoo read answers, under its own guard, exactly as before.
+
+_OWN_BARS_DEADLINE = 2.5     # seconds; the bars reader's own request-path wait
+_OWN_BARS_PAD_DAYS = 12      # calendar days read before the oldest date needed
+_RUNUP_LOOKBACK_DAYS = 95    # about the 3 months the Yahoo read asks for
+_RUNUP_MIN_BARS = 22         # the 30-day index reads the 22nd bar from the end
+
+_OWN_READ_SEQ = itertools.count(1)
+
+_BARS_SOURCE_COUNTS: dict[str, int] = {}
+_BARS_COUNTS_LOCK = threading.Lock()
+
+
+def bars_source_counts() -> dict:
+    """{source: n} — which source a daily-bars read used, process-lifetime.
+    `own_bars` and `yahoo` count answers (`yahoo` = went to the fallback);
+    `own_bars_not_current` counts the times our bars were not read because the
+    store did not hold the current session (each is also a `yahoo`, twice when
+    the two legs of one enrichment call shared the check).
+
+    `own_bars` is a read our own daily bars answered. `yahoo` is a read that
+    went on to the Yahoo fallback (whether or not Yahoo then had an answer), so
+    it IS the fallback rate.
+    """
+    with _BARS_COUNTS_LOCK:
+        return dict(_BARS_SOURCE_COUNTS)
+
+
+def _note_bars_source(name: str) -> None:
+    with _BARS_COUNTS_LOCK:
+        _BARS_SOURCE_COUNTS[name] = _BARS_SOURCE_COUNTS.get(name, 0) + 1
+
+
+class _Frame(NamedTuple):
+    """Daily bars as plain lists, oldest first, index-aligned."""
+    dates: list
+    opens: list
+    closes: list
+
+
+def _house_daily_bars(sym: str, since_iso: str) -> list:
+    """The house reader for our own daily bars: dicts with `t`, `o`, `c`,
+    oldest first, [] when it has nothing. Its own function so a test can stand
+    in for the bar store."""
+    from api.services import earnings_reaction
+    return earnings_reaction.daily_bars_since(sym, since_iso)
+
+
+def _house_last_daily_session(sym: str) -> Optional[int]:
+    """The newest daily session the local bar store holds for `sym` (a YYYYMMDD
+    int), None when it holds none. Its own function so a test can stand in
+    for the bar store."""
+    from api.services import earnings_reaction
+    return earnings_reaction.last_stored_daily_session(sym)
+
+
+def _store_is_current(sym: str) -> bool:
+    """Rule 0: the local bar store already holds the current daily session for
+    `sym`. One local store read: no vendor call, no refresh, no thread. No
+    row, a row behind the latest session, or a check that fails: False.
+    Never raises."""
+    try:
+        stored_last = _house_last_daily_session(sym)
+        if stored_last is None:
+            return False
+        from api.services import bars_fetch
+        return not bars_fetch._is_cold_stale_daily("D", stored_last)   # noqa: SLF001
+    except Exception as e:
+        _logger.debug("own daily bars store check failed for %s: %s", sym, e)
+        return False
+
+
+def _read_own_daily_bars(sym: str, since_iso: str) -> list:
+    """Our daily bars since `since_iso`, waited for at most
+    `_OWN_BARS_DEADLINE`. Read only when the store already holds the current
+    session (rule 0); otherwise [] at once, with no read started and nothing
+    refreshed. [] also when the read did not finish in time or failed.
+    Never raises."""
+    try:
+        if not _store_is_current(sym):
+            _note_bars_source("own_bars_not_current")
+            return []
+        from api.services import bars_fetch
+        box: list = []
+        key = f"earnings-own-bars:{sym.upper()}:{next(_OWN_READ_SEQ)}"
+        done = bars_fetch._bounded_job(                      # noqa: SLF001
+            key, lambda: box.append(_house_daily_bars(sym, since_iso)),
+            _OWN_BARS_DEADLINE)
+        if not done or not box:
+            return []
+        return list(box[0] or [])
+    except Exception as e:
+        _logger.warning("own daily bars read failed for %s: %s", sym, e)
+        return []
+
+
+class _SharedOwnRead:
+    """ONE read of our daily bars shared by the legs of one
+    `enrich_earnings_response` call: the first leg to ask reads, the other
+    waits for that same answer (the wait is the read's own bound)."""
+
+    def __init__(self, sym: str, since_iso: str):
+        self.sym = sym
+        self.since_iso = since_iso
+        self._lock = threading.Lock()
+        self._done = False
+        self._bars: list = []
+
+    def bars(self) -> list:
+        with self._lock:
+            if not self._done:
+                self._bars = _read_own_daily_bars(self.sym, self.since_iso)
+                self._done = True
+            return self._bars
+
+
+_SHARED_READS: dict[str, _SharedOwnRead] = {}
+_SHARED_LOCK = threading.Lock()
+
+
+def _own_bars(sym: str, since_iso: str) -> list:
+    """Our daily bars since `since_iso`: from the read an enrichment call is
+    sharing for this symbol when that read reaches back far enough, else a
+    read of its own."""
+    with _SHARED_LOCK:
+        shared = _SHARED_READS.get(sym.upper())
+    if shared is not None and shared.since_iso <= since_iso:
+        return shared.bars()
+    return _read_own_daily_bars(sym, since_iso)
+
+
+def _frame_is_current(last_day: _dt.date) -> bool:
+    """Rule 3: the newest bar is not behind the latest session the bars reader
+    expects (weekend, holiday and pre-open aware; its own predicate)."""
+    from api.services import bars_fetch
+    return not bars_fetch._is_cold_stale_daily(             # noqa: SLF001
+        "D", int(last_day.strftime("%Y%m%d")))
+
+
+def _split_basis_is_one(sym: str, bars: list) -> bool:
+    """Rule 4: the declared splits are known and none is unapplied in `bars`.
+    Never waits on a lookup; an unknown list means we cannot say, which is a
+    no."""
+    from api.services import bars_sanitize
+    meta = bars_sanitize._meta_cached(sym.upper())          # noqa: SLF001
+    if meta is None:
+        return False
+    splits = meta.get("splits") or []
+    if not splits:
+        return True
+    return not bars_sanitize.unadjusted_splits(bars, splits)
+
+
+def _own_frame(sym: str, since_iso: str) -> Optional[_Frame]:
+    """Our daily bars since `since_iso` as a `_Frame`, or None when they cannot
+    answer (rules 1-4 in the note above). Never raises."""
+    try:
+        bars = _own_bars(sym, since_iso)
+        if not bars:
+            return None
+        dates, opens, closes = [], [], []
+        for b in bars:
+            day = _dt.datetime.strptime(str(b.get("t"))[:10], "%Y-%m-%d").date()
+            o, c = _positive(b.get("o")), _positive(b.get("c"))
+            if o is None or c is None:
+                return None
+            if dates and day <= dates[-1]:
+                return None
+            dates.append(day)
+            opens.append(o)
+            closes.append(c)
+        if not _frame_is_current(dates[-1]):
+            return None
+        if not _split_basis_is_one(sym, bars):
+            return None
+        return _Frame(dates, opens, closes)
+    except Exception as e:
+        _logger.debug("own daily bars cannot answer for %s: %s", sym, e)
+        return None
+
+
+def _run_up_since() -> str:
+    return (_dt.date.today() - _dt.timedelta(days=_RUNUP_LOOKBACK_DAYS)).isoformat()
+
+
 # ─── 1. Pre-earnings price-action context ──────────────────────────────────────
+
+def _run_up_from_closes(closes: list) -> Optional[dict]:
+    """The run-up payload from daily closes, oldest first. ONE arithmetic for
+    both sources: the last close against the 6th and the 22nd from the end."""
+    if len(closes) < 6:
+        return None
+    last = float(closes[-1])
+    ret_5d = ((last / float(closes[-6])) - 1) * 100 if len(closes) >= 6 else None
+    ret_30d = ((last / float(closes[-22])) - 1) * 100 if len(closes) >= 22 else None
+    # Sanitize BEFORE building the label too — an unsanitized NaN still
+    # compares False in `nan >= 0` (no exception), so the label would
+    # silently read "nan% / 5d" for a real user instead of omitting it.
+    ret_5d = _finite_pct(ret_5d)
+    ret_30d = _finite_pct(ret_30d)
+    parts = []
+    if ret_30d is not None:
+        parts.append(f"{'+' if ret_30d >= 0 else ''}{ret_30d:.1f}% / 30d")
+    if ret_5d is not None:
+        parts.append(f"{'+' if ret_5d >= 0 else ''}{ret_5d:.1f}% / 5d")
+    return {
+        "ret_5d_pct":  ret_5d,
+        "ret_30d_pct": ret_30d,
+        "label":       " · ".join(parts) if parts else None,
+    }
+
 
 def get_pre_earnings_context(sym: str) -> Optional[dict]:
     """Recent price action: 5-day and 30-day returns + a one-line label.
 
+    Daily closes come from our own daily bars first; Yahoo answers only when
+    they cannot (section 0). Our bars answer only when the store already holds
+    the current session; this path never starts a catch-up of the store. For
+    this function our bars cannot answer with
+    fewer than `_RUNUP_MIN_BARS` bars either, so a short frame of ours never
+    leaves out a 30-day return the Yahoo read would have had.
+
     Returns: {ret_5d_pct, ret_30d_pct, label} or None on failure.
     """
     try:
+        own = _own_frame(sym, _run_up_since())
+        if own is not None and len(own.closes) >= _RUNUP_MIN_BARS:
+            _note_bars_source("own_bars")
+            return _run_up_from_closes(own.closes)
+        _note_bars_source("yahoo")
         import yfinance as _yf
         df = yf_util.bounded_call(
             lambda: _yf.Ticker(sym.upper()).history(
@@ -120,25 +396,7 @@ def get_pre_earnings_context(sym: str) -> Optional[dict]:
         )
         if df is None or df.empty or len(df) < 6:
             return None
-        closes = df["Close"]
-        last = float(closes.iloc[-1])
-        ret_5d = ((last / float(closes.iloc[-6])) - 1) * 100 if len(closes) >= 6 else None
-        ret_30d = ((last / float(closes.iloc[-22])) - 1) * 100 if len(closes) >= 22 else None
-        # Sanitize BEFORE building the label too — an unsanitized NaN still
-        # compares False in `nan >= 0` (no exception), so the label would
-        # silently read "nan% / 5d" for a real user instead of omitting it.
-        ret_5d = _finite_pct(ret_5d)
-        ret_30d = _finite_pct(ret_30d)
-        parts = []
-        if ret_30d is not None:
-            parts.append(f"{'+' if ret_30d >= 0 else ''}{ret_30d:.1f}% / 30d")
-        if ret_5d is not None:
-            parts.append(f"{'+' if ret_5d >= 0 else ''}{ret_5d:.1f}% / 5d")
-        return {
-            "ret_5d_pct":  ret_5d,
-            "ret_30d_pct": ret_30d,
-            "label":       " · ".join(parts) if parts else None,
-        }
+        return _run_up_from_closes(df["Close"].tolist())
     except Exception as e:
         _logger.warning("get_pre_earnings_context failed for %s: %s", sym, e)
         return None
@@ -146,14 +404,115 @@ def get_pre_earnings_context(sym: str) -> Optional[dict]:
 
 # ─── 2. Historical earnings-day moves ──────────────────────────────────────────
 
+def _quarter_dates(quarters: list) -> tuple[list, list]:
+    """(dates, report_times), positionally aligned with `quarters`:
+    `dates[i]`/`report_times[i]` describe `quarters[i]`. A missing/unparseable
+    date degrades ONLY that slot (`dates[i] = None`) instead of compacting the
+    list."""
+    dates = []
+    report_times = []
+    for q in quarters:
+        d_str = q.get("reportedDate") or q.get("fiscalDateEnding")
+        d = None
+        if d_str:
+            try:
+                d = _dt.datetime.strptime(d_str, "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                d = None
+        dates.append(d)
+        report_times.append(q.get("reportTime") or "")
+    return dates, report_times
+
+
+def _moves_from_frame(dates: list, report_times: list, idx_dates: list,
+                      opens: list, closes: list) -> Optional[dict]:
+    """The past-moves payload from daily opens and closes, oldest first. ONE
+    arithmetic for both sources. `dates`/`report_times` are the quarters'
+    (see `_quarter_dates`); `idx_dates`/`opens`/`closes` are the bars'."""
+    moves = []   # positionally aligned with `quarters`/`dates` — see docstring
+    for ed, rtime in zip(dates, report_times):
+        if ed is None:
+            moves.append(None)
+            continue
+        # Find idx of the report date or nearest trading day
+        report_idx = None
+        for i in range(len(idx_dates) - 1, -1, -1):
+            if idx_dates[i] <= ed:
+                report_idx = i
+                break
+        # `report_idx` is None (date predates the price window), IS the
+        # very first bar (no prior close to gap from), or IS the very
+        # LAST bar (no next-day close YET — print night for the newest
+        # quarter) — every one of these means "not knowable yet", never
+        # "drop the slot". Every `continue` below emits an explicit
+        # `None` first so the index this quarter occupies is preserved.
+        if report_idx is None or report_idx == 0 or report_idx >= len(closes) - 1:
+            moves.append(None)
+            continue
+        prev_close  = closes[report_idx - 1]
+        report_open = opens[report_idx]
+        next_open   = opens[report_idx + 1] if report_idx + 1 < len(opens) else None
+        if prev_close <= 0:
+            moves.append(None)
+            continue
+        # Pre-market report: gap from prev close to report-day open
+        # Post-market report: gap from report-day close to next-day open
+        if "pre" in (rtime or "").lower():
+            move = (report_open - prev_close) / prev_close * 100
+        elif "post" in (rtime or "").lower():
+            if next_open is None:
+                moves.append(None)
+                continue
+            report_close = closes[report_idx]
+            move = (next_open - report_close) / report_close * 100
+        else:
+            # Unknown: take bigger of bmo/amc
+            bmo = (report_open - prev_close) / prev_close * 100
+            amc_move = (
+                (next_open - closes[report_idx]) / closes[report_idx] * 100
+                if next_open is not None and closes[report_idx] > 0
+                else None
+            )
+            move = bmo if amc_move is None or abs(bmo) >= abs(amc_move) else amc_move
+        moves.append(move)
+
+    computed = [m for m in moves if m is not None]
+    if not computed:
+        return None
+    avg_abs = sum(abs(m) for m in computed) / len(computed)
+    return {
+        "avg_abs_move_pct": round(avg_abs, 1),
+        "moves_pct":        [round(m, 1) if m is not None else None for m in moves],
+        "n_quarters":       len(computed),
+    }
+
+
+def _reaches_back(frame: _Frame, oldest: _dt.date) -> bool:
+    """True when `frame` holds the session BEFORE the report session of
+    `oldest`: its second bar is dated on or before `oldest`. A frame that
+    starts later would leave that quarter (and maybe more) a gap the Yahoo read
+    could have filled, so it does not answer at all."""
+    return len(frame.dates) >= 2 and frame.dates[1] <= oldest
+
+
 def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]:
-    """Compute past earnings-day % moves from Alpha Vantage quarterly history
-    + yfinance daily prices.
+    """Compute past earnings-day % moves from the quarterly earnings history
+    + daily prices.
+
+    Daily opens and closes come from our own daily bars first; Yahoo answers
+    only when they cannot (section 0). Our bars answer only when the store
+    already holds the current session; this path never starts a catch-up of
+    the store. For this function our bars cannot
+    answer either when they do not reach back to the session before the oldest
+    dated quarter in `av_quarters[:8]` (`_reaches_back`): a frame that starts
+    too late is never used to emit a gap the Yahoo read could have filled.
 
     Args:
         sym: ticker
-        av_quarters: AV `quarterlyEarnings` list (each row has `reportedDate`,
-                     `reportTime` "post-market"/"pre-market", etc.)
+        av_quarters: quarterly earnings rows in the Alpha Vantage
+                     `quarterlyEarnings` shape (each row has `reportedDate`,
+                     `reportTime` "post-market"/"pre-market", etc.). The rows
+                     themselves come from `engine._fetch_quarterly_history`.
 
     Returns: {avg_abs_move_pct, moves_pct[], n_quarters} or None.
 
@@ -177,27 +536,21 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
     if not av_quarters:
         return None
     try:
-        import yfinance as _yf
         quarters = av_quarters[:8]
-
-        # Positionally aligned with `quarters`: `dates[i]`/`report_times[i]`
-        # describe `quarters[i]`. A missing/unparseable date degrades ONLY
-        # that slot (`dates[i] = None`) instead of compacting the list.
-        dates = []
-        report_times = []
-        for q in quarters:
-            d_str = q.get("reportedDate") or q.get("fiscalDateEnding")
-            d = None
-            if d_str:
-                try:
-                    d = _dt.datetime.strptime(d_str, "%Y-%m-%d").date()
-                except (ValueError, TypeError):
-                    d = None
-            dates.append(d)
-            report_times.append(q.get("reportTime") or "")
+        dates, report_times = _quarter_dates(quarters)
         if not any(dates):
             return None
 
+        oldest = min(d for d in dates if d)
+        since = (oldest - _dt.timedelta(days=_OWN_BARS_PAD_DAYS)).isoformat()
+        own = _own_frame(sym, since)
+        if own is not None and _reaches_back(own, oldest):
+            _note_bars_source("own_bars")
+            return _moves_from_frame(dates, report_times,
+                                     own.dates, own.opens, own.closes)
+
+        _note_bars_source("yahoo")
+        import yfinance as _yf
         df = yf_util.bounded_call(
             lambda: _yf.Ticker(sym.upper()).history(
                 period="2y", interval="1d", auto_adjust=False),
@@ -210,63 +563,7 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
         idx_dates = [d.date() for d in df.index.to_pydatetime()]
         opens  = df["Open"].astype(float).tolist()
         closes = df["Close"].astype(float).tolist()
-
-        moves = []   # positionally aligned with `quarters`/`dates` — see docstring
-        for ed, rtime in zip(dates, report_times):
-            if ed is None:
-                moves.append(None)
-                continue
-            # Find idx of the report date or nearest trading day
-            report_idx = None
-            for i in range(len(idx_dates) - 1, -1, -1):
-                if idx_dates[i] <= ed:
-                    report_idx = i
-                    break
-            # `report_idx` is None (date predates the price window), IS the
-            # very first bar (no prior close to gap from), or IS the very
-            # LAST bar (no next-day close YET — print night for the newest
-            # quarter) — every one of these means "not knowable yet", never
-            # "drop the slot". Every `continue` below emits an explicit
-            # `None` first so the index this quarter occupies is preserved.
-            if report_idx is None or report_idx == 0 or report_idx >= len(closes) - 1:
-                moves.append(None)
-                continue
-            prev_close  = closes[report_idx - 1]
-            report_open = opens[report_idx]
-            next_open   = opens[report_idx + 1] if report_idx + 1 < len(opens) else None
-            if prev_close <= 0:
-                moves.append(None)
-                continue
-            # Pre-market report: gap from prev close to report-day open
-            # Post-market report: gap from report-day close to next-day open
-            if "pre" in (rtime or "").lower():
-                move = (report_open - prev_close) / prev_close * 100
-            elif "post" in (rtime or "").lower():
-                if next_open is None:
-                    moves.append(None)
-                    continue
-                report_close = closes[report_idx]
-                move = (next_open - report_close) / report_close * 100
-            else:
-                # Unknown: take bigger of bmo/amc
-                bmo = (report_open - prev_close) / prev_close * 100
-                amc_move = (
-                    (next_open - closes[report_idx]) / closes[report_idx] * 100
-                    if next_open is not None and closes[report_idx] > 0
-                    else None
-                )
-                move = bmo if amc_move is None or abs(bmo) >= abs(amc_move) else amc_move
-            moves.append(move)
-
-        computed = [m for m in moves if m is not None]
-        if not computed:
-            return None
-        avg_abs = sum(abs(m) for m in computed) / len(computed)
-        return {
-            "avg_abs_move_pct": round(avg_abs, 1),
-            "moves_pct":        [round(m, 1) if m is not None else None for m in moves],
-            "n_quarters":       len(computed),
-        }
+        return _moves_from_frame(dates, report_times, idx_dates, opens, closes)
     except Exception as e:
         _logger.warning("get_historical_earnings_moves failed for %s: %s", sym, e)
         return None
@@ -627,6 +924,67 @@ def get_implied_move(sym: str, earnings_date: Optional[str] = None,
 
 # ─── 6. Key quotes from previous earnings call transcript ─────────────────────
 
+# -- key-quotes cache (2026-11-10 AI-spend audit) -----------------------------------
+# The quotes come from the PRIOR call's transcript, which changes once a quarter, but
+# every enrichment run (each preview/analysis generation, warm or click) paid Claude to
+# extract them again: 42 calls in the first 2.5 h of the AI-spend ledger. They are now
+# kept on disk per symbol, keyed by a hash of the exact excerpt the model read, so a new
+# transcript is extracted fresh and an unchanged one is free. Only a real extraction is
+# stored; a failure stays uncached and retries next time.
+def _kq_dir() -> Optional[str]:
+    import os
+    import sys
+    d = os.environ.get("KEY_QUOTES_CACHE_DIR")
+    if d:
+        return d
+    if "pytest" in sys.modules:     # never touch a real DATA_DIR from a test
+        return None
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), "key_quotes_cache")
+
+
+def _kq_path(sym: str) -> Optional[str]:
+    import os
+    import re
+    d = _kq_dir()
+    if not d:
+        return None
+    safe = re.sub(r"[^A-Z0-9._-]", "_", sym.upper())[:20]
+    return os.path.join(d, f"{safe}.json")
+
+
+def _kq_read(sym: str, digest: str) -> Optional[list]:
+    import json
+    p = _kq_path(sym)
+    if not p:
+        return None
+    try:
+        with open(p, encoding="utf-8") as f:
+            row = json.load(f)
+    except (OSError, ValueError):
+        return None
+    if isinstance(row, dict) and row.get("hash") == digest and isinstance(row.get("quotes"), list):
+        return row["quotes"] or None
+    return None
+
+
+def _kq_write(sym: str, digest: str, quotes: list) -> None:
+    import json
+    import os
+    import time
+    p = _kq_path(sym)
+    if not p:
+        return
+    try:
+        blob = json.dumps({"hash": digest, "quotes": quotes, "at": int(time.time())}, ensure_ascii=False)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        tmp = p + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="") as f:
+            f.write(blob)
+        os.replace(tmp, p)
+    except Exception as e:  # noqa: BLE001 -- a cache write never costs the caller its answer
+        _logger.warning("key-quotes cache write failed for %s: %s", sym, e)
+
+
 def get_key_quotes(sym: str) -> Optional[list]:
     """Extract the 3 most material quotes from the prior earnings call transcript.
 
@@ -652,6 +1010,11 @@ def get_key_quotes(sym: str) -> Optional[list]:
 
     # Truncate to ~30K chars to keep token usage modest
     excerpt = text[:30_000]
+    import hashlib
+    digest = hashlib.sha256(excerpt.encode("utf-8", "replace")).hexdigest()[:20]
+    cached = _kq_read(sym, digest)
+    if cached:
+        return cached
     try:
         client = _get_anthropic_client()
         prompt = (
@@ -690,6 +1053,8 @@ def get_key_quotes(sym: str) -> Optional[list]:
                     "topic": str(q.get("topic", ""))[:40],
                     "quote": str(q.get("quote", ""))[:300],
                 })
+        if out:
+            _kq_write(sym, digest, out)
         return out or None
     except Exception as e:
         _logger.warning("AI key-quotes extraction failed for %s: %s", sym, e)
@@ -703,11 +1068,49 @@ def _implied_for_report(sym: str, earnings_date: Optional[str],
     """The implied move for the report, with its session resolved: the caller's
     own timing when it has one (the earnings row's bucket), else
     `implied_move.report_timing` (engine weekly calendar, then Finnhub `hour`).
-    Unknown timing keeps the on-or-after rule -- the documented default."""
+    Unknown timing keeps the on-or-after rule -- the documented default.
+
+    The number is `implied_move.report_move`: the ATM straddle off our own option
+    chain read, the same one the Terminal's Expected Move panel shows, in this
+    module's field names plus `source` / `asof` / `horizon`. It is bounded there
+    (a held answer at once, else a build on that module's pool with a deadline),
+    so this leg adds no pool and no deadline here. `get_implied_move` below is
+    unchanged and is still what the Calendar's default enrichment path reads."""
+    from api.services.implied_move import report_move, report_timing
     if not timing and earnings_date:
-        from api.services.implied_move import report_timing
         timing = report_timing(sym, earnings_date)
-    return get_implied_move(sym, earnings_date, timing=timing)
+    return report_move(sym, earnings_date, timing=timing)
+
+
+def _share_own_read(sym: str, av_quarters: list) -> Optional[_SharedOwnRead]:
+    """Register ONE read of our daily bars for the run-up and the past-moves
+    legs of an enrichment call, sized to the older of the two needs. Returns
+    the registration to hand back to `_unshare_own_read`, or None when another
+    call already shares one for this symbol (its legs then use that read when
+    it reaches back far enough, else their own). Never raises."""
+    try:
+        since = _run_up_since()
+        dates, _ = _quarter_dates((av_quarters or [])[:8])
+        dated = [d for d in dates if d]
+        if dated:
+            since = min(since, (min(dated) - _dt.timedelta(
+                days=_OWN_BARS_PAD_DAYS)).isoformat())
+        shared = _SharedOwnRead(sym, since)
+        with _SHARED_LOCK:
+            if sym.upper() in _SHARED_READS:
+                return None
+            _SHARED_READS[sym.upper()] = shared
+        return shared
+    except Exception:
+        return None
+
+
+def _unshare_own_read(shared: Optional[_SharedOwnRead]) -> None:
+    if shared is None:
+        return
+    with _SHARED_LOCK:
+        if _SHARED_READS.get(shared.sym.upper()) is shared:
+            del _SHARED_READS[shared.sym.upper()]
 
 
 def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optional[str] = None,
@@ -716,6 +1119,9 @@ def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optiona
 
     `timing` is the report's session ('bmo'/'amc') when the caller knows it;
     see `_implied_for_report`.
+
+    The run-up and the past-moves legs share ONE read of our daily bars
+    (`_share_own_read`); each still falls back to Yahoo on its own.
 
     Returns dict with keys present (None or value) for each enrichment field.
     Never raises — each helper is wrapped.
@@ -730,13 +1136,17 @@ def enrich_earnings_response(sym: str, av_quarters: list, earnings_date: Optiona
         "implied_move":     lambda: _implied_for_report(sym, earnings_date, timing),
         "key_quotes":       lambda: get_key_quotes(sym),
     }
-    with ThreadPoolExecutor(max_workers=6, thread_name_prefix="earnings-enrich") as pool:
-        futs = {pool.submit(fn): name for name, fn in funcs.items()}
-        for fut in as_completed(futs, timeout=25):
-            name = futs[fut]
-            try:
-                out[name] = fut.result()
-            except Exception as e:
-                _logger.warning("enrichment helper %s for %s failed: %s", name, sym, e)
-                out[name] = None
+    shared = _share_own_read(sym, av_quarters)
+    try:
+        with ThreadPoolExecutor(max_workers=6, thread_name_prefix="earnings-enrich") as pool:
+            futs = {pool.submit(fn): name for name, fn in funcs.items()}
+            for fut in as_completed(futs, timeout=25):
+                name = futs[fut]
+                try:
+                    out[name] = fut.result()
+                except Exception as e:
+                    _logger.warning("enrichment helper %s for %s failed: %s", name, sym, e)
+                    out[name] = None
+    finally:
+        _unshare_own_read(shared)
     return out

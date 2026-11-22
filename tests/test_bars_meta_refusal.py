@@ -80,7 +80,7 @@ def test_the_sweep_tool_counts_a_refusal_separately_and_exits_nonzero(
     from api.services.cache import cache
 
     for t in ("ZZGOOD", "ZZREFUSED"):
-        cache.invalidate(san._META_KEY.format(t))
+        san._META_CACHE.invalidate(san._META_KEY.format(t))
 
     def _meta(ticker):
         if ticker == "ZZREFUSED":
@@ -125,7 +125,7 @@ def test_the_names_survive_a_cp1252_console(monkeypatch, tmp_path, capsys):
     from api.services.cache import cache
 
     for t in ("ZZOK", "ZZREF1", "ZZREF2"):
-        cache.invalidate(san._META_KEY.format(t))
+        san._META_CACHE.invalidate(san._META_KEY.format(t))
 
     def _meta(ticker):
         if ticker.startswith("ZZREF"):
@@ -172,7 +172,7 @@ def test_the_sweep_tool_warms_and_detects_per_ticker_not_in_two_phases(
 
     syms = ["ZZA", "ZZB", "ZZC"]
     for t in syms:
-        cache.invalidate(san._META_KEY.format(t))
+        san._META_CACHE.invalidate(san._META_KEY.format(t))
     order: list[str] = []
 
     monkeypatch.setattr(san, "_fetch_meta",

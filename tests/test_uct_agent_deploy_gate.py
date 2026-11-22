@@ -38,6 +38,39 @@ def _step(fragment: str) -> dict:   # an EXACT step name
     return hits[0]
 
 
+# DUP-RECEIPT (11-05, owner): the browser step expands `$AGENT_VITEST_PATHS` (`vitest list`, then its balanced slice) — ONE list (the workflow's
+# top-level env, the same as agent-ci.yml's) shared by the shard run, the `vitest list` equivalence rail and the repro
+# hints: src/agent, the builder's agentMutations, and the page tests that drive the Agent outside src/agent
+AGENT_PAGE_TESTS = [
+    "src/components/chart/builder/studio/agentRoute.test.jsx",
+    "src/components/StockChart.timeRangeSync.test.jsx",
+    "src/pages/breadth/breadthTabHookOrder.test.jsx",
+    "src/pages/charts/ChartsWorkspace.layoutUndoAgent.test.jsx",
+    "src/pages/charts/ChartsWorkspace.previousLayout.test.jsx",
+    "src/pages/charts/ChartsWorkspace.thisChart.test.jsx",
+    "src/pages/charts/widgets/ChartWidget.agent.test.jsx",
+    "src/pages/charts/widgets/TradeExchangeNewsWidget.terminal.test.jsx",
+]
+
+
+def _agent_vitest_paths(workflow: pathlib.Path = WORKFLOW) -> list[str]:
+    """The workflow's top-level `AGENT_VITEST_PATHS` (its `env:` block, before `jobs:`), split into paths."""
+    head = workflow.read_text(encoding="utf-8").split("\njobs:")[0]
+    m = re.search(r"(?m)^  AGENT_VITEST_PATHS: (.+)$", head)
+    assert m, f"{workflow.name} has no top-level AGENT_VITEST_PATHS"
+    return m.group(1).split()
+
+
+def test_the_agent_vitest_paths_hold_the_agent_suite_and_every_agent_driving_page_test():
+    for wf in (WORKFLOW, REPO / ".github" / "workflows" / "agent-ci.yml"):
+        paths = _agent_vitest_paths(wf)
+        assert paths[:2] == ["src/agent", "src/components/chart/builder/agentMutations"], (wf.name, paths)
+        assert sorted(paths[2:]) == sorted(AGENT_PAGE_TESTS), (wf.name, paths)
+    assert _agent_vitest_paths(WORKFLOW) == _agent_vitest_paths(REPO / ".github" / "workflows" / "agent-ci.yml")   # ONE list
+    for p in AGENT_PAGE_TESTS:
+        assert (REPO / "app" / p).is_file(), f"{p} is listed but does not exist — renamed? (an absent path runs nothing)"
+
+
 @pytest.mark.parametrize("fragment", [SERVER_STEP, INSTALL_STEP, BROWSER_STEP])
 def test_the_agent_steps_exist_and_are_never_conditional_or_optional(fragment):
     body = _step(fragment)["body"]
@@ -60,10 +93,64 @@ def test_the_server_step_covers_EVERY_agent_server_test_file():
     assert any(f.endswith("test_uct_agent_deploy_gate.py") for f in files)   # and holds this rail
 
 
+def _runs_the_one_list_as_a_balanced_slice(body: str) -> None:
+    """2026-11-16: the shards run the time-balanced plan (as agent-ci.yml does). The ONE list is still the env
+    `$AGENT_VITEST_PATHS`, expanded by `vitest list` exactly as the union rail expands it; each shard runs only
+    its slice, never vitest's file-count `--shard=`, and never an empty slice (an empty `vitest run` would run
+    the whole app suite). The union rail proves the slices cover the list, each file once."""
+    assert "npx vitest list $AGENT_VITEST_PATHS --filesOnly > ../agent-files.txt" in body   # the one list (env)
+    assert "tools/agent_vitest_shards.py --files-list ../agent-files.txt" in body
+    assert "--shard ${{ matrix.shard }}" in body and "--shard=" not in body
+    assert "test -s ../shard-${{ matrix.shard }}.files" in body
+    assert "npx vitest run $(cat ../shard-${{ matrix.shard }}.files)" in body
+
+
+def test_the_browser_shards_name_matrix_and_count_agree():
+    import yaml
+    doc = yaml.safe_load(WORKFLOW.read_text(encoding="utf-8"))
+    n = int(doc["env"]["AGENT_SHARDS"])
+    job = doc["jobs"]["agent-browser"]
+    assert job["strategy"]["matrix"]["shard"] == list(range(1, n + 1)), (n, job["strategy"]["matrix"])
+    assert job["name"] == "UCT Agent browser tests (shard ${{ matrix.shard }}/%d)" % n
+    assert n <= 20, "one gate run must leave room under GitHub Pro's 40 concurrent jobs for every other workflow"
+
+
+def _gate_union_verdict(tmp_path: pathlib.Path, files: list[str], shards: list[list[str]]) -> int:
+    """RUN the gate's real union script (read from the workflow, never a copy) over fake shard reports."""
+    import json
+    import os
+    import shutil
+    import subprocess
+    if not shutil.which("node"):
+        pytest.skip("node is not installed")
+    text = WORKFLOW.read_text(encoding="utf-8").split("agent-browser-union:", 1)[1]
+    body = text.split("node - <<'EOF2'\n", 1)[1].split("EOF2", 1)[0]
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "expected-files.txt").write_text("\n".join(files) + "\n", encoding="utf-8")
+    (tmp_path / "shards").mkdir()
+    for i, members in enumerate(shards, 1):
+        doc = {"numFailedTests": 0, "numPassedTests": len(members),
+               "testResults": [{"name": "/runner/w/app/" + f} for f in members]}
+        (tmp_path / "shards" / ("shard-%d.json" % i)).write_text(json.dumps(doc), encoding="utf-8")
+    (tmp_path / "union.js").write_text(body, encoding="utf-8")
+    env = dict(os.environ, AGENT_SHARDS=str(len(shards)))
+    return subprocess.run(["node", "union.js"], cwd=tmp_path, env=env, capture_output=True, text=True).returncode
+
+
+def test_the_gate_union_refuses_a_file_two_shards_ran(tmp_path):
+    files = [f"src/agent/t{i:02d}.test.js" for i in range(40)]
+    half = len(files) // 2
+    assert _gate_union_verdict(tmp_path / "ok", files, [files[:half], files[half:]]) == 0         # a clean partition passes
+    assert _gate_union_verdict(tmp_path / "dup", files, [files[:half + 1], files[half:]]) != 0    # one file in two shards
+    assert _gate_union_verdict(tmp_path / "gap", files, [files[:half], files[half + 1:]]) != 0    # one file in no shard
+
+
 def test_the_browser_step_runs_the_agent_suite_and_refuses_an_empty_one():
     body = _step(BROWSER_STEP)["body"]
-    assert "npx vitest run src/agent" in body
-    assert "agentMutations" in body                           # the Indicators interface the Agent writes through
+    _runs_the_one_list_as_a_balanced_slice(body)
+    paths = _agent_vitest_paths()
+    assert "src/agent" in paths
+    assert "src/components/chart/builder/agentMutations" in paths   # the Indicators interface the Agent writes through
     assert "--passWithNoTests" not in body and "passWithNoTests" not in body
     floor = int(re.search(r'-lt (\d+) \]', body).group(1))
     have = len(glob.glob(str(REPO / "app" / "src" / "agent" / "*.test.js"))) + len(glob.glob(str(REPO / "app" / "src" / "agent" / "*.test.jsx")))
@@ -89,18 +176,18 @@ def test_a_FAILED_agent_step_refuses_PROMOTION_through_the_real_promotion_rules(
     assert gate_name == pg.ALWAYS_RUNS and verdicts[gate_name] == "yes"     # the Agent tests run in THE gating job
     gating = [n for n, v in verdicts.items() if v == "yes"]
     wf = [{"name": n, "state": "active"} for n in verdicts]
-    ok = lambda n: {"name": n, "status": "completed", "conclusion": "success"}
-    failed = [{"name": gate_name, "status": "completed", "conclusion": "failure"}]
+    ok = lambda n: {"name": n, "status": "completed", "conclusion": "success", "head_branch": "master", "event": "push"}
+    failed = [{"name": gate_name, "status": "completed", "conclusion": "failure", "head_branch": "master", "event": "push"}]
     verdict, why = pg.decide(gating=gating, runs=failed, workflows=wf)
     assert verdict == pg.REFUSE and gate_name in why
     # …and the same commit with a green gate WOULD promote (the refusal is the failure's doing)
     assert pg.decide(gating=gating, runs=[ok(gate_name)], workflows=wf)[0] == pg.PROMOTE
     # a gate still running is never promoted either
-    running = [{"name": gate_name, "status": "in_progress", "conclusion": None}]
+    running = [{"name": gate_name, "status": "in_progress", "conclusion": None, "head_branch": "master", "event": "push"}]
     assert pg.decide(gating=gating, runs=running, workflows=wf)[0] == pg.WAIT
     # a CANCELLED gate refuses, and a gate that never ran for the commit (MISSING) refuses — it is
     # the always-runs check, so its absence is a fault, never "not relevant"
-    cancelled = [{"name": gate_name, "status": "completed", "conclusion": "cancelled"}]
+    cancelled = [{"name": gate_name, "status": "completed", "conclusion": "cancelled", "head_branch": "master", "event": "push"}]
     assert pg.decide(gating=gating, runs=cancelled, workflows=wf)[0] == pg.REFUSE
     assert pg.decide(gating=gating, runs=[], workflows=wf)[0] == pg.REFUSE
     other = [ok(n) for n in gating if n != gate_name]
@@ -146,4 +233,5 @@ def test_the_gate_still_runs_the_agent_suites_itself():
     """The amendment above must never be read as 'the Agent suites moved to agent-ci'. The gate's
     own server and browser steps are the mandatory coverage; this pins them next to the exemption."""
     assert "pytest tests/test_uct_agent*.py" in _step(SERVER_STEP)["body"]
-    assert "npx vitest run src/agent" in _step(BROWSER_STEP)["body"]
+    _runs_the_one_list_as_a_balanced_slice(_step(BROWSER_STEP)["body"])
+    assert "src/agent" in _agent_vitest_paths()

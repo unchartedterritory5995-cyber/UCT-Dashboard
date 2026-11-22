@@ -43,11 +43,13 @@ one.
 """
 from __future__ import annotations
 
+import collections
 import datetime
 import math
 import re
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
+from api.services import pine_compare as _pc
 from api.services.nyse_calendar import (
     NYSE_EARLY_CLOSES_YYYYMMDD,
     NYSE_HOLIDAYS_YYYYMMDD,
@@ -94,6 +96,10 @@ from api.services.indicator_compute import (
     compute_pvt_raw,
     compute_rsi_raw,
     compute_stoch_raw,
+    compute_session_regular_raw,
+    opening_range_refusal,
+    OPENING_RANGE_BARS_LONGER,
+    OPENING_RANGE_BARS_DO_NOT_DIVIDE,
     compute_vwap_raw,
     compute_williams_r_raw,
 )
@@ -134,8 +140,15 @@ INF = float("inf")
 #: INTRADAY BARS: the supply exists only on a chart, so here the node is NOT
 #: COMPUTABLE on every bar (the JS lane's own answer for an unsupplied code) and
 #: ``scan_definition.assert_scannable`` refuses a screen that carries one, by name.
+#: ⭐⭐ ENGINE 55 — AND ``tf_merge``: Pine's ``request.security(…, 'W'|'M')`` with
+#: look-ahead off, as TradingView merges it (``interpret.js``'s ``tf_merge`` arm;
+#: the evaluator arm below is its port). Only the Pine door writes it; the scan door
+#: and the alert lane refuse it by name (``scan_definition.assert_scannable``,
+#: ``alert_user_series._make_value_fn``): what they read is the newest finished bar,
+#: which the merge withholds. (Since 2026-11-19 the alert lane admits a merge read only
+#: through a literal ``x[k]``, k >= 1: ``alert_user_series.merge_newest_unproven``.)
 NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
-              "str", "symtext", "textop", "ltf")
+              "str", "symtext", "textop", "ltf", "tf_merge")
 
 #: The subset of ``NODE_TYPES`` that is NOT EVALUABLE — settled by the fold
 #: before anything computes, and refused by ``interpret`` if one ever reaches it.
@@ -289,7 +302,7 @@ def _assert_sym_placement(root: Any) -> None:
                     "— a lower-timeframe read (`ltf`) cannot sit inside another "
                     "request: it is mapped onto the chart's own bars, and those "
                     "are not the bars that request hands its child")
-        if under_ltf and kind in ("tf", "tf_live", "sym"):
+        if under_ltf and kind in ("tf", "tf_live", "tf_merge", "sym"):
             _refuse("interpret:timeframe",
                     "— a `%s` read cannot sit inside a lower-timeframe read "
                     "(`ltf`): its child runs on intraday bars, and a request made "
@@ -305,7 +318,7 @@ def _assert_sym_placement(root: Any) -> None:
                     "sym('%s', tf(…))." % (ticker, ticker, ticker))
         args = node.get("args")
         if isinstance(args, list):
-            is_tf = kind in ("tf", "tf_live")
+            is_tf = kind in ("tf", "tf_live", "tf_merge")
             for a in args:
                 stack.append((a, under_tf or is_tf,
                               under_request or is_tf or kind in ("sym", "ltf"),
@@ -460,10 +473,194 @@ def _iso_day(t: Any) -> Optional[str]:
         if 1 <= m <= 12 and 1 <= d <= 31:
             return "%04d-%02d-%02d" % (y, m, d)
     # otherwise: unix SECONDS (the intraday spelling). Not milliseconds — this
-    # platform's unit everywhere a bar carries one, as `compute_clock` states.
+    # platform's unit everywhere a bar carries one, as `compute_clock` states. (A series' days: ``_bar_days``.)
     if 0 < n < 4102444800:                      # < 2100-01-01
-        return datetime.datetime.utcfromtimestamp(n).strftime("%Y-%m-%d")
+        return (datetime.date(1970, 1, 1) + datetime.timedelta(days=n // 86400)).strftime("%Y-%m-%d")
     return None
+
+
+def _epoch_seconds_of(t: Any) -> Optional[int]:
+    """``interpret.js::epochSecondsOf``: a bar's ``t`` as unix seconds when it is one (not an ISO day, not a
+    ``YYYYMMDD`` key), else ``None``."""
+    if isinstance(t, bool) or not isinstance(t, (int, float)) or t != t or t in (math.inf, -math.inf):
+        return None
+    n = int(t)
+    if 19000101 <= n <= 99991231:
+        md = n % 10000
+        if 1 <= md // 100 <= 12 and 1 <= md % 100 <= 31:
+            return None
+    return n if 0 < n < 4102444800 else None
+
+
+#: ``interpret.js::INTRADAY_SPACING_S``: two bars closer than this are an intraday series'.
+INTRADAY_SPACING_S = 20 * 3600
+
+
+def _bar_days(bars: List[Any]) -> List[Optional[str]]:
+    """⭐⭐ RULING 2 (coordinator, 2026-11-20) -- the port of ``interpret.js::barDays`` (its note carries the rule): the
+    day of each bar of a series as a resampler keys its week or month. An INTRADAY series' bar (unix seconds, two bars
+    less than ``INTRADAY_SPACING_S`` apart) by the exchange's local session date (``_new_york_offset_seconds``), every
+    other bar as ``_iso_day`` reads it (a daily series stamped at midnight UTC is a DATE). The series decides, not the
+    bar. ⭐⭐ Q-CLOSURE (2026-11-21): a daily series whose sessions open the evening before is keyed by the session each
+    bar opens (``_session_keying``)."""
+    return _session_keying(bars)["days"]
+
+
+#: ⭐⭐ Q-CLOSURE (coordinator ruling 2026-11-21) -- ``interpret.js::SESSION_CARRY_WITNESSED_THROUGH``: the last session
+#: date the captures witness a holiday session carried into the next trading day (S2) on; a carry after it is withheld.
+SESSION_CARRY_WITNESSED_THROUGH = "2026-11-20"
+
+
+def _session_keying(bars: List[Any]) -> Dict[str, Any]:
+    """⭐⭐ Q-CLOSURE (coordinator ruling 2026-11-21) -- the port of ``interpret.js::sessionKeying`` (its note carries
+    the rule and the measurement, captures ``vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20``): ``{days, evening, s0,
+    unwitnessed}``. A daily series holding a Sunday bar and no Friday or Saturday bar opens each session the evening
+    before: S0 keys each bar by the session it opens (the next day); S2 keys a session dated on an NYSE full closure whose
+    next trading day holds no bar of its own by that next trading day; a carry the captures do not witness (after
+    ``SESSION_CARRY_WITNESSED_THROUGH``, the newest bar on a closure, past the calendar's horizon a next weekday with no
+    bar of its own) is listed in ``unwitnessed`` and withheld by ``htf_venue_calendar_mask``. Any other series keeps
+    the days RULING 2 gives it."""
+    stamps = [b.get("t") if isinstance(b, Mapping) else None for b in (bars or [])]
+    intraday = False
+    prev = None
+    for t in stamps:
+        e = _epoch_seconds_of(t)
+        if e is None:
+            prev = None
+            continue
+        if prev is not None and prev < e and e - prev < INTRADAY_SPACING_S:
+            intraday = True
+            break
+        prev = e
+    raw: List[Optional[str]] = []
+    for t in stamps:
+        e = _epoch_seconds_of(t) if intraday else None
+        if e is None:
+            raw.append(_iso_day(t))
+        else:
+            day = datetime.date(1970, 1, 1) + datetime.timedelta(days=(e + _new_york_offset_seconds(e)) // 86400)
+            raw.append(day.strftime("%Y-%m-%d"))
+    if intraday or not _evening_open_shape(raw):
+        return {"days": raw, "evening": False, "s0": raw, "unwitnessed": []}
+    s0 = [_iso_plus(d, 1) if d else d for d in raw]
+    days = list(s0)
+    unwitnessed: List[Dict[str, Any]] = []
+    closures, through = _nyse_closure_days()
+    for i, d in enumerate(s0):
+        if not d:
+            continue
+        newest = i + 1 >= len(s0)
+        nxt = None if newest else s0[i + 1]
+        if not newest and not nxt:
+            continue
+        if d > through:
+            # past the horizon no closure is known: a next weekday with no bar of its own may be a carry
+            wd = datetime.date.fromisoformat(d).isoweekday()
+            to = _iso_plus(d, 8 - wd if wd >= 5 else 1)
+            if newest or nxt > to:
+                unwitnessed.append({"i": i, "from": d, "to": to})
+            continue
+        if d not in closures:
+            continue
+        to = _next_nyse_trading_day(d, closures)
+        if newest:
+            unwitnessed.append({"i": i, "from": d, "to": to})
+            continue
+        if not nxt > to:
+            continue
+        days[i] = to
+        if d > SESSION_CARRY_WITNESSED_THROUGH:
+            unwitnessed.append({"i": i, "from": d, "to": to})
+    return {"days": days, "evening": True, "s0": s0, "unwitnessed": unwitnessed}
+
+
+def _evening_open_shape(days: List[Optional[str]]) -> bool:
+    """``interpret.js::eveningOpenShape``: a Sunday bar and no Friday or Saturday bar (decided at the first Friday)."""
+    sunday = False
+    for d in days:
+        if not d:
+            continue
+        wd = datetime.date.fromisoformat(d).isoweekday()
+        if wd in (5, 6):
+            return False
+        if wd == 7:
+            sunday = True
+    return sunday
+
+
+def _iso_plus(iso: str, days: int) -> str:
+    return (datetime.date.fromisoformat(iso) + datetime.timedelta(days=days)).isoformat()
+
+
+def _nyse_closure_days():
+    """The NYSE's full closures as ISO days and the dataset's horizon (``market_calendar.json``, the JS lane's
+    ``sessionCalendar.js::HOLIDAY_ROWS`` / ``horizon()``)."""
+    from api.services.session_calendar import calendar as _calendar          # noqa: PLC0415
+    cal = _calendar()
+    return frozenset(d.isoformat() for d in cal.holidays), cal.horizon.isoformat()
+
+
+def _next_nyse_trading_day(iso: str, closures) -> str:
+    d = datetime.date.fromisoformat(iso) + datetime.timedelta(days=1)
+    while d.isoweekday() > 5 or d.isoformat() in closures:
+        d += datetime.timedelta(days=1)
+    return d.isoformat()
+
+
+def _new_york_offset_seconds(t: int) -> int:
+    """⭐⭐ RULING 2 (coordinator, 2026-11-20) -- the port of ``interpret.js::newYorkOffsetSeconds`` (its note carries the
+    rule and the measurement: capture ``vw-bi-time-d-extended-spy-60-2026-11-19``, TradingView keys a Friday 19:00 New
+    York bar to its local Friday): New York's UTC offset at unix second ``t``, -4 h in daylight time and -5 h otherwise,
+    from the United States rule in force that year. Integer arithmetic, the JS lane's, so the two cannot differ."""
+    y = (datetime.date(1970, 1, 1) + datetime.timedelta(days=t // 86400)).year
+
+    def sunday(m: int, k: int) -> int:
+        # the day number (days since 1970-01-01) of the k-th Sunday of a month (k = -1: the last); 1970-01-01 was a Thursday
+        if k > 0:
+            first = (datetime.date(y, m, 1) - datetime.date(1970, 1, 1)).days
+            return first + (7 - (first + 4) % 7) % 7 + 7 * (k - 1)
+        last = (datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.date(1970, 1, 1)).days - 1
+        return last - (last + 4) % 7
+
+    if y >= 2007:
+        on, off = sunday(3, 2), sunday(11, 1)
+    elif y >= 1987:
+        on, off = sunday(4, 1), sunday(10, -1)
+    else:
+        on, off = sunday(4, -1), sunday(10, -1)
+    return -4 * 3600 if on * 86400 + 7 * 3600 <= t < off * 86400 + 6 * 3600 else -5 * 3600
+
+
+#: ⭐⭐ U-HTF-CALENDAR (2026-11-18) -- the port of ``interpret.js::htfClosesOnNextBar`` (that file's comment
+#: carries the measurement, Q-HTF-CAL-1a / 1b), read off the Python twin of TradingView's session facts,
+#: ``tradingview_session.py`` (``TRADINGVIEW_CLOSURES_FROM_YYYYMMDD``, ``TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD``; the
+#: twins are held equal by ``tests/test_nyse_calendar_parity.py``): a bar that closes its week or month is late when a
+#: later weekday of that period is one TradingView's session never closed.
+
+
+def htf_closes_on_next_bar(iso: Any, code: str) -> bool:
+    """Does the period (``W`` or ``M``) whose last bar is ``iso`` show its close on the NEXT bar?"""
+    if not isinstance(iso, str) or code not in ("W", "M") or not _ISO_DAY.fullmatch(iso):
+        return False
+    # ⛔ NO try (tests/test_ast_budget.py: this module holds none): an impossible day is answered by arithmetic
+    y, m, d = int(iso[:4]), int(iso[5:7]), int(iso[8:10])
+    if not (1 <= y <= 9998 and 1 <= m <= 12):
+        return False
+    if not 1 <= d <= (datetime.date(y + (m == 12), m % 12 + 1, 1) - datetime.timedelta(days=1)).day:
+        return False
+    day = datetime.date(y, m, d)
+    from api.services.tradingview_session import (  # noqa: PLC0415
+        TRADINGVIEW_CLOSURES_FROM_YYYYMMDD, TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD)
+    key = _tf_bucket(iso, code)
+    for k in range(1, 32):
+        nxt = day + datetime.timedelta(days=k)
+        if _tf_bucket(nxt.isoformat(), code) != key:
+            return False
+        ymd = nxt.year * 10000 + nxt.month * 100 + nxt.day
+        if nxt.weekday() < 5 and (ymd < TRADINGVIEW_CLOSURES_FROM_YYYYMMDD
+                                  or ymd in TRADINGVIEW_UNAPPLIED_CLOSURES_YYYYMMDD):
+            return True
+    return False
 
 
 def _tf_bucket(iso: str, code: str) -> Any:
@@ -478,6 +675,58 @@ def _tf_bucket(iso: str, code: str) -> Any:
     if code == "3M":                      # C47 — the calendar quarter (`tf_live` only)
         return (d.year, (d.month - 1) // 3 + 1)
     return d.isocalendar()[:2] if code == "W" else (d.year, d.month)
+
+
+def _htf_resampled(bars: List[dict], code: str):
+    """The ``tf`` / ``tf_live`` / ``tf_merge`` arm's higher-timeframe bars, ONE authority (the arm and
+    ``_tf_live_first_period_read_mask`` both read it): ``(iso, keys, at, order, htf)`` -- each base bar's ISO day and
+    bucket, each bucket's index, the buckets in order, and the resampled bars.
+
+    ⭐ THE RESAMPLER IS THE OWNER OF WHAT A HIGHER-TIMEFRAME BAR IS. ``bars_fetch._resample_weekly_iso`` carries the
+    stable-Friday-key rationale; a private aggregation here would be a second authority on it, which
+    ``screener/candles.py`` already says in as many words."""
+    iso = _bar_days(bars)
+    keys = [(_tf_bucket(d, code) if d else None) for d in iso]
+    order: List[Any] = []
+    at: Dict[Any, int] = {}
+    for k in keys:
+        if k is not None and k not in at:
+            at[k] = len(order)
+            order.append(k)
+    from api.services import bars_fetch                      # noqa: PLC0415
+    resample = (bars_fetch._resample_weekly_iso if code == "W"
+                else _resample_quarterly_iso if code == "3M"
+                else bars_fetch._resample_monthly_iso)
+    # ⭐⭐ RULING 2 -- every bar the series holds, as the JS lane's ``resampleTo`` keeps it: a session the exchange never
+    # held is not dropped from one lane's aggregate only. ⭐⭐ Q-CLOSURE: TradingView's week holds such a bar (captures
+    # ``vw-req-w-closure-day-{eurusd,es1}-1d-2026-11-20``), keyed by its session (``_bar_days``); no series the store
+    # serves holds one (``tests/test_htf_closure_week_unreachable.py``)
+    rows = [dict(b, t=d) for b, d in zip(bars, iso) if d]
+    htf = resample(rows) if code == "3M" else resample(rows, sessions_only=False)
+    return iso, keys, at, order, htf
+
+
+def _tf_merge_reads(iso: List[Optional[str]], keys: List[Any], at: Dict[Any, int], code: str) -> List[int]:
+    """The port of ``interpret.js::tfMergeReads``, ONE authority (the ``tf_merge`` arm and
+    ``_first_period_partial_read_mask`` read it): for each base bar, the index of the higher-timeframe bar a merge
+    hands it, or -1. A bar that CLOSES its period (the next bar sits in another bucket) reads its own bucket ``b``,
+    every other bar ``b - 1``; a bar with no readable day, or followed by one, reads nothing. ⭐⭐ U-HTF-CALENDAR: a
+    period a later weekday of which TradingView's session never closed closes on the NEXT bar."""
+    length = len(keys)
+    out = [-1] * length
+    for i, k in enumerate(keys):
+        if k is None:
+            continue
+        b = at[k]
+        nxt = keys[i + 1] if i + 1 < length else None
+        if i + 1 < length and nxt is None:
+            continue
+        if nxt is None or nxt != k:
+            late = nxt is not None and b > 0 and htf_closes_on_next_bar(iso[i], code)
+            out[i] = b - 1 if late else b
+        elif b > 0:
+            out[i] = b - 1
+    return out
 
 
 REFUSALS: Mapping[str, str] = {
@@ -539,7 +788,7 @@ REFUSALS: Mapping[str, str] = {
 #: the JS constant; this file carries the number and not a second copy of the
 #: argument.
 #:
-#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``scan_evaluator._MAX_BARS`` caps a
+#: ⚠️ AND THIS LANE'S EXPOSURE DOES NOT MOVE. ``bars_window.HISTORY_WINDOW_BARS`` caps a
 #: sweep at 5,000 bars, so the most this walker can ever be asked for is
 #: ``5000 x 960`` (the grammar's own ``maxLookback``) = 4,800,000 steps -- below
 #: this ceiling either way. The note above says the low number existed to bound
@@ -704,46 +953,46 @@ def _isnan(x: float) -> bool:
 #: MUST move together (§11).
 NA_SKIP = "skip"
 NA_PROPAGATE = "propagate"
-NA_RESTART = "restart"
 NA_FFILL = "ffill"
+#: ⭐⭐ ENGINE HL (2026-11-15) -- the last ``n`` FINITE values, fewer while fewer exist; ``na`` before
+#: bar ``n - 1`` and before the first finite value; an answer on the ``na`` bar itself. ``highest`` /
+#: ``lowest``, WITNESSED by S10 (``vw-cs2-holed-highest-*``, 12 columns, 0 mismatches). JS twin:
+#: ``interpret.js::NA.FINITE`` / ``rollingFinite``.
+NA_FINITE = "finite"
 
 #: The na policy of every finite-window member, by TABLE name.
 #:   SKIP      -- the last ``n`` FINITE observations, however many BARS that spans;
 #:                answers on the ``na`` bar itself (vendor: 133 of 133).
 #:   PROPAGATE -- a clean ``n``-BAR window; blank for exactly ``n-1`` bars after a hole.
-#:   RESTART   -- the window begins again after a hole, so one bar later
-#:                ``highest == lowest ==`` the lone observation.
+#:   ⚰️ RESTART -- the window began again after a hole. GONE: ``highest`` / ``lowest`` were
+#:                RESTART until S10 refuted it, ``highestbars`` / ``lowestbars`` (with an ``na``-bar
+#:                answer of 0) until S17 did (``vw-cs2-holed-highestbars-*``: -1 on the hole bar).
+#:   FINITE    -- the last ``n`` FINITE values, fewer while fewer exist, answering on the ``na`` bar
+#:                (``highest``, ``lowest``; engine HL. ``highestbars``, ``lowestbars``: S17, with the
+#:                offset counted in BARS, ``WINDOW_ARG``).
 #:   FFILL     -- an ``na`` in the LOOKBACK is replaced by the last finite value
 #:                and keeps its bar-position weight; the answer is ``na`` only
 #:                when the CURRENT bar is ``na``. Vendor-pinned 2026-09-08.
 WINDOW_NA: Dict[str, str] = {
     "sma": NA_SKIP, "stdev": NA_SKIP, "sum": NA_SKIP, "median": NA_SKIP,
-    "highest": NA_RESTART, "lowest": NA_RESTART,
-    "highestbars": NA_RESTART, "lowestbars": NA_RESTART,
+    "highest": NA_FINITE, "lowest": NA_FINITE,
+    "highestbars": NA_FINITE, "lowestbars": NA_FINITE,
     "wma": NA_FFILL,
     # ⚠️ STILL NOT DETERMINED. ``dev`` is the one member whose PROPAGATE reading
     # is positively observed (210ok/0bad, PART Z) rather than a default.
     "dev": NA_PROPAGATE,
 }
 
-#: The answer when the CURRENT bar is ``na`` and the policy would otherwise
-#: refuse. Only the two arg-extremes declare one: the vendor answers 0 there
-#: because a restarted window's only candidate is this bar, so the OFFSET is
-#: defined even though the VALUE is not.
-WINDOW_NA_CURRENT: Dict[str, float] = {"highestbars": 0.0, "lowestbars": 0.0}
+#: ⭐⭐ S17 -- the members whose answer is an OFFSET, counted in BARS over the last ``n`` finite
+#: values (``interpret.js::FINITE_WINDOW[*].arg``). ⚰️ ``WINDOW_NA_CURRENT`` (0 on the ``na`` bar)
+#: was here until S17 measured -1 there.
+WINDOW_ARG = frozenset({"highestbars", "lowestbars"})
 
 
 def _window_operands(series: Sequence[float], n: int, i: int, policy: str):
     """The operand list for bar ``i`` under one policy, or ``None`` if unanswerable."""
     if policy == NA_PROPAGATE:
         return series, i - n + 1, i
-    if policy == NA_RESTART:
-        if not math.isfinite(series[i]):
-            return None
-        lo = i
-        while lo > i - n + 1 and lo > 0 and math.isfinite(series[lo - 1]):
-            lo -= 1
-        return series, lo, i
     buf: List[float] = []
     j = i
     while j >= 0 and len(buf) < n:
@@ -756,22 +1005,41 @@ def _window_operands(series: Sequence[float], n: int, i: int, policy: str):
     return buf, 0, n - 1
 
 
+def _rolling_skip(series: Sequence[float], n: int,
+                  reduce: Callable[[Sequence[float], int, int], float]) -> List[float]:
+    """``NA_SKIP`` in one forward pass: bar ``i`` (from ``n - 1``) reads the last ``n`` FINITE values at or before it,
+    oldest first, once ``n`` exist; before that, NaN. Each value is read once. O(N*n) whatever the gaps."""
+    out = _nan_col(len(series))
+    # a series shorter than the window has no bar to reach, so nothing may read it, a None included (3eb37a08a8;
+    # the per-bar gather this pass replaced started at bar ``n - 1`` and never read one)
+    if len(series) < n:
+        return out
+    ring = collections.deque(maxlen=n)
+    for i in range(len(series)):
+        v = series[i]
+        if math.isfinite(v):
+            ring.append(v)
+        if i < n - 1 or len(ring) < n:
+            continue
+        out[i] = reduce(list(ring), 0, n - 1)
+    return out
+
+
 def _rolling(series: Sequence[float], n: int,
              reduce: Callable[[Sequence[float], int, int], float],
              policy: str = NA_PROPAGATE,
-             na_current: Optional[float] = None) -> List[float]:
+             arg: bool = False) -> List[float]:
     """Rolling reduction over a full window. NaN before bar ``n-1``.
 
-    ⚠️ THE SERIES-START WARM-UP IS UNCHANGED AND DELIBERATELY SO. Every vendor
-    capture begins deep in real history, so what Pine does on bar 0 of a symbol
-    has never been observed. ``RESTART`` answers with a PARTIAL run after a hole
-    because that IS observed; the ``i < n - 1`` gate at the start of the series is
-    not, so it stays.
+    ⭐ THE SERIES-START GATE (``i < n - 1`` is ``na``) is witnessed from the listing for the
+    ``NA_FINITE`` members (S10 / S17). ``arg`` is ``_rolling_finite``'s (``WINDOW_ARG``).
 
     ⭐ FORWARD-FILL IS A SERIES TRANSFORM, DONE ONCE, in O(N). Gathering it
     per-bar would make one bar's cost depend on how long the preceding gap was.
     The JS twin is ``interpret.js::rolling``.
     """
+    if policy == NA_FINITE:
+        return _rolling_finite(series, n, reduce, arg)
     out = _nan_col(len(series))
     src: Sequence[float] = series
     if policy == NA_FFILL:
@@ -783,18 +1051,85 @@ def _rolling(series: Sequence[float], n: int,
             filled.append(carry)
         src = filled
     inner = NA_PROPAGATE if policy == NA_FFILL else policy
+    # ⭐ A SERIES WITH NO `na` HAS NOTHING TO SKIP, so NA_SKIP's window IS the plain slice: the same operands in the same
+    # order, gathered once instead of bar by bar. Same reduce, same arithmetic, the same bits. It is the common case: a
+    # nightly build re-sums three windows over 400 bars for every symbol, and the gathering cost more than the sums.
+    # (`len` first: a series shorter than the window has no bar to reach, so nothing may read it, a None included.)
+    if inner == NA_SKIP and len(series) >= n and all(map(math.isfinite, src)):
+        inner = NA_PROPAGATE
+    # ⭐⭐ SKIP IS ONE FORWARD PASS (2026-11-19, measured on production e86: the backward gather per bar walked every
+    # `na` before it, ~2e8 steps on a 28k-bar series na for its first 19,864 bars; 16.1 s of a 21.9 s main-thread
+    # freeze in the JS twin). The last `n` finite values kept in a ring hand `reduce` the same operands in the same
+    # order on the same bars: byte-identical (`tests/test_ast_rolling_skip_linear.py`). The JS twin is
+    # `interpret.js::rollingSkip`.
+    if inner == NA_SKIP and isinstance(n, int) and n >= 1:
+        return _rolling_skip(series, n, reduce)
+    # ⭐⭐ LANE B0 (2026-11-09) -- ``wma``'s warm-up counts FINITE OBSERVATIONS, not
+    # bars (witnessed from the listing: ``trend-targets-algoalpha-rddt-1d-2026-10-02``).
+    # The JS twin, ``interpret.js::rolling``, carries the measurement.
+    finite_seen = 0
+    if policy == NA_FFILL:
+        finite_seen = sum(1 for v in series[: max(0, n - 1)] if math.isfinite(v))
     for i in range(n - 1, len(series)):
+        if policy == NA_FFILL and math.isfinite(series[i]):
+            finite_seen += 1
         # ⛔ THE CURRENT BAR IS CHECKED AGAINST THE ORIGINAL SERIES, NOT THE
         # FILLED ONE -- ``wma`` fills what it LOOKS BACK at, never the bar it is
         # being asked about.
         if policy == NA_FFILL and not math.isfinite(series[i]):
             continue
+        if policy == NA_FFILL and finite_seen < n:
+            continue
         w = _window_operands(src, n, i, inner)
         if w is not None:
             buf, lo, hi = w
             out[i] = reduce(buf, lo, hi)
-        elif na_current is not None and not math.isfinite(series[i]):
-            out[i] = na_current
+    return out
+
+
+def _hl_finite(v: Any) -> bool:
+    """A finite number (a ``None`` or a NaN is not)."""
+    return isinstance(v, (int, float)) and math.isfinite(v)
+
+
+def _rolling_finite(series: Sequence[float], n: int,
+                    reduce: Callable[[Sequence[float], int, int], float],
+                    arg: bool = False) -> List[float]:
+    """⭐⭐ ENGINE HL -- ``NA_FINITE``: ``interpret.js::rollingFinite``, step for step. One forward
+    pass keeping the last ``n`` finite values oldest-first; ``na`` before bar ``n - 1`` and before
+    the first finite value; an answer on an ``na`` bar. ``arg`` (S17, ``WINDOW_ARG``): ``reduce``
+    answers a distance back in the dense buffer and TradingView counts it in BARS, so each kept
+    value's bar rides beside it and the answer is ``i - at[j]``."""
+    out = _nan_col(len(series))
+    if not n >= 1:
+        return out
+    buf: List[float] = []
+    at: List[int] = []
+    for i, v in enumerate(series):
+        if _hl_finite(v):
+            buf.append(v)
+            at.append(i)
+            if len(buf) > n:
+                buf.pop(0)
+                at.pop(0)
+        if i >= n - 1 and buf:
+            r = reduce(buf, 0, len(buf) - 1)
+            if not arg:
+                out[i] = r
+            elif isinstance(r, (int, float)) and math.isfinite(r):
+                out[i] = float(i - at[len(buf) - 1 - int(r)])
+    return out
+
+
+def finite_window_count(series: Sequence[float], n: int) -> List[int]:
+    """``interpret.js::finiteWindowCount`` -- per bar, how many finite values ``NA_FINITE``'s window
+    of ``n`` holds (0 before the first, at most ``n``)."""
+    out: List[int] = []
+    seen = 0
+    for v in series:
+        if _hl_finite(v):
+            seen += 1
+        out.append(min(seen, n))
     return out
 
 
@@ -844,11 +1179,48 @@ def _window_fn(name: str, reduce: Callable[[Sequence[float], int, int], float],
     """
     def fn(series: Sequence[float], n: int) -> List[float]:
         return _rolling(series, span(n) if span else n, reduce,
-                        WINDOW_NA[name], WINDOW_NA_CURRENT.get(name))
+                        WINDOW_NA[name], name in WINDOW_ARG)
     return fn
 
 
+def _exact_sum(series: Sequence[float], lo: int, hi: int) -> float:
+    """The exactly rounded window sum (``math.fsum``), twin of ``interpret.js::exactSum``.
+
+    ``math.fsum`` RAISES on an overflow and on ``inf + -inf``, and this module holds no ``try``
+    (``test_ast_budget``: a caught error is one line from a refusal), so the window is admitted to it
+    only when the sum of its magnitudes is finite and below ``1e307``: every partial ``math.fsum`` forms is
+    then bounded by it, so nothing can overflow. Any other window (a NaN, an infinity, a magnitude near
+    the top of the range) answers the left-to-right sum, as before and as the JS twin does. ⭐ Both checks
+    run in C (``sum(map(abs, ...))``): a generator scan in Python cost more than the sum itself, measured
+    on 3,742 tickers x sma(50) + sma(200) x 1,500 bars."""
+    window = series[lo:hi + 1]
+    if sum(map(abs, window)) < 1e307:  # False for a NaN or an infinity too
+        return math.fsum(window)
+    total = 0.0
+    for v in window:
+        total += v
+    return total
+
+
+def _rma_seed_mean(values: Sequence[float]) -> float:
+    """⭐⭐ RMA-SEED (engine 92) -- THE ONE SEED RULE of every Wilder smoother a Pine document is served,
+    the twin of ``interpret.js::rmaSeedMean``: the EXACTLY ROUNDED sum of the first ``n`` values (``_exact_sum``,
+    ``math.fsum``) divided by ``n``. Pine's ``ta.rma`` seeds with ``ta.sma``, which TradingView sums exactly
+    (SMA-EXACT); witnessed where a left-to-right seed parts from it on ``vw-bi-dmi-{spy,rddt}-1d-2026-11-19``
+    (3 of 6 ADX seeds, all this one). ``_rma_col`` (``ta.rma``, ``ta.atr``) and ``FN_PINE["rsi"]`` read it."""
+    return _exact_sum(values, 0, len(values) - 1) / len(values)
+
+
 def _window_mean(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.sma``: the EXACTLY ROUNDED window sum over its length (``math.fsum``), the twin of
+    ``interpret.js::windowMean`` / ``exactSum`` (SMA-EXACT, Engine 65 (#1484)): TradingView's sma
+    equals it on every bar of every capture from 2026-11-14 on. A NaN in the window answers NaN."""
+    return _exact_sum(series, lo, hi) / (hi - lo + 1)
+
+
+def _window_mean_naive(series: Sequence[float], lo: int, hi: int) -> float:
+    """The left-to-right mean ``ta.dev`` / ``ta.stdev`` centre on, unchanged by SMA-EXACT (the twin
+    of ``interpret.js::windowMeanNaive``)."""
     total = 0.0
     for i in range(lo, hi + 1):
         total += series[i]
@@ -868,7 +1240,7 @@ def _window_extreme(series: Sequence[float], lo: int, hi: int,
 
 
 def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
-                        better: Callable[[float, float], bool]) -> float:
+                        better: Callable[[float, float], bool], newest: bool = False) -> float:
     """WHICH BAR holds the window's extreme, as an offset back from ``hi``.
 
     ⛔⛔ THE TIE-BREAK IS THE MOST RECENT BAR, AND IT IS THE MANIFEST'S RULING,
@@ -897,6 +1269,15 @@ def _window_arg_extreme(series: Sequence[float], lo: int, hi: int,
     """
     best = _window_extreme(series, lo, hi, better)
     if math.isnan(best):
+        return NAN
+    # ENGINE 56 (S4-2) -- over a price the bar itself holds (``is_bar_price_tree``) the
+    # NEWEST tied bar wins (``interpret.js::windowArgExtreme`` carries the aroon v6 and
+    # pivot-high-low-points v4 witnesses); a computed source keeps the measurement below
+    # and is withheld on a tied window (``arg_extreme_tie_mask``).
+    if newest:
+        for i in range(hi, lo - 1, -1):
+            if series[i] == best:
+                return float(hi - i)
         return NAN
     # ⭐⭐ FORWARD FROM THE OLDEST BAR IN THE WINDOW: on a TIE the vendor returns
     # the OLDER occurrence -- the LARGER distance back. Measured 2026-09-08 on a
@@ -970,6 +1351,11 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
             # nobody reads it as a live guard -- `lesson_gate_that_cannot_fail`.
             # a tie on the LEFT still pivots (the plateau's last bar); one on the
             # RIGHT does not
+            # ENGINE 56 (S4-1) -- an ``na`` on the LEFT is ignored, not a hole
+            # (``interpret.js::pivotCol`` carries the obv-macd-ao-pivdiv-3 witness); a
+            # right-side ``na`` still blanks the bar.
+            if j < i and math.isnan(w):
+                continue
             if math.isnan(w) or not (beats(v, w) or (j < i and v == w)):
                 ok = False
                 break
@@ -979,10 +1365,8 @@ def _pivot_col(series: Sequence[float], left: int, right: int,
 
 
 def _window_sum(series: Sequence[float], lo: int, hi: int) -> float:
-    total = 0.0
-    for i in range(lo, hi + 1):
-        total += series[i]
-    return total
+    """``math.sum``: the exactly rounded window sum (``math.fsum``), twin of ``interpret.js::windowSum``."""
+    return _exact_sum(series, lo, hi)
 
 
 def _window_mean_abs_dev(series: Sequence[float], lo: int, hi: int) -> float:
@@ -993,7 +1377,7 @@ def _window_mean_abs_dev(series: Sequence[float], lo: int, hi: int) -> float:
     ``stdev`` returns a plausible CCI that is wrong on every bar, the same
     look-alike failure the PCF refusal table exists to prevent.
     """
-    avg = _window_mean(series, lo, hi)
+    avg = _window_mean_naive(series, lo, hi)
     total = 0.0
     for i in range(lo, hi + 1):
         total += abs(series[i] - avg)
@@ -1010,7 +1394,7 @@ def _window_stdev(series: Sequence[float], lo: int, hi: int) -> float:
     (``sqrt(sqSum / period)``), so a user's ``sma(close,20) + 2*stdev(close,20)``
     draws the same band the native Bollinger definition draws.
     """
-    avg = _window_mean(series, lo, hi)
+    avg = _window_mean_naive(series, lo, hi)
     sq = 0.0
     for i in range(lo, hi + 1):
         sq += (series[i] - avg) ** 2
@@ -1119,36 +1503,72 @@ def _window_percentile_nearest(series: Sequence[float], lo: int, hi: int,
     return vals[rank - 1]
 
 
-def _window_rci(series: Sequence[float], lo: int, hi: int) -> float:
-    """``ta.rci(source, length)`` (Phase 1, 2026-10-30): Spearman's rank
-    correlation between time order (newest = 1) and price order (highest = 1),
-    ``(1 - 6 * sum(d^2) / (n * (n^2 - 1))) * 100``; ties share their average
-    rank, ``na`` propagates. ⚠️ UNCONFIRMED UNTIL CAPTURED: TradingView publishes
-    no formula for ``ta.rci``, so the TIE rule (average rank) and the ``na`` rule
-    are this engine's reading, not a measurement. JS twin:
-    ``interpret.js::windowRci``."""
+#: ``interpret.js::STOCH_FLAT_WINDOW`` / ``STOCH_LEFT_EDGE`` / ``RCI_LEFT_EDGE`` (engine 57) --
+#: the per-bar withholding codes of ``ta.stoch`` and ``ta.rci``; the JS lane owns the sentences
+#: (``CHART_CLOCK_WITHHELD``).
+STOCH_FLAT_WINDOW = "stoch:flat-window"
+STOCH_LEFT_EDGE = "stoch:left-edge"
+RCI_LEFT_EDGE = "rci:left-edge"
+
+
+def _finite(v: Any) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+
+def _rci_at(series: Sequence[float], lo: int, hi: int) -> float:
+    """``ta.rci`` over ``series[lo..hi]`` (engine 57, MEASURED) -- ``interpret.js::rciAt``, the
+    same arithmetic in the same order: the Pearson correlation of the time ranks (newest = 1)
+    with the price ranks (highest = 1, ties sharing the AVERAGE rank), x 100; an ``na`` of the
+    source ranks LOWEST, tied with every other ``na``; ``NaN`` on a flat window. Read the JS docstring for the captures."""
     n = hi - lo + 1
-    if n < 2:
-        return NAN
-    total = 0.0
+    m = (n + 1) / 2
+
+    def at(j: int) -> float:
+        v = series[j]
+        return v if _finite(v) else -math.inf
+
+    cov = 0.0
+    vp = 0.0
     for k in range(n):
-        v = series[hi - k]
-        if _isnan(v):
-            return NAN
+        v = at(hi - k)
         above = 0
         same = 0
         for j in range(lo, hi + 1):
-            w = series[j]
-            if _isnan(w):
-                return NAN
+            w = at(j)
             if w > v:
                 above += 1
             elif w == v:
                 same += 1
-        price_rank = 1 + above + (same - 1) / 2
-        d = (k + 1) - price_rank
-        total += d * d
-    return (1 - (6 * total) / (n * (n * n - 1))) * 100
+        p = 1 + above + (same - 1) / 2
+        cov += (k + 1 - m) * (p - m)
+        vp += (p - m) * (p - m)
+    vt = (n * (n * n - 1)) / 12
+    return (100 * cov) / math.sqrt(vt * vp) if vp > 0 else NAN
+
+
+def rci_left_edge(series: Sequence[float], n: int) -> List[int]:
+    """``interpret.js::rciLeftEdge`` -- off the listing, 1 on the bars whose window reaches
+    before the source's first finite value."""
+    out = [0] * len(series)
+    first = next((i for i, v in enumerate(series) if _finite(v)), -1)
+    if first <= 0 or not n >= 2:
+        return out
+    i = n
+    while i < len(series) and i - n + 1 < first:
+        out[i] = 1
+        i += 1
+    return out
+
+
+def _rci_col(series: Sequence[float], n: int) -> List[float]:
+    """``ta.rci`` as a column (``interpret.js::rciCol``): ``_rci_at`` over ``series[i-n+1..i]``
+    on every bar ``i >= n`` (the captured first value is on bar ``n``)."""
+    out = _nan_col(len(series))
+    if not n >= 2:
+        return out
+    for i in range(n, len(series)):
+        out[i] = _rci_at(series, i - n + 1, i)
+    return out
 
 
 def _alma_col(series: Sequence[float], n: int, offset: Sequence[float],
@@ -1187,7 +1607,8 @@ def _alma_col(series: Sequence[float], n: int, offset: Sequence[float],
     return out
 
 
-def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
+def _percentrank_at(series: Sequence[float], i: int, length: int,
+                    le: Optional[Callable[[float, float], bool]] = None) -> float:
     """``ta.percentrank(src, length)`` — ``100 * count(prior length bars <=
     current) / length``. NOT expressible via a running ``sum`` (each ``sum``
     term evaluates at its OWN bar; percentrank compares every prior term
@@ -1201,9 +1622,13 @@ def _percentrank_at(series: Sequence[float], i: int, length: int) -> float:
     count = 0
     for k in range(1, length + 1):
         v = series[i - k]
+        # ENGINE 56 (A2) -- an ``na`` PRIOR value counts as "not <=", never a hole in the
+        # answer (``interpret.js::percentrankAt`` carries the two RDDT 1D witnesses:
+        # uptrick-volatility-weighted-cloud bars 100..141, connors-rsi bar 100).
         if _isnan(v):
-            return NAN
-        if v <= cur:
+            continue
+        # engine 78 (#1858) -- ``le`` is ``pine_compare.pine_le`` for Pine's ``ta.percentrank``
+        if (le(v, cur) if le is not None else v <= cur):
             count += 1
     return 100.0 * count / length
 
@@ -1236,7 +1661,7 @@ def _bbw_col(series: Sequence[float], n: int, mult: float) -> List[float]:
     return out
 
 
-def _monotone_col(series: Sequence[float], n: int, rising: bool) -> List[float]:
+def _monotone_col(series: Sequence[float], n: int, rising: bool, pine: bool = False) -> List[float]:
     """``ta.rising`` / ``ta.falling`` -- a CARRIED COUNTER, not a window.
 
     ⛔⛔ THESE WERE FINITE-WINDOW MEMBERS UNTIL 2026-09-08 AND THE FAMILY WAS
@@ -1256,32 +1681,32 @@ def _monotone_col(series: Sequence[float], n: int, rising: bool) -> List[float]:
     ``na`` bool is indistinguishable from ``false`` through every boolean
     operation the language has. There is no observable third state to keep.
 
-    ⛔ THE WARM-UP GATE IS KEPT AND IT GUARDS SOMETHING UNOBSERVED. As a window
-    over ``n + 1`` samples these blanked bars ``0..n-1``; a bare counter answers
-    ``false`` there instead. No capture has ever seen the start of a series, so
-    the correction stops at the edge of what was measured. Without the gate the
-    CLEAN corpus moves, and only GAPPY sources should.
+    ⭐ ENGINE 56 (probe 11) -- THE WARM-UP GATE IS GONE, WITNESSED: TradingView answers
+    ``false`` on the first ``n`` samples (``vw-cs2-rising-falling-na-v4/v5``, RDDT 1D from
+    the listing, lengths 1 / 2 / 5). WAS: bars ``0..n-1`` withheld, a gate kept because no
+    capture had seen the start of a series.
     """
     out = _nan_col(len(series))
     count = 0
     prev = NAN
-    seen = 0
     for i, v in enumerate(series):
         if math.isfinite(v) and math.isfinite(prev):
-            step = (v > prev) if rising else (v < prev)
+            # engine 78 (#1858) -- Pine's ``ta.rising`` / ``ta.falling`` compare within the epsilon
+            if pine:
+                step = _pc.pine_gt(v, prev) if rising else _pc.pine_lt(v, prev)
+            else:
+                step = (v > prev) if rising else (v < prev)
             count = count + 1 if step else 0
         # else: HOLD -- do not advance, do not reset.
         prev = v
-        seen += 1
-        # The step always runs; only the OUTPUT is withheld during warm-up, and
-        # the gate counts SAMPLES rather than bars so the JS twin can carry the
-        # identical rule in a cell and keep it on the invocation clock.
-        if seen > n:
-            out[i] = 1.0 if count >= n else 0.0
+        # ENGINE 56 (probe 11, s17-2026-11-15, v4 and v5): the first ``n`` samples answer
+        # FALSE, never ``na`` (``vw-cs2-rising-falling-na-v4/v5``). WAS: withheld while
+        # ``seen <= n``, a gate no capture had seen the start of a series to settle.
+        out[i] = 1.0 if count >= n else 0.0
     return out
 
 
-def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
+def _smooth_col(series: Sequence[float], n: int, k: float, wilder: bool = False) -> List[float]:
     """An exponential smoother seeded with the SMA of the first full window.
 
     ⭐ ONE SMOOTHER, TWO CONSTANTS. ``ema`` passes ``2 / (n + 1)`` and ``rma``
@@ -1315,19 +1740,27 @@ def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
     prev = NAN
     count = 0
     total = 0.0
+    seed: List[float] = []
     for i in range(len(series)):
         v = series[i]
         if not math.isfinite(v):
             # HOLD: state untouched, this bar answers `na`.
             continue
         if math.isnan(prev):
-            total += v
+            if wilder:
+                seed.append(v)
+            else:
+                total += v
             count += 1
             if count == n:
-                prev = total / n
+                # ⭐ RMA-SEED -- Wilder's seed is ``_rma_seed_mean`` (the exactly rounded sum / n), ``ema``'s the
+                # running sum (unmeasured, unchanged)
+                prev = _rma_seed_mean(seed) if wilder else total / n
                 out[i] = prev
         else:
-            prev = prev * (1 - k) + v * k
+            # ⭐⭐ LANDING TRAIN 1 -- ``ta.rma`` in TradingView's own arithmetic (``interpret.js::rmaStep``,
+            # witnessed bit for bit on 4,063 of 4,063 values); ``ema`` keeps the exponential spelling
+            prev = (prev * (n - 1) + v) / n if wilder else prev * (1 - k) + v * k
             out[i] = prev
     return out
 
@@ -1337,7 +1770,7 @@ def _ema_col(series: Sequence[float], n: int) -> List[float]:
 
 
 def _rma_col(series: Sequence[float], n: int) -> List[float]:
-    return _smooth_col(series, n, 1 / n)
+    return _smooth_col(series, n, 1 / n, wilder=True)
 
 
 def _hma_col(series: Sequence[float], n: int) -> List[float]:
@@ -1547,7 +1980,9 @@ def _fn_valuewhen_occurrence(
     citation and why ``pine.js`` routes only the NAMESPACED ``ta.valuewhen(...)``
     here, never a bare ``valuewhen(...)`` call.
 
-    ⛔ AN NaN CONDITION BAR STOPS THE BACKWARD SCAN, exactly as it does for the
+    ENGINE 56 (re-review #1265, 7): AN NaN CONDITION BAR IS FALSE -- it neither fires nor
+    clears the occurrences before it (Pine; the runtime lane's ``valueWhenPineStep``). WAS:
+    an NaN condition bar stopped the backward scan, exactly as it does for the
     bounded ``_fn_valuewhen`` above and for the same reason: a not-computable
     condition bar MIGHT have been true, so counting occurrences from before it
     would report a distance to the wrong bar. The growing occurrence list is
@@ -1562,10 +1997,9 @@ def _fn_valuewhen_occurrence(
     true_idx: List[int] = []
     for i in range(len(cond)):
         c = cond[i]
-        if math.isnan(c):
-            true_idx = []
-            continue
-        if c != 0.0:
+        # ENGINE 56 (re-review #1265, 7): an ``na`` condition is false -- it neither fires nor
+        # forgets the occurrences before it (Pine; the runtime lane's ``valueWhenPineStep``)
+        if not math.isnan(c) and c != 0.0:
             true_idx.append(i)
         pos = len(true_idx) - 1 - occurrence
         if pos >= 0:
@@ -1787,6 +2221,16 @@ def _guarded_acos(x: float) -> float:
     return math.acos(x)
 
 
+def _guarded_asin(x: float) -> float:
+    """``math.asin`` (U-BUILTIN B3, 2026-11-19), ``acos``'s twin: ``na``
+    outside [-1, 1] (the reference: "or na if y is outside of range [-1, 1]"),
+    where Python's ``math.asin`` would RAISE rather than return NaN -- so the
+    domain is spelled here. JS twin: ``interpret.js::POINTWISE.asin``."""
+    if _isnan(x) or x < -1.0 or x > 1.0:
+        return NAN
+    return math.asin(x)
+
+
 #: Where ``sinh`` overflows: ``sinh(x) ≈ exp(x)/2``, so it passes the largest
 #: double at ``log(2 * max)`` — DERIVED, not rounded.
 #:
@@ -1814,6 +2258,11 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "ceil": _guarded_ceil,
     "na": _guarded_na,
     "nz": _guarded_nz,
+    # ENGINE 56 (A3) -- the marker is its operand on every bar; which bars are not shown is
+    # ``bool_na_mask``'s (the twin of ``interpret.js::POINTWISE.boolNaWithheld``).
+    "boolNaWithheld": lambda x, _flag: x,
+    # ENGINE 56 (S1) -- its operand; a highestbars / lowestbars over it names the newest of a tie
+    "tieNewest": lambda x: x,
     "sqrt": _guarded_sqrt,
     "ln": _guarded_ln,
     "log10": _guarded_log10,
@@ -1826,6 +2275,7 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "tan": _guarded_tan,
     "atan": _guarded_atan,
     "acos": _guarded_acos,
+    "asin": _guarded_asin,
     "sinh": _guarded_sinh,
 }
 
@@ -1852,6 +2302,23 @@ def _body_args_of(node: Any) -> frozenset:
     if isinstance(ms, Mapping):
         return frozenset(ms.get("updates") or ())
     return frozenset()
+
+
+def _holds_recurrence(tree: Any) -> bool:
+    """Does the tree hold a single-state recurrence (``accum``, the call the chart lane's listing pass runs)?
+    Iterative. A multi-state ``accumK`` is answered alike by both lanes from the listing and is not counted."""
+    stack, seen = [tree], set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "call" and node.get("name") in RECURRENCES:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
 
 
 def _is_stateful_call(node: Any) -> bool:
@@ -1976,8 +2443,11 @@ def _r_01(outs: list, na: bool) -> Any:
     return _r_norm(min(outs) if outs else _R_EMPTY_LO, max(outs) if outs else _R_EMPTY_HI, na)
 
 
-def _r_op(name: str, values: list) -> Any:
-    """The interval extension of one operator over at least one range."""
+def _r_op(name: str, values: list, table: Optional[Mapping[str, Any]] = None) -> Any:
+    """The interval extension of one operator over at least one range.
+    ``table`` is the evaluation's own operator table (``binary_for``): its comparisons decide the interval
+    answer through ``pine_compare.compare_range`` (``interpret.js::rangeOp``)."""
+    table = _BINARY if table is None else table
     if name == "u-":
         A = _r_as(values[0])
         return _r_norm(-A[1], -A[0], A[2])
@@ -1997,20 +2467,8 @@ def _r_op(name: str, values: list) -> Any:
     if name in _R_ORDER or name in ("==", "!="):
         can_t, can_f = False, na
         if _r_has_number(A) and _r_has_number(B):
-            point = A[0] == A[1] and B[0] == B[1]
-            overlap = A[0] <= B[1] and B[0] <= A[1]
-            if name == ">":
-                can_t, can_f = A[1] > B[0], can_f or A[0] <= B[1]
-            elif name == "<":
-                can_t, can_f = A[0] < B[1], can_f or A[1] >= B[0]
-            elif name == ">=":
-                can_t, can_f = A[1] >= B[0], can_f or A[0] < B[1]
-            elif name == "<=":
-                can_t, can_f = A[0] <= B[1], can_f or A[1] > B[0]
-            elif name == "==":
-                can_t, can_f = overlap, can_f or not (point and A[0] == B[0])
-            else:
-                can_t, can_f = not (point and A[0] == B[0]), can_f or overlap
+            r = _pc.compare_range(name, (A[0], A[1]), (B[0], B[1]), table)
+            can_t, can_f = r[0], can_f or r[1]
         return _r_01(([0.0] if can_f else []) + ([1.0] if can_t else []), False)
     if not _r_has_number(A) or not _r_has_number(B):
         return _r_norm(_R_EMPTY_LO, _R_EMPTY_HI, na)
@@ -2366,6 +2824,80 @@ def _fn_stoch(h, l, c, n):  # noqa: E741
                          lambda bars: compute_stoch_raw(bars, n, 1)[0])
 
 
+def _stoch_flat_pinned(at_extreme, on_level):
+    """``interpret.js::stochFlatPinned`` -- the flat windows the captures pin: the source on the
+    window's level and a kept value of 0 (probe P2) or 100 (S10 ``vw-cs2-stoch-flat-window``), pinned
+    by PROVENANCE (computed with the source at the window's high or low), never by the number:
+    ``(100 * (hi - lo)) / (hi - lo)`` is not always the double 100 (review N2)."""
+    return bool(on_level) and bool(at_extreme)
+
+
+def _stoch_pine_scan(h, l, c, n, off_listing=False):  # noqa: E741
+    """Pine's ``ta.stoch(source, high, low, n)`` (engine 57, MEASURED) --
+    ``interpret.js::stochPineScan``, step for step: ``na`` before bar ``n - 1``; ``hi`` / ``lo``
+    over the last ``n`` FINITE highs / lows (fewer while fewer exist); ``100 * (c - lo) / (hi - lo)``;
+    where that has no number (an ``na`` source, a 0 range, no observation) the previous answer
+    is held. Returns ``(out, flags, edge)``: ``flags[i]`` is 1 on a flat window the captures do not
+    pin (``_stoch_flat_pinned``) and on every hold that keeps it (``stoch:flat-window``); off the listing ``edge[i]`` is 1
+    on a window of fewer than ``n`` finite values and on a hold of nothing or of such a value
+    (``stoch:left-edge``). Both withheld by ``builtin_witness_mask``."""
+    length = len(c)
+    out = _nan_col(length)
+    flags = [0] * length
+    edge = [0] * length
+    if not n >= 1:
+        return out, flags, edge
+    hs: List[float] = []
+    ls: List[float] = []
+    prev = NAN
+    prev_flag = 0
+    prev_edge = 0
+    prev_at_extreme = False     # the kept value was computed with the source at the high / low (N2)
+    for i in range(length):
+        if _finite(h[i]):
+            hs.append(h[i])
+            if len(hs) > n:
+                hs.pop(0)
+        if _finite(l[i]):
+            ls.append(l[i])
+            if len(ls) > n:
+                ls.pop(0)
+        if i < n - 1:
+            continue
+        v = NAN
+        flat = False
+        on_level = False
+        at_extreme = False
+        if hs and ls and _finite(c[i]):
+            hi = max(hs)
+            lo = min(ls)
+            if hi - lo == 0:
+                flat = True
+                on_level = c[i] == lo
+            else:
+                v = (100 * (c[i] - lo)) / (hi - lo)
+                at_extreme = c[i] == hi or c[i] == lo
+        if math.isfinite(v):
+            prev_at_extreme = at_extreme
+            prev_flag = 0
+            prev_edge = 1 if off_listing and (len(hs) < n or len(ls) < n) else 0
+        else:
+            prev_flag = 1 if ((flat and math.isfinite(prev) and not _stoch_flat_pinned(prev_at_extreme, on_level))
+                              or (prev_flag == 1 and math.isfinite(prev))) else 0
+            prev_edge = 1 if off_listing and (not math.isfinite(prev) or prev_edge == 1) else 0
+            v = prev
+        flags[i] = prev_flag
+        edge[i] = prev_edge
+        out[i] = v
+        prev = v
+    return out, flags, edge
+
+
+def _stoch_pine_col(h, l, c, n):  # noqa: E741
+    """``interpret.js::stochPineCol`` -- ``_stoch_pine_scan``'s column."""
+    return _stoch_pine_scan(h, l, c, n)[0]
+
+
 def _fn_cci(h, l, c, n):  # noqa: E741
     return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_cci_raw(bars, n))
 
@@ -2429,6 +2961,77 @@ def _donchian(h, l, n, index):  # noqa: E741
                          lambda bars: compute_donchian_raw(bars, n)[index])
 
 
+#: ENGINE 56 (S4-2) -- the arg-extremes over a price the bar holds (``is_bar_price_tree``):
+#: the same window with the NEWEST tied bar winning. The twin of
+#: ``interpret.js::FN_BAR_PRICE_NEWEST``.
+FN_BAR_PRICE_NEWEST: Dict[str, Callable[..., List[float]]] = {
+    "highestbars": _window_fn("highestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v > b, True)),
+    "lowestbars": _window_fn("lowestbars", lambda s, lo, hi: _window_arg_extreme(s, lo, hi, lambda v, b: v < b, True)),
+}
+
+_BAR_PRICE_FIELDS = ("open", "high", "low", "close")
+_BAR_PRICE_MEANS = (("high", "low"), ("high", "low", "close"), ("open", "high", "low", "close"),
+                    ("high", "low", "close", "close"))
+
+
+def _is_series(t: Any, name: str) -> bool:
+    return isinstance(t, dict) and t.get("type") == "series" and t.get("name") == name
+
+
+def _is_hlcc4_tree(total: Any, k: Any) -> bool:
+    """``hlcc4`` as ``pine.js::derivedSeriesTree`` builds it since it took TradingView's
+    arithmetic: ``(high + low + 2 * close) / 4`` (witnessed bit for bit, h3-vwap-source S08).
+    The twin of ``interpret.js::isHlcc4Tree``; a hand-written four-term sum stays in
+    ``_BAR_PRICE_MEANS``."""
+    if not isinstance(k, dict) or k.get("type") != "num" or k.get("value") != 4:
+        return False
+    if not (isinstance(total, dict) and total.get("type") == "op" and total.get("name") == "+"
+            and isinstance(total.get("args"), list) and len(total["args"]) == 2):
+        return False
+    hl, two_c = total["args"]
+    return (isinstance(hl, dict) and hl.get("type") == "op" and hl.get("name") == "+"
+            and isinstance(hl.get("args"), list) and len(hl["args"]) == 2
+            and _is_series(hl["args"][0], "high") and _is_series(hl["args"][1], "low")
+            and isinstance(two_c, dict) and two_c.get("type") == "op" and two_c.get("name") == "*"
+            and isinstance(two_c.get("args"), list) and len(two_c["args"]) == 2
+            and isinstance(two_c["args"][0], dict) and two_c["args"][0].get("type") == "num"
+            and two_c["args"][0].get("value") == 2 and _is_series(two_c["args"][1], "close"))
+
+
+def is_bar_price_tree(t: Any) -> bool:
+    """ENGINE 56 (S4-2) -- is this canonical source a price the bar itself holds?
+    ``open``/``high``/``low``/``close`` or Pine's ``hl2``/``hlc3``/``ohlc4``/``hlcc4`` as
+    ``pine.js::derivedSeriesTree`` builds them. The twin of ``interpret.js::isBarPriceTree``."""
+    if not isinstance(t, dict):
+        return False
+    # ENGINE 56 (S1) -- a source marked ``tieNewest`` (Pine v4 / v5) takes the bar-price rule
+    if t.get("type") == "call" and t.get("name") == "tieNewest":
+        return True
+    if t.get("type") == "series":
+        return t.get("name") in _BAR_PRICE_FIELDS
+    args = t.get("args")
+    if t.get("type") != "op" or t.get("name") != "/" or not isinstance(args, list) or len(args) != 2:
+        return False
+    total, k = args
+    if not isinstance(k, dict) or k.get("type") != "num":
+        return False
+    if _is_hlcc4_tree(total, k):
+        return True
+    names: List[str] = []
+    at = total
+    while (isinstance(at, dict) and at.get("type") == "op" and at.get("name") == "+"
+           and isinstance(at.get("args"), list) and len(at["args"]) == 2):
+        r = at["args"][1]
+        if not isinstance(r, dict) or r.get("type") != "series":
+            return False
+        names.insert(0, r.get("name"))
+        at = at["args"][0]
+    if not isinstance(at, dict) or at.get("type") != "series":
+        return False
+    names.insert(0, at.get("name"))
+    return len(names) == k.get("value") and tuple(names) in _BAR_PRICE_MEANS
+
+
 #: name → implementation. THE KEY SET IS ``TABLE['functions']``'s, both directions.
 #:
 #: ⛔ AN IMPLEMENTED-BUT-UNDECLARED KEY HERE IS A CALLABLE OUTSIDE THE CLOSED
@@ -2481,7 +3084,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # bespoke for the same reason as the entry above. JS twins in ``interpret.js``.
     "percentileNearestRank": lambda series, n, percentage: _rolling(
         series, n, lambda s, lo, hi: _window_percentile_nearest(s, lo, hi, percentage), NA_PROPAGATE),
-    "rci": lambda series, n: _rolling(series, n, _window_rci, NA_PROPAGATE),
+    # ENGINE 57 -- the measured Pearson-of-average-ranks form, first value on bar ``n``.
+    "rci": lambda series, n: _rci_col(series, n),
     "alma": lambda series, n, offset, sigma: _alma_col(series, n, offset, sigma),
     "percentrank": lambda series, n: [
         _percentrank_at(series, i, n) if i >= n else NAN for i in range(len(series))
@@ -2509,6 +3113,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "tan": lambda a: [_guarded_tan(v) for v in a],
     "atan": lambda a: [_guarded_atan(v) for v in a],
     "acos": lambda a: [_guarded_acos(v) for v in a],
+    "asin": lambda a: [_guarded_asin(v) for v in a],
     "sinh": lambda a: [_guarded_sinh(v) for v in a],
     "pow": lambda a, b: _elementwise2(a, b, _guarded_pow),
     "mod": lambda a, b: _elementwise2(a, b, _guarded_mod),
@@ -2524,6 +3129,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "ceil": lambda series: [_guarded_ceil(v) for v in series],
     "na": lambda series: [_guarded_na(v) for v in series],
     "nz": lambda a, b: _elementwise2(a, b, _guarded_nz),
+    "boolNaWithheld": lambda a, b: _elementwise2(a, b, lambda x, _flag: x),
+    "tieNewest": lambda series: list(series),
     "crossOver": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an > bn and ap <= bp),
     "crossUnder": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an < bn and ap >= bp),
     # ── the indicators, bound to the server's own maths ────────────────────
@@ -2541,6 +3148,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "plusDI": _fn_plus_di,
     "minusDI": _fn_minus_di,
     "stoch": _fn_stoch,
+    # ENGINE 57 -- Pine's ``ta.stoch``, reached only through ``pine.js::PINE_CALL_SHAPES.stoch``.
+    "stochPine": _stoch_pine_col,
     "cci": _fn_cci,
     "williamsR": _fn_williams_r,
     "mfi": _fn_mfi,
@@ -2674,6 +3283,33 @@ FN_V2: Dict[str, Callable[..., List[float]]] = {
 }
 
 
+#: engine 78 (#1858) (Q-FCMP / Q-FCMP2) -- the twin of ``interpret.js::FN_PINE``: the built-ins whose
+#: inside compares with TradingView's epsilon, for a PINE document only (``opts["pineCompare"]``). Measured
+#: tolerant: ``ta.rising`` / ``ta.falling``, ``ta.percentrank`` and ``ta.dmi``'s legs (DI+ 27.576070967939575
+#: on AMEX:SPY 1D bar 5,333). Every other built-in stays exact, measured; a native document reads ``FN``.
+def _adx_pine(k: int):
+    def leg(h, l, c, n):  # noqa: E741
+        return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_adx_raw(bars, n, gt=_pc.pine_gt)[k])
+    return leg
+
+
+FN_PINE: Dict[str, Callable[..., List[float]]] = {
+    # ⭐ RMA-SEED -- Pine's ``ta.rsi`` seeds its two averages as ``ta.rma`` does (``_rma_seed_mean``); ``FN["rsi"]``
+    # (the formula language's, the native RSI's) keeps the running-sum seed. Twin of ``interpret.js::FN_PINE.rsi``.
+    "rsi": lambda s, n: _bind_shipped(("c",), (s,), len(s),
+                                      lambda bars: compute_rsi_raw([b["c"] for b in bars], n,
+                                                                   seed_mean=_rma_seed_mean)),
+    "rising": lambda series, n: _monotone_col(series, n, True, pine=True),
+    "falling": lambda series, n: _monotone_col(series, n, False, pine=True),
+    "percentrank": lambda series, n: [
+        _percentrank_at(series, i, n, le=_pc.pine_le) if i >= n else NAN for i in range(len(series))
+    ],
+    "adx": _adx_pine(0),
+    "plusDI": _adx_pine(1),
+    "minusDI": _adx_pine(2),
+}
+
+
 # --------------------------------------------------------------------------- #
 # the entries that read the BAR, not a column
 # --------------------------------------------------------------------------- #
@@ -2784,7 +3420,7 @@ def _fn_avwap(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
 
 
 def _bar_column(name: str, bars: List[dict], args: Sequence[Any],
-                length: int) -> List[float]:
+                length: int, tf: Optional[str] = None) -> List[float]:
     """Run a bar-reading entry over the REAL bars and unpack a NaN-padded column.
 
     ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL -- the same contract
@@ -2793,7 +3429,10 @@ def _bar_column(name: str, bars: List[dict], args: Sequence[Any],
     would put a real value at the wrong bar.
     """
     out = _nan_col(length)
-    values = _BAR_FN[name](bars, args)
+    # ⭐ 2026-11-17 -- the regular-session readers resolve a date-keyed daily bar and the bar
+    # length through the clock, so they are handed the chart's timeframe as well.
+    values = (_BAR_FN_TF[name](bars, args, tf) if name in _BAR_FN_TF
+              else _BAR_FN[name](bars, args))
     if not isinstance(values, list) or len(values) != length:
         return out
     for i in range(length):
@@ -3012,7 +3651,8 @@ def _aroon_col(bars: List[dict], n: int, field: str, want_max: bool) -> List[May
     better = (lambda v, w: v > w) if want_max else (lambda v, w: v < w)
     out: List[MaybeNum] = [None] * len(bars)
     for i in range(n, len(bars)):
-        days = _window_arg_extreme(values, i - n, i, better)
+        # ENGINE 56 (S4-2) -- ``high`` / ``low`` are bar prices: the newest tied bar wins
+        days = _window_arg_extreme(values, i - n, i, better, True)
         if math.isnan(days):
             continue
         out[i] = 100.0 * (n - days) / n
@@ -3088,7 +3728,25 @@ def _fn_bop(bars: List[dict], args: Sequence[Any]) -> List[MaybeNum]:
 
 
 #: name -> ``(bars, args) -> column``. Keys asserted against ``bar_readers()``.
-_BAR_FN: Dict[str, Callable[[List[dict], Sequence[Any]], List[MaybeNum]]] = {
+def _session_reader(kind: str, ranged: bool):
+    """``sessionOpen()`` .. ``openingRangeLow(minutes)`` -- the regular session's own values
+    (``indicator_compute.compute_session_regular_raw``, where the rules are written once)."""
+    def read(bars: List[dict], args: Sequence[Any], tf: Optional[str] = None) -> List[MaybeNum]:
+        return compute_session_regular_raw(bars, tf, kind, args[0] if ranged else None)
+    return read
+
+
+#: The bar readers that also take the chart's timeframe. A subset of ``_BAR_FN``'s keys.
+_BAR_FN_TF: Dict[str, Callable[..., List[MaybeNum]]] = {
+    "sessionOpen": _session_reader("open", False),
+    "sessionHigh": _session_reader("high", False),
+    "sessionLow": _session_reader("low", False),
+    "openingRangeHigh": _session_reader("high", True),
+    "openingRangeLow": _session_reader("low", True),
+}
+
+_BAR_FN: Dict[str, Callable[..., List[MaybeNum]]] = {
+    **_BAR_FN_TF,
     "vwap": _fn_vwap,
     "vwapOf": _fn_vwap_of,
     "avwap": _fn_avwap,
@@ -3144,8 +3802,7 @@ if set(BAR_READERS) != set(_BAR_FN):
 # decision and it is the one place JS and Python agree by luck (`NaN > x` is false
 # in both), so it is pinned rather than assumed.
 
-def _cmp(f: Callable[[float, float], bool]) -> Callable[[float, float], float]:
-    return lambda a, b: 0.0 if (_isnan(a) or _isnan(b)) else (1.0 if f(a, b) else 0.0)
+# (the six comparisons and their `na` -> 0 rule live in ``pine_compare.py`` since engine 78 (#1858))
 
 
 def _logical(f: Callable[[bool, bool], bool]) -> Callable[[float, float], float]:
@@ -3179,12 +3836,9 @@ _BINARY: Dict[str, Callable[[float, float], float]] = {
     "-": lambda a, b: a - b,
     "*": lambda a, b: a * b,
     "/": _binary_div,
-    ">": _cmp(lambda a, b: a > b),
-    "<": _cmp(lambda a, b: a < b),
-    ">=": _cmp(lambda a, b: a >= b),
-    "<=": _cmp(lambda a, b: a <= b),
-    "==": _cmp(lambda a, b: a == b),
-    "!=": _cmp(lambda a, b: a != b),
+    # engine 78 (#1858) -- the six are ``pine_compare.EXACT_CMP`` (IEEE, ``na`` -> 0: these entries'
+    # own rule, byte for byte); ``_BINARY_PINE`` below swaps in TradingView's epsilon for a Pine document.
+    **_pc.EXACT_CMP,
     "&&": _logical(lambda a, b: a and b),
     "||": _logical(lambda a, b: a or b),
 }
@@ -3224,9 +3878,22 @@ _BINARY_V2: Dict[str, Callable[[float, float], float]] = dict(
     })
 
 
+#: engine 78 (#1858) (ruling D1) -- the twin of ``interpret.js::BINARY_PINE``: a Pine document's
+#: evaluation compares with TradingView's absolute epsilon (``pine_compare.PINE_CMP``). Chosen by
+#: ``opts["pineCompare"] is True``, which ``semantics_opts_for`` sets for every Pine document and nothing else.
+_BINARY_PINE: Dict[str, Callable[[float, float], float]] = dict(_BINARY, **_pc.PINE_CMP)
+
+
+def pine_compare_on(opts: Any) -> bool:
+    """``interpret.js::pineCompareOn``."""
+    return isinstance(opts, Mapping) and opts.get("pineCompare") is True
+
+
 def binary_for(opts: Any) -> Dict[str, Callable[[float, float], float]]:
-    """The operator table THIS evaluation reads (``semantics_v2``)."""
-    return _BINARY_V2 if semantics_v2(opts) else _BINARY
+    """The operator table THIS evaluation reads (``semantics_v2``, then the Pine compare)."""
+    if semantics_v2(opts):
+        return _BINARY_V2
+    return _BINARY_PINE if pine_compare_on(opts) else _BINARY
 
 
 _UNARY: Dict[str, Callable[[float], float]] = {
@@ -3280,7 +3947,7 @@ def _flatten(root: Any) -> List[dict]:
         # inside a bind-time text question was never asserted, so the one node
         # type most likely to arrive UNFOLDED was the one whose children nothing
         # checked.
-        if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live",
+        if node["type"] in ("op", "call", "offset", "tf", "sym", "tf_live", "tf_merge",
                             "ltf", "textop"):
             args = node.get("args")
             if not isinstance(args, list):
@@ -3675,7 +4342,8 @@ def max_lookback(ast: Any) -> int:
                 best = max(best, seen[id(arg)])
             seen[id(node)] = best
             continue
-        if kind == "tf":
+        # ⭐ ENGINE 55 — ``tf_merge`` reaches exactly as far as ``tf`` (``interpret.js``).
+        if kind in ("tf", "tf_merge"):
             # ⭐ THE TREE SUM, IN BASE BARS. The child's lookback is counted in
             # HIGHER-timeframe bars, so it is multiplied by the span; the +1 is the
             # bar this node always steps back to reach the last CLOSED period.
@@ -4231,7 +4899,7 @@ def node_count(ast: Any) -> int:
 
 
 #: Node types whose child a FRESH ``interpret`` evaluates on other bars.
-_SCOPE_TYPES = frozenset(("tf", "tf_live", "sym", "ltf"))
+_SCOPE_TYPES = frozenset(("tf", "tf_live", "tf_merge", "sym", "ltf"))
 
 
 def evaluation_units(root: Any) -> int:
@@ -4406,6 +5074,11 @@ def interpret(ast: Any, bars: List[dict],
         whole = _chart_clock_whole(ast, bars, inputs, budget, scalars, opts)
         if whole is not None and whole["why"]:
             return [None] * len(bars)
+        # ⭐⭐ ruling (i) -- from the listing, a recurrence is the chart lane's: withheld whole, by name, never the
+        # bounded window's number (``LISTING_PASS_CHART_LANE``)
+        if (opts or {}).get("historyFromListing") is True and _holds_recurrence(ast):
+            _name_chart_clock(opts, [LISTING_PASS_CHART_LANE])
+            return [None] * len(bars)
     column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
     if (not probing and (opts or {}).get("switchedAgreement") is not False
             and reads_switched_state(ast)):
@@ -4434,6 +5107,25 @@ def interpret(ast: Any, bars: List[dict],
         if aligned is not None:
             column = [math.nan if aligned[i] else v for i, v in enumerate(column)]
     if not probing:
+        # ⭐⭐ PERIOD -1 -- the column a read before the chart is named against (``interpret.js::historyBeforeChartMask``,
+        # named where it takes a drawn value away): the column BEFORE every withholding mask, as the JS lane's
+        # ``withheldReadMask`` hands it (RULING 3, 2026-11-20: taken after the request masks below, a bar a first-period
+        # mask withheld too named nothing here and the code in the chart lane); the mask itself is asked LAST (below)
+        named_against = list(column)
+        # ⭐ ENGINE 55 -- ...and its ``tf_merge`` half (``interpret.js::tfMergeMask``).
+        merged = tf_merge_mask(ast, bars, opts, inputs, budget, scalars)
+        if merged is not None:
+            column = [math.nan if merged[i] else v for i, v in enumerate(column)]
+        # ⭐⭐ HTF-LIVE-FIRST-PERIOD -- ...and a look-ahead read of a period built from part of it
+        # (``interpret.js::tfLiveMask``).
+        lived = tf_live_mask(ast, bars, opts, inputs, budget, scalars)
+        if lived is not None:
+            column = [math.nan if lived[i] else v for i, v in enumerate(column)]
+        # ⭐⭐ Q-CLOSURE -- ...and a week or month the exchange's own calendar decides (``interpret.js::htfVenueCalendarMask``)
+        venue = htf_venue_calendar_mask(ast, bars, opts, inputs, budget, scalars)
+        if venue is not None:
+            column = [math.nan if venue[i] else v for i, v in enumerate(column)]
+    if not probing:
         # C38 -- the port of ``interpret.js::withReadsWithheld``'s history half
         held = history_read_mask(ast, bars, inputs, budget, scalars, opts)
         if held is not None:
@@ -4444,6 +5136,28 @@ def interpret(ast: Any, bars: List[dict],
         indexed = bar_index_mask(ast, bars, inputs, budget, scalars, opts)
         if indexed is not None:
             column = [math.nan if indexed[i] else v for i, v in enumerate(column)]
+        # 2026-11-09 -- ...and its ``var`` half (``interpret.js::varOriginMask``): a running
+        # value that still carries what it held before the bounded window began.
+        varied = var_origin_mask(ast, bars, inputs, budget, scalars, opts)
+        if varied is not None:
+            column = [math.nan if varied[i] else v for i, v in enumerate(column)]
+        # ⭐⭐ ENGINE HL -- ...and a window extreme over a holed source no capture pins
+        # (``interpret.js::windowHoleMask``).
+        holed = window_hole_mask(ast, bars, inputs, budget, scalars, opts)
+        if holed is not None:
+            column = [math.nan if holed[i] else v for i, v in enumerate(column)]
+        # ENGINE 57 -- ``interpret.js::builtinWitnessMask``: ``ta.rci`` / ``ta.stoch`` bars
+        # no capture pins, withheld by name.
+        witnessed = builtin_witness_mask(ast, bars, inputs, budget, scalars, opts)
+        if witnessed is not None:
+            column = [math.nan if witnessed[i] else v for i, v in enumerate(column)]
+        # ENGINE 56 -- ...and the two per-bar witness masks (``interpret.js::withheldReadMask``):
+        # a v1-v5 ``bool`` ``na`` meeting an unwitnessed operator (A3), a tie in a
+        # ``highestbars``/``lowestbars`` window over a computed source (S4-2).
+        for witness in (bool_na_mask, arg_extreme_tie_mask):
+            held_w = witness(ast, bars, inputs, budget, scalars, opts)
+            if held_w is not None:
+                column = [math.nan if held_w[i] else v for i, v in enumerate(column)]
     # C30 / C36 -- the port of ``interpret.js::withPeriodAnchorWithheld``: a tree
     # that reads ``time("W"|"M"|"3M"|"12M")`` (or ``time(timeframe.period)`` /
     # ``time("60")``) is withheld on the bars ``period_anchor_mask`` names.
@@ -4451,10 +5165,733 @@ def interpret(ast: Any, bars: List[dict],
         anchored = period_anchor_mask(ast, bars, inputs, budget, scalars, opts)
         if anchored:
             column = [math.nan if m else v for v, m in zip(column, anchored)]
+    if not probing and any(not math.isnan(v) for v in column):
+        # ⭐⭐ PERIOD -1 -- ...and a read of the bar, week or month before the first one the series holds, asked last and
+        # only where a bar would still be drawn (``interpret.js::withheldReadMask``): it can only withhold, so a column
+        # every other mask already leaves blank is not walked (ITEM 4's two starts cost nothing there)
+        before = history_before_chart_mask(ast, bars, inputs, budget, scalars, opts, named_against)
+        if before is not None:
+            column = [math.nan if before[i] else v for i, v in enumerate(column)]
     # ⚠️ THE ONE CONVERSION, AT THE ONE BOUNDARY. NaN inside, `None` on the wire —
     # `indicator_compute`'s alignment rule and spec §4's format, and the same
     # mapping `tools/ast_conformance.py` applies to the JS lane's NaN.
     return [None if math.isnan(v) else v for v in column]
+
+
+#: ⭐ ENGINE 55 -- the code a ``tf_merge`` read's withheld bars are named by
+#: (``interpret.js::TF_MERGE_NEWEST_CODE``).
+TF_MERGE_NEWEST_CODE = "request:htf-newest-unconfirmed"
+#: ⭐ ENGINE 55 (review L2) -- ``interpret.js::TF_MERGE_FIRST_CODE``: the bars that would draw
+#: the first period's value from part of it, off the listing.
+TF_MERGE_FIRST_CODE = "request:htf-first-period-partial"
+
+
+def reads_tf_merge(tree: Any) -> bool:
+    """⭐ ENGINE 55 -- does this tree hold a ``tf_merge`` node anywhere? Iterative."""
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "tf_merge":
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
+def tf_merge_mask(tree: Any, bars: List[dict],
+                  opts: Optional[Mapping[str, Any]] = None,
+                  inputs: Any = None, budget: Any = None, scalars: Any = None) -> Optional[List[int]]:
+    """⭐⭐ ENGINE 55 -- the port of ``interpret.js::tfMergeMask``: the bars of a tree
+    whose ``tf_merge`` read is not known (1 = withheld), or ``None``. The newest bar
+    unless it is known to be forming, or (review L3) it is a finished daily bar that
+    certainly closes every merge period (``_newest_closes_every_merge_period``), and no
+    merge sits under another request; under ``sym`` every bar from that series' newest
+    bar on; every bar when one carries no readable day."""
+    n = len(bars or [])
+    found = []
+    stack = [(tree, False, None)]
+    seen: set = set()
+    while stack:
+        node, under, sym = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        kind = node.get("type")
+        if kind == "tf_merge":
+            found.append((under, sym, node.get("value")))
+        into = under or kind in _SCOPE_TYPES
+        sym_here = str(node.get("value")).strip().upper() if kind == "sym" else sym
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, sym_here))
+    if not found or n == 0:
+        return None
+    if any(not _iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars):
+        _name_chart_clock(opts, [TF_MERGE_NEWEST_CODE])
+        return [1] * n
+    mask = [0] * n
+    forming = (opts or {}).get("newest_bar_is_forming") is True
+    known = forming or _newest_closes_every_merge_period(bars, found, opts)
+    # ⭐⭐ HTF-NEWEST-NARROW (2026-11-19) -- the port of ``interpret.js::tfMergeMask``'s narrowing: only a root
+    # that reads the merge on its newest bar (``_newest_reads_merge``, engine 56's walk); a merge under
+    # another request keeps the whole-tree rule.
+    if any(u for u, _s, _c in found):
+        mask[n - 1] = 1
+    elif not known and _newest_reads_merge(tree, bars, opts, inputs, budget, scalars):
+        mask[n - 1] = 1
+    # ⭐⭐ HTF-PARTIAL-THROUGH-OFFSET (2026-11-19) -- the port of ``interpret.js::firstPeriodPartialReadMask``: the
+    # first-period-partial bars are the MERGE's, and which root bars read one is engine 56's walk (``x[k]`` moves
+    # them k bars later), never the root's own positions.
+    first_mask = _first_period_partial_read_mask(tree, bars, opts, inputs, budget, scalars)
+    supplied = (opts or {}).get("symbols") or {}
+    for _u, sym, _c in found:
+        if not sym:
+            continue
+        series = supplied.get(sym)
+        if not isinstance(series, (list, tuple)) or not series:
+            continue
+        keys = [b.get("t") for b in series if isinstance(b, Mapping) and b.get("t") is not None]
+        if not keys:
+            continue
+        last = max(keys)
+        for i, b in enumerate(bars):
+            key = b.get("t") if isinstance(b, Mapping) else None
+            if key is not None and _key_kind(key) == _key_kind(last) and key >= last:
+                mask[i] = 1
+    named_any = any(mask)
+    if named_any:
+        _name_chart_clock(opts, [TF_MERGE_NEWEST_CODE])
+    if first_mask:
+        mask = [1 if (m or f) else 0 for m, f in zip(mask, first_mask)]
+        _name_chart_clock(opts, [TF_MERGE_FIRST_CODE])
+        named_any = True
+    return mask if named_any else None
+
+
+def _newest_reads_merge(tree: Any, bars: List[dict], opts, inputs, budget, scalars) -> bool:
+    """⭐⭐ HTF-NEWEST-NARROW -- the port of ``interpret.js::newestReadsMerge``: does the root's newest bar read a
+    ``tf_merge`` on that merge's newest bar? Engine 56's walk, every merge a site flagged on the newest bar only."""
+    n = len(bars)
+
+    def newest_only(_node):
+        col = [0] * n
+        col[n - 1] = 1
+        return col
+
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    m = _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                      lambda nd: nd.get("type") == "tf_merge", newest_only)
+    return bool(m) and m[n - 1] == 1
+
+
+def _first_period_partial_mask(bars: List[dict], found: list,
+                               opts: Optional[Mapping[str, Any]]) -> Optional[List[int]]:
+    """⭐ REVIEW L2 -- the port of ``interpret.js::firstPeriodPartialMask``."""
+    if (opts or {}).get("historyFromListing") is True:
+        return None
+    n = len(bars)
+    days = _bar_days(bars)
+    tf = (opts or {}).get("tf")
+    daily = tf in ("D", "1D") and all(d and datetime.date.fromisoformat(d).weekday() <= 4 for d in days)
+    out = None
+    for code in sorted({c for _u, _s, c in found if isinstance(c, str)}):
+        if daily:
+            first = datetime.date.fromisoformat(days[0])
+            prev = (first - datetime.timedelta(days=3 if first.weekday() == 0 else 1)).isoformat()
+            if _tf_bucket(prev, code) != _tf_bucket(days[0], code):
+                continue
+        b = 0
+        for i in range(n):
+            if i > 0 and _tf_bucket(days[i], code) != _tf_bucket(days[i - 1], code):
+                b += 1
+            closing = i == n - 1 or _tf_bucket(days[i + 1], code) != _tf_bucket(days[i], code)
+            if (b if closing else b - 1) == 0:
+                if out is None:
+                    out = [0] * n
+                out[i] = 1
+    return out
+
+
+def _first_period_partial_read_mask(tree: Any, bars: List[dict], opts, inputs, budget,
+                                    scalars) -> Optional[List[int]]:
+    """⭐⭐ HTF-PARTIAL-THROUGH-OFFSET (2026-11-19) -- the port of ``interpret.js::firstPeriodPartialReadMask``: the
+    root bars that READ a first-period-partial value (1 = withheld), or ``None``. A site is a ``tf_merge`` under no
+    other request, or the outermost request that holds one; its own bars are ``_first_period_partial_mask``'s over
+    the merges it holds, unchanged. Which root bars read them is engine 56's walk (``_witness_mask``): ``x[k]``
+    moves them k bars later, an operator or a pointwise call reads them on the same bar, a window over the bars it
+    spans; taken exactly (``exact``): ``barsAgo`` the bar its count lands on, ``c ? a : b`` the arm its known
+    condition takes, a finite window its own span; a running value where its argument is, as before (its memory
+    of the partial period is an open question, not settled here)."""
+    n = len(bars)
+
+    def merges_under(top: Any) -> list:
+        merges = []
+        stack = [top]
+        seen: set = set()
+        while stack:
+            node = stack.pop()
+            if not isinstance(node, Mapping) or id(node) in seen:
+                continue
+            seen.add(id(node))
+            if node.get("type") == "tf_merge":
+                merges.append((False, None, node.get("value")))
+            args = node.get("args")
+            if isinstance(args, list):
+                stack.extend(args)
+        return merges
+
+    def merge_own(node: Mapping[str, Any]) -> Optional[List[int]]:
+        """⭐⭐ HTF-MERGE-FIELD-AWARE (items 2 + 3) -- ``interpret.js::firstPeriodPartialReadMask``'s ``mergeOwn``."""
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        child = args[0] if args else None
+        if not _child_reads_partial_period(child):            # item 3: a merge of close alone is drawn
+            return None
+        first = _first_period_partial_mask(bars, [(False, None, node.get("value"))], opts)
+        if first is None:
+            return None
+        code = str(node.get("value"))
+        iso, keys, at, _order, htf = _htf_resampled(bars, code)
+        u = _partial_period_unknown(child, htf, code, inputs, budget, scalars, opts)
+        if _FIELD_UNAWARE == u:                               # a child holding another request: review L2
+            return first
+        if u is None:
+            return None
+        picks = _tf_merge_reads(iso, keys, at, code)
+        m = [1 if r >= 0 and u[r] else 0 for r in picks]
+        return m if any(m) else None
+
+    own: Dict[int, List[int]] = {}
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") == "tf_merge":
+            m = merge_own(node)
+            if m is not None:
+                own[id(node)] = m
+            continue
+        if node.get("type") in _SCOPE_TYPES:
+            merges = merges_under(node)
+            m = _first_period_partial_mask(bars, merges, opts) if merges else None
+            if m is not None:
+                own[id(node)] = list(m)
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    if not own:
+        return None
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    # ⭐⭐ ITEM 4 -- a running value over a site is drawn only where two starts agree (``_walk_two_starts``)
+    return _walk_two_starts(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                            lambda nd: id(nd) in own, lambda nd: list(own[id(nd)]), own)
+
+
+#: ⭐⭐ HTF-LIVE-FIRST-PERIOD -- ``interpret.js::TF_LIVE_FIRST_CODE``: a look-ahead (``tf_live``) read of a period built
+#: from part of it, off the listing.
+TF_LIVE_FIRST_CODE = "request:htf-lookahead-first-period-partial"
+#: The series leaves a higher-timeframe bar built from part of its period gets wrong: every one but ``close``,
+#: derived from the manifest (``interpret.js::PARTIAL_PERIOD_SERIES``).
+_PARTIAL_PERIOD_SERIES = frozenset(name for name in TABLE[SERIES_SECTION] if name != "close")
+#: A leaf or call that reads the first-period bar's partial fields (``interpret.js::readsPartialField``): a series
+#: leaf other than ``close``, or a bar reader (``BAR_READERS``), which reads the bar's own fields.
+_FIELD_UNAWARE = "field-unaware"
+
+
+def _reads_partial_field(node: Any) -> bool:
+    if not isinstance(node, Mapping):
+        return False
+    kind = node.get("type")
+    return ((kind == "series" and node.get("name") in _PARTIAL_PERIOD_SERIES)
+            or (kind == "call" and node.get("name") in BAR_READERS))
+
+
+def _tree_any(tree: Any, pred: Callable[[Mapping[str, Any]], bool]) -> bool:
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if pred(node):
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
+def _holds_request_or_binding(tree: Any) -> bool:
+    """``interpret.js::holdsRequestOrBinding``."""
+    return _tree_any(tree, lambda nd: nd.get("type") in _SCOPE_TYPES
+                     or (nd.get("type") == "series" and nd.get("name") in RECURRENCE_BINDINGS))
+
+
+def _child_reads_partial_period(child: Any) -> bool:
+    """``interpret.js::childReadsPartialPeriod``: a partial field, or another request."""
+    return _tree_any(child, lambda nd: _reads_partial_field(nd) or nd.get("type") in _SCOPE_TYPES)
+
+
+def _partial_period_unknown(child: Any, htf: List[dict], code: str, inputs, budget, scalars, opts):
+    """``interpret.js::partialPeriodUnknown``: the higher-timeframe bars the child is unknown on (engine 56's walk,
+    exact, each partial field a site unknown on the first higher-timeframe bar only), ``None``, or ``_FIELD_UNAWARE``."""
+    if not htf:
+        return None
+    if _holds_request_or_binding(child):
+        return _FIELD_UNAWARE
+    quiet = dict(opts or {}, tf=code)
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+
+    def first_only(_node):
+        col = [0] * len(htf)
+        col[0] = 1
+        return col
+
+    # ⭐⭐ ITEM 4 -- a running value inside is unknown wherever two starts of the child disagree (each partial field
+    # read as its column with the first higher-timeframe bar NaN)
+    partial: Dict[int, List[int]] = {}
+    stack = [child]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if _reads_partial_field(node):
+            partial[id(node)] = first_only(node)
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return _walk_two_starts(child, htf, inputs if inputs is not None else {}, budget, scalars, quiet,
+                            _reads_partial_field, first_only, partial)
+
+
+def _tf_live_first_period_bars(bars: List[dict], code: Any,
+                               opts: Optional[Mapping[str, Any]]) -> Optional[List[int]]:
+    """``interpret.js::tfLiveFirstPeriodBars``: every chart bar inside the first period of ``code`` off the listing when
+    the first bar does not certainly open it, every bar when one has no readable day, else ``None``."""
+    n = len(bars)
+    if not n or not isinstance(code, str) or (opts or {}).get("historyFromListing") is True:
+        return None
+    days = _bar_days(bars)
+    if any(not d for d in days):
+        return [1] * n
+    tf = (opts or {}).get("tf")
+    daily = tf in ("D", "1D") and all(datetime.date.fromisoformat(d).weekday() <= 4 for d in days)
+    if daily:
+        first = datetime.date.fromisoformat(days[0])
+        prev = (first - datetime.timedelta(days=3 if first.weekday() == 0 else 1)).isoformat()
+        if _tf_bucket(prev, code) != _tf_bucket(days[0], code):
+            return None                                        # the first bar opens its period
+    out = [0] * n
+    first_bucket = _tf_bucket(days[0], code)
+    for i in range(n):
+        if _tf_bucket(days[i], code) != first_bucket:
+            break
+        out[i] = 1
+    return out
+
+
+def _tf_live_first_period_read_mask(tree: Any, bars: List[dict], opts, inputs, budget,
+                                    scalars) -> Optional[List[int]]:
+    """⭐⭐ HTF-LIVE-FIRST-PERIOD (2026-11-19) -- the port of ``interpret.js::tfLiveFirstPeriodReadMask`` (its docstring
+    carries the rule and the measurement): the root bars that read a look-ahead value built from part of the first
+    period (1 = withheld), or ``None``. A site is a ``tf_live`` under no other request (its own bars: the chart bars
+    whose period's higher-timeframe bar its child is unknown on, ``_partial_period_unknown``) or the outermost request
+    holding one whose child reads the partial period (field-unaware, ``_tf_live_first_period_bars``); a ``tf_live``
+    reading only ``close`` is no site. Which root bars read them is engine 56's walk, exact."""
+    n = len(bars or [])
+    if not n:
+        return None
+
+    def lives_under(top: Any) -> list:
+        out = []
+        stack = [top]
+        seen: set = set()
+        while stack:
+            node = stack.pop()
+            if not isinstance(node, Mapping) or id(node) in seen:
+                continue
+            seen.add(id(node))
+            args = node.get("args")
+            if node.get("type") == "tf_live" and isinstance(args, list) and args \
+                    and _child_reads_partial_period(args[0]):
+                out.append(str(node.get("value")))
+            if isinstance(args, list):
+                stack.extend(args)
+        return out
+
+    def field_unaware(codes) -> Optional[List[int]]:
+        m = None
+        for code in sorted(set(codes)):
+            c = _tf_live_first_period_bars(bars, code, opts)
+            if c is None:
+                continue
+            m = m or [0] * n
+            m = [1 if (a or b) else 0 for a, b in zip(m, c)]
+        return m
+
+    def live_own(node: Mapping[str, Any]) -> Optional[List[int]]:
+        code = str(node.get("value"))
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        child = args[0] if args else None
+        if not _child_reads_partial_period(child):
+            return None
+        first = _tf_live_first_period_bars(bars, code, opts)
+        if first is None:
+            return None
+        if any(not _iso_day(b.get("t") if isinstance(b, Mapping) else None) for b in bars):
+            return first                                       # every bar: no first period to place
+        _iso, keys, at, _order, htf = _htf_resampled(bars, code)
+        u = _partial_period_unknown(child, htf, code, inputs, budget, scalars, opts)
+        if u == _FIELD_UNAWARE:
+            return first
+        if u is None:
+            return None
+        m = [0] * n
+        for i, k in enumerate(keys):
+            if k is not None and u[at[k]]:
+                m[i] = 1
+        return m if any(m) else None
+
+    own: Dict[int, List[int]] = {}
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") in _SCOPE_TYPES:
+            m = live_own(node) if node.get("type") == "tf_live" else field_unaware(lives_under(node))
+            if m is not None:
+                own[id(node)] = m
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    if not own:
+        return None
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    sites = own
+    # ⭐⭐ ITEM 4 -- a running value over a site is drawn only where two starts agree (``_walk_two_starts``)
+    return _walk_two_starts(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                            lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), sites)
+
+
+def tf_live_mask(tree: Any, bars: List[dict], opts: Optional[Mapping[str, Any]] = None,
+                 inputs: Any = None, budget: Any = None, scalars: Any = None) -> Optional[List[int]]:
+    """⭐⭐ HTF-LIVE-FIRST-PERIOD -- the port of ``interpret.js::tfLiveMask``: the host column's ``tf_live`` withholding,
+    named ``TF_LIVE_FIRST_CODE`` when it withholds a bar."""
+    mask = _tf_live_first_period_read_mask(tree, bars, opts, inputs, budget, scalars)
+    if not mask or not any(mask):
+        return None
+    _name_chart_clock(opts, [TF_LIVE_FIRST_CODE])
+    return mask
+
+
+#: ⭐⭐ Q-CLOSURE (coordinator ruling 2026-11-21) -- ``interpret.js::HTF_VENUE_CALENDAR_CODE``: a weekly / monthly read
+#: whose answer is the exchange's own session calendar, on a series whose sessions open the evening before (the sentence
+#: is the JS lane's).
+HTF_VENUE_CALENDAR_CODE = "request:htf-venue-calendar"
+_HTF_READS = ("tf", "tf_live", "tf_merge")
+
+
+def htf_venue_calendar_mask(tree: Any, bars: List[dict], opts: Optional[Mapping[str, Any]] = None,
+                            inputs: Any = None, budget: Any = None, scalars: Any = None) -> Optional[List[int]]:
+    """⭐⭐ Q-CLOSURE -- the port of ``interpret.js::htfVenueCalendarMask`` (its docstring carries the rule and the
+    measurements): a site is a ``tf`` / ``tf_live`` / ``tf_merge`` read under no other request (its own bars are
+    ``_venue_calendar_bars``'), or a ``sym`` read holding one over a series of the evening-open shape (every bar); which
+    root bars read a site's bars is engine 56's walk. Named ``HTF_VENUE_CALENDAR_CODE`` when it withholds a bar."""
+    n = len(bars or [])
+    if not n:
+        return None
+    direct: List[dict] = []
+    syms: List[dict] = []
+    stack = [(tree, False)]
+    seen: set = set()
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        kind = node.get("type")
+        if kind in _HTF_READS and not under:
+            direct.append(node)
+        if kind == "sym" and not under and _holds_htf_read(node):
+            syms.append(node)
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, under or kind in _SCOPE_TYPES))
+    if not direct and not syms:
+        return None
+    own: Dict[int, List[int]] = {}
+    supplied = (opts or {}).get("symbols") or {}
+    for node in syms:
+        series = supplied.get(str(node.get("value")).strip().upper())
+        if isinstance(series, (list, tuple)) and series and _session_keying(list(series))["evening"]:
+            own[id(node)] = [1] * n
+    if direct:
+        k = _session_keying(bars)
+        if k["evening"] and all(k["days"]):
+            for node in direct:
+                m = _venue_calendar_bars(node, bars, k)
+                if m:
+                    own[id(node)] = m
+    if not own:
+        return None
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    mask = _witness_mask(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                         lambda nd: id(nd) in own, lambda nd: list(own[id(nd)]))
+    if not mask or not any(mask):
+        return None
+    _name_chart_clock(opts, [HTF_VENUE_CALENDAR_CODE])
+    return mask
+
+
+def _holds_htf_read(top: Any) -> bool:
+    """``interpret.js::holdsHtfRead``: does a request's subtree hold a weekly / monthly read?"""
+    stack = [top]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node is not top and node.get("type") in _HTF_READS:
+            return True
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return False
+
+
+def _venue_calendar_bars(node: dict, bars: List[dict], k: Dict[str, Any]) -> Optional[List[int]]:
+    """``interpret.js::venueCalendarBars``: one site's own bars (``k`` is ``_session_keying(bars)`` of an evening-open
+    series), or ``None``."""
+    n = len(bars)
+    code = str(node.get("value"))
+    iso = k["days"]
+    keys = [_tf_bucket(d, code) for d in iso]
+    at: Dict[Any, int] = {}
+    for key in keys:
+        if key not in at:
+            at[key] = len(at)
+    own = [at[key] for key in keys]
+    kind = node.get("type")
+    if kind == "tf_live":
+        reads = list(own)
+    elif kind == "tf_merge":
+        reads = _tf_merge_reads(iso, keys, at, code)
+    else:
+        reads = [b - 1 if b > 0 else -1 for b in own]
+    out: Optional[List[int]] = None
+
+    def flag(i: int) -> None:
+        nonlocal out
+        if out is None:
+            out = [0] * n
+        out[i] = 1
+
+    if kind == "tf_merge" and code in ("W", "M"):
+        held = set(k["s0"])
+        for i in range(n - 1):
+            if own[i + 1] == own[i]:
+                continue
+            key = keys[i]
+            d = _iso_plus(iso[i], 1)
+            while _tf_bucket(d, code) == key:
+                if datetime.date.fromisoformat(d).isoweekday() <= 5 and d not in held:
+                    flag(i)
+                    break
+                d = _iso_plus(d, 1)
+    touched: List[int] = []
+    for c in k["unwitnessed"]:
+        a, b = _tf_bucket(c["from"], code), _tf_bucket(c["to"], code)
+        if a == b:
+            continue
+        for key in (a, b):
+            if key in at:
+                touched.append(at[key])
+    if touched:
+        args = node.get("args") or []
+        child = args[0] if args else None
+        field = isinstance(child, Mapping) and child.get("type") == "series"
+        first = min(touched)
+        for i, r in enumerate(reads):
+            if r >= 0 and (r in touched if field else r >= first):
+                flag(i)
+    return out
+
+
+#: ⭐⭐ PERIOD -1 (HTF-PRE-CHART, coordinator ruling 2026-11-19) -- ``interpret.js::HISTORY_BEFORE_CHART_CODE``: a read
+#: of the bar, or the week or month, before the first one the series holds (``history_before_chart_mask``; the
+#: sentence is the JS lane's, ``HISTORY_BEFORE_CHART_SENTENCE``).
+HISTORY_BEFORE_CHART_CODE = "history:before-chart"
+
+
+def _pre_chart_unknown(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
+                       off: bool) -> Optional[List[int]]:
+    """⭐⭐ PERIOD -1 -- the port of ``interpret.js::preChartUnknown`` (its docstring carries the rule and the
+    measurement): the bars of a tree that read a bar (or a higher-timeframe period) before the first one its series
+    holds, as a 0/1 list (1 = unknown), or ``None``. ``off``: this series' bar 0 is not TradingView's. Off, the
+    series' own history reads are sites (``_witness_mask``'s ``before_first``); a read on other bars is a site of its
+    own (``_request_before_first``). Which root bars read them is engine 56's walk, exact."""
+    n = len(bars or [])
+    if not n:
+        return None
+    own: Dict[int, List[int]] = {}
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, Mapping) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if node.get("type") in _SCOPE_TYPES:
+            m = _request_before_first(node, bars, inputs, budget, scalars, opts, off)
+            if m is not None:
+                own[id(node)] = m
+            continue
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    if not own and not off:
+        return None
+    quiet = dict(opts or {})
+    quiet.pop("chartClockSink", None)
+    quiet.pop("withheldBarsSink", None)
+    sites = own
+    # ⭐⭐ ITEM 4 -- a running value carrying such a read is drawn only where two starts agree (``_walk_two_starts``)
+    return _walk_two_starts(tree, bars, inputs if inputs is not None else {}, budget, scalars, quiet,
+                            lambda nd: id(nd) in sites, lambda nd: list(sites[id(nd)]), sites,
+                            request_sites=True, before_first=off is True,
+                            skip=lambda nd: period_anchor_period(nd) is not None)
+
+
+def _request_before_first(node: Mapping[str, Any], bars: List[dict], inputs, budget, scalars, opts,
+                          off: bool) -> Optional[List[int]]:
+    """⭐⭐ PERIOD -1 -- the port of ``interpret.js::requestBeforeFirst``: the bars on which a read on other bars answers
+    from a bar before its series' first, or ``None``. ``tf`` / ``tf_live`` / ``tf_merge``: the child on this symbol's
+    higher-timeframe bars (``_htf_resampled``), ``off`` unchanged, mapped by the arm's own pick; a merge's (or a formula
+    ``tf``'s) first-period bar before the close reads the period before the first: unknown, off. ``sym``: the supplied
+    series aligned on ``t``, always off (C26). ``ltf``: nothing here (``lower_tf_mask``'s)."""
+    n = len(bars)
+    args = node.get("args") if isinstance(node.get("args"), list) else []
+    child = args[0] if args else None
+    kind = node.get("type")
+    if kind == "ltf":
+        return None
+    m: Optional[List[int]] = None
+    if kind == "sym":
+        series = ((opts or {}).get("symbols") or {}).get(str(node.get("value")).strip().upper())
+        if not series:
+            return None
+        u = _pre_chart_unknown(child, series, inputs, budget, scalars,
+                               dict(opts or {}, historyFromListing=None), True)
+        if u is None:
+            return None
+        at: Dict[Any, int] = {}
+        for j, b in enumerate(series):
+            key = b.get("t") if isinstance(b, dict) else None
+            if key is not None and not isinstance(key, bool) and key not in at:
+                at[key] = j
+        for i, b in enumerate(bars):
+            key = b.get("t") if isinstance(b, dict) else None
+            if key is None or isinstance(key, bool):
+                continue
+            j = at.get(key)
+            if j is not None and u[j]:
+                m = m or [0] * n
+                m[i] = 1
+        return m
+    code = str(node.get("value"))
+    iso, keys, at, _order, htf = _htf_resampled(bars, code)
+    u = _pre_chart_unknown(child, htf, inputs, budget, scalars, dict(opts or {}, tf=code), off) if htf else None
+    reads = _tf_merge_reads(iso, keys, at, code) if kind == "tf_merge" else None
+    for i, k in enumerate(keys):
+        if k is None:
+            continue
+        b = at[k]
+        r = b if kind == "tf_live" else reads[i] if reads is not None else b - 1
+        if r >= 0:
+            if u is not None and u[r]:
+                m = m or [0] * n
+                m[i] = 1
+        elif off and b == 0:
+            m = m or [0] * n
+            m[i] = 1
+    return m
+
+
+def history_before_chart_mask(tree: Any, bars: List[dict], inputs: Any = None, budget: Any = None,
+                              scalars: Any = None, opts: Optional[Mapping[str, Any]] = None,
+                              column: Optional[List[Any]] = None) -> Optional[List[int]]:
+    """⭐⭐ PERIOD -1 (coordinator ruling 2026-11-19) -- the port of ``interpret.js::historyBeforeChartMask``: in a Pine
+    document (``opts["varOriginAbsolute"]``) the root bars that draw from a read before the first bar held (1 =
+    withheld), or ``None``. Off the listing (``barIndexAbsolute`` and not ``historyFromListing``, nor ``listingStart``: a
+    weekly / monthly chart starting at the listing) every history read of the chart's own bars counts; from the listing
+    only another symbol's do. Named ``HISTORY_BEFORE_CHART_CODE`` only
+    where it takes a drawn value of ``column`` away (with no column, whenever it withholds)."""
+    o = opts or {}
+    if o.get("varOriginAbsolute") is not True:
+        return None
+    # (coordinator ruling 2026-11-20, e90) a weekly / monthly chart whose first bar IS the listing period
+    # (``listingStart``, the fact where the listing is not served) counts as FROM the listing here
+    off = (o.get("barIndexAbsolute") is True and o.get("historyFromListing") is not True
+           and o.get("listingStart") is not True)
+    if not off and not _tree_reads_sym(tree):
+        return None
+    mask = _pre_chart_unknown(tree, bars, inputs, budget, scalars, opts, off)
+    if not mask or not any(mask):
+        return None
+    drawn = column is None or any(
+        m and v is not None and not (isinstance(v, float) and math.isnan(v)) for m, v in zip(mask, column))
+    if drawn:
+        _name_chart_clock(opts, [HISTORY_BEFORE_CHART_CODE])
+    return mask
+
+
+def _newest_closes_every_merge_period(bars: List[dict], found: list,
+                                       opts: Optional[Mapping[str, Any]]) -> bool:
+    """⭐ REVIEW L3 -- the port of ``interpret.js::newestClosesEveryMergePeriod``: a daily
+    chart, no Saturday or Sunday bar in the series, and the next weekday after the newest
+    bar in another period for every merge's code (positive-only, calendar-free)."""
+    tf = (opts or {}).get("tf")
+    if tf not in ("D", "1D"):
+        return False
+    days = []
+    for b in bars:
+        iso = _iso_day(b.get("t") if isinstance(b, Mapping) else None)
+        if not iso:
+            return False
+        if datetime.date.fromisoformat(iso).weekday() > 4:
+            return False
+        days.append(iso)
+    last = datetime.date.fromisoformat(days[-1])
+    nxt = (last + datetime.timedelta(days=3 if last.weekday() == 4 else 1)).isoformat()
+    return all(isinstance(c, str) and _tf_bucket(nxt, c) != _tf_bucket(days[-1], c)
+               for _u, _s, c in found)
 
 
 def _tree_reads_sym(tree: Any) -> bool:
@@ -4515,7 +5952,7 @@ def sym_alignment_mask(tree: Any, bars: List[dict],
             if under:
                 nested = True
             nodes.append(node)
-        into = under or kind in ("sym", "tf", "tf_live", "ltf")
+        into = under or kind in ("sym", "tf", "tf_live", "tf_merge", "ltf")
         args = node.get("args")
         if isinstance(args, list):
             stack.extend((a, into) for a in args)
@@ -4586,7 +6023,7 @@ def history_read_mask(tree: Any, bars: List[dict],
         is_call = node.get("type") == "call" and isinstance(name, str)
         if is_call and name == "barsAgo":
             reads.append((node, nested, unbounded))
-        into = nested or node.get("type") in ("tf", "tf_live", "sym")
+        into = nested or node.get("type") in ("tf", "tf_live", "tf_merge", "sym")
         spec = functions.get(name) if is_call else None
         opened = unbounded or bool(
             spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node)))
@@ -4617,6 +6054,623 @@ def history_read_mask(tree: Any, bars: List[dict],
     return mask if held else None
 
 
+#: ⭐⭐ ENGINE HL -- the window calls ``window_hole_mask`` asks about (``interpret.js::HOLE_WINDOW_CALLS``).
+_HOLE_WINDOW_CALLS = frozenset({"highest", "lowest", "highestbars", "lowestbars"})
+#: Table functions that carry state with no end (``interpret.js::HOLE_CARRIED_CALLS``).
+_HOLE_CARRIED_CALLS = frozenset({"ema", "rma", "rsi", "atr", "atrPine", "adx", "plusDI", "minusDI", "macd"})
+
+
+def window_hole_mask(tree: Any, bars: List[dict],
+                     inputs: Optional[Mapping[str, Any]] = None,
+                     budget: Optional[Mapping[str, Any]] = None,
+                     scalars: Optional[Mapping[str, Any]] = None,
+                     opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::windowHoleMask`` (engine HL) -- the bars where a window extreme over a source
+    with ``na`` holes answers from a window no capture pins (1 = withheld), or ``None``.
+    ``window-extreme:left-edge``: off the listing, a ``highest`` / ``lowest`` window of fewer than
+    ``n`` finite values from bar ``n - 1`` (``highestbars`` / ``lowestbars`` too since S17).
+    Spread forward by the tree's reach, or to the end under a call that carries state; a site under
+    ``tf`` / ``tf_live`` / ``sym`` / ``ltf`` is masked where its child is evaluated."""
+    n = len(bars)
+    if (opts or {}).get("historyFromListing") is True:
+        return None
+    found: List[tuple] = []
+    stack = [(tree, False, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, nested, unbounded = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        name = node.get("name")
+        is_call = node.get("type") == "call" and isinstance(name, str)
+        if is_call and name in _HOLE_WINDOW_CALLS:
+            found.append((node, nested, unbounded))
+        into = nested or node.get("type") in ("tf", "tf_live", "sym", "ltf")
+        spec = functions.get(name) if is_call else None
+        opened = unbounded or bool(spec is not None and (
+            spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node) or name in _HOLE_CARRIED_CALLS))
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, opened))
+    if not found:
+        return None
+    mask = [0] * n
+    held = False
+    codes = set()
+    root_reach = max_lookback(tree)
+    inner = dict(opts or {}, chartClockSink=None, crossMemo=None, probeBase=None)
+    for node, nested, unbounded in found:
+        args = node.get("args") or []
+        if nested or len(args) < 2 or _reads_recurrence_binding(node):
+            continue
+        length = _interpret_column(args[1], bars, inputs, budget, scalars, inner)
+        w = length[-1] if length else NAN
+        if not (isinstance(w, (int, float)) and math.isfinite(w) and w >= 1 and float(w).is_integer()):
+            continue
+        span = int(w)
+        src = _interpret_column(args[0], bars, inputs, budget, scalars, inner)
+        count = finite_window_count(src, span)
+        flagged = [1 if (i >= span - 1 and count[i] < span) else 0 for i in range(n)]
+        code = WINDOW_EXTREME_LEFT_EDGE
+        reach = max(0, root_reach - max_lookback(node))
+        last = -math.inf
+        for i in range(n):
+            if flagged[i]:
+                codes.add(code)
+                last = last if (unbounded and last != -math.inf) else i
+            if last != -math.inf and (unbounded or i - last <= reach):
+                mask[i] = 1
+                held = True
+    if not held:
+        return None
+    _name_chart_clock(opts, sorted(codes))
+    return mask
+_WITNESS_NESTED = ("sym", "tf", "tf_live", "tf_merge", "ltf")
+_WITNESS_WINDOW_CALLS = ("change", "crossOver", "crossUnder", "percentrank", "barsAgo")
+_WITNESS_FINITE = ("sma", "wma", "stdev", "sum", "dev", "median", "highest", "lowest", "highestbars", "lowestbars")
+
+#: ⭐⭐ RULING 1 -- the calls the left-edge measurement found answering a NUMBER on a bar whose window reaches before the
+#: first bar held (``interpret.js::WINDOW_EDGE_FINITE``, the note on ``windowEdgeLookback``).
+WINDOW_EDGE_FINITE = frozenset({"rising", "falling", "mfiPine"})
+
+
+def _window_edge_lookback(node: Any) -> float:
+    """⭐⭐ RULING 1 -- the port of ``interpret.js::windowEdgeLookback`` (its note carries the rule and the measurement):
+    a call's declared lookback, the reach ``_witness_mask``'s ``before_first`` reads its warm-up within; 0 when it has
+    none (a pointwise call, ``barsAgo``, ``cum``, a ``session`` window), infinity for ``valuewhenOccurrence``."""
+    if not isinstance(node, dict) or node.get("type") != "call" or node.get("name") == "barsAgo":
+        return 0
+    args = node.get("args")
+    spec = TABLE[FUNCTIONS_SECTION].get(node.get("name")) if isinstance(node.get("name"), str) else None
+    if spec is None or not isinstance(args, list):
+        return 0
+    # an ANCHORED total (``cumFrom``) answers ``na`` before its anchor on any chart: it reaches back to the anchor only
+    if "anchor" in (spec.get("argRoles") or []):
+        return 0
+    lb = spec.get("lookback")
+    if lb == SERIES_LOOKBACK:
+        return math.inf if node.get("name") == "valuewhenOccurrence" else 0
+    if isinstance(lb, int) and not isinstance(lb, bool):
+        return lb if lb > 0 else 0
+    m = _LOOKBACK_RE.fullmatch(str(lb)) if isinstance(lb, str) else None
+    if m is None:
+        return 0
+    idx = int(m.group(2))
+    arg = args[idx] if idx < len(args) else None
+    v = arg.get("value") if isinstance(arg, dict) and arg.get("type") == "num" else None
+    # a window the evaluator would refuse is never evaluated: nothing is drawn from it
+    if not isinstance(v, (int, float)) or isinstance(v, bool) or v != int(v) or v < 0:
+        return 0
+    return (1 if m.group(1) is None else int(m.group(1))) * int(v)
+
+
+def _witness_mask(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
+                  is_site: Callable[[dict], bool],
+                  flagged: Callable[[dict], Optional[List[int]]],
+                  exact: bool = False, request_sites: bool = False,
+                  before_first: bool = False, carry_forward: bool = False,
+                  on_carried: Optional[Callable[[dict, list], None]] = None,
+                  skip: Optional[Callable[[dict], bool]] = None) -> Optional[List[int]]:
+    """ENGINE 56 -- the root bars that depend on a withheld bar of a witness site, by one 0/1
+    "unknown" column per node, bottom-up. The twin of ``interpret.js::witnessMask`` (its
+    docstring states each node kind's rule: nested reads every bar, offsets shift, operators and
+    pointwise calls OR, finite windows spread over their window, ``barssince`` until a known
+    true, ``valuewhen`` until enough known occurrences, everything else from the first
+    unknown bar on). ``exact`` (HTF-PARTIAL-THROUGH-OFFSET, ``_first_period_partial_read_mask`` only,
+    ``walk.exact``): ``barsAgo`` is unknown where its count is, or where its readable count lands on an unknown
+    source bar, instead of over its whole buffer; ``c ? a : b`` where ``c`` is, else where the arm a known ``c``
+    takes is (non-zero takes ``a``), and where either arm is on a bar whose ``c`` is ``na``; a finite window
+    (``_WITNESS_FINITE``, every span ``n``) over the bar and ``n - 1`` before it, not its declared lookback; and a
+    running value only on its argument's own unknown bars (its memory is not followed: the JS twin's note).
+    ``request_sites`` / ``before_first`` (PERIOD -1, ``history_before_chart_mask`` only): ``walk.requestSites`` /
+    ``walk.beforeFirst`` -- a read on other bars is a site or known, never walked into, and a site's own bars are its
+    column alone; a history read that lands before the first bar held (``x[k]`` on its first ``k`` bars, a ``barsAgo``
+    readable count reaching before bar 0) is a site of its own, unknown there."""
+    n = len(bars)
+    has_memo: Dict[int, bool] = {}
+
+    def skipped(node: Any) -> bool:
+        # a node the walk leaves whole (``skip``): known, nothing inside it walked
+        return skip is not None and skip(node)
+
+    def reads_before_first(node: Any) -> bool:
+        # PERIOD -1 -- a history read of this series that can land before its first bar (``walk.beforeFirst``)
+        args = node.get("args")
+        if not before_first or not isinstance(args, list):
+            return False
+        if node.get("type") == "offset":
+            v = node.get("value")
+            return len(args) == 1 and isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 1
+        return node.get("type") == "call" and node.get("name") == "barsAgo" and len(args) == 3
+
+    def edge_reach(node: Any) -> float:
+        # ⭐⭐ RULING 1 -- a call whose own window can reach before the first bar held (``before_first``)
+        return _window_edge_lookback(node) if before_first else 0
+
+    def has_site(node: Any) -> bool:
+        if not isinstance(node, dict):
+            return False
+        key = id(node)
+        if key in has_memo:
+            return has_memo[key]
+        has_memo[key] = False
+        args = node.get("args")
+        r = (is_site(node) or (not skipped(node) and (
+            reads_before_first(node) or edge_reach(node) > 0
+            or (not (request_sites and node.get("type") in _WITNESS_NESTED)
+                and isinstance(args, list) and any(has_site(a) for a in args)))))
+        has_memo[key] = r
+        return r
+
+    if not has_site(tree):
+        return None
+    ALL = "all"
+    memo: Dict[int, Any] = {}
+    functions = TABLE[FUNCTIONS_SECTION]
+
+    def col_of(node: Any) -> List[float]:
+        return _to_column(_interpret_column(node, bars, inputs, budget, scalars, opts), n)
+
+    def or_into(acc, u):
+        if u is None:
+            return acc
+        if u == ALL or acc == ALL:
+            return ALL
+        if acc is None:
+            return list(u)
+        return [1 if (a or b) else 0 for a, b in zip(acc, u)]
+
+    def forward(u):
+        if u is None or u == ALL:
+            return u
+        out = list(u)
+        on = False
+        for i in range(n):
+            if out[i]:
+                on = True
+            if on:
+                out[i] = 1
+        return out
+
+    def windowed(u, back, ahead=0):
+        if u is None or u == ALL:
+            return u
+        out = [0] * n
+        for i in range(n):
+            if not u[i]:
+                continue
+            for j in range(max(0, i - ahead), min(n - 1, i + back) + 1):
+                out[j] = 1
+        return out
+
+    cols: Dict[int, List[float]] = {}
+
+    def col_memo(node: Any) -> List[float]:
+        # one walk, one set of bars and options: a node's column is read once (the JS twin's ``colMemo``)
+        key = id(node)
+        if key not in cols:
+            cols[key] = col_of(node)
+        return cols[key]
+
+    def edge_of(node: Any, reach: float):
+        # ⭐⭐ RULING 1 -- the call's warm-up: the run of ``na`` it opens with from the first bar every argument it reads
+        # is held, within its first ``reach`` there; every one of them for ``WINDOW_EDGE_FINITE``
+        f = 0
+        for a in node.get("args") or []:
+            if not isinstance(a, dict) or a.get("type") == "num" or _reads_recurrence_binding(a):
+                continue
+            c = col_memo(a)
+            j = 0
+            while j < n and math.isnan(c[j]):
+                j += 1
+            f = max(f, j)
+        # RULING 1 (cost) -- an argument that is never held leaves no bar to withhold: the call's own column is not read
+        if f >= n:
+            return None
+        always = node.get("name") in WINDOW_EDGE_FINITE
+        col = None if always else col_memo(node)
+        out = None
+        end = n if reach == math.inf else min(n, f + int(reach))
+        for i in range(f, end):
+            # the warm-up is the run of ``na`` it opens with: a number answered is read from bars the chart holds
+            if not always and not math.isnan(col[i]):
+                break
+            if out is None:
+                out = [0] * n
+            out[i] = 1
+        return out
+
+    def unk(node: Any):
+        if not has_site(node):
+            return None
+        key = id(node)
+        if key in memo:
+            return memo[key]
+        out = None
+        kind = node.get("type")
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        name = node.get("name")
+        # ⭐⭐ RULING 1 -- set by a branch that answered the call's own reach before the first bar by its events
+        event_edge = False
+        if kind in _WITNESS_NESTED and not is_site(node):
+            out = ALL
+        elif is_site(node):
+            own = flagged(node)
+            out = ALL if own is None else own
+            if not request_sites:
+                for a in args:
+                    out = or_into(out, unk(a))
+        elif kind == "offset":
+            u = unk(args[0])
+            k = int(node.get("value") or 0)
+            # PERIOD -1 -- ``x[k]`` on its first ``k`` bars reads before the first bar held (``before_first``)
+            before = min(k, n) if reads_before_first(node) else 0
+            if u == ALL or (u is None and before == 0):
+                out = u
+            else:
+                out = [0] * n
+                for i in range(before):
+                    out[i] = 1
+                if u is not None:
+                    for i in range(k, n):
+                        out[i] = u[i - k]
+        elif (exact and kind == "op" and name == "?:" and len(args) == 3
+              and not _reads_recurrence_binding(args[0])):
+            uc = unk(args[0])
+            ua0 = None if uc == ALL else unk(args[1])
+            ub0 = None if uc == ALL else unk(args[2])
+            if uc == ALL:
+                out = ALL
+            elif ua0 is None and ub0 is None:
+                out = [0] * n if uc is None else list(uc)
+            elif ua0 == ALL and ub0 == ALL:
+                out = [1] * n
+            else:
+                # the condition is read only where it chooses between two arms that differ
+                c = col_of(args[0])
+                ua = [1] * n if ua0 == ALL else ua0
+                ub = [1] * n if ub0 == ALL else ub0
+                out = [0] * n
+                for i in range(n):
+                    a = bool(ua is not None and ua[i])
+                    b = bool(ub is not None and ub[i])
+                    took = (a or b) if math.isnan(c[i]) else (a if c[i] != 0 else b)
+                    if (uc is not None and uc[i]) or took:
+                        out[i] = 1
+        elif kind == "op":
+            for a in args:
+                out = or_into(out, unk(a))
+        elif kind == "call":
+            spec = functions.get(name) if isinstance(name, str) else None
+            stateful = name in RECURRENCES or name in MULTI_STATES
+            if spec is not None and is_pointwise(spec) and not stateful:
+                for a in args:
+                    out = or_into(out, unk(a))
+            elif (name == "barssince" and not has_site(args[1])
+                  and not (request_sites and _reads_recurrence_binding(args[0]))):
+                u = unk(args[0])
+                if u is None or u == ALL:
+                    out = u
+                else:
+                    cond = col_of(args[0])
+                    out = [0] * n
+                    tainted = False
+                    for i in range(n):
+                        if u[i]:
+                            tainted = True
+                        elif cond[i] == 1:
+                            tainted = False
+                        out[i] = 1 if tainted else 0
+            elif (name in ("valuewhen", "valuewhenOccurrence") and len(args) == 3
+                  and isinstance(args[2], dict) and args[2].get("type") == "num"
+                  and not (request_sites and _reads_recurrence_binding(args[0]))):
+                uc, us = unk(args[0]), unk(args[1])
+                if uc == ALL or us == ALL:
+                    out = ALL
+                else:
+                    cond = col_of(args[0])
+                    k = int(args[2]["value"])
+                    out = [0] * n
+                    trues: List[int] = []
+                    last_unknown = -1
+                    # ⭐⭐ RULING 1 -- ``before_first``: with no known occurrence to read, the one it reads may be before
+                    # the first bar held (the event rule)
+                    event_edge = before_first
+                    for i in range(n):
+                        if uc is not None and uc[i]:
+                            last_unknown = i
+                        elif cond[i] == 1:
+                            trues.append(i)
+                        if name == "valuewhen":
+                            lt = trues[-1] if trues else -1
+                            start = i - k + 1
+                            if last_unknown > lt and last_unknown >= start:
+                                out[i] = 1
+                            elif lt >= start and us is not None and us[lt]:
+                                out[i] = 1
+                            elif before_first and start < 0 and lt < 0:
+                                out[i] = 1
+                        else:
+                            need = k + 1
+                            if len(trues) < need:
+                                if last_unknown >= 0 or before_first:
+                                    out[i] = 1
+                            else:
+                                at = trues[len(trues) - need]
+                                if last_unknown > at or (us is not None and us[at]):
+                                    out[i] = 1
+            elif (exact and name == "barsAgo" and len(args) == 3
+                  and not _reads_recurrence_binding(args[1])):
+                us, uk = unk(args[0]), unk(args[1])
+                if us == ALL or uk == ALL:
+                    out = ALL
+                else:
+                    back = col_of(args[1])
+                    limit = _window_literal(node, 2)
+                    out = [0] * n
+                    before = reads_before_first(node)
+                    for i in range(n):
+                        if uk is not None and uk[i]:
+                            out[i] = 1
+                            continue
+                        k = _history_back_of(back[i])
+                        if not _history_readable(k, limit):
+                            continue
+                        # PERIOD -1 -- a readable count that reaches before the first bar held (``before_first``)
+                        if i - int(k) < 0:
+                            if before:
+                                out[i] = 1
+                        elif us is not None and us[i - int(k)]:
+                            out[i] = 1
+            elif name in ("pivothigh", "pivotlow"):
+                u = None
+                for a in args:
+                    u = or_into(u, unk(a))
+                out = windowed(u, _window_literal(node, 1), _window_literal(node, 2))
+            elif (spec is not None and not stateful and (name in _WITNESS_FINITE or name in _WITNESS_WINDOW_CALLS)
+                  and (isinstance(spec.get("lookback"), int) or str(spec.get("lookback")).startswith("arg"))):
+                u = None
+                for a in args:
+                    u = or_into(u, unk(a))
+                lb = spec.get("lookback")
+                declared = isinstance(lb, int)
+                lb = lb if declared else _window_literal(node, int(str(lb)[3:]))
+                # ``exact``: a finite window's own span (the bar and ``n - 1`` before it), not the declared lookback
+                reach = lb - 1 if (exact and name in _WITNESS_FINITE and not declared) else lb
+                out = windowed(u, max(0, reach))
+                # PERIOD -1 -- a ``barsAgo`` whose count this walk cannot read reaches anywhere in its buffer
+                if reads_before_first(node) and out != ALL:
+                    out = [0] * n if out is None else out
+                    for i in range(min(lb, n)):
+                        out[i] = 1
+            else:
+                u = None
+                for a in args:
+                    u = or_into(u, unk(a))
+                # ``exact``: a running value keeps the rule it had (its argument's own unknown bars); its memory
+                # is not followed (``interpret.js::witnessMask``'s note) unless ``carry_forward`` (ITEM 4's bound);
+                # ``on_carried`` hears which arguments carried an unknown into one (ITEM 4: each starts later)
+                if u is not None and exact and on_carried is not None:
+                    carried_args = []
+                    for a in args:
+                        ua = unk(a)
+                        if ua is not None:
+                            carried_args.append((a, [1] * n if ua == ALL else list(ua)))
+                    on_carried(node, carried_args)
+                out = u if (exact and not carry_forward) else forward(u)
+        else:
+            for a in args:
+                out = or_into(out, unk(a))
+        # ⭐⭐ RULING 1 -- a call whose own window reaches before the first bar held is unknown there, beside whatever its
+        # arguments carried in
+        reach = edge_reach(node) if (kind == "call" and not event_edge and not is_site(node)) else 0
+        if reach > 0 and out != ALL:
+            e = edge_of(node, reach)
+            if e is not None:
+                out = or_into(None if out is None else list(out), e)
+        memo[key] = out
+        return out
+
+    root = unk(tree)
+    if root is None:
+        return None
+    mask = [1] * n if root == ALL else [1 if x else 0 for x in root]
+    return mask if any(mask) else None
+
+
+#: ⭐⭐ ITEM 4 -- the ceiling ``_walk_two_starts`` compares ``two_start_steps`` against (``interpret.js``'s
+#: ``_twoStartCeiling``); tests may lower it.
+TWO_START_CEILING = [MAX_RECURRENCE_STEPS]
+
+
+def two_start_steps(tree: Any, n: int) -> int:
+    """``interpret.js::twoStartSteps``: the work of one more evaluation over ``n`` bars (each node once, each
+    recurrence's warm-up per bar)."""
+    work = 0
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        work += 1
+        name = node.get("name") if node.get("type") == "call" else None
+        rec = RECURRENCES.get(name) if name in RECURRENCES else MULTI_STATES.get(name) if name in MULTI_STATES else None
+        if rec is not None and isinstance(rec.get("warmup"), int):
+            work += _window_literal(node, rec["warmup"])
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    return work * n
+
+
+def _starts_disagree(tree: Any, bars: List[dict], inputs, budget, scalars, opts,
+                     sites: Dict[int, Any]) -> Optional[List[int]]:
+    """``interpret.js::startsDisagree``: the bars on which the tree answers differently from its later start (each
+    site, ``{id(node): (node, unknown bars)}``, read as its column with those bars NaN), bit-equal, NaN equal to NaN."""
+    n = len(bars)
+    base = dict(opts or {}, chartClockSink=None, withheldBarsSink=None)
+    override: Dict[int, List[float]] = {}
+    moved = False
+    for key, (node, unknown) in sites.items():
+        col = list(_to_column(_interpret_column(node, bars, inputs, budget, scalars, base), n))
+        for i in range(n):
+            if unknown[i]:
+                if not _isnan(col[i]):
+                    moved = True
+                col[i] = math.nan
+        override[key] = col
+    # a start that moves no value is start A (a bar already NaN starts nothing later): B is not run
+    if not moved:
+        return None
+    a = _to_column(_interpret_column(tree, bars, inputs, budget, scalars, base), n)
+    b = _to_column(_interpret_column(tree, bars, inputs, budget, scalars, dict(base, siteOverride=override)), n)
+    out = None
+    for i in range(n):
+        x, y = a[i], b[i]
+        if not (x == y or (_isnan(x) and _isnan(y))):
+            out = out or [0] * n
+            out[i] = 1
+    return out
+
+
+def _walk_two_starts(tree: Any, bars: List[dict], inputs, budget, scalars, opts, is_site, flagged,
+                     sites: Dict[int, List[int]], **walk) -> Optional[List[int]]:
+    """⭐⭐ ITEM 4 -- ``interpret.js::walkTwoStarts`` (its docstring carries the rule and the rulings): the exact walk,
+    and where an unknown reached a running value the bars two starts disagree on beside it (start B: each running
+    value's argument NaN on its unknown bars, each site NaN on its own); over the bound, the walk again with the running
+    values' memory followed. ``sites``: ``{id(node): unknown bars}``; their nodes are found in the tree by identity."""
+    starts: Dict[int, List[int]] = {k: list(v) for k, v in sites.items()}
+    nodes: Dict[int, Any] = {}
+    carried: List[bool] = []
+
+    def heard(_node, args):
+        carried.append(True)
+        for a, u in args:
+            if _reads_recurrence_binding(a):
+                continue
+            nodes[id(a)] = a
+            had = starts.get(id(a))
+            starts[id(a)] = list(u) if had is None else [1 if (x or y) else 0 for x, y in zip(had, u)]
+
+    mask = _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged, exact=True,
+                         on_carried=heard, **walk)
+    if not carried:
+        return mask
+    n = len(bars)
+    if two_start_steps(tree, n) > TWO_START_CEILING[0]:
+        return _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged, exact=True,
+                             carry_forward=True, **walk)
+    stack = [tree]
+    seen: set = set()
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if id(node) in starts and id(node) not in nodes:
+            nodes[id(node)] = node
+        args = node.get("args")
+        if isinstance(args, list):
+            stack.extend(args)
+    d = _starts_disagree(tree, bars, inputs, budget, scalars, opts,
+                         {k: (nodes[k], v) for k, v in starts.items() if k in nodes})
+    if d is None:
+        return mask
+    out = list(mask) if mask else [0] * n
+    for i in range(n):
+        if d[i]:
+            out[i] = 1
+    return out
+
+
+def bool_na_mask(tree: Any, bars: List[dict],
+                 inputs: Optional[Mapping[str, Any]] = None,
+                 budget: Optional[Mapping[str, Any]] = None,
+                 scalars: Optional[Mapping[str, Any]] = None,
+                 opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """ENGINE 56 (A3) -- ``interpret.js::boolNaMask``: the bars where a Pine v1-v5 ``bool``
+    that is ``na`` meets an operator no capture has witnessed for it (the translator's
+    ``boolNaWithheld(operand, flag)``), propagated to the root; a ``NaN`` flag withholds."""
+    n = len(bars)
+
+    def flagged(node: dict) -> Optional[List[int]]:
+        f = node["args"][1]
+        if _reads_recurrence_binding(f):
+            return None
+        col = _to_column(_interpret_column(f, bars, inputs, budget, scalars, opts), n)
+        return [0 if v == 0 else 1 for v in col]
+    return _witness_mask(tree, bars, inputs, budget, scalars, opts,
+                         lambda nd: nd.get("type") == "call" and nd.get("name") == "boolNaWithheld", flagged)
+
+
+def _window_holds_tie(series: Sequence[float], lo: int, hi: int,
+                      better: Callable[[float, float], bool]) -> float:
+    best = _window_extreme(series, lo, hi, better)
+    if math.isnan(best):
+        return NAN
+    k = 0
+    for i in range(lo, hi + 1):
+        if series[i] == best:
+            k += 1
+            if k > 1:
+                return 1.0
+    return 0.0
+
+
+def arg_extreme_tie_mask(tree: Any, bars: List[dict],
+                         inputs: Optional[Mapping[str, Any]] = None,
+                         budget: Optional[Mapping[str, Any]] = None,
+                         scalars: Optional[Mapping[str, Any]] = None,
+                         opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """ENGINE 56 (S4-2) -- ``interpret.js::argExtremeTieMask``: the bars where a
+    ``highestbars``/``lowestbars`` over a COMPUTED source (not ``is_bar_price_tree``) names
+    one of two tied bars, propagated to the root. A non-literal length withholds every bar."""
+    n = len(bars)
+
+    def is_site(nd: dict) -> bool:
+        return (nd.get("type") == "call" and nd.get("name") in ("highestbars", "lowestbars")
+                and isinstance(nd.get("args"), list) and len(nd["args"]) == 2
+                and not is_bar_price_tree(nd["args"][0]))
+
+    def flagged(node: dict) -> Optional[List[int]]:
+        src_tree, len_tree = node["args"]
+        if _reads_recurrence_binding(src_tree) or not (
+                isinstance(len_tree, dict) and len_tree.get("type") == "num"):
+            return None
+        length = _window_literal(node, 1)
+        src = _to_column(_interpret_column(src_tree, bars, inputs, budget, scalars, opts), n)
+        better = (lambda v, b: v > b) if node["name"] == "highestbars" else (lambda v, b: v < b)
+        ties = _rolling(src, length, lambda sr, lo, hi: _window_holds_tie(sr, lo, hi, better),
+                        WINDOW_NA[node["name"]])
+        return [1 if t == 1 else 0 for t in ties]
+    return _witness_mask(tree, bars, inputs, budget, scalars, opts, is_site, flagged)
+
+
 def _reads_recurrence_binding(tree: Any) -> bool:
     """Does this subtree read a recurrence's own binding (``self``)? Such a tree
     has no column outside the recurrence that runs it."""
@@ -4636,9 +6690,106 @@ def _reads_recurrence_binding(tree: Any) -> bool:
 # C45 -- the bar-index shift analysis lives in its own module (it catches its own
 # "not provable"; this file may hold no ``try``). Re-exported: one authority, one name.
 from api.services.ast_bar_index_shift import (  # noqa: E402,F401
-    BAR_INDEX_LEAVES, reads_bar_index, bar_index_class, bar_index_verdict, threshold_unknown,
+    BAR_INDEX_LEAVES, FIRST_BAR_LEAVES, reads_bar_index, reads_first_bar, bar_index_class,
+    bar_index_verdict, threshold_unknown, RUNNING_TOTAL_CALLS, reads_running_total,
 )
 
+
+
+#: ``interpret.js::BUILTIN_WITNESS_CODES`` (engine 57).
+_BUILTIN_WITNESS_CODES = {"rci": (RCI_LEFT_EDGE,), "stochPine": (STOCH_FLAT_WINDOW, STOCH_LEFT_EDGE)}
+#: ``interpret.js::WITNESS_CARRIED_CALLS``.
+_WITNESS_CARRIED_CALLS = frozenset(("ema", "rma", "rsi", "atr", "atrPine", "adx", "plusDI", "minusDI", "macd"))
+
+
+def builtin_witness_mask(tree: Any, bars: List[dict],
+                         inputs: Optional[Mapping[str, Any]] = None,
+                         budget: Optional[Mapping[str, Any]] = None,
+                         scalars: Optional[Mapping[str, Any]] = None,
+                         opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::builtinWitnessMask`` (engine 57) -- the bars where a Pine ``ta.stoch`` or a
+    ``ta.rci`` reads a window no capture pins (1 = withheld), or None. Read the JS docstring for
+    the rule; this is the same decision, node for node."""
+    n = len(bars)
+    off_listing = (opts or {}).get("historyFromListing") is not True
+    found: List[tuple] = []
+    # ``unbounded``: under any call that carries state; ``forever``: under one whose value a past bar
+    # sets for good (``valuewhenOccurrence``, ``cum``, a recurrence) -- re-review R1
+    stack = [(tree, False, False, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, nested, unbounded, forever = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        name = node.get("name")
+        if node.get("type") == "call" and name in _BUILTIN_WITNESS_CODES:
+            found.append((node, nested, unbounded, forever))
+        into = nested or node.get("type") in ("sym", "tf", "tf_live", "ltf")
+        spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
+        keeps = bool(spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node))
+                     and name not in _WITNESS_CARRIED_CALLS)
+        opened = unbounded or keeps or bool(spec is not None and name in _WITNESS_CARRIED_CALLS)
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into, opened, forever or keeps))
+    if not found:
+        return None
+    mask = [0] * n
+    codes: set = set()
+    held = False
+    root_reach = max_lookback(tree)
+    inner = dict(opts or {}, chartClockSink=None)
+
+    def col_of(node: Any) -> List[float]:
+        return _interpret_column(node, bars, inputs, budget, scalars, inner)
+
+    for node, nested, unbounded, forever in found:
+        args = node.get("args") or []
+        name = node.get("name")
+        is_rci = name == "rci"
+        if nested:
+            continue
+        if _reads_recurrence_binding(node):
+            continue      # never reached: a window over ``self`` is refused by the interpreter first
+        if is_rci and not off_listing:
+            continue
+        length = col_of(args[1] if is_rci else args[3])
+        w = length[-1] if length else NAN
+        if not (_finite(w) and w >= 1 and w == int(w)):
+            continue
+        w = int(w)
+        if is_rci:
+            e = rci_left_edge(col_of(args[0]), w)
+            code_at = [RCI_LEFT_EDGE if e[i] == 1 else None for i in range(n)]
+        else:
+            _, flags, edge = _stoch_pine_scan(col_of(args[0]), col_of(args[1]), col_of(args[2]), w, off_listing)
+            code_at = [STOCH_FLAT_WINDOW if flags[i] == 1 else STOCH_LEFT_EDGE if edge[i] == 1 else None
+                       for i in range(n)]
+        reach = max(0, root_reach - max_lookback(node))
+        # only a flat-window flag is carried forever under a smoother; a left-edge flag reaches the
+        # tree's own lookback and no further (review N1, ``builtinWitnessMask``)
+        last_flat = -math.inf
+        last_edge = -math.inf
+        for i in range(n):
+            code = code_at[i]
+            if code:
+                codes.add(code)
+            if code == STOCH_FLAT_WINDOW:
+                last_flat = last_flat if (unbounded and last_flat != -math.inf) else i
+            elif code:
+                last_edge = i
+            flat_held = last_flat != -math.inf and (unbounded or i - last_flat <= reach)
+            edge_held = last_edge != -math.inf and (forever or i - last_edge <= reach)
+            if flat_held or edge_held:
+                mask[i] = 1
+                held = True
+    if not held:
+        return None
+    _name_chart_clock(opts, sorted(codes))
+    return mask
 
 
 def bar_index_mask(tree: Any, bars: List[dict],
@@ -4659,9 +6810,12 @@ def bar_index_mask(tree: Any, bars: List[dict],
         return None
     verdict = bar_index_verdict(tree)
     n = len(bars)
+    early = set()
 
     def whole() -> List[int]:
-        _name_chart_clock(opts, ["bar-index:window"])
+        # 2026-11-09 -- named by what the tree reads from before the window
+        _name_chart_clock(opts, (["bar-index:window"] if reads_bar_index(tree) else [])
+                          + (["running-total:window"] if reads_running_total(tree) else []))
         return [1] * n
     if verdict["cls"] == "dep" or (verdict["cls"] == "pos" and o.get("barIndexUse") != "position"):
         return whole()
@@ -4679,7 +6833,7 @@ def bar_index_mask(tree: Any, bars: List[dict],
         seen.add(id(node))
         if id(node) in wanted:
             found.append((wanted[id(node)], nested, unbounded))
-        into = nested or node.get("type") in ("tf", "tf_live", "sym")
+        into = nested or node.get("type") in ("tf", "tf_live", "tf_merge", "sym")
         name = node.get("name")
         spec = functions.get(name) if node.get("type") == "call" and isinstance(name, str) else None
         opened = unbounded or bool(spec is not None and spec.get("lookback") == SERIES_LOOKBACK)
@@ -4693,22 +6847,368 @@ def bar_index_mask(tree: Any, bars: List[dict],
     held = False
     root_reach = max_lookback(tree)
     inner = dict(o, chartClockSink=None)
+    codes = set()
     for (node, sign), nested, unbounded in found:
         if nested or _reads_recurrence_binding(node):
             return whole()
-        gap = _interpret_column({"type": "op", "name": "-", "args": [node["args"][0], node["args"][1]]},
+        # ``isfirst`` is the threshold ``bar_index < 1`` (``barIndexShift.js::FIRST_BAR_TEST``)
+        first = node.get("type") == "series" and node.get("name") in FIRST_BAR_LEAVES
+        cmp = ({"type": "op", "name": "<", "args": [{"type": "series", "name": "barindex"},
+                                                    {"type": "num", "value": 1}]} if first else node)
+        gap = _interpret_column({"type": "op", "name": "-", "args": [cmp["args"][0], cmp["args"][1]]},
                                 bars, inputs, budget, scalars, inner)
         reach = max(0, root_reach - max_lookback(node))
+        code = ("bar-index:first-bar" if first else
+                "running-total:early-bars" if reads_running_total(node) else "bar-index:early-bars")
         last = -math.inf
         for i in range(n):
-            if threshold_unknown(node["name"], sign, gap[i]):
+            if threshold_unknown(cmp["name"], sign, gap[i]):
                 last = last if (unbounded and last != -math.inf) else i
             if last != -math.inf and (unbounded or i - last <= reach):
                 mask[i] = 1
                 held = True
+                codes.add(code)
     if not held:
         return None
-    _name_chart_clock(opts, ["bar-index:early-bars"])
+    _name_chart_clock(opts, sorted(codes))
+    return mask
+
+
+# --------------------------------------------------------------------------- #
+# 2026-11-09 -- a ``var`` whose value began before the loaded bars
+# --------------------------------------------------------------------------- #
+#
+# The port of ``interpret.js::varOriginMask``; read its docstring for the rule
+# and the measurements (``vw-bar-origin-spy-1d-300-2026-10-02`` O07: TradingView
+# 8429.6 where the bounded window drew 20294.6). The two lanes are held equal by
+# ``tests/fixtures/ast/bar_index_shift_parity.json`` (its ``var-origin`` cases).
+
+#: How much of a seed may survive the bounded window and still be called
+#: forgotten: ``interpret.js::SEED_RESIDUAL_TOLERANCE`` (``pine.js`` admits a
+#: contraction on exactly this residual).
+SEED_RESIDUAL_TOLERANCE = 1e-6
+
+
+def _var_origin_holds(body: Any, bind: Any) -> bool:
+    """``interpret.js::bodyHoldsSeed`` -- can the running value reach the result
+    UNCHANGED, through a ``?:`` arm or ``nz`` / ``max`` / ``min``? Iterative."""
+    stack = [body]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            continue
+        kind = node.get("type")
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        if kind == "series" and node.get("name") == bind:
+            return True
+        if (kind == "offset" and args and isinstance(args[0], dict)
+                and args[0].get("type") == "series" and args[0].get("name") == bind):
+            return True
+        if kind == "op" and node.get("name") == "?:" and len(args) == 3:
+            stack.extend(args[1:])
+        elif kind == "call" and node.get("name") in ("nz", "max", "min"):
+            stack.extend(args)
+    return False
+
+
+def _var_origin_seed_invariant(seed: Any, inputs: Optional[Mapping[str, Any]]) -> bool:
+    """``interpret.js::seedBarInvariant`` -- is the seed the same number on every
+    bar, by its SHAPE (numbers, text, inputs, per-symbol scalars, pure calls)?"""
+    functions = TABLE[FUNCTIONS_SECTION]
+    table_scalars = TABLE[SCALARS_SECTION]
+    given = inputs or {}
+    stack = [seed]
+    while stack:
+        node = stack.pop()
+        if not isinstance(node, dict):
+            return False
+        kind = node.get("type")
+        name = node.get("name")
+        args = node.get("args") if isinstance(node.get("args"), list) else []
+        if kind == "series":
+            if not (name in table_scalars or name in given):
+                return False
+            continue
+        if kind == "call":
+            spec = functions.get(name) if isinstance(name, str) else None
+            if (spec is None or spec.get("lookback") != 0 or name in RECURRENCES
+                    or name in MULTI_STATES or _is_stateful_call(node)):
+                return False
+        elif kind not in ("num", "str", "symtext", "textop", "op"):
+            return False
+        stack.extend(args)
+    return True
+
+
+def _var_origin_agree(a: float, b: float, dist: float) -> bool:
+    """Two runs of one recurrence from seeds ``dist`` apart agree within the
+    residual the bounded window is admitted on (``interpret.js::seedRunsAgree``)."""
+    if math.isnan(a) or math.isnan(b):
+        return math.isnan(a) and math.isnan(b)
+    return abs(a - b) <= SEED_RESIDUAL_TOLERANCE * dist
+
+
+def _var_origin_probe_seeds(real: List[float], body: Any = None, bind: Any = None) -> List[tuple]:
+    """``interpret.js::probeSeedsOf`` -- the seeds a window is probed from, each with
+    the distance its residual is graded against: ``[(seed, dist)]``. Values the
+    running value really takes (all of them up to four; else least and greatest
+    PLUS ``+-PREFIX_PROBE``, r1's far seeds for a state-gated hold)."""
+    vals = sorted({v for v in real if not math.isnan(v) and not math.isinf(v)})
+
+    def far(lo: float, hi: float) -> List[tuple]:
+        d = PREFIX_PROBE + abs(lo) + abs(hi)
+        return [(PREFIX_PROBE, d), (-PREFIX_PROBE, d)]
+    lo, hi = (vals[0], vals[-1]) if vals else (0.0, 0.0)
+    if not vals:
+        base = far(0.0, 0.0)
+    elif len(vals) == 1:
+        base = [(vals[0], 1), (vals[0] + 1, 1)]
+    elif len(vals) <= 4:
+        base = [(v, hi - lo) for v in vals]
+    else:
+        base = [(lo, hi - lo), (hi, hi - lo)] + far(lo, hi)
+    # r1 -- a state the update names (``interpret.js::probeSeedsOf``): a number the update
+    # WRITES (an arm of its ``?:`` chain) or compares the value ITSELF with, at most eight,
+    # when ``self`` decides a branch -- never every number in it (a SuperTrend's ATR factor)
+    if body is None or not _var_origin_self_decides_branch(body, bind):
+        return base
+    have = {b[0] for b in base}
+    named: List[float] = []
+    stateful = set(RECURRENCES) | set(MULTI_STATES)
+
+    def add(n: Any) -> None:
+        v = n.get("value") if isinstance(n, dict) else None
+        if (isinstance(n, dict) and n.get("type") == "num" and isinstance(v, (int, float))
+                and not isinstance(v, bool) and math.isfinite(v) and v not in have and len(named) < 8):
+            have.add(v)
+            named.append(v)
+
+    def is_state(n: Any) -> bool:
+        if not isinstance(n, dict):
+            return False
+        if n.get("type") == "series" and n.get("name") == bind:
+            return True
+        a = n.get("args")
+        return (n.get("type") == "call" and n.get("name") == "nz" and isinstance(a, list) and bool(a)
+                and isinstance(a[0], dict) and a[0].get("type") == "series" and a[0].get("name") == bind)
+    arms = [body]
+    while arms:
+        n = arms.pop()
+        if not isinstance(n, dict):
+            continue
+        a = n.get("args")
+        if n.get("type") == "op" and n.get("name") == "?:" and isinstance(a, list) and len(a) == 3:
+            arms.extend([a[1], a[2]])
+        else:
+            add(n)
+    stack = [body]
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict):
+            continue
+        if n.get("type") == "call" and n.get("name") in stateful:
+            continue
+        a = n.get("args") if isinstance(n.get("args"), list) else []
+        if n.get("type") == "op" and n.get("name") in (">", "<", ">=", "<=", "==", "!=") and len(a) == 2:
+            if is_state(a[0]):
+                add(a[1])
+            if is_state(a[1]):
+                add(a[0])
+        stack.extend(a)
+    return base + [(p, max(1, hi - lo, abs(p - lo), abs(p - hi))) for p in named]
+
+
+def _var_origin_self_decides_branch(body: Any, bind: Any) -> bool:
+    """``interpret.js::selfDecidesBranch`` -- ``self`` read in the test of a ``?:``
+    or in a comparison (not ``na(self)`` alone; a nested recurrence not entered)."""
+    stateful = set(RECURRENCES) | set(MULTI_STATES)
+    comparisons = (">", "<", ">=", "<=", "==", "!=")
+
+    def reads_self(root: Any) -> bool:
+        st = [root]
+        while st:
+            n = st.pop()
+            if not isinstance(n, dict):
+                continue
+            if n.get("type") == "series" and n.get("name") == bind:
+                return True
+            if n.get("type") == "call" and (n.get("name") in stateful or n.get("name") == "na"):
+                continue
+            a = n.get("args")
+            if isinstance(a, list):
+                st.extend(a)
+        return False
+    stack = [body]
+    while stack:
+        n = stack.pop()
+        if not isinstance(n, dict):
+            continue
+        if n.get("type") == "call" and n.get("name") in stateful:
+            continue
+        args = n.get("args") if isinstance(n.get("args"), list) else []
+        if n.get("type") == "op" and n.get("name") == "?:" and len(args) == 3 and reads_self(args[0]):
+            return True
+        if n.get("type") == "op" and n.get("name") in comparisons and reads_self(n):
+            return True
+        stack.extend(args)
+    return False
+
+
+def _var_origin_pruned(body: Any, bars: List[dict], inputs, budget, scalars, opts) -> Any:
+    """``interpret.js::prunedUpdate`` -- the update as it runs on every bar of this
+    document: a ``?:`` whose test is bar-invariant (``_var_origin_seed_invariant``)
+    takes its one arm; a comparison with a literal ``na`` is false; an ``&&`` holding
+    a false is false. Only the SHAPE, for deciding the kind and its seeds."""
+    stateful = set(RECURRENCES) | set(MULTI_STATES)
+    comparisons = (">", "<", ">=", "<=", "==", "!=")
+
+    def na_node() -> dict:
+        return {"type": "op", "name": "/", "args": [{"type": "num", "value": 0}, {"type": "num", "value": 0}]}
+
+    def is_na(n: Any) -> bool:
+        a = n.get("args") if isinstance(n, dict) else None
+        return (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "/" and isinstance(a, list)
+                and len(a) == 2 and all(isinstance(x, dict) and x.get("type") == "num" and x.get("value") == 0 for x in a))
+
+    def is_num(n: Any) -> bool:
+        v = n.get("value") if isinstance(n, dict) else None
+        return (isinstance(n, dict) and n.get("type") == "num" and isinstance(v, (int, float))
+                and not isinstance(v, bool) and math.isfinite(v))
+
+    def value_of(t: Any) -> float:
+        if not bars:
+            return math.nan
+        col = _interpret_column(t, bars[:1], inputs, budget, scalars, dict(opts or {}, chartClockSink=None))
+        v = col[0] if col else math.nan
+        return v if isinstance(v, (int, float)) and v is not None else math.nan
+
+    def walk(n: Any, depth: int) -> Any:
+        if not isinstance(n, dict) or depth > 200:
+            return n
+        if n.get("type") == "call" and n.get("name") in stateful:
+            return n
+        a = n.get("args")
+        if not isinstance(a, list):
+            return n
+        args = [walk(x, depth + 1) for x in a]
+        kind, name = n.get("type"), n.get("name")
+        if kind == "op" and name == "?:" and len(args) == 3:
+            t = args[0]
+            v = t["value"] if is_num(t) else (value_of(t) if not is_na(t) and _var_origin_seed_invariant(t, inputs)
+                                              else math.nan)
+            if isinstance(v, (int, float)) and math.isfinite(v):
+                return args[1] if v != 0 else args[2]
+        if kind == "op" and name in comparisons and any(is_na(x) for x in args):
+            return {"type": "num", "value": 0}
+        if kind == "op" and name == "&&" and any(is_num(x) and x["value"] == 0 for x in args):
+            return {"type": "num", "value": 0}
+        # r3 (review VAR-OFF P4) -- ``||`` is not ``&&``: a bar-invariant TRUE operand makes it
+        # true; a FALSE one is dropped and the other side decides (``x || false`` is ``x``)
+        if kind == "op" and name == "||":
+            known = [x["value"] if is_num(x) else (value_of(x) if not is_na(x) and _var_origin_seed_invariant(x, inputs)
+                                                   else math.nan) for x in args]
+            if any(isinstance(v, (int, float)) and math.isfinite(v) and v != 0 for v in known):
+                return {"type": "num", "value": 1}
+            live = [x for x, v in zip(args, known) if not (isinstance(v, (int, float)) and math.isfinite(v) and v == 0)]
+            if not live:
+                return {"type": "num", "value": 0}
+            if len(live) == 1:
+                return live[0]
+            return dict(n, args=live)
+        if kind == "op" and name in ("+", "-", "*", "/") and any(is_na(x) for x in args):
+            return na_node()
+        return dict(n, args=args)
+    return walk(body, 0)
+
+
+def _var_origin_keeps_itself(body: Any, bind: Any, inputs) -> bool:
+    """``interpret.js::keepsItself`` -- ``self``, or ``nz(self, k)`` with ``k`` bar-invariant."""
+    if not isinstance(body, dict):
+        return False
+    if body.get("type") == "series" and body.get("name") == bind:
+        return True
+    a = body.get("args")
+    return (body.get("type") == "call" and body.get("name") == "nz" and isinstance(a, list) and bool(a)
+            and isinstance(a[0], dict) and a[0].get("type") == "series" and a[0].get("name") == bind
+            and (len(a) < 2 or _var_origin_seed_invariant(a[1], inputs)))
+
+
+def var_origin_mask(tree: Any, bars: List[dict],
+                    inputs: Optional[Mapping[str, Any]] = None,
+                    budget: Optional[Mapping[str, Any]] = None,
+                    scalars: Optional[Mapping[str, Any]] = None,
+                    opts: Optional[Mapping[str, Any]] = None) -> Optional[List[int]]:
+    """``interpret.js::varOriginMask`` -- off the listing, in a document whose
+    recurrences are Pine ``var`` state (``opts["varOriginAbsolute"] is True``), the
+    bars whose answer reads a running value that still carries what it held
+    before its bounded window began (1 = withheld), or ``None``. Named
+    ``var-origin:window`` when every bar is withheld, else ``var-origin:bars``."""
+    o = opts or {}
+    if o.get("varOriginAbsolute") is not True or o.get("historyFromListing") is True:
+        return None
+    n = len(bars)
+    found: List[tuple] = []
+    stack = [(tree, False)]
+    seen = set()
+    while stack:
+        node, under = stack.pop()
+        if not isinstance(node, dict) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        args = node.get("args")
+        if node.get("type") == "call" and node.get("name") in RECURRENCES and isinstance(args, list):
+            rec = RECURRENCES[node["name"]]
+            seed_at, body_at, bind = rec.get("seed"), rec.get("body"), rec.get("binds")
+            if isinstance(seed_at, int) and isinstance(body_at, int) and max(seed_at, body_at) < len(args):
+                body = args[body_at]
+                if switched_seed_of(args[seed_at]):
+                    found.append((node, under, "switched", None))
+                else:
+                    shape = _var_origin_pruned(body, bars, inputs, budget, scalars, opts)
+                    if _var_origin_keeps_itself(shape, bind, inputs):
+                        if not _var_origin_seed_invariant(args[seed_at], inputs):
+                            found.append((node, under, "held", None))
+                    elif _var_origin_holds(shape, bind) or _var_origin_self_decides_branch(shape, bind):
+                        found.append((node, under, "probe", shape))
+        into = under or node.get("type") in ("tf", "tf_live", "tf_merge", "sym", "ltf")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, into))
+    if not found:
+        return None
+    if any(under or kind == "held" for _node, under, kind, _shape in found):
+        _name_chart_clock(opts, ["var-origin:window"])
+        return [1] * n
+    inner = dict(o, chartClockSink=None)
+    root_reach = max_lookback(tree)
+    mask = [0] * n
+    held = False
+    for node, _under, kind, shape in found:
+        reach = max(0, root_reach - max_lookback(node))
+        if kind == "switched":
+            a = _interpret_column(node, bars, inputs, budget, scalars, dict(inner, prefixProbe=PREFIX_PROBE))
+            b = _interpret_column(node, bars, inputs, budget, scalars, dict(inner, prefixProbe=-PREFIX_PROBE))
+            unknown = [not (x == y or (math.isnan(x) and math.isnan(y))) for x, y in zip(a, b)]
+        else:
+            seed_at = RECURRENCES[node["name"]]["seed"]
+            real = _interpret_column(node, bars, inputs, budget, scalars, inner)
+            runs = []
+            rec = RECURRENCES[node["name"]]
+            for p, dist in _var_origin_probe_seeds(real, shape, rec.get("binds")):
+                args = list(node["args"])
+                args[seed_at] = {"type": "num", "value": p}
+                runs.append((_interpret_column(dict(node, args=args), bars, inputs, budget, scalars, inner), dist))
+            unknown = [any(not _var_origin_agree(real[i], r[i], d) for r, d in runs) for i in range(n)]
+        last = -math.inf
+        for i in range(n):
+            if unknown[i]:
+                last = i
+            if i - last <= reach:
+                mask[i] = 1
+                held = True
+    if not held:
+        return None
+    _name_chart_clock(opts, ["var-origin:window" if all(mask) else "var-origin:bars"])
     return mask
 
 
@@ -4756,9 +7256,23 @@ def semantics_for(definition: Any) -> int:
 
 
 def semantics_opts_for(definition: Any) -> dict:
-    """The ``interpret`` opts that carry this document's semantics -- ``{}`` for 1."""
-    return ({"semantics": SEMANTICS_UNKNOWN_PROPAGATES}
-            if semantics_for(definition) == SEMANTICS_UNKNOWN_PROPAGATES else {})
+    """The ``interpret`` opts that carry this document's semantics -- ``{}`` for a native semantics-1
+    document, ``{"semantics": 2}`` for 2, and ``{"pineCompare": True}`` for a Pine document
+    (``user_definitions.is_pine_import``; engine 78 (#1858), Q-FCMP / Q-FCMP2, ruling D1).
+    Twin: ``definitionSemantics.js::semanticsOptsFor``."""
+    if semantics_for(definition) == SEMANTICS_UNKNOWN_PROPAGATES:
+        return {"semantics": SEMANTICS_UNKNOWN_PROPAGATES}
+    return pine_compare_opts_for(definition)
+
+
+def pine_compare_opts_for(definition: Any) -> dict:
+    """The two Pine-compare keys this document's evaluation carries -- ``{}`` for every non-Pine document.
+    ONE function for every server lane that builds its own opts (the scan sweep, the rule record, the
+    backtest, the alert lane through ``lane_opts_for``), so none can evaluate a Pine document with IEEE."""
+    from api.services import user_definitions
+    if user_definitions.is_pine_import(definition):
+        return {"pineCompare": True}
+    return {}
 
 
 def lane_opts_for(definition: Any) -> dict:
@@ -4767,6 +7281,10 @@ def lane_opts_for(definition: Any) -> dict:
     different ones. Empty for every document that is neither a Pine translation
     nor stamped with definition semantics 2 (P0G)."""
     out = {"barIndexAbsolute": True} if bar_index_absolute_for(definition) else {}
+    # 2026-11-09 -- a Pine document's `var` state began at the symbol's first bar
+    # (``interpret.js::varOriginMask``; the same declaration, ``meta.recurrenceOrigin``)
+    if bar_index_absolute_for(definition):
+        out["varOriginAbsolute"] = True
     out.update(semantics_opts_for(definition))
     return out
 
@@ -4800,6 +7318,7 @@ def whole_series_withheld(tree: Any, bars: Sequence[dict],
     rows = list(bars)
     _chart_clock_whole(tree, rows, inputs, budget, scalars, asked)
     bar_index_mask(tree, rows, inputs, budget, scalars, asked)
+    var_origin_mask(tree, rows, inputs, budget, scalars, asked)
     return tuple(code for code in CHART_CLOCK_WHOLE if code in sink)
 
 
@@ -4865,7 +7384,33 @@ CHART_CLOCK_WHOLE = (
     "bar-index:window",
     # 2026-10-31 -- a time-of-day read on an FX-shaped daily chart
     "time-clock:weekend-session",
+    # 2026-11-09 -- a running total off the listing (``bar_index_mask``)
+    "running-total:window",
+    # 2026-11-09 -- a `var` that began before the loaded bars (``var_origin_mask``)
+    "var-origin:window",
+    # 2026-11-17 -- an opening range on bars it cannot be read from (``opening_range_refusal``)
+    OPENING_RANGE_BARS_LONGER, OPENING_RANGE_BARS_DO_NOT_DIVIDE,
+    # 2026-11-19 -- U-BUILTIN T-D: ``time("D")`` off the regular session, ``time("D", session)`` off a daily chart
+    "time-day:off-session", "time-session:day-on-other-chart", "time-day:no-timeframe",
+    # 2026-11-20, ruling (i) -- from the listing, a recurrence is the chart lane's (``LISTING_PASS_CHART_LANE``)
+    "var-origin:listing-pass",
+    # 2026-11-20 -- U-BUILTIN T-D EXT: ``time("D")`` on a chart that trades around the clock
+    "time-day:exchange-zone",
 )
+#: ⭐⭐ (coordinator ruling 2026-11-20, (i)) -- FROM THE LISTING, A RECURRENCE IS THE CHART LANE'S. With
+#: ``historyFromListing`` the chart lane runs a recurrence from bar 0 (``interpret.js::listingPass``, C12w, ruling R-W),
+#: TradingView's own value (the RDDT-from-listing captures); this lane never ported that pass and answered the bounded
+#: window, a different number (bar 7 of ``tests/fixtures/ast/listing_recurrence_twin.json``: 85.05684 here, 85.05277
+#: there). So a plot whose tree holds a recurrence is withheld whole there, by this code (the sentence is
+#: ``interpret.js::CHART_CLOCK_WITHHELD``'s). ⛔ LIFT CONDITION: a server path that passes ``historyFromListing`` (none
+#: does: ``pine_strategy_backtest.py`` states it is always false) needs the full port of the listing pass here first.
+LISTING_PASS_CHART_LANE = "var-origin:listing-pass"
+#: The opening-range calls: the two whose answer depends on the chart's bar length. Mirrors
+#: ``interpret.js::OPENING_RANGE_CALLS``.
+OPENING_RANGE_CALLS = ("openingRangeHigh", "openingRangeLow")
+#: ⭐⭐ ENGINE HL -- the two codes ``window_hole_mask`` names (``interpret.js::WINDOW_EXTREME_LEFT_EDGE``
+#: ; the sentence is the JS lane's). ⚰️ ``arg-extreme:holed-window`` went with S17.
+WINDOW_EXTREME_LEFT_EDGE = "window-extreme:left-edge"
 
 #: The clock leaves that read the TIME OF DAY rather than the date. Mirrors
 #: ``interpret.js::SESSION_CLOCK_LEAVES``, which owns the reasoning: on a daily
@@ -4873,10 +7418,25 @@ CHART_CLOCK_WHOLE = (
 #: reading one is withheld whole (``time-clock:weekend-session``).
 SESSION_CLOCK_LEAVES = ("time", "hour", "minute", "timeclose", "dayopentime",
                         "dayclosetime", "weekfirst", "monthfirst", "lastbartime",
-                        "lastbarhour", "lastbarminute")
+                        "lastbarhour", "lastbarminute",
+                        # 2026-11-17 -- the regular session is a time of day
+                        "regularhours", "regularfirst")
 CHART_CLOCK_WITHHELD_CODES = CHART_CLOCK_WHOLE + (
     "time-anchor:period-open-missing", "time-anchor:utc-day-clock",
-    "bar-index:early-bars",
+    "bar-index:early-bars", "running-total:early-bars", "bar-index:first-bar", "var-origin:bars",
+    # ENGINE 55 -- the newest bar of a ``tf_merge`` read (``tf_merge_mask``)
+    "request:htf-newest-unconfirmed",
+    # ENGINE 55 (review L2) -- the first period of a ``tf_merge`` read, off the listing
+    "request:htf-first-period-partial",
+    # HTF-LIVE-FIRST-PERIOD -- the first period of a ``tf_live`` read, off the listing (``tf_live_mask``)
+    "request:htf-lookahead-first-period-partial",
+    # Q-CLOSURE -- a week or month the exchange's own calendar decides (``htf_venue_calendar_mask``)
+    "request:htf-venue-calendar",
+    # PERIOD -1 -- a read of the bar, week or month before the chart's first (``history_before_chart_mask``)
+    "history:before-chart",
+    WINDOW_EXTREME_LEFT_EDGE,
+    # U-BUILTIN T-D EXT -- an overnight bar of an extended-hours chart (``_overnight_day_mask``)
+    "time-day:overnight",
 )
 
 
@@ -5079,6 +7639,201 @@ def period_close_node(code: str, ms: bool) -> dict:
 
 _PERIOD_CLOSE_SHAPES = tuple(period_close_node(code, ms) for code in PERIOD_CLOSE_CODES for ms in (True, False))
 
+#: U-BUILTIN T-D (2026-11-19) -- the two codes the ``time("D")`` fix withholds by. Mirrors
+#: ``interpret.js::DAY_OFF_SESSION`` / ``DAY_SESSION_OTHER_CHART`` (the sentences are the JS lane's).
+DAY_OFF_SESSION = "time-day:off-session"
+DAY_SESSION_OTHER_CHART = "time-session:day-on-other-chart"
+DAY_NO_TIMEFRAME = "time-day:no-timeframe"
+
+
+def day_anchor_node(ms: bool) -> dict:
+    """``interpret.js::dayAnchorNode`` -- ``time("D")``: the 09:30 New York open of the bar's session
+    (``vw-bt-time-1440-spy-{1d,60}-2026-11-16`` R6), ``dayopentime + 34200``, in Pine's milliseconds for a
+    versioned script."""
+    secs = _cc_op("+", [_cc_leaf("dayopentime"), _cc_num(_SESSION_OPEN_SECONDS)])
+    return _cc_op("*", [secs, _cc_num(1000)]) if ms else secs
+
+
+_DAY_ANCHOR_SHAPES = tuple(day_anchor_node(ms) for ms in (True, False))
+
+
+def is_day_anchor(node: Any) -> bool:
+    """``interpret.js::isDayAnchor``."""
+    if not isinstance(node, dict) or node.get("type") != "op":
+        return False
+    return any(_matches_shape(node, shape) for shape in _DAY_ANCHOR_SHAPES)
+
+
+def session_day_gate_node(child: Any) -> dict:
+    """``interpret.js::sessionDayGateNode`` -- ``86400 == periodseconds ? child : na``."""
+    return _cc_op("?:", [_cc_op("==", [_cc_num(CLOCK_PERIOD_SECONDS["D"]), _cc_leaf("periodseconds")]), child, _cc_na()])
+
+
+_SESSION_DAY_GATE_COND = _cc_op("==", [_cc_num(CLOCK_PERIOD_SECONDS["D"]), _cc_leaf("periodseconds")])
+
+
+def is_session_day_gate(node: Any) -> bool:
+    """``interpret.js::isSessionDayGate`` (any child)."""
+    if not isinstance(node, dict) or node.get("type") != "op" or node.get("name") != "?:":
+        return False
+    args = node.get("args")
+    return (isinstance(args, list) and len(args) == 3 and _matches_shape(args[0], _SESSION_DAY_GATE_COND)
+            and _matches_shape(args[2], _cc_na()))
+
+
+#: U-BUILTIN T-D EXT (2026-11-20) -- ``interpret.js::DAY_EXCHANGE_ZONE`` / ``DAY_OVERNIGHT``: a chart that
+#: trades around the clock (withheld whole) and an overnight bar of an extended-hours chart (withheld per bar).
+DAY_EXCHANGE_ZONE = "time-day:exchange-zone"
+DAY_OVERNIGHT = "time-day:overnight"
+#: ``interpret.js::EXTENDED_OPEN_SECONDS`` / ``EXTENDED_ANCHOR_SHIFT``: 04:00, and how far before 09:30 it is.
+EXTENDED_OPEN_SECONDS = 4 * 3600
+_EXTENDED_CLOSE_SECONDS = 20 * 3600
+EXTENDED_ANCHOR_SHIFT = _SESSION_OPEN_SECONDS - EXTENDED_OPEN_SECONDS
+
+
+def session_day_window_node(start: int, end: int, days: Optional[List[int]], ms: bool) -> dict:
+    """``interpret.js::sessionDayWindowNode`` -- ``time("D", session)`` for a window of one day in the
+    exchange's zone: the gated daily tree, the window's START on the bar's day inside it. Read that docstring."""
+    def minute_of_day() -> dict:
+        return _cc_op("+", [_cc_op("*", [_cc_leaf("hour"), _cc_num(60)]), _cc_leaf("minute")])
+    inside = _cc_op("&&", [_cc_op(">=", [minute_of_day(), _cc_num(start)]), _cc_op("<", [minute_of_day(), _cc_num(end)])])
+    if days:
+        acc = None
+        for k in days:
+            t = _cc_op("==", [_cc_leaf("dayofweek"), _cc_num(k)])
+            acc = t if acc is None else _cc_op("||", [acc, t])
+        inside = _cc_op("&&", [inside, acc])
+    secs = _cc_op("-", [_cc_leaf("time"), _cc_call("mod", [
+        _cc_op("*", [_cc_op("-", [minute_of_day(), _cc_num(start)]), _cc_num(60)]), _cc_num(CLOCK_PERIOD_SECONDS["D"])])])
+    value = _cc_op("*", [secs, _cc_num(1000)]) if ms else secs
+    return session_day_gate_node(_cc_op("?:", [inside, value, _cc_na()]))
+
+
+def session_day_window_of(gate: Any) -> Optional[dict]:
+    """``interpret.js::sessionDayWindowOf`` -- ``{start, end, days, ms}`` of a ``session_day_window_node`` gate,
+    read from the tree and REBUILT and compared node for node; ``None`` for any other gate."""
+    if not is_session_day_gate(gate):
+        return None
+    child = gate["args"][1]
+    if not (isinstance(child, dict) and child.get("type") == "op" and child.get("name") == "?:"
+            and isinstance(child.get("args"), list) and len(child["args"]) == 3):
+        return None
+
+    def is_range(n: Any) -> bool:
+        a = n.get("args") if isinstance(n, dict) else None
+        return (isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "&&" and isinstance(a, list)
+                and len(a) == 2 and isinstance(a[0], dict) and a[0].get("type") == "op" and a[0].get("name") == ">=")
+
+    inside = child["args"][0]
+    days: Optional[List[int]] = None
+    if not is_range(inside) and isinstance(inside, dict) and inside.get("type") == "op" \
+            and inside.get("name") == "&&" and isinstance(inside.get("args"), list) and len(inside["args"]) == 2:
+        days = []
+        stack = [inside["args"][1]]
+        while stack:
+            t = stack.pop()
+            if isinstance(t, dict) and t.get("type") == "op" and t.get("name") == "||" and isinstance(t.get("args"), list):
+                stack.extend(t["args"])
+                continue
+            a = t.get("args") if isinstance(t, dict) else None
+            k = a[1].get("value") if (isinstance(t, dict) and t.get("type") == "op" and t.get("name") == "=="
+                                      and isinstance(a, list) and len(a) == 2 and isinstance(a[1], dict)) else None
+            if not isinstance(k, (int, float)) or isinstance(k, bool):
+                return None
+            days.append(k)
+        days.sort()
+        inside = inside["args"][0]
+    if not is_range(inside):
+        return None
+    lo, hi = inside["args"][0].get("args"), inside["args"][1].get("args") if isinstance(inside["args"][1], dict) else None
+    start = lo[1].get("value") if isinstance(lo, list) and len(lo) == 2 and isinstance(lo[1], dict) else None
+    end = hi[1].get("value") if isinstance(hi, list) and len(hi) == 2 and isinstance(hi[1], dict) else None
+    if not isinstance(start, (int, float)) or not isinstance(end, (int, float)):
+        return None
+    for ms in (True, False):
+        if _matches_shape(gate, session_day_window_node(start, end, days, ms)):
+            return {"start": start, "end": end, "days": days, "ms": ms}
+    return None
+
+
+def chart_day_regime(tf: Any, pack: Optional[Sequence[float]]) -> dict:
+    """``interpret.js::chartDayRegime`` -- which day a chart's bars keep for ``time("D")`` and
+    ``time("D", session)``: ``period`` / ``daily`` / ``regular`` / ``extended`` (with ``overnight``, a 0/1 list,
+    or ``None``) / ``around-the-clock`` / ``off-session`` / ``unreadable`` / ``unwitnessed``. Read that docstring;
+    this is the same decision, bar for bar."""
+    if tf in ("W", "M"):
+        return {"kind": "period", "overnight": None}
+    daily = tf == "D"
+    if not daily and not (isinstance(tf, str) and tf.isdigit()):
+        return {"kind": "unwitnessed", "overnight": None}
+    sat = sun = weekend = ext = False
+    n = len(pack or [])
+    overnight: Optional[List[int]] = None
+    for i, v in enumerate(pack or []):
+        if v is None or math.isnan(v):
+            return {"kind": "unreadable", "overnight": None}
+        dow = v // 10000
+        if dow == 7:
+            sat = True
+        elif dow == 1:
+            sun = True
+        if daily:
+            continue
+        second = ((v % 10000) // 100) * 3600 + (v % 100) * 60
+        if dow == 7 or (dow == 1 and second < _EXTENDED_CLOSE_SECONDS) or (dow == 6 and second >= _EXTENDED_CLOSE_SECONDS):
+            weekend = True
+        weekday = 2 <= dow <= 6
+        if weekday and _SESSION_OPEN_SECONDS <= second < _SESSION_CLOSE_SECONDS:
+            continue
+        if weekday and EXTENDED_OPEN_SECONDS <= second < _EXTENDED_CLOSE_SECONDS:
+            ext = True
+            continue
+        if overnight is None:
+            overnight = [0] * n
+        overnight[i] = 1
+    if daily:
+        return {"kind": "around-the-clock" if (sat and sun) else ("off-session" if (sat or sun) else "daily"),
+                "overnight": None}
+    if weekend:
+        return {"kind": "around-the-clock", "overnight": None}
+    if ext:
+        return {"kind": "extended", "overnight": overnight}
+    return {"kind": "off-session" if overnight is not None else "regular", "overnight": None}
+
+
+_DAY_SERVED_KINDS = ("period", "daily", "regular", "extended")
+
+
+def _day_regime_serves(kind: str, opts: Any) -> bool:
+    """``interpret.js::dayRegimeServes`` -- ``extended`` for a Pine evaluation only."""
+    return kind in _DAY_SERVED_KINDS and (kind != "extended" or pine_compare_on(opts))
+
+
+def _session_day_gate_served(gate: Any, kind: str) -> bool:
+    """``interpret.js::sessionDayGateServed`` (no Pine evaluation asked: the gated tree's own value)."""
+    w = session_day_window_of(gate)
+    if w is None:
+        return False
+    if kind == "extended":
+        return EXTENDED_OPEN_SECONDS <= w["start"] * 60 < _EXTENDED_CLOSE_SECONDS
+    if kind in ("regular", "period"):
+        return w["start"] * 60 == _SESSION_OPEN_SECONDS
+    return False
+
+
+def _carry_over_overnight(col: Sequence[float], overnight: Optional[Sequence[int]]) -> List[float]:
+    """``interpret.js::carryOverOvernight`` -- each overnight bar carries the last in-session value (NaN first)."""
+    out = [float(v) if v is not None else math.nan for v in col]
+    if not overnight:
+        return out
+    held = math.nan
+    for i, v in enumerate(out):
+        if overnight[i]:
+            out[i] = held
+        else:
+            held = v
+    return out
+
 
 def is_period_close(node: Any) -> bool:
     """``interpret.js::isPeriodClose``."""
@@ -5190,6 +7945,10 @@ def _scan_chart_clock(tree: Any):
     sixties: List[dict] = []
     folds: List[str] = []
     leaves: List[dict] = []
+    ranges: List[float] = []
+    # U-BUILTIN T-D -- the ``time("D")`` anchor and the ``time("D", session)`` gate
+    days: List[dict] = []
+    day_gates: List[dict] = []
     nested = False
     stack = [(tree, False)]
     seen = set()
@@ -5198,6 +7957,14 @@ def _scan_chart_clock(tree: Any):
         if not isinstance(node, dict) or id(node) in seen:
             continue
         seen.add(id(node))
+        if is_day_anchor(node):
+            nested = nested or under
+            days.append(node)
+            continue
+        if is_session_day_gate(node):
+            nested = nested or under
+            day_gates.append(node)
+            continue
         # a time-of-day leaf (``SESSION_CLOCK_LEAVES``) -- read, never descended into
         if node.get("type") == "series" and node.get("name") in SESSION_CLOCK_LEAVES:
             leaves.append(node)
@@ -5221,14 +7988,20 @@ def _scan_chart_clock(tree: Any):
         base = request_base_of(node)
         if base is not None and base not in folds:
             folds.append(base)
+        # 2026-11-17 -- an opening-range call: its ``minutes``, whatever it sits under
+        if node.get("type") == "call" and node.get("name") in OPENING_RANGE_CALLS:
+            m = (node.get("args") or [None])[0]
+            if (isinstance(m, dict) and m.get("type") == "num" and not isinstance(m.get("value"), bool)
+                    and isinstance(m.get("value"), (int, float)) and m["value"] not in ranges):
+                ranges.append(m["value"])
         # C41 (`interpret.js::scanChartClock`): an `ltf` child runs on the symbol's
         # intraday series, another clock -- nested exactly as under a request
-        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
+        into = under or node.get("type") in ("tf", "tf_live", "tf_merge", "sym", "ltf")
         args = node.get("args")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
-    return anchors, closes, owns, sixties, folds, nested, leaves
+    return anchors, closes, owns, sixties, folds, nested, leaves, ranges, days, day_gates
 
 
 def _date_keyed(bars) -> bool:
@@ -5248,13 +8021,17 @@ def _name_chart_clock(opts, codes) -> None:
 def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opts) -> Optional[dict]:
     """``interpret.js::chartClockWhole`` -- the whole-series decision, made before
     anything is evaluated: ``None`` when the tree holds no chart-clock node."""
-    anchors, closes, owns, sixties, folds, nested, leaves = _scan_chart_clock(tree)
-    clocked = bool(anchors or closes or owns or sixties)
+    anchors, closes, owns, sixties, folds, nested, leaves, ranges, days, day_gates = _scan_chart_clock(tree)
+    clocked = bool(anchors or closes or owns or sixties or days or day_gates)
     tf = (opts or {}).get("tf")
     # 2026-10-31 -- a time-of-day leaf is asked about on a DAILY chart only, the one
     # timeframe ``chart_clock_regime`` can call FX-shaped (``one-weekend-day``)
     day_leaves = bool(leaves) and tf == "D" and _date_keyed(bars)
-    if not clocked and not folds and not day_leaves:
+    # 2026-11-17 -- an opening range is asked about on a chart that STATES its timeframe
+    # (``interpret.js::chartClockWhole``); an unstated one is the daily consumers, where the
+    # reader itself answers nothing
+    ranged = bool(ranges) and isinstance(tf, str) and tf != ""
+    if not clocked and not folds and not day_leaves and not ranged:
         return None
     why: List[str] = []
 
@@ -5262,6 +8039,11 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
         if code not in why:
             why.append(code)
 
+    if ranged:
+        for minutes in ranges:
+            refusal = opening_range_refusal(CLOCK_PERIOD_SECONDS.get(tf), minutes)
+            if refusal:
+                add(refusal)
     # C49 -- a request translated for one base period, on a chart that STATES another
     # timeframe (``interpret.js::requestBaseNode``). An unstated timeframe is served.
     if isinstance(tf, str) and tf and any(base != tf for base in folds):
@@ -5301,9 +8083,81 @@ def _chart_clock_whole(tree: Any, bars: List[dict], inputs, budget, scalars, opt
             add("time-close:not-daily")
         elif kind in ("every-day", "one-weekend-day"):
             add("time-close:weekend-bars")
+    # U-BUILTIN T-D / T-D EXT (``interpret.js::chartClockWhole``): ``chart_day_regime``'s one decision
+    stated = isinstance(tf, str) and tf != ""
+    if (days or day_gates) and not stated:
+        add(DAY_NO_TIMEFRAME)
+    day = (_chart_day_regime_of(tf, bars, inputs, budget, scalars, opts)
+           if stated and kind != "unreadable" and (days or (day_gates and tf != "D")) else None)
+    if day is not None and day["kind"] == "around-the-clock":
+        add(DAY_EXCHANGE_ZONE)
+    elif day is not None:
+        if days and not _day_regime_serves(day["kind"], opts):
+            add(DAY_OFF_SESSION)
+        if day_gates and tf != "D" and not all(_session_day_gate_served(g, day["kind"]) for g in day_gates):
+            add(DAY_SESSION_OTHER_CHART)
     _name_chart_clock(opts, why)
     return {"anchors": anchors, "closes": closes, "why": why, "regime": regime,
-            "every_day": kind == "every-day"}
+            "every_day": kind == "every-day", "days": days, "day_gates": day_gates}
+
+
+def _chart_day_regime_of(tf: Any, bars: List[dict], inputs, budget, scalars, opts) -> dict:
+    """``interpret.js::chartDayRegimeOf``."""
+    if tf in ("W", "M") or (tf != "D" and not (isinstance(tf, str) and tf.isdigit())):
+        return chart_day_regime(tf, None)
+    return chart_day_regime(tf, _clock_column(_REGIME_PACK, bars, inputs, budget, scalars, opts))
+
+
+def _overnight_day_mask(tree: Any, days: List[dict], day_gates: List[dict], bars: List[dict],
+                        inputs, budget, scalars, opts) -> Optional[List[int]]:
+    """``interpret.js::overnightDayMask`` -- the overnight bars of an extended-hours chart for a tree reading
+    ``time("D")`` or a served ``time("D", session)`` window (1 = withheld), or ``None``. Read that docstring:
+    the overnight bars and every root bar within ``r - 1`` of one; from the first one on under an unbounded
+    read."""
+    if not days and not day_gates:
+        return None
+    tf = (opts or {}).get("tf")
+    if not isinstance(tf, str) or tf in ("", "D", "W", "M"):
+        return None
+    day = _chart_day_regime_of(tf, bars, inputs, budget, scalars, opts)
+    if day["kind"] != "extended" or not day["overnight"]:
+        return None
+    targets = {id(t) for t in list(days) + list(day_gates)}
+    reads: List[tuple] = []
+    stack = [(tree, False)]
+    seen = set()
+    functions = TABLE[FUNCTIONS_SECTION]
+    while stack:
+        node, unbounded = stack.pop()
+        if not isinstance(node, dict) or (id(node), unbounded) in seen:
+            continue
+        seen.add((id(node), unbounded))
+        if id(node) in targets:
+            reads.append((node, unbounded))
+            continue
+        name = node.get("name")
+        is_call = node.get("type") == "call" and isinstance(name, str)
+        spec = functions.get(name) if is_call else None
+        opened = unbounded or bool(
+            spec is not None and (spec.get("lookback") == SERIES_LOOKBACK or _is_stateful_call(node)))
+        args = node.get("args")
+        if isinstance(args, list):
+            for a in args:
+                stack.append((a, opened))
+    n = len(bars)
+    mask = [0] * n
+    root_reach = max_lookback(tree)
+    overnight = day["overnight"]
+    for node, unbounded in reads:
+        reach = max(0, root_reach - max_lookback(node) - 1)
+        last = -math.inf
+        for i in range(n):
+            if overnight[i]:
+                last = last if (unbounded and last != -math.inf) else i
+            if last != -math.inf and (unbounded or i - last <= reach):
+                mask[i] = 1
+    _name_chart_clock(opts, [DAY_OVERNIGHT])
+    return mask
 
 
 def period_anchor_mask(tree: Any, bars: List[dict],
@@ -5322,12 +8176,15 @@ def period_anchor_mask(tree: Any, bars: List[dict],
     if whole["why"]:
         return [1] * n
     anchors, closes = whole["anchors"], whole["closes"]
+    # U-BUILTIN T-D EXT -- the overnight bars of an extended-hours chart (``interpret.js::periodAnchorMask``)
+    night = _overnight_day_mask(tree, whole.get("days") or [], whole.get("day_gates") or [], bars,
+                                inputs, budget, scalars, opts)
     if not anchors and not closes:
-        return None
+        return night
     tf = (opts or {}).get("tf")
     partial: List[str] = []
     root_reach = max_lookback(tree)
-    mask = [0] * n
+    mask = list(night) if night else [0] * n
 
     def spread(unknown: List[int], node: dict, from_before: bool) -> None:
         reach = max(0, root_reach - max_lookback(node))
@@ -5418,7 +8275,7 @@ def switched_dependency_mask(tree: Any, bars: List[dict],
                 if under:
                     crosses = True
                 nodes.append(node)
-        into = under or node.get("type") in ("tf", "tf_live", "sym", "ltf")
+        into = under or node.get("type") in ("tf", "tf_live", "tf_merge", "sym", "ltf")
         if isinstance(args, list):
             for a in args:
                 stack.append((a, into))
@@ -5732,9 +8589,54 @@ def _interpret_column(ast: Any, bars: List[dict],
             _clock_state["calendar"] = compute_period_calendar(bars, (opts or {}).get("tf"))
         return _clock_state["calendar"]
 
+    # U-BUILTIN T-D EXT (2026-11-20) -- ``time("D")`` and a served ``time("D", session)`` window below a daily
+    # chart, a PINE evaluation only: the port of ``interpret.js::dayClockValue``. Read that comment.
+    def _day_clock() -> Optional[dict]:
+        if "day" not in _clock_state:
+            _clock_state["day"] = None
+            _tf = (opts or {}).get("tf")
+            if isinstance(_tf, str) and _tf not in ("", "D"):
+                _scan = _scan_chart_clock(ast)
+                _days, _gates = _scan[8], _scan[9]
+                if _days or _gates:
+                    _pack = None
+                    if _tf not in ("W", "M"):
+                        _dow, _hour, _minute = scope.get("dayofweek"), scope.get("hour"), scope.get("minute")
+                        if isinstance(_dow, list) and isinstance(_hour, list) and isinstance(_minute, list):
+                            _pack = [d * 10000 + h * 100 + m for d, h, m in zip(_dow, _hour, _minute)]
+                        else:
+                            _pack = [math.nan] * len(bars)
+                    _clock_state["day"] = {"regime": chart_day_regime(_tf, _pack),
+                                           "days": {id(x) for x in _days}, "gates": {id(x) for x in _gates}}
+        return _clock_state["day"]
+
+    def _day_clock_value(n: dict) -> Any:
+        if n.get("type") != "op" or n.get("name") not in ("?:", "+", "*"):
+            return None
+        day = _day_clock()
+        if day is None:
+            return None
+        kind, overnight = day["regime"]["kind"], day["regime"]["overnight"]
+        if id(n) in day["days"]:
+            if not pine_compare_on(opts) or kind != "extended":
+                return None
+            ms = n.get("name") == "*"
+            opened = _eval_raw(n["args"][0] if ms else n)
+            opened = opened if isinstance(opened, list) else [opened] * len(bars)
+            out = [(v - EXTENDED_ANCHOR_SHIFT) * (1000 if ms else 1) for v in opened]
+            return _carry_over_overnight(out, overnight)
+        if id(n) in day["gates"] and _session_day_gate_served(n, kind):
+            value = eval_node(n["args"][1])
+            value = value if isinstance(value, list) else [value] * len(bars)
+            return _carry_over_overnight(value, overnight if kind == "extended" else None)
+        return None
+
     def _chart_clock_value(n: Any) -> Any:
         if not isinstance(n, dict):
             return None
+        _daily = _day_clock_value(n)
+        if _daily is not None:
+            return _daily
         kind = n.get("type")
         if kind == "call":
             if n.get("name") != "valuewhenOccurrence":
@@ -5756,7 +8658,16 @@ def _interpret_column(ast: Any, bars: List[dict],
         code, ms = parts
         return [v * 1000 if ms else v for v in calendar["close"][code]]
 
+    # ⭐⭐ ITEM 4 (two starts) -- a column the caller hands for a NODE (by id), read in its place
+    # (``_starts_disagree``'s later start; ``interpret.js``'s ``opts.siteOverride``). A read on other bars holding an
+    # overridden node is itself a site, read whole from its own override (the JS twin's note).
+    _site_override = (opts or {}).get("siteOverride")
+    if not isinstance(_site_override, dict):
+        _site_override = None
+
     def eval_node(n: Any) -> Any:
+        if _site_override is not None and id(n) in _site_override:
+            return _site_override[id(n)]
         # ⚠️ ``free_of`` DECIDES, NOT THE SHAPE ALONE. A subtree reading a
         # recurrence bind (``self``) means something different on every bar of the
         # step loop, so it is never memoised — the same rule the JS lane applies,
@@ -5779,7 +8690,7 @@ def _interpret_column(ast: Any, bars: List[dict],
         if not isinstance(n, dict):
             return _refuse("interpret:node", f"got {n!r}")
         kind = n.get("type")
-        if kind in ("op", "call", "offset", "tf", "sym", "tf_live", "ltf") and not isinstance(n.get("args"), list):
+        if kind in ("op", "call", "offset", "tf", "sym", "tf_live", "tf_merge", "ltf") and not isinstance(n.get("args"), list):
             return _refuse("interpret:node",
                            f"a {kind} node carries an `args` array; got {n.get('args')!r}")
         if kind == "num":
@@ -5807,7 +8718,7 @@ def _interpret_column(ast: Any, bars: List[dict],
             for i in range(back, length):
                 out[i] = src[i - back]
             return out
-        if kind in ("tf", "tf_live"):
+        if kind in ("tf", "tf_live", "tf_merge"):
             code = str(n.get("value"))
             # ⭐ C47 — a forming read may also name the quarter, from daily bars.
             if kind == "tf_live":
@@ -5828,25 +8739,10 @@ def _interpret_column(ast: Any, bars: List[dict],
                             "resampled out of %r."
                             % (code, str(base), code, str(base)))
 
-            # Every base bar\u2019s bucket, by the SAME keys the resampler groups on.
-            iso = [_iso_day(b.get("t")) for b in bars]
-            keys = [(_tf_bucket(d, code) if d else None) for d in iso]
-            order: List[Any] = []
-            at: Dict[Any, int] = {}
-            for k in keys:
-                if k is not None and k not in at:
-                    at[k] = len(order)
-                    order.append(k)
-
-            # \u2b50 THE RESAMPLER IS THE OWNER OF WHAT A HIGHER-TIMEFRAME BAR IS.
-            # `bars_fetch._resample_weekly_iso` carries the stable-Friday-key
-            # rationale; a private aggregation here would be a second authority on
-            # it, which `screener/candles.py` already says in as many words.
-            from api.services import bars_fetch                      # noqa: PLC0415
-            resample = (bars_fetch._resample_weekly_iso if code == "W"
-                        else _resample_quarterly_iso if code == "3M"
-                        else bars_fetch._resample_monthly_iso)
-            htf = resample([dict(b, t=d) for b, d in zip(bars, iso) if d])
+            # Every base bar\u2019s bucket, by the SAME keys the resampler groups on, and
+            # the higher-timeframe bars (``_htf_resampled``: one authority, read by
+            # ``_tf_live_first_period_read_mask`` too).
+            iso, keys, at, order, htf = _htf_resampled(bars, code)
 
             # \u26d4 AND THE TWO MUST AGREE. This function decides WHICH resampled bar
             # a base bar reads, using its own bucketing; the resampler decides what
@@ -5893,6 +8789,15 @@ def _interpret_column(ast: Any, bars: List[dict],
             # forming bucket 0 is perfectly readable, and pretending otherwise
             # would be an artificial hole rather than an honest one.
             live = (kind == "tf_live")
+            # ⭐⭐ ENGINE 55 — ``tf_merge``, the port of ``interpret.js``'s arm (its
+            # comment carries the measurement): a bar that CLOSES its period (the
+            # next bar sits in another bucket) reads bucket ``b``, every other bar
+            # ``b - 1``; the newest bar computes the forming reading and the ROOT bar
+            # is withheld by ``tf_merge_mask`` (the one authority) unless known to be
+            # forming. Read off the next bar, never a calendar.
+            merge = (kind == "tf_merge")
+            # the merge's pick, ONE authority (``_tf_merge_reads``, read by ``_first_period_partial_read_mask`` too)
+            reads = _tf_merge_reads(iso, keys, at, code) if merge else None
             out = _nan_col(length)
             for i, k in enumerate(keys):
                 if k is None:
@@ -5900,6 +8805,9 @@ def _interpret_column(ast: Any, bars: List[dict],
                 b = at[k]
                 if live:
                     out[i] = child[b]
+                elif merge:
+                    if reads[i] >= 0:
+                        out[i] = child[reads[i]]
                 elif b > 0:
                     out[i] = child[b - 1]
             return out
@@ -5922,9 +8830,14 @@ def _interpret_column(ast: Any, bars: List[dict],
             if not series:
                 return _nan_col(length)
 
+            # ⛔ C26 -- ``historyFromListing`` IS A STATEMENT ABOUT THE CHART'S OWN SERIES (bar 0 is ITS listing bar),
+            # never about another symbol's: the child runs on the supplied series with the bounded warm-up, whatever
+            # the caller said of its own bars (``interpret.js``'s ``sym`` arm clears it). ⚰️ This lane kept it until the
+            # PERIOD -1 twin rail (``tests/test_pine_history_before_chart.py``): the other series' bar 0 was read as
+            # its listing here and not in the chart lane.
             child = _to_column(
                 interpret(n["args"][0], series, inputs=inputs, budget=budget,
-                          scalars=scalars, opts=dict(opts or {})),
+                          scalars=scalars, opts=dict(opts or {}, historyFromListing=None)),
                 len(series))
 
             # ⭐ ALIGNED ON THE BAR’S OWN `t`, EXACT MATCH, NEVER FORWARD-FILLED.
@@ -6003,10 +8916,16 @@ def _interpret_column(ast: Any, bars: List[dict],
             # question asked is "does this entry declare it", never "is this call
             # ``vwap``", so a third such entry needs no edit here.
             if n["name"] in _BAR_FN:
-                return _bar_column(n["name"], bars, args, length)
+                return _bar_column(n["name"], bars, args, length, (opts or {}).get("tf"))
             # ⭐ P0G -- owner decision C (``FN_V2``), semantics 2 only.
             if v2_fn and n["name"] in FN_V2:
                 return FN_V2[n["name"]](*args)
+            # engine 78 (#1858) -- a Pine document's tolerant built-ins (``FN_PINE``)
+            if pine_compare_on(opts) and n["name"] in FN_PINE:
+                return FN_PINE[n["name"]](*args)
+            # ENGINE 56 (S4-2) -- over a price the bar holds, the newest tied bar wins
+            if n["name"] in FN_BAR_PRICE_NEWEST and is_bar_price_tree(n["args"][0]):
+                return FN_BAR_PRICE_NEWEST[n["name"]](*args)
             return FN[n["name"]](*args)
         if kind in BIND_TIME_NODE_TYPES:
             # ⭐⭐ R-K -- BIND-TIME TEXT REFUSES BY NAME, NEVER AS "UNKNOWN".
@@ -6376,16 +9295,15 @@ def _interpret_column(ast: Any, bars: List[dict],
                     if not isinstance(c, (int, float)) or c != c:
                         return st
                     S = _r_as(st)
-                    below = (op in ("<", "<=")) == branch
-                    lo = S[0] if below else max(S[0], c)
-                    hi = min(S[1], c) if below else S[1]
+                    # engine 78 (#1858): widened by the compare's slack (``interpret.js::refine``)
+                    lo, hi = _pc.compare_narrow(op, branch, S[0], S[1], c, binary)
                     na = False
                     if S[2]:
                         k = column_at(ref["nz"], j) if ref["nz"] is not None else NAN
                         if k != k:
                             na = True if ref["nz"] is not None else (not branch)
                         else:
-                            na = (_BINARY[op](k, c) != 0) == branch
+                            na = (binary[op](k, c) != 0) == branch
                     return _r_norm(lo, hi, na)
 
                 def step_range(j: int, state: Any) -> Any:
@@ -6421,7 +9339,7 @@ def _interpret_column(ast: Any, bars: List[dict],
                                 v = (apply_op_step(n, values) if n["type"] == "op"
                                      else _POINTWISE[n["name"]](*values))
                             else:
-                                v = (_r_op(n["name"], values) if n["type"] == "op"
+                                v = (_r_op(n["name"], values, binary) if n["type"] == "op"
                                      else _r_call(n["name"], values))
                         memo[key] = v
                         return v

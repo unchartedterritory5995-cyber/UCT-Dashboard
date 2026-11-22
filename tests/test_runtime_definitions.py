@@ -72,7 +72,7 @@ def store(tmp_path, monkeypatch):
     # starter allowlist answered "graded" for these synthetic sources.
     # `test_pine_runtime_switch_on.py` rails both doors themselves.
     monkeypatch.setenv(rt.STAGE_ENV, rt.STAGE_ALL)
-    monkeypatch.setattr(rt, "not_graded", lambda source: None)
+    monkeypatch.setattr(rt, "not_graded", lambda source, graded_only=False: None)
     return tmp_path
 
 
@@ -156,6 +156,30 @@ def test_RT5_a_drawing_only_document_maps_no_plot_and_is_stored(store, monkeypat
         svc.save(USER, "u_0000000000a2", d2)
 
 
+TESTER_SOURCE = ('//@version=5\nstrategy("t")\nif bar_index == 3\n    strategy.entry("L", strategy.long, qty = 1)\n'
+                 'if bar_index == 8\n    strategy.close("L")\n')
+
+
+def test_W9_armed_a_broker_document_maps_no_plot_and_is_stored(store, monkeypatch):
+    """W9 armed route (2026-11-16): a document stamped with the strategy window runs the broker, and a
+    tester-only strategy's output is its trades, so `outputs` may be empty (`defSchema.js`, the same rule);
+    the same empty map on any other runtime document is still refused."""
+    monkeypatch.setenv(rt.SAVE_ENV, "1")
+    d = runtime_defn(TESTER_SOURCE, "u_0000000000b1")
+    d["compute"].update(outputs={})
+    d["meta"]["runtimeHistory"] = "strategy-window"
+    d["plots"] = [{"key": "value", "style": "line", "role": "primary", "label": "", "hidden": True}]
+    row = svc.save(USER, "u_0000000000b1", d)
+    assert row["appended"] is True
+    # ⛔ CONTROL — the same document stamped with the listing window is refused
+    d2 = runtime_defn(TESTER_SOURCE, "u_0000000000b2")
+    d2["compute"].update(outputs={})
+    d2["meta"]["runtimeHistory"] = "listing"
+    d2["plots"] = [{"key": "value", "style": "line", "role": "primary", "label": "", "hidden": True}]
+    with pytest.raises(ValueError, match=r"compute\.outputs"):
+        svc.save(USER, "u_0000000000b2", d2)
+
+
 def test_the_count_cap_is_asked_for_a_runtime_document_too(store, monkeypatch):
     """The toolkit's count verdict is the same door a formula goes through."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
@@ -208,13 +232,26 @@ def test_KILL_is_never_a_delete_the_served_row_is_stamped_the_stored_row_is_not(
     assert "runtimeKilled" not in back["definition"]["meta"]
 
 
-def test_the_preview_reads_the_kill_list_and_the_save_switch(client, monkeypatch):
+def test_the_preview_reads_the_kill_list_and_the_save_switch(client, monkeypatch, tmp_path):
     allow = rt.allow_list()
-    assert client.get("/api/user-definitions/runtime-kill").json() ==         {"kill": [], "allow": allow, "save_enabled": False}
+    # RT1 2026-11-15: the committed kill list (api/data/pine_runtime_killlist.json) is always served.
+    # 2026-11-16: it is EMPTY (parabolic-sar lifted), so a SYNTHETIC entry in a tmp list stands in for it
+    from tests.test_pine_capability_admission import synthetic_kill
+    synthetic_kill(tmp_path, monkeypatch)
+    committed = list(rt.committed_kills())
+    assert len(committed) == 1, "the committed kill list is read"
+    # RS Rating (2026-11-16): the committed allowlist holds a record on the SUBSTITUTED path, so the read
+    # also carries what it discloses (`substituted`, L7), read off the service function the route asks.
+    # Its run-half evidence (L8) IS served since Q-RS8 (2026-11-16): the three captures were re-taken
+    # with the x table and grade objects v2 MATCH_SUBSTITUTED on master b7cd7a0e63.
+    served = {"substituted": rt.substituted_inputs(), "run_half_evidence": rt.run_half_evidence()}
+    assert served["substituted"] and len(served["run_half_evidence"]) == 1
+    want = {"kill": committed, "allow": allow, "save_enabled": False, **served}
+    assert client.get("/api/user-definitions/runtime-kill").json() == want
     monkeypatch.setenv(rt.KILL_ENV, f"{DEF_ID}, not-an-entry, {'A' * 64}")
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     got = client.get("/api/user-definitions/runtime-kill").json()
-    assert got == {"kill": [DEF_ID, "a" * 64], "allow": allow, "save_enabled": True}
+    assert got == {"kill": committed + [DEF_ID, "a" * 64], "allow": allow, "save_enabled": True, **served}
 
 
 # ─── nothing that needs a tree admits a runtime row ──────────────────────────
@@ -236,12 +273,17 @@ def test_the_relint_pass_skips_a_runtime_row_rather_than_calling_it_uncomparable
 
 
 def test_an_alert_cannot_bind_a_runtime_row(store, monkeypatch):
+    """⭐ W5-T13: the alert lane now admits a runtime row ONLY where
+    `server_lane_refusal` answers None; on a box with no server stage (this one) it is
+    refused at its own gate, `server-lane`, by name (`tests/test_alert_runtime_lane.py`
+    holds the admitted half)."""
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     svc.save(USER, DEF_ID, runtime_defn())
     from api.services import alert_user_series
     row = svc.get(USER, DEF_ID)
-    with pytest.raises(alert_user_series.AdmissionRefused, match="compute.kind 'runtime'"):
+    with pytest.raises(alert_user_series.AdmissionRefused, match=r"\[gate:server-lane\]") as e:
         alert_user_series._gate_lane(row)
+    assert e.value.gate == "server-lane"
 
 
 # ─── one repaint class, two languages (RT2) ──────────────────────────────────

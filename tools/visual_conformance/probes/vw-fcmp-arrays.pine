@@ -1,0 +1,46 @@
+//@version=6
+indicator("vw-fcmp-arrays")
+
+// PROVENANCE: written 2026-11-18 for the Pine parity programme, asked for by coordinator patrick-2b with the build
+// of Pine's tolerant compare (engine 78 (#1858), branch feat/pine-tolerant-compare-engine). Q-FCMP2 measured the
+// operators' rule (two floats are equal when |a - b| <= 1e-10; na makes every comparison false) and the built-ins'
+// split (array.indexof / array.includes compare within the epsilon; array.max / min / sort exactly). It did not
+// measure array.lastindexof or the three binary searches, so the engine leaves them EXACT until this probe is read.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: do array.lastindexof and array.binary_search / _leftmost / _rightmost find a value within the epsilon?
+// - e = 3e-14 (well inside the epsilon) and z = 9e-11 (just under it); 3e-10 is outside it (the control).
+// - Each row names the two readings: TOLERANT (the search uses the operators' rule) and EXACT (IEEE).
+// - Every array is sorted ascending and holds no value twice, inside the epsilon or out, so every binary search row
+//   has one answer under each rule (the reference does not settle a search over an unsorted array or a repeated
+//   value).
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING (history.startsAtBar0 asserted), then NYSE:RDDT 1D, inputs at defaults.
+
+one = bar_index >= 0 ? 1.0 : 0.0
+e = 3e-14
+z = 9e-11
+far = 3e-10
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+// ---- array.lastindexof                                                         tolerant / exact
+plot(array.lastindexof(array.from(1.0, 2.0, 1.0) , 1.0 * one), "A01_lastindexof_exact_CONTROL") //  2 / 2
+plot(array.lastindexof(array.from(1.0, 2.0, 1.0 + e), 1.0 * one), "A02_lastindexof_last_is_1pe") //  2 / 0
+plot(array.lastindexof(array.from(1.0, 2.0), (1.0 + e) * one), "A03_lastindexof_target_1pe")     //  0 / -1
+plot(array.lastindexof(array.from(1.0, 2.0), (1.0 + z) * one), "A04_lastindexof_target_1pz")     //  0 / -1
+plot(array.lastindexof(array.from(1.0, 2.0), (1.0 + far) * one), "A05_lastindexof_far_CONTROL")  // -1 / -1
+
+// ---- array.binary_search over [1, 2, 3]
+s3 = array.from(1.0, 2.0, 3.0)
+plot(array.binary_search(s3, 2.0 * one), "A06_bsearch_exact_CONTROL")                          //  1 / 1
+plot(array.binary_search(s3, (2.0 + e) * one), "A07_bsearch_2pe")                               //  1 / -1
+plot(array.binary_search(s3, (2.0 - e) * one), "A08_bsearch_2me")                               //  1 / -1
+plot(array.binary_search(s3, (2.0 + z) * one), "A09_bsearch_2pz")                               //  1 / -1
+plot(array.binary_search(s3, (2.0 + far) * one), "A10_bsearch_far_CONTROL")                     // -1 / -1
+
+// ---- array.binary_search_leftmost / _rightmost over [1, 2, 3]
+plot(array.binary_search_leftmost(s3, (2.0 - e) * one), "A11_bsearch_leftmost_2me")             //  1 / 0
+plot(array.binary_search_leftmost(s3, (2.0 - z) * one), "A12_bsearch_leftmost_2mz")             //  1 / 0
+plot(array.binary_search_rightmost(s3, (2.0 + e) * one), "A13_bsearch_rightmost_2pe")           //  1 / 2
+plot(array.binary_search_rightmost(s3, (2.0 + z) * one), "A14_bsearch_rightmost_2pz")           //  1 / 2
+plot(array.binary_search_leftmost(s3, (2.0 - far) * one), "A15_bsearch_leftmost_far_CONTROL")   //  0 / 0
+plot(array.binary_search_rightmost(s3, (2.0 + far) * one), "A16_bsearch_rightmost_far_CONTROL") //  2 / 2

@@ -1,0 +1,28 @@
+{
+ "identity": {
+  "script_engine": "fixture",
+  "runtime_language": "pine",
+  "runtime_frontend": 1,
+  "runtime_ir": 1,
+  "bundle_sha256": "abababababababababababababababababababababababababababababababab"
+ },
+ "job": {
+  "job": "RDDT",
+  "n": 30,
+  "want": [
+   "#strategy"
+  ]
+ },
+ "result": {
+  "job": "RDDT",
+  "status": "ok",
+  "columns": {},
+  "refusals": [],
+  "warmup": {
+   "withheldBars": 0
+  },
+  "strategy": "{\"schema\":\"uct.strategy-record/v1\",\"window\":{\"startTime\":1700000000,\"startDate\":\"2023-11-14\",\"startSentence\":\"this backtest starts on 2023-11-14 (UTC); TradingView may start elsewhere\",\"fromListing\":true,\"bars\":30,\"historyWindowBars\":30,\"asOfBar\":1702505600},\"settings\":{\"version\":5,\"initial_capital\":1000000,\"default_qty\":{\"type\":\"fixed\",\"value\":1},\"pyramiding\":0,\"margin_long\":0,\"margin_short\":0,\"calc_on_every_tick\":false,\"process_orders_on_close\":false,\"calc_on_order_fills\":false,\"defaulted\":[\"initialCapital\",\"margin\",\"pyramiding\",\"qty\"],\"commission\":{\"type\":\"percent\",\"value\":0,\"typeDefaulted\":true},\"slippage\":0,\"bar_detalization\":null,\"currency\":null},\"symbol\":{\"mintick\":0.01,\"pointvalue\":1},\"orders\":[{\"n\":1,\"kind\":\"entry\",\"id\":\"L\",\"from\":null,\"side\":\"buy\",\"type\":\"market\",\"qty\":1,\"qtyPercent\":null,\"limit\":null,\"stop\":null,\"legs\":null,\"oca\":null,\"comment\":null,\"commentRecorded\":true,\"legComments\":null,\"placedTime\":1700259200,\"modifiedTime\":null,\"triggerTime\":null,\"status\":\"filled\",\"why\":null,\"endTime\":null,\"fillTime\":1700345600,\"fillPrice\":104,\"fillQty\":1,\"rule\":\"B-MARKET\",\"leg\":null,\"opened\":[1],\"closed\":[]},{\"n\":2,\"kind\":\"close\",\"id\":null,\"from\":\"L\",\"side\":\"sell\",\"type\":\"market\",\"qty\":null,\"qtyPercent\":null,\"limit\":null,\"stop\":null,\"legs\":null,\"oca\":null,\"comment\":null,\"commentRecorded\":true,\"legComments\":null,\"placedTime\":1700864000,\"modifiedTime\":null,\"triggerTime\":null,\"status\":\"filled\",\"why\":null,\"endTime\":null,\"fillTime\":1700950400,\"fillPrice\":111,\"fillQty\":1,\"rule\":\"B-CLOSE\",\"leg\":null,\"opened\":[],\"closed\":[1]},{\"n\":3,\"kind\":\"entry\",\"id\":\"S\",\"from\":null,\"side\":\"sell\",\"type\":\"market\",\"qty\":1,\"qtyPercent\":null,\"limit\":null,\"stop\":null,\"legs\":null,\"oca\":null,\"comment\":null,\"commentRecorded\":true,\"legComments\":null,\"placedTime\":1701728000,\"modifiedTime\":null,\"triggerTime\":null,\"status\":\"filled\",\"why\":null,\"endTime\":null,\"fillTime\":1701814400,\"fillPrice\":121,\"fillQty\":1,\"rule\":\"B-MARKET\",\"leg\":null,\"opened\":[2],\"closed\":[]}],\"trades\":[{\"n\":1,\"entryId\":\"L\",\"dir\":\"long\",\"qty\":1,\"exact\":true,\"entryTime\":1700345600,\"entryPrice\":104,\"entryRule\":\"B-MARKET\",\"open\":false,\"exitTime\":1700950400,\"exitPrice\":111,\"exitRule\":\"B-CLOSE\",\"exitId\":null,\"profit\":null,\"commission\":0,\"runUp\":null,\"drawdown\":null},{\"n\":2,\"entryId\":\"S\",\"dir\":\"short\",\"qty\":1,\"exact\":true,\"entryTime\":1701814400,\"entryPrice\":121,\"entryRule\":\"B-MARKET\",\"open\":true,\"exitTime\":null,\"exitPrice\":null,\"exitRule\":null,\"exitId\":null,\"profit\":null,\"commission\":0,\"runUp\":null,\"drawdown\":null}],\"equity\":null,\"refusals\":[],\"rulesUsed\":[\"B-CLOSE\",\"B-DEFAULTS\",\"B-DIR\",\"B-FIFO\",\"B-FILL\",\"B-MARGIN\",\"B-MARKET\",\"B-QTY\",\"B-SIG\",\"B-VAL\"],\"unserved\":{\"equity\":\"W9-T13a-F1\",\"trades.profit\":\"W9-T13a-F1\",\"trades.runUp\":\"W9-T13a-F1\",\"trades.drawdown\":\"W9-T13a-F1\",\"settings.bar_detalization\":\"W9-T9\",\"settings.currency\":\"W9-D2 (deferred)\"}}",
+  "strategy_sha256": "f642c0c501f08722c00566664f8fb14d6021191b7fb9659c0e2c9eb2b40410e9",
+  "digest": "85233a2bef33e31573bbd406cff39b78859bc96704a23b87dafea049b52322df"
+ }
+}

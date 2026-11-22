@@ -130,8 +130,8 @@ export default function AlertsPanel({ sym = null, onRun, onRows }) {
           {sym ? <> <button type="button" className={styles.linkBtn} onClick={() => onRun?.('ALRT')}>See all your alerts</button>.</> : null}
         </PanelState>
       ) : (
-        <div className={styles.tableBox}>
-          <table className={styles.table} data-testid="terminal-alerts-table"
+        <div className={styles.tableBox} data-fold="590">
+          <table className={`${styles.table} ${styles.snugCells}`} data-testid="terminal-alerts-table"
             aria-label={sym ? `Price alerts on ${sym}` : 'Your price alerts'}>
             <thead>
               <tr>
@@ -156,13 +156,13 @@ export default function AlertsPanel({ sym = null, onRun, onRows }) {
                         <span className={styles.sym}>{r.sym}</span>
                       </button>
                     </td>
-                    <td>
+                    <td className={styles.phoneWrap}>
                       {r.direction === 'above' ? 'Above' : 'Below'} {money(r.target)}
                       {KIND_TEXT[r.kind] ? <span className={styles.muted}> ({KIND_TEXT[r.kind]})</span> : null}
                     </td>
                     <td>{Number.isFinite(Number(last)) && Number(last) > 0 ? money(last) : formatNumber(null)}</td>
                     <td className={styles.phoneHide}>{formatPercent(dist, { decimals: 1, signed: true })}</td>
-                    <td>
+                    <td className={styles.phoneWrap}>
                       {r.active ? 'Active'
                         : `Triggered${r.triggeredAt ? ` ${formatDateTimeEt(Date.parse(r.triggeredAt) / 1000, { absent: '' })}` : ''}`}
                     </td>

@@ -12,7 +12,7 @@
     "asOf": null,
     "bmo": [],
     "capturedAt": "2026-10-05T14:30:00Z",
-    "detail": "Today's earnings list has not been loaded yet. Capture again in a few minutes.",
+    "detail": "Today's earnings list was still loading when this was captured.",
     "missing": "no_earnings_yet",
     "part": "earnings"
   }

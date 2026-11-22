@@ -1,0 +1,21 @@
+/* L3: the "removed from <app>" notice at the top of a note. The import-repair notice's look
+   (ImportRepairNotice.module.css), one line, no actions. Notebook tokens only, so the contrast
+   rail reads it in every theme; no fixed widths, the text wraps. */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.icon { flex-shrink: 0; margin-top: 3px; color: var(--text-muted); }
+
+.text { flex: 1; min-width: 0; overflow-wrap: anywhere; }

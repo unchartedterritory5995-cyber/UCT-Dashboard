@@ -33,6 +33,7 @@ import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
 import jsonFetcher from './jsonFetcher'
+import { labShipping } from '../lab/__tests__/shippedLab'
 
 const JSXParser = Parser.extend(jsx())
 
@@ -181,7 +182,6 @@ export const STILL_UNCHECKED = [
   'pages/modelbook/SetupsView.jsx',
   'pages/modelbook/builder/BuilderView.jsx',
   'pages/modelbook/builder/UpbEntryPage.jsx',
-  'utils/prefetchBars.js',
 ]
 
 // ── the sweep ───────────────────────────────────────────────────────────────
@@ -189,7 +189,10 @@ export const STILL_UNCHECKED = [
 describe('no shipped surface parses a response it never checked', () => {
   it('NO NEW SURFACE joins the list — and a healed one must leave it', () => {
     const offenders = new Set()
-    for (const file of sourceFiles()) {
+    // The Study workbench's pieces are not shipped surfaces (lab.html is dev-only, lab/labAbsent.test.js);
+    // a lab module the product imports still is, and is judged like any other (lab/__tests__/shippedLab.js).
+    const { ships } = labShipping(SRC)
+    for (const file of sourceFiles().filter((f) => ships(path.relative(SRC, f).split(path.sep).join('/')))) {
       if (uncheckedJsonFetches(fs.readFileSync(file, 'utf8')).length) {
         offenders.add(path.relative(SRC, file).split(path.sep).join('/'))
       }

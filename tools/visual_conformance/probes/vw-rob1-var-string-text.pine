@@ -1,0 +1,43 @@
+// DOOR-ROBUSTNESS (2026-11-16) - probe Q-ROB1 for the capture lane. Queue: docs/pine/capture-queue-2026-11-16-door-robustness.md
+// Chart: NYSE:RDDT 1D from the listing, inputs at defaults, AFTER THE CLOSE. Read each table cell's text and each
+// label's text from the chart model, not from pixels.
+// Not compiled on TradingView yet: if a row does not compile, the error names the line; split it out.
+//
+//   C01  a `var string` declared `na` and never written, shown in a table cell: the cell's text
+//   C02  a `var string` declared `na`, written only inside an `if` that is false on every bar of a daily chart
+//        (`timeframe.isminutes`): the cell's text (the volume-pace-pressure-table shape)
+//   C03  a `var string` declared `na`, written inside an `if` that holds on SOME bars (close > open): the cell's
+//        text on the last bar (the latch: the text of the last bar the block ran on)
+//   C04  a `var string` declared "seed", never written: the cell's text (control, expected "seed")
+//   C05  a `var string` written on every bar: the cell's text (control)
+//   C06  a `var string` written in both branches of an `if / else`: the cell's text (control)
+//   L01  the C01 variable as a label's text
+//   L02  the C03 variable as a label's text
+//@version=5
+indicator("vw-rob1-var-string-text", overlay = true)
+var string c01 = na
+var string c02 = na
+var string c03 = na
+var string c04 = "seed"
+var string c05 = na
+var string c06 = na
+if timeframe.isminutes
+    c02 := "minutes " + str.tostring(close, "#.##")
+if close > open
+    c03 := "up " + str.tostring(close, "#.##")
+c05 := "close " + str.tostring(close, "#.##")
+if close > open
+    c06 := "up"
+else
+    c06 := "down"
+var table tb = table.new(position.top_right, 1, 6)
+if barstate.islast
+    table.cell(tb, 0, 0, text = c01)
+    table.cell(tb, 0, 1, text = c02)
+    table.cell(tb, 0, 2, text = c03)
+    table.cell(tb, 0, 3, text = c04)
+    table.cell(tb, 0, 4, text = c05)
+    table.cell(tb, 0, 5, text = c06)
+    label.new(bar_index, high, c01)
+    label.new(bar_index - 5, high, c03)
+plot(close, "close")

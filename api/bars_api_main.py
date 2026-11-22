@@ -12,6 +12,9 @@ and `serve_bars_history` — so the two can never diverge. Selected by the
 railway.json dispatcher when `BARS_API_ENABLED=1`.
 
 ⛔ Does NOT run the prewarmer, R2 uploader, Massive WS, or reconciliation/audit.
+⭐ It DOES run the cash-index warm loop (`index_bars.start_index_warm`, 7 symbols, date
+   series + the 5m one today's daily bar is built from): the index store is per volume,
+   and members read this pod's (2026-11-17).
 ⛔ NEVER opens a Massive WS (~1 conn/key — a second kicks web's live feed offline).
 ⛔ Only READS + newer-wins MERGES the local db. NEVER force_resync / replace-pull.
 
@@ -37,6 +40,13 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import Depends, FastAPI, Query
 
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) on
+# EVERY log record of this pod -- httpx logs each request URL at INFO and an
+# HTTPStatusError's text carries the full URL. api/main.py does this for web; this
+# entrypoint never imports api.main, so it must install it itself.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 _log = logging.getLogger("uvicorn.error")
 _DATA_DIR = os.environ.get("DATA_DIR", "/data")
 
@@ -47,6 +57,23 @@ def _rss_mb():
         return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)
     except Exception:
         return None
+
+
+def _distinct_tickers_at_least(conn, n: int) -> int:
+    """How many distinct tickers `ohlcv` holds, counting up to `n`: one primary-key seek per ticker
+    (`ticker > ? ORDER BY ticker LIMIT 1`, the walk intraday_grid uses), so ~n index descents.
+
+    ⚡ It replaced `SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)`
+    (2026-11-19): GROUP BY reads EVERY row of the first 3,000 tickers, which on bars-api's cold
+    20 GB store took 70-82 s of full-store IO at every boot, while members' bar reads on that pod ran
+    p90 350-810 ms (Railway HTTP logs after the 23:02Z boot, against 10-30 ms settled)."""
+    cur, k = "", 0
+    while k < n:
+        row = conn.execute("SELECT ticker FROM ohlcv WHERE ticker > ? ORDER BY ticker LIMIT 1", (cur,)).fetchone()
+        if not row:
+            break
+        cur, k = row[0], k + 1
+    return k
 
 
 def _ensure_local_db_installed() -> None:
@@ -96,16 +123,21 @@ def _ensure_local_db_installed() -> None:
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] temp cleanup failed (non-fatal): %s", e)
     try:
+        # Clustered-layout adoption (BARS_ADOPT_CLUSTERED=1, one-shot): swaps in a verified
+        # clustered snapshot carrying this pod's own newer rows; else the store is kept.
+        data_sync.adopt_clustered_store(_DATA_DIR)
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] adopt-clustered check failed (non-fatal): %s", e)
+    try:
         populated = False
         if os.path.exists(p):
             c = sqlite3.connect(p, timeout=5)
             try:
-                row = c.execute(
-                    "SELECT COUNT(*) FROM (SELECT ticker FROM ohlcv GROUP BY ticker LIMIT 3000)"
-                ).fetchone()
-                n = int(row[0]) if row else 0
+                t0 = time.monotonic()
+                n = _distinct_tickers_at_least(c, 2000)
                 populated = n >= 2000
-                _log.info("[bars-api] local bars.db ~%d distinct tickers (populated=%s)", n, populated)
+                _log.info("[bars-api] local bars.db >=%d distinct tickers (populated=%s, %.1fs)",
+                          n, populated, time.monotonic() - t0)
             except Exception:
                 populated = False
             finally:
@@ -153,6 +185,12 @@ def _start_periodic_pull() -> None:
         while True:
             time.sleep(data_sync.SNAPSHOT_INTERVAL_SECONDS)
             try:
+                # One-shot clustered adoption, retried here in a later quiet window
+                # if the boot attempt fell outside one (no-op once done / when off).
+                data_sync.adopt_clustered_store(_DATA_DIR)
+            except Exception as e:  # noqa: BLE001
+                _log.warning("[bars-api] adopt-clustered retry failed (non-fatal): %s", e)
+            try:
                 if data_sync.DELTA_ENABLED:
                     data_sync.sync_with_deltas()
                 elif legacy:
@@ -188,15 +226,45 @@ def _start_hotset_push() -> None:
     _log.info("[bars-api] hot-set push loop started")
 
 
+def _tune_interpreter() -> None:
+    """⚡ The GIL switch interval, as on web (`api/services/gil_tuning.py`, 0.5 ms). Every bar read
+    here is a row-by-row sqlite read, one GIL hand-off per row, and each hand-off waited up to 5 ms
+    behind any busy thread: this process runs seven (install, off-grid sweep, pull, checkpointer,
+    pack ingest, live store, index warm). Web was tuned on 2026-11-12; this tier never was, and it
+    answers the cold first opens (the 2026-11-17 audit's slow-first-open gap: FROG 1.5 s cold)."""
+    try:
+        from api.services import gil_tuning
+        g = gil_tuning.apply()
+        _log.info("[bars-api] thread switch interval %.2f ms (was %.2f ms; %s=%r; %s)", g["ms"], g["was_ms"],
+                  gil_tuning.ENV, g["raw"], "applied" if g["applied"] else "REFUSED, left as it was")
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] thread switch interval tuning failed (non-fatal): %s", e)
+
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
+    _tune_interpreter()          # first: before any of the threads below exists
     # ⭐ Install the DB in a BACKGROUND THREAD (uvicorn has already bound the port,
     # so Railway's readiness check is satisfied — running the install BEFORE uvicorn
     # made the port bind too late and Railway restart-looped the container at ~40s).
     # The extract goes to the 50GB volume (TMPDIR set in main), not ephemeral /tmp.
     # Serving cold-fetches until this completes; then it serves from the R2-installed db.
-    threading.Thread(target=_ensure_local_db_installed, daemon=True,
-                     name="bars-api-boot-install").start()
+    _install = threading.Thread(target=_ensure_local_db_installed, daemon=True,
+                                name="bars-api-boot-install")
+    _install.start()
+
+    def _offgrid_sweep_after_install():
+        # Off-grid intraday rows (intraday_grid): repair the installed store once the
+        # install is done. Background, paced, idempotent; reads are guarded meanwhile.
+        _install.join()
+        try:
+            from api.services import intraday_grid
+            intraday_grid.sweep_async()
+        except Exception as e:  # noqa: BLE001
+            _log.warning("[bars-api] off-grid sweep did not start (non-fatal): %s", e)
+
+    threading.Thread(target=_offgrid_sweep_after_install, daemon=True,
+                     name="bars-api-offgrid-sweep-wait").start()
     _start_periodic_pull()
     try:
         from api.services import bars_wal_checkpointer
@@ -220,14 +288,70 @@ async def _lifespan(app: FastAPI):
         bars_live_store.start()
     except Exception as e:  # noqa: BLE001
         _log.warning("[bars-api] live store start failed (non-fatal): %s", e)
+    try:
+        # ⭐ THE CASH-INDEX STORE MEMBERS READ IS THIS POD'S. `index_bars` keeps SPX/NDX/VIX/
+        # RUT/DJX/XSP/XND in `<DATA_DIR>/index_bars_cache`, per volume, and the edge sends
+        # `/api/bars/<sym>` here. Web's warm loop warms web's volume only, so until
+        # 2026-11-17 this tier's daily copies moved only when a read kicked them (RUT, DJX,
+        # XSP answered a 10-22 tail on 11-17). Same loop, same vendors, same pacing.
+        from api import index_bars
+        index_bars.start_index_warm(tfs=index_bars.SERVING_TIER_WARM_TFS)
+        _log.info("[bars-api] index warm loop started: %s",
+                  ",".join(index_bars.SERVING_TIER_WARM_TFS))
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] index warm loop start failed (non-fatal): %s", e)
+    try:
+        # Deep daily history rebuilt from one checked source, served per ticker (bars_rebuild):
+        # the local copy loads at once, then syncs from the bars bucket. BARS_REBUILD_SERVE=0 = off.
+        from api.services import bars_rebuild
+        bars_rebuild.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] rebuilt-history sync start failed (non-fatal): %s", e)
+    try:
+        # The published corrections ledger for served D/W/M bars (bars_corrections): the local copy loads at once,
+        # then syncs from the bars bucket. Inert with no manifest. BARS_CORRECTIONS_SERVE=0 = off.
+        from api.services import bars_corrections
+        bars_corrections.start_background_sync()
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[bars-api] bars-corrections sync start failed (non-fatal): %s", e)
     _log.info("[bars-api] serving tier UP — /api/bars + /api/bars-history "
-              "(no warmers, no uploader, no WS)")
+              "(no universe warmers, no uploader, no WS; index warm on)")
     yield
+
+
+# -- currency pairs (Bitcoin, 2026-11-19): this tier hands them to the web pod ----------
+# A pair (`BTCUSD`) is served by the WEB pod only (`api/crypto_bars.py`, behind
+# `CRYPTO_BARS_ENABLED` and the member check). This tier has no member identity and holds
+# no pair series, and the edge Worker sends `/api/bars/BTCUSD` here first because the
+# symbol is shaped like a stock. So this tier answers a pair with 501: the Worker treats
+# every 5xx that is not a deliberate 503 shed as "ask web" and asks web at once
+# (`edge/bars-edge-router/worker.js` `routeToTier`; pinned by `tests/test_crypto_bars.py`).
+# Whatever the switch says on web, web then answers: the pair when it is on, the stock
+# path (which carries no such stock) when it is off. Nothing else reaches these lines.
+PAIR_HANDOFF_STATUS = 501
+
+
+def _pair_is_webs(ticker) -> bool:
+    try:
+        from api import crypto_bars
+        return crypto_bars.is_pair(ticker)
+    except Exception:                             # noqa: BLE001 - never between a stock and its bars
+        return False
+
+
+def _pair_handed_to_web(ticker):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(
+        status_code=PAIR_HANDOFF_STATUS,
+        content={"ticker": str(ticker).strip().upper(), "bars": [], "error": "served_by_web",
+                 "detail": "currency pairs are served by the web pod"},
+        headers={"Cache-Control": "no-store"})
 
 
 def _build_app() -> FastAPI:
     app = FastAPI(title="UCT Bars API", docs_url=None, redoc_url=None, lifespan=_lifespan)
     from api.routers.bars import serve_bars, serve_bars_history
+    from api.routers.bars import serve_bars_http   # edge-budgeted HTTP entry (8 s abort)
     # 🔴 THIS SERVICE IS PUBLICLY ROUTABLE. Railway serves it at a public domain as
     # well as on private networking, so every data route below is directly reachable
     # from the internet and a gate on the web pod alone would protect one of TWO doors.
@@ -339,8 +463,11 @@ def _build_app() -> FastAPI:
         since: str = "",
         to: str = "",
         warm: int = 0,
+        session: str = "",
     ):
-        return serve_bars(ticker, tf, bars, since=since, to=to, warm=warm)
+        if _pair_is_webs(ticker):
+            return _pair_handed_to_web(ticker)
+        return serve_bars_http(ticker, tf, bars, since=since, to=to, warm=warm, session=session)
 
     # ⛔ NO GATE HERE ON PURPOSE — same reason as `/api/bars/{ticker}` above.
     @app.get("/api/bars-history/{ticker}")
@@ -351,6 +478,8 @@ def _build_app() -> FastAPI:
         v: str = "",
         d: str = "",
     ):
+        if _pair_is_webs(ticker):
+            return _pair_handed_to_web(ticker)
         return serve_bars_history(ticker, tf, bars, v, d)
 
     return app
@@ -358,6 +487,7 @@ def _build_app() -> FastAPI:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
+    _install_log_redaction()   # filter on the handlers basicConfig just made
     # Quiet httpx/httpcore like web and worker do (api/main.py). At INFO httpx
     # logs every request URL, and the Massive URLs carry `apiKey=` in the query
     # string, so this tier was writing the provider key into its logs.

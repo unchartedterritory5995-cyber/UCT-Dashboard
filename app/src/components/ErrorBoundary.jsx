@@ -12,6 +12,11 @@ export default class ErrorBoundary extends Component {
     return { hasError: true, error }
   }
 
+  // `resetKey`: a change of the thing that broke tries again, instead of leaving the fallback up for good
+  componentDidUpdate(prev) {
+    if (this.state.hasError && prev.resetKey !== this.props.resetKey) this.setState({ hasError: false, error: null })
+  }
+
   componentDidCatch(error, info) {
     console.error('[ErrorBoundary]', error, info?.componentStack)
     // D14: every boundary reports what it caught to our own beacon. The beacon

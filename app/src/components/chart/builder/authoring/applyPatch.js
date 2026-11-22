@@ -32,6 +32,7 @@ import {
 } from './slots'
 import { draftDefId } from '../BuilderSheet'
 import { BUILDER_INPUTS, chromeInputsFor } from '../builderInputs'
+import { CHART_DEFAULTS } from '../../chartDefaults'
 import {
   INTENTS, intentReadback, markerRequestProblem, presentationVerdict, signalPaintsFor, NO_PAINT,
   SIGNAL_MARKER_DEFAULT,
@@ -421,6 +422,33 @@ const newRow = (key, label, hidden) => ({
   hidden: hidden === true,
 })
 
+/**
+ * ⭐ SEVERAL LINES, SEVERAL COLOURS (ruling 2026-11-18). Every new line used to take the one
+ * default colour, so an indicator with several lines (+DI, -DI and ADX; a Fisher line and its
+ * trigger; the PPO's three) was drawn as lines nobody could tell apart until the member recoloured
+ * them. The first line keeps the default; each one after it takes the next of the chart's OWN
+ * moving-average slot colours, in slot order (`CHART_DEFAULTS.overlays`: the palette the chart
+ * already draws several lines in; read from there, never retyped). Past the last slot they go
+ * round again.
+ *
+ * ⛔ ONLY A VISIBLE LINE THAT DRAWS A NUMBER COUNTS. A true/false output is drawn as markers or a
+ * signal, not as a line among lines, and a hidden one is not drawn at all: neither takes a slot,
+ * and both keep the default. So an indicator with ONE number line is exactly as it was, with or
+ * without a signal beside it.
+ */
+export const LINE_COLORS = Object.freeze([BUILDER_INPUTS[0].default, ...CHART_DEFAULTS.overlays.map((o) => o.color)])
+/** The default colour of the `n`-th number line of one indicator (0-based). */
+export const lineColorAt = (n) => (n <= 0 ? LINE_COLORS[0] : LINE_COLORS[1 + ((n - 1) % (LINE_COLORS.length - 1))])
+const isNumberLine = (row) => !!row && row.hidden !== true && !!row.ast && treeOutputType(row.ast).type === OUTPUT_TYPES.SERIES
+/** The colour a number line ADDED beside `rows` takes: the first of the palette none of their
+ *  number lines already wears (so a line a member recoloured is not matched by accident), else
+ *  the next in order. */
+const nextLineColor = (rows) => {
+  const lines = rows.filter(isNumberLine)
+  const worn = new Set(lines.map((r) => String(r.color).toLowerCase()))
+  return LINE_COLORS.find((c) => !worn.has(c.toLowerCase())) || lineColorAt(lines.length)
+}
+
 // ─── the op handlers ──────────────────────────────────────────────────────────
 
 const OPS = {
@@ -446,6 +474,9 @@ const OPS = {
       Object.assign(st.model.rows[j], gateTree(o.tree, scope, keys[j]))
       st.touched.add(keys[j])
     })
+    // ⭐ several number lines, several colours (`LINE_COLORS`): every row here is new, so none
+    // wears a colour a member chose
+    st.model.rows.filter(isNumberLine).forEach((row, n) => { row.color = lineColorAt(n) })
     st.created = true
     // ⭐ a name / label the member gave in their own words is CUSTOM (derivedName.js)
     if (memberNamed(st.memberNames, st.model.name)) st.renamedDefinition = true
@@ -486,6 +517,8 @@ const OPS = {
       : newRow(op.key, op.label, op.hidden)
     st.model.rows.push(row)
     Object.assign(row, gateTree(op.tree, scopeOf(st.model), op.key))
+    // ⭐ a number line added beside others takes the first colour none of them wears (`LINE_COLORS`)
+    if (isNumberLine(row)) row.color = nextLineColor(st.model.rows.filter((r) => r !== row))
     st.touched.add(op.key)
     if (memberNamed(st.memberNames, op.label)) st.renamedOutputs.add(op.key)
     st.changes.push({ op: i, kind: 'output-added', output: op.key, to: row.source })
@@ -521,7 +554,13 @@ const OPS = {
       st.changes.push({ op: i, kind: 'paint-removed', output: row.key, text: `Its own candle/background colours went with it.` })
     }
     m.paints = kept.length ? kept : null
-    if (m.scanKey === row.key) m.scanKey = m.rows[0].key
+    // ⭐ 2026-11-17 (backlog 7) — THE SCANNED LINE MOVES, AND IT SAYS SO. Removing the line a
+    // run over a list reads used to hand the scan to the first remaining line in silence: the
+    // next run answered a different question and nothing on screen had said it would.
+    if (m.scanKey === row.key) {
+      m.scanKey = m.rows[0].key
+      st.changes.push({ op: i, kind: 'scan-moved', output: m.rows[0].key, from: row.key })
+    }
     if (st.intent && st.intent.output === row.key) {
       st.intent = null
       st.changes.push({ op: i, kind: 'intent-cleared', output: row.key })
@@ -643,8 +682,15 @@ const OPS = {
         throw err('style:line-style-inert', `"${row.key}" is drawn as ${drawn === 'markers' ? 'markers' : `a ${drawn}`}, which has no line to make ${op.lineStyle}.`, { output: row.key })
       }
     }
+    // ⭐ ROW 42 — `breaks` is a LINE's choice: a histogram or markers have no join.
+    if (op.breaks !== undefined) {
+      const drawn = op.style !== undefined ? op.style : row.style
+      if (!LINE_DRAWN_STYLES.includes(drawn)) {
+        throw err('style:breaks-inert', `"${row.key}" is drawn as ${drawn === 'markers' ? 'markers' : `a ${drawn}`}, which has no line to break.`, { output: row.key })
+      }
+    }
     const look = () => ({ color: row.color, width: row.width, style: row.style, hidden: row.hidden,
-      lineStyle: row.lineStyle || 'solid' })
+      lineStyle: row.lineStyle || 'solid', ...(row.sparse === true ? { breaks: true } : {}) })
     const from = look()
     for (const f of ['color', 'width', 'style', 'hidden']) if (op[f] !== undefined) row[f] = op[f]
     if (op.hidden !== undefined) st.hiddenSet.add(row.key)
@@ -652,6 +698,10 @@ const OPS = {
     // plot stays byte-identical to one that never had a line style.
     if (op.lineStyle === 'solid') delete row.lineStyle
     else if (op.lineStyle !== undefined) row.lineStyle = op.lineStyle
+    // ⭐ ROW 42 — joined is the default and is written as NO field (`plots[].sparse`
+    // absent), the same rule: a line that never asked for breaks stays byte-identical.
+    if (op.breaks === true) row.sparse = true
+    else if (op.breaks === false) delete row.sparse
     st.touched.add(row.key)
     st.changes.push({ op: i, kind: 'style-set', output: row.key, from, to: look() })
   },
@@ -1069,7 +1119,7 @@ function finalChecks(st, input, gateCtx) {
       const c = g.conflicts[0]
       const what = c.output ? `"${c.output}"` : 'This indicator'
       throw err('authoring:opaque-conflict',
-        `${what} carries ${c.fields[0] === 'legend' ? 'legend settings' : `${c.fields.join('/')} settings`} imported in a form UCT Intelligence can't change yet, so that change was not made. You can still edit it manually.`,
+        `${what} carries ${c.fields[0] === 'legend' ? 'legend settings' : `${c.fields.join('/')} settings`} imported in a form the UCT Agent can't change yet, so that change was not made. You can still edit it manually.`,
         { output: c.output || undefined, paths: g.conflicts.map((x) => x.path) })
     }
     def = orderLike(input, g.doc)
@@ -1097,12 +1147,14 @@ function finalChecks(st, input, gateCtx) {
     if (!row) continue
     if (row.marker) {
       const v = presentationVerdict(def, key, { marker: row.marker }, gateCtx)
-      if (v.status === STATUS.REFUSED) throw err('marker:refused', `${key}: ${v.reason}`, { output: key })
+      // A refusal that is only "another symbol's bars have not arrived yet" is not final: the alert
+      // and header-value gates below already let it through, and the chart draws when they land.
+      if (v.status === STATUS.REFUSED && !v.pending) throw err('marker:refused', `${key}: ${v.reason}`, { output: key })
     }
     const own = (def.paints || []).filter((p, j) => j === ownPaintOf(def.paints, key, p.kind))
     if (own.length) {
       const v = presentationVerdict(def, key, { paints: own }, gateCtx)
-      if (v.status === STATUS.REFUSED) throw err('paint:refused', `${key}: ${v.reason}`, { output: key })
+      if (v.status === STATUS.REFUSED && !v.pending) throw err('paint:refused', `${key}: ${v.reason}`, { output: key })
     }
   }
 
@@ -1288,6 +1340,15 @@ function authoredTrees(ops) {
   return out
 }
 
+/**
+ * Who said a note. ⭐ 2026-11-18: the DOOR's own notes ("Built to UCT's checked formula ...", "as you
+ * chose before") arrive marked `by: "uct"` and are statements, not something the assistant assumed.
+ * Only the door can set the mark (it strips it from the assistant's answer), and it sends it only
+ * to a browser that said it accepts it.
+ */
+export const NOTE_BY_UCT = 'uct'
+const sourceOf = (a) => (a.by === NOTE_BY_UCT ? 'uct' : 'model')
+
 function checkAssumptions(patchAssumptions, def, authored = new Map()) {
   const all = parameterSlots(def)
   const slots = new Map(all.map((s) => [s.id, s]))
@@ -1315,9 +1376,9 @@ function checkAssumptions(patchAssumptions, def, authored = new Map()) {
       out.push({ slot: s.id, output: s.output, label: s.label, value: s.value, text: a.text, source: 'model' })
     } else if (a.output !== undefined) {
       if (!keys.has(a.output)) throw err('assumption:unknown-output', `The assumption names "${a.output}", which is not an output.`)
-      out.push({ output: a.output, text: a.text, source: 'model' })
+      out.push({ output: a.output, text: a.text, source: sourceOf(a) })
     } else {
-      out.push({ text: a.text, source: 'model' })
+      out.push({ text: a.text, source: sourceOf(a) })
     }
   }
   return out

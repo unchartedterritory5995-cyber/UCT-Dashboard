@@ -1,0 +1,26 @@
+//@version=2
+// PROVENANCE: written 2026-11-15 for the Pine parity programme (legacy semantics B3, G7 ytc bar 46).
+// Question: what does `high[k]` inside a USER FUNCTION read when the function is called only in an
+// `if` block? Three readings, each named by its column's value on a bar the block runs (every 3rd bar):
+//   EVERY BAR  high[k] is the chart's (a = high[2] of this bar)
+//   SKIP       the function's own copy of `high` advances only when it is called (a = high 6 bars back)
+//   CARRY      the copy advances every bar, repeating its last value on bars it is not called
+//              (a = high 3 bars back); this is the reading that explains ytc-swing-highs-lows bar 46.
+// Read A on the bars where T is 1. B is the same with `[1]` (SKIP and CARRY agree there: control).
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults. Copy of -v3 at //@version=2 (probe 15, the in-between versions).
+study("UCTPROBE_VW_FN_HISTORY_IN_IF_V2", overlay=false)
+f2() => high[2]
+f1() => high[1]
+t = cum(1) % 3 == 0
+a = 0.0
+b = 0.0
+if (t)
+    a := f2()
+    b := f1()
+plot(t ? 1 : 0, title="T")
+plot(a, title="A_f2_in_if")
+plot(b, title="B_f1_in_if")
+plot(high[2], title="C_high2_EVERY_BAR")
+plot(high[3], title="D_high3_CARRY")
+plot(high[6], title="E_high6_SKIP")
+plot(cum(1) - 1, title="BI")

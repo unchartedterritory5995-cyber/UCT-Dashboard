@@ -554,7 +554,7 @@ CONTROLS_JS = r"""(root) => {
     const b = el.getBoundingClientRect();
     const cur = el.getAttribute('aria-selected') === 'true' || (el.getAttribute('aria-current') && el.getAttribute('aria-current') !== 'false')
                 || (el.getAttribute('aria-pressed') === 'true' && !!el.closest('[role=group],[role=radiogroup],[role=tablist],[role=toolbar]'))
-                || (el.getAttribute('role') === 'radio' && el.getAttribute('aria-checked') === 'true');
+                || ((el.getAttribute('role') === 'radio' || el.getAttribute('role') === 'menuitemradio') && el.getAttribute('aria-checked') === 'true');
     out.push({key, nth: seen[key], tag: el.tagName, role, name, disabled, field, current: !!cur,
               type: el.getAttribute('type') || '', href: el.getAttribute('href') || '',
               target: el.getAttribute('target') || '', box: [Math.round(b.x), Math.round(b.y), Math.round(b.width), Math.round(b.height)]});
@@ -1342,27 +1342,48 @@ def press(pg, loc) -> None:
 
 # ── the surfaces: each opens itself from a fresh page and returns its root selector ──
 
+# S11 moved the view modes into the list's View menu ("View: List", a menu of radio rows named by the mode's short word);
+# simplify pass 2 (C1) put Graph and Timeline under that menu's "More views" row (its second view).
+MORE_VIEWS_MODES = ("Graph", "Timeline")
+
+
+def view_mode_doors(pg, view: str) -> list:
+    """The presses a member makes to switch the notes list to `view`, in order (each a locator)."""
+    menu = pg.get_by_role("menu", name="View")
+    doors = [pg.locator('[data-tour="view-switcher"]').filter(visible=True).first]
+    if view in MORE_VIEWS_MODES:
+        doors.append(menu.get_by_role("menuitem", name="More views", exact=True).first)
+    doors.append(menu.get_by_role("menuitemradio", name=view, exact=True).first)
+    return doors
+
+
 def s_list(W, pg, view: str | None = None) -> str:
     goto(W, pg, "/journal/notebook?view=all")
     root = mark_root(pg)
     pg.wait_for_timeout(1500)
     if view:
-        b = pg.get_by_role("button", name=f"{view} view", exact=True).filter(visible=True).first
-        press(pg, b)
-        pg.wait_for_timeout(1500)
+        for b in view_mode_doors(pg, view):
+            press(pg, b)
+            pg.wait_for_timeout(400)
+        pg.wait_for_timeout(1100)
     return root
+
+
+# Go-live wave 2: Research home's "Welcome to your Notebook" screen is gone; a member with no notes lands on the empty
+# notes list, whose own line is this one (NotebookTab.jsx empty state).
+EMPTY_LIST_LINE = "Your notebook is empty."
 
 
 def s_first_run(W, pg) -> str:
     goto(W, pg, "/journal/notebook")
     root = mark_root(pg)
-    pg.get_by_text("Welcome to your Notebook").filter(visible=True).first.wait_for(state="visible", timeout=15000)
+    pg.get_by_text(EMPTY_LIST_LINE, exact=True).filter(visible=True).first.wait_for(state="visible", timeout=15000)
     pg.wait_for_timeout(1500)
     return root
 
 
 def s_home(W, pg) -> str:
-    goto(W, pg, "/journal/notebook")
+    goto(W, pg, "/journal/notebook?view=today")
     root = mark_root(pg)
     pg.wait_for_timeout(2000)
     return root
@@ -1559,7 +1580,7 @@ def s_ed_export(W, pg) -> str:
 
 def s_ed_ask(W, pg) -> str:
     s_note(W, pg)
-    press(pg, pg.get_by_role("button", name="Ask this note").filter(visible=True).first)
+    press(pg, pg.get_by_role("button", name="Ask about this note").filter(visible=True).first)   # simplify pass 2 (A6)
     pg.get_by_test_id("ask-scope").first.wait_for(state="visible", timeout=8000)
     return mark_popup(pg.locator('[role="complementary"],[role="dialog"],[role="region"]').filter(
         has=pg.get_by_test_id("ask-scope")).last)
@@ -1691,7 +1712,8 @@ SURFACES = [
             sweeps=("geometry", "axe"), note="a new member's first visit: the tour auto-starts"),
     Surface("nb-first-run-clicks", s_first_run, account="fresh-new", sweeps=("deadclick",),
             note="the first-run screen's controls, a new member per reset (a click adds notes)"),
-    Surface("nb-home", s_home, manifest=("ResearchHome",)),
+    # go-live wave 2: Research home is gone; the "home" surface is the Daily brief (`?view=today`, TodayHome.jsx)
+    Surface("nb-home", s_home, manifest=("TodayHome",)),
     Surface("nb-list", s_list, manifest=("tab-list", "note-card-states", "folder-sidebar-edit"),
             modes=("desk", "phone")),
     Surface("nb-table", lambda W, pg: s_list(W, pg, "Table"), manifest=("tab-table",)),
@@ -3031,8 +3053,8 @@ WRITE_ACTIONS = (
     ("share-link", "ed-share", _act_create_link),
     ("trash-note", "ed-delete", _act_confirm_delete),
     ("new-folder", "nb-list", _act_new_folder),
-    ("new-note", "nb-list", _act_click("+ New note")),
-    ("daily-note", "nb-list", _act_click("Today")),
+    ("new-note", "nb-list", _act_click("+ New")),            # the list's button reads "+ New" (simplify Task 3)
+    ("daily-note", "nb-list", _act_click("Today's note")),    # the list's button (final fix C5: one word for it)
 )
 
 
@@ -3742,7 +3764,7 @@ def f_nested_tags(W, door):
 def f_view(name: str, sel: str):
     def f(W, door):
         pg = _list(W, door)
-        how = use(pg, door, btn(pg, f"{name} view"))
+        how = "; ".join(use(pg, door, b) for b in view_mode_doors(pg, name))
         ok = wait_true(lambda: pg.locator(sel).count() > 0, 8)
         must(ok, f"{name} view rendered nothing matching {sel}")
         return how
@@ -3817,9 +3839,9 @@ def f_split(W, door):
 
 def f_today(W, door):
     pg = _list(W, door)
-    how = use(pg, door, btn(pg, "Today"))
+    how = use(pg, door, btn(pg, "Today's note"))
     ok = wait_true(lambda: "note=" in pg.evaluate("() => location.search"), 10)
-    must(ok, "Today did not open a note")
+    must(ok, "Today's note did not open a note")
     return how
 
 
@@ -3978,7 +4000,7 @@ def f_writing_help(W, door):
 
 def f_ask(W, door):
     pg, nid = c_note(W, door)
-    how = use(pg, door, btn(pg, "Ask this note"))
+    how = use(pg, door, btn(pg, "Ask about this note"))   # simplify pass 2 (A6)
     ok = wait_true(lambda: pg.get_by_test_id("ask-scope").count() > 0, 6)
     must(ok, "the Ask panel did not open")
     raise NotDriven(how + "; the Ask panel opens with its scope -- no model key, so no answer (or insert) is observed")
@@ -4013,8 +4035,9 @@ def f_export(W, door):
     open_more_note_actions(pg)   # "Export" (G-169) lives in NoteMoreMenu at EVERY width
     how = use(pg, door, pg.get_by_role("button", name=re.compile(r"^Export$")).filter(visible=True).first)
     menu = pg.get_by_role("menu", name="Export this note as")
-    menu.wait_for(state="visible", timeout=5000)
-    item = menu.get_by_role("menuitem").filter(visible=True).first
+    # Simplify pass 2 (C3): the formats are the More panel's second view, from an on-demand chunk; its first row is Back.
+    menu.wait_for(state="visible", timeout=20000)
+    item = menu.locator('[role="menuitem"]:not([data-back])').filter(visible=True).first
     if door == "keyboard":
         if not item.evaluate("e => e === document.activeElement"):
             pg.keyboard.press("ArrowDown")
@@ -4052,8 +4075,10 @@ def f_first_run(W, door):
     pg, tap = W.page(acct, DOOR_MODE[door])
     goto(W, pg, "/journal/notebook")
     mark_root(pg)
-    pg.get_by_text("Welcome to your Notebook").filter(visible=True).first.wait_for(state="visible", timeout=15000)
-    tour = pg.get_by_role("dialog", name=re.compile("Welcome to your Notebook")).filter(visible=True).first
+    pg.get_by_text(EMPTY_LIST_LINE, exact=True).filter(visible=True).first.wait_for(state="visible", timeout=15000)
+    # the base tour's card, a modal dialog with "Skip tour" (its first step is "Folders and tags" since go-live wave 1
+    # removed the welcome step)
+    tour = pg.locator("[role=dialog][aria-modal=true]").filter(has=pg.get_by_role("button", name="Skip tour")).filter(visible=True).first
     tour_seen = _first_run_tour_seen(tour)
     skip = pg.get_by_role("button", name="Skip tour").filter(visible=True).first
     if tour_seen:
@@ -4064,7 +4089,15 @@ def f_first_run(W, door):
     if tour_seen and skip.count():
         use(pg, door, skip)
         pg.wait_for_timeout(600)
-    how = use(pg, door, btn(pg, "Add a sample notebook"))
+    # Final fix (C4): with the Get started card up its "Open the sample notebook" row is the one sample door; the
+    # standalone "Add a sample notebook" is drawn only without the card.
+    row = btn(pg, "Open the sample notebook")
+    try:
+        row.wait_for(state="visible", timeout=8000)
+        sample_btn = row
+    except Exception:  # noqa: BLE001 -- no card (switch off, hidden): the standalone button is the door
+        sample_btn = btn(pg, "Add a sample notebook")
+    how = use(pg, door, sample_btn)
     ok = wait_true(lambda: len(W.api(acct).get(W.base + "/api/j2/notes?limit=50").json().get("notes") or []) >= 5, 12)
     must(ok, "the sample notebook's notes did not arrive")
     return f"tour shown: {tour_seen}; Skip tour; " + how
@@ -4143,7 +4176,7 @@ def f_templates_picker(W, door):
 
 def f_graph_kb(W, door):
     pg = _list(W, door)
-    how = use(pg, door, btn(pg, "Graph view"))
+    how = "; ".join(use(pg, door, b) for b in view_mode_doors(pg, "Graph"))
     ok = wait_true(lambda: pg.locator('canvas[aria-label^="Note graph"]').count() > 0, 12)
     lst = pg.get_by_role("button", name=re.compile(r"show as list", re.I)).count()
     must(ok, "no graph canvas")

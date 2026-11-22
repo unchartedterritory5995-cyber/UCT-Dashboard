@@ -115,6 +115,70 @@ _CASES: dict[str, tuple[dict, dict]] = {
     "rsi_in_range": ({"rsi14": 55.0}, {"rsi14": 120.0}),
     "uct_composite_in_range": ({"uct_composite": 50}, {"uct_composite": 150}),
     "rs_rank_in_range": ({"rs_rank": 50}, {"rs_rank": -5}),
+    # UCT Relative Strength (Phase 2a, 2a-08) — the rating family's published
+    # scale and the three flag relations `relative_strength` builds by construction
+    "rs_rating_ibd_in_range": ({"rs_rating_ibd": 94}, {"rs_rating_ibd": 0}),
+    "rs_rating_1m_in_range": ({"rs_rating_1m": 50}, {"rs_rating_1m": 100}),
+    "rs_rating_3m_in_range": ({"rs_rating_3m": 1}, {"rs_rating_3m": 100}),
+    "rs_rating_6m_in_range": ({"rs_rating_6m": 50}, {"rs_rating_6m": 0}),
+    "rs_rating_9m_in_range": ({"rs_rating_9m": 50}, {"rs_rating_9m": 0}),
+    "rs_rating_12m_in_range": ({"rs_rating_12m": 99}, {"rs_rating_12m": -1}),
+    "rs_rating_chg_5_in_range": ({"rs_rating_chg_5": -6}, {"rs_rating_chg_5": 99}),
+    "rs_rating_chg_20_in_range": ({"rs_rating_chg_20": 98}, {"rs_rating_chg_20": -99}),
+    "rs_nh_before_price_implies_rs_new_high": (
+        {"rs_nh_before_price": 1, "rs_new_high": 1},
+        {"rs_nh_before_price": 1, "rs_new_high": 0}),
+    "rs_nh_red_day_implies_rs_new_high": (
+        {"rs_nh_red_day": 1, "rs_new_high": 1},
+        {"rs_nh_red_day": 1, "rs_new_high": 0}),
+    "rs_new_high_implies_age_zero": (
+        {"rs_new_high": 1, "rs_nh_bars_ago": 0},
+        {"rs_new_high": 1, "rs_nh_bars_ago": 3}),
+    # RS Exit Warnings: the newest warning is no older than any one of the three
+    "rs_exit_bars_ago_le_rs_quick_break_bars_ago": (
+        {"rs_exit_bars_ago": 1, "rs_quick_break_bars_ago": 1},
+        {"rs_exit_bars_ago": 4, "rs_quick_break_bars_ago": 2}),
+    "rs_exit_bars_ago_le_rs_quicksand_bars_ago": (
+        {"rs_exit_bars_ago": 1, "rs_quicksand_bars_ago": 3},
+        {"rs_exit_bars_ago": 4, "rs_quicksand_bars_ago": 0}),
+    "rs_exit_bars_ago_le_rs_dead_break_bars_ago": (
+        {"rs_exit_bars_ago": 0, "rs_dead_break_bars_ago": 0},
+        {"rs_exit_bars_ago": 9, "rs_dead_break_bars_ago": 8}),
+    # RS screens (U1): a place is never past the end of the list it is a place in
+    "rs_rating_pos_n_ge_rs_rating_pos": (
+        {"rs_rating_pos_n": 1931, "rs_rating_pos": 1931},
+        {"rs_rating_pos_n": 1931, "rs_rating_pos": 1932}),
+    # RS screens, the build's columns (unit U4)
+    "rs_nh_red_bars_ago_ge_rs_nh_bars_ago": (
+        {"rs_nh_red_bars_ago": 7, "rs_nh_bars_ago": 2},
+        {"rs_nh_red_bars_ago": 1, "rs_nh_bars_ago": 2}),
+    "rs_nhbp_age_is_rs_nh_bars_ago": (
+        {"rs_nhbp_age": 3, "rs_nh_bars_ago": 3},
+        {"rs_nhbp_age": 9, "rs_nh_bars_ago": 3}),
+    "rs_nh_span_implies_rs_new_high": (
+        {"rs_nh_span": 300, "rs_new_high": 1},
+        {"rs_nh_span": 300, "rs_new_high": 0}),
+    "rs_nh_count_20_within_its_window": (
+        {"rs_nh_count_20": 20},
+        {"rs_nh_count_20": 21}),
+    "px_below_high_pct_at_or_below_zero": (
+        {"px_below_high_pct": 0.0},
+        {"px_below_high_pct": 0.01}),
+    "rs_tight_is_tight_consolidation": (
+        {"rs_tight": 1, "tight_consolidation": 1},
+        {"rs_tight": 1, "tight_consolidation": 0}),
+    # RS screens, the weekly RS new high (unit U12)
+    "rs_nhbp_weekly_implies_rs_nh_weekly": (
+        {"rs_nhbp_weekly": 1, "rs_nh_weekly": 1},
+        {"rs_nhbp_weekly": 1, "rs_nh_weekly": 0}),
+    # RS screens, UCT RS Leaders' list (unit U12)
+    "rs_leaders_days_implies_member": (
+        {"rs_leaders_days": 12, "rs_leaders_member": 1},
+        {"rs_leaders_days": 12, "rs_leaders_member": 0}),
+    # Four cases left with their identities on 2026-11-14 (unit U4): the per-period
+    # places against `rs_rating_pos_n`. A period board now takes a liquid stock with
+    # under a year of history, so it can be longer than the overall count and the
+    # identity is no longer true (`identities.py` says so beside the one that stays).
 
     # size ───────────────────────────────────────────────────────────────
     "dollar_volume_is_price_times_volume": (

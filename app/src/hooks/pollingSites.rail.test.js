@@ -212,7 +212,9 @@ const BARE_POLL_SITES = {
   'app/src/components/AlertBell.jsx': 2,
   'app/src/components/NavBar.jsx': 3,
   'app/src/components/RsBadge.jsx': 1,
-  'app/src/components/StockChart.jsx': 2,
+  // P3-S0 (#1129) moved StockChart's two bar SWRs (the intraday tail / native poll and the custom-
+  // tf base poll) VERBATIM into chart/useLegacyChartBars.js; same two sites, same reason.
+  'app/src/components/chart/useLegacyChartBars.js': 2,
   'app/src/components/admin/AiSearchInsightsPanel.jsx': 2,
   'app/src/components/admin/CatalystRulesPanel.jsx': 1,
   'app/src/components/admin/CommunityReportsPanel.jsx': 1,
@@ -261,6 +263,20 @@ const BARE_POLL_SITES = {
   // zero — and the shrink-or-fail half of this rail is what forced these three to
   // be looked at rather than quietly left behind.
   'app/src/hooks/useConfluence.js': 1,
+  // ⭐ A THIRD POST-CENSUS ROW (2026-11-16, fix/master-red-rails): `useUserDefinitions.js` re-reads the
+  // member's definitions every 15 s ONLY while a row is "still being checked" (runtime capability
+  // admission), and 0 otherwise. Bare `useSWR`, decided, not defaulted:
+  //   • it is a PENDING-CHECK poll that stops itself when the check lands, the same kind as
+  //     EvidenceTab's job poll above: `useMobileSWR` doubling it would slow the very row a member
+  //     is waiting to see draw;
+  //   • this hook mounts on the CHART path (`StockChart` -> `useInstalledUserDefinitions`), so the
+  //     wrapper's per-call-site `useMarketOpen` 60 s timer and visibilitychange listener would be
+  //     paid once per chart on screen, for a check that has nothing to do with market hours;
+  //   • the call site sets `revalidateOnFocus: false` by hand, and the poll still pauses while the
+  //     app is hidden (the app-wide SWR `isVisible`).
+  // ⚠️ And it is NUMERIC now. It arrived (175273594f) as the function form, which SWR 2.4.0 reads once
+  // at mount, so a cold load never polled; `useUserDefinitions.pendingPoll.test.jsx` measures the reads.
+  'app/src/hooks/useUserDefinitions.js': 1,
   // ⭐ THE 2026-09-25 SWEEP — nine sites had accumulated undeclared and this rail
   // had been red in the full suite for it (it only runs there). Each was decided
   // the way the header asks, not rubber-stamped:
@@ -294,6 +310,11 @@ const BARE_POLL_SITES = {
   'app/src/components/tiles/MorningWireIndexes.jsx': 1,
   'app/src/components/tiles/UCT20Backtest.jsx': 1,
   'app/src/hooks/useAnalystIntel.js': 1,
+  // #2125 (Terminal currency-pair GP): useCryptoQuote's quote poll is bare useSWR ON PURPOSE. It
+  // passes revalidateOnFocus: false itself, so a pair's quote refreshes only on its own tick (the
+  // app-global choice), and SWR already skips ticks while the app is hidden. useMobileSWR would turn
+  // focus revalidation back on (fact 3 in the header).
+  'app/src/lib/cryptoPairs.js': 1,
   'app/src/hooks/useCallRecap.js': 1,
   'app/src/hooks/useCatalysts.js': 1,
   'app/src/hooks/useEarningsAudio.js': 1,
@@ -346,6 +367,20 @@ const BARE_POLL_SITES = {
   //   • measured, not assumed: `useTickerIpo.test.jsx` "asks again while non-final
   //     and stops once final" proves both the re-ask and the stop.
   'app/src/hooks/useTickerIpo.js': 1,
+  // ⭐ A POST-CENSUS ROW (ea3f9d222d, 2026-10-29, "a cold Today answers 202 warming"),
+  // recorded 2026-11-08 after it sat red on master. The same SELF-TERMINATING shape
+  // as `EvidenceTab.jsx` and `useTickerIpo.js` above, not a steady-state tick: The
+  // Desk → Archive's Today view polls `/api/wisdom/archive/rhymes` every 15 s ONLY
+  // while there is no answer yet or the server says `{status: "warming"}`, and returns
+  // 0 the moment the hits land.
+  //   • `useMobileSWR` doubling it would delay the first answer a member is sitting
+  //     on "matching…" for, on a poll that lives through one cold compute after a
+  //     deploy — a cost on the phone, not a saving;
+  //   • the wrapper's `useMarketOpen` 60 s timer is unrelated to a background
+  //     compute, and the call site already sets `revalidateOnFocus: false` by hand;
+  //   • measured, not assumed: `TodayRhymes.test.jsx` "a 202 "warming" answer says
+  //     so and checks back until the hits land, then stops" proves both halves.
+  'app/src/pages/traderArchive/TodayRhymes.jsx': 1,
   // ⚠️ 1 → 2 ON 2026-09-20, and it is the SAME decision this row already recorded,
   // not a new one. The hook grew a second branch: a list longer than
   // `snapshot-batch`'s 100-ticker cap reads `/api/watchlists/bulk-meta` instead —
@@ -459,6 +494,11 @@ const BARE_POLL_SITES = {
   'app/src/pages/terminal/panels/BreakoutPanel.jsx': 1,
   'app/src/pages/terminal/panels/marketRead.js': 1,
   'app/src/pages/terminal/panels/TwtPanel.jsx': 1,
+  // ⭐ UNVOL (#1832, 2026-11-18): the same terminal-panel decision, one site (`useScan`, three calls).
+  // 60 s only while the by-now reading is live and moving (`unvolIsMoving`), else 5 min, and the
+  // empty-pick probe and the last-session read tick at 5 min. It sets `revalidateOnFocus: false`
+  // itself, which is the half of the trade the wrapper would undo.
+  'app/src/pages/terminal/panels/UnusualVolumePanel.jsx': 1,
   'app/src/pages/terminal/panels/WatchlistPanel.jsx': 3,
 }
 

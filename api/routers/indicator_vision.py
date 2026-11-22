@@ -58,9 +58,10 @@ router = APIRouter(prefix="/api/indicator-vision", tags=["indicator-vision"])
 # produced by the wrong mechanism, which is this branch's most expensive defect
 # class. Different door, different name, different number, its own sentence.
 #
-# ⚠️ PER-PROCESS, AND THAT IS A REAL LIMIT — the same declared assumption as the
-# concierge's counter. The web pod is one uvicorn process, so this is exact today
-# and becomes per-instance the day web scales out.
+# ⚠️ THIS WINDOW IS PER-PROCESS AND ONLY THE FAST REFUSAL. The bound that holds is
+# the same number enforced on the shared ledger, per member, inside the reservation
+# (`cost_guard.reserve_member_call`): a restart empties `_calls` and does not empty
+# the ledger.
 VISION_MAX_PER_HOUR = int(os.environ.get("INDICATOR_VISION_MAX_PER_HOUR", "10"))
 _WINDOW_SECONDS = 3600
 _calls: dict[str, list[float]] = {}
@@ -200,6 +201,7 @@ def candidates_from_screenshot(
         user_id=user["id"],
         bars=parsed_bars,
         note=note,
+        max_per_hour=VISION_MAX_PER_HOUR,
     )
     # ⭐ Phase One Track C. Never logs the image bytes or `note` — see
     # indicator_telemetry.py's module docstring. `success` reads `ok` the same
@@ -208,6 +210,14 @@ def candidates_from_screenshot(
     telemetry.log_event(user["id"], "compile_finished", import_id=import_id,
                         dialect="screenshot", success=bool(result.get("ok")),
                         stage="compile", gate=result.get("gate"))
+    if result.get("gate") == "vision:hourly":
+        retry_after = int(result.get("retry_after") or _WINDOW_SECONDS)
+        raise HTTPException(
+            status_code=429,
+            detail=f"At most {VISION_MAX_PER_HOUR} indicator screenshots per "
+                   f"hour. Try again in {retry_after}s.",
+            headers={"Retry-After": str(retry_after)},
+        )
     result = dict(result)
     result["import_id"] = import_id
     return result

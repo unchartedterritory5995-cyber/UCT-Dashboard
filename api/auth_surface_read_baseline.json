@@ -21,10 +21,23 @@
   },
   {
    "method": "GET",
+   "path": "/api/admin/bars/regraft-status",
+   "kind": "inline",
+   "marker": "_check_admin_auth",
+   "reason": "Gated INLINE in the handler body by _check_admin_auth (not a Depends), module api.routers.bars: the deep re-graft job status (api/services/bars_regraft.py), 2026-11-21."
+  },
+  {
+   "method": "GET",
    "path": "/api/admin/threads-dump",
    "kind": "inline",
    "marker": "_require_push_secret",
    "reason": "Gated INLINE in the handler body by _require_push_secret (not a Depends), module api.debug_dump_router."
+  },
+  {
+   "method": "GET",
+   "path": "/api/brand/massive-card-logo.png",
+   "kind": "public",
+   "reason": "Recorded 2026-11-18 (security-census triage): one static 256px PNG from app/public, the Massive Discord cards' author icon. Discord's media proxy fetches an embed's icon_url anonymously, so it must answer without a session (ecb22ce7f0, 2026-11-02). A fixed file, no member or vendor data; exempt from the rate limiter by its exact path (api/rate_limit_policy.py)."
   },
   {
    "method": "GET",
@@ -99,6 +112,13 @@
    "path": "/api/calendar/report.ics",
    "kind": "public",
    "reason": "One earnings report as an 'Add to calendar' event; the handler's own docstring says 'No auth, no token -- it's a single public event the user already sees.'"
+  },
+  {
+   "method": "GET",
+   "path": "/api/catalysts/pending-deals-internal",
+   "kind": "inline",
+   "marker": "PUSH_SECRET",
+   "reason": "Gated INLINE in the handler body by the PUSH_SECRET bearer (not a Depends), module api.routers.catalysts; the same shape as /api/catalysts/today-internal. Server-to-server read of the pending-acquisition symbols for the PC pipelines (8bab3638ca, 2026-10-23). Recorded 2026-11-18 (security-census triage): a blank or wrong bearer answers 401 before anything is read."
   },
   {
    "method": "GET",
@@ -528,12 +548,6 @@
   },
   {
    "method": "GET",
-   "path": "/api/schwab/callback",
-   "kind": "public",
-   "reason": "OAuth redirect target: reached from the provider before any session exists."
-  },
-  {
-   "method": "GET",
    "path": "/api/screener/shared/{share_token}",
    "kind": "public",
    "reason": "Screener share link: the token is the access decision."
@@ -594,6 +608,12 @@
    "kind": "inline",
    "marker": "PUSH_SECRET",
    "reason": "Gated INLINE in the handler body by PUSH_SECRET (not a Depends), module api.routers.wire_feedback."
+  },
+  {
+   "method": "GET",
+   "path": "/build.json",
+   "kind": "public",
+   "reason": "Recorded 2026-11-18 (security-census triage): the frontend's identity, {build_id, commit} -- the hashed entry-chunk name every page already loads and the deployed commit SHA of this public repo. Polled by every open tab's update watcher, signed in or not (7672178ae9, 2026-11-13). No member data; no-store."
   },
   {
    "method": "GET",

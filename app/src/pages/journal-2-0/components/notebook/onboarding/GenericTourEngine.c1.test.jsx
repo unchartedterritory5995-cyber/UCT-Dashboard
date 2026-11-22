@@ -99,13 +99,17 @@ describe('(c) the step list is re-evaluated on every Next', () => {
   it('a step whose anchor appears AFTER the tour opened is shown, not dropped', async () => {
     render(<Page />)
     await card('c-behind door')
-    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+    // S5 (B6), fix round 1: the list is fixed when the tour opens and the total NEVER changes. The
+    // panel is not in the page then and no step waits for it, so it is not counted; when the tour
+    // lands on it anyway it shows as an extra step, never by raising the total.
+    expect(screen.getByText('Step 1 of 1')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     // the panel opens while Next is waiting (a click outside the modal card's layer, as the
     // page's own code would do it)
     act(() => { screen.getByTestId('open-panel-now').click() })
     expect(await card('c-behind panel')).toBeInTheDocument()
-    expect(screen.getByText('Step 2 of 2')).toBeInTheDocument()
+    expect(screen.getByText('Extra step')).toBeInTheDocument()
+    expect(screen.queryByText(/of 2$/)).toBeNull()
     await waitFor(() => expect(toursWrites('c-behind').map((w) => w.step)).toEqual(['door', 'panel']))
   })
 
@@ -336,7 +340,7 @@ describe('(b) an in-note start opens a suitable note, never creates one', () => 
     )
     const d = await card('This walkthrough runs inside a note')
     expect(d).toHaveTextContent('You do not have a note it can open yet')
-    expect(d).toHaveTextContent('start it again from Learn')
+    expect(d).toHaveTextContent('start it again from Walkthroughs on the Support page')   // fix round 1 (4h): Learn is gone
     expect(screen.queryByRole('button', { name: 'Add the sample notebook' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Go to the Notebook' }))
     expect(onClose).toHaveBeenCalledTimes(1)

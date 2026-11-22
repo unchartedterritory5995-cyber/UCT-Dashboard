@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Library Review</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Source+Sans+3:wght@400;600;700&display=swap">
+<style>
+/* One question on the screen, three big buttons. Nothing else competes with them. */
+:root {
+  --bg: #101216; --panel: #171a20; --panel2: #1d2128; --line: #2a2f38; --fg: #ebe9e2; --mute: #9aa0aa;
+  --gold: #e9cd77; --good: #3fbf7a; --warn: #e3a64a; --bad: #e5585a; --focus: #f5e29a;
+  --display: 'Fraunces', Georgia, serif; --body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) {
+  --bg: #f4f2ea; --panel: #ffffff; --panel2: #f0ede2; --line: #d8d3c4; --fg: #1b1d22; --mute: #5b6068;
+  --gold: #8a6a12; --good: #1b8a4f; --warn: #9a6200; --bad: #b8323a; --focus: #8a6a12; color-scheme: light; } }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 18px; line-height: 1.5; }
+button, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.wrap { max-width: 780px; margin: 0 auto; padding: 14px 18px 40px; }
+.top { display: flex; align-items: center; gap: 12px; padding-bottom: 10px; }
+.top h1 { font: 700 20px var(--display); margin: 0; flex: 1; }
+.progress { font-size: 15px; color: var(--mute); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.progress b { color: var(--fg); }
+.saved { font-size: 14px; color: var(--good); min-width: 70px; text-align: right; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; background: var(--panel2); border-radius: 12px; padding: 4px; }
+#tab3 { order: 1; } #tab4 { order: 2; } #tab1 { order: 3; } #tab2 { order: 4; }
+.tab { min-height: 46px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--mute); font: 600 15px var(--body); cursor: pointer; padding: 4px 8px; line-height: 1.2; }
+.tab small { display: block; font: 400 12px var(--body); }
+.tab.on { background: var(--panel); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.25); border-color: var(--line); }
+.saved.err { color: var(--bad); font-weight: 700; }
+.menubtn { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 44px; padding: 0 14px; cursor: pointer; font-weight: 700; }
+.bar { height: 8px; background: var(--panel2); border-radius: 5px; margin: 12px 0 6px; overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; transition: width .25s; }
+.bar .k { background: var(--good); } .bar .f { background: var(--warn); } .bar .c { background: var(--bad); }
+.prog { margin-bottom: 16px; }
+.banner { background: var(--panel2); border: 2px solid var(--bad); color: var(--bad); border-radius: 12px; padding: 12px 14px; font-weight: 600; margin-bottom: 14px; }
+.where { color: var(--mute); font-size: 15px; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.chip { display: inline-block; border: 1px solid var(--line); background: var(--panel2); border-radius: 999px; padding: 0 10px; font-size: 13px; font-weight: 600; color: var(--mute); }
+.lab { font: 700 12px var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--mute); margin: 0 0 6px; }
+.lab.now { color: var(--gold); }
+.was { border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px 4px; margin: 0 0 14px; background: color-mix(in srgb, var(--panel2) 60%, transparent); opacity: .92; }
+.was .q { font-size: 18px; margin: 0 0 8px; } .was .story { margin-bottom: 8px; }
+.was .choices li { padding: 7px 12px; font-size: 16px; background: transparent; }
+.was .choices li.right { border-width: 1px; }
+.was .fill { font-size: 17px; }
+.new { display: inline-block; font: 700 11px var(--body); text-transform: uppercase; letter-spacing: .06em; color: var(--gold); border: 1px solid var(--gold); border-radius: 999px; padding: 0 7px; margin-left: 8px; vertical-align: middle; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chipbtn { min-height: 40px; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 0 14px; cursor: pointer; font-size: 15px; }
+.chipbtn:hover { border-color: var(--gold); }
+.srcfirst { margin: 0 0 10px; font-size: 15px; color: var(--mute); }
+.srcfirst q { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; quotes: none; color: var(--fg); border-left: 3px solid var(--gold); padding-left: 10px; font-style: italic; }
+.srcfirst small { display: block; margin: 3px 0 0 13px; }
+.keys { color: var(--mute); font-size: 13px; text-align: center; margin: 6px 0 0; }
+@media (hover: none) { .keys, .act small.kh { display: none; } }
+.flag { background: var(--panel2); border: 2px solid var(--warn); border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; }
+.flag b { color: var(--warn); }
+.fyi { color: var(--mute); font-size: 15px; margin: 0 0 12px; }
+.story { background: var(--panel2); border-radius: 10px; padding: 12px 14px; margin: 0 0 12px; }
+.q { font: 600 clamp(22px, 3.4vw, 28px)/1.3 var(--display); margin: 0 0 16px; text-wrap: pretty; }
+.choices { list-style: none; margin: 0 0 16px; padding: 0; display: grid; gap: 8px; }
+.choices li { display: grid; grid-template-columns: 48px 1fr; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; background: var(--panel); }
+.choices .L { color: var(--mute); font-weight: 700; }
+.choices li.right { border: 2px solid var(--good); background: color-mix(in srgb, var(--good) 14%, var(--panel)); }
+.choices li.right .L { color: var(--good); }
+.fill { font-size: 22px; margin: 0 0 16px; } .fill mark { background: color-mix(in srgb, var(--good) 25%, transparent); color: var(--fg); padding: 0 6px; border-radius: 6px; border-bottom: 2px solid var(--good); }
+.answerbox { display: inline-block; border: 2px solid var(--good); border-radius: 10px; padding: 8px 16px; font: 700 24px var(--display); margin: 0 0 16px; }
+.why { margin: 0 0 12px; } .why b { color: var(--gold); }
+details { margin: 0 0 10px; color: var(--mute); font-size: 16px; }
+details summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+details p, details div { margin: 6px 0; }
+.src q { display: block; quotes: none; color: var(--fg); border-left: 3px solid var(--line); padding-left: 10px; }
+.src small { color: var(--mute); }
+.actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 22px 0 8px; position: sticky; bottom: 0; background: linear-gradient(transparent, var(--bg) 22%); padding: 22px 0 10px; }
+.act { min-height: 72px; border-radius: 14px; border: 2px solid var(--line); background: var(--panel); cursor: pointer; font: 700 19px var(--body); display: grid; place-items: center; padding: 6px; }
+.act small { display: block; font: 400 13px var(--body); color: var(--mute); }
+.act.good { border-color: var(--good); } .act.change { border-color: var(--warn); } .act.remove { border-color: var(--bad); }
+.act.good:hover { background: var(--good); color: #04140b; } .act.change:hover { background: var(--warn); color: #1c1100; } .act.remove:hover { background: var(--bad); color: #1f0506; }
+.act.on.good { background: var(--good); color: #04140b; } .act.on.change { background: var(--warn); color: #1c1100; } .act.on.remove { background: var(--bad); color: #1f0506; }
+.act.suggest::after { content: "★ Claude suggests"; display: block; font: 600 12px var(--body); margin-top: 2px; }
+.act:hover small, .act.on small { color: inherit; }
+.noteBox { margin: 18px 0 8px; display: grid; gap: 10px; }
+.noteBox label { font-weight: 700; }
+.noteBox textarea { width: 100%; min-height: 110px; background: var(--panel); border: 2px solid var(--gold); border-radius: 12px; padding: 12px; }
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.primary { min-height: 56px; padding: 0 26px; border-radius: 12px; border: 0; background: var(--gold); color: #1a1405; font: 700 18px var(--body); cursor: pointer; }
+.plain { background: none; border: 0; color: var(--mute); cursor: pointer; font-size: 16px; min-height: 44px; padding: 0 10px; text-decoration: underline; }
+.nav { display: flex; justify-content: space-between; align-items: center; }
+.said { color: var(--mute); font-size: 15px; }
+.done { text-align: center; padding: 40px 10px; } .done h2 { font: 700 28px var(--display); margin: 0 0 10px; }
+.overlay { position: fixed; inset: 0; background: var(--bg); z-index: 50; overflow: auto; }
+.panel { max-width: 640px; margin: 0 auto; padding: 18px; display: grid; gap: 14px; }
+.panel h2 { font: 700 24px var(--display); margin: 0; }
+.big { min-height: 60px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; font: 700 17px var(--body); text-align: left; padding: 8px 16px; }
+.big small { display: block; font: 400 14px var(--body); color: var(--mute); }
+.panel select { width: 100%; min-height: 52px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; }
+.list { display: grid; gap: 8px; }
+.item { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; cursor: pointer; }
+.item .t { font-weight: 700; } .item .n { color: var(--mute); font-size: 15px; }
+.tag { display: inline-block; font: 700 12px var(--body); border-radius: 999px; padding: 1px 9px; margin-right: 6px; }
+.tag.fix { background: var(--warn); color: #1c1100; } .tag.cut { background: var(--bad); color: #1f0506; }
+.mono { font-family: Consolas, monospace; font-size: 14px; color: var(--mute); word-break: break-all; }
+@media (max-width: 560px) { body { font-size: 17px; } .act { font-size: 16px; min-height: 64px; } .progress { font-size: 14px; } .wrap { padding: 10px 14px 28px; } .tab { font-size: 14px; } .choices li { grid-template-columns: 38px 1fr; padding: 10px 12px; } }
+.chipbtn.on { background: var(--gold); color: #1a1405; border-color: var(--gold); font-weight: 700; }
+.guide { background: var(--panel2); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 12px; padding: 12px 14px; margin: 0 0 14px; font-size: 16px; }
+.guide ol { margin: 6px 0 10px 18px; padding: 0; } .guide li { margin: 3px 0; }
+.rule { border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 12px; padding: 12px 14px 12px; margin: 14px 0; background: var(--panel); }
+.rule .rtext { margin: 2px 0 8px; font-weight: 600; font-size: 17px; }
+.rmeta { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; font-size: 14px; color: var(--mute); margin-bottom: 8px; }
+.st { display: inline-block; font: 700 12px var(--body); border-radius: 999px; padding: 1px 10px; border: 1px solid currentColor; }
+.st.settled { color: var(--good); } .st.proposed { color: var(--warn); } .st.pending-owner { color: var(--bad); }
+.rbtns { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.rbtn { min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); cursor: pointer; font-weight: 600; font-size: 15px; }
+.rbtn.on.ok { background: var(--good); color: #04140b; border-color: var(--good); } .rbtn.on.bad { background: var(--warn); color: #1c1100; border-color: var(--warn); }
+.flag.mild { border-color: var(--line); } .flag.mild b { color: var(--gold); }
+.dp { margin: 0 0 10px; } .dp.deflt { border: 2px solid var(--gold); border-radius: 12px; padding: 10px 14px; background: color-mix(in srgb, var(--gold) 12%, var(--panel)); }
+.dp.dmeta { color: var(--mute); font-size: 15px; }
+.tw { overflow-x: auto; margin: 0 0 10px; } .tw table { border-collapse: collapse; font-size: 15px; } .tw td, .tw th { border: 1px solid var(--line); padding: 4px 8px; text-align: left; vertical-align: top; }
+.dl { margin: 0 0 10px; padding-left: 22px; } code { font-family: Consolas, monospace; font-size: .9em; background: var(--panel2); padding: 0 4px; border-radius: 4px; }
+.act.ask { border-color: var(--gold); } .act.ask:hover, .act.on.ask { background: var(--gold); color: #1a1405; }
+.rl { padding: 7px 0; border-top: 1px solid var(--line); font-size: 15px; color: var(--mute); } .rl b { color: var(--fg); }
+.sm { font-size: 14px; min-height: 32px; padding: 0 4px; }
+.tagrow { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }
+.tagc { border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; font-size: 14px; background: var(--panel); }
+.tagc b { color: var(--gold); }
+.fbh { font: 700 18px var(--display); margin: 14px 0 6px; }
+.item .tg { display: block; color: var(--gold); font-size: 13px; font-weight: 700; margin-top: 2px; }
+.cnt { color: var(--mute); font-size: 15px; margin: 0; }
+@media (max-width: 560px) { .tabs { grid-template-columns: 1fr 1fr; } .tab { font-size: 13px; padding: 4px 4px; } .tab small { font-size: 11px; } }
+.ab { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 12px; font-size: 15px; color: var(--mute); }
+.abbtn { min-height: 40px; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 0 14px; cursor: pointer; font-size: 15px; }
+.abbtn.on { background: var(--gold); color: #1a1405; border-color: var(--gold); font-weight: 700; }
+.lsrow { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; cursor: pointer; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.lsrow .t { font-weight: 700; } .lsrow .n { color: var(--mute); font-size: 14px; }
+.stat { display: inline-block; font: 700 12px var(--body); border-radius: 999px; padding: 1px 10px; border: 1px solid currentColor; white-space: nowrap; }
+.stat.ok { color: var(--good); } .stat.wip { color: var(--gold); } .stat.bad { color: var(--bad); } .stat.idle { color: var(--mute); }
+.simpleline { margin: 0 0 10px; padding: 8px 12px; border-left: 4px solid var(--gold); background: var(--panel2); border-radius: 0 10px 10px 0; font-weight: 600; }
+</style></head><body>
+<div class="wrap">
+  <div class="top">
+    <h1>Library Review</h1>
+    <span class="saved" id="saved"></span>
+    <button class="menubtn" id="menuBtn" type="button">Menu</button>
+  </div>
+  <div class="tabs" role="group" aria-label="Which part">
+    <button class="tab" id="tab1" type="button"></button>
+    <button class="tab" id="tab2" type="button"></button>
+    <button class="tab" id="tab3" type="button"></button>
+    <button class="tab" id="tab4" type="button"></button>
+  </div>
+  <div class="prog">
+    <div class="bar" aria-hidden="true"><i class="k" id="barK"></i><i class="f" id="barF"></i><i class="c" id="barC"></i></div>
+    <div class="progress" id="progress" aria-live="polite"></div>
+  </div>
+  <div class="banner" id="saveBanner" hidden></div>
+  <main id="main"><p class="where">Loading…</p></main>
+</div>
+<div class="overlay" id="overlay" hidden><div class="panel" id="panel"></div></div>
+
+<script>
+(function () {
+  'use strict';
+  var S = { idx: null, bySlug: {}, ofId: {}, calls: {}, reviews: {}, data: {}, qById: {}, loads: {},
+            stage: 1, queue: [], pos: 0, noteFor: null, file: '', queueOut: [], flushing: false, fails: 0, times: [], rules: {}, decs: [], decById: {}, sideNote: null, noteTags: [], _tagsFor: null, curRule: null };
+  var VLABEL = { keep: 'Good as is', fix: 'Change it', cut: 'Remove it' };
+  var REASONS_FIX = ['Simple answer is not simple', 'Full answer is missing something', 'Fourth answer is too obvious', 'Fourth answer could also be right', 'The right answer is wrong', 'Two answers could be right', 'A wrong answer is obviously wrong', 'Confusing wording', 'Does not match my rules', 'Out of date', 'Too easy', 'Too hard'];
+  var REASONS_CUT = ['Repeats another question', 'Not worth teaching', 'Wrong or unsafe', 'Does not match my rules'];
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  function lsGet(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  function cap(t) { t = String(t || ''); return t.charAt(0).toUpperCase() + t.slice(1); }
+  function nf(n) { return Number(n).toLocaleString('en-US'); }
+
+  // ── saving: every decision goes to the local program, which writes it to a file on this computer ──────────────
+  var QKEY = 'libreview2.queue';
+  S.queueOut = lsGet(QKEY, []);
+  function setSaved(msg, err) { var el = $('saved'); el.textContent = msg || ''; el.className = 'saved' + (err ? ' err' : ''); }
+  function renderBanner() {
+    var el = $('saveBanner');
+    if (S.queueOut.length && S.fails > 0) {
+      el.hidden = false;
+      el.textContent = 'NOT SAVED YET. ' + S.queueOut.length + ' decision(s) are waiting because the review program is not answering. Do not close this tab. If the black window was closed, double-click Start Library Review again and come back here. This page keeps trying.';
+    } else { el.hidden = true; }
+  }
+  function persistRec(item) {
+    item.tags = item.tags || [];
+    S.reviews[item.id] = { v: item.v, note: item.note || '', tags: item.tags, kind: item.kind, unit: item.unit, key: item.key, q: item.q, at: new Date().toISOString() };
+    S.queueOut = S.queueOut.filter(function (x) { return x.id !== item.id; }); S.queueOut.push(item); lsSet(QKEY, S.queueOut);
+    setSaved('Saving…'); flush();
+  }
+  function flush() {
+    if (S.flushing) return;
+    if (!S.queueOut.length) { renderBanner(); return; }
+    S.flushing = true; var item = S.queueOut[0];
+    fetch('api/verdict', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) })
+      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(function () {
+        S.queueOut = S.queueOut.filter(function (x) { return x !== item; }); lsSet(QKEY, S.queueOut);
+        S.flushing = false; S.fails = 0;
+        if (S.queueOut.length) flush(); else { setSaved('Saved ✓'); renderBanner(); }
+      })
+      .catch(function () { S.flushing = false; S.fails++; setSaved('Not saved', true); renderBanner(); setTimeout(flush, 3000); });
+  }
+  window.addEventListener('beforeunload', function (e) { if (S.queueOut.length) { e.preventDefault(); e.returnValue = ''; } });
+
+  // ── data ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  function loadTrack(track) {
+    if (S.loads[track]) return S.loads[track];
+    S.loads[track] = fetch('data/track-' + track + '.json').then(function (r) { if (!r.ok) throw new Error('x'); return r.json(); })
+      .then(function (all) {
+        Object.keys(all).forEach(function (u) { all[u].questions.forEach(function (q, i) { q._i = i + 1; q._n = all[u].questions.length; S.qById[q.id] = q; }); S.data[u] = all[u]; });
+      }, function (e) { S.loads[track] = null; throw e; });
+    return S.loads[track];
+  }
+  function ensure(id) { return S.qById[id] ? Promise.resolve() : loadTrack(S.ofId[id].track); }
+  function prefetchNext() { var n = S.queue[S.pos + 3]; if (n && !S.qById[n]) loadTrack(S.ofId[n].track).catch(function () {}); }
+
+  function budget() { var b = Number(lsGet('libreview3.budget', 150)); return b > 0 ? b : 150; }
+  function todayCount() {
+    var day = new Date().toDateString(), n = 0;
+    Object.keys(S.reviews).forEach(function (id) { var r = S.reviews[id]; if (r && r.v && r.at && S.ofId[id] && new Date(r.at).toDateString() === day) n++; });
+    return n;
+  }
+  function decided(id) { var r = S.reviews[id]; return !!(r && r.v); }
+  // ── Part 4: the sample review (docs/study/OVERBUILD_PLAN.md section 7) ─────────────────────────────────────────
+  var SAMPLE_FIRST = 5, SAMPLE_WIDE = 10;      // owner 2026-11-12: 5 per lesson; one defect widens it to 15
+  function isUp(id) { var c = S.calls[id]; return !!(c && /Upgraded/.test(c.r || '')); }
+  function hash(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function unitSample(u) {
+    var ups = u.ids.filter(isUp).sort(function (a, b) { return hash(a) - hash(b); });
+    var first = ups.slice(0, SAMPLE_FIRST).sort(function (a, b) { return ((S.calls[b].rk || 0) - (S.calls[a].rk || 0)) || (hash(a) - hash(b)); });
+    var firstDone = first.filter(decided), firstDefects = firstDone.filter(function (id) { return S.reviews[id].v !== 'keep'; }).length;
+    var wide = [], status = 'idle', label = 'not started';
+    if (!ups.length) { status = 'idle'; label = 'nothing upgraded yet'; }
+    else if (firstDone.length < first.length) { status = firstDone.length ? 'wip' : 'idle'; label = firstDone.length ? 'sampling' : 'not started'; }
+    else if (firstDefects === 0) { status = 'ok'; label = 'approved; the rest is machine-approved'; }
+    else if (firstDefects >= 3) { status = 'bad'; label = 'back to the pipeline'; }
+    else {
+      wide = ups.slice(SAMPLE_FIRST, SAMPLE_FIRST + SAMPLE_WIDE);
+      var wd = wide.filter(decided), wdef = wd.filter(function (id) { return S.reviews[id].v !== 'keep'; }).length;
+      if (wd.length < wide.length) { status = 'wip'; label = 'widened to ' + (first.length + wide.length) + ' (' + firstDefects + ' defect found)'; }
+      else if (firstDefects + wdef >= 3) { status = 'bad'; label = 'back to the pipeline'; }
+      else { status = 'ok'; label = 'approved after fixes'; }
+    }
+    return { ups: ups.length, first: first, wide: wide, status: status, label: label, done: firstDone.length + wide.filter(decided).length, total: first.length + wide.length };
+  }
+  // owner 2026-11-14: the sample review goes core first (setups, risk, orders, process...), options last
+  var TRACK_ORDER = ['SET', 'F9', 'F10', 'F10b', 'F12', 'F8', 'F11', 'F1', 'F5', 'V', 'F7', 'F6'];
+  function orderedUnits() { return S.idx.units.slice().sort(function (a, b) { var ra = TRACK_ORDER.indexOf(a.track), rb = TRACK_ORDER.indexOf(b.track); return (ra < 0 ? 99 : ra) - (rb < 0 ? 99 : rb); }); }
+  function buildQueue(stage) {
+    if (stage === 3) return S.decs.map(function (d) { return 'dec:' + d.id; });
+    if (stage === 4) { var q4 = []; orderedUnits().forEach(function (u) { var sm = unitSample(u); q4 = q4.concat(sm.first, sm.wide); }); return q4; }
+    var ids = [];
+    S.idx.units.forEach(function (u) { u.ids.forEach(function (id) { if (stage === 2 || (S.calls[id] && S.calls[id].c === 'look')) ids.push(id); }); });
+    return ids;
+  }
+  function firstUndecided(queue) { for (var i = 0; i < queue.length; i++) if (!decided(queue[i])) return i; return -1; }
+  function setStage(stage, pos) {
+    S.stage = stage; S.queue = buildQueue(stage); S.noteFor = null; S.pause = false; S.chunk = 0;
+    var p = pos != null ? pos : firstUndecided(S.queue);
+    S.pos = p < 0 ? S.queue.length : p;
+    lsSet('libreview2.stage', stage);
+    render();
+  }
+  function counts() {
+    var tot = 0, d = 0, k = 0, f = 0, c = 0;
+    S.idx.units.forEach(function (u) { tot += u.n; });
+    Object.keys(S.reviews).forEach(function (id) { var r = S.reviews[id]; if (r && r.v && S.ofId[id]) { d++; if (r.v === 'keep') k++; else if (r.v === 'fix') f++; else c++; } });
+    return { tot: tot, done: d, keep: k, fix: f, cut: c };
+  }
+
+  // ── what you see ─────────────────────────────────────────────────────────────────────────────────────────────
+  function paceLeft(remaining) {
+    var t = S.times, gaps = [];
+    for (var i = 1; i < t.length; i++) { var g = (t[i] - t[i - 1]) / 1000; if (g > 0.5 && g < 180) gaps.push(g); }
+    if (gaps.length < 5 || !remaining) return '';
+    gaps = gaps.slice(-30).sort(function (a, b) { return a - b; });
+    var sec = gaps[Math.floor(gaps.length / 2)] * remaining, min = Math.round(sec / 60);
+    if (min < 1) return 'about a minute left';
+    if (min < 90) return 'about ' + min + ' min left at your pace';
+    return 'about ' + (Math.round(min / 6) / 10) + ' hours left at your pace';
+  }
+  var STAGE_NAME = { 1: 'Optional · changed or doubted', 2: 'Optional · every question', 3: 'Step 1 · decisions', 4: 'Step 2 · sample review' };
+  function tabLabel(stage) {
+    var q = buildQueue(stage), d = 0; q.forEach(function (id) { if (decided(id)) d++; });
+    return STAGE_NAME[stage] + '<small>' + (d >= q.length && q.length ? '✓ finished' : nf(d) + ' of ' + nf(q.length) + ' done') + '</small>';
+  }
+  function renderProgress() {
+    var n = S.queue.length, k = 0, f = 0, c = 0;
+    S.queue.forEach(function (id) { var r = S.reviews[id]; if (r && r.v) { if (r.v === 'keep') k++; else if (r.v === 'fix') f++; else c++; } });
+    var L = S.stage === 3 ? ['agree', 'change', 'talk about'] : ['good', 'change', 'remove'];
+    var qd = k + f + c, left = paceLeft(n - qd);
+    $('progress').innerHTML = '<span><b>' + nf(qd) + ' of ' + nf(n) + '</b> done' + (qd ? ' · <span style="color:var(--good)">' + nf(k) + ' ' + L[0] + '</span> · <span style="color:var(--warn)">' + nf(f) + ' ' + L[1] + '</span> · <span style="color:' + (S.stage === 3 ? 'var(--gold)' : 'var(--bad)') + '">' + nf(c) + ' ' + L[2] + '</span>' : '') + '</span>' + (left ? '<span>' + left + '</span>' : '');
+    $('barK').style.width = (n ? 100 * k / n : 0) + '%'; $('barF').style.width = (n ? 100 * f / n : 0) + '%'; $('barC').style.width = (n ? 100 * c / n : 0) + '%';
+    $('tab1').innerHTML = tabLabel(1); $('tab2').innerHTML = tabLabel(2); $('tab3').innerHTML = tabLabel(3); $('tab4').innerHTML = tabLabel(4);
+    [1, 2, 3, 4].forEach(function (i) { $('tab' + i).className = 'tab' + (S.stage === i ? ' on' : ''); });
+    var td = todayCount(), bud = budget();
+    $('progress').insertAdjacentHTML('beforeend', '<span style="color:' + (td >= bud ? 'var(--bad)' : 'var(--mute)') + '">Today: ' + nf(td) + ' of ' + nf(bud) + (td >= bud ? ' (budget reached; stop here or raise it in the menu)' : '') + '</span>');
+  }
+
+  // ── tags, rules, notes ───────────────────────────────────────────────────────────────────────────────────────
+  var REASONS_RULE = ['The number is wrong', 'Wrong source', 'Too strict', 'Too loose', 'Missing an exception', 'Does not fit how I trade', 'Should be a grade cue, not a gate', 'Should be a gate', 'Unclear wording'];
+  var REASONS_UNIT = ['Missing a topic', 'Too much of one thing', 'Out of order', 'Too easy overall', 'Too hard overall', 'Needs a walk-through', 'Great, do more like this'];
+  var REASONS_GEN = ['Missing topic', 'New rule idea', 'New game idea', 'Variety or format', 'Problem with this page', 'Other'];
+  var REASONS_DEC = ['A different option', 'A different number', 'Depends on the setup', 'Do not teach this', 'Teach it later', 'Needs more thought'];
+  var REASONS_ASK = ['Explain the options', 'Show me examples', 'Show me the data', 'I want to decide together'];
+  function cardBase(p) { return String(p || '').split('/').pop().replace(/\.json$/, ''); }
+  function chipsHtml(list) {
+    return '<div class="chips" id="chips">' + list.map(function (r) {
+      var on = S.noteTags.indexOf(r) >= 0;
+      return '<button type="button" class="chipbtn' + (on ? ' on' : '') + '" aria-pressed="' + on + '" data-r="' + esc(r) + '">' + (on ? '✓ ' : '') + esc(r) + '</button>';
+    }).join('') + '</div>';
+  }
+  function bindChips() {
+    var c = $('chips'); if (!c) return;
+    c.onclick = function (e) {
+      var b = e.target.closest ? e.target.closest('.chipbtn') : null; if (!b) return;
+      var r = b.getAttribute('data-r'), i = S.noteTags.indexOf(r), on = i < 0;
+      if (on) S.noteTags.push(r); else S.noteTags.splice(i, 1);
+      b.className = 'chipbtn' + (on ? ' on' : ''); b.setAttribute('aria-pressed', on); b.textContent = (on ? '✓ ' : '') + r;
+    };
+  }
+  function ruleOf(q, m) {
+    var u = S.data[m.unit] || {};
+    if (!q.criterion || !u.card) return null;
+    var key = cardBase(u.card) + ':' + q.criterion, r = S.rules[key];
+    return r ? { key: key, r: r } : null;
+  }
+  var STATUS_TEXT = { 'settled': 'Settled', 'proposed': 'Proposed, not yet your ruling', 'pending-owner': 'Waiting on your decision' };
+  function rulePanel(q, m) {
+    var x = ruleOf(q, m); S.curRule = null; if (!x) return '';
+    var r = x.r, mine = S.reviews['rule:' + x.key] || {}; S.curRule = { key: x.key, r: r, unit: m.slug, crit: q.criterion };
+    var h = '<div class="rule"><div class="lab">The rule behind this question · ' + esc(r.setup) + '</div><p class="rtext">' + esc(r.s) + '</p><div class="rmeta"><span class="st ' + esc(r.st) + '">' + esc(STATUS_TEXT[r.st] || r.st) + '</span>';
+    if (r.nq) h += '<span>' + r.nq + ' question' + (r.nq === 1 ? '' : 's') + ' teach it</span>';
+    (r.oq || []).forEach(function (d) { var dd = S.decById[d]; h += '<button type="button" class="plain sm" data-dec="' + esc(d) + '">' + esc(d) + (dd ? ': ' + esc(dd.title) : '') + '</button>'; });
+    h += '</div>';
+    var det = '';
+    if (r.rec != null) det += '<p><b>Recommended:</b> ' + esc(r.rec) + '</p>';
+    if (r.opts && r.opts.length) det += '<p><b>Options:</b></p><ul class="dl">' + r.opts.map(function (o) { return '<li><b>' + esc(o.v) + '</b>: ' + esc(o.b || '') + '</li>'; }).join('') + '</ul>';
+    if (r.ev) det += '<p><b>Evidence:</b> ' + esc(r.ev) + '</p>';
+    if (r.hr) det += '<p><b>Your own rule:</b> ' + esc(r.hr) + '</p>';
+    if (r.basis) det += '<p><b>Basis:</b> ' + esc(r.basis) + '</p>';
+    if (det) h += '<details><summary>Options, evidence and where it comes from</summary>' + det + '</details>';
+    h += '<div class="rbtns"><button type="button" class="rbtn ok' + (mine.v === 'keep' ? ' on' : '') + '" id="bRuleOk">✓ Rule looks right</button><button type="button" class="rbtn bad' + (mine.v === 'fix' ? ' on' : '') + '" id="bRuleFix">✎ Rule needs work</button>';
+    if (mine.v) h += '<span class="said">' + (mine.v === 'keep' ? 'You said: looks right' : 'You said: needs work' + (mine.tags && mine.tags.length ? ' · ' + esc(mine.tags.join(', ')) : '')) + '</span>';
+    return h + '</div></div>';
+  }
+  function openSide(kind, id, title, unit, key, cardId) {
+    S.noteTags = ((S.reviews[id] || {}).tags || []).slice(); S.noteFor = null;
+    S.sideNote = { kind: kind, id: id, title: title, unit: unit, key: key };
+    renderCard(cardId);
+  }
+  function sideNoteHtml() {
+    var n = S.sideNote, mine = S.reviews[n.id] || {}, isRule = n.kind === 'rule';
+    return '<div class="noteBox"><label for="note">' + (isRule ? 'What is wrong with this rule?' : 'Your note on this whole lesson') + '</label>' +
+      '<p class="fyi" style="margin:0">' + esc(n.title) + '</p>' + chipsHtml(isRule ? REASONS_RULE : REASONS_UNIT) +
+      '<textarea id="note" placeholder="' + (isRule ? 'For example: 30% is too high for flags; use 20%.' : 'For example: this lesson never covers what happens after the breakout.') + '">' + esc(mine.note || '') + '</textarea>' +
+      '<div class="row"><button class="primary" id="saveSide" type="button">Save</button><button class="plain" id="cancelSide" type="button">Cancel</button></div></div>';
+  }
+  function bindSideNote(id) {
+    bindChips();
+    $('saveSide').onclick = function () {
+      var n = S.sideNote, note = $('note').value.trim();
+      if (note || S.noteTags.length) persistRec({ id: n.id, kind: n.kind, unit: n.unit, key: n.key, v: n.kind === 'rule' ? 'fix' : 'note', note: note, tags: S.noteTags.slice(), q: String(n.title).slice(0, 300) });
+      S.sideNote = null; S.noteTags = []; renderCard(id);
+    };
+    $('cancelSide').onclick = function () { S.sideNote = null; S.noteTags = []; renderCard(id); };
+    $('note').focus();
+  }
+  function bindCardExtras(id) {
+    var m = S.ofId[id], q = S.qById[id], un = $('bUnitNote'), ok = $('bRuleOk'), fx = $('bRuleFix'), g = $('guideOk');
+    if (un) un.onclick = function () { openSide('unit', 'unit:' + m.unit, m.unit + ' · ' + m.title, m.unit, m.slug, id); };
+    if (ok) ok.onclick = function () { var c = S.curRule; persistRec({ id: 'rule:' + c.key, kind: 'rule', unit: c.unit, key: c.crit, v: 'keep', note: '', tags: [], q: String(c.r.s).slice(0, 300) }); renderCard(id); };
+    if (fx) fx.onclick = function () { var c = S.curRule; openSide('rule', 'rule:' + c.key, c.r.s, c.unit, c.crit, id); };
+    if (g) g.onclick = function () { lsSet('libreview3.guide', true); renderCard(id); };
+    document.querySelectorAll('[data-ab]').forEach(function (b) {
+      b.onclick = function () { persistRec({ id: 'ab:' + id, kind: 'ab', unit: m.slug, key: q.key, v: b.getAttribute('data-ab'), note: '', tags: [], q: String(q.q || '').slice(0, 160) }); renderCard(id); };
+    });
+    document.querySelectorAll('[data-dec]').forEach(function (b) {
+      b.onclick = function () { var q3 = buildQueue(3), i = q3.indexOf('dec:' + b.getAttribute('data-dec')); if (i >= 0) setStage(3, i); };
+    });
+  }
+  var GUIDE = '<div class="guide"><b>How this works</b><ol><li>One question at a time, with the right answer already marked in green.</li><li><b>Good as is</b> (Enter), <b>Change it</b> (C) or <b>Remove it</b> (X). For Change and Remove, tap the reasons that fit and add your own words.</li><li>Under each question is <b>the rule it teaches</b>. Say if the rule looks right or needs work. That fixes the rule for every question built on it.</li><li><b>Step 1</b> holds the decisions behind the rules. One answer there settles many rules and questions at once, so do it first.</li></ol><button class="primary" id="guideOk" type="button">Got it</button></div>';
+
+  // ── Part 3: the decisions ──────────────────────────────────────────────────────────────────────────────────
+  function mdInline(t) { return esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>'); }
+  function mdBlock(b) {
+    var lines = b.split('\n'), cls = /^\*\*Our default/.test(b) ? 'deflt' : (/^\*\*(Setups touched|Questions)/.test(b) ? 'dmeta' : '');
+    if (lines[0].charAt(0) === '|') {
+      var rows = lines.filter(function (l) { return !/^\|[\s:|-]+\|?\s*$/.test(l); }).map(function (l) { return l.replace(/^\||\|\s*$/g, '').split('|'); });
+      return '<div class="tw"><table>' + rows.map(function (r, i) { var t = i ? 'td' : 'th'; return '<tr>' + r.map(function (c) { return '<' + t + '>' + mdInline(c.trim()) + '</' + t + '>'; }).join('') + '</tr>'; }).join('') + '</table></div>';
+    }
+    if (/^[-*] /.test(lines[0])) return '<ul class="dl">' + lines.map(function (l) { return '<li>' + mdInline(l.replace(/^[-*] /, '')) + '</li>'; }).join('') + '</ul>';
+    return '<p class="dp ' + cls + '">' + lines.map(mdInline).join('<br>') + '</p>';
+  }
+  function renderDecision(id) {
+    var d = S.decById[id.slice(4)], mine = S.reviews[id] || {}, main = $('main');
+    if (!d) { main.innerHTML = '<div class="banner">That decision did not load.</div>'; return; }
+    if (S.noteFor && S._tagsFor !== id + S.noteFor) { S.noteTags = (mine.tags || []).slice(); S._tagsFor = id + S.noteFor; }
+    var h = '<div class="where"><span>Decision ' + esc(d.id) + '</span><span class="chip">' + (d.part === 'A' ? 'Shared by many setups' : esc(d.group || 'One setup')) + '</span><span>' + (S.queue.indexOf(id) + 1) + ' of ' + S.queue.length + '</span></div>';
+    h += '<div class="flag mild">' + (d.ndep ? '<b>' + (S.decs.indexOf(d) < 9 ? 'Start here. ' : '') + 'Your answer settles ' + d.ndep + ' question' + (d.ndep === 1 ? '' : 's') + '.</b> ' : '') + 'Not your ruling yet: the lessons use our default as a stand-in. Agree, change it, or ask to talk it over.</div>';
+    var meta = d.blocks.filter(function (b) { return /^\*\*(Setups touched|Questions)/.test(b); }), main3 = d.blocks.filter(function (b) { return !/^\*\*(Setups touched|Questions)/.test(b); });
+    if (d.plain) {
+      var P = d.plain;
+      h += '<p class="q">' + esc(P.ask) + '</p>' +
+        '<div class="lab">The choices</div><ul class="dl">' + P.options.map(function (o) { return '<li>' + esc(o) + '</li>'; }).join('') + '</ul>' +
+        '<div class="lab">What the lessons use now (our default)</div><p class="simpleline">' + esc(P.now) + '</p>' +
+        '<details><summary>The full detail and the evidence</summary><p class="fyi">' + esc(d.title) + '. Codes like 07:3 point to a setup research file and its question; E57 or B26 point to a rule in your rulebook.</p>' + main3.map(mdBlock).join('') + '</details>';
+    } else {
+      h += '<p class="q">' + esc(d.title) + '</p>' + main3.map(mdBlock).join('');
+    }
+    if (meta.length) h += '<details><summary>Which setups this touches</summary>' + meta.map(mdBlock).join('') + '</details>';
+    if (d.nrules) {
+      h += '<details><summary>' + d.nrules + ' rule' + (d.nrules === 1 ? '' : 's') + ' wait on this' + (d.nq ? ', taught by ' + d.nq + ' question' + (d.nq === 1 ? '' : 's') : '') + '</summary>' +
+        d.rules.slice(0, 15).map(function (r) { return '<div class="rl"><b>' + esc(r.setup) + '</b>: ' + esc(r.s) + '</div>'; }).join('') +
+        (d.nrules > 15 ? '<div class="rl">… and ' + (d.nrules - 15) + ' more</div>' : '') + '</details>';
+    }
+    if (S.noteFor) {
+      var ask = S.noteFor === 'ask';
+      h += '<div class="noteBox"><label for="note">' + (ask ? 'What do you want to talk about?' : 'What should it be instead?') + '</label>' + chipsHtml(ask ? REASONS_ASK : REASONS_DEC) +
+        '<textarea id="note" placeholder="' + (ask ? 'For example: show me three charts at 20% and at 30%.' : 'For example: 25%, and only for bases, not flags.') + '">' + esc(mine.note || '') + '</textarea>' +
+        '<div class="row"><button class="primary" id="saveNote" type="button">Save and go to the next</button><button class="plain" id="cancelNote" type="button">Cancel</button></div></div>';
+    } else {
+      h += '<div class="actions">' +
+        '<button class="act good' + (mine.v === 'keep' ? ' on' : '') + '" id="bGood" type="button">✓ Agree with the default<small class="kh">Enter</small></button>' +
+        '<button class="act change' + (mine.v === 'fix' ? ' on' : '') + '" id="bChange" type="button">✎ Change it<small class="kh">C</small></button>' +
+        '<button class="act ask' + (mine.v === 'ask' ? ' on' : '') + '" id="bTalk" type="button">? Talk it over<small class="kh">T</small></button></div>';
+      h += '<div class="nav"><button class="plain" id="bBack" type="button"' + (S.pos === 0 ? ' disabled' : '') + '>← Back</button><span class="said">' + (mine.v ? 'You said: ' + ({ keep: 'Agree', fix: 'Change it', ask: 'Talk it over' }[mine.v] || mine.v) + (mine.note ? ' · ' + esc(mine.note.slice(0, 60)) : '') : '') + '</span><button class="plain" id="bSkip" type="button">Skip →</button></div><p class="keys">Keys: Enter = agree · C = change · T = talk it over · ← → = back / skip</p>';
+    }
+    main.innerHTML = h;
+    if (S.noteFor) {
+      bindChips();
+      $('saveNote').onclick = function () { decide(S.noteFor, $('note').value); };
+      $('cancelNote').onclick = function () { S.noteFor = null; S._tagsFor = null; renderDecision(id); };
+      $('note').focus(); var nb = document.querySelector('.noteBox'); if (nb) nb.scrollIntoView({ block: 'center' });
+    } else {
+      $('bGood').onclick = function () { decide('keep', ''); };
+      $('bChange').onclick = function () { S.noteFor = 'fix'; renderDecision(id); };
+      $('bTalk').onclick = function () { S.noteFor = 'ask'; renderDecision(id); };
+      $('bBack').onclick = back; $('bSkip').onclick = skip; window.scrollTo(0, 0);
+    }
+  }
+
+  function choiceBlock(q, was) {
+    var wrong = q.wrong || {};
+    if (q.sentence) {
+      var h = '<p class="fill">' + esc(q.sentence).replace('___', '<mark>' + esc(q.answer) + '</mark>') + '</p>';
+      if (q.bank) h += '<p class="fyi">Word choices: ' + q.bank.map(esc).join(' · ') + '</p>';
+      return h;
+    }
+    if (q.choices) {
+      return '<ul class="choices">' + q.choices.map(function (c, i) {
+        var right = c === q.answer, isNew = was && was.choices && was.choices.indexOf(c) < 0;
+        return '<li class="' + (right ? 'right' : '') + '"><span class="L">' + 'ABCDEF'[i] + (right ? ' ✓' : '') + '</span><span>' + esc(c) + (isNew ? '<span class="new">' + (was.choices.length < q.choices.length ? 'new' : 'reworded') + '</span>' : '') + '</span></li>';
+      }).join('') + '</ul>';
+    }
+    return '<div class="answerbox">' + esc(q.prefix || '') + esc(q.answer) + esc(q.suffix || '') + '</div>';
+  }
+  function abRow(id) {
+    var mine = S.reviews['ab:' + id] || {};
+    function b(v, label) { return '<button type="button" class="abbtn' + (mine.v === v ? ' on' : '') + '" data-ab="' + v + '">' + label + '</button>'; }
+    return '<div class="ab"><span>Which is better?</span>' + b('old', 'The old one') + b('same', 'About the same') + b('new', 'The new one') + '</div>';
+  }
+  function wasBlock(w) {
+    var h = '<div class="was"><div class="lab">What it said before</div>';
+    if (w.story) h += '<p class="story">' + esc(w.story) + '</p>';
+    h += '<p class="q">' + esc(w.q || '') + '</p>';
+    if (w.sentence) h += '<p class="fill">' + esc(w.sentence).replace('___', '<mark>' + esc(w.answer) + '</mark>') + '</p>';
+    else if (w.choices) h += '<ul class="choices">' + w.choices.map(function (c, i) {
+      var right = c === w.answer;
+      return '<li class="' + (right ? 'right' : '') + '"><span class="L">' + 'ABCDEF'[i] + (right ? ' ✓' : '') + '</span><span>' + esc(c) + '</span></li>';
+    }).join('') + '</ul>';
+    else if (w.answer) h += '<div class="answerbox">' + esc(w.prefix || '') + esc(w.answer) + esc(w.suffix || '') + '</div>';
+    if (w.simple) h += '<p class="fyi"><b>In one line:</b> ' + esc(w.simple) + '</p>';
+    if (w.why) h += '<details><summary>The explanation it had</summary><p>' + esc(w.why) + '</p></details>';
+    return h + '</div>';
+  }
+  var TYPE = { scenario: 'Scenario', mcq: 'Multiple choice', tf: 'True or false', numeric: 'A number', fill: 'Fill in the blank' };
+  function moreBlock(q) {
+    var h = '';
+    var wrong = q.wrong || {}, keys = Object.keys(wrong);
+    if (keys.length) h += '<details><summary>Why the wrong answers are wrong</summary>' + keys.map(function (k) { return '<p><b>' + esc(k) + '</b>: ' + esc(wrong[k]) + '</p>'; }).join('') + '</details>';
+    if (q.cites && q.cites.length) {
+      var f0 = q.cites[0];
+      h += '<div class="srcfirst"><q>' + esc(f0.quote) + '</q><small>' + (f0.house ? 'Our own rulebook' : esc(f0.publisher || '') + (f0.from ? ', ' + esc(f0.from) : '')) + '</small></div>';
+      h += '<details><summary>All sources (' + q.cites.length + ')</summary>' + q.cites.map(function (c) {
+        var by = c.house ? 'Our own rulebook' : esc(c.publisher || '') + (c.from ? ', ' + esc(c.from) : '');
+        return '<div class="src"><q>' + esc(c.quote) + '</q><small>' + by + '</small>' + (c.url ? ' <a href="' + esc(c.url) + '" target="_blank" rel="noopener">open page</a>' : '') + '</div>';
+      }).join('') + '</details>';
+    }
+    return h;
+  }
+
+  function render() {
+    S.sideNote = null;
+    renderProgress();
+    var main = $('main');
+    if (S.pos >= S.queue.length) {
+      var fb = allFeedback().filter(function (x) { return x.r.v && x.r.v !== 'keep' && x.kind !== 'ab'; }).length;
+      var heads = { 1: 'The changed-or-doubted list is finished', 2: 'Every question is done', 3: 'The decisions are done', 4: 'The sample review is finished' };
+      var nextStage = S.stage === 3 ? 4 : S.stage === 1 ? 2 : 0;
+      main.innerHTML = '<div class="done"><h2>' + heads[S.stage] + '</h2><p>' + nf(fb) + ' pieces of feedback saved so far across questions, rules, decisions and notes.</p><p>Everything is saved on your computer.<br>When you are ready, tell Claude <b>"review done"</b> and I will make the changes.</p><div class="row" style="justify-content:center">' + (nextStage ? '<button class="primary" id="toNext" type="button">Go on to ' + STAGE_NAME[nextStage].split(' · ')[1] + '</button>' : '') + '<button class="plain" id="toFb" type="button">See my feedback</button><button class="plain" id="toMenu" type="button">Open the menu</button></div></div>';
+      var bn = $('toNext'); if (bn) bn.onclick = function () { setStage(nextStage); };
+      $('toFb').onclick = openFeedback; $('toMenu').onclick = openMenu;
+      return;
+    }
+    if (S.pause) {
+      main.innerHTML = pauseHtml();
+      $('bNext5').onclick = resume;
+      $('bStop').onclick = function () { main.innerHTML = '<div class="done"><h2>Saved. See you next time.</h2><p>Everything you did is on this computer. Double-click Start Library Review whenever you want to pick up again.</p><div class="row" style="justify-content:center"><button class="plain" id="bAgain" type="button">Actually, 5 more</button></div></div>'; $('bAgain').onclick = resume; };
+      window.scrollTo(0, 0); return;
+    }
+    if (S.stage === 3) { renderDecision(S.queue[S.pos]); return; }
+    var id = S.queue[S.pos];
+    main.innerHTML = '<p class="where">Loading…</p>';
+    ensure(id).then(function () { if (S.queue[S.pos] === id) renderCard(id); }, function () {
+      main.innerHTML = '<div class="banner">This question did not load. Reload the page, or double-click Start Library Review again.</div>';
+    });
+  }
+
+  function renderCard(id) {
+    var q = S.qById[id], m = S.ofId[id], u = S.data[m.slug] || {}, call = S.calls[id], mine = S.reviews[id] || {};
+    var h = '<div class="where"><span>' + esc(m.unit) + ' · ' + esc(m.title) + '</span><span class="chip">' + esc(TYPE[q.format] || q.format || 'Question') + '</span>' + (q.tier ? '<span class="chip">' + esc(q.tier) + ' tier</span>' : '') + '<span>question ' + q._i + ' of ' + q._n + ' in this unit</span><button class="plain sm" id="bUnitNote" type="button">✎ Note on this lesson' + (S.reviews['unit:' + m.unit] ? ' ✓' : '') + '</button></div>';
+    if (!lsGet('libreview3.guide', false) && S.stage !== 3) h += GUIDE;
+    var suggest = null;
+    if (call && call.c === 'look') {
+      suggest = call.p;
+      if (call.k === 'changed') h += '<div class="flag"><b>Claude changed this one.</b> ' + esc(call.r) + (/[.!?]$/.test(call.r) ? '' : '.') + ' The new version is below. If it is right, press Good as is. The old version is folded at the bottom if you want to compare.</div>';
+      else h += '<div class="flag"><b>Claude flagged this one.</b> ' + esc(cap(call.r)) + '. Claude suggests: <b>' + esc(VLABEL[call.p]) + '</b>.</div>';
+    } else if (call && call.c === 'confirm') {
+      h += '<p class="fyi">The question is fine. It teaches a rule that is still only a proposal: ' + esc(call.r) + '.</p>';
+    }
+    var was = call && call.k === 'changed' ? call.was : null;
+    if (was) h += '<div class="lab now">The new version</div>';
+    if (q.story) h += '<p class="story">' + esc(q.story) + '</p>';
+    h += '<p class="q">' + esc(q.q) + '</p>' + choiceBlock(q, was);
+    if (q.simple) h += '<p class="simpleline"><b>In one line:</b> ' + esc(q.simple) + '</p>';
+    if (q.why) h += '<p class="why"><b>' + (q.simple ? 'The full answer:' : 'Why:') + '</b> ' + esc(q.why) + '</p>';
+    h += moreBlock(q);
+    if (q.deeper) {
+      var dl = [['example', 'Example'], ['counter', 'The other side'], ['trap', 'The common trap']].filter(function (x) { return q.deeper[x[0]]; });
+      if (dl.length) h += '<details><summary>Go deeper (' + dl.length + ')</summary>' + dl.map(function (x) { return '<p><b>' + x[1] + ':</b> ' + esc(q.deeper[x[0]]) + '</p>'; }).join('') + '</details>';
+    }
+    if (was) h += '<details class="cmp"><summary>Compare with what it said before</summary>' + abRow(id) + wasBlock(was) + '</details>';
+    h += rulePanel(q, m);
+    if (S.noteFor && S._tagsFor !== id + S.noteFor) { S.noteTags = (mine.tags || []).slice(); S._tagsFor = id + S.noteFor; }
+    if (S.sideNote) {
+      h += sideNoteHtml();
+    } else if (S.noteFor) {
+      var isCut = S.noteFor === 'cut';
+      var pre = mine.note || '';
+      var agree = call && call.c === 'look' && call.p === S.noteFor;
+      h += '<div class="noteBox"><label for="note">' + (isCut ? 'Why should it be removed?' : 'What should change?') + '</label>' + (agree ? '<p class="fyi" style="margin:0">You can leave this empty to agree with the note above.</p>' : '') +
+        chipsHtml(isCut ? REASONS_CUT : REASONS_FIX) +
+        '<textarea id="note" placeholder="' + (isCut ? 'For example: it repeats another question.' : 'In plain words, for example: the wrong answer B could also be right.') + '">' + esc(pre) + '</textarea>' +
+        '<div class="row"><button class="primary" id="saveNote" type="button">Save and go to the next</button><button class="plain" id="cancelNote" type="button">Cancel</button></div></div>';
+    } else {
+      h += '<div class="actions">' +
+        '<button class="act good' + (mine.v === 'keep' ? ' on' : '') + (suggest === 'keep' ? ' suggest' : '') + '" id="bGood" type="button">✓ Good as is<small class="kh">Enter</small></button>' +
+        '<button class="act change' + (mine.v === 'fix' ? ' on' : '') + (suggest === 'fix' ? ' suggest' : '') + '" id="bChange" type="button">✎ Change it<small class="kh">C</small></button>' +
+        '<button class="act remove' + (mine.v === 'cut' ? ' on' : '') + (suggest === 'cut' ? ' suggest' : '') + '" id="bRemove" type="button">✕ Remove it<small class="kh">X</small></button></div>';
+      h += '<div class="nav"><button class="plain" id="bBack" type="button"' + (S.pos === 0 ? ' disabled' : '') + '>← Back</button>' +
+        '<span class="said">' + (mine.v ? 'You said: ' + VLABEL[mine.v] + (mine.note ? ' · ' + esc(mine.note.slice(0, 60)) : '') : '') + '</span>' +
+        '<button class="plain" id="bSkip" type="button">Skip →</button></div><p class="keys">Keys: Enter = good as is · C = change · X = remove · ← → = back / skip</p>';
+    }
+    $('main').innerHTML = h;
+    bindCardExtras(id);
+    if (S.sideNote) {
+      bindSideNote(id);
+    } else if (S.noteFor) {
+      bindChips();
+      $('saveNote').onclick = function () { decide(S.noteFor, $('note').value); };
+      $('cancelNote').onclick = function () { S.noteFor = null; S._tagsFor = null; renderCard(id); };
+      $('note').focus();
+      $('note').addEventListener('keydown', function (e) { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) decide(S.noteFor, $('note').value); });
+    } else {
+      $('bGood').onclick = function () { decide('keep', ''); };
+      $('bChange').onclick = function () { S.noteFor = 'fix'; renderCard(id); };
+      $('bRemove').onclick = function () { S.noteFor = 'cut'; renderCard(id); };
+      $('bBack').onclick = back; $('bSkip').onclick = skip;
+    }
+    prefetchNext();
+    if (S.noteFor || S.sideNote) { var nb = document.querySelector('.noteBox'); if (nb) nb.scrollIntoView({ block: 'center' }); } else window.scrollTo(0, 0);
+  }
+
+  function decide(v, note) {
+    var id = S.queue[S.pos]; if (!id) return;
+    var tags = v === 'keep' ? [] : S.noteTags.slice();
+    if (S.stage === 3) {
+      var d = S.decById[id.slice(4)]; if (!d) return;
+      persistRec({ id: id, kind: 'decision', unit: d.group || 'shared', key: d.id, v: v, note: note || '', tags: tags, q: String(d.title).slice(0, 300) });
+    } else {
+      if (!S.qById[id]) return;
+      persistRec({ id: id, kind: 'q', unit: S.ofId[id].slug, key: S.qById[id].key, v: v, note: note || '', tags: tags, q: String(S.qById[id].q || '').slice(0, 160) });
+    }
+    S.times.push(Date.now()); S.noteFor = null; S._tagsFor = null; S.noteTags = []; S.pos++;
+    S.chunk = (S.chunk || 0) + 1;
+    if (S.chunk >= CHUNK) { S.chunk = 0; S.pause = true; }     // owner 2026-11-12: feedback in chunks of 5
+    if (S.stage === 4) S.queue = buildQueue(4);     // a defect in the first ten widens the sample
+    render();
+  }
+  var CHUNK = 5;
+  function resume() { S.pause = false; S.chunk = 0; render(); }
+  function pauseHtml() {
+    var left = 0; S.queue.forEach(function (id) { if (!decided(id)) left++; });
+    var td = todayCount();
+    return '<div class="done"><h2>5 done. Nice work.</h2><p>Everything is saved. ' + nf(td) + ' answered today, ' + nf(left) + ' left in this step.</p>' +
+      '<p>Take a break whenever you like: close the tab, and next time it opens right here.</p>' +
+      '<div class="row" style="justify-content:center"><button class="primary" id="bNext5" type="button">Next 5 <small class="kh">Enter</small></button>' +
+      '<button class="plain" id="bStop" type="button">Stop for now</button></div></div>';
+  }
+  function back() { S.pause = false; S.chunk = 0; if (S.pos > 0) { S.noteFor = null; S.pos--; render(); } }
+  function skip() { if (S.pos < S.queue.length) { S.noteFor = null; S.pos++; render(); } }
+
+  // ── the menu ─────────────────────────────────────────────────────────────────────────────────────────────────
+  function closeMenu() { $('overlay').hidden = true; }
+  function allFeedback() {
+    var out = [];
+    Object.keys(S.reviews).forEach(function (id) {
+      var r = S.reviews[id]; if (!r || !r.v) return;
+      var kind = r.kind || (S.ofId[id] ? 'q' : id.indexOf('ab:') === 0 ? 'ab' : id.indexOf('rule:') === 0 ? 'rule' : id.indexOf('dec:') === 0 ? 'decision' : id.indexOf('unit:') === 0 ? 'unit' : id.indexOf('gen:') === 0 ? 'general' : 'q');
+      if (kind === 'q' && !S.ofId[id]) return;
+      out.push({ id: id, kind: kind, r: r });
+    });
+    return out;
+  }
+  function openMenu() {
+    var c = counts(), look = buildQueue(1).length, nd = S.decs.length;
+    var fbn = allFeedback().filter(function (x) { return x.r.v && x.r.v !== 'keep' && x.kind !== 'ab'; }).length;
+    var units = S.idx.units.map(function (u) { return '<option value="' + esc(u.slug) + '">' + esc(u.unit) + ' · ' + esc(u.title) + '</option>'; }).join('');
+    $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>Menu</h2><button class="menubtn" id="mClose" type="button">Close</button></div>' +
+      '<p class="said">' + nf(c.done) + ' of ' + nf(c.tot) + ' questions done · ' + nf(c.keep) + ' good · ' + nf(c.fix) + ' to change · ' + nf(c.cut) + ' to remove</p>' +
+      '<button class="big" id="mP3" type="button">Step 1: the decisions (' + nd + ')<small>Start here. One answer settles many rules and questions at once. The first 9 settle about ' + nf(S.decs.slice(0, 9).reduce(function (a, d) { return a + (d.ndep || 0); }, 0)) + ' questions.</small></button>' +
+      '<button class="big" id="mP4" type="button">Step 2: the sample review<small>5 random upgraded questions per lesson, riskiest first. All 5 good approves the lesson; one bad widens it to 15.</small></button>' +
+      '<p class="said" style="margin:14px 0 4px">Optional, only if you want to see more than the sample:</p>' +
+      '<button class="big" id="mP1" type="button">Every question Claude changed or doubted (' + nf(look) + ')<small>The full pass. After the overbuild this is nearly every question.</small></button>' +
+      '<button class="big" id="mP2" type="button">Every question, in order<small>Picks up at the first one you have not decided.</small></button>' +
+      '<button class="big" id="mLessons" type="button">Lesson status board<small>Which lessons are approved, being sampled, or sent back.</small></button>' +
+      '<label for="mBud"><b>Daily review budget</b> (questions a day)</label><input id="mBud" type="number" min="10" max="2000" value="' + budget() + '" style="width:100%;min-height:52px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:0 12px">' +
+      '<label for="mUnit"><b>Jump to a lesson</b></label><select id="mUnit"><option value="">Choose a lesson…</option>' + units + '</select>' +
+      '<button class="big" id="mList" type="button">My feedback (' + fbn + ')<small>Everything you flagged, counted by reason. Copy it to send to Claude.</small></button>' +
+      '<button class="big" id="mGen" type="button">Write a general note<small>A missing topic, a new rule or game idea, anything else.</small></button>' +
+      '<button class="big" id="mGuide" type="button">How this works</button>' +
+      '<button class="big" id="mBackup" type="button">Download a backup copy<small>Everything is already saved on your computer. This is an extra copy.</small></button>' +
+      '<p class="mono">Your work is saved in:<br>' + esc(S.file) + '</p>';
+    $('overlay').hidden = false;
+    $('mClose').onclick = closeMenu;
+    $('mP1').onclick = function () { closeMenu(); setStage(1); };
+    $('mP2').onclick = function () { closeMenu(); setStage(2); };
+    $('mP3').onclick = function () { closeMenu(); setStage(3); };
+    $('mP4').onclick = function () { closeMenu(); setStage(4); };
+    $('mLessons').onclick = openLessons;
+    $('mBud').onchange = function () { lsSet('libreview3.budget', Math.max(10, Number(this.value) || 150)); renderProgress(); };
+    $('mUnit').onchange = function () { var s = this.value; if (!s) return; closeMenu(); jumpUnit(s); };
+    $('mList').onclick = openFeedback;
+    $('mGen').onclick = openGeneral;
+    $('mGuide').onclick = function () { $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>How this works</h2><button class="menubtn" id="gBack" type="button">Back</button></div>' + GUIDE.replace('<button class="primary" id="guideOk" type="button">Got it</button>', ''); $('gBack').onclick = openMenu; };
+    $('mBackup').onclick = downloadBackup;
+  }
+  function openLessons() {
+    var rows = S.idx.units.map(function (u) { return { u: u, sm: unitSample(u) }; }).filter(function (x) { return x.sm.ups; });
+    var ok = rows.filter(function (x) { return x.sm.status === 'ok'; }).length;
+    var h = '<div class="row" style="justify-content:space-between"><h2>Lesson status board</h2><button class="menubtn" id="lsBack" type="button">Back to menu</button></div>' +
+      '<p class="cnt">' + ok + ' of ' + rows.length + ' upgraded lessons approved. A lesson is approved when your sample of 5 is all good; one defect widens it to 15; three send it back to the pipeline.</p><div class="list">';
+    rows.forEach(function (x, i) {
+      h += '<button class="lsrow" type="button" data-i="' + i + '"><span><span class="t">' + esc(x.u.unit) + ' · ' + esc(x.u.title) + '</span><br><span class="n">' + x.sm.done + ' of ' + x.sm.total + ' sampled · ' + x.sm.ups + ' upgraded</span></span><span class="stat ' + x.sm.status + '">' + esc(x.sm.label) + '</span></button>';
+    });
+    $('panel').innerHTML = h + '</div>';
+    $('lsBack').onclick = openMenu;
+    $('panel').querySelectorAll('.lsrow').forEach(function (b) {
+      b.onclick = function () {
+        var x = rows[Number(b.getAttribute('data-i'))], q4 = buildQueue(4), i0 = -1;
+        for (var i = 0; i < q4.length; i++) { if (S.ofId[q4[i]].slug === x.u.slug && !decided(q4[i])) { i0 = i; break; } if (S.ofId[q4[i]].slug === x.u.slug && i0 < 0) i0 = i; }
+        closeMenu(); setStage(4, i0);
+      };
+    });
+  }
+  function jumpUnit(slug) {
+    var q2 = buildQueue(2), first = -1, firstOpen = -1;
+    for (var i = 0; i < q2.length; i++) {
+      if (S.ofId[q2[i]].slug !== slug) continue;
+      if (first < 0) first = i;
+      if (firstOpen < 0 && !decided(q2[i])) firstOpen = i;
+    }
+    setStage(2, firstOpen >= 0 ? firstOpen : first);
+  }
+  function openGeneral() {
+    S.noteTags = [];
+    $('panel').innerHTML = '<div class="row" style="justify-content:space-between"><h2>A general note</h2><button class="menubtn" id="gBack" type="button">Back</button></div>' +
+      '<p class="said">Anything that is not about one question: a topic that is missing, a rule you want added, a game idea, a problem with this page.</p>' + chipsHtml(REASONS_GEN) +
+      '<textarea id="gnote" style="min-height:140px;width:100%;background:var(--panel);border:2px solid var(--gold);border-radius:12px;padding:12px" placeholder="Write it in plain words."></textarea>' +
+      '<div class="row"><button class="primary" id="gSave" type="button">Save note</button></div>';
+    bindChips(); $('gBack').onclick = openMenu; $('gnote').focus();
+    $('gSave').onclick = function () {
+      var note = $('gnote').value.trim(); if (!note && !S.noteTags.length) return;
+      persistRec({ id: 'gen:' + Date.now(), kind: 'general', unit: '', key: '', v: 'note', note: note, tags: S.noteTags.slice(), q: note.slice(0, 120) });
+      S.noteTags = []; openMenu();
+    };
+  }
+  function pl(n, w) { return nf(n) + ' ' + w + (n === 1 ? '' : 's'); }
+  function copyText(t, btn) {
+    function done() { btn.textContent = 'Copied ✓'; }
+    function fallback() { var ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); done(); } catch (e) { btn.textContent = 'Could not copy'; } ta.remove(); }
+    try { navigator.clipboard.writeText(t).then(done, fallback); } catch (e) { fallback(); }
+  }
+  function feedbackGroups() {
+    var items = allFeedback(), g = { q: [], rule: [], decision: [], unit: [], general: [] }, agreed = { q: 0, rule: 0, decision: 0 }, tally = {};
+    items.forEach(function (x) {
+      if (x.r.v === 'keep') { if (agreed[x.kind] != null) agreed[x.kind]++; return; }
+      if (!g[x.kind]) return;
+      g[x.kind].push(x);
+      (x.r.tags || []).forEach(function (t) { tally[t] = (tally[t] || 0) + 1; });
+    });
+    var order = {}; S.idx.units.forEach(function (u, i) { u.ids.forEach(function (id, j) { order[id] = i * 10000 + j; }); });
+    g.q.sort(function (a, b) { return (order[a.id] || 0) - (order[b.id] || 0); });
+    ['rule', 'decision', 'unit', 'general'].forEach(function (k) { g[k].sort(function (a, b) { return String(a.r.at).localeCompare(String(b.r.at)); }); });
+    return { g: g, agreed: agreed, tally: tally };
+  }
+  function feedbackText() {
+    var F = feedbackGroups(), g = F.g, L = [];
+    L.push('LIBRARY REVIEW FEEDBACK, ' + new Date().toISOString().slice(0, 10));
+    function tg(x) { return (x.r.tags || []).length ? ' [' + x.r.tags.join('; ') + ']' : ''; }
+    function nt(x) { return x.r.note ? ' — ' + x.r.note : ''; }
+    if (g.q.length) { L.push('', '== QUESTIONS ==');
+      g.q.forEach(function (x) { var m = S.ofId[x.id], q = S.qById[x.id]; L.push((x.r.v === 'cut' ? 'REMOVE' : 'CHANGE') + ' ' + m.unit + ' ' + (q ? q.key : x.r.key) + ': "' + String((q && q.q) || x.r.q || '').slice(0, 110) + '"' + tg(x) + nt(x)); }); }
+    if (g.rule.length) { L.push('', '== RULES THAT NEED WORK =='); g.rule.forEach(function (x) { L.push(x.id.slice(5) + ': "' + String(x.r.q || '').slice(0, 140) + '"' + tg(x) + nt(x)); }); }
+    if (g.decision.length) { L.push('', '== DECISIONS =='); g.decision.forEach(function (x) { L.push(x.id.slice(4) + ' ' + (x.r.v === 'ask' ? 'TALK IT OVER' : 'CHANGE') + ': ' + String(x.r.q || '') + tg(x) + nt(x)); }); }
+    if (g.unit.length) { L.push('', '== LESSON NOTES =='); g.unit.forEach(function (x) { L.push(x.id.slice(5) + ': ' + String(x.r.q || '').slice(0, 80) + tg(x) + nt(x)); }); }
+    if (g.general.length) { L.push('', '== GENERAL NOTES =='); g.general.forEach(function (x) { L.push('General' + tg(x) + nt(x)); }); }
+    L.push('', 'Agreed: ' + F.agreed.q + ' questions, ' + F.agreed.rule + ' rules, ' + F.agreed.decision + ' decisions.');
+    return L.join('\n');
+  }
+  function openFeedback() {
+    var F = feedbackGroups(), g = F.g;
+    var tally = Object.keys(F.tally).sort(function (a, b) { return F.tally[b] - F.tally[a]; });
+    function row(x, label, cls, go, title, sub) {
+      return '<button class="item" type="button"' + (go ? ' data-go="' + esc(go) + '"' : '') + '><div class="t"><span class="tag ' + cls + '">' + esc(label) + '</span>' + esc(title) + '</div>' + (sub ? '<div class="n">' + esc(sub) + '</div>' : '') +
+        ((x.r.tags || []).length ? '<span class="tg">' + esc(x.r.tags.join(' · ')) + '</span>' : '') + (x.r.note ? '<div class="n">' + esc(x.r.note) + '</div>' : '') + '</button>';
+    }
+    var h = '<div class="row" style="justify-content:space-between"><h2>My feedback</h2><button class="menubtn" id="fBack" type="button">Back to menu</button></div>';
+    h += '<p class="cnt">' + pl(g.q.length, 'question') + ' to change or remove · ' + pl(g.rule.length, 'rule') + ' need work · ' + pl(g.decision.length, 'decision') + ' changed or to discuss · ' + pl(g.unit.length, 'lesson note') + ' · ' + pl(g.general.length, 'general note') + '<br>Agreed: ' + pl(F.agreed.q, 'question') + ', ' + pl(F.agreed.rule, 'rule') + ', ' + pl(F.agreed.decision, 'decision') + '.</p>';
+    var abc = { old: 0, same: 0, 'new': 0 }; Object.keys(S.reviews).forEach(function (id) { if (id.indexOf('ab:') === 0 && abc[S.reviews[id].v] != null) abc[S.reviews[id].v]++; });
+    if (abc.old + abc.same + abc['new']) h += '<p class="cnt"><b>Old versus new:</b> the new one was better ' + abc['new'] + ' times, about the same ' + abc.same + ', the old one ' + abc.old + '.</p>';
+    h += '<div class="row"><button class="primary" id="fCopy" type="button">Copy all as text</button><button class="plain" id="fBackup" type="button">Download backup</button></div>';
+    if (tally.length) h += '<div class="fbh">What keeps coming up</div><div class="tagrow">' + tally.map(function (t) { return '<span class="tagc"><b>' + F.tally[t] + '</b> ' + esc(t) + '</span>'; }).join('') + '</div>';
+    if (g.q.length) {
+      h += '<div class="fbh">Questions</div><div class="list">';
+      var lastU = '';
+      g.q.forEach(function (x) { var m = S.ofId[x.id], q = S.qById[x.id]; h += row(x, x.r.v === 'cut' ? 'Remove' : 'Change', x.r.v, 'q:' + x.id, m.unit + ' · ' + (q ? q.key : x.r.key), (q && q.q) || x.r.q); });
+      h += '</div>';
+    }
+    if (g.rule.length) { h += '<div class="fbh">Rules that need work</div><div class="list">' + g.rule.map(function (x) { var rr = S.rules[x.id.slice(5)]; return row(x, 'Rule', 'fix', '', rr ? rr.setup : x.id.slice(5), x.r.q); }).join('') + '</div>'; }
+    if (g.decision.length) { h += '<div class="fbh">Decisions</div><div class="list">' + g.decision.map(function (x) { return row(x, x.r.v === 'ask' ? 'Talk' : 'Change', 'fix', 'd:' + x.id, x.id.slice(4) + ' · ' + x.r.q, ''); }).join('') + '</div>'; }
+    if (g.unit.length) { h += '<div class="fbh">Lesson notes</div><div class="list">' + g.unit.map(function (x) { return row(x, 'Lesson', 'fix', '', x.r.q || x.id, ''); }).join('') + '</div>'; }
+    if (g.general.length) { h += '<div class="fbh">General notes</div><div class="list">' + g.general.map(function (x) { return row(x, 'Note', 'fix', '', 'General', ''); }).join('') + '</div>'; }
+    if (!allFeedback().some(function (x) { return x.r.v !== 'keep'; })) h += '<p class="said">Nothing flagged yet. Everything you press Change, Remove or Rule needs work on shows up here.</p>';
+    $('panel').innerHTML = h;
+    $('fBack').onclick = openMenu; $('fCopy').onclick = function () { copyText(feedbackText(), this); }; $('fBackup').onclick = downloadBackup;
+    $('panel').querySelectorAll('[data-go]').forEach(function (b) {
+      b.onclick = function () {
+        var go = b.getAttribute('data-go'), id = go.slice(2);
+        closeMenu();
+        if (go.charAt(0) === 'q') setStage(2, buildQueue(2).indexOf(id));
+        else setStage(3, buildQueue(3).indexOf('dec:' + id.replace(/^dec:/, '')));
+      };
+    });
+  }
+  function downloadBackup() {
+    var lines = allFeedback().map(function (x) { var r = x.r; return JSON.stringify({ id: x.id, kind: x.kind, unit: r.unit || (S.ofId[x.id] ? S.ofId[x.id].unit : ''), key: r.key || '', verdict: r.v, note: r.note, tags: r.tags || [], q: r.q || '', at: r.at }); });
+    var text = lines.join(String.fromCharCode(10)) + String.fromCharCode(10);
+    var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    a.download = 'library-review-backup-' + new Date().toISOString().slice(0, 10) + '.jsonl';
+    document.body.appendChild(a); a.click(); a.remove(); setSaved('Backup downloaded');
+  }
+
+  // ── keys ─────────────────────────────────────────────────────────────────────────────────────────────────────
+  document.addEventListener('keydown', function (e) {
+    var t = e.target && e.target.tagName;
+    if (e.key === 'Escape' && !$('overlay').hidden) { closeMenu(); return; }
+    if (t === 'TEXTAREA' || t === 'SELECT' || e.ctrlKey || e.metaKey || e.altKey || !$('overlay').hidden) return;
+    if (S.pause) { if (e.key === 'Enter' && t !== 'BUTTON') { e.preventDefault(); resume(); } return; }
+    if (S.noteFor || S.sideNote || S.pos >= S.queue.length) return;
+    var id = S.queue[S.pos]; if (!id) return;
+    if (S.stage !== 3 && !S.qById[id]) return;
+    var k = e.key, again = function () { if (S.stage === 3) renderDecision(id); else renderCard(id); };
+    if (k === 'Enter') { if (t === 'BUTTON' || t === 'A' || t === 'SUMMARY') return; e.preventDefault(); decide('keep', ''); }
+    else if (k === 'c' || k === 'C') { S.noteFor = 'fix'; again(); e.preventDefault(); }
+    else if ((k === 'x' || k === 'X') && S.stage !== 3) { S.noteFor = 'cut'; again(); e.preventDefault(); }
+    else if ((k === 't' || k === 'T') && S.stage === 3) { S.noteFor = 'ask'; again(); e.preventDefault(); }
+    else if (k === 'ArrowLeft') back();
+    else if (k === 'ArrowRight') skip();
+  });
+  $('menuBtn').onclick = openMenu;
+  [1, 2, 3, 4].forEach(function (n) { $('tab' + n).onclick = function () { if (S.stage !== n) setStage(n); }; });
+
+  // ── start ────────────────────────────────────────────────────────────────────────────────────────────────────
+  function jget(url, dflt) { return fetch(url).then(function (r) { return r.ok ? r.json() : dflt; }).catch(function () { return dflt; }); }
+  Promise.all([
+    fetch('data/index.json').then(function (r) { return r.json(); }),
+    fetch('api/verdicts').then(function (r) { return r.json(); }),
+    jget('data/calls.json', {}), jget('data/rules.json', {}), jget('data/decisions.json', [])
+  ]).then(function (res) {
+    S.idx = res[0]; S.calls = res[2] || {}; S.file = res[1].file || ''; S.rules = res[3] || {};
+    S.decs = (res[4] || []).filter(function (d) { return d.part === 'A' || d.part === 'B'; });
+    S.decs.forEach(function (d) { S.decById[d.id] = d; });
+    S.idx.units.forEach(function (u) { S.bySlug[u.slug] = u; u.ids.forEach(function (id) { S.ofId[id] = { slug: u.slug, unit: u.unit, title: u.title, track: u.track }; }); });
+    Object.keys(res[1].records || {}).forEach(function (id) { var r = res[1].records[id]; S.reviews[id] = { v: r.v, note: r.note, tags: r.tags || [], kind: r.kind, unit: r.unit, key: r.key, q: r.q, at: r.at }; });
+    S.queueOut.forEach(function (it) { S.reviews[it.id] = { v: it.v, note: it.note, tags: it.tags || [], kind: it.kind, unit: it.unit, key: it.key, q: it.q, at: '' }; });
+    var look = buildQueue(1);
+    // the recommended path: the decisions first, then the sample review; the full pass stays optional
+    var stage = buildQueue(3).some(function (id) { return !decided(id); }) ? 3 : 4;
+    setStage(stage); flush();
+  }, function () {
+    $('main').innerHTML = '<div class="banner">The review program is not running. Double-click <b>Start Library Review</b>, then reload this page.</div>';
+  });
+})();
+</script>
+</body></html>

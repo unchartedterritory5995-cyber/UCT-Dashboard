@@ -8,6 +8,7 @@
   GET  /api/admin/notebook-slo       — admin: the Notebook SLOs now + recent rows
   POST /api/admin/notebook-slo/run   — admin: force one SLO check (wave 10, 10D)
   POST /api/admin/notebook-slo/digest — admin: force the non-paging digest
+  GET  /api/admin/notebook-return-metrics — admin: the S20 return metrics (audit 2026-11-05)
 
 The store, the scrub and the rate limit are `api/services/client_errors.py`;
 this file is the HTTP shape — and the first two steps of the door's order of
@@ -19,9 +20,12 @@ the controller wires it. No path here collides with another router's.
 from __future__ import annotations
 
 import json
+import os
+import re
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
 from api.middleware.auth_middleware import get_current_user_optional, require_admin
@@ -100,6 +104,25 @@ def admin_client_errors(
     return client_errors.summary(days=days, limit=limit)
 
 
+# ⭐ The production build's own source maps (2026-11-11, desktop speed plan 9.7). vite.config.js builds
+# them HIDDEN and app/scripts/stash-sourcemaps.mjs moves them out of the public /assets mount into
+# app/dist/.maps/. This admin-only door is the one way to read one: tools/resolve_client_error.mjs maps a
+# report's kept position (`/assets/<chunk>.js:<line>:<col>`) to a source file and line. The name is one
+# chunk file name, nothing else (no path, no traversal); a missing map is a 404.
+_MAPS_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "app", "dist", ".maps")
+_CHUNK_NAME = re.compile(r"[\w.-]{1,120}\.m?js", re.ASCII)
+
+
+@router.get("/api/admin/client-errors/sourcemap/{chunk}")
+def admin_sourcemap(chunk: str, _admin: dict = Depends(require_admin)):
+    if not _CHUNK_NAME.fullmatch(chunk) or ".." in chunk:
+        raise HTTPException(status_code=400, detail="Not a chunk name")
+    path = os.path.join(_MAPS_DIR, f"{chunk}.map")
+    if not os.path.isfile(path):
+        raise HTTPException(status_code=404, detail="No source map for that chunk in this build")
+    return FileResponse(path, media_type="application/json", headers={"Cache-Control": "private, no-store"})
+
+
 @router.get("/api/admin/notebook-telemetry")
 def admin_notebook_telemetry(_admin: dict = Depends(require_admin)) -> dict[str, Any]:
     """Counts per event for the 7- and 30-day windows, every allow-listed
@@ -140,3 +163,19 @@ def admin_notebook_slo_digest(_admin: dict = Depends(require_admin)) -> dict[str
     """Force the daily, non-paging digest row."""
     from api.services.journal_two import notebook_slo
     return notebook_slo.run_digest()
+
+
+# ── Audit 2026-11-05, S20: the Notebook's return metrics ────────────────────────
+# Day-1 and Day-7 return, the first "aha", the morning open rate, the recap rate and trust incidents, read from
+# the telemetry rows the Notebook already writes (api/services/journal_two/notebook_return_metrics.py). Admin only,
+# a handful of indexed, capped selects; nothing is written.
+
+@router.get("/api/admin/notebook-return-metrics")
+def admin_notebook_return_metrics(
+    days: int = Query(default=30),
+    _admin: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    from api.services.journal_two import notebook_return_metrics
+    if days not in notebook_return_metrics.WINDOWS:
+        raise HTTPException(status_code=400, detail="days must be 7, 30 or 90")
+    return notebook_return_metrics.compute_cached(days)

@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { useRouteOpened } from '../../lib/notebookUsage'
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom'
 import useSWR from 'swr'
 import UIcon from '../../../../components/ui/UIcon'
 import LoadFailed from '../LoadFailed'
 import Sheet from '../../../../components/mobile/Sheet'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
-import { BOARD_URL } from '../../lib/setupsBoardLink'
+import { BOARD_URL, FROM_DAILY_BRIEF } from '../../lib/setupsBoardLink'
+import { NOTEBOOK_TODAY_TO } from '../../lib/dailyBriefLink'
 import { chartPlanEnabled } from '../../lib/widgetEmbedCore'
 import useStaggeredMount from '../../../charts/grid/useStaggeredMount'
 import { makeGridWarmer } from '../../../charts/grid/gridWarm'
 import { GRID_MAX_CELLS } from '../../../charts/grid/gridLayouts'
 import { prefetchListAllTimeframes } from '../../../../utils/prefetchBars'
 import BoardCard from './BoardCard'
+import FirstPlanAsk, { FIRST_PLAN } from './FirstPlanAsk'
 import SimilarNames, { TEMPLATES_URL, fetchJson, findSimilarEnabled } from './SimilarNames'
 import styles from './SetupsBoard.module.css'
 
@@ -71,6 +74,16 @@ export function emptyBoardText({ planDrawing = null, chartPlanOn, examples = fal
     : `${lead} A setup comes from a chart whose lines are marked as the entry and the stop, and marking lines is not switched on for your account.`
 }
 
+/** Whether a member can draw a plan here: the board's own answer, else the tab's latched chart-plan flag. */
+function planCanBeDrawn(planDrawing) {
+  if (planDrawing && typeof planDrawing.available === 'boolean') return planDrawing.available
+  return chartPlanEnabled()
+}
+
+// S17 (audit 2026-11-05, M7): the empty board ASKS -- "Draw your first plan". Its own small file since S15, so the
+// Today home's setups card asks the same thing without fetching the board's charts.
+export { FIRST_PLAN }
+
 function Board({ onFindSimilar }) {
   const { data, error, isLoading, mutate } = useSWR(BOARD_URL, fetchJson,
     { revalidateOnFocus: false, shouldRetryOnError: false })
@@ -98,14 +111,15 @@ function Board({ onFindSimilar }) {
   return (
     <section className={styles.board} aria-labelledby="board-title" data-setups-board="">
       <div className={styles.header}>
-        <h2 id="board-title" className={styles.title}>Active setups</h2>
+        <h2 id="board-title" className={styles.title}>Setups</h2>
         <span className={styles.scope}>
           Open plans with levels drawn on a chart, closest to the entry first.
         </span>
       </div>
       {error && <LoadFailed compact what="your setups" error={error} onRetry={() => mutate()} />}
       {!error && isLoading && <p className={styles.quiet} role="status">Reading your plans…</p>}
-      {!error && data && !hasOwn && (
+      {!error && data && !hasOwn && !hasExamples && planCanBeDrawn(data?.planDrawing) && <FirstPlanAsk />}
+      {!error && data && !hasOwn && (hasExamples || !planCanBeDrawn(data?.planDrawing)) && (
         <p className={styles.quiet}>{emptyBoardText({ planDrawing: data?.planDrawing, chartPlanOn: chartPlanEnabled(), examples: hasExamples })}</p>
       )}
       {!error && data?.capped && (
@@ -204,8 +218,14 @@ function Templates({ onPick }) {
 
 export default function SetupsBoard() {
   const boardOn = boardEnabled()
+  useRouteOpened('setups_board', boardOn)   // follow-up A: only when the board itself renders
   const similarOn = findSimilarEnabled()
   const [params, setParams] = useSearchParams()
+  // Follow-up B, item 1c: where the member came from rides in router state (the Daily brief's link sets it). The
+  // "Find more like this" sheet rewrites the address in place, so it carries the state along or the way back would
+  // flip to "Back to Notebook" after the sheet closed.
+  const routeState = useLocation().state
+  const fromBrief = routeState?.from === FROM_DAILY_BRIEF
   const [picked, setPicked] = useState(() => {
     const raw = params.get('similar')
     if (!raw || !raw.includes(':')) return null
@@ -214,12 +234,12 @@ export default function SetupsBoard() {
   })
   const open = useCallback((t) => {
     setPicked(t)
-    setParams((p) => { const n = new URLSearchParams(p); n.set('similar', `${t.noteId}:${t.embedKey}`); return n }, { replace: true })
-  }, [setParams])
+    setParams((p) => { const n = new URLSearchParams(p); n.set('similar', `${t.noteId}:${t.embedKey}`); return n }, { replace: true, state: routeState })
+  }, [setParams, routeState])
   const close = useCallback(() => {
     setPicked(null)
-    setParams((p) => { const n = new URLSearchParams(p); n.delete('similar'); return n }, { replace: true })
-  }, [setParams])
+    setParams((p) => { const n = new URLSearchParams(p); n.delete('similar'); return n }, { replace: true, state: routeState })
+  }, [setParams, routeState])
 
   // Both capabilities off: the route sends the member back to the Notebook (as My Playbook
   // sends them to Insights) instead of a page that says a dark feature exists.
@@ -227,9 +247,10 @@ export default function SetupsBoard() {
   return (
     <div className={styles.page} data-setups-page="">
       {/* P0.5: the board had no way back; a member who followed the home's door could only use the
-          browser's Back. A real link to the Notebook home, above the title. */}
-      <Link to="/journal/notebook" className={styles.backLink}>
-        <UIcon name="chevronLeft" size={14} gold={false} /> Back to Notebook
+          browser's Back. A real link to the Notebook home, above the title. Follow-up B, item 1c: back to the Daily
+          brief when the member came from it. */}
+      <Link to={fromBrief ? NOTEBOOK_TODAY_TO : '/journal/notebook'} className={styles.backLink}>
+        <UIcon name="chevronLeft" size={14} gold={false} /> {fromBrief ? 'Back to Daily brief' : 'Back to Notebook'}
       </Link>
       <h1 className={styles.pageTitle}>Setups</h1>
       {boardOn && <Board onFindSimilar={similarOn ? open : null} />}

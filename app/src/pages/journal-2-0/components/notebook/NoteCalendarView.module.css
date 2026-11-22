@@ -203,7 +203,10 @@
 /* Phone: a 7-column month stays a month, but the cells get shorter and the
    whole grid scrolls sideways rather than crushing each day to nothing. */
 @media (max-width: 640px) {
-  .grid { overflow-x: auto; }
+  /* VIS-7 + Tier 2 review minor 17: the scroll box, not the grid, scrolls (and is the focusable region). */
+  .gridScroll { overflow-x: auto; }
+  .grid { overflow: visible; min-width: 520px; }
+  .gridScroll:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
   .dowRow, .week { min-width: 520px; }
   .cell, .padCell { min-height: 68px; }
 }

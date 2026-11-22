@@ -535,3 +535,81 @@ def test_the_retention_sweep_may_not_delete_a_PARTIAL_failure(armed,
         "proves nothing")
     assert partial_id in [r["id"] for r in fl.fires_for_alert(armed)], (
         "the sweep ate the record that a member missed an email")
+
+
+# ─── The email's last line: where THIS alert is turned off ──────────────────
+
+def _email_html(sent):
+    assert len(sent["email"]) == 1, sent["email"]
+    return sent["email"][0][2]
+
+
+def test_an_RS_screen_message_says_where_ITS_switch_is(armed, channels_up):
+    """The RS screens' daily "joined and left" message is switched on and off on the
+    screen itself. Its email used to end "Manage your alerts from the chart toolbar",
+    a place that does not hold that switch (found before the owner armed it,
+    2026-11-16)."""
+    out = wls.deliver_alert_payload(
+        user_id="u1", sym="MARKET", title="UCT RS Leaders: 2 joined",
+        message="UCT RS Leaders, at its standard settings: 2 joined (AAA, BBB).",
+        source="rs_screen_alert", severity="info", extra_data={})
+    assert out["channels"]["email"] == "ok", out
+    html = _email_html(channels_up)
+    assert "open the screen in the Screener" in html
+    assert "Tell me what joins and leaves" in html
+    assert "chart toolbar" not in html
+
+
+def test_CONTROL_a_chart_alert_still_points_at_the_chart_toolbar(armed, channels_up):
+    """Without this, the test above passes for a footer that changed for everyone."""
+    assert ias.record_trigger(armed, last_value=75.0) is True
+    _deliver(armed)
+    html = _email_html(channels_up)
+    assert wls.EMAIL_FOOTER_DEFAULT in html
+    assert "Tell me what joins and leaves" not in html
+
+
+def test_an_unknown_source_gets_the_default_last_line():
+    assert wls.email_footer("something_new") == wls.EMAIL_FOOTER_DEFAULT
+    assert wls.email_footer(None) == wls.EMAIL_FOOTER_DEFAULT
+    assert wls.email_footer("rs_screen_alert") != wls.EMAIL_FOOTER_DEFAULT
+
+
+def test_the_RS_last_line_names_the_switch_by_the_label_the_page_draws():
+    """ONE FACT IN TWO FILES: the switch's label lives in the client
+    (`rsAlerts.js`, RS_ALERT_LABEL). Read from that file, never retyped here, so a
+    renamed switch cannot leave the email naming one that no longer exists."""
+    import pathlib
+    import re
+    src = (pathlib.Path(__file__).resolve().parents[1] / "app" / "src" / "pages"
+           / "screener" / "focus" / "rsAlerts.js").read_text(encoding="utf-8")
+    m = re.search(r"export const RS_ALERT_LABEL = '([^']+)'", src)
+    assert m, "RS_ALERT_LABEL is no longer a plain string in rsAlerts.js"
+    assert m.group(1) in wls.email_footer("rs_screen_alert")
+    from api.services.screener import rs_screen_alerts
+    assert rs_screen_alerts.SOURCE in wls.EMAIL_FOOTERS, (
+        "the RS message's source no longer has its own last line")
+
+
+def test_a_call_keyword_alert_says_where_ITS_list_is():
+    """An earnings call keyword alert is saved and removed in the call search, not on a
+    chart. Its email ended with the default "Manage your alerts from the chart toolbar",
+    a place that does not hold it (found 2026-11-17 while the Terminal's TSRC panel gained
+    a save control)."""
+    import pathlib
+    footer = wls.email_footer("transcript_keyword")
+    assert footer != wls.EMAIL_FOOTER_DEFAULT
+    assert "chart toolbar" not in footer
+    root = pathlib.Path(__file__).resolve().parents[1]
+    # ONE FACT IN THREE FILES, each read rather than retyped: the alert's source string,
+    # the Terminal code that manages it, and the older list's heading.
+    scan = (root / "api" / "services" / "transcript_keyword_alerts.py").read_text(encoding="utf-8")
+    assert 'source="transcript_keyword"' in scan, "the scan no longer delivers under this source"
+    registry = (root / "app" / "src" / "pages" / "terminal" / "functions.js").read_text(encoding="utf-8")
+    assert "code: 'TSRC'" in registry, "TSRC is no longer a Terminal code: fix the footer"
+    assert "TSRC" in footer
+    import re
+    page = (root / "app" / "src" / "components" / "calendar" / "TranscriptSearchAll.jsx").read_text(encoding="utf-8")
+    m = re.search(r"<span className=\{styles\.label\}>([^<]+)</span>", page)
+    assert m, "the transcript search no longer has a plain heading"
+    assert m.group(1) in footer, "the heading the footer names was renamed: " + m.group(1)

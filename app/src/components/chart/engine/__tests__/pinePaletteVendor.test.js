@@ -92,8 +92,13 @@ describe('⛔ CONTROL — the fixture is really read, and it can tell versions a
     expect(distinct('olive')).toBe(1)    // the control's control: some names never move
   })
 
-  it('the authority is measured at exactly the fixture\'s versions', () => {
-    expect([...MEASURED_VERSIONS].sort()).toEqual(VERSIONS)
+  it('the authority is measured at the fixture\'s versions, plus v1/v2 (engine 58)', () => {
+    // ⭐ ENGINE 58 — v1 and v2 are measured too, by the S2-S6 capture sessions (409
+    // captures of v1/v2/unannotated scripts, 0 contradictions; licence-held, so not a
+    // committed fixture): they draw the v3 table, the same frozen object.
+    expect([...MEASURED_VERSIONS].sort()).toEqual([1, 2, ...VERSIONS])
+    expect(PALETTE_BY_VERSION[1]).toBe(PALETTE_BY_VERSION[3])
+    expect(PALETTE_BY_VERSION[2]).toBe(PALETTE_BY_VERSION[3])
   })
 })
 
@@ -158,18 +163,24 @@ describe('door 3 — the runtime lane paints the vendor\'s hex', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-describe('⚠️ UNMEASURED — no annotation, v1, v2 keep the pre-existing (v5) table', () => {
+describe('⭐ ENGINE 58 — no annotation is v1, v1/v2 draw the v3 table; only an unmeasured version keeps v5', () => {
   it('is named, not implied', () => {
     expect(UNMEASURED_FALLBACK).toBe(5)
-    for (const v of [null, undefined, 1, 2, 7]) {
+    for (const v of [1, 2]) expect(isMeasuredVersion(v), String(v)).toBe(true)
+    expect(paletteFor(null)).toBe(PALETTE_BY_VERSION[3])
+    for (const v of [undefined, 7]) {
       expect(isMeasuredVersion(v), String(v)).toBe(false)
       expect(paletteFor(v), String(v)).toBe(PALETTE_BY_VERSION[UNMEASURED_FALLBACK])
     }
   })
 
-  it('an unannotated script draws exactly what it drew before this file existed', () => {
-    const t = translatePine('indicator("u")\nplot(close, title="r", color=color.red)', { strict: true })
+  // ⭐ ENGINE 58 review item 4 (coordinator ruling) — UPDATED DELIBERATELY. This pin was
+  // `indicator("u") … color=color.red`: no pragma but v4+ forms, which TradingView does not
+  // compile as v1, and which the member door now refuses by name
+  // (`engine58Review.test.jsx`). The unannotated pin is a v1 script in v1 forms.
+  it('an unannotated script draws the web red (it compiles as v1)', () => {
+    const t = translatePine('study("u")\nplot(close, title="r", color=red)', { strict: true })
     expect(t.version).toBe(null)
-    expect(t.outputs[0].presentation.color).toBe('#FF5252')
+    expect(t.outputs[0].presentation.color).toBe('#FF0000')
   })
 })

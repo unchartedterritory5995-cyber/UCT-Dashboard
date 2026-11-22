@@ -62,7 +62,7 @@ function Row({ r, showCompany, since }) {
   return (
     <tr data-testid={`filing-${r.accession}`}>
       <td>{r.form} <NewTag since={since} itemKey={filingKey(r)} /></td>
-      {showCompany && <td>{r.ticker ? <><PanelSymbol sym={r.ticker} />{' · '}</> : ''}{r.company}{r.filed_by ? ` (filed by ${r.filed_by})` : ''}</td>}
+      {showCompany && <td>{r.ticker ? <><PanelSymbol sym={r.ticker} /><span>{' · '}</span></> : ''}{r.company}{r.filed_by ? ` (filed by ${r.filed_by})` : ''}</td>}
       <td>
         {r.items
           ? (r.items.length

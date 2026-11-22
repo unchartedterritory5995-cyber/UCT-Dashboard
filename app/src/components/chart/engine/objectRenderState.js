@@ -38,28 +38,32 @@ import { barOpenInstant, etClockAt } from '../indicators.js'
 // chart the objects are about to be drawn on (`objectTheme.js`).
 import { isThemeColour, resolveThemeColour } from './objectTheme.js'
 // ⭐ C37 — the defaults that depend on the script's Pine version.
-import { versionObjectDefaults } from './objectDefaults.js'
+import { versionObjectDefaults, namedObjectDefaults } from './objectDefaults.js'
 
 /** Pine's own defaults, so an object drawn with two arguments still looks like
  *  the author's. ⛔ Every one of these is Pine's documented default, not a
  *  house preference — a UCT-flavoured default here is an imported indicator
  *  that comes back subtly wrong. */
+//  ⭐⭐ B5 (2026-11-15) — every COLOUR here is `objectDefaults.js::NAMED_OBJECT_DEFAULTS` resolved at the
+//  base version through the one palette; nothing below spells a hex. `objectDefaultsFor` resolves the
+//  same names at the script's own version.
+const BASE_NAMED = namedObjectDefaults(null)
 export const OBJECT_DEFAULTS = Object.freeze({
   line: Object.freeze({
-    xloc: 'bar_index', extend: 'none', color: '#2962FF', style: 'solid', width: 1,
+    xloc: 'bar_index', extend: 'none', style: 'solid', width: 1, ...BASE_NAMED.line,
   }),
   label: Object.freeze({
-    xloc: 'bar_index', yloc: 'price', color: '#2962FF', style: 'label_down',
-    textcolor: '#FFFFFF', size: 'normal', textalign: 'center', text: '',
+    xloc: 'bar_index', yloc: 'price', style: 'label_down',
+    size: 'normal', textalign: 'center', text: '', ...BASE_NAMED.label,
   }),
   box: Object.freeze({
-    xloc: 'bar_index', extend: 'none', border_color: '#2962FF', border_width: 1,
-    border_style: 'solid', bgcolor: 'rgba(41,98,255,0.20)',
+    xloc: 'bar_index', extend: 'none', border_width: 1,
+    border_style: 'solid', ...BASE_NAMED.box,
   }),
   table: Object.freeze({
     position: 'top_right', bgcolor: 'transparent', frame_width: 0, border_width: 0,
   }),
-  linefill: Object.freeze({ color: 'rgba(41,98,255,0.20)' }),
+  linefill: Object.freeze({ ...BASE_NAMED.linefill }),
 })
 
 const defaultsMemo = new Map()
@@ -68,14 +72,18 @@ const defaultsMemo = new Map()
  *  or absent version is the base, unchanged. */
 export function objectDefaultsFor(pineVersion) {
   const over = versionObjectDefaults(pineVersion)
-  const hit = defaultsMemo.get(over)
+  // ⭐⭐ B5 — the NAMED defaults at this version first (`objectDefaults.js::namedObjectDefaults`), then
+  // the witnessed per-version slots over them. An unknown or absent version is the base.
+  const named = namedObjectDefaults(Number.isInteger(pineVersion) ? pineVersion : null)
+  const memoKey = `${Number.isInteger(pineVersion) ? pineVersion : 'base'}`
+  const hit = defaultsMemo.get(memoKey)
   if (hit) return hit
   const out = {}
   for (const family of ['line', 'label', 'box', 'table', 'linefill', 'cell']) {
-    out[family] = Object.freeze({ ...(OBJECT_DEFAULTS[family] || {}), ...(over[family] || {}) })
+    out[family] = Object.freeze({ ...(OBJECT_DEFAULTS[family] || {}), ...(named[family] || {}), ...(over[family] || {}) })
   }
   const frozen = Object.freeze(out)
-  defaultsMemo.set(over, frozen)
+  defaultsMemo.set(memoKey, frozen)
   return frozen
 }
 
@@ -330,6 +338,14 @@ const THEME_SLOTS = Object.freeze({
   table: Object.freeze(['bgcolor', 'frame_color', 'border_color']),
   linefill: Object.freeze(['color']),
 })
+/** A table cell's colour slots (painted below, in the cell rows). */
+const CELL_THEME_SLOTS = Object.freeze(['text_color', 'bgcolor'])
+
+/** ⭐ ENGINE 54 — THE COLOUR SLOTS OF THE RENDER STATE, per family plus `cell`: the row keys
+ *  that hold a colour (and only those). The run half's object rail compares these as colours
+ *  and every other string exactly (`runHalfObjectRail.js`). Derived from the slots this module
+ *  paints, never restated. */
+export const RENDER_COLOUR_SLOTS = Object.freeze({ ...THEME_SLOTS, cell: CELL_THEME_SLOTS })
 
 /**
  * @param {Array}  live   `evaluateObjects(...).live`

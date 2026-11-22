@@ -679,7 +679,36 @@ PINNED_FAMILIES = [
     ("/api/wisdom/archive/image/img_1", "archive-images"),
     ("/api/tsdr-lessons/link-transcript", "internal"),
     ("/api/time-and-sales/status", "admin-ops"),
+    # Chart IQ: per-action member reads and votes beside /api/patterns, never market-data's bulk tier.
+    ("/api/chart-iq/NVDA", "screener"),
+    ("/api/chart-iq/NVDA/feedback", "screener"),
+    ("/api/chart-iq/pack/status", "screener"),
+    # The two telemetry beacons: anonymous-writable intake whose own durable quotas are the real limit.
+    ("/api/perf/beacon", "public-intake"),
+    ("/api/desktop/event", "public-intake"),
+    # ...and their admin reads stay admin-ops (the beacon prefixes are the exact doors, nothing wider).
+    ("/api/admin/perf", "admin-ops"),
+    ("/api/admin/desktop-events", "admin-ops"),
+    # EVST: a member's own historical study is heavier than a research read, so it has its own tighter bucket;
+    # the stock statistics read beside it stays research.
+    ("/api/research/event-study", "research-studies"),
+    ("/api/research/event-study/series", "research-studies"),
+    ("/api/research/stock-stats/NVDA", "research"),
 ]
+
+
+def test_a_study_is_TIGHTER_than_the_research_reads_it_sits_under():
+    from limits import parse
+    study, read = parse(rlp.FAMILIES["research-studies"].limit), parse(rlp.FAMILIES["research"].limit)
+    assert study.amount / study.get_expiry() < read.amount / read.get_expiry()
+
+
+def test_the_massive_card_logo_is_EXEMPT_and_only_that_one_file():
+    """Discord's media proxy fetches it from shared IPs: a 429 is a broken card icon. The exemption
+    is the exact file, so a dynamic route added under /api/brand is unclassified, never exempt."""
+    hit = rlp.classify("/api/brand/massive-card-logo.png")
+    assert hit is not None and hit[0] == rlp.KIND_EXEMPT, hit
+    assert rlp.classify("/api/brand/some-new-dynamic-route") is None
 
 
 def _family_of(path, index=None):

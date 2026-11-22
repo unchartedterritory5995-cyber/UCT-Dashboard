@@ -2,7 +2,7 @@
 
 Mirrors the SnapTrade wrapper's exception family
 (`api/services/journal_two/broker/snaptrade_client.py`) — a provider (Roam,
-Craft, Notion, Dropbox) raises ONLY these outward, never a raw httpx/SDK
+Craft, Notion, Obsidian, Evernote) raises ONLY these outward, never a raw httpx/SDK
 exception, so the sync engine and router can make one set of decisions
 regardless of which provider is talking:
 
@@ -38,7 +38,7 @@ class NoteConnError(Exception):
 
 class NoteConnNotConfigured(NoteConnError):
     """Provider env credentials are not set (dark provider — e.g.
-    NOTION_CLIENT_ID/SECRET, DROPBOX_APP_KEY/SECRET absent)."""
+    NOTION_CLIENT_ID/SECRET absent), or an unknown/archived provider name."""
 
 
 class NoteConnAuthError(NoteConnError):
@@ -84,6 +84,18 @@ class NoteConnUnsafeAddress(NoteConnUnsupported):
     and the providers' own https-only checks). A TYPE, so the engine's `unsafe` importNotice
     never depends on the wording of a reason (Plan A Task 8): a provider's own "private page"
     refusal is a plain `NoteConnUnsupported` and reads `unsupported`."""
+
+
+class NoteConnAttachmentNotSent(NoteConnUnsupported):
+    """An Obsidian vault file whose bytes never reached the server (live audit 2026-11-03, F2):
+    attachment sync off for the account, a plugin older than 0.2.0, or a file missing from the
+    list a newer one sent with the note. Final. `notice_reason` is the importNotice reason the
+    engine writes (`media_failure_reason`): "update the plugin" only where an update fixes it,
+    else `not-sent`; never "can't be shown here"."""
+
+    def __init__(self, message: str, *, notice_reason: str, **kw):
+        super().__init__(message, **kw)
+        self.notice_reason = notice_reason
 
 
 class NoteConnTooLarge(NoteConnUnsupported):

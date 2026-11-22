@@ -20,6 +20,9 @@
 // present — a MEASURED ROLE ORDER (`PINE_CALL_SHAPES`) and MEASURED PARAMETER
 // NAMES (`PINE_ARG_NAMES`). `ta.stoch` has the first and not the second, so it
 // still refuses; that is the single most important assertion on this page.
+// ⭐⭐ ENGINE 55 — a look-ahead-off `request.security(…, 'W'|'M')` translates to `tf_merge`
+// (TradingView's merge: the period's value on the bar that closes it), no longer `tf`;
+// the pins below were flipped deliberately with it (formula `tf` is unchanged).
 
 import { describe, it, expect } from 'vitest'
 import { interpret } from './interpret.js'
@@ -389,7 +392,7 @@ describe('request.security reads its own parameter names', () => {
   it('a positional prefix with the rest named works too, and `gaps` does not disturb it', () => {
     const out = sec('request.security(syminfo.tickerid, "W", expression = close, gaps = barmerge.gaps_off)')
     expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
-    expect(out.outputs[out.selected].formula).toBe("tf(close, 'W')")
+    expect(out.outputs[out.selected].formula).toBe("tf_merge(close, 'W')")
   })
 
   it('⛔ the lookahead ruling is unchanged — named `lookahead_on` still becomes the LIVE node', () => {
@@ -403,7 +406,7 @@ describe('request.security reads its own parameter names', () => {
 
     const off = sec('request.security(syminfo.tickerid, "W", close, lookahead = barmerge.lookahead_off)')
     expect(off.ok).toBe(true)
-    expect(off.outputs[off.selected].formula).toBe("tf(close, 'W')")
+    expect(off.outputs[off.selected].formula).toBe("tf_merge(close, 'W')")
   })
 
   it('⛔ an unrecognised parameter name still falls through to the namespace refusal', () => {
@@ -427,6 +430,6 @@ describe('request.security reads its own parameter names', () => {
     // does.
     const out = sec('security(syminfo.tickerid, resolution = "W", expression = close)')
     expect(out.ok, JSON.stringify(out.refusal)).toBe(true)
-    expect(out.outputs[out.selected].formula).toBe("tf(close, 'W')")
+    expect(out.outputs[out.selected].formula).toBe("tf_merge(close, 'W')")
   })
 })

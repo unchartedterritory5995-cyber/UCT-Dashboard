@@ -28,36 +28,20 @@
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.4px;
-  color: var(--menu-accent, var(--ut-gold, #dcbb5e));
   text-transform: uppercase;
 }
 .headRight { display: inline-flex; align-items: center; gap: 6px; }
-.resetBtn {
-  background: transparent;
-  border: 1px solid var(--menu-border, var(--border, #2a3340));
-  color: var(--menu-text-dim, var(--text-muted, #8b8674));
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  padding: 3px 7px;
-  border-radius: 5px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.resetBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); border-color: var(--menu-accent, rgba(220, 187, 94, 0.45)); }
 
 .close {
   background: none;
   border: none;
-  color: var(--menu-text-dim, var(--text-muted, #8b8674));
   cursor: pointer;
   font-size: 13px;
   line-height: 1;
   padding: 2px 4px;
   border-radius: 3px;
 }
-.close:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); background: var(--menu-hover, rgba(255, 255, 255, 0.06)); }
+.close:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.06)); }
 
 .body {
   overflow-y: auto;
@@ -82,7 +66,6 @@
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--menu-text-dim, var(--text-muted, #8b8674));
   margin: 12px 0 4px;
   padding-bottom: 3px;
   border-bottom: 1px dashed var(--menu-divider, rgba(255, 255, 255, 0.07));
@@ -100,38 +83,12 @@
   display: flex;
   flex-direction: column;
   font-size: 11.5px;
-  color: var(--menu-text, var(--text, #d6d0bf));
 }
 .hint {
   font-size: 9px;
-  color: var(--menu-text-dim, var(--text-muted, #8b8674));
   margin-top: 1px;
 }
 .rowControl { display: flex; align-items: center; gap: 6px; }
-
-/* Segmented control (bg mode) */
-.seg {
-  display: inline-flex;
-  border: 1px solid var(--menu-border, var(--border, #2a3340));
-  border-radius: 5px;
-  overflow: hidden;
-}
-.segBtn {
-  background: transparent;
-  border: none;
-  color: var(--menu-text-dim, var(--text-muted, #8b8674));
-  font-family: inherit;
-  font-size: 10.5px;
-  padding: 4px 9px;
-  cursor: pointer;
-}
-.segBtn + .segBtn { border-left: 1px solid var(--menu-divider, var(--border, #2a3340)); }
-.segBtn:hover { color: var(--menu-text, var(--text-bright, #e0dac8)); }
-.segBtnOn {
-  background: var(--menu-accent-bg, rgba(220, 187, 94, 0.16));
-  color: var(--menu-accent, var(--ut-gold, #dcbb5e));
-  font-weight: 600;
-}
 
 .gradPair { display: inline-flex; align-items: center; gap: 6px; }
 .gradArrow { color: var(--menu-text-dim, var(--text-muted, #8b8674)); font-size: 11px; }
@@ -149,3 +106,120 @@
 }
 .swatch:hover { border-color: var(--menu-border, rgba(255, 255, 255, 0.4)); transform: scale(1.08); }
 .swatchActive { border-color: var(--menu-accent, var(--ut-gold, #dcbb5e)); box-shadow: 0 0 0 2px var(--menu-accent-bg, rgba(220, 187, 94, 0.25)); }
+
+/* ═══ Board look (uct prop, owner 11-14): a dropdown under the gear in the board's menu
+   style — dark panel, sentence-case title and section labels, soft segmented control,
+   round swatches. Only when a widget passes `uct`. ═══ */
+.uct { border-radius: 10px; background: var(--menu-bg, #1b1c20); border-color: var(--menu-border, #383b41); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); }
+.uct .head { background: none; padding: 10px 8px 8px 14px; border-bottom: 1px solid var(--menu-divider, #2c2e33); }
+.uct .title { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; }
+.uct .headRight { gap: 2px; }
+.uReset { height: 24px; padding: 0 8px; border: none; border-radius: 6px; background: none; font: 600 11.5px var(--font-sans, inherit); cursor: pointer; }
+.uReset:hover { background: var(--menu-hover, rgba(248, 247, 243, 0.06)); }
+.uct .close { width: 24px; height: 24px; border-radius: 6px; font-size: 12px; }
+.uct .body { padding: 2px 14px 12px; }
+.uct .sectionLabel { text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 600; border-bottom: none; margin: 12px 0 2px; padding: 0; }
+.uct .row { min-height: 34px; }
+.uct .rowLabel { font-size: 13px; }
+.uct .hint { font-size: 11px; margin-top: 0; }
+
+.uct .swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(248, 247, 243, 0.18); box-shadow: none; }
+.uct .swatchActive { border-color: var(--menu-text, #f8f7f3); }
+
+/* Dark menu, dark scrollbar (owner 11-14): the browser draws a thin dark scrollbar, never the
+   white light-theme one, inside this always-dark menu. */
+.uct { color-scheme: dark; }
+.uct .body { scrollbar-color: rgba(248, 247, 243, 0.22) transparent; }
+
+/* === New board look (owner 11-14): every widget settings menu in the /charts menu style -
+   plain dark panel, sentence-case title and section labels, quiet rows, soft segmented
+   control, round swatches, a slim gold switch. Look only - every setting is unchanged. === */
+.panel { border-radius: 10px; background: var(--menu-bg, #16171a); border-color: var(--menu-border, #383b41); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); color-scheme: dark; }
+.panel .head { background: none; padding: 10px 8px 9px 14px; border-bottom: 1px solid var(--menu-divider, #2a2c31); }
+.panel .title { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; }
+.panel .headRight { gap: 2px; }
+.panel .uReset { height: 24px; padding: 0 8px; border: none; border-radius: 6px; background: none; font: 600 11.5px var(--font-sans, inherit); cursor: pointer; }
+.panel .uReset:hover { background: var(--menu-hover, rgba(248, 247, 243, 0.06)); }
+.panel .close { width: 24px; height: 24px; border-radius: 6px; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+.panel .body { padding: 2px 14px 12px; scrollbar-width: thin; scrollbar-color: rgba(248, 247, 243, 0.22) transparent; }
+.panel .sectionLabel { text-transform: none; letter-spacing: 0; font-size: 11.5px; font-weight: 700; border-bottom: none; margin: 14px 0 2px; padding: 0; }
+.panel .sectionLabel:first-child { margin-top: 8px; }
+.panel .row { min-height: 34px; }
+.panel .rowLabel { font-size: 12.5px; font-weight: 500; }
+.panel .hint { font-size: 11px; margin-top: 1px; }
+
+.panel .swatch { width: 20px; height: 20px; border-radius: 50%; border: 2px solid rgba(248, 247, 243, 0.18); box-shadow: none; }
+.panel .swatch:hover { border-color: rgba(248, 247, 243, 0.4); transform: none; }
+.panel .gradArrow { color: var(--menu-text-faint, #93939a); }
+.panel .uBtn { height: 26px; padding: 0 10px; border: none; border-radius: 7px; background: rgba(248, 247, 243, 0.06); color: var(--menu-text, #f8f7f3); font: 600 12px var(--font-sans, inherit); cursor: pointer; white-space: nowrap; }
+.panel .uBtn::after { content: '\203A'; margin-left: 6px; color: var(--menu-text-dim, #a9a59b); }
+.panel .uBtn:hover { background: rgba(248, 247, 243, 0.11); }
+
+/* === Design B, grouped cards (owner 11-14): each section's rows sit in one rounded card,
+   split by hairlines; square swatches; a monochrome switch (white when on). Pure CSS - the
+   rows are untouched, a card is simply a run of adjacent .row siblings. === */
+.panel { border-radius: 12px; }
+.panel .head { border-bottom: none; padding: 12px 10px 6px 14px; }
+.panel .title { font-size: 14px; }
+.panel .body { padding: 0 10px 12px; }
+.panel .sectionLabel { margin: 12px 4px 6px; font-size: 11px; font-weight: 600; }
+.panel .sectionLabel:first-child { margin-top: 4px; }
+.panel .row { min-height: 38px; padding: 0 12px; border-bottom: 1px solid; }  /* fill + hairline colour: UCT Signature below */
+.panel .row:first-child, .panel :not(.row) + .row { border-top-left-radius: 9px; border-top-right-radius: 9px; }
+.panel .row:last-child, .panel .row:not(:has(+ .row)) { border-bottom: none; border-bottom-left-radius: 9px; border-bottom-right-radius: 9px; }
+.panel .row:has(.hint) { min-height: 44px; }
+
+.panel .swatch { width: 18px; height: 18px; border-radius: 5px; border: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); }
+.panel .swatch:hover { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4); }
+.panel .swatchActive { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15), 0 0 0 2px #111214, 0 0 0 4px var(--menu-text, #f8f7f3); }
+.panel .uBtn { background: none; padding: 0 2px; color: var(--menu-text-dim, #a9a59b); }
+.panel .uBtn:hover { background: none; color: var(--menu-text, #f8f7f3); }
+
+/* Where the menu sits (owner 11-14, useWidgetMenuPlacement): flush with the widget's top, as
+   tall as the widget (inline max-height), sliding in from the widget's side. */
+.panel { max-height: none; }
+.panel[data-side='right'] { animation: menuInRight 120ms ease-out; }
+.panel[data-side='left'] { animation: menuInLeft 120ms ease-out; }
+.panel[data-side='down'] { animation: menuInDown 120ms ease-out; }
+@keyframes menuInRight { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+@keyframes menuInLeft { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: none; } }
+@keyframes menuInDown { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .panel[data-side] { animation: none; } }
+
+/* ═══ UCT Signature (owner 11-15, docs/uct-signature-style.md) ═══ The widget settings menu in
+   the redesigned Chart Settings' look: a sentence-case 15px title, a quiet grey Reset, the ✕ as a
+   26px soft square, 11.5px section labels over #1a1b1f cards with hairline rows, every choice a
+   ChoiceMenu dropdown (its chosen ✓ is the menu's one gold mark), and every on/off the SOFT SQUARE left of
+   its label (the whole row toggles: widgetMenuRowToggle.js). Look only — every control
+   keeps its role, label, handler and saved setting. The Signature palette is spelled ONCE here as
+   local properties (dark only, like every UCT Signature surface); the rules below read them. ═══ */
+.panel {
+  --sig-panel: #111214; --sig-card: #1a1b1f; --sig-border: #383b41; --sig-divider: #26282c;
+  --sig-selected: #2c2e33; --sig-text: #ededed; --sig-bright: #f8f7f3;
+  --sig-dim: #a9a59b; --sig-faint: #93939a; --sig-label: #c9c6be; --sig-ink: 248 247 243;
+  background: var(--sig-panel); border-color: var(--sig-border);
+}
+.panel .head { padding: 12px 10px 6px 14px; }
+.panel .title { font-size: 15px; font-weight: 700; color: var(--sig-bright); }
+.panel .uReset { height: 26px; padding: 0 8px; border-radius: 7px; color: var(--sig-faint); font-size: 12px; }
+.panel .uReset:hover { background: rgb(var(--sig-ink) / 0.07); color: var(--sig-text); }
+.panel .close { width: 26px; height: 26px; padding: 0; border: none; border-radius: 7px; background: rgb(var(--sig-ink) / 0.06); color: var(--sig-dim); font-size: 11px; display: inline-flex; align-items: center; justify-content: center; }
+.panel .close:hover { background: rgb(var(--sig-ink) / 0.11); color: var(--sig-bright); }
+.panel .sectionLabel { font-size: 11.5px; font-weight: 600; color: var(--sig-label); }
+.panel .row { background: var(--sig-card); border-bottom-color: var(--sig-divider); }
+.panel .rowLabel { color: var(--sig-text); }
+.panel .hint { color: var(--sig-faint); }
+/* on/off: the soft square, LEFT of the label; other controls on the row stay on the right */
+.panel .row:has(> .rowControl > .toggle) { position: relative; padding-left: 42px; cursor: pointer; }
+.panel .rowControl > .toggle {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 18px; height: 18px; padding: 0; border: none; border-radius: 5px; cursor: pointer;
+  background: none; box-shadow: inset 0 0 0 1.5px rgb(var(--sig-ink) / 0.22); transition: none; /* the ✓ appears / disappears at once, centered (owner 11-16) */
+}
+.panel .rowControl > .toggle .knob { display: none; }
+.panel .row:hover > .rowControl > .toggle { box-shadow: inset 0 0 0 1.5px rgb(var(--sig-ink) / 0.5); }
+.panel .rowControl > .toggleOn, .panel .row:hover > .rowControl > .toggleOn {
+  background: var(--sig-selected) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2l2.3 2.3 4.7-5' fill='none' stroke='%23f8f7f3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 11px no-repeat;
+  box-shadow: inset 0 0 0 1px rgb(var(--sig-ink) / 0.28);
+}
+.panel .rowControl > .toggle:focus-visible { outline: 2px solid rgb(var(--sig-ink) / 0.4); outline-offset: 2px; }

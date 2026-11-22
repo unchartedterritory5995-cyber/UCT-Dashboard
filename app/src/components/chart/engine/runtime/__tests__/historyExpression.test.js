@@ -167,14 +167,11 @@ describe('⭐⭐⭐ a FINITE WINDOW over an EXPRESSION', () => {
     expect(ir.windows[0].span, 'the ring is sized from the input').toBe(7)
     sameSeries(out, pureLane('ta.sma(close + 1, 7)'), 'computed window length')
 
-    // ⚠️⚠️ AND WHAT IS FROZEN IS THE INPUT'S **DEFAULT**, NOT A LATER OVERRIDE.
-    // That is `pine.js`'s deliberate rule (owner decision 2026-08-11, pinned by
-    // `history.test.js`), and this case agrees with that authority rather than
-    // becoming a second one: a hoisted expression's ring must obey exactly the
-    // rule a named variable's ring already obeys, or a member's knob would mean
-    // one thing over `x` and another over `x + 1`.
+    // ⭐ AND A LATER OVERRIDE SIZES THE RING (settings parity 2c: the member's value, as
+    // `history.test.js` now pins for a named variable's ring; the column lane computes it too),
+    // so a member's knob means the same thing over `x` and over `x + 1`.
     const { ir: ir3 } = runPine(src, { len: 3 })
-    expect(ir3.windows[0].span, 'an override does not resize a frozen ring').toBe(7)
+    expect(ir3.windows[0].span, 'an override sizes the ring at the member\'s value').toBe(3)
   })
 
   it('⭐⭐ COMPUTED OFFSET — a history offset from an INPUT NAME, not a literal', () => {
@@ -183,7 +180,7 @@ describe('⭐⭐⭐ a FINITE WINDOW over an EXPRESSION', () => {
     expect(ir.history[0].depth, 'the ring depth is folded from the input').toBe(3)
     sameSeries(out, pureLane('(close + 1)[3]'), 'computed history offset')
     const { ir: ir5 } = runPine(src, { back: 5 })
-    expect(ir5.history[0].depth, 'an override does not deepen a frozen ring').toBe(3)
+    expect(ir5.history[0].depth, 'an override deepens the ring to the member\'s value').toBe(5)
   })
 
   it('⭐ `ta.highest` over an expression — the window family, not just `sma`', () => {
@@ -210,23 +207,34 @@ describe('⛔⛔ WHAT STILL REFUSES — every wall named', () => {
     // would make this compile, and it must not: a function reading a mutable
     // global is a separate capability with its own measurement. Only a node
     // that is genuinely NOT A NAME may hoist.
-    const r = refusalOf(`${head}${state}f() =>\n    ta.sma(x, 5)\nplot(f())\n`)
+    // ⭐ U-FGS F2 (2026-11-19) serves a MUTABLE global's window inside a function (its own frame copy, never a
+    // hoist); a global bound ONCE is what still refuses, and the hoist must not lift it.
+    const r = refusalOf(`${head}${state}y = x + 1\nf() =>\n    ta.sma(y, 5)\nplot(f())\n`)
     expect(r.guard).toBe('runtime:function-global-state')
   })
 
-  it('⛔ history over an expression INSIDE A FUNCTION still refuses by name', () => {
-    expect(refusalOf(`${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`).guard)
+  // W4-T7: a function body's own statement list and result now hoist (served,
+  // `w4FrameHoist.test.js`); a NESTED list inside the body still refuses.
+  it('⛔ history over an expression in a NESTED LIST of a function still refuses by name', () => {
+    expect(refusalOf(`${head}f(v) =>\n    r = 0.0\n    if v > 0\n        r := (v + 1)[1]\n    r\nplot(f(close))\n`).guard)
       .toBe('runtime:history-expression')
   })
 
-  it('⛔ a window over an expression INSIDE A FUNCTION still refuses by name', () => {
-    expect(refusalOf(`${head}f(v) =>\n    ta.sma(v + 1, 5)\nplot(f(close))\n`).guard)
-      .toBe('runtime:history-expression')
+  // ⚰️ both WERE refused (`runtime:history-expression`): the hoist would change WHEN the expression
+  // runs. ⭐ HIST-S2 does not hoist: a `skip` / `ffill` / `finite` window keeps its own ring of what it is
+  // handed, so the expression is handed in place and is evaluated exactly when the window is. `ta.sma`
+  // is the witnessed per-call-site window (C48), so these are served; on these bars both regions run
+  // on every bar, so each equals the root's window over a named series.
+  const sameAs = (got, want) => got.forEach((v, i) =>
+    expect(Number.isNaN(v) ? Number.isNaN(want[i]) : Math.abs(v - want[i]) < 1e-9, `bar ${i}`).toBe(true))
+  it('a window over an expression in a NESTED LIST of a function is handed the expression in place (HIST-S2)', () => {
+    const got = runPine(`${head}f(v) =>\n    r = 0.0\n    if v > 0\n        r := ta.sma(v + 1, 5)\n    r\nplot(f(close))\n`).out
+    sameAs(got, runPine(`${head}var u = 0.0\nu := close + 1\nplot(ta.sma(u, 5))\n`).out)
   })
 
-  it('⛔⛔ inside an `if` BODY it still refuses — the hoist would change WHEN it runs', () => {
+  it('inside an `if` BODY too: nothing is hoisted, the window runs when the body does (HIST-S2)', () => {
     const src = `${head}${state}var y = 0.0\nif close > 0\n    y := ta.sma(x + 1, 5)\nplot(y)\n`
-    expect(refusalOf(src).guard).toBe('runtime:history-expression')
+    sameAs(runPine(src).out, runPine(`${head}var u = 0.0\nu := close + 1\nplot(ta.sma(u, 5))\n`).out)
   })
 
   it('⛔ a RUNTIME-DERIVED offset over an expression refuses `runtime:history-dynamic-offset`', () => {

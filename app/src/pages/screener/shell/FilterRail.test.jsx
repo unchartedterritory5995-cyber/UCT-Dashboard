@@ -21,6 +21,16 @@ describe('FilterRail', () => {
     expect(screen.getByLabelText('Price')).toBeInTheDocument()
   })
 
+  it('a picker_hidden control is not offered unless it is already switched on (S1)', () => {
+    const hidden = { ...META, filters: [...META.filters,
+      { key: 'rs_benchmark_agree', label: 'RS Agrees Hidden', category: 'momentum', type: 'range', allow_custom: true, presets: [{ label: 'Any' }], picker_hidden: true }] }
+    const { unmount } = render(<FilterRail meta={hidden} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
+    expect(screen.queryByLabelText('RS Agrees Hidden')).toBeNull()
+    unmount()
+    render(<FilterRail meta={hidden} activeFilters={{ rs_benchmark_agree: { op: 'gte', min: 1 } }} onChange={() => {}} onClear={() => {}} />)
+    expect(screen.getByLabelText('RS Agrees Hidden')).toBeInTheDocument()
+  })
+
   it('collapsing a group hides its controls and persists', () => {
     const { unmount } = render(<FilterRail meta={META} activeFilters={{}} onChange={() => {}} onClear={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: /descriptive/i }))

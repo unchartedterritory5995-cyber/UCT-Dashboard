@@ -64,6 +64,13 @@ on:
       - 'docs/notebook/perf-budgets.json'
       - '.github/workflows/notebook-bytes.yml'
 
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run of this
+# workflow. Every other event (master push, dispatch, schedule) is grouped by its own commit SHA and
+# is never cancelled: promotion reads the master runs for a SHA. tests/test_ci_cost_rails.py pins this.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   bytes:
     runs-on: ubuntu-latest
@@ -88,6 +95,19 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=4096
         run: npm run build
+
+      # ⭐ 2026-11-17 — THE iOS-FLOOR SCAN RIDES THIS BUILD. app/src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js
+      # reads the BUILT bundle for a global the declared floor (iOS >= 16) lacks and nothing shims (the class that
+      # took /journal/notebook down on iOS 17.5 while every local engine was green). No vitest lane builds the
+      # app, so the scan was red in all of them and ran in none; this job already builds on every app/src change,
+      # so the scan costs one vitest file here instead of a build per shard elsewhere. REQUIRE_BUILT_DIST=1 makes a
+      # missing build FAIL instead of skip. The test file rails this step (its last describe), so moving or
+      # dropping it is red there. ⚠️ Like the byte check, a red here refuses promotion (promotion-gate: yes).
+      - name: iOS floor scan over the build (iteratorGlobalFloor)
+        working-directory: app
+        env:
+          REQUIRE_BUILT_DIST: '1'
+        run: npx vitest run src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js
 
       - uses: actions/setup-python@v5
         with:

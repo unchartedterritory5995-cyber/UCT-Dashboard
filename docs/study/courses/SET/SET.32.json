@@ -1,0 +1,4089 @@
+{
+ "unit": "SET.32",
+ "track": "SET",
+ "title": "Opening Range Breakout",
+ "teaches": "The opening range breakout as we trade it: an entry timer on 30-minute bars for a daily setup already on the focus list (a Kicker, an earnings gap, a base breakout) in a leader above its 50-day and 200-day; the range is the first 30-minute candle, 9:30 to 10:00 ET; the buy is the trade a cent through its high after 10:00 at market, never more than 4% past it; the stop sits a few cents under the day's low at the fill; the first sell is a judgment, usually day 3 or later into a 3, 5 or 7 day push, with the rest on the trail; on a Kicker the stop is capped at 3.5%; a loss at the stop is the plan working.",
+ "skills": [
+  {
+   "id": "setup.orb",
+   "title": "Opening Range Breakout"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/40-opening-range-breakout.json",
+ "sources": [
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "MarketGauge (Geoff Bysshe)",
+   "title": "Trading the 10 O'clock Bulls, first edition (2009), chapters 2, 4 and 5",
+   "url": "https://www.marketgauge.com/TradingThe10OclockBulls.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "A named practitioner-author's own book on the 30-minute opening range, published by his firm MarketGauge; the dossier read the full PDF and checked every quote by script. A vendor book, so it supports and never keys alone."
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Kristjan Kullamagi (qullamaggie.com)",
+   "title": "3 TIMELESS setups that have made me TENS OF MILLIONS! (2021-01-08, updated 2021-04-28)",
+   "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The trader's own site, in his own words, with a public record widely covered in the trading press; his opening range entry is the closest published rule to how UCT times a breakout. Reader comments on the page were not used."
+  },
+  {
+   "id": "s27",
+   "tier": 2,
+   "publisher": "Trade-Ideas",
+   "title": "30 Minute Opening Range Breakout alert (ORU30), help page",
+   "url": "https://trade-ideas.com/help/alert/ORU30/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A long-established scanning vendor's own definition of the alert it sells; used only for the plain definition of the 30-minute range and the trade-through trigger."
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "TradersLog (Linda Bradford Raschke)",
+   "title": "Capturing Trend Days (repost dated 2025-02-11)",
+   "url": "https://www.traderslog.com/?p=823",
+   "accessed": "2026-11-09",
+   "why_reliable": "Raschke, co-author of Street Smarts and a well-known trader-educator, in her own article as reposted; used only to show how the morning range is defined elsewhere and for her warning on whipsaws."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "Technical Analysis of Stocks & Commodities (Toby Crabel)",
+   "title": "Opening range breakout Part 4, V.7:2 (Feb 1989), publisher's abstract",
+   "url": "https://store.traders.com/-v07-c02-orb-pdf.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "The magazine's own abstract of the originator's article series; Crabel named the setup. The abstract is the publisher's text, read in full; the article itself was not bought."
+  },
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "Technical Analysis of Stocks & Commodities (Toby Crabel)",
+   "title": "Playing the opening range breakout Part 1, V.6:9 (Sept 1988), publisher's abstract",
+   "url": "https://store.traders.com/-v06-c09-playing-pdf.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Same publisher as Part 4, so it never counts as a second publisher; it adds the originator's one-line definition."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "TraderFeed (Brett Steenbarger)",
+   "title": "Trading Opening Range Breakouts (2007-03-20)",
+   "url": "https://traderfeed.blogspot.com/2007/03/trading-opening-range-breakouts.html",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger is on the contract's list of well-known trading authors; this is his own blog post, used for the first-pullback entry only."
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "StockCharts ChartSchool",
+   "title": "Narrow Range Day NR7",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/trading-strategies-and-models/trading-strategies/narrow-range-day-nr7",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u1",
+   "tier": 3,
+   "publisher": "UCT Substack (the owner's published writing)",
+   "title": "The Rest of the Week, TSDR TRADING section, TMDX (2026-02-24)",
+   "url": "https://unchartedterritoryy.substack.com/p/the-rest-of-the-week-b24",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u2",
+   "tier": 3,
+   "publisher": "UCT Substack (the owner's published writing)",
+   "title": "Market Update and Watchlist, TSDR WATCHLIST section, GRRR (2025-06-19)",
+   "url": "https://unchartedterritoryy.substack.com/p/market-update-and-watchlist",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "u3",
+   "tier": 3,
+   "publisher": "UCT Substack (the owner's published writing)",
+   "title": "Sunday Scans, TSDR's Weekly Outlook section (2025-06-22)",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-0d2",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "v1",
+   "tier": 3,
+   "publisher": "UCT owner rulings",
+   "title": "Owner verdict log, the Kicker entries and stop (2026-11-02)",
+   "url": "repo:docs/study/audits/2026-10-24/owner_verdicts.jsonl",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "Opening Range Breakout criteria card (docs/study/setups/criteria/40-opening-range-breakout.json, as of 2026-11-09)",
+   "url": "repo:docs/study/setups/criteria/40-opening-range-breakout.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own 5-minute and 30-minute bars)",
+   "title": "Opening Range Breakout dossier, sections 13 and 14: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/40-opening-range-breakout.md#13-examples-from-our-data",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "b01",
+   "source": "s16",
+   "quote": "In this book I define the Opening Range as the first 30 minutes of the trading day.",
+   "claim": "Bysshe defines the opening range as the first 30 minutes of the day."
+  },
+  {
+   "id": "b02",
+   "source": "s16",
+   "quote": "the 30-minute OR is defined as the stock's high and low for the day at 10:00 AM. The OR is not the opening price.",
+   "claim": "Bysshe: the 30-minute range is the day's high and low at 10:00, not the opening print."
+  },
+  {
+   "id": "b03",
+   "source": "s16",
+   "quote": "If the OR is sloppy, that is, if there isn't any well-defined support or resistance, don't waste your time watching it.",
+   "claim": "Bysshe skips a sloppy range with no well-defined high or low."
+  },
+  {
+   "id": "b04",
+   "source": "s16",
+   "quote": "The daily trend should be positive. Both the 20-day and the 50-day moving averages are positively sloped and the stock is trading above the 20-day moving average.",
+   "claim": "Bysshe wants a positive daily trend: rising 20 and 50-day averages, price above the 20-day."
+  },
+  {
+   "id": "b05",
+   "source": "s16",
+   "quote": "A bullish bias pattern in the OR may give you a hint, but your best clue is volume.",
+   "claim": "Bysshe: the best clue in the opening range is volume."
+  },
+  {
+   "id": "b06",
+   "source": "s16",
+   "quote": "a period of time equal to half the time period of the OR.",
+   "claim": "Bysshe's clean-break rule of thumb: after the break, price holds above the range for a period equal to half the range's own length, which is 15 minutes on a 30-minute range."
+  },
+  {
+   "id": "b07",
+   "source": "s16",
+   "quote": "your maximum risk point for an OR breakout is the low of the OR.",
+   "claim": "Bysshe's widest stop on a range break is the range low."
+  },
+  {
+   "id": "b08",
+   "source": "s16",
+   "quote": "If I can't find a good stop or risk point then I generally pass on the trade.",
+   "claim": "Bysshe passes when no good stop can be found."
+  },
+  {
+   "id": "b09",
+   "source": "s16",
+   "quote": "First identify a list of candidates based on your swing trade criteria, and then use the OR to time your entry.",
+   "claim": "Bysshe: pick the swing candidates first, then use the opening range to time the entry."
+  },
+  {
+   "id": "b10",
+   "source": "s16",
+   "quote": "The result is you buy a stock that has already moved too far from your optimal entry point.",
+   "claim": "Bysshe on chasing a strong open: you buy too far from the right entry."
+  },
+  {
+   "id": "k01",
+   "source": "s20",
+   "quote": "Enter on the opening range highs.",
+   "claim": "Kullamagi enters a breakout at the opening range high."
+  },
+  {
+   "id": "k02",
+   "source": "s20",
+   "quote": "The opening range highs can be the highs of the first 1-minute candle, the 5-minute candle or the 60-minute candle (on the 60-minute timeframe the first candle is always only 30 minutes, 9.30-10 AM).",
+   "claim": "Kullamagi: on a 60-minute chart the first candle is only 30 minutes, 9:30 to 10:00."
+  },
+  {
+   "id": "k03",
+   "source": "s20",
+   "quote": "Stop is always lows of the day and stop should not be wider than the ATR or ADR of the stock",
+   "claim": "Kullamagi: the stop is the low of the day, no wider than the stock's ATR or ADR."
+  },
+  {
+   "id": "k04",
+   "source": "s20",
+   "quote": "Many times the best ones have traded their average daily volume in the first 15-30 minutes after the open.",
+   "claim": "Kullamagi: the best gap plays trade their average daily volume in the first 15 to 30 minutes."
+  },
+  {
+   "id": "k05",
+   "source": "s20",
+   "quote": "You should sell 1/3 to 1/2 of the position after 3-5 days, and then move the stop to break even.",
+   "claim": "Kullamagi sells a third to a half after 3 to 5 days, then moves the stop to breakeven."
+  },
+  {
+   "id": "k06",
+   "source": "s20",
+   "quote": "You don’t even have to use any intraday chart, just look at the daily chart and enter when the stock is starting to break out.",
+   "claim": "Kullamagi: the setup is on the daily chart; the intraday chart only times the entry."
+  },
+  {
+   "id": "t01",
+   "source": "s27",
+   "quote": "The 30-minute opening range is the high and low of the first 30 minute candle of the day. An opening range breakout is the first time price trades above that high.",
+   "claim": "Trade-Ideas: the 30-minute range is the first 30-minute candle's high and low; the breakout is the first trade above that high."
+  },
+  {
+   "id": "r01",
+   "source": "s15",
+   "quote": "The morning range is defined by the high and low made in the first 45-120 minutes. Different time parameters can be used, but the most popular one is the first hour's range.",
+   "claim": "Raschke's morning range is longer, 45 to 120 minutes; windows differ by trader."
+  },
+  {
+   "id": "r02",
+   "source": "s15",
+   "quote": "The good news is that breakout strategies have a high win/loss ratio. The bad news is that whipsaws can be brutal!",
+   "claim": "Raschke: breakout strategies win often, and the whipsaws are brutal."
+  },
+  {
+   "id": "x01",
+   "source": "s1",
+   "quote": "An opening range breakout (ORB) is a trade taken at a predetermined amount above or below the opening range.",
+   "claim": "Crabel's definition: a trade taken a set amount beyond the opening range."
+  },
+  {
+   "id": "x02",
+   "source": "s4",
+   "quote": "My hypothesis is that inside days precede trend day activity and, consequently, successful opening range breakouts.",
+   "claim": "Crabel: inside days precede trend days and successful opening range breakouts."
+  },
+  {
+   "id": "st1",
+   "source": "s12",
+   "quote": "This makes the first pullback after the breakout move a nice high-probability entry once you start to see resumed buying.",
+   "claim": "Steenbarger likes the first pullback after a valid break, once buying resumes."
+  },
+  {
+   "id": "n01",
+   "source": "s11",
+   "quote": "Crabel took profits quite quickly, usually at the close of the first trading day or on the first profitable close.",
+   "claim": "StockCharts: Crabel took profits at the first day's close or the first profitable close."
+  },
+  {
+   "id": "u01",
+   "source": "u1",
+   "quote": "If unable or unwilling to try ORB at open. Look for a retest or an undercut and hold of VWAP mid morning.",
+   "claim": "If the ORB is missed, we look for a retest or a VWAP undercut and hold mid morning."
+  },
+  {
+   "id": "u02",
+   "source": "u1",
+   "quote": "Stop LOD.",
+   "claim": "Our ORB stop is the low of the day."
+  },
+  {
+   "id": "u03",
+   "source": "u2",
+   "quote": "This has strong potential if we open higher, break the opening range. Can enter there and place a stop at LOD and see how far it goes.",
+   "claim": "On a gap we enter the break of the opening range with a stop at the low of the day."
+  },
+  {
+   "id": "u04",
+   "source": "u2",
+   "quote": "If it trades it’s average daily volume (2 million shares) in the first 5 minutes then press the gas and look for 30s to trade on it.",
+   "claim": "Average daily volume in the first minutes is the sign to press."
+  },
+  {
+   "id": "u05",
+   "source": "u3",
+   "quote": "If we see buying activity and opening ranges being taken out or strong hourly candles forming after the first 30 min then we can execute on our focus list.",
+   "claim": "The indexes taking out their opening ranges after the first 30 minutes is our cue to execute the focus list."
+  },
+  {
+   "id": "v01",
+   "source": "v1",
+   "quote": "In terms of entry, on a kicker you can buy the opening range break (ORB), or the break of previous day high.",
+   "claim": "The Kicker has two entries: the ORB or the break of the previous day's high."
+  },
+  {
+   "id": "v02",
+   "source": "v1",
+   "quote": "Should be over previous day high or on day 1 kciker ORB on the 30 minute.",
+   "claim": "The Kicker's day-1 ORB is read on the 30-minute chart."
+  },
+  {
+   "id": "v03",
+   "source": "v1",
+   "quote": "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop usually",
+   "claim": "The Kicker stop: under the Kicker candle low, or 3.5% under the entry; usually smaller."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up; the gap rule is the one exception."
+  },
+  {
+   "id": "h03",
+   "source": "h1",
+   "quote": "Shares = account × risk % ÷ (entry − stop), rounded down, then capped: the size is the SMALLER of the risk-based size and the position cap",
+   "claim": "A5: shares are account times risk percent, divided by entry minus stop, rounded down, then capped."
+  },
+  {
+   "id": "h03b",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: full size at one price with one stop; no adding."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h05",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h11",
+   "source": "h1",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "C28: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h12",
+   "source": "h1",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "C28: chasing costs size, because the stop stays put and the distance grows."
+  },
+  {
+   "id": "h14",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades.",
+   "claim": "C31: buy leaders, an RS rating of 80 or more in a strong group."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h18",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: a real stop order with the broker."
+  },
+  {
+   "id": "h19",
+   "source": "h1",
+   "quote": "Never own more than 1% of a stock's average daily volume; illiquid stocks are not even watched.",
+   "claim": "D42: never own more than 1% of a stock's average daily volume."
+  },
+  {
+   "id": "h20",
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
+  },
+  {
+   "id": "h21",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h29",
+   "source": "h1",
+   "quote": "The same stock: at most 3 tries in a week and 6 in a month.",
+   "claim": "E56: at most 3 tries in a week and 6 in a month on one stock."
+  },
+  {
+   "id": "h30",
+   "source": "h1",
+   "quote": "No time-of-day rule.",
+   "claim": "C30: no time-of-day rule."
+  },
+  {
+   "id": "h31",
+   "source": "h1",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "D39: entry, stop and size are written before the open."
+  },
+  {
+   "id": "h34",
+   "source": "h1",
+   "quote": "In a Red market: mostly cash, plus shorts below the 200-day.",
+   "claim": "D46: in a Red market, mostly cash plus shorts below the 200-day."
+  },
+  {
+   "id": "h36",
+   "source": "h1",
+   "quote": "No setup, no trade: never force a trade to have something on; cash is a position.",
+   "claim": "D44: no setup, no trade."
+  },
+  {
+   "id": "c01",
+   "source": "c1",
+   "quote": "The opening range is the high and low of the first 30 minutes of regular trading, 9:30 to 10:00 ET, the first 30-minute candle.",
+   "claim": "Our opening range: the first 30-minute candle, 9:30 to 10:00 ET."
+  },
+  {
+   "id": "c02",
+   "source": "c1",
+   "quote": "Price trades at least one cent above the 30-minute high after 10:00 ET. A trade through, not a close.",
+   "claim": "The trigger: a trade a cent above the 30-minute high after 10:00, not a close."
+  },
+  {
+   "id": "c03",
+   "source": "c1",
+   "quote": "A few cents under the low of the day at the moment of the fill, normally the 30-minute low.",
+   "claim": "The stop: a few cents under the day's low at the fill, normally the 30-minute low."
+  },
+  {
+   "id": "c04",
+   "source": "c1",
+   "quote": "No fill more than 4% above the 30-minute high. If missed, wait for a pullback to the ORH that holds, or the owner's alternative: a VWAP retest or undercut-and-hold mid morning.",
+   "claim": "No fill more than 4% over the 30-minute high; if missed, wait for a pullback that holds or a VWAP retest."
+  },
+  {
+   "id": "c05",
+   "source": "c1",
+   "quote": "On a Kicker the stop is the Kicker low or 3.5% under the entry, whichever is closer.",
+   "claim": "On a Kicker the stop is the Kicker low or 3.5% under the entry, whichever is closer."
+  },
+  {
+   "id": "c06",
+   "source": "c1",
+   "quote": "On a Kicker: if the stock opens below the previous day's high, the previous-day-high order comes first and is cheaper; the ORB is the confirmation entry. If it opens above the previous day's high, the ORB is the patient entry.",
+   "claim": "On a Kicker that opens below the red day's high, the prior-day-high entry comes first and the ORB confirms."
+  },
+  {
+   "id": "c07",
+   "source": "c1",
+   "quote": "JBI 2023-12-14: the previous-day-high entry at 11.05 (stop 10.80, 2.3%) filled inside the first 30 minutes and was up about 2.3R at the close; the ORB entry at 11.21 (3.7% to the same stop) was up about 1.0R.",
+   "claim": "JBI 2023-12-14: the 11.05 entry risked 2.3% and was up 2.3R at the close; the 11.21 ORB entry risked 3.7% and was up 1.0R."
+  },
+  {
+   "id": "c08",
+   "source": "c1",
+   "quote": "Before the open, write the plan as a rule, not a price: buy a cent over the 30-minute high, stop a few cents under the day's low, size from that distance, skip if the stop is over 3%.",
+   "claim": "The plan is written as a rule before the open, since the range is unknown until 10:00."
+  },
+  {
+   "id": "c09",
+   "source": "c1",
+   "quote": "The trigger stays valid for the rest of that session; the 30-minute window is part of the trigger's definition, not a time-of-day rule. Later triggers grade lower.",
+   "claim": "The trigger is valid all session; the 30 minutes define the trigger; later triggers grade lower."
+  },
+  {
+   "id": "c10",
+   "source": "c1",
+   "quote": "Before the fill: the parent setup is broken. On a Kicker, a trade under the red day's low before the open.",
+   "claim": "Before the fill, a broken parent setup voids the ORB: on a Kicker, a trade under the red day's low."
+  },
+  {
+   "id": "c11",
+   "source": "c1",
+   "quote": "After the fill: the stop decides. A big-volume reversal back into the range is the classic failure; it is a warning to watch, not a second exit rule.",
+   "claim": "After the fill the stop decides; a big-volume reversal back into the range is a warning, not an exit rule."
+  },
+  {
+   "id": "c12",
+   "source": "c1",
+   "quote": "After a stop-out, a retake of the day's high is a new trigger with a new stop; it is allowed and counts against the 3 tries a week and 6 a month.",
+   "claim": "A retake of the day's high after a stop-out is a new trigger and counts as a try."
+  },
+  {
+   "id": "c13",
+   "source": "c1",
+   "quote": "Not ours: the app's target of twice the range, Crabel's exit at the close, and Kullamagi's sale of a third to a half after 3 to 5 days.",
+   "claim": "Not ours: a target of twice the range, an exit at the close, or a timed sale after 3 to 5 days."
+  },
+  {
+   "id": "c14",
+   "source": "c1",
+   "quote": "The prior close is also above the 50-day simple moving average.",
+   "claim": "The prior close is above the 50-day simple moving average."
+  },
+  {
+   "id": "c15",
+   "source": "c1",
+   "quote": "A grade cue: the opening-range high is well defined, tested more than once before the break, or a tight consolidation sits just under it.",
+   "claim": "A grade cue: a well-defined range high, tested more than once, or a tight hold under it."
+  },
+  {
+   "id": "c16",
+   "source": "c1",
+   "quote": "A cue: contraction the day before, an inside day, an NR4 or NR7 day, or a tight base.",
+   "claim": "A cue: contraction the day before (an inside day, NR4, NR7 or a tight base)."
+  },
+  {
+   "id": "c17",
+   "source": "c1",
+   "quote": "A cue: the indexes themselves are taking out their opening ranges, or forming strong hourly candles after the first 30 minutes.",
+   "claim": "A cue: the indexes taking out their own opening ranges."
+  },
+  {
+   "id": "c18",
+   "source": "c1",
+   "quote": "A cue: the stock is in play, with a catalyst and heavy opening volume.",
+   "claim": "A cue: a stock in play, with a catalyst and heavy opening volume."
+  },
+  {
+   "id": "c19",
+   "source": "c1",
+   "quote": "A 30-minute pivot buys the high of the first green 30-minute candle after a string of red ones at a daily level, which usually sits well below the morning high",
+   "claim": "The pivot lookalike: it buys the first green candle's high after a red string at a level, usually well under the morning high."
+  },
+  {
+   "id": "c20",
+   "source": "c1",
+   "quote": "A drive sets the day's low in the first 5-minute bar and is bought over that bar's high by about 9:40. An ORB waits for the full 30-minute range and buys after 10:00.",
+   "claim": "The drive lookalike: bought over the first 5-minute bar's high by about 9:40; the ORB waits for 10:00."
+  },
+  {
+   "id": "c21",
+   "source": "c1",
+   "quote": "A Kicker needs a real red day before the gap, and the ORB is only its second entry after the prior-day-high break. A gap with a doji or a green day before it is a plain gap ORB",
+   "claim": "The Kicker lookalike: a Kicker needs a real red day before the gap; a doji before the gap makes a plain gap ORB."
+  },
+  {
+   "id": "c22",
+   "source": "c1",
+   "quote": "An EP opens 10% or more above the prior close on a named catalyst, and its 30-minute range is usually too wide for a 3% stop.",
+   "claim": "The EP lookalike: a 10% gap on a catalyst whose 30-minute range is usually too wide for a 3% stop."
+  },
+  {
+   "id": "c23",
+   "source": "c1",
+   "quote": "orb.reversal_warning: a quick, clean break that holds above the ORH for about 15 minutes (Bysshe's half-the-range-time rule)",
+   "claim": "The A+ row: a clean break that holds above the range high for about 15 minutes."
+  },
+  {
+   "id": "c24",
+   "source": "c1",
+   "quote": "orb.range_defined: a sloppy range with no clear high",
+   "claim": "The B- row: a sloppy range with no clear high."
+  },
+  {
+   "id": "c26",
+   "source": "c1",
+   "quote": "No new buy in the 3 sessions before an earnings report. An ORB on the day after the report (TMDX, APPS, GRRR) is allowed.",
+   "claim": "No new buy in the 3 sessions before a report; an ORB the day after the report is allowed."
+  },
+  {
+   "id": "c27",
+   "source": "c1",
+   "quote": "Treating the opening minutes as the trade, buying before 10:00 because it is running. The ORB waits for the range.",
+   "claim": "A named mistake: buying before 10:00 because it is running; the ORB waits for the range."
+  },
+  {
+   "id": "c28",
+   "source": "c1",
+   "quote": "The ORB is an entry trigger for a daily setup already on the focus list: a Kicker, an EP or PEG, a base or IPO-high breakout, a pullback setup. It is not traded alone.",
+   "claim": "The ORB is an entry trigger for a daily setup on the focus list, not a trade of its own."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "The prior close is above the 200-day simple moving average.",
+   "claim": "The prior close is above the 200-day simple moving average."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "RS rating 80 or more, in a strong group.",
+   "claim": "A leader: RS rating 80 or more in a strong group."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "Price $10 or more and $20 million or more traded a day on average.",
+   "claim": "Liquidity: $10 or more and $20 million a day or more."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "JBI with the cap: 11.21 x 0.965 = 10.82, the Kicker low itself.",
+   "claim": "JBI: 3.5% under 11.21 is 10.82, the Kicker low itself."
+  },
+  {
+   "id": "c33",
+   "source": "c1",
+   "quote": "Green market: full risk. Yellow: smaller and fewer. Orange: A+ only. Red: mostly cash, plus shorts below the 200-day.",
+   "claim": "Market reading: Green full risk; Yellow smaller and fewer; Orange A+ only; Red mostly cash, plus shorts below the 200-day."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "FFIV | 2026-09-15 | long | 10:00 | 418.45 / 412.06, 1.53% | 2.67x | +0.1% | high 415.99 (ORH above) | 81 | 418.46 | 412.01 (1.54%) | 10.05R, 5R yes | 2.0",
+   "claim": "FFIV 2026-09-15: range 418.45 to 412.06 on 2.67x opening volume, RS 81; fill 418.46, stop 412.01 (1.54%); 10.05R, 3R in 2 sessions."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "Flat open, heavy first half hour, breaks the range on the very first bar after 10:00 and never looks back; +24% over the 200-day, 2% over the 50-day, $234M a day. The cleanest long in the window.",
+   "claim": "FFIV: a flat open, heavy first half hour, broke the range on the first bar after 10:00 and never looked back."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "ANF | 2026-10-12 | long | 10:00 | 146.90 / 143.91, 2.03% | 1.68x | +1.0% | high 143.39 (ORH above) | 90 | 146.91 | 143.86 (2.07%) | 8.24R, 5R yes | 3.2",
+   "claim": "ANF 2026-10-12: range 146.90 to 143.91; fill 146.91, stop 143.86 (2.07%); 8.24R."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "EXEL | 2026-10-14 | long | 10:00 | 60.91 / 59.56, 2.22% | 1.99x | +0.7% | high 60.00 (ORH above) | 81 | 60.92 | 59.51 (2.31%) | 9.06R, 5R yes | 6.0",
+   "claim": "EXEL 2026-10-14: range 60.91 to 59.56 on 1.99x; fill 60.92, stop 59.51 (2.31%); 9.06R, 3R in 6 sessions."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "OVV | 2026-10-09 | long | 10:30 | 64.42 / 63.26, 1.80% | 1.62x | +0.1% | high 63.80 (ORH above) | 86 | 64.43 | 63.21 (1.89%) | 7.53R, 5R yes | 5.2",
+   "claim": "OVV 2026-10-09: a 10:30 trigger; fill 64.43, stop 63.21 (1.89%); 7.53R."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "A trigger at 10:30 after a tight hold just under the OR high; +15% over the 200-day, only 1% over the 50-day, so no chase. 5R in session 7, then back to the fixed stop in session 18",
+   "claim": "OVV: a tight hold under the range high before the 10:30 trigger; 5R in session 7, then back to the stop in session 18."
+  },
+  {
+   "id": "d07",
+   "source": "d1",
+   "quote": "A late-morning trigger (10:50) on a leader (RS 94, +50% over the 200-day); 3R the next day, 5R in three sessions, then a full round trip to the stop by session 10.",
+   "claim": "QLYS: a 10:50 trigger; 3R the next day, 5R in three sessions, then a round trip to the stop."
+  },
+  {
+   "id": "d08",
+   "source": "d1",
+   "quote": "SNX | 2026-09-21 | long | 10:05 | 274.03 / 270.72, 1.21% | 2.42x | +2.3% | high 269.00 (ORH above) | 88 | 274.04 | 270.67 (1.23%) | 7.34R, 5R yes | 1.9",
+   "claim": "SNX 2026-09-21: a 2.3% gap, range 274.03 to 270.72 on 2.42x; fill 274.04 at 10:05, stop 270.67 (1.23%); 7.34R."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "Then the earnings report of 2026-09-24 (before the open, on file) gapped it through the stop: the lesson is the third sold at 3R and 5R and no earnings hold without a plan.",
+   "claim": "SNX: the 2026-09-24 report gapped it through the stop; the thirds sold at 3R and 5R kept the win."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "A 2.3% gap above the prior day's high on 1.7x opening volume, RS 90, +32% over the 200-day. The break ran 0.26R, fell back through the OR high by 10:30, lost VWAP and took the stop at 12:45",
+   "claim": "APA 2026-09-14: the break ran 0.26R, fell back through the range high by 10:30, lost VWAP and took the stop at 12:45."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "APA | 2026-09-14 | long at 10:00 | 46.37 | 45.51 (1.85%) | 12:45 the same day",
+   "claim": "APA 2026-09-14: fill 46.37, stop 45.51 (1.85%), stopped at 12:45 the same day."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "A quiet range break at 10:00 (OR high 269.23, RS 89, gap -0.9%) with no opening interest behind it: an ordinary day, not an ORB. It reached 1.29R and was stopped on 2026-09-28.",
+   "claim": "IQV 2026-09-15: a quiet break with no opening interest; 1.29R then stopped."
+  },
+  {
+   "id": "d12b",
+   "source": "d1",
+   "quote": "opening volume 1.03x the 20-day mean for 9:30 to 10:00",
+   "claim": "IQV: opening volume 1.03x its 20-day mean."
+  },
+  {
+   "id": "d13",
+   "source": "d1",
+   "quote": "A wide-range morning (2.7x opening volume, RS 92) whose range is too wide for the stop to fit: skip, or size down by the stop. It reached 0.33R and was stopped on 2026-10-28.",
+   "claim": "GKOS 2026-10-27: a range too wide for the stop to fit; 0.33R then stopped."
+  },
+  {
+   "id": "d13b",
+   "source": "d1",
+   "quote": "30-minute range 4.55% wide; stop 176.63 is 4.58% under the fill 185.11",
+   "claim": "GKOS: range 4.55% wide; stop 176.63 is 4.58% under the 185.11 fill."
+  },
+  {
+   "id": "d14",
+   "source": "d1",
+   "quote": "A clean 10:00 break (2.1x opening volume, range 2.63% wide, the OR high over the prior day's high) in a name that is not a leader: no parent setup, no trade. It reached 0.58R and was stopped on 2026-09-29.",
+   "claim": "DHR 2026-09-24: a clean break in a non-leader; 0.58R then stopped."
+  },
+  {
+   "id": "d14b",
+   "source": "d1",
+   "quote": "RS 64; the rule is 80 or more",
+   "claim": "DHR: RS 64 against the rule of 80 or more."
+  },
+  {
+   "id": "d15",
+   "source": "d1",
+   "quote": "the parent setup, the direction of the open and the calendar are what the four losses were missing, and the stop under the day's low is what kept each loss at 1R.",
+   "claim": "The four losses were missing the parent setup, the direction of the open or the calendar; the stop kept each loss at 1R."
+  },
+  {
+   "id": "c34",
+   "source": "c1",
+   "quote": "Stop to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Stop to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "h10b",
+   "source": "h1",
+   "quote": "A hard rule (\"200SMA is hardened rule yes\").",
+   "claim": "B26: the 200-day line is a hard rule."
+  },
+  {
+   "id": "h40",
+   "source": "h1",
+   "quote": "Max position 40% of the account",
+   "claim": "A7: the maximum position is 40% of the account."
+  },
+  {
+   "id": "d15b",
+   "source": "d1",
+   "quote": "All four were stopped in the same session, within four hours of the fill, and none ran past 0.26R",
+   "claim": "None of the four losses ran past 0.26R."
+  },
+  {
+   "id": "d16",
+   "source": "d1",
+   "quote": "DE | 2026-11-02 | long at 10:00 | 677.21 | 663.33 (2.05%) | 12:00 the same day",
+   "claim": "DE 2026-11-02: fill 677.21, stop 663.33 (2.05%), stopped at 12:00 the same day."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "The nearest source is Bysshe (source 16): the 20 and 50-day rising and the stock above the 20-day. The 50-day is the dossier's proposal.",
+   "claim": "The 50-day line is the card's own proposal; Bysshe, the nearest source, wants rising 20 and 50-day averages."
+  },
+  {
+   "id": "r11",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Owner: stop 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r12",
+   "source": "h2",
+   "quote": "Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it.",
+   "claim": "Owner: past 5% from the trigger, mostly wait for a tighter trigger."
+  },
+  {
+   "id": "r13",
+   "source": "h2",
+   "quote": "Never move the stop up to make a trade fit.",
+   "claim": "Owner: never move the stop to make a trade fit."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r22",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r23",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r24",
+   "source": "h2",
+   "quote": "Every setup buys as price trades through its trigger, during the day.",
+   "claim": "Every setup buys as price trades through its trigger, during the day."
+  },
+  {
+   "id": "r25",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "D-021: the course uses the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser.",
+   "claim": "The full size goes on at one price with one stop: no starter piece, and never an add to a loser."
+  },
+  {
+   "id": "aw2",
+   "source": "hw",
+   "quote": "Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "Adding to a working winner on strength happens, but rarely, as a feel call, never as the plan."
+  },
+  {
+   "id": "ma1",
+   "source": "hw",
+   "quote": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call.",
+   "claim": "For a long, the 50-day above the 200-day is mostly a must, not always; an exception is a judgment call."
+  },
+  {
+   "id": "ma2",
+   "source": "hw",
+   "quote": "Below the 200-day stays a hard no for stocks.",
+   "claim": "Price below the 200-day is a hard no for a stock."
+  },
+  {
+   "id": "aw_r",
+   "source": "h2",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "FFIV, September 2026: the cleanest break",
+   "steps": [
+    "FFIV, September 15, 2026. A leader with RS 81, over its 50-day and 200-day. It opens flat on 2.67 times normal volume.",
+    "At 10:00 the first 30-minute candle sets the range: 418.45 high, 412.06 low. That high's already above yesterday's high.",
+    "The very next candle trades a cent through 418.45. Buy at market, 418.46. Stop 412.01, a few cents under the low.",
+    "A heavy-volume reversal back into the range would be your warning. It never looked back. 3R in two sessions."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "c01",
+    "c02",
+    "c03",
+    "h22",
+    "h24",
+    "c11",
+    "h05",
+    "r21"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "SNX, September 2026: the trims and the gap",
+   "steps": [
+    "September 21, 2026: SNX gaps 2.3% over yesterday's high. At 10:05 it clears the 274.03 range high: buy 274.04, stop 270.67.",
+    "Check the calendar: earnings were September 24, 3 sessions out. We don't buy that close to a report.",
+    "It hit 5R in two sessions anyway. Sell some into the push and move the stop to breakeven.",
+    "September 24 the report gaps it through the stop. The first 30-minute low becomes the stop. What you sold kept the win."
+   ],
+   "facts": [
+    "d08",
+    "d09",
+    "c02",
+    "c03",
+    "h05",
+    "h20",
+    "h06",
+    "h22",
+    "c26",
+    "h08"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "JBI, December 2023: the Kicker's two entries",
+   "steps": [
+    "JBI, December 14, 2023, a Kicker day. It opens under the red day's high, so you've got two entries in play.",
+    "First one: it trades through that high inside the first 30 minutes. Fill 11.05, stop 10.80, 2.3% away.",
+    "Second one: the ORB, a cent over the first 30-minute high, fills at 11.21. Same stop is now 3.7% away.",
+    "That's past our 3.5% Kicker cap, so the stop comes up to 10.82. At the close: first fill 2.3R, the ORB 1.0R."
+   ],
+   "facts": [
+    "c07",
+    "c06",
+    "c05",
+    "c32",
+    "v01",
+    "v02",
+    "v03",
+    "h24"
+   ]
+  }
+ ],
+ "conflicts": [
+  "Pending-owner criteria kept OUT of every key (our current default, waiting on the owner): orb.parent_setup (D-002; the role is keyed only as Bysshe's and Kullamagi's words, q05, and the owner's own Kicker ruling, q18 and w3; the card's 'not traded alone' is quoted as c28 and never keyed); orb.window (D-031; the 30 minutes is keyed as the house default already taught in V.05 and ruled for the Kicker on 2026-11-02, with Trade-Ideas and Bysshe agreeing; 5 or 15-minute windows are not taught); orb.stop_width (D-005; 3% appears only as A13's 'usually within about 3%'; GKOS, q39, is keyed on A3's skip when the honest stop does not fit, never on a number); orb.opening_volume (D-006; 1.5x never keyed; volume is a grade cue in q49 and the IQV near-miss is graded, not gated); orb.not_stretched (D-017; C29 not keyed in this unit); orb.order (D-038; q43 keys E57 as written, a market order; the resting buy-stop is not taught); orb.inv_range_low_first (D-124; the MANH near-miss is not used); orb.orh_vs_pdh (D-123; 'the ORH above the prior day's high' appears only as a description in stories, never as a key); orb.day_one (D-016; no item); orb.short_trigger and the short mirror (D-001; not taught; the CMCSA and LII failures are shorts and are not used).",
+  "No chart-carrying question: the contract's chart item draws daily bars from our own history (build_items sets tf D), and the ORB lives on 30-minute bars; a daily chart cannot show the 9:30 to 10:00 range or the 10:00 break. Two chart questions on daily context alone would not test this setup, so the unit carries none.",
+  "The dossier's example numbers (d1) are cited as a Tier 3 repo source: they were read off our own 5-minute bars by the research scan (dossier sections 13 and 14), one 12-week window, 2026-08-17 to 2026-11-06; the RS figure is a proxy rank, not the app's rating; the parent setup was a proxy (RS 80+ and the range edge beyond the prior day's extreme), not a hand check for a Kicker, EP or base. The owner has not yet reviewed the ten names; the checker and the owner should confirm them before the unit goes live.",
+  "The criteria card (c1) is cited as a Tier 3 repo source for its proposed criteria (the 50-day, the range cue, the cues, the lookalike tells, the parent-broken invalidation); those statements are the dossier's proposals built on the sources it names, not owner rulings; every question keyed on them carries house: true and the owner's review is the gate. The owner's own words come from the verdict log (v1) and his published Substack sections (u1 to u3).",
+  "The clock: section 9 of the dossier grades an early trigger (by about 10:30) higher, resting on Zarattini's 5-minute result; the scan's one window found later triggers did better (34.5% to 3R after 10:30 against 22.5% by 10:30). q31 keys only what is settled (D-143: the trigger stays valid all session) and the card's 'later triggers grade lower' as the card's cue; the number is never keyed.",
+  "The trigger: every outside source acts on the trade through (Crabel's and Raschke's stop orders, Trade-Ideas, Kullamagi); only the app's scanner waits for a 5-minute close. The unit keys the trade through (c02, t01) and never mentions the scanner to a member.",
+  "The stop: Crabel, Raschke and Bysshe's maximum use the opposite side of the range; Kullamagi and the owner use the low of the day. On a first break after 10:00 the two usually agree. The unit keys the house stop (A3, F62): a few cents under the day's low at the fill. Bysshe's 'maximum risk point' (b07) supports it and is never keyed as ours.",
+  "The hold: Crabel's tests and Zarattini exit the same day; Raschke overnight; Kullamagi sells a third to a half after 3 to 5 days. The card is a swing trade (C35) with the house trims; q36 and q62 teach the others' exits as theirs, never ours.",
+  "The exit on a reversal: Bysshe calls a big-volume reversal at the top of the range a failed breakout; A4 keeps the stop as the only exit. q40 keys the card's settled line (a warning, not a second exit rule) with the APA loss as the planned loss.",
+  "Walk-through fills: the scan filled at the range high plus a cent (FFIV 418.46, SNX 274.04) or at the bar's open when it gapped over, and stopped 5 cents under the day's low at the fill; a live market order fills a little differently. JBI's numbers (w3) are the card's own evidence row from the owner's 2026-11-02 ruling and the repo's 30-minute bars.",
+  "The unit id SET.32 is the plan's (UNITS-method.md: 'ORB (Opening Range Break)', M11.L1); its row describes 'the aggressive range-break timer on the open' and names the 30-Minute Pivot as a sibling; the dossier's D-002 note separates the two (ORB = the first trade through the first half-hour's high; the pivot = the turn candle at support), which this unit follows.",
+  "Cold check 2026-11-10: 64 pass (61 questions and 3 walk-throughs; 17 fixed, 1 of them a walk-through), 0 fix, 3 cut (q54 duplicate of q12, q55 duplicate of q03, q61 duplicate of q36). Look first at: (1) the card's orb.above_50 is both a gate (proposed) and a 'counter-trend break' in its B- row; q32 keys it as a gate and its wrong note no longer claims the B- row, so the owner should say which it is; (2) q31 used to key 'later triggers grade lower', which E50 (grading is discretionary) does not teach and the dossier's own scan contradicts (34.5% to 3R after 10:30 against 22.5% by 10:30); it now keys only that a 10:50 break is valid, but the card's settled sentence still says later triggers grade lower; (3) every example number (FFIV, SNX, ANF, EXEL, OVV, DHR, GKOS) is one 12-week window on a proxy parent setup and a proxy RS rank, never hand-checked for a Kicker, EP or base, so w1, w2, q23, q50 and q57 stay unreviewed until the owner checks the names. Also fixed: q64 used two short losses (CMCSA, LII) as 'stops under the low'; q26 kept the original stop after a 3R trim against B19's breakeven default.",
+  "Requoted 2026-11-10: c33 after the cards' market-reading rows were corrected."
+ ],
+ "verify": {
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "146.91-143.86=3.05, /146.91=2.076; the cited fact says 2.07%. Good stop teaching, ANF named after the answer."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q08": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave4: see the resolver's notes"
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q12": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "6.45/418.46=1.54% checked; distractors are real slips."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "11.21x0.965=10.82; 11.60, 7.71, 7.29 each a real slip."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: the why says the ORB filled 3.7% from the same 10.80 stop and leaves it there, but the settled Kicker cap is 3.5% (owner verdict v03). Added that the cap pulls that stop up to 10.82; facts c05, c32 added to ground it."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice: the deeper read as a note to writers ('Do not write a third at 3R as the rule'). Rewritten for the member."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q22": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave4: see the resolver's notes"
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "3.05x3=9.15, 146.91+9.15=156.06; distractors check out."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "2.69/60.91=4.42%; 104.42, 95.77, 44.16 all real slips."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Rule 15: the story had the member holding through a report with no 5R cushion, which our earnings rule forbids. The story now has SNX past 5R first (fact d09: it sold at 3R and 5R) before the report."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q28": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q29": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "1% of 3,000,000 = 30,000."
+  },
+  "q30": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Writer's edit holds: the ORB trigger is the range high, a strong open is a separate planned trade (strong opens may be bought, waiting is not a must)."
+  },
+  "q31": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q32": {
+   "status": "cut",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Key rests on the card's orb.above_50, a proposed criterion (basis \"my proposal\"). The card treats it two ways: gate true, but it is missing from the no_trade list and the B- grading row reads \"counter-trend break\". So \"Take it at a lower grade\" is a second defensible answer and Pass is unsettled until the owner rules. Also a lone Pass against three Take it. Cut; criterion stays untested until ruled."
+  },
+  "q33": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q34": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q35": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: 'What's your usual plan for the first sell here?' was vague and 'the level is passed' named no level. Stem now asks what you do at the open; the wrong choice names the 3R pull it tests."
+  },
+  "q36": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q37": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Card proposal: the why counted NR4/NR7 (the card's proposed cue, Crabel's measures) as ours. Now judged by eye in words; NR4/NR7 moved to deeper as Crabel's."
+  },
+  "q38": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "250/3.37=74.18 -> 74; 296 is the 1% size, 145 the 40% cap (40,000/274.04), 7,418 the undecimaled 0.25."
+  },
+  "q39": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "4.58% stop answered by the owner's stop band (up to 5% accepted), not the card's pending 3% skip. Right call."
+  },
+  "q40": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice: 'exactly what you planned for at 46.37' was garbled. Now works the fill down to the stop."
+  },
+  "q41": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+  },
+  "q42": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q43": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q44": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q45": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: the lesson_line read like a definition ('Name the drive: its low comes in...'). Replaced with a line he'd say."
+  },
+  "q46": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q47": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: a 7% low-to-high range puts a stop under the low about 6.5% from the high, past 5% but not 'way past'. Toned down in why and simple."
+  },
+  "q48": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q49": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q50": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "7.05/1.41=5.0; 6.0, 9.9, 0.2 check."
+  },
+  "q51": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "adding text fine; but deeper said 'Red still means mostly cash, plus shorts below the 200-day', teaching shorting, which is only for traders who've made $1 million"
+  },
+  "q52": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q53": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: same issue as q18. A 3.7% stop on the Kicker's ORB fill breaks the settled 3.5% Kicker cap; the why now says the cap brings that stop to 10.82. Facts c05, c32 added."
+  },
+  "q54": {
+   "status": "cut",
+   "notes": "duplicate of q12: the same fact (no time-of-day rule; the 30 minutes define the trigger, not a cut-off) as a true/false restatement of q12's fill sentence. q12 and q31 keep it.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q55": {
+   "status": "cut",
+   "notes": "duplicate of q03: the same fact (the stop is a few cents under the day's low, not on it) with the same distractors ('exactly on the low', '3% under the fill', 'under the prior day's low').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q56": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Card proposal: 'a high that got tested twice is a real level' leaned on the card's proposed 2-touch count as a pass line. Now a tested high judged by eye; 'If I can't draw' became 'If you can't draw'."
+  },
+  "q57": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q58": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "1.41x2=2.82, 60.92-2.82=58.10; open 58.90 inside, 57.20 past. Correct."
+  },
+  "q59": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q60": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q61": {
+   "status": "cut",
+   "notes": "duplicate of q36: the same fact (Kullamagi's timed sale after 3 to 5 days is not ours; we sell by R) as a true/false restatement of q36's why and its third wrong note.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q62": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "answer right on a stock running on strength (rare feel call, never the plan); wrong 'not a bigger position' still read as never"
+  },
+  "q63": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "q64": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Numbers rechecked, answer right, wrongs clearly wrong, no working words. Reads like a mentor at the desk."
+  },
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02 verbatim (FFIV 2026-09-15: range 418.45/412.06, 2.67x, RS 81 proxy, fill 418.46, stop 412.01 = 1.54%, 10.05R, 3R after 2.0 sessions, flat open +0.1%, +24% over the 200-day, 2% over the 50-day). Numbers and 3R timing right. The RS is the scan's proxy rank, not the app rating (conflicts).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d08/d09 verbatim (SNX 2026-09-21: gap +2.3%, range 274.03/270.72, 2.42x, fill 274.04 at 10:05, stop 270.67, 5R in two sessions, report 2026-09-24 gapped through the stop). Step 1 said it 'gaps 2.3% above the prior day's high'; the 2.3% is the gap over the prior close (the range sits above the 269.00 prior-day high), now worded that way. Breakeven at the 3R trim matches B19's default.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "c05/c06/c07/c32 and v01 to v03 verbatim; JBI 2023-12-14 re-derived: first entry 11.05 with stop 10.80 = 0.25/11.05 = 2.3%; ORB fill 11.21 = 0.41/11.21 = 3.7%; 11.21 x 0.965 = 10.82 = the Kicker low; close 2.3R and 1.0R. Right as written.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "agrees with ADD-WINNER/MA-50-200 and the rules list; answer clear; voice 4+"
+  }
+ },
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.orb",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "orb.window",
+   "q": "It's 10:00 and you're marking the opening range on your 30-minute chart. What exactly are you marking?",
+   "choices": [
+    "The 9:30 to 10:00 high and low",
+    "The first 5-minute bar",
+    "The opening print",
+    "The 9:30 to 10:30 high and low"
+   ],
+   "answer": "The 9:30 to 10:00 high and low",
+   "why": "The high and low from 9:30 to 10:00, the first 30-minute candle. That's the window we use. The opening print is one trade. You want the whole first half hour, the high the buyers made and the low the sellers made. Mark both at 10:00. The high is your trigger. Your stop will sit a few cents under the low. A strong mover can still be bought right at the open when it triggers properly, but that's a different plan.",
+   "lesson_line": "Mark the first half hour's high and low at 10:00. That's your range.",
+   "facts": [
+    "c01",
+    "t01",
+    "b01",
+    "b02",
+    "r01",
+    "c20",
+    "k02",
+    "c03"
+   ],
+   "wrong": {
+    "The first 5-minute bar": "That's the opening drive's bar, a faster trade with its own rules. The ORB waits for the full half hour.",
+    "The opening print": "One print tells you nothing. The range is the high and low the first half hour actually made.",
+    "The 9:30 to 10:30 high and low": "That's a full hour. Some traders use longer windows, but our range closes at 10:00."
+   },
+   "house": true,
+   "simple": "Mark the high and low of the first half hour, 9:30 to 10:00. The high is your trigger.",
+   "deeper": {
+    "counter": "Windows differ across traders. Raschke's morning range runs 45 to 120 minutes, most popularly the first hour. Kullamagi uses the first 1-minute, 5-minute or 60-minute candle. Bysshe and Trade-Ideas use the first 30 minutes, as we do. So the range we mark is 9:30 to 10:00."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the house 30-minute window (D-031 pending; 30 minutes kept as the default in every option)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "setup.orb",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "orb.trigger",
+   "q": "The ORB trigger is the first trade through the 30-minute high, not a candle closing above it.",
+   "answer": "True",
+   "why": "True. You don't wait for a close. The moment price trades through the high after 10:00, that's your buy, at market. Waiting for a candle to finish just gets you a higher fill. On the strong ones it gets you no fill at all, because it's already gone. Set an alert at the range high the minute the range is in, so you're ready when it trades.",
+   "lesson_line": "When it trades through the high, you trade.",
+   "facts": [
+    "c02",
+    "t01",
+    "k01",
+    "h22",
+    "r24"
+   ],
+   "house": true,
+   "simple": "True, we buy the moment price trades through the high. We don't wait for a candle to close.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (the lesson line was corrected on 2026-11-10)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q03",
+   "skill": "setup.orb",
+   "rung": 1,
+   "format": "scenario",
+   "criterion": "orb.stop",
+   "q": "Where's your stop?",
+   "choices": [
+    "A few cents under 143.91",
+    "Right on 143.91",
+    "A flat 3% under your fill",
+    "Halfway between fill and low"
+   ],
+   "answer": "A few cents under 143.91",
+   "why": "A few cents under 143.91, the low of the day. Here that's 143.86. The low is where the chart says you're wrong. If buyers can't hold the day's low, the break failed. Put the stop right on the low and a wick that just tests it takes you out. So it goes a few cents under. From your fill that's 2.07%, right inside the 1 to 3% I like. This was ANF. Now you size the trade off that distance.",
+   "lesson_line": "Stop first, a few cents under the low of the day. Then size it.",
+   "facts": [
+    "c03",
+    "h24",
+    "k03",
+    "u02",
+    "h01",
+    "h04",
+    "d03",
+    "r11"
+   ],
+   "wrong": {
+    "Right on 143.91": "Right on the low, a wick that just tests it shakes you out. Give it a few cents.",
+    "A flat 3% under your fill": "A percent isn't a level. The chart tells you where you're wrong, and that's the low of the day.",
+    "Halfway between fill and low": "That's a stop pulled in to fit more shares. It sits inside the range, where normal noise takes you out."
+   },
+   "house": true,
+   "simple": "A few cents under the low of the day, 143.91. Then you size the trade off that stop.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A3, F62)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "story": "A leader on your list trades through its 30-minute high at 10:00. You're filled at 146.91. The low of the day so far is 143.91.",
+   "chart": {
+    "sym": "ANF",
+    "tf": "5",
+    "asof": "2026-10-12 10:00",
+    "window": 85,
+    "forward": 40,
+    "trade": {
+     "entry": 146.91,
+     "stop": 143.86
+    }
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "setup.orb",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "orb.no_chase",
+   "q": "You missed the 10:00 break and it's still going. How far over the range high can you still buy it?",
+   "sentence": "You can still buy up to ___% over the 30-minute high. Past that, you wait.",
+   "bank": [
+    "4",
+    "2",
+    "5",
+    "8",
+    "10"
+   ],
+   "answer": "4",
+   "why": "4%. Past 4% over the range high you're chasing, and chasing costs you size. Your stop stays a few cents under the low of the day. So every cent you pay up makes the stop wider and the share count smaller. If you missed it, wait for a pullback to the range high that holds. A retest or an undercut and hold of VWAP mid morning works too.",
+   "lesson_line": "Four percent over the range high is the line. Past it, wait for the retest.",
+   "facts": [
+    "h11",
+    "c04",
+    "h12",
+    "u01"
+   ],
+   "house": true,
+   "simple": "4%. Past that you're chasing, and chasing makes your stop wider and your size smaller.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C28)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q05",
+   "skill": "setup.orb",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "orb.parent_setup",
+   "q": "Bysshe and Kullamagi both pick the stock off the daily chart first, then use the open only to time the buy.",
+   "answer": "True",
+   "why": "True. Bysshe builds his list from his swing setups first, then uses the opening range to time the entry. Kullamagi says you don't even need an intraday chart. Just look at the daily and buy as it starts to break out. Same idea from both of them. The daily chart is the reason to own it. The opening range just picks the moment.",
+   "lesson_line": "The daily chart is the reason. The opening range is the timer.",
+   "facts": [
+    "b09",
+    "k06",
+    "c28"
+   ],
+   "simple": "True, both find the setup on the daily chart. The opening range only picks the moment to buy.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the parent-setup role is a held decision (D-002); keyed only as two authors' words"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "setup.orb",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "orb.above_200",
+   "q": "Prior close 48.10, the 200-day at 52.40. At 10:05 it breaks its 30-minute high on big volume. Can you take it?",
+   "choices": [
+    "No, it's under the 200-day",
+    "Yes, the volume overrides it",
+    "Half size with a tight stop",
+    "Yes, the break is clean"
+   ],
+   "answer": "No, it's under the 200-day",
+   "why": "No. 48.10 is under the 200-day at 52.40. For a stock that's a hard no, whatever the volume. Under the 200-day the daily trend is down, and we buy stocks that lead. One good morning on the 30-minute chart doesn't change the daily trend. Only indexes and levered ETFs get an exception, and that's a different trade.",
+   "lesson_line": "Under the 200-day, no long. Volume doesn't get a vote.",
+   "facts": [
+    "h10",
+    "c29",
+    "h10b",
+    "r24"
+   ],
+   "wrong": {
+    "Yes, the volume overrides it": "Nothing overrides the 200-day on a stock. A big-volume break under it is still under it.",
+    "Half size with a tight stop": "Fewer shares don't fix a stock on the wrong side of the 200-day. It's still a no.",
+    "Yes, the break is clean": "The 30-minute chart looks fine. The daily says the trend is down, and the daily wins."
+   },
+   "house": true,
+   "simple": "No. It's under its 200-day, and that's a hard no for a stock, however big the volume.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B26)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "setup.orb",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "orb.leader",
+   "q": "We only take ORBs in leaders, stocks with an RS rating of 80 or more in a strong group.",
+   "answer": "True",
+   "why": "True. The ORB is a timer, not a stock picker. RS 80 or better means the stock is already beating most of the market. Those are the names with buyers behind them when the range breaks. A clean break in a laggard is a laggard having a good morning. Check the RS Rating in our app before the open, not after the break.",
+   "lesson_line": "Leaders only. The break is the timer, the RS is the ticket.",
+   "facts": [
+    "h14",
+    "c30"
+   ],
+   "house": true,
+   "simple": "True, we want RS 80 or better. The break is the timer and the leader is the trade.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C31)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "setup.orb",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "orb.window",
+   "q": "Kullamagi says that on a 60-minute chart the first candle is only 30 minutes, 9:30 to 10:00.",
+   "answer": "True",
+   "why": "True. Kullamagi writes that on the 60-minute timeframe the first candle is always only 30 minutes, 9:30 to 10:00. Trade-Ideas calls the first 30-minute candle of the day the opening range. We read our range on 30-minute bars, where the first candle is 9:30 to 10:00.",
+   "lesson_line": "Read the range on 30-minute bars. The first candle there is 9:30 to 10:00.",
+   "facts": [
+    "k02",
+    "t01",
+    "c01",
+    "v02"
+   ],
+   "simple": "True. Kullamagi says the first candle on a 60-minute chart is only 30 minutes long, the same half hour as our range.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one trader's chart note (k02) is the only support for the 60-minute claim",
+     "reworded: the old key False depended on how a platform cuts hourly candles"
+    ]
+   },
+   "batch": "wave4"
+  },
+  {
+   "key": "q09",
+   "skill": "setup.orb",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "orb.trigger",
+   "q": "In the 10:00 bar the stock trades a cent over its 30-minute high. The bar is still open. What do you do?",
+   "choices": [
+    "Buy it at market now",
+    "Wait for the 5-minute close",
+    "Wait for the 10:30 close",
+    "Put a limit order under it"
+   ],
+   "answer": "Buy it at market now",
+   "why": "Buy it at market. The trade through the high is the trigger, so there's no close to wait for. Waiting for a bar to finish only gets you a higher price. On a strong one it's gone before you're in. A limit under the price waits for a dip that may never come. Just keep the fill within 4% of the high. This was EXEL, and the fill was 60.92.",
+   "lesson_line": "Set the alert at the range high. When it trades, you trade.",
+   "facts": [
+    "c02",
+    "h22",
+    "t01",
+    "h11",
+    "d04"
+   ],
+   "wrong": {
+    "Wait for the 5-minute close": "Our trigger is the trade through, not a close. Waiting only gets you a later, higher fill.",
+    "Wait for the 10:30 close": "The range closed at 10:00. Waiting another half hour throws the entry away.",
+    "Put a limit order under it": "We buy at market. A limit under the price waits for a dip that may never come."
+   },
+   "house": true,
+   "simple": "Buy at market now. The trade through the high is the trigger, so you don't wait for a close.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (E57); order type is a held decision (D-038) that would not change the answer"
+    ]
+   },
+   "depends_on": [
+    "D-038"
+   ],
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "EXEL",
+    "tf": "5",
+    "asof": "2026-10-14 10:00",
+    "window": 85,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q10",
+   "skill": "setup.orb",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "orb.liquidity",
+   "q": "A $7 stock that trades $12 million a day is fine for an ORB if the range is clean.",
+   "answer": "False",
+   "why": "False. It fails both of our floors. We want $10 or more a share and at least $20 million traded a day. This one is $7 and $12 million. Thin names gap through stops and fill you badly on the way out. I don't even put stocks like that on a watchlist.",
+   "lesson_line": "Price and dollar volume come before the chart. $10 and $20 million a day are the floor.",
+   "facts": [
+    "h09",
+    "c31",
+    "h19"
+   ],
+   "house": true,
+   "simple": "False, we want $10 or more and at least $20 million a day. This one fails both.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B23)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "setup.orb",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "orb.plan_rule",
+   "q": "It's 9:00. Your ORB plan needs an entry, but the range won't exist until 10:00. What do you write down?",
+   "choices": [
+    "Buy through the range high",
+    "A price off the premarket high",
+    "Nothing, decide live at 10:00",
+    "Yesterday's high as the buy"
+   ],
+   "answer": "Buy through the range high",
+   "why": "You write the rule, not a price. Buy at market as it trades through the 30-minute high. Stop a few cents under the low of the day. Size from that distance. At 10:00 the range fills in the numbers and you're just executing. Deciding live is how you end up chasing or freezing. Entry, stop and size get written before the open, every time.",
+   "lesson_line": "Write the rule, not the price. The range fills in the numbers at 10:00.",
+   "facts": [
+    "c08",
+    "h31",
+    "c01",
+    "c02",
+    "c03"
+   ],
+   "wrong": {
+    "A price off the premarket high": "Premarket isn't the range. The real high is set by 10:00, so the rule waits for it.",
+    "Nothing, decide live at 10:00": "Deciding live is how you chase or freeze. Entry, stop and size get written before the open.",
+    "Yesterday's high as the buy": "That's a different trigger, the one a Kicker can use. The ORB buys the 30-minute high."
+   },
+   "house": true,
+   "simple": "Write the rule, not a price. At 10:00 the range fills in the numbers and you follow it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (D39)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q12",
+   "skill": "setup.orb",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "orb.valid_all_session",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "The ORB trigger stays valid for the rest of that ___.",
+   "bank": [
+    "session",
+    "hour",
+    "week",
+    "month",
+    "minute"
+   ],
+   "answer": "session",
+   "why": "Session. The trigger stays valid for the rest of that session. The 30-minute window is part of the trigger's definition, not a time-of-day rule. We have no time-of-day rule. A late break is still a break.",
+   "lesson_line": "The range sets the level, not a deadline. The break can come any time that day.",
+   "facts": [
+    "c09",
+    "h30"
+   ],
+   "house": true,
+   "simple": "The word is session. The trigger stays good all day, because the 30 minutes only define it and are not a deadline.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C30)"
+    ]
+   },
+   "batch": "wave4"
+  },
+  {
+   "key": "q13",
+   "skill": "setup.orb",
+   "rung": 2,
+   "format": "scenario",
+   "criterion": "orb.earnings_window",
+   "story": "A leader on your focus list is set up for an ORB on Tuesday. It reports earnings Thursday after the close.",
+   "q": "Do you take Tuesday's break?",
+   "choices": [
+    "No, earnings is too close",
+    "Yes, it's on the focus list",
+    "Yes, at half size",
+    "Yes, with a tighter stop"
+   ],
+   "answer": "No, earnings is too close",
+   "why": "No. We don't open new buys in the 3 sessions before a report, and Tuesday is inside that window. A report can gap the stock right through your stop overnight. No stop catches that, so you could lose far more than you planned. Wait for the report. The day after is fair game, and an ORB there is a fine way in.",
+   "lesson_line": "Earnings is a gap your stop can't catch. Three sessions out, hands off.",
+   "facts": [
+    "h08",
+    "c26",
+    "r24"
+   ],
+   "wrong": {
+    "Yes, it's on the focus list": "The focus list doesn't override earnings. The report is the risk, and it's two days away.",
+    "Yes, at half size": "Half size is still a new buy into a report. The gap doesn't care how many shares you own.",
+    "Yes, with a tighter stop": "A tighter stop doesn't help. An overnight gap jumps right over it."
+   },
+   "house": true,
+   "simple": "No new buys in the 3 sessions before a report. A stop can't catch an earnings gap.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q14",
+   "skill": "setup.orb",
+   "rung": 2,
+   "format": "scenario",
+   "criterion": "orb.market_reading",
+   "story": "Our app's market filter reads Orange this morning: the market's under pressure, one step from Red. An A+ setup and a B setup both break their 30-minute highs at 10:00.",
+   "q": "Which do you take?",
+   "choices": [
+    "Just the A+",
+    "Both, full size",
+    "Neither, Orange is cash",
+    "Just the B, it's less risk"
+   ],
+   "answer": "Just the A+",
+   "why": "Just the A+. In an Orange market breakouts fail more often, because the market isn't backing them. So I only want my best idea, the cleanest setup with the tightest risk. The B can wait for a better market. Green is when we press. Red is mostly cash. Orange sits in between, and that means A+ only.",
+   "lesson_line": "Read the market before the range. Orange buys the A+ and nothing else.",
+   "facts": [
+    "h26",
+    "c33"
+   ],
+   "wrong": {
+    "Both, full size": "That's trading Orange like Green. The B waits for a better market.",
+    "Neither, Orange is cash": "Red is mostly cash. Orange still lets your very best setup through.",
+    "Just the B, it's less risk": "Backwards. If anything gets bought in Orange, it's the A+, the cleanest one you've got."
+   },
+   "house": true,
+   "simple": "Just the A+. In Orange the market isn't backing breakouts, so only your best idea gets money.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (F65)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "orb.stop_width",
+   "q": "The range is 412.06 to 418.45. You fill at 418.46 and the stop goes in at 412.01. How far under your fill is the stop?",
+   "answer": "1.54%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 418.46,
+     "b": 412.01
+    },
+    "round": 2
+   },
+   "why": "1.54%. 418.46 minus 412.01 is 6.45 a share. Divide 6.45 by 418.46 and you get about 1.54%. That's a tight stop, inside the 1 to 3% I like. A tight stop lets you carry real size for the same dollar risk. This was FFIV. It broke on the first bar after 10:00 and never looked back.",
+   "lesson_line": "Stop first, distance second, size last.",
+   "facts": [
+    "h24",
+    "d01",
+    "d02",
+    "h01",
+    "r11"
+   ],
+   "house": true,
+   "suffix": "%",
+   "simple": "About 1.54%, the fill minus the stop divided by the fill. That's a nice tight stop.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "3% stop width is a held decision (D-005); only A13's 'usually about 3%' is used"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "6.45%",
+    "0.15%",
+    "15.41%",
+    "1.54%"
+   ],
+   "wrong": {
+    "6.45%": "6.45 is the dollar gap, not a percent. Divide it by the fill first.",
+    "0.15%": "The decimal slipped a place to the left.",
+    "15.41%": "The decimal slipped a place to the right. That would be a huge stop on this chart."
+   },
+   "chart": {
+    "sym": "FFIV",
+    "tf": "5",
+    "asof": "2026-09-15 10:00",
+    "window": 85,
+    "forward": 40,
+    "trade": {
+     "entry": 418.46,
+     "stop": 412.01
+    }
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "orb.stop_kicker_cap",
+   "q": "Most Kicker ORBs need a stop wider than 3.5% to work.",
+   "answer": "False",
+   "why": "False. On a Kicker the stop goes under the Kicker low, or 3.5% under your entry, whichever is closer. Most of the time you get these with a stop smaller than 3.5%. If the Kicker low is farther away than that, the cap still holds. The stop doesn't stretch to fit the trade.",
+   "lesson_line": "On a Kicker the stop is the Kicker low or 3.5%, whichever is closer.",
+   "facts": [
+    "c05",
+    "v03",
+    "c32"
+   ],
+   "house": true,
+   "simple": "False. The stop is capped at 3.5%, and most Kickers fit inside that with room to spare.",
+   "deeper": {
+    "example": "On JBI the ORB entry filled at 11.21, and 3.5% under that is 10.82, the Kicker low itself. So the cap and the low gave the same stop."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's 2026-11-02 Kicker ruling (v03)",
+     "fixed before (lesson line corrected)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "orb.stop_kicker_cap",
+   "q": "A Kicker ORB fills at 11.21 and you're using the 3.5% cap for the stop. Where does the stop go?",
+   "answer": "$10.82",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a * (1 - 0.035)",
+     "a": 11.21
+    },
+    "round": 2
+   },
+   "why": "10.82. Multiply the fill by 0.965 to take 3.5% off: 11.21 x 0.965 is 10.82. On a Kicker the stop is the Kicker low or 3.5% under your entry, whichever is closer. On JBI the two landed in the same spot. Work the cap out before you're filled, so the stop and the size are ready the second it triggers.",
+   "lesson_line": "Know the cap before the fill: 3.5% under the entry, or the Kicker low if closer.",
+   "facts": [
+    "c05",
+    "c32",
+    "v03"
+   ],
+   "house": true,
+   "prefix": "$",
+   "simple": "Take 3.5% off 11.21 and you get 10.82. Know it before the fill so you can size it.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's Kicker ruling (2026-11-02)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$7.29",
+    "$11.60",
+    "$7.71",
+    "$10.82"
+   ],
+   "wrong": {
+    "$11.60": "That added 3.5%. A long's stop sits under the fill.",
+    "$7.71": "That took off 3.5 dollars, not 3.5%.",
+    "$7.29": "Far too much off. 3.5% of 11.21 is well under a dollar."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "fill",
+      "label": "Fill",
+      "price": 11.21
+     }
+    ],
+    "find": {
+     "label": "Stop at the 3.5% cap",
+     "as": "price"
+    },
+    "title": "The Kicker ORB"
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "orb.kicker_order",
+   "story": "JBI sets up as a Kicker. It opens under the red day's high of 11.04. At 9:41 it trades through 11.04. The first 30-minute candle later tops out near 11.20.",
+   "q": "You planned both entries. Which one fills first?",
+   "choices": [
+    "The prior-day-high buy",
+    "The ORB buy after 10:00",
+    "Nothing fills before 10:00",
+    "Both, size split in two"
+   ],
+   "answer": "The prior-day-high buy",
+   "why": "The prior-day-high buy. A Kicker gives you two entries, the break of the red day's high and the 30-minute ORB. When it opens under that high, the high trades first, at 9:41 here. That fill is cheaper and closer to your stop. The ORB comes after 10:00 as the confirmation. On JBI the first fill was 11.05 with a 2.3% stop. The ORB filled at 11.21, 3.7% from the same stop. That's past the 3.5% cap we use on a Kicker, so on that fill the stop comes up to 10.82.",
+   "lesson_line": "Opens under the red day's high: that high is your first entry. The ORB confirms it.",
+   "facts": [
+    "c06",
+    "v01",
+    "c07",
+    "aw_r",
+    "c02",
+    "c05",
+    "c32"
+   ],
+   "wrong": {
+    "The ORB buy after 10:00": "The ORB can't fill until the range is set. The red day's high traded at 9:41.",
+    "Nothing fills before 10:00": "The prior-day-high trigger needs no range. It fires the moment 11.04 trades.",
+    "Both, size split in two": "We buy full size at one price with one stop. Two entries are a choice, not a split."
+   },
+   "house": true,
+   "simple": "The prior-day-high buy. It trades at 9:41, before the range is even set.",
+   "deeper": {
+    "example": "JBI, 2023-12-14: it opened below the red day's high. The previous-day-high entry filled at 11.05 with a stop at 10.80, 2.3% away. The ORB entry filled at 11.21, 3.7% from the same stop. At the close the first was up about 2.3R and the ORB about 1.0R."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the Kicker entry order is a proposed card line backed by the JBI example and the owner's Kicker ruling"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "orb.stop_broker",
+   "q": "You can keep the ORB stop in your head until the first sell, then put it in with your broker.",
+   "answer": "False",
+   "why": "False. The stop goes in with your broker the moment you're filled. A stop in your head is a stop you argue with while the stock is falling. A real order doesn't flinch. Every position, from the first minute. And it only ever moves up.",
+   "lesson_line": "Real stop order with the broker, the minute you're filled.",
+   "facts": [
+    "h18",
+    "h02"
+   ],
+   "house": true,
+   "simple": "False. The stop goes in with the broker right when you're filled, not later.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the account rulebook D41 and A4"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "orb.trim_1",
+   "q": "You bought the 10:00 break, and by noon it's up 2R. It's still day one. What's your first sell?",
+   "choices": [
+    "Nothing yet, let it work",
+    "A third now, it's up 2R",
+    "A third at 3R, even today",
+    "All of it at the close"
+   ],
+   "answer": "Nothing yet, let it work",
+   "why": "Nothing yet. I very rarely sell on day 1. Most of the time I wait until day 3 at the earliest. The real money comes from the 3, 5 or 7 day push, not the first morning. Sell at 2R on day one and you cap your best trades to protect a small gain. If you want protection, move the stop up to breakeven. Anywhere from 2R to 5R is fair for that.",
+   "lesson_line": "Day one is for holding. The first sell comes into the push.",
+   "facts": [
+    "r21",
+    "r22",
+    "r23",
+    "c34",
+    "h05"
+   ],
+   "wrong": {
+    "A third now, it's up 2R": "We very rarely sell on day 1. 2R is where the stop can go to breakeven, not where you sell.",
+    "A third at 3R, even today": "A fixed third at 3R isn't how we sell. The first sell is a judgment into a push.",
+    "All of it at the close": "That's a day trade. We swing, and the money's in the days after."
+   },
+   "house": true,
+   "simple": "Nothing yet. We rarely sell on day one, and the first sell goes into a push, day 3 or later.",
+   "deeper": {
+    "trap": "Selling a third at 3R sounds disciplined. It caps your best trades. The first sell depends on the push. A 3, 5 or 7 day run, or about 5 to 10R, is often best."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B19, E51)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q21",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "orb.inv_parent_broken",
+   "story": "Your plan is a Kicker, timed with the 30-minute ORB. The red day's low is 24.10. The stock opens at 23.80.",
+   "q": "Is the ORB plan still on?",
+   "choices": [
+    "No, there's no Kicker left",
+    "Yes, wait for 10:00",
+    "Yes, if it gets back over 24.10",
+    "No, buy the prior-day high"
+   ],
+   "answer": "No, there's no Kicker left",
+   "why": "No. A Kicker is a gap up over a red day. This one opened at 23.80, under the red day's low of 24.10. That's a gap down, the opposite of a Kicker. The ORB was only there to time the Kicker. No setup, no trade. Cross it off and go to the next name on your list.",
+   "lesson_line": "No setup, no ORB. The timer has nothing left to time.",
+   "facts": [
+    "c10",
+    "h36",
+    "c06"
+   ],
+   "wrong": {
+    "Yes, wait for 10:00": "The plan rode on the Kicker. Opening under the red day's low, there's no Kicker to time.",
+    "Yes, if it gets back over 24.10": "A reclaim is a different trade with its own rules. This plan was the Kicker, and it's gone.",
+    "No, buy the prior-day high": "That's the Kicker's other entry. No Kicker, no entry from it either."
+   },
+   "house": true,
+   "simple": "No. It opened under the red day's low, so there's no Kicker, and the ORB has nothing to time.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the rulebook's no setup, no trade (D44) and the card's parent-broken line (c10, a proposal)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "fill",
+   "criterion": "orb.reversal_warning",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "After the fill, a big-volume reversal back into the range is a ___, not a second exit rule.",
+   "bank": [
+    "warning",
+    "exit",
+    "trigger",
+    "target",
+    "add"
+   ],
+   "answer": "warning",
+   "why": "A warning. After the fill the stop decides. A big-volume reversal back into the range is the classic failure shape and worth watching, but it is not a second exit rule. The stop is the exit, and it only moves up.",
+   "lesson_line": "Watch the reversal, honour the stop. One exit rule, not two.",
+   "facts": [
+    "c11",
+    "h02"
+   ],
+   "house": true,
+   "simple": "A big-volume reversal back into the range is only a warning, because after the fill the stop is the only exit.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the rulebook A4 and the card's settled line (c11)"
+    ]
+   },
+   "batch": "wave4"
+  },
+  {
+   "key": "q23",
+   "skill": "setup.orb",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "orb.trim_1",
+   "q": "You're filled at 146.91 with the stop at 143.86. Where's 3R on this trade?",
+   "answer": "$156.06",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 3 * (a - b)",
+     "a": 146.91,
+     "b": 143.86
+    },
+    "round": 2
+   },
+   "why": "156.06. One R is your risk per share: 146.91 minus 143.86 is 3.05. Three of those is 9.15. Add 9.15 to 146.91 and 3R sits at 156.06. Mark it on your chart the minute you're filled. It's a marker, not an automatic sell. ANF got there in about three sessions, and the first sell was still a judgment call.",
+   "lesson_line": "Know your 3R the minute you're filled. It's a marker, not a sell order.",
+   "facts": [
+    "r21",
+    "d03"
+   ],
+   "house": true,
+   "prefix": "$",
+   "simple": "One R is 3.05 a share. Three of those on top of 146.91 puts 3R at 156.06.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$153.01",
+    "$156.06",
+    "$137.76",
+    "$149.91"
+   ],
+   "wrong": {
+    "$153.01": "That added 3R to the stop. Start from your fill.",
+    "$137.76": "That took 3R off. On a long, 3R sits above your fill.",
+    "$149.91": "That added 3 dollars. One R here is 3.05, the fill minus the stop."
+   },
+   "chart": {
+    "sym": "ANF",
+    "tf": "5",
+    "asof": "2026-10-12 10:00",
+    "window": 85,
+    "forward": 40,
+    "trade": {
+     "entry": 146.91,
+     "stop": 143.86
+    }
+   }
+  },
+  {
+   "key": "q24",
+   "skill": "setup.orb",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "orb.no_chase",
+   "q": "The 30-minute high is 60.91. You look up at 10:20 and it's trading 63.60. How far over the high is that?",
+   "answer": "4.42%",
+   "calc": {
+    "fn": "pct_change",
+    "args": {
+     "start": 60.91,
+     "end": 63.6
+    },
+    "round": 2
+   },
+   "why": "4.42%. 63.60 minus 60.91 is 2.69. Divide 2.69 by 60.91 and you get about 4.42%. That's past our 4% line, so you don't buy it here. Your stop is still down under the low of the day. Paying up means a wider stop and fewer shares for the same risk. Wait for a pullback to the range high that holds, or a VWAP retest.",
+   "lesson_line": "Measure the chase before you buy it. Past 4%, wait for the pullback.",
+   "facts": [
+    "h11",
+    "h12",
+    "d04",
+    "c04"
+   ],
+   "house": true,
+   "suffix": "%",
+   "simple": "4.42% over the high. That's past our 4% line, so you pass and wait for a pullback.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (C28)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "4.42%",
+    "104.42%",
+    "95.77%",
+    "44.16%"
+   ],
+   "wrong": {
+    "104.42%": "That's 63.60 divided by 60.91 with nothing taken off. The move is only the 2.69 gap.",
+    "95.77%": "That's the high as a share of today's price. Measure the gap from the high.",
+    "44.16%": "The decimal slipped a place to the right."
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "setup.orb",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "orb.no_chase",
+   "story": "You missed the 10:00 break. At 10:25 the stock is 6% over its 30-minute high and still climbing.",
+   "q": "It's still running. What's the play?",
+   "choices": [
+    "Wait for a pullback that holds",
+    "Buy now, momentum is proof",
+    "Buy half size just to be in",
+    "Forget it, the trade is gone"
+   ],
+   "answer": "Wait for a pullback that holds",
+   "why": "Wait for the pullback. 6% over the high is past our 4% line. Buy it there and your stop is still back under the low of the day. That's a wide stop and a small position. Size it normal and it's a big loss if it fails. I'd rather miss it than chase it. If it pulls back to the range high and holds, that's your second chance. A retest or an undercut and hold of VWAP mid morning works too.",
+   "lesson_line": "Past 4%, don't chase. Wait for the pullback that holds.",
+   "facts": [
+    "c04",
+    "u01",
+    "st1",
+    "b10",
+    "h12",
+    "h10",
+    "c29"
+   ],
+   "wrong": {
+    "Buy half size just to be in": "Half a chase is still a chase. Being in isn't a reason to buy.",
+    "Buy now, momentum is proof": "Momentum is why it's tempting. 6% over the high is a chase, and your stop sits way down at the low.",
+    "Forget it, the trade is gone": "Not gone. A pullback to the range high that holds, or a VWAP retest, gives you another shot."
+   },
+   "house": true,
+   "simple": "Wait for a pullback that holds. At 6% over the high you'd be chasing with a wide stop.",
+   "deeper": {
+    "trap": "A stock that keeps climbing makes the chase feel safe. It isn't. Your stop stays under the low, so the distance grows and the shares shrink. Steenbarger likes the first pullback after a valid break too, once buying resumes."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on rulebook C28 (4%) and the owner's VWAP alternative (u01)",
+     "fixed before (a wrong choice was shortened)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q26",
+   "skill": "setup.orb",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "orb.stop_gap",
+   "story": "SNX: you bought the ORB at 274.04, stop 270.67. It ran past 5R, you sold some into strength and the stop went to breakeven. Then a report gaps it open under 270.67.",
+   "q": "What's your stop now?",
+   "choices": [
+    "The low of the first 30 minutes",
+    "The gap-down day's open",
+    "Breakeven, where it was",
+    "A flat 3% under the open"
+   ],
+   "answer": "The low of the first 30 minutes",
+   "why": "The low of the first 30 minutes. A gap through your stop is the one time the stop rule bends. Selling the open of a gap down means selling into the panic. So you let the first half hour play out, and the low of that first 30-minute bar becomes your stop. One ceiling: if those 30 minutes take the loss past 2R, you're out. On SNX, the shares you sold into strength earlier are what kept the win.",
+   "lesson_line": "A gap through the stop: the first 30 minutes decide, with 2R as the ceiling.",
+   "facts": [
+    "h06",
+    "h07",
+    "d09",
+    "c34",
+    "h02"
+   ],
+   "wrong": {
+    "The gap-down day's open": "Selling the open sells the panic. The rule gives you the first 30 minutes.",
+    "A flat 3% under the open": "A percent isn't a level. The first 30-minute low is, with 2R as the ceiling.",
+    "Breakeven, where it was": "Price is already under it. The gap rule makes the first 30-minute low your stop."
+   },
+   "house": true,
+   "simple": "The low of the first 30-minute bar is your new stop. If the loss goes past 2R, you're out.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B20)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q27",
+   "skill": "setup.orb",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "orb.breakeven",
+   "q": "On an ORB winner, the stop stays where you first put it until you sell the last share.",
+   "answer": "False",
+   "why": "False. The stop only moves up, and on a winner it moves. Somewhere between 2R and 5R, or at your first sell, it goes to breakeven. From there a normal pullback can't turn your winner into a loser. After that, the 9 or 20 EMA trails what's left.",
+   "lesson_line": "Breakeven between 2R and 5R. The stop only moves up.",
+   "facts": [
+    "h05",
+    "h02",
+    "h21"
+   ],
+   "house": true,
+   "simple": "False, once it's working the stop goes to breakeven, somewhere between 2R and 5R.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B19)",
+     "the 'first trim by default' half is the card's line",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q28",
+   "skill": "setup.orb",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "orb.reentry",
+   "story": "You got stopped out of an ORB at 10:40, your first try on this stock this week. At 11:15 it takes out the day's high.",
+   "q": "Can you get back in?",
+   "choices": [
+    "Yes, as a new trade",
+    "No, one try a day",
+    "Yes, with the old stop",
+    "No, wait for tomorrow"
+   ],
+   "answer": "Yes, as a new trade",
+   "why": "Yes, as a new trade. A retake of the day's high is a fresh trigger. New fill, new stop under the low of the day, size worked out again. A stop-out isn't a verdict on the stock. Good stocks shake people out before they go. It does count as a try, though. You get 3 tries a week and 6 a month on one stock. That keeps you from revenge trading a name that isn't working.",
+   "lesson_line": "A stop-out isn't a verdict. The retake is a new trade, and it counts.",
+   "facts": [
+    "c12",
+    "h28",
+    "h29"
+   ],
+   "wrong": {
+    "No, one try a day": "The limit is 3 tries a week and 6 a month, not one a day.",
+    "Yes, with the old stop": "New trade, new stop under its own low. The old one's done.",
+    "No, wait for tomorrow": "The retake of the high is a trigger today. No reason to wait."
+   },
+   "house": true,
+   "simple": "Yes. A retake of the day's high is a new trade with a new stop, and it counts as a try.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook B21 and E56"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q29",
+   "skill": "setup.orb",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "orb.position_adv",
+   "q": "A setup you like trades 3,000,000 shares a day on average. What's the most you'd ever own?",
+   "choices": [
+    "30,000 shares",
+    "3,000 shares",
+    "300,000 shares",
+    "No limit with a tight stop"
+   ],
+   "answer": "30,000 shares",
+   "why": "30,000 shares. We never own more than 1% of a stock's average daily volume. 3,000,000 times 1% is 30,000. Go past that and you start to become the volume. On a bad day, getting out means pushing the price down yourself. A tight stop doesn't change that. A stop only fills if someone's there to buy from you.",
+   "lesson_line": "One percent of the daily volume, and not a share more.",
+   "facts": [
+    "h19"
+   ],
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "adv * 0.01",
+     "adv": 3000000
+    },
+    "round": 0
+   },
+   "wrong": {
+    "3,000 shares": "That's well under the limit. Fine to own, but it's not the most.",
+    "300,000 shares": "That's ten times our limit. On a bad day you'd be most of the market.",
+    "No limit with a tight stop": "A stop needs a buyer on the other side. Size past 1% and your own exit moves the price."
+   },
+   "house": true,
+   "simple": "30,000 shares, 1% of the daily volume. Past that you can't get out clean on a bad day.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (D42)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q30",
+   "skill": "setup.orb",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "orb.trigger",
+   "story": "Your plan says 30-minute ORB. At 9:50 the stock is ripping, already over its 9:45 high on big volume.",
+   "q": "Where's your ORB trigger?",
+   "choices": [
+    "The 10:00 range high, once set",
+    "Right now, over the 9:45 high",
+    "Any new high on big volume",
+    "The prior day's close"
+   ],
+   "answer": "The 10:00 range high, once set",
+   "why": "The range high at 10:00. Until 10:00 the range isn't finished, so there's no ORB trigger yet. The 9:45 high is just a high inside the range. I get the itch too when something rips early. But your plan is the ORB, so you wait for the range and buy the trade through its high. Some strong opens can be bought right at the open. That's its own trade with its own trigger and stop, planned the night before.",
+   "lesson_line": "The first minutes aren't the trade. The range is, and it closes at 10:00.",
+   "facts": [
+    "c27",
+    "b02",
+    "c01",
+    "aw_r"
+   ],
+   "wrong": {
+    "Right now, over the 9:45 high": "That's not your ORB. A strong open can be its own trade, but that's a different plan with a different stop.",
+    "Any new high on big volume": "Volume makes it exciting, not a trigger. The trigger is the 30-minute high.",
+    "The prior day's close": "The close isn't a trigger for anything here. The range high is."
+   },
+   "house": true,
+   "simple": "The range high at 10:00. Before then the range isn't set, so there's no ORB trigger.",
+   "deeper": {
+    "trap": "The early rip is the trap. Buy at 9:50 and you have no range telling you where the real break is. Plan the trade you want to take. If you like buying strong opens, write that plan the night before."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the card's named mistake (c27, a proposal)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q31",
+   "skill": "setup.orb",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "orb.valid_all_session",
+   "story": "Same stock, same range, same volume. One day it breaks out at 10:00. Another day the break comes at 10:50.",
+   "q": "Is the 10:50 break still a buy?",
+   "choices": [
+    "Yes, it counts all session",
+    "No, it's too late",
+    "Only before 10:30",
+    "Yes, but at half size"
+   ],
+   "answer": "Yes, it counts all session",
+   "why": "Yes. We have no time-of-day rule. The 30 minutes set the range. After that, a trade through the high is a trigger whenever it comes that day. QLYS broke at 10:50 and hit 5R in three sessions. Late doesn't mean weak. Plenty of good names spend the morning building and break later.",
+   "lesson_line": "A late break is still a break. The clock sets the range, not a deadline.",
+   "facts": [
+    "c09",
+    "h30",
+    "d07"
+   ],
+   "wrong": {
+    "No, it's too late": "There's no deadline. The range closed at 10:00 and the trigger lasts all session.",
+    "Only before 10:30": "We have no time-of-day rule. A 10:30 cut-off is made up.",
+    "Yes, but at half size": "Size comes from the stop and the grade, not the clock."
+   },
+   "house": true,
+   "simple": "Yes. The range sets the trigger, and the trigger is good all session long.",
+   "deeper": {
+    "counter": "A late trigger is valid, not a promise. QLYS broke at 10:50, reached 5R in three sessions, then fell all the way back to the stop by session 10. Selling some into the push and moving the stop to breakeven is how a run like that is kept."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (C30)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q32",
+   "skill": "setup.orb",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "orb.above_50",
+   "story": "A leader sits above its 200-day but under its 50-day after a six-week slide. It breaks its 30-minute high at 10:05 on 2x opening volume.",
+   "q": "Take it as an ORB on our card?",
+   "choices": [
+    "Pass; it is under the 50-day",
+    "Take it; the 200-day is enough",
+    "Take it; the 2x volume decides",
+    "Take it, but with a wider stop"
+   ],
+   "answer": "Pass; it is under the 50-day",
+   "why": "Pass. Our card wants the prior close above the 50-day simple moving average, as well as above the 200-day. This leader is above its 200-day but under its 50-day. Bysshe likewise asks for a positive daily trend, with rising 20 and 50-day averages.",
+   "lesson_line": "Above the 200 is the floor. Above the 50 is the trend. The ORB wants both.",
+   "facts": [
+    "c14",
+    "b04",
+    "h10",
+    "h02",
+    "h24"
+   ],
+   "wrong": {
+    "Take it; the 200-day is enough": "The 200-day is the hard floor. The card adds the 50-day for the trend, and this stock fails it.",
+    "Take it; the 2x volume decides": "Volume does not fix a stock under its 50-day.",
+    "Take it, but with a wider stop": "The stop sits a few cents under the day's low and only moves up, never wider. A wider stop does not fix a failed line."
+   },
+   "house": true,
+   "simple": "Pass, because our card also wants the stock above its 50-day, and this one is under it.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the 50-day line is the card's proposed criterion, not the rulebook's",
+     "fixed before"
+    ]
+   },
+   "batch": "wave4"
+  },
+  {
+   "key": "q33",
+   "skill": "setup.orb",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "orb.trail",
+   "q": "You've sold part of an ORB winner into a push, and the rest is riding. What takes you out of the rest?",
+   "choices": [
+    "A close under the 9 or 20 EMA",
+    "A touch of the 30-minute low",
+    "The next earnings report",
+    "A fixed 10R target"
+   ],
+   "answer": "A close under the 9 or 20 EMA",
+   "why": "A close under the 9 or 20 EMA. The 9 for a fast mover, the 20 for a steadier one. The rising average rides the trend with you. When price closes under it, the trend has changed and you're out. Wait for the close, not an intraday touch. Touches shake you out of good trends all the time.",
+   "lesson_line": "Trail the rising average. Sell the close below it, not the touch.",
+   "facts": [
+    "h21",
+    "h08",
+    "r25"
+   ],
+   "wrong": {
+    "A touch of the 30-minute low": "That was day one's stop. By now the stop sits at breakeven or higher.",
+    "The next earnings report": "A report is its own call. You hold through one only if you're up 5R.",
+    "A fixed 10R target": "We don't cap a winner at a number. The trail lets the big ones run."
+   },
+   "house": true,
+   "simple": "A close under the 9 or 20 EMA. The close counts, not an intraday touch.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook E52 and E51 (E51 is marked adjustable)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q34",
+   "skill": "setup.orb",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "orb.time_stop",
+   "q": "An ORB trade that's still under 1R after ten trading days gets another month to work.",
+   "answer": "False",
+   "why": "False. Ten trading days and still under 1R, you sell it. A good break should move. If it's gone nowhere for two weeks, your money's stuck while other leaders break out. Free it up for the next one.",
+   "lesson_line": "Ten days and nothing. The money has somewhere better to be.",
+   "facts": [
+    "h15"
+   ],
+   "house": true,
+   "simple": "False, still under 1R after ten trading days means you sell. The money has a better place to be.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only (C33)",
+     "rests on the owner's rulebook (C33)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q35",
+   "skill": "setup.orb",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "orb.trim_gap_open",
+   "story": "You bought an ORB on Monday and it closed at 2.7R. Tuesday it gaps open to 3.5R.",
+   "q": "Up 3.5R at Tuesday's open, day 2 of the trade. What do you do?",
+   "choices": [
+    "Hold, it's only day 2",
+    "Sell some, it's past 3R",
+    "Wait for a dip, then sell",
+    "Sell it all at the close"
+   ],
+   "answer": "Hold, it's only day 2",
+   "why": "Hold. It's only day 2, and I very rarely sell that early. Most of the time I wait until day 3 at the earliest. Being past 3R isn't a sell signal. 3R is a marker, not an order. The first sell goes into a 3, 5 or 7 day push, often around 5 to 10R. Some days I'll sell a piece into a big gap, but that's a judgment call, never a rule. A normal day 2 gap like this, let it work.",
+   "lesson_line": "A gap past 3R on day 2 isn't an automatic sell. Judge the push.",
+   "facts": [
+    "r21",
+    "r23",
+    "r22"
+   ],
+   "wrong": {
+    "Sell it all at the close": "Selling everything on day 2 throws away the push you bought it for.",
+    "Sell some, it's past 3R": "3R is a marker, not a sell order. The first sell is a judgment into a push.",
+    "Wait for a dip, then sell": "You sell into strength, not into a dip."
+   },
+   "house": true,
+   "simple": "Hold. It's only day 2, and the first sell waits for a push of 3, 5 or 7 days.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (F63)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q36",
+   "skill": "setup.orb",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "orb.not_ours",
+   "story": "You're filled on the 10:00 break and it's working. Tonight you're writing your exit plan.",
+   "q": "What's the first sell going to look like?",
+   "choices": [
+    "Into a 3, 5 or 7 day push",
+    "All of it at twice the range",
+    "Flat at the close of day one",
+    "A third at 3R, whatever the day"
+   ],
+   "answer": "Into a 3, 5 or 7 day push",
+   "why": "Into a 3, 5 or 7 day push. That's when I like to sell some, often around 5 to 10R. You're selling into strength, while buyers are paying up. The rest rides the trail under the 9 or 20 EMA. Twice the range is a target from someone else's playbook. Out at the close is a day trade. And a fixed third at 3R isn't how we sell either.",
+   "lesson_line": "Same trigger, different trade. Our first sell goes into the push, then the trail.",
+   "facts": [
+    "r21",
+    "r22",
+    "c13",
+    "n01",
+    "h21"
+   ],
+   "wrong": {
+    "A third at 3R, whatever the day": "A fixed third at 3R isn't how we sell. The first sell is a judgment.",
+    "All of it at twice the range": "A target of twice the range isn't our exit. It caps the big winners.",
+    "Flat at the close of day one": "That's Crabel's style, a day trade. We swing, and the money's in the days after."
+   },
+   "house": true,
+   "simple": "Into a 3, 5 or 7 day push, often around 5 to 10R. The rest rides the trail.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook B19 and E51; the others' exits are cited as theirs"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q37",
+   "skill": "setup.orb",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "orb.contraction_before",
+   "q": "What kind of day before the open makes you like an ORB more?",
+   "choices": [
+    "A quiet, tight inside day",
+    "A wide-range expansion day",
+    "A normal day, no pattern",
+    "A climax day on huge volume"
+   ],
+   "answer": "A quiet, tight inside day",
+   "why": "A quiet, tight inside day. A stock that rests and gets tight the day before is coiled up. The sellers went quiet and the range shrank. When it breaks the opening range the next morning, there's room to run. An inside day or a tight base both count. It's a plus I like to see, not a must, and you judge it by eye on the daily chart.",
+   "lesson_line": "Quiet before the open, loud after it.",
+   "facts": [
+    "c16",
+    "x02"
+   ],
+   "wrong": {
+    "A wide-range expansion day": "That's the opposite. The stock already spent its move yesterday.",
+    "A climax day on huge volume": "A climax is a big move on big volume. Tight and quiet is what we want before the break.",
+    "A normal day, no pattern": "Nothing wrong with it, but nothing to like either. Tight is the plus."
+   },
+   "house": true,
+   "simple": "A quiet, tight day before. Tight then loose is the pattern we want.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the cue is the card's proposal and the rulebook says grading is discretionary (E50)",
+     "Crabel's line is a hypothesis from a publisher's abstract",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "counter": "Crabel's hypothesis was that inside days come before trend days and successful opening range breakouts. He measured quiet days as NR4 and NR7 days. We read tight by eye on the daily chart, as a plus, not a must."
+   }
+  },
+  {
+   "key": "q38",
+   "skill": "setup.orb",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "orb.stop",
+   "q": "Your account is 100,000 and you're risking 0.25% on this one. Fill 274.04, stop 270.67. How many shares?",
+   "answer": "74 shares",
+   "calc": {
+    "fn": "shares_from_risk",
+    "args": {
+     "account": 100000,
+     "risk_pct": 0.25,
+     "entry": 274.04,
+     "stop": 270.67
+    },
+    "round": 0
+   },
+   "why": "74 shares. 0.25% of 100,000 is $250 at risk. 274.04 minus 270.67 is 3.37 a share. 250 divided by 3.37 is 74.18, so you round down to 74. Always round down. Round up and you're risking more than you planned. The 40% position cap doesn't come into it here. The stop sets the size.",
+   "lesson_line": "The stop sets the size, never the other way around.",
+   "facts": [
+    "h03",
+    "h01",
+    "d08",
+    "h40"
+   ],
+   "house": true,
+   "suffix": " shares",
+   "simple": "74 shares. 250 dollars at risk divided by 3.37 a share, rounded down.",
+   "deeper": {
+    "trap": "The cap can bind. Risk a larger percent on the same trade and the risk-based size can pass the position cap of 40% of the account. The size is then the smaller of the two."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (A5, A7)",
+     "changed 2026-11-10 (risk 1% to 0.25%)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "145 shares",
+    "296 shares",
+    "74 shares",
+    "7,418 shares"
+   ],
+   "wrong": {
+    "296 shares": "That's four times too many. Use the 0.25% you were given.",
+    "145 shares": "That's about what the 40% cap would allow. The risk gives you fewer, and the smaller number wins.",
+    "7,418 shares": "The 0.25% never got turned into a decimal. The risk is $250, not thousands."
+   },
+   "chart": {
+    "sym": "SNX",
+    "tf": "5",
+    "asof": "2026-09-21 10:05",
+    "window": 86,
+    "forward": 40,
+    "trade": {
+     "entry": 274.04,
+     "stop": 270.67
+    }
+   }
+  },
+  {
+   "key": "q39",
+   "skill": "setup.orb",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "orb.stop_width",
+   "story": "GKOS at 10:00: RS 92, 2.7x opening volume, a range 4.55% wide. The break fills at 185.11. A few cents under the low is 176.63, 4.58% away.",
+   "q": "What's the play?",
+   "choices": [
+    "Buy it, size to the real stop",
+    "Pass, anything past 3% is out",
+    "Buy, pull the stop up to 3%",
+    "Pass, the volume is too heavy"
+   ],
+   "answer": "Buy it, size to the real stop",
+   "why": "Buy it, and let the real stop set the size. 4.58% is wider than I like, but under 5% I'll take it. I prefer 1 to 3%, and 3.5% is good. Past 5% I'd mostly wait for a tighter trigger. What you never do is pull the stop up to 3% to fit more shares. Then it sits inside the range, and normal noise takes you out. This one reached 0.33R and stopped out. That's fine. A loss at the stop is the plan working.",
+   "lesson_line": "You never pick a size and back-fit a stop inside the noise.",
+   "facts": [
+    "h01",
+    "d13b",
+    "d13",
+    "c03",
+    "c18",
+    "r11",
+    "r12",
+    "r13"
+   ],
+   "wrong": {
+    "Pass, anything past 3% is out": "3% is the tight end of what we like, not a line. Up to 5% is fine, and this is 4.58%.",
+    "Buy, pull the stop up to 3%": "That stop sits inside the range, above the real low. Noise takes you out of a good trade.",
+    "Pass, the volume is too heavy": "Heavy opening volume raises the grade. It's a plus, not a warning."
+   },
+   "house": true,
+   "simple": "Buy it with fewer shares. 4.58% is under the 5% we accept, so the real stop stays put.",
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on rulebook A3 and A13 (h04), with the stop-width decision (D-005) still pending",
+     "the 4.58% comes from one dossier scan row"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q40",
+   "skill": "setup.orb",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "orb.reversal_warning",
+   "story": "You bought the 10:00 break at 46.37, stop 45.51. By 10:30 it's back inside the range and under VWAP. It's still above your stop.",
+   "q": "How do you handle it?",
+   "choices": [
+    "Hold, the stop is the exit",
+    "Sell now, it's failing",
+    "Lower the stop for room",
+    "Hold, but sell at the close"
+   ],
+   "answer": "Hold, the stop is the exit",
+   "why": "Hold. The stop decides, not your nerves. A break that falls back into the range is a warning, and I'd watch it closely. But it's not a second exit rule. Sell every fade and you'll sell the good ones that shake out and then go. This one, APA, did take the stop at 12:45. 46.37 down to 45.51 was a 1R loss, exactly the risk you planned.",
+   "lesson_line": "The warning tells you to watch. The stop tells you when to leave.",
+   "facts": [
+    "c11",
+    "h02",
+    "h18",
+    "d10",
+    "d11",
+    "d15",
+    "c13"
+   ],
+   "wrong": {
+    "Sell now, it's failing": "A fade is a warning, not an exit. The stop's in with the broker and it does the job.",
+    "Lower the stop for room": "The stop only moves up. Never lower it.",
+    "Hold, but sell at the close": "There's no exit at the close. The stop or the trail takes you out."
+   },
+   "house": true,
+   "simple": "Hold. A fade back into the range is a warning to watch, and the stop is still the exit.",
+   "deeper": {
+    "example": "APA, 2026-09-14: a 2.3% gap above the prior day's high on 1.7x opening volume, RS 90. The break ran 0.26R, fell back through the range high by 10:30, lost VWAP and took the stop at 12:45. The loss stayed at 1R because the stop sat under the day's low."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook A4 and the card's settled line (c11)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "APA",
+    "tf": "5",
+    "asof": "2026-09-14 10:25",
+    "window": 90,
+    "forward": 40
+   }
+  },
+  {
+   "key": "q41",
+   "skill": "setup.orb",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "orb.trim_1",
+   "story": "OVV: you bought the 10:30 break at 64.43, stop 63.21. It hits 5R in session 7. You sell nothing, and by session 18 it's back at 63.21.",
+   "q": "What would have saved the gain?",
+   "choices": [
+    "Selling some into the push",
+    "A tighter stop at the low",
+    "Adding shares at 5R",
+    "Holding out for 10R"
+   ],
+   "answer": "Selling some into the push",
+   "why": "Selling some into the push. 5R by session 7 is exactly the push you sell into. That's the 5 to 10R zone where a first sell is often best. Sell a piece there and raise the stop to breakeven. Then the slide back takes the rest out flat, and you've banked a real win. A stop protects you from a loss. Only a sell locks in a gain.",
+   "lesson_line": "Sell into strength. What you sold is what you keep when the move gives it back.",
+   "facts": [
+    "r22",
+    "d05",
+    "d06",
+    "aw1",
+    "h05"
+   ],
+   "wrong": {
+    "A tighter stop at the low": "A stop only limits losses. It can't bank a gain.",
+    "Adding shares at 5R": "Adding banks nothing. More shares just means a bigger give-back.",
+    "Holding out for 10R": "OVV topped at 7.53R. Waiting for 10R sold nothing."
+   },
+   "house": true,
+   "simple": "Sell some into the push near 5R. A stop limits a loss, but only a sell banks a gain.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on rulebook B19 and E51 (the 5R step is adjustable)",
+     "the session counts come from one dossier scan row"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q42",
+   "skill": "setup.orb",
+   "rung": 6,
+   "format": "tf",
+   "criterion": "orb.order",
+   "q": "When an ORB triggers, you buy with a market order, not a limit.",
+   "answer": "True",
+   "why": "True. All our entries are market orders. When price trades through the range high, you hit it at market and you're in. A limit can leave you watching a good break run without you. Then the stop order goes straight in with your broker.",
+   "lesson_line": "Market order through the high. Stop order with the broker.",
+   "facts": [
+    "h22",
+    "c02",
+    "h18"
+   ],
+   "house": true,
+   "simple": "True, we buy at market when it trades through the high. Then the stop goes in.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook E57; a buy-stop (D-038, pending) would not change this answer"
+    ]
+   },
+   "depends_on": [
+    "D-038"
+   ],
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q43",
+   "skill": "setup.orb",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "orb.leader",
+   "story": "A clean 10:00 break on 2.1x opening volume. The range high is over the prior day's high, and no report is near. The RS rating is 64.",
+   "q": "Can you take it?",
+   "choices": [
+    "Pass, RS 64 isn't a leader",
+    "Pass for now, buy the retest",
+    "Take it, the break is clean",
+    "Take it, the volume says go"
+   ],
+   "answer": "Pass, RS 64 isn't a leader",
+   "why": "Pass. We buy leaders, RS 80 or better in a strong group, and 64 isn't close. A clean break in a laggard is a laggard having a good morning. This was DHR. It got to 0.58R and stopped out. The chart looked fine. The stock just wasn't one of the strong ones.",
+   "lesson_line": "A clean break in a laggard is a laggard having a good morning.",
+   "facts": [
+    "h14",
+    "d14",
+    "d14b"
+   ],
+   "wrong": {
+    "Pass for now, buy the retest": "A retest changes the price, not the RS. It's still a laggard.",
+    "Take it, the break is clean": "The chart is one test. Leadership is another, and 64 fails it.",
+    "Take it, the volume says go": "Volume raises the grade of a leader. It doesn't turn a laggard into one."
+   },
+   "house": true,
+   "simple": "Pass. RS 64 is well under our 80, and a clean break doesn't make a laggard a leader.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook C31; the RS in the example is a proxy rank"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "DHR",
+    "tf": "5",
+    "asof": "2026-09-24 10:00",
+    "window": 85,
+    "forward": 30
+   }
+  },
+  {
+   "key": "q44",
+   "skill": "setup.orb",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "orb.trigger",
+   "story": "A leader pulls back to its 20 EMA. On the 30-minute chart, four red candles, then a green one at 11:00. The buy is over that green candle's high, well under the morning high.",
+   "q": "Which setup is this?",
+   "choices": [
+    "A 30-minute pivot",
+    "An ORB, the 10:00 break",
+    "An opening drive",
+    "A retest of the range high"
+   ],
+   "answer": "A 30-minute pivot",
+   "why": "A 30-minute pivot. You're buying the first green candle after a run of red ones, right at a daily level, the 20 EMA here. The ORB buys the first half hour's high after 10:00. This buy sits well under the morning high, at a turn. Same chart, different level. Know which one you're trading, because the stop and the plan change with it.",
+   "lesson_line": "Find the level being bought. The range high is the ORB. The turn candle's high is the pivot.",
+   "facts": [
+    "c19",
+    "c02",
+    "t01",
+    "c20",
+    "c04",
+    "r25"
+   ],
+   "wrong": {
+    "An ORB, the 10:00 break": "The ORB buys the first half hour's high. This buy sits well under it, at a turn candle.",
+    "A retest of the range high": "A retest buys the pullback to the range high after a break. This buy sits well under the morning high.",
+    "An opening drive": "A drive gets bought over the first bar's high in the opening minutes. This one's an 11:00 turn after a pullback."
+   },
+   "house": true,
+   "simple": "A 30-minute pivot. It buys the turn candle at the 20 EMA, well under the morning high.",
+   "deeper": {
+    "trap": "The tell is the level and the clock. The ORB buys the first half hour's high after 10:00. The pivot buys a turn candle's high at a daily level, here the 20 EMA, often well under the morning high."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only defines the pivot (c19)",
+     "the lookalike tells are the card's proposals, not owner rulings"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q45",
+   "skill": "setup.orb",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "orb.window",
+   "story": "A stock gaps up 2% and runs from the bell. At 9:36 the buy fires over the first 5-minute bar's high. The day's low is inside that bar.",
+   "q": "What kind of entry is that?",
+   "choices": [
+    "An opening drive buy",
+    "A 30-minute ORB",
+    "A 30-minute pivot",
+    "A VWAP retest buy"
+   ],
+   "answer": "An opening drive buy",
+   "why": "An opening drive. It made its low in the first 5-minute bar and got bought over that bar's high at 9:36. That's the fast version. The ORB waits for the full 30 minutes and buys after 10:00. Different clock, different stop, different plan.",
+   "lesson_line": "Before 10:00 there's no range to break. A 9:36 buy is the drive, not the ORB.",
+   "facts": [
+    "c20",
+    "c01",
+    "b02",
+    "u01"
+   ],
+   "wrong": {
+    "A 30-minute ORB": "The range doesn't exist until 10:00. A 9:36 buy is the drive, the fast version.",
+    "A 30-minute pivot": "A pivot needs a run of red candles into a level first. This went straight up from the bell.",
+    "A VWAP retest buy": "A VWAP retest is a mid-morning buy after a dip. This went straight up from the bell, no dip."
+   },
+   "house": true,
+   "simple": "An opening drive. It was bought over the first 5-minute bar at 9:36, before any 30-minute range existed.",
+   "deeper": {
+    "trap": "The clock is the tell. Before 10:00 no 30-minute range exists, so a 9:36 buy can't be our ORB, however strong the stock. The drive trades the first 5-minute bar. The ORB waits for the full range."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only defines the drive (c20)",
+     "the lookalike tells are the card's proposals, not owner rulings"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q46",
+   "skill": "setup.orb",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "orb.parent_setup",
+   "story": "A stock gaps up 3% and breaks its 30-minute high at 10:00. The day before the gap was a doji, not a red day.",
+   "q": "What are you looking at?",
+   "choices": [
+    "A plain gap ORB",
+    "A Kicker ORB",
+    "An EP",
+    "An opening drive"
+   ],
+   "answer": "A plain gap ORB",
+   "why": "A plain gap ORB. A Kicker needs a real red day before the gap, one that looks like a breakdown and traps sellers. A doji is just indecision. And an EP is a big gap on real news, 10% or more. A 3% gap is neither. You can still trade the break. Just grade it for what it is.",
+   "lesson_line": "Look at yesterday. A doji isn't a red day, so there's no Kicker.",
+   "facts": [
+    "c21",
+    "c22",
+    "c20"
+   ],
+   "wrong": {
+    "A Kicker ORB": "A Kicker needs a real red day before the gap. A doji is indecision, not a trap.",
+    "An EP": "An EP is a big gap on real news. 3% isn't that.",
+    "An opening drive": "A drive gets bought over the first 5-minute bar by about 9:40. This broke the 30-minute high at 10:00."
+   },
+   "house": true,
+   "simple": "A plain gap ORB. A Kicker needs a real red day first, and a doji isn't one.",
+   "deeper": {
+    "trap": "Two checks: the day before, and the size of the gap. A Kicker needs a real red day first. A doji or a green day makes a plain gap ORB. An EP needs a big gap on a named catalyst. A 3% gap after a doji is neither."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the card's lookalike rows (c21, c22), proposals and not rulings",
+     "the card's 'not traded alone' line (c28, D-002) is no longer keyed"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q47",
+   "skill": "setup.orb",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "orb.stop_width",
+   "story": "A stock gaps 12% on earnings. The first 30-minute range runs 7% from low to high. At 10:10 it trades through the high.",
+   "q": "What's your move at 10:10?",
+   "choices": [
+    "Wait for a tighter trigger",
+    "Buy the break at full size",
+    "Buy, pull the stop up to 3%",
+    "Write it off for good"
+   ],
+   "answer": "Wait for a tighter trigger",
+   "why": "Wait for a tighter trigger. With a 7% range, your stop under the low of the day sits past 5% from the fill. That's too wide for us. I like 1 to 3%, and 5% is the most I'll take. Don't fix it by pulling the stop up into the range. Keep it on your list. A morning flush that curls back up, or a tight setup in the days after, can give you a stop that fits.",
+   "lesson_line": "Measure the gap and the range. A 7% range makes the stop too wide.",
+   "facts": [
+    "c22",
+    "h01",
+    "h24",
+    "r11",
+    "r12",
+    "r13"
+   ],
+   "wrong": {
+    "Buy the break at full size": "Full size with a 7% range under you is a big loss if it fails. The stop's too wide.",
+    "Buy, pull the stop up to 3%": "That stop sits inside the range, not under the low. Noise takes you out.",
+    "Write it off for good": "A big earnings gap can give a second, tighter entry. Keep it on the list."
+   },
+   "house": true,
+   "simple": "Wait. With a 7% range the stop is past 5%, so keep it on the list for a tighter entry.",
+   "deeper": {
+    "trap": "Don't shrink the stop to make the trade fit. The stop sits a few cents under the low of the day. We prefer 1 to 3% and accept up to 5%. Past 5%, we mostly wait for a tighter trigger."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "the key rests on one card line (c22)",
+     "stop width is a held decision (D-005)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q48",
+   "skill": "setup.orb",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "orb.in_play",
+   "story": "Two 10:00 breaks in leaders, both with the range high over yesterday's high. One came on opening volume about normal, 1.03x. The other came on 2.67x.",
+   "q": "Which one do you like more?",
+   "choices": [
+    "The 2.67x break",
+    "The 1.03x break",
+    "No difference, a break is a break",
+    "Neither, wait for a retest"
+   ],
+   "answer": "The 2.67x break",
+   "why": "The 2.67x break. Heavy volume in the first half hour means the crowd showed up. Real buyers, real interest. That raises the grade. It's not a must, and a quiet break can still work. But when I'm picking, I want the one people care about. FFIV broke on 2.67x and ran 10.05R. IQV broke on 1.03x and stopped out after 1.29R.",
+   "lesson_line": "Heavy opening volume is the crowd showing up. It raises the grade.",
+   "facts": [
+    "c18",
+    "b05",
+    "k04",
+    "d12",
+    "d12b",
+    "d01",
+    "c02",
+    "c04"
+   ],
+   "wrong": {
+    "The 1.03x break": "Quiet is good the day before. On the break itself you want the crowd.",
+    "No difference, a break is a break": "Both trigger. Volume is what grades them.",
+    "Neither, wait for a retest": "The trigger is the trade through the high. A retest is only the second chance."
+   },
+   "house": true,
+   "simple": "The 2.67x break. Heavy opening volume raises the grade, though it's not a must.",
+   "deeper": {
+    "example": "IQV: a quiet break at 10:00 with no opening interest behind it, opening volume 1.03x its 20-day mean. It reached 1.29R and stopped out. FFIV broke on 2.67x opening volume and ran 10.05R. Bysshe calls volume the best clue in the opening range."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "the volume line (D-006) is pending and never keyed",
+     "the cue is the card's proposal and E50 says grading is discretionary"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q49",
+   "skill": "setup.orb",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "orb.index_orb",
+   "story": "10:15, and our market reading is Green. The indexes are taking out their own opening ranges on buying. Three of your best setups sit right at their range highs.",
+   "q": "What's that telling you?",
+   "choices": [
+    "Go, work the focus list",
+    "Buy the index instead",
+    "Wait for the close",
+    "Nothing, indexes don't matter"
+   ],
+   "answer": "Go, work the focus list",
+   "why": "Go. When the indexes take out their opening ranges on real buying, the market is backing breakouts that morning. That's when I want to execute my focus list. The index is the cue, though, not the trade. Each name still buys on its own trade through its own range high, with its own stop.",
+   "lesson_line": "When the indexes clear their ranges, the focus list gets the green light.",
+   "facts": [
+    "c17",
+    "u05",
+    "c02",
+    "h26"
+   ],
+   "wrong": {
+    "Buy the index instead": "The index is the cue. Your leaders are the trades.",
+    "Wait for the close": "The cue is now. Waiting for the close skips every trigger.",
+    "Nothing, indexes don't matter": "They matter a lot. A break with the market behind it has a much better shot."
+   },
+   "house": true,
+   "simple": "Go. The indexes clearing their ranges is the cue to work your list, one trigger at a time.",
+   "deeper": {
+    "trap": "A cue isn't a trigger. The indexes clearing their ranges says the list can go. Each name still needs its own trade through its range high, with its own stop."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the index cue is a proposed card line plus the owner's published note",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q50",
+   "skill": "setup.orb",
+   "rung": 7,
+   "format": "mcq",
+   "criterion": "orb.trim_2",
+   "q": "EXEL: bought at 60.92, stop 59.51. It trades up to 67.97. How many R are you up?",
+   "answer": "5.0R",
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 60.92,
+     "stop": 59.51,
+     "exit": 67.97
+    },
+    "round": 1
+   },
+   "why": "5R. Your risk is 60.92 minus 59.51, which is 1.41 a share. The gain is 67.97 minus 60.92, which is 7.05. Divide 7.05 by 1.41 and you get 5. That's the low end of the 5 to 10R zone where a first sell is often best. Count in R, not dollars. R tells you how the trade is doing against what you risked.",
+   "lesson_line": "Count in R, not dollars. About 5R to 10R is where the first sell is often best.",
+   "facts": [
+    "r22",
+    "d04"
+   ],
+   "house": true,
+   "suffix": "R",
+   "simple": "5R. A gain of 7.05 on a risk of 1.41 a share is five times what you risked.",
+   "deeper": {
+    "example": "EXEL went on to 9.06R in the sessions after. 3R on the same trade is just the fill plus three times the risk per share. It's a marker. The first sell is a judgment, often into a push of 3, 5 or 7 days."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (E51)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "6.0R",
+    "9.9R",
+    "5.0R",
+    "0.2R"
+   ],
+   "wrong": {
+    "6.0R": "That measured the gain from the stop. Start from your fill.",
+    "9.9R": "That multiplied instead of divided.",
+    "0.2R": "That's upside down. Gain over risk, not risk over gain."
+   }
+  },
+  {
+   "key": "q51",
+   "skill": "setup.orb",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "orb.market_reading",
+   "story": "Our market reading is Red, the weakest it gets. A leader on your list breaks its 30-minute high at 10:00 on three times normal volume.",
+   "q": "Is this one you take?",
+   "choices": [
+    "Pass, Red is mostly cash",
+    "Buy it, A+ works anywhere",
+    "Buy it, the volume says go",
+    "Buy it and add if it works"
+   ],
+   "answer": "Pass, Red is mostly cash",
+   "why": "Pass. In a Red market I'm mostly in cash. It's a guide, not a law, but the reason is simple. When the market's falling, breakouts fail more often because there's no money chasing them. One strong break doesn't change the market. The best-looking break in a Red market is exactly what tests your discipline. Keep it on your list for when the reading turns.",
+   "lesson_line": "The market reading comes before the range. Red means sit on your hands.",
+   "facts": [
+    "h26",
+    "h34",
+    "c33",
+    "r24",
+    "aw2"
+   ],
+   "wrong": {
+    "Buy it, A+ works anywhere": "Orange is the A+ only market. Red is mostly cash.",
+    "Buy it, the volume says go": "Volume grades the stock, not the market. The reading still says Red.",
+    "Buy it and add if it works": "Red is mostly cash. And an add is never the plan going in."
+   },
+   "house": true,
+   "simple": "Pass. Red is mostly cash, so keep the name on your list for when the market turns.",
+   "deeper": {
+    "trap": "The best-looking break in a Red market is the test. Three times normal volume makes it tempting. Red still means mostly cash."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (F65, D46)",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q52",
+   "skill": "setup.orb",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "orb.earnings_window",
+   "story": "Your ORB long is up 2.2R. The company reports tomorrow before the open.",
+   "q": "Do you hold it through the report?",
+   "choices": [
+    "No, it's not up 5R",
+    "Yes, after selling half",
+    "Yes, stop at breakeven",
+    "Yes, 2.2R is enough cushion"
+   ],
+   "answer": "No, it's not up 5R",
+   "why": "No. You hold through a report only if you're up 5R, and this is 2.2R. A report can gap the stock right through your stop overnight. With 2.2R of cushion, one bad gap can wipe out the gain and then some. At 5R you've got room to take the hit. SNX's report on 2026-09-24 gapped it straight through the stop.",
+   "lesson_line": "Earnings is a gap you can't stop. 5R buys the ticket. 2.2R doesn't.",
+   "facts": [
+    "h08",
+    "d09"
+   ],
+   "wrong": {
+    "Yes, after selling half": "Half is still exposed to the gap, and 2.2R is under the line.",
+    "Yes, stop at breakeven": "A stop can't catch an overnight gap. Breakeven won't fill at breakeven.",
+    "Yes, 2.2R is enough cushion": "The line is 5R. A report gap can be bigger than 2.2R."
+   },
+   "house": true,
+   "simple": "No. We only hold through a report at 5R or more, and 2.2R isn't enough cushion for a gap.",
+   "deeper": {
+    "trap": "An earnings gap is the one move a stop can't cap. SNX's report of 2026-09-24 gapped it through the stop, and the shares sold into strength earlier are what kept the win. Selling half or raising the stop doesn't change the 5R line."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on rulebook B22 (5R)",
+     "the rule does not say whether to sell all or trim"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q53",
+   "skill": "setup.orb",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "orb.kicker_order",
+   "story": "A Kicker with two entries. The prior-day-high buy fills at 11.05. The ORB buy fills at 11.21. Both use the same stop under the Kicker low, 10.80.",
+   "q": "Which fill sits closer to the stop?",
+   "choices": [
+    "The 11.05 fill",
+    "The 11.21 fill",
+    "Same, it's the same stop",
+    "The 11.21, it has more room"
+   ],
+   "answer": "The 11.05 fill",
+   "why": "The 11.05 fill. From 11.05 the stop at 10.80 is 2.3% away. From 11.21 it's 3.7%. Same stop, higher price, more risk a share. That matters because a tighter stop buys more shares for the same dollar risk. One catch on the ORB fill: 3.7% is past our 3.5% Kicker cap, so that stop would come up to 10.82. At the close the first fill was up about 2.3R, the ORB about 1.0R. Waiting for confirmation costs you distance. Sometimes that's worth paying, sometimes not.",
+   "lesson_line": "Same stop, two entries. The earlier one is tighter, so it can carry more shares.",
+   "facts": [
+    "c07",
+    "c06",
+    "h03",
+    "h12",
+    "c05",
+    "c32"
+   ],
+   "wrong": {
+    "The 11.21 fill": "That one's farther, 3.7% against 2.3%. Confirmation costs distance.",
+    "Same, it's the same stop": "Same stop, different fills. The higher fill has the wider stop.",
+    "The 11.21, it has more room": "More room means farther from the stop, not closer."
+   },
+   "house": true,
+   "simple": "The 11.05 fill. Same stop, lower price, so the stop is tighter and you can own more shares.",
+   "deeper": {
+    "counter": "Confirmation costs distance. The ORB entry waits for the range to be proven and fills at 11.21 instead of 11.05. So the same stop sits farther away: 3.7% against 2.3%. The first entry earned about 2.3R to the ORB's 1.0R. One example, not a promise that the earlier entry always wins."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "one cited example row (c07) carries the numbers",
+     "the 3.7% to the stop sits above the 3.5% Kicker cap; the owner flag asks whether the cap counts the few-cents buffer",
+     "rests on the owner's Kicker ruling"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "JBI",
+    "tf": "30",
+    "asof": "2023-12-14 10:00",
+    "window": 41,
+    "forward": 14
+   }
+  },
+  {
+   "key": "q54",
+   "skill": "setup.orb",
+   "rung": 8,
+   "format": "tf",
+   "criterion": "orb.valid_all_session",
+   "q": "Our rulebook has no time-of-day rule; the 30 minutes on an ORB define the trigger, not a cut-off for taking it.",
+   "answer": "True",
+   "why": "True. No time-of-day rule. The 30-minute window is part of the trigger's definition; the trigger stays valid for the rest of that session.",
+   "lesson_line": "The clock builds the range. It does not close the trade.",
+   "facts": [
+    "h30",
+    "c09"
+   ],
+   "house": true
+  },
+  {
+   "key": "q55",
+   "skill": "setup.orb",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "orb.stop",
+   "story": "The 30-minute low is 412.06 and the break fills at 418.46.",
+   "q": "Where exactly is the stop?",
+   "choices": [
+    "A few cents under 412.06",
+    "Exactly 412.06",
+    "A flat 3% under the fill",
+    "Under the prior day's low"
+   ],
+   "answer": "A few cents under 412.06",
+   "why": "A few cents under 412.06, not exactly on it. FFIV's stop was 412.01, 1.54% under the fill: the day's low at the fill, with a little room for a tick.",
+   "lesson_line": "Under the low, not on it. A stop on the exact low gets ticked.",
+   "facts": [
+    "h24",
+    "c03",
+    "d01"
+   ],
+   "wrong": {
+    "Exactly 412.06": "The stop sits a few cents under the day's low, not exactly on it.",
+    "A flat 3% under the fill": "A percent is not a level. 3% is where the honest stop usually lands, not where it is set.",
+    "Under the prior day's low": "Too far on a first break. The range low is the honest level."
+   },
+   "house": true
+  },
+  {
+   "key": "q56",
+   "skill": "setup.orb",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "orb.range_defined",
+   "story": "Two ranges at 10:00. In one, the high got tested twice and price sat just under it. In the other, no high repeats and the bars swing both ways.",
+   "q": "Which range would you rather trade?",
+   "choices": [
+    "The first, a clean high",
+    "The second, more room to run",
+    "Either, a high is a high",
+    "Neither, skip both"
+   ],
+   "answer": "The first, a clean high",
+   "why": "The first. That high got tested and price sat tight right under it. That's a real level. You know exactly where the sellers sit, and when price trades through, they're used up. The sloppy one has no level to buy and no clean low for a stop. If you can't draw the range, don't trade it.",
+   "lesson_line": "A range you can draw is a range you can trade. Sloppy means no level.",
+   "facts": [
+    "c15",
+    "b03",
+    "c24",
+    "d06"
+   ],
+   "wrong": {
+    "The second, more room to run": "No clean high means no clean trigger. Room doesn't help if you can't find the entry.",
+    "Either, a high is a high": "A tested high is a level. A random high is noise.",
+    "Neither, skip both": "The first one is exactly what you want. Skip only the sloppy one."
+   },
+   "house": true,
+   "simple": "The first. A clean high gives you a real level to buy and a clean low for the stop.",
+   "deeper": {
+    "trap": "Sloppy can look like energy, bars all over the place. But a trigger needs a level and a stop needs a low. Bysshe: if there isn't any well-defined support or resistance, don't waste your time watching it. OVV is the clean case: a tight hold just under the range high, then a trigger at 10:30."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the cue is the card's proposal and E50 says grading is discretionary"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q57",
+   "skill": "setup.orb",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "orb.plan_rule",
+   "story": "A leader, RS 81, over its 50 and 200-day, opens flat on 2.67x volume. The first 30-minute candle runs 412.06 to 418.45.",
+   "q": "Write the plan: entry, stop, first sell.",
+   "choices": [
+    "Market 418.46, stop 412.01, judged sell",
+    "Market 418.46, stop 412.01, third at 3R",
+    "Market 418.46, stop 412.06, judged sell",
+    "Limit 418.46, stop 412.01, judged sell"
+   ],
+   "answer": "Market 418.46, stop 412.01, judged sell",
+   "why": "Market at 418.46, stop 412.01, and a judged first sell. You buy at market the moment it trades through 418.45. The stop goes a few cents under the 412.06 low, not right on it. The first sell is a judgment into a push, not a fixed third at 3R. This was FFIV. It broke on the first bar after 10:00 and ran to 10.05R.",
+   "lesson_line": "Entry, stop, first sell, trail. Write the rule before the open.",
+   "facts": [
+    "h22",
+    "h24",
+    "r21",
+    "r23",
+    "d01",
+    "d02"
+   ],
+   "wrong": {
+    "Market 418.46, stop 412.01, third at 3R": "A fixed third at 3R isn't how we sell. The first sell is a judgment.",
+    "Market 418.46, stop 412.06, judged sell": "That's right on the low. The stop goes a few cents under it.",
+    "Limit 418.46, stop 412.01, judged sell": "We buy at market. A limit can leave you watching it go."
+   },
+   "house": true,
+   "simple": "Buy at market through the high, stop a few cents under the low, and judge the first sell.",
+   "deeper": {
+    "example": "FFIV, 2026-09-15: the rule written before the open gave, at 10:00, a buy at 418.46 and a stop of 412.01. That's a few cents under the 412.06 low and 1.54% under the fill. It broke on the first bar after 10:00 and ran to 10.05R in the sessions after."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on rulebook E57, F62 and B19",
+     "a buy-stop (D-038) would not change this key",
+     "numbers come from one dossier scan row"
+    ]
+   },
+   "depends_on": [
+    "D-038"
+   ],
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "FFIV",
+    "tf": "5",
+    "asof": "2026-09-15 10:00",
+    "window": 85,
+    "forward": 40,
+    "trade": {
+     "entry": 418.46,
+     "stop": 412.01
+    }
+   }
+  },
+  {
+   "key": "q58",
+   "skill": "setup.orb",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "orb.stop_gap",
+   "story": "You bought at 60.92, stop 59.51, so 2R under your entry is 58.10. Next week it gaps open at 58.90. The first 30-minute low prints 57.20.",
+   "q": "Where does that leave you?",
+   "choices": [
+    "Out, the loss is past 2R",
+    "Stop moves to 57.20",
+    "Sell at the open, 58.90",
+    "Hold and wait for the close"
+   ],
+   "answer": "Out, the loss is past 2R",
+   "why": "Out. On a gap through your stop, the first 30-minute low becomes the new stop, but only up to 2R. One R is 60.92 minus 59.51, so 2R under your entry is 58.10. The first 30 minutes printed 57.20, under that line. The rule gives you the half hour, not a blank cheque. Past 2R, you take the loss and move on.",
+   "lesson_line": "The gap rule gives you the first 30 minutes, not a blank cheque. Past 2R, you're out.",
+   "facts": [
+    "h06",
+    "h07",
+    "h02"
+   ],
+   "wrong": {
+    "Sell at the open, 58.90": "The open is still inside 2R. The rule gives you the first 30 minutes.",
+    "Stop moves to 57.20": "Only inside 2R. 57.20 is past the 58.10 line.",
+    "Hold and wait for the close": "There's no close rule here. Past 2R, you're out."
+   },
+   "house": true,
+   "simple": "Out. The first 30 minutes took the loss past 2R, so the 30-minute low doesn't become your stop.",
+   "deeper": {
+    "trap": "The trap is taking the new stop without checking the ceiling. The gap opened at 58.90, still above the 2R line at 58.10, so the open alone doesn't force you out. The first 30 minutes printed 57.20, under it. That's what takes you out."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on rulebook B20 and its 2R ceiling",
+     "a computed key (2R level)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q59",
+   "skill": "setup.orb",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "orb.reentry",
+   "story": "Same stock, same week. You got stopped out Monday, Tuesday and Wednesday, one try each day. Thursday morning a new break prints.",
+   "q": "Do you take Thursday's break?",
+   "choices": [
+    "No, that's 3 tries this week",
+    "Yes, new trigger, new trade",
+    "Yes, at half size",
+    "No, the cap is 2 a week"
+   ],
+   "answer": "No, that's 3 tries this week",
+   "why": "No. One stock gets 3 tries a week and 6 a month. Monday, Tuesday and Wednesday used all three. Every new trigger is a new trade, and that's exactly why each one counts. Three stops in a row is the stock telling you it isn't ready. Let it go, and come back next week if it sets up again.",
+   "lesson_line": "Three tries a week, six a month. A fourth this week is a pass.",
+   "facts": [
+    "h29",
+    "h28",
+    "c12"
+   ],
+   "wrong": {
+    "Yes, new trigger, new trade": "It's a new trade, and that's why it counts. The cap is 3 a week.",
+    "Yes, at half size": "Size doesn't reset the count. Three is three.",
+    "No, the cap is 2 a week": "Right answer, wrong reason. The cap is 3 tries a week and 6 a month."
+   },
+   "house": true,
+   "simple": "No, you get three tries a week on one stock and you've used them. Come back next week.",
+   "deeper": {
+    "trap": "'A new trigger is a new trade' is true, and that's why the count matters. Each try had its own stop, and each one counted. Three a week on one stock is the weekly cap. Six in a month is the monthly cap."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook E56 and B21; a week is not defined in the rulebook"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q60",
+   "skill": "setup.orb",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "orb.earnings_window",
+   "story": "A leader reported last night and gaps 3% this morning on heavy volume. At 10:05 it trades through its 30-minute high.",
+   "q": "Is the break buyable?",
+   "choices": [
+    "Yes, the report is behind it",
+    "Yes, but only after 11:00",
+    "No, too close to earnings",
+    "No, wait three sessions"
+   ],
+   "answer": "Yes, the report is behind it",
+   "why": "Yes. The blackout is the 3 sessions before a report. This one already reported, so the gap risk you were avoiding is gone. The news is out, and the market voted with a gap up on heavy volume. That's a fine place for an ORB. Same plan as always: buy the trade through the high, stop under the low of the day.",
+   "lesson_line": "The blackout is before the report, not after it.",
+   "facts": [
+    "c26",
+    "h08",
+    "h30"
+   ],
+   "wrong": {
+    "Yes, but only after 11:00": "We have no time-of-day rule. A trade through the high is the trigger all session.",
+    "No, too close to earnings": "Close isn't the rule. Before is. The report's done.",
+    "No, wait three sessions": "The 3 sessions sit before the report, not after it."
+   },
+   "house": true,
+   "simple": "Yes, we avoid the 3 sessions before a report, not after. This one already reported.",
+   "deeper": {
+    "example": "TMDX, APPS and GRRR are ORBs taken the day after a report. The blackout only covers the 3 sessions before one."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B22)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q61",
+   "skill": "setup.orb",
+   "rung": 9,
+   "format": "tf",
+   "criterion": "orb.not_ours",
+   "q": "Kullamagi sells a third to a half after 3 to 5 days. Our rule sells a third at 3R and a third at 5R.",
+   "answer": "True",
+   "why": "True. Kullamagi: sell a third to a half after 3 to 5 days, then move the stop to breakeven. Ours sells by R: a third at 3R, another at 5R, then the trail.",
+   "lesson_line": "His clock, our ladder. Same stop, different exit.",
+   "facts": [
+    "k05",
+    "h05",
+    "h20",
+    "c13"
+   ],
+   "house": true
+  },
+  {
+   "key": "q62",
+   "skill": "setup.orb",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "orb.plan_rule",
+   "story": "You bought the ORB at the size your plan set. An hour later it runs through the next daily level and keeps going.",
+   "q": "Do you add as it clears the level?",
+   "choices": [
+    "Not as a plan. One buy, one stop",
+    "Yes, strength earns more",
+    "Yes, a third more, same stop",
+    "No, sell it all there"
+   ],
+   "answer": "Not as a plan. One buy, one stop",
+   "why": "Not as a plan. We buy the full size at one price with one stop. Your size was worked out from your stop and your risk at the fill. Add higher and your average price rises, so a normal pullback now costs more than you planned. Adding to a working winner on strength does happen, but it's rare and a feel call. Strength gets paid through the sells into the push and the trail.",
+   "lesson_line": "One fill, one stop. An add is rare, a feel call. Strength gets paid through the sells and the trail.",
+   "facts": [
+    "aw1",
+    "h03",
+    "r21",
+    "aw2"
+   ],
+   "wrong": {
+    "Yes, strength earns more": "Strength gets paid by the sells and the trail. A bigger position isn't the plan.",
+    "Yes, a third more, same stop": "That's an add as a plan. A third more at the same stop raises your average and your risk.",
+    "No, sell it all there": "We sell some into the push by judgment and trail the rest. Not everything at one level."
+   },
+   "house": true,
+   "simple": "Not as a plan, the full size went on at one price with one stop. Strength gets paid through the sells and the trail.",
+   "deeper": {
+    "trap": "Adding feels like backing a winner. But your size was set at the fill, from your account, your risk and your stop. Add above it and a normal pullback costs more than the trade was built for."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on rulebook A5 (no adding)"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q63",
+   "skill": "setup.orb",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "orb.reversal_warning",
+   "story": "Two 10:00 breaks. One stays above the range high for 20 minutes. The other pokes above it, drops back inside after 3 minutes, then goes above it again.",
+   "q": "Which break do you trust more?",
+   "choices": [
+    "The one that held",
+    "The one that broke twice",
+    "Both the same",
+    "Neither, only a close counts"
+   ],
+   "answer": "The one that held",
+   "why": "The one that held. Price sat over the range high for 20 minutes. Buyers took the level and kept it. The other one fell back inside after 3 minutes. Both triggered, but only one showed you the sellers were done. A drop back into the range on big volume is how these fail, so that's what I watch for.",
+   "lesson_line": "A good break holds above the range high. Falling back inside is the warning.",
+   "facts": [
+    "c23",
+    "b06",
+    "c11",
+    "c02"
+   ],
+   "wrong": {
+    "The one that broke twice": "Falling back inside means it didn't hold. Breaking twice isn't strength.",
+    "Both the same": "Both triggered. Only one held, and holding is what you want to see.",
+    "Neither, only a close counts": "The trigger is the trade through the high, not a close. Both triggered."
+   },
+   "house": true,
+   "simple": "The one that held. Holding over the range high shows the buyers took the level.",
+   "deeper": {
+    "trap": "The 3-minute break is still a trigger, since the first trade through the high is. What it didn't do is hold. Bysshe's rule of thumb: price holds above the range for half the range's length, about 15 minutes on a 30-minute range."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "the cue is the card's proposal and E50 says grading is discretionary",
+     "Bysshe's quote sits in a PDF the quote script cannot match, read by hand"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q64",
+   "skill": "setup.orb",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "orb.stop",
+   "story": "An ORB long fills at 677.21 with its stop at 663.33, about 2% under the fill. It never gets past +0.15R and stops out at noon the same day.",
+   "q": "What kept this loss small?",
+   "choices": [
+    "The stop under the low of the day",
+    "Selling at the first fade",
+    "A wider stop for room",
+    "The 4% chase limit"
+   ],
+   "answer": "The stop under the low of the day",
+   "why": "The stop under the low of the day. It sat in with the broker, it never moved down, and it took you out at 1R. That's the plan working. You'll take this loss a lot. Not every break runs. The ones that do pay for all of these, as long as each loss stays at 1R. This was DE.",
+   "lesson_line": "You'll take this loss again. The stop is why it stays small.",
+   "facts": [
+    "d15",
+    "d15b",
+    "d11",
+    "d16",
+    "h02",
+    "h24",
+    "h18"
+   ],
+   "wrong": {
+    "Selling at the first fade": "There was no early sell. The stop did the work.",
+    "A wider stop for room": "The stop only moves up, never wider. A wider stop means a bigger loss.",
+    "The 4% chase limit": "The 4% line limits how far over the buy point you pay. It doesn't size the loss."
+   },
+   "house": true,
+   "simple": "The stop under the low of the day. A loss at the planned stop is the plan working.",
+   "deeper": {
+    "trap": "A 1R loss is the plan working, but the cause still matters. Across the four losses we studied, the missing piece was the daily setup, the direction of the open or the calendar. Check those before the buy, not after the stop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "the key rests on one dossier fact (d15)",
+     "rests on the owner's rulebook (A3, A4)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "DE",
+    "tf": "5",
+    "asof": "2026-11-02 10:00",
+    "window": 85,
+    "forward": 36,
+    "trade": {
+     "entry": 677.21,
+     "stop": 663.33
+    }
+   }
+  },
+  {
+   "key": "q65",
+   "skill": "setup.orb",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "orb.above_50",
+   "story": "A leader closed yesterday at 63.90. Its 20-day sits at 64.40, its 50-day at 63.30 and its 200-day at 55.60. At 10:05 it breaks its 30-minute high.",
+   "q": "Check the averages. Can you buy this break?",
+   "choices": [
+    "Yes, it's over the 50 and 200",
+    "No, it's under its 20-day",
+    "No, it's too close to the 50-day",
+    "Only on a close over the 20-day"
+   ],
+   "answer": "Yes, it's over the 50 and 200",
+   "why": "Yes. The 200-day is the hard line, and 63.90 is well over 55.60. It's over the 50-day at 63.30 too, and the 50 sits above the 200. That's what I want to see in a leader. The 50 over the 200 is mostly a must, not always. A stock resting a hair under its 20-day isn't a reason to pass. And there's no set distance it needs to be over the 50.",
+   "lesson_line": "The 200-day is the hard line. The 50 over the 200 is mostly a must.",
+   "facts": [
+    "c14",
+    "c29",
+    "h10",
+    "h10b",
+    "b04",
+    "d06",
+    "r25",
+    "r24",
+    "ma1",
+    "ma2"
+   ],
+   "wrong": {
+    "No, it's under its 20-day": "A day under the 20 isn't a reason to pass. Some traders want it, but it's not our test.",
+    "No, it's too close to the 50-day": "There's no set distance. Over is over.",
+    "Only on a close over the 20-day": "We buy the trade through the range high. We don't wait for a close."
+   },
+   "house": true,
+   "simple": "Yes. It's over the 200-day, the hard line, and over the 50-day too.",
+   "deeper": {
+    "counter": "Bysshe wants rising 20 and 50-day averages, with the stock above the 20-day. That's his test. Ours is the 200-day as the hard line, and the 50 over the 200 is mostly a must, not always."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the 50-day line is the card's proposed criterion, not the rulebook's",
+     "the card lists it both as a gate and as a B- grade row; the owner has not ruled which",
+     "the owner has not ruled whether an open under the 50-day after a close above it still passes; the item avoids that case"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  }
+ ]
+}

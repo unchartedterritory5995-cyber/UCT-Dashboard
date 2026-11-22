@@ -197,6 +197,7 @@ def run_exam(
                 api_key=os.environ["ANTHROPIC_API_KEY"],
                 timeout=llm_timeouts.seconds("REPORT_CARD_JUDGE_TIMEOUT_SECS",
                                              llm_timeouts.OFFLINE_JOB),
+                max_retries=0,
             )
         if chat_client_factory is None:
             real_client = coach_chat.AnthropicChatClient()

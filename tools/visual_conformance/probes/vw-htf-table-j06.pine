@@ -1,0 +1,36 @@
+//@version=5
+// PROVENANCE: the assistant's recorded answer to value case j06 (tests/fixtures/authoring/value_cases.json, recorded
+// 2026-11-21 on front 104db22eb5): "Show a table in the corner that says whether the close is above the 10 week
+// moving average and above the 10 month moving average". Copied VERBATIM except the title, which carries UCTPROBE_
+// so it can never count as a community script. Q-HTF-FORM2-g (coordinator ruling 2026-11-21): what an object-program
+// TABLE that reads another timeframe draws in session, while `request-other` is admitted for closed-bar history only.
+// NOTE what it reads: `wMA[1]` on a DAILY chart is the PREVIOUS DAY's value of the weekly series (the developing week
+// as of yesterday), not "the last finished week" its own comment says. The capture records which.
+// NEVER COMPILED ON TRADINGVIEW.
+indicator("UCTPROBE_VW_HTF_TABLE_J06", overlay=true)
+
+wLen = input.int(10, "Weekly MA length", minval=1)
+mLen = input.int(10, "Monthly MA length", minval=1)
+
+wMA = request.security(syminfo.tickerid, "W", ta.sma(close, wLen))
+mMA = request.security(syminfo.tickerid, "M", ta.sma(close, mLen))
+
+// Last FINISHED week / month value (available on the newest bar)
+wPrev = wMA[1]
+mPrev = mMA[1]
+
+aboveW = close > wPrev
+aboveM = close > mPrev
+
+var table t = table.new(position.top_right, 3, 3, border_width=1)
+table.cell(t, 0, 0, "", text_color=color.white, bgcolor=color.gray)
+table.cell(t, 1, 0, "MA", text_color=color.white, bgcolor=color.gray)
+table.cell(t, 2, 0, "Close vs MA", text_color=color.white, bgcolor=color.gray)
+
+table.cell(t, 0, 1, str.tostring(wLen) + " week", text_color=color.white, bgcolor=color.gray)
+table.cell(t, 1, 1, str.tostring(wPrev, "#.##"), text_color=color.white)
+table.cell(t, 2, 1, aboveW ? "ABOVE" : "BELOW", text_color=color.white, bgcolor=aboveW ? color.green : color.red)
+
+table.cell(t, 0, 2, str.tostring(mLen) + " month", text_color=color.white, bgcolor=color.gray)
+table.cell(t, 1, 2, str.tostring(mPrev, "#.##"), text_color=color.white)
+table.cell(t, 2, 2, aboveM ? "ABOVE" : "BELOW", text_color=color.white, bgcolor=aboveM ? color.green : color.red)

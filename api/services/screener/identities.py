@@ -651,6 +651,169 @@ def build_identities(*, percent_cols: Sequence[str] | None = None
         "the RS rank is a 0-99 score",
         "same published unit convention in `filters.py`",
         Tol(value=0.0, why="an integer score has no tolerance")))
+
+    # ── UCT Relative Strength (Phase 2a, unit 2a-08) ──────────────────────
+    # The rating family is a PUBLISHED scale, read off the constant rather than
+    # typed: `rs_history.rating` is `max(1, min(RATING_MAX, ceil(pct *
+    # RATING_MAX)))`, so the IBD-style rating and its four component
+    # percentiles live on [1, RATING_MAX] by construction, and the difference
+    # of two such ratings on [-(RATING_MAX - 1), RATING_MAX - 1].
+    from api.services.screener import rs_history as _rsh   # local: keep import graph thin
+    top = float(_rsh.RATING_MAX)
+    rating_tol = Tol(value=0.0, why="an integer rating has no tolerance")
+    for col, what in (("rs_rating_ibd", "the IBD-style RS rating"),
+                      ("rs_rating_1m", "the one-month return percentile"),
+                      ("rs_rating_3m", "the three-month equal-weighted-return percentile"),
+                      ("rs_rating_6m", "the six-month weighted-return percentile"),
+                      ("rs_rating_9m", "the nine-month weighted-return percentile"),
+                      ("rs_rating_12m", "the twelve-month weighted-return percentile")):
+        out.append(band(
+            f"{col}_in_range", "indicators", col, 1.0, top,
+            f"{what} is a 1-{int(top)} score",
+            "`rs_history.rating` is max(1, min(RATING_MAX, ceil(pct * RATING_MAX))) "
+            "and an ETF's interpolated percentile passes through the same clamp, so "
+            "nothing the writer emits can leave the interval",
+            rating_tol))
+    for col, n in (("rs_rating_chg_5", 5), ("rs_rating_chg_20", 20)):
+        out.append(band(
+            f"{col}_in_range", "indicators", col, -(top - 1.0), top - 1.0,
+            f"a {n}-session change of a 1-{int(top)} rating is within "
+            f"[-{int(top) - 1}, {int(top) - 1}]",
+            "`rs_history.read_fields` derives the delta as the rating minus the "
+            "rating stored n sessions earlier; two values on [1, RATING_MAX] cannot "
+            "differ by more than RATING_MAX - 1",
+            rating_tol))
+    # RS screens (unit U1, 2026-11-14): a place is a position in ONE ordered list,
+    # so it can never exceed the size of that list. `rs_post_pass.exact_places`
+    # numbers the ranked rows 1..n and the pass writes that n beside every place.
+    # ⚰️ Four more identities stood here until unit U4 (2026-11-14): each per-period
+    # place (`rs_pos_1m/3m/6m/12m`) no larger than `rs_rating_pos_n`. That held while
+    # a period's list was a subset of the overall one. A period board now takes a
+    # liquid stock with under a year of history, which the overall board leaves out,
+    # so a period board can be LONGER than the overall count and the rule would have
+    # withheld correct places. No per-period count is stored, so there is nothing to
+    # hold a period place against.
+    place_tol = Tol(value=0.0, why="a whole-number place has no tolerance")
+    out.append(at_least(
+        "rs_rating_pos_n_ge_rs_rating_pos", "indicators", "rs_rating_pos_n", "rs_rating_pos",
+        "the RS Rating place is no larger than the number of stocks ranked",
+        "`rs_post_pass.exact_places` numbers the liquid-floor rows 1..n with no "
+        "ties and the pass stores that n on every ranked row",
+        place_tol))
+    # RS screens, the build's own columns (unit U4, 2026-11-14). The six RS-line
+    # measures are cut from the SAME Phase 1 pass as the ten (`rs_columns.screen_fields`
+    # is handed `collect_one`'s), so each relation below is the maths. Checked over
+    # 4,000 random series, benchmark holes and short windows included, before it was
+    # made a proof: no violation.
+    out.append(implies(
+        "rs_nh_red_bars_ago_ge_rs_nh_bars_ago", "indicators",
+        ("rs_nh_red_bars_ago", "rs_nh_bars_ago"),
+        lambda r: True,
+        lambda r: r["rs_nh_red_bars_ago"] >= r["rs_nh_bars_ago"],
+        "the newest RS high on a market down day is no newer than the newest RS high",
+        "`relative_strength.both(rsNH, red)` is 1 only where rsNH is 1, and both ages "
+        "are `bars_ago_column` over columns of one Phase 1 pass"))
+    out.append(implies(
+        "rs_nhbp_age_is_rs_nh_bars_ago", "indicators",
+        ("rs_nhbp_age", "rs_nh_bars_ago"),
+        lambda r: True,
+        lambda r: r["rs_nhbp_age"] == r["rs_nh_bars_ago"],
+        "an RS high that price has not followed yet is the newest RS high",
+        "`relative_strength.event_age_unbroken_last` answers at the first RS new high "
+        "it meets walking back from the newest bar, which is the bar "
+        "`bars_ago_column` counts from; it is blank otherwise, never an older high"))
+    out.append(implies(
+        "rs_nh_span_implies_rs_new_high", "indicators",
+        ("rs_nh_span", "rs_new_high"),
+        lambda r: True,
+        lambda r: r["rs_new_high"] == 1,
+        "a span is stated only on a session the RS line is at a high",
+        "`rs_columns.screen_fields` writes `rs_nh_span` only when the newest `rsNH` is "
+        "1, and `rs_new_high` is that same value"))
+    out.append(band(
+        "rs_nh_count_20_within_its_window", "indicators", "rs_nh_count_20", 0.0, 20.0,
+        "the count of RS highs in 20 sessions is between 0 and 20",
+        "`relative_strength.rolling_count` over the last 20 values of a 0 / 1 column "
+        "(`rs_columns.SCREEN_NH_COUNT_WINDOW`; tests/test_screener_identities.py holds "
+        "the 20 to that constant)",
+        Tol(value=0.0, why="a whole-number count has no tolerance")))
+    out.append(band(
+        "px_below_high_pct_at_or_below_zero", "indicators", "px_below_high_pct", -100.0, 0.0,
+        "the close is never above its own highest close of the window",
+        "`relative_strength.close_below_high_pct_last` divides the close by the maximum "
+        "of a window that includes it, over positive closes only: the ratio is in (0, 1]",
+        Tol(value=0.0, why="the maximum of a window is exact; the stored value is "
+                           "rounded toward the same side of zero")))
+    out.append(implies(
+        "rs_tight_is_tight_consolidation", "multi_candle",
+        ("rs_tight", "tight_consolidation"),
+        lambda r: True,
+        lambda r: int(r["rs_tight"]) == int(r["tight_consolidation"]),
+        "the Setup label's tight tag is the Tight Consolidation column",
+        "`snapshot_builder._rs_setup_fields` hands the row's own `tight_consolidation` "
+        "to `rs_setup.label`, which returns it as 0 / 1"))
+    # RS screens, the weekly RS new high (unit U12, 2026-11-14): the weekly copy of
+    # `rs_nh_before_price_implies_rs_new_high` below, true for the same reason.
+    out.append(implies(
+        "rs_nhbp_weekly_implies_rs_nh_weekly", "indicators",
+        ("rs_nhbp_weekly", "rs_nh_weekly"),
+        lambda r: r["rs_nhbp_weekly"] == 1,
+        lambda r: r["rs_nh_weekly"] == 1,
+        "a weekly RS high before price is a weekly RS high",
+        "`relative_strength.weekly_rs_high_last` answers `and_not(rsNH, near)`, which is "
+        "1 only where rsNH is 1, and `rs_columns.weekly_fields` reads both off the same week"))
+    # RS screens, UCT RS Leaders' list (unit U12): a count of sessions is stated only
+    # for a stock on the list, and counts today.
+    out.append(implies(
+        "rs_leaders_days_implies_member", "indicators",
+        ("rs_leaders_days", "rs_leaders_member"),
+        lambda r: True,
+        lambda r: r["rs_leaders_member"] == 1 and r["rs_leaders_days"] >= 1,
+        "sessions on UCT RS Leaders are counted only for a stock that is on it today",
+        "`rs_leaders_list.run` writes `rs_leaders_days` only on the rows it sets "
+        "`rs_leaders_member` to 1 on, from `days_on_list`, which starts at 1"))
+    # The bar-derived flags are built from ONE ANOTHER in `relative_strength`
+    # and land in the row through one `rs_columns.collect_one` call, so the
+    # relations below are the maths, not a plausibility guess.
+    out.append(implies(
+        "rs_nh_before_price_implies_rs_new_high", "indicators",
+        ("rs_nh_before_price", "rs_new_high"),
+        lambda r: r["rs_nh_before_price"] == 1,
+        lambda r: r["rs_new_high"] == 1,
+        "an RS high before price is an RS high",
+        "`relative_strength.and_not(rsNH, pxNH)` is 1 only where rsNH is 1, and "
+        "`rs_columns.collect_one` reads both flags off the same bar"))
+    out.append(implies(
+        "rs_nh_red_day_implies_rs_new_high", "indicators",
+        ("rs_nh_red_day", "rs_new_high"),
+        lambda r: r["rs_nh_red_day"] == 1,
+        lambda r: r["rs_new_high"] == 1,
+        "an RS high on a red day is an RS high",
+        "`relative_strength.both(rsNH, red)` is 1 only where rsNH is 1, read off "
+        "the same bar by the same collector call"))
+    # RS Exit Warnings (2026-11-13): the newest warning is never older than any
+    # one warning, because `rs_exit_bars_ago` is the age of `rs_exit_latest`'s bar,
+    # the newest bar on which ANY of the three event columns fired.
+    for col, what in (("rs_quick_break_bars_ago", "Quick Break"),
+                      ("rs_quicksand_bars_ago", "Quicksand"),
+                      ("rs_dead_break_bars_ago", "Grateful Dead Break")):
+        out.append(implies(
+            f"rs_exit_bars_ago_le_{col}", "indicators",
+            ("rs_exit_bars_ago", col),
+            lambda r: True,
+            lambda r, c=col: r["rs_exit_bars_ago"] <= r[c],
+            f"the newest RS exit warning is no older than the last {what}",
+            "`rs_columns._exit_values` reads both ages off the same "
+            "`compute_rs_exit_columns` call: the newest warning's bar is the newest "
+            "bar any event column fired on"))
+    out.append(implies(
+        "rs_new_high_implies_age_zero", "indicators",
+        ("rs_new_high", "rs_nh_bars_ago"),
+        lambda r: r["rs_new_high"] == 1,
+        lambda r: r["rs_nh_bars_ago"] == 0,
+        "an RS high on the last session has an age of 0",
+        "`relative_strength.bars_ago_column` is 0 on the event bar itself, and the "
+        "age is cut from the very event column the flag is the last value of"))
     # ⛔ `rating_eps`/`rating_growth`/`rating_value`/`rating_smr` are NOT banded.
     # They ship as `_open_range` filters with no published scale, so any band
     # would be invented — and a refusal built on an invented range fires on

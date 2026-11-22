@@ -10,7 +10,9 @@ purge itself:
      `indicator_alert_fires` row just AFTER it;
   3. another member's editor tab, open across the deletion, re-saves a copy whose
      `origin.author_id` is the deleted member -- a fresh version row carrying the id the purge
-     scrubbed (fixed here, not at the save door);
+     scrubbed. Since 2026-11-13 the save door no longer believes a client-sent author id
+     (`user_definitions._server_origin_author` takes it from the stored predecessor), so this
+     is left only for a save whose read of the predecessor raced the purge;
   4. a `user_definitions.db` restore that could not read the off-site tombstones
      (`tools/store_restore.py --allow-unreplayed`, or a local-file source) left a PENDING
      marker beside the store.

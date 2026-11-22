@@ -17,6 +17,7 @@
  */
 
 import { fibLevelPrice, isFib as isFibType } from './drawingFib'
+import { pointUnixTime } from './drawingTimeBase'
 
 // Bar spacing for a timeframe, in seconds. Matches how the chart lays out its
 // uniform logical axis, so a point placed PAST the last candle resolves to a real
@@ -118,9 +119,15 @@ export function parseBoundId(id) {
   return { drawingId: s.slice(0, i), level: lv }
 }
 
-/** Display-epoch time → true UTC seconds. `NaN` when unparseable. */
+/** Display-epoch time → true UTC seconds. `NaN` when unparseable.
+ *  `etOffset` is the inverse of the intraday display shift: pass
+ *  `barTime.fromChartTime` (per-instant ET offset). A bare number is the
+ *  legacy constant shift and is wrong across a DST change — kept only so a
+ *  caller passing 0 (D/W/M, tests) still works. */
 export function toUtcSec(t, etOffset) {
-  if (typeof t === 'number' && Number.isFinite(t)) return t - etOffset   // reverse the intraday ET shift
+  if (typeof t === 'number' && Number.isFinite(t)) {
+    return typeof etOffset === 'function' ? etOffset(t) : t - (Number(etOffset) || 0)   // reverse the intraday ET shift
+  }
   if (typeof t === 'string') {
     const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t)
     if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], 16, 0, 0) / 1000      // D/W/M date → ~noon ET (16:00 UTC)
@@ -176,9 +183,18 @@ export function anchorsForDrawing(drawing, { bars = [], tf = 'D', etOffset = 0, 
   const anchorUtc = (p) => {
     const fb = Number.isFinite(p?.futureBars) ? p.futureBars : 0
     if (fb > 0 && bars.length) {
-      const lastUtc = toUtcSec(bars[bars.length - 1].t, etOffset)
+      // ⛔ `bars` are the RAW series (StockChart drawBarsRef = bars): an intraday
+      // `t` is already true unix seconds — only the DRAWING's point times are
+      // display epochs. Inverting it too put every past-the-last-candle anchor
+      // 4-5h late (the ET offset applied twice).
+      const lt = bars[bars.length - 1].t
+      const lastUtc = typeof lt === 'number' ? lt : toUtcSec(lt, etOffset)
       return Number.isFinite(lastUtc) ? lastUtc + fb * barSec : NaN
     }
+    // ONE time base (drawingTimeBase.js): a numeric point is raw unix; only a legacy
+    // Agent chart-time anchor is converted. (Inverting EVERY point put a hand-drawn
+    // trendline's anchors 4-5h late against its future point.)
+    if (typeof p?.time === 'number') return Number.isFinite(p.time) ? pointUnixTime(p.time, drawing) : NaN
     return toUtcSec(p?.time, etOffset)
   }
   const t1 = anchorUtc(a), t2 = anchorUtc(b)

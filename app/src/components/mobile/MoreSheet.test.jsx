@@ -33,7 +33,7 @@ beforeEach(() => { mockPlan = 'pro'; mockRole = null; mockArchiveOn = false; moc
 
 test('renders the full directory for a paid user', () => {
   renderSheet()
-  ;['Dashboard', 'Morning Wire', 'UCT 20', 'Breadth', 'Charts', 'UCT Terminal',
+  ;['Morning Wire', 'UCT 20', 'Breadth', 'Charts', 'UCT Terminal',
     // ⚰️ 'Patterns' REMOVED — the page was retired (15.7% precision) and
     // `MoreSheet.jsx` stopped listing it; this expectation was left behind, so
     // the directory test failed on a row the product deliberately dropped.
@@ -47,7 +47,6 @@ test('free users see every tool; paid ones render locked (not hidden)', () => {
   mockPlan = 'free'
   renderSheet()
   // Free tools
-  expect(screen.getByText('Dashboard')).toBeInTheDocument()
   expect(screen.getByText('Breadth')).toBeInTheDocument()
   expect(screen.getByText('Charts')).toBeInTheDocument()
   expect(screen.getByText('Model Book')).toBeInTheDocument()

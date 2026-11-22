@@ -336,7 +336,7 @@ describe('AiSearchWidget', () => {
 
     it('scoped: names the company, offers ITS starters, and says so in the ask box', () => {
       render(<AiSearchWidget scope={SCOPE} chrome={false} />)
-      expect(screen.getByText('Ask AI about AAPL')).toBeTruthy()
+      expect(screen.getByText('Ask the UCT Agent about AAPL')).toBeTruthy()
       for (const q of SCOPE.suggestions) expect(screen.getByText(q)).toBeTruthy()
       expect(screen.getByLabelText('Ask anything about AAPL')).toBeTruthy()
       // The general examples belong to the workspace widget, not a company panel.
@@ -404,7 +404,7 @@ describe('AiSearchWidget', () => {
       expect(screen.getByText('why?')).toBeTruthy()
       expect(global.fetch).not.toHaveBeenCalled()
       // The empty state is gone, so the restore actually reached the render.
-      expect(screen.queryByText('Ask AI about AAPL')).toBeNull()
+      expect(screen.queryByText('Ask the UCT Agent about AAPL')).toBeNull()
     })
 
     it('a restored turn does not collide with the next one on React keys', async () => {

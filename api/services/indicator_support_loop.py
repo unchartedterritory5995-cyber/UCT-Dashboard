@@ -171,6 +171,8 @@ def _report_summary(r: dict, manifest: Optional[dict]) -> dict:
         "source_bytes": r.get("source_bytes"), "source_hash": r.get("source_hash"),
         "same_script_reports": r.get("same_script_reports", 1),
         "translator_version": r.get("translator_version"),
+        # ⭐ L8: a pasted script ('pine') or a Create Indicator conversation ('converse')
+        "kind": r.get("kind") or "pine",
     }
 
 
@@ -206,11 +208,17 @@ def build_digest(*, days: int = DIGEST_WINDOW_DAYS, top: int = DIGEST_TOP,
                  manifest_path: Optional[Path] = None) -> dict:
     manifest, sha = load_door_manifest(manifest_path)
     ranking = svc.gap_ranking(days, 1000)
-    open_gaps, fixed, unlisted = [], [], None
+    open_gaps, fixed, unlisted, unlisted_codes = [], [], None, None
     groups: dict[tuple[str, str], list[dict]] = {}
     for g in ranking:
         if g["name"] == svc.UNLISTED:
-            unlisted = {k: g[k] for k in ("members", "hits", "first_day", "last_day")}
+            # U4: an unlisted refusal CODE is its own line, never folded into (or
+            # overwriting) the unnamed built-in gaps
+            cell = {k: g[k] for k in ("members", "hits", "first_day", "last_day")}
+            if g["kind"] == svc.GUARD_KIND:
+                unlisted_codes = cell
+            else:
+                unlisted = cell
             continue
         groups.setdefault((g["name"], effective_kind(manifest, g["name"], g["kind"])), []).append(g)
     for (name, kind), rows in groups.items():
@@ -229,6 +237,15 @@ def build_digest(*, days: int = DIGEST_WINDOW_DAYS, top: int = DIGEST_TOP,
         g["rank"] = i
     reports = open_reports(manifest)
     t = now or _dt.datetime.now(_dt.timezone.utc)
+    # ⭐ L6 (Studio plan, section 7): Create Indicator's demand rides the same daily digest.
+    # Closed categories and counts only, like everything else here. A failure to read it
+    # costs this section, never the digest.
+    try:
+        from api.services import indicator_telemetry  # noqa: PLC0415
+        demand = indicator_telemetry.authoring_demand(min(int(days or 7), 90))
+    except Exception:  # noqa: BLE001
+        log.exception("[support-loop] authoring demand unavailable")
+        demand = None
     return {
         "day": _today_et(t),
         "built_at": t.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -241,11 +258,13 @@ def build_digest(*, days: int = DIGEST_WINDOW_DAYS, top: int = DIGEST_TOP,
             "fixed_on_master": [{k: g[k] for k in ("name", "kind", "members", "hits", "door_status")}
                                 for g in fixed],
             "unlisted": unlisted,
+            "unlisted_refusal_codes": unlisted_codes,
         },
         "reports": {
             "counts": {s: sum(1 for r in reports if r["status"] == s) for s in OPEN_REPORT_STATUSES},
             "open": reports,
         },
+        "authoring_demand": demand,
     }
 
 
@@ -302,6 +321,10 @@ def discord_embed(d: dict, *, lines: int = 10) -> dict:
     if fx:
         out.append(f"Fixed on master, dropped off: {', '.join('`' + g['name'] + '`' for g in fx[:8])}"
                    + (f" and {len(fx) - 8} more" if len(fx) > 8 else ""))
+    dem = d.get("authoring_demand") or {}
+    if dem.get("ranked"):
+        top = ", ".join(f"{r['category']} ({r['members']})" for r in dem["ranked"][:6])
+        out.append(f"Create Indicator could not build, by members: {top}")
     c = d["reports"]["counts"]
     out.append(f"Reports: {c.get('new', 0)} new, {c.get('triaged', 0)} triaged.")
     out.append("Triage: `python tools/support_loop/triage.py digest` (docs/pine/support-loop/PHASE-B.md)")

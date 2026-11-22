@@ -25,11 +25,21 @@ import { legendAlways } from './legendProbe'
 const H = vi.hoisted(() => ({
   live: [],                 // series currently on the chart, creation order
   crosshairHandlers: [],
-  reset() { H.live.length = 0; H.crosshairHandlers.length = 0 },
+  // ⭐ 3-14 — THE RESERVING REGIME (off by default, so every case above keeps the
+  // compaction regime it was written for). On, the double models
+  // `addPane(true)`: a preserved EMPTY pane, kept until `removePane`, exactly the
+  // placeholder `paneRealization.prepareArrangement` makes for a slot whose
+  // series has not arrived (or never will: a column with no finite value).
+  reserve: false,
+  reserved: 0,              // panes held open by addPane(true)
+  reset() { H.live.length = 0; H.crosshairHandlers.length = 0; H.reserve = false; H.reserved = 0 },
   /** Distinct requested slots of LIVE series, ascending: the panes that exist. */
-  occupied() { return [...new Set(H.live.map((s) => s.__slot))].sort((a, b) => a - b) },
+  occupied() {
+    if (H.reserve) return [...Array(Math.max(H.reserved, ...H.live.map((s) => s.__slot + 1), 0)).keys()]
+    return [...new Set(H.live.map((s) => s.__slot))].sort((a, b) => a - b)
+  },
   /** Physical index = rank of the series' slot among occupied slots (compaction). */
-  paneIndexOf(s) { return H.occupied().indexOf(s.__slot) },
+  paneIndexOf(s) { return H.reserve ? s.__slot : H.occupied().indexOf(s.__slot) },
   heightOf(i) { return 100 + 10 * i },          // distinct, so a `top` names its index
 }))
 
@@ -68,8 +78,18 @@ vi.mock('lightweight-charts', () => {
     panes: () => H.occupied().map((_, i) => ({
       paneIndex: () => i, getHeight: () => H.heightOf(i),
       getHTMLElement: () => document.createElement('div'), setHeight: () => {}, moveTo: () => {},
+      ...(H.reserve ? { getSeries: () => H.live.filter((s) => H.paneIndexOf(s) === i) } : null),
     })),
     swapPanes: () => {},
+    addPane: () => {
+      if (!H.reserve) throw new Error('addPane is not modelled in the compaction regime')
+      H.reserved = H.occupied().length + 1
+      return {}
+    },
+    removePane: (i) => {
+      if (!H.reserve || H.live.some((s) => s.__slot === i)) return
+      if (i === H.occupied().length - 1) H.reserved = i
+    },
     resize: () => {}, remove: () => {}, takeScreenshot: () => document.createElement('canvas'),
   }
   return {
@@ -210,5 +230,96 @@ describe('a pane readout is pinned where its series DREW, not where the layout s
     const keys = [...view.container.querySelectorAll('[data-pane-legend]')].filter(visible).map((e) => e.dataset.paneLegend)
     expect(keys).not.toContain(empty)
     expect(keys.some((k) => /price|candle/i.test(k)), 'price grew a pane readout').toBe(false)
+  })
+})
+
+// ⭐ UCT RS 3-14 — A PANE THAT DREW NOTHING, IN A BAND THE ARRANGEMENT RESERVED.
+// A benchmark with no bars (CUSTOM `XYZQ`, RSP with none) leaves every column of
+// the RS pane empty. The pool gives it no series, but `paneRealization` spares
+// its pending slot, so lightweight-charts keeps an EMPTY band there. Before 3-14
+// that band carried no label (`rendererPaneIndexOf` → null → hidden), so the
+// server's sentence lived only inside a chip menu nobody could open. Now the
+// label is pinned to the band and prints the readout's note.
+describe('3-14 — an empty pane in a reserved band is labelled, with the server note', () => {
+  const DEF_ID = 'u_rs_empty_band_3_14'
+  const NOTE = 'No XYZQ bars yet; they usually load within a minute'
+  const FIXTURE = Object.freeze({
+    schemaVersion: 1, id: DEF_ID, version: 1,
+    compute: { kind: 'native', fn: 'rsi', rev: 1 },
+    meta: { name: 'Empty Band Fixture', shortName: 'EBF', category: 'Momentum', repaint: 'non-repainting', legendParams: ['benchmark'] },
+    placement: { target: 'pane', scale: { min: 0, max: 100 } },
+    inputs: [
+      // 60 bars: a length of 100 computes nothing, so every column is empty.
+      { key: 'period', type: 'int', label: 'Length', default: 100, min: 2, max: 200 },
+      { key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', options: [['SPY', 'S&P 500'], ['SECTOR', 'Sector ETF']] },
+    ],
+    plots: [{ key: 'rsi', label: 'EBF', style: 'line', color: 'token:info', width: 1, legend: { decimals: 1 } }],
+    events: [],
+    readout: [
+      { key: 'benchmark', label: 'Benchmark', source: 'scalar:benchmark.resolved', format: 'text', chip: true,
+        note: 'scalar:benchmark.note' },
+    ],
+  })
+  const prime = async (note) => {
+    const { primeServerColumns, pickServerInputs } = await import('../serverCompute')
+    const def = registry.getDefinition(DEF_ID)
+    primeServerColumns(DEF_ID, 'AAPL', 'D', pickServerInputs(def, registry.resolveInputs(def, {})), {
+      columns: {},
+      payload: { benchmark: { requested: 'SPY', resolved: 'XYZQ', label: 'XYZQ', ...(note ? { note } : {}) } },
+    })
+  }
+  beforeEach(async () => {
+    const r = registry.installUserDefinitions([FIXTURE])
+    expect(r.errors).toEqual([])
+    const { clearServerColumns } = await import('../serverCompute')
+    clearServerColumns()
+  })
+  const scene = () => {
+    let cs = mergeChartSettings(null)
+    let empty, drawn
+    ;[cs, empty] = mint(cs, DEF_ID, {})
+    ;[cs, drawn] = mint(cs, 'rsi', { period: 14, color: RSI_COLOR })
+    return { cs, empty, drawn }
+  }
+
+  it('the empty band is labelled where it is, with the note; the drawn pane is unchanged', async () => {
+    H.reserve = true
+    await prime(NOTE)
+    const { cs, empty, drawn } = scene()
+    const view = await drawAndHover(cs)
+    try {
+      const s = seriesColored(RSI_COLOR)
+      expect(s, 'the drawn RSI was never created').toBeTruthy()
+      const blank = H.occupied().filter((i) => !H.live.some((x) => x.__slot === i))
+      expect(blank.length, 'the arrangement reserved no empty band — the case is vacuous').toBe(1)
+
+      const label = readout(view, empty)
+      expect(visible(label), 'the empty band lost its label').toBe(true)
+      expect(label.style.top).toBe(topOf(blank[0]))
+      expect(label.textContent).toContain('Empty Band Fixture')
+      expect(label.textContent).toContain(NOTE)
+      expect(label.querySelector('[data-empty-note]')?.textContent).toBe(NOTE)
+
+      const own = readout(view, drawn)
+      expect(visible(own)).toBe(true)
+      expect(own.style.top).toBe(topOf(H.paneIndexOf(s)))
+      expect(own.querySelector('[data-empty-note]')).toBeNull()
+      expect(own.textContent).toMatch(/Relative Strength Index/)
+      const tops = [...view.container.querySelectorAll('[data-pane-legend]')].filter(visible).map((e) => e.style.top)
+      expect(new Set(tops).size).toBe(tops.length)
+    } finally { registry.uninstallUserDefinition(DEF_ID) }
+  })
+
+  it('no note from the server: the band is still labelled, with the muted dash', async () => {
+    H.reserve = true
+    await prime(null)
+    const { cs, empty } = scene()
+    const view = await drawAndHover(cs)
+    try {
+      const label = readout(view, empty)
+      expect(visible(label)).toBe(true)
+      expect(label.querySelector('[data-empty-note]')).toBeNull()
+      expect(label.querySelector('[data-stale-value]')?.textContent).toBe('—')
+    } finally { registry.uninstallUserDefinition(DEF_ID) }
   })
 })

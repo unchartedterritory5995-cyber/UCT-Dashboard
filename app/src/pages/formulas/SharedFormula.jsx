@@ -45,6 +45,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import UIcon from '../../components/ui/UIcon'
 import { previewSharedDefinition, installSharedDefinition } from '../../hooks/useUserDefinitions'
 import { whatToDo } from './shareRefusal'
+import { sharedVerdict } from './sharedVerdict'
+import { loadLine, deviceTimeLine } from './loadWords'
+import { useDeviceDrawTime } from './deviceDrawTime'
 import styles from './SharedFormula.module.css'
 
 /** Every plot's source text, as `[key, source]`, for a definition of either schema.
@@ -84,7 +87,10 @@ export function repaintWords(definition) {
  * `SHARED_FORMULA_ROUTE` → this page → `GET /api/user-definitions/shared/{token}`.
  * Cutting any link in it is what `sharedFormula.route.test.jsx` turns red.
  */
-export default function SharedFormula() {
+/** @param {object} [props]
+ *  @param {object} [props.deviceOptions] a test seam for the device time (`deviceDrawTime.js`: a
+ *    fixed engine loader and clock); the route passes none. */
+export default function SharedFormula({ deviceOptions } = {}) {
   const { token } = useParams()
   const navigate = useNavigate()
   const [state, setState] = useState({ status: 'loading' })
@@ -106,6 +112,16 @@ export default function SharedFormula() {
     })
     return () => { alive = false }
   }, [token])
+
+  // ⭐ R6 — how heavy this saved version is to draw, as the SERVER measured it at listing
+  // (`loadWords.js`; nothing for a version nobody listed), and, beside a measured class only,
+  // the time a fresh run took on this device (`deviceDrawTime.js`: loaded when the page is idle).
+  const sharedNow = state.shared || null
+  const load = loadLine(sharedNow && sharedNow.load)
+  const deviceTime = useDeviceDrawTime(sharedNow ? sharedNow.definition : null, !!(load && load.code !== 'unmeasured'), deviceOptions)
+  const deviceLine = deviceTime
+    ? (deviceTime.unmeasured ? deviceTimeLine(deviceTime) : deviceTimeLine(deviceTime.ms, deviceTime.bars))
+    : null
 
   const install = useCallback(async () => {
     setInstalling(true); setInstallError(null)
@@ -163,12 +179,27 @@ export default function SharedFormula() {
   const meta = def.meta || {}
   const sources = plotSources(def)
   const repaint = repaintWords(def)
+  // ⭐ R4 — the verdict the AUTHOR was shown for this saved version, as the server sends it. Never
+  // worked out here; nothing is drawn when the saved row has none (`sharedVerdict.js`).
+  const verdict = sharedVerdict(shared)
 
   return (
     <div className={styles.page}>
       <div className={styles.card} data-testid="shared-formula">
         <div className={styles.eyebrow}><UIcon name="link" size={13} /> Shared formula</div>
         <h1 className={styles.title}>{meta.name || 'Untitled formula'}</h1>
+        {verdict ? (
+          <p className={styles.verdict} data-testid="shared-formula-verdict">
+            <span>{verdict.headline}</span>
+            {verdict.checked ? <span className={styles.verdictChecked}>, {verdict.checked}</span> : null}
+          </p>
+        ) : null}
+        {load ? (
+          <p className={`${styles.verdict} ${styles.load}`} data-testid="shared-formula-load" data-load={load.code}>
+            <span>{load.text}</span>
+            {deviceLine ? <span className={styles.verdictChecked} data-testid="shared-formula-device-time"> {deviceLine}</span> : null}
+          </p>
+        ) : null}
 
         <h2 className={styles.sectionHdr}>What it computes</h2>
         {sources.length === 0 ? (

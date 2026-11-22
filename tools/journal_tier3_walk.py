@@ -77,7 +77,7 @@ import notebook_perf_harness as h  # noqa: E402
 import notebook_fin_walk as fw  # noqa: E402  -- flag_sets, settle_first_run, BENIGN, VIEWPORTS, notes_list
 
 VIEWPORTS = fw.VIEWPORTS
-TIER3_FLAGS = ["NOTEBOOK_JOURNAL_STYLES_ENABLED", "JOURNAL_TIER3_ENABLED"]
+TIER3_FLAGS = ["JOURNAL_TIER3_ENABLED"]      # journal styles: retired as always on (2026-11-04)
 PW = "LocalTest2026!"          # sandbox seed (throwaway data dir only; the walk tools' shared sandbox password)
 T = 30000
 SELECTED_ACCOUNT_KEY = "uct.j2.selectedAccountId"          # hooks/useJ2SelectedAccount.js

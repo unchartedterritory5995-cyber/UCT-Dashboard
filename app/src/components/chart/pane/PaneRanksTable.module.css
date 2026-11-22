@@ -1,0 +1,81 @@
+/* app/src/components/chart/pane/PaneRanksTable.module.css
+   The RS pane's ranks strip (design round, 2026-11-08). Pinned by StockChart
+   (top / right are written inline every frame); these rules are its look.
+   Same panel ground, mono family and 11 px as the pane label beside it, so the
+   two read as one legend, not two widgets. ONE ROW, 16 px: it lives in the
+   pane's top band with the label and never sits over the line's newest bars. */
+.legendRanksTable {
+  position: absolute;
+  top: 0;
+  right: 56px; /* fallback until `pinPaneLegend` writes the real price-scale offset */
+  z-index: 6;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--chart-panel-bg-low, rgba(14, 15, 13, 0.78));
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 14px;
+  height: 16px;
+  box-sizing: border-box;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  /* ⭐ THE PANE LABEL'S INKS (StockChart.module.css `.paneLegend`): the canvas-aware
+     `-low` sample, held >= 4.5:1 against the canvas by `legendInk.js`. Without this
+     the strip read the chart chrome's own tokens, ~1.5:1 on a white canvas. */
+  --legend-ink-bright: var(--legend-ink-bright-low, var(--text-bright));
+  --legend-ink-muted: var(--legend-ink-muted-low, var(--text-muted));
+  --rank-lead: var(--gain);
+  --rank-neutral: var(--warn);
+  --rank-lag: var(--loss);
+}
+/* A light canvas takes the light theme's band inks (tokens.css `[data-theme="light"]`:
+   --gain, --warn, --loss), each >= 5.9:1 on white; the dark-theme values are ~2-4:1. */
+.legendRanksTable[data-canvas="light"] {
+  --rank-lead: #0a5c22;
+  --rank-neutral: #7a5c16;
+  --rank-lag: #7d1620;
+}
+/* ⭐ UCT RS split, U2 — hosted by the PRICE pane, on the price legend's row: the
+   TOP canvas sample's inks and panel ground (`.legend`'s own), since the strip is
+   at the top of the canvas there, not ~80 % down it. */
+.legendRanksTable[data-host="price"] {
+  background: var(--chart-panel-bg, rgba(26, 28, 23, 0.88));
+  /* `inherit`, not a `var()` of the same name (that is a cycle, so invalid): the
+     wrapper publishes the top sample under these very names (`legendInk.js`). */
+  --legend-ink-bright: inherit;
+  --legend-ink-muted: inherit;
+}
+/* Stepped aside: it would touch the pane label. Kept in the layout (visibility,
+   not display) so its width can still be measured and it comes back by itself. */
+.legendRanksTable[data-collapsed] { visibility: hidden; }
+.legendRankList {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+}
+.legendRankPair { display: flex; align-items: baseline; gap: 3px; }
+.legendRankHead,
+.legendRankVal {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.legendRankHead {
+  font-weight: 500;
+  color: var(--legend-ink-muted, var(--text-muted));
+}
+.legendRankVal {
+  font-weight: 600;
+  color: var(--legend-ink-bright, var(--text-bright));
+}
+/* The rating itself: a hairline rule before it, no new colour. */
+.legendRankEmph { border-left: 1px solid var(--chart-panel-border-low, rgba(138, 133, 116, 0.35)); padding-left: 8px; }
+.legendRankMissing { color: var(--legend-ink-muted, var(--text-muted)); font-weight: 500; }
+/* The site's rating bands (`readoutSchema.RATING_BANDS`), while Rating colours is
+   on — the same four inks the Rating card's numbers take. */
+.legendRankVal.legendRankLead { color: var(--rank-lead); }
+.legendRankVal.legendRankStrong { color: var(--legend-ink-bright, var(--text-bright)); }
+.legendRankVal.legendRankNeutral { color: var(--rank-neutral); }
+.legendRankVal.legendRankLag { color: var(--rank-lag); }

@@ -196,11 +196,18 @@ def _trigger_alert(alert_id: str) -> dict | None:
     conn = get_connection()
     try:
         now = datetime.now(timezone.utc).isoformat()
-        conn.execute(
-            "UPDATE watchlist_alerts SET is_active = 0, triggered_at = ? WHERE id = ?",
+        # Compare-and-set: only the checker that flips is_active 1 -> 0 owns the
+        # fire. /api/live-prices (run_alert_check) and the scheduled
+        # price_alert_evaluator can both have read the row as armed; the loser
+        # gets rowcount 0 and delivers nothing.
+        cur = conn.execute(
+            "UPDATE watchlist_alerts SET is_active = 0, triggered_at = ? "
+            "WHERE id = ? AND is_active = 1",
             (now, alert_id),
         )
         conn.commit()
+        if cur.rowcount != 1:
+            return None
         row = conn.execute("SELECT * FROM watchlist_alerts WHERE id = ?", (alert_id,)).fetchone()
         return dict(row) if row else None
     finally:
@@ -377,9 +384,12 @@ def _deliver_alert(alert: dict, current_price: float, *,
     there is no second attempt in this lane and nothing anywhere said a member
     missed the alert they had asked for.
 
-    ⛔ THE DEDUP IS UNTOUCHED, AND IT IS NOT A CAS HERE. This lane fires once
-    because `_trigger_alert` sets `is_active = 0` before any channel runs, so
-    the next poll cycle no longer selects the row. That ordering is deliberate —
+    ⛔ THE DEDUP ORDER IS UNTOUCHED. This lane fires once because `_trigger_alert`
+    deactivates the row before any channel runs, so the next poll cycle no longer
+    selects it. Since desktop Task 7 that deactivation is also a COMPARE-AND-SET
+    (`WHERE is_active = 1`, loser gets None): when `/api/live-prices` and the
+    scheduled `price_alert_evaluator` both read the row as armed, only one of them
+    delivers. (It was an unconditional UPDATE before, so both did.) That ordering is deliberate —
     an alert that fired must never re-fire because a channel was slow — and
     nothing below moves it. ⚠️ It also means a failed delivery is NOT retried,
     which is exactly why the report has to exist: the failure is permanent and
@@ -505,6 +515,31 @@ def _deliver_alert(alert: dict, current_price: float, *,
     _push_channel(alert["user_id"], f"Alert: {sym} ${current_price:.2f}", msg,
                   f"/research/{sym.upper()}", tag=f"price-{alert.get('id')}")
     return _delivery_report(True, channels, errors)
+
+
+#: The last line of an alert email: where the member turns that alert off. Most alerts are set
+#: from a chart, so that is the default. An alert that is switched on somewhere else names that
+#: place instead (the RS screens' daily "joined and left" message is a switch on the screen
+#: itself, `screener/rs_screen_alerts.py`); sending its reader to the chart toolbar would send
+#: them to a place that does not hold the switch.
+EMAIL_FOOTER_DEFAULT = "Manage your alerts from the chart toolbar."
+EMAIL_FOOTERS = {
+    "rs_screen_alert": ("To stop this message, open the screen in the Screener and switch off "
+                        '"Tell me what joins and leaves".'),
+    "transcript_keyword": ("To stop this message, remove the word from your earnings call alerts: "
+                           "search it in the UCT Terminal with TSRC, or open a company's earnings "
+                           "call transcript and use SEARCH ALL TRANSCRIPTS."),
+    # The Terminal list alerts (`list_alerts.py`): one switch per list, drawn on the list
+    # itself (H52, CONFL, ACCUM) and again in Settings, Notifications.
+    "list_alert": ("To stop this message, open the list in the UCT Terminal (H52, CONFL or "
+                   'ACCUM) and switch off "Alert me when a stock I follow appears here", or '
+                   "open Settings, Notifications, List alerts."),
+}
+
+
+def email_footer(source) -> str:
+    """The email's last line for one alert source (the default for any other)."""
+    return EMAIL_FOOTERS.get(str(source or ""), EMAIL_FOOTER_DEFAULT)
 
 
 def deliver_alert_payload(
@@ -662,7 +697,7 @@ def deliver_alert_payload(
                 <h2 style="color:#c9a84c;font-size:16px;margin:0 0 16px;">{_html.escape(title)}</h2>
                 <p style="color:#e8e0d0;font-size:14px;margin:0 0 16px;">{_html.escape(message)}</p>
                 <p style="color:#6b6a60;font-size:12px;margin:0;">
-                    Manage your alerts from the chart toolbar.
+                    {_html.escape(email_footer(source))}
                 </p>
             """)
             # ⭐ `send_email` HAS RETURNED A BOOL SINCE IT WAS WRITTEN, and this

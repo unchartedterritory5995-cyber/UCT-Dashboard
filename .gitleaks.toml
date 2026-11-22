@@ -1,0 +1,27 @@
+# gitleaks config for the public repo. It EXTENDS the default rules and turns none of them off.
+#
+# Owner-approved 2026-11-15. ONE narrow allowlist, for docs/pine/vendor-harness/evidence-ledger.jsonl.
+# Its rows carry "scriptKey": "<public script slug>" (lowercase a-z, 0-9, hyphen, e.g.
+# "cumulative-volume-delta-6ba9ad54"). gitleaks' generic-api-key rule fires on the word "Key" in
+# that field name and reads the slug as a credential: PR #1328 hit 11 false positives on
+# 2026-11-15, all of them this one field.
+#
+# Scope (condition = AND, regexTarget = "match"): this one file, AND a finding whose ENTIRE matched
+# text is `scriptKey": "<lowercase slug>"`. Measured over all 883 ledger rows: every scriptKey is
+# [a-z0-9-], max 70 chars. So:
+#   - a mixed-case, underscore or punctuated token in scriptKey is still reported;
+#   - any other field on the same row is still reported (the target is the match, not the line:
+#     a ledger row is one JSON line, so a line target would have excused the whole row);
+#   - every other file in the repo is scanned by every default rule.
+# captureId / captureSha256 / sourceSha256 need no exemption: the rule never fires on them.
+# If a real secret is ever found anywhere, ROTATE IT FIRST (see PUBLIC-REPO-PLAN.md Part 4).
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "evidence ledger scriptKey: a public lowercase script slug, not a credential"
+condition = "AND"
+paths = ['''^docs/pine/vendor-harness/evidence-ledger\.jsonl$''']
+regexTarget = "match"
+regexes = ['''^scriptKey"\s*:\s*"[a-z0-9-]{1,120}"$''']

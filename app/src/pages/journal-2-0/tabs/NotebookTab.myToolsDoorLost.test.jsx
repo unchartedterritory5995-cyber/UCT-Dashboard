@@ -6,6 +6,7 @@ import { installFetch, Providers } from '../a11y/fixtures'
 import { __resetNotebookFlags, latchNotebookFlags } from '../lib/offline/notebookFlags'
 import { WIDGET_CHUNK_LOST } from '../lib/notebookWidgetsFlags'
 import NotebookTab from './NotebookTab'
+import { pressToolbar } from './__tests__/toolbarDoors'
 
 // The chunk 404s: the dynamic import rejects.
 vi.mock('../components/notebook/myTools/openMyTools.js', () => { throw new Error('Failed to fetch dynamically imported module') })
@@ -21,7 +22,7 @@ describe('the My tools door whose chunk cannot load', () => {
     render(<Providers route="/journal/notebook?view=all"><NotebookTab /></Providers>)
     await settle()
     expect(screen.queryByText(WIDGET_CHUNK_LOST)).toBeNull()                      // control: not said before
-    fireEvent.click(screen.getByRole('button', { name: 'My tools' }))
+    pressToolbar('My tools')
     expect(await screen.findByRole('alert')).toHaveTextContent(WIDGET_CHUNK_LOST)
   })
 })

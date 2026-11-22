@@ -28,7 +28,15 @@
 
 import jsep from 'jsep'
 import TABLE_JSON from './closedTable.json'
-import { expandCalls, ExpansionRefusal, recogniseExpansion, CALL_EXPANSIONS } from './callExpansions.js'
+import { expandCalls, ExpansionRefusal, recogniseExpansion, CALL_EXPANSIONS, sarLegacyNote } from './callExpansions.js'
+// ⭐ door-deadline — the walks below are where a member door's round trip spends its time outside a Resolver (a
+// profiled synthetic script: 5.2 s of 6.4 s), so each step ticks the door's clock (`doorDeadline.js`; one null test
+// when no door is open).
+import { doorTick } from './doorDeadline.js'
+// ⭐ engine-40 bytes: this re-export edge places the member-text guard-id rule (`guardIdText.js`, its ONE
+// authority) inside this module's chunk, which every chart-side wrap site already loads. Import it
+// from `./guardIdText.js`; this line exists for chunk placement (see that file's header).
+export { withoutGuardIds, GUARD_NAMESPACES, GUARD_ID_SOURCE } from './guardIdText.js'
 
 // --------------------------------------------------------------------------- //
 // the table
@@ -389,7 +397,16 @@ export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset'
   // expression) and a separate TYPE because it reads bars the chart does not
   // hold: every rule is `engine/lowerTf.js`'s, and a lane with no intraday
   // supply (the screener) refuses it by name.
-  'ltf'])
+  'ltf',
+  // ⭐⭐ ENGINE 55 — PINE'S HIGHER-TIMEFRAME READ, AS TRADINGVIEW MERGES IT.
+  // `tf_merge(expr, 'W')`: `tf`'s shape, and a separate TYPE because its bar rule
+  // differs (the period's value appears ON the bar that closes the period, the
+  // newest finished bar is withheld — `interpret.js`'s `tf_merge` arm). Only the
+  // Pine door writes it: a formula document that spells it is refused by name
+  // (`evaluability.js::FORMULA_TF_MERGE_GUARD`), and so are the scan and alert
+  // lanes (`api/services/scan_definition.py`, `alert_user_series.py`). Formula
+  // `tf` is byte-identical.
+  'tf_merge'])
 
 // --------------------------------------------------------------------------- //
 // the recurrence, READ from the manifest
@@ -576,7 +593,8 @@ export function vendorNotesForTree(ast, notes = VENDOR_NOTES) {
       const spec = hit && CALL_EXPANSIONS[hit.name]
       if (spec && typeof spec.vendorNote === 'string' && !taken.has(hit.name)) {
         taken.add(hit.name)
-        seen.push({ name: hit.name, note: spec.vendorNote })
+        // ⭐ 2026-11-16 — a tree saved with an earlier SAR window says so, not the current note
+        seen.push({ name: hit.name, note: hit.legacyWarmup ? sarLegacyNote(hit.legacyWarmup) : spec.vendorNote })
         continue // the note covers the whole expansion; its inner nodes are its own
       }
     }
@@ -619,7 +637,7 @@ export function foldNotesOf(table) {
 export const FOLD_NOTES = Object.freeze(foldNotesOf(TABLE))
 
 /** ⭐ P0 gate (pineack) — the HEADING a fold note is printed under. A note's
- *  `name` is its channel KEY (`htfLookaheadOffStepBacks`), an internal
+ *  `name` is its channel KEY (`baseTimeframeFolds`), an internal
  *  identifier the import box used to print verbatim above the sentence. The
  *  label is declared beside the sentence (`_folds.<channel>.memberLabel`) and
  *  read ONLY by renderers — `foldNotesForOutput`'s `{name, note}` shape (which
@@ -1188,6 +1206,7 @@ function offencesIn(root) {
   const found = new Set()
   const stack = [root]
   while (stack.length) {
+    doorTick()
     const node = stack.pop()
     if (Array.isArray(node)) { stack.push(...node); continue }
     if (!node || typeof node !== 'object') continue
@@ -1390,6 +1409,22 @@ function enterNode(node) {
           build: (k) => ({ type: 'ltf', value: code.value, args: k }),
         }
       }
+      // ⭐⭐ ENGINE 55 — PINE'S MERGED HIGHER-TIMEFRAME READ, spelled `tf_merge(expr, 'W')`:
+      // the surface `pine.js::printFormula` prints and the round trip reads back. The
+      // parser decides SHAPE only; which codes and which documents are served is
+      // `interpret` / `evaluability`'s.
+      if (node.callee && node.callee.name === 'tf_merge') {
+        const args = node.arguments || []
+        if (args.length !== 2) return refuse('canonicalise:timeframe')
+        const code = args[1]
+        if (!code || code.type !== 'Literal' || typeof code.value !== 'string') {
+          return refuse('canonicalise:timeframe')
+        }
+        return {
+          children: [args[0]],
+          build: (k) => ({ type: 'tf_merge', value: code.value, args: k }),
+        }
+      }
       // ⭐⭐ AND THE READ OF ANOTHER INSTRUMENT — `sym('SPY', expr)`, the same
       // shape one axis over: `tf` changes WHICH PERIOD, `sym` changes WHICH
       // INSTRUMENT, and both keep their parameter as a FIELD so neither can be
@@ -1513,6 +1548,7 @@ function convert(root) {
   const stack = [{ node: root, entered: false, plan: null }]
   const done = []
   while (stack.length) {
+    doorTick()
     const frame = stack[stack.length - 1]
     if (!frame.entered) {
       frame.entered = true
@@ -1625,6 +1661,7 @@ export function parseFormula(source) {
  *  an absent key and it was vacuous until it was round-tripped through real
  *  JSON; this is that lesson as a hard stop. */
 function stableStringify(value) {
+  doorTick() // the round trip's hash walk
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
   if (value !== null && typeof value === 'object') {
     const keys = Object.keys(value).sort()
@@ -1670,6 +1707,8 @@ export const CANONICAL_KEYS = Object.freeze({
   // by walkers that already exist, so `tf` comes out non-repainting and this comes
   // out `preview-repaints` without anybody threading a flag through the linter.
   tf_live: ['type', 'value', 'args'],
+  // ⚠️ ENGINE 55 — Pine's merged higher-timeframe read: `tf`'s key set, for `tf`'s reason.
+  tf_merge: ['type', 'value', 'args'],
   // ⚠️ A TEXT LITERAL, AND THE SIBLING OF `num` DOWN TO ITS KEY SET. It carries
   // no `args` because it has no children and no `name` because the value IS the
   // node — the same reasoning `num` follows.
@@ -1707,6 +1746,7 @@ export function assertCanonical(ast) {
   // through `convertTextOperand`, so the door-side containment is not enough.
   const stack = [{ node: ast, parent: null }]
   while (stack.length) {
+    doorTick()
     const { node, parent } = stack.pop()
     if (!node || typeof node !== 'object' || Array.isArray(node)) {
       throw new Error(`astHash: not a canonical node: ${JSON.stringify(node) ?? String(node)}`)

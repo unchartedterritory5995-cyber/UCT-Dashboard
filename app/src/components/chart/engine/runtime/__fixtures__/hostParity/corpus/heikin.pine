@@ -1,0 +1,11 @@
+//@version=5
+indicator("hp heikin", overlay=true)
+var float hao = na
+hac = (open + high + low + close) / 4
+hao := na(hao[1]) ? (open + close) / 2 : (hao[1] + hac[1]) / 2
+hah = math.max(high, math.max(hao, hac))
+hal = math.min(low, math.min(hao, hac))
+plot(hao, "o")
+plot(hac, "c")
+plot(hah, "h")
+plot(hal, "l")

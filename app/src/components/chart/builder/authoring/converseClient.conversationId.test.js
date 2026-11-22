@@ -24,7 +24,13 @@ describe('conversationId (cost telemetry only)', () => {
   it('holds no message or formula text, and a malformed lineage is omitted', () => {
     const s = newAuthoringState()
     const body = converseBody({ message: 'RSI 14 above 70', state: s })
-    expect(body.conversationId).not.toMatch(/rsi|70|above/i)
+    // ⛔ THE SHAPE, NOT A SEARCH FOR DIGITS. The id is random hex (`auth_` + 12), so a test for
+    // "no 70" failed whenever the hex happened to contain 70 (about 4% of runs, 2026-11-16).
+    // An id of exactly this shape cannot carry the member's words; a hex-only alphabet has no
+    // room for "RSI" or "above", and the control below shows the check can fail.
+    expect(body.conversationId).toMatch(/^auth_[0-9a-f]{12}$/)
+    expect(body.conversationId).not.toMatch(/rsi|above/i)
+    expect('auth_rsi14above70').not.toMatch(/^auth_[0-9a-f]{12}$/)   // control: words break the shape
     const bad = converseBody({ message: 'x', state: { ...s, lineage: 'has spaces <x>' } })
     expect('conversationId' in bad).toBe(false)
   })

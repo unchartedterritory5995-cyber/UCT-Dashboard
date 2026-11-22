@@ -426,11 +426,18 @@ async def handle(interaction: dict, received: float) -> dict | None:
                         {"type": 5}, received)
 
     if itype == 2 and name == di.BUZZ_COMMAND and command_enabled("buzz"):
+        # Held to the command channel like /chart and /flow above (owner ruling 2026-11-13:
+        # "just in UCT Intelligence"). The pre-V2 branch carries the same check; both are
+        # needed because only one of the two ever runs for a given interaction.
+        if not di.cmd_channel_ok(interaction):
+            return router._channel_nudge("/buzz")
         limited = _rate_limited(di.interaction_user_id(interaction), noun="boards")
         if limited:
             return limited
-        return _enqueue(_job(interaction, "buzz", "/buzz", ephemeral=True),
-                        {"type": 5, "data": {"flags": di.EPHEMERAL}}, received)
+        # PUBLIC since the owner ruling of 2026-11-13 (private from 2026-09-02 until then).
+        # ⛔ The defer and the job's `ephemeral` record say the same thing on purpose: the
+        # defer is what Discord obeys, the record is what a Retry click replays.
+        return _enqueue(_job(interaction, "buzz", "/buzz"), {"type": 5}, received)
 
     if itype == 3 and command_enabled("controls"):
         if cid_field.startswith(di.FLOW_CHART_PREFIX + "|"):

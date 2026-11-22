@@ -138,17 +138,26 @@ def test_run_build_passes_market_row_through(monkeypatch, tmp_path):
                "read_etf_flags"):
         monkeypatch.setattr(cj, fn, lambda targets, failures=None: {})
 
-    calls = {"finviz": 0, "analyst": 0}
+    calls = {"finviz": 0, "analyst": 0, "short": 0}
 
+    # Pin moved 2026-11-18: the two short-interest columns left the export
+    # reader for their own (`short_columns`), so this stub hands over another of
+    # the export's columns and the short pair comes from its own reader below.
     def finviz_stub(targets, failures=None):
         calls["finviz"] += 1
-        return {"AAA": {"short_float_pct": 31.2}}
+        return {"AAA": {"insider_own_pct": 31.2}}
+
+    def short_stub(targets, failures=None, receipt=None):
+        calls["short"] += 1
+        return {"AAA": {"short_float_pct": 22.2, "short_ratio": 4.4}}
 
     def analyst_stub(targets, failures=None):
         calls["analyst"] += 1
         return {"AAA": {"pt_target": 130.0}}
 
+    from api.services.screener import short_columns
     monkeypatch.setattr(finviz_universe, "read_finviz_fields", finviz_stub)
+    monkeypatch.setattr(short_columns, "read_short_columns", short_stub)
     monkeypatch.setattr(analyst_pass, "read_analyst_fields", analyst_stub)
     for mod, fn in ((earnings_dates, "read_earnings_dates"),
                     (earnings_context, "read_last_report_move"),
@@ -159,10 +168,13 @@ def test_run_build_passes_market_row_through(monkeypatch, tmp_path):
     out = sb.run_build(max_tickers=2)
     assert out["built"] == 2
     row = snapshot_db.get_row("AAA")
-    assert row["short_float_pct"] == 31.2
+    assert row["insider_own_pct"] == 31.2
+    assert row["short_float_pct"] == 22.2
+    assert row["short_ratio"] == 4.4
     assert row["pt_target"] == 130.0
     assert row["pt_upside_pct"] == 30.0        # derived vs price 100
-    assert calls == {"finviz": 1, "analyst": 1}  # one read per build, each
+    # one read per build, each
+    assert calls == {"finviz": 1, "analyst": 1, "short": 1}
 
 
 # ───────────────────────── fix round 1 (2026-08-22 review) ──────────────────

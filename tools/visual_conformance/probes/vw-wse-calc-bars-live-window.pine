@@ -1,0 +1,27 @@
+//@version=6
+indicator("UCTPROBE_VW_WSE_CALC_BARS_LIVE_WINDOW", overlay = false, calc_bars_count = 50)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row Q-WSE2
+// (docs/pine/capture-queue-2026-10-31-wse.md). NEVER COMPILED ON TRADINGVIEW.
+// ⛔ LIVE: needs a live chart DURING MARKET HOURS; no historical capture can show it.
+// A `calc_bars_count` window whose state depends on its first bar. While realtime bars are added,
+// does the initial window stay fixed (TradingView's documented rule) or slide?
+//   W01  var count of calculated bars     fixed window -> 50 + one per realtime bar
+//   W02  open time of the first calculated bar (held in a `var`)   fixed -> never moves
+//   W03  var running total of close from the first calculated bar
+// Read the last bar's W01 / W02 when the probe is added, again after at least 3 realtime bars
+// have closed, and once more after a reload (F5): a reload is expected to re-cut the window.
+// CAPTURE: any liquid symbol on the 1-minute chart, market hours, inputs at defaults.
+
+var int n = 0
+var float first_time = na
+var float total = 0.0
+n += 1
+if na(first_time)
+    first_time := time
+total += close
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(n, "W01_bars_calculated")
+plot(first_time, "W02_first_bar_time")
+plot(total, "W03_running_total_close")

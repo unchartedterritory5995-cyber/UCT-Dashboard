@@ -125,7 +125,7 @@ describe('an Agent indicator change is saved as committed — never a change beh
     expect(savedInstances(server).map(i => i.inputs?.period)).toEqual([9])
     expect(savedSettings(server)).toBe(shownSettings(api))
     // 2 · colour → saved
-    expect(await say('make it green')).toMatch(/colour/i)
+    expect(await say('make it green')).toMatch(/color/i)
     expect(colourOf(server, 9)).toBe('#2faf68')
     expect(savedSettings(server)).toBe(shownSettings(api))
     const added = JSON.parse(savedSettings(server))

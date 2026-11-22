@@ -1,0 +1,11 @@
+{
+ "_": "OPEN PARITY DEFECTS OF UCT'S OWN BUILT-IN INDICATORS, by the native registry's id. Read by api/services/named_indicators.py: an answer that offers a built-in listed here says what differs, and no answer about a built-in ever calls it checked while it is here. One line per defect: `what` is the difference in plain words (it finishes the sentence \"UCT's built-in differs from the published indicator today: ...\"), `ref` the work item that fixes it, `since` the day it was recorded. REMOVE the line in the change that fixes the defect.",
+ "contract": "uct.builtin-open-defects/1",
+ "defects": {
+  "ichimoku": {
+   "what": "its two leading spans are drawn on the bar they are computed on, not shifted forward",
+   "ref": "Q-ICHI-1",
+   "since": "2026-11-19"
+  }
+ }
+}

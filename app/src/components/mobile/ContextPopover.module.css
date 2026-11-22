@@ -28,7 +28,9 @@
 .menuDense { padding: 3px; gap: 0; border-radius: 6px; }
 .menuDense .menuTitle {
   font-family: var(--font-sans);
-  font-size: 10px;
+  /* a11y 2026-11-08: no shared text under 11 px (was 10). CSS only — this
+     component ships in the Notebook's first-open bytes. */
+  font-size: 11px;
   padding: 2px 7px 3px;
 }
 .menuDense .item {
@@ -84,12 +86,66 @@
   font-size: var(--text-lg);
 }
 .label { flex: 1 1 auto; min-width: 0; }
+/* Optional `aside`: a short muted note at the row's right edge (e.g. the Breadth universe
+   menu's "tradable stocks"), like the Columns menu's short labels. Absent = unchanged. */
+.aside { flex: 0 0 auto; padding-left: 12px; font-size: 11.5px; font-weight: 400; color: var(--signature-faint); white-space: nowrap; }
 
 .separator {
   height: 1px;
   background: var(--border);
   margin: var(--space-xs) 0;
 }
+
+/* ⭐ UCT SIGNATURE (opt-in; docs/uct-signature-style.md §2b). Only items that carry the new
+ * fields (`groupLabel`, `detail`, `goldIcon`) or a popover with the `signature` prop use these,
+ * so every other surface is unchanged. */
+/* A group label: small grey sentence case, not a row (role="presentation", not focusable). */
+.groupLabel {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text-muted);
+  opacity: 0.78;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 8px var(--space-md) 2px;
+  user-select: none;
+}
+.groupLabel:first-child { padding-top: 4px; }
+.menuDense .groupLabel { padding: 7px 7px 2px; }
+.menuDense .groupLabel:first-child { padding-top: 3px; }
+/* A row's dimmed value, its ✓ and the gold ✦ are drawn by the caller (StockChart `.sigTrail`,
+   `.sigCheck`, `.sigGold`) — every class here is a key in this module's JS object, which is in the
+   Notebook's first-open bytes. */
+/* icons stay grey; the highlighted row's icon is flat gold (§2b.6) */
+.signature .icon { color: var(--text-muted); }
+.menu.signature .item:not(.danger):hover:not(:disabled) .icon,
+.menu.signature .item:not(.danger):focus-visible .icon { color: var(--ut-gold); }
+.signature .item.danger .icon { color: inherit; }
+
+/* ⭐ UCT SIGNATURE floating menu (owner 11-16) — the chart right-click menu exactly (`.chartCtxMenu`
+ * / `.chartCtxLabel`, ChartsWorkspace.module.css, M4): #111214 panel, 1px #383b41, radius 10,
+ * padding 5; rows 13px #ededed, 6px 10px, radius 6; hover #1a1b1f + #f8f7f3; no icons (only the
+ * UCT Agent's gold ✦); a checked row is bold with a white ✓. Desktop menu only; a readout (RS)
+ * menu keeps its page-theme host (its header uses the page's inks). */
+.menu.signature:not(:has([data-legend-head="readout"])) {
+  background: #111214; border: 1px solid #383b41; border-radius: 10px; padding: 5px; gap: 0;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); color-scheme: dark;
+}
+.menu.signature:not(:has([data-legend-head="readout"])) .item {
+  gap: 0; color: #ededed; font-family: var(--font-sans); font-size: 13px; padding: 6px 10px; border-radius: 6px;
+}
+.menu.signature:not(:has([data-legend-head="readout"])) .item:hover:not(:disabled), .menu.signature:not(:has([data-legend-head="readout"])) .item:focus-visible { background: #1a1b1f; }
+.menu.signature:not(:has([data-legend-head="readout"])) .item:not(.danger):hover:not(:disabled), .menu.signature:not(:has([data-legend-head="readout"])) .item:not(.danger):focus-visible { color: #f8f7f3; }
+.menu.signature:not(:has([data-legend-head="readout"])) .item.danger { color: var(--danger-ink); }
+.menu.signature:not(:has([data-legend-head="readout"])) .item:disabled { opacity: 1; color: #6e6e75; }
+.menu.signature:not(:has([data-legend-head="readout"])) .icon { width: auto; margin-right: 8px; font-size: 13px; }
+.menu.signature:not(:has([data-legend-head="readout"])) .icon svg { width: 13px; height: 13px; }
+.menu.signature:not(:has([data-legend-head="readout"])) .groupLabel { padding: 8px 10px 3px; font: 600 10.5px var(--font-sans); color: #93939a; opacity: 1; }
+.menu.signature:not(:has([data-legend-head="readout"])) .separator { background: #2a2c31; margin: 4px 6px; }
+/* a checked toggle row ("Value in header"): bold label, white ✓ (spec "Floating menu"; gold ✓ is for a chosen option, §2b.3) */
+.signature .item[aria-checked="true"] .label, .signature .item[aria-pressed="true"] .label { font-weight: 600; }
 
 /* On touch, rows must hit the 44px tap-target minimum */
 @media (max-width: 1024px) {

@@ -25,6 +25,10 @@ const levelsSnapshot = {
   missing: null, detail: null, cards: contractBody('setups-board').cards.slice(0, 4), total: 6,
 }
 
+// A snapshot frozen into a note while the setups board's (since retired) switch was off: stored
+// notes still hold it, so the block must keep rendering it.
+const LEVELS_NEEDS_SNAPSHOT = { capturedAt: '2026-10-05T14:30:00Z', detail: null, missing: null, needs: 'the active setups board', part: 'levels' }
+
 axeSurface('trader-block-prep', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) })))
   render(<div>
@@ -33,7 +37,7 @@ axeSurface('trader-block-prep', async () => {
     <section aria-label="movers"><PrepMoversBlock params={{ snapshot: { ...contractBody('trader-blocks.prep.movers.mine'), scanned: 200, total: 1340 } }} setParams={noop} editable /></section>
     <section aria-label="levels"><PrepLevelsBlock params={{ snapshot: levelsSnapshot }} setParams={noop} editable /></section>
     <section aria-label="gap"><PrepWireBlock params={{ snapshot: contractBody('trader-blocks.prep.wire') }} setParams={noop} editable /></section>
-    <section aria-label="needs"><PrepLevelsBlock params={{ snapshot: contractBody('trader-blocks.prep.levels.off') }} setParams={noop} editable /></section>
+    <section aria-label="needs"><PrepLevelsBlock params={{ snapshot: LEVELS_NEEDS_SNAPSHOT }} setParams={noop} editable /></section>
     <section aria-label="uncaptured"><PrepMoversBlock params={{}} setParams={noop} editable /></section>
     <section aria-label="reader"><PrepEarningsBlock params={{}} setParams={noop} editable={false} /></section>
   </div>)

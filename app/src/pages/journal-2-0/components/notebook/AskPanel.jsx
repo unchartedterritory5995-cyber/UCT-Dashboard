@@ -22,6 +22,7 @@ import { buildAskInsertNode } from '../../lib/askInsert'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
 import { trackNotebookEvent, NOTEBOOK_EVENTS } from '../../lib/notebookTelemetry'
 import AskInsertPicker from './AskInsertPicker'
+import HelpAnswerLink from './HelpAnswerLink'
 import styles from './AskPanel.module.css'
 import { failureDetail } from '../../../../lib/responseBody'
 
@@ -39,9 +40,11 @@ import { failureDetail } from '../../../../lib/responseBody'
 
 export const SCOPES = {
   // `toggle`: the NAME of the door (visible text and accessible name) where "Ask" alone is
-  // ambiguous. P0.7: a note's header door is "Ask this note", so it cannot be mistaken for the
-  // Notebook-wide Ask section on Home; the other scopes keep "Ask".
-  note: { label: 'This note', toggle: 'Ask this note', placeholder: 'What did I say about…' },
+  // ambiguous. P0.7: a note's header door names the note, so it cannot be mistaken for the
+  // Notebook-wide Ask section on Home; the other scopes keep "Ask". Simplify pass 2 (A6): its words
+  // are "Ask about this note", the words every other door to it uses (the AI menu, the phone More
+  // panel, the command palette), and the panel it opens is named the same.
+  note: { label: 'This note', toggle: 'Ask about this note', placeholder: 'What did I say about…' },
   document: { label: 'This document', placeholder: 'What does this document say about…' },
   security: { label: 'This research', placeholder: 'What are my biggest concerns about…' },
   notebook: { label: 'My Notebook', placeholder: 'What have I written about…' },
@@ -358,7 +361,7 @@ export default function AskPanel({
         </button>
       )}
       {open && (
-        <PanelShell isTouch={isTouch} label={`Ask ${scopeLabel}`} onClose={closePanel}>
+        <PanelShell isTouch={isTouch} label={spec.toggle || `Ask ${scopeLabel}`} onClose={closePanel}>
           <div className={styles.panelHeader}>
             {/* ⛔ SCOPE IS TEXT, NOT AN ICON TOOLTIP. A wrong-scope answer is
                 a trust defect, so what was searched is legible without
@@ -368,6 +371,8 @@ export default function AskPanel({
                      style={{ verticalAlign: '-1px', marginRight: 4 }} />
               Asking: {scopeLabel}
             </span>
+            {/* S14: this feature's "?" opens its own Quick Answer. */}
+            <HelpAnswerLink faqId="notebook-ask" topic="What can Ask answer?" className={styles.helpLink} />
             <button type="button" className={styles.closeBtn}
                     onClick={closePanel}
                     aria-label="Close Ask"><UIcon name="x" size={11} gold={false} /></button>

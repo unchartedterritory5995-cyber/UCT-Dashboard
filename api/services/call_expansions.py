@@ -72,6 +72,15 @@ def _mom(a: List[Any]) -> Optional[Dict[str, Any]]:
     return _op("-", [a[0], {"type": "offset", "value": n, "args": [a[0]]}])
 
 
+def _dpo(a: List[Any]) -> Optional[Dict[str, Any]]:
+    """The Detrended Price Oscillator, TradingView's default (not centred) form: the source minus
+    its n-bar simple average as it stood floor(n / 2) + 1 bars ago (`callExpansions.js::dpo`)."""
+    n = _window(a[1], 1)
+    if n is None:
+        return None
+    return _op("-", [a[0], {"type": "offset", "value": n // 2 + 1, "args": [_call("sma", [a[0], _num(n)])]}])
+
+
 def _vwma(a: List[Any]) -> Optional[Dict[str, Any]]:
     n = _window(a[1], 1)
     if n is None:
@@ -179,20 +188,29 @@ def supertrend_trees(factor_node: Any, period_node: Any,
 
     up, dn = band("+"), band("-")
     w = _num(warmup)
-    upper = _call("accum", [up, _op("?:", [
-        _op("||", [_op("<", [up, self_]), _op(">", [prev_close, self_])]), up, self_]), w])
-    lower = _call("accum", [dn, _op("?:", [
-        _op("||", [_op(">", [dn, self_]), _op("<", [prev_close, self_])]), dn, self_]), w])
+    zero = _num(0)
+    # Pine's ``nz(upperBand[1])`` / ``nz(lowerBand[1])`` (engine 57): the previous band,
+    # 0 where it is ``na`` -- without it a band seeded ``na`` latched ``na`` from the listing.
+    prev = _call("nz", [self_, zero])
+    upper = _call("accum", [_call("nz", [up, zero]), _op("?:", [
+        _op("||", [_op("<", [up, prev]), _op(">", [prev_close, prev])]), up, prev]), w])
+    lower = _call("accum", [_call("nz", [dn, zero]), _op("?:", [
+        _op("||", [_op(">", [dn, prev]), _op("<", [prev_close, prev])]), dn, prev]), w])
     one, minus_one = _num(1), _num(-1)
+    # Pine's ``if na(atr[1]) direction := 1``, then the flip
     direction = _call("accum", [one, _op("?:", [
-        _op("==", [self_, one]),
-        _op("?:", [_op(">", [close, upper]), minus_one, one]),
-        _op("?:", [_op("<", [close, lower]), one, minus_one]),
+        _call("na", [{"type": "offset", "value": 1, "args": [atr]}]),
+        one,
+        _op("?:", [
+            _op("==", [self_, one]),
+            _op("?:", [_op(">", [close, upper]), minus_one, one]),
+            _op("?:", [_op("<", [close, lower]), one, minus_one]),
+        ]),
     ]), w])
-    unknown = _op("||", [
-        _call("na", [{"type": "offset", "value": warmup, "args": [upper]}]),
-        _call("na", [{"type": "offset", "value": warmup, "args": [lower]}]),
-    ])
+    # ENGINE 57 -- the guard is a bounded window's own curtain ``2W + n - 1`` deep (the base's
+    # bars: its raw seeds were ``na`` through the ATR warm-up): ``na`` on
+    # bars ``t < 2W`` off the listing, known on every bar from it (``callExpansions.js``).
+    unknown = _call("na", [_call("accum", [_num(0), _num(0), _num(2 * warmup + n - 1)])])
     na = _op("/", [_num(0), _num(0)])
     return {
         "value": _op("?:", [unknown, na, _op("?:", [_op("==", [direction, minus_one]), lower, upper])]),
@@ -210,7 +228,12 @@ def _supertrend_part(part: str) -> Callable[[List[Any]], Optional[Dict[str, Any]
 #: ``callExpansions.js::SAR_WARMUP`` / ``SAR_MIN_STEP`` / ``SAR_MIN_MAX_STEP`` -- the
 #: window Parabolic SAR re-seeds over and the MEASURED domain it is exact on. Same
 #: numbers in both lanes (the parity test pins the trees).
-SAR_WARMUP = 200
+#: (2026-11-16) 200 -> 400: the 200-bar window put 43 bars of a captured RDDT 15m series
+#: off the full-history SAR. 400 measured 0 wrong of 1,039,563 bars over 342 series
+#: (``docs/pine/evidence/2026-11-16-sar-window/EVIDENCE.md``; the reasoning is at
+#: ``callExpansions.js::SAR_WARMUP``). A tree saved at 200 still evaluates as stored: the
+#: tree carries its own window.
+SAR_WARMUP = 400
 SAR_MIN_STEP = 0.02
 SAR_MIN_MAX_STEP = 0.2
 
@@ -289,10 +312,141 @@ def _sar_part(part: str) -> Callable[[List[Any]], Optional[Dict[str, Any]]]:
     return build
 
 
+#: ⭐ Engine 79 (#1871) (studio, 2026-11-18) -- the Fisher Transform, `callExpansions.js::fisherTree`
+#: mirrored node for node (the parity test requires the two byte-identical). What it is, what it was
+#: graded against and why it is offered on evidence is said there, once.
+FISHER_WARMUP = 300
+
+
+def fisher_tree(length_node: Any, warmup: int = FISHER_WARMUP) -> Optional[Dict[str, Any]]:
+    n = _window(length_node, 2)
+    if n is None:
+        return None
+
+    def hl2() -> Dict[str, Any]:
+        return _op("/", [_op("+", [_series("high"), _series("low")]), _num(2)])
+
+    def lo() -> Dict[str, Any]:
+        return _call("lowest", [hl2(), _num(n)])
+
+    def hi() -> Dict[str, Any]:
+        return _call("highest", [hl2(), _num(n)])
+
+    def x() -> Dict[str, Any]:
+        return _op("/", [_op("-", [hl2(), lo()]), _op("-", [hi(), lo()])])
+
+    def raw() -> Dict[str, Any]:
+        return _op("+", [_op("*", [_num(0.66), _op("-", [x(), _num(0.5)])]),
+                         _op("*", [_num(0.67), _call("nz", [_series("state1"), _num(0)])])])
+
+    def value() -> Dict[str, Any]:
+        return _op("?:", [_op(">", [raw(), _num(0.99)]), _num(0.999),
+                          _op("?:", [_op("<", [raw(), _num(-0.99)]), _num(-0.999), raw()])])
+
+    fisher = _op("+", [
+        _op("*", [_num(0.5), _call("ln", [_op("/", [_op("+", [_num(1), value()]), _op("-", [_num(1), value()])])])]),
+        _op("*", [_num(0.5), _call("nz", [_series("state2"), _num(0)])])])
+    return _call("accum2", [_num(2), _num(warmup), _num(0), _num(0), value(), fisher])
+
+
+def _fisher(a: List[Any]) -> Optional[Dict[str, Any]]:
+    return fisher_tree(a[0])
+
+
+#: ⭐ Engine 79 (#1882) (studio, 2026-11-18) -- the Laguerre Filter and the Laguerre RSI,
+#: `callExpansions.js::laguerreStage` mirrored node for node. What they are, how the restart
+#: window is sized from gamma and what they were graded against is said there, once.
+LAGUERRE_MAX_GAMMA = 0.95
+LAGUERRE_WARMUPS = ((0.5, 64), (0.7, 128), (0.8, 192), (0.9, 400), (0.95, 800))
+#: A source may not itself be a running value: one never sits inside another.
+_RUNNING_NAMES = ("accum", "accum2", "accum3", "accum4", "supertrend", "supertrendDirection", "sar", "sarDirection",
+                  "fisher", "laguerre", "laguerreRsi")
+
+
+def _gamma(node: Any) -> Optional[float]:
+    if not isinstance(node, Mapping) or node.get("type") != "num":
+        return None
+    v = node.get("value")
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or v != v:
+        return None
+    return v if 0 < v <= LAGUERRE_MAX_GAMMA else None
+
+
+def laguerre_warmup(gamma: float) -> Optional[int]:
+    for most, bars in LAGUERRE_WARMUPS:
+        if gamma <= most:
+            return bars
+    return None
+
+
+def _holds_running_value(node: Any) -> bool:
+    stack = [node]
+    while stack:
+        n = stack.pop()
+        if isinstance(n, Mapping):
+            if n.get("type") == "call" and n.get("name") in _RUNNING_NAMES:
+                return True
+            stack.extend(n.get("args") or [])
+    return False
+
+
+def laguerre_stage(source: Any, gamma_node: Any, which: int) -> Optional[Dict[str, Any]]:
+    g = _gamma(gamma_node)
+    if g is None or not isinstance(source, Mapping) or _holds_running_value(source):
+        return None
+    warmup = laguerre_warmup(g)
+
+    def st(i: int) -> Dict[str, Any]:
+        return _series(f"state{i}")
+
+    def l0() -> Dict[str, Any]:
+        return _op("+", [_op("*", [_op("-", [_num(1), _num(g)]), source]), _op("*", [_num(g), st(1)])])
+
+    def nxt(now: Dict[str, Any], was: Dict[str, Any], own: Dict[str, Any]) -> Dict[str, Any]:
+        return _op("+", [_op("-", [was, _op("*", [_num(g), now])]), _op("*", [_num(g), own])])
+
+    def l1() -> Dict[str, Any]:
+        return nxt(l0(), st(1), st(2))
+
+    def l2() -> Dict[str, Any]:
+        return nxt(l1(), st(2), st(3))
+
+    def l3() -> Dict[str, Any]:
+        return nxt(l2(), st(3), st(4))
+
+    return _call("accum4", [_num(which), _num(warmup), source, source, source, source, l0(), l1(), l2(), l3()])
+
+
+def _laguerre(a: List[Any]) -> Optional[Dict[str, Any]]:
+    if laguerre_stage(a[0], a[1], 1) is None:
+        return None
+
+    def L(k: int) -> Dict[str, Any]:
+        return laguerre_stage(a[0], a[1], k)
+
+    total = _op("+", [_op("+", [_op("+", [L(1), _op("*", [_num(2), L(2)])]), _op("*", [_num(2), L(3)])]), L(4)])
+    return _op("/", [total, _num(6)])
+
+
+def _laguerre_rsi(a: List[Any]) -> Optional[Dict[str, Any]]:
+    if laguerre_stage(a[0], a[1], 1) is None:
+        return None
+
+    def L(k: int) -> Dict[str, Any]:
+        return laguerre_stage(a[0], a[1], k)
+
+    def gap(i: int) -> Dict[str, Any]:
+        return _call("abs", [_op("-", [L(i), L(i + 1)])])
+
+    gaps = _op("+", [_op("+", [gap(1), gap(2)]), gap(3)])
+    return _op("+", [_num(0.5), _op("/", [_op("*", [_num(0.5), _op("-", [L(1), L(4)])]), gaps])])
+
+
 #: name -> (min args, max args, signature, builder). Same order and words as the JS module.
 CALL_EXPANSIONS: Dict[str, tuple] = {
     "roc": (2, 2, "roc(source, length)", _roc),
     "mom": (2, 2, "mom(source, length)", _mom),
+    "dpo": (2, 2, "dpo(source, length)", _dpo),
     "vwma": (2, 2, "vwma(source, length)", _vwma),
     "linreg": (2, 3, "linreg(source, length, offset = 0)", _linreg),
     "correlation": (3, 3, "correlation(source1, source2, length)", _correlation),
@@ -306,6 +460,9 @@ CALL_EXPANSIONS: Dict[str, tuple] = {
     "supertrendDirection": (2, 2, "supertrendDirection(factor, atrPeriod)", _supertrend_part("direction")),
     "sar": (2, 2, "sar(step, maxStep)", _sar_part("value")),
     "sarDirection": (2, 2, "sarDirection(step, maxStep)", _sar_part("direction")),
+    "fisher": (1, 1, "fisher(length)", _fisher),
+    "laguerre": (2, 2, "laguerre(source, gamma)", _laguerre),
+    "laguerreRsi": (2, 2, "laguerreRsi(source, gamma)", _laguerre_rsi),
 }
 
 EXPANSION_NAMES = tuple(CALL_EXPANSIONS)
@@ -334,10 +491,14 @@ def expansion_problem(name: str, n_args: int) -> str:
         return (f"{name} needs a step of at least {SAR_MIN_STEP} and a maximum of at least "
                 f"{SAR_MIN_MAX_STEP} (and no more than 1), both written as numbers, the maximum "
                 f"at least the step -- {sig}. Slower settings are not offered because a value "
-                f"computed from the last {SAR_WARMUP} bars was measured to drift from the "
+                f"computed from a bounded window of recent bars was measured to drift from the "
                 f"full-history SAR there; the chart's Parabolic SAR indicator runs from the "
                 f"first bar and takes any setting")
-    tail = " of at least 2" if name in ("linreg", "correlation") else ""
+    if name in ("laguerre", "laguerreRsi"):
+        return (f"{name} needs a gamma written as a number above 0 and at most {LAGUERRE_MAX_GAMMA} "
+                f"(above that the filter does not settle within the bars a chart formula may reach), and a "
+                f"source that is not itself a running value -- {sig}")
+    tail = " of at least 2" if name in ("linreg", "correlation", "fisher") else ""
     return f"{name} needs a whole-number length{tail} written as a number -- {sig}"
 
 

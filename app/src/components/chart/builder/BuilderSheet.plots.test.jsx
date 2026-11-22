@@ -27,6 +27,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE, chromeInputKeys, chromeInputsFor } from './builderInputs'
 import { AuthContext } from '../../../context/AuthContext'
@@ -71,10 +72,10 @@ const click = async (el) => { await act(async () => { fireEvent.click(el) }) }
 const sent = () => JSON.parse(H.requests.find((r) => r.method !== 'GET').body).definition
 
 async function addPlot(n, key, source, style = 'line') {
-  await click(screen.getByTestId('add-plot'))
+  await click((openPlots(), screen.getByTestId('add-plot')))
   await set(screen.getByLabelText(`Plot ${n} key`), key)
   await set(screen.getByLabelText(`Plot ${n} label`), key.toUpperCase())
-  await set(screen.getByLabelText(`Plot ${n} style`), style)
+  chooseValue(`Plot ${n} style`, style)
   await type(screen.getByLabelText(`Formula for plot ${n}`), source)
 }
 async function save(name = 'MACD v2') {
@@ -89,7 +90,7 @@ afterEach(() => { vi.useRealTimers(); cleanup(); vi.restoreAllMocks() })
 describe('one plot is the DEFAULT row — the document is byte-identical to today\'s', () => {
   it('⛔ RAIL — the POSTed document equals the schema-1 builder output, key for key', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
+    await type(formulaBox(), 'sma(close, 20)')
     await save('My line')
     const doc = sent()
     const ev = evaluateFormula('sma(close, 20)', BUILDER_INPUT_SCOPE)
@@ -133,8 +134,8 @@ describe('one plot is the DEFAULT row — the document is byte-identical to toda
     // `lineWidth` as its inputs, so its chosen colour has exactly one honest
     // home: those inputs' DEFAULTS. The plot still references `$color`.
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
-    await set(screen.getByLabelText('Plot 1 colour'), '#ff0000')
+    await type(formulaBox(), 'sma(close, 20)')
+    await set(screen.getByLabelText('Plot 1 color'), '#ff0000')
     await set(screen.getByLabelText('Plot 1 width'), '3')
     await save('Red line')
     const doc = sent()
@@ -148,7 +149,7 @@ describe('one plot is the DEFAULT row — the document is byte-identical to toda
 describe('🔴 many plots, one hash', () => {
   it('four rows + the scan radio produce trees/treesHash/scanPlot/sources, and `fn` is the SCAN tree\'s hash', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), MACD_SRC.macd)
+    await type(formulaBox(), MACD_SRC.macd)
     await set(screen.getByLabelText('Plot 1 key'), 'macd')
     await addPlot(2, 'signal', MACD_SRC.signal)
     await addPlot(3, 'hist', MACD_SRC.hist, 'histogram')
@@ -185,7 +186,7 @@ describe('🔴 many plots, one hash', () => {
     // `rows[0]`, and the document would scan a DIFFERENT tree than the one the
     // radio shows selected — silently, with the radio still lit.
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
+    await type(formulaBox(), 'sma(close, 20)')
     await addPlot(2, 'flag', 'close > sma(close, 20)')
     await click(screen.getByLabelText('Scan on plot 2'))
     await set(screen.getByLabelText('Plot 2 key'), 'above')
@@ -198,17 +199,17 @@ describe('🔴 many plots, one hash', () => {
 
   it('every tree is RUN before Save — a plot that only refuses at interpret time disables it', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
+    await type(formulaBox(), 'sma(close, 20)')
     await addPlot(2, 'bad', 'accum(close, sma(self, 3), 5)')
     await set(screen.getByLabelText(/^Name/i), 'x')
     expect(screen.getByRole('button', { name: /^Sav/ })).toBeDisabled()
-    expect(screen.getByTestId('save-hint').textContent).toBe('Fix the plots above to save.')
+    expect(screen.getByTestId('save-hint').textContent).toBe('Fix the plots on the Plots tab to save.')
   })
 
   it('a member input reaches EVERY tree', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
-    await click(screen.getByTestId('add-input'))
+    await type(formulaBox(), 'sma(close, 20)')
+    await click((openInputs(), screen.getByTestId('add-input')))
     await set(screen.getByLabelText('Input 1 name'), 'period')
     // ⚰️ THE BRIEF USED `ema(close, period)` HERE AND IT CANNOT PASS: a window
     // must be a whole-number LITERAL (`resolve:window`), which `lint.js` states in
@@ -224,7 +225,7 @@ describe('🔴 many plots, one hash', () => {
 
   it('`let` bindings are accepted in a row and the stored source keeps them verbatim', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'),
+    await type(formulaBox(),
       'let fast = ema(close, 12)\nlet slow = ema(close, 26)\nfast - slow')
     await save('Let MACD')
     const doc = sent()
@@ -234,8 +235,8 @@ describe('🔴 many plots, one hash', () => {
 
   it('Overlay writes placement.target "price"; Levels become ONE hlines plot', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
-    await set(screen.getByLabelText('Placement'), 'price')
+    await type(formulaBox(), 'sma(close, 20)')
+    chooseValue('Placement', 'price')
     await set(screen.getByLabelText('Levels'), '70, 30')
     await save()
     const doc = sent()
@@ -249,7 +250,7 @@ describe('🔴 many plots, one hash', () => {
 
   it('a plot key that is blank, a duplicate, or `levels` is refused BY NAME on its row', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
+    await type(formulaBox(), 'sma(close, 20)')
     await addPlot(2, 'signal', 'ema(close, 5)')
     await set(screen.getByLabelText('Plot 2 key'), '')
     expect(screen.getByTestId('plot-problem-2').textContent).toMatch(/give the plot a key/)
@@ -269,7 +270,7 @@ describe('🔴 many plots, one hash', () => {
     // The input rule does not transfer because a plot key is not an identifier
     // in any formula: it is an addressing handle namespaced by the definition id.
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), MACD_SRC.macd)
+    await type(formulaBox(), MACD_SRC.macd)
     await set(screen.getByLabelText('Plot 1 key'), 'macd')
     expect(screen.queryByTestId('plot-problem-1')).toBeNull()
     await save('MACD one line')
@@ -285,8 +286,8 @@ describe('🔴 many plots, one hash', () => {
     // same `inputs[]` array as the member's own names, and a duplicate key there
     // is a schema refusal about the wrong thing.
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
-    await click(screen.getByTestId('add-input'))
+    await type(formulaBox(), 'sma(close, 20)')
+    await click((openInputs(), screen.getByTestId('add-input')))
     await set(screen.getByLabelText('Input 1 name'), 'signalWidth')
     await addPlot(2, 'signal', 'ema(close, 5)')
     expect(screen.getByTestId('plot-problem-2').textContent).toMatch(/already declares one of them/)
@@ -341,7 +342,7 @@ describe('🔴 many plots, one hash', () => {
   // two calls with two different literal periods.
   it('🔴 the badge TEXT is the worst row’s reason too, and that row’s own ack — not plot 1’s', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
+    await type(formulaBox(), 'sma(close, 20)')
     await addPlot(2, 'chikou', 'ichimokuChikou(high, low, close, 9, 26, 52)')
 
     // ⛔⛔ THE BUG: this used to read `result.verdict.reasons` — PLOT 1's OWN,
@@ -386,7 +387,7 @@ describe('🔴 many plots, one hash', () => {
     // the SHEET's flag-per-row wiring at all — only driving the component with
     // two REAL differing verdicts can.
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'ichimokuChikou(high, low, close, 9, 26, 52)')
+    await type(formulaBox(), 'ichimokuChikou(high, low, close, 9, 26, 52)')
     await addPlot(2, 'chikou52', 'ichimokuChikou(high, low, close, 9, 52, 104)')
     await set(screen.getByLabelText(/^Name/i), 'Two Chikous')
 
@@ -417,7 +418,7 @@ describe('🔴 many plots, one hash', () => {
     // row must now invalidate its own and leave its sibling’s alone, in BOTH
     // directions.
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'ichimokuChikou(high, low, close, 9, 26, 52)')
+    await type(formulaBox(), 'ichimokuChikou(high, low, close, 9, 26, 52)')
     await addPlot(2, 'chikou52', 'ichimokuChikou(high, low, close, 9, 52, 104)')
     await click(screen.getByTestId('repaint-ack'))
     await click(screen.getByTestId('repaint-ack-2'))
@@ -440,7 +441,7 @@ describe('🔴 many plots, one hash', () => {
     // then fall back to plot 1 and the document would scan a different tree than
     // the radio shows — the same silent swap, one gesture over.
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
+    await type(formulaBox(), 'sma(close, 20)')
     await addPlot(2, 'first', 'close > sma(close, 10)')
     await addPlot(3, 'second', 'close > sma(close, 50)')
     await click(screen.getByLabelText('Scan on plot 3'))
@@ -454,7 +455,7 @@ describe('🔴 many plots, one hash', () => {
 
   it('removing a plot takes its row, its settings and its tree with it', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
+    await type(formulaBox(), 'sma(close, 20)')
     await addPlot(2, 'signal', MACD_SRC.signal)
     await addPlot(3, 'hist', MACD_SRC.hist, 'histogram')
     await click(screen.getByTestId('remove-plot-2'))
@@ -475,9 +476,9 @@ describe('the chrome keys are DERIVED once and read by both sides', () => {
     // keys — a correct sentence about the wrong thing. It is refused on its own
     // row instead, by the same derivation the document is built from.
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20)')
+    await type(formulaBox(), 'sma(close, 20)')
     await addPlot(2, 'signal', MACD_SRC.signal)
-    await click(screen.getByTestId('add-input'))
+    await click((openInputs(), screen.getByTestId('add-input')))
     await set(screen.getByLabelText('Input 1 name'), chromeInputKeys({ key: 'signal' }, 1).color)
     expect(screen.getByTestId('member-input-problem-0').textContent).toMatch(/one of your plots/)
     expect(screen.getByRole('button', { name: /^Sav/ })).toBeDisabled()
@@ -535,12 +536,12 @@ describe('opening a saved v2 formula restores every row, the scan choice, the pl
     await click(screen.getByLabelText('Edit MACD v2'))
     await settle()
 
-    expect(screen.getByLabelText('Formula').value).toBe(rows[0].source)
+    expect(formulaBox().value).toBe(rows[0].source)
     expect(screen.getByLabelText('Formula for plot 2').value).toBe(MACD_SRC.signal)
-    expect(screen.getByLabelText('Plot 3 style').value).toBe('histogram')
+    expect(choiceOf('Plot 3 style')).toBe('histogram')
     expect(screen.getByLabelText('Scan on plot 4').checked).toBe(true)
     expect(screen.getByLabelText('Hide plot 4').checked).toBe(true)
-    expect(screen.getByLabelText('Placement').value).toBe('price')
+    expect(choiceOf('Placement')).toBe('price')
     expect(screen.getByLabelText('Levels').value).toBe('0')
     expect(screen.getByLabelText('Input 1 name').value).toBe('period')
     expect(screen.getByTestId('readback').textContent).toBe(rows[0].readback)

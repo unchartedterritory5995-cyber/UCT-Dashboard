@@ -32,6 +32,7 @@
  * all widgets"), and chartThemes._WIDGET_THEME_MAP / widgetChrome for the frame. An
  * app-theme switch never recolours a placed widget (the usePlacedTheme rule).
  */
+import { useWidgetDoor } from '../widgetDoors'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
@@ -57,11 +58,16 @@ import useTradeExchangeNewsDay from './useTradeExchangeNewsDay'
 import * as library from '../../../lib/tradeExchangeNewsLibrary'
 import { sendHeadlineToNotebook } from '../../../lib/tradeExchangeNewsNotebook'
 import styles from './TradeExchangeNewsWidget.module.css'
+import { createPortal } from 'react-dom'
+import { useUctHeaderSlotAlways, useUctControlsSlot, useUctRowIsSub } from '../uctHeaderSlot'
+import ListPicker from './TradeExchangeNewsListPicker'
 
 //: New-headline highlight: held for 1.5 s, then a 0.6 s fade (CSS .flash), then removed.
 const FLASH_MS = 2100
-//: Only news this recent flashes: a reconnect's replayed backlog is not "new".
-const FLASH_FRESH_MS = 60_000
+//: Only news that ARRIVED this recently flashes: a reconnect's replayed backlog is not "new". An
+//: arrival window for the highlight, not TERM-006's age-display floor (provenance/freshnessAge.js
+//: AGE_FLOOR_MS); both are 60 s today by coincidence, and moving one must not move the other.
+const FLASH_ARRIVAL_WINDOW_MS = 60_000
 const SOUND_GAP_MS = 1500
 const SEARCH_DEBOUNCE_MS = 140
 
@@ -73,6 +79,9 @@ const NEED = declareNeed({ kind: 'trade-exchange-news', delivery: DELIVERY.EVERY
 const NO_REST = Object.freeze([])
 //: Fetch the next step of the day this far (px) before the reader reaches an end.
 const NEAR_END_PX = 900
+
+// UCT Agent newsLibrary.* door (AUDIT D13): a row's text reaches the Agent at most this long
+const AGENT_DOOR_TEXT_MAX = 80
 
 export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, defaultView = 'feed' }) {
   const { groupSyms, setGroupSym } = useWorkspace()
@@ -167,6 +176,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   const newestRef = useRef(0)
   const [flashing, setFlashing] = useState(() => new Set())
   const lastSoundRef = useRef(0)
+  // the pending flash-clear timers: cleared on unmount, so none fires after the widget (or a test's DOM) is gone
+  const flashTimersRef = useRef(new Set())
+  useEffect(() => () => {
+    for (const t of flashTimersRef.current) clearTimeout(t)
+    flashTimersRef.current.clear()
+  }, [])
   useEffect(() => {
     if (feed.status === 'idle' || feed.status === 'connecting') return
     const seen = seenRef.current
@@ -181,7 +196,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     const newest = newestRef.current
     const now = Date.now()
     const fresh = shown.filter((it) => !seen.has(it.seq) && it.seq > newest
-      && now - (it.received_at_ms || 0) < FLASH_FRESH_MS)
+      && now - (it.received_at_ms || 0) < FLASH_ARRIVAL_WINDOW_MS)
     for (const it of feed.items) seen.add(it.seq)
     newestRef.current = Math.max(newest, ...feed.items.map((it) => it.seq))
     const live = fresh.filter((it) => !it.delayed)
@@ -189,11 +204,15 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     if (settings.highlightNew === 'on') {
       setFlashing((prev) => new Set([...prev, ...live.map((it) => it.seq)]))
       const ids = live.map((it) => it.seq)
-      setTimeout(() => setFlashing((prev) => {
-        const next = new Set(prev)
-        for (const id of ids) next.delete(id)
-        return next
-      }), FLASH_MS)
+      const t = setTimeout(() => {
+        flashTimersRef.current.delete(t)
+        setFlashing((prev) => {
+          const next = new Set(prev)
+          for (const id of ids) next.delete(id)
+          return next
+        })
+      }, FLASH_MS)
+      flashTimersRef.current.add(t)
     }
     if (settings.sound === 'on') {
       const claimed = live.filter((it) => claimAnnouncement(it.seq))
@@ -382,6 +401,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
   // ── chrome ──
   const [settingsOpen, setSettingsOpen] = useState(false)
   const gearRef = useRef(null)
+  // UCT frame (owner 11-13): one title row — "UCT News · powered by TradeExchange", Live and
+  // Saved ride the frame's title row; ⚙ joins the window controls. Same buttons, same handlers.
+  const uctRow = useUctHeaderSlotAlways('tradeExchangeNews')
+  const uctCtrls = useUctControlsSlot()
+  const uctRowIsSub = useUctRowIsSub()   // a tabbed slot: the tab says "News"
+  const onBoard = !!uctCtrls && !!uctRow
   const rootRef = useRef(null)
   const [, tick] = useState(0)
   useEffect(() => {                         // keep "last headline 2m ago" honest
@@ -418,11 +443,29 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
     ]
   }
 
+  // UCT Agent: the watchlist choices, and the search box (read back as typed; written through its own setter, as typing does)
+  useWidgetDoor(() => ({
+    options: () => ({ watchlist: listOptions.map(o => ({ value: o.value || null, label: o.label })) }),
+    // ⭐ UCT Agent newsLibrary.* (read-only, 2026-11-15): the rows THIS widget renders (`rows`, as drawn — nothing is
+    // computed for the Agent) and the one the member has open (its ⋯ menu or Explain, else the single expanded row), so a
+    // headline is named by its id from what the member sees or clicked. The door writes nothing here.
+    read: () => {
+      const open = actions?.item?.id ?? (explain?.view === 'feed' ? explain.id : null)
+      const one = !open && expanded.size === 1 ? rows.find(r => expanded.has(r.seq))?.id ?? null : null
+      return {
+        search: queryRaw,
+        visible: rows.slice(0, 20).map(r => ({ id: r.id, time: r.received_at_ms ?? null, tickers: r.tickers || [], text: String(r.content || '').slice(0, AGENT_DOOR_TEXT_MAX) })),
+        selected: open ?? one,
+      }
+    },
+    write: (key, v) => { if (key === 'search') setQueryRaw(String(v ?? '').slice(0, 80)) },
+  }))
+
   return (
     <div ref={rootRef} className={`${styles.root} ${settings.density === 'compact' ? styles.compact : styles.comfortable}`} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="News Settings"
+          title="News settings"
           widgetType="tradeExchangeNews"
           textHint="headlines"
           showPerf={false}
@@ -476,7 +519,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         </div>
       )}
       {filterOpen && (
-        <FilterMenu anchorEl={filterRef.current} hostEl={rootRef.current} themeVars={menuVars} onClose={closeFilter}
+        <FilterMenu uct={onBoard} anchorEl={filterRef.current} hostEl={rootRef.current} themeVars={menuVars} onClose={closeFilter}
           linked={linked} linkedSym={linkedSym} onLinked={(on) => patchOpts({ linked: on, presetId: null })}
           categories={categories} onCategories={setCategories} presets={presets} activeId={opts?.presetId || null}
           onApply={applyPreset} onSave={savePreset} onRename={renamePreset} onDelete={deletePreset} />
@@ -498,6 +541,52 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
           themeVars={menuVars} onClose={closeHealth} />
       )}
 
+      {(() => {
+        const statusBtn = (
+          <button ref={statusRef} type="button" className={`${styles.status} ${toneCls}`} title={`${status.title} Click for feed health.`}
+            aria-live="polite" aria-haspopup="dialog" aria-expanded={healthOpen} onClick={() => setHealthOpen((o) => !o)}>
+            <span className={styles.dot} aria-hidden="true" />
+            <span className={styles.statusText}>{status.label}</span>
+          </button>
+        )
+        const savedBtn = (
+          <button
+            type="button"
+            className={`${styles.iconBtn}${view === 'saved' ? ' ' + styles.iconBtnOn : ''}`}
+            onClick={() => setView(view === 'saved' ? 'feed' : 'saved')}
+            title={view === 'saved' ? 'Back to the News feed' : 'Saved headlines'}
+            aria-label={view === 'saved' ? 'Back to the News feed' : 'Show saved headlines'}
+            aria-pressed={view === 'saved'}
+          ><UIcon name={view === 'saved' ? 'bookmark-fill' : 'bookmark'} size={14} gold={false} /></button>
+        )
+        const gearBtn = (
+          <button
+            ref={gearRef}
+            type="button"
+            className={`${styles.iconBtn}${settingsOpen ? ' ' + styles.iconBtnOn : ''}`}
+            onClick={() => setSettingsOpen((o) => !o)}
+            title="News widget settings"
+            aria-label="News widget settings"
+          ><UIcon name="gear" size={14} /></button>
+        )
+        if (!onBoard) return null
+        // Tabbed slot (owner 11-14): Saved · ⚙ go top-right with the window controls, like the
+        // Watchlist's; Live moves beside the search bar (it crowded the tab strip); no brand row
+        // (the tab already says News).
+        if (uctRowIsSub) return createPortal(<>{savedBtn}{gearBtn}</>, uctCtrls)
+        return (<>
+          {createPortal(
+            <div className={styles.uctTitle}>
+              <span className={styles.uctBrand} title="UCT News · powered by TradeExchange"><span className={styles.uctBrandName}>UCT News</span><span className={styles.uctBrandSub}>Powered by TradeExchange</span></span>
+              <span className={styles.spacer} />
+              {statusBtn}
+            </div>,
+            uctRow,
+          )}
+          {createPortal(<>{savedBtn}{gearBtn}</>, uctCtrls)}
+        </>)
+      })()}
+      {!onBoard && (
       <div className={styles.bar}>
         <span className={styles.brand}>
           <span className={styles.brandTitle}>UCT News</span>
@@ -527,6 +616,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
           aria-label="News widget settings"
         ><UIcon name="gear" size={14} /></button>
       </div>
+      )}
 
       {savedMounted && (
         <div className={`${styles.pane}${view !== 'saved' ? ' ' + styles.paneHidden : ''}`} inert={view !== 'saved'}
@@ -543,11 +633,12 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         aria-hidden={view === 'saved' || undefined}>
       <div className={styles.searchBar}>
         <span className={styles.searchWrap}>
+          {onBoard && <span className={styles.searchGlyph} aria-hidden="true"><UIcon name="search" size={13} gold={false} /></span>}
           <Input
             className={styles.searchInput}
             value={queryRaw}
             onChange={(e) => setQueryRaw(e.target.value)}
-            placeholder="Search..."
+            placeholder={onBoard ? 'Search headlines or tickers…' : 'Search...'}
             aria-label="Search headlines"
             maxLength={80}
           />
@@ -568,14 +659,27 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
         >
           <UIcon name="sliders" size={14} gold={false} />
         </button>
-        <Select
-          className={styles.listSelect}
-          value={watchlistId}
-          onChange={(e) => patchOpts({ watchlistId: e.target.value || null })}
-          aria-label="Filter by watchlist"
-          title="Only headlines naming a symbol on this watchlist"
-          options={listOptions}
-        />
+        {onBoard ? (<>
+          <ListPicker value={watchlistId} options={listOptions} menuVars={menuVars}
+            onChange={(v) => patchOpts({ watchlistId: v || null })} />
+          {uctRowIsSub && (
+            <button ref={statusRef} type="button" className={`${styles.status} ${styles.statusInBar} ${toneCls}`} title={`${status.title} Click for feed health.`}
+              aria-live="polite" aria-haspopup="dialog" aria-expanded={healthOpen} onClick={() => setHealthOpen((o) => !o)}>
+              <span className={styles.dot} aria-hidden="true" />
+              <span className={styles.statusText}>{status.label}</span>
+            </button>
+          )}
+        </>
+        ) : (
+          <Select
+            className={styles.listSelect}
+            value={watchlistId}
+            onChange={(e) => patchOpts({ watchlistId: e.target.value || null })}
+            aria-label="Filter by watchlist"
+            title="Only headlines naming a symbol on this watchlist"
+            options={listOptions}
+          />
+        )}
       </div>
 
       {gap && (
@@ -649,6 +753,7 @@ export default function TradeExchangeNewsWidget({ color, opts, onOptsChange, def
       {!unavailable && (
         <div className={styles.footer}>
           <DayBar day={day} calRef={calRef} timeRef={timeRef} calendarOpen={calendarOpen} timeOpen={timeOpen}
+            count={onBoard && day.total != null ? footerCount(filtered, day.total, day.dayTotal ?? day.total) : null}
             onCalendar={() => { setTimeOpen(false); setCalendarOpen((o) => !o) }}
             onTime={() => { setCalendarOpen(false); setTimeOpen((o) => !o) }} />
         </div>

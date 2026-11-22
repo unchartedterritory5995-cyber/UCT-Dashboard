@@ -98,6 +98,10 @@ PROOF_MATRIX: dict[tuple[str, str], dict[str, Any]] = {
         {"auth": "public", "gate": G_SHARE, "bucket": "notebook-share-images", "plan": None, "body": None},
     ("GET", "/api/j2/share/links"):
         {"auth": "owner", "gate": G_SHARE, "bucket": None, "plan": "session", "body": None},
+    # Audit 2026-11-05, S19: "Preview: see exactly what they'll see" -- the owner's own note through the share
+    # reducer, nothing written. Read off the route: `require_paid`, `enforce_rate(PREVIEW_RATE, SCOPE_PREVIEW)`.
+    ("GET", "/api/j2/notes/{note_id}/share/preview"):
+        {"auth": "owner", "gate": G_SHARE, "bucket": "notebook-share-preview", "plan": "paid", "body": None},
     # ── publish-to-web (B4) ──
     ("GET", "/api/j2/publish"):
         {"auth": "owner", "gate": G_PUBLISH, "bucket": None, "plan": "session", "body": None},
@@ -137,6 +141,7 @@ BUCKET_LIMITS: dict[str, tuple[int, str]] = {
     "notebook-share-public": (60, "minute"),
     "notebook-share-images": (240, "minute"),
     "notebook-share-mint": (30, "hour"),
+    "notebook-share-preview": (60, "minute"),
     "notebook-publish-public": (60, "minute"),
     "notebook-publish-images": (240, "minute"),
     "notebook-publish-mint": (30, "hour"),
@@ -309,8 +314,9 @@ def test_the_gated_rows_are_found():
 
 @pytest.mark.parametrize("row", GATED_ROWS, ids=lambda r: f"{r[0]} {r[1]}")
 def test_the_gate_column_is_the_dependency_tree(row):
-    """The row's gate is a direct dependency of the route with nothing ahead of it but its router's own gate, so it
-    is resolved before the plan check and before a byte of the body (11.11 m-3)."""
+    """The row's gate is a direct dependency of the route with nothing ahead of it (the gallery router's own gate,
+    which used to sit ahead of it, was retired as always on, 2026-11-04), so it is resolved before the plan check and
+    before a byte of the body (11.11 m-3)."""
     method, path = row
     route = _served_route(method, path)
     module = _router_module_for(path)
@@ -318,7 +324,7 @@ def test_the_gate_column_is_the_dependency_tree(row):
     direct = [d.call for d in route.dependant.dependencies]
     assert gate in direct, f"{method} {path} does not carry {gate.__name__}"
     ahead = direct[:direct.index(gate)]
-    assert ahead == [module._require_enabled], f"{method} {path}: {gate.__name__} is not resolved first: {direct}"
+    assert ahead == [], f"{method} {path}: {gate.__name__} is not resolved first: {direct}"
 
 
 def test_the_wave11_bucket_is_the_routers_preview_scope():
@@ -427,9 +433,7 @@ def att_root(tmp_path, monkeypatch):
 def app(db_path, monkeypatch):
     from api.routers import notebook_publish, notebook_shares, notebook_template_gallery
     from api.services.journal_two import template_gallery as gallery
-    # The gallery router's own gate and the style library stay ON: the wave 11 row's gate is G_W11 alone.
-    monkeypatch.setenv(gallery.FLAG, "1")
-    monkeypatch.setenv(gallery.LIBRARY_FLAG, "1")
+    # The wave 11 row's gate is G_W11 alone (the gallery's own and the style library's were retired as always on).
     fa = FastAPI()
     fa.include_router(notebook_shares.router)
     fa.include_router(notebook_publish.router)
@@ -608,6 +612,8 @@ BUILDERS: dict[tuple[str, str], RequestBuilder] = {
         lambda w, t: ("GET", f"/api/j2/notes/{_note_for(w, t)}/share"),
     ("POST", "/api/j2/notes/{note_id}/share"):
         lambda w, t: ("POST", f"/api/j2/notes/{_note_for(w, t)}/share"),
+    ("GET", "/api/j2/notes/{note_id}/share/preview"):
+        lambda w, t: ("GET", f"/api/j2/notes/{_note_for(w, t)}/share/preview"),
     ("DELETE", "/api/j2/notes/{note_id}/share"):
         lambda w, t: ("DELETE", f"/api/j2/notes/{_note_for(w, t)}/share"),
     ("GET", "/api/j2/shared/{token}"):
@@ -725,7 +731,7 @@ def test_1_the_owner_list_holds_only_the_callers_things(app, client, world):
     # The editor's context read: A asking about B's note learns nothing about it.
     ctx = client.get(f"/api/j2/publish?note_id={world['B_note']}").json()["note"]
     assert ctx == {"noteId": world["B_note"], "exists": False, "publishable": False,
-                   "folderId": None, "folderName": None}
+                   "folderId": None, "folderName": None, "folderNoteCount": None}
 
 
 def test_1_M3_an_archived_note_gets_no_share_link_and_answers_like_a_trashed_one(app, client, world):

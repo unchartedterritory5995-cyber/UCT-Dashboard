@@ -14,15 +14,18 @@
 // draws. Every claim below is measured against columns computed with the memo
 // OFF, bar for bar.
 import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
 import { translatePine } from '../ast/pine'
 import { interpret } from '../ast/interpret'
 import { DEFAULT_BUDGET } from '../ast/budget'
 import { buildGraph, expandGraph } from '../ast/graph'
 import { memberInputTranslation } from '../../builder/builderInputs'
+import { pineFixtureDir } from '../ast/__tests__/licenceHeld'
 
-const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
+// ⛔ Three of the five scripts are LICENCE-HELD (2026-11-15, docs/pine/vendor-harness/
+// licence-held.json): read from the local store when present. A case that needs an absent
+// one is SKIPPED BY NAME, and so are the census and the cost report, which are about the
+// WHOLE roster (a roster that shrank to two would pass the census by being smaller).
+const OOS = pineFixtureDir('tools/c0_oos_fixtures')
 // ⚠️ 400 BARS, NOT THE 5,000 A CHART LOADS, AND THE REASON IS THE RECURRENCE
 // CEILING RATHER THAN IMPATIENCE. Two of these scripts are `accum` documents
 // whose cost is `bars × PINE_STATE_WARMUP` (C2A measured ~374 ns/step), so at
@@ -41,7 +44,7 @@ const bars = (n) => Array.from({ length: n }, (_, i) => ({
 
 /** The kept columns of a script, as a `{plotKey: tree}` map plus its inputs. */
 function document(file) {
-  const src = fs.readFileSync(path.join(OOS, `${file}.pine`), 'utf8')
+  const src = OOS.read(file)
   const t = memberInputTranslation(translatePine, src, {})
   const outs = (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden).slice(0, 12)
   const inputs = {}
@@ -137,7 +140,7 @@ const NO_TREES = 'high_engagement__03-supertrend-kivancozbilgic'
 const SPECIMEN = 'mid_engagement__14-master-line-lite'
 
 describe('⚰ the script that left the roster — and came back', () => {
-  it(`${NO_TREES} carries its nine columns again (H1), never the ohlc4 edge alone`, () => {
+  OOS.it([NO_TREES], `${NO_TREES} carries its nine columns again (H1), never the ohlc4 edge alone`, () => {
     // ⛔ THIS WAS "carries no trees at all", and it went red the day the script
     // translated again — which is what it was for. It is back in SCRIPTS above.
     const d = document(NO_TREES)
@@ -152,7 +155,7 @@ const CEILED = []
 
 describe('C2C.11 — the shared memo computes the SAME numbers', () => {
   for (const name of SCRIPTS) {
-    it(name, { timeout: 60000 }, () => {
+    OOS.it([name], name, () => {
       const d = doc(name)
       if (!d) return
       const { graph, shared, ceiling } = expandOrCeiling(d)
@@ -189,7 +192,7 @@ describe('C2C.11 — the shared memo computes the SAME numbers', () => {
         }
         expect(diffs, `${k}: ${diffs} of ${a.length} bars differ`).toBe(0)
       }
-    })
+    }, 60000)
   }
 
   it('⛔ THE CONTROL: a recurrence is not frozen by the memo', () => {
@@ -235,7 +238,7 @@ describe('⛔⛔ the roster is not quietly emptying — the census of what ran',
   //
   // ⚠️ It reads state the cases above filled, so it must run AFTER them — which
   // is why it is its own `describe` placed here and not a case inside theirs.
-  it('at least two documents really compared plain against memoed', () => {
+  OOS.it(SCRIPTS, 'at least two documents really compared plain against memoed', () => {
     expect(COMPARED.length,
       `only ${COMPARED.length} of ${SCRIPTS.length} documents compared; ceiling-refused: `
       + `${CEILED.join(', ') || 'none'}`).toBeGreaterThanOrEqual(2)
@@ -245,7 +248,7 @@ describe('⛔⛔ the roster is not quietly emptying — the census of what ran',
 })
 
 describe('C2C.19 — what the sharing costs, and what it saves', () => {
-  it('wall clock per document, with and without the shared memo', { timeout: 120000 }, () => {
+  OOS.it(SCRIPTS, 'wall clock per document, with and without the shared memo', () => {
     const lines = []
     for (const name of SCRIPTS) {
       const d = doc(name)
@@ -275,7 +278,7 @@ describe('C2C.19 — what the sharing costs, and what it saves', () => {
     // eslint-disable-next-line no-console
     console.log(`\n=== C2C.19 COMPUTE COST, ${N} bars ===\n${lines.join('\n')}`)
     expect(lines.length).toBeGreaterThan(0)
-  })
+  }, 120000)
 
   it('expanding a graph costs about what walking the trees costs', { timeout: 60000 }, () => {
     // ⛔ THE COST NOBODY BUDGETED FOR. A read now materialises the forest; if

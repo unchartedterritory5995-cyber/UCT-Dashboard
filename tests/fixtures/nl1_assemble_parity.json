@@ -34,16 +34,26 @@
   "layout.create": "layouts",
   "layout.delete": "layouts",
   "layout.duplicate": "layouts",
+  "layout.pinToBar": "layoutBar",
+  "layout.unpinFromBar": "layoutBar",
+  "layout.moveOnBar": "layoutBar",
   "watchlist.list": "lists",
   "watchlist.show": "lists",
   "watchlist.add": "lists",
   "watchlist.remove": "lists",
+  "watchlist.keepOnly": "lists",
   "watchlist.clear": "lists",
   "watchlist.delete": "lists",
   "watchlist.create": "lists",
   "watchlist.rename": "lists",
   "watchlist.reorder": "lists",
   "watchlist.setNote": "lists",
+  "watchlist.sortColumn": "lists",
+  "watchlist.setColumns": "lists",
+  "watchlist.arrangeColumns": "watchlistShow",
+  "watchlist.step": "lists",
+  "watchlist.readView": "lists",
+  "watchlist.setFlag": "lists",
   "screener.run": "screener",
   "screener.runSaved": "screener",
   "screener.state": "screener",
@@ -51,6 +61,7 @@
   "alert.list": "alerts",
   "alert.create": "alerts",
   "alert.delete": "alerts",
+  "indicatorAlert.list": "indicatorAlerts",
   "indicatorAlert.create": "indicatorAlerts",
   "indicatorAlert.toggle": "indicatorAlerts",
   "indicatorAlert.delete": "indicatorAlerts",
@@ -79,7 +90,11 @@
   "widget.setLink": "workspace",
   "widget.showList": "workspace",
   "widget.setOption": "boardEdit",
+  "widget.readOptions": "boardEdit",
+  "widget.sendToJournal": "boardEdit",
   "watchlist.open": "lists",
+  "watchlist.showList": "watchlistShow",
+  "watchlist.exportList": "watchlistShow",
   "widget.showScan": "workspace",
   "chart.applyThemeAll": "charts",
   "widget.resize": "workspace",
@@ -88,11 +103,11 @@
   "widget.renameTab": "workspace",
   "widget.closeTab": "workspace",
   "widget.addTab": "workspace",
-  "chart.addTab": "charts",
-  "chart.selectTab": "charts",
-  "chart.closeTab": "charts",
-  "chart.renameTab": "charts",
-  "chart.linkTab": "charts",
+  "chart.addTab": "workspace",
+  "chart.selectTab": "workspace",
+  "chart.closeTab": "workspace",
+  "chart.renameTab": "workspace",
+  "chart.linkTab": "workspace",
   "drawing.addTrendline": "drawingTools",
   "drawing.addRay": "drawingTools",
   "drawing.addRectangle": "drawingTools",
@@ -109,6 +124,17 @@
   "drawing.setLevel": "drawings",
   "drawing.setAllVisible": "drawings",
   "drawing.clear": "drawings",
+  "drawing.add": "drawingTools",
+  "drawing.setAnchors": "drawings",
+  "drawing.setProps": "drawings",
+  "drawing.setFibLevels": "drawings",
+  "drawing.setAlert": "alerts",
+  "drawing.duplicate": "drawingOps",
+  "drawing.setPositionAlerts": "drawingOps",
+  "drawing.setActiveBoard": "drawingBoards",
+  "drawing.createBoard": "drawingBoards",
+  "drawing.renameBoard": "drawingBoards",
+  "drawing.deleteBoard": "drawingBoards",
   "indicator.list": "indicators",
   "indicator.openCreate": "indicators",
   "indicator.add": "indicators",
@@ -125,30 +151,82 @@
   "chartSetup.removeTimeframe": "chartSetup",
   "chartSetup.favoriteTimeframe": "chartSetup",
   "chartSetup.compareDisplay": "chartSetup",
+  "chartSetup.setRange": "chartSetup",
+  "chartSetup.resetView": "chartSetup",
+  "chartSetup.openSettings": "chartSetup",
+  "chartSetup.stepBars": "boardEdit",
+  "chartSetup.zoom": "chartView",
+  "chartSetup.autoScale": "boardEdit",
+  "chartSetup.setIndicatorsHidden": "chartSetup",
+  "chartSetup.setMovingAverages": "chartSetup",
   "chartSetup.saveTemplate": "chartSetup",
   "chartSetup.deleteTemplate": "chartSetup",
+  "chartSetup.compareGroup": "compareGroups",
+  "chartMenu.askAi": "chartMenu",
+  "chartMenu.resetWatermark": "chartMenu",
+  "chartFeatures.companyPanel": "chartFeatures",
+  "chartFeatures.earningsStrip": "chartFeatures",
+  "chartReplay.playback": "chartReplay",
+  "drawing.positionCalculator": "drawingExtras",
+  "drawing.saveDefaults": "drawingExtras",
+  "drawing.favoriteTool": "drawingExtras",
   "indicatorStyle.set": "indicatorSetup",
   "indicatorStyle.placeIn": "indicatorSetup",
+  "indicatorStyle.setCalcTimeframe": "indicatorCalc",
   "pane.move": "indicatorSetup",
   "pane.resize": "indicatorSetup",
   "indicatorCopy.duplicate": "indicatorSetup",
   "indicatorCopy.copyTo": "indicatorSetup",
+  "indicatorTemplate.list": "chartSetup",
+  "indicatorTemplate.apply": "chartSetup",
+  "indicatorTemplate.save": "chartSetup",
+  "indicatorTemplate.delete": "chartSetup",
+  "volumeProfile.set": "volumeProfile",
   "definition.search": "definitions",
   "definition.describe": "definitions",
   "definition.duplicate": "definitions",
   "definition.delete": "definitions",
+  "uctIntelligence.set": "uctIntelligence",
   "agent.capabilities": "agent",
+  "agent.undo": "undo",
   "guide.explain": "guide",
-  "guide.show": "guide"
+  "guide.show": "guide",
+  "calendar.day": "calendar",
+  "periodSort.run": "periodSort",
+  "periodSort.dock": "periodSort",
+  "newsLibrary.save": "newsLibrary",
+  "newsLibrary.setNote": "newsLibrary",
+  "newsLibrary.collection": "newsLibrary",
+  "newsLibrary.deleteCollection": "newsLibrary",
+  "newsLibrary.place": "newsLibrary",
+  "compare.openView": "comparePanel",
+  "multiChart.set": "multiChart",
+  "multiChart.cell": "multiChart"
  },
  "groups": [
   {
    "id": "charts",
-   "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+   "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
   },
   {
    "id": "chartSetup",
-   "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+   "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+  },
+  {
+   "id": "compareGroups",
+   "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+  },
+  {
+   "id": "newsLibrary",
+   "title": "Your UCT News library: save or unsave a headline, its note, collections"
+  },
+  {
+   "id": "chartMenu",
+   "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+  },
+  {
+   "id": "chartFeatures",
+   "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
   },
   {
    "id": "chartGrid",
@@ -156,15 +234,23 @@
   },
   {
    "id": "boardEdit",
-   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
+   "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
   },
   {
    "id": "workspace",
    "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
   },
   {
+   "id": "multiChart",
+   "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+  },
+  {
    "id": "layouts",
    "title": "Saved layouts (open, save, create, copy, rename, delete)"
+  },
+  {
+   "id": "layoutBar",
+   "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
   },
   {
    "id": "indicators",
@@ -172,23 +258,47 @@
   },
   {
    "id": "indicatorSetup",
-   "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+   "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+  },
+  {
+   "id": "indicatorCalc",
+   "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
   },
   {
    "id": "definitions",
    "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
   },
   {
+   "id": "volumeProfile",
+   "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+  },
+  {
+   "id": "drawingOps",
+   "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+  },
+  {
    "id": "drawingTools",
-   "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+   "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
   },
   {
    "id": "drawings",
-   "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+   "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+  },
+  {
+   "id": "drawingExtras",
+   "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+  },
+  {
+   "id": "drawingBoards",
+   "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+  },
+  {
+   "id": "uctIntelligence",
+   "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
   },
   {
    "id": "lists",
-   "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+   "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
   },
   {
    "id": "screener",
@@ -196,15 +306,15 @@
   },
   {
    "id": "alerts",
-   "title": "Price alerts (list, create, delete)"
+   "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
   },
   {
    "id": "indicatorAlerts",
-   "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+   "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
   },
   {
    "id": "data",
-   "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+   "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
   },
   {
    "id": "breadth",
@@ -215,12 +325,40 @@
    "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
   },
   {
+   "id": "calendar",
+   "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
+  },
+  {
    "id": "agent",
    "title": "Questions about what UCT Agent can do"
   },
   {
+   "id": "undo",
+   "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+  },
+  {
+   "id": "watchlistShow",
+   "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
+  },
+  {
    "id": "guide",
    "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+  },
+  {
+   "id": "chartView",
+   "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+  },
+  {
+   "id": "comparePanel",
+   "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+  },
+  {
+   "id": "periodSort",
+   "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+  },
+  {
+   "id": "chartReplay",
+   "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
   }
  ],
  "cases": [
@@ -256,11 +394,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -280,11 +413,27 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+     },
+     {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -292,15 +441,23 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -308,23 +465,47 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -332,15 +513,15 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -351,12 +532,40 @@
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
      },
      {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
+     },
+     {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -365,7 +574,7 @@
      "screener",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {
@@ -401,11 +610,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -434,11 +638,27 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+     },
+     {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -446,15 +666,23 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -462,23 +690,47 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -486,15 +738,15 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -505,12 +757,40 @@
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
      },
      {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
+     },
+     {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -520,7 +800,7 @@
      "screener",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {
@@ -557,11 +837,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -579,27 +854,50 @@
     "watchlist.show",
     "watchlist.add",
     "watchlist.remove",
+    "watchlist.keepOnly",
     "watchlist.clear",
     "watchlist.delete",
     "watchlist.create",
     "watchlist.rename",
     "watchlist.reorder",
     "watchlist.setNote",
+    "watchlist.sortColumn",
+    "watchlist.setColumns",
+    "watchlist.step",
+    "watchlist.readView",
+    "watchlist.setFlag",
     "alert.list",
     "alert.create",
     "alert.delete",
-    "watchlist.open"
+    "watchlist.open",
+    "drawing.setAlert"
    ],
    "routing": {
     "version": 1,
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+     },
+     {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -607,15 +905,23 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -623,23 +929,47 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -647,15 +977,15 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -666,12 +996,40 @@
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
      },
      {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
+     },
+     {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -682,7 +1040,7 @@
      "alerts",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {
@@ -719,11 +1077,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -750,6 +1103,11 @@
     "widget.renameTab",
     "widget.closeTab",
     "widget.addTab",
+    "chart.addTab",
+    "chart.selectTab",
+    "chart.closeTab",
+    "chart.renameTab",
+    "chart.linkTab",
     "drawing.list",
     "drawing.addLevel",
     "drawing.style",
@@ -758,18 +1116,37 @@
     "drawing.lock",
     "drawing.setLevel",
     "drawing.setAllVisible",
-    "drawing.clear"
+    "drawing.clear",
+    "drawing.setAnchors",
+    "drawing.setProps",
+    "drawing.setFibLevels"
    ],
    "routing": {
     "version": 1,
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+     },
+     {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -777,15 +1154,23 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -793,23 +1178,47 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -817,15 +1226,15 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -836,12 +1245,40 @@
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
      },
      {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
+     },
+     {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -852,7 +1289,7 @@
      "screener",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {
@@ -886,11 +1323,6 @@
     "screener.renameSaved",
     "screener.deleteSaved",
     "chart.applyThemeAll",
-    "chart.addTab",
-    "chart.selectTab",
-    "chart.closeTab",
-    "chart.renameTab",
-    "chart.linkTab",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -915,11 +1347,27 @@
     "groups": [
      {
       "id": "charts",
-      "title": "Chart symbol, timeframe, type, scale, session, theme, colours, display settings, volume"
+      "title": "Chart symbol, timeframe, type, scale, session, theme, colors, display settings, volume"
      },
      {
       "id": "chartSetup",
-      "title": "Chart setup: save or delete chart templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay)"
+      "title": "Chart setup: save or delete chart templates, list / apply / save / delete indicator templates, make one chart look like another, remove a custom timeframe, star a timeframe, comparison scale / Group only, Replay Mode (hide bars after a date / exit replay), a chart’s date range (3M–5Y, YTD, Origin), Reset view, hide every indicator or moving average at once"
+     },
+     {
+      "id": "compareGroups",
+      "title": "Compare a whole theme / sector / industry group on a chart (add it, remove it, its scale)"
+     },
+     {
+      "id": "newsLibrary",
+      "title": "Your UCT News library: save or unsave a headline, its note, collections"
+     },
+     {
+      "id": "chartMenu",
+      "title": "A chart’s right-click extras: open Ask the UCT Agent about the chart’s stock; reset a dragged watermark to its default position"
+     },
+     {
+      "id": "chartFeatures",
+      "title": "A chart’s Company Info side panel (add, expand, collapse, remove, its tabs) and its Earnings Strip under the chart (add, remove)"
      },
      {
       "id": "chartGrid",
@@ -927,15 +1375,23 @@
      },
      {
       "id": "boardEdit",
-      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE widget’s own option (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope)"
+      "title": "Swap two widgets’ places; duplicate a chart (split its cell, the copy beside it); change ONE control of a widget (a view, a filter, a period, the day shown, the open theme, a universe, an axis) or read how it is set; send a widget to the Journal; step a chart back or forward by bars, or put its price scale back on auto-scale"
      },
      {
       "id": "workspace",
       "title": "Widgets on the board (add, remove, move, resize, arrange, link, widget tabs)"
      },
      {
+      "id": "multiChart",
+      "title": "The Multi Chart grid itself: open it at a shape (2×3, rows × columns) or leave it, crosshair / time-range sync, Groups mode and loading / stepping / refreshing a group, open / save / delete a saved grid, Shared Chart Settings, maximize one cell or restore the grid, reset one cell to my chart"
+     },
+     {
       "id": "layouts",
       "title": "Saved layouts (open, save, create, copy, rename, delete)"
+     },
+     {
+      "id": "layoutBar",
+      "title": "The layout bar (Layout Dock): pin a saved layout to the bar, take one off it, move one along it"
      },
      {
       "id": "indicators",
@@ -943,23 +1399,47 @@
      },
      {
       "id": "indicatorSetup",
-      "title": "Indicator look and placement: colours, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+      "title": "Indicator look and placement: colors, line width / style, plot style, which pane it draws in, pane order and height, duplicate, copy indicators to other charts"
+     },
+     {
+      "id": "indicatorCalc",
+      "title": "An indicator calculated on another timeframe's bars (a weekly RSI on a daily chart), or back on the chart's own"
      },
      {
       "id": "definitions",
       "title": "Indicator definitions: search UCT's and your own indicators, describe one, save a copy, delete one of yours"
      },
      {
+      "id": "volumeProfile",
+      "title": "A chart’s Volume Profile overlay: on / off, bins, colors"
+     },
+     {
+      "id": "drawingOps",
+      "title": "Duplicate a drawing on its chart; set a position drawing's entry / stop / target alerts"
+     },
+     {
       "id": "drawingTools",
-      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement, text note, anchored VWAP"
+      "title": "Time-anchored drawings from dates and prices: trendline, ray, horizontal ray, rectangle, Fibonacci retracement and extension, text note, anchored VWAP, extended line, vertical line, circle, arrow, pitchfork, parallel channel, cup curve, Measure, Price Range, Bars & Time, Price Move"
      },
      {
       "id": "drawings",
-      "title": "Chart drawings: horizontal price levels (draw, move to a price), restyle, show/hide, lock, remove one, clear all, list"
+      "title": "Chart drawings: horizontal price levels (draw, move to a price), move any drawing's anchors, restyle, every setting in a drawing's menu, Fibonacci levels and fills, show/hide, lock, remove one, clear all, list"
+     },
+     {
+      "id": "drawingExtras",
+      "title": "Position Calculator with an entry, stop and target on a chart; make a drawing's style the chart's default for new drawings; star / unstar a drawing tool as a favourite"
+     },
+     {
+      "id": "drawingBoards",
+      "title": "Drawing Boards: switch the board you draw on, make a new board, rename one, delete one"
+     },
+     {
+      "id": "uctIntelligence",
+      "title": "The UCT Intelligence chart indicator: add or remove it on a chart, turn its layers on or off (Auto patterns, Pattern labels, Support & resistance, Candlestick patterns, Setups, Caution)"
      },
      {
       "id": "lists",
-      "title": "Watchlists (show, create, rename, add, remove, clear, delete, sort / reorder, notes)"
+      "title": "Watchlists and list widgets (show, create, rename, add, remove, keep only some, clear, delete, reorder, notes; sort a widget by a column, add / hide columns, next / previous ticker, what a list shows; flag / unflag tickers)"
      },
      {
       "id": "screener",
@@ -967,15 +1447,15 @@
      },
      {
       "id": "alerts",
-      "title": "Price alerts (list, create, delete)"
+      "title": "Price alerts (list, create, delete), and an alert that follows a drawn line or Fibonacci level"
      },
      {
       "id": "indicatorAlerts",
-      "title": "Indicator alerts on a chart's indicators — RSI, MACD, bands… (create, pause / resume, delete)"
+      "title": "Indicator alerts on a chart's indicators — RSI, MACD, EMA / SMA crosses, bands… (create, pause / resume, delete)"
      },
      {
       "id": "data",
-      "title": "Stock information and news (profile, earnings, comparisons, news, catalysts)"
+      "title": "Stock information, news and research (profile, earnings, comparisons, news, catalysts, why a stock is moving, pullbacks, off its high)"
      },
      {
       "id": "breadth",
@@ -986,12 +1466,40 @@
       "title": "App settings (app theme, default timeframe, alert sound, email digest) and opening UCT pages"
      },
      {
+      "id": "calendar",
+      "title": "Earnings calendar: who reports on a day or this week, when one stock reports next"
+     },
+     {
       "id": "agent",
       "title": "Questions about what UCT Agent can do"
      },
      {
+      "id": "undo",
+      "title": "Undo your own last change(s) in this conversation (exactly the receipt’s Undo)"
+     },
+     {
+      "id": "watchlistShow",
+      "title": "What one Watchlist widget shows (one of your lists, a UCT prebuilt or community list, Flagged, or its list picker); copy that list or download it as CSV / Excel; move a column or set its width in that widget"
+     },
+     {
       "id": "guide",
       "title": "Product guide: explain what a UCT term, indicator or feature is; show where a Charts control is (highlighted on the board, step by step) — changes nothing"
+     },
+     {
+      "id": "chartView",
+      "title": "Chart view gestures: zoom one chart's time axis in or out (the + / - keys), more or fewer bars on screen"
+     },
+     {
+      "id": "comparePanel",
+      "title": "The Compare panel (Tools → Compare Symbols): open it on its Rotation tab (the RRG-style rotation map, optionally for a stock’s group or a named group) or its Overlay tab, switch between them"
+     },
+     {
+      "id": "periodSort",
+      "title": "Period Sort: rank stocks, themes, sectors or industries by their move between two dates; dock that ranking as a widget"
+     },
+     {
+      "id": "chartReplay",
+      "title": "A chart’s bar replay (its Replay / Time Machine button): start, play, pause, step bars, jump to a date or an end, speed, exit"
      }
     ],
     "selected": [
@@ -1001,22 +1509,34 @@
      "data",
      "agent"
     ],
-    "stable": 42
+    "stable": 37
    }
   },
   {
    "selected": [
     "charts",
     "chartSetup",
+    "compareGroups",
+    "newsLibrary",
+    "chartMenu",
+    "chartFeatures",
     "chartGrid",
     "boardEdit",
     "workspace",
+    "multiChart",
     "layouts",
+    "layoutBar",
     "indicators",
     "indicatorSetup",
+    "indicatorCalc",
     "definitions",
+    "volumeProfile",
+    "drawingOps",
     "drawingTools",
     "drawings",
+    "drawingExtras",
+    "drawingBoards",
+    "uctIntelligence",
     "lists",
     "screener",
     "alerts",
@@ -1024,8 +1544,15 @@
     "data",
     "breadth",
     "settings",
+    "calendar",
     "agent",
-    "guide"
+    "undo",
+    "watchlistShow",
+    "guide",
+    "chartView",
+    "comparePanel",
+    "periodSort",
+    "chartReplay"
    ],
    "names": [
     "chart.setType",
@@ -1055,16 +1582,26 @@
     "layout.create",
     "layout.delete",
     "layout.duplicate",
+    "layout.pinToBar",
+    "layout.unpinFromBar",
+    "layout.moveOnBar",
     "watchlist.list",
     "watchlist.show",
     "watchlist.add",
     "watchlist.remove",
+    "watchlist.keepOnly",
     "watchlist.clear",
     "watchlist.delete",
     "watchlist.create",
     "watchlist.rename",
     "watchlist.reorder",
     "watchlist.setNote",
+    "watchlist.sortColumn",
+    "watchlist.setColumns",
+    "watchlist.arrangeColumns",
+    "watchlist.step",
+    "watchlist.readView",
+    "watchlist.setFlag",
     "screener.run",
     "screener.runSaved",
     "screener.state",
@@ -1072,6 +1609,7 @@
     "alert.list",
     "alert.create",
     "alert.delete",
+    "indicatorAlert.list",
     "indicatorAlert.create",
     "indicatorAlert.toggle",
     "indicatorAlert.delete",
@@ -1100,7 +1638,11 @@
     "widget.setLink",
     "widget.showList",
     "widget.setOption",
+    "widget.readOptions",
+    "widget.sendToJournal",
     "watchlist.open",
+    "watchlist.showList",
+    "watchlist.exportList",
     "widget.showScan",
     "chart.applyThemeAll",
     "widget.resize",
@@ -1130,6 +1672,17 @@
     "drawing.setLevel",
     "drawing.setAllVisible",
     "drawing.clear",
+    "drawing.add",
+    "drawing.setAnchors",
+    "drawing.setProps",
+    "drawing.setFibLevels",
+    "drawing.setAlert",
+    "drawing.duplicate",
+    "drawing.setPositionAlerts",
+    "drawing.setActiveBoard",
+    "drawing.createBoard",
+    "drawing.renameBoard",
+    "drawing.deleteBoard",
     "indicator.list",
     "indicator.openCreate",
     "indicator.add",
@@ -1146,21 +1699,57 @@
     "chartSetup.removeTimeframe",
     "chartSetup.favoriteTimeframe",
     "chartSetup.compareDisplay",
+    "chartSetup.setRange",
+    "chartSetup.resetView",
+    "chartSetup.openSettings",
+    "chartSetup.stepBars",
+    "chartSetup.zoom",
+    "chartSetup.autoScale",
+    "chartSetup.setIndicatorsHidden",
+    "chartSetup.setMovingAverages",
     "chartSetup.saveTemplate",
     "chartSetup.deleteTemplate",
+    "chartSetup.compareGroup",
+    "chartMenu.askAi",
+    "chartMenu.resetWatermark",
+    "chartFeatures.companyPanel",
+    "chartFeatures.earningsStrip",
+    "chartReplay.playback",
+    "drawing.positionCalculator",
+    "drawing.saveDefaults",
+    "drawing.favoriteTool",
     "indicatorStyle.set",
     "indicatorStyle.placeIn",
+    "indicatorStyle.setCalcTimeframe",
     "pane.move",
     "pane.resize",
     "indicatorCopy.duplicate",
     "indicatorCopy.copyTo",
+    "indicatorTemplate.list",
+    "indicatorTemplate.apply",
+    "indicatorTemplate.save",
+    "indicatorTemplate.delete",
+    "volumeProfile.set",
     "definition.search",
     "definition.describe",
     "definition.duplicate",
     "definition.delete",
+    "uctIntelligence.set",
     "agent.capabilities",
+    "agent.undo",
     "guide.explain",
-    "guide.show"
+    "guide.show",
+    "calendar.day",
+    "periodSort.run",
+    "periodSort.dock",
+    "newsLibrary.save",
+    "newsLibrary.setNote",
+    "newsLibrary.collection",
+    "newsLibrary.deleteCollection",
+    "newsLibrary.place",
+    "compare.openView",
+    "multiChart.set",
+    "multiChart.cell"
    ],
    "routing": null
   }

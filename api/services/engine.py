@@ -36,6 +36,7 @@ import copy
 import pathlib
 import threading as _threading
 import time as _time
+from api.services.log_redaction import safe_exc as _safe_exc
 
 UCT_INTEL_PATH = pathlib.Path(
     os.environ.get("UCT_INTEL_PATH", r"C:\Users\Patrick\uct-intelligence")
@@ -70,9 +71,17 @@ _logger = _logging.getLogger(__name__)
 
 _anthropic_client = None  # anthropic.Anthropic | None (lazy-init)
 
+#: Modules that keep the SDK's default retries on the shared client. Options flow does
+#: not change behaviour without its owner, and these files are not edited, so the caller
+#: is read here (the `alert_routing._producer_of` idiom). Any other caller, including a
+#: lane added tomorrow, gets 0 retries. `tests/test_llm_clients_no_sdk_retries.py` pins it.
+_KEEPS_SDK_RETRIES = frozenset({"api.flow_explain"})
+_keeps_sdk_retries_logged = False
+
+
 def _get_anthropic_client():
     """Return the module-level Anthropic client, initializing it once (thread-safe)."""
-    global _anthropic_client
+    global _anthropic_client, _keeps_sdk_retries_logged
     if _anthropic_client is None:
         with _anthropic_lock:
             if _anthropic_client is None:
@@ -82,8 +91,19 @@ def _get_anthropic_client():
                     raise RuntimeError("ANTHROPIC_API_KEY is not set")
                 # timeout bounds a hung LLM call so it can't pin a worker thread
                 # forever (the 2026-07-01 thread-exhaustion class). 60s is generous
-                # for our max_tokens; the SDK still retries transient errors.
-                _anthropic_client = anthropic.Anthropic(api_key=api_key, timeout=60.0)
+                # for our max_tokens. max_retries=0: an SDK retry after a timeout is a
+                # billed attempt no ledger or daily count can see, and every lane on
+                # this client inherits it unless it overrides it.
+                _anthropic_client = anthropic.Anthropic(api_key=api_key, timeout=60.0, max_retries=0)
+    caller = sys._getframe(1).f_globals.get("__name__")
+    if caller in _KEEPS_SDK_RETRIES:
+        import anthropic
+        with _anthropic_lock:
+            first, _keeps_sdk_retries_logged = not _keeps_sdk_retries_logged, True
+        if first:
+            _logger.info("shared Anthropic client: %s keeps the SDK default of %d retries",
+                         caller, anthropic.DEFAULT_MAX_RETRIES)
+        return _anthropic_client.with_options(max_retries=anthropic.DEFAULT_MAX_RETRIES)
     return _anthropic_client
 
 # ── Earnings analysis configuration ───────────────────────────────────────────
@@ -1331,6 +1351,112 @@ def _row_timing(row: dict | None) -> str | None:
     return None
 
 
+def _earnings_cost_surface(warm: bool) -> str:
+    """The ledger surface of one earnings AI call: the background warm or a member's click."""
+    return "earnings_warm" if warm else "earnings_click"
+
+
+def _release_unbilled_attempt(kind: str, sym: str, exc: BaseException) -> None:
+    """An HTTP error response generated nothing and is free, so it does not use the
+    name's daily warm attempt: a provider outage at 06:20 must not leave the whole
+    board cold until tomorrow. A timeout or a dropped connection may have run and
+    keeps the attempt (`earnings_ai_store.claim_attempt`)."""
+    from api.services import earnings_ai_store as _ai_store
+    from api.services.uct_agent import budget
+    if budget._is_provider_error_response(exc):
+        _ai_store.release_attempt(kind, sym)
+
+
+# -- The Batch lane for the background PREVIEW warm (2026-11-10, AI-spend audit) --
+# The warm pre-generates previews days before the print and nobody is waiting on
+# them, so the warm may hand the one Claude call to the Message Batches API (half
+# price) instead of calling live. `earnings_preview_warm` sets this collector
+# INSIDE each pool job; a member's click never runs with it set, and the
+# post-print ANALYSIS never defers (a first reader minutes after the print would
+# pay for a live call on top of the batch).
+import contextvars as _contextvars
+
+EARNINGS_BATCH_COLLECTOR = _contextvars.ContextVar("earnings_batch_collector", default=None)
+
+
+def _preview_base(sym, beat_history, yoy_eps_growth, beat_streak, news_items,
+                  enrichment, sig) -> dict:
+    """Every field of a preview result except the model's own text."""
+    return {
+        "sym":             sym,
+        "beat_history":    beat_history,
+        "yoy_eps_growth":  yoy_eps_growth,
+        "beat_streak":     beat_streak,
+        "news":            news_items,
+        # Enrichment fields (may be None)
+        "pre_earnings":    enrichment.get("pre_earnings"),
+        "hist_moves":      enrichment.get("hist_moves"),
+        "revisions":       enrichment.get("revisions"),
+        "beat_surprises":  enrichment.get("beat_surprises"),
+        "implied_move":    enrichment.get("implied_move"),
+        "key_quotes":      enrichment.get("key_quotes"),
+        "signals_hash":    sig,   # inputs fingerprint for skip-if-stable
+    }
+
+
+def _defer_preview_call(sym: str, request: dict, base: dict, enrichment_complete: bool) -> bool:
+    """True when the warm's batch collector took this call; the caller then returns
+    without writing anything (the batch's reaper finishes it). Never raises."""
+    collector = EARNINGS_BATCH_COLLECTOR.get()
+    if collector is None:
+        return False
+    try:
+        return bool(collector("preview", sym, request, {
+            "sym": sym, "model": request.get("model"), "base": base,
+            "enrichment_complete": bool(enrichment_complete)}))
+    except Exception:  # noqa: BLE001 -- a broken collector means "call live", never "drop"
+        _logger.exception("earnings batch collector failed for %s; calling live", sym)
+        return False
+
+
+def finish_earnings_preview(message, meta: dict, *, discount: float = 0.5) -> bool:
+    """Complete a deferred preview from its Claude message: bill it, parse it, cache
+    it and persist it exactly as the live path does. `message` None (an errored or
+    expired batch row, which is not billed) frees the name's daily warm attempt so
+    the next pass retries. Returns True when a complete preview was stored."""
+    from api.services import earnings_ai_store as _ai_store
+    from api.services import narrative_cost_guard as _guard
+    sym = str(meta.get("sym") or "").upper()
+    if not sym:
+        return False
+    if message is None:
+        _ai_store.release_attempt("preview", sym)
+        return False
+    model = str(meta.get("model") or getattr(message, "model", "") or _EARNINGS_AI_MODEL)
+    try:
+        u = getattr(message, "usage", None)
+        in_tok = getattr(u, "input_tokens", 0) or 0
+        out_tok = getattr(u, "output_tokens", 0) or 0
+        cost = _guard.estimate_cost(
+            model, in_tok, out_tok,
+            cache_read_tokens=getattr(u, "cache_read_input_tokens", 0) or 0,
+            cache_creation_tokens=getattr(u, "cache_creation_input_tokens", 0) or 0) * float(discount)
+        _guard.record(_earnings_cost_surface(True), model, in_tok, out_tok, cost_usd=cost)
+    except Exception:  # noqa: BLE001 -- the ledger never loses a paid answer
+        _logger.exception("earnings ledger write failed for %s (batch)", sym)
+    try:
+        parsed = _parse_json_block(_anthropic_text(message))
+        preview_text = str(parsed.get("preview", "")).strip()
+        preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:3]]
+    except Exception as e:  # noqa: BLE001
+        _logger.warning("AI preview (batch) unparseable for %s: %s", sym, e)
+        preview_text, preview_bullets = "", []
+    result = {**(meta.get("base") or {}), "sym": sym,
+              "preview_text": preview_text, "preview_bullets": preview_bullets}
+    complete = bool(preview_text) and bool(meta.get("enrichment_complete"))
+    cache.set(f"earnings_preview_v3_{sym}", result,
+              ttl=_EARNINGS_CACHE_TTL_HIT if complete else _EARNINGS_CACHE_TTL_MISS)
+    if complete and _ai_store.put("preview", sym, result):
+        _ai_store.release_attempt("preview", sym)
+        return True
+    return False
+
+
 def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: bool = False) -> dict:
     """Generate Claude Haiku earnings analysis + fetch AV history + Finnhub news. Cached 12h.
 
@@ -1363,6 +1489,12 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
         cache.set(cache_key, _prior, ttl=_EARNINGS_CACHE_TTL_HIT)
         _ai_store.touch("analysis", sym)
         return _prior
+
+    # A row that is still pending never reaches the model, so it uses no attempt.
+    is_pending = not row or row.get("verdict", "").lower() in ("pending", "")
+    if force_fresh_check and not is_pending and not _ai_store.claim_attempt("analysis", sym):
+        _logger.info("earnings warm: %s analysis already failed today, not re-billing", sym)
+        return _prior or {"sym": sym}
 
     import datetime as _dt
     import requests as _req
@@ -1456,7 +1588,6 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     analysis_headline = None
     analysis_summary = None
     analysis_bullets = []
-    is_pending = not row or row.get("verdict", "").lower() in ("pending", "")
     if not is_pending:
         try:
             def _fmt_eps(v):
@@ -1630,7 +1761,7 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
             )
 
             client = _get_anthropic_client()
-            msg = client.messages.create(
+            request = dict(
                 model=_EARNINGS_AI_MODEL,
                 max_tokens=_EARNINGS_AI_MAX_TOKENS,
                 # Claude 5 models emit a thinking block by default, which eats
@@ -1641,6 +1772,14 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
                 metadata={"user_id": "earnings_analysis:global"},
                 messages=[{"role": "user", "content": prompt}],
             )
+            from api.services import narrative_cost_guard as _guard
+            _surface = _earnings_cost_surface(force_fresh_check)
+            with _guard.charge_if_failed(_surface, request):
+                msg = client.messages.create(**request)
+            try:
+                _guard.record_from_response(_surface, _EARNINGS_AI_MODEL, msg)
+            except Exception:  # noqa: BLE001 -- the ledger never loses a paid answer
+                _logger.exception("earnings ledger write failed for %s", sym)
             parsed = _parse_json_block(_anthropic_text(msg))
             analysis_headline = str(parsed.get("headline", "")).strip()
             analysis_summary  = str(parsed.get("summary",  "")).strip()
@@ -1649,6 +1788,8 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
             analysis = analysis_summary or analysis_headline
         except Exception as _e:
             _logger.warning("AI analysis failed for %s: %s", sym, _e, exc_info=True)
+            if force_fresh_check:
+                _release_unbilled_attempt("analysis", sym, _e)
             analysis = None
             analysis_headline = None
             analysis_summary  = None
@@ -1686,8 +1827,9 @@ def _generate_earnings_analysis(sym: str, row: dict | None, force_fresh_check: b
     complete = analysis is not None and enrichment_complete
     ttl = _EARNINGS_CACHE_TTL_HIT if complete else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
-    if complete:
-        _ai_store.put("analysis", sym, result)   # persist only real, complete output
+    # persist only real, complete output
+    if complete and _ai_store.put("analysis", sym, result) and force_fresh_check:
+        _ai_store.release_attempt("analysis", sym)
     return result
 
 
@@ -1752,6 +1894,10 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
         cache.set(cache_key, _prior, ttl=_EARNINGS_CACHE_TTL_HIT)
         _ai_store.touch("preview", sym)
         return _prior
+
+    if force_fresh_check and not _ai_store.claim_attempt("preview", sym):
+        _logger.info("earnings warm: %s preview already failed today, not re-billing", sym)
+        return _prior or {"sym": sym}
 
     import datetime as _dt
     import requests as _req
@@ -2032,7 +2178,7 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
         )
 
         client = _get_anthropic_client()
-        msg = client.messages.create(
+        request = dict(
             model=_EARNINGS_AI_MODEL,
             max_tokens=_EARNINGS_PREVIEW_AI_MAX_TOKENS,
             # Disable Claude-5 default thinking — it truncates the JSON (see the
@@ -2041,31 +2187,34 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
             metadata={"user_id": "earnings_preview:global"},
             messages=[{"role": "user", "content": prompt}],
         )
+        if force_fresh_check and _defer_preview_call(
+                sym, request,
+                _preview_base(sym, beat_history, yoy_eps_growth, beat_streak, news_items, enrichment, _sig),
+                all(k in enrichment for k in _ENRICHMENT_LEG_KEYS)):
+            # Handed to the warm's Batch lane: its reaper caches + persists it. The
+            # daily warm attempt stays claimed, so the next pass does not re-queue it.
+            return _prior or {"sym": sym}
+        from api.services import narrative_cost_guard as _guard
+        _surface = _earnings_cost_surface(force_fresh_check)
+        with _guard.charge_if_failed(_surface, request):
+            msg = client.messages.create(**request)
+        try:
+            _guard.record_from_response(_surface, _EARNINGS_AI_MODEL, msg)
+        except Exception:  # noqa: BLE001 -- the ledger never loses a paid answer
+            _logger.exception("earnings ledger write failed for %s", sym)
         parsed = _parse_json_block(_anthropic_text(msg))
         preview_text    = str(parsed.get("preview", "")).strip()
         preview_bullets = [str(b).strip() for b in parsed.get("bullets", [])[:3]]
     except Exception as _e:
         _logger.warning("AI preview failed for %s: %s", sym, _e, exc_info=True)
+        if force_fresh_check:
+            _release_unbilled_attempt("preview", sym, _e)
         preview_text    = ""
         preview_bullets = []
 
-    result = {
-        "sym":             sym,
-        "preview_text":    preview_text,
-        "preview_bullets": preview_bullets,
-        "beat_history":    beat_history,
-        "yoy_eps_growth":  yoy_eps_growth,
-        "beat_streak":     beat_streak,
-        "news":            news_items,
-        # ── Enrichment fields (may be None) ─────────────────────────────────
-        "pre_earnings":    enrichment.get("pre_earnings"),
-        "hist_moves":      enrichment.get("hist_moves"),
-        "revisions":       enrichment.get("revisions"),
-        "beat_surprises":  enrichment.get("beat_surprises"),
-        "implied_move":    enrichment.get("implied_move"),
-        "key_quotes":      enrichment.get("key_quotes"),
-        "signals_hash":    _sig,   # inputs fingerprint for skip-if-stable
-    }
+    result = {**_preview_base(sym, beat_history, yoy_eps_growth, beat_streak, news_items,
+                              enrichment, _sig),
+              "preview_text": preview_text, "preview_bullets": preview_bullets}
     # Same extension as _generate_earnings_analysis: a real preview_text with
     # a totally-failed enrichment fan-out must not get the 12h TTL or the
     # permanent disk write (see that function's comment for why signals_hash
@@ -2075,8 +2224,8 @@ def _generate_earnings_preview(sym: str, row: dict | None, force_fresh_check: bo
     ttl = _EARNINGS_CACHE_TTL_HIT if complete else _EARNINGS_CACHE_TTL_MISS
     cache.set(cache_key, result, ttl=ttl)
     # Persist only real, complete output — a miss/partial stays lazy so it retries.
-    if complete:
-        _ai_store.put("preview", sym, result)
+    if complete and _ai_store.put("preview", sym, result) and force_fresh_check:
+        _ai_store.release_attempt("preview", sym)
     return result
 
 
@@ -2243,12 +2392,42 @@ def _sort_news(items: list[dict], is_premarket: bool) -> list[dict]:
     return sorted(items, key=_key)
 
 
+def _sym_cap_from_profile(sym: str) -> bool | None:
+    """The gate's verdict from the company profile, or None when the profile
+    cannot decide: no row, a failed read, or a field the gate needs is missing.
+
+    The profile is the one `ticker_metadata.profile_facts` holds for a day, so
+    the gate asks for a ticker at most once in 24 h however often news rebuilds.
+    """
+    from api.services.catalyst import ticker_metadata
+    facts = ticker_metadata.profile_facts(sym)
+    if not facts:
+        return None
+    is_etf, is_fund = facts.get("is_etf"), facts.get("is_fund")
+    if is_etf is True or is_fund is True:
+        return False
+    if is_etf is None or is_fund is None:
+        return None
+    last, adv, cap = facts.get("price"), facts.get("avg_volume"), facts.get("market_cap")
+    if not (last and adv and cap):
+        return None
+    return (last * adv) >= 5_000_000 and cap >= 300_000_000
+
+
 def _check_sym_cap(sym: str) -> tuple[str, bool]:
     """Return (sym, allowed) applying $5M dollar-volume AND $300M market-cap gates.
 
-    Fails open on yfinance errors so transient network issues don't silently
-    drop all news. ETFs and non-equity instruments are always blocked.
+    The company profile decides first; the yfinance read decides when the
+    profile cannot. Fails open on yfinance errors so transient network issues
+    don't silently drop all news. ETFs and non-equity instruments are always
+    blocked.
     """
+    try:
+        decided = _sym_cap_from_profile(sym)
+    except Exception:
+        decided = None
+    if decided is not None:
+        return sym, decided
     try:
         import yfinance as yf
 
@@ -2446,7 +2625,7 @@ def _compute_news() -> list:
                 data = r.json()
                 return data if isinstance(data, list) else []
             except Exception as e:
-                _logger.warning("get_news: FMP general-latest failed: %s", e)
+                _logger.warning("get_news: FMP general-latest failed: %s", _safe_exc(e))
                 return []
 
         def _fmp_stock_symbols() -> str:
@@ -2480,7 +2659,7 @@ def _compute_news() -> list:
                 data = r.json()
                 return data if isinstance(data, list) else []
             except Exception as e:
-                _logger.warning("get_news: FMP news/stock failed: %s", e)
+                _logger.warning("get_news: FMP news/stock failed: %s", _safe_exc(e))
                 return []
 
         with ThreadPoolExecutor(max_workers=4) as ex:
@@ -3133,12 +3312,18 @@ def get_uct20_book_data() -> dict:
 def get_analyst_actions() -> dict:
     """Return analyst upgrades and downgrades from wire_data.
 
-    Returns { upgrades: [...], downgrades: [...] }
+    Returns { upgrades: [...], downgrades: [...], pt_changes: [...], summary, wire_date, wire_status }
     Each item: { ticker, action, firm, from_rating, to_rating, price_target }
+
+    `wire_date` is the date of the morning wire the list came from (None when the server holds no
+    wire), so a reader can say WHICH morning it is looking at: the list is served unchanged until
+    the next wire is pushed. `wire_status` ("fresh" / "stale" / "unknown") is `wire_freshness` of
+    that date, worked out on every call and never cached: the date is a fact about the payload,
+    the verdict depends on today's date (the same split as the breadth read above).
     """
     cached = cache.get("analyst_actions")
     if cached is not None:
-        return cached
+        return {**cached, "wire_status": wire_freshness(cached.get("wire_date"))}
 
     wire = _load_wire_data()
     actions = wire.get("analyst_actions", []) if wire else []
@@ -3161,6 +3346,7 @@ def get_analyst_actions() -> dict:
             "downgrades": len(downgrades),
             "pt_changes": len(pt_changes),
         },
+        "wire_date": (wire.get("date") or None) if wire else None,
     }
     cache.set("analyst_actions", result, ttl=3600)
-    return result
+    return {**result, "wire_status": wire_freshness(result.get("wire_date"))}

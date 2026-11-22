@@ -1,0 +1,60 @@
+    X09_round_negHalf_IS_IT_MINUS_ZERO       INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    X10_round_close_2dp                      MATCH         cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0
+    X11_sign_of_zero                         INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    X12_mintick                              INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    X13_pointvalue                           INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    X14_in_seconds_D                         INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    X15_tf_multiplier                        INCONCLUSIVE  cmp 300 ok 300 warm 0/0 steady 0/300 maxRel 0.00e+0 — values agree, but the capture records per-bar colour and our side's colour could not be resolved (our pane draws no series for this row — hidden (constant))
+    objects                                  MATCH         neither side draws an object
+wyckoff-accumulation-distribution-rddt-1d-20 NYSE:RDDT 1D     8      MATCH         all 10 items agree
+    The Selling Climax                       MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Automatic Rally                          MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    the Secondary Test                       MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    The Buying Climax                        MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    Automatic Reaction                       MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    The Secondary Test                       MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    pivotHigh                                MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    pivotLow                                 MATCH         cmp 636 ok 636 warm 0/0 steady 0/636 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 36 paired slots; coordinates are NOT compared by v1
+    paints                                   MATCH         1 paint agree bar for bar
+wyckoff-accumulation-distribution-spy-1d-202 AMEX:SPY 1D      8      MATCH         all 10 items agree
+    The Selling Climax                       MATCH         cmp 1800 ok 1800 warm 0/270 steady 0/1530 maxRel 0.00e+0
+    Automatic Rally                          MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    the Secondary Test                       MATCH         cmp 1800 ok 1800 warm 0/520 steady 0/1280 maxRel 0.00e+0
+    The Buying Climax                        MATCH         cmp 1800 ok 1800 warm 0/270 steady 0/1530 maxRel 0.00e+0
+    Automatic Reaction                       MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    The Secondary Test                       MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    pivotHigh                                MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    pivotLow                                 MATCH         cmp 1800 ok 1800 warm 0/0 steady 0/1800 maxRel 0.00e+0
+    objects                                  MATCH         object counts and texts agree; colours agree on 66 paired slots; coordinates are NOT compared by v1
+    paints                                   MATCH         1 paint agree bar for bar
+zero-lag-ma-trend-levels-chartprime-spy-1d-2 AMEX:SPY 1D      4      DIVERGE       Plot: bar 30 t=1568813400 value vendor=300.9372486430757 ours=299.9784825859117
+    Plot                                     DIVERGE       cmp 1800 ok 1670 warm 30/30 steady 100/1770 maxRel 4.28e-3 — 100 steady-state bars disagree; first at bar 30 (value: vendor 300.9372486430757 vs ours 299.9784825859117) — a CONVERGING PREFIX: bars 30..131 (with agreeing bars inside the run) differ with |err| falling 9.59e-1 → 3.58e-7, then all 1668 later bars agree (the recursive-state-seeded-at-the-window signature)
+    Plot                                     DIVERGE       cmp 1800 ok 1675 warm 15/15 steady 110/1785 maxRel 2.81e-3 — 110 steady-state bars disagree; first at bar 15 (value: vendor 289.6875400008538 vs ours 288.9735) — a CONVERGING PREFIX: bars 15..124 differ with |err| falling 7.14e-1 → 3.41e-7, then all 1675 later bars agree (the recursive-state-seeded-at-the-window signature)
+    plot_8                                   DIVERGE       cmp 1800 ok 1798 warm 1/31 steady 1/1769 maxRel 1.68e-4 — 1 steady-state bars disagree; first at bar 50 (value: vendor 295.46368668099973 vs ours 295.4140020102604) — scattered, last at bar 50
+    plot_10                                  DIVERGE       cmp 1800 ok 1798 warm 0/31 steady 2/1769 maxRel 5.13e-10 — 2 steady-state bars disagree; first at bar 39 (na: vendor na vs ours 296.79022696496173) — scattered, last at bar 40
+    objects                                  DIVERGE       3 object families differ (count or text); colours agree on 58 paired slots; coordinates are NOT compared by v1
+zero-lag-ma-trend-levels-rddt-1d-2026-09-27  NYSE:RDDT D      4      MATCH         all 5 items agree
+    Plot                                     MATCH         cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 4.96e-16
+    Plot                                     MATCH         cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 3.87e-16
+    plot_8                                   MATCH         cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 4.91e-16
+    plot_10                                  MATCH         cmp 631 ok 631 warm 0/0 steady 0/631 maxRel 4.95e-16
+    objects                                  MATCH         object counts and texts agree; colours agree on 55 paired slots (13 theme-relative); 15 slots on objects neither side draws not graded; coordinates are NOT compared by v1
+
+TOTAL 336 captures — MATCH 111 · DIVERGE 107 · INCONCLUSIVE 118
+WITHOUT OBJECT COLOUR (the verdict before C44; colour graded on 116 captures) — MATCH 111 · DIVERGE 107 · INCONCLUSIVE 118
+CHANGED BY OBJECT COLOUR (0): none
+WITHOUT PAINTS (the verdict before B1; paints graded on 41 captures) — MATCH 112 · DIVERGE 103 · INCONCLUSIVE 121
+CHANGED BY PAINTS (4): supertrend-strategy-rddt-1d-2026-10-02 INCONCLUSIVE → DIVERGE; supertrend-strategy-spy-1d-2026-10-02 INCONCLUSIVE → DIVERGE; vw-bgcolor-barcolor-spy-1d-2026-10-02 MATCH → DIVERGE; vw-deadband-ticks-brk-a-1d-2026-09-28 INCONCLUSIVE → DIVERGE
+
+NOT COMPARABLE (0):
+
+
+
+ ✓ src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js (11 tests) 160ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  00:54:29
+   Duration  283.52s (transform 5.32s, setup 282ms, import 282.39s, tests 160ms, environment 534ms)
+

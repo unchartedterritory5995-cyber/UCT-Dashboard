@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { TF_MENU, tfLabel, makeTfCode, isValidTf } from '../../../components/chart/timeframes'
+import ChoiceMenu from '../../../components/chart/ChoiceMenu'
 import styles from './TimeframeMenu.module.css'
 
 // The full timeframe picker: grouped presets + saved custom intervals + an
 // "Add custom interval" creator. A star toggles a timeframe into the header's
 // Favorites row. Opens as a portal popover anchored under the trigger.
+//
+// UCT Signature style (owner 11-15, docs/uct-signature-style.md): the graphite menu panel,
+// sentence-case group labels, the chosen timeframe on the card shade with a white ✓, the star
+// on the RIGHT — a favourite's filled star always shows, an empty one only on hover — and the
+// custom-interval unit is the ChoiceMenu dropdown, not the browser's <select>. No gold.
 //
 // Props:
 //   tf, onSelect(code)                     — current + pick
@@ -14,21 +20,35 @@ import styles from './TimeframeMenu.module.css'
 //   anchor:DOMRect, onClose()
 
 const UNITS = [
-  ['minutes', 'minutes'], ['hours', 'hours'], ['days', 'days'], ['weeks', 'weeks'], ['months', 'months'],
+  ['minutes', 'Minutes'], ['hours', 'Hours'], ['days', 'Days'], ['weeks', 'Weeks'], ['months', 'Months'],
 ]
+
+const Star = ({ filled }) => (
+  <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">
+    <path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z"
+      fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+  </svg>
+)
 
 function Row({ code, active, fav, onSelect, onToggleFav, onRemove }) {
   return (
     <div className={`${styles.row} ${active ? styles.rowActive : ''}`}>
-      <button type="button" className={styles.star} aria-pressed={fav}
-        title={fav ? 'Remove from favorites' : 'Add to favorites'}
-        onClick={(e) => { e.stopPropagation(); onToggleFav(code) }}
-      >{fav ? '★' : '☆'}</button>
-      <button type="button" className={styles.rowLabel} onClick={() => onSelect(code)}>{tfLabel(code)}</button>
+      <button type="button" className={styles.rowLabel} onClick={() => onSelect(code)} aria-current={active || undefined}>
+        {tfLabel(code)}
+      </button>
+      {active && <span className={styles.check} aria-hidden="true">✓</span>}
       {onRemove && (
-        <button type="button" className={styles.remove} title="Delete custom interval"
-          onClick={(e) => { e.stopPropagation(); onRemove(code) }}>✕</button>
+        <button type="button" className={styles.remove} data-guide="timeframe.remove" title="Delete custom interval"
+          aria-label={`Delete ${tfLabel(code)}`}
+          onClick={(e) => { e.stopPropagation(); onRemove(code) }}>
+          <svg width="11" height="11" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
+        </button>
       )}
+      <button type="button" className={`${styles.star}${fav ? ' ' + styles.starOn : ''}`} data-guide="timeframe.star" aria-pressed={fav}
+        title={fav ? 'Remove from favorites' : 'Add to favorites'}
+        aria-label={fav ? `Remove ${tfLabel(code)} from favorites` : `Add ${tfLabel(code)} to favorites`}
+        onClick={(e) => { e.stopPropagation(); onToggleFav(code) }}
+      ><Star filled={fav} /></button>
     </div>
   )
 }
@@ -41,7 +61,12 @@ export default function TimeframeMenu({ tf, onSelect, favorites = [], onToggleFa
 
   useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
-    const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose?.() }
+    // the unit dropdown's list is portalled to <body>: a click in it is still "inside" this menu
+    const onDown = (e) => {
+      if (!ref.current || ref.current.contains(e.target)) return
+      if (e.target.closest?.('[data-choice-menu]')) return
+      onClose?.()
+    }
     window.addEventListener('keydown', onKey)
     const t = setTimeout(() => window.addEventListener('mousedown', onDown), 0)
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('mousedown', onDown); clearTimeout(t) }
@@ -54,9 +79,10 @@ export default function TimeframeMenu({ tf, onSelect, favorites = [], onToggleFa
     if (code && isValidTf(code)) { onAddCustom(code); setCount('') }
   }
 
-  const W = 268
+  const W = 236
   const left = anchor ? Math.max(8, Math.min(anchor.left, window.innerWidth - W - 8)) : 40
   const top = anchor ? anchor.bottom + 4 : 60
+  const canAdd = parseInt(count, 10) >= 1
 
   return createPortal(
     <div ref={ref} className={styles.menu} style={{ left, top, ...(themeVars || {}) }} role="dialog" aria-label="Timeframes" data-guide="chart.timeframeMenu">
@@ -83,13 +109,13 @@ export default function TimeframeMenu({ tf, onSelect, favorites = [], onToggleFa
       <div className={styles.adder}>
         <div className={styles.adderTitle}>Add custom interval</div>
         <div className={styles.adderRow}>
-          <select className={styles.unitSel} value={unit} onChange={e => setUnit(e.target.value)} aria-label="Interval unit">
-            {UNITS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
           <input className={styles.countInput} type="number" min="1" placeholder="#" value={count}
             onChange={e => setCount(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') submitCustom() }} aria-label="Interval count" />
-          <button type="button" className={styles.addBtn} disabled={!(parseInt(count, 10) >= 1)} onClick={submitCustom}>Add</button>
+          <ChoiceMenu ariaLabel="Interval unit" value={unit} onChange={setUnit}
+            options={UNITS.map(([v, l]) => ({ value: v, label: l }))} />
+          <span className={styles.sp} />
+          <button type="button" className={styles.addBtn} disabled={!canAdd} onClick={submitCustom}>Add</button>
         </div>
       </div>
     </div>,

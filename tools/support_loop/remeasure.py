@@ -88,7 +88,7 @@ def summarize(run_dir: Path, ref: Path, repo: Path = REPO) -> dict:
             # strategy declaration, so a missing file would silently count as transferring.
             raise SystemExit(f"census input {k}: source missing at {p}")
         src = p.read_text(encoding="utf-8")
-        ok = cm.transfers_fully(census.get(k), cm.usage_of(src, inv))
+        ok = cm.transfers_fully(census.get(k), cm.usage_of(src, inv), src)
         scripts[k] = ok
         pop = k.split(":")[0]
         b = by_pop.setdefault(pop, {"scripts": 0, "transfer": 0})

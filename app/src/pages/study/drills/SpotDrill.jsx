@@ -7,7 +7,7 @@
  *                tf?: 'D', framing?: 'Daily chart, 120 bars to the cutoff' }
  * Answer: {choice}
  */
-import ChoiceList from './ChoiceList'
+import ChoiceList, { revealLabels } from './ChoiceList'
 import { barsWord, choiceAnswer, choiceAnswerable, choicesFromPrompt, questionOf } from './types'
 import { hasStudyOverlay, studyAnnotations } from '../studyOverlays'
 
@@ -30,9 +30,9 @@ export function framingOf(item) {
            : `${tfWord} chart ending at the cutoff date. The ticker is hidden until you answer.`
 }
 
-export function Body({ item, state, setState, locked }) {
+export function Body({ item, state, setState, locked, reveal }) {
   return (
-    <ChoiceList
+    <ChoiceList {...revealLabels(reveal, state)}
       choices={choicesOf(item)}
       value={state?.choice ?? null}
       onChange={(choice) => setState({ choice })}

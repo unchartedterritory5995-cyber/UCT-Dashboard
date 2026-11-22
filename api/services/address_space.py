@@ -215,6 +215,25 @@ EXEMPT: dict[str, str] = {
     "voice_documents": "not-a-saved-object: a voice-assistant document, not opened by URL",
     "floor_attachments": "not-a-saved-object: an attachment belongs to its Floor post",
     "client_errors": "not-a-saved-object: an error report, not member work",
+    # 2026-11-21, ruled by the coordinator: the 8 owned + named tables this rail went red on from 10-06 on. Door
+    # evidence for each no-door: no app/src route or URL parameter opens one row (searchParams/useParams/route paths).
+    "agent_conversations": "no-door: a UCT Agent conversation is listed and opened inside the Agent panel "
+                           "(agent/agentClient.js), never by URL; the A: kind is ais_threads (AI Search) (81cfb46fd9)",
+    "j2_obsidian_attachments": "not-a-saved-object: a staged Obsidian vault file, keyed by sha256 and named by its "
+                               "file name; it belongs to its vault note, as a trade or Floor attachment does (#703)",
+    "j2_routines": "no-door: a routine is opened in the Notebook's My tools tab (myTools/myToolsLib.js) or placed "
+                   "into a note as a block (lib/blocks/toolsApi.js), never opened by URL (#468)",
+    "j2_trackers": "no-door: a tracker is opened in the Notebook's My tools tab or placed into a note as a block, "
+                   "never opened by URL (#468)",
+    "j2_widget_definitions": "no-door: a stored widget is built in the widget builder or My tools and placed into "
+                             "notes, never opened by URL (#468)",
+    "screener_layout_gallery": "no-door: a community scan-board layout is browsed and used inside the board's "
+                               "community dialog (screener/focus/board/communityApi.js), never opened by URL; "
+                               "dark behind SCREENER_LAYOUT_GALLERY_ENABLED (42a1d76998)",
+    "tsdr_lessons": "not-a-saved-object: the owner's #tsdr Discord voice lessons in the recap pipeline (posted to "
+                    "Discord and YouTube); author_id is a Discord author, no member's data lives here (5a4b067ae6)",
+    "txn_collections": "no-door: a Research Library collection is opened inside the Trade Exchange News "
+                       "collections widget on /charts (TradeExchangeNewsCollections.jsx), never by URL (#548)",
 }
 
 

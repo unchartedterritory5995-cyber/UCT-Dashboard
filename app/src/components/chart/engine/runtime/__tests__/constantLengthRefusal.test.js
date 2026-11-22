@@ -55,7 +55,10 @@ const refusalOf = (src) => {
 describe('⛔⛔ a length that is BOUND but not CONSTANT says so', () => {
   it('⭐⭐ a function PARAMETER used as a window length', () => {
     // The `artemis-oscillator-pro` / `machine-learning-moving-average` shape.
-    const r = refusalOf(`${head}g(src, len) =>\n    ta.sma(src, len)\nplot(g(close, bar_index % 3 + 1))\n`)
+    // ⭐ A1 (2026-11-20): a `series int` window (`ta.sma`) passed a per-bar value is read per bar in the copy the
+    // call site compiles (`a1SeriesParamOffsets.test.js`, `simpleArgWindow.test.js`); a `simple int` one (`ta.ema`,
+    // the reference) keeps this refusal, and it still names the parameter and the reason.
+    const r = refusalOf(`${head}var k = 0\nk := k >= 2 ? 0 : k + 1\ng(src, len) =>\n    ta.ema(src, len)\nplot(g(close, k + 1))\n`)
     expect(r.message, 'the member is still being told their script never defined it')
       .not.toContain('never given a value')
     // ⛔ IT NAMES THE NAME AND THE REASON, not just "unsupported".
@@ -65,7 +68,10 @@ describe('⛔⛔ a length that is BOUND but not CONSTANT says so', () => {
 
   it('⭐ a REASSIGNED top-level name used as a window length', () => {
     // The `keltner-center-of-gravity-channel` shape: `per := …` then `ta.atr(per)`.
-    const r = refusalOf(`${head}n = 5\nn := 6\nplot(ta.sma(close, n))\n`)
+    // (W4-T8 r1: `ta.ema` - a v5/v6 `ta.sma` length is `series int` and is read per bar now.)
+    // ⭐ W4-T2 — the write is under a PER-BAR test: an unconditional `n := 6` is
+    // `simple` and now folds (`w4SimpleFolding.test.js`); this one is `series`.
+    const r = refusalOf(`${head}n = 5\nif close > open\n    n := 6\nplot(ta.ema(close, n))\n`)
     expect(r.message).not.toContain('never given a value')
     expect(r.message).toContain('n')
   })

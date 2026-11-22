@@ -144,7 +144,7 @@ def resolve(selector, user_id):
         if sel.startswith(_TAG_PREFIX):
             colour = sel[len(_TAG_PREFIX):].strip().lower()
             if not colour:
-                raise ListRefusal("a tag selector needs a colour")
+                raise ListRefusal("a tag selector needs a color")
             syms = _rows(conn,
                          "SELECT sym FROM ticker_tags WHERE user_id = ? AND "
                          "LOWER(color) = ?", (user_id, colour))

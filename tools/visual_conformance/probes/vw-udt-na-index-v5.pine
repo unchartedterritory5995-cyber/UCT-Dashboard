@@ -1,0 +1,14 @@
+//@version=5
+indicator("vw-udt-na-index-v5", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit for queue row UDT-N1
+// (docs/pine/capture-queue-2026-11-16-udt.md). No licence-held text. A runtime error IS the reading (record its
+// text and the bar it names).
+// QUESTION: `array.get` at an `na` index in v5. Measured `na` in v4 (vw-uie3-na-index-v4-spy-1d-2026-11-16), served
+// `na` in v6 since the UDT unit; v5 is not witnessed, so the runtime lane still stops there. `na` (N01 plots
+// nothing), the first element (10), or an error?
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults (none), AFTER THE CLOSE. A00 is the control.
+plot(bar_index, "A00_bar_index_CONTROL")
+a = array.from(10.0, 20.0)
+float nothing = na
+plot(array.get(a, math.round(nothing)), "N01_get_at_round_of_na")

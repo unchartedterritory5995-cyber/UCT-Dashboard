@@ -47,7 +47,7 @@ function controls({ settingsOpen = null, library = false } = {}) {
       <button data-guide="chart.drawingsHide" aria-label="Hide all drawings">eye</button>
     </div>
     ${settingsOpen ? `<div data-guide="chartSettings" role="dialog">
-      ${['price', 'canvas', 'indicators', 'header', 'markers'].map(id => `<button role="tab" aria-selected="${id === settingsOpen}" data-guide="chartSettings.tab.${id}">${{ price: 'Price Style', canvas: 'Canvas', indicators: 'Indicators', header: 'Header', markers: 'Markers' }[id]}</button>`).join('')}
+      ${['price', 'canvas', 'indicators', 'header', 'markers'].map(id => `<button role="tab" aria-selected="${id === settingsOpen}" data-guide="chartSettings.tab.${id}">${{ price: 'Price style', canvas: 'Canvas', indicators: 'Indicators', header: 'Header & legend', markers: 'Markers' }[id]}</button>`).join('')}
     </div>` : ''}`
   document.body.appendChild(root)
   return root
@@ -57,7 +57,7 @@ const boardJson = (board) => JSON.stringify(board.state.widgets)
 
 describe('Show me — the new walkthroughs point at one real control each and change nothing', () => {
   it.each([
-    ['how do I link my charts?', /This dot is the chart’s link colour/],
+    ['how do I link my charts?', /This dot is the chart’s link color/],
     ['how do i hide my drawings', /This eye hides all the drawings on this chart/],
     ['where do I change the chart background?', /Open this chart’s settings with the gear/],
   ])('"%s"', async (q, card) => {
@@ -77,19 +77,20 @@ describe('Show me — the new walkthroughs point at one real control each and ch
     const { say } = p.mount(...ONE())
     const out = await say('show me where the grid lines setting is')
     expect(out).toMatch(/already part of the way there/)
-    await waitFor(() => expect(cardText()).toMatch(/Open Canvas — the background, grid, crosshair/))
+    await waitFor(() => expect(cardText()).toMatch(/Open Canvas\./))
   }, 30000)
 
   it('the layouts walkthrough reaches the library\'s own menu (and says where save / rename / duplicate are)', () => {
     const f = GUIDE_FEATURES.find(x => x.id === 'layouts')
-    expect(f.steps.map(s => s.target)).toEqual(['workspace.layouts', 'workspace.layoutLibrary', 'workspace.layoutLibraryMenu'])
-    expect(f.steps[2].text).toMatch(/To save, rename or duplicate a layout, open its own menu on the bar/)
+    // the library is a row in the Layouts menu (owner 11-16), so the walkthrough opens that menu first
+    expect(f.steps.map(s => s.target)).toEqual(['workspace.layouts', 'workspace.layoutsMenuBtn', 'workspace.layoutLibrary', 'workspace.layoutLibraryMenu'])
+    expect(f.steps[3].text).toMatch(/To save, rename or duplicate a layout, open its own menu on the bar/)
   })
 
   it('more specific features win over the general ones whose words they share', () => {
     expect(matchFeature('how do I link my charts')?.id).toBe('link')
     expect(matchFeature('how do i hide my drawings')?.id).toBe('hideDrawings')
-    expect(matchFeature('where is the crosshair setting')?.id).toBe('canvas')
+    expect(matchFeature('where is the crosshair setting')?.id).toBe('chartSetting')
     expect(matchFeature('how do i draw a trendline')?.id).toBe('drawing')
     expect(matchFeature('where are the chart settings')?.id).toBe('settings')
     expect(matchFeature('how do i change the symbol')?.id).toBe('symbol')
@@ -102,7 +103,7 @@ describe('Do it for me — the link colour through widget.setLink (asked, receip
     const { board, say, click } = p.mount(...ONE())
     await say('how do I link my charts?')
     const q = await say('do it for me')
-    expect(q).toMatch(/Which link colour\? \(on Chart \(QQQ\)\)/)
+    expect(q).toMatch(/Which link color\? \(on Chart \(QQQ\)\)/)
     await click('Blue')
     await waitFor(() => expect(board.state.widgets[0].color).toBe('B'))
     await say('undo')
@@ -124,9 +125,9 @@ describe('Do it for me — the link colour through widget.setLink (asked, receip
 describe('Explain — chart settings from the product\'s descriptor table (never invented)', () => {
   it('one setting by name: where it is, its values, its prerequisite, and whether I can change it', () => {
     const t = explainTopic('the bar-close countdown')
-    expect(t.text).toBe('Bar-close countdown — Chart Settings → Markers → Countdown (intraday). It is on or off. I can change it for you — just say the new value.')
+    expect(t.text).toBe('Bar-close countdown — Chart Settings → Price style → Price line (intraday). It is on or off. I can change it for you — just say the new value.')
     const thin = explainTopic('thin bars setting')
-    expect(thin.text).toMatch(/^Thin bars — Chart Settings → Price Style → Bar thickness \(Bars \/ HLC only\)\. It is on or off\. Bar thickness only applies to Bars and HLC charts/)
+    expect(thin.text).toMatch(/^Thin bars — Chart Settings → Price style → Colors → Thin bars \(Bars \/ HLC only\)\. It is on or off\. Thin bars only applies to Bars and HLC charts/)
     expect(settingRow('magnet')?.id).toBe('crosshair.magnet')
   })
 
@@ -153,7 +154,7 @@ describe('Explain — chart settings from the product\'s descriptor table (never
     const { board, say } = p.mount(...ONE())
     const before = boardJson(board)
     const out = await say('What does the bar-close countdown do?')
-    expect(out).toMatch(/Bar-close countdown — Chart Settings → Markers → Countdown \(intraday\)/)
+    expect(out).toMatch(/Bar-close countdown — Chart Settings → Price style → Price line \(intraday\)/)
     expect(boardJson(board)).toBe(before)
     expect(p.turns()).toBe(0)
   }, 30000)

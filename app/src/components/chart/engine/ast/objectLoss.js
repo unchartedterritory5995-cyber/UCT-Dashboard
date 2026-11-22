@@ -32,6 +32,11 @@
 // decision (`paneObjectsGate`), for the reason its header gives: one place, not
 // four slightly different `if`s.
 
+import { ENUM_NA_SENTENCE } from '../enumNaRule.js'
+import { MERGED_HEAD_REWRITE_SENTENCE } from '../objectCells.js'
+import { COUNT_AT_CAP_GUARD, COUNT_AT_CAP_PREFIX } from '../objectPool.js'
+import { formingReasonOf } from '../formingReason.js'
+
 /** The five answers a lost operation can have. */
 export const LOSS = Object.freeze({
   /** Its loss leaves on screen something Pine removed. Never drawn around. */
@@ -111,6 +116,28 @@ export const DROP_KEYS = Object.freeze({
     "a delete whose condition reads a drawing's state this chart cannot carry — the object Pine deletes stays"),
   // ⭐ C18 — a drawing whose values the runtime lane answers, one of whose
   // properties could not be read: dropped whole (`pine.js::rtHeldProp`).
+  // ⛔ HONESTY-SWEEP item 1 (2026-11-07) — a drawing (or a setter, or a cell) whose `style` /
+  // `size` / `position` can be `na`: what TradingView draws for that is not captured (Q-HS1),
+  // so it is withheld (`pine.js`, `ENUM_NA_SENTENCE`). A missing object, never an extra one.
+  'enum:na': C(LOSS.PARTIAL,
+    'a drawing whose style, size or position can be `na` — withheld, never drawn with a default style'),
+  // ⛔ HONESTY-SWEEP r1 (review N1) — the same word computed by a helper called with a named
+  // argument, which this door does not read (Q-HS7). Missing, never extra.
+  'enum:named-call': C(LOSS.PARTIAL,
+    'a drawing whose style, size or position a helper computes from a named argument — withheld, never drawn with a default style'),
+  // ⛔ Engine 51 — the same word, unreadable (an unknown constant, or a computation this door
+  // cannot follow): withheld, never drawn with a default (`ENUM_DROPS.unreadable`).
+  // ⛔ Engine 51 — an integer point text size (`ENUM_DROPS.points`): withheld, never sized as a word.
+  'enum:points': C(LOSS.PARTIAL,
+    'a drawing whose text size is an integer point size — withheld, never drawn at a named size'),
+  'enum:unreadable': C(LOSS.PARTIAL,
+    'a drawing whose style, size or position this chart cannot read — withheld, never drawn with a default style'),
+  // ⛔ Engine 52 — a colour, width, count or tooltip this door cannot read (`ENUM_DROPS.value`):
+  // withheld, never drawn with the renderer's default.
+  'enum:points-unwitnessed': C(LOSS.PARTIAL,
+    'a drawing whose integer text size is not one the reference equates with a named size — withheld, never drawn at a guessed size'),
+  'prop:unreadable': C(LOSS.PARTIAL,
+    'a drawing whose colour, width, count or tooltip this chart cannot read — withheld, never drawn with a default'),
   'runtime:prop': C(LOSS.PARTIAL,
     'a drawing the runtime lane would feed, with a property this chart cannot read — dropped whole, never drawn in a default colour'),
   'cell:target': C(LOSS.PARTIAL, 'a table cell write that addresses no readable table — a missing cell'),
@@ -225,6 +252,16 @@ export function classifyDropKey(key) {
     const kind = k.slice('guard:'.length)
     return Object.prototype.hasOwnProperty.call(GUARD_KINDS, kind) ? GUARD_KINDS[kind] : UNCLASSIFIED
   }
+  // ⛔ W9-OQ-N2 — `strategy:<op kind>`: a drawing step a broker value reaches, withheld BY NAME
+  // (`guardRefusals` carries `pine:strategy-call` and the word). Its class is the class of the op
+  // it would have been, exactly as for `guard:<kind>`: a withheld create is a missing object, a
+  // withheld delete (only one RUN under a tainted condition) leaves the object Pine deletes.
+  if (k.startsWith('strategy:')) {
+    const kind = k.slice('strategy:'.length)
+    return Object.prototype.hasOwnProperty.call(GUARD_KINDS, kind)
+      ? { cls: GUARD_KINDS[kind].cls, why: `a drawing step a \`strategy.*\` value reaches (${kind}), withheld by name: the broker is not simulated` }
+      : UNCLASSIFIED
+  }
   if (k.startsWith('fn:')) {
     const why = k.slice('fn:'.length)
     return Object.prototype.hasOwnProperty.call(FN_REFUSALS, why) ? FN_REFUSALS[why] : UNCLASSIFIED
@@ -337,8 +374,12 @@ export function assessObjectLoss(t) {
     // ⭐ THE SAME FAMILY TEST THE PASS APPLIES TO ITS OWN LOST REMOVALS: a
     // `box.delete` the reader never carried removes nothing from a program that
     // draws no box.
+    // ⛔ `object.<m>` NAMES NO FAMILY — the tokens could not say which (a
+    // chained `(c ? a : b).delete()`, a loop body's handle-form removal). An
+    // unnamed family reaches, the same fail-closed rule as `lostRemovals`'
+    // `reaches: !family`; "no `object` is drawn" would be true of every chart.
     const fam = name.split('.')[0]
-    if (cls === LOSS.REMOVES && !carried.families.has(fam)) {
+    if (cls === LOSS.REMOVES && fam !== 'object' && !carried.families.has(fam)) {
       cls = LOSS.PARTIAL
       why = `${why}, except that no ${fam} is drawn here at all`
     }
@@ -352,6 +393,19 @@ export function assessObjectLoss(t) {
       removes.push({ what: f.cls === LOSS.LIST ? 'list' : f.what, key: f.key, why: f.why })
     }
   }
+  // ⭐ W9 D8 ("show the refusal") — how many of the dropped steps were withheld because a
+  // `strategy.*` value reaches them (`strategy:<kind>`), so the note can say WHY instead of
+  // "aren't supported yet". Never more than `dropped`: one unit, the pass's own counts.
+  const strategyDropped = Math.min(dropped, Object.keys(reasons)
+    .filter((k) => k.startsWith('strategy:') && reasons[k] > 0)
+    .reduce((n, k) => n + reasons[k], 0))
+  const strategyRemoves = removes.some((r) => r.key.startsWith('strategy:'))
+  // ⭐ r2 — A FAMILY WITHHELD WHOLE: one the script keeps in a list this chart
+  // cannot follow (`removalWithheldFamilies`, `fieldCreateFamilies`) and of which
+  // NOTHING is drawn. The note names it, rather than leaving the member to infer
+  // it from a list of call names.
+  const hiddenFamilies = uniq([...(d.removalWithheldFamilies || []), ...(d.fieldCreateFamilies || [])])
+    .filter((f) => !carried.families.has(f)).sort()
   const lossy = dropped > 0 || readerNames.length > 0
   return {
     verdict: removes.length ? 'removes' : lossy ? 'partial' : 'clean',
@@ -359,6 +413,9 @@ export function assessObjectLoss(t) {
     attempted,
     removes,
     readerNames,
+    ...(strategyDropped > 0 ? { strategyDropped } : {}),
+    ...(strategyRemoves ? { strategyRemoves } : {}),
+    ...(hiddenFamilies.length ? { hiddenFamilies } : {}),
   }
 }
 
@@ -388,16 +445,33 @@ function whatPhrase(loss) {
   return `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}`
 }
 
+/** ⭐ W9 D8 — the member's words for what a `strategy.*` value is. Plain English, no
+ *  guard name. ⛔ STRAT-NOTE r1 (B1, coordinator ruling): NOT "the strategy's results" — the
+ *  taint source (`strategyTaint.js::isStrategyStateWord`) also covers settings and helpers that
+ *  are not results (`strategy.initial_capital`, `strategy.convert_to_account/_symbol`,
+ *  `strategy.default_entry_qty`), so the words name where the value comes from instead. */
+export const STRATEGY_VALUES_WORDS = "values from the strategy's backtest (such as its position, trades, equity or settings)"
+/** …and why none of them has a value here: the backtest is not run on this chart. */
+const STRATEGY_NOT_RUN = "which this chart doesn't run yet"
+
+/** ⭐ W9 D8 — said after a removal sentence when a removal it lost is one a strategy value
+ *  decides (`strategy:delete` / `strategy:clear`), so the member reads the reason. */
+export const STRATEGY_REMOVAL_SENTENCE = "Some of what it removes is decided by values from the strategy's "
+  + `backtest, ${STRATEGY_NOT_RUN}.`
+
+const withStrategyRemoval = (sentence, loss) => (loss && loss.strategyRemoves
+  ? `${sentence} ${STRATEGY_REMOVAL_SENTENCE}` : sentence)
+
 /** ⛔ THE GUARD A REFUSAL FOR A LOST REMOVAL CARRIES. */
 export const OBJECT_REMOVAL_GUARD = 'pine:object-removal-lost'
 
 /** The refusal a script gets when its drawing is ALL it has and that drawing
  *  lost a removal. */
 export function objectRemovalRefusal(loss) {
-  return 'This script\'s drawing can\'t be shown yet. It removes drawings as it runs, '
+  return withStrategyRemoval('This script\'s drawing can\'t be shown yet. It removes drawings as it runs, '
     + `and this chart can't follow part of that (${whatPhrase(loss)}), so drawing the rest `
     + 'would leave lines, labels, boxes or table cells on screen that TradingView would '
-    + 'have removed.'
+    + 'have removed.', loss)
 }
 
 /** The name every drawing disclosure is listed under. */
@@ -419,13 +493,45 @@ export const DRAWING_NOTE_NAME = 'Drawings'
  */
 export function withRenderDrops(note, drops) {
   const n = drops && Number.isInteger(drops.dropped) ? drops.dropped : 0
-  if (n <= 0) return note || null
-  const of = drops.held >= n ? drops.held : n
-  const sentence = `${n} of the ${of} drawings this script holds on this chart could not be placed `
-    + '(a coordinate with no bar on this chart, or a text this chart could not compute), so '
-    + (note ? 'they are not drawn either.' : 'what it draws is incomplete.')
-  if (!note) return { name: DRAWING_NOTE_NAME, note: sentence }
-  return { name: note.name || DRAWING_NOTE_NAME, note: `${note.note} On this chart, ${sentence}` }
+  const fams = drops && Array.isArray(drops.families) ? drops.families : []
+  const all = drops && Array.isArray(drops.familiesAll) ? drops.familiesAll : []
+  // ⭐ DIV-3 r2 — a family the run withheld whole by a named guard, with its own sentence
+  // ⭐ OZ — several families can share one sentence (`notShownSentence` names them
+  // all), so a sentence is said once.
+  const why = drops && drops.why && typeof drops.why === 'object'
+    ? [...new Set(Object.keys(drops.why).sort().map((f) => drops.why[f]).filter((t) => typeof t === 'string' && t))] : []
+  if (n <= 0 && !fams.length && !all.length && !why.length) return note || null
+  const parts = note ? [note.note] : []
+  if (n > 0) {
+    const of = drops.held >= n ? drops.held : n
+    const sentence = `${n} of the ${of} drawings this script holds on this chart could not be placed `
+      + '(a coordinate with no bar on this chart, or a text this chart could not compute), so '
+      + (note ? 'they are not drawn either.' : 'what it draws is incomplete.')
+    parts.push(note ? `On this chart, ${sentence}` : sentence)
+  }
+  // ⭐ W-C22-DEL — a family withheld whole, by name (`collectorFamiliesSentence`).
+  if (all.length) parts.push(collectorFamiliesSentence(all, { whole: true }))
+  if (fams.length) parts.push(collectorFamiliesSentence(fams))
+  for (const t of why) parts.push(t)
+  return { name: (note && note.name) || DRAWING_NOTE_NAME, note: parts.join(' ') }
+}
+
+/** ⭐⭐ W-C22-DEL — the member's sentence for a family the run withheld WHOLE because
+ *  TradingView's object limit may have removed some of it (`objectRuntime.js`,
+ *  `withheldBy['objects:collector']`): this chart could not tell whether the script
+ *  drew on some bars, so it cannot know how many TradingView made, nor which old
+ *  ones TradingView has since removed to stay under the script's limit. */
+export function collectorFamiliesSentence(families, { whole = false } = {}) {
+  const plural = (f) => (f === 'linefill' ? 'fills between lines' : f === 'box' ? 'boxes' : `${f}s`)
+  const join = (fs) => (fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} and ${fs[fs.length - 1]}`)
+  const list = join((families || []).map(plural))
+  if (whole) {
+    return `No ${list} are shown on this chart: the script draws some that this chart can't follow, `
+      + "so it can't know which ones TradingView has already removed to stay within the script's limit."
+  }
+  return `Older ${list} are held back on this chart: on some bars this chart can't tell whether the `
+    + "script drew one, so it can't know which older ones TradingView has already removed to "
+    + "stay within the script's limit. The newest ones are drawn."
 }
 
 /**
@@ -442,22 +548,33 @@ export function objectLossNote(loss, opts = {}) {
   if (opts.withheld) {
     return {
       name: DRAWING_NOTE_NAME,
-      note: 'This script\'s plots are shown, but its drawings are not. It removes drawings '
+      note: withStrategyRemoval('This script\'s plots are shown, but its drawings are not. It removes drawings '
         + `as it runs, and this chart can't follow part of that (${whatPhrase(loss)}), so `
         + 'showing them would leave lines, labels, boxes or table cells on screen that '
-        + 'TradingView would have removed.',
+        + 'TradingView would have removed.', loss),
     }
   }
   const parts = []
   if (loss.dropped > 0) {
     // ⛔ THE OWNER'S SENTENCE, WITH BOTH COUNTS IN ONE UNIT: `droppedOps` of
     // `attemptedOps`, and what M is, said in the same note.
-    parts.push(`${loss.dropped} of ${loss.attempted} drawing elements in this script aren't `
-      + 'supported yet, so what it draws is incomplete. (The '
+    // ⭐ W9 D8 — when EVERY lost step was withheld because a strategy value reaches it, the
+    // sentence gives that reason in place of "aren't supported yet"; when only some were, the
+    // count sentence stands and one clause says how many of those are withheld for that reason.
+    const s = Number.isInteger(loss.strategyDropped) ? Math.min(loss.strategyDropped, loss.dropped) : 0
+    const why = s === loss.dropped
+      ? `${s === 1 ? 'reads' : 'read'} ${STRATEGY_VALUES_WORDS}, ${STRATEGY_NOT_RUN}`
+      : "aren't supported yet"
+    parts.push(`${loss.dropped} of ${loss.attempted} drawing elements in this script ${why}, `
+      + 'so what it draws is incomplete. (The '
       + `${loss.attempted} are every drawing step this chart tried to carry: each line, label, `
       + 'box or table created, changed or written to, each change to a list of them, '
       + 'each loop, and each call to a drawing function of the script\'s own that could '
       + 'not be followed.)')
+    if (s > 0 && s < loss.dropped) {
+      parts.push(`${s} of those ${s === 1 ? 'is withheld because it reads' : 'are withheld because they read'} `
+        + `${STRATEGY_VALUES_WORDS}, ${STRATEGY_NOT_RUN}.`)
+    }
   }
   if (loss.readerNames.length) {
     const names = loss.readerNames.map((n) => `\`${n}\``).join(', ')
@@ -465,5 +582,269 @@ export function objectLossNote(loss, opts = {}) {
       ? `It also uses ${names}, which this chart doesn't draw yet.`
       : `This script uses ${names}, which this chart doesn't draw yet, so what it draws is incomplete.`)
   }
+  if (loss.hiddenFamilies && loss.hiddenFamilies.length) parts.push(hiddenFamiliesSentence(loss.hiddenFamilies))
   return { name: DRAWING_NOTE_NAME, note: parts.join(' ') }
+}
+
+/** ⭐ r2 — the member's sentence for a family withheld whole: `No box or line is
+ *  shown: …`. One clause, the families in the reader's words. Wording: coordinator
+ *  ruling 2026-11-08 (it fires for objects outside lists and for user-type fields
+ *  too, and implies no removal). */
+export function hiddenFamiliesSentence(families) {
+  const fs = (families || []).map((f) => (f === 'linefill' ? 'fill between lines' : f === 'table' ? 'table' : f))
+  const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} or ${fs[fs.length - 1]}`
+  return `No ${list} is shown: the script keeps some of them where this chart can't follow yet `
+    + '(in a list or in a field of its own type), so which ones TradingView would show, and where, '
+    + "can't be known."
+}
+
+/** ⭐⭐ OZ — WHY A FAMILY THIS CHART DREW NONE OF IS EMPTY, WHEN THE REASON IS THE
+ *  ENGINE'S OWN. A drawing that comes out empty with no word reads as "the script
+ *  draws nothing here", which is a confident claim the engine cannot make when it
+ *  dropped or withheld the very steps that make those drawings.
+ *  The causes, each named by a guard on the run (`withheldBy`):
+ *    · `objects:not-carried`    — the translation lost a create of the family
+ *                                 (`program.lostCreates`, host lane);
+ *    · `objects:not-computable` — every create of it this run reached was withheld,
+ *                                 or every object it made carries a value it could
+ *                                 not compute (C17, host lane);
+ *    · `objects:unmeasured`     — the run withheld the family whole by a rule of its
+ *                                 own whose TradingView result is not measured
+ *                                 (`runtime/objectStore.js` `withhold`, runtime lane). */
+export const NOT_SHOWN = Object.freeze({
+  NOT_CARRIED: 'objects:not-carried',
+  NOT_COMPUTABLE: 'objects:not-computable',
+  UNMEASURED: 'objects:unmeasured',
+  // r1 — the runtime store's own two named reasons, each with its own sentence
+  ENUM_NA: 'objects:enum-na',
+  COLLECTOR_HELD: 'objects:collector-held',
+  // C22 merge — a BOX in an array IS collected (witnessed, sonarlab-order-blocks-spy-1d,
+  // `objectPool.js` C7); only a map, a matrix or a field of the script's own type is not
+  COLLECTOR_HELD_BOX: 'objects:collector-held-box',
+  // DRAW-1 — the family's collector ran (`objectPool.js` COUNT_AT_CAP_GUARD)
+  COUNT_AT_CAP: COUNT_AT_CAP_GUARD,
+})
+
+const NOT_SHOWN_BECAUSE = Object.freeze({
+  [NOT_SHOWN.NOT_CARRIED]: "the script makes them in steps this chart can't follow yet, so none are "
+    + 'drawn here, though TradingView may draw some.',
+  [NOT_SHOWN.NOT_COMPUTABLE]: "whether and where the script draws them depends on values this chart can't "
+    + 'work out here, so none are drawn rather than a guess.',
+  [NOT_SHOWN.UNMEASURED]: 'the script handles them in a way whose result on TradingView has not been '
+    + 'measured yet, so none are drawn rather than a guess.',
+  [NOT_SHOWN.ENUM_NA]: "the script can leave a drawing's style, size or position empty, and how TradingView "
+    + 'draws that has not been measured yet, so none are drawn rather than a guess.',
+  [NOT_SHOWN.COLLECTOR_HELD]: 'TradingView removes the oldest ones once the script holds more than its limit, '
+    + 'and which ones it spares when the script keeps them in an array, a map, a matrix or a field of its own '
+    + 'type has not been measured yet, so none are drawn rather than a guess.',
+  [NOT_SHOWN.COUNT_AT_CAP]: 'the script holds more of them than its maximum count, and TradingView describes that '
+    + 'count as approximate (more drawings than the specified count may be displayed), so which of the oldest '
+    + 'ones TradingView still shows is not known here; none are drawn rather than a guess.',
+  [NOT_SHOWN.COLLECTOR_HELD_BOX]: 'TradingView removes the oldest ones once the script holds more than its limit, '
+    + 'and which ones it spares when the script keeps them in a map, a matrix or a field of its own type has '
+    + 'not been measured yet, so none are drawn rather than a guess.',
+})
+
+/** The member's sentence for families shown as NONE for one engine-side cause. */
+export function notShownSentence(families, cause) {
+  const because = NOT_SHOWN_BECAUSE[cause]
+  if (!because || !Array.isArray(families) || !families.length) return null
+  const fs = families.map((f) => (f === 'linefill' ? 'fill between lines' : f))
+  const list = fs.length === 1 ? fs[0] : `${fs.slice(0, -1).join(', ')} or ${fs[fs.length - 1]}`
+  return `No ${list} is shown on this chart: ${because}`
+}
+
+/** ⭐⭐ ENGINE 55 — A FAMILY PARTLY DRAWN, `n` OF WHOSE OPS WERE WITHHELD for a value the
+ *  chart could not compute (`objectRuntime.js`, `objects:not-computable`): the sentence
+ *  says some are missing and how many, never "none is shown". */
+export function partlyNotComputableSentence(family, n) {
+  const noun = { line: 'lines', label: 'labels', box: 'boxes', table: 'table cells', linefill: 'fills between lines',
+    polyline: 'polylines' }[family] || 'drawings'
+  const count = Number.isInteger(n) && n > 0 ? n : 0
+  const what = family === 'table' ? `${count} table ${count === 1 ? 'cell' : 'cells'}`
+    : `${count} ${count === 1 ? 'drawing' : 'drawings'}`
+  return `Some ${noun} are not shown on this chart: ${what} depend on values this chart can’t work out here, `
+    + 'so they are left out rather than guessed.'
+}
+
+/** ⭐ ENGINE 55 — why a document’s run half was not served, in plain words, or null when
+ *  it was (or there is none). Carried into the drawing note beside the not-computable
+ *  sentence, so the member reads the cause and not only the gap. */
+export function runtimeUnknownSentence(runtime) {
+  if (!runtime || runtime.served !== false) return null
+  const r = String(runtime.reason || '')
+  if (r === 'runtime:INSTRUCTIONS_PER_BAR') {
+    return 'This script’s last-bar calculation is too heavy to run yet.'
+  }
+  if (r === 'runtime:not-loaded') return 'This script’s last-bar calculation has not loaded yet.'
+  return `This script’s last-bar calculation could not be run here yet${r ? ` (${r})` : ''}.`
+}
+
+/** ⭐⭐ OZ — THE RUNTIME LANE'S WITHHELD FAMILIES, AS THE MEMBER'S SENTENCES. The run
+ *  (`runtime/objectStore.js`) withholds a family WHOLE by name (`withheld`: family →
+ *  the engine's reason) and draws none of it; until now that name stopped at the
+ *  layer and the member saw the family vanish. Each reason the store gives is said
+ *  in plain words of its own (r1, review): the merged-head rewrite in the same words
+ *  the host lane says, an `na` style/size/position (`ENUM_NA_SENTENCE`) and the
+ *  collector reaching an object held in a list as their own sentences, any other in
+ *  ONE sentence (`NOT_SHOWN.UNMEASURED`). Families sharing a reason share a sentence.
+ *  Answers family → sentence, the binder's `why`. */
+export function runtimeWithheldWhy(withheld) {
+  if (!withheld || typeof withheld !== 'object') return null
+  const out = {}
+  const byCause = new Map()
+  for (const fam of Object.keys(withheld).sort()) {
+    const why = withheld[fam]
+    if (why === MERGED_HEAD_REWRITE_SENTENCE) { out[fam] = why; continue }
+    const cause = runtimeWithheldCause(why, fam)
+    if (!byCause.has(cause)) byCause.set(cause, [])
+    byCause.get(cause).push(fam)
+  }
+  for (const [cause, fams] of byCause) {
+    const t = notShownSentence(fams, cause)
+    for (const fam of fams) out[fam] = t
+  }
+  return Object.keys(out).length ? out : null
+}
+
+/** The guard a runtime store reason is said under (`NOT_SHOWN`); the merged-head
+ *  rewrite keeps the host's own guard. */
+export function runtimeWithheldCause(why, fam = null) {
+  if (why === MERGED_HEAD_REWRITE_SENTENCE) return 'table:merged-head-rewrite'
+  if (why === ENUM_NA_SENTENCE) return NOT_SHOWN.ENUM_NA
+  if (typeof why === 'string' && why.startsWith(COUNT_AT_CAP_PREFIX)) return NOT_SHOWN.COUNT_AT_CAP
+  // ⭐ C22 merge — the store withholds a box only for a map / matrix / UDT holder
+  // (`runtime/objectStore.js::collect`): its sentence never says "an array"
+  if (typeof why === 'string' && COLLECTOR_HELD_RE.test(why)) {
+    return fam === 'box' ? NOT_SHOWN.COLLECTOR_HELD_BOX : NOT_SHOWN.COLLECTOR_HELD
+  }
+  return NOT_SHOWN.UNMEASURED
+}
+
+/** The runtime store's collector reason (`runtime/objectStore.js::collect`). */
+export const COLLECTOR_HELD_RE = /^TradingView's collector deletes the oldest /
+
+/** ⭐⭐ OZ r1 — A RUN THAT STOPPED DRAWS NOTHING, AND SAYS WHY. The host run stops on
+ *  a Pine runtime error it models (C9: TradingView stops the script and draws none);
+ *  the runtime run stops on a step no capture settles (C40, `OBJECT_UNWITNESSED`) or
+ *  withholds its drawings whole (`WITHHELD`). Each keeps its own reason; here it is
+ *  said to the member, with the code marks taken out. `kind`: `error` | `unmeasured`
+ *  | `withheld`. Keyed `*` in the binder's `why` (every family). */
+export const STOPPED_KEY = '*'
+
+/** ⭐ ENGINE 55 — the key the run half's not-served reason rides under in the note's
+ *  `why` (`objectRuntime.js`, `runtimeUnknownSentence`): said once, beside the
+ *  not-computable sentences it explains. */
+export const RUNTIME_UNKNOWN_KEY = '~run-half-unknown'
+
+/** ⭐ OZ r2 (N-e) — a stop reason in the member's words: no code marks, no em dash, no
+ *  "captured" (said as "measured"), and a bar NUMBER only on a chart that starts at the
+ *  symbol's listing: elsewhere `bar_index` is this chart's count, not TradingView's, so
+ *  the bar is "a bar of this chart". Pine call names stay: they are the script's own. */
+export function plainStopReason(reason, fromListing = false) {
+  let t = String(reason || '').replace(/`/g, '').replace(/\s+/g, ' ').trim()
+  t = t.replace(/\s+[—–]\s+/g, ', ')
+  t = t.replace(/\bis not captured\b/g, 'has not been measured yet')
+    .replace(/\bnot (yet )?captured\b/g, 'not measured yet')
+  if (!fromListing) t = t.replace(/\bon bar \d+\b/g, 'on a bar of this chart')
+  return t.replace(/[.\s]+$/, '')
+}
+export function stoppedRunSentence(reason, kind, { fromListing = false } = {}) {
+  const plain = plainStopReason(reason, fromListing)
+  if (!plain) return null
+  if (kind === 'error') {
+    return `None of this script's drawings are shown on this chart: it stops with an error here (${plain}), `
+      + 'and TradingView draws none of them then either.'
+  }
+  if (kind === 'unmeasured') {
+    return "None of this script's drawings are shown on this chart: it reaches a step whose result on "
+      + `TradingView has not been measured yet (${plain}), so none are drawn rather than a guess.`
+  }
+  return `None of this script's drawings are shown on this chart: ${plain}.`
+}
+
+// ─── ⭐⭐ ENGINE 53 — THE RUN HALF, IN THE MEMBER'S WORDS ─────────────────────────
+//
+// A host document whose object program lost drawings may carry a run half
+// (`compute.runtimeObjects`): the same script run bar by bar, which makes the drawings
+// complete. Where the run is proved to be the same computation on a chart, its drawings
+// are drawn instead of the incomplete set; anywhere else the incomplete set stays, and
+// the member is told why the complete one is not shown. ⛔ No guard token reaches a
+// sentence: the code is mapped to plain words, and an unmapped code reads the general one.
+
+/** The key a refused run half's sentence rides under in the binder's `why` (not a family). */
+export const RUN_HALF_WHY_KEY = '+run'
+
+/** Said on the document's drawing note when it carries a run half. */
+export const RUN_HALF_DRAWING_SENTENCE = 'Where this chart can run the script bar by bar the way TradingView '
+  + "does (at the script's own settings, with every plot and every drawing this chart makes agreeing with "
+  + 'that run), its drawings are made by that run instead, complete.'
+
+const RUN_HALF_WHY = Object.freeze({
+  'pane:not-built': "running scripts bar by bar isn't part of this version of the app",
+  'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now',
+  'pane:killed': 'this script is switched off for running bar by bar',
+  'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet",
+  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD` is NOT here: its reason is the server's, per script
+  // (`runHalfFormingWhy`, from `formingReason.js`), never a fixed sentence
+  'runtime:member-inputs': "a setting has been changed from the script's default, and the complete drawings "
+    + "are only worked out at the script's own settings",
+  'runtime:runtime.error': 'the script stops itself with its own error message on this chart',
+  'runtime:history-start': "this chart's bars don't start at the symbol's first trading day, and where the "
+    + 'drawings land depends on where the chart begins',
+  // ⭐⭐ (2026-11-20) the chart DOES start at the listing, on a timeframe not served from it yet (W / M)
+  'runtime:listing-unverified': "this chart starts at the symbol's first trading period, and drawings worked out from "
+    + 'the listing have only been checked against TradingView on daily charts so far',
+  'runtime:warmup-never-converges': "this chart's bars don't start at the symbol's first trading day, and what "
+    + 'the script shows depends on where the chart begins',
+  'run-half:column-rail': 'running it bar by bar gives one of its plots a different value from the one drawn '
+    + 'here, so its drawings are not taken from that run',
+  'run-half:family-withheld': 'running it bar by bar holds back a kind of drawing this chart already draws',
+  'run-half:source-unbound': "the drawings it carries were not made from this indicator's own script",
+  // ⭐⭐ ENGINE 54 — the object rail, the program binding, and the rail not being loaded
+  'run-half:object-rail': 'running it bar by bar draws one of the drawings this chart already shows '
+    + 'differently, so its drawings are not taken from that run',
+  'run-half:host-object-withheld': "running it bar by bar doesn't make one of the drawings this chart already "
+    + 'shows, so its drawings are not taken from that run',
+  'run-half:no-comparable-objects': "none of the drawings this chart makes can be checked against running it "
+    + "bar by bar, and that run hasn't been checked against TradingView for this script",
+  'run-half:program-unbound': "the indicator's plots and drawings have changed since it was set up to run bar "
+    + 'by bar',
+  'run-half:program-unstamped': 'it was set up to run bar by bar by an older version of the app, which did '
+    + 'not record what that run must be checked against',
+  'run-half:rail-not-loaded': 'the part of the app that checks those drawings is not loaded',
+  'run-half:uncompared-site': 'running it bar by bar makes drawings this chart cannot check against its own, '
+    + "and that run hasn't been checked against TradingView for this script",
+  'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is not loaded',
+  'runtime:load-failed': 'the part of the app that runs scripts bar by bar could not be loaded in this tab',
+  'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand that run',
+  // ⭐ (e85) `requestSupply.js::REQUEST_LAG_GUARD`: a live-tail lag past the wait, never a depth or a hole
+  'runtime:request-lag': "the newest bars of another symbol the script reads haven't arrived on this chart",
+  'runtime:request-hoisted-history': 'the script reads another symbol or timeframe through a helper whose '
+    + 'earlier values this chart can read only from its own bars',
+})
+const RUN_HALF_WHY_LIMIT = 'running the script bar by bar needed more work than a chart is allowed'
+const RUN_HALF_WHY_OTHER = "part of the script can't be run bar by bar here"
+const LIMIT_CODE_RE = /^runtime:(limit|time-budget|worker-unresponsive|[A-Z][A-Z_]*)$/
+
+/** `runtimeKill.js::RUNTIME_FORMING_GUARD`, restated only as a value to compare against (this near-leaf
+ *  module must not import the lane; `formingReasonAgrees.test.js` holds the two equal). */
+export const RUN_HALF_FORMING_CODE = 'pane:forming-ungraded'
+
+/** Why a run half is held back on a forming bar, with the reason the server named for THIS script
+ *  (`formingIds`: `runtimeKill.js::runtimeFormingIdsOf`). No ids says "uses a part of Pine" (fail closed). */
+export function runHalfFormingWhy(formingIds) {
+  return `the script ${formingReasonOf(formingIds)}, which has only been checked `
+    + "against TradingView on finished bars, and this chart's newest bar is not known to be finished"
+}
+
+/** The member's sentence for a refused run half (`code` is the refusal's code; `formingIds` the server's
+ *  ids when the code is the forming guard). */
+export function runHalfRefusedSentence(code, { formingIds } = {}) {
+  const c = String(code || '')
+  const why = c === RUN_HALF_FORMING_CODE ? runHalfFormingWhy(formingIds)
+    : Object.hasOwn(RUN_HALF_WHY, c) ? RUN_HALF_WHY[c]
+      : LIMIT_CODE_RE.test(c) ? RUN_HALF_WHY_LIMIT : RUN_HALF_WHY_OTHER
+  return `The complete set of this script's drawings isn't shown on this chart: ${why}. `
+    + 'The drawings shown are the ones this chart makes without that run.'
 }

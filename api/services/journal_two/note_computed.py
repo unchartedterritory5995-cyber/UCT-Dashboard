@@ -6,11 +6,8 @@ one property across a SET of rows: the notes that link to this note, the notes
 this note links to, the notes a saved view matches, or the member's trades
 linked to this note -- with count, sum, average, min, max or win rate.
 
-Both are DARK behind `NOTEBOOK_FORMULAS_ENABLED` (enablement gate, unset = OFF,
-read per request through `notebook_flags.flag_on`, riding the auth payload as
-`notebook_formulas_enabled`). With the flag off a formula/rollup definition is
-invisible everywhere -- `note_properties` filters both types out of every read
--- so existing notes and property types behave exactly as before.
+Both are always on: `NOTEBOOK_FORMULAS_ENABLED` was retired 2026-11-04 (it was 1
+on web); the auth payload still carries `notebook_formulas_enabled`, hard-coded True.
 
 A READ NEVER WRITES (controller ruling, 2026-10-01)
 --------------------------------------------------
@@ -54,9 +51,7 @@ import threading
 from typing import Any
 
 from api.services.journal_two import formula_engine as fe
-from api.services.notebook_flags import flag_on
 
-FLAG = "NOTEBOOK_FORMULAS_ENABLED"
 COMPUTED_TYPES = ("formula", "rollup")
 
 ROLLUP_SOURCES = ("links_to_this", "links_from_this", "saved_view", "trades")
@@ -75,11 +70,6 @@ _CHUNK = 400
 
 class ComputedConfigError(ValueError):
     pass
-
-
-def formulas_enabled() -> bool:
-    """Read per call (never at import), the same parse as the auth payload."""
-    return flag_on(FLAG, False)
 
 
 def _now_iso() -> str:

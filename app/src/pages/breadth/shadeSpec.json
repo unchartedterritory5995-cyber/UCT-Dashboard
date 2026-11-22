@@ -1,0 +1,267 @@
+{
+  "_doc": "Breadth Monitor shading rules (owner round 5, 2026-11-19). Read by breadth/shading.js (the UI) AND tools/breadth/calibrate_breadth_shading.py (the frozen cutoffs + the value-free report), so the two can never disagree. pcts: how rare a reading must be, as a % of ALL history on one side (top or bottom). Each must be on the grid the cutoffs file was built with (shadeCutoffs.generated.json `grid`), so loosening/tightening within the grid needs no re-run. bull: which end of the column is bullish. sides: which end(s) get shaded. floors: widely used trader thrust levels; a reading at or past one is at least Strong even when it is not rare. basis: shade by another field's rarity (the S&P / QQQ closes are colored by their day %). kind 'pair' / 'flag' keep the pre-existing rule, mapped onto the levels (breadth/shading.js). per: rank this COUNT column by its share of the row's universe (value / row[per]); the sheet still displays the raw count, and the cutoffs file stores it under '<key>/<per>'. floors: in the column's displayed units, applied on UCT; shareFloors: the same floor as a share of the universe, applied on every other universe (owner 2026-11-19).",
+  "pcts": {
+    "notable": 25,
+    "strong": 10,
+    "extreme": 3
+  },
+  "cols": {
+    "breadth_score": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "uct_exposure": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "up_4pct_today": {
+      "bull": "high",
+      "sides": "high",
+      "floors": {
+        "high": 500
+      },
+      "per": "universe_count",
+      "shareFloors": {
+        "high": 0.19
+      }
+    },
+    "down_4pct_today": {
+      "bull": "low",
+      "sides": "high",
+      "floors": {
+        "high": 500
+      },
+      "per": "universe_count",
+      "shareFloors": {
+        "high": 0.19
+      }
+    },
+    "ratio_5day": {
+      "bull": "high",
+      "sides": "both",
+      "floors": {
+        "high": 2.0,
+        "low": 0.5
+      }
+    },
+    "ratio_10day": {
+      "bull": "high",
+      "sides": "both",
+      "floors": {
+        "high": 2.0,
+        "low": 0.5
+      }
+    },
+    "up_20pct_5d": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "down_20pct_5d": {
+      "bull": "low",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "up_25pct_quarter": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "down_25pct_quarter": {
+      "bull": "low",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "up_25pct_month": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "down_25pct_month": {
+      "bull": "low",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "up_50pct_month": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "down_50pct_month": {
+      "bull": "low",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "magna_up": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "magna_down": {
+      "bull": "low",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "is_ftd": {
+      "kind": "flag"
+    },
+    "pct_above_5sma": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "pct_above_10sma": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "pct_above_20sma": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "pct_above_40sma": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "pct_above_50sma": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "pct_above_100sma": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "pct_above_150sma": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "pct_above_200sma": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "sp500_close": {
+      "bull": "high",
+      "sides": "both",
+      "basis": "spy_day_pct"
+    },
+    "qqq_close": {
+      "bull": "high",
+      "sides": "both",
+      "basis": "qqq_day_pct"
+    },
+    "vix": {
+      "bull": "low",
+      "sides": "both",
+      "floors": {
+        "high": 30
+      }
+    },
+    "mcclellan_osc": {
+      "bull": "high",
+      "sides": "both",
+      "zero": true
+    },
+    "stage2_count": {
+      "kind": "pair",
+      "with": "stage4_count",
+      "side": "up"
+    },
+    "stage4_count": {
+      "kind": "pair",
+      "with": "stage2_count",
+      "side": "down"
+    },
+    "new_52w_highs": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "new_52w_lows": {
+      "bull": "low",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "new_20d_highs": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "new_20d_lows": {
+      "bull": "low",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "new_ath": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "hvc_52w": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "atr_ext_7": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "cnn_fear_greed": {
+      "bull": "high",
+      "sides": "both",
+      "floors": {
+        "high": 75,
+        "low": 25
+      }
+    },
+    "net_new_high_low": {
+      "bull": "high",
+      "sides": "both",
+      "zero": true,
+      "per": "universe_count"
+    },
+    "adv_decline": {
+      "bull": "high",
+      "sides": "both",
+      "zero": true,
+      "per": "universe_count"
+    },
+    "up_vol_ratio": {
+      "bull": "high",
+      "sides": "both"
+    },
+    "spy_dist_days": {
+      "bull": "low",
+      "sides": "high"
+    },
+    "qqq_dist_days": {
+      "bull": "low",
+      "sides": "high"
+    },
+    "advancing": {
+      "bull": "high",
+      "sides": "both",
+      "per": "universe_count"
+    },
+    "declining": {
+      "bull": "low",
+      "sides": "both",
+      "per": "universe_count"
+    },
+    "near_52w_high": {
+      "bull": "high",
+      "sides": "high",
+      "per": "universe_count"
+    },
+    "hi_ratio": {
+      "bull": "high",
+      "sides": "high"
+    },
+    "lo_ratio": {
+      "bull": "low",
+      "sides": "high"
+    },
+    "vix_term_structure": {
+      "bull": "high",
+      "sides": "both"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+//@version=5
+indicator("hp tuples", overlay=false)
+f_minmax(len) =>
+    [ta.lowest(low, len), ta.highest(high, len)]
+[lo, hi] = f_minmax(14)
+mid = (lo + hi) / 2
+[m, s, h] = ta.macd(close, 8, 21, 5)
+plot(lo, "lo")
+plot(hi, "hi")
+plot(mid, "mid")
+plot(h, "hist")

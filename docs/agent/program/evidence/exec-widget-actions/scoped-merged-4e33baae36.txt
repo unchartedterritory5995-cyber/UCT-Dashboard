@@ -1,0 +1,682 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+4e33baae36
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+ ✓ src/agent/whichWidget.rules.rail.test.js (19 tests) 9ms
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "hide the logos in my watchlist": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "hide the logos in my watchlist": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "turn off the tick flash on the watchlist widget": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/widgetActions.outcome.test.jsx > a widget's own Refresh, through its door (C3-112 Scanner, C3-208 Period Sort) > C3-112 held-out "reload my scanner widget results": the widget's own data hook re-reads once; the receipt follows it; nothing else changes
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "make the watchlist background navy": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "make the watchlist background navy": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/qa/chartsOutcome/listColsUndo.outcome.test.jsx (4 tests) 5884ms
+     ✓ a Watchlist with nothing saved: sort, then Undo leaves NO saved layout (never `{}`), and the default columns draw  1657ms
+     ✓ a Watchlist with nothing saved: add a column, then Undo leaves NO saved layout  1403ms
+     ✓ a Scanner with nothing saved: sort by price, then Undo removes its layout and its own default (RVOL, high to low) is back  1475ms
+     ✓ control: a layout that WAS saved is put back exactly by the Undo  1346ms
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "watchlist text in white please": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "color the gainers on my watchlist teal": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-103: the list's appearance, through the ⚙ panel's own writer (this widget's opts.settings) > held-out "make losers orange in the watchlist widget": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-104: looks — save, apply, delete — through the ⚙ panel's Templates > held-out "store my watchlist style as a template called Clean"
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/widgetJournal.outcome.test.jsx > Send to Journal over the real widgets' own capture doors (C3-132, C3-137, C3-186, C3-200, C3-180) > C3-137 "news": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked; the board is untouched
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/widgetJournal.outcome.test.jsx > Send to Journal over the real widgets' own capture doors (C3-132, C3-137, C3-186, C3-200, C3-180) > C3-137 "news": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked; the board is untouched
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-104: looks — save, apply, delete — through the ⚙ panel's Templates > held-out "apply my Paper look to the watchlist"
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/widgetJournal.outcome.test.jsx > Send to Journal over the real widgets' own capture doors (C3-132, C3-137, C3-186, C3-200, C3-180) > C3-186 "marketcontext": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked; the board is untouched
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/widgetJournal.outcome.test.jsx > Send to Journal over the real widgets' own capture doors (C3-132, C3-137, C3-186, C3-200, C3-180) > C3-200 "aisearch": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked; the board is untouched
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > C3-104: looks — save, apply, delete — through the ⚙ panel's Templates > held-out "delete the Paper watchlist look"
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/widgetJournal.outcome.test.jsx > Send to Journal over the real widgets' own capture doors (C3-132, C3-137, C3-186, C3-200, C3-180) > NEGATIVE: an AI Search widget with no conversation offers no capture; the send is refused and the Journal receives nothing
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/qa/chartsOutcome/widgetJournal.outcome.test.jsx (7 tests) 9755ms
+     ✓ C3-132 "alerts": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked; the board is untouched  2761ms
+     ✓ C3-137 "news": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked; the board is untouched  1324ms
+     ✓ C3-186 "marketcontext": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked; the board is untouched  1140ms
+     ✓ C3-200 "aisearch": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked; the board is untouched  1204ms
+     ✓ C3-180 "fundamentals": shown first; on Apply the Journal receives exactly that widget's capture, where it was asked; the board is untouched  1295ms
+     ✓ NEGATIVE: Dismiss sends nothing  1048ms
+     ✓ NEGATIVE: an AI Search widget with no conversation offers no capture; the send is refused and the Journal receives nothing  981ms
+ ✓ src/agent/agentWidgetOptions.test.jsx (27 tests) 23874ms
+     ✓ News: pause (follow) and the linked filter; a Period Sort: its grouping; each listed for the model, each undone exactly  309ms
+     ✓ "show annual on the fundamentals" (scripted) → applied (local), receipt, undo exact  1782ms
+     ✓ ⛔ a reroute to the group brings the control list: not on the first call, on the second, and the write lands  1415ms
+     ✓ "show the theme tracker by week" (scripted) with no mounted tracker to take it: it refuses and nothing is stored  969ms
+     ✓ "show the theme tracker from the open": one model call, the list on it, the option set, Undo exact  1354ms
+     ✓ ⛔ "only show calls on the options flow" with the widget on the board: refused about the widget’s own chips, no model call, nothing set  1055ms
+     ✓ ⛔ "only show puts in the options flow" with the widget on the board: refused about the widget’s own chips, no model call, nothing set  999ms
+     ✓ with NO Options Flow widget on the board, the F-16 screen refusal is unchanged  1036ms
+     ✓ a turn that does not touch widgets carries no list, on the same board  1087ms
+     ✓ "who reports today": answered from the calendar, no model call  1078ms
+     ✓ "who is reporting tomorrow": answered from the calendar, no model call  1064ms
+     ✓ "what reports on friday": answered from the calendar, no model call  1000ms
+     ✓ "which stocks report thursday": answered from the calendar, no model call  995ms
+     ✓ "who reports tonight": the model has the read and a ref to aim it at, on the first call  1026ms
+     ✓ "who is reporting after the close": the model has the read and a ref to aim it at, on the first call  1009ms
+     ✓ "any earnings on the calendar tomorrow": the model has the read and a ref to aim it at, on the first call  1063ms
+     ✓ "which names are on the calendar for friday": the model has the read and a ref to aim it at, on the first call  990ms
+     ✓ "how is the market looking": whenever the read is sent, its ref is sent too, or it could not be used  1004ms
+     ✓ "anything big after the close": whenever the read is sent, its ref is sent too, or it could not be used  992ms
+     ✓ "what should i watch tomorrow": whenever the read is sent, its ref is sent too, or it could not be used  1008ms
+     ✓ a reroute to the calendar group brings the ref: not on the first call, on the second, and the read answers  1011ms
+     ✓ a stock's own date stays stock.earnings: calendar.nextReport is not offered here  992ms
+stderr | src/agent/qa/chartsOutcome/widgetControls.outcome.test.jsx > Indexes (C3-183): hide or restore an index — the tile goes, the board keeps it, Undo brings it back > "put the dow back on the indexes" (+, by the tile's own name): the tile returns
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx > NEGATIVE: refused in words; nothing is written > held-out "rename flagged to Movers"
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/qa/chartsOutcome/watchlistLook.outcome.test.jsx (20 tests) 25629ms
+     ✓ held-out "hide the logos in my watchlist": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly  2164ms
+     ✓ held-out "turn off the tick flash on the watchlist widget": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly  2069ms
+     ✓ held-out "make the watchlist background navy": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly  1440ms
+     ✓ held-out "watchlist text in white please": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly  1553ms
+     ✓ held-out "color the gainers on my watchlist teal": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly  1524ms
+     ✓ held-out "make losers orange in the watchlist widget": asked which first (nothing written), then the picked widget reads it back; the other Watchlist widget is untouched; Undo restores the opts exactly  1579ms
+     ✓ held-out "save this watchlist look as Night Desk"  1425ms
+     ✓ held-out "store my watchlist style as a template called Clean"  1369ms
+     ✓ held-out "apply my Paper look to the watchlist"  1150ms
+     ✓ held-out "switch the watchlist to the paper template"  1129ms
+     ✓ held-out "delete the Paper watchlist look"  1203ms
+     ✓ held-out "rename my flagged list to Hot Hands": the Flagged hook holds the new name; Undo renames it back  1269ms
+     ✓ held-out "call the flagged watchlist A-List": the Flagged hook holds the new name; Undo renames it back  1150ms
+     ✓ u18-flagged-01 "rename flagged to Top Ideas": the title reads the new name and the read-back is that title; Undo puts "Flagged" back on the face  1161ms
+     ✓ u18-flagged-02 "call my flagged list Shortlist instead": the title reads the new name and the read-back is that title; Undo puts "Flagged" back on the face  1222ms
+     ✓ held-out "make the watchlist background sort of bluish"  971ms
+     ✓ held-out "apply my Neon look to the watchlist"  968ms
+     ✓ held-out "save this watchlist look"  1090ms
+     ✓ held-out "rename flagged to Movers"  1187ms
+ ✓ src/agent/qa/chartsOutcome/widgetActions.outcome.test.jsx (24 tests) 26581ms
+     ✓ C3-112 held-out "refresh the scanner": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1394ms
+     ✓ C3-112 held-out "refresh the scanner widget": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1219ms
+     ✓ C3-112 held-out "reload my scanner results": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1633ms
+     ✓ C3-112 held-out "reload my scanner widget results": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1087ms
+     ✓ C3-112 held-out "rerun the scanner now": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1117ms
+     ✓ C3-112 held-out "rerun the scanner widget now": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1097ms
+     ✓ C3-112 held-out "can you update the scanner": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1085ms
+     ✓ C3-112 held-out "can you update the scanner widget": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1068ms
+     ✓ C3-208 held-out "refresh the period sort": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1065ms
+     ✓ C3-208 held-out "refresh the period sort widget": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1591ms
+     ✓ C3-208 held-out "reload the period sort ranking": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1048ms
+     ✓ C3-208 held-out "reload the period sort widget ranking": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1038ms
+     ✓ C3-208 held-out "update my period sort results": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1042ms
+     ✓ C3-208 held-out "update my period sort widget results": the widget's own data hook re-reads once; the receipt follows it; nothing else changes  1056ms
+     ✓ a Refresh is reported only once it resolved: a failed re-read says so, and claims nothing  1137ms
+     ✓ two Scanner widgets: the request tells them apart by position, and "the right scanner" refreshes that one only  1051ms
+     ✓ NEGATIVE held-out "stop refreshing the scanner": refused in words; nothing is refreshed  979ms
+     ✓ NEGATIVE held-out "retry the scanner": refused in words; nothing is refreshed  998ms
+     ✓ held-out "leave this scan in the scanner": scanKey and scanName are cleared and the picker shows; Undo puts the scan back exactly  1126ms
+     ✓ held-out "take the scanner back to its picker": scanKey and scanName are cleared and the picker shows; Undo puts the scan back exactly  1134ms
+     ✓ held-out "exit the scan on my scanner widget": scanKey and scanName are cleared and the picker shows; Undo puts the scan back exactly  1148ms
+     ✓ held-out "go back to the scan picker in the scanner": scanKey and scanName are cleared and the picker shows; Undo puts the scan back exactly  1463ms
+     ✓ NEGATIVE: a Scanner already on its picker is left as it is (no change, no receipt of one)  998ms
+stderr | src/agent/qa/chartsOutcome/widgetControls.outcome.test.jsx > UCT Terminal (C3-148, C3-152): the day shown and the TBD section, through the widget's own door > "expand the time tbd list on the terminal": the TBD rows are drawn; collapse hides them again
+An update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/qa/chartsOutcome/widgetControls.outcome.test.jsx (7 tests) 8471ms
+     ✓ "remove the dow from the indexes": DIA's tile is gone, the rest stay; undo restores it  1315ms
+     ✓ "put the dow back on the indexes" (+, by the tile's own name): the tile returns  1155ms
+     ✓ NEGATIVE: an index the widget does not have is refused with its own list; no tile moves  1113ms
+     ✓ "show tomorrow on the terminal": the widget shows the next day; Undo goes back  1291ms
+     ✓ "expand the time tbd list on the terminal": the TBD rows are drawn; collapse hides them again  1280ms
+     ✓ "add the S&P 500 to new highs lows", then "switch new highs lows to it", then remove it; each read off the tabs  1323ms
+     ✓ NEGATIVE: the last universe stays (the widget keeps at least one), nothing changes  992ms
+ ✓ src/agent/agentWatchlistOut.test.jsx (29 tests) 31063ms
+     ✓ held-out "copy the Momentum list to my clipboard"  1303ms
+     ✓ held-out "copy the Swing Ideas list to my clipboard"  1328ms
+     ✓ held-out "put the tickers in Momentum on the clipboard"  1268ms
+     ✓ held-out "put the tickers in Swing Ideas on the clipboard"  1294ms
+     ✓ held-out "copy my Momentum watchlist so I can paste it"  1075ms
+     ✓ held-out "copy my Swing Ideas watchlist so I can paste it"  1138ms
+     ✓ held-out "export Momentum as a CSV"  1082ms
+     ✓ held-out "export Swing Ideas as a CSV"  1113ms
+     ✓ held-out "download the Momentum list as csv"  1099ms
+     ✓ held-out "download the Swing Ideas list as csv"  1115ms
+     ✓ held-out "save my Momentum watchlist to a csv file"  1117ms
+     ✓ held-out "save my Swing Ideas watchlist to a csv file"  1070ms
+     ✓ held-out "export Momentum to Excel"  1036ms
+     ✓ held-out "export Swing Ideas to Excel"  996ms
+     ✓ held-out "download the Momentum watchlist as an excel file"  1011ms
+     ✓ held-out "download the Swing Ideas watchlist as an excel file"  1027ms
+     ✓ held-out "give me Momentum as an xlsx"  997ms
+     ✓ held-out "give me Swing Ideas as an xlsx"  984ms
+     ✓ Excel: Apply downloads through the menu's handler, once  1240ms
+     ✓ a REFUSED clipboard write is never "copied": it is said, with the menu item  1042ms
+     ✓ held-out "export this watchlist as a csv": export is the member's own lists only — refused, nothing called  993ms
+     ✓ held-out "download the flagged list to excel": export is the member's own lists only — refused, nothing called  1194ms
+     ✓ no export quota: Excel refused in words (CSV offered), nothing called  1516ms
+     ✓ two Watchlist widgets and none named: asked, nothing called  1100ms
+     ✓ held-out "tag NVDA red": no model call; the Journal's ticker tags named; nothing changed  984ms
+     ✓ held-out "colour tag AMD blue": no model call; the Journal's ticker tags named; nothing changed  992ms
+     ✓ held-out "mark TSLA with a green tag": no model call; the Journal's ticker tags named; nothing changed  964ms
+     ✓ held-out "give META a purple tag": no model call; the Journal's ticker tags named; nothing changed  976ms
+ ✓ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests) 3403ms
+     ✓ the plan picked the left one: a question, and neither widget's look changed  1220ms
+     ✓ the plan picked Momentum's view: a question, and no saved column layout  1051ms
+     ✓ control: "move the volume column after the symbol in Momentum" names it: moved, no question  1130ms
+ ✓ src/agent/agentWidgetControls.test.jsx (56 tests) 3523ms
+ ✓ src/agent/agentWhichWidget.rail.test.jsx (6 tests) 6611ms
+     ✓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed  1190ms
+     ✓ "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed  998ms
+     ✓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question  1070ms
+     ✓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question  1099ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1204ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1034ms
+stdout | src/agent/agentRouting.test.jsx > routing — offline accuracy over the benchmark messages > routing actually narrows: most cases send far fewer capabilities than the full manifest
+[routing] 43/43 routed; mean 23.7 of 160 capabilities; 0 full
+
+ ✓ src/agent/agentRouting.test.jsx (23 tests) 519ms
+     ✓ need_groups → ONE more call with those groups added (marked reroute); the plan then runs once  336ms
+ ✓ src/noRegexLookbehind.test.js (6 tests) 4861ms
+     ✓ no product file under app/src uses one  4382ms
+ ✓ src/agent/settingsLiveness.test.js (13 tests) 504ms
+ ✓ src/agent/watchlistTarget.rail.test.js (10 tests) 10ms
+ ✓ src/agent/widgetActionKeys.test.js (5 tests) 25ms
+ ✓ src/agent/agentScreener.test.jsx (13 tests) 403ms
+ ✓ src/agent/agentWatchlistShowHeldOut.test.js (1 test) 2ms
+ ✓ src/agent/agentNotDoneExport.rail.test.js (5 tests) 9ms
+ ✓ src/agent/agentWatchlistShow.test.jsx (35 tests) 40147ms
+     ✓ held-out "show my Momentum list in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1400ms
+     ✓ held-out "show my Swing Ideas list in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1234ms
+     ✓ held-out "switch the watchlist widget to Momentum": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1606ms
+     ✓ held-out "switch the watchlist widget to Swing Ideas": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1159ms
+     ✓ held-out "put Momentum up in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1237ms
+     ✓ held-out "put Swing Ideas up in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1122ms
+     ✓ held-out "show the Leaders list": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1226ms
+     ✓ held-out "show the Semis Watch list": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1228ms
+     ✓ held-out "open UCT's Leaders list in the watchlist widget": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1253ms
+     ✓ held-out "open UCT's Semis Watch list in the watchlist widget": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1365ms
+     ✓ held-out "switch the watchlist to the prebuilt Leaders": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1175ms
+     ✓ held-out "switch the watchlist to the prebuilt Semis Watch": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1164ms
+     ✓ held-out "open the community list Breakout Club": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1165ms
+     ✓ held-out "open the community list Value Hunters": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1107ms
+     ✓ held-out "show the Breakout Club community watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1185ms
+     ✓ held-out "show the Value Hunters community watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1153ms
+     ✓ held-out "put the public Breakout Club list in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1132ms
+     ✓ held-out "put the public Value Hunters list in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1165ms
+     ✓ held-out "show my flagged list": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1147ms
+     ✓ held-out "put my flagged tickers in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1636ms
+     ✓ held-out "switch the watchlist to Flagged": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1225ms
+     ✓ held-out "go back to the list picker": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1179ms
+     ✓ held-out "take the watchlist back to its picker": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1237ms
+     ✓ held-out "let me pick a different list in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1211ms
+     ✓ held-out "show my red tags in the watchlist": REFUSED — nothing changes; the reason (or the near names) is said  1022ms
+     ✓ held-out "open the blue tag list in the widget": REFUSED — nothing changes; the reason (or the near names) is said  978ms
+     ✓ held-out "show the Leadrs list": REFUSED — nothing changes; the reason (or the near names) is said  1031ms
+     ✓ held-out "open the community list Breakout": REFUSED — nothing changes; the reason (or the near names) is said  1082ms
+     ✓ held-out "show my Momo list in the watchlist": REFUSED — nothing changes; the reason (or the near names) is said  1046ms
+     ✓ already showing that list: nothing changes and nothing changed is said  1032ms
+     ✓ a widget showing a list UCT chose or a followed list is not switched (as the open action's rule)  1091ms
+     ✓ held-out "show the Leaders list in the watchlist"  1006ms
+     ✓ held-out "show the Leaders list in the left watchlist"  1053ms
+     ✓ held-out "put my flagged list in the right watchlist widget"  1086ms
+stderr | src/agent/qa/chartsOutcome/listControl.outcome.test.jsx > 3. flag and unflag: the star a member sees, the store and the server > unflag keeps the rest; Undo puts it back in its place; flags set by hand since do not cost that Undo
+An update to Watchlists inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/listControl.outcome.test.jsx > 3. flag and unflag: the star a member sees, the store and the server > unflag keeps the rest; Undo puts it back in its place; flags set by hand since do not cost that Undo
+An update to Watchlists inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/listControl.outcome.test.jsx > 3. flag and unflag: the star a member sees, the store and the server > flag some already flagged: only the new one, and it says which; all already: a no-op, nothing posted
+An update to Watchlists inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/agent/qa/chartsOutcome/listControl.outcome.test.jsx > the other lists a widget can show > a Flagged widget: its rows are the flags, and flagging from the Agent shows up in them
+An update to Watchlists inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ✓ src/agent/agentMultiActionFollowups.test.jsx (138 tests) 122606ms
+     ✓ nit 1 (panel): "undo the change you made to my charts" after a NEWS widget was added (not a chart) undoes nothing  1351ms
+     ✓ nit 2: "X, then undo it" whose X became a which-chart QUESTION → the question is withdrawn (no live choices), nothing runs  1146ms
+     ✓ nit 2 (screen path, no pick): a question raised by the plan screen is withdrawn too — never "the change before the Undo didn’t make a change"  1170ms
+     ✓ nit 3: a partial Undo-all planned FIRST is ONE message — what was taken back, what is still in place, the rest not made  1455ms
+     ✓ fast path: "add a QQQ chart and change the SPY chart to weekly" — both made (no model call); ONE "undo" restores the board  1423ms
+     ✓ model path: add a chart for AAPL + the RSI on my SPY chart — both made; "undo that" takes back BOTH  1468ms
+     ✓ model path, the change planned FIRST: runs in the member order; a described Undo ("undo the timeframe change") takes back only that part  1294ms
+     ✓ safe partial completion: the second part does not land → the first part stays, said exactly; never a success claim  6397ms
+     ✓ the first part does not land → nothing after it starts  6081ms
+     ✓ review #771 (2): a part that lands but is NOT SAVED is said exactly so — on screen, not saved; no Undo promised for it  1120ms
+     ✓ KEPT REFUSED — a proposal (approval) cannot hold two steps: nothing runs, the two-step split is suggested  976ms
+     ✓ KEPT REFUSED — new widgets + a change to the BOARD itself (remove / re-tile / move): nothing runs  985ms
+     ✓ A1: "Undo the change you made to my layout" after a 2×2 grid takes the grid back (a grid IS a layout change)  1219ms
+     ✓ A1: a TIMEFRAME change is still not a layout change (review F2 unchanged)  1086ms
+     ✓ A2: a board-only change (the grid, adding a chart) is acknowledged on the BOARD's own save — it never waits on other preference writes (the new charts' chart_settings as they load)  1353ms
+     ✓ Change the SPY chart to weekly and email me a screenshot of it.  1071ms
+     ✓ switch SPY to the weekly and set an alert that texts me by SMS when it crosses 600  1055ms
+     ✓ put my SPY chart on the weekly and then place a trade to buy 100 shares  1054ms
+     ✓ make the SPY chart weekly and print it out for me  1081ms
+     ✓ change SPY to weekly and export the chart data to Excel  1091ms
+     ✓ review #771 (4): a stray unsupported_category on a fully supported request adds NO line — only the member's words decide  1150ms
+     ✓ "add a QQQ chart" → "change it to weekly": the QQQ chart, no question, no model call  1284ms
+     ✓ "add a QQQ chart" → "make that one weekly": the QQQ chart, no question, no model call  1310ms
+     ✓ "add a QQQ chart" → "make the new chart weekly": the QQQ chart, no question, no model call  1244ms
+     ✓ "add a QQQ chart" → "switch the new one to weekly": the QQQ chart, no question, no model call  1207ms
+     ✓ "add a QQQ chart" → "make the chart you just added weekly": the QQQ chart, no question, no model call  1206ms
+     ✓ "put the RSI on it" after creating a chart → the new chart  1243ms
+     ✓ model path: the model is told the NEW chart is the subject (never the workspace), and its plan on it runs without "which chart?"  1256ms
+     ✓ review #771 HIGH: "add a QQQ chart and change the SPY chart to weekly" → "make the new one monthly" changes the NEW (QQQ) chart, never SPY  1264ms
+     ✓ review #771 HIGH: "add a QQQ chart and change the SPY chart to weekly" → "make the chart you just added monthly" changes the NEW (QQQ) chart, never SPY  1228ms
+     ✓ review #771 HIGH (deferred path): "add a chart for AAPL and put the RSI on my SPY chart" → "make the new one weekly" → the AAPL chart  1289ms
+     ✓ two charts created → "the new one" is asked about, never guessed  1178ms
+     ✓ panel: two charts changed in one request → one receipt naming both charts with their timeframes  1093ms
+     ✓ panel: an add + change request names the existing chart it changed (symbol + timeframe) and the new chart's ticker and timeframe; no "already" line  1169ms
+     ✓ panel: new charts created on a timeframe never report "already <timeframe>"  1048ms
+     ✓ CG-9 (panel): "put my layout back" after a 2×2 grid restores the board  1099ms
+     ✓ "add RSI and switch to weekly" (two steps) → "undo" → both taken back; a described Undo still takes one  1345ms
+     ✓ model plan (adds-first): 3 adds + widget.arrange(grid) → four equal charts; "undo" restores the board  1481ms
+     ✓ model plan (arrange-first): 3 adds + widget.arrange(grid) → four equal charts; "undo" restores the board  1671ms
+     ✓ KEPT REFUSED: new charts + re-tiling only SOME widgets (a board change the adds depend on)  986ms
+     ✓ by a NAMED symbol: "…on the NVDA chart" → the NVDA chart's EMA 9 × EMA 20, no "which chart?"  1145ms
+     ✓ "this chart" with a chart SELECTED (human refs "ema_9" / "ema_20") → that chart  1117ms
+     ✓ the MODEL names the chart (`chart` = its context ref) → that chart  1083ms
+     ✓ review #771 delta M2: a named symbol that IS the selected chart's still resolves to it  1136ms
+     ✓ review #771 delta M2: the named symbol wins over a selection on ANOTHER symbol  1088ms
+     ✓ via the model's CLARIFY: the clicked choice keeps the question's groups (indicatorAlerts) and picks that chart  1284ms
+     ✓ an RSI threshold alert resolves the same way (named symbol)  1117ms
+     ✓ still ambiguous (two TSLA charts, nothing selected or chosen) → asked, and the refusal REPLACES the proposal's reply  975ms
+     ✓ CG-10 (panel): "unhide the 50 sma" SHOWS a hidden SMA 50 — never hides it  1067ms
+     ✓ "make it look cleaner" (clarify) → "add the RSI to my chart" is routed FRESH: never "too many parts", its own actions sent  997ms
+     ✓ "make it look cleaner" (clarify) → "open my Swing layout" is routed FRESH: never "too many parts", its own actions sent  1051ms
+     ✓ "make it look cleaner" (clarify) → "draw a line at 150" is routed FRESH: never "too many parts", its own actions sent  1042ms
+     ✓ "make it look cleaner" (clarify) → "add a news widget" is routed FRESH: never "too many parts", its own actions sent  1038ms
+     ✓ LT-6: "trendline on nvda from 2031-01-01 to today" after an unanswered question → the question is withdrawn, the model is told it was set aside  1049ms
+     ✓ LT-5: a short answer ("the close") still answers the open question — nothing is set aside  1014ms
+     ✓ a LOCAL "which chart?" question is set aside by a new request — the held plan never runs, the new one does  1130ms
+     ✓ panel: "make it the daily one" answers the open question — never set aside, the original request carried  1027ms
+     ✓ the deterministic reader asks: replace the 6 charts or add 4 more — nothing changes until the member picks  957ms
+     ✓ "Add 4 more charts" → 10 charts (the owner's pick, said)  1159ms
+     ✓ "Replace my 6 charts with these 4" → a CARD (it removes charts); approved → 4 equal charts, the ones already showing a ticker kept on it, other widgets stay  1460ms
+     ✓ "add four charts for …" / "new charts for …" still ADD (no question)  1052ms
+     ✓ a board with as many charts as tickers (or fewer) is reused, as on train 3 — no question  1038ms
+     ✓ a revision conflict (another window changed the workspace) → "On your screen but NOT saved", the reload note, no Undo  1038ms
+     ✓ a single change whose save fails: "On your screen but NOT saved", no Undo offered  1010ms
+     ✓ an Undo whose save fails: said as on screen, NOT saved — never "undone" as if final  1192ms
+     ✓ stale state (the board changed in another window before the write): nothing is written, said plainly  978ms
+     ✓ a grouped add + change whose SECOND part is not saved: the first part is said, the second "on your screen but wasn’t saved", never "Done in 2 steps"  1066ms
+     ✓ model path: "I'd like SPY, QQQ, NVDA and TSLA on four charts, all the same size, thanks" → the question, no charts added  1019ms
+     ✓ model path: "could you put SPY QQQ NVDA TSLA on equal charts for me please" → the question, no charts added  951ms
+     ✓ NL-1 path: the same question (the check is not inside the legacy-only branch)  992ms
+     ✓ the replace CARD names each chart to remove by ticker + timeframe and says "will remove"; the receipt says "removed"  1427ms
+     ✓ "Add 4 more charts" → 10 charts, the 4 new ones each with its RSI  1628ms
+     ✓ "Replace my 6 charts with these 4" → the card; approved → 4 charts, each with its RSI  1616ms
+     ✓ deterministic: "open TSLA on a new chart and switch it to the weekly" → the NEW chart; the existing chart byte-identical  1071ms
+     ✓ deterministic: "add a chart for META and make it a line chart" → the NEW chart; the existing chart byte-identical  1126ms
+     ✓ deterministic: "add a chart for AMD and put the 50 SMA on it" → the NEW chart; the existing chart byte-identical  1150ms
+     ✓ model plan with an UNRESOLVABLE target after the create → bound to the new chart (model path, NL-1 off)  1106ms
+     ✓ NL-1 on: the same unresolvable-target plan is bound to the new chart  1110ms
+     ✓ "add another NVDA chart and make the NVDA chart that was already there weekly": the ticker is on both → asked, nothing changes  975ms
+     ✓ M4: "Open TSLA on a new chart and also make it weekly" → asked (the change is set apart from the create)  984ms
+     ✓ two charts on the board, the change untargeted after the create: the new chart; both others byte-identical  1119ms
+     ✓ grouped Undo restores the exact prior state; a failed create stops the rest (never on the existing chart)  6298ms
+     ✓ create → add an EMA → change timeframe → undo ×3: every Undo goes through, the board is exactly as before  1754ms
+     ✓ create → the member changes the new chart by hand → "undo" refuses, nothing removed  1150ms
+     ✓ "add a chart for AMD and put the 50 SMA on it" → "make it orange" colours THAT SMA (no model turn); undo puts it back  1462ms
+     ✓ a chart CREATED weekly → "make it daily" → undo ×2: the board is byte-exact as before  1368ms
+     ✓ the member switches the new chart D → W → D by hand → "undo" takes back the creation (nothing really changed)  1333ms
+     ✓ the new chart differs in a NON-timeframe option (timeframe back on D) → "undo" still refuses, nothing removed  1103ms
+     ✓ NEGATIVE: "add a chart for AMD and put RSI on my SPY chart" → "make it orange" never colours the RSI on SPY (not widened)  1236ms
+     ✓ "make it weekly" after a G2 turn → the created chart goes weekly  1270ms
+     ✓ "remove it" after a G2 turn → proposes removing the SMA (needs approval); nothing changes before approval  1366ms
+ ✓ src/agent/qa/chartsOutcome/listControl.outcome.test.jsx (114 tests) 138278ms
+     ✓ "sort my watchlist by RVOL"  1590ms
+     ✓ "rank this list by relative volume"  1414ms
+     ✓ "which names are most active, put them on top"  1517ms
+     ✓ "order Momentum by rvol, biggest first"  1350ms
+     ✓ a column already showing is just sorted; both directions; a text column; the header's own first click when none is said  1596ms
+     ✓ "go back to the saved order" clears the sort  1360ms
+     ✓ asking for the sort it already has changes nothing and says so  1275ms
+     ✓ a column that does not exist (Beta) is refused, naming what exists, and nothing moves  1129ms
+     ✓ a column that does not exist (P/E) is refused, naming what exists, and nothing moves  1195ms
+     ✓ a column that does not exist (ADR) is refused, naming what exists, and nothing moves  1023ms
+     ✓ a column that does not exist (flag) is refused, naming what exists, and nothing moves  1009ms
+     ✓ no widget shows a list: there is nothing to sort, the request says so by having no entry, and a stale ref is refused  994ms
+     ✓ a PREBUILT list sorts for now, and the receipt says it will not stay  1071ms
+     ✓ "this list" with two on the board = the widget the member is in (the one that owns the arrow keys)  1143ms
+     ✓ by name: the widget whose savedList is that list  1084ms
+     ✓ "the one I just made" is marked recent on the list itself, not left to a receipt, and only that one  2473ms
+     ✓ "add the market cap column"  1256ms
+     ✓ "show me RVOL too"  1225ms
+     ✓ "put next earnings on there"  1294ms
+     ✓ "I want sector"  1317ms
+     ✓ several at once, and a swap in one request, as one Undo  1321ms
+     ✓ "sort by price" reaches the planner: no reader answers it first  1099ms
+     ✓ "sort this by price" reaches the planner: no reader answers it first  1073ms
+     ✓ "rank by price" reaches the planner: no reader answers it first  1070ms
+     ✓ "sorted by % change" reaches the planner: no reader answers it first  1082ms
+     ✓ "sort by volume" reaches the planner: no reader answers it first  1219ms
+     ✓ "sort by market cap" reaches the planner: no reader answers it first  1189ms
+     ✓ "hide price" reaches the planner: no reader answers it first  1156ms
+     ✓ "hide the price column" reaches the planner: no reader answers it first  1278ms
+     ✓ "remove the price column" reaches the planner: no reader answers it first  1058ms
+     ✓ "take the volume column off" reaches the planner: no reader answers it first  1070ms
+     ✓ "show the rvol column" reaches the planner: no reader answers it first  1069ms
+     ✓ "add the dollar volume column" reaches the planner: no reader answers it first  1087ms
+     ✓ "sort by price, highest first" reaches the planner: no reader answers it first  1072ms
+     ✓ "sort by price descending" reaches the planner: no reader answers it first  1072ms
+     ✓ "sort by price high to low" reaches the planner: no reader answers it first  1074ms
+     ✓ "next" reaches the planner: no reader answers it first  1088ms
+     ✓ "previous" reaches the planner: no reader answers it first  1058ms
+     ✓ "next ticker in the list" reaches the planner: no reader answers it first  1089ms
+     ✓ "next stock" reaches the planner: no reader answers it first  1084ms
+     ✓ "go to the next name" reaches the planner: no reader answers it first  1086ms
+     ✓ "previous ticker" reaches the planner: no reader answers it first  1116ms
+     ✓ "back one" reaches the planner: no reader answers it first  1064ms
+     ✓ hide a default column and an added one; the column menu reads the same state  1307ms
+     ✓ hiding the column it is sorted by drops the sort, and says so: a hidden column orders nothing  1803ms
+     ✓ reset goes to the defaults, and Undo brings the custom columns back  1747ms
+     ✓ refused, nothing written: {"add":["ADR"],"hide":[],"reset":false}  1006ms
+     ✓ refused, nothing written: {"add":["RVOL","Beta"],"hide":[],"reset":false}  989ms
+     ✓ refused, nothing written: {"add":[],"hide":["Symbol"],"reset":false}  1009ms
+     ✓ refused, nothing written: {"add":["rvol"],"hide":["RVOL"],"reset":false}  1006ms
+     ✓ refused, nothing written: {"add":[],"hide":[],"reset":false}  991ms
+     ✓ a column already showing, or already at defaults, is a no-op said as one  1090ms
+     ✓ "flag NVDA"  1242ms
+     ✓ "star AMD and TSLA"  1268ms
+     ✓ "mark nvda"  1319ms
+     ✓ "add MSFT to my flagged list"  1270ms
+     ✓ the row star follows, without a reload (the same store and event a click uses)  1097ms
+     ✓ unflag keeps the rest; Undo puts it back in its place; flags set by hand since do not cost that Undo  1667ms
+     ✓ flag some already flagged: only the new one, and it says which; all already: a no-op, nothing posted  1343ms
+     ✓ a ticker UCT does not know refuses the whole flag, and no tickers refuses  1339ms
+     ✓ the server refuses: the flag is taken back, and nothing claims it landed  1077ms
+     ✓ more than ten is proposed first  1315ms
+     ✓ "next ticker"  1238ms
+     ✓ "next one"  1242ms
+     ✓ "go down one"  1225ms
+     ✓ "skip two"  1224ms
+     ✓ "last name on the list"  1241ms
+     ✓ "back to the top"  1224ms
+     ✓ previous, and both ends wrap as the keys do, and the receipt says it wrapped  1243ms
+     ✓ walks the SORTED order, not the saved one  1301ms
+     ✓ nothing selected starts where the keys start  1072ms
+     ✓ the chart is on a name outside the list: refused, naming it, nothing moves; "first" still works  1157ms
+     ✓ an empty list is refused  1011ms
+     ✓ a step past the list is refused; "first" while on the first is a no-op  1099ms
+     ✓ a one-row list has nowhere to go, and says so  970ms
+     ✓ "remove everything except NVDA and AMD": one proposal naming what goes; Dismiss keeps; Apply removes; one Undo restores notes and order  1990ms
+     ✓ "keep only nvda, amd": one proposal naming what goes; Dismiss keeps; Apply removes; one Undo restores notes and order  1782ms
+     ✓ "drop all but NVDA and AMD from this list": one proposal naming what goes; Dismiss keeps; Apply removes; one Undo restores notes and order  1665ms
+     ✓ a name not in the list stops the whole change; so does none; keeping everything is a no-op  1144ms
+     ✓ a server failure halfway puts back what was removed and claims nothing  1209ms
+     ✓ a linked list stays read-only  998ms
+     ✓ several named tickers go at once without a proposal when few and not all; Undo restores  1266ms
+     ✓ listing EVERY ticker is a clear by another name, so it is proposed  1447ms
+     ✓ more than ten at once is proposed  1027ms
+     ✓ a list too big to take apart at once is refused and says where  1020ms
+     ✓ the request carries the rows as drawn, the sort and the columns; the answer reads the same, with no prices  1176ms
+     ✓ "remove the top three": the three on SCREEN, not the first three saved  1262ms
+     ✓ "flag the top two" and "keep the top two"  1677ms
+     ✓ "add the top two of this list to Earnings" in one request: read at apply, in the on-screen order  1461ms
+     ✓ a saved-order change on a column-sorted widget says it will not show  1243ms
+     ✓ a long list gives the model the first rows and says how many more  1028ms
+     ✓ a Scanner: sorts and reads the same way, and its columns stay its own, not the watchlists'  1397ms
+     ✓ "add the top two of this scan to Earnings" feeds a saved list from a widget with no list of its own  1243ms
+     ✓ a Flagged widget: its rows are the flags, and flagging from the Agent shows up in them  1674ms
+     ✓ the same list twice on one board: two targets, each its own  1024ms
+     ✓ a header click after the Agent's sort is the same state: the click flips it, and the Agent's Undo then refuses rather than overwrite it  1187ms
+     ✓ a column the menu added and a column the Agent added are the same thing to the menu  1521ms
+     ✓ "remove TSLA and AMD from Momentum" needs no model at all (the existing phrase), and the widget's rows follow its read  1090ms
+     ✓ a plan made while it was there, an Undo after it left: never a write to nothing  1184ms
+     ✓ held-out "move % change before price on my watchlist": the stored order and the header follow; Undo restores the columns exactly  1443ms
+     ✓ held-out "put the volume column right after the symbol": the stored order and the header follow; Undo restores the columns exactly  1285ms
+     ✓ held-out "drag price over to after % change": the stored order and the header follow; Undo restores the columns exactly  1229ms
+     ✓ held-out "swap the order so change comes ahead of volume": the stored order and the header follow; Undo restores the columns exactly  1258ms
+     ✓ GAP held-out "narrow the price column to 50": the stored width is that (fails today: the quote fast path answers first)  2520ms
+     ✓ GAP held-out "narrow the price column to 50": today the quote fast path answers, and nothing is written  991ms
+     ✓ held-out "make the symbol column wider, 140 pixels": the stored width is that; Undo restores the columns exactly  1279ms
+     ✓ held-out "set % change to 90px wide on the watchlist": the stored width is that; Undo restores the columns exactly  1322ms
+     ✓ NEGATIVE held-out "shrink the price column to 5 pixels": refused in words; the columns are untouched  1104ms
+     ✓ NEGATIVE held-out "make volume 2000 pixels wide": refused in words; the columns are untouched  1044ms
+     ✓ NEGATIVE held-out "move RVOL before price": refused in words; the columns are untouched  1010ms
+     ✓ NEGATIVE held-out "move price before beta": refused in words; the columns are untouched  1007ms
+
+ Test Files  22 passed (22)
+      Tests  565 passed (565)
+   Start at  18:44:01
+   Duration  147.79s (transform 40.35s, setup 7.27s, import 75.32s, tests 452.17s, environment 24.73s)
+
+SCOPED-DONE 

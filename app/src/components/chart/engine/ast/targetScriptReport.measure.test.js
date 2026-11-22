@@ -134,6 +134,15 @@ describe('⭐⭐ the target list — what each script actually needs', () => {
       if (!fs.existsSync(abs)) {
         // ⛔ REPORTED, NEVER SKIPPED. A target list that quietly drops entries
         // is a list that lies about coverage.
+        //
+        // ONE NAMED EXCEPTION: a target parked OUTSIDE the repo on purpose (the
+        // list's own header says why: the repo is public) cannot exist on a CI
+        // runner. There, and only there, it is reported as not measured and not
+        // counted; on the owner's machine a missing file is still a failure.
+        if (process.env.CI && (path.isAbsolute(String(t.path)) || path.win32.isAbsolute(String(t.path)))) {
+          lines.push(`   LOCAL-ONLY (outside the repo): not measured on this runner: ${t.path}`, '')
+          continue
+        }
         lines.push(`   ⛔ MISSING ON DISK: ${abs}`, '')
         missing += 1
         continue

@@ -306,16 +306,7 @@ def _note(uid, body):
         c.close()
 
 
-def test_every_route_is_404_while_the_flag_is_off_even_signed_out(client, monkeypatch):
-    monkeypatch.delenv(tfp.FLAG, raising=False)
-    for method, path in (("get", "/meta"), ("get", "/compute?symbol=NVDA"), ("get", "/blocks"),
-                         ("get", "/blocks/n/e"), ("post", "/blocks/n/e/freeze")):
-        r = getattr(client, method)("/api/j2/notebook-fingerprint" + path)
-        assert r.status_code == 404, (path, r.status_code)
-
-
 def test_a_free_plan_is_refused_and_a_paid_one_is_served(client, monkeypatch):
-    monkeypatch.setenv(tfp.FLAG, "1")
     as_user(client, "m1", FREE)
     assert client.get("/api/j2/notebook-fingerprint/meta").status_code == 402
     as_user(client, "m1", PAID)
@@ -324,14 +315,12 @@ def test_a_free_plan_is_refused_and_a_paid_one_is_served(client, monkeypatch):
 
 
 def test_compute_refuses_a_future_day(client, monkeypatch):
-    monkeypatch.setenv(tfp.FLAG, "1")
     as_user(client, "m1")
     monkeypatch.setattr(tfp, "compute", lambda s, a: tfp.normalize_as_of(a))
     assert client.get("/api/j2/notebook-fingerprint/compute?symbol=NVDA&asOf=2999-01-01").status_code == 422
 
 
 def test_blocks_list_freeze_and_another_members_note(client, monkeypatch):
-    monkeypatch.setenv(tfp.FLAG, "1")
     n = _note("m1", _doc(_chart(tag="VCP")))
     as_user(client, "m1")
     r = client.get("/api/j2/notebook-fingerprint/blocks?setupTag=VCP").json()
@@ -348,7 +337,6 @@ def test_blocks_list_freeze_and_another_members_note(client, monkeypatch):
 
 
 def test_the_freeze_route_freezes_a_pending_block_from_the_notes_own_symbol(client, monkeypatch):
-    monkeypatch.setenv(tfp.FLAG, "1")
     n = _note("m1", _doc(_chart(symbol="AMD")))
     as_user(client, "m1")
     r = client.post(f"/api/j2/notebook-fingerprint/blocks/{n['id']}/e-1/freeze")

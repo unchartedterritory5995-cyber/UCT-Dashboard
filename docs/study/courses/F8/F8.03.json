@@ -1,0 +1,1782 @@
+{
+ "unit": "F8.03",
+ "track": "F8",
+ "title": "Fear: freezing, hesitating, cutting winners",
+ "teaches": "Fear shows up as freezing at the trigger, hesitating into a late entry, and cutting winners early. Loss aversion helps explain the pull, and the disposition effect shows the cost. A plan set before the trigger and a size you can sit through tell fear from a real reason to pass.",
+ "skills": [
+  {
+   "id": "psych.fear",
+   "title": "Fear: freezing, hesitating, cutting winners"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s01",
+   "tier": 2,
+   "publisher": "SEC (report by the Library of Congress, Federal Research Division)",
+   "title": "Behavioral Patterns and Pitfalls of U.S. Investors (August 2010)",
+   "url": "https://www.sec.gov/investor/locinvestorbehaviorreport.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "Prepared for the SEC under an interagency agreement and published on sec.gov. The report says its findings are the author's and not necessarily the SEC's views, so the track audit (2026-11-09) files it as Tier 2, the same as F8.01 and F8.05; every key that cites it also has Tier 2 support from another publisher. sec.gov refused the plain client once (403) and served it on later runs; the quotes were also confirmed 2026-11-09 in the PDF that WebFetch downloaded."
+  },
+  {
+   "id": "s02",
+   "tier": 2,
+   "publisher": "The Journal of Finance (Terrance Odean, 1998)",
+   "title": "Are Investors Reluctant to Realize Their Losses? (author's copy, UC Berkeley Haas)",
+   "url": "https://faculty.haas.berkeley.edu/odean/papers%20current%20versions/areinvestorsreluctant.pdf",
+   "accessed": "2026-11-09",
+   "why_reliable": "Peer-reviewed paper (Journal of Finance, vol. 53, no. 5, October 1998) on the author's university page. The SEC report (s01) cites it as the study of the disposition effect and links this copy. Data: 10,000 discount-brokerage accounts, 1987 to 1993."
+  },
+  {
+   "id": "s03",
+   "tier": 2,
+   "publisher": "NobelPrize.org (Nobel Prize Outreach)",
+   "title": "The Prize in Economic Sciences 2002: Popular information",
+   "url": "https://www.nobelprize.org/prizes/economic-sciences/2002/popular-information/",
+   "accessed": "2026-11-09",
+   "why_reliable": "The official Nobel Prize site's summary of the work for which Daniel Kahneman shared the 2002 prize (prospect theory, loss aversion)."
+  },
+  {
+   "id": "s04",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Loss Aversion in Trading: Definition, Risks, and Strategies (Daniel Liberto, updated 2026-04-23)",
+   "url": "https://www.investopedia.com/terms/l/loss-psychology.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s06",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "The effects of loss aversion bias in investing (Investing bias: loss aversion)",
+   "url": "https://www.schwab.com/investing-bias/loss-aversion",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s07",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Investing biases (Fidelity Wealth Management Insights)",
+   "url": "https://www.fidelity.com/learning-center/wealth-management-insights/investing-biases",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s08",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "How to make better decisions (emotions and investing; Northeastern University psychology professor David DeSteno quoted)",
+   "url": "https://www.fidelity.com/learning-center/personal-finance/investment-decisions-and-emotions",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s09",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Techniques for Managing Positions (Jeffrey A. Hirsch, adapted from the Stock Trader's Almanac, Wiley)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/managing-positions",
+   "accessed": "2026-11-09",
+   "why_reliable": "Fidelity Learning Center page; the author is the editor-in-chief of the Stock Trader's Almanac, and the text is adapted from it with John Wiley & Sons' permission (credit line on the page)."
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Exit Strategies (Fidelity Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/exit-strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Psychological Challenges of Trading (Brett N. Steenbarger and Adrienne Toghraie, adapted from Enhancing Trader Performance, Wiley)",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/trading/psychological-challenges-trading",
+   "accessed": "2026-11-09",
+   "why_reliable": "Steenbarger is one of the trading-psychology authors the contract names; Fidelity reprints this text, adapted from his Wiley book, with the publisher's permission (credit line on the page)."
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Profitable Trading Exits: Simple and Effective Techniques (Alan Farley, updated 2026-09-15)",
+   "url": "https://www.investopedia.com/articles/active-trading/020915/mustknow-simple-effective-exit-trading-strategies.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Unlock Trading Success: 20 Essential Rules for Professionals (Alan Farley, updated 2026-08-19)",
+   "url": "https://www.investopedia.com/articles/active-trading/022715/20-rules-followed-professional-traders.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "What Is Regret Theory? How Anticipation Affects Decisions and Investments (James Chen, updated 2026-02-24)",
+   "url": "https://www.investopedia.com/terms/r/regrettheory.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "StockCharts Insider: Why Position Sizing Sometimes Matters More Than Stock Picking (Karl Montevirgen, 2026-05-29)",
+   "url": "https://articles.stockcharts.com/article/stockcharts-insider-why-position-sizing-sometimes-matters-more-than-stock-picking/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A StockCharts.com editorial article (StockCharts Insider), not ChartSchool; the author's bio on the page says he holds FINRA Series 3 and Series 34. The same article is a source in F9.02. Only its general lines on sizing and fear are cited here."
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "These Three Emotional Responses Could Be Costing You (Veronica Safryn, 2025-08-07)",
+   "url": "https://www.investopedia.com/emotional-responses-that-could-be-costing-you-11784077",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s20",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Trading Win/Loss Ratio: Definition, Formula, and Examples (Will Kenton, updated 2026-02-25)",
+   "url": "https://www.investopedia.com/terms/w/win-loss-ratio.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding Expected Value in Investments: Definition & Formula (Will Kenton, updated 2026-05-09)",
+   "url": "https://www.investopedia.com/terms/e/expected-value.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Understanding the Risk/Reward Ratio: A Guide for Stock Investors (Adam Hayes, updated 2026-07-18)",
+   "url": "https://www.investopedia.com/terms/r/riskrewardratio.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Outcome Bias: Definition, Impact on Investing & Decision-Making (Clay Halton, updated 2026-10-06)",
+   "url": "https://www.investopedia.com/terms/o/outcome-bias.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master Position Sizing: Minimize Risk and Boost Investment Returns (James Chen, updated 2026-07-01)",
+   "url": "https://www.investopedia.com/terms/p/positionsizing.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s25",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stop, Stop-Limit, and Trailing Stop Orders: Investor Bulletin",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-stop-stop-limit-trailing-stop",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s26",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 6: Management (owner quoted, Sunday Scans 2026-06-14)",
+   "url": "repo:docs/study/sizing_rule.md#6-management-so-the-sizing-drills-can-go-full-circle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s27",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "ChartSchool: Richard Rhodes' Trading Rules",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/overview/richard-rhodes-trading-rules",
+   "accessed": "2026-11-09",
+   "why_reliable": "StockCharts ChartSchool, a Tier 2 reference, reprints the trading rules of trader Richard Rhodes. Only his lines on patience after a missed trade and on small profits are cited. The publisher name matches s18 so the support rule counts StockCharts once."
+  },
+  {
+   "id": "s29",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What is a trading plan? (Fidelity Learning Center, Smart Money)",
+   "url": "https://www.fidelity.com/learning-center/smart-money/trading-plan",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f01",
+   "source": "s01",
+   "quote": "Excessive risk aversion leads them to attach more importance to avoiding losses than to achieving gains.",
+   "claim": "Investors put more weight on avoiding losses than on achieving gains."
+  },
+  {
+   "id": "f02",
+   "source": "s01",
+   "quote": "many investors damage their portfolios by underdiversifying; trading frequently; following the herd; favoring the familiar (domestic stocks, company stock, and glamour stocks); selling winning positions and holding onto losing positions (disposition effect)",
+   "claim": "Selling winners and holding losers, the disposition effect, is one of the habits that damage investors' portfolios."
+  },
+  {
+   "id": "f03",
+   "source": "s01",
+   "quote": "According to Odean’s study, in the months following the sale of winning investments, these investments continue to outperform the losing ones still held in the investment portfolio, an outcome exactly the opposite of that intended.",
+   "claim": "In Odean's study, the winners investors sold kept beating the losers they held, the opposite of what they intended."
+  },
+  {
+   "id": "f04",
+   "source": "s02",
+   "quote": "I test the disposition effect, the tendency of investors to hold losing investments too long and sell winning investments too soon, by analyzing trading records for 10,000 accounts at a large discount brokerage house.",
+   "claim": "The disposition effect is holding losers too long and selling winners too soon; Odean tested it on 10,000 brokerage accounts."
+  },
+  {
+   "id": "f05",
+   "source": "s02",
+   "quote": "a stock that is up in value is more than 50 percent more likely to be sold from day to day than a stock that is down.",
+   "claim": "In Odean's data, a stock that was up was more than 50% more likely to be sold on a given day than one that was down."
+  },
+  {
+   "id": "f06",
+   "source": "s02",
+   "quote": "For winners that are sold, the average excess return over the following year is 3.4 percent more than it is for losers that are not sold.",
+   "claim": "Over the next year, the winners investors sold beat the losers they kept by 3.4 percentage points of excess return."
+  },
+  {
+   "id": "f07",
+   "source": "s02",
+   "quote": "Investors who sell winners and hold losers because they expect the losers to outperform the winners in the future are, on average, mistaken.",
+   "claim": "Holding losers on the hope they will do better than the winners you sold is, on average, a mistake."
+  },
+  {
+   "id": "f08",
+   "source": "s02",
+   "quote": "THE TENDENCY TO HOLD LOSERS too long and sell winners too soon has been labeled the disposition effect by Shefrin and Statman (1985).",
+   "claim": "Shefrin and Statman named the disposition effect in 1985."
+  },
+  {
+   "id": "f09",
+   "source": "s03",
+   "quote": "Moreover, most individuals seem to be more averse to losses, relative to a reference level, than partial to gains of the same size.",
+   "claim": "Most people dislike a loss more than they like a gain of the same size."
+  },
+  {
+   "id": "f10",
+   "source": "s04",
+   "quote": "Loss aversion is a psychological bias in which the fear of losing is more intense than the satisfaction of an equivalent gain, influencing decision making and risk assessment in financial activities.",
+   "claim": "Loss aversion is a bias where the fear of losing outweighs the satisfaction of an equal gain."
+  },
+  {
+   "id": "f11",
+   "source": "s04",
+   "quote": "Fear of loss can cause investors to keep losing stocks too long or sell winners too quickly, a bias called the disposition effect.",
+   "claim": "Fear of loss leads investors to hold losers too long and sell winners too quickly."
+  },
+  {
+   "id": "f12",
+   "source": "s04",
+   "quote": "Some studies suggest losing hurts about twice as much as winning feels good. However, some studies question whether loss aversion exists or affects people practically.",
+   "claim": "Some studies put a loss at about twice the pain of an equal gain's pleasure; others question the effect."
+  },
+  {
+   "id": "f13",
+   "source": "s04",
+   "quote": "Risk aversion, however, can be rational since both losses and gains at any level of risk taking would be viewed symmetrically. It is the asymmetry of loss aversion where losses loom larger than gains",
+   "claim": "Risk aversion can be rational; loss aversion is the lopsided part, where losses loom larger than equal gains."
+  },
+  {
+   "id": "f17",
+   "source": "s06",
+   "quote": "Loss aversion is the reluctance to realize a loss because the emotional jolt of said loss is about twice as powerful as the joy from a gain.",
+   "claim": "Loss aversion makes people reluctant to take a loss; a loss's jolt is about twice a gain's joy."
+  },
+  {
+   "id": "f18",
+   "source": "s06",
+   "quote": "Constantly monitoring the market is stressful. It also increases the likelihood of making costly short-term mistakes or taking too little risk",
+   "claim": "Watching the market constantly raises the odds of costly short-term mistakes and of taking too little risk."
+  },
+  {
+   "id": "f19",
+   "source": "s07",
+   "quote": "Loss aversion has also been used to help explain the \"disposition effect,\" which describes a tendency for investors to hold onto investments that have lost money and sell those that have increased in value.",
+   "claim": "Loss aversion is used to help explain the disposition effect: holding losers and selling winners."
+  },
+  {
+   "id": "f20",
+   "source": "s07",
+   "quote": "Research has found that investors who check their portfolios frequently are less willing to accept risk, and over the long run may reduce their returns.",
+   "claim": "Investors who check their portfolios often are less willing to take risk."
+  },
+  {
+   "id": "f21",
+   "source": "s07",
+   "quote": "Most people tend to opt for the sure thing, because of our natural tendency to avoid ambiguity.",
+   "claim": "People lean toward the sure thing because they dislike uncertainty."
+  },
+  {
+   "id": "f22",
+   "source": "s08",
+   "quote": "Fear and/or anxiety reduce your ability to stomach risk. Whether you’re typically an aggressive investor or you’re more conservative, experiencing fear or anxiety pushes your risk tolerance lower than your personal baseline.",
+   "claim": "Fear pushes your risk tolerance below your own normal level."
+  },
+  {
+   "id": "f23",
+   "source": "s08",
+   "quote": "Anger, by contrast, increases your emotional risk tolerance.",
+   "claim": "Anger pushes risk tolerance up."
+  },
+  {
+   "id": "f24",
+   "source": "s08",
+   "quote": "Labeling your emotions will help you understand how they may influence your financial moves in ways that you may not intend.",
+   "claim": "Naming the emotion you feel helps you see how it is steering your decisions."
+  },
+  {
+   "id": "f25",
+   "source": "s09",
+   "quote": "On the flip side we emotional humans are inclined to take any quick profits and sell any stock that delivers a gain right away.",
+   "claim": "People tend to grab quick profits and sell a stock as soon as it shows a gain."
+  },
+  {
+   "id": "f26",
+   "source": "s09",
+   "quote": "Selling too soon can be almost as detrimental to long-term returns as money-losing trades. This is why it can be important to harvest gains and then set trailing stop losses.",
+   "claim": "Selling too soon can hurt returns almost as much as losing trades; take some gains, then trail a stop."
+  },
+  {
+   "id": "f27",
+   "source": "s09",
+   "quote": "A big factor in increasing the returns of your stock portfolio and preserving your capital may be going against your natural instincts by cutting your losses fast and letting your winners ride.",
+   "claim": "Cutting losses fast and letting winners ride goes against instinct, and may be a big factor in returns."
+  },
+  {
+   "id": "f28",
+   "source": "s10",
+   "quote": "Often, emotions and loss aversion can get in the way of making good trading decisions. That’s why it's so important that you have a plan for getting out of an investment.",
+   "claim": "Emotions and loss aversion get in the way of good decisions, so have an exit plan."
+  },
+  {
+   "id": "f29",
+   "source": "s10",
+   "quote": "Even before you enter a trade, it can be helpful to have a plan for how you might exit the trade.",
+   "claim": "Plan your exit before you enter the trade."
+  },
+  {
+   "id": "f30",
+   "source": "s11",
+   "quote": "Peaks and troughs in trading performance are likely to be the norm rather than the exception",
+   "claim": "Good and bad stretches in trading results are normal."
+  },
+  {
+   "id": "f31",
+   "source": "s12",
+   "quote": "Get into the habit of establishing reward and risk targets before entering each trade.",
+   "claim": "Set your reward and risk targets before each entry."
+  },
+  {
+   "id": "f32",
+   "source": "s12",
+   "quote": "The trick is to stay positioned until price action gives you a reason to get out.",
+   "claim": "Stay in the trade until price action gives you a reason to exit."
+  },
+  {
+   "id": "f33",
+   "source": "s12",
+   "quote": "Stops need to go where they get you out when a security violates the technical reason you took the trade.",
+   "claim": "A stop belongs where the chart reason for the trade fails."
+  },
+  {
+   "id": "f34",
+   "source": "s13",
+   "quote": "once a trader has confidence in their trading plan, they must have the discipline to stay the course, even when there are the inevitable losing streaks.",
+   "claim": "Losing streaks are inevitable; a trader with a sound plan keeps following it through them."
+  },
+  {
+   "id": "f40",
+   "source": "s16",
+   "quote": "Fear of regret can play a significant role in dissuading someone from taking action or motivating a person to take action.",
+   "claim": "Fear of regret can stop you acting, or push you to act."
+  },
+  {
+   "id": "f43",
+   "source": "s18",
+   "quote": "When a position is too large, it’s hard to analyze or manage a position objectively. Fear gets intense. Every pullback feels like a catastrophe.",
+   "claim": "An oversized position makes fear intense, so every pullback feels like a disaster."
+  },
+  {
+   "id": "f44",
+   "source": "s18",
+   "quote": "In either case, place your stops where you think they’ll work. Just adjust your position.",
+   "claim": "Put the stop where it works and change the size, not the stop."
+  },
+  {
+   "id": "f45",
+   "source": "s19",
+   "quote": "This mindset can lead investors to avoid certain investments, sacrificing the potential for a gain even if it involves a risk that makes sense logically.",
+   "claim": "Loss aversion can make you skip a risk that makes sense, giving up the gain."
+  },
+  {
+   "id": "f46",
+   "source": "s19",
+   "quote": "Start with smaller investments and work your way up to build your confidence in lower-stakes finances. This approach helps counteract loss aversion by minimizing the fear of losing money.",
+   "claim": "Starting with smaller stakes lowers the fear of losing and helps counteract loss aversion."
+  },
+  {
+   "id": "f47",
+   "source": "s20",
+   "quote": "having a high win rate (again, winning trades/total trades) doesn't necessarily mean a trader will be successful or even profitable if the risk-reward ratio is very high.",
+   "claim": "A high win rate does not make you profitable if each loss is large next to each win."
+  },
+  {
+   "id": "f48",
+   "source": "s20",
+   "quote": "Sounds good, but if the losing trades have dollar losses three times as large as the dollar gains of the winning trades, the trader has a losing strategy.",
+   "claim": "Winning more often still loses money when the losses are much bigger than the wins."
+  },
+  {
+   "id": "f49",
+   "source": "s21",
+   "quote": "The EV is calculated in statistics and probability analysis by multiplying each of the possible outcomes by the likelihood that each outcome will occur and then summing all of those values.",
+   "claim": "Expected value: multiply each outcome by its chance and add them up."
+  },
+  {
+   "id": "f50",
+   "source": "s22",
+   "quote": "In this case, the trader is willing to risk $5 per share to make an expected return of $10 per share after closing the position.",
+   "claim": "A trade's reward is measured against the risk per share: $10 of reward on $5 of risk is twice the risk."
+  },
+  {
+   "id": "f51",
+   "source": "s23",
+   "quote": "Outcome bias is the tendency to judge a decision by its result rather than the reasoning behind it, putting too much weight on how things turned out.",
+   "claim": "Outcome bias is judging a decision by its result instead of its reasoning."
+  },
+  {
+   "id": "f52",
+   "source": "s24",
+   "quote": "If expecting volatility, like before earnings reports, investors might halve their position size to cut gap risk.",
+   "claim": "Before earnings, some cut their size in half to reduce gap risk."
+  },
+  {
+   "id": "f53",
+   "source": "s24",
+   "quote": "Even with proper position sizing, investors can lose more than their intended risk amount if a security gaps beyond a stop-loss order.",
+   "claim": "A gap past your stop can cost more than the risk you planned."
+  },
+  {
+   "id": "f54",
+   "source": "s25",
+   "quote": "The stop price is not the guaranteed execution price for a stop order. The stop price is a trigger that causes the stop order to become a market order.",
+   "claim": "A stop is a trigger, not a guaranteed price: it becomes a market order."
+  },
+  {
+   "id": "f55",
+   "source": "s25",
+   "quote": "Investors generally use a sell stop order in an attempt to limit a loss or to protect a profit on a stock that they own.",
+   "claim": "A sell stop is used to limit a loss or protect a profit."
+  },
+  {
+   "id": "f56",
+   "source": "s25",
+   "quote": "As the price of the security moves in a favorable direction the trailing stop price adjusts or “trails” the market price of the security by the specified amount.",
+   "claim": "A trailing stop moves up behind the price as the trade goes your way."
+  },
+  {
+   "id": "f57",
+   "source": "s09",
+   "quote": "one of the simplest, oldest methods, and most effective ways to help lock in profits and let your winners ride, especially with lower-priced, smaller-cap stocks, is to sell half on a double.",
+   "claim": "In Hirsch's view, selling half on a double is one of the simplest ways to lock in profits and still let the winner ride."
+  },
+  {
+   "id": "f58",
+   "source": "s13",
+   "quote": "Lock in what you can as early as you can, with trailing stops or partial profits, so the hidden hands of the market can’t pickpocket your gains at the last minute.",
+   "claim": "Farley's rule: protect gains with trailing stops or partial profits."
+  },
+  {
+   "id": "f59",
+   "source": "s28",
+   "quote": "Be patient. If a trade is missed, wait for a correction to occur before putting the trade on.",
+   "claim": "If you miss a trade, wait for a pullback before putting it on."
+  },
+  {
+   "id": "f60",
+   "source": "s28",
+   "quote": "The old adage that “you never go broke taking a profit” is maybe the most worthless piece of advice ever given.",
+   "claim": "Rhodes calls 'you never go broke taking a profit' maybe the most worthless trading advice there is."
+  },
+  {
+   "id": "f61",
+   "source": "s29",
+   "quote": "In short, trading plans help remove some of the emotion and guesswork from your trading decision-making.",
+   "claim": "A trading plan takes some of the emotion and guesswork out of your decisions."
+  },
+  {
+   "id": "f62",
+   "source": "s29",
+   "quote": "It's important to determine this process before you start investing so you aren't making spur-of-the-moment choices based on temporary market peaks or valleys.",
+   "claim": "Decide your entries and exits in advance, so you aren't making spur-of-the-moment choices."
+  },
+  {
+   "id": "h01",
+   "source": "s26",
+   "quote": "Hold your winners by selling partials into strength and trailing the rising moving averages.",
+   "claim": "Our rule: hold winners by selling partials into strength and trailing the rising moving averages."
+  },
+  {
+   "id": "h02",
+   "source": "s27",
+   "quote": "The first trim: the hard rule is a third at 3R; ideally anywhere from 3R to 6R, and in practice he mostly waits for 5R.",
+   "claim": "Our first trim, the hard rule: a third of the position at 3R. In practice the owner often waits for 5R."
+  },
+  {
+   "id": "h03",
+   "source": "s27",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "Our rule: no new buys in the 3 days before an earnings report."
+  },
+  {
+   "id": "h04",
+   "source": "s27",
+   "quote": "Every planned buy has its entry, stop and size written down before the market opens.",
+   "claim": "Our rule: every planned buy has its entry, stop and size written down before the open."
+  },
+  {
+   "id": "h05",
+   "source": "s27",
+   "quote": "No chasing: never buy more than 4% above the buy point.",
+   "claim": "Our rule: never buy more than 4% above the buy point."
+  },
+  {
+   "id": "h06",
+   "source": "s27",
+   "quote": "Chasing costs size, not risk: the stop stays under the buy point, so the distance grows and the shares shrink (A5).",
+   "claim": "Our rule: a late buy keeps the same stop, so the gap to the stop grows and you buy fewer shares for the same risk."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r02",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "h20",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "We trail the 9 EMA on fast movers and the 20 EMA on steadier ones, and sell what is left on a close below it."
+  },
+  {
+   "id": "h21",
+   "source": "hw",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "h22",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "The stop may move up to breakeven between 2R and 5R, or at the first sell."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Three ways fear shows up",
+   "steps": [
+    "Fear hits three ways. You freeze at the trigger, hesitate and buy late, or dump a winner early.",
+    "Under all three is the fear of losing. A loss stings more than the same size gain feels good.",
+    "So fear closes trades too soon. It talks you out of risk your own plan already said yes to."
+   ],
+   "facts": [
+    "f09",
+    "f11",
+    "f22",
+    "f45"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "What cutting winners costs",
+   "steps": [
+    "One big study went through 10,000 accounts at a discount broker. Look at what people sold.",
+    "A stock that was up was more than 50% more likely to get sold than one that was down.",
+    "Over the next year, the winners they sold beat the losers they kept by 3.4 percentage points.",
+    "Selling the winner felt safe. On average, they dumped the wrong one."
+   ],
+   "facts": [
+    "f04",
+    "f05",
+    "f06"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Fear, or a real reason",
+   "steps": [
+    "A real reason to pass is a rule you wrote before the trigger. Fear is a feeling that shows up at it.",
+    "When it hits, name it: that's fear from my last two losses. Once you see it, it steers you less.",
+    "Then follow the plan, at a size you can sit through. Too big, and every pullback feels like a disaster."
+   ],
+   "facts": [
+    "f61",
+    "f24",
+    "f43",
+    "f34"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "psych.fear",
+   "rung": 1,
+   "format": "mcq",
+   "term": "loss aversion",
+   "q": "You're up $500 on one trade and down $500 on another. Only the loser keeps you up at night. What's going on?",
+   "choices": [
+    "Loss aversion, a loss hits harder",
+    "Risk aversion, you hate any risk",
+    "FOMO, you're scared of missing out",
+    "Discipline, you respect your stop"
+   ],
+   "answer": "Loss aversion, a loss hits harder",
+   "why": "Loss aversion. Same $500 either way, but the loss is the one you feel. Most people are wired like that. A loss stings more than a gain of the same size feels good. At the screen, that sting pulls you off your plan. You skip good triggers. You sit on losers, because taking the loss makes it real. Being careful with risk is fine, that's just risk aversion. Loss aversion is the lopsided part, and the plan is how you beat it.",
+   "lesson_line": "Your gut weighs a loss heavier than a gain. Let the plan do the weighing.",
+   "facts": [
+    "f09",
+    "f01",
+    "f10",
+    "f13",
+    "f17"
+   ],
+   "wrong": {
+    "Risk aversion, you hate any risk": "Being careful with risk can be perfectly rational. This is lopsided. Same $500, but only the loss stings.",
+    "FOMO, you're scared of missing out": "FOMO is about a move you're not in. You're in both of these, and the pain is the loss.",
+    "Discipline, you respect your stop": "That's a habit, not a feeling. Loss aversion pulls the other way. It makes you not want to take the loss at all."
+   },
+   "simple": "A loss stings more than an equal gain feels good, and that sting pulls you off your plan.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (claim and a wrong choice edited by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "NobelPrize.org sums up Daniel Kahneman's prize work: most people dislike a loss more than an equal gain. Investopedia defines loss aversion as the fear of losing outweighing the satisfaction of an equal gain. It notes that risk aversion can be rational. Schwab ties it to the reluctance to realize a loss."
+   }
+  },
+  {
+   "key": "q02",
+   "skill": "psych.fear",
+   "rung": 1,
+   "format": "tf",
+   "q": "Studies suggest a $1,000 loss stings about twice as much as a $1,000 win feels good.",
+   "answer": "True",
+   "why": "True, as a rough number. Some studies land on about twice. Others question how much it matters in practice, so don't treat twice as a law. Here's why I care anyway. If a $1,000 loss feels twice as heavy, you'll do a lot to avoid feeling it. You skip the trigger. You sell the winner at the first wobble. You hold the loser so it isn't real yet. That's why your exits get decided before you're in, while you're calm.",
+   "lesson_line": "A loss feels about double. That's why the exits get decided before you're in.",
+   "facts": [
+    "f17",
+    "f12",
+    "f28"
+   ],
+   "simple": "True, roughly. A loss tends to sting about twice as much, so decide your exits before you feel it.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a number (about twice) that studies dispute"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Schwab puts the emotional jolt of a loss at about twice as powerful as the joy from a gain. Investopedia says some studies suggest about twice, and that other studies question whether loss aversion exists or affects people in practice. Fidelity says emotions and loss aversion can get in the way of good trading decisions. That's why it says to have a plan for getting out."
+   }
+  },
+  {
+   "key": "q03",
+   "skill": "psych.fear",
+   "rung": 2,
+   "format": "mcq",
+   "term": "disposition effect",
+   "q": "One stock's up 8%, one's down 8%. You sell the winner to lock it in and keep the loser till it comes back. What is that?",
+   "choices": [
+    "Selling winners early, holding losers",
+    "Smart risk control, locking in profit",
+    "Giving the loser room to work",
+    "Rebalancing to keep things even"
+   ],
+   "answer": "Selling winners early, holding losers",
+   "why": "That's the disposition effect, and it's backwards. You just dumped the one that's working and kept the one that isn't. Selling the winner feels like locking it in. Holding the loser feels like it isn't a loss until you sell. Both are your gut dodging the sting. Judge each one on its own chart and its own stop. The loser goes when it hits the stop, not when it gets back to even. The winner stays while it keeps acting right.",
+   "lesson_line": "Winners sold too soon, losers held too long. Flip that and you've fixed a lot.",
+   "facts": [
+    "f02",
+    "f04",
+    "f19",
+    "f08"
+   ],
+   "wrong": {
+    "Smart risk control, locking in profit": "Risk control is cutting the loser at the stop. Here the loser stays and the winner goes.",
+    "Giving the loser room to work": "Room is what your stop gives a trade. Waiting for it to come back isn't a plan, it's hope.",
+    "Rebalancing to keep things even": "Nothing here was about balance. You sold the one that hurt least to sell."
+   },
+   "simple": "Selling the winner and holding the loser is the disposition effect. It keeps your worst trade and dumps your best.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why reworded in the track audit)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Terrance Odean defines the disposition effect as the tendency to hold losing investments too long and sell winning investments too soon. Shefrin and Statman named it in 1985. A research review done for the SEC lists it among the habits that hurt investors' portfolios. Fidelity says loss aversion has been used to help explain it. That's a theory of the cause, not a proven law."
+   }
+  },
+  {
+   "key": "q04",
+   "skill": "psych.fear",
+   "rung": 2,
+   "format": "tf",
+   "q": "In a study of 10,000 brokerage accounts, the winners people sold went on to beat the losers they kept.",
+   "answer": "True",
+   "why": "True, and by a real margin. Terrance Odean went through 10,000 accounts at a discount broker. Over the next year, the winners people sold beat the losers they held by 3.4 percentage points. That's an average, not a promise on any one stock. But think about what it says. The stock you dumped to feel safe was the better one to own. The loser you held to dodge the hit was the worse one. Your gut kept the wrong one.",
+   "lesson_line": "The winner you sell to feel safe can keep going without you.",
+   "facts": [
+    "f06",
+    "f03",
+    "f04",
+    "f05"
+   ],
+   "simple": "True. On average the winners they sold kept beating the losers they held, the opposite of what they wanted.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why softened by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "In Odean's data, a stock that was up was more than 50 percent likelier to be sold than one that was down. The research review done for the SEC calls the result exactly the opposite of what was intended. These were investors at one discount broker, not swing traders, so read it as a habit, not a trading system."
+   }
+  },
+  {
+   "key": "q05",
+   "skill": "psych.fear",
+   "rung": 3,
+   "format": "mcq",
+   "q": "Your trigger hits on a name you planned all weekend. Your stomach tightens. Left alone, what does that fear make you do?",
+   "choices": [
+    "Skip a trade your plan allows",
+    "Buy more than you planned",
+    "Buy and add as it climbs",
+    "Take it exactly as planned"
+   ],
+   "answer": "Skip a trade your plan allows",
+   "why": "It talks you out of it. Fear shrinks how much risk you're willing to take, below your own normal. So a trade your plan says yes to suddenly feels like too much. Think about what that costs you. You planned it calm, over the weekend, with the stop and the size set. Now a feeling at the trigger is overruling that work. Anger is the one that pushes you bigger. Fear pulls you smaller, sometimes all the way to nothing.",
+   "lesson_line": "You planned it calm. Fear at the trigger doesn't get a vote.",
+   "facts": [
+    "f22",
+    "f45",
+    "f11",
+    "f23"
+   ],
+   "wrong": {
+    "Buy more than you planned": "That's more risk. Anger pushes you that way. Fear pulls the other way.",
+    "Buy and add as it climbs": "Adding is taking on more risk. Fear doesn't push you there.",
+    "Take it exactly as planned": "That's what you want to happen. Left alone, fear drags your risk below your own normal."
+   },
+   "simple": "Fear shrinks how much risk you'll take, so it talks you out of a trade your own plan says yes to.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (question reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Fidelity, quoting psychology professor David DeSteno: fear and anxiety push your risk tolerance lower than your personal baseline, while anger increases it. Investopedia says loss aversion can lead you to avoid a risk that makes sense, giving up the gain."
+   }
+  },
+  {
+   "key": "q06",
+   "skill": "psych.fear",
+   "rung": 3,
+   "format": "tf",
+   "q": "Staring at every tick of your open trades all day makes you more willing to take risk.",
+   "answer": "False",
+   "why": "False. It works the other way. People who check their positions all the time end up less willing to take risk. Constant watching is stressful too, and it leads to costly short-term mistakes. You've felt it. Every red tick on a good trade looks like the start of a breakdown, and you sell a fine position on noise. Here's what I'd do. Put the stop in, set an alert at your next level, and step away. The stop watches it for you.",
+   "lesson_line": "Set the stop and the alert. Then quit staring at every tick.",
+   "facts": [
+    "f20",
+    "f18"
+   ],
+   "simple": "False. Watching every tick makes you take less risk and make more short-term mistakes, so set the stop and step away.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Fidelity cites research that investors who check their portfolios frequently are less willing to accept risk. Over the long run, that may reduce their returns. Schwab says constant monitoring is stressful and raises the odds of costly short-term mistakes or of taking too little risk. Both speak of portfolios. Staring at your open trades all day is the same habit."
+   }
+  },
+  {
+   "key": "q07",
+   "skill": "psych.fear",
+   "rung": 3,
+   "format": "fill",
+   "q": "Fill in the word.",
+   "sentence": "Plan your exit ___ you enter the trade.",
+   "bank": [
+    "before",
+    "after",
+    "once",
+    "as"
+   ],
+   "answer": "before",
+   "why": "Before. Fidelity says to have a plan for how you might exit even before you enter. Investopedia's Alan Farley says to set reward and risk targets before each trade. Fidelity adds that emotions and loss aversion can get in the way of good trading decisions. That is why the exit is decided first.",
+   "lesson_line": "Exits are decided before the entry. In the trade, you follow them.",
+   "facts": [
+    "f29",
+    "f31",
+    "f28"
+   ],
+   "simple": "Plan your exit before you buy, because fear of loss can get in the way of good decisions later.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q08",
+   "skill": "psych.fear",
+   "rung": 4,
+   "format": "scenario",
+   "story": "Your flat base triggers right through the top of the box. Every rule on your list checks out. Your last two trades were stop-outs. Your finger's on the button, and you don't click.",
+   "q": "What's really happening here?",
+   "choices": [
+    "Freezing on a valid entry",
+    "A real reason to pass",
+    "Cutting a winner too early",
+    "Chasing a late entry"
+   ],
+   "answer": "Freezing on a valid entry",
+   "why": "You froze. Look at what said no. Not the chart and not your rules, every one of them passed. The only no came from the last two stop-outs. That's fear lowering your risk on a trade that earned a yes. Losing streaks come with the job, even with a good plan. The trader who keeps taking valid setups is there when the next winner shows up. Next time, name it: that's the last two losses talking. Then take it at your planned size, or smaller if you need to.",
+   "lesson_line": "If every rule says go and you don't, that's fear talking, not judgment.",
+   "facts": [
+    "f22",
+    "f45",
+    "f34",
+    "f24"
+   ],
+   "wrong": {
+    "A real reason to pass": "A real reason is a rule that says no. Every rule said yes here.",
+    "Chasing a late entry": "Chasing is buying late after it runs. You haven't bought at all.",
+    "Cutting a winner too early": "You're not in yet. You can't cut what you don't own."
+   },
+   "simple": "You froze. Every rule said buy, and the only no came from the sting of the last two losses.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lesson line hedged by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Fidelity says fear pushes your risk tolerance below your own baseline. Labeling the emotion helps you see how it steers your choices. Investopedia says loss aversion can make you skip a risk that makes sense. Alan Farley calls losing streaks inevitable and says a trader with a sound plan stays the course through them."
+   }
+  },
+  {
+   "key": "q09",
+   "skill": "psych.fear",
+   "rung": 4,
+   "format": "scenario",
+   "story": "Your plan: buy at $50, stop at $49. It trades $50.05 and you wait to see if it holds. It does. You finally buy at $51.50.",
+   "q": "How would you grade that entry?",
+   "choices": [
+    "Hesitating, then buying late",
+    "Cutting a winner too soon",
+    "A real reason to wait for proof",
+    "Sticking to the plan as written"
+   ],
+   "answer": "Hesitating, then buying late",
+   "why": "That's hesitation, and it cost you. The plan said $50. Waiting to see if it holds feels careful. Really you were waiting for a sure thing, and a breakout never gives you one. Look at what the wait did. At $50 you risked a dollar a share to the $49 stop. At $51.50 you're risking two and a half dollars. Same dollar risk, so you get less than half the shares. It's still inside our 4% chase line, but the trade got worse. Next time, have the order ready at the trigger and let it fill.",
+   "lesson_line": "Waiting for it to feel safe turns a $50 plan into a $51.50 entry.",
+   "facts": [
+    "f21",
+    "f40",
+    "f22",
+    "h05",
+    "h06"
+   ],
+   "wrong": {
+    "Cutting a winner too soon": "You weren't in yet. This all happened at the entry.",
+    "A real reason to wait for proof": "Waiting for it to hold wasn't in your plan. That was wanting a sure thing.",
+    "Sticking to the plan as written": "The plan said $50. You paid $51.50 with the same $49 stop."
+   },
+   "simple": "You hesitated and bought late, so the same stop sits further away and you get fewer shares.",
+   "deeper": {
+    "trap": "The trap is thinking a late fill is free. $51.50 is inside our 4% line, so it's allowed. But the stop stays at $49, where the setup fails, so each share carries more risk than you planned. The size comes from the stop, so the same risk buys fewer shares. Hesitating cost you size, not just price. Fidelity notes most people opt for the sure thing because they dislike ambiguity."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (question reworded by the checker)",
+     "the deeper note rests on the owner's rulebook (C28)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q10",
+   "skill": "psych.fear",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You bought at $40, stop $38. On day 1 it runs to $41.20, then dips to $40.80. You sell it all to lock in the gain.",
+   "q": "Be honest with yourself. What was that sale?",
+   "choices": [
+    "Cutting a winner early",
+    "Freezing at entry",
+    "A planned partial",
+    "Respecting your stop"
+   ],
+   "answer": "Cutting a winner early",
+   "why": "That was fear cutting a winner. Your stop is $38. The dip to $40.80 never came near it, and you're still up on the trade. Nothing in your plan said sell. The only thing that sold was the worry of giving some back. We very rarely sell on day 1. Most of the time nothing gets sold before day 3 at the earliest. A good trade needs room to work. Stay in until price gives you a reason to get out, like a hit on your stop.",
+   "lesson_line": "Stay in until price gives you a reason to get out, not your nerves.",
+   "facts": [
+    "f11",
+    "f25",
+    "f32",
+    "r02"
+   ],
+   "wrong": {
+    "Freezing at entry": "Freezing happens before you're in. You were already in this one.",
+    "A planned partial": "A partial is a piece sold into strength, on a plan. This was all of it, on a day 1 dip.",
+    "Respecting your stop": "Your stop was $38. The stock never got near it."
+   },
+   "simple": "Fear cut a winner. You sold it all on a small day 1 dip that never came near your stop.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (story rewritten to the rulebook's 3R first trim)",
+     "the $46 trim follows the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia notes fear of loss can make investors sell winners too quickly. Alan Farley's rule: stay positioned until price action gives you a reason to get out. Hirsch, writing for Fidelity, says people tend to grab any quick profit as soon as a stock shows a gain."
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "psych.fear",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You bought at $40 with a $38 stop, $2 of risk a share. Nerves get you out at $41. How many R was that?",
+   "answer": "0.5R",
+   "calc": {
+    "fn": "r_multiple",
+    "args": {
+     "entry": 40,
+     "stop": 38,
+     "exit": 41
+    }
+   },
+   "suffix": "",
+   "why": "Half an R. You made $41 minus $40, a dollar a share. You risked $40 minus $38, $2 a share. 1 over 2 is 0.5R. Here's why that number matters. A full stop-out costs you 1R. So it takes two of these nervous exits just to pay for one normal loss. Trade like that and your winners can't carry your losers. Log every exit in R and the leak shows up in your journal fast.",
+   "lesson_line": "Measure exits in R. It takes two half-R wins to pay for one full-R loss.",
+   "facts": [
+    "f50",
+    "f31"
+   ],
+   "simple": "Half an R. You made a dollar a share on $2 of risk, so two of these just pay for one loss.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "1R",
+    "1.5R",
+    "2R",
+    "0.5R"
+   ],
+   "wrong": {
+    "1R": "You counted the $1 gain as 1R. 1R is your risk, $2 a share.",
+    "2R": "You flipped it, risk over gain. R is the gain over the risk.",
+    "1.5R": "You measured from the $38 stop, not your $40 entry."
+   }
+  },
+  {
+   "key": "q12",
+   "skill": "psych.fear",
+   "rung": 5,
+   "format": "scenario",
+   "story": "You pull up your last 20 trades. Half of them won. You cut winners fast, so they averaged 0.5R. Losers took the full stop, 1R each.",
+   "q": "What's each trade making you, on average?",
+   "choices": [
+    "-0.25R a trade",
+    "+0.25R a trade",
+    "0R, you break even",
+    "+0.5R a trade"
+   ],
+   "answer": "-0.25R a trade",
+   "calc": {
+    "fn": "expectancy_r",
+    "args": {
+     "win_rate_pct": 50,
+     "avg_win_r": 0.5,
+     "avg_loss_r": 1
+    }
+   },
+   "why": "You're losing a quarter R a trade. Work it out. Half the time you win 0.5R, so 50% times 0.5R is +0.25R. Half the time you lose 1R, so 50% times 1R is -0.5R. Add them up and you get -0.25R a trade. Winning half the time does nothing for you when each loss is twice each win. A better win rate isn't the fix. Letting winners run is, so your average win gets bigger than your average loss.",
+   "lesson_line": "Cut winners short and a 50% win rate still loses money.",
+   "facts": [
+    "f49",
+    "f47",
+    "f48"
+   ],
+   "wrong": {
+    "+0.25R a trade": "That's only the wins. The losing half takes away 0.5R a trade, which is more.",
+    "0R, you break even": "Half and half only breaks even when wins and losses are the same size. Here losses are twice as big.",
+    "+0.5R a trade": "That's one win, not the average across every trade."
+   },
+   "simple": "You lose a quarter R a trade. Half win only 0.5R, half lose 1R, and the losses win out.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "size",
+    "title": "Half win, half lose",
+    "rows": [
+     {
+      "key": "share_that_win_(half",
+      "label": "Share that win (half)",
+      "value": 0.5,
+      "fmt": "count"
+     },
+     {
+      "key": "winners_average_(r)",
+      "label": "Winners average (R)",
+      "value": 0.5,
+      "fmt": "count"
+     },
+     {
+      "key": "losers_lose_(r)",
+      "label": "Losers lose (R)",
+      "value": 1,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Average per trade",
+     "as": "r"
+    }
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "psych.fear",
+   "rung": 5,
+   "format": "mcq",
+   "q": "The trigger hits and four thoughts run through your head. Which one is an actual reason to pass?",
+   "choices": [
+    "Your written rules say no",
+    "Your last two trades lost",
+    "It could drop right after you buy",
+    "You'd hate to be wrong again"
+   ],
+   "answer": "Your written rules say no",
+   "why": "Only your written rules. A real reason to pass is one you set down before the trigger, while you were calm. The others are feelings that show up at the trigger. A recent loss doesn't change this chart. A drop right after you buy can happen on any trade, and that's what the stop is for. Hating to be wrong is fear of regret. It stops you acting, but it's not a reason. Here's a simple test. If you can't point to the line in your plan that says no, take the trade.",
+   "lesson_line": "Pass for a rule you wrote, not for a feeling that showed up at the trigger.",
+   "facts": [
+    "f61",
+    "f29",
+    "f40",
+    "f34",
+    "f55"
+   ],
+   "wrong": {
+    "Your last two trades lost": "Two losses don't change this setup. A written drawdown rule in your plan would count. The feeling doesn't.",
+    "It could drop right after you buy": "Any trade can. That's why you have a stop.",
+    "You'd hate to be wrong again": "That's fear of regret. It freezes you, but it isn't a reason."
+   },
+   "simple": "Only the written rule. The rest are feelings that show up at the trigger, not reasons.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a wrong-note edited by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Fidelity says a trading plan helps remove some of the emotion and guesswork from your decisions. Investopedia says fear of regret can stop you acting or push you to act."
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "psych.fear",
+   "rung": 6,
+   "format": "tf",
+   "q": "You took a breakout that checked every box, and it stopped you out the next day. Taking it was a mistake.",
+   "answer": "False",
+   "why": "False. Grade the decision, not the result. The trade checked every box, so taking it was right. The stop did its job and kept the loss small. Good trades lose sometimes, and ups and downs in your results are normal. Call every stop-out a mistake and you'll start second-guessing the next valid setup. That's how the freeze starts. Judging a decision by how it turned out has a name, outcome bias. In your journal, mark a loss a mistake only when you broke a rule.",
+   "lesson_line": "Grade the process, not the outcome. Good trades lose sometimes.",
+   "facts": [
+    "f51",
+    "f30",
+    "f34"
+   ],
+   "simple": "False. It checked every box and the stop kept the loss small, so it was a good trade that lost.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "Investopedia defines outcome bias as the tendency to judge a decision by its result rather than the reasoning behind it. Brett Steenbarger, writing for Fidelity, says peaks and troughs in trading performance are likely the norm rather than the exception."
+   }
+  },
+  {
+   "key": "q15",
+   "skill": "psych.fear",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You've been sizing up. Your last three trades were your biggest ever. Each time you bailed on the first small dip, and each stock kept going without you.",
+   "q": "What do you fix first?",
+   "choices": [
+    "Trade a smaller size",
+    "Use a tighter stop",
+    "Switch to new setups",
+    "Watch the trades closer"
+   ],
+   "answer": "Trade a smaller size",
+   "why": "Your size. Look at the pattern. The setups worked, since all three stocks kept going. Your exits broke, and they broke on your three biggest positions ever. That's no coincidence. When a position's too big you can't think straight about it. Fear gets loud and every normal pullback feels like a disaster. Bring the size back to where a dip doesn't scare you. Keep the stop where the chart says you're wrong and let the size come from it. Then build back up as you prove you can hold.",
+   "lesson_line": "If every dip scares you out, check your size first.",
+   "facts": [
+    "f43",
+    "f46",
+    "f44",
+    "f20",
+    "f18"
+   ],
+   "wrong": {
+    "Use a tighter stop": "A tighter stop just gets hit by normal dips sooner. Leave the stop where it works and change the size.",
+    "Switch to new setups": "The setups worked. All three stocks kept going. The leak's in your exits.",
+    "Watch the trades closer": "Watching more feeds the fear. People who check all the time take less risk and make more short-term mistakes."
+   },
+   "simple": "Trade smaller. A position that's too big makes every small dip feel like a disaster.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (lesson line and a wrong-note edited by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "deeper": {
+    "example": "StockCharts: when a position is too large it's hard to manage objectively, fear gets intense, and every pullback feels like a catastrophe. Its advice is to place your stops where they'll work and adjust the position. Investopedia suggests starting with smaller stakes and working your way up, to ease the fear of losing."
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "psych.fear",
+   "rung": 7,
+   "format": "scenario",
+   "story": "Your trigger was $50 with a stop at $48. You froze and didn't buy. An hour later it's $53.",
+   "q": "What now?",
+   "choices": [
+    "Pass, the stop is now 2.5x as far",
+    "Buy, the setup still worked",
+    "Buy, and move the stop to $51",
+    "Buy, it's only 6% higher"
+   ],
+   "answer": "Pass, the stop is now 2.5x as far",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(now - stop) / (trigger - stop)",
+     "now": 53,
+     "stop": 48,
+     "trigger": 50
+    }
+   },
+   "why": "Pass. From $53, your $48 stop is 2.5 times as far away as you planned. When you miss a trade, wait for a pullback before putting it on.",
+   "lesson_line": "Missed the trigger, let it go. Wait for a pullback or the next setup.",
+   "facts": [
+    "f59",
+    "f33",
+    "f31"
+   ],
+   "wrong": {
+    "Buy, the setup still worked": "It worked from $50. From $53, the same stop risks 2.5 times as much per share.",
+    "Buy, and move the stop to $51": "$51 has no chart reason behind it. The stop goes where the setup fails, and that's $48.",
+    "Buy, it's only 6% higher": "6% above the trigger puts your stop 2.5 times as far away. That's a different trade."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "psych.fear",
+   "rung": 7,
+   "format": "tf",
+   "q": "Selling a strong stock early is the safe play, because a profit's a profit.",
+   "answer": "False",
+   "why": "False. That only feels safe. Selling too soon can hurt your returns almost as much as losing trades do. The cost never shows up on your statement. It's the rest of the move you didn't get. In a study of 10,000 accounts, the winners people sold kept beating the losers they held. And remember the math. Small wins with full-size losses lose money, even winning half the time. That doesn't mean never sell. We sell some into strength and trail the rest under the rising averages.",
+   "lesson_line": "A small profit taken in fear isn't safety. It's a cost you don't see.",
+   "facts": [
+    "f26",
+    "f60",
+    "f03",
+    "f04",
+    "f07",
+    "h01"
+   ],
+   "simple": "False. Selling winners too soon can hurt your returns almost as much as losing trades do.",
+   "deeper": {
+    "trap": "The trap is that a small profit feels like proof you were right. Money came in, so it feels safe. But the cost is the rest of the move, and no statement shows it. A cost you never see is easy to repeat.",
+    "example": "Hirsch, writing for Fidelity, says selling too soon can be almost as detrimental to long-term returns as money-losing trades. Richard Rhodes calls 'you never go broke taking a profit' maybe the most worthless piece of advice ever given."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a second publisher added by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "psych.fear",
+   "rung": 7,
+   "format": "mcq",
+   "q": "Third time this month your trigger hit and you just sat there. What habit fixes that?",
+   "choices": [
+    "Set entry and stop before the open",
+    "Wait for more confirmation before buying",
+    "Keep a closer eye on the chart",
+    "Trade only when you feel sure"
+   ],
+   "answer": "Set entry and stop before the open",
+   "why": "Write it down before the open. For every planned buy, put down the entry, the stop and the size before the bell. We do it on every trade. Then the trigger isn't a decision anymore. You made it already, calm, with the chart in front of you. At the trigger you just carry it out. Better yet, have the order staged so one click does it. The freeze lives in that moment of deciding under pressure. Take the deciding out of the moment and there's nothing left to freeze on.",
+   "lesson_line": "Decide before the open. At the trigger, you just carry it out.",
+   "facts": [
+    "f62",
+    "f61",
+    "f29",
+    "f31",
+    "f20",
+    "f21",
+    "f18",
+    "h04"
+   ],
+   "wrong": {
+    "Trade only when you feel sure": "No setup is sure. Wait for that feeling and it may never come.",
+    "Wait for more confirmation before buying": "Proof past your own trigger is just more hesitation, at a worse price.",
+    "Keep a closer eye on the chart": "Watching more feeds the freeze. People who check constantly take less risk and make more mistakes."
+   },
+   "simple": "Write the entry, stop and size before the open, so at the trigger you just carry out a plan.",
+   "deeper": {
+    "trap": "The trap is waiting for the feeling of certainty. Fidelity notes most people opt for the sure thing because they dislike ambiguity. No setup is sure, so that feeling may never come. More confirmation and more watching both feed the freeze. A plan written before the open turns the trigger into a task, not a choice. Fidelity also says to decide entries and exits in advance, so you aren't making spur-of-the-moment choices."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (facts replaced by the checker)",
+     "the why now teaches the owner's rulebook (D39)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "psych.fear",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "Your swing trade is up 3R on day 5 of a strong push. It's still riding above a rising 9 and 20 EMA. Part of you wants to sell it all and be done.",
+   "q": "What's the play?",
+   "choices": [
+    "Sell some, trail the rest",
+    "Sell it all, a profit's a profit",
+    "Hold it all, no partial",
+    "Hold, sell it all at 5R"
+   ],
+   "answer": "Sell some, trail the rest",
+   "why": "Sell some, trail the rest. The trend's still working. It's riding above a rising 9 and 20 EMA, so nothing on the chart says it's over. Selling it all here cuts a winner just because 3R feels like a lot. When to sell the first piece is a judgment call. Selling into a 3, 5 or 7 day push is often a good spot, and this is day 5. You can move the stop up to breakeven at that first sale too. Then trail what's left. Use the 9 EMA on a fast mover and the 20 on a steadier one. Sell the rest on a close below it.",
+   "lesson_line": "Pay yourself into strength, then let the trail decide when the rest is done.",
+   "facts": [
+    "h01",
+    "r01",
+    "f26",
+    "f56",
+    "h20",
+    "h21",
+    "h22"
+   ],
+   "wrong": {
+    "Sell it all, a profit's a profit": "That cuts a winner that's still trending. Selling too soon can hurt almost as much as a losing trade.",
+    "Hold it all, no partial": "Then the whole gain rides on one exit. Day 5 of a strong push is a good spot to pay yourself some, and I'd rather take it.",
+    "Hold, sell it all at 5R": "That puts the whole position on one fixed mark. The first sell is a judgment, and the rest gets trailed."
+   },
+   "simple": "Sell some into strength and trail the rest. The trend's still working, so don't dump it all.",
+   "deeper": {
+    "trap": "The trap is the urge to bank it all at the first big number. 3R feels like a win to protect. But the stock is still riding its rising averages, so nothing on the chart says the trend is over. A partial sale pays you. The trail decides when the rest is done, not your nerves.",
+    "example": "Hirsch, writing for Fidelity, says selling too soon can be almost as detrimental to long-term returns as money-losing trades. So he harvests gains, then sets trailing stops."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "rests on the owner's rulebook (B19, section 6)",
+     "the trim rule has changed before (2R to 3R)",
+     "key and story rewritten by the resolver (wave9) so the story no longer hands over the answer"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "psych.fear",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Your setup triggers at 3 p.m. The company reports earnings after the close. Your written plan says no new entries into earnings.",
+   "q": "What do you do?",
+   "choices": [
+    "Pass. Your rule already decided",
+    "Buy. Skipping a trigger is fear",
+    "Buy half and decide tonight",
+    "Buy, but with a tighter stop"
+   ],
+   "answer": "Pass. Your rule already decided",
+   "why": "Pass. A rule you wrote in advance is a real reason, not fear. UCT's rule says the same: no new buys in the 3 days before an earnings report. Earnings can gap a stock past your stop. A stop is a trigger, not a guaranteed price. It becomes a market order, so the fill can be far below it.",
+   "lesson_line": "Fear is a feeling at the trigger. A rule is a decision made before it.",
+   "facts": [
+    "f61",
+    "f62",
+    "f53",
+    "f54",
+    "f29",
+    "f52",
+    "h03"
+   ],
+   "wrong": {
+    "Buy. Skipping a trigger is fear": "Not when your own rule says no. That's the plan working.",
+    "Buy half and decide tonight": "That rewrites your rule on the spot. Some halve size into earnings, but your plan says no new entries.",
+    "Buy, but with a tighter stop": "A stop can't stop a gap. It becomes a market order, and the fill can be far below it."
+   },
+   "simple": "Pass, because your own rule made this call before the trigger, and an earnings gap can jump a stop.",
+   "deeper": {
+    "trap": "The trap is calling every pass fear. This lesson says to take the trades your plan allows, so skipping a trigger can feel like the freeze. Here the plan itself says no. A rule set before the trigger is the plan working. The test: did the no come from a written rule, or from a feeling that showed up at the trigger?"
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (facts replaced by the checker)",
+     "the why now teaches the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q21",
+   "skill": "psych.fear",
+   "rung": 8,
+   "format": "tf",
+   "q": "Before you bought, you planned to sell some into a strong push. It's ripping now and you sell part. That's the plan working, not fear.",
+   "answer": "True",
+   "why": "True. That's a plan doing its job. You sell a piece into strength, the rest keeps working, and you trail it under the rising averages. That's how we manage winners. A fear exit looks different. It's dumping everything on a wobble, at no level you set ahead of time. Both put a profit in your account. The difference is who picked the price, the plan or the feeling. The test is simple. If you'd have written the sale down before you bought, it's a method.",
+   "lesson_line": "Selling into strength by plan is a method. Selling on a wobble is fear.",
+   "facts": [
+    "f29",
+    "f57",
+    "f58",
+    "f26",
+    "f11",
+    "h01"
+   ],
+   "simple": "True. Selling part into strength as planned is a method, and a fear exit is dumping it all on a wobble.",
+   "deeper": {
+    "counter": "Same stock, two exits. One trader sells part into the push she planned for and trails the rest. Another sells everything on the first red day because it feels shaky. Both took a profit. Only the second let fear pick the price. The test is not whether you sold, but whether the plan or the feeling set the level.",
+    "example": "Fidelity says to have a plan for how you might exit even before you enter. Hirsch calls selling half on a double one of the simplest ways to lock in profits and still let winners ride. Alan Farley says to protect gains with trailing stops or partial profits."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "statement and key flipped to True by the resolver (wave9) so the key no longer follows from an absolute"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "psych.fear",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Four losers in a row, every one taken by the rules. This morning a setup triggers that checks every box. Our market filter reads Green, so the market's backing breakouts. Your stomach drops.",
+   "q": "What's the right move here?",
+   "choices": [
+    "Take it, at a size you can sit with",
+    "Skip it, you can't take another loss",
+    "Skip it, the setup must be broken",
+    "Take it, with a tighter stop than usual"
+   ],
+   "answer": "Take it, at a size you can sit with",
+   "why": "Take it, at a size you can sit with. The setup checks every box. The only no is coming from the last four trades. Four losses taken by the rules don't prove anything's broken. Streaks like that come with the job. Skip this one and you might skip the trade that ends the streak. But size it so you can actually follow the stop. Go smaller if that's what lets you sit through a normal dip. Keep the stop where the chart says you're wrong. Change the size, never the stop.",
+   "lesson_line": "After a losing streak, keep the discipline. Take the valid setup at a size you can sit through.",
+   "facts": [
+    "f34",
+    "f46",
+    "f43",
+    "f30",
+    "f51",
+    "f44",
+    "f33",
+    "f23"
+   ],
+   "wrong": {
+    "Skip it, you can't take another loss": "That's the freeze talking. The rules say go, and the fear's from the last four, not this one.",
+    "Skip it, the setup must be broken": "Four losses don't prove a setup broke. Judging it by recent results is outcome bias.",
+    "Take it, with a tighter stop than usual": "The stop goes where the chart says you're wrong. Change the size, not the stop."
+   },
+   "simple": "Take it at a size you can hold. Every rule says go, and the fear is from past trades.",
+   "deeper": {
+    "trap": "Two traps sit on either side. One is skipping valid trades until it feels safe, which is the freeze. The other is doubling up to win it back, which is revenge. Both let the streak run the next trade. Your rules already decide whether you trade. The size only needs to let you follow the stop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "fixed before (a choice replaced by the checker)",
+     "sizing after a streak touches the owner's rulebook (A1, B17)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "psych.fear",
+   "rung": 9,
+   "format": "scenario",
+   "story": "Your trading buddy brags he wins 70% of his trades. His account's down on the year. He sells winners at the first small gain and holds losers till they come back.",
+   "q": "What's really killing his account?",
+   "choices": [
+    "Losses far bigger than his wins",
+    "His win rate is not high enough",
+    "Bad luck that will even out in time",
+    "He keeps picking the wrong stocks"
+   ],
+   "answer": "Losses far bigger than his wins",
+   "why": "His losses are way bigger than his wins. Selling at the first small gain keeps every win tiny. Holding losers till they come back lets the ones that never come back get huge. That's how 70% winners still adds up to a red account. It's the disposition effect, and on average, holding losers on hope is a mistake. Tell him to pull two numbers from his journal, his average win and his average loss. Then fix the exits. Cut losers at the stop and let the winners work.",
+   "lesson_line": "Win rate is half the story. How big you win and lose is the other half.",
+   "facts": [
+    "f47",
+    "f48",
+    "f02",
+    "f11",
+    "f07"
+   ],
+   "wrong": {
+    "His win rate is not high enough": "70% is high. The problem is what he makes when he's right versus what he loses when he's wrong.",
+    "Bad luck that will even out in time": "Holding losers on hope is a habit, not luck. On average it's a mistake.",
+    "He keeps picking the wrong stocks": "He's right 70% of the time. The leak is his exits, not his picks."
+   },
+   "simple": "His losses are much bigger than his wins, so winning often still loses him money.",
+   "deeper": {
+    "trap": "The trap is reading a high win rate as skill. Selling at the first small gain raises the win rate and shrinks every win. Holding losers until they come back lets the ones that never come back grow large. Track the average win and the average loss, not just how often you win.",
+    "example": "Investopedia: a high win rate doesn't necessarily make a trader profitable. If the losing trades are three times the size of the winners, it's a losing strategy. Odean found investors who hold losers expecting them to beat the winners they sold are, on average, mistaken."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (a wrong-note edited by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q24",
+   "skill": "psych.fear",
+   "rung": 8,
+   "format": "scenario",
+   "house": true,
+   "story": "A clean setup triggers Monday morning. The chart's right, and our market filter reads Green, so the market's backing breakouts. The company reports earnings Wednesday after the close.",
+   "q": "Do you take the trade?",
+   "choices": [
+    "Skip it, the report is too close",
+    "Take it, every other rule passes",
+    "Wait, then buy the day before it",
+    "Take it with a tighter stop"
+   ],
+   "answer": "Skip it, the report is too close",
+   "simple": "Skip it. We make no new buys in the 3 days before earnings, because a gap can jump your stop.",
+   "why": "Skip it. We don't make new buys in the 3 days before an earnings report, and Wednesday's report is inside that window. The reason is the gap. Earnings can gap a stock right past your stop overnight. Your stop is a trigger, not a promise. Once it's hit it becomes a market order, and you fill wherever the stock opens. So the risk you planned can turn into a lot more. And this isn't the freeze. The no comes from a rule you set ahead of time. Keep it on your radar and look again once the report's out.",
+   "lesson_line": "In the 3 days before earnings, we don't buy. A gap doesn't care where your stop is.",
+   "facts": [
+    "h03",
+    "f52",
+    "f53",
+    "f54",
+    "f61"
+   ],
+   "wrong": {
+    "Wait, then buy the day before it": "The day before the report is still inside our 3-day window.",
+    "Take it with a tighter stop": "A stop can't stop a gap. It turns into a market order and fills wherever it opens.",
+    "Take it, every other rule passes": "Passing the other rules isn't enough. We don't buy in the 3 days before a report."
+   },
+   "deeper": {
+    "trap": "The trap is calling every pass fear. This lesson says to take the trades your plan allows, so skipping a trigger can feel like the freeze. Here the plan itself says no. A rule set before the trigger is the plan working. The test: did the no come from a written rule, or from a feeling that showed up at the trigger?"
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "rests on the owner's rulebook (B22)",
+     "the earnings window has changed before (the owner set it to 3 days)",
+     "new in wave9, replaces the cut q20"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "Mark Douglas ('trade without fear', Trading in the Zone): the unit row names his frame, but no Tier 1 or Tier 2 page quoting his words could be reached this session (the web search budget was spent; markdouglas.com is now a coaching sales page with no Douglas text). Left out rather than quoted from memory. The units_plan.json entry, which overrides the row, does not ask for it.",
+  "Cause of the disposition effect: Fidelity says loss aversion 'has also been used to help explain' it and the SEC report ties the two; Barberis and Xiong (NBER Working Paper 12397, 2006) find simple prospect theory predicts it in some cases and the opposite in others. The file teaches the habit and its cost (Odean, the SEC report) and never keys loss aversion as its proven cause.",
+  "Size of loss aversion: Schwab says a loss's jolt is 'about twice as powerful'; Investopedia says 'some studies suggest' about twice and that some studies question loss aversion. q02 is asked as 'studies suggest ... about twice', never as an exact law.",
+  "Taking profits early: Investopedia (Alan Farley, '20 Essential Rules') says 'Lock in what you can as early as you can, with trailing stops or partial profits', while Fidelity (Hirsch), Odean and Richard Rhodes (StockCharts ChartSchool) show that selling winners too soon is costly. They agree once the partial is planned: the file keys planned partials into strength plus a trail (our rule; Hirsch's 'sell half on a double' and 'harvest gains and then set trailing stop losses'; Farley's partial profits) as a method, and only the unplanned whole exit on a dip as the fear mistake (q10, q17, q19, q21). It never says 'never take profits early'. Whether partials add profit over holding the whole position is debated (it was not checked here); q21 only says a planned partial is not the same mistake as a fear exit, which holds either way.",
+  "Odean's sample: individual investors at one discount broker, 1987 to 1993, median in-sample holding period about 84 trading days; returns are excess returns over the CRSP value-weighted index. The file says 'investors' and 'brokerage accounts', never 'swing traders', and states the 3.4 as percentage points. Odean's tax-selling findings are not used (no taxes).",
+  "The SEC report (s01) was filed as Tier 1 because the SEC published it, but it says its findings are the author's, not necessarily the SEC's. Track audit 2026-11-09: refiled as Tier 2, the same as F8.01 and F8.05. Of the keys that cite it, q01, q03, q17 and q23 also have two other Tier 2 publishers; q04 is a fact about Odean's own study and is read in the paper itself (s02). sec.gov refused the plain client once (403) and served it on later runs; the quote check finds all three quotes.",
+  "Not used: Investopedia 'Prospect Theory Explained' (says prospect theory 'assumes that people consider the chances of a gain or a loss in any choice are roughly 50/50', which is not the 1979 theory); Investopedia 'How to Calculate Risk and Reward' (divides the profit by the whole investment instead of by the risk to the stop, and suggests raising the stop to reach a ratio); a Kiplinger contributor column on loss aversion (swaps Odean's and Barber's universities and calls the single-author 1998 paper a joint study); IBD's 8-week hold rule (the page serves only a teaser to the plain client).",
+  "The owner's drawdown ladder (sizing_rule.md section 4, quoted in his words 2026-07-19) is a valid house source under the contract and is asked as 'our drawdown rule' in F8.04 q16 and F9.04, with section 8 item 1 (confirm the steps as the house protocol) still open for the owner. q22 needs no ladder number (four losses taken by the rules, no drawdown stated), so it rests on Investopedia and StockCharts and is not marked house. (Track audit 2026-11-09: this note used to read as if the ladder could not be used, which clashed with F8.04 and F9.04.)",
+  "q20's 'no new entries into earnings' is stated in the story as the member's own written rule, not as UCT's rule. Investopedia notes some traders halve their size into earnings instead; the wrong-answer note says so.",
+  "Cross-unit: q22 (after a losing streak, take the valid setup at a size you can sit through) sits beside F8.05 q08 (after a winning streak, keep your usual risk). They agree: size only goes UP by a rule set in advance, while trading smaller after a run of losses is the standard risk-reducing step (Schwab in F8.04 w3 and q22; the owner's drawdown ladder in F8.04 q16 and F9.04). q22 never keys keeping the usual size as wrong, which fits F9.01's flat-risk teaching. q16 (froze, then the stock ran) gave the same answer as F8.02 q15 on the same Rhodes line, so the track audit (2026-11-09) cut it as a duplicate.",
+  "Checker, 2026-11-09: four Investopedia pages the author cited (Trading Psychology; How to Avoid Emotional Investing; Analysis Paralysis; Scale Out) refused every allowed client (403 to the quote check, 402 to curl, WebFetch and WebSearch blocked for investopedia.com). Their quotes could be read only in older Wayback Machine copies (2025-12-09, 2025-09-04, 2025-04-14 showing a 2022 update, 2023-05-18), and the analysis paralysis definition (old f38) and the scale-out definition (old f41) are on no archived copy at all. The pages have been updated since, so the quotes could not be confirmed as current. Facts f14-f16, f35-f39, f41 and f42 and sources s05, s14, s15, s17 were removed; every key now rests on quotes read on the current page (new: Fidelity's trading-plan page, Rhodes on ChartSchool, Hirsch's 'sell half on a double', Farley's partial profits).",
+  "q22: Schwab (cited in F8.02) says it is never a bad idea to slow down or take a break when emotions drive the decisions. The checker therefore replaced the choice 'Skip it until you feel ready' (close to that advice) with 'Skip it, you can't take another loss', which is the fear itself. The key, the valid setup at a smaller size, also lowers the emotional load, so the two views do not clash.",
+  "Track audit (2026-11-09, all seven F8 units read together): s01 refiled as Tier 2 under one publisher name across F8.01, F8.03 and F8.05; q03's why now says 'a research review done for the SEC' like the other units; q16 cut as a duplicate of F8.02 q15. Investopedia s24 (position sizing, updated 2026-07-01) was re-read live with the quote checker's own client: f52 and f53 found. The removed Investopedia facts above are not restored."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Step 1 now says 'three common ways' (fear shows up in other ways too). f14 and f38 came from Investopedia pages no allowed client can read (f38's wording is on no archived copy); replaced by f11 and f45 (Investopedia, live) and f22 (Fidelity, live). f09 (NobelPrize.org) confirmed: losses vs gains of the same size.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f04, f05, f06 confirmed in Odean's paper (Berkeley copy), read in context: 10,000 accounts 1987-1993; 'more than 50 percent more likely to be sold from day to day'; 3.4 percent more excess return over the following year. Changed 'Selling the winner felt safe' (a feeling the study never measured) to 'can feel safe' and 'On average, it cost them'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f16 and f39 (unreadable Investopedia pages; f39 only on a 2022 archive) replaced by f61 (Fidelity trading-plan page: plans remove some emotion) and f34 (Investopedia 20 rules). f24 (Fidelity, DeSteno: labeling emotions) and f43 (StockCharts: oversized position, intense fear) confirmed live.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok (f09/f10/f13/f17). Voice: dropped the stock 'Here's why it matters at the screen.' opener, which five explanations in this lesson used; tied the close back to the plan."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok: 'about twice' hedged as studies suggest, with the doubt from f12 stated. Numbers $1,000 in the stem. Reads like a mentor."
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok. Voice: the why leaned on authority ('Researchers named it back in 1985. A research review done for the SEC lists it...'), which reads like a textbook. Rewrote it as a mentor: what the move does, why it feels right, and the fix. The 1985 / SEC lines moved to deeper."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok: 10,000 accounts and 3.4 percentage points match f04/f06; framed as an average, not a promise. Odean named because the question is about his study."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok (f22 fear lowers risk tolerance, f23 anger raises it, f45). Stem gives the moment and doesn't lead."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok (f20, f18). Practical how (stop, alert, step away) in his register."
+  },
+  "q07": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok. Strong: names what said no, the streak, and the next-time fix. Close to his own register."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: $1 risk at $50, $2.50 at $51.50 with the $49 stop; 1/2.5 = 0.4, so 'less than half the shares' holds. $51.50 is 3% over $50, inside our 4% chase line (h05); 2.50/51.50 is about 4.9%, still under 5%. Size-not-risk point matches h06."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok: $38 stop never threatened, day 1 sell matches r02 ('we usually wait until day 3 at the earliest'). $40 to $38 is a 5% stop, at the edge we accept."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: (41-40)/(40-38) = 0.5R. Wrong notes check out: 1.5R = (41-38)/2, 2R = 2/1 inverted. Steps shown."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 0.5 x 0.5 - 0.5 x 1 = -0.25R. Wrong notes correct. The fix is letting winners run, not a higher win rate."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok (f61, f40). Wrong note on the two losses adds the right nuance (a written drawdown rule would count)."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok (f51, f30). Grade-the-process reason is stated, plus the journal how."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok (f43, f44, f46): size, not the stop, and the stop stays where the chart says you're wrong. Sounds like his 'size down' advice."
+  },
+  "q16": {
+   "status": "cut",
+   "notes": "duplicate of F8.02#q15. Track audit 2026-11-09: both are a scenario where you missed the trigger, the stock is now well above it with the same stop, and you are asked what to do; both key 'don't buy here, wait for a pullback' on the same Rhodes line (F8.02 f37 = F8.03 f59). F8.02#q15 is kept: buying late after a missed move is the chasing unit's own skill, and its key names the actionable cure (a pullback and a higher low). The risk-per-share arithmetic this item added is F8.02 q08. Checker's earlier note: (53 - 48) / (50 - 48) = 2.5 recomputed, f59, f33, f31 confirmed; the item itself was right.",
+   "fixed": false,
+   "by": "auditor"
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok (f26, f03/f04, h01). Does not slide into 'never sell': sell some into strength, trail under the rising averages."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok: entry, stop and size written before the open is our rule (h04). Staged order is practical how."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok: first sell as judgment (r01), the 3, 5 or 7 day push (h21), breakeven at the first sell (h22), 9/20 EMA trail with a close below (h20). No fixed 3R third, no 10/21-day trail. One wrong note only restated; it now gives the reason, as judgment, since holding it all is not a rule breach."
+  },
+  "q20": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave9: see the resolver's notes"
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok. Stem was a stiff double negative ('... is not a fear exit'), the kind of rule-sentence true/false rule 26 warns about. Rewrote it as a moment at the screen with one plain claim. Answer stays True, so the lesson keeps 3 of 6 true."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok: take it, size you can sit with, stop stays where the chart says you're wrong (f44, f34). Rule 19: the story now says what Green means, not just the label."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Truth ok (f47, f48, f07). The how (pull average win and average loss from the journal) is there."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth ok: Monday trigger, Wednesday-after-close report is inside our 3-day no-new-buys window (h03, rulebook B22); stop is a trigger that becomes a market order (f54). Story now says what Green means (rule 19). Why drops the stamped 'Here's why.' and adds the line that ties it to this lesson: this no is a rule, not the freeze."
+  }
+ }
+}

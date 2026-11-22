@@ -1,0 +1,1698 @@
+{
+  "result": {
+    "tools": [
+      {
+        "name": "create_note",
+        "title": "Create note",
+        "description": "Creates a new, EMPTY note and returns its GUID. This tool does NOT accept body content — the new note's body is created and controlled by the server. Body content is **not** a parameter here: passing `content`/`enmlContent` (or any other undeclared field) is rejected as an unrecognized argument — add text afterward with `edit_note`.\n\n**To add content, call `edit_note` afterwards with the returned GUID** (one or more times): `edit_note` takes small ENML fragments and the server splices them into the note safely, so you never have to write a full ENML document or its `<?xml>`/`<!DOCTYPE>` prolog. Typical flow:\n1. `create_note({title:\"My note\"})` → returns `noteId`.\n2. `edit_note({noteId, mode:\"append\", content:\"<p>First paragraph.</p>\"})`.\n3. repeat `edit_note` for more content.\n\nPlacement: pass `notebookId` to create the note in a specific notebook, or `workspaceId` to create it directly inside a Space with no notebook — not both. Omit both to use the default notebook. To resolve a notebook name to a `notebookId`, or to obtain a `workspaceId` (the `workspaceId` field on any notebook in that Space), call `search_notebooks` first; use `search_tags` for tag GUIDs.\n\nThe returned GUID is also usable with `delete_note`, `move_notes`, and `update_note_tags`.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "Note title. 1–255 characters."
+            },
+            "notebookId": {
+              "description": "GUID of the destination notebook. When omitted (and no `workspaceId` is given), the note is created in the user's default notebook. Mutually exclusive with `workspaceId`.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "workspaceId": {
+              "description": "GUID of a Space to create the note directly inside — loose in the Space, not inside any notebook. Obtain it from `search_notebooks` (`workspaceId`). Mutually exclusive with `notebookId`.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "tagIds": {
+              "description": "GUIDs of tags to attach to the note. Tags that don't exist are silently skipped by the server.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            }
+          },
+          "required": [
+            "title"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "title": "Create note"
+        }
+      },
+      {
+        "name": "get_note",
+        "title": "Get note",
+        "description": "Fetches a note by GUID. Returns the title, body (ENML), parent notebook GUID, version, timestamps, trash state (`active` / `deleted`), plus the satellite payloads ENML cannot express on its own — tasks, tags, resource manifest, and selected note attributes — in `structuredContent`.\n\nThe body is returned in ENML (Evernote's XML dialect). To change the body, call `edit_note` with a `mode` (append/prepend/replace) and a small ENML `content` fragment — you do not resend the whole body. For `replace`, copy a byte-exact, unique snippet of this ENML as the `find` anchor.\n\nImportant — ENML is not the full story:\n- Task groups appear in ENML only as a per-group placeholder div (`--en-task-group:true`); the task entities themselves live in `structuredContent.tasks[]` as a lightweight summary (`id`, `label`, `status`, `dueDate`). Read those fields from there, not from the ENML. For a task's `description`, `priority`, `flag`, `recurring` state, or assignee, call `get_task(taskId)`. To **edit** tasks, use the dedicated tools — `create_task`, `update_task` (status changes are an `update_task` field), `delete_task` — never via `edit_note` and ENML splicing.\n- `<en-media>` references carry only the resource hash. Filename, mime type, and size live in `structuredContent.resources` — use those to decide whether the bytes are worth fetching via `get_attachment`.\n\nPrerequisites: call `search_notes` or `semantic_search` first if you don't already have a note GUID. A note link — one the user pasted, or an `evernote:///view/…` href found in another note's ENML — can be passed directly as `noteId`.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteId": {
+              "description": "GUID of the note to fetch, or a note link (`evernote:///view/…`, `evernote:///shard/…/nl/…`, `https://…evernote.com/shard/…/nl/…`, or the `https://share…evernote.com/note/…` share link). Links found in another note's body can be passed here as-is.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "noteId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Get note"
+        }
+      },
+      {
+        "name": "edit_note",
+        "title": "Edit note",
+        "description": "Edits a note's body with a small, targeted change — you do NOT resend the whole note. The server preserves everything you don't touch byte-for-byte; you only describe the change.\n\n**This is also how you add content to a note made by `create_note`** (which always creates an empty note): call `edit_note` with the returned GUID and `mode:\"append\"` to fill it in.\n\n**Body modes** (set `mode` + `content`):\n- `append` — add `content` to the end of the note.\n- `prepend` — add `content` to the start of the note.\n- `replace` — substitute the single occurrence of `find` with `content`.\n\n`content` is an ENML fragment (Evernote's XML dialect), not the full body and not Markdown. Examples:\n- Append a paragraph: `{mode:\"append\", content:\"<p>See you tomorrow.</p>\"}`\n- Prepend a heading: `{mode:\"prepend\", content:\"<h1>Summary</h1>\"}`\n- Fix a line: `{mode:\"replace\", find:\"<li>Buy milk</li>\", content:\"<li>Buy oat milk</li>\"}`\n\n**`content` must be well-formed XML — escape bare `&` and `<`.** Write `&amp;` for `&` and `&lt;` for `<`, including inside text and headings: a heading like Q&A must be `<h2>Q&amp;A</h2>`, not `<h2>Q&A</h2>`. An unescaped `&`/`<` is the most common cause of a \"not valid ENML and could not be merged\" rejection.\n\n**`replace` needs a unique anchor.** Copy `find` byte-for-byte from `get_note` (tags, attributes, and entity encoding included). Editor-created headings and blocks often carry a `style=\"--en-nodeId:…\"` attribute — include it verbatim in `find` (don't simplify `<h2 style=\"--en-nodeId:…\">Title</h2>` down to `<h2>Title</h2>`, or it won't match). If it matches zero places you get a not-found error; if it matches more than once you get an ambiguous error — lengthen `find` with surrounding markup until it's unique. `append`/`prepend` need no anchor and no `get_note` first.\n\n**Title.** Pass `title` to set the note title (independent of the body; can be combined with a mode, or used alone for a title-only edit).\n\nEdits are safe even while the note is open in another Evernote client — changes appear live to other editors.\n\n**Not for tasks.** Task groups appear in ENML only as a placeholder div; the task entities live in tasks-service. Use `create_task`, `update_task`, or `delete_task` — editing a task-group span here is rejected.\n\n**Attachments.** To add a file, run `start_attachment_upload` → `finalize_attachment` first (that registers the resource and returns the `<en-media>` tag), then `append` or `replace` that tag into the body here. Don't invent an `<en-media>` tag yourself — an unregistered hash renders as a broken attachment. To **remove** an image, `replace` its whole `<en-media … />` tag (copied byte-for-byte from `get_note`) with content:\"\". To **swap** an image, `replace` the whole tag with another finalized `<en-media>` tag. You must match the entire tag — a `find` that cuts partway into an `<en-media>` tag is rejected.\n\n**ENML errors.** `content` must be valid ENML. If an edit keeps failing with an ENML error (e.g. `Note content is not valid ENML` or \"not valid ENML and could not be merged\"), fetch and read the ENML formatting guide at `evernote://enml-guide` before retrying — it lists the permitted/forbidden tags and attributes (no `class`/`id`) and how to fix the specific failure.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteId": {
+              "description": "GUID of the note to edit, or a note link. Get it from `get_note` or `search_notes`.",
+              "type": "string"
+            },
+            "title": {
+              "description": "New note title (1–255 chars). Sets the whole title — titles are short, so this is independent of the body `mode`. Omit to leave the title unchanged.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "mode": {
+              "description": "How to change the body. `append` adds `content` to the end of the note; `prepend` adds it to the start; `replace` swaps the single occurrence of `find` for `content`. Requires `content`. Omit for a title-only edit.",
+              "type": "string",
+              "enum": [
+                "append",
+                "prepend",
+                "replace"
+              ]
+            },
+            "content": {
+              "description": "ENML fragment to add (append/prepend) or to substitute in (replace) — a small fragment, NOT the whole note. e.g. `<p>Hello</p>` or `<ul><li>One</li><li>Two</li></ul>`. The server preserves the rest of the note exactly, so you never resend unchanged content. Required when `mode` is set. Pass an empty string (\"\") with `mode:\"replace\"` to DELETE the matched span — e.g. remove an image by matching its whole `<en-media … />` tag. Empty content is only valid with `replace`.",
+              "type": "string"
+            },
+            "find": {
+              "description": "Exact ENML substring to replace, copied byte-for-byte from `get_note` (including tags and entities like `&amp;`). Must occur EXACTLY ONCE — if it matches zero or multiple places the edit is rejected, so include enough surrounding markup to be unique. Required for, and only valid with, `mode: \"replace\"`.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "noteId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "title": "Edit note"
+        }
+      },
+      {
+        "name": "update_note_tags",
+        "title": "Update note tags",
+        "description": "Adds and/or removes tags on one or more notes (1–50 notes per call). The same tag delta is applied to every note in `noteIds`. Provide at least one of `tagIdsToAdd` or `tagIdsToRemove`; the same GUID cannot appear in both.\n\nIdempotent: already-applied tags and already-absent tags are silently skipped. Some notes may succeed while others fail — inspect `results[]` for per-note status. Each successful note reports `addedTagIds` and `removedTagIds` — the tags actually changed (no-ops are omitted).\n\nPrerequisites: call `search_tags` to resolve tag names to GUIDs, and `search_notes` for note GUIDs.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteIds": {
+              "minItems": 1,
+              "maxItems": 50,
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "GUIDs (or note links) of notes to update. 1–50 notes per call. The same tag delta is applied to every note."
+            },
+            "tagIdsToAdd": {
+              "description": "GUIDs of tags to add to each note. Tags that don't exist or are already present are silently skipped by the server.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            },
+            "tagIdsToRemove": {
+              "description": "GUIDs of tags to remove from each note. Tags not currently present on a note are silently skipped.",
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              }
+            }
+          },
+          "required": [
+            "noteIds"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Update note tags"
+        }
+      },
+      {
+        "name": "delete_note",
+        "title": "Delete note",
+        "description": "Moves a note to trash. Reversible: call `restore_note` to bring it back, or the user can restore it from the trash in the Evernote app.\n\nPermanent deletion (expunge) is not available — only trash.\n\nPrerequisites: call `search_notes`, `semantic_search`, or `get_note` to resolve a note to its GUID.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteId": {
+              "description": "GUID of the note to delete, or a note link. Use `search_notes` or `get_note` to look one up.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "noteId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Delete note"
+        }
+      },
+      {
+        "name": "restore_note",
+        "title": "Restore note",
+        "description": "Restores a trashed note, moving it back out of the trash to its original notebook. The inverse of `delete_note`.\n\nEdge case: if the note's original notebook was itself deleted, there is no home to restore into and the call fails with a clean error — recreate or pick a notebook first (the user can do this in the Evernote app).\n\nPrerequisites: call `search_notes` with `intrash:true` (or `intrash:*`) to resolve a trashed note to its GUID.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteId": {
+              "description": "GUID of the trashed note to restore, or a note link. Use `search_notes` with `intrash:true` to look one up.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "noteId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Restore note"
+        }
+      },
+      {
+        "name": "move_notes",
+        "title": "Move notes",
+        "description": "Moves one or more notes into a different notebook, or directly into a Space, 1–5 notes per call. The same destination is applied to every note in the batch.\n\nDestination: pass `destinationNotebookId` to move the notes into a notebook, or `destinationWorkspaceId` to move them loose into a Space — exactly one.\n\nBehavior: metadata-only — note content is unchanged and any open editors are unaffected. Notes are moved sequentially; some may succeed while others fail — inspect `results[]` for per-note status.\n\n**Same-account only.** This re-parents a note; it cannot change which account owns it, so a note can only move to a destination in its own account. Moving a note into a notebook or Space owned by a *different* account (e.g. one someone shared with you) is NOT supported — that note comes back in `results[]` as an error. A cross-account move would copy the note into the other account and trash the original (what the Evernote app does); this tool does not perform that copy.\n\nPrerequisites: call `search_notes` for the note GUIDs and `search_notebooks` for the destination notebook GUID (or, in its `workspaceId` field, a Space GUID).",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteIds": {
+              "minItems": 1,
+              "maxItems": 5,
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "GUIDs (or note links) of notes to move. 1–5 notes per call. The same destination is applied to every note. Notes are moved sequentially; if one fails the others continue. Use `search_notes` to look up GUIDs."
+            },
+            "destinationNotebookId": {
+              "description": "GUID of the destination notebook (same-account only). The user must own the notebook, or have edit access if it's a business notebook. Use `search_notebooks` to look one up by name. Provide either this or `destinationWorkspaceId`, not both.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "destinationWorkspaceId": {
+              "description": "GUID of a Space to move the notes directly into — loose in the Space, not inside any notebook. Obtain it from `search_notebooks` (`workspaceId`). Provide either this or `destinationNotebookId`, not both.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          },
+          "required": [
+            "noteIds"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Move notes"
+        }
+      },
+      {
+        "name": "semantic_search",
+        "title": "Semantic search",
+        "description": "Searches notes by meaning rather than keywords. Use for natural-language questions (\"notes about the new pricing model\", \"what did I write about Berlin\") where the user's wording may not match the words in the note. For exact-keyword or structured queries (tag / notebook / date filters), use `search_notes` instead.\n\nReturns note GUIDs with relevance scores (0–1) and snippets of the matching passages — call `get_note(noteId)` to read full content.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Natural-language search query."
+            },
+            "clientTimeZone": {
+              "default": "UTC",
+              "description": "IANA time zone (e.g. `America/New_York`). Used by the search backend for date-aware ranking. Defaults to UTC.",
+              "type": "string",
+              "minLength": 1
+            },
+            "maxResults": {
+              "description": "Maximum number of note hits to return. Defaults to the server's choice when omitted (typically 10).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "keywordSearchFallback": {
+              "description": "When true, fall back to keyword search if the natural-language query doesn't look like a semantic question. Defaults to the server's choice.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Semantic search"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "hits": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "semanticHits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "noteGuid": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": "number"
+                  },
+                  "chunkContent": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "noteGuid",
+                  "score",
+                  "chunkContent"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "hits",
+            "semanticHits"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "search_notes",
+        "title": "Search notes",
+        "description": "Searches notes using Evernote's search grammar — the same query language as the Evernote app's search bar. Use for deterministic, structured queries; for meaning-based queries use `semantic_search` instead. Returns note GUIDs, titles, snippets, and timestamps — follow up with `get_note(noteId)` for full content.\n\nEmpty `query` lists all active notes (trash excluded). Pass `intrash:true` to list only trashed notes, or `intrash:false` for active only. `intrash:` accepts only `true`/`false` — there is no single-query way to list active and trashed together.\n\nCommon operators: `tag:work`, `notebook:\"My Notebook\"`, `intitle:meeting`, `created:day-7`, `updated:day-1`, `any: a b` (OR across the following terms — the space after `any:` is required). Quote multi-word values (`tag:\"to read\"`). Combine with spaces (AND) or `OR` (when `fullBooleanSearch` is true).\n\nDate-relative operators (`created:day-7`, `updated:day-1`) need `clientTimeZone` to resolve correctly.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "query": {
+              "type": "string",
+              "description": "Evernote search-grammar string. Empty string lists all active notes (trash excluded), matching the Evernote app's default \"All Notes\" view; pass `intrash:true` to list only trashed notes, or `intrash:false` for active only (`intrash:` accepts only `true`/`false` — there is no single-query way to list active and trashed together). Common operators: `tag:work` (notes with tag), `notebook:\"My Notebook\"` (notes in notebook), `intitle:meeting` (substring in title), `created:day-7` (created in the last 7 days, needs `clientTimeZone` to be accurate), `updated:day-1`, `any: a b` (OR across the following terms — the space after `any:` is required). Quote multi-word values: `tag:\"to read\"`. Combine with spaces (AND) or `OR` (when `fullBooleanSearch` is true). Use this tool for deterministic / structured queries (\"last 10 notes\", \"notes in notebook X\", \"notes with tag K\"). For meaning-based queries use `semantic_search` instead."
+            },
+            "clientTimeZone": {
+              "default": "UTC",
+              "description": "IANA time zone (e.g. `America/New_York`). Required for date-relative operators like `created:day-7` / `updated:day-1` to resolve correctly. Defaults to UTC.",
+              "type": "string",
+              "minLength": 1
+            },
+            "maxResults": {
+              "default": 10,
+              "description": "Maximum number of notes to return (1–100). Default 10.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "startIndex": {
+              "default": 0,
+              "description": "0-based offset into the result list. Combine with `maxResults` to paginate. Use `totalResultCount` from a previous response to decide whether to keep paging.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "sortBy": {
+              "default": "updated",
+              "description": "Sort field. `updated` (default) for recency; `created` for original date; `relevance` for search-score ranking (only useful with a non-empty query); `title` for alphabetical.",
+              "type": "string",
+              "enum": [
+                "updated",
+                "created",
+                "relevance",
+                "title"
+              ]
+            },
+            "ascending": {
+              "default": false,
+              "description": "When true, sort ascending (oldest first / A→Z). Default false (newest first / Z→A).",
+              "type": "boolean"
+            },
+            "fullBooleanSearch": {
+              "default": true,
+              "description": "When true, `AND` / `OR` / `NOT` in the query are interpreted as boolean operators (matches the Evernote search bar behavior). When false, those words are literal. Default true.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "query"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Search notes"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "hits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "noteId": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "snippet": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "createdAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "updatedAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "score": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "noteId",
+                  "title",
+                  "snippet",
+                  "createdAt",
+                  "updatedAt",
+                  "score"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "totalResultCount": {
+              "type": "number"
+            },
+            "startIndex": {
+              "type": "number"
+            },
+            "isLastPage": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "hits",
+            "totalResultCount",
+            "startIndex",
+            "isLastPage"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "search_notebooks",
+        "title": "Search notebooks",
+        "description": "Lists or searches the user's notebooks by name. Empty `query` returns all notebooks; pass a substring to filter (case-insensitive, ranked exact > prefix > substring; ties alphabetical).\n\nPass `defaultOnly: true` to return only the user's formal default notebook (the one a note created without a target lands in) — at most one hit, and an empty result means no formal default is configured. With `defaultOnly`, `query`, `maxResults`, and `sortBy` are ignored.\n\nReturns each notebook's GUID, label, `stack` (or null), `primaryAccess` (OWNED / SHARED / WORKSPACE / BUSINESS), `workspaceId` + `workspaceName` (the Space the notebook belongs to, or null when it isn't in one), and a ready-to-use `searchFilter` (`nbGuid:\"<id>\"`) that can be dropped into `search_notes`. Use `workspaceId` / `workspaceName` to tell which Space a notebook lives in and to group notebooks by Space; the `workspaceId` is also what `create_notebook` and `create_note` take to place a new notebook/note inside that Space.\n\nUse this to resolve a notebook name to a GUID before calling `create_note`, `move_notes`, or `rename_notebook`. To search note **content**, use `search_notes` (deterministic) or `semantic_search` (meaning-based).",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "query": {
+              "default": "",
+              "description": "Notebook name substring to match (case-insensitive). Empty string (default) lists all the user's notebooks, sorted by `sortBy`. When non-empty, matches are ranked: exact > prefix > substring; ties break alphabetically. Matching is name-only — `notebook:` / `tag:` / other note-grammar operators have no effect here.",
+              "type": "string"
+            },
+            "maxResults": {
+              "default": 10,
+              "description": "Maximum number of notebooks to return (1–100). Default 10. Bump to e.g. 100 to approximate the full list view in the Evernote app's notebook list.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "sortBy": {
+              "default": "name",
+              "description": "Sort field, applied when `query` is empty (or after rank-by-match when `query` is non-empty). `name` (default) sorts alphabetically A→Z. `updated` sorts by most-recently-touched first (notebook version DESC) — useful for surfacing the notebooks the user has been working with lately. Caveat: `updated` reflects changes to the notebook itself (e.g. renames or notebook-metadata changes) and may not reflect edits to the notes inside it. `updated` is independent of any substring filter.",
+              "type": "string",
+              "enum": [
+                "name",
+                "updated"
+              ]
+            },
+            "defaultOnly": {
+              "default": false,
+              "description": "Return only the user's formal default notebook — the one a note created without a target notebook lands in. At most one hit is returned, and an empty result means no formal default is configured. When true, `query`, `maxResults`, and `sortBy` are ignored.",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Search notebooks"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "hits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "notebookId": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "searchFilter": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "stack": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "primaryAccess": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "OWNED",
+                          "SHARED",
+                          "WORKSPACE",
+                          "BUSINESS"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "workspaceId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "workspaceName": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "notebookId",
+                  "label",
+                  "searchFilter",
+                  "score",
+                  "stack",
+                  "primaryAccess",
+                  "workspaceId",
+                  "workspaceName"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "totalResultCount": {
+              "type": "number"
+            },
+            "startIndex": {
+              "type": "number"
+            },
+            "isLastPage": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "hits",
+            "totalResultCount",
+            "startIndex",
+            "isLastPage"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "search_tasks",
+        "title": "Search tasks",
+        "description": "Searches your tasks across your notes. **Scope (important): this returns only tasks you OWN or are ASSIGNED TO.** A task in a note you don't own is returned **only if it is assigned to you** — you will NEVER see a task just because its note or notebook was shared with you. Unassigned tasks, and tasks assigned to other people, in notes you don't own are never returned. (Tasks assigned to you that live in someone else's note ARE included.) If the user asks about \"all tasks in a shared project\", tasks owned by others, or tasks they assigned to other people, tell them this tool only covers tasks they own or are assigned.\n\nFilters:\n- `status`: `\"open\"` (default) or `\"completed\"`.\n- `assigneeScope` (which of your tasks to include): `me_or_unassigned` (default — assigned to you plus your tasks assigned to no one), `me` (only tasks assigned to you), `unassigned` (only your tasks assigned to no one), `assigned_to_others` (tasks in your notes you've assigned to someone else), `not_me` (the previous two combined — tasks in your notes not assigned to you), `all` (everything in your scope). Every mode stays within tasks you own or are assigned.\n- `dueDate` (`{ from?, to? }`, ISO-8601 datetimes that MUST include an offset, e.g. `2026-06-01T00:00:00Z`): for **open** tasks it filters by **due date**; for **completed** tasks it filters by **completion date**. Completed search defaults to the **last 30 days** by completion date when no range is given, and **includes tasks that have no due date**.\n- `priority`: `high` / `medium` / `low` / `none`.\n- `flagged`: boolean.\n- `recurring`: boolean — `true` returns base recurring tasks only (individual generated occurrences/outliers are not expanded).\n- `searchString`: case-insensitive substring match on the task label.\n- `noteId`: restrict to a single note. (There is no notebook filter.)\n\nEach task returns exactly `id`, `label`, `status`, `description`, `dueDate` (ISO-8601 or null), `priority` (one of `high`/`medium`/`low`/`none`), `flagged`, `recurring`, and `noteId` (use `noteId` to follow up with `get_note` or the edit tools `update_task` / `delete_task`; use `id` with `get_task` for the assignee or any other full-detail field this search result omits). Returns up to **50 tasks per page**; paginate by passing the returned `nextCursor` back as the opaque `cursor`.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "status": {
+              "default": "open",
+              "description": "Task status to search. Defaults to \"open\". `completed` requires a date range; if you omit `dueDate` for a completed search, the tool defaults to the last 30 days (and says so in the result).",
+              "type": "string",
+              "enum": [
+                "open",
+                "completed"
+              ]
+            },
+            "assigneeScope": {
+              "default": "me_or_unassigned",
+              "description": "Which of your tasks to include, by assignment. Defaults to `me_or_unassigned` = the tasks you must act on (assigned to you, plus your tasks that aren't assigned to anyone). `me` = only tasks explicitly assigned to you. `unassigned` = only your tasks assigned to no one. `assigned_to_others` = tasks in your notes that you've assigned to someone else. `not_me` = both of the last two combined (tasks in your notes not assigned to you). `all` = everything in your scope. Every option stays within your own/assigned tasks — none reach tasks in notes merely shared with you.",
+              "type": "string",
+              "enum": [
+                "me_or_unassigned",
+                "me",
+                "all",
+                "not_me",
+                "unassigned",
+                "assigned_to_others"
+              ]
+            },
+            "dueDate": {
+              "description": "Date range as an explicit `{ from?, to? }`. Both bounds are ISO-8601 datetimes that MUST include an offset (`Z` or `±hh:mm`), e.g. `2026-06-01T00:00:00Z`. **What it filters depends on `status`:** for `open` tasks it filters by **due date**; for `completed` tasks it filters by **completion date** (so it can include completed tasks that never had a due date). Compute concrete instants yourself (for \"overdue\" pass `{ to: <current instant> }`; for \"this week\" pass the week's start and end instants). Omit for no date filter (completed then defaults to the last 30 days by completion date). Filtering open tasks for **no** due date is not supported yet.",
+              "type": "object",
+              "properties": {
+                "from": {
+                  "description": "Inclusive lower bound, ISO 8601 with offset (e.g. `2026-06-01T00:00:00Z`).",
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                "to": {
+                  "description": "Inclusive upper bound, ISO 8601 with offset (e.g. `2026-06-30T23:59:59Z`).",
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                }
+              },
+              "additionalProperties": false
+            },
+            "priority": {
+              "description": "Filter by priority. `none` matches tasks with no priority set. Omit for no priority filter.",
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low",
+                "none"
+              ]
+            },
+            "flagged": {
+              "description": "Filter by flag. Omit for no flag filter.",
+              "type": "boolean"
+            },
+            "recurring": {
+              "description": "Filter by recurrence. `true` returns base recurring tasks only (individual generated occurrences/outliers are not expanded). Omit for no recurrence filter.",
+              "type": "boolean"
+            },
+            "searchString": {
+              "description": "Case-insensitive substring match on the task label. Omit for no text filter.",
+              "type": "string",
+              "minLength": 1
+            },
+            "noteId": {
+              "description": "Restrict to tasks in a single note (its GUID or a note link).",
+              "type": "string"
+            },
+            "limit": {
+              "default": 50,
+              "description": "Maximum number of tasks to return (1–50). Default 50.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "cursor": {
+              "description": "Opaque pagination cursor. Pass back the `nextCursor` from a previous response to fetch the next page. Omit for the first page.",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Search tasks"
+        }
+      },
+      {
+        "name": "search_spaces",
+        "title": "Search Spaces",
+        "description": "Lists or searches the Spaces (workspaces) the current user belongs to. Empty `query` returns all of them; pass a substring to filter by name (case-insensitive, ranked exact > prefix > substring; ties alphabetical).\n\nReturns each Space's GUID, name, and the caller's `privilege` in it (READ, EDIT, or EDIT_AND_MANAGE). Use a Space's GUID as the `workspaceId` for `create_notebook` or `create_note` to place content directly in that Space, or with `move_notes`. Call `get_space` for a Space's full detail.\n\nSelf-scoped: it lists the Spaces you own or are a member of.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "query": {
+              "default": "",
+              "description": "Space name substring to match (case-insensitive). Empty string (default) lists all the Spaces the user belongs to, sorted alphabetically. When non-empty, matches are ranked: exact > prefix > substring; ties break alphabetically.",
+              "type": "string"
+            },
+            "maxResults": {
+              "default": 10,
+              "description": "Maximum number of Spaces to return (1–100). Default 10.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Search Spaces"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "hits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "workspaceId": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "privilege": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "workspaceId",
+                  "name",
+                  "privilege"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "totalResultCount": {
+              "type": "number"
+            },
+            "startIndex": {
+              "type": "number"
+            },
+            "isLastPage": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "hits",
+            "totalResultCount",
+            "startIndex",
+            "isLastPage"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "get_space",
+        "title": "Get Space",
+        "description": "Fetches a single Space (workspace) by GUID: name, description, `type` (INVITE_ONLY / DISCOVERABLE / OPEN), default privilege (for OPEN spaces), the backing notebook GUID, member count, and creation/update timestamps.\n\nSelf-scoped: it succeeds only if you can access the Space (a member, its owner, or a business admin); otherwise it reports the Space as not found or inaccessible. For the caller's own privilege in the Space, use `search_spaces` (each hit carries it).\n\nPrerequisites: call `search_spaces` to resolve a Space name to a GUID.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "workspaceId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "GUID of the Space to fetch."
+            }
+          },
+          "required": [
+            "workspaceId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Get Space"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "workspaceId": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string"
+            },
+            "defaultPrivilege": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "backingNotebookId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "membersCount": {
+              "type": "number"
+            },
+            "created": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "updated": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "workspaceId",
+            "name",
+            "description",
+            "type",
+            "defaultPrivilege",
+            "backingNotebookId",
+            "membersCount",
+            "created",
+            "updated"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "create_space",
+        "title": "Create Space",
+        "description": "Creates a new Space (workspace) — a top-level container for notebooks — and returns its GUID as `workspaceId`.\n\nPass the returned `workspaceId` to `create_notebook` (`workspaceId`) to place a notebook directly in the new Space, or use it with `get_space`.\n\nWorks for personal and business / team accounts: a business user (admin or member) creates the Space under their business and gets full (manage) access to it; a personal user creates a personal Space.\n\n`type` defaults to INVITE_ONLY. OPEN Spaces require `defaultPrivilege` (READ, EDIT or EDIT_AND_MANAGE). Spaces are subject to the account's space count limit; creating one past the limit returns an error.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "Space name (label). 1–100 characters. Mirrors what the Evernote app shows in the space list."
+            },
+            "description": {
+              "description": "Optional short description for the Space (max 300 characters).",
+              "type": "string",
+              "maxLength": 300
+            },
+            "type": {
+              "description": "Join policy for the Space. INVITE_ONLY (default): only invited members can see or join it. DISCOVERABLE: other business members can find it and request access. OPEN: any business member can join it immediately and is granted `defaultPrivilege` on joining. The policy only takes effect inside a business / team account.",
+              "type": "string",
+              "enum": [
+                "INVITE_ONLY",
+                "DISCOVERABLE",
+                "OPEN"
+              ]
+            },
+            "defaultPrivilege": {
+              "description": "Privilege granted to members who join an OPEN Space: READ (view notes), EDIT (view + add and change notes), or EDIT_AND_MANAGE (also manage members and space settings). Required when `type` is OPEN; ignored otherwise.",
+              "type": "string",
+              "enum": [
+                "READ",
+                "EDIT",
+                "EDIT_AND_MANAGE"
+              ]
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "title": "Create Space"
+        }
+      },
+      {
+        "name": "create_notebook",
+        "title": "Create notebook",
+        "description": "Creates a new notebook. Returns the new notebook's GUID — pass it to `create_note` (`notebookId`), `move_notes` (`destinationNotebookId`), or use it in a `search_notes` query as `nbGuid:\"<id>\"`.\n\nOmit `workspaceId` for a personal notebook (the common case). Pass it to create the notebook inside a Space — get the `workspaceId` from `search_notebooks`.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "Notebook name (label). 1–255 characters. Mirrors what the Evernote app shows in the notebook list."
+            },
+            "workspaceId": {
+              "description": "Optional GUID of the Space to create the notebook inside. Obtain it from `search_notebooks` — the `workspaceId` field on any notebook already in that Space. When omitted (the common case), the notebook is created as a personal notebook.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "title": "Create notebook"
+        }
+      },
+      {
+        "name": "rename_notebook",
+        "title": "Rename notebook",
+        "description": "Renames a notebook. The new label propagates to all of the notebook's memberships, matching the Evernote app's behavior.\n\nConstraints: only the owner can rename a shared notebook.\n\nPrerequisites: call `search_notebooks` to resolve a name to a GUID.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "notebookId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "GUID of the notebook to rename. Use `search_notebooks` to look one up by name."
+            },
+            "newName": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "New notebook name (label). 1–255 characters. Replaces the existing label."
+            }
+          },
+          "required": [
+            "notebookId",
+            "newName"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Rename notebook"
+        }
+      },
+      {
+        "name": "move_notebook",
+        "title": "Move notebook",
+        "description": "Moves an existing notebook into a Space, between Spaces, or out of its current Space.\n\nDestination: pass `destinationSpaceId` with a Space GUID to move the notebook into that Space (works both for a loose notebook and for one already in another Space), or `null` to move it out of its current Space to the account level.\n\nBehavior: metadata-only — notes inside the notebook are untouched and move with it. Permissions are enforced server-side: moving requires edit access to the notebook and to both the source and destination Spaces; removing a notebook from a Space additionally requires full access to the notebook. A denied move comes back as a clean permission error.\n\nPrerequisites: call `search_notebooks` for the notebook GUID (and its current `workspaceId`) and `search_spaces` for the destination Space GUID.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "notebookId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "GUID of the notebook to move. Use `search_notebooks` to look one up by name — its `workspaceId` field also tells you which Space (if any) it is currently in."
+            },
+            "destinationSpaceId": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "GUID of the destination Space, or `null` to move the notebook OUT of its current Space (back to the account level). Obtain Space GUIDs from `search_spaces`. Moving a notebook already in a Space to a different Space is a single call — no separate removal step is needed."
+            }
+          },
+          "required": [
+            "notebookId",
+            "destinationSpaceId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Move notebook"
+        }
+      },
+      {
+        "name": "search_tags",
+        "title": "Search tags",
+        "description": "Lists or searches the user's tags by name. Empty `query` returns all tags; pass a substring to filter — matched case-insensitively server-side across your whole tag set, then ranked exact > prefix > substring (ties alphabetical).\n\nReturns each tag's GUID, label, and a ready-to-use `searchFilter` (`tagGuid:\"<id>\"`) that can be dropped into `search_notes`.\n\nAt most 500 matching tags are fetched per call (a hard upstream cap, no paging). When the query matches more than 500 tags, the tail is dropped, `totalResultCount` saturates at 500, and `isLastPage` is `false` — so `totalResultCount: 500` with `isLastPage: false` means \"500 or more\", not exactly 500. To see tags beyond the cap, refine `query` to a narrower substring so it matches fewer than 500.\n\nUse this to resolve a tag name to a GUID before calling `create_note`, `edit_note`, `update_note_tags`, or `edit_tag`. To search notes carrying a tag, use `search_notes` with `tag:\"<name>\"`.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "query": {
+              "default": "",
+              "description": "Tag name substring to match (case-insensitive). Empty string (default) lists all the user's tags, sorted by `sortBy`. When non-empty, the substring is matched server-side across the user's entire tag set (so matches aren't limited to recently-touched tags), then ranked: exact > prefix > substring; ties break alphabetically. Matching is name-only — `notebook:` / `tag:` / other note-grammar operators have no effect here.",
+              "type": "string"
+            },
+            "maxResults": {
+              "default": 10,
+              "description": "Maximum number of tags to return (1–100). Default 10. Bump to e.g. 100 to approximate the full list view in the Evernote app's tag panel.",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "sortBy": {
+              "default": "name",
+              "description": "Sort field, applied when `query` is empty (or after rank-by-match when `query` is non-empty). `name` (default) sorts alphabetically A→Z. `updated` sorts by most-recently-touched first (tag version DESC) — useful for surfacing the tags the user has been working with lately. `updated` is independent of any substring filter.",
+              "type": "string",
+              "enum": [
+                "name",
+                "updated"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Search tags"
+        },
+        "outputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "hits": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "tagId": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "searchFilter": {
+                    "type": "string"
+                  },
+                  "score": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "tagId",
+                  "label",
+                  "searchFilter",
+                  "score"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "totalResultCount": {
+              "type": "number"
+            },
+            "startIndex": {
+              "type": "number"
+            },
+            "isLastPage": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "hits",
+            "totalResultCount",
+            "startIndex",
+            "isLastPage"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "name": "create_tag",
+        "title": "Create tag",
+        "description": "Creates a new tag, flat (no parent). To nest it under another tag, call `edit_tag` afterwards with `parentId`. Returns the new tag's GUID — use it with `create_note` (`tagIds`), `update_note_tags` (`tagIdsToAdd`), or in a `search_notes` query as `tagGuid:\"<id>\"`.\n\nConstraints: business / vault users may be rejected — tags are personal-account scope.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100,
+              "description": "Tag name (label). 1–100 characters — the EDAM `EDAM_TAG_NAME_LEN_MAX` limit, matching what the Evernote app accepts. The created tag is flat (no parent); use `edit_tag` afterwards to nest it under another tag."
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "title": "Create tag"
+        }
+      },
+      {
+        "name": "edit_tag",
+        "title": "Edit tag",
+        "description": "Renames a tag and/or moves it in the tag hierarchy. Provide at least one of `name` (new label) or `parentId` (new parent — pass `null` to detach to root, or a tag GUID to nest under another tag).\n\nConstraints: business / vault users cannot rename personal tags. Only the owner can rename a shared tag.\n\nPrerequisites: call `search_tags` to resolve a name to a GUID.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "tagId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "GUID of the tag to edit. Use `search_tags` to look one up by name."
+            },
+            "name": {
+              "description": "New tag name (label). 1–100 characters per EDAM `EDAM_TAG_NAME_LEN_MAX`. Omit to leave the name unchanged.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "parentId": {
+              "description": "New parent tag GUID — tri-state: omit to leave the parent unchanged, pass `null` to remove the parent (make this a root-level tag), or pass a tag GUID to nest under that parent.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "tagId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Edit tag"
+        }
+      },
+      {
+        "name": "get_attachment",
+        "title": "Get attachment download URL",
+        "description": "Returns a short-lived, pre-signed HTTPS URL to download an Evernote attachment (referenced by `<en-media hash=...>` in note ENML). The URL points straight at the file bytes and can be fetched directly — no Evernote auth header, no follow-up call. It expires after a short window (see `expiresAt`), so fetch it promptly rather than storing it. Works on owned, shared, and business notes — the URL is only issued if you can read the note.\n\nTip: `get_note`'s `structuredContent.resources` already lists every attachment on the note with its hash, mime, and filename, so you typically know which hash you want before calling this tool.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteId": {
+              "description": "GUID of the note that owns the attachment, or a note link. Same shape as `get_note`'s `noteId`.",
+              "type": "string"
+            },
+            "hash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$",
+              "description": "The attachment's content hash (lowercase MD5), as it appears in the `hash` attribute of an `<en-media>` tag inside the note's ENML."
+            }
+          },
+          "required": [
+            "noteId",
+            "hash"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Get attachment download URL"
+        }
+      },
+      {
+        "name": "start_attachment_upload",
+        "title": "Start attachment upload",
+        "description": "**Step 1 of 3 for adding a file (PDF, image, audio, etc.) as an attachment to an Evernote note.** Mints a pre-signed Google Cloud Storage URL that you (the LLM, or your runtime) will use to upload the file bytes directly to storage. The MCP server never sees the bytes — keeping the file out of the LLM's context window — so this flow works for files of any practical size, not just the few hundred KB an inline base64 tool argument could carry.\n\n## The full flow\n1. **Call this tool** with the file's `noteId`, `hash` (lowercase MD5 of the bytes), and `sizeBytes`. Receive `uploadUrl` (a signed *resumable-upload initiation URL* — see how to use it below) and `alreadyUploaded` (true if the server already has these bytes).\n2. **If `alreadyUploaded` is false**, perform a **two-step GCS resumable upload** to the `uploadUrl`. The detailed protocol and a copy-pastable curl pattern are in the next section. Skip this step entirely if `alreadyUploaded` was true.\n3. **Call `finalize_attachment`** with the same `noteId`, `hash`, `sizeBytes`, plus the `mimeType` (and optional `filename`). That call registers the bytes as a resource entity on the note and returns a ready-to-paste `<en-media>` tag plus the resource GUID.\n4. **Call `edit_note`** with the note's full new ENML, with the `<en-media>` tag spliced in at the position you want. The tag has the shape `<en-media hash=\"...\" type=\"...\" />` and is the canonical way ENML references attachments; it works alongside any other inline content. If you want it at the end, append it just before `</en-note>`.\n\n## How to perform the upload (step 2)\nThe `uploadUrl` is a *resumable-upload initiation URL* — the same kind the official Evernote clients use, since Evernote's storage layer always issues these to support large files and unreliable networks. **A single direct PUT against `uploadUrl` will be rejected by GCS with a signature error.** You must perform TWO HTTP calls:\n\n  **Call A — initiate the session.** `POST` to `uploadUrl` with these headers and an empty body:\n  - `x-goog-resumable: start`\n  - `x-upload-content-length: <sizeBytes>` (matching the value you passed to this tool)\n  - `content-length: 0`\n\n  GCS responds with HTTP `201` (empty body) and a `Location:` response header. **The value of that `Location:` header is the session URL** — that's where the bytes actually go. Save it.\n\n  **Call B — upload the bytes.** `PUT` the file's raw bytes to the session URL you just captured, with:\n  - `Content-Type: application/octet-stream`\n  - `Content-Length: <sizeBytes>` (matching exactly — mismatch is rejected)\n\n  Body is the raw bytes. On success GCS responds `200`/`201` with an empty body.\n\n  **curl pattern** (Claude Code or any shell-capable runtime; substitute your values for `<uploadUrl>`, `<sizeBytes>`, `<file-path>`):\n  ```bash\n  SESSION_URL=$(curl -s -X POST \\\n    -H 'x-goog-resumable: start' \\\n    -H 'x-upload-content-length: <sizeBytes>' \\\n    -H 'content-length: 0' \\\n    -D - '<uploadUrl>' | awk 'tolower($1) == \"location:\" { print $2 }' | tr -d '\\r')\n  curl -X PUT \\\n    -H 'Content-Type: application/octet-stream' \\\n    --data-binary @<file-path> \"$SESSION_URL\"\n  ```\n\n## When `alreadyUploaded` is true\nReturned when these exact bytes (same hash) are already in this user's GCS bucket — typically because the user previously attached the same file to another note. **Skip both Call A and Call B**, go straight to `finalize_attachment`. The resource still needs to be registered against THIS note even if the bytes are reused.\n\n## Common pitfalls\n- **The `hash` MUST be the lowercase hex MD5 of the actual bytes** you are about to upload. There is no server-side re-hash; a mismatched hash silently breaks downloads for every client.\n- **The Call A response is `201`, not `200`,** and has an empty body. The session URL is in the `Location` response header — read it from there, not from the body. Don't follow the redirect blindly; the body is intentionally empty.\n- **Don't attempt a single PUT against `uploadUrl`.** That URL is signed for the resumable initiation request; GCS will reject any PUT directly to it.\n- **Don't use the file's real MIME type on Call B's `Content-Type`** (e.g. `application/pdf`). The session URL is bound to `application/octet-stream` and GCS rejects mismatches. The file's real mime type goes into `finalize_attachment`, not the upload itself.\n- **Both URLs are time-limited.** `uploadUrl` expires within minutes; the session URL it produces lives longer (~1 week per GCS defaults) but is still finite. Re-call this tool if either expires before the upload finishes.\n- If you already know (e.g. from `get_note.resources[]`) that the same hash is already attached to THIS note, skip the entire upload flow — reuse the existing resource's `<en-media>` tag directly.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteId": {
+              "description": "GUID of the note that will own the new attachment, or a note link. Same shape as `get_note`'s `noteId`.",
+              "type": "string"
+            },
+            "hash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$",
+              "description": "Lowercase-hex MD5 of the EXACT bytes you are about to upload. The server uses this hash to (a) name the GCS object, (b) detect that the bytes are already on the server (in which case no PUT is needed — see `alreadyUploaded` in the response), and (c) drive the `<en-media hash=...>` reference inserted into the note's ENML in step 3. If the bytes you PUT have a different MD5, downloads of this attachment will appear corrupted to every other Evernote client — there is no server-side re-hash. Compute this before calling."
+            },
+            "sizeBytes": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 524288000,
+              "description": "Exact byte count of the bytes you are about to upload. Used as `Content-Length` for the PUT and recorded on the resource entity. Must be strictly positive; max 500MB (highest Evernote tier cap). Mismatch with the actual PUT body length will cause file-service to reject the upload."
+            }
+          },
+          "required": [
+            "noteId",
+            "hash",
+            "sizeBytes"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Start attachment upload"
+        }
+      },
+      {
+        "name": "finalize_attachment",
+        "title": "Finalize attachment",
+        "description": "**Step 3 of 3 for adding a file as an attachment to an Evernote note.** Registers already-uploaded bytes as a resource entity on the note and returns a ready-to-paste `<en-media>` tag.\n\n## When to call this tool\nAfter `start_attachment_upload` returned, AND either:\n  - You have completed the two-step GCS resumable upload that `start_attachment_upload` describes (init POST → PUT bytes to the session URL), OR\n  - `start_attachment_upload` returned `alreadyUploaded: true` (no upload was needed).\n\n## What it does\nCalls api-gateway's `POST /v1/attachments`, which writes an ATTACHMENT entity in note-service keyed to `(noteId, hash, sizeBytes)` and returns a stable resource GUID. The resource is now part of the note in the same sense any other resource is — it shows up in `get_note.resources[]`, and the bytes are downloadable via `get_attachment`.\n\n## What you still have to do (step 4)\nThis call does NOT yet make the attachment visible inside the note body. ENML references resources via `<en-media hash=... type=... />` tags, and you must insert that tag into the note's content yourself by calling `edit_note` with the full new ENML. The `enMediaTag` field in this tool's response gives you the exact string to splice in — append it just before `</en-note>` to place the attachment at the end of the note, or splice it in line at the position the user asked for.\n\n## Inputs must match the upload\nPass the same `hash`, `sizeBytes`, `mimeType` you used (or planned to use) with `start_attachment_upload`. The server doesn't re-hash; if `hash` and `sizeBytes` don't match what was uploaded, downloads will appear corrupted to other clients. `filename` and `sourceUrl` are optional metadata stored on the resource — recommended for PDFs/documents, less important for inline images.\n\n## When called on a live-edited note\nThis is safe regardless of whether the note is currently open in another client's collaborative editor. The resource entity is created via api-gateway (rte-service-independent), and step 4 (`edit_note`) goes through rte-service's CRDT mutation path so the inserted `<en-media>` tag broadcasts live to any open editor room.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteId": {
+              "description": "GUID of the note that will own the new attachment, or a note link. Must be the same `noteId` you passed to `start_attachment_upload`.",
+              "type": "string"
+            },
+            "hash": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$",
+              "description": "Lowercase-hex MD5 of the bytes that were uploaded. Must match the hash you passed to `start_attachment_upload`. The server records this on the resource entity and uses it to drive `<en-media hash=...>` references in ENML."
+            },
+            "sizeBytes": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 524288000,
+              "description": "Exact byte count of the uploaded file. Must match the value you passed to `start_attachment_upload`."
+            },
+            "mimeType": {
+              "type": "string",
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9!#$^_+\\-.]{0,126}\\/[a-zA-Z0-9][a-zA-Z0-9!#$^_+\\-.]{0,126}$",
+              "description": "The file's MIME type — e.g. `application/pdf`, `image/png`, `image/jpeg`, `audio/mpeg`. Stored on the resource entity and emitted as the `type=` attribute of the `<en-media>` tag in ENML. Use the file's true type; this is what drives client-side rendering (PDF viewer vs image vs audio player)."
+            },
+            "filename": {
+              "description": "Original filename, e.g. `Q3-report.pdf`. Surfaced when the user downloads the attachment from a desktop or web client. Strongly recommended for documents (PDFs, DOCX, etc.); less important for inline images. 1-255 chars.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "sourceUrl": {
+              "description": "Original URL the file was downloaded from, when applicable. Free-form metadata; not validated server-side beyond URL shape. Useful when the LLM attached a file the user shared by link, so the provenance is preserved.",
+              "type": "string",
+              "maxLength": 2048,
+              "format": "uri"
+            },
+            "width": {
+              "description": "Pixel width — image and video resources only. Optional but improves the editor's initial render (avoids a layout shift while dimensions are probed). 1-65535.",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 65535
+            },
+            "height": {
+              "description": "Pixel height — image and video resources only. Optional but improves the editor's initial render. 1-65535.",
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 65535
+            }
+          },
+          "required": [
+            "noteId",
+            "hash",
+            "sizeBytes",
+            "mimeType"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "title": "Finalize attachment"
+        }
+      },
+      {
+        "name": "create_task",
+        "title": "Create a task in a note",
+        "description": "Creates a new task entity in a note. Composite: handles the tasks-service write AND, for a new group, the ENML placeholder insertion in one call. You never author task ENML — the server builds the placeholder.\n\n**No note specified?** Omit `noteId` to add the task to the user's default task note — the note note-less tasks collect in, created on first use, just like a note goes to the default notebook (this is also the Assistant's behavior). The task lands in that note's existing task group (or a fresh one if it has none); do NOT pass `mode`/`find`/`taskGroupNoteLevelId` in this case. Only pass `noteId` when the user names a specific note.\n\n**Two modes (when targeting a specific `noteId`):**\n1. **Add to an existing group** — pass `taskGroupNoteLevelId` (from `get_note.structuredContent.tasks[]`). No ENML change; the placeholder is already in the note.\n2. **Create a new group** — omit `taskGroupNoteLevelId`. The server mints the group id, builds the placeholder div, and positions it with `mode` (`append` = end, default; `prepend` = start; `after`/`before` = next to the unique `find` anchor). This only inserts the group — it never replaces note content.\n\n**Setting task attributes.** `create_task` only creates the task — its `label` and placement. It does NOT take due date, priority, flag, description, reminder, time zone, or recurrence as parameters; passing any of them (e.g. `dueDate`, `priority`, `flag`, `recurrence`) is rejected as an unrecognized argument. To set them, call `update_task` with the returned `taskId` once the task exists.\n\n**Ordering & partial failure (new group).** The placeholder insertion runs BEFORE the task entity is created — it materializes the note's collaborative (Yjs) doc so tasks-service's real-time notification reaches open editors immediately. Consequences:\n- If the placement fails (e.g. `find` not found / ambiguous, note not found), **no task is created** — safe to retry.\n- If placement succeeds but the entity create fails, the response has `enmlEdited: true, taskCreated: false` plus the `noteId` and `taskGroupNoteLevelId` now in the note.\n\n**Retrying (NOT idempotent — every call mints fresh ids).** Decide from the result:\n- **error** → nothing created, retry verbatim.\n- **`taskCreated: false`** → placeholder is in the note; recover by calling again with the `noteId` AND `taskGroupNoteLevelId` from the result (add-to-existing) — pass `noteId` explicitly even if your first call omitted it (default task note), NOT verbatim (which adds a second placeholder).\n- **`taskId`** → success; do not retry.\n\nPrerequisites: `get_note(noteId)` to find existing groups, and to copy a `find` anchor when using `mode: \"after\"` or `\"before\"`.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "noteId": {
+              "description": "GUID (or note link) of the note to add the task to (from `search_notes` or `get_note`). Omit to use your default task note — the note note-less tasks collect in, created on first use, exactly like a note goes to the default notebook. When omitted, the task is added to that note's task group (a new one is created only if it has none), and `mode`/`find`/`taskGroupNoteLevelId` must be omitted too.",
+              "type": "string"
+            },
+            "label": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255,
+              "description": "Human-readable task label (the line shown on the checkbox)."
+            },
+            "taskGroupNoteLevelId": {
+              "description": "Existing task-group GUID to append to (from `get_note(noteId).structuredContent.tasks[].taskGroupNoteLevelId`). Pass it to add the task to an existing group — no ENML change is needed. Omit to create a NEW group: the server mints the id, builds the placeholder div, and positions it via `mode`/`find`.",
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            },
+            "mode": {
+              "description": "Where to place a NEW task group (ignored when `taskGroupNoteLevelId` is set). `append` (default) puts it at the end of the note; `prepend` at the start; `after` / `before` insert it immediately after / before the unique `find` anchor. This only ever inserts the group — it never replaces note content. You don't supply the group's markup; the server builds it.",
+              "type": "string",
+              "enum": [
+                "append",
+                "prepend",
+                "before",
+                "after"
+              ]
+            },
+            "find": {
+              "description": "Exact, unique ENML substring (copied byte-for-byte from `get_note`) to anchor the new group next to. Required for, and only valid with, `mode: \"after\"` or `\"before\"`.",
+              "type": "string",
+              "minLength": 1
+            },
+            "sortWeight": {
+              "description": "Lexicographic sort key used to position the task within its group. Use lexorank-style strings (e.g. `aaa`).",
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "label"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false,
+          "title": "Create a task in a note"
+        }
+      },
+      {
+        "name": "get_task",
+        "title": "Get task",
+        "description": "Fetches full detail for a single task by GUID — the complement to `get_note` and `search_tasks`, which only return a lightweight task summary. Returns `id`, `label`, `status`, `description`, `dueDate` (ISO-8601 or null), `priority` (`high`/`medium`/`low`/`none`), `flagged`, `recurring` (true for a base recurring task, false for a one-shot task or a recurring outlier), `assigneeEmail` (who the task is assigned to, or null when unassigned), and `noteId` (feed into `get_note` to see the task in context).\n\nPrerequisites: call `get_note(noteId).structuredContent.tasks[]` or `search_tasks` first to find a task's GUID.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "taskId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "GUID of the task to fetch. Get it from `get_note(noteId).structuredContent.tasks[]` or `search_tasks`."
+            }
+          },
+          "required": [
+            "taskId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Get task"
+        }
+      },
+      {
+        "name": "update_task",
+        "title": "Update a task",
+        "description": "Updates an existing task — either its status (open / completed) OR one or more of its properties (label, due date, priority, flag, description, sort weight, recurrence). One call updates one or the other, not both.\n\n**Property updates** — pass any of `label`, `dueDate`, `dueDateUIOption`, `priority`, `flag`, `description`, `sortWeight`, `timeZone`, `recurrence`. Omitted fields are left unchanged. Pass `idClock` for concurrent-edit safety (per-field last-write-wins ordering).\n\n**Status updates** — pass `status: \"open\"` or `status: \"completed\"`. **Recurring tasks behave specially when completed:** the server creates a *completed outlier* for this occurrence and advances the base task's `dueDate` to the next scheduled time — the underlying task stays `open` so the next occurrence is still due. The response carries the new `dueDate` (next occurrence) and `updatedOutlier` (this completed occurrence). Convey this to the user: \"Marked today's standup done; next on …\". Non-recurring tasks behave as expected — `status` flips and `updatedOutlier` is absent. Calling `status` and any property field in the same invocation returns `ToolInputError` — make two separate calls.\n\n**Does not move tasks between groups or notes.** Property and status changes don't touch the ENML placeholder, so no `edit_note` call is needed. To insert a task into a note or remove the last task from a group, use `create_task` / `delete_task`.\n\nPrerequisites: call `get_note(noteId)` and read `structuredContent.tasks[]` to discover task GUIDs.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "taskId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "GUID of the task to update. Get it from `get_note(noteId).structuredContent.tasks[]`."
+            },
+            "status": {
+              "description": "Mark the task completed or reopen a completed one. Cannot be combined with property fields in the same call — make two separate calls if you need both. Recurring tasks behave specially: see the tool description.",
+              "type": "string",
+              "enum": [
+                "open",
+                "completed"
+              ]
+            },
+            "idClock": {
+              "description": "Optional ordering counter from a prior `create_task` or `update_task` response. Pass the last value you saw so concurrent edits resolve last-write-wins per-field. Omit if you don't have one — the server falls back to its current value. Only meaningful for property updates (ignored for `status` changes).",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "label": {
+              "description": "New task label (the human-readable line shown on the checkbox). Omit to leave unchanged.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 255
+            },
+            "dueDate": {
+              "description": "New due date in ISO 8601 (with offset, e.g. `2026-06-15T12:00:00Z`). Pass `null` to clear the due date. Omit to leave unchanged.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "dueDateUIOption": {
+              "description": "How clients should render `dueDate`. `date` hides the time; `datetime` shows both. Omit to leave unchanged.",
+              "type": "string",
+              "enum": [
+                "date",
+                "datetime"
+              ]
+            },
+            "priority": {
+              "description": "New task priority. `none` clears the priority. Omit to leave unchanged.",
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low",
+                "none"
+              ]
+            },
+            "flag": {
+              "description": "Whether the task is flagged. Omit to leave unchanged.",
+              "type": "boolean"
+            },
+            "description": {
+              "description": "Free-form longer-form description, separate from the label. Pass `null` to clear. Omit to leave unchanged.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "sortWeight": {
+              "description": "Lexicographic sort key used to position the task within its group. Use lexorank-style strings (e.g. `aaa`, `aab`) to insert between siblings. Omit to leave unchanged.",
+              "type": "string",
+              "minLength": 1
+            },
+            "timeZone": {
+              "description": "IANA time zone for due-date resolution (e.g. `America/New_York`). Only meaningful when also setting `dueDate`. Omit to leave unchanged.",
+              "type": "string",
+              "minLength": 1
+            },
+            "recurrence": {
+              "description": "Task recurrence — mirrors the editor's Custom-recurrence dialog. Pass an object to set or replace the recurrence; pass `null` to clear it (turn a recurring task into a one-shot). Omit to leave unchanged.\n\n**Note on `afterCompletion`:** when `frequency: \"afterCompletion\"`, the next occurrence is scheduled relative to when the *previous* occurrence is marked complete — the corresponding `repeatAfterCompletion: true` flag on the wire is set automatically by this tool. The other four frequencies use a fixed calendar schedule; `repeatAfterCompletion: false` is set on the wire automatically.\n\n**Visibility:** the client only renders a recurrence (and its ↻ icon) when the task also has a due-date display set. So when you set a recurrence on a task that has none, this tool supplies a `dueDateUIOption` for you — `date_time` if you pass an explicit `dueDate` in the same call, otherwise `date_only` — mirroring the editor, which always attaches a recurrence to a due-date reminder. An existing display option is left untouched. Pass `dueDateUIOption` explicitly to override.\n\n**Examples:**\n- Every weekday: `{frequency: \"weekly\", byDay: [\"MO\",\"TU\",\"WE\",\"TH\",\"FR\"]}`\n- Every other Wednesday: `{frequency: \"weekly\", interval: 2, byDay: [\"WE\"]}`\n- 15th of every month: `{frequency: \"monthly\", byMonthDay: 15}`\n- Last Friday of every month: `{frequency: \"monthly\", bySetPos: {nth: -1, weekday: \"FR\"}}`\n- Every 3 days, measured from when I complete the last one: `{frequency: \"afterCompletion\", afterCompletionUnit: \"day\", interval: 3}`\n- Daily for 10 days only: `{frequency: \"daily\", endsAfter: 10}`",
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "frequency": {
+                      "type": "string",
+                      "enum": [
+                        "daily",
+                        "weekly",
+                        "monthly",
+                        "yearly",
+                        "afterCompletion"
+                      ],
+                      "description": "How often the task repeats. `afterCompletion` ties recurrence to when the previous occurrence is completed (e.g. \"every 3 days after I finish the previous one\") — pair with `afterCompletionUnit`. The other four are calendar-based (e.g. \"every Wednesday\")."
+                    },
+                    "afterCompletionUnit": {
+                      "description": "Required when `frequency: \"afterCompletion\"`. The unit the `interval` is measured in once the previous occurrence is completed — `day` (calendar days), `weekday` (skip weekends), `week`, `month`, `year`. Mirrors the second dropdown the editor shows when \"After completion\" is picked.",
+                      "type": "string",
+                      "enum": [
+                        "day",
+                        "weekday",
+                        "week",
+                        "month",
+                        "year"
+                      ]
+                    },
+                    "interval": {
+                      "description": "Repeat every N units of `frequency`. Defaults to 1 — e.g. with `frequency: \"weekly\", interval: 2` the task recurs every two weeks.",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    },
+                    "byDay": {
+                      "description": "Weekly only. The days of the week the task recurs on (the \"On days\" row in the editor's Custom-recurrence dialog). E.g. `[\"MO\", \"WE\", \"FR\"]` for Mon/Wed/Fri.",
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "SU",
+                          "MO",
+                          "TU",
+                          "WE",
+                          "TH",
+                          "FR",
+                          "SA"
+                        ]
+                      }
+                    },
+                    "byMonthDay": {
+                      "description": "Monthly only. \"On day N of the month\" (1-31). Mutually exclusive with `bySetPos`.",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 31
+                    },
+                    "bySetPos": {
+                      "description": "Monthly only. \"On the nth weekday of the month\" — e.g. `{nth: 2, weekday: \"TU\"}` = \"the second Tuesday\". Mutually exclusive with `byMonthDay`.",
+                      "type": "object",
+                      "properties": {
+                        "nth": {
+                          "anyOf": [
+                            {
+                              "type": "number",
+                              "const": -1
+                            },
+                            {
+                              "type": "number",
+                              "const": 1
+                            },
+                            {
+                              "type": "number",
+                              "const": 2
+                            },
+                            {
+                              "type": "number",
+                              "const": 3
+                            },
+                            {
+                              "type": "number",
+                              "const": 4
+                            },
+                            {
+                              "type": "number",
+                              "const": 5
+                            }
+                          ],
+                          "description": "Which occurrence in the month: 1-5 for \"first\" through \"fifth\"; -1 for \"last\"."
+                        },
+                        "weekday": {
+                          "type": "string",
+                          "enum": [
+                            "SU",
+                            "MO",
+                            "TU",
+                            "WE",
+                            "TH",
+                            "FR",
+                            "SA"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "nth",
+                        "weekday"
+                      ]
+                    },
+                    "startDate": {
+                      "description": "ISO 8601 date (or datetime with offset) the recurrence starts on — the editor's \"Starts\" field. Optional; defaults to the task's `dueDate` if omitted.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "endsOn": {
+                      "description": "ISO 8601 date the recurrence ends on (inclusive) — the editor's \"Ends: On <date>\" radio. Mutually exclusive with `endsAfter`. Omit both for the \"Ends: Never\" radio.",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+                    },
+                    "endsAfter": {
+                      "description": "Number of occurrences after which the recurrence stops. Mutually exclusive with `endsOn`. Omit both for never-ending.",
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "frequency"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "taskId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Update a task"
+        }
+      },
+      {
+        "name": "delete_task",
+        "title": "Delete a task",
+        "description": "Deletes a task entity, and — when it was the **last task in its group** — automatically removes the now-empty task-group placeholder div from the note body. You don't pass or edit any ENML; the server does the cleanup surgically by group id.\n\nIf the deleted task still has siblings in its group, the placeholder stays (it's still in use) and no ENML change is made.\n\n**Partial failure.** If the entity delete succeeds but the placeholder cleanup fails (rte-service error), the response has `enmlEdited: false` plus a warning — the task is already gone; retry `delete_task` (idempotent) or remove the placeholder via `edit_note`.\n\nIdempotent at the storage layer (tasks-service uses `deleted_at` markers, not hard delete) — repeated calls converge.\n\nPrerequisites: call `get_note(noteId).structuredContent.tasks[]` to learn the taskId. The tool looks up the parent noteId internally.",
+        "inputSchema": {
+          "type": "object",
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "properties": {
+            "taskId": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+              "description": "GUID of the task to delete. Get it from `get_note(noteId).structuredContent.tasks[]`."
+            }
+          },
+          "required": [
+            "taskId"
+          ],
+          "additionalProperties": false
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "title": "Delete a task"
+        }
+      }
+    ]
+  },
+  "jsonrpc": "2.0",
+  "id": 3
+}

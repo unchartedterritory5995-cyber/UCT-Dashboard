@@ -1,0 +1,17 @@
+//@version=6
+indicator("UCTPROBE_CALC_BARS", overlay = false, calc_bars_count = 100)
+
+// PROVENANCE: written 2026-11-14 for the Pine parity programme, capture session S1
+// (objects-lane REMAINING-SCOPE-2026-11-14 section 4; plan row 30).
+// calc_bars_count = 100: which bars carry values (the last 100?), bar_index on the first calculated bar
+// (0, or its index in the loaded history), and a var counter and an SMA warming up inside the window.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+var int n = 0
+n += 1
+
+plot(bar_index, "A00_bar_index")
+plot(time, "A01_time_CONTROL")
+plot(n, "A02_var_count")
+plot(ta.sma(close, 10), "A03_sma10")
+plot(close, "A04_close")

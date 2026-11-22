@@ -1,0 +1,382 @@
+{
+ "contract": "uct.converse-eval.scripted/1",
+ "_": "Scripted answers for converse_eval_stateful_cases.json: each is the function called as the assistant calls it. The control answers are the base fixture's own.",
+ "usage": {
+  "input_tokens": 3000,
+  "output_tokens": 900
+ },
+ "turns": {
+  "stateful-supertrend#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built SuperTrend.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "SuperTrend",
+      "placement": "price",
+      "primary": "st",
+      "outputs": [
+       {
+        "key": "st",
+        "label": "SuperTrend",
+        "tree": {
+         "type": "call",
+         "name": "supertrend",
+         "args": [
+          {
+           "type": "num",
+           "value": 3
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "stateful-supertrend-direction#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built SuperTrend and direction.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "SuperTrend and direction",
+      "placement": "pane",
+      "primary": "st",
+      "outputs": [
+       {
+        "key": "st",
+        "label": "SuperTrend",
+        "tree": {
+         "type": "call",
+         "name": "supertrend",
+         "args": [
+          {
+           "type": "num",
+           "value": 3
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       },
+       {
+        "key": "dir",
+        "label": "Direction",
+        "tree": {
+         "type": "call",
+         "name": "supertrendDirection",
+         "args": [
+          {
+           "type": "num",
+           "value": 3
+          },
+          {
+           "type": "num",
+           "value": 10
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "stateful-parabolic-sar#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built Parabolic SAR.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Parabolic SAR",
+      "placement": "price",
+      "primary": "sar",
+      "outputs": [
+       {
+        "key": "sar",
+        "label": "Parabolic SAR",
+        "tree": {
+         "type": "call",
+         "name": "sar",
+         "args": [
+          {
+           "type": "num",
+           "value": 0.02
+          },
+          {
+           "type": "num",
+           "value": 0.2
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "stateful-sar-direction#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "disposition": "change",
+    "reply": "Built Parabolic SAR and direction.",
+    "ops": [
+     {
+      "op": "create",
+      "name": "Parabolic SAR and direction",
+      "placement": "pane",
+      "primary": "sar",
+      "outputs": [
+       {
+        "key": "sar",
+        "label": "Parabolic SAR",
+        "tree": {
+         "type": "call",
+         "name": "sar",
+         "args": [
+          {
+           "type": "num",
+           "value": 0.02
+          },
+          {
+           "type": "num",
+           "value": 0.2
+          }
+         ]
+        }
+       },
+       {
+        "key": "dir",
+        "label": "Direction",
+        "tree": {
+         "type": "call",
+         "name": "sarDirection",
+         "args": [
+          {
+           "type": "num",
+           "value": 0.02
+          },
+          {
+           "type": "num",
+           "value": 0.2
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "ctl-other-symbol#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Above the index",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "QQQ",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-screener-text#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "Technology",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "textop",
+         "name": "==",
+         "args": [
+          {
+           "type": "symtext",
+           "name": "sector"
+          },
+          {
+           "type": "str",
+           "value": "Technology"
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-rename-nothing#0": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [
+     {
+      "op": "create",
+      "name": "RSI overbought",
+      "outputs": [
+       {
+        "key": "value",
+        "tree": {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "call",
+           "name": "rsi",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 14
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 70
+          }
+         ]
+        }
+       }
+      ]
+     }
+    ],
+    "disposition": "change",
+    "reply": "Done."
+   }
+  ],
+  "ctl-ambiguous#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What should confirm it?",
+      "choices": [
+       "volume above its 50-bar average",
+       "volume above 1.5x its 50-bar average"
+      ]
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ],
+  "ctl-rename-nothing#1": [
+   {
+    "contract": "uct.authoring.patch/1",
+    "baseRevision": 0,
+    "ops": [],
+    "questions": [
+     {
+      "id": "q1",
+      "text": "What would you like to call it?"
+     }
+    ],
+    "disposition": "clarify",
+    "reply": ""
+   }
+  ]
+ }
+}

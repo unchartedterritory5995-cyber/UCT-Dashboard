@@ -11,6 +11,8 @@ above `live_tier_state` for why the surface reads the tier's own facts rather
 than recomputing any of its gates.
 """
 import datetime as _dt
+import threading
+import time
 from zoneinfo import ZoneInfo
 
 from . import contention_trace_temp, filters, pattern_join, ranking, scan_store, snapshot_db
@@ -344,6 +346,47 @@ def _readiness_refusal(label: str) -> ValueError:
     return ValueError(f"{label} isn't ready on this screen yet — remove it and try again")
 
 
+def _require_operands(key: str, op: str, f: dict) -> None:
+    """Refuse a filter that arrived without the operand its op reads.
+
+    `filters.OP_OPERANDS` declares what each op needs and nothing checked it:
+    `build_where` indexed `f["min"]` / `f["max"]` / `f["value"]` directly and the
+    routes catch only `ValueError`, so `{"key": "rs_rank", "op": "gte",
+    "value": 90}` (the wrong operand name) was a `KeyError` and an HTTP 500
+    "Internal Server Error" (found 2026-11-14 while planning the RS screens).
+
+    A missing operand, a null one and an empty string (a cleared input) are the
+    same mistake. A null bound into `col >= ?` compares against NULL and matches
+    no row, and SQLite ranks every number below any text, so the member read an
+    empty table as "nothing qualifies" when the criterion never ran.
+
+    ⛔ REFUSE WITH THE FILTER'S OWN LABEL AND THE OP'S PLAIN WORDS, the rule
+    `_readiness_refusal` states: a sentence the member can act on, never a key
+    name. Zero and False are real operands, so the test is never truthiness. An EMPTY `values` list stays the documented no-op; anything that
+    is not a list is refused, because a string would be read letter by letter
+    and a number raises.
+    """
+    entry = filters.FILTERS[key]
+    words = filters.OP_WORDS.get(op, op)
+    for operand in filters.OP_OPERANDS.get(op, ()):
+        v = f.get(operand)
+        if operand == "values":
+            if isinstance(v, list):
+                continue
+            needs = "a list of values"
+        elif v is not None and v != "":
+            continue
+        elif operand == "other":
+            needs = "a second field to compare with"
+        elif op == "between":
+            needs = "a low and a high number"
+        elif op == "contains":
+            needs = "some text"
+        else:
+            needs = "a number" if entry.get("type") == "range" else "a value"
+        raise ValueError(f'{entry["label"]}: "{words}" needs {needs}.')
+
+
 # ⭐ "VOLUME VS USUAL BY NOW" SORTS ON LAST SESSION'S VOLUME WHEN THE MARKET IS CLOSED.
 # `rvol_live` is blank outside the session (and before 09:45 ET), and members scan
 # mostly after hours and on weekends: sorted by it alone, every live-volume screen
@@ -358,6 +401,39 @@ def _sort_expr(overlay, sort_key):
     if fb is None:
         return overlay.col_expr(sort_key)
     return f"COALESCE({overlay.col_expr(sort_key)}, {overlay.col_expr(fb)})"
+
+
+#: The directions a SECOND sort key may name. (The first key's rule is older and
+#: looser: anything but "asc" reads as descending, and saved screens rely on it.)
+_SORT_DIRS = {"asc": "ASC", "desc": "DESC"}
+
+
+def _then_sort(sort, known):
+    """``(column, "ASC" | "DESC")`` for the ONE secondary sort key a spec may carry
+    (``sort.then = {key, dir}``, RS screens unit U4), or ``None`` when it carries none.
+
+    RS New Highs orders by the age of the RS high, and dozens of names share "today";
+    without a second key they came out in ticker order.
+
+    ⛔ VALIDATED EXACTLY LIKE THE FIRST KEY, because it reaches ``col_expr`` through the
+    same door: a name that is not a snapshot column is refused by name, and a declared
+    column this pod's table does not hold yet is the readiness refusal (X27 F1), never
+    a silent no-op. A direction is "asc", "desc" or absent (descending, the first
+    key's default); anything else is refused rather than read as descending."""
+    then = sort.get("then")
+    if then is None:
+        return None
+    if not isinstance(then, dict) or then.get("then") is not None:
+        raise ValueError("the second sort key must be one object with a key and a direction")
+    key = then.get("key")
+    if not isinstance(key, str) or key not in _SORTABLE:
+        raise ValueError(f"unknown sort key: {key}")
+    if key not in known:
+        raise _readiness_refusal(_member_label(key))
+    raw_dir = then.get("dir", "desc")
+    if not isinstance(raw_dir, str) or raw_dir not in _SORT_DIRS:
+        raise ValueError(f"unknown sort direction: {raw_dir!r} (use asc or desc)")
+    return key, _SORT_DIRS[raw_dir]
 
 
 def _overlay(conn, user=None) -> _Overlay:
@@ -480,6 +556,11 @@ def _live_overlay(conn) -> _Overlay:
 # statement, and an ordinary night costs one MIN/MAX read and nothing else.
 # ═══════════════════════════════════════════════════════════════════════════
 
+# (fingerprint, threshold) -> the gate for that snapshot; one entry, since a pod
+# reads one snapshot. See `stale_gate`.
+_STALE_GATE_MEMO = None
+
+
 def stale_gate(conn):
     """The stale-row exclusion for THIS database, or ``None`` when no row is
     behind (or the table cannot say).
@@ -492,9 +573,224 @@ def stale_gate(conn):
     saved-scan sweep (``scan_evaluator``), which must not import this SQL builder
     (``test_the_evaluator_never_NAMES_the_overlay__BY_AST``). One implementation,
     asked from both doors; this name is kept so every caller and rail is unchanged.
+
+    ⭐ COMPUTED ONCE PER SNAPSHOT. The MIN/MAX behind this is a full-table read that
+    every /scan and /count paid, for an answer that only moves when the nightly
+    table is rewritten. It is kept against `live_tier._anchor_fingerprint`, the stamp
+    the sweeper and the count cache already trust (every `upsert_rows` write moves
+    `MAX(rowid)`; `bars_asof` has no other writer), plus the builder's threshold so a
+    change to that knob is still honoured. A fingerprint it cannot read turns the memo
+    off for that call, and a failed read is never kept. The caller gets a copy.
     """
-    from . import snapshot_builder
-    return snapshot_builder.stale_row_gate(conn, table=_ROWS)
+    global _STALE_GATE_MEMO
+    import copy
+    from . import live_tier, snapshot_builder
+    try:
+        key = (live_tier._anchor_fingerprint(conn), snapshot_builder.stale_price_sessions())
+    except Exception:  # noqa: BLE001 -- no fingerprint only costs the full read
+        key = None
+    memo = _STALE_GATE_MEMO
+    if key is not None and memo is not None and memo[0] == key:
+        return copy.deepcopy(memo[1])
+    try:
+        gate = snapshot_builder.stale_row_gate(conn, table=_ROWS, strict=True)
+    except snapshot_builder.StaleGateUnreadable:
+        return None  # what the gate answers for a failed read; never kept, so the next request reads again
+    if key is not None:
+        _STALE_GATE_MEMO = (key, copy.deepcopy(gate))
+    return gate
+
+
+#: One spelling for a ticker comparison, the SQL side of `deal_status._norm`
+#: (upper case, class shares with a hyphen: BRK.B and BRK/B both read BRK-B).
+_DEAL_TICKER_SQL = f"UPPER(REPLACE(REPLACE({_ROWS}.ticker, '.', '-'), '/', '-'))"
+
+
+#: How old the scan gate's exclude set may get before a background refresh is started.
+DEAL_GATE_MAX_AGE_S = 300.0
+_DEAL_MEMO = {"syms": None, "at": 0.0, "refreshing": False}
+_DEAL_MEMO_LOCK = threading.Lock()
+
+
+def _deal_log():
+    import logging
+    return logging.getLogger(__name__)
+
+
+def _spawn(fn) -> None:
+    """Run `fn` off the request thread (tests replace this to run it inline)."""
+    threading.Thread(target=fn, daemon=True, name="screener-deal-gate-refresh").start()
+
+
+#: The last full exclude set, kept on the volume so a freshly booted pod scans with it until its
+#: own build lands. Older than DEAL_GATE_LAST_MAX_AGE_S it is not used: a deal that broke must
+#: not stay hidden for long because of an old file.
+DEAL_GATE_LAST_FILENAME = "screener_deal_gate_last.json"
+DEAL_GATE_LAST_MAX_AGE_S = 7 * 86400.0
+
+
+def _deal_last_path() -> str:
+    import os
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), DEAL_GATE_LAST_FILENAME)
+
+
+def _save_deal_last(syms) -> None:
+    """Write the full set to the volume. Atomic; a failed write is logged, never raised."""
+    import json
+    import os
+    try:
+        path = _deal_last_path()
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"symbols": sorted(syms), "at": time.time()}, fh)
+        os.replace(tmp, path)
+    except Exception as exc:  # noqa: BLE001
+        _deal_log().warning("[screener] deal gate set not saved: %s", exc)
+
+
+def _load_deal_last() -> frozenset:
+    """The saved full set, or empty when absent, unreadable or older than the limit."""
+    import json
+    try:
+        with open(_deal_last_path(), encoding="utf-8") as fh:
+            d = json.load(fh)
+        if time.time() - float(d.get("at", 0)) > DEAL_GATE_LAST_MAX_AGE_S:
+            return frozenset()
+        return frozenset(str(s) for s in d.get("symbols") or [] if s)
+    except Exception:  # noqa: BLE001 -- absent on a first boot; any damage = not used
+        return frozenset()
+
+
+#: ⛔ WHY (2026-11-15, LXFR). A news deal whose headline writes the target by NAME ("Luxfer
+#: Enters Into Agreement ...") is only recognised once the company names are in memory, and
+#: after a restart they are not for the first minutes (`deal_status.names_cold`). The first
+#: build on the new pod therefore MISSED such targets, replaced the saved set in memory AND on
+#: disk, and LXFR (a cash buyout pinned at $17.37) was served in a scan at uptime ~400 s; it
+#: was excluded again by 439 s. A names-cold build can only miss deals, never invent one, so
+#: inside this window it is unioned with the saved set and is not saved. The window is bounded:
+#: a symbol with no name anywhere would otherwise keep the pod "cold" for good and pin an old
+#: saved set forever. An owner ruling (`deal_status.news_overrides`) is honoured at once.
+DEAL_GATE_COLD_WINDOW_S = 900.0
+_PROC_T0 = time.monotonic()
+
+
+def _in_cold_window() -> bool:
+    return time.monotonic() - _PROC_T0 < DEAL_GATE_COLD_WINDOW_S
+
+
+def _refresh_deal_memo() -> None:
+    """Build the full exclude set (news + price, the slow part), keep it, and save it."""
+    got = None
+    cold = False
+    t0 = time.monotonic()
+    try:
+        from api.services import deal_status
+        got = frozenset(deal_status._norm(s) for s in deal_status.screener_excludes() if s)
+        cold = bool(deal_status.names_cold()) and _in_cold_window()
+        if cold:
+            ruled = frozenset(deal_status._norm(s) for s in deal_status.news_overrides())
+            got = got | (_load_deal_last() - ruled)
+    except Exception as exc:  # noqa: BLE001 -- a failed refresh keeps the last good set
+        _deal_log().warning("[screener] deal gate refresh failed, keeping the last set: %s", exc)
+        got = None
+    with _DEAL_MEMO_LOCK:
+        if got is not None:
+            # a names-cold set is replaced as soon as the names are in (deal_status rebuilds its
+            # own sets every DEAL_STATUS_COLD_REFRESH_S while cold), not in DEAL_GATE_MAX_AGE_S
+            _DEAL_MEMO.update(syms=got, at=time.monotonic() - (DEAL_GATE_MAX_AGE_S - 60.0 if cold else 0.0))
+        _DEAL_MEMO["refreshing"] = False
+    if got and cold:
+        _deal_log().info("[screener] deal gate set built with company names cold: %d symbols, "
+                         "saved set kept", len(got))
+    elif got:
+        _save_deal_last(got)
+        _deal_log().info("[screener] deal gate set refreshed: %d symbols in %.1f s",
+                         len(got), time.monotonic() - t0)
+
+
+def warm_deal_gate() -> None:
+    """Start the first full build (boot calls this), so the first scan after a deploy does not
+    start it. Never raises; does nothing while DEAL_STATUS_ENABLED is off."""
+    try:
+        from api.services import deal_status
+        if deal_status.enabled():
+            _deal_excludes()
+    except Exception as exc:  # noqa: BLE001
+        _deal_log().warning("[screener] deal gate warm failed: %s", exc)
+
+
+def _reset_deal_memo() -> None:
+    with _DEAL_MEMO_LOCK:
+        _DEAL_MEMO.update(syms=None, at=0.0, refreshing=False)
+
+
+def _deal_excludes() -> frozenset:
+    """The exclude set a scan uses, WITHOUT EVER WAITING ON ITS BUILD.
+
+    ⛔ WHY. `deal_status.screener_excludes()` is cached per ET day, but a cold build (after a
+    boot, at each DEAL_STATUS_REFRESH_S expiry, after a PC push resets it) reads every stored
+    deal headline and scans the daily bars for price pins. Measured 2026-11-14 on a freshly
+    booted pod: one read of that set did not answer in 120 s. Asked on the request thread,
+    every scan waited for it. So the scan reads the last set it was handed, a background thread
+    refreshes it once it is DEAL_GATE_MAX_AGE_S old (one at a time), and until the first full
+    set exists the scan uses the cheap file-backed lists (the owner's hand list and the PC's
+    buyout names, which hold every hand-confirmed deal) plus the last full set saved to disk.
+
+    ⛔ WHY THE SAVED SET (2026-11-15). The first build used to start only on a pod's first
+    scan. On a quiet Sunday the first scan after a deploy came an hour later, and its UCT 50
+    served ARX: a price-pin deal is in the full set only, never in the hand lists. The saved
+    set covers that window, and boot now starts the build too (`warm_deal_gate`)."""
+    from api.services import deal_status
+    start = False
+    with _DEAL_MEMO_LOCK:
+        syms, at, busy = _DEAL_MEMO["syms"], _DEAL_MEMO["at"], _DEAL_MEMO["refreshing"]
+        if (syms is None or time.monotonic() - at > DEAL_GATE_MAX_AGE_S) and not busy:
+            _DEAL_MEMO["refreshing"] = start = True
+    if start:
+        try:
+            _spawn(_refresh_deal_memo)
+        except Exception as exc:  # noqa: BLE001 -- no thread: try again on the next scan
+            _deal_log().warning("[screener] deal gate refresh not started: %s", exc)
+            with _DEAL_MEMO_LOCK:
+                _DEAL_MEMO["refreshing"] = False
+        with _DEAL_MEMO_LOCK:
+            syms = _DEAL_MEMO["syms"]          # an inline refresh (tests) has landed by now
+    if syms is not None:
+        return syms
+    return frozenset(deal_status._norm(s) for s in deal_status.hand_list() | deal_status.mirror_list()
+                     if s) | _load_deal_last()
+
+
+def deal_gate():
+    """The pending-acquisition exclusion every scan carries, or ``None``.
+
+    ``{"sql", "params", "symbols"}``: ``sql`` keeps a row whose ticker is NOT in the
+    screener's buyout exclude set (`deal_status.screener_excludes`: the owner's hand
+    list plus every pending deal, the one answer the rest of the app already uses), read
+    through `_deal_excludes` so a scan never waits on that set's build.
+
+    ⛔ WHY AT SCAN TIME. Before this the set was applied in ONE place, when
+    `screener_universe.build_and_save` wrote the universe file, and nothing runs that
+    on a schedule. A deal announced after the last rebuild stayed in the universe, so
+    the snapshot carried the row and every screen served it: on 2026-11-14 "Tight
+    bases near highs" listed TECH, UTZ, HZO, SLN, ARX and ADT, all six in the app's own
+    pending set. A stock pinned at its deal price is the tightest base there is.
+
+    ``None`` while DEAL_STATUS_ENABLED is off (the statement is the one it was), when the
+    set is empty, and on any error (fail safe: a fault excludes nothing, logged)."""
+    try:
+        from api.services import deal_status
+        if not deal_status.enabled():
+            return None
+        syms = sorted(_deal_excludes())
+    except Exception as exc:  # noqa: BLE001 -- a fault must never cost the member a scan
+        _deal_log().warning("[screener] deal gate unavailable, excluding nothing: %s", exc)
+        return None
+    if not syms:
+        return None
+    ph = ",".join("?" for _ in syms)
+    return {"sql": f"{_DEAL_TICKER_SQL} NOT IN ({ph})", "params": syms, "symbols": syms}
 
 
 def _ymd_text(v) -> str:
@@ -757,6 +1053,7 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             raise ValueError(f"bad op {op} for {key}")
         if name not in known:
             raise _readiness_refusal(filters.FILTERS[key]["label"])
+        _require_operands(key, op, f)
         col = overlay.col_expr(name)
         if op in filters.COL_OPS:
             # 🔴 FIELD-TO-FIELD (benchmark metric 423). The right-hand side is a
@@ -797,7 +1094,13 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             clauses.append(f"{col} = ?"); params.append(f["value"])
         elif op == "in":
             vals = f.get("values") or []
-            if vals:
+            if vals and filters.is_token_list(key):
+                # ⛔ A WRAPPED TOKEN LIST IS NOT ONE VALUE PER ROW. `IN` compares the whole cell, so a hammer that was also
+                # an engulfing (`,hammer,bullish-engulfing,`) never equals `,hammer,` and a bare `hammer` equals nothing.
+                # `instr` is the exact-token test, with no LIKE wildcards in a token to think about.
+                clauses.append("(" + " OR ".join(f"instr({col}, ?) > 0" for _ in vals) + ")")
+                params.extend(filters.wrap_token(v) for v in vals)
+            elif vals:
                 clauses.append(f"{col} IN ({','.join('?' for _ in vals)})")
                 params.extend(vals)
         elif op == "not_in":
@@ -807,7 +1110,12 @@ def build_where(filter_specs, scan_joins=None, overlay=None, *,
             # so the NULL is kept explicitly. (Include's `IN` has the opposite,
             # correct default: an unknown type is not one of the chosen buckets.)
             vals = f.get("values") or []
-            if vals:
+            if vals and filters.is_token_list(key):
+                # the same blank rule as below: a bar with no pattern at all holds none of these
+                has = " OR ".join(f"instr({col}, ?) > 0" for _ in vals)
+                clauses.append(f"(NOT ({has}) OR {col} IS NULL)")
+                params.extend(filters.wrap_token(v) for v in vals)
+            elif vals:
                 ph = ",".join("?" for _ in vals)
                 clauses.append(f"({col} NOT IN ({ph}) OR {col} IS NULL)")
                 params.extend(vals)
@@ -1383,6 +1691,13 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
     # where), the count route (`preview_count` plans through here) and the
     # rank receipt all exclude the same rows. The pre-gate where is kept only
     # so `run_scan` can say how many were excluded.
+    # 🔴 A PENDING ACQUISITION IS NOT SCANNED — see `deal_gate`. ANDed in BEFORE the
+    # stale gate so the stale count, the rows, `total` and the count route all leave the
+    # same names out.
+    deal = deal_gate()
+    if deal:
+        where = f"{where}{' AND ' if where.strip() else ' WHERE '}{deal['sql']}"
+        where_params = [*where_params, *deal["params"]]
     pre_stale_where, pre_stale_params = where, list(where_params)
     stale = stale_gate(conn)
     if stale:
@@ -1422,6 +1737,11 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # the member reads an unsorted list as "the screen answered this way".
         raise _readiness_refusal(_member_label(sort_key))
     sort_dir = "ASC" if (sort.get("dir") == "asc") else "DESC"
+    # The optional second key (unit U4). Checked here, before any SQL exists and
+    # whether or not a rank will own the order, so a malformed one is always refused.
+    then = _then_sort(sort, known)
+    if then is not None and then[0] == sort_key:
+        then = None                 # the same column twice orders nothing further
     page = max(int(spec.get("page", 1)), 1)
     page_size = min(max(int(spec.get("page_size", 50)), 1), _MAX_PAGE)
     offset = (page - 1) * page_size
@@ -1442,7 +1762,7 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # the client can always show why the rows are in this order. Dedupe
         # preserves first position.
         seen, select_cols = set(), []
-        for c in ["ticker", *cols_req, sort_key]:
+        for c in ["ticker", *cols_req, sort_key, *([then[0]] if then else [])]:
             if c not in seen:
                 seen.add(c)
                 select_cols.append(c)
@@ -1514,11 +1834,15 @@ def build_scan_sql(spec, overlay=None, *, user_id=None, conn=None) -> dict:
         # through `col_expr` because with the overlay joined a bare `ticker`
         # is ambiguous between the two tables. (Sorting BY ticker needs no
         # second key — it is unique.)
-        tiebreak = ("" if sort_key == "ticker"
+        # The second key (unit U4) sits after the first and before the ticker; with
+        # none, `then_sql` is empty and this is the statement it always was.
+        then_sql = (f", {_sort_expr(overlay, then[0])} {then[1]} NULLS LAST"
+                    if then else "")
+        tiebreak = ("" if "ticker" in (sort_key, then[0] if then else None)
                     else f", {overlay.col_expr('ticker')} ASC")
         sql = (f"SELECT {select_sql} FROM {overlay.from_sql()}{where} "
                f"ORDER BY {_sort_expr(overlay, sort_key)} {sort_dir} NULLS LAST"
-               f"{tiebreak} LIMIT ? OFFSET ?")
+               f"{then_sql}{tiebreak} LIMIT ? OFFSET ?")
     # The join's own parameter (the in-session freshness cutoff) binds BEFORE
     # the where clause's, because the ON clause is earlier in the statement.
     describe_params = [*overlay.join_params, *where_params]
@@ -1614,13 +1938,64 @@ def _blank_decided_keys(spec) -> set[str]:
     return out - flat
 
 
+#: Columns whose blank is the rating pass's own ANSWER, not a value it failed to compute:
+#: a place on a ranked board (blank: the stock is not on that board; the RS screens test
+#: presence with `place >= 1`, `rs_screens._top_rating`) and the age of an event (blank:
+#: no such RS high inside the window the pass looks back over). A screen that filters on
+#: one of them has decided such a row, the answer being "no", so the receipt does not
+#: call it "no value". A stock with no rating at all still shows through `rs_rank` on
+#: any screen that reads it.
+#: 2026-11-15, live: with these counted, Top RS Rating said 9,300 stocks "have no value
+#: for one of these filters" beside a list of the 1,845 that are ranked.
+_BLANK_IS_AN_ANSWER = frozenset({
+    "rs_rating_pos", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m", "rs_pos_12m",
+    "rs_nh_bars_ago", "rs_nh_red_bars_ago", "rs_nhbp_age",
+})
+
+
+def _blank_kept_keys(spec) -> set[str]:
+    """Keys the screen reads ONLY through an exclude (`not_in`). `build_where` keeps a
+    blank there (`col NOT IN (...) OR col IS NULL`), so the scan answers such a row and
+    it is not "no value". Read any other way as well (another op, an `other` column, an
+    arithmetic field), a blank is dropped by that clause and the key is not excused.
+
+    2026-11-15, the first morning the RS screens held rows: every one of them excludes
+    `rs_flag = buyout_pending`, nearly every row's `rs_flag` is blank (no flag applies),
+    and the receipt said 10,881 of 11,174 stocks could not be checked on a screen that
+    listed 1,845 of them."""
+    from . import grammar as _grammar
+    from . import logic as _logic
+    leaves = list(spec.get("filters") or [])
+    if spec.get("logic"):
+        leaves += _logic.leaves(spec["logic"])
+    kept: set[str] = set()
+    read: set[str] = set()
+    for f in leaves:
+        k = f.get("key")
+        if k == _ARITH_KEY:
+            for side in ("lhs", "rhs"):
+                if isinstance(f.get(side), dict):
+                    read.update(_grammar.arith_fields(f[side]))
+            continue
+        (kept if f.get("op") == "not_in" else read).add(k)
+        if f.get("other"):
+            read.add(f["other"])
+    return kept - read
+
+
 def coverage_for(spec, user_id=None, user=None) -> dict:
     """TERM-047: the screen's own four-count receipt, over its UNIVERSE.
 
     evaluated      -- rows in the screen's universe (its list / universe /
                       ticker scope, the whole snapshot without one);
     not_computable -- of those, rows where a column a criterion reads is NULL
-                      (the WHERE drops them silently; this says so);
+                      (the WHERE drops them silently; this says so). A column
+                      read only through an exclude is left out: the scan keeps
+                      its blank (`_blank_kept_keys`). So is a place or an event
+                      age whose blank is the answer "no" (`_BLANK_IS_AN_ANSWER`);
+    missing_keys   -- {filter key: rows of the not-computable set with that
+                      column NULL}, only the keys with any. The page uses it to
+                      name the cause only when there is exactly one;
     answered       -- the rest: the screen could decide them, matched or not;
     dropped        -- rows the scan EXCLUDED for an integrity reason: today,
                       a row whose own bars stopped more than the stale
@@ -1638,6 +2013,12 @@ def coverage_for(spec, user_id=None, user=None) -> dict:
         scope = [f for f in (spec.get("filters") or []) if f.get("key") in _SCOPE_KEYS]
         where, params = build_where(scope, None, overlay, list_joins=[], user_id=user_id,
                                     conn=conn)
+        # A pending acquisition is outside every scan's universe (`deal_gate`), so it is
+        # not "evaluated" either: the four counts describe the rows the scan can return.
+        deal = deal_gate()
+        if deal:
+            where = f"{where}{' AND ' if where.strip() else ' WHERE '}{deal['sql']}"
+            params = [*params, *deal["params"]]
         base = [*plan["overlay"].join_params, *params]
         evaluated = conn.execute(f"SELECT COUNT(*) FROM {plan['from_sql']}{where}",
                                  base).fetchone()[0]
@@ -1662,15 +2043,21 @@ def coverage_for(spec, user_id=None, user=None) -> dict:
             where = f"{where}{joiner}{stale['sql']}"
             base = [*base, *stale["params"]]
         cols = [(k, filters.column_for(k)) for k in _criterion_keys(spec)]
-        decided = _blank_decided_keys(spec)
+        decided = _blank_decided_keys(spec) | _blank_kept_keys(spec) | _BLANK_IS_AN_ANSWER
         cols = [(k, c) for k, c in cols if c in known and k not in decided]
         not_computable = 0
+        missing_keys: dict[str, int] = {}
         if cols:
             null_any = " OR ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)
             joiner = " AND " if where.strip() else " WHERE "
             nwhere = f"{where}{joiner}({null_any})"
             not_computable = conn.execute(
                 f"SELECT COUNT(*) FROM {plan['from_sql']}{nwhere}", base).fetchone()[0]
+            if not_computable:
+                sums = ", ".join(f"SUM({overlay.col_expr(c)} IS NULL)" for _k, c in cols)
+                counts = conn.execute(
+                    f"SELECT {sums} FROM {plan['from_sql']}{nwhere}", base).fetchone()
+                missing_keys = {k: int(n) for (k, _c), n in zip(cols, tuple(counts)) if n}
             room = _COVERAGE_LIST_CAP - len(listed)   # ONE cap over both lists
             if not_computable and room > 0:
                 sel = ", ".join(f"{overlay.col_expr(c)} IS NULL" for _k, c in cols)
@@ -1685,6 +2072,7 @@ def coverage_for(spec, user_id=None, user=None) -> dict:
     return close({"evaluated": int(evaluated),
                   "answered": int(evaluated) - int(dropped) - int(not_computable),
                   "dropped": int(dropped), "not_computable": int(not_computable),
+                  "missing_keys": missing_keys,
                   "dropped_symbols": listed})
 
 
@@ -2027,3 +2415,97 @@ def run_scan(spec, user_id=None, user=None):
             "scan_joins": plan["scan_joins"],
             "list_joins": plan["list_joins"],
             "rank": rank_receipt}
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# ONE STOCK'S ROW, BY TICKER (RS screens unit U8, "Why isn't a stock here?")
+#
+# The Focus screener lets a member name a ticker and see which of the open
+# screen's rules it misses. The page evaluates the rules itself; what it needs
+# from here is that one stock's row, for the columns the rules read.
+#
+# ⛔ NOT A SCAN, AND NOT THE DARK TICKER SCOPE. `{key: "tickers"}` (FT-029 v2)
+# would do this through `run_scan`, and it is refused while its own flag is
+# off (`build_where`), which is today. This reader takes no spec at all: no
+# filter, no pool, no sort, no rank, so nothing a member types can widen it
+# past "these named rows, these registered columns".
+#
+# ⭐ THE VALUES ARE THE ONES THE SCAN SERVES. Every column goes through the same
+# `_Overlay.select_item` as a scan's, over the same FROM, so during the session
+# a live-tier column answers with its live value here exactly as it does on the
+# list the member is comparing against.
+#
+# ⭐ `stale` SAYS WHAT THE SCAN WOULD HAVE DONE WITH THE ROW. A row whose own
+# bars stopped is left out of every scan (`stale_gate`); returned bare, the page
+# would call it "passes every rule" beside a list it can never be on.
+# ═══════════════════════════════════════════════════════════════════════════
+
+#: How many rows one request may name.
+MAX_ROW_TICKERS = 25
+_ROW_TICKER_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-")
+_ROW_TICKER_MAX_LEN = 12
+
+
+def row_tickers(raw) -> list:
+    """The tickers a row request names: upper-cased, each once, in the order given.
+
+    ``raw`` is one ticker or a comma-separated list. A name that cannot be a ticker
+    (empty, too long, a character outside letters, digits, dot and dash, or not
+    starting with a letter or digit) is DROPPED: it names no row, and it never
+    reaches the statement even as a bound parameter."""
+    out = []
+    for part in str(raw or "").split(","):
+        t = part.strip().upper()
+        if (t and len(t) <= _ROW_TICKER_MAX_LEN and set(t) <= _ROW_TICKER_CHARS
+                and t[0] not in ".-" and t not in out):
+            out.append(t)
+    return out
+
+
+def rows_for(tickers, columns, user=None) -> dict:
+    """``{TICKER: {"row": {...}, "stale": bool}}`` for each named ticker that has a
+    screener row. A ticker with no row is simply absent.
+
+    ``tickers`` come from :func:`row_tickers` (at most :data:`MAX_ROW_TICKERS`, or
+    ``ValueError``). ``columns`` are snapshot COLUMN names; ``ticker`` always leads
+    the row. Refused exactly as an explicit ``columns=`` on a scan is: an
+    undeclared name is ``ValueError("unknown columns: ...")``, and a declared one
+    this pod's table does not carry yet is the readiness refusal.
+
+    ``stale`` is True when the stale-row gate would leave the row out of every
+    scan; False otherwise, and always False when the gate does not bite."""
+    syms = list(dict.fromkeys(str(t).upper() for t in (tickers or [])))
+    if len(syms) > MAX_ROW_TICKERS:
+        raise ValueError(f"a row request can name at most {MAX_ROW_TICKERS} tickers")
+    cols = list(dict.fromkeys(["ticker", *[str(c) for c in (columns or [])]]))
+    declared = set(snapshot_db.COLUMNS)
+    bad = [c for c in cols if c not in declared]
+    if bad:
+        raise ValueError(f"unknown columns: {', '.join(sorted(bad))}")
+    with snapshot_db.connect() as conn:
+        known = _known_columns(conn)
+        unready = [c for c in cols if c not in known]
+        if unready:
+            raise _readiness_refusal(_member_label(unready[0]))
+        if not syms:
+            return {}
+        overlay = _overlay(conn, user)
+        tick = overlay.col_expr("ticker")
+        named = f"UPPER({tick}) IN ({','.join('?' for _ in syms)})"
+        select_sql = ", ".join(overlay.select_item(c) for c in cols)
+        rows = conn.execute(
+            f"SELECT {select_sql} FROM {overlay.from_sql()} WHERE {named}",
+            [*overlay.join_params, *syms]).fetchall()
+        kept = None
+        stale = stale_gate(conn)
+        if stale:
+            kept = {str(r[0]).upper() for r in conn.execute(
+                f"SELECT {tick} FROM {overlay.from_sql()} WHERE {named} AND {stale['sql']}",
+                [*overlay.join_params, *syms, *stale["params"]])}
+    out = {}
+    for r in rows:
+        row = dict(r)
+        t = str(row.get("ticker") or "").upper()
+        if t:
+            out[t] = {"row": row, "stale": kept is not None and t not in kept}
+    return out

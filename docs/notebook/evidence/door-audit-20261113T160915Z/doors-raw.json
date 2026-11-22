@@ -1,0 +1,2708 @@
+{
+ "stamp": "20261113T160915Z",
+ "base": "http://127.0.0.1:8132",
+ "tip": "4f3d94089f",
+ "tool": "tools/notebook_door_audit.py",
+ "table": "notebook_door_audit_doors.json",
+ "table_sha256": "4841011fa9419ab44deefd443b94eb0907d21ac5b9221048fdbcd81690173c81",
+ "partial": true,
+ "only": [
+  41,
+  46
+ ],
+ "viewports": [
+  "1280",
+  "390"
+ ],
+ "seed_data_dir": "<temp>/ff2-held-141c001088/data/c2",
+ "conditions": [
+  "realistic",
+  "settled"
+ ],
+ "graded_condition": "realistic",
+ "status": "RAW COMPLETE (no verdict has been computed)",
+ "members": {
+  "1280": {
+   "realistic": {
+    "email": "q1da12806156855@local.dev",
+    "notes": 11,
+    "condition_dismisses_nudges": false,
+    "nudges_dismissed": [],
+    "recent_note_rows": 0,
+    "find_similar_seed": {
+     "ok": true,
+     "kind": "find_similar",
+     "template": "AMD",
+     "candidate": "CRWD",
+     "note_id": "67c6a7bfc28e48518da61e0c1ae92af3",
+     "child": {
+      "template": {
+       "found": true,
+       "tag": "VCP"
+      },
+      "nightly": {
+       "ran": true,
+       "asOf": "2026-11-13",
+       "universe": 1,
+       "universeTruncated": false,
+       "members": 4,
+       "templates": 2,
+       "rows": 1,
+       "thin": 0,
+       "deferred": 0,
+       "errors": 0,
+       "patternReads": 0,
+       "seconds": 0.034
+      }
+     },
+     "templates_seen": 1,
+     "matches": 1
+    }
+   },
+   "settled": {
+    "email": "q1da12806328912@local.dev",
+    "notes": 11,
+    "condition_dismisses_nudges": true,
+    "nudges_dismissed": [],
+    "recent_note_rows": 0,
+    "find_similar_seed": {
+     "ok": true,
+     "kind": "find_similar",
+     "template": "AMD",
+     "candidate": "CRWD",
+     "note_id": "12b8c8749d164e628e1494e134270793",
+     "child": {
+      "template": {
+       "found": true,
+       "tag": "VCP"
+      },
+      "nightly": {
+       "ran": true,
+       "asOf": "2026-11-13",
+       "universe": 1,
+       "universeTruncated": false,
+       "members": 5,
+       "templates": 3,
+       "rows": 2,
+       "thin": 0,
+       "deferred": 0,
+       "errors": 0,
+       "patternReads": 0,
+       "seconds": 0.003
+      }
+     },
+     "templates_seen": 1,
+     "matches": 1
+    }
+   }
+  },
+  "390": {
+   "realistic": {
+    "email": "q1da3906460855@local.dev",
+    "notes": 11,
+    "condition_dismisses_nudges": false,
+    "nudges_dismissed": [],
+    "recent_note_rows": 0,
+    "find_similar_seed": {
+     "ok": true,
+     "kind": "find_similar",
+     "template": "AMD",
+     "candidate": "CRWD",
+     "note_id": "576e33423a5a4902a5aba09c2b1407ba",
+     "child": {
+      "template": {
+       "found": true,
+       "tag": "VCP"
+      },
+      "nightly": {
+       "ran": true,
+       "asOf": "2026-11-13",
+       "universe": 1,
+       "universeTruncated": false,
+       "members": 6,
+       "templates": 4,
+       "rows": 3,
+       "thin": 0,
+       "deferred": 0,
+       "errors": 0,
+       "patternReads": 0,
+       "seconds": 0.005
+      }
+     },
+     "templates_seen": 1,
+     "matches": 1
+    }
+   },
+   "settled": {
+    "email": "q1da3906595955@local.dev",
+    "notes": 11,
+    "condition_dismisses_nudges": true,
+    "nudges_dismissed": [],
+    "recent_note_rows": 0,
+    "find_similar_seed": {
+     "ok": true,
+     "kind": "find_similar",
+     "template": "AMD",
+     "candidate": "CRWD",
+     "note_id": "e6f5c1cd6feb4612980af158057eef75",
+     "child": {
+      "template": {
+       "found": true,
+       "tag": "VCP"
+      },
+      "nightly": {
+       "ran": true,
+       "asOf": "2026-11-13",
+       "universe": 1,
+       "universeTruncated": false,
+       "members": 7,
+       "templates": 5,
+       "rows": 4,
+       "thin": 0,
+       "deferred": 0,
+       "errors": 0,
+       "patternReads": 0,
+       "seconds": 0.006
+      }
+     },
+     "templates_seen": 1,
+     "matches": 1
+    }
+   }
+  }
+ },
+ "control": [
+  {
+   "feature": "control: a plain visible button",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 101.4,
+     "bottom": 133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 117.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.17,
+   "after": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 101.4,
+     "bottom": 133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 117.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false,
+   "want": "EASY"
+  },
+  {
+   "feature": "control: an icon-only button above the fold",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "css": "[data-door-audit-icon]"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 640,
+     "right": 684,
+     "top": 320,
+     "bottom": 364,
+     "width": 44,
+     "height": 44
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 662,
+     "y": 342
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "circle",
+    "tag": "button",
+    "role": null,
+    "aria_label": "Door audit icon",
+    "text": "",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.46,
+   "after": {
+    "rect": {
+     "left": 640,
+     "right": 684,
+     "top": 320,
+     "bottom": 364,
+     "width": 44,
+     "height": 44
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 662,
+     "y": 342
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "circle",
+    "tag": "button",
+    "role": null,
+    "aria_label": "Door audit icon",
+    "text": "",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "",
+   "href": null,
+   "tag": "button",
+   "labelled": false,
+   "icon_only": true,
+   "scrolled": false,
+   "want": "OK"
+  },
+  {
+   "feature": "control: a target that does not exist",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "No such control door audit"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": false,
+   "target_absent": true,
+   "failed_step": "every step was made and the target never became visible",
+   "want": "HIDDEN"
+  },
+  {
+   "feature": "control: a step of the path that cannot be made",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 1,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 2,
+   "found": false,
+   "step_failed": true,
+   "failed_step": "click button|No such step door audit: not on screen",
+   "want": "HIDDEN"
+  },
+  {
+   "feature": "control: a covered target",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 101.4,
+     "bottom": 133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 117.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": "div",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 1,
+   "screens_down": 0.17,
+   "after": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 101.4,
+     "bottom": 133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 117.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": "div",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": false,
+   "covered_by": "div",
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true,
+   "want": "HARD"
+  },
+  {
+   "feature": "control: a target three screens down",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 3101.4,
+     "bottom": 3133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 1950.7
+    },
+    "above_fold": false,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": null,
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 3,
+   "screens_down": 3.92,
+   "after": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 404.4,
+     "bottom": 436.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 420.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true,
+   "want": "HARD"
+  },
+  {
+   "feature": "control: a plain visible button",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 101.4,
+     "bottom": 133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 117.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.17,
+   "after": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 101.4,
+     "bottom": 133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 117.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false,
+   "want": "EASY"
+  },
+  {
+   "feature": "control: an icon-only button above the fold",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "css": "[data-door-audit-icon]"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 640,
+     "right": 684,
+     "top": 320,
+     "bottom": 364,
+     "width": 44,
+     "height": 44
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 662,
+     "y": 342
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "circle",
+    "tag": "button",
+    "role": null,
+    "aria_label": "Door audit icon",
+    "text": "",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.46,
+   "after": {
+    "rect": {
+     "left": 640,
+     "right": 684,
+     "top": 320,
+     "bottom": 364,
+     "width": 44,
+     "height": 44
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 662,
+     "y": 342
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "circle",
+    "tag": "button",
+    "role": null,
+    "aria_label": "Door audit icon",
+    "text": "",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "",
+   "href": null,
+   "tag": "button",
+   "labelled": false,
+   "icon_only": true,
+   "scrolled": false,
+   "want": "OK"
+  },
+  {
+   "feature": "control: a target that does not exist",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "No such control door audit"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": false,
+   "target_absent": true,
+   "failed_step": "every step was made and the target never became visible",
+   "want": "HIDDEN"
+  },
+  {
+   "feature": "control: a step of the path that cannot be made",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 1,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 2,
+   "found": false,
+   "step_failed": true,
+   "failed_step": "click button|No such step door audit: not on screen",
+   "want": "HIDDEN"
+  },
+  {
+   "feature": "control: a covered target",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 101.4,
+     "bottom": 133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 117.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": "div",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 1,
+   "screens_down": 0.17,
+   "after": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 101.4,
+     "bottom": 133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 117.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": "div",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": false,
+   "covered_by": "div",
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true,
+   "want": "HARD"
+  },
+  {
+   "feature": "control: a target three screens down",
+   "audit_row": 0,
+   "viewport": "1280",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 3101.4,
+     "bottom": 3133.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 1950.7
+    },
+    "above_fold": false,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": null,
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 3,
+   "screens_down": 3.92,
+   "after": {
+    "rect": {
+     "left": 370,
+     "right": 468.7,
+     "top": 404.4,
+     "bottom": 436.4,
+     "width": 98.7,
+     "height": 32
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 419.3,
+     "y": 420.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true,
+   "want": "HARD"
+  },
+  {
+   "feature": "control: a plain visible button",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 131,
+     "bottom": 175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 153
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.21,
+   "after": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 131,
+     "bottom": 175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 153
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false,
+   "want": "EASY"
+  },
+  {
+   "feature": "control: an icon-only button above the fold",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "css": "[data-door-audit-icon]"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 195,
+     "right": 239,
+     "top": 320,
+     "bottom": 364,
+     "width": 44,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 217,
+     "y": 342
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "circle",
+    "tag": "button",
+    "role": null,
+    "aria_label": "Door audit icon",
+    "text": "",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.43,
+   "after": {
+    "rect": {
+     "left": 195,
+     "right": 239,
+     "top": 320,
+     "bottom": 364,
+     "width": 44,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 217,
+     "y": 342
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "circle",
+    "tag": "button",
+    "role": null,
+    "aria_label": "Door audit icon",
+    "text": "",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "",
+   "href": null,
+   "tag": "button",
+   "labelled": false,
+   "icon_only": true,
+   "scrolled": false,
+   "want": "OK"
+  },
+  {
+   "feature": "control: a target that does not exist",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "No such control door audit"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": false,
+   "target_absent": true,
+   "failed_step": "every step was made and the target never became visible",
+   "want": "HIDDEN"
+  },
+  {
+   "feature": "control: a step of the path that cannot be made",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 1,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 2,
+   "found": false,
+   "step_failed": true,
+   "failed_step": "click button|No such step door audit: not on screen",
+   "want": "HIDDEN"
+  },
+  {
+   "feature": "control: a covered target",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 131,
+     "bottom": 175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 153
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": "div",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 1,
+   "screens_down": 0.21,
+   "after": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 131,
+     "bottom": 175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 153
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": "div",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": false,
+   "covered_by": "div",
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true,
+   "want": "HARD"
+  },
+  {
+   "feature": "control: a target three screens down",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 3131,
+     "bottom": 3175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 1987.5
+    },
+    "above_fold": false,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": null,
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 3,
+   "screens_down": 3.76,
+   "after": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 400,
+     "bottom": 444,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 422
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true,
+   "want": "HARD"
+  },
+  {
+   "feature": "control: a plain visible button",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 131,
+     "bottom": 175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 153
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.21,
+   "after": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 131,
+     "bottom": 175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 153
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false,
+   "want": "EASY"
+  },
+  {
+   "feature": "control: an icon-only button above the fold",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "css": "[data-door-audit-icon]"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 195,
+     "right": 239,
+     "top": 320,
+     "bottom": 364,
+     "width": 44,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 217,
+     "y": 342
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "circle",
+    "tag": "button",
+    "role": null,
+    "aria_label": "Door audit icon",
+    "text": "",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.43,
+   "after": {
+    "rect": {
+     "left": 195,
+     "right": 239,
+     "top": 320,
+     "bottom": 364,
+     "width": 44,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 217,
+     "y": 342
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "circle",
+    "tag": "button",
+    "role": null,
+    "aria_label": "Door audit icon",
+    "text": "",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "",
+   "href": null,
+   "tag": "button",
+   "labelled": false,
+   "icon_only": true,
+   "scrolled": false,
+   "want": "OK"
+  },
+  {
+   "feature": "control: a target that does not exist",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "No such control door audit"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": false,
+   "target_absent": true,
+   "failed_step": "every step was made and the target never became visible",
+   "want": "HIDDEN"
+  },
+  {
+   "feature": "control: a step of the path that cannot be made",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 1,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 2,
+   "found": false,
+   "step_failed": true,
+   "failed_step": "click button|No such step door audit: not on screen",
+   "want": "HIDDEN"
+  },
+  {
+   "feature": "control: a covered target",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 131,
+     "bottom": 175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 153
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": "div",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 1,
+   "screens_down": 0.21,
+   "after": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 131,
+     "bottom": 175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 153
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": "div",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": false,
+   "covered_by": "div",
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true,
+   "want": "HARD"
+  },
+  {
+   "feature": "control: a target three screens down",
+   "audit_row": 0,
+   "viewport": "390",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "button",
+    "name": "~^View:"
+   },
+   "steps": 0,
+   "steps_taken": [],
+   "nudges_dismissed": [],
+   "clicks": 1,
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 3131,
+     "bottom": 3175,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 1987.5
+    },
+    "above_fold": false,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": null,
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 3,
+   "screens_down": 3.76,
+   "after": {
+    "rect": {
+     "left": 122,
+     "right": 221.2,
+     "top": 400,
+     "bottom": 444,
+     "width": 99.2,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 171.6,
+     "y": 422
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "button",
+    "tag": "button",
+    "role": null,
+    "aria_label": null,
+    "text": "View: List",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "View: List",
+   "href": null,
+   "tag": "button",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true,
+   "want": "HARD"
+  }
+ ],
+ "measures": [
+  {
+   "feature": "Active setups: the Daily brief's Setups near entry card",
+   "audit_row": 41,
+   "viewport": "1280",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "link",
+    "name": "~setups board"
+   },
+   "steps": 1,
+   "steps_taken": [
+    "click treeitem|Daily brief"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 2,
+   "flag": {
+    "key": "notebook_setups_board_enabled",
+    "state": true
+   },
+   "stubbed": "GET /api/voice/insights answered with one note_level_touch insight linking a note (page.route)",
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 387,
+     "right": 564.7,
+     "top": 362.5,
+     "bottom": 398.5,
+     "width": 177.7,
+     "height": 36
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 475.9,
+     "y": 380.5
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Open the setups board →",
+    "href": "/journal/notebook/setups"
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.5,
+   "after": {
+    "rect": {
+     "left": 387,
+     "right": 564.7,
+     "top": 362.5,
+     "bottom": 398.5,
+     "width": 177.7,
+     "height": 36
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 475.9,
+     "y": 380.5
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Open the setups board →",
+    "href": "/journal/notebook/setups"
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Open the setups board →",
+   "href": "/journal/notebook/setups",
+   "tag": "a",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false
+  },
+  {
+   "feature": "Active setups: the way back from the board",
+   "audit_row": 41,
+   "viewport": "1280",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "link",
+    "name": "~Back to Notebook"
+   },
+   "steps": 2,
+   "steps_taken": [
+    "click treeitem|Daily brief",
+    "click link|~setups board"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 3,
+   "flag": {
+    "key": "notebook_setups_board_enabled",
+    "state": true
+   },
+   "stubbed": "GET /api/voice/insights answered with one note_level_touch insight linking a note (page.route)",
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 104,
+     "right": 227.8,
+     "top": 101.4,
+     "bottom": 122.2,
+     "width": 123.8,
+     "height": 20.8
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 165.9,
+     "y": 111.8
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Back to Notebook",
+    "href": "/journal/notebook"
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.15,
+   "after": {
+    "rect": {
+     "left": 104,
+     "right": 227.8,
+     "top": 101.4,
+     "bottom": 122.2,
+     "width": 123.8,
+     "height": 20.8
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 165.9,
+     "y": 111.8
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Back to Notebook",
+    "href": "/journal/notebook"
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Back to Notebook",
+   "href": "/journal/notebook",
+   "tag": "a",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false
+  },
+  {
+   "feature": "Note resurfacing: the Notices box on the Daily brief",
+   "audit_row": 46,
+   "viewport": "1280",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "css": "[data-tour=\"home-notices\"] > summary"
+   },
+   "steps": 1,
+   "steps_taken": [
+    "click treeitem|Daily brief"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 2,
+   "stubbed": "GET /api/voice/insights answered with one note_level_touch insight linking a note (page.route)",
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 373,
+     "right": 1191,
+     "top": 181.2,
+     "bottom": 225.2,
+     "width": 818,
+     "height": 44
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 782,
+     "y": 203.2
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "summary",
+    "tag": "summary",
+    "role": null,
+    "aria_label": null,
+    "text": "Notices · 1",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.28,
+   "after": {
+    "rect": {
+     "left": 373,
+     "right": 1191,
+     "top": 181.2,
+     "bottom": 225.2,
+     "width": 818,
+     "height": 44
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 782,
+     "y": 203.2
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "summary",
+    "tag": "summary",
+    "role": null,
+    "aria_label": null,
+    "text": "Notices · 1",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Notices · 1",
+   "href": null,
+   "tag": "summary",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false
+  },
+  {
+   "feature": "Active setups: the Daily brief's Setups near entry card",
+   "audit_row": 41,
+   "viewport": "1280",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "link",
+    "name": "~setups board"
+   },
+   "steps": 1,
+   "steps_taken": [
+    "click treeitem|Daily brief"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 2,
+   "flag": {
+    "key": "notebook_setups_board_enabled",
+    "state": true
+   },
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 387,
+     "right": 564.7,
+     "top": 286.5,
+     "bottom": 322.5,
+     "width": 177.7,
+     "height": 36
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 475.9,
+     "y": 304.5
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Open the setups board →",
+    "href": "/journal/notebook/setups"
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.4,
+   "after": {
+    "rect": {
+     "left": 387,
+     "right": 564.7,
+     "top": 286.5,
+     "bottom": 322.5,
+     "width": 177.7,
+     "height": 36
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 475.9,
+     "y": 304.5
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Open the setups board →",
+    "href": "/journal/notebook/setups"
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Open the setups board →",
+   "href": "/journal/notebook/setups",
+   "tag": "a",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false
+  },
+  {
+   "feature": "Active setups: the way back from the board",
+   "audit_row": 41,
+   "viewport": "1280",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "link",
+    "name": "~Back to Notebook"
+   },
+   "steps": 2,
+   "steps_taken": [
+    "click treeitem|Daily brief",
+    "click link|~setups board"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 3,
+   "flag": {
+    "key": "notebook_setups_board_enabled",
+    "state": true
+   },
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 104,
+     "right": 227.8,
+     "top": 101.4,
+     "bottom": 122.2,
+     "width": 123.8,
+     "height": 20.8
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 165.9,
+     "y": 111.8
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Back to Notebook",
+    "href": "/journal/notebook"
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.15,
+   "after": {
+    "rect": {
+     "left": 104,
+     "right": 227.8,
+     "top": 101.4,
+     "bottom": 122.2,
+     "width": 123.8,
+     "height": 20.8
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 165.9,
+     "y": 111.8
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Back to Notebook",
+    "href": "/journal/notebook"
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Back to Notebook",
+   "href": "/journal/notebook",
+   "tag": "a",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false
+  },
+  {
+   "feature": "Note resurfacing: the Notices box on the Daily brief",
+   "audit_row": 46,
+   "viewport": "1280",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "css": "[data-tour=\"home-notices\"] > summary"
+   },
+   "steps": 1,
+   "steps_taken": [
+    "click treeitem|Daily brief"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 2,
+   "stubbed": "GET /api/voice/insights answered with one note_level_touch insight linking a note (page.route)",
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 373,
+     "right": 1191,
+     "top": 181.2,
+     "bottom": 225.2,
+     "width": 818,
+     "height": 44
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 782,
+     "y": 203.2
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "summary",
+    "tag": "summary",
+    "role": null,
+    "aria_label": null,
+    "text": "Notices · 1",
+    "href": null
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.28,
+   "after": {
+    "rect": {
+     "left": 373,
+     "right": 1191,
+     "top": 181.2,
+     "bottom": 225.2,
+     "width": 818,
+     "height": 44
+    },
+    "innerWidth": 1280,
+    "innerHeight": 800,
+    "scrollY": 0,
+    "centre": {
+     "x": 782,
+     "y": 203.2
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "summary",
+    "tag": "summary",
+    "role": null,
+    "aria_label": null,
+    "text": "Notices · 1",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Notices · 1",
+   "href": null,
+   "tag": "summary",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false
+  },
+  {
+   "feature": "Active setups: the Daily brief's Setups near entry card",
+   "audit_row": 41,
+   "viewport": "390",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "link",
+    "name": "~setups board"
+   },
+   "steps": 2,
+   "steps_taken": [
+    "click button|~^Folder:",
+    "click treeitem|Daily brief"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 3,
+   "flag": {
+    "key": "notebook_setups_board_enabled",
+    "state": true
+   },
+   "stubbed": "GET /api/voice/insights answered with one note_level_touch insight linking a note (page.route)",
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 41,
+     "right": 218.7,
+     "top": 1244.4,
+     "bottom": 1288.4,
+     "width": 177.7,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 129.9,
+     "y": 1044.2
+    },
+    "above_fold": false,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": null,
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Open the setups board →",
+    "href": "/journal/notebook/setups"
+   },
+   "above_fold": false,
+   "scroll_screens": 1,
+   "screens_down": 1.53,
+   "after": {
+    "rect": {
+     "left": 41,
+     "right": 218.7,
+     "top": 400.4,
+     "bottom": 444.4,
+     "width": 177.7,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 129.9,
+     "y": 422.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Open the setups board →",
+    "href": "/journal/notebook/setups"
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Open the setups board →",
+   "href": "/journal/notebook/setups",
+   "tag": "a",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true
+  },
+  {
+   "feature": "Active setups: the way back from the board",
+   "audit_row": 41,
+   "viewport": "390",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "link",
+    "name": "~Back to Notebook"
+   },
+   "steps": 3,
+   "steps_taken": [
+    "click button|~^Folder:",
+    "click treeitem|Daily brief",
+    "click link|~setups board"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 4,
+   "flag": {
+    "key": "notebook_setups_board_enabled",
+    "state": true
+   },
+   "stubbed": "GET /api/voice/insights answered with one note_level_touch insight linking a note (page.route)",
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 40,
+     "right": 163.8,
+     "top": 192,
+     "bottom": 236,
+     "width": 123.8,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 101.9,
+     "y": 214
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Back to Notebook",
+    "href": "/journal/notebook"
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.28,
+   "after": {
+    "rect": {
+     "left": 40,
+     "right": 163.8,
+     "top": 192,
+     "bottom": 236,
+     "width": 123.8,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 101.9,
+     "y": 214
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Back to Notebook",
+    "href": "/journal/notebook"
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Back to Notebook",
+   "href": "/journal/notebook",
+   "tag": "a",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false
+  },
+  {
+   "feature": "Note resurfacing: the Notices box on the Daily brief",
+   "audit_row": 46,
+   "viewport": "390",
+   "condition": "realistic",
+   "path": "/journal/notebook",
+   "target": {
+    "css": "[data-tour=\"home-notices\"] > summary"
+   },
+   "steps": 2,
+   "steps_taken": [
+    "click button|~^Folder:",
+    "click treeitem|Daily brief"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 3,
+   "stubbed": "GET /api/voice/insights answered with one note_level_touch insight linking a note (page.route)",
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 27,
+     "right": 363,
+     "top": 1075.6,
+     "bottom": 1119.6,
+     "width": 336,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 195,
+     "y": 959.8
+    },
+    "above_fold": false,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": null,
+    "tag": "summary",
+    "role": null,
+    "aria_label": null,
+    "text": "Notices · 1",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 1,
+   "screens_down": 1.33,
+   "after": {
+    "rect": {
+     "left": 27,
+     "right": 363,
+     "top": 399.6,
+     "bottom": 443.6,
+     "width": 336,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 195,
+     "y": 421.6
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "summary",
+    "tag": "summary",
+    "role": null,
+    "aria_label": null,
+    "text": "Notices · 1",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Notices · 1",
+   "href": null,
+   "tag": "summary",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true
+  },
+  {
+   "feature": "Active setups: the Daily brief's Setups near entry card",
+   "audit_row": 41,
+   "viewport": "390",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "link",
+    "name": "~setups board"
+   },
+   "steps": 2,
+   "steps_taken": [
+    "click button|~^Folder:",
+    "click treeitem|Daily brief"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 3,
+   "flag": {
+    "key": "notebook_setups_board_enabled",
+    "state": true
+   },
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 41,
+     "right": 218.7,
+     "top": 1168.4,
+     "bottom": 1212.4,
+     "width": 177.7,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 129.9,
+     "y": 1006.2
+    },
+    "above_fold": false,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": null,
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Open the setups board →",
+    "href": "/journal/notebook/setups"
+   },
+   "above_fold": false,
+   "scroll_screens": 1,
+   "screens_down": 1.44,
+   "after": {
+    "rect": {
+     "left": 41,
+     "right": 218.7,
+     "top": 400.4,
+     "bottom": 444.4,
+     "width": 177.7,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 129.9,
+     "y": 422.4
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Open the setups board →",
+    "href": "/journal/notebook/setups"
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Open the setups board →",
+   "href": "/journal/notebook/setups",
+   "tag": "a",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true
+  },
+  {
+   "feature": "Active setups: the way back from the board",
+   "audit_row": 41,
+   "viewport": "390",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "role": "link",
+    "name": "~Back to Notebook"
+   },
+   "steps": 3,
+   "steps_taken": [
+    "click button|~^Folder:",
+    "click treeitem|Daily brief",
+    "click link|~setups board"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 4,
+   "flag": {
+    "key": "notebook_setups_board_enabled",
+    "state": true
+   },
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 40,
+     "right": 163.8,
+     "top": 192,
+     "bottom": 236,
+     "width": 123.8,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 101.9,
+     "y": 214
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Back to Notebook",
+    "href": "/journal/notebook"
+   },
+   "above_fold": true,
+   "scroll_screens": 0,
+   "screens_down": 0.28,
+   "after": {
+    "rect": {
+     "left": 40,
+     "right": 163.8,
+     "top": 192,
+     "bottom": 236,
+     "width": 123.8,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 101.9,
+     "y": 214
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "a",
+    "tag": "a",
+    "role": null,
+    "aria_label": null,
+    "text": "Back to Notebook",
+    "href": "/journal/notebook"
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Back to Notebook",
+   "href": "/journal/notebook",
+   "tag": "a",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": false
+  },
+  {
+   "feature": "Note resurfacing: the Notices box on the Daily brief",
+   "audit_row": 46,
+   "viewport": "390",
+   "condition": "settled",
+   "path": "/journal/notebook",
+   "target": {
+    "css": "[data-tour=\"home-notices\"] > summary"
+   },
+   "steps": 2,
+   "steps_taken": [
+    "click button|~^Folder:",
+    "click treeitem|Daily brief"
+   ],
+   "nudges_dismissed": [],
+   "clicks": 3,
+   "stubbed": "GET /api/voice/insights answered with one note_level_touch insight linking a note (page.route)",
+   "found": true,
+   "settled": true,
+   "first": {
+    "rect": {
+     "left": 27,
+     "right": 363,
+     "top": 1075.6,
+     "bottom": 1119.6,
+     "width": 336,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 195,
+     "y": 959.8
+    },
+    "above_fold": false,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": false,
+    "hit": null,
+    "tag": "summary",
+    "role": null,
+    "aria_label": null,
+    "text": "Notices · 1",
+    "href": null
+   },
+   "above_fold": false,
+   "scroll_screens": 1,
+   "screens_down": 1.33,
+   "after": {
+    "rect": {
+     "left": 27,
+     "right": 363,
+     "top": 399.6,
+     "bottom": 443.6,
+     "width": 336,
+     "height": 44
+    },
+    "innerWidth": 390,
+    "innerHeight": 844,
+    "scrollY": 0,
+    "centre": {
+     "x": 195,
+     "y": 421.6
+    },
+    "above_fold": true,
+    "on_screen_x": true,
+    "whole_width_on_screen": true,
+    "uncovered": true,
+    "hit": "summary",
+    "tag": "summary",
+    "role": null,
+    "aria_label": null,
+    "text": "Notices · 1",
+    "href": null
+   },
+   "uncovered": true,
+   "covered_by": null,
+   "text": "Notices · 1",
+   "href": null,
+   "tag": "summary",
+   "labelled": true,
+   "icon_only": false,
+   "scrolled": true
+  }
+ ]
+}

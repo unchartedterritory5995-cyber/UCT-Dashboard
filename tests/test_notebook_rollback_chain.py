@@ -189,12 +189,47 @@ def _have(rev: str) -> bool:
                           capture_output=True).returncode == 0
 
 
+# ⚰️ 2026-11-17 — 17 OF THIS FILE'S TESTS WERE RED ON EVERY CI RUN FOR ONE REASON THAT SAYS NOTHING
+# ABOUT THE CHAIN: `git commit-tree` needs an author, and a GitHub runner has no `user.name` /
+# `user.email` ("Author identity unknown ... empty ident name not allowed", nightly 43726736793).
+# Both this file's `synthetic_commit` and the tool's own chain build (`commit-tree` in
+# tools/notebook_rollback_chain.py) write commit OBJECTS; on the owner's box they borrowed his global
+# git identity, so they were green there and red on every fresh machine. The tool SHOULD take the
+# operator's identity (its revert chain is pushed by a person); the TEST must not depend on whose box
+# it runs on. So the test brings its own, through the environment every git call here inherits
+# (`os.environ` directly, or `dict(os.environ, GIT_INDEX_FILE=...)`). The objects stay unreferenced;
+# trees, not commit ids, are what this file compares, so the identity changes no assertion.
+TEST_GIT_IDENTITY = {
+    "GIT_AUTHOR_NAME": "UCT rollback-chain test",
+    "GIT_AUTHOR_EMAIL": "nb-rollback-chain-test@example.invalid",
+    "GIT_COMMITTER_NAME": "UCT rollback-chain test",
+    "GIT_COMMITTER_EMAIL": "nb-rollback-chain-test@example.invalid",
+}
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _a_git_identity_of_its_own():
+    with pytest.MonkeyPatch.context() as mp:
+        for k, v in TEST_GIT_IDENTITY.items():
+            mp.setenv(k, v)
+        yield
+
+
+def test_commits_this_file_writes_carry_its_own_identity_not_the_boxs():
+    """Non-vacuity for the fixture above: on a box WITH a global identity a missing fixture would
+    still be green here and red on CI, so ask git which identity a commit written now would carry."""
+    for var, (name, email) in (("GIT_AUTHOR_IDENT", ("GIT_AUTHOR_NAME", "GIT_AUTHOR_EMAIL")),
+                               ("GIT_COMMITTER_IDENT", ("GIT_COMMITTER_NAME", "GIT_COMMITTER_EMAIL"))):
+        ident = _git("var", var)
+        assert ident.startswith(f"{TEST_GIT_IDENTITY[name]} <{TEST_GIT_IDENTITY[email]}> "), ident
+
+
 @pytest.fixture(scope="module")
 def chain():
     mod = _load()
     # What the rail walks must be present (a shallow clone cut above wave 5 cannot see the
     # landings). NOT `--is-shallow-repository`: this box's clone is shallow far below wave 5.
-    need = [f"{WAVE5}^", mod.MEASURED_AT, *mod.GUARD_PICKS]
+    need = [f"{WAVE5}^", mod.MEASURED_AT, R1H_FROM, *mod.GUARD_PICKS]   # R1H_FROM: the R1h rebuild's base
     absent = [r for r in need if not _have(r)]
     if absent:
         pytest.skip(f"history this rail audits is not in the clone: {absent}")
@@ -616,6 +651,39 @@ def test_the_runbook_never_recommends_re_applying_82c56dd63_below_wave5(chain):
 
 # ── lane ROLLBACK, 2026-10-06: the chain under wave 11, one landing alone, the landing keep-list ──
 
+# The R1h record's trees are objects only: no ref ever pointed at them, so a fresh clone never has them
+# and `git gc` prunes them from this box's object store too (both seen: this rail red on "bad object
+# a25311e3ae" on 2026-11-04). They are rebuilt from history that IS reachable -- the tool exactly as
+# it stood when it wrote the R1h record (in the wave 11 landing, MEASURED_AT b529c8a78), run from
+# that base -- and each rebuilt tree must hash to the recorded one (a tree id is its content), so a
+# rebuild can only restore the rehearsed trees, never stand in for them.
+R1H_TOOL_AT, R1H_FROM = "f473d00b3", "b529c8a78"
+
+
+def _have_tree(tree: str) -> bool:
+    return subprocess.run(["git", "-C", str(ROOT), "cat-file", "-e", f"{tree}^{{tree}}"],
+                          capture_output=True).returncode == 0
+
+
+def _restore_r1h_trees(old: dict, *, force: bool = False) -> None:
+    if not force and all(_have_tree(t) for t in old.values()):
+        return
+    import sys
+    import types
+    src = _git("show", f"{R1H_TOOL_AT}:tools/notebook_rollback_chain.py")
+    mod = types.ModuleType("nb_rollback_chain_r1h")
+    mod.__file__ = str(TOOL)                 # its REPO is parents[1] of this path: this repository
+    sys.modules[mod.__name__] = mod          # a @dataclass resolves its module through sys.modules
+    try:
+        exec(compile(src, f"{R1H_TOOL_AT}:tools/notebook_rollback_chain.py", "exec"), mod.__dict__)
+        lines: list[str] = []
+        mod.run(R1H_FROM, "wave5", emit=lines.append)
+    finally:
+        sys.modules.pop(mod.__name__, None)
+    rebuilt = {d["squash"][:9]: d["tree"] for d in map(json.loads, lines[:-1])}
+    assert rebuilt == old, "rebuilding R1h's chain from its own tool did not reproduce the recorded trees"
+
+
 def test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_must(chain):
     """This lane booted nothing, so this is what carries lane R1h's sandbox rehearsal over. At
     every step below W11 the tree may differ from the one R1h booted in two places only:
@@ -630,6 +698,7 @@ def test_under_wave_11_the_chain_differs_from_what_R1h_rehearsed_only_where_it_m
                 if "squash" in d}
     new, old = rows(RECORD), rows(RECORD_R1H)
     assert len(old) >= 13 and set(new) - set(old) == {"f473d00b3"}
+    _restore_r1h_trees(old)
     kept = lambda f: f in chain.KEEP_AT_TIP or any(f == k or f.startswith(k + "/") for k in chain.KEEP_PATHS)  # noqa: E731
     others = {f for f in _git("diff", "--name-only", "b529c8a78", "f473d00b3^").splitlines() if f}
     assert len(others) >= 10, "non-vacuity: other workstreams did land between L15 and wave 11"

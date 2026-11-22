@@ -1,0 +1,397 @@
+{
+ "schema": "uct.strategy-verdict/v1",
+ "captureId": "macd-shortlong-strategy-is-rddt-1d-2026-11-18",
+ "captureSha256": "235493b765d91364d474291867a947a6f0fc4b2b1561ed1a684f53188c5738e1",
+ "receipt": 2826851250,
+ "sourceSha256": "bd5fb7b6870ca67060d77a47f70254c4f0ce52f0416b841745dea03ca8f73f00",
+ "queueTargetId": "Q-S1p",
+ "symbol": "NYSE:RDDT",
+ "timeframe": "1D",
+ "gradeMethod": "a",
+ "verdict": "MATCH",
+ "step": 7,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar",
+ "first": null,
+ "graded": {
+  "trades": true,
+  "fills": true,
+  "slots": 9,
+  "values": 6,
+  "texts": 0
+ },
+ "referenceTrades": 17,
+ "rulesExercised": [
+  "B-DEFAULTS",
+  "B-DIR",
+  "B-EXEC",
+  "B-EXIT-BIND",
+  "B-EXIT-LIFE",
+  "B-EXIT-NA",
+  "B-FIFO",
+  "B-FILL",
+  "B-GAP",
+  "B-MARGIN",
+  "B-MARKET",
+  "B-PATH",
+  "B-QTY",
+  "B-QTY-REVERSE-M0",
+  "B-REVERSE",
+  "B-ROUND",
+  "B-ROUND-LEVEL",
+  "B-SIG",
+  "B-VAL",
+  "B-WHEN"
+ ],
+ "ungradedSlots": [
+  {
+   "slot": "maxDrawdown",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxRunup",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "buyAndHoldReturn",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "percentProfitable",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgBarsInTrades",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sharpeRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sortinoRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  }
+ ],
+ "ungradedTexts": [],
+ "ungradedValues": [
+  {
+   "slot": "plot_1",
+   "what": "`plot` at line 73 (colorer of plot_0)"
+  },
+  {
+   "slot": "plot_3",
+   "what": "`plot` at line 74 (colorer of plot_2)"
+  },
+  {
+   "slot": "plot_5",
+   "what": "`plot` at line 75 (colorer of plot_4)"
+  },
+  {
+   "slot": "plot_7",
+   "what": "`plot` at line 78 (colorer of plot_6)"
+  },
+  {
+   "slot": "plot_9",
+   "what": "`plot` at line 79 (colorer of plot_8)"
+  },
+  {
+   "slot": "plot_11",
+   "what": "`plot` at line 80 (colorer of plot_10)"
+  }
+ ],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
+ "newestBarNotRun": 1795012200,
+ "provenance": {
+  "strategySettings": {
+   "properties": [
+    {
+     "name": "Allow Long",
+     "value": true
+    },
+    {
+     "name": "Fast Length Long",
+     "value": 13
+    },
+    {
+     "name": "Slow Length Long",
+     "value": 19
+    },
+    {
+     "name": "Source Long",
+     "value": "close"
+    },
+    {
+     "name": "Signal Smoothing Long",
+     "value": 9
+    },
+    {
+     "name": "Oscillator MA Type Long",
+     "value": "EMA"
+    },
+    {
+     "name": "Signal Line MA Type Long",
+     "value": "EMA"
+    },
+    {
+     "name": "Cross Point Long",
+     "value": 0
+    },
+    {
+     "name": "MacD Cross Delay Long",
+     "value": 0
+    },
+    {
+     "name": "Signal Must Also Cross Long",
+     "value": false
+    },
+    {
+     "name": "Signal Cross Delay Long",
+     "value": 0
+    },
+    {
+     "name": "Allow Short",
+     "value": true
+    },
+    {
+     "name": "Fast Length Short",
+     "value": 11
+    },
+    {
+     "name": "Slow Length Short",
+     "value": 20
+    },
+    {
+     "name": "Source Short",
+     "value": "close"
+    },
+    {
+     "name": "Signal Smoothing Short",
+     "value": 9
+    },
+    {
+     "name": "Oscillator MA Type Short",
+     "value": "EMA"
+    },
+    {
+     "name": "Signal Line MA Type Short",
+     "value": "EMA"
+    },
+    {
+     "name": "Cross Point Short",
+     "value": 0
+    },
+    {
+     "name": "MacD Cross Delay Short",
+     "value": 1
+    },
+    {
+     "name": "Signal Must Also Cross Short",
+     "value": false
+    },
+    {
+     "name": "Signal Cross Delay Short",
+     "value": 0
+    },
+    {
+     "name": "Use Stop Loss Long",
+     "value": false
+    },
+    {
+     "name": "Stop Loss % Long",
+     "value": 1
+    },
+    {
+     "name": "Use Take Profit Long",
+     "value": false
+    },
+    {
+     "name": "Take Profit % Long",
+     "value": 1
+    },
+    {
+     "name": "Use Stop Loss Short",
+     "value": true
+    },
+    {
+     "name": "Stop Loss % Short",
+     "value": 21
+    },
+    {
+     "name": "Use Take Profit Short",
+     "value": true
+    },
+    {
+     "name": "Take Profit % Short",
+     "value": 20
+    },
+    {
+     "name": "MACD Line Long",
+     "value": "#2962FF"
+    },
+    {
+     "name": "Signal Line Long",
+     "value": "#FF6D00"
+    },
+    {
+     "name": "Grow Above Long",
+     "value": "#26A69A"
+    },
+    {
+     "name": "Fall Above Long",
+     "value": "#B2DFDB"
+    },
+    {
+     "name": "Grow Below Long",
+     "value": "#FFCDD2"
+    },
+    {
+     "name": "Fall Below Long",
+     "value": "#FF5252"
+    },
+    {
+     "name": "MACD Line Short",
+     "value": "#B03DFF"
+    },
+    {
+     "name": "Signal Line Short",
+     "value": "#00FFE8"
+    },
+    {
+     "name": "Grow Above Short",
+     "value": "#D95965"
+    },
+    {
+     "name": "Fall Above Short",
+     "value": "#4D2024"
+    },
+    {
+     "name": "Grow Below Short",
+     "value": "#00322D"
+    },
+    {
+     "name": "Fall Below Short",
+     "value": "#00ADAD"
+    },
+    {
+     "name": "Initial Capital",
+     "value": 1000
+    },
+    {
+     "name": "Default entry/order Qty Value",
+     "value": 100
+    },
+    {
+     "name": "Default entry/order Qty Type",
+     "value": "percent_of_equity"
+    },
+    {
+     "name": "pyramiding",
+     "value": 1
+    },
+    {
+     "name": "Calculate Strategy on Order's Fill(s)",
+     "value": false
+    },
+    {
+     "name": "Calculate Strategy on every Tick(s)",
+     "value": false
+    },
+    {
+     "name": "Backtesting Limit Order(s) fill assumption",
+     "value": 0
+    },
+    {
+     "name": "Base Currency",
+     "value": "NONE"
+    },
+    {
+     "name": "Backtesting slippage for market orders",
+     "value": 0
+    },
+    {
+     "name": "Commission Type",
+     "value": "percent"
+    },
+    {
+     "name": "Commission Value",
+     "value": 0
+    },
+    {
+     "name": "Process orders on bar Close",
+     "value": false
+    },
+    {
+     "name": "Close entries rule",
+     "value": "FIFO"
+    },
+    {
+     "name": "Margin Long",
+     "value": 0
+    },
+    {
+     "name": "Margin Short",
+     "value": 0
+    },
+    {
+     "name": "Run mode: 'backtest', 'alert' or something else",
+     "value": "BACKTEST"
+    },
+    {
+     "name": "Alert message template for run mode 'alert'",
+     "value": ""
+    },
+    {
+     "name": "Alert type for run mode 'alert'",
+     "value": "order_fills"
+    },
+    {
+     "name": "exclude_from_report",
+     "value": ""
+    },
+    {
+     "name": "risk_free_rate",
+     "value": 2
+    },
+    {
+     "name": "Use Bar Magnifier",
+     "value": false
+    },
+    {
+     "name": "Fill orders using standard OHLC",
+     "value": false
+    },
+    {
+     "name": "trim_orders",
+     "value": false
+    },
+    {
+     "name": "calc_range",
+     "value": ""
+    }
+   ]
+  }
+ }
+}

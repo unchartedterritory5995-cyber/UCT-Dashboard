@@ -1,0 +1,26 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T02:51:44Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/qa/chartsOutcome/multiChart.outcome.test.jsx --reporter=default --reporter=json
+[bn] free memory GB: 46.1
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+ [32m✓[39m src/agent/qa/chartsOutcome/multiChart.outcome.test.jsx [2m([22m[2m25 tests[22m[2m | [22m[33m17 skipped[39m[2m)[22m[33m 9711[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-056 "could you flip the top-right one over to a weekly view": the scripted plan chart.setTimeframe on that cell; the cell and the saved grid read W; Undo puts D back; no other cell moves [33m 1422[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-056 (pre-model path) "make the top-right chart weekly": answered without the model; same read-back, same Undo, other cells untouched [33m 1123[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-057 "turn the bottom-left chart into plain bars": chart.setType on that cell; the cell draws bars; Undo restores its Style; no other cell moves [33m 1158[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-058 (D/W/M) "include extended hours on the top-left chart": chart.setSession; the cell's own session view goes extended; Undo puts regular back; the other cells stay regular [33m 1116[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-058 (intraday) "regular hours only on the top-left chart": chart.setSession writes the cell's own extendedHoursShading, saved; Undo drops it; no other cell forks [33m 1103[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-062 "alert me when the top-right chart goes above 250": alert.create on the NAMED cell's symbol (AMD, read from the grid), at 250, above; exactly one alert added; Undo leaves the book byte-identical; the grid is untouched [33m 1308[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-062 CONTROL: the member clicked the top-left cell (NVDA), the words name the top-right one (AMD): the alert is AMD's, none is NVDA's; Undo leaves the book byte-identical [33m 1249[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-062 CONTROL (the check has teeth): the same setup with a plan that alerts the ACTIVE cell's symbol is rejected by the same outcome check [33m 1231[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m8 passed[39m[22m[2m | [22m[90m17 todo[39m[90m (25)[39m
+[2m   Start at [22m 21:51:47
+[2m   Duration [22m 16.09s[2m (transform 4.37s, setup 287ms, import 5.49s, tests 9.71s, environment 483ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-2/packet/multiChart.outcome.test.json
+# exit=0 end 02:52:03Z

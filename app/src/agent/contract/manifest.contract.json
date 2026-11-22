@@ -2,13 +2,18 @@
   "manifestVersion": 1,
   "doc": "docs/agent/CAPABILITY-CONTRACT.md",
   "entryKeys": [
+    "argAliases",
     "args",
+    "coerce",
+    "defaults",
+    "defaultsWhen",
     "domain",
     "hints",
     "name",
     "query",
     "reversible",
     "risk",
+    "shape",
     "summary",
     "target",
     "undo"
@@ -19,11 +24,12 @@
     "maxSummary": 400,
     "maxHints": 1000,
     "maxContextBytes": 24000,
-    "maxOps": 12
+    "maxOps": 12,
+    "maxShape": 600
   },
   "routingThreshold": 55,
   "catalog": {
-    "maxRegistered": 200,
+    "maxRegistered": 300,
     "maxGroupSize": 40,
     "note": "maxCapabilities is PER REQUEST (what one /api/agent/turn may carry; the server refuses more). maxRegistered bounds the browser catalog. routingThreshold is the routed budget per request. No routing group may exceed maxGroupSize, so any single group (plus the always-on group) fits one request."
   },

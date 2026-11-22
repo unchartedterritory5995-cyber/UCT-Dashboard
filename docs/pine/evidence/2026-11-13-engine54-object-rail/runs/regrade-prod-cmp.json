@@ -1,0 +1,50 @@
+{
+ "before": {
+  "captures": 152,
+  "errors": 0,
+  "v1": {
+   "DIVERGE": 31,
+   "INCONCLUSIVE": 15,
+   "MATCH": 79
+  },
+  "v2": {
+   "DIVERGE": 35,
+   "INCONCLUSIVE": 15,
+   "MATCH": 75
+  }
+ },
+ "after": {
+  "captures": 152,
+  "errors": 0,
+  "v1": {
+   "DIVERGE": 31,
+   "INCONCLUSIVE": 15,
+   "MATCH": 79
+  },
+  "v2": {
+   "DIVERGE": 35,
+   "INCONCLUSIVE": 15,
+   "MATCH": 75
+  }
+ },
+ "rowDiffs": [],
+ "matchToDiverge": [],
+ "runHalfBefore": {
+  "door": {
+   "declined:run-half:pane-off": 42
+  },
+  "bind": {},
+  "bindCodes": {},
+  "minted": [],
+  "movedToDiverge": []
+ },
+ "runHalfAfter": {
+  "door": {
+   "declined:run-half:pane-off": 42
+  },
+  "bind": {},
+  "bindCodes": {},
+  "minted": [],
+  "movedToDiverge": []
+ }
+}

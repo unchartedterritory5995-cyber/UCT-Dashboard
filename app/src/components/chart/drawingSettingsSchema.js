@@ -364,7 +364,7 @@ export const CONTROLS = Object.freeze({
     label: (ctx) => (ctx.drawing?.hidden ? 'Show' : 'Hide'),
   },
   saveDefault: { id: 'saveDefault', kind: 'action', label: 'Save as default', needs: 'onSaveDefaults' },
-  remove: { id: 'remove', kind: 'action', label: 'Delete Drawing', danger: true, needs: 'onDelete' },
+  remove: { id: 'remove', kind: 'action', label: 'Delete drawing', danger: true, needs: 'onDelete' },
 })
 
 /** Every tool gets these, in this order, at the bottom of its menu. */

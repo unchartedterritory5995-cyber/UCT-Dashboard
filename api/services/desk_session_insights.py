@@ -14,6 +14,7 @@ original inline immediate-delete behaviour and none of this runs — fully
 reversible, additive.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import collections
 import json
@@ -41,7 +42,7 @@ _FAIL_STREAK_ALERT_AT = 4
 # for (a) the rare fallback when no usable summary file exists and (b) the
 # small best-effort ticker-moments call. Haiku is plenty for both — cheaper
 # default than the old Opus-only path (DESK_CHAPTERS_MODEL env still overrides).
-_MODEL = os.environ.get("DESK_CHAPTERS_MODEL", "claude-haiku-4-5")
+_MODEL = os.environ.get("DESK_CHAPTERS_MODEL", llm_models.HAIKU)
 
 # Ticker-moments timestamp fidelity is a reasoning task (copy the EXACT
 # preceding [h:mm:ss] marker, never estimate) — audit found real chips
@@ -397,6 +398,7 @@ def generate_insights(title: str, cues: list[dict]) -> dict:
     msg = client.messages.create(
         model=_MODEL,
         max_tokens=2400,
+        **llm_models.plain(_MODEL),
         system=_SYS,
         messages=[{"role": "user", "content": user}],
     )
@@ -468,6 +470,7 @@ def generate_setups(title: str, cues: list[dict]) -> list[dict]:
     msg = client.messages.create(
         model=os.environ.get("DESK_SETUPS_MODEL", _MODEL),
         max_tokens=1000,
+        **llm_models.plain(os.environ.get("DESK_SETUPS_MODEL", _MODEL)),
         system=_SETUPS_SYS,
         messages=[{"role": "user", "content": f"VIDEO TITLE: {title}\n\nTRANSCRIPT:\n{block}"}],
     )

@@ -26,7 +26,7 @@ import path from 'node:path'
 
 import {
   tickNumberText, formatPatternedNumber, formatPlainNumber, tostringPatternOf,
-  isPlainNumberPattern, TOSTRING_GROUPING_LIMIT, volumeNumberText,
+  isPlainNumberPattern, volumeNumberText,
 } from '../pineTextFormat.js'
 import { translatePine } from '../ast/pine'
 import { bindObjectProgram } from '../ast/objectProgram.js'
@@ -110,24 +110,28 @@ describe('B — literal words around a pattern (Java DecimalFormat prefix / suff
   })
 })
 
-describe('C — WITHHELD where no capture pins the rendering', () => {
-  it('a grouping separator that would APPEAR', () => {
+describe('C — WITHHELD where no capture pins the rendering (and what CBC-FMT\'s S10 capture now pins)', () => {
+  it('a grouping separator: by three it is witnessed (S10 T20 "1,234.5"); any other size that would APPEAR is withheld', () => {
     expect(formatPatternedNumber(999.5, 'H (#,###.##)')).toBe('H (999.5)')
-    expect(formatPatternedNumber(1000, 'H (#,###.##)')).toBeNull()
+    expect(formatPatternedNumber(1000, 'H (#,###.##)')).toBe('H (1,000)')
+    expect(formatPatternedNumber(1234.5, '#,###.##')).toBe('1,234.5')
+    expect(formatPatternedNumber(12345, '#,##')).toBeNull()
   })
   it('a negative value under a literal prefix (Java puts the minus before it)', () => {
     expect(formatPatternedNumber(-2.5, 'H (#.##)')).toBeNull()
     expect(formatPatternedNumber(-2.5, '#.## pts')).toBe('-2.5 pts')
   })
-  it('a negative zero', () => {
-    expect(formatPatternedNumber(-0.001, '#.## pts')).toBeNull()
-    expect(tickNumberText(-0.001, '0.01')).toBeNull()
+  it('a value that rounds to zero prints unsigned (S10 T11 / T13)', () => {
+    expect(formatPatternedNumber(-0.001, '#.## pts')).toBe('0 pts')
+    expect(tickNumberText(-0.001, '0.01')).toBe('0.00')
   })
-  it('format.mintick at 1000 or more, at an exact tie, or with no tick settled', () => {
-    expect(TOSTRING_GROUPING_LIMIT).toBe(1000)
-    expect(tickNumberText(1000.123, '0.01')).toBeNull()
-    expect(tickNumberText(10.125, '0.01')).toBeNull() // exact decimal tie (81/8 is exact in binary)
-    expect(tickNumberText(10.124, '0.01')).toBe('10.12') // control: one off the tie is drawn
+  it('format.mintick rounds n / tick in BINARY (S10 T08-T12), at any magnitude', () => {
+    expect(tickNumberText(1234.5, '0.01')).toBe('1234.50')
+    expect(tickNumberText(1000.123, '0.01')).toBe('1000.12')
+    expect(tickNumberText(10.125, '0.01')).toBe('10.13') // 1012.5 exactly: a tie, rounded up (T10)
+    expect(tickNumberText(1.005, '0.01')).toBe('1.00') // 100.49999…: binary, where "#.##" prints 1.01 (T08)
+    expect(tickNumberText(10.124, '0.01')).toBe('10.12')
+    expect(tickNumberText(-10.125, '0.01')).toBeNull() // a NEGATIVE exact tie: not captured
   })
   it('a tie at a non-decimal tick, an unsettled tick, and na', () => {
     expect(tickNumberText(10.125, '0.25')).toBeNull()
@@ -229,8 +233,14 @@ describe('F — the object runtime draws what the vendor draws, and holds back t
     expect(held.map((o) => o.props.text)).toEqual(['Swing H  (103.625)'])
     expect(state.labels.map((l) => l.text)).toEqual(['Swing H  (103.625)'])
   })
-  it('⛔ a grouping separator that would appear: HELD, NOT DRAWN, counted', () => {
-    const { r, held, state } = run('str.tostring(close * 100, "Swing H  (#,###.####)")') // 10362.5
+  it('⭐ CBC-FMT — grouping by three is witnessed (S10 T20 "1,234.5"): drawn', () => {
+    const { held, state } = run('str.tostring(close * 100, "Swing H  (#,###.####)")') // 10362.5
+    expect(held.map((o) => o.props.text)).toEqual(['Swing H  (10,362.5)'])
+    expect(state.labels.map((l) => l.text)).toEqual(['Swing H  (10,362.5)'])
+  })
+  it('⛔ a grouping of another size that would appear: HELD, NOT DRAWN, counted (and named)', () => {
+    const { r, held, state } = run('str.tostring(close * 100, "Swing H  (#,##.####)")') // 10362.5
+    expect(Object.keys(r.stats.textsWithheldWhy || {})).toEqual(['format:grouping-uncaptured'])
     expect(held).toHaveLength(1)
     expect(held[0].props.text).toBeNull()
     expect(state.labels).toHaveLength(0)

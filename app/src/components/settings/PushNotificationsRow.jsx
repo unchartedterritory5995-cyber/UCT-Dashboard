@@ -46,6 +46,7 @@ export default function PushNotificationsRow() {
 
   if (!config) return null
   const support = pushSupport()
+  if (support.reason === 'desktop-shell') return null
 
   const onToggle = async () => {
     if (busy) return

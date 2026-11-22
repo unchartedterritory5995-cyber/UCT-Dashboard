@@ -1,0 +1,125 @@
+/* Calendar widget — /charts board look B1 "Simple" (owner 11-14). Same measures as the other
+   board widgets: 26px controls, 30px footer, the board's menus; colours from the widget's ⚙
+   (--cal-*) over the frame's tokens. */
+.root {
+  --c-text: var(--cal-text, var(--widget-text-strong, var(--text-bright, #f8f7f3)));
+  --c-muted: var(--cal-chrome, var(--widget-text, var(--text-muted, #a9a59b)));
+  --c-dim: color-mix(in srgb, var(--c-muted) 66%, transparent);
+  --c-line: var(--cal-divider, var(--widget-divider, var(--border, #24262b)));
+  --c-soft: var(--cal-row-divider, color-mix(in srgb, var(--c-text) 5%, transparent));
+  --c-hover: var(--cal-row-hover, var(--widget-row-hover, rgba(248, 247, 243, 0.06)));
+  --c-gold: var(--cal-highbox, var(--cal-gold-strong, var(--widget-accent, var(--accent, #dcbb5e))));
+  --c-up: var(--cal-pos, var(--up, #3fd47a));
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--cal-bg, var(--widget-canvas, var(--bg, #0e0f0d)));
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-size: var(--cal-fs, 12.5px);
+}
+
+/* ── title row (portaled into the frame header) ── */
+.dnav { display: flex; align-items: center; gap: 2px; min-width: 0; padding-left: 4px !important; }
+.navBtn, .ic { width: 26px; height: 26px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 6px; background: none; cursor: pointer; color: var(--widget-text, var(--text-muted, #cfcac0)); }
+.navBtn:hover, .ic:hover, .icOn { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.ic { opacity: 0.85; }
+.ic:hover, .icOn { opacity: 1; }
+.date { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; padding: 0 4px; font-size: 12.5px; font-weight: 700; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.today { font-size: 10.5px; font-weight: 600; color: var(--widget-accent, var(--accent, #dcbb5e)); }
+.jump { flex: 0 0 auto; height: 22px; margin-left: 4px; padding: 0 8px; border: none; border-radius: 6px; background: color-mix(in srgb, var(--widget-text, #cfcac0) 9%, transparent); color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font: 600 11px var(--font-sans); cursor: pointer; white-space: nowrap; }
+.jump:hover { background: color-mix(in srgb, var(--widget-text, #cfcac0) 15%, transparent); }
+@container uctw (max-width: 330px) { .jump { display: none; } }
+
+/* ── week strip ── */
+.week { flex: 0 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 6px 8px; border-bottom: 1px solid var(--c-line); }
+.wd { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 4px 0 5px; border: none; border-radius: 8px; background: none; cursor: pointer; color: var(--c-muted); font-family: var(--font-sans); min-width: 0; }
+.wd:hover { background: var(--c-hover); }
+.wd[aria-selected="true"] { background: color-mix(in srgb, var(--c-text) 9%, transparent); }
+.wdn { font-size: 10.5px; font-weight: 600; }
+.wdd { font-size: 14px; font-weight: 700; color: var(--c-text); line-height: 1.2; }
+.wdc { font-size: 10px; color: var(--c-dim); }
+.wdm { display: flex; gap: 3px; height: 4px; }
+.wdm i { width: 4px; height: 4px; border-radius: 50%; }
+
+/* ── timeline ── */
+.body { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; outline: none; }
+.tl { padding: 4px 0 10px; }
+.row { display: grid; grid-template-columns: 50px 14px minmax(0, 1fr); gap: 0 8px; padding: 0 12px; }
+.time { padding-top: 9px; text-align: right; font-size: 12px; font-weight: 700; line-height: 1.1; color: var(--c-text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.time small { display: block; font-size: 9.5px; font-weight: 600; color: var(--c-dim); }
+.rail { position: relative; }
+.rail::before { content: ""; position: absolute; left: 6px; top: 0; bottom: 0; width: 1px; background: var(--c-line); }
+.rail i { position: absolute; left: 2px; top: 12px; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 2px var(--cal-bg-solid, var(--widget-canvas, #0e0f0d)); }
+.dotHigh { background: var(--c-gold); }
+.dotMed { background: var(--c-muted); }
+.dotLow { background: var(--c-dim); }
+.dotFed { background: #6ea8ff; }
+.dotEarn { background: var(--c-text); }
+.wdm .dotHigh, .wdm .dotEarn { display: block; }
+.main { min-width: 0; padding: 7px 0 4px; border-bottom: 1px solid var(--c-soft); }
+.head { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.name { min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.35; }
+.val { flex: 0 0 auto; max-width: 45%; margin-left: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.mut { color: var(--c-muted); }
+.fed { display: inline-block; margin-left: 6px; padding: 0 5px; border-radius: 4px; background: rgba(110, 168, 255, 0.14); color: #9cc2ff; font-size: 9.5px; font-weight: 700; vertical-align: 1px; }
+.done .time, .done .name, .done .val { color: var(--c-dim); }
+.done .rail i { opacity: 0.55; }
+.more { display: inline-flex; align-items: center; gap: 3px; margin-top: 2px; padding: 2px 0; border: none; background: none; cursor: pointer; color: var(--c-dim); font: 600 11px var(--font-sans); }
+.more:hover { color: var(--c-text); }
+.car { display: inline-flex; transition: transform 0.15s; }
+.open .car { transform: rotate(180deg); }
+.det { display: grid; gap: 10px; margin: 8px 0 2px; padding: 10px; border-radius: 8px; background: color-mix(in srgb, var(--c-text) 4%, transparent); }
+.detP { margin: 0; font-size: 12px; line-height: 1.5; color: var(--c-muted); }
+.detMeta { font-size: 11px; color: var(--c-dim); }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.grid3 span { display: block; font-size: 10.5px; color: var(--c-dim); }
+.grid3 b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.now { display: grid; grid-template-columns: 50px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 6px 12px; }
+.now span { text-align: right; font-size: 10.5px; font-weight: 700; color: var(--c-gold); }
+.now i { height: 1px; background: var(--c-gold); }
+.now b { font-size: 10px; font-weight: 700; color: var(--c-gold); }
+.empty { padding: 28px 16px; text-align: center; font-size: 12.5px; color: var(--c-muted); }
+
+/* ── menus (the board's) ── */
+.menu { position: absolute; z-index: 30; right: 8px; top: 4px; width: 250px; max-width: calc(100% - 16px); padding: 6px; border-radius: 10px; background: var(--menu-bg, #1b1c20); border: 1px solid var(--menu-border, #383b41); box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); }
+.ml { padding: 6px 10px 4px; font-size: 11px; font-weight: 600; color: var(--menu-text-muted, #a9a59b); }
+.msep { height: 1px; margin: 5px 6px; background: var(--menu-border, #2c2e33); }
+.mi { display: flex; width: 100%; align-items: center; gap: 8px; padding: 7px 10px 7px 6px; border: none; border-radius: 6px; background: none; color: var(--menu-text, #f8f7f3); font: 13px var(--font-sans); text-align: left; cursor: pointer; }
+.mi:hover { background: var(--menu-hover, rgba(248, 247, 243, 0.06)); }
+.mi small { margin-left: auto; color: var(--menu-text-muted, #77736b); font-size: 11px; }
+.mck { width: 16px; flex: 0 0 auto; display: inline-flex; justify-content: center; color: var(--menu-text, #f8f7f3); }
+
+/* ── footer (30px, as the other board widgets) ── */
+.foot { flex: 0 0 30px; height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 6px 0 12px; border-top: 1px solid var(--c-line); font-size: 11.5px; color: var(--c-muted); min-width: 0; }
+.foot b { color: var(--c-text); font-weight: 600; }
+.count { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.sp { flex: 1 1 auto; }
+.fbtn { height: 22px; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px; border-radius: 6px; color: var(--c-muted); font: 600 11.5px var(--font-sans); text-decoration: none; white-space: nowrap; }
+.fbtn:hover { color: var(--c-text); background: var(--c-hover); }
+
+/* Narrow widget (the JS `narrow` flag picks the short date and drops the Journal button). */
+@container uctw (max-width: 360px) {
+  .dnav .navBtn { width: 20px; }
+  .date { padding: 0 2px; }
+}
+
+/* ── Day tabs (owner 11-14, option B): one 36px row, the board's gold underline (as the
+   News / Watchlist tabs), week arrows at both ends, a gold dot on days with high-impact data. ── */
+.tabs { flex: 0 0 36px; height: 36px; display: flex; align-items: stretch; padding: 0 4px; border-bottom: 1px solid var(--c-line); }
+.arr { flex: 0 0 26px; width: 26px; margin: 5px 0; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: none; border-radius: 6px; background: none; cursor: pointer; color: var(--c-dim); }
+.arr:hover { color: var(--c-text); background: var(--c-hover); }
+.tabRow { flex: 1 1 auto; min-width: 0; display: flex; align-items: stretch; }
+.tab { position: relative; flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 0 2px; border: none; background: none; cursor: pointer; white-space: nowrap; color: var(--c-muted); font: 600 12px var(--font-sans); }
+.tab:hover { color: var(--c-text); }
+.tab b { font-weight: 700; color: inherit; }
+.tab[aria-selected="true"] { color: var(--c-text); }
+.tab[aria-selected="true"]::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 2px; border-radius: 2px 2px 0 0; background: var(--widget-accent, var(--accent, #dcbb5e)); }
+.tabToday { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--widget-accent, #dcbb5e) 60%, transparent); text-underline-offset: 3px; }
+.tabDot { width: 4px; height: 4px; flex: 0 0 auto; border-radius: 50%; background: var(--c-gold); }
+
+/* Dark menu, dark scrollbar (owner 11-14): the browser draws a thin dark scrollbar, never the
+   white light-theme one, inside this always-dark menu. */
+.menu { color-scheme: dark; }

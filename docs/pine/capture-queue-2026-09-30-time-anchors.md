@@ -55,14 +55,26 @@ York; on a 24×7 symbol the vendor stamps it at 00:00 UTC — an every-day clock
 
 | row, on a bar in … | shipped (withheld) | what each answer means |
 |---|---|---|
-| T01 / Q08 `time("W") - time`, Tue 1999-01-19 (Mon 01-18 was MLK day) | withheld | −1 ⇒ the calendar's Monday (no closure before 2000): the anchor must come from the session calendar (`tf_live("W", time)` already computes it — it equals the vendor's `time("W")` on 4,800 of 4,800 bars from 2007 and 900 of 900 from 2023, the Sandy week and the first partial week included; `tf_live("M", time)` likewise for the month); 0 ⇒ the first bar, and the pre-2000 withholding can be dropped |
-| Q01 `time_close("W") - time`, Thu 1999-04-01 (Good Friday 04-02) | withheld | 1.27 ⇒ the calendar's Friday 16:00, which is what `tf_live("W", timeclose)` answers — drop the `period-end-missing` check; 0.27 ⇒ the last bar's close, and the tree needs the bars, not the calendar, before 2000 |
-| the same two rows on Mon 2001-09-10 | withheld | the week TradingView's session keeps open and no bar exists for (09-11..14) |
-| T04 / Q11 `time("12M") - time` in 1999 | withheld (the year opens Mon 01-04; Fri 01-01 is a holiday the calendar keeps open) | −3 on 01-04 ⇒ calendar; 0 ⇒ first bar |
+| T01 / Q08 `time("W") - time`, Tue 1999-01-19 (Mon 01-18 was MLK day): `vw-time-tf.pine` T01 and `vw-time-close-tf.pine` Q08 on AMEX:SPY 1D, full history | withheld | −1 ⇒ the calendar's Monday (no closure before 2000): the anchor must come from the session calendar (`tf_live("W", time)` already computes it — it equals the vendor's `time("W")` on 4,800 of 4,800 bars from 2007 and 900 of 900 from 2023, the Sandy week and the first partial week included; `tf_live("M", time)` likewise for the month); 0 ⇒ the first bar, and the pre-2000 withholding can be dropped |
+| Q01 `time_close("W") - time`, Thu 1999-04-01 (Good Friday 04-02): `vw-time-close-tf.pine` Q01 on AMEX:SPY 1D, full history | withheld | 1.27 ⇒ the calendar's Friday 16:00, which is what `tf_live("W", timeclose)` answers — drop the `period-end-missing` check; 0.27 ⇒ the last bar's close, and the tree needs the bars, not the calendar, before 2000 |
+| the same two rows on Mon 2001-09-10: `vw-time-tf.pine` T01 and `vw-time-close-tf.pine` Q01 on AMEX:SPY 1D, full history | withheld | the week TradingView's session keeps open and no bar exists for (09-11..14) |
+| T04 / Q11 `time("12M") - time` in 1999: `vw-time-tf.pine` T04 and `vw-time-close-tf.pine` Q11 on AMEX:SPY 1D, full history | withheld (the year opens Mon 01-04; Fri 01-01 is a holiday the calendar keeps open) | −3 on 01-04 ⇒ calendar; 0 ⇒ first bar |
 
 ## Q-T3 — what we must read off it
 
 | row | shipped reading (withheld) | what flips it |
 |---|---|---|
-| T05 `time(timeframe.period) - time` | not served on a 5m / 15m chart | 0 on every bar ⇒ add the timeframe to `OWN_TIME_WITNESSED_TF` (both lanes) |
-| T06 `time("60") - time` | not served | NOT 0 (the 60m bar's open, e.g. −0.0035 days on the 09:35 bar) ⇒ `"60"` on a lower chart is a real higher-timeframe anchor: it must leave `chartOwnTimeOf` for that chart and be derived like C30's periods |
+| T05 `time(timeframe.period) - time`: `vw-time-tf.pine` on AMEX:SPY 5 and AMEX:SPY 15 | not served on a 5m / 15m chart | 0 on every bar ⇒ add the timeframe to `OWN_TIME_WITNESSED_TF` (both lanes) |
+| T06 `time("60") - time`: `vw-time-tf.pine` on AMEX:SPY 5 and AMEX:SPY 15 | not served | NOT 0 (the 60m bar's open, e.g. −0.0035 days on the 09:35 bar) ⇒ `"60"` on a lower chart is a real higher-timeframe anchor: it must leave `chartOwnTimeOf` for that chart and be derived like C30's periods |
+
+## Not capture questions (queue dispositions)
+
+Read by `tools/vendor_harness/evidence_engine.py queue`: each row named here leaves `rowsNeedingProbe` and is listed, with this reason, in `rowsNotCaptureQuestions` (dispositions: `DISPOSITIONS` in the engine).
+
+| not a capture | disposition | reason |
+|---|---|---|
+| `time-anchor:weekend-bars` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); the capture that settles it is Q-T2 |
+| `time-anchor:session-open-missing`, `time-close:period-end-missing` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); the capture that settles it is Q-T5 |
+| `time-anchor:not-daily`, `time-close:not-daily` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); the captures that settle it are Q-T4 (W / M) |
+| `time-own:chart-unwitnessed` | withheld-ledger | a row of "What is still withheld or refused" (every column prose); the captures that settle it are Q-T3 (intraday) and Q-T4 (W / M) |
+| `pine:function` (translation) | withheld-ledger | a row of "What is still withheld or refused" (every column prose): a translation refusal of the other `time(<tf>)` literals; no capture row asks for it |

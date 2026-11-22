@@ -1,0 +1,364 @@
+/* Watchlist library rail (owner 11-13). Same palette as the chart-style widget header:
+   site white for the current list, grey for the rest, a short gold edge on the open one. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  width: 100%;
+  font-family: var(--font-sans);
+  background: var(--wl-bg-solid, var(--widget-canvas, var(--bg, #101012)));
+  border-right: 1px solid var(--widget-divider, var(--border, #24262b));
+}
+/* Narrow widget: the rail slides over the list instead of squeezing it. */
+.overlay {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: 5;
+  width: min(232px, 86%);
+  box-shadow: 10px 0 28px rgba(0, 0, 0, 0.45);
+  animation: railIn 0.16s ease;
+}
+@keyframes railIn { from { transform: translateX(-12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .overlay { animation: none; } }
+
+.seg { display: flex; gap: 2px; padding: 8px 8px 6px; flex-shrink: 0; }
+.segBtn {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  cursor: pointer;
+}
+.segBtn:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.segOn {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.06));
+  border-color: var(--widget-divider, var(--border, #24262b));
+}
+.segBtn:focus-visible, .item:focus-visible, .newList:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: -2px; }
+
+.find {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 8px 4px;
+  padding: 0 8px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 7px;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 7%, transparent);
+}
+.find:focus-within { border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 22%, transparent); }
+.find svg, .find svg * { stroke: currentColor !important; filter: none !important; }
+.find input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+.find input::placeholder { color: var(--widget-text, var(--text-muted, #a9a59b)); opacity: 0.85; }
+
+.scroll { flex: 1; min-height: 0; overflow-y: auto; padding-bottom: 8px; scrollbar-width: thin; }
+.group { padding-bottom: 4px; }
+.groupHead { padding: 10px 12px 4px; font-size: 11px; font-weight: 500; color: var(--widget-text, var(--text-muted, #a9a59b)); }
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: left;
+  color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 82%, transparent);
+  cursor: pointer;
+}
+.item:hover { background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.itemOn {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 700;
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.06));
+  box-shadow: inset 2px 0 0 var(--widget-accent, var(--accent, #dcbb5e));
+}
+.itemName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.itemCount { flex-shrink: 0; font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--widget-text, var(--text-muted, #a9a59b)); opacity: 0.8; }
+.empty { padding: 10px 12px; font-size: 12px; color: var(--widget-text, var(--text-muted, #a9a59b)); }
+.newList {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin: 6px 8px 0;
+  padding: 5px 6px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  cursor: pointer;
+}
+.newList:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
+.newList svg, .newList svg * { stroke: currentColor !important; filter: none !important; }
+
+/* ── Widget layout around the rail (WatchlistWidget) ── */
+.split { position: relative; display: flex; height: 100%; min-height: 0; min-width: 0; }
+.side { flex: 0 0 204px; min-width: 0; min-height: 0; }
+.pane { flex: 1 1 auto; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.pane > * { flex: 1 1 auto; min-height: 0; }
+.scrim { position: absolute; inset: 0; z-index: 4; border: none; padding: 0; background: rgba(0, 0, 0, 0.35); cursor: default; }
+/* Header toggle (before the list name) and the list's symbol count (after it). */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  cursor: pointer;
+}
+.toggle:hover, .toggleOn { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.toggle svg, .toggle svg * { stroke: currentColor !important; filter: none !important; }
+.toggle:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+.count { flex-shrink: 0; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--widget-text, var(--text-muted, #a9a59b)); }
+
+/* ── owner 11-13 round 2: underline tabs (the chart's timeframe style) and clearly
+      separated categories — a bold title + list count, a hairline and air between groups. ── */
+.seg { gap: 0; padding: 0 6px; height: 36px; align-items: stretch; border-bottom: 1px solid var(--widget-divider, var(--border, #24262b)); }
+.segBtn {
+  position: relative;
+  flex: 1 1 auto;
+  padding: 0 6px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: 12.5px;
+}
+.segOn, .segOn:hover { background: none; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-weight: 700; }
+.segOn::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+.find { margin: 8px 8px 2px; }
+.group { padding: 4px 0 8px; }
+.group + .group { border-top: 1px solid var(--widget-divider, var(--border, #24262b)); margin-top: 4px; }
+.groupHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 12px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+.groupCount { font-size: 11px; font-weight: 500; color: var(--widget-text, var(--text-muted, #a9a59b)); font-variant-numeric: tabular-nums; }
+.item { padding: 6px 12px 6px 18px; }
+.itemOn { box-shadow: inset 2px 0 0 var(--widget-accent, var(--accent, #dcbb5e)); }
+
+/* ── round 4 (owner 11-13): own-list rows with a hover ⋯, inline create / rename fields,
+      the list menu, and a one-line status note. ── */
+.row { position: relative; display: flex; align-items: center; }
+.row > .item { flex: 1 1 auto; min-width: 0; }
+.rowMenuBtn {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.row:hover .rowMenuBtn, .rowMenuBtn:focus-visible, .rowMenuBtnOn { opacity: 1; }
+.rowOwn:hover .itemCount, .rowOwn:has(.rowMenuBtnOn) .itemCount { visibility: hidden; }
+.rowMenuBtn:hover, .rowMenuBtnOn { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.08)); }
+.rowMenuBtn:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: -2px; }
+.rowMenuBtn svg, .newList svg, .menuItem svg { color: inherit !important; filter: none !important; }
+.rowMenuBtn svg *, .menuItem svg * { stroke: currentColor !important; }
+
+.editRow { padding: 3px 8px 3px 12px; }
+.editRow input {
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 26%, transparent);
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 7%, transparent);
+  outline: none;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+.editRow input::placeholder { color: var(--widget-text, var(--text-muted, #a9a59b)); font-weight: 500; }
+.newList { margin: 6px 8px 0 12px; }
+
+.menu {
+  position: fixed;
+  z-index: 6000;
+  min-width: 196px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans);
+}
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--text, #e9e6de);
+  cursor: pointer;
+}
+.menuItem svg { color: var(--text-muted, #a9a59b) !important; }
+.menuItem:hover, .menuItem:focus-visible { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); color: var(--text-bright, #f8f7f3); outline: none; }
+.menuDanger, .menuDanger svg { color: var(--danger-ink, #f87171) !important; }
+.note {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--widget-divider, var(--border, #24262b));
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+/* "+ New list" (owner 11-13 round 5): an action, not a list — centred, a dashed outline. */
+.newList {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(100% - 24px);
+  margin: 12px auto 4px;
+  padding: 7px 10px;
+  border: 1px dashed color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 22%, transparent);
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+.newList:hover { border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 40%, transparent); }
+/* Softer dim behind the slid-over library (owner 11-13): the list keeps its colour and just
+   recedes a little, instead of going black. */
+.scrim { background: color-mix(in srgb, var(--bg, #101012) 22%, transparent); }
+.overlay { box-shadow: 8px 0 22px rgba(0, 0, 0, 0.28); }
+
+/* ── round 6 (owner 11-13): "+ New list" a soft filled button; naming a list in a small card
+      (label, field, Cancel / Create). ── */
+.newList {
+  width: calc(100% - 24px);
+  margin: 12px auto 4px;
+  padding: 0 10px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 7%, transparent);
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 600;
+}
+.newList:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 12%, transparent); border: none; }
+.createCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 12px 4px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 12%, transparent);
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 4%, transparent);
+}
+.createLabel { font-size: 11.5px; font-weight: 600; color: var(--widget-text, var(--text-muted, #a9a59b)); }
+.createCard input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 14%, transparent);
+  background: var(--wl-bg-solid, var(--widget-canvas, var(--bg, #101012)));
+  outline: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+.createCard input:focus { border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 34%, transparent); }
+.createCard input::placeholder { color: var(--widget-text, var(--text-muted, #a9a59b)); font-weight: 500; opacity: 0.8; }
+.createActions { display: flex; justify-content: flex-end; gap: 6px; }
+.createCancel, .createGo {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 7px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.createCancel { border: none; background: transparent; color: var(--widget-text, var(--text-muted, #a9a59b)); }
+.createCancel:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.createGo { border: none; background: var(--widget-text-strong, var(--text-bright, #f8f7f3)); color: var(--bg, #101012); }
+.createGo:disabled { opacity: 0.4; cursor: default; }
+.createCancel:focus-visible, .createGo:focus-visible, .createCard input:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+/* The name field: a quiet brightened border on focus, like the other fields (no gold ring). */
+.createCard input:focus-visible { outline: none; border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 40%, transparent); }
+
+/* Closing (owner 11-13): the opening slide in reverse, and the dimmed background fades out with it. */
+@keyframes railOut { from { transform: none; opacity: 1; } to { transform: translateX(-12px); opacity: 0; } }
+@keyframes scrimIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes scrimOut { from { opacity: 1; } to { opacity: 0; } }
+.scrim { animation: scrimIn 0.16s ease; }
+.overlayOut { animation: railOut 0.17s ease forwards; pointer-events: none; }
+.scrimOut { animation: scrimOut 0.17s ease forwards; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .scrim, .overlayOut, .scrimOut { animation: none; } }
+
+/* One library width everywhere (owner 11-13): beside the list it keeps the same 232px it has when
+   it slides over a narrow widget — same tab spacing, same names, no squeeze. */
+.side { flex: 0 0 232px; width: 232px; }

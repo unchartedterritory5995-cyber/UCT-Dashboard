@@ -118,3 +118,18 @@ describe('A1.2 — IndicatorUndoToast after Undo', () => {
     expect(screen.getByTestId('indicator-undo-toast').textContent).toContain('Undone')
   })
 })
+
+describe('placement on the phone (decision B3, 2026-11-07)', () => {
+  it('a phone toast sits top-right, clear of the pane it announces; wider screens keep the bottom centre', async () => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const css = readFileSync(join(globalThis.process.cwd(), 'src/components/chart/IndicatorUndoToast.module.css'), 'utf8').replace(/\r\n/g, '\n')
+    const base = css.slice(css.indexOf('.toast {'), css.indexOf('}', css.indexOf('.toast {')))
+    expect(base).toMatch(/bottom:\s*12px/)
+    const at = css.indexOf('@media (max-width: 640px)')
+    expect(at).toBeGreaterThan(-1)
+    const phone = css.slice(at)
+    expect(phone).toMatch(/\.toast\s*\{[^}]*top:\s*8px[^}]*bottom:\s*auto[^}]*right:\s*8px[^}]*transform:\s*none/)
+    for (const m of css.matchAll(/@media \(max-width: (\d+)px\)/g)) expect(['640', '1024']).toContain(m[1])
+  })
+})

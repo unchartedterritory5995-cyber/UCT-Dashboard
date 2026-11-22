@@ -29,7 +29,9 @@ const { scanMock, SAVED } = vi.hoisted(() => ({
 // on `[meta]`, so a fresh literal per render would defeat that memo.
 let metaState = { meta: undefined, isLoading: true }
 
-vi.mock('react-router-dom', () => ({ useNavigate: () => () => {} }))
+// No <Router> is rendered here, so the router context is absent, as `useInRouterContext` reports it.
+// ScreensManager asks since eb0689c961 (the scan hint leaves the address through the router).
+vi.mock('react-router-dom', () => ({ useNavigate: () => () => {}, useInRouterContext: () => false }))
 vi.mock('../hooks/useScreenerMeta', () => ({ default: () => metaState }))
 vi.mock('../hooks/useScreenerScan', () => ({ default: scanMock }))
 vi.mock('../hooks/useSavedScreens', () => ({ default: () => SAVED }))

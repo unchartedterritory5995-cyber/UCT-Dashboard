@@ -9,6 +9,8 @@ Screener's own server files untouched; and no UCT weight or formula named in the
 """
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from api.services.uct_agent import turn
@@ -97,53 +99,165 @@ def test_no_order_asked_means_market_cap_desc_never_the_composite():
 
 
 #: The base the "member Screener untouched" rail diffs against, first one that resolves in THIS checkout:
-#: agent-ci fetches `origin/agent/int`; a master checkout has `origin/master`; a local clone may only carry `master`.
-DIFF_BASE_REFS = ("origin/agent/int", "origin/master", "master")
+#: ⛔ THE SCREENER AS LAST REVIEWED (AUDIT ruling, 2026-11-05). The guard used to diff against `agent/int`, a moving ref long
+#: behind master, so any branch that merged master read as an Agent edit. A pin keeps the guard meaningful: the member
+#: Screener's server code must match this commit exactly. Moving it is a review decision, made in the commit that changes
+#: that code on purpose, and that commit's message says why. This pin is #834's last Screener commit, ab52621501, which holds #827's primitives (920fdcc1bb) and #834's token test,
+#: `logic_enabled`, `live_fields` and clock definitions.
+#: The commit itself must be the pin, not its merge base: a merge base predates the reviewed change, and the guard would
+#: then report that very change.
+#: move this pin when a reviewed PR intentionally changes api/services/screener
+#: MOVED 2026-11-05 to be5fd05ea2, PR #857 (the Pine landing train): its reviewed W5-T14 (scans) and W5-T15 (backtest)
+#: lanes change backtest.py, scan_evaluator.py, scan_run.py and scan_runtime.py on purpose (reviews W5-T14 ab034f0d28,
+#: W5-T15 8550ef036b, train review 1eb3ba53e5). The pin is the merge commit that brought that reviewed change to master, and it also holds #834's ab52621501.
+#: MOVED 2026-11-06 to 3ca4b0d358, PR #869 (Pine W9 landing): its reviewed W9-T14a lane (review GO-WITH-NOTES, dsk/reviews/W9-T2.md)
+#: changes scan_evaluator.py and snapshot_builder.py on purpose (b6115e9b4d: one history window, bars_window.HISTORY_WINDOW_BARS;
+#: value still 5000, behaviour identical). The pin is the merge commit that brought it to master; it also holds be5fd05ea2.
+# Re-pinned 2026-11-07: the UCT Relative Strength programme (feat/uct-rs-phase2a) is the first
+# DELIBERATE Screener change since 3ca4b0d358 (W5-T14): seventeen RS columns, their filters,
+# starters and methodology. The pin is now that programme's last Screener commit (VA6), so the
+# guard keeps its meaning: the F16 Agent work must not touch the Screener after it.
+# Re-pinned again 2026-11-07 (RS go-live): the owner-delegated decisions (PR #913) change
+# rs_history.py (split guard, backfill), snapshot_db.py (the bars_rs receipt column) and
+# methodology.py on purpose. The pin is that work's last Screener commit; master changed no
+# Screener file since the RS branches split from it, so the go-live merge adds nothing here.
+# Re-pinned 2026-11-08 (UCT RS Phase 3, integration unit 3-14): the Phase 3 programme changes the
+# Screener on purpose, dark behind RS_V3_ENABLED: afc25422d7 (VA3, methodology's evidence sentence),
+# df1ffd8472 (3-10, the rrg_quadrant / clenow_score / vars_state collector in rs_columns.py,
+# snapshot_builder.py and snapshot_db.py), 30300b263e and fa88a026c5 (3-11, their filters and
+# methodology entries). The pin is that work's last Screener commit; master changed no Screener
+# file since the Phase 3 branch split from it.
+# Re-pinned 2026-11-08 (UCT RS Phase 4, integration unit 4-11): unit 4-01 changes snapshot_db.py on
+# purpose, dark behind RS_LISTS_ENABLED: status() gains the read-only `rs_lists` receipt
+# (deb8078927, `_rs_lists_last_run`, which reads rs_lists.last_run() and never raises). The pin is
+# that work's last Screener commit; no other Screener file changed since the Phase 3 pin.
+# Re-pinned 2026-11-08 (RS 9M component rank, landed via PR #961): 9c3f881e2c changes rs_history.py on
+# purpose (the 9M component rank in the rating history + a fill-only backfill mode). It is the only
+# Screener file changed since deb8078927 (`git diff --name-only deb8078927...origin/master -- <paths>`).
+# Re-pinned 2026-11-10 (Pine engine 44, VAR-OFF, PR #1017): e98a7ffa8e changes api/services/screener/scan_evaluator.py
+# on purpose (passes varOriginAbsolute so a scan on a `var` that began before the loaded bars is refused by name;
+# review GO-WITH-NOTES, dsk/reviews/VAR-OFF.md). The pin is the merge commit that brought it to master.
+# Re-pinned 2026-11-10 (Screener speed, batch speed-2): e1a715868b and 966bca5191 change query.py and snapshot_builder.py on
+# purpose (the stale-row gate is computed once per snapshot, and a failed read is never kept; results pinned equal; independently
+# reviewed). The pin is that work's last Screener commit; no other Screener file changed since d72c0e62f2.
+# Re-pinned 2026-11-10 (Anticipation preset, PR #1044): 54dabb6cb4 changes filters.py, saved_screens.py, snapshot_db.py
+# and technicals.py on purpose (the Anticipation built-in preset and the new nightly `min_volume_3d_prior` / MINV3.1
+# primitive). It is the only Screener commit since 966bca5191 (`git log 966bca5191..origin/master -- <paths>`). It left
+# master's deploy gate red; re-pinned by the desktop speed session to unblock every deploy behind it.
+# Re-pinned 2026-11-10 (live screener): 1a26d4ea00 changes live_tier.py, technicals.py and snapshot_db.py on
+# purpose (five more live columns, and the four live_base_* columns the nightly build now stores for them). It is
+# the only Screener commit since 54dabb6cb4; re-pinned in the same PR so master's deploy gate never goes red.
+# Re-pinned 2026-11-11 (UCT RS split, PR #1021): the RS work changes filters.py, snapshot_db.py, snapshot_builder.py,
+# methodology.py, identities.py and rs_history.py on purpose (Rank 9M column, picker-hidden RS columns, one RS Rating
+# everywhere). Every Screener commit since 1a26d4ea00 is that PR; pinned at its merge so master's deploy gate goes green.
+# Re-pinned 2026-11-10 (live overlay write): 823eef1ed9 changes snapshot_db.py and live_tier.py on purpose (multi-row
+# statements instead of executemany, the GIL convoy, and two timing fields). Re-pinned in the same PR; it contains the RS split above.
+# Re-pinned 2026-11-11 (live sweep cadence): 4b6891784e changes live_tier.py on purpose (30 s default cadence and the
+# rest that keeps a slow sweep from running back to back). Re-pinned in the same PR.
+# Re-pinned 2026-11-13 (RS Exit Warnings in the screener): 5540c75663 changes rs_columns.py, filters.py,
+# methodology.py, saved_screens.py, snapshot_db.py and identities.py on purpose (five rs_exit_* columns from the
+# chart's rsExit maths, their filters, starters and methodology). Re-pinned in the same PR.
+# Re-pinned again 2026-11-13: 494a406a7b changes filters.py on purpose (the three per-warning RS exit ages
+# marked agent_omit, short labels on the two the Agent keeps). Re-pinned in the same PR.
+# Re-pinned 2026-11-21 (fundamental trend filters): this change edits fund_trends.py (new), filters.py,
+# methodology.py, snapshot_builder.py and snapshot_db.py on purpose (eight point-in-time trend columns from SEC
+# filings, their filters, view and methodology). It was written uncommitted, so the pin moves to master's newest
+# Screener commit at the time, a9936b447a (#1964, the short-interest columns: finviz_universe.py, short_columns.py,
+# snapshot_builder.py); whoever commits this may move it to that commit (the rail reads pin...F16_HEAD, so either
+# is green). Re-pinned in the same PR.
+SCREENER_PIN = "a9936b447a18a0eb67b0bb910adfd479b9439397"
+SCREENER_PATHS = ("api/services/screener", "api/routers/screener.py", "api/routers/scan_results.py")
+# The F16 change set is immutable: #1029's own PR head (merged as 4dacc81529). The rail compares the pin against THIS commit,
+# never HEAD, so a later Screener change by another team (e.g. #1021, the RS split) can no longer turn master's deploy gate
+# red. It asks exactly what it claims: did the F16 work touch the member Screener's server code? Full id, never a ref.
+# `pin...F16_HEAD` diffs from their merge base (292983f4bc for both 1a26d4ea00 and 7c09a4d303), so re-pinning SCREENER_PIN
+# for later Screener PRs is no longer needed and does not change what this rail reads.
+F16_HEAD = "523fa4e0122dc614106c14fed9785395c7dd99cc"
 
 
-def _diff_base(refs=DIFF_BASE_REFS, run=None):
-    """The first ref in `refs` that `git rev-parse --verify` accepts, or None when none does (a shallow checkout
-    with no base ref, e.g. the master deploy gate's fetch-depth 2)."""
+def _diff_base(pin=SCREENER_PIN, run=None):
+    """The pin, or None when this checkout does not hold it (the master deploy gate fetches depth 2). `^{commit}` is what
+    checks the object exists: `rev-parse --verify` accepts any 40 hex digits otherwise, and the skip would never happen."""
     import subprocess
     run = run or subprocess.run
-    for ref in refs:
-        r = run(["git", "rev-parse", "--verify", "--quiet", ref], capture_output=True, text=True)
-        if r.returncode == 0:
-            return ref
-    return None
+    r = run(["git", "rev-parse", "--verify", "--quiet", pin + "^{commit}"], capture_output=True, text=True)
+    return pin if r.returncode == 0 else None
 
 
-def test_the_diff_base_is_the_first_ref_the_checkout_resolves(monkeypatch):
-    """Pins the fallback order: agent/int (agent-ci) before master (the gate), before a bare local `master`."""
+def _screener_diff(base, head=F16_HEAD, run=None):
     import subprocess
-    calls = []
+    run = run or subprocess.run
+    return run(["git", "diff", "--name-only", f"{base}...{head}", "--", *SCREENER_PATHS], capture_output=True, text=True)
 
-    def fake(cmd, **kw):
-        calls.append(cmd[-1])
-        return subprocess.CompletedProcess(cmd, 0 if cmd[-1] in present else 128, "", "fatal: bad revision")
 
-    present = {"origin/agent/int", "origin/master", "master"}
-    assert _diff_base(run=fake) == "origin/agent/int" and calls == ["origin/agent/int"]     # stops at the first hit
-    calls.clear(); present = {"origin/master", "master"}
-    assert _diff_base(run=fake) == "origin/master" and calls == ["origin/agent/int", "origin/master"]
-    calls.clear(); present = {"master"}
-    assert _diff_base(run=fake) == "master"
-    calls.clear(); present = set()
-    assert _diff_base(run=fake) is None
-    assert calls == ["origin/agent/int", "origin/master", "master"]              # every ref tried, in this order
+def _f16_verdict(base, head=F16_HEAD, run=None):
+    """The Screener files the F16 change set touched (empty = untouched). Raises when git itself failed."""
+    r = _screener_diff(base, head, run=run)
+    assert r.returncode == 0, r.stderr
+    return r.stdout.split()
+
+
+def test_the_diff_base_is_the_pin_when_the_checkout_holds_it():
+    import subprocess
+
+    def fake(code):
+        return lambda cmd, **kw: subprocess.CompletedProcess(cmd, code, "", "")
+    assert _diff_base(run=fake(0)) == SCREENER_PIN
+    assert _diff_base(run=fake(128)) is None
+    assert re.fullmatch(r"[0-9a-f]{40}", SCREENER_PIN), "a full commit id, never a ref that can move"
+
+
+def test_a_pin_this_checkout_does_not_hold_is_not_taken_for_a_commit():
+    assert _diff_base(pin="0" * 40) is None
 
 
 def test_the_member_screeners_own_server_code_is_untouched_by_the_F16_work():
-    import subprocess
     base = _diff_base()
     if base is None:
-        # A shallow checkout with no base ref (the master deploy gate fetches depth 2 and no agent/int) cannot carry
-        # this comparison at all; a skip is the honest reading there. agent-ci fetches the ref and runs it for real.
-        pytest.skip("no base ref in this checkout (none of %s resolves)" % ", ".join(DIFF_BASE_REFS))
-    r = subprocess.run(["git", "diff", "--name-only", f"{base}...HEAD", "--", "api/services/screener",
-                        "api/routers/screener.py", "api/routers/scan_results.py"], capture_output=True, text=True)
+        # A shallow checkout without the pin (the master deploy gate fetches depth 2) cannot carry this comparison at
+        # all; a skip is the honest reading there. agent-ci fetches full history and runs it for real.
+        pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
+    if _diff_base(pin=F16_HEAD) is None:
+        pytest.skip("the F16 head %s is not in this checkout" % F16_HEAD)
+    assert _f16_verdict(base) == []
+
+
+def test_the_rail_compares_against_the_fixed_F16_head_never_HEAD():
+    import subprocess
+    seen = []
+
+    def spy(cmd, **kw):
+        seen.append(cmd)
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+    assert _f16_verdict(SCREENER_PIN, run=spy) == []
+    assert seen[0][3] == f"{SCREENER_PIN}...{F16_HEAD}", seen
+    assert re.fullmatch(r"[0-9a-f]{40}", F16_HEAD), "a full commit id, never a ref that can move"
+
+
+def test_CONTROL_the_rail_fails_if_the_F16_head_had_touched_a_screener_file():
+    """CONTROL: a fake diff that names a Screener file must turn the rail's verdict non-empty (the assertion would fail)."""
+    import subprocess
+
+    def touched(cmd, **kw):
+        return subprocess.CompletedProcess(cmd, 0, "api/services/screener/filters.py\n", "")
+    verdict = _f16_verdict(SCREENER_PIN, run=touched)
+    assert verdict == ["api/services/screener/filters.py"]
+    with pytest.raises(AssertionError):
+        assert verdict == []
+
+    def broken(cmd, **kw):
+        return subprocess.CompletedProcess(cmd, 128, "", "fatal: bad revision")
+    with pytest.raises(AssertionError):  # a git failure is never read as "untouched"
+        _f16_verdict(SCREENER_PIN, run=broken)
+
+
+def test_the_guard_can_say_no():
+    """CONTROL, on real history: the pinned commit changed the Screener, so the same diff across it must name a file."""
+    if _diff_base() is None:
+        pytest.skip("the pinned commit %s is not in this checkout" % SCREENER_PIN)
+    r = _screener_diff(SCREENER_PIN + "~1", SCREENER_PIN)
     assert r.returncode == 0, r.stderr
-    assert r.stdout.strip() == "", r.stdout
+    assert "api/services/screener/short_columns.py" in r.stdout.split()  # a file the pinned commit changed (#1964)
 
 
 def test_no_UCT_weight_or_formula_is_named_in_the_models_instructions():

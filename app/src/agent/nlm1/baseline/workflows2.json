@@ -1,0 +1,1081 @@
+{
+ "version": 1,
+ "about": "NLM-1 D2/D3.1 GENERALISATION set — written by the nlm1 track AFTER AUDIT's sealed-set categories (no sealed texts seen): (a) in-plan multi-step, (b) quantifier / position follow-ups, (c) revert follow-ups, (d) additive follow-ups, (e) removal by position, (f) Undo after a follow-up removal. Same format and gates as workflows.json (final workspace state + Undo, modelTurns 0). `canonical`: the scripted plan a correct planner would return for a step no deterministic reader takes (NLM1_WF_MODE=planner). NLM1_WF_MODE=planner replays each step that has a canonical plan with that plan as the model answer (faithful, through the real panel) and checks the step routes against routing v2: it separates no-deterministic-reader from wrong routing / binding.",
+ "workflows": [
+  {
+   "id": "G-a1.two-new-charts-both-with-rsi",
+   "cat": "a",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add AMD and QQQ charts, both with RSI",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "has": [
+         "rsi"
+        ]
+       },
+       "QQQ": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     },
+     "canonical": {
+      "ops": [
+       {
+        "action": "widget.add",
+        "target": "$workspace",
+        "args": {
+         "type": "chart",
+         "as": "new1"
+        }
+       },
+       {
+        "action": "chart.setSymbol",
+        "target": "new1",
+        "args": {
+         "symbol": "AMD"
+        }
+       },
+       {
+        "action": "widget.add",
+        "target": "$workspace",
+        "args": {
+         "type": "chart",
+         "as": "new2"
+        }
+       },
+       {
+        "action": "chart.setSymbol",
+        "target": "new2",
+        "args": {
+         "symbol": "QQQ"
+        }
+       },
+       {
+        "action": "indicator.add",
+        "target": "new1",
+        "args": {
+         "defId": "rsi",
+         "inputs": null
+        }
+       },
+       {
+        "action": "indicator.add",
+        "target": "new2",
+        "args": {
+         "defId": "rsi",
+         "inputs": null
+        }
+       }
+      ],
+      "routes": [
+       "widget.add",
+       "chart.setSymbol",
+       "indicator.add"
+      ]
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-a2.new-chart-then-weekly",
+   "cat": "a",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "open a TSLA chart, then change it to weekly",
+     "expect": {
+      "bySymbol": {
+       "TSLA": {
+        "tf": "W"
+       },
+       "NVDA": {
+        "tf": "D"
+       }
+      },
+      "modelTurns": 0
+     },
+     "canonical": {
+      "ops": [
+       {
+        "action": "widget.add",
+        "target": "$workspace",
+        "args": {
+         "type": "chart",
+         "as": "new1"
+        }
+       },
+       {
+        "action": "chart.setSymbol",
+        "target": "new1",
+        "args": {
+         "symbol": "TSLA"
+        }
+       },
+       {
+        "action": "chart.setTimeframe",
+        "target": "new1",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "routes": [
+       "widget.add",
+       "chart.setSymbol",
+       "chart.setTimeframe"
+      ]
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-a3.two-new-charts-second-weekly",
+   "cat": "a",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add charts for AMD and QQQ and make the second one weekly",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "tf": "D"
+       },
+       "QQQ": {
+        "tf": "W"
+       }
+      },
+      "modelTurns": 0
+     },
+     "canonical": {
+      "ops": [
+       {
+        "action": "widget.add",
+        "target": "$workspace",
+        "args": {
+         "type": "chart",
+         "as": "new1"
+        }
+       },
+       {
+        "action": "chart.setSymbol",
+        "target": "new1",
+        "args": {
+         "symbol": "AMD"
+        }
+       },
+       {
+        "action": "widget.add",
+        "target": "$workspace",
+        "args": {
+         "type": "chart",
+         "as": "new2"
+        }
+       },
+       {
+        "action": "chart.setSymbol",
+        "target": "new2",
+        "args": {
+         "symbol": "QQQ"
+        }
+       },
+       {
+        "action": "chart.setTimeframe",
+        "target": "new2",
+        "args": {
+         "timeframe": "W"
+        }
+       }
+      ],
+      "routes": [
+       "widget.add",
+       "chart.setSymbol",
+       "chart.setTimeframe"
+      ]
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-a4.new-chart-two-indicators",
+   "cat": "a",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add a chart for AMD then add RSI and MACD to it",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "has": [
+         "rsi",
+         "macd"
+        ]
+       },
+       "NVDA": {
+        "hasNot": [
+         "rsi",
+         "macd"
+        ]
+       }
+      },
+      "modelTurns": 0
+     },
+     "canonical": {
+      "ops": [
+       {
+        "action": "widget.add",
+        "target": "$workspace",
+        "args": {
+         "type": "chart",
+         "as": "new1"
+        }
+       },
+       {
+        "action": "chart.setSymbol",
+        "target": "new1",
+        "args": {
+         "symbol": "AMD"
+        }
+       },
+       {
+        "action": "indicator.add",
+        "target": "new1",
+        "args": {
+         "defId": "rsi",
+         "inputs": null
+        }
+       },
+       {
+        "action": "indicator.add",
+        "target": "new1",
+        "args": {
+         "defId": "macd",
+         "inputs": null
+        }
+       }
+      ],
+      "routes": [
+       "widget.add",
+       "chart.setSymbol",
+       "indicator.add"
+      ]
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-a5.tickers-shared-indicator",
+   "cat": "a",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "give me AMD and META charts with the 21 ema on each",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "ma": [
+         21
+        ]
+       },
+       "META": {
+        "ma": [
+         21
+        ]
+       }
+      },
+      "modelTurns": 0
+     },
+     "canonical": {
+      "ops": [
+       {
+        "action": "widget.add",
+        "target": "$workspace",
+        "args": {
+         "type": "chart",
+         "as": "new1"
+        }
+       },
+       {
+        "action": "chart.setSymbol",
+        "target": "new1",
+        "args": {
+         "symbol": "AMD"
+        }
+       },
+       {
+        "action": "widget.add",
+        "target": "$workspace",
+        "args": {
+         "type": "chart",
+         "as": "new2"
+        }
+       },
+       {
+        "action": "chart.setSymbol",
+        "target": "new2",
+        "args": {
+         "symbol": "META"
+        }
+       },
+       {
+        "action": "indicator.add",
+        "target": "new1",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": [
+          {
+           "key": "period",
+           "value": 21
+          },
+          {
+           "key": "maType",
+           "value": "ema"
+          }
+         ]
+        }
+       },
+       {
+        "action": "indicator.add",
+        "target": "new2",
+        "args": {
+         "defId": "movingAverage",
+         "inputs": [
+          {
+           "key": "period",
+           "value": 21
+          },
+          {
+           "key": "maType",
+           "value": "ema"
+          }
+         ]
+        }
+       }
+      ],
+      "routes": [
+       "widget.add",
+       "chart.setSymbol",
+       "indicator.add"
+      ]
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "restored": true,
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-b1.other-three-too",
+   "cat": "b",
+   "board": "FOUR",
+   "steps": [
+    {
+     "say": "make the top left chart weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D",
+        "D",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "and the other three too",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W",
+        "W",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D",
+        "D",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-b2.now-the-bottom-two",
+   "cat": "b",
+   "board": "FOUR",
+   "steps": [
+    {
+     "say": "add rsi to the top left chart",
+     "expect": {
+      "bySymbol": {
+       "SPY": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "now the bottom two",
+     "expect": {
+      "bySymbol": {
+       "NVDA": {
+        "has": [
+         "rsi"
+        ]
+       },
+       "TSLA": {
+        "has": [
+         "rsi"
+        ]
+       },
+       "QQQ": {
+        "hasNot": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-b3.first-one-of-new",
+   "cat": "b",
+   "board": "HALF",
+   "steps": [
+    {
+     "say": "add charts for AMD and QQQ",
+     "expect": {
+      "charts": {
+       "symbolSet": [
+        "NVDA",
+        "AMD",
+        "QQQ"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "make the first one weekly",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "tf": "W"
+       },
+       "QQQ": {
+        "tf": "D"
+       },
+       "NVDA": {
+        "tf": "D"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-b4.and-the-first-one",
+   "cat": "b",
+   "board": "FOUR",
+   "steps": [
+    {
+     "say": "put the 21 ema on the bottom right chart",
+     "expect": {
+      "bySymbol": {
+       "TSLA": {
+        "ma": [
+         21
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "and the first one",
+     "expect": {
+      "bySymbol": {
+       "SPY": {
+        "ma": [
+         21
+        ]
+       },
+       "QQQ": {
+        "noMa": [
+         21
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-b5.for-the-other-one-too",
+   "cat": "b",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "make the left chart weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "for the other one too",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-b6.top-two-then-bottom-two",
+   "cat": "b",
+   "board": "FOUR",
+   "steps": [
+    {
+     "say": "add macd to the top left chart",
+     "expect": {
+      "bySymbol": {
+       "SPY": {
+        "has": [
+         "macd"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "same for the other two on the bottom",
+     "expect": {
+      "bySymbol": {
+       "NVDA": {
+        "has": [
+         "macd"
+        ]
+       },
+       "TSLA": {
+        "has": [
+         "macd"
+        ]
+       },
+       "QQQ": {
+        "hasNot": [
+         "macd"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-c1.back-to-daily",
+   "cat": "c",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "make it weekly",
+     "expect": {
+      "charts": {
+       "tf": "W"
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "back to daily",
+     "expect": {
+      "charts": {
+       "tf": "D"
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-c2.right-one-back-to-daily",
+   "cat": "c",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "make both charts weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "put the right one back to daily",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "D"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-c3.put-the-first-one-back",
+   "cat": "c",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "make both charts weekly",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "W",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "put the first one back",
+     "expect": {
+      "charts": {
+       "tfs": [
+        "D",
+        "W"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-c4.back-to-previous-symbol",
+   "cat": "c",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "switch to AMD",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "AMD"
+       ]
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "go back to NVDA",
+     "expect": {
+      "charts": {
+       "symbols": [
+        "NVDA"
+       ]
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-c5.back-to-previous-timeframe",
+   "cat": "c",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "switch to the monthly",
+     "expect": {
+      "charts": {
+       "tf": "M"
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "go back to the previous timeframe",
+     "expect": {
+      "charts": {
+       "tf": "D"
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-d1.and-macd-too",
+   "cat": "d",
+   "board": "ONE",
+   "steps": [
+    {
+     "say": "add rsi",
+     "expect": {
+      "bySymbol": {
+       "NVDA": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "and macd too",
+     "expect": {
+      "bySymbol": {
+       "NVDA": {
+        "has": [
+         "rsi",
+         "macd"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-d2.and-the-50-sma-too-same-chart",
+   "cat": "d",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "add the 21 ema to the right chart",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "ma": [
+         21
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "and the 50 sma too",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "ma": [
+         21,
+         50
+        ]
+       },
+       "NVDA": {
+        "noMa": [
+         50
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-d3.put-that-on-ticker-as-well",
+   "cat": "d",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "add rsi to the left chart",
+     "expect": {
+      "bySymbol": {
+       "NVDA": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "put that on AMD as well",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-d4.do-that-to-ticker",
+   "cat": "d",
+   "board": "FOUR",
+   "steps": [
+    {
+     "say": "make the SPY chart weekly",
+     "expect": {
+      "bySymbol": {
+       "SPY": {
+        "tf": "W"
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "do that to NVDA as well",
+     "expect": {
+      "bySymbol": {
+       "NVDA": {
+        "tf": "W"
+       },
+       "QQQ": {
+        "tf": "D"
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-e1.remove-it-from-the-right-one",
+   "cat": "e",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "add rsi to both charts",
+     "expect": {
+      "bySymbol": {
+       "NVDA": {
+        "has": [
+         "rsi"
+        ]
+       },
+       "AMD": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "remove it from the right one",
+     "approve": true,
+     "afterApprove": {
+      "bySymbol": {
+       "NVDA": {
+        "has": [
+         "rsi"
+        ]
+       },
+       "AMD": {
+        "hasNot": [
+         "rsi"
+        ]
+       }
+      }
+     },
+     "expect": {
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-e2.remove-it-from-the-bottom-two",
+   "cat": "e",
+   "board": "FOUR",
+   "steps": [
+    {
+     "say": "add the 21 ema to all charts",
+     "expect": {
+      "bySymbol": {
+       "SPY": {
+        "ma": [
+         21
+        ]
+       },
+       "TSLA": {
+        "ma": [
+         21
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "take it off the bottom two",
+     "approve": true,
+     "afterApprove": {
+      "bySymbol": {
+       "SPY": {
+        "ma": [
+         21
+        ]
+       },
+       "QQQ": {
+        "ma": [
+         21
+        ]
+       },
+       "NVDA": {
+        "noMa": [
+         21
+        ]
+       },
+       "TSLA": {
+        "noMa": [
+         21
+        ]
+       }
+      }
+     },
+     "expect": {
+      "modelTurns": 0
+     }
+    }
+   ]
+  },
+  {
+   "id": "G-f1.undo-after-removal",
+   "cat": "f",
+   "board": "TWO",
+   "steps": [
+    {
+     "say": "add rsi to both charts",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "remove it from the right one",
+     "approve": true,
+     "afterApprove": {
+      "bySymbol": {
+       "AMD": {
+        "hasNot": [
+         "rsi"
+        ]
+       }
+      }
+     },
+     "expect": {
+      "modelTurns": 0
+     }
+    },
+    {
+     "say": "undo",
+     "expect": {
+      "bySymbol": {
+       "AMD": {
+        "has": [
+         "rsi"
+        ]
+       },
+       "NVDA": {
+        "has": [
+         "rsi"
+        ]
+       }
+      },
+      "modelTurns": 0
+     }
+    }
+   ]
+  }
+ ]
+}

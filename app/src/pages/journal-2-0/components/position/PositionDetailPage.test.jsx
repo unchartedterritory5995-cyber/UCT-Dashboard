@@ -176,7 +176,7 @@ describe('PositionDetailPage — cross-link actions (Full Research / Ask AI / Co
 
   it('Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)', () => {
     renderPage()
-    fireEvent.click(screen.getByRole('button', { name: /ask ai/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ask the uct agent/i }))
     expect(navigateMock).toHaveBeenCalledWith('/research/AAPL?section=ai&from=position%3AAAPL')
   })
 

@@ -203,10 +203,26 @@ def _string_constants(path: pathlib.Path) -> set:
 
 def _identifiers_and_strings(source: str) -> list:
     """Every place a starter could hide in a module: names, attributes, arguments,
-    keywords and string constants (a column name lives inside a SQL string)."""
+    keywords and string constants (a column name lives inside a SQL string).
+
+    ⛔ CODE, NEVER PROSE: a docstring is a string constant too, and it is where a module
+    EXPLAINS itself. On 2026-11-15 this census went red on the word "starter" inside
+    `user_definitions.py`'s docstring for the runtime-lane door, a sentence about what the
+    code does not do. Docstrings are dropped before the walk; a string the code USES is kept
+    (`test_the_writer_census_is_NOT_VACUOUS` plants both)."""
     tree = pyast.parse(source)
+    prose = set()
+    for node in pyast.walk(tree):
+        if isinstance(node, (pyast.Module, pyast.FunctionDef, pyast.AsyncFunctionDef, pyast.ClassDef)):
+            body = getattr(node, "body", None) or []
+            first = body[0] if body else None
+            if (isinstance(first, pyast.Expr) and isinstance(first.value, pyast.Constant)
+                    and isinstance(first.value.value, str)):
+                prose.add(id(first.value))
     out: list[str] = []
     for node in pyast.walk(tree):
+        if id(node) in prose:
+            continue
         if isinstance(node, pyast.Name):
             out.append(node.id)
         elif isinstance(node, pyast.Attribute):
@@ -326,6 +342,17 @@ def test_the_writer_census_is_NOT_VACUOUS():
     assert any("starter" in h for h in hits)
     assert any("builtin" in h for h in hits)
     assert any("curated" in h for h in hits)
+    # …and a docstring that merely SAYS the word is prose, not a branch, while the same word
+    # in a string the code uses is still found.
+    prose_only = (
+        '"""No starter flag lives here."""\n'
+        "def save(user_id):\n"
+        '    """A starter is saved like anything else."""\n'
+        "    return user_id\n"
+    )
+    assert _special_hits(prose_only) == []
+    used = prose_only + "KIND = 'starter'\n"
+    assert any("starter" in h for h in _special_hits(used))
 
 
 # =============================================================================

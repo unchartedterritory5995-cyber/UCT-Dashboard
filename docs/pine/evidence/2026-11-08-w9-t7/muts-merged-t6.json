@@ -1,0 +1,154 @@
+{
+ "control": "Tests  85 passed (85)",
+ "results": [
+  {
+   "mutant": "M1 trail best never ratchets",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 5 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M2 trail best starts at the entry price",
+   "status": "SURVIVED",
+   "rail": "Tests  85 passed (85)"
+  },
+  {
+   "mutant": "M3 activation check accepts any level",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M4 sl + trail served",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M5 reservation ignores the other exits",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M6 exit-once memory dropped",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M7 percent rounding refusal dropped (exit)",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M8 partial close takes the percent of the whole position",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M9 FIFO allowed-check dropped",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M10 oca.cancel is a no-op",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M11 oca.reduce does not reduce",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M12 strategy.order routed as an entry",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M13 order overshoot refusal dropped",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M14 immediately fills at the open",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M15 read-after-immediate refusal dropped",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M16 stop-limit becomes a limit at the STOP",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M17 stop-limit limit-beyond-stop refusal dropped",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M18 v6 exit levels take the farther level",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M19 v5 exit levels take the distance",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M20 B-TRAIL never asked at the call",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M21 B-ORDER never asked at placement",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M22 B-OCA never asked",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M23 FE: oca.cancel read as reduce",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M24 exit oca_name accepted at build",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M26 second full exit reserved even while B-EXIT-QTY is unpinned",
+   "status": "NOT APPLIED (matched 0)"
+  },
+  {
+   "mutant": "M27 S1 fallback taken even when B-EXIT-QTY is pinned",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 7 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M28 T7 kinds served under POC / calc_on_order_fills",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 10 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M29 T6 tick routine closes whole trades again",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 4 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M30 trail best ignores the open",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M25 partial exit closes the whole trade",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 4 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  }
+ ]
+}

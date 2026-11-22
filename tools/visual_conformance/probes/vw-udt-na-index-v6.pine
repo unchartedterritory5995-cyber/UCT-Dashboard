@@ -1,0 +1,18 @@
+//@version=6
+indicator("vw-udt-na-index-v6", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit for queue row UDT-N1
+// (docs/pine/capture-queue-2026-11-16-udt.md), the v6 twin of vw-uie3-na-index-v4.pine (Q-UIE3a). No licence-held
+// text. A runtime error IS the reading (record its text and the bar it names).
+// QUESTION: `array.get` at an `na` index in v6. The runtime lane serves `na` there since the UDT unit: v4 is
+// measured (vw-uie3-na-index-v4-spy-1d-2026-11-16, N03 `na` on every bar), and in v6
+// bollinger-band-width-percentile ran on through the same call on its first bars; but there the value coloured an
+// `na` point, so the v6 VALUE is asked here: `na` (N01 plots nothing), the first element (10), or an error?
+// N01 reaches the index through `math.round` of a float `na`, N03 through an `int` variable holding `na`.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults (none), AFTER THE CLOSE. A00 is the control.
+plot(bar_index, "A00_bar_index_CONTROL")
+a = array.from(10.0, 20.0)
+float nothing = na
+plot(array.get(a, math.round(nothing)), "N01_get_at_round_of_na")
+int ni = na
+plot(array.get(a, ni), "N03_get_at_an_int_na")

@@ -6,6 +6,7 @@
 // overlay/toolbar wiring need zero changes.
 import { useCallback, useSyncExternalStore } from 'react'
 import * as drawingsStore from './drawingsStore'
+import { stampTimeBase, toRawUnixView } from './drawingTimeBase'
 
 const NOOP_UNSUBSCRIBE = () => {}
 
@@ -22,10 +23,13 @@ export default function useChartDrawings(sym) {
   const snap = useSyncExternalStore(subscribe, getSnapshot)
 
   // Mutations delegate to the store (all no-ops on falsy sym, store-side).
-  const addDrawing = useCallback((d) => drawingsStore.addDrawing(sym, d), [sym])
+  // ONE time base on every chart write (drawingTimeBase.js): legacy Agent chart-time points become
+  // raw unix and a numeric-point drawing is stamped `tb:'unix'`. Here (the chart's write door), not
+  // in drawingsStore: the store sits in the Notebook's first-open chunk set (bytes budget).
+  const addDrawing = useCallback((d) => drawingsStore.addDrawing(sym, stampTimeBase(toRawUnixView([d])[0])), [sym])
   const removeDrawing = useCallback((id) => drawingsStore.removeDrawing(sym, id), [sym])
   const updateDrawing = useCallback(
-    (id, updates, opts) => drawingsStore.updateDrawing(sym, id, updates, opts),
+    (id, updates, opts) => drawingsStore.updateDrawing(sym, id, stampTimeBase(updates), opts),
     [sym],
   )
   const clearAll = useCallback(() => drawingsStore.clearAll(sym), [sym])

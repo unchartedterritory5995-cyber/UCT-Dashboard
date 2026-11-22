@@ -1,0 +1,96 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-10T23:52:00Z
+tree: /c/w/pl-auto-remeasure HEAD 0188c97815e1c9a5a96aa0c1d07d48d8640d846f (measured master 69ab78db82dec1ebeb242e3ecf7edfaf63b978a4)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/qa/chartsOutcome/etfHoldings.outcome.test.jsx --reporter=default --reporter=json
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[suite-lock] all 2 slots busy (pl-grid, pl-exec); waiting 15s
+[bn] free memory GB: 37.4
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/etfHoldings.outcome.test.jsx[2m > [22m[2mC3-219: the chart's View Holdings button, through its door[2m > [22m[2m"show me the holdings of the ETF on my chart" (SMH): the button's panel opens; Undo closes it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/etfHoldings.outcome.test.jsx[2m > [22m[2mC3-219: the chart's View Holdings button, through its door[2m > [22m[2m"pull up the View Holdings window on this chart" (SMH): the button's panel opens; Undo closes it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/etfHoldings.outcome.test.jsx[2m > [22m[2mC3-219: the chart's View Holdings button, through its door[2m > [22m[2m"pull up the View Holdings window on this chart" (SMH): the button's panel opens; Undo closes it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+[90mstderr[2m | src/agent/qa/chartsOutcome/etfHoldings.outcome.test.jsx[2m > [22m[2mC3-219: the chart's View Holdings button, through its door[2m > [22m[2m"open the fund holdings for the chart" (SMH): the button's panel opens; Undo closes it
+[22m[39mAn update to Live inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ [32m✓[39m src/agent/qa/chartsOutcome/etfHoldings.outcome.test.jsx [2m([22m[2m6 tests[22m[2m)[22m[33m 5435[2mms[22m[39m
+     [33m[2m✓[22m[39m "show me the holdings of the ETF on my chart" (SMH): the button's panel opens; Undo closes it [33m 1637[2mms[22m[39m
+     [33m[2m✓[22m[39m "pull up the View Holdings window on this chart" (SMH): the button's panel opens; Undo closes it [33m 1265[2mms[22m[39m
+     [33m[2m✓[22m[39m "open the fund holdings for the chart" (SMH): the button's panel opens; Undo closes it [33m 1223[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE on a plain stock (NVDA): refused with the reason, nothing opens [33m 1039[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m   Start at [22m 18:58:33
+[2m   Duration [22m 18.09s[2m (transform 8.35s, setup 396ms, import 11.24s, tests 5.44s, environment 819ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-1/packet/etfHoldings.outcome.test.json
+# exit=0 end 23:58:51Z

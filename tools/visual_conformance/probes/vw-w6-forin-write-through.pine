@@ -1,0 +1,26 @@
+//@version=6
+indicator("vw-w6-forin-write-through")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row W6-F1 of
+// docs/pine/capture-queue-2026-11-06-w6-t6.md, whose shapes are W6-BREAKDOWN.md section 6's W6-F1 row
+// (branch docs/pine-w6-breakdown): "`for [i, x]` over an `array<Foo>` with a field write through `x`".
+// One shape of W6-F1 per file. No licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: a field write through the loop variable `x` of a `for [i, x]` walk over records: does the record in
+// the list change (Pine records are references)? `foos` is `var`, so a change accumulates bar to bar.
+// Our runtime lane refuses it by name: "the body writes the loop variable `x` or through it" (W6-F1).
+// A00 is the control.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults.
+
+type Foo
+    float v
+
+plot(bar_index, "A00_bar_index_CONTROL")
+var array<Foo> foos = array.from(Foo.new(1.0), Foo.new(2.0), Foo.new(3.0))
+
+for [i, x] in foos
+    x.v := x.v + i
+
+plot(array.get(foos, 0).v, "W01_foo0_v")
+plot(array.get(foos, 1).v, "W02_foo1_v")
+plot(array.get(foos, 2).v, "W03_foo2_v")

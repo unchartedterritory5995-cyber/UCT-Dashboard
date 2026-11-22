@@ -1,4 +1,4 @@
-// app/src/pages/CalendarRender.jsx — headless, token-gated earnings-calendar export.
+// app/src/pages/CalendarRender.jsx — headless earnings-calendar export.
 //
 // Renders a compact "This Week's Earnings" panel (notable names per day, by market
 // cap) for the Morning Wire → Substack newsletter, mirroring the dashboard Calendar
@@ -6,14 +6,13 @@
 // screenshots #panel-export.
 //
 // Public route (no AuthGuard). /api/calendar and /api/ticker-logo are already
-// public — no token needed for data — but ?token= is still checked against
-// VITE_CHART_RENDER_TOKEN to keep the page out of casual reach.
+// public, so no token is needed for data and the page makes no token check of
+// its own.
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
-import { renderTokenOk } from '../lib/renderToken'
 const PER_SESSION = 4  // notable names per BMO/AMC per day
 
 const SESS = {
@@ -131,7 +130,6 @@ const etToday = () => {
 
 export default function CalendarRender() {
   const [sp] = useSearchParams()
-  const token = sp.get('token') || ''
   const w = Math.min(1200, Math.max(560, parseInt(sp.get('w') || '900', 10)))
   // from=today (newsletter default): drop past days and extend into next week —
   // a Friday letter shows Fri + Mon + Tue, not the Wed/Thu that already reported.
@@ -150,7 +148,6 @@ export default function CalendarRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
     const jobs = [fetch('/api/calendar').then((r) => (r.ok ? r.json() : Promise.reject(r.status)))]
     if (fromToday) {
       const nextMon = new Date()
@@ -164,7 +161,7 @@ export default function CalendarRender() {
     Promise.all(jobs)
       .then(([cur, next]) => setData({ days: { ...(cur?.days || {}), ...((next && next.days) || {}) } }))
       .catch(() => setErr('data unavailable'))
-  }, [token, fromToday])
+  }, [fromToday])
 
   useEffect(() => {
     if (data == null) return

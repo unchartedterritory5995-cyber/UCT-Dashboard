@@ -236,6 +236,9 @@ def test_attempt_scores_server_side_and_reveals_after(paid_client, store):
         last = paid_client.post("/api/study/attempts", json={"item_id": iid, "answer": "x",
                                                              "session_id": today["session_id"]}).json()
     assert last["progress"]["streak"] == 1 and last["progress"]["daily_done"] is True
+    # the first finished set earns its trophy, once (award_badge had never been called before 2026-11-08)
+    assert "first_set" in last["progress"]["badges_new"]
+    assert [b["badge_id"] for b in paid_client.get("/api/study/profile").json()["badges"]].count("first_set") == 1
     assert paid_client.get("/api/study/today").json()["finished_at"]
 
 
@@ -510,3 +513,62 @@ def test_an_attempt_posted_in_the_drills_choice_shape_scores_right(paid_client, 
     assert ok["correct"] is True and ok["score"] == 1.0
     bad = paid_client.post("/api/study/attempts", json={"item_id": "si_spot2", "answer": {"choice": "yes"}}).json()
     assert bad["correct"] is False
+
+
+def test_a_lesson_set_shows_each_charts_ticker_and_a_challenge_set_does_not(paid_client, store):
+    """The owner, 2026-11-08 ("Yes"): the lesson's question card shows the ticker before answering. Today's lesson and a
+    practise set marked `lesson` carry it; a challenge's skill set (Hard mode, Boss, Blitz) never does."""
+    _seed(store)
+    today = paid_client.get("/api/study/today").json()["items"]
+    charts = [i for i in today if i.get("has_chart")]
+    assert charts and all(i.get("ticker") for i in charts)
+    practise = paid_client.post("/api/study/sessions", json={"kind": "free", "lesson": True}).json()["items"]
+    assert all(i.get("ticker") for i in practise if i.get("has_chart"))
+    challenge = paid_client.post("/api/study/sessions", json={"kind": "free"}).json()["items"]
+    assert challenge and all("ticker" not in i for i in challenge)
+
+
+def test_a_course_chart_keeps_its_ticker_until_the_answer(paid_client, store):
+    """2026-11-14: a course chart is a dated real example (NVDA 2023), so its ticker would give the outcome away; it is
+    left out of the lesson set (prompt_json.chart.hide_ticker) and the answer's reveal names it."""
+    _seed(store)
+    store.upsert_items([{"id": "si_course1", "type": "scenario", "skill_id": "setup.vcp", "difficulty": 1, "bars_ref": "sb_course1",
+                         "sym": "NVDA", "asof": "2024-05-20", "source_kind": "course", "source_ref": "SET.12#q1",
+                         "prompt_json": {"q": "Take it?", "choices": ["a", "b"], "chart": {"window_bars": 320, "visible_bars": 120,
+                                                                                           "tf": "D", "forward_bars": 20, "hide_ticker": True}},
+                         "answer_json": {"answer": "a"}, "reveal_json": {"why": "x"}}])
+    store.upsert_bars("sb_course1", "D", VIS, FWD)
+    store.approve("si_course1", "owner")
+    items = []
+    for _ in range(6):   # the free set draws a few items at random: look until the course item comes up
+        items = paid_client.post("/api/study/sessions", json={"kind": "free", "lesson": True}).json()["items"]
+        if any(i["id"] == "si_course1" for i in items):
+            break
+    course = [i for i in items if i["id"] == "si_course1"]
+    assert course and course[0].get("ticker") is None
+    assert all(i.get("ticker") for i in items if i.get("has_chart") and i["id"] != "si_course1")
+    r = paid_client.post("/api/study/attempts", json={"item_id": "si_course1", "answer": {"choice": "a"}}).json()
+    assert r["reveal"]["sym"] == "NVDA"
+
+
+# ── authored course units stay hidden until approved (docs/study/courses/README.md, 2026-11-08) ──────────────────
+
+def test_member_map_hides_authored_units_until_one_item_is_approved(monkeypatch, paid_client):
+    fake = {"curricula": [{"id": "foundations", "tracks": [
+        {"id": "F1", "units": [
+            {"id": "F1.03", "skills": ["basics.spread"], "supply": "authored"},
+            {"id": "F1.04", "skills": ["basics.volume"], "supply": "authored"},
+        ]},
+        {"id": "F2", "units": [{"id": "F2.01", "skills": ["vocab.chart"], "supply": "thin"}]},
+    ]}]}
+    monkeypatch.setattr(study_router, "_skill_map", lambda: fake)
+    monkeypatch.setattr(ss, "review_sections", lambda: [
+        {"skill_id": "basics.spread", "approved": 3, "draft": 20},
+        {"skill_id": "basics.volume", "approved": 0, "draft": 18},
+    ])
+    r = paid_client.get("/api/study/map")
+    assert r.status_code == 200
+    tracks = {t["id"]: t for t in r.json()["map"]["curricula"][0]["tracks"]}
+    assert [u["id"] for u in tracks["F1"]["units"]] == ["F1.03"]          # F1.04: drafts only, hidden
+    assert [u["id"] for u in tracks["F2"]["units"]] == ["F2.01"]          # not authored: untouched, even with 0
+    assert [u["id"] for u in fake["curricula"][0]["tracks"][0]["units"]] == ["F1.03", "F1.04"]  # the file is not mutated

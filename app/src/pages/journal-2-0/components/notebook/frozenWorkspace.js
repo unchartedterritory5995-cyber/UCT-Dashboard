@@ -28,12 +28,17 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
   return {
     groupSyms: { A: symbol, B: symbol, C: symbol, D: symbol },
     setGroupSym: () => {},
+    // No group-symbol store: a frozen capture's symbols never change, so `groupSyms` above is
+    // read as is (useWorkspace subscribes a render only to a live board's store).
+    groupSymsStore: null,
     // A frozen capture has no live chart to follow, so the broadcast timeframe
     // is pinned to the seed and the publisher is inert like every other write
     // above. (Enumerated, not left to the FALLBACK — that is the trap this
     // file's build rule names.)
     groupTfs: { A: 'D', B: 'D', C: 'D', D: 'D' },
     setGroupTf: () => {},
+    groupTfSets: {},
+    registerGroupTf: () => () => {},
     chartsTheme: 'default',
     widgetCanvasByType: {},
     widgetCanvasById: {},
@@ -58,5 +63,14 @@ export function frozenWorkspaceValue({ symbol = null } = {}) {
     floatNewWidget: () => {},
     applyThemeToAllCharts: () => {},
     applyThemeToAllWidgets: () => {},
+    // Chart Settings "Apply to all charts" (11-16) writes the /charts layout; a frozen
+    // embed has none, so the door is absent (null ⇒ no control offered).
+    countOtherCharts: null,
+    applyAppearanceToOtherCharts: null,
+    // The chart legend's "Open the rotation map" door opens the /charts Compare
+    // Symbols panel (UCT RS 3-09, 954a25ec79), which a note does not mount, so
+    // the door must not be offered inside an embed. Enumerated here, like the
+    // breadth drill's own host (drillWorkspace.js), not left to undefined.
+    canOpenCompare: false,
   }
 }

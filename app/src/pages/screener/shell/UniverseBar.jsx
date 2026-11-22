@@ -111,7 +111,8 @@ export default function UniverseBar({ meta, activeList, activeUniverse, onSetFil
         <button type="button" className={styles.uInfoBtn} aria-label="Universe criteria"
           aria-haspopup="true" aria-expanded={open === 'info'}
           onClick={() => setOpen(o => (o === 'info' ? null : 'info'))}>
-          <UIcon name="info" size={12} />
+          {/* currentColor (B6): muted at rest, gold only on hover / focus (ScannerShell.module.css). */}
+          <UIcon name="info" size={12} gold={false} />
         </button>
         {open === 'info' && (
           <div className={`${styles.uMenu} ${styles.uInfoMenu}`} role="menu">

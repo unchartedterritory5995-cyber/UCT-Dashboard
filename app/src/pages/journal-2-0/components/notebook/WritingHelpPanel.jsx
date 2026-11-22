@@ -25,7 +25,7 @@ import styles from './WritingHelpPanel.module.css'
  *   onAccept(draft) — inserts; returns `{ ok, replaced }` / `{ ok: false, reason }`
  *   onClose()
  */
-export default function WritingHelpPanel({ noteId, request, onAccept, onClose }) {
+export default function WritingHelpPanel({ noteId, request, onAccept, onClose, returnFocusTo }) {
   const [choiceId, setChoiceId] = useState(WRITING_HELP_CHOICES[0].id)
   const [lang, setLang] = useState(WRITING_HELP_LANGUAGES[0][0])
   const [status, setStatus] = useState('idle')   // idle | writing | ready | error
@@ -80,14 +80,15 @@ export default function WritingHelpPanel({ noteId, request, onAccept, onClose })
       {(status === 'idle' || status === 'error') && (
         <>
           <button type="button" className={styles.primary} onClick={write}>Write it</button>
-          <button type="button" className={styles.secondary} onClick={discard}>Cancel</button>
+          {/* S5 (B16): one word for leaving, before a draft and after it. */}
+          <button type="button" className={styles.secondary} onClick={discard}>Discard</button>
         </>
       )}
     </div>
   )
 
   return (
-    <Sheet open onClose={discard} title="Writing help" labelledByTitle footer={footer} maxWidth={560}>
+    <Sheet open onClose={discard} title="Writing help" labelledByTitle footer={footer} maxWidth={560} returnFocusTo={returnFocusTo}>
       <p className={styles.scope}>
         {selection
           ? `Working on your selection · ${request.text.length.toLocaleString('en-US')} characters`
@@ -130,7 +131,9 @@ export default function WritingHelpPanel({ noteId, request, onAccept, onClose })
       </div>
       <p className={styles.fine}>
         Nothing is added to your note until you choose Accept.
-        {meta?.model ? ` Written by ${meta.model}.` : ''}
+        {/* ⛔ Audit 2026-11-05, S5 (B16): never the raw model id ("Written by claude-sonnet-5.").
+            The inserted block still records its model (askInsert's `model` attr) for the record. */}
+        {meta?.model ? ' Drafted by AI.' : ''}
       </p>
     </Sheet>
   )

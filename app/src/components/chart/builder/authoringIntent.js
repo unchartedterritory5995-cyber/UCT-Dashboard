@@ -205,18 +205,21 @@ export function signalPaintsOf(def, key) {
  * Is this presentation request representable for output `key` of `def`? Asks
  * the gate on the lane each channel draws through, so a marker on a number is
  * DISCLOSED ("drawn where > 0") and a paint on a refused output is refused.
- * @returns {{status, reason?, note?}}
+ * @returns {{status, reason?, note?, pending?}} `pending` is the gate's own flag: the refusal is
+ *   only that another symbol's bars have not arrived yet (`evaluability`), so it is not final.
+ *   ⚰️ It was dropped here until 2026-11-15, and a marker on an output that reads another
+ *   symbol was refused outright the first time it was asked for ("SPY's bars are not in hand").
  */
 export function presentationVerdict(def, key, { marker = null, paints = [] } = {}, ctx = {}) {
   if (marker) {
     const problem = markerRequestProblem(marker)
     if (problem) return { status: STATUS.REFUSED, reason: problem }
     const v = evaluability(def, key, LANES.CHART_MARKER, ctx)
-    if (v.status !== STATUS.SUPPORTED) return { status: v.status, reason: v.reason, note: v.note }
+    if (v.status !== STATUS.SUPPORTED) return { status: v.status, reason: v.reason, note: v.note, ...(v.pending ? { pending: true } : {}) }
   }
   if (paints.length) {
     const v = evaluability(def, key, LANES.CHART_PAINT, ctx)
-    if (v.status === STATUS.REFUSED) return { status: v.status, reason: v.reason }
+    if (v.status === STATUS.REFUSED) return { status: v.status, reason: v.reason, ...(v.pending ? { pending: true } : {}) }
     if (!isTruthType(v.type)) {
       return { status: STATUS.REFUSED, reason: 'A signal colour reads a yes/no; this output is not one.' }
     }

@@ -102,9 +102,14 @@ describe('"Series on this chart" always has exactly one Tab stop', () => {
       const live = stops.filter((b) => b.getAttribute('tabindex') === '0')
       expect(live.length).toBe(1)
       live[0].setAttribute('tabindex', '-1')          // the shipped markup
+      // ⭐ UCT Signature rows carry their own controls (fold chevron, colour, row actions) —
+      // the CONTROL takes EVERY focusable out, so the rule has a truly stop-less region to flag.
+      const others = [...list.querySelectorAll('button')].filter((b) => b !== live[0] && b.getAttribute('tabindex') !== '-1')
+      others.forEach((b) => b.setAttribute('tabindex', '-1'))
       const red = await scrollFindings(list)
       expect(red.map((v) => v.id), 'the rule did not run: the CONTROL proves nothing').toEqual(['scrollable-region-focusable'])
       live[0].setAttribute('tabindex', '0')           // what the fix renders
+      others.forEach((b) => b.removeAttribute('tabindex'))
       const found = await scrollFindings(list)
       expect(found, formatViolations(found)).toEqual([])
     } finally {

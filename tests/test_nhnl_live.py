@@ -298,7 +298,7 @@ def test_print_exact_counts_every_ratchet_and_poll_does_not_double(monkeypatch):
     import api.services.bar_stream as bs
     monkeypatch.setattr(nhnl_live, "_print_exact", lambda: True)
     added = []
-    monkeypatch.setattr(bs, "subscribe_symbols", lambda syms, owner="bars": added.append((set(syms), owner)))
+    monkeypatch.setattr(bs, "subscribe_symbols", lambda syms, owner="bars", channels=None: added.append((set(syms), owner)))
     monkeypatch.setattr(bs, "unsubscribe_symbols", lambda syms, owner="bars": None)
     monkeypatch.setattr(bs, "add_trade_listener", lambda fn: None)
 
@@ -328,7 +328,7 @@ def test_print_exact_counts_every_ratchet_and_poll_does_not_double(monkeypatch):
 def test_print_exact_disabled_clears_subscriptions(monkeypatch):
     import api.services.bar_stream as bs
     dropped = []
-    monkeypatch.setattr(bs, "subscribe_symbols", lambda syms, owner="bars": None)
+    monkeypatch.setattr(bs, "subscribe_symbols", lambda syms, owner="bars", channels=None: None)
     monkeypatch.setattr(bs, "unsubscribe_symbols", lambda syms, owner="bars": dropped.append((set(syms), owner)))
     monkeypatch.setattr(bs, "add_trade_listener", lambda fn: None)
     # pretend a name is print-subscribed, then the flag flips off.

@@ -35,7 +35,10 @@ describe('a ticker-constructing call resolves to the symbol inside it', () => {
     // whole claim is that it does not quietly answer something else, so a case that
     // only checked `ok` would pass just as happily for a door that folded this to
     // some other series.
-    const out = translatePine(sec('t = tickerid(syminfo.prefix, ticker)\nv = security(t, period, hl2)'))
+    // ⭐ Engine 66 (#1473) (bt): the chart's period is spelled `timeframe.period` here. `sec` writes a v5
+    // header, and from v4 on a bare `period` is TradingView's "Undeclared identifier 'period'", which this
+    // engine now refuses by name (`pine.js::legacyPeriodRefusal`); the subject of this rail is the ticker.
+    const out = translatePine(sec('t = tickerid(syminfo.prefix, ticker)\nv = security(t, timeframe.period, hl2)'))
     expect(out.refusal, out.refusal && out.refusal.message).toBe(null)
     expect(formulaOf(out)).toBe('(high + low) / 2')
   })

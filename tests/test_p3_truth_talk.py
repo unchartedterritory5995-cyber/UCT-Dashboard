@@ -86,12 +86,17 @@ def test_the_Title_Case_question_goes_WHOLE_with_a_discuss_never_author_note(con
     assert "never author" in notes["not_in_vocabulary"][0]["rule"]
 
 
+# ⭐ 2026-11-18 -- THE UNKNOWN NAME IN THIS FILE IS "Gann Fan" NOW. It was "McGinley Dynamic" until the
+# McGinley Dynamic joined the named-indicator library (`api/services/named_indicators.py`), where a
+# KNOWN name reaches the assistant WITH its checked formula. The rule these tests hold is unchanged:
+# an UNKNOWN Title-Case name is refused before any model call. `tests/test_named_indicators.py`
+# holds the other half.
 @pytest.mark.parametrize("message", [
     "Explain the Relative Strength Index",
     "What does the Moving Average do?",
     "Is the Relative Strength line better than RSI?",
     "What are the Can Slim rules?",
-    "Tell me about the McGinley Dynamic",
+    "Tell me about the Gann Fan",
     "Compare the Relative Strength Index with the Moving Average",
 ])
 def test_ADVISORY_messages_naming_unknown_phrases_reach_the_model(conv, model, message):
@@ -101,13 +106,13 @@ def test_ADVISORY_messages_naming_unknown_phrases_reach_the_model(conv, model, m
 
 
 @pytest.mark.parametrize("message", [
-    "Use the McGinley Dynamic instead",
-    "Add the McGinley Dynamic",
-    "Add the McGinley Dynamic. What do you think?",
-    "Can you add the McGinley Dynamic?",
-    "I want the McGinley Dynamic",
+    "Use the Gann Fan instead",
+    "Add the Gann Fan",
+    "Add the Gann Fan. What do you think?",
+    "Can you add the Gann Fan?",
+    "I want the Gann Fan",
 ])
-def test_AUTHORING_messages_keep_the_McGinley_refusal_ZERO_calls(conv, model, message):
+def test_AUTHORING_messages_keep_the_unknown_name_refusal_ZERO_calls(conv, model, message):
     """ASKED: build with an unknown named indicator (however politely, even with a
     question tacked on). CLAIMED: still refused by name before any model call, so no
     model can substitute an EMA (REFUSAL)."""
@@ -115,7 +120,7 @@ def test_AUTHORING_messages_keep_the_McGinley_refusal_ZERO_calls(conv, model, me
     r = conv.converse(message, user_id="u1", view=ema_view(1), chart=CHART)
     assert r["ok"] is False and r["gate"] == "concept:ungrounded", r
     assert client.calls == []
-    assert r["not_understood"][0]["phrase"] == "McGinley Dynamic"
+    assert r["not_understood"][0]["phrase"] == "Gann Fan"
 
 
 def test_PROPOSE_plan_is_UNCHANGED_for_the_same_question():
@@ -126,15 +131,15 @@ def test_PROPOSE_plan_is_UNCHANGED_for_the_same_question():
 
 
 def test_BACKSTOP_an_advisory_turn_that_bypassed_a_refusal_never_returns_a_change(conv, model):
-    """ASKED: "Tell me about the McGinley Dynamic". The model (wrongly) returns a
+    """ASKED: "Tell me about the Gann Fan". The model (wrongly) returns a
     change. CLAIMED: refused, terminal, nothing to apply. DID: concept:ungrounded with
     the planner's own member sentence, no envelope, one call (REFUSAL)."""
     client = model([emits(env(1, SET50, disposition="change", reply="Done."))])
-    r = conv.converse("Tell me about the McGinley Dynamic", user_id="u1",
+    r = conv.converse("Tell me about the Gann Fan", user_id="u1",
                       view=ema_view(1), chart=CHART)
     assert r["ok"] is False and r["gate"] == "concept:ungrounded" and r["backstop"] is True
     assert r["disposition"] == "unsupported" and "envelope" not in r
-    assert "McGinley Dynamic" in r["reason"] and len(client.calls) == 1
+    assert "Gann Fan" in r["reason"] and len(client.calls) == 1
 
 
 # ═══ 2. the pre-flight (shared case table is asserted by slice2 + preflight.js) ═

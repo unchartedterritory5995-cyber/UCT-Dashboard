@@ -121,7 +121,10 @@ describe('the widget formula twin stays out of the first-open closure', () => {
   it('NON-VACUITY: the entries are real files and the walk reaches a large eager closure', () => {
     expect(main).not.toBe(null)
     expect(rel(main)).toBe('main.jsx')
-    expect(roots.map(rel)).toEqual(['pages/journal-2-0/JournalLayout.jsx', 'pages/journal-2-0/surfaces/NotebookSurface.jsx'])
+    // The roots are docs/notebook/perf-budgets.json's (that file owns the list: TodayHome.jsx joined
+    // it in 74305894b8, and a hand-typed copy here went red for it). What this walk needs is that
+    // the two it is about are among them.
+    expect(roots.map(rel)).toEqual(expect.arrayContaining(['pages/journal-2-0/JournalLayout.jsx', 'pages/journal-2-0/surfaces/NotebookSurface.jsx']))
     for (const s of STARTS) expect(fs.existsSync(s), s).toBe(true)
     expect(CLOSURE.size).toBeGreaterThan(200)
     // a file the Notebook surface reaches statically today, named rather than counted

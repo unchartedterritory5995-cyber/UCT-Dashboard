@@ -1,0 +1,242 @@
+{
+ "mode": "master",
+ "unknownBoards": [],
+ "sets": {
+  "chartSurface": {
+   "cases": 89,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "drawingsAlerts": {
+   "cases": 32,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "followup3": {
+   "cases": 6,
+   "guarded": 6,
+   "notClarify": 6,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "indicators": {
+   "cases": 41,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen": {
+   "cases": 53,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen10": {
+   "cases": 25,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen11": {
+   "cases": 20,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen12": {
+   "cases": 23,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen13": {
+   "cases": 20,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen14": {
+   "cases": 23,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen15": {
+   "cases": 23,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen16": {
+   "cases": 20,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen17": {
+   "cases": 37,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen18": {
+   "cases": 42,
+   "guarded": 42,
+   "notClarify": 37,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [
+    "u18-refresh-10",
+    "u18-look-07",
+    "u18-cols-07",
+    "u18-show-06",
+    "u18-export-03"
+   ],
+   "unknownBoard": 0
+  },
+  "unseen2": {
+   "cases": 49,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen3": {
+   "cases": 42,
+   "guarded": 29,
+   "notClarify": 29,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen4": {
+   "cases": 30,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen5": {
+   "cases": 30,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen6": {
+   "cases": 32,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen7": {
+   "cases": 29,
+   "guarded": 24,
+   "notClarify": 24,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen8": {
+   "cases": 34,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "unseen9": {
+   "cases": 40,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  },
+  "workspace": {
+   "cases": 84,
+   "guarded": 0,
+   "notClarify": 0,
+   "overAsk": [],
+   "overRefuse": [],
+   "clarifyAsked": [],
+   "clarifyNotAsked": [],
+   "unknownBoard": 0
+  }
+ }
+}

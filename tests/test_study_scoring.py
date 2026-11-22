@@ -200,6 +200,50 @@ def test_a_numeric_fill_in_and_the_call_drills_lowercase_choice_both_score():
     assert sc.score("call_scan", {"choice": "watch"}, {"answer": "TRIGGER", "accept": ["watch"]}).correct
 
 
-def test_a_two_field_dict_is_not_unwrapped():
-    # only a ONE-field {choice} / {answer} is a single chosen value
-    assert not sc.score("recall", {"choice": "Matching Low", "extra": 1}, {"answer": "Matching Low"}).correct
+def test_a_dict_with_record_keys_beside_the_choice_is_still_that_choice():
+    # ⚰️ This said "only a ONE-field {choice} / {answer} is a single chosen value" (2026-10-21)
+    # and asserted the opposite; the challenges record what the member picked beside the
+    # choice, and that rail is what scored every Spot the Kicker attempt wrong on the pod.
+    assert sc.score("recall", {"choice": "Matching Low", "extra": 1}, {"answer": "Matching Low"}).correct
+    assert not sc.score("recall", {"choice": "Doji", "extra": 1}, {"answer": "Matching Low"}).correct
+
+
+# A CHALLENGE records what the member picked beside the choice (Spot the Kicker: the
+# candle and its kind; Hard mode: the setup named). Until 2026-11-05 the unwrap ran only
+# on a one-key dict, so every such attempt compared the whole dict against the key and
+# scored wrong on the pod (Spot the Kicker, live since 2026-11-04).
+@pytest.mark.parametrize("extra", [{"picked_bar": "2025-03-10", "picked_kind": "real"},
+                                   {"picked_setup": "Kicker"},
+                                   {"picked_setup": "Nothing fired", "note": "x"}])
+def test_a_choice_with_record_keys_beside_it_scores_on_the_choice_alone(extra):
+    right = sc.score("spot", {"choice": "Yes", **extra}, {"answer": "yes"})
+    assert right.correct and right.detail["got"] == "Yes"
+    wrong = sc.score("spot", {"choice": "No", **extra}, {"answer": "yes"})
+    assert not wrong.correct
+    assert sc.score("spot", {"answer": "no", **extra}, {"answer": "no"}).correct
+    # a dict with neither key is still the answer as posted (a levels / match shape is not a choice)
+    assert not sc.score("spot", {"picked_setup": "Kicker"}, {"answer": "yes"}).correct
+
+
+# ── typed numbers (course fill_numeric items, 2026-11-09) ─────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("typed,ok", [
+    ("0.05", True), (".05", True), ("0.050", True), (" 0.05 ", True),
+    ("0.1", False), ("0.04", False), ("5", False), ("", False), ("0.05%", False), ("abc", False),
+])
+def test_a_typed_number_scores_by_value_never_by_rounding(typed, ok):
+    from api.services.study_scoring import score
+    assert score("recall", {"choice": typed}, {"answer": 0.05, "accept": ["0.05"]}).correct is ok
+
+
+def test_thousands_commas_and_whole_numbers_are_one_value():
+    from api.services.study_scoring import score
+    assert score("recall", {"choice": "1,000"}, {"answer": 1000}).correct
+    assert score("recall", {"choice": "1000.0"}, {"answer": 1000}).correct
+    assert not score("recall", {"choice": "100"}, {"answer": 1000}).correct
+
+
+def test_a_choice_with_words_never_matches_by_number():
+    from api.services.study_scoring import score
+    assert not score("recall", {"choice": "2.4"}, {"answer": "2.4% of the account"}).correct
+    assert score("recall", {"choice": "2.4% of the account"}, {"answer": "2.4% of the account"}).correct

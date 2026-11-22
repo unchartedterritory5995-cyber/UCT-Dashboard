@@ -1,0 +1,146 @@
+/* The RS screens in the Focus layout (unit U5), in UCT Signature (docs/uct-signature-style.md;
+   the --scr-* values are set in FocusScreener.module.css). Everything here is reached only by a
+   starter that carries `controls`, `row` or `empty`; every other screen draws from
+   FocusScreener.module.css alone. Green and red are not used here: they mean direction of money.
+   Gold is not used here either, but for the radar dot the row inherits from the list. */
+
+/* The quick controls: first on the page's context line (FocusScreener.module.css `.subBar`), or a
+   row of their own wherever else they are drawn. Each control is a label and a short run of
+   chips; the chip that is on holds the selected tone (spec tokens: "Selected"), never gold. */
+.controls { display: flex; align-items: center; gap: 6px 22px; flex-wrap: wrap; flex: 0 1 auto; min-width: 0; box-sizing: border-box; font-size: 12px; }
+.control { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.label { display: inline-flex; align-items: center; gap: 6px; color: var(--scr-faint); font-weight: 500; white-space: nowrap; }
+.scroll { display: inline-flex; min-width: 0; max-width: 100%; }
+.control [role='radiogroup'] { gap: 2px; }
+/* (Two-part selectors: they must beat the view switch's own .segOn / .segOff, which these chips
+   also carry, whatever order the two stylesheets load in.) */
+.control .opt { height: 28px; padding: 0 10px; border-radius: 7px; font-size: 12px; font-weight: 600; color: var(--scr-rest); background: transparent; }
+.control .opt::after { content: none; }
+.control .opt:hover { color: var(--scr-bright); background: var(--scr-soft); }
+.control .opt[aria-checked='true'] { color: var(--scr-bright); background: var(--scr-selected); }
+/* "look here": this control is off its default. A plain light dot, said in words for a reader. */
+.dot { flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--scr-rest); }
+.opt:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
+/* No option matches the working spec: shown as the one that is on, and not a button. */
+.custom { display: inline-flex; align-items: center; cursor: default; font-style: italic; }
+.reset { color: var(--scr-rest); font-weight: 600; }
+.reset:hover { color: var(--scr-bright); }
+.reset:focus-visible, .adjust:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 2px; }
+/* "Adjust" exists only on a phone. */
+.adjust { display: none; }
+.sheet { display: flex; flex-direction: column; gap: 18px; padding: 4px 0 8px; }
+.stacked { flex-direction: column; align-items: flex-start; gap: 8px; }
+.stacked [role='radiogroup'] { flex-wrap: wrap; }
+.sheetReset { align-self: flex-start; }
+
+/* ── The RS row (RsResultRow.jsx). The list's own .row sets the padding, the tap height, the
+   hover and the selection; this lays its children on a two-line grid so the caption can run
+   under the sparkline (the list is 340 px wide: a caption boxed in beside it has ~120 px).
+     dot [place] TICKER ........ RS 97  ~spark~  price
+                 caption ............ [tag]      change                                       */
+/* (Two-part selectors below: they must beat the list's one-class .row, .rowSpark and .newPill whatever
+   order the two stylesheets load in.) */
+.row[data-rs-row] { display: grid; grid-template-columns: 6px minmax(0, 1fr) auto 56px auto; grid-template-areas: "radar ticker lead spark nums" ". below below below nums"; column-gap: 10px; row-gap: 2px; align-items: center; }
+.row[data-rs-row].rowPlaced { grid-template-columns: 6px auto minmax(0, 1fr) auto 56px auto; grid-template-areas: "radar place ticker lead spark nums" ". . below below below nums"; }
+.row > .radar { grid-area: radar; }
+/* the place numeral: tabular, right-aligned, so 9 and 1,204 share a right edge */
+.place { grid-area: place; min-width: 1.6em; text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; color: var(--scr-faint); white-space: nowrap; }
+.row > .ticker { grid-area: ticker; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* The lead number: grey, and bright and heavier from 90 up. Never gold: a long list does not
+   turn gold (spec 2b). */
+.lead { grid-area: lead; justify-self: end; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; color: var(--scr-dim); white-space: nowrap; }
+.leadTop { color: var(--scr-bright); font-weight: 700; }
+.below { grid-area: below; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.capLine { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.caption { flex: 1 1 auto; min-width: 0; }
+/* A tag is words on a soft fill: never green or red (those mean direction of money), never gold. */
+.tag { flex: none; padding: 0 6px; border-radius: 5px; background: var(--scr-soft-hi); font-size: 10.5px; font-weight: 600; line-height: 16px; color: var(--scr-text); white-space: nowrap; }
+/* the list's existing New pill, in the tag's place on the caption line */
+.capLine > .newTag { flex: none; margin-left: 0; }
+/* the list's sparkline box and price column, placed on the grid (their own margins belong to the flex row) */
+.row > .spark { grid-area: spark; margin: 0; }
+.row > .nums { grid-area: nums; }
+
+/* ── The facts of the open screen, at the far end of the context line: the list's new/dropped
+   line, the rating date, the dominant sector, the daily-message switch. Quiet text; nothing here
+   is a signal. */
+.head { flex: 0 1 auto; min-width: 0; margin-left: auto; font-size: 12px; color: var(--scr-faint); font-variant-numeric: tabular-nums; }
+/* The parts wrap on a narrow screen. Each separator dot hangs in the 18px gap to the LEFT of its
+   part, so at the start of a wrapped line it falls outside this box and is clipped (sideways
+   only: the dropped-names popover still opens downward). */
+.headIn { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 18px; overflow-x: clip; }
+.headPart { position: relative; display: inline-flex; align-items: center; }
+/* the rows on view answer the previous screen: the line waits with the list, at the list's own dim */
+.headPending { opacity: 0.45; transition: opacity 120ms ease; }
+.headSep { position: absolute; left: -9px; top: 50%; transform: translate(-50%, -50%); color: var(--scr-faint); pointer-events: none; }
+/* The dropped-names popover opens from the line's own start here (in the list head it hangs from the right). */
+.head [role='list'] { right: auto; left: 0; }
+/* ── "Tell me what joins and leaves" (RsAlertToggle.jsx, unit U13): an on/off, drawn as the
+   Signature soft square to the left of its words (spec "On/off"): an empty ring when off, the
+   selected tone and a tick when on. The whole control toggles. The On / Off word is said by the
+   switch itself and is not drawn. */
+.alert { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px 8px; }
+.alertToggle { font-size: 12px; min-height: 24px; gap: 7px; color: var(--scr-rest); }
+.alertToggle::before { content: ''; flex: none; box-sizing: border-box; width: 16px; height: 16px; border-radius: 5px; box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.22); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; color: var(--scr-bright); }
+.alertToggle:hover::before { box-shadow: inset 0 0 0 1.5px rgba(248, 247, 243, 0.5); }
+.alertToggle[aria-checked='true']::before { content: '\2713'; background: var(--scr-selected); box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28); }
+.alertToggle[aria-checked='true'] { color: var(--scr-text); }
+.alertToggle:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 2px; }
+.alertLabel { text-decoration: none; font-size: 12px; color: var(--scr-rest); cursor: pointer; }
+/* components/ui/Switch renders a knob; this switch draws its state with the ::before check, so the knob stays out */
+.alertKnob { display: none; }
+.alertToggle[aria-checked='true'] + .alertLabel { color: var(--scr-text); }
+.alertToggle:hover + .alertLabel, .alertLabel:hover { color: var(--scr-bright); }
+.alertOn, .alertOff { display: none; }
+.alertFailed { color: var(--scr-bright); }
+:global([data-theme='light']) .alertToggle::before { box-shadow: inset 0 0 0 1.5px rgba(0, 0, 0, 0.3); }
+/* ── A notice (the first-visit line, the market note): words and at most a link and a button, on
+   the page's one notices line (FocusScreener.module.css `.notices`). No bar, no fill. */
+.note { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 12px; flex: 0 1 auto; min-width: 0; margin: 0; padding: 0; font-size: 12px; line-height: 1.45; color: var(--scr-text); }
+.noteText { flex: 0 1 auto; min-width: 0; }
+.noteLink { flex: none; color: var(--scr-rest); text-decoration: underline; text-underline-offset: 3px; }
+.noteLink:hover { color: var(--scr-bright); }
+.note .noteBtn { flex: none; height: 24px; padding: 0 9px; font-size: 12px; }
+.noteLink:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 2px; }
+/* ── "Why isn't a stock here?" (WhyNotHere.jsx, unit U8): a quiet text button under the list head; open,
+   a ticker box and the answer, one rule per line. The tick is the why strip's ink; a miss is the bright
+   ink, never red (red means price fell). */
+.whyNot { flex: none; padding: 2px 16px; border-bottom: 1px solid var(--scr-line); font-size: 12px; }
+.whyNotToggle { font-size: 12px; min-height: 24px; color: var(--scr-faint); }
+.whyNotToggle:hover { color: var(--scr-bright); }
+.whyNotToggle:focus-visible, .whyNotClose:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 2px; }
+.whyNotPanel { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 8px; }
+.whyNotForm { display: flex; align-items: center; gap: 8px; }
+.whyNotInput { flex: 1 1 0; min-width: 0; width: 100%; text-transform: uppercase; }
+.whyNotInput::placeholder { text-transform: none; }
+.whyNotClose { font-size: 12px; }
+.whyNotAnswer { max-height: 190px; overflow-y: auto; }
+.whyNotHead { margin: 0; color: var(--scr-text); line-height: 1.45; }
+.whyNotList { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.whyNotItem { display: flex; gap: 6px; align-items: baseline; color: var(--scr-dim); }
+.whyNotMark { flex: none; width: 1em; text-align: center; }
+.whyNotItem[data-kind='pass'] .whyNotMark { color: var(--success-ink); }
+.whyNotItem[data-kind='fail'] { color: var(--scr-bright); }
+.whyNotItem[data-kind='fail'] .whyNotMark { font-weight: 700; }
+.whyNotValue { color: var(--scr-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* the empty state's words (the list's own .stateBox centres them) */
+.status { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+
+@media (max-width: 640px) {
+  /* One line: the first control (it scrolls sideways when its options do not fit), then Adjust. */
+  .controls { flex-wrap: nowrap; gap: 10px; flex: 1 1 100%; }
+  .rest, .resetInRow { display: none; }
+  .first { flex: 1 1 auto; }
+  .first .scroll { overflow-x: auto; scrollbar-width: none; border-radius: 7px; }
+  .adjust { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+  .head { margin-left: 0; }
+  /* a notice keeps its button beside its words, so it costs one line less */
+  .note { flex-wrap: nowrap; align-items: flex-start; gap: 10px; flex: 1 1 100%; }
+  .note .noteText { flex: 1 1 0; }
+}
+/* Touch (phone AND tablet, breakpoints.css): every control here is a 44 px finger target. Declared
+   for the whole touch tier, never the phone alone (styles/tapFloor.test.js). */
+@media (max-width: 1024px) {
+  .opt, .custom, .adjust, .reset, .sheetReset, .noteLink, .noteBtn, .whyNotToggle, .whyNotClose, .alertToggle { min-height: var(--tap-min); }
+  .opt { min-width: var(--tap-min); }
+}

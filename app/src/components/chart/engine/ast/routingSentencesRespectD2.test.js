@@ -7,8 +7,10 @@
 //
 //   • a `for` bound that depends on a series (R1, 56 uses) —
 //     *"a loop whose bound depends on a series is the IR lane's, item (c)"*
-//   • an `input.time` whose default is an expression (R16, 5 uses) —
-//     *"the 5 that are expressions are item (c)'s"*
+//   • ⚰️ an `input.time` whose default is an expression (R16, 5 uses) —
+//     *"the 5 that are expressions are item (c)'s"* — RETIRED by RULING-0927 (2026-11-07):
+//     `input.time` is served in its one captured form and every other form is refused by
+//     name with its own sentence, so no `input.time` sentence routes to item (c) any more.
 //
 // ⛔⛔ BOTH ARE TRUE AND BOTH ARE INCOMPLETE, AND THE MISSING HALF IS THE ONE A MEMBER
 // ACTS ON. Ruling **D2** is that a pane draws the **HOST lane's saved definition**
@@ -71,10 +73,6 @@ describe('R20 — a routing sentence carries D2\'s limit', () => {
       + 'so every assertion about its wording is vacuous').toBeGreaterThan(0)
     expect(a.join(' '), 'the series-bound sentence should name the IR lane')
       .toContain('IR lane')
-
-    const b = routing(TIME_EXPR_DEFAULT, 'item (c)')
-    expect(b.length, 'the input.time specimen produced NO item (c) routing sentence')
-      .toBeGreaterThan(0)
   })
 
   it('⭐⭐ the SERIES-BOUND sentence says the IR lane does not reach a pane', () => {
@@ -90,16 +88,14 @@ describe('R20 — a routing sentence carries D2\'s limit', () => {
       .toMatch(/no path for (it|them) yet/)
   })
 
-  it('⭐⭐ the input.time EXPRESSION-DEFAULT sentence says the same', () => {
-    const m = routing(TIME_EXPR_DEFAULT, 'item (c)').join(' ')
-    expect(m, 'same promise, same missing limit')
-      .toMatch(/ruling D2|does not reach a pane|not on the pane path/)
-    // ⛔ R21 — AND THE SECOND FACT, which the D2 half alone understates: measured at
-    // (c)'s IR scoping, `STMT.FOR`/`STMT.WHILE`/`EXPR.ARRAY_OP` are declared in the
-    // IR vocabulary and lowered NOWHERE. Without this clause a member reads "item (c)
-    // will carry it, just not on a pane" — and the IR lane cannot carry it at all yet.
-    expect(m, 'the sentence names D2 but not that the IR lane has no path yet')
-      .toMatch(/no path for (it|them) yet/)
+  // ⚰️ AN `input.time` EXPRESSION-DEFAULT SENTENCE WAS RAILED HERE. RULING-0927 (2026-11-07)
+  // serves `input.time` at its default (capture T16), so there is no item (c) routing for it.
+  it('⭐ RULING-0927 r1 — the input.time specimen (no zone) refuses by name, with no item (c) routing', () => {
+    const t = translatePine(TIME_EXPR_DEFAULT, {})
+    expect(routing(TIME_EXPR_DEFAULT, 'item (c)')).toEqual([])
+    const r = t.outputs[0].refusal
+    expect(r && r.guard).toBe('pine:input-kind')
+    expect(r.message).toMatch(/timestamp\("2024-01-01"\)` is not written in the captured form[\s\S]*RULING-0927 r1/)
   })
 
   it('⛔ CONTROL — R16\'s bare-`input` routing is NOT given the qualification', () => {

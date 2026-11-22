@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "about": "NLM-1 D3.3 IN-PLAN SHAPE set — written by the nlm1 track from AUDIT's third sealed report (shapes described abstractly, no sealed texts), BEFORE the D3.3 code: at least 3 surface variants per shape (word order, synonyms, ticker / position swaps, 2- and 4-chart boards). Shapes: S1 a position swap + 'both'; S2 a grid + 'all of them' (no extra chart); S3 a three-clause chain ending in styling; S4 a create + a possessive setting ('its / their X'); S5 'same' aimed at a ticker; S6 'same' aimed at a new chart; S7 a chart named by ticker + 'give it …'. (Shape 8, the wrong-target timeframe after a create, belongs to created-binding-v2 and is not here.) Final workspace state + Undo, modelTurns 0.",
+  "workflows": [
+    { "id": "S1a.swap-two-then-both", "shape": "S1", "board": "TWO", "steps": [
+      { "say": "swap the two charts and add rsi to both", "expect": { "charts": { "symbols": ["AMD", "NVDA"] }, "bySymbol": { "AMD": { "has": ["rsi"] }, "NVDA": { "has": ["rsi"] } }, "modelTurns": 0 } },
+      { "say": "undo", "expect": { "restored": true, "modelTurns": 0 } } ] },
+    { "id": "S1b.both-then-swap", "shape": "S1", "board": "TWO", "steps": [
+      { "say": "add the 50 sma to both charts and swap them", "expect": { "charts": { "symbols": ["AMD", "NVDA"] }, "bySymbol": { "AMD": { "ma": [50] }, "NVDA": { "ma": [50] } }, "modelTurns": 0 } } ] },
+    { "id": "S1c.switch-around-then-both", "shape": "S1", "board": "TWO", "steps": [
+      { "say": "switch the left and right charts around, then put macd on both", "expect": { "charts": { "symbols": ["AMD", "NVDA"] }, "bySymbol": { "AMD": { "has": ["macd"] }, "NVDA": { "has": ["macd"] } }, "modelTurns": 0 } } ] },
+    { "id": "S1d.swap-top-two-4chart", "shape": "S1", "board": "FOUR", "steps": [
+      { "say": "swap the top two charts and add rsi to both of them", "expect": { "charts": { "symbols": ["QQQ", "SPY", "NVDA", "TSLA"] }, "bySymbol": { "SPY": { "has": ["rsi"] }, "QQQ": { "has": ["rsi"] }, "NVDA": { "hasNot": ["rsi"] } }, "modelTurns": 0 } } ] },
+    { "id": "S1e.swap-tickers-then-both", "shape": "S1", "board": "TWO", "steps": [
+      { "say": "swap the tickers on the two charts and give both of them a 21 ema", "expect": { "charts": { "symbols": ["AMD", "NVDA"] }, "bySymbol": { "AMD": { "ma": [21] }, "NVDA": { "ma": [21] } }, "modelTurns": 0 } } ] },
+
+    { "id": "S2a.four-charts-colon-all-with", "shape": "S2", "board": "HALF", "steps": [
+      { "say": "four charts: SPY, QQQ, NVDA and TSLA, all with rsi", "expect": { "charts": { "count": 4, "symbolSet": ["SPY", "QQQ", "NVDA", "TSLA"] }, "bySymbol": { "SPY": { "has": ["rsi"] }, "TSLA": { "has": ["rsi"] } }, "modelTurns": 0 } },
+      { "say": "undo", "expect": { "restored": true, "modelTurns": 0 } } ] },
+    { "id": "S2b.tickers-in-a-2x2-on-all", "shape": "S2", "board": "ONE", "steps": [
+      { "say": "SPY QQQ NVDA TSLA in a 2x2 with macd on all of them", "expect": { "charts": { "count": 4, "symbolSet": ["SPY", "QQQ", "NVDA", "TSLA"] }, "bySymbol": { "QQQ": { "has": ["macd"] }, "NVDA": { "has": ["macd"] } }, "modelTurns": 0 } } ] },
+    { "id": "S2c.grid-with-then-add-to-all", "shape": "S2", "board": "HALF", "steps": [
+      { "say": "set up a grid with SPY, QQQ, IWM and NVDA and add the 21 ema to all of them", "expect": { "charts": { "count": 4, "symbolSet": ["SPY", "QQQ", "IWM", "NVDA"] }, "bySymbol": { "IWM": { "ma": [21] }, "NVDA": { "ma": [21] } }, "modelTurns": 0 } } ] },
+    { "id": "S2d.2x2-replacing-four-every-one", "shape": "S2", "board": "FOUR", "steps": [
+      { "say": "make a 2x2 of AAPL MSFT AMZN and GOOGL and put rsi on every one", "expect": { "charts": { "count": 4, "symbolSet": ["AAPL", "MSFT", "AMZN", "GOOGL"] }, "bySymbol": { "AAPL": { "has": ["rsi"] }, "GOOGL": { "has": ["rsi"] } }, "modelTurns": 0 } } ] },
+
+    { "id": "S3a.switch-put-color", "shape": "S3", "board": "ONE", "steps": [
+      { "say": "switch to AMD, put the 21 ema on it, and color it orange", "expect": { "charts": { "symbols": ["AMD"] }, "instance": { "chart": 0, "find": { "inputs.period": 21 }, "colour": { "key": "inputs.color", "family": "orange" } }, "modelTurns": 0 } },
+      { "say": "undo", "expect": { "restored": true, "modelTurns": 0 } } ] },
+    { "id": "S3b.change-then-add-then-make-line", "shape": "S3", "board": "ONE", "steps": [
+      { "say": "change the chart to TSLA then add the 50 sma then make that line purple", "expect": { "charts": { "symbols": ["TSLA"] }, "instance": { "chart": 0, "find": { "inputs.period": 50 }, "colour": { "key": "inputs.color", "family": "purple" } }, "modelTurns": 0 } } ] },
+    { "id": "S3c.semicolons-right-chart-paint", "shape": "S3", "board": "TWO", "steps": [
+      { "say": "make the right chart weekly; add the 9 ema; paint it red", "expect": { "charts": { "tfs": ["D", "W"] }, "instance": { "chart": 1, "find": { "inputs.period": 9 }, "colour": { "key": "inputs.color", "family": "red" } }, "modelTurns": 0 } } ] },
+    { "id": "S3d.load-add-and-make", "shape": "S3", "board": "ONE", "steps": [
+      { "say": "load META and add a 20 sma and make it green", "expect": { "charts": { "symbols": ["META"] }, "instance": { "chart": 0, "find": { "inputs.period": 20 }, "colour": { "key": "inputs.color", "family": "green" } }, "modelTurns": 0 } } ] },
+
+    { "id": "S4a.create-set-its-timeframe", "shape": "S4", "board": "HALF", "steps": [
+      { "say": "add a chart for AMD and set its timeframe to weekly", "expect": { "bySymbol": { "AMD": { "tf": "W" }, "NVDA": { "tf": "D" } }, "modelTurns": 0 } },
+      { "say": "undo", "expect": { "restored": true, "modelTurns": 0 } } ] },
+    { "id": "S4b.open-change-its-interval", "shape": "S4", "board": "HALF", "steps": [
+      { "say": "open a TSLA chart and change its interval to monthly", "expect": { "bySymbol": { "TSLA": { "tf": "M" }, "NVDA": { "tf": "D" } }, "modelTurns": 0 } } ] },
+    { "id": "S4c.create-two-their-timeframe", "shape": "S4", "board": "HALF", "steps": [
+      { "say": "add charts for AMD and QQQ and make their timeframe weekly", "expect": { "bySymbol": { "AMD": { "tf": "W" }, "QQQ": { "tf": "W" }, "NVDA": { "tf": "D" } }, "modelTurns": 0 } } ] },
+    { "id": "S4d.new-chart-with-its-timeframe", "shape": "S4", "board": "HALF", "steps": [
+      { "say": "new chart for META with its timeframe on weekly", "expect": { "bySymbol": { "META": { "tf": "W" }, "NVDA": { "tf": "D" } }, "modelTurns": 0 } } ] },
+
+    { "id": "S5a.and-the-same-to-ticker", "shape": "S5", "board": "TWO", "steps": [
+      { "say": "add rsi to NVDA and the same to AMD", "expect": { "bySymbol": { "NVDA": { "has": ["rsi"] }, "AMD": { "has": ["rsi"] } }, "modelTurns": 0 } },
+      { "say": "undo", "expect": { "restored": true, "modelTurns": 0 } } ] },
+    { "id": "S5b.comma-same-for-ticker-4chart", "shape": "S5", "board": "FOUR", "steps": [
+      { "say": "put the 21 ema on SPY, same for QQQ", "expect": { "bySymbol": { "SPY": { "ma": [21] }, "QQQ": { "ma": [21] }, "NVDA": { "noMa": [21] } }, "modelTurns": 0 } } ] },
+    { "id": "S5c.do-the-same-with-ticker-tf", "shape": "S5", "board": "FOUR", "steps": [
+      { "say": "make NVDA weekly and do the same with TSLA", "expect": { "bySymbol": { "NVDA": { "tf": "W" }, "TSLA": { "tf": "W" }, "SPY": { "tf": "D" } }, "modelTurns": 0 } } ] },
+    { "id": "S5d.give-ticker-then-same", "shape": "S5", "board": "TWO", "steps": [
+      { "say": "give NVDA a 50 sma and AMD the same", "expect": { "bySymbol": { "NVDA": { "ma": [50] }, "AMD": { "ma": [50] } }, "modelTurns": 0 } } ] },
+
+    { "id": "S6a.then-new-chart-do-the-same-there", "shape": "S6", "board": "HALF", "steps": [
+      { "say": "add rsi to NVDA, then open a chart for AMD and do the same there", "expect": { "bySymbol": { "NVDA": { "has": ["rsi"] }, "AMD": { "has": ["rsi"] } }, "modelTurns": 0 } } ] },
+    { "id": "S6b.weekly-then-new-chart-same-on-it", "shape": "S6", "board": "HALF", "steps": [
+      { "say": "make the chart weekly, then add a chart for QQQ and do the same on it", "expect": { "bySymbol": { "NVDA": { "tf": "W" }, "QQQ": { "tf": "W" } }, "modelTurns": 0 } } ] },
+    { "id": "S6c.give-a-new-chart-the-same", "shape": "S6", "board": "HALF", "steps": [
+      { "say": "put the 50 sma on NVDA and give a new AMD chart the same", "expect": { "bySymbol": { "NVDA": { "ma": [50] }, "AMD": { "ma": [50] } }, "modelTurns": 0 } } ] },
+
+    { "id": "S7a.give-the-ticker-chart-a", "shape": "S7", "board": "TWO", "steps": [
+      { "say": "give the AMD chart a 50 sma", "expect": { "bySymbol": { "AMD": { "ma": [50] }, "NVDA": { "noMa": [50] } }, "modelTurns": 0 } },
+      { "say": "undo", "expect": { "restored": true, "modelTurns": 0 } } ] },
+    { "id": "S7b.give-ticker-indicator", "shape": "S7", "board": "TWO", "steps": [
+      { "say": "give AMD rsi", "expect": { "bySymbol": { "AMD": { "has": ["rsi"] }, "NVDA": { "hasNot": ["rsi"] } }, "modelTurns": 0 } } ] },
+    { "id": "S7c.give-ticker-chart-timeframe-4chart", "shape": "S7", "board": "FOUR", "steps": [
+      { "say": "give the TSLA chart the weekly timeframe", "expect": { "bySymbol": { "TSLA": { "tf": "W" }, "SPY": { "tf": "D" } }, "modelTurns": 0 } } ] },
+    { "id": "S7d.pull-up-then-give-it", "shape": "S7", "board": "TWO", "steps": [
+      { "say": "pull up TSLA on the right and give it a 21 ema", "expect": { "charts": { "symbols": ["NVDA", "TSLA"] }, "bySymbol": { "TSLA": { "ma": [21] }, "NVDA": { "noMa": [21] } }, "modelTurns": 0 } } ] },
+    { "id": "S7e.ticker-chart-comma-give-it", "shape": "S7", "board": "FOUR", "steps": [
+      { "say": "the QQQ chart, give it macd", "expect": { "bySymbol": { "QQQ": { "has": ["macd"] }, "SPY": { "hasNot": ["macd"] } }, "modelTurns": 0 } } ] }
+  ]
+}

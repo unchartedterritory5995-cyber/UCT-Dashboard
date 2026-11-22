@@ -18,7 +18,7 @@ import WatchlistSettingsPanel from '../../watchlist/WatchlistSettingsPanel'
 import PickerHeader from './PickerHeader'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from '../../watchlist/watchlistSettings'
 import { menuThemeVars } from '../../../utils/dividerColor'
-import { aliasKey } from '../../watchlist/communityPick'
+import { groupPrebuiltLists } from './watchlistLibrary'
 import { PREBUILT_DIRECTORY_URL, PICKER_MY_LISTS_URL } from '../../watchlist/prebuiltDirectory'
 import styles from './WatchlistPicker.module.css'
 
@@ -31,7 +31,7 @@ const TABS = [
   { key: 'mine', label: 'My Lists', icon: 'library' },
 ]
 
-export default function WatchlistPicker({ onPick, settingsOverride = null, onSettingsPersist = null, initialTab = null }) {
+export default function WatchlistPicker({ onPick, settingsOverride = null, onSettingsPersist = null, initialTab = null, initialCreating = false }) {
   const { flagged, flaggedName } = useFlagged()
 
   // Match the widget's own watchlist appearance (canvas / colors), and expose the
@@ -81,7 +81,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   const [q, setQ] = useState('')
 
   // Inline create state
-  const [creating, setCreating] = useState(false)
+  const [creating, setCreating] = useState(!!initialCreating)   // the library rail's "New list" opens here with the form up
   const [newName, setNewName] = useState('')
   const [tplId, setTplId] = useState('')
   const [busy, setBusy] = useState(false)
@@ -105,34 +105,8 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   // A→Z would scramble April < August < July — and a dated section renders as ONE column so
   // the full dated name stays readable (the two-column cell ellipsizes exactly the date off
   // the end). Everything else sorts A→Z in the compact two-column grid.
-  const prebuiltGroups = (() => {
-    const order = []
-    const byCat = new Map()
-    for (const wl of prebuilt) {
-      const cat = wl.category || 'UCT ETF Lists'
-      if (!byCat.has(cat)) { byCat.set(cat, []); order.push(cat) }
-      byCat.get(cat).push(wl)
-    }
-    const byIssueThenName = (a, b) => {
-      const da = a.issue_date || '', db = b.issue_date || ''
-      if (da !== db) return !da ? 1 : !db ? -1 : db.localeCompare(da)
-      return (a.name || '').localeCompare(b.name || '')
-    }
-    order.forEach(c => byCat.get(c).sort(byIssueThenName))
-    // A row carrying a stable `alias` (the newest Sunday Scans issue) ALSO offers a
-    // "follows each issue" cell, pinned first: picking it stores community:alias:<alias>,
-    // which resolves to whichever row carries the alias when the next issue lands — a
-    // dated pick stays on its date. (Synthetic row: same count, its own pick key.)
-    return order.map(c => {
-      const lists = byCat.get(c)
-      const follow = lists.filter(l => l.alias).map(l => ({
-        ...l, id: `alias:${l.alias}`, name: l.alias_label || `${l.name} (latest)`,
-        pickKey: aliasKey(l.alias), hint: `Always the newest issue — today ${l.name}`,
-      }))
-      // `count` = real lists; the synthetic follow cell is a way to pick one, not a 13th list.
-      return { category: c, lists: [...follow, ...lists], count: lists.length, dated: lists.some(l => !!l.issue_date) }
-    })
-  })()
+  // Grouping + "follows each issue" rows: shared with the library rail (watchlistLibrary.js).
+  const prebuiltGroups = groupPrebuiltLists(prebuilt)
 
   const closeCreate = useCallback(() => { setCreating(false); setNewName(''); setCreateErr('') }, [])
 
@@ -296,13 +270,13 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
                 {createErr && <div className={styles.createErr} role="alert">{createErr}</div>}
                 <div className={styles.createActions}>
                   <button type="button" className={styles.createCancel} onClick={closeCreate}>Cancel</button>
-                  <button type="submit" className={styles.createBtn} disabled={!newName.trim() || busy}>{busy ? 'Creating…' : 'Create'}</button>
+                  <button type="submit" data-guide="watchlist.createList" className={styles.createBtn} disabled={!newName.trim() || busy}>{busy ? 'Creating…' : 'Create'}</button>
                 </div>
               </form>
             )}
 
             {showFlagged && (
-              <button type="button" className={styles.row} onClick={() => handlePick({ key: 'flagged', name: flaggedLabel })}>
+              <button type="button" className={styles.row} data-guide="watchlist.pickFlagged" onClick={() => handlePick({ key: 'flagged', name: flaggedLabel })}>
                 <span className={styles.rowIcon}><UIcon name="flag" size={13} gold={false} /></span>
                 <span className={styles.rowName}>{flaggedLabel}</span>
                 {flagged?.length != null && <span className={styles.rowCount}>{flagged.length}</span>}

@@ -69,8 +69,8 @@ describe('A — a lone value whose value nothing reads', () => {
     expect(r.message).toContain('nosuchname')
   })
 
-  it('⛔ a function that ENDS in a loop is still valueless — its result is never the skipped line', () => {
-    const r = refusal('f(n) =>\n    s = 0\n    for i = 0 to n\n        s\nplot(f(3))')
+  it('⛔ a function that ENDS in a loop with break is still valueless — its result is never the skipped line', () => {
+    const r = refusal('f(n) =>\n    s = 0\n    for i = 0 to n\n        if i > 1\n            break\n        s\nplot(f(3))')
     expect(r.guard).toBe('runtime:function')
     expect(r.message).toMatch(/ends in a loop/)
   })
@@ -114,19 +114,25 @@ describe('C — a function ending in a void collection call returns nothing', ()
 
 describe('D — `request.security` with its leading arguments named', () => {
   it('answers exactly what the positional call answers', () => {
-    const pos = refusal("x = request.security(syminfo.tickerid, 'W', close)\nplot(x)")
+    // ⭐ RS RATING L5 — the positional call now BUILDS (a weekly request of this chart's own
+    // symbol is a request site the run's supply serves; it was refused here because its
+    // symbol was lowered as text this build was not given), so each named spelling must
+    // build to the SAME request: same timeframe, same host reading.
+    const shape = (b) => JSON.stringify(b.ir.requests.map((r) => ({ timeframe: r.timeframe, target: { ...r.target, line: 0 } })))
+    const pos = build("x = request.security(syminfo.tickerid, 'W', close)\nplot(x)")
+    expect(pos.ok, pos.ok ? '' : pos.refusal.message).toBe(true)
     for (const body of [
       "x = request.security(symbol = syminfo.tickerid, timeframe = 'W', expression = close)\nplot(x)",
       "x = request.security(syminfo.tickerid, timeframe = 'W', expression = close)\nplot(x)",
       "x = request.security(syminfo.tickerid, resolution = 'W', expression = close)\nplot(x)",
     ]) {
-      const named = refusal(body)
-      expect(named.guard).toBe(pos.guard)
-      expect(named.message).toBe(pos.message)
+      const named = build(body)
+      expect(named.ok, named.ok ? '' : named.refusal.message).toBe(true)
+      expect(shape(named)).toBe(shape(pos))
     }
-    // ⛔ NON-VACUITY: the positional call gets PAST argument reading — it stops
-    // on the symbol this build was not given, not on the argument list.
-    expect(pos.guard).toBe('interpret:bind-time-text')
+    // ⛔ NON-VACUITY: the positional call was read past its arguments, as this chart's own
+    // symbol at the weekly code.
+    expect(pos.ir.requests[0].target).toMatchObject({ own: true, code: 'W' })
   })
 
   it('⛔ a name the signature does not have keeps the refusal', () => {

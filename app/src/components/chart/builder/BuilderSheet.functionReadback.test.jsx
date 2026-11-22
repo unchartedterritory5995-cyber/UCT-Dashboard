@@ -10,6 +10,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
@@ -55,13 +56,14 @@ function mount() {
   )
 }
 const readback = () => screen.getByTestId('readback').textContent
-const field = () => screen.getByLabelText('Formula')
+const field = () => formulaBox()
 
 describe('the legacy formula sheet says formula functions by name', () => {
   it('reopens a definition saved with the OLD arithmetic description and reads it as a linear regression', async () => {
     H.rows = [storedRow('linreg(close, 50)', 'Old LR')]
     expect(H.rows[0].definition.meta.description).toMatch(/sum of close over the last 50 bars/)
     mount(); await flush()
+    toStart()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Edit Old LR' })) })
     await settle()
     expect(field().value).toBe('linreg(close, 50)')
@@ -71,12 +73,13 @@ describe('the legacy formula sheet says formula functions by name', () => {
   it('changing its length reads back and SAVES the 20-bar function — the whole formula moves', async () => {
     H.rows = [storedRow('linreg(close, 50)', 'Old LR')]
     mount(); await flush()
+    toStart()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Edit Old LR' })) })
     await settle()
     fireEvent.change(field(), { target: { value: 'linreg(close, 20)' } })
     await settle()
     expect(readback()).toBe('the 20-bar linear regression of close')
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save changes' })) })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })) })
     await flush()
     const put = H.requests.filter((r) => r.method === 'PUT')
     expect(put).toHaveLength(1)

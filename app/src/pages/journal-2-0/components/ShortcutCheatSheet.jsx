@@ -86,6 +86,23 @@ function notebookShortcuts() {
   ]
 }
 
+// S14 (audit 2026-11-05, detail #70): the sheet mixed Journal and Notebook keys in one fixed order. The sections are
+// grouped by WHERE the keys work, and the page the member is on comes FIRST; the rest keep their order. Chords read
+// the platform's own modifier (Ctrl on Windows, Cmd on a Mac: lib/platform.js), never a symbol for another keyboard.
+export const SECTIONS = Object.freeze([
+  { id: 'navigation', title: 'Navigation', shortcuts: () => NAVIGATION_SHORTCUTS },
+  { id: 'general', title: 'General', shortcuts: () => GENERAL_SHORTCUTS },
+  { id: 'positions', title: 'Open Positions', shortcuts: () => POSITIONS_SHORTCUTS },
+  { id: 'journal', title: 'Trade Journal', shortcuts: () => JOURNAL_SHORTCUTS },
+  { id: 'notebook', title: 'Notebook', shortcuts: notebookShortcuts },
+])
+
+/** SECTIONS with `first` moved to the front. */
+export function orderedSections(first) {
+  const lead = SECTIONS.find((s) => s.id === first)
+  return lead ? [lead, ...SECTIONS.filter((s) => s !== lead)] : [...SECTIONS]
+}
+
 function Kbd({ keys, sequence = false }) {
   return (
     <span className={styles.kbdGroup}>
@@ -117,7 +134,8 @@ function Section({ title, shortcuts }) {
   )
 }
 
-export default function ShortcutCheatSheet({ open, onClose }) {
+/** `page`: the section whose keys work where the member is (`pageSection`, read by the page that opens the sheet). */
+export default function ShortcutCheatSheet({ open, onClose, page = null }) {
   const titleId = useId()
   // A2R-04 (a11y second review, 2026-10-01): none of this existed — Tab walked
   // straight out of the dialog into the page behind it, and closing (by any
@@ -190,11 +208,9 @@ export default function ShortcutCheatSheet({ open, onClose }) {
           </button>
         </div>
         <div className={shellStyles.body}>
-          <Section title="Navigation" shortcuts={NAVIGATION_SHORTCUTS} />
-          <Section title="General" shortcuts={GENERAL_SHORTCUTS} />
-          <Section title="Open Positions" shortcuts={POSITIONS_SHORTCUTS} />
-          <Section title="Trade Journal" shortcuts={JOURNAL_SHORTCUTS} />
-          <Section title="Notebook" shortcuts={notebookShortcuts()} />
+          {orderedSections(page).map((sec) => (
+            <Section key={sec.id} title={sec.title} shortcuts={sec.shortcuts()} />
+          ))}
           <p className={styles.footNote}>
             Shortcuts are disabled while typing in an input, textarea, or
             contenteditable element.

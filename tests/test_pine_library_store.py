@@ -38,6 +38,13 @@ def _entry(path="tester/fixturelib/1", source=FIXTURE, **kw):
 @pytest.fixture()
 def root(tmp_path, monkeypatch):
     monkeypatch.setenv("PINE_LIBRARY_DIR", str(tmp_path))
+    # since 2026-11-17 the store serves only what the promotion allowlist promotes, at its sha:
+    # this file's own allowlist promotes the two fixture versions it serves
+    sha = hashlib.sha256(FIXTURE.encode("utf-8")).hexdigest()
+    allow = tmp_path / "promotion_allowlist.json"
+    allow.write_text(json.dumps({"promote": [{"path": "tester/fixturelib/%d" % v, "sha256": sha} for v in (1, 2)]}),
+                     encoding="utf-8")
+    monkeypatch.setattr(store, "PROMOTION_FILE", str(allow))
     return str(tmp_path)
 
 

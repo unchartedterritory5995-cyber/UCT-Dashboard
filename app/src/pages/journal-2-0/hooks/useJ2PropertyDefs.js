@@ -1,11 +1,13 @@
 /** Wave E — property definitions SWR hook (built-ins + user-defined). */
 import useSWR from 'swr'
+import { withNoteTypeNames } from '../lib/noteKinds'
 
+// Simplify pass 2 (A4): `builtin:note_kind` reads "Note type" everywhere these definitions are listed.
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {
     if (!r.ok) throw new Error(`${r.status}`)
     return r.json()
-  })
+  }).then((b) => withNoteTypeNames(b, 'propertyDefs'))
 
 export default function useJ2PropertyDefs() {
   const url = '/api/j2/property-defs'

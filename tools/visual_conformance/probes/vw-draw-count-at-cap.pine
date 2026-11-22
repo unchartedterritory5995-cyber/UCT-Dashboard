@@ -1,0 +1,58 @@
+//@version=6
+indicator("UCTPROBE_VW_DRAW_COUNT_AT_CAP", overlay = false, max_boxes_count = 20, max_lines_count = 20, max_labels_count = 20)
+
+// ─── 2026-11-16 — DRAW-1, capture queue Q-DRAW-CAP-1/2: WHAT TRADINGVIEW HOLDS WHEN A
+// FAMILY'S LIVE COUNT REACHES ITS max_*_count, BY THE SHAPE THAT HOLDS THE OBJECT.
+//
+// The reference says of max_boxes_count / max_lines_count / max_labels_count: "The count is
+// approximate; more drawings than the specified count may be displayed." objectPool.js C7
+// measured one rule (probes vw-object-gc-a..d, and every committed capture whose label or line
+// collector ran): a create that takes a family past cap + 5 deletes the oldest until cap
+// remain, sparing this bar's creates and what a drawing variable holds. ONE capture disagrees:
+// inside-bar-boxes (rddt 1d, 2026-11-14) made 158 boxes on both sides and TradingView held 52
+// (ids 107-158) where the rule holds 50 (109-158). Its shape: a `var box` assigned on sparse
+// bars, and the following bars move the PREVIOUS bar's box through the variable's history
+// (`box.set_right(myBox[1], bar_index)`). sonarlab-order-blocks (boxes in arrays) and
+// parabolic-sar (labels never held, sparse) follow the rule. So each family here takes one
+// shape, all on the same sparse pattern (one create on every bar where bar_index % 3 == 0):
+//   boxes   inside-bar-boxes' shape: `var box` + a set_right through `[1]` on the next bar
+//   labels  held in a `var label`, never read through history
+//   lines   never held (parabolic-sar's shape): the control
+// cap 20 each, so the collector is reached by bar ~75 and then runs many times on 1D SPY.
+//   C00  bar_index                CONTROL
+//   C01  boxes made so far        (counted by the script, never collected)
+//   C02  box.all.size()           what TradingView holds after this bar's creates
+//   C03  lines made so far
+//   C04  line.all.size()
+//   C05  labels made so far
+//   C06  label.all.size()
+// Box and label texts carry the bar (x/y in the capture are vendor indices, NOT bar_index).
+//
+// ⛔ CAPTURE: AMEX:SPY 1D and NYSE:RDDT 1D (from the listing), inputs at defaults (none),
+// AFTER THE CLOSE. Ours today (2026-11-16, feat/pine-coverage-drawings): the host lane runs
+// C7 for every family; the runtime lane runs C7 for labels and lines and WITHHOLDS the box
+// family once its collector runs (`objects:count-at-cap`). The capture settles which shape,
+// if any, moves TradingView off C7.
+
+var int boxesMade = 0
+var int linesMade = 0
+var int labelsMade = 0
+var box myBox = na
+var label myLabel = na
+if bar_index % 3 == 0
+    myBox := box.new(bar_index, 2.0, bar_index + 1, 1.0, text = "CB " + str.tostring(bar_index))
+    boxesMade += 1
+    myLabel := label.new(bar_index, 1.0, "CL " + str.tostring(bar_index))
+    labelsMade += 1
+    line.new(bar_index, 1.5, bar_index + 1, 1.5)
+    linesMade += 1
+else if bar_index % 3 == 1
+    box.set_right(myBox[1], bar_index + 1)
+
+plot(bar_index, "C00_bar_index_CONTROL")
+plot(boxesMade, "C01_boxes_made")
+plot(box.all.size(), "C02_boxes_held")
+plot(linesMade, "C03_lines_made")
+plot(line.all.size(), "C04_lines_held")
+plot(labelsMade, "C05_labels_made")
+plot(label.all.size(), "C06_labels_held")

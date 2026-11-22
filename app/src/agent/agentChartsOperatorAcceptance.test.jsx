@@ -171,9 +171,7 @@ describe('Charts operator P1 — one indicator change on every chart', () => {
     await waitFor(() => { expect(periodOf(b.store, 'c1', 'ovl:0')).toBe(10); expect(periodOf(b.store, 'c2', 'ovl:0')).toBe(10) })
     expect(loadCs(b.store.c1).indicatorInstances.filter(i => i.defId === 'movingAverage' && !i.deleted)).toHaveLength(4)   // in place: no second average
     expect(turns).toHaveLength(0)
-    await say('undo')
-    await waitFor(() => expect([periodOf(b.store, 'c1', 'ovl:0'), periodOf(b.store, 'c2', 'ovl:0')].sort()).toEqual([10, 9].sort()))
-    await say('undo')
+    await say('undo')                                         // OWNER RULING (W2 11-04): ONE Undo takes back the whole request
     await waitFor(() => { expect(periodOf(b.store, 'c1', 'ovl:0')).toBe(9); expect(periodOf(b.store, 'c2', 'ovl:0')).toBe(9) })
   })
 })

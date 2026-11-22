@@ -162,6 +162,15 @@ def _problems(src: str, name: str) -> list[str]:
 #: for its data path, or when its production-only reason stops being true; never grow it to
 #: silence a red without reading the tool first.
 EXEMPT_TOOLS: dict[str, str] = {
+    "door_browser_sweep.py": ("RIDES converse_eval's OWN SANDBOX: its `setup()` calls `ce.refuse_shared_root` and `ce.enter_sandbox` (which sets the run's paths and then imports conftest inside the run) BEFORE its first `api.*` import, all of which sit inside that function, below those two calls. A module-level pin would run the census ahead of the sandbox that converse_eval builds and refuses to run without."),
+    "named_indicators_build.py": ("REPO FILES ONLY: its one api import is the named-indicator library's own loader (`api.services.named_indicators`: stdlib imports, reads `api/data/named_indicators.json`, opens no store and no shared-root path), and it writes generated files inside the repo. Tests run it with `--check` on every library change, where a 40-120 s census per run would buy nothing."),
+    "agent_eval_ledger.py": ('A LIBRARY, not a run: imported by the paid agent tools (agent_eval_run, agent_live_batch, ...), each of which pins the census itself or is exempt on its own terms. Its one api import (`narrative_cost_guard.estimate_cost`, inside `cost_usd`) is a pure price estimator that reads no data root, and its ledger lives at C:/UCT/agent-eval-ledger.db, outside the shared root. A module-level pin would run the 40-120 s census inside every consumer and sandbox tools that are exempt for a reason. (Ruled 2026-11-15.)'),
+    "bench_setup_tags.py": ('PINS ITSELF, ON PURPOSE, IN main(): it opens the live bars.db `immutable=1` (read-only, no lock, no journal) FIRST, then imports conftest so every OTHER data path lands in a sandbox. A module-level pin would run the census before that open and redirect the very store it benches. (Ruled 2026-11-15.)'),
+    "converse_eval.py": ("BUILDS ITS OWN SANDBOX, THEN PINS: `hub_sandbox_boot.apply_sandbox_env` sets the eval's paths, then `import conftest` runs inside the run, and it REFUSES if any api module was imported before the pins (they would have captured pre-pin paths). A module-level pin would run the census before its sandbox exists. (Ruled 2026-11-15.)"),
+    "front_parity.py": ('RUNS WITHOUT THE APPLICATION: its CI job (.github/workflows/front-door.yml) installs only fastapi/uvicorn/httpx/pytest and runs `--noconftest` against an empty ini, because the repo conftest needs the whole app installed. It compares two remote origins and touches no data root; its one api import (`api.front_app`) is function-local. A module-level pin would break that job. (Ruled 2026-11-15.)'),
+    "pine_runtime_service_smoke.py": ("RUNS WHERE PYTEST DOES NOT: the post-deploy smoke reaches the pine-runtime service only from inside Railway's private network (its docstring), where the repo conftest cannot be imported; it reads only repo fixtures and the service's HTTP answers, never a data root (`--record` rewrites the committed tests/fixtures/pine_runtime/service_smoke.json). (Ruled 2026-11-15.)"),
+    "tweet_import_smoke.py": ("ITS OWN SANDBOX, BY DESIGN: it reads conftest's pins in a SUBPROCESS (`import conftest, json; print(...SHARED_DATA_ENV_PINS)`), builds a fresh sandbox under the session scratchpad, and starts its own backend with DATA_DIR / AUTH_DB_PATH pointed into it. An in-process pin would overwrite AUTH_DB_PATH unconditionally (conftest.py's ISOLATED_AUTH_DB) under the backend it is about to start. (Ruled 2026-11-15.)"),
+    "txn_rebuild_from_r2.py": ('DISASTER RECOVERY, MEANT FOR THE POD: rebuilds the Trade Exchange News database from the permanent R2 journal into an EXPLICIT `--to` path (its usage: `--to /tmp/txn-rebuilt.db`), where pytest is not installed and the conftest import would fail. It never writes the shared root by default; the explicit --to is the only target. (Ruled 2026-11-15.)'),
     "alert_corpus_extend.py": (
         "Read-only (`mode=ro` URI) against the live bars.db to extract REAL market conditions "
         "into a committed test fixture; writes only `tests/fixtures/...`, never the shared "
@@ -234,6 +243,11 @@ EXEMPT_TOOLS: dict[str, str] = {
         "back to DATA_DIR, so a pin would make the bare run review an empty sandbox while "
         "reporting PASS. It carries its OWN in-process rails instead: every sqlite3.connect "
         "forced to `mode=ro&immutable=1`, file writes outside --out-dir raise, no network."),
+    "note_import_repair.py": (
+        "Docstring: 'Runs on the web pod as a SEPARATE process (the only place with auth.db)', "
+        "usage lines are `/opt/venv/bin/python tools/note_import_repair.py --out /data/...`. "
+        "A pin would point the dry run (auth.db `mode=ro`) and --apply at an empty sandboxed "
+        "auth.db, so it would report and repair nothing while looking like a clean run."),
     "notebook_volume_report.py": (
         "Existing exemption, carried forward from `tests/test_notebook_bridges_pin_the_root.py`"
         "'s `LIVE_ROOT_READERS`: READ-ONLY by construction, built to measure the LIVE "
@@ -354,6 +368,12 @@ EXEMPT_TOOLS: dict[str, str] = {
         "ModuleNotFoundError, and the job gates the promotion of production: #260 was refused "
         "on 2026-10-01. The tool writes one committed JSON fixture under app/ and opens no "
         "database."),
+    "index_gap_scan.py": (
+        "Runs in CI: `.github/workflows/index-gap-scan.yml` executes it on a runner that installs "
+        "requirements.txt only (no pytest, no repo conftest). It reads the PUBLIC `GET /api/bars` "
+        "answers over HTTP and nothing else; its one api import, `api.services.intraday_gap_audit` "
+        "(the expected-RTH-bucket authority, a pure calendar calculation), is function-local. It "
+        "opens no database and writes no file. (Ruled 2026-11-19.)"),
 }
 
 #: Named members, never a count: the walk must see these three PINNED tools and these three

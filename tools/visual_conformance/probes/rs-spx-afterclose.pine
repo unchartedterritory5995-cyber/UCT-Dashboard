@@ -1,0 +1,16 @@
+//@version=6
+indicator("UCTPROBE_RS_SPX_AFTERCLOSE", overlay = false)
+
+// Q-SPX-AFTERCLOSE (docs/pine/capture-queue-2026-11-17-spx-after-close.md) -- A TIMED QUESTION, its own probe
+// so no untimed `rs-spx-daily` capture can answer it. The same reads as rs-spx-daily.pine (TradingView's SP:SPX
+// on each bar of a stock's daily chart, as "D" and as timeframe.period), captured repeatedly on ONE session day:
+// at the close, +5, +15, +30, +60, +120 minutes, and the next morning, each capture's capturedAtUTC recorded.
+// The question: from what moment does the newest bar read the SAME session's SPX close instead of the previous one
+// (rs-rating-fred6724-pm-alab-1d-2026-11-16 read 7416.59 at 22:53:14Z between two witnesses reading 7561.67).
+
+plot(request.security("SP:SPX", "D", open), "X01_spx_D_open")
+plot(request.security("SP:SPX", "D", high), "X02_spx_D_high")
+plot(request.security("SP:SPX", "D", low), "X03_spx_D_low")
+plot(request.security("SP:SPX", "D", close), "X04_spx_D_close")
+plot(request.security("SP:SPX", timeframe.period, close), "X05_spx_period_close")
+plot(close, "X06_chart_close_CONTROL")

@@ -112,6 +112,9 @@ describe('the keys Indicators owns, held equal on the Agent side', () => {
     expect([...OWNED_TOP_KEYS].sort()).toEqual([...INDICATOR_OWNED_TOP_KEYS].sort())
   })
   it('every owned key is a real chart setting (a typo cannot hide a key)', () => {
-    for (const k of INDICATOR_OWNED_TOP_KEYS) expect(Object.prototype.hasOwnProperty.call(CHART_DEFAULTS, k) || k === 'infoValues', k).toBe(true)
+    // `infoValues` lives under `header`; `indicatorDefaults` (VA2) is emitted only once a
+    // member saves one, so neither is declared in CHART_DEFAULTS (the merged-blob digests).
+    const undeclared = new Set(['infoValues', 'indicatorDefaults'])
+    for (const k of INDICATOR_OWNED_TOP_KEYS) expect(Object.prototype.hasOwnProperty.call(CHART_DEFAULTS, k) || undeclared.has(k), k).toBe(true)
   })
 })

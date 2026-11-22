@@ -46,11 +46,8 @@ export const RECENTLY_DELETED_DAYS = 30
  *  are not, so they say how many more there are rather than drawing an unbounded list. */
 export const LIST_RENDER_MAX = 100
 
-/** What a tab says instead of its controls. Templates says so while wave 11 is off (Task 11.19 shows the real tab
- *  while `widgetsWaveOn(11)`; MyToolsSheet decides). */
-export const COMING_SOON = Object.freeze({
-  templates: 'Templates are coming soon.',
-})
+// ⚰️ COMING_SOON ("Templates are coming soon." while wave 11 was off) went with follow-up C: the Templates tab points at
+// Manage templates, which exists with wave 11 off too.
 
 // ── wave 11 (Task 11.19): the Templates tab, and the library lines every tab shares ───────────────────
 
@@ -61,13 +58,10 @@ export const TEMPLATE_COPY = Object.freeze({
   loading: 'Loading your templates…',
   loadFailed: "Your templates couldn't be loaded just now.",
   offlineList: "You're offline. Your templates show here when you're back online.",
-  emptyActive: 'No templates yet. Save a note’s setup as a template, or use one from the Template library.',
   emptyArchived: "Nothing archived. An archived template stays in its notes; new notes can't use it until you restore it.",
   emptyDeleted: `Nothing deleted in the last ${TEMPLATE_DELETED_DAYS} days.`,
   usedInEmpty: "This template isn't in any note yet.",
-  editorFailed: "The template editor couldn't open. Try again.",
   gone: "That template isn't available.",
-  heading: (n) => listHeadingText('live', n, 'template', 'templates'),
 })
 
 /** Spec 5.8 / W11-R10: archiving a template says what happens to its notes and to new notes. No zeros (W9-R7): a
@@ -159,6 +153,18 @@ export const COPY = Object.freeze({
 
 const isRecord = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
+
+/** How many live notes an item is in (`usedIn`), 0 for anything that is not a positive whole number. */
+export const usedOf = (d) => (Number.isInteger(d?.usedIn) && d.usedIn > 0 ? d.usedIn : 0)
+
+/** Where Manage templates opens (follow-up C, My tools' Templates tab): over the notes page the member is on (its own
+ *  query kept, so an open note stays open), or the notes list from anywhere else. */
+export function managerHref(loc = typeof window !== 'undefined' ? window.location : null) {
+  const here = loc && loc.pathname === '/journal/notebook'
+  const params = new URLSearchParams(here ? loc.search : '')
+  params.set('styles', '1')
+  return `/journal/notebook?${params}`
+}
 
 /** "Used in 3 notes" (a link to the notes), or "Not in any note" (nothing to list). */
 export const usedInText = (n) => (n > 0 ? toolUsedInText(n) : TOOL_EDITOR_COPY.notInNote)

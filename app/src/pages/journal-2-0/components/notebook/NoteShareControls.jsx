@@ -1,4 +1,6 @@
-// The editor's Share door: share links and publish-to-web for this note (wave 8, lane 8B).
+// The editor's Share door: share links and publish-to-web for this note (wave 8, lane 8B). Audit 2026-11-05, S19: the
+// sheet's content -- "Private link" and "Publish to the web" tabs, the preview, the publish confirm -- is
+// NoteSharePanel.jsx, a lazy chunk; this file is only the button and the sheet.
 //
 // ⛔ ONE DOOR IN THE EDITOR (ruling D-B8): a share link, the note's published page, and the
 // folder's published page all live in this one popover. There is no FolderSidebar door; the
@@ -23,43 +25,33 @@
 //
 // ⚠️ The trigger borrows NoteEditorPage.module.css's `.chromeBtn` so it sits in the editor's
 // header row like its neighbours (lane 8A owns that stylesheet; do not rename the class).
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useAuth } from '../../../../context/AuthContext'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import { notebookFlag } from '../../lib/offline/notebookFlags'
-import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
-import { noteShareEndpoint, sharedNoteUrl, SHARE_EXPIRY_CHOICES } from '../../lib/noteShareLink'
-import {
-  FOLDER_PUBLISH_SCOPE_SENTENCE, PUBLISH_ENDPOINT, PUBLISH_FAILED_SENTENCE, PUBLISH_PUBLIC_SENTENCE,
-  copyText, findLivePublication, pageCopiedSentence, publishTarget, publishedSentence, publishedUrl, requestJson,
-} from '../../lib/notePublishLink'
+import lazyChunk from '../../lib/lazyChunk'
 import editorStyles from './NoteEditorPage.module.css'
-import LoadFailed from '../LoadFailed'
 import styles from './NoteShareControls.module.css'
 
-// ⛔ Wave 10 F7 (Part A, voice): a server's `detail` is shown only for a REFUSAL (4xx), which
-// the server writes for members ("needs a paid plan"). A fault (5xx) or a dropped connection
-// carries whatever the server raised -- the proof walk's planted marker reached the screen --
-// so those read the fixed sentence instead.
-function memberDetail(e, fallback) {
-  const status = Number(e?.status)
-  return (status >= 400 && status < 500 && e?.detail) ? e.detail : fallback
+// Audit 2026-11-05, S19: the sheet's content (the two tabs, the preview, the publish confirm) is its own chunk,
+// fetched the first time the sheet opens, so the editor's first open carries only this button.
+const SharePanel = lazyChunk(() => import('./NoteSharePanel'))
+
+/** The Share sheet's title (M5): `Share "<title>"`, or "Share this note" for an untitled one. */
+export function shareTitle(noteTitle) {
+  const t = String(noteTitle || '').trim()
+  return t ? `Share "${t}"` : 'Share this note'
 }
 
-function whenText(expiresAt) {
-  if (!expiresAt) return 'It never expires.'
-  const d = new Date(expiresAt)
-  if (Number.isNaN(d.getTime())) return 'It never expires.'
-  return `It stops working on ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}.`
-}
-
-export default function NoteShareControls({ noteId, onMessage }) {
+export default function NoteShareControls({ noteId, noteTitle = '', onMessage }) {
   const { isPaid } = useAuth()
   const [open, setOpen] = useState(false)
   const shareOn = notebookFlag('j2_share_links_enabled') === true
   const publishOn = notebookFlag('notebook_publish_enabled') === true
   if (!noteId || isPaid !== true || (!shareOn && !publishOn)) return null
+  // M5: the sheet names the note it shares.
+  const title = shareTitle(noteTitle)
   return (
     <>
       <button
@@ -67,297 +59,24 @@ export default function NoteShareControls({ noteId, onMessage }) {
         className={editorStyles.chromeBtn}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-label="Share"
         data-tour="note-share"
         title={publishOn ? 'Share a link to this note or publish it to the web' : 'Share a read-only link to this note'}
         onClick={() => setOpen(true)}
       >
         <UIcon name="link" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />
-        Share
+        {/* Finish batch (iPhone): on a phone the header shows Share's icon; the word is visually hidden there and the
+            name stays "Share" (aria-label). Wider screens show the word, unchanged. */}
+        <span className={editorStyles.phoneIconLabel}>Share</span>
       </button>
-      <Sheet open={open} onClose={() => setOpen(false)} title="Share this note" ariaLabel="Share this note" maxWidth={460}>
+      <Sheet open={open} onClose={() => setOpen(false)} title={title} ariaLabel={title} maxWidth={460}>
         {open && (
-          <SharePanel noteId={noteId} shareOn={shareOn} publishOn={publishOn} onMessage={onMessage} />
+          <Suspense fallback={<div className={styles.panel} role="status" aria-live="polite">Loading…</div>}>
+            <SharePanel noteId={noteId} noteTitle={noteTitle} shareOn={shareOn} publishOn={publishOn}
+              onMessage={onMessage} onClose={() => setOpen(false)} />
+          </Suspense>
         )}
       </Sheet>
     </>
-  )
-}
-
-function SharePanel({ noteId, shareOn, publishOn, onMessage }) {
-  const [loading, setLoading] = useState(true)
-  const [share, setShare] = useState(null)
-  const [pubs, setPubs] = useState([])
-  const [ctx, setCtx] = useState(null)
-  const [expiry, setExpiry] = useState('never')
-  const [busy, setBusy] = useState(false)
-  const [status, setStatus] = useState('')
-  // Wave 10 F7 (Part A, 5d): the two reads that fill this panel. A failed one used to be
-  // swallowed, and the panel then offered "Create link" as if no link existed.
-  const [shareLoadError, setShareLoadError] = useState(null)
-  const [publishLoadError, setPublishLoadError] = useState(null)
-  const [reload, setReload] = useState(0)
-  // M-3: ids from useId, never fixed strings -- split view mounts two editors, so two of these
-  // popovers can exist at once, and a fixed id would be a duplicate the moment both open.
-  const uid = useId()
-  const ids = {
-    shareHeading: `${uid}-share-heading`,
-    expiry: `${uid}-expiry`,
-    revokeCaption: `${uid}-revoke-caption`,
-    publishHeading: `${uid}-publish-heading`,
-  }
-  // ⛔ Final review M-1: every action below swaps the control that was pressed for another
-  // (Create link -> the address and Copy link; Revoke -> Create link; Publish -> Copy page link;
-  // Unpublish -> Publish). The pressed button leaves the DOM, and focus with it -- a keyboard
-  // member was dropped on <body> with the status line announcing a result they could no longer
-  // act from. So the action names where focus goes NEXT, and once the busy state has cleared
-  // (the new control is disabled until then, and a disabled button cannot take focus) that
-  // control takes it.
-  const focusRefs = {
-    create: useRef(null),
-    copyLink: useRef(null),
-    publishNote: useRef(null),
-    copyPage: useRef(null),
-    publishFolder: useRef(null),
-    copyFolder: useRef(null),
-  }
-  const focusNextRef = useRef(null)
-  useEffect(() => {
-    if (busy || !focusNextRef.current) return
-    const target = focusRefs[focusNextRef.current]?.current
-    focusNextRef.current = null
-    target?.focus()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [busy, share, pubs])
-
-  const say = useCallback((msg) => {
-    setStatus(msg)
-    onMessage?.(msg)
-  }, [onMessage])
-
-  useEffect(() => {
-    let alive = true
-    const jobs = []
-    setShareLoadError(null)
-    setPublishLoadError(null)
-    if (shareOn) {
-      jobs.push(requestJson(noteShareEndpoint(noteId))
-        .then((b) => { if (alive) setShare(b.share || null) })
-        .catch((e) => { if (alive) setShareLoadError(e || new Error('share')) }))
-    }
-    if (publishOn) {
-      jobs.push(requestJson(`${PUBLISH_ENDPOINT}?note_id=${encodeURIComponent(noteId)}`)
-        .then((b) => {
-          if (!alive) return
-          setPubs(Array.isArray(b.publications) ? b.publications : [])
-          setCtx(b.note || null)
-        })
-        .catch((e) => { if (alive) setPublishLoadError(e || new Error('publish')) }))
-    }
-    Promise.all(jobs).then(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
-  }, [noteId, shareOn, publishOn, reload])
-
-  const notePub = findLivePublication(pubs, 'note', noteId)
-  const folderPub = ctx?.folderId ? findLivePublication(pubs, 'folder', ctx.folderId) : null
-
-  const run = async (fn) => {
-    if (busy) return
-    setBusy(true)
-    try { await fn() } finally { setBusy(false) }
-  }
-
-  const createLink = () => run(async () => {
-    try {
-      const choice = SHARE_EXPIRY_CHOICES.find((c) => String(c.days ?? 'never') === expiry)
-      const b = await requestJson(noteShareEndpoint(noteId), {
-        method: 'POST', body: JSON.stringify({ expiresInDays: choice ? choice.days : null }),
-      })
-      setShare(b.share)
-      trackNotebookEvent(NOTEBOOK_EVENTS.SHARE_USED, { action: 'create' })
-      focusNextRef.current = 'copyLink'
-      const copied = await copyText(sharedNoteUrl(b.share.token))
-      say(copied ? 'Share link created and copied.' : 'Share link created. Copy the address above.')
-    } catch (e) {
-      say(memberDetail(e, 'Could not create the link. Try again.'))
-    }
-  })
-
-  const copyLink = () => run(async () => {
-    const copied = await copyText(sharedNoteUrl(share.token))
-    if (copied) trackNotebookEvent(NOTEBOOK_EVENTS.SHARE_USED, { action: 'copy' })
-    say(copied ? 'Share link copied.' : 'Copy the address above.')
-  })
-
-  const revokeLink = () => run(async () => {
-    try {
-      await requestJson(noteShareEndpoint(noteId), { method: 'DELETE' })
-      setShare(null)
-      trackNotebookEvent(NOTEBOOK_EVENTS.SHARE_USED, { action: 'revoke' })
-      focusNextRef.current = 'create'
-      say('Link revoked. It no longer works.')
-    } catch (e) {
-      say(memberDetail(e, 'Could not revoke the link. Try again.'))
-    }
-  })
-
-  const publish = (kind) => run(async () => {
-    try {
-      const pub = await publishTarget(kind, kind === 'note' ? noteId : ctx.folderId)
-      setPubs((prev) => [pub, ...prev.filter((p) => p.slug !== pub.slug)])
-      trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'publish', kind, door: 'editor' })
-      focusNextRef.current = kind === 'note' ? 'copyPage' : 'copyFolder'
-      const copied = await copyText(publishedUrl(pub.slug))
-      say(publishedSentence(kind === 'note' ? null : ctx.folderName, copied))
-    } catch (e) {
-      say(memberDetail(e, PUBLISH_FAILED_SENTENCE))
-    }
-  })
-
-  const copyPage = (pub) => run(async () => {
-    const copied = await copyText(publishedUrl(pub.slug))
-    if (copied) trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'copy', kind: pub.kind, door: 'editor' })
-    say(pageCopiedSentence(copied))
-  })
-
-  const unpublish = (pub) => run(async () => {
-    try {
-      await requestJson(`${PUBLISH_ENDPOINT}/${encodeURIComponent(pub.slug)}`, { method: 'DELETE' })
-      setPubs((prev) => prev.filter((p) => p.slug !== pub.slug))
-      trackNotebookEvent(NOTEBOOK_EVENTS.PUBLISH_USED, { action: 'unpublish', kind: pub.kind, door: 'editor' })
-      focusNextRef.current = pub.kind === 'folder' ? 'publishFolder' : 'publishNote'
-      say('Unpublished. The page no longer works.')
-    } catch (e) {
-      say(memberDetail(e, 'Could not unpublish. Try again.'))
-    }
-  })
-
-  if (loading) {
-    return <div className={styles.panel} role="status" aria-live="polite">Loading…</div>
-  }
-
-  return (
-    <div className={styles.panel}>
-      <LoadFailed compact failures={[
-        { what: "this note's share link", error: shareLoadError, retry: () => setReload((n) => n + 1) },
-        { what: "this note's published pages", error: publishLoadError, retry: () => setReload((n) => n + 1) },
-      ]} />
-      {shareOn && (
-        <section className={styles.section} aria-labelledby={ids.shareHeading}>
-          <h3 id={ids.shareHeading} className={styles.heading}>Share link</h3>
-          {!share ? (
-            <>
-              <p className={styles.lede}>
-                Anyone with the link can read this note without signing in. Price charts are not shown.
-              </p>
-              <div className={styles.row}>
-                <label className={styles.label} htmlFor={ids.expiry}>Link stops working</label>
-                <select
-                  id={ids.expiry}
-                  className={styles.select}
-                  value={expiry}
-                  onChange={(e) => setExpiry(e.target.value)}
-                  disabled={busy}
-                >
-                  {SHARE_EXPIRY_CHOICES.map((c) => (
-                    <option key={String(c.days)} value={String(c.days ?? 'never')}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className={styles.row}>
-                <button type="button" ref={focusRefs.create} className={styles.action} onClick={createLink} disabled={busy}>Create link</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <input
-                className={styles.field}
-                readOnly
-                value={sharedNoteUrl(share.token)}
-                aria-label="Share link address"
-                onFocus={(e) => e.target.select()}
-              />
-              <p className={styles.caption}>{whenText(share.expiresAt)}</p>
-              <div className={styles.row}>
-                <button type="button" ref={focusRefs.copyLink} className={styles.action} onClick={copyLink} disabled={busy}>Copy link</button>
-                <button
-                  type="button"
-                  className={`${styles.action} ${styles.danger}`}
-                  onClick={revokeLink}
-                  disabled={busy}
-                  aria-describedby={ids.revokeCaption}
-                >
-                  Revoke link
-                </button>
-              </div>
-              <p id={ids.revokeCaption} className={styles.caption}>It stops working immediately.</p>
-            </>
-          )}
-        </section>
-      )}
-
-      {publishOn && (
-        <section className={styles.section} aria-labelledby={ids.publishHeading}>
-          <h3 id={ids.publishHeading} className={styles.heading}>Publish to the web</h3>
-          <p className={styles.lede}>{PUBLISH_PUBLIC_SENTENCE}</p>
-          {notePub ? (
-            <>
-              <input
-                className={styles.field}
-                readOnly
-                value={publishedUrl(notePub.slug)}
-                aria-label="Published page address"
-                onFocus={(e) => e.target.select()}
-              />
-              <div className={styles.row}>
-                <button type="button" ref={focusRefs.copyPage} className={styles.action} onClick={() => copyPage(notePub)} disabled={busy}>Copy page link</button>
-                <button type="button" className={`${styles.action} ${styles.danger}`} onClick={() => unpublish(notePub)} disabled={busy}>
-                  Unpublish
-                </button>
-              </div>
-            </>
-          ) : ctx?.publishable === false && ctx?.exists ? (
-            // Wave-8 backend M-3: the server refuses to publish an ARCHIVED note, and says so in
-            // `publishable`. Say why here instead of offering a button whose only result is an
-            // error. `=== false` on purpose: a server that predates the field sends nothing, and
-            // the button stays (its refusal sentence still reaches the member).
-            <p className={styles.caption}>This note is archived. Unarchive it from the note menu to publish it.</p>
-          ) : (
-            <div className={styles.row}>
-              <button type="button" ref={focusRefs.publishNote} className={styles.action} onClick={() => publish('note')} disabled={busy}>Publish this note</button>
-            </div>
-          )}
-          {ctx?.folderId && (
-            folderPub ? (
-              <>
-                <input
-                  className={styles.field}
-                  readOnly
-                  value={publishedUrl(folderPub.slug)}
-                  aria-label={`Published folder address, ${ctx.folderName}`}
-                  onFocus={(e) => e.target.select()}
-                />
-                <div className={styles.row}>
-                  <button type="button" ref={focusRefs.copyFolder} className={styles.action} onClick={() => copyPage(folderPub)} disabled={busy}>Copy folder link</button>
-                  <button type="button" className={`${styles.action} ${styles.danger}`} onClick={() => unpublish(folderPub)} disabled={busy}>
-                    Unpublish folder
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className={styles.row}>
-                  <button type="button" ref={focusRefs.publishFolder} className={styles.action} onClick={() => publish('folder')} disabled={busy}>
-                    {`Publish folder "${ctx.folderName}"`}
-                  </button>
-                </div>
-                <p className={styles.caption}>{FOLDER_PUBLISH_SCOPE_SENTENCE}</p>
-              </>
-            )
-          )}
-        </section>
-      )}
-
-      <p className={styles.status} role="status" aria-live="polite">{status}</p>
-    </div>
   )
 }

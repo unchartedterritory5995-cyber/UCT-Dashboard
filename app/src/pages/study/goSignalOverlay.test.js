@@ -1,6 +1,6 @@
 /** goSignalOverlay rails: the flag high + flag low rays every HOURLY Go Signal chart carries. */
 import { describe, it, expect } from 'vitest'
-import { goSignalAnnotations, flagStartBar, isGoSignalHourlyItem, GO_SIGNAL_SKILL_ID } from './goSignalOverlay'
+import { goSignalOpenBarTimes, goSignalAnnotations, flagStartBar, isGoSignalHourlyItem, GO_SIGNAL_SKILL_ID } from './goSignalOverlay'
 import { studyAnnotations, hasStudyOverlay } from './studyOverlays'
 
 // seven regular-session hourly bars a day, unix seconds, three sessions
@@ -46,5 +46,12 @@ describe('goSignalOverlay', () => {
     expect(hasStudyOverlay(GO)).toBe(true)
     expect(studyAnnotations(GO, hourly(14)).map((a) => a.id)).toEqual(['study-go-flag-high', 'study-go-flag-low'])
     expect(studyAnnotations({ skill_id: GO_SIGNAL_SKILL_ID, reveal_json: { facts: {} } }, hourly(14))).toBeNull()
+  })
+  it('names the ruled session first three hourly bars from the first-hour key (the open, painted white)', () => {
+    const item = { skill_id: 'setup.intraday.go_signal', reveal_json: { facts: { flag_start_t: 1, first_hour_t: 1793107800, flag_low: 1, flag_high: 2 } } }
+    const bars = [1793104200, 1793107800, 1793111400, 1793115000, 1793118600].map((t) => ({ t, o: 1, h: 2, l: 0.5, c: 1.5, v: 1 }))
+    expect(goSignalOpenBarTimes(item, bars)).toEqual([1793107800, 1793111400, 1793115000])
+    expect(goSignalOpenBarTimes(item, bars.slice(0, 1))).toBeNull()
+    expect(goSignalOpenBarTimes({ reveal_json: { facts: {} } }, bars)).toBeNull()
   })
 })

@@ -6,19 +6,13 @@
 .wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
-  border-radius: var(--radius-lg);
-  background: var(--bg-raised, rgba(255, 255, 255, 0.02));
+  gap: 10px;
 }
 
 .head {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
@@ -36,10 +30,10 @@
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
   line-height: 1.5;
-  color: var(--text-bright);
-  background: var(--bg-sunken, rgba(0, 0, 0, 0.25));
-  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
-  border-radius: var(--radius-md);
+  color: #ededed;
+  background: #0f1012;
+  border: 1px solid #26282c;
+  border-radius: 9px;
   resize: vertical;
   white-space: pre;
   overflow-wrap: normal;
@@ -65,7 +59,6 @@
 .legend {
   padding: 0 4px;
   font-size: 11px;
-  letter-spacing: 0.04em;
   color: var(--text-muted);
 }
 
@@ -83,21 +76,19 @@
 
 .outKind {
   font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .outTitle { font-size: 12px; color: var(--text-bright); }
 /* the hidden tag rides the row's own label so a helper series can never read as
    an offered column (ruling 1.2, 2026-09-12) */
-.outHiddenTag { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); margin-left: 6px; }
+.outHiddenTag { font-size: 10px; color: var(--text-dim); margin-left: 6px; }
 
 .outFormula {
   grid-column: 1 / -1;
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 12px;
-  color: var(--gold, #dcbb5e);
+  color: #c9c6be;
   overflow-wrap: anywhere;
 }
 
@@ -131,8 +122,6 @@
 
 .refusalWhere {
   font-size: 11px;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
   color: var(--color-danger);
 }
 
@@ -184,13 +173,14 @@
   min-height: var(--tap-min, 44px);
   padding: 8px 16px;
   font-size: 13px;
-  color: var(--text-bright);
-  background: transparent;
-  border: 1px solid var(--gold, #dcbb5e);
-  border-radius: var(--radius-md);
+  font-weight: 600;
+  color: #f8f7f3;
+  background: rgba(248, 247, 243, 0.08);
+  border: 0;
+  border-radius: 7px;
   cursor: pointer;
 }
-.useBtn:hover:not(:disabled) { background: rgba(220, 187, 94, 0.12); }
+.useBtn:hover:not(:disabled) { background: rgba(248, 247, 243, 0.13); }
 .useBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* The way out of "I do not know what I can write" — placed beside the Use
@@ -201,7 +191,7 @@
 }
 
 .refLink a {
-  color: var(--ut-gold, #dcbb5e);
+  color: #c9c6be;
   text-decoration: none;
 }
 
@@ -216,8 +206,8 @@
   gap: 6px;
   margin-top: 8px;
   padding: 8px 10px;
-  border-left: 2px solid var(--gold, #c9a84c);
-  background: rgba(201, 168, 76, 0.06);
+  border-left: 2px solid #383b41;
+  background: rgba(248, 247, 243, 0.04);
   border-radius: 0 4px 4px 0;
 }
 
@@ -238,13 +228,13 @@
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 600;
-  color: var(--gold, #c9a84c);
-  background: rgba(201, 168, 76, 0.1);
-  border: 1px solid rgba(201, 168, 76, 0.45);
+  color: #c9c6be;
+  background: rgba(248, 247, 243, 0.04);
+  border: 0;
   border-radius: 4px;
   cursor: pointer;
 }
-.suggestApply:hover { background: rgba(201, 168, 76, 0.18); color: var(--text-bright); }
+.suggestApply:hover { background: rgba(248, 247, 243, 0.08); color: var(--text-bright); }
 .suggestApply:disabled { opacity: 0.45; cursor: default; }
 
 /* ⭐ TURN A NUMERIC COLUMN INTO A SCREEN. A quiet inline row rather than a banner:
@@ -289,7 +279,7 @@
 .toScreenPreview {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 12px;
-  color: var(--gold, #c9a84c);
+  color: #c9c6be;
   overflow-wrap: anywhere;
 }
 
@@ -316,7 +306,7 @@
 .manifestReach strong {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 15px;
-  color: var(--gold, #c9a84c);
+  color: #c9c6be;
   margin-right: 4px;
 }
 
@@ -386,6 +376,12 @@
   border-radius: 4px;
 }
 
-.settingInput:focus-visible { outline: 1px solid var(--gold, #c9a84c); outline-offset: 1px; }
+.settingInput:focus-visible { outline: 1px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
 
 .settingWas { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* Owner 11-16: the paste editor opens TALL (about 8 lines) so it is obvious where a script goes — since the hidden
+   textarea really hides (the old empty-second-box bug), the code editor alone set the height and started as one line. */
+:global([data-testid="pine-editor"]) { min-height: 168px; }
+:global([data-testid="pine-editor"] .cm-editor),
+:global([data-testid="pine-editor"] .cm-scroller) { min-height: 168px; }

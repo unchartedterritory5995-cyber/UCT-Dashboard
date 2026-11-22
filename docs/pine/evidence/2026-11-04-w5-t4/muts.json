@@ -1,0 +1,182 @@
+[
+ [
+  "control:noop-comment",
+  "../tools/pine_runtime_host_parity.mjs",
+  "// \u2500\u2500\u2500 HP-4: the mutation control",
+  "// \u2500\u2500\u2500 HP-4: the mutation control (noop)"
+ ],
+ [
+  "enc:undefined-not-na",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (v === null || v === undefined) f[i] = NaN",
+  "if (v === null) f[i] = NaN"
+ ],
+ [
+  "enc:coerce-non-number",
+  "../tools/pine_runtime_host_parity.mjs",
+  "else { bad.push(key); break }",
+  "else { f[i] = Number(v) }"
+ ],
+ [
+  "rec:non-numeric-ok",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (enc.nonNumeric.length) {",
+  "if (false) {"
+ ],
+ [
+  "rec:time-budget-is-a-verdict",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (NON_DETERMINISTIC_GUARDS.includes(guard)) return",
+  "if (false) return"
+ ],
+ [
+  "rec:bar-dropped",
+  "../tools/pine_runtime_host_parity.mjs",
+  "refusals: [{ key: '*', guard, bar }]",
+  "refusals: [{ key: '*', guard, bar: null }]"
+ ],
+ [
+  "rec:unnamed-guard-null",
+  "../tools/pine_runtime_host_parity.mjs",
+  "const guard = e.guard || `unnamed:${e.name || 'Error'}`",
+  "const guard = e.guard || 'unnamed'"
+ ],
+ [
+  "cmp:guards-ignored",
+  "../tools/pine_runtime_host_parity.mjs",
+  "export const COMPARED = Object.freeze(['status', 'digest', 'guards', 'warmup'])",
+  "export const COMPARED = Object.freeze(['status', 'digest', 'warmup'])"
+ ],
+ [
+  "cmp:warmup-ignored",
+  "../tools/pine_runtime_host_parity.mjs",
+  "export const COMPARED = Object.freeze(['status', 'digest', 'guards', 'warmup'])",
+  "export const COMPARED = Object.freeze(['status', 'digest', 'guards'])"
+ ],
+ [
+  "cmp:missing-ignored",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (!x || !y) { out.push({ case: name, field: 'missing', a: !!x, b: !!y }); continue }",
+  "if (!x || !y) continue"
+ ],
+ [
+  "dist:one-digest-ok",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (new Set(all).size < 2) return",
+  "if (new Set(all).size < 1) return"
+ ],
+ [
+  "dist:collision-ok",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (seen.has(r.digest)) return",
+  "if (false) return"
+ ],
+ [
+  "hostile:any-guard",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (r.status !== 'withheld' || !r.guards.includes(c.expectGuard)) {",
+  "if (r.status !== 'withheld') {"
+ ],
+ [
+  "check:bars-unchecked",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (expected.barsSha256[set] !== sha) {",
+  "if (false) {"
+ ],
+ [
+  "check:bump-message-swapped",
+  "../tools/pine_runtime_host_parity.mjs",
+  "    const bumped = !sameIdentity(expected.identity, got.identity)",
+  "    const bumped = sameIdentity(expected.identity, got.identity)"
+ ],
+ [
+  "check:inconclusive-green",
+  "../tools/pine_runtime_host_parity.mjs",
+  "    code = 2\n",
+  "    code = 0\n"
+ ],
+ [
+  "check:hostile-unchecked",
+  "../tools/pine_runtime_host_parity.mjs",
+  "for (const h of hostileFailures(corpus, got.records)) { code = 1;",
+  "for (const h of hostileFailures(corpus, got.records).slice(0, 0)) { code = 1;"
+ ],
+ [
+  "check:distinguish-unchecked",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (nd) { code = 1; lines.push(`RED corpus: ${nd}`) }",
+  "if (false) { code = 1 }"
+ ],
+ [
+  "write:moved-without-bump",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (moved.length) throw new Error",
+  "if (false) throw new Error"
+ ],
+ [
+  "write:bars-without-bump",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (prev.barsSha256[set] && prev.barsSha256[set] !== sha) throw",
+  "if (false) throw"
+ ],
+ [
+  "perturb:many-sites",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (n !== 1) throw new Error(`perturbation site",
+  "if (n < 1) throw new Error(`perturbation site"
+ ],
+ [
+  "perturb:noop",
+  "../tools/pine_runtime_host_parity.mjs",
+  "return text.replace(PERTURB_FROM, PERTURB_TO)",
+  "return text"
+ ],
+ [
+  "hp7:exempt-extra",
+  "../tools/pine_runtime_host_parity.mjs",
+  "  budgetMs: 'H5: the wall-clock",
+  "  warmupCurtain: 'x',\n  budgetMs: 'H5: the wall-clock"
+ ],
+ [
+  "hp7:many-calls-ok",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (calls.length !== 1) { code = 1;",
+  "if (calls.length < 1) { code = 1;"
+ ],
+ [
+  "hp7:options-unchecked",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (a !== b) { code = 1;",
+  "if (false) { code = 1;"
+ ],
+ [
+  "node:session-on",
+  "../tools/pine_runtime_host_parity.mjs",
+  "rt.computeRuntimeColumns(c.def, rows, c.ctx, { incremental: false })",
+  "rt.computeRuntimeColumns(c.def, rows, c.ctx, {})"
+ ],
+ [
+  "node:neutral-sha-real",
+  "../tools/pine_runtime_host_parity.mjs",
+  "bundle_sha256: ARTIFACT_NEUTRAL_SHA,\n  }",
+  "bundle_sha256: '1'.repeat(64),\n  }"
+ ],
+ [
+  "corpus:unlisted-ok",
+  "../tools/pine_runtime_host_parity.mjs",
+  "if (!listed.has(`corpus/${f}`)) throw",
+  "if (false) throw"
+ ],
+ [
+  "corpus:calcbars-ignored",
+  "../tools/pine_runtime_host_parity.mjs",
+  "const source = spec.calcBars ? withCalcBars(base, spec.calcBars) : base",
+  "const source = base"
+ ],
+ [
+  "bars:dst-ignored",
+  "../tools/pine_runtime_host_parity.mjs",
+  "const utcHour = easternDst(y, m, d) ? 13 : 14",
+  "const utcHour = 14"
+ ]
+]

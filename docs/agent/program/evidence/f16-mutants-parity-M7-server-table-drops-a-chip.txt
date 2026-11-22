@@ -1,0 +1,34 @@
+# head 673a92b65e tag=M7-server-table-drops-a-chip 2026-11-10T22:30:33Z
+LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+warning: in the working copy of 'api/services/uct_agent/turn.py', LF will be replaced by CRLF the next time Git touches it
+# diff:  1 file changed, 1 insertion(+), 1 deletion(-)
+ RUN  v4.0.18 C:/w/pl-widget-f16/app
+ ❯ src/agent/agentFlowChipsParity.test.js (3 tests | 1 failed) 9ms
+     ✓ the same four controls 1ms
+     × every chip, by stored value and by the word on it, maps to its stored value; nothing else is accepted 5ms
+     ✓ every chip word a member types (less All / Any) and every `also` word is one the server reads as a chip request 1ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentFlowChipsParity.test.js > the server's Options Flow chips are the widget's chips > every chip, by stored value and by the word on it, maps to its stored value; nothing else is accepted
+AssertionError: minPremium: expected { '0': '0', '250000': '250000', …(5) } to deeply equal { '0': '0', '250000': '250000', …(6) }
+- Expected
++ Received
+@@ -1,7 +1,6 @@
+  {
+-   "$1m": "1000000",
+    "$250k": "250000",
+    "$500k": "500000",
+    "0": "0",
+    "1000000": "1000000",
+    "250000": "250000",
+ ❯ src/agent/agentFlowChipsParity.test.js:33:35
+     31|         if (f.shown?.[v] != null) want[String(f.shown[v]).toLowerCase(…
+     32|       }
+     33|       expect(table[f.key], f.key).toEqual(want)
+       |                                   ^
+     34|     }
+     35|   })
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed (3)
+   Start at  17:30:36
+   Duration  1.05s (transform 174ms, setup 306ms, import 43ms, tests 9ms, environment 549ms)

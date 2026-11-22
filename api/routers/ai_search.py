@@ -853,9 +853,13 @@ def _read_flow_rows(sym: str, source: str) -> list[dict] | None:
         return None
 
 
-def _ctx_flow_ticker(sym: str) -> str:
-    """One desk-context line of a ticker's flow, read from BOTH sources it may
-    be filed under.
+def flow_ticker_line(sym: str) -> tuple[str, bool]:
+    """`(line, conclusive)`: one line of a ticker's flow, read from BOTH sources it
+    may be filed under, and whether the read reached a conclusion.
+
+    `conclusive` is False when the flow read FAILED: the line is then "" and means
+    "could not be read", never "a quiet tape". A caller that tells its member
+    something (the Compass flow tool) has to say which of the two it is.
 
     `/api/flow/ticker` defaults to `source=stocks`, but the flow DB files
     index/ETF symbols — SPY, QQQ, IWM, every XL*, ~200 names — under
@@ -884,7 +888,7 @@ def _ctx_flow_ticker(sym: str) -> str:
     import time as _time
     hit = _flow_ctx_memo.get(sym)
     if hit and _time.time() - hit[0] < 60:
-        return hit[1]
+        return hit[1], True          # only a conclusive read is ever memoized
     text = ""
     conclusive = False
     try:
@@ -903,7 +907,12 @@ def _ctx_flow_ticker(sym: str) -> str:
         conclusive = False
     if conclusive:
         _flow_ctx_memo[sym] = (_time.time(), text)
-    return text
+    return text, conclusive
+
+
+def _ctx_flow_ticker(sym: str) -> str:
+    """One desk-context line of a ticker's flow ("" when quiet or unreadable)."""
+    return flow_ticker_line(sym)[0]
 
 
 # Flow context is an HTTP hop — fire it only when the phrasing asks about OPTIONS
@@ -1211,7 +1220,7 @@ def _ctx_verdict(sym: str) -> str:
 
 def _ctx_levels(sym: str) -> str:
     """Dark-pool levels (SQLite-backed, safe to build) + gamma walls read
-    CACHE-ONLY — the GXW cold build is a live ~20s Schwab chain call and must
+    CACHE-ONLY — the GXW cold build is a live option-chain walk (up to ~25s) and must
     never run inside an answer."""
     bits: list[str] = []
     try:
@@ -1791,6 +1800,7 @@ _PUBLIC_MAX_TOKENS = 900     # unauthenticated teaser path stays tighter
 #: Own cost surface, so synthesis spend is separable from the Perplexity leg in
 #: `llm_route_cost_log` and cappable on its own.
 _SYNTH_SURFACE = "ai_search_synth"
+_DEGRADED_SURFACE = "ai_search_degraded"
 _SYNTH_CAP_ENV = "AI_SEARCH_SYNTH_DAILY_CAP"
 _SYNTH_CAP_DEFAULT = 5.0          # USD/ET-day; ~135 asks at the measured $0.037
 
@@ -1884,15 +1894,15 @@ def _claude_synthesis(query: str, system: str, web: dict, history) -> dict | Non
             ]
         else:
             sys_param = full + block      # unexpected shape → answer uncached
-        resp = client.with_options(timeout=30).messages.create(
-            model=model, max_tokens=_ANSWER_MAX_TOKENS,
-            system=sys_param, messages=msgs)
+        from api.services import narrative_cost_guard as _g
+        request = dict(model=model, max_tokens=_ANSWER_MAX_TOKENS, system=sys_param, messages=msgs)
+        with _g.charge_if_failed(_SYNTH_SURFACE, request):
+            resp = client.with_options(timeout=30).messages.create(**request)
         try:
             # ⛔ record_from_response, not record(input_tokens=...): a cached
             # prefix arrives as cache_read_input_tokens (0.1x) /
             # cache_creation_input_tokens (1.25x) and NEVER as input_tokens, so
             # a guard fed only input_tokens mis-bills every cached call.
-            from api.services import narrative_cost_guard as _g
             _g.record_from_response(_SYNTH_SURFACE, model, resp)
         except Exception:
             pass                  # accounting is bookkeeping; the answer stands
@@ -2614,8 +2624,11 @@ def _desk_only_answer(query: str, system: str, meta: dict, history: list) -> dic
                 msgs.append({"role": "user", "content": q})
                 msgs.append({"role": "assistant", "content": a})
         msgs.append({"role": "user", "content": query})
-        resp = client.with_options(timeout=25).messages.create(
-            model=model, max_tokens=600, system=system + _DEGRADED_NOTE, messages=msgs)
+        from api.services import narrative_cost_guard as _g
+        request = dict(model=model, max_tokens=600, system=system + _DEGRADED_NOTE, messages=msgs)
+        with _g.charge_if_failed(_DEGRADED_SURFACE, request):
+            resp = client.with_options(timeout=25).messages.create(**request)
+        _g.record_from_response(_DEGRADED_SURFACE, model, resp)
         text = "".join(
             b.text for b in (resp.content or []) if getattr(b, "type", "") == "text"
         ).strip()

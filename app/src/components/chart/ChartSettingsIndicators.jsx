@@ -46,18 +46,30 @@
 // 3. A VISIBILITY toggle that is not a REMOVE. See `rowVisible` below — the two
 //    verbs were the same control on this tab, which is why turning an indicator
 //    off used to make its settings vanish.
+import { withoutGuardIds } from './engine/ast/guardIdText'
 import { orderCategories } from './technicalCategories'
-import { Fragment, useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import OptionsSourcePicker from './OptionsSourcePicker'
+import { Fragment, cloneElement, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import {
   readEnabled, indTarget, signTarget, styleInputKeys, hiddenPlotOnlyInputKeys,
+  fieldsForInstance, sectionize, initialCollapsed, evalActiveWhen,
+  visiblePresets, isPlotHidden, textInputCommit, textInputDraft,
 } from './indicatorRegistry'
+import { plotTitlesOf } from './engine/pinePresentation.js'
+// ⭐ UCT RS Phase 3, unit 3-02b — what the LIVE server row declares, read the way
+// the settings dialog and the phone sheet read it (3-02), so a `requiresServer`
+// control, option or preset stays hidden here too until the server can answer it.
+import {
+  serverDeclares, subscribeServerDefinitions,
+  // ⭐ RS split U1 — the definition-level gate for the Browse catalogue.
+  isCatalogRowOffered, serverDefinitionsVersion,
+} from './engine/serverCompute'
 // ⭐ THE BREAKPOINT HOOK THE APP ALREADY HAS. The narrow layout is a second
 // VIEW of one state, not a second component, and it needs exactly one bit:
 // is there room for two columns. A `matchMedia` of its own here would be a
 // second breakpoint authority beside `useMediaQuery`.
 import useMediaQuery from '../../hooks/useMediaQuery'
-import { useCreateIndicatorAccess } from './builder/studio/createIndicatorFlag'
-import { AuthContext } from '../../context/AuthContext'
 import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
   BUILT_IN_ROWS,
@@ -85,6 +97,11 @@ import useSymbolDiscovery from './useSymbolDiscovery'
 // See the header — this is the reuse, and it is why this file has no `q.trim()`
 // in it and no second `setIndicatorEnabled` call.
 import { matches, isRowOn, toggledRow, rowVisibility } from './IndicatorLibraryDialog'
+// Words a description carries that name no indicator (the word-by-word search fallback skips them).
+const SEARCH_STOP_WORDS = new Set(['the', 'a', 'an', 'and', 'or', 'of', 'on', 'in', 'is', 'it', 'to', 'when', 'while',
+  'with', 'above', 'below', 'over', 'under', 'than', 'crosses', 'cross', 'day', 'days', 'bar', 'bars', 'price', 'close',
+  'my', 'me', 'show', 'mark', 'line', 'up', 'down', 'goes', 'is', 'are', 'at', 'for', 'from', 'by'])
+import { isTouredFirstAdd } from './legend/indicatorTour'
 import IndicatorHistoryButtons from './IndicatorHistoryButtons'
 import UnavailableIndicators from './UnavailableIndicators'
 import { legacyInstanceId } from './engine/instances'
@@ -95,18 +112,63 @@ import {
 } from './engine/instanceControls'
 import {
   CALC_TIMEFRAMES, calcTimeframeOf, calcTimeframeLabel, frameRelation, gatedReason,
-  VISIBILITY_PRESETS, visibilityChoices, visibilityOf, visibilitySummary,
+  VISIBILITY_PRESETS, visibilityChoices, visibilityOf, visibilitySummary, isVisibleOnTimeframe,
 } from './engine/instanceTimeframe'
 import { calcTimeframeCapability, CAPABILITY_WORDS } from './engine/calcTimeframeCapability'
 import { LINE_WIDTH_CHOICES, LINE_STYLE_CHOICES } from './engine/presentation'
 import { tfLabel } from './timeframes'
 import { CLEAN } from './engine/repaintVerdict'
-import styles from './ChartSettingsModal.module.css'
+// ⭐ UCT SIGNATURE (owner 11-15, the approved Chart Settings Lab). The tab's look lives in its OWN
+// module; `modalStyles` is the window's, used here only for the shared "Soon" tag.
+import modalStyles from './ChartSettingsModal.module.css'
+import ui from './ChartSettingsIndicators.module.css'
 import { kindOf as definitionKindOf, copyVerdict } from './builder/definitionActions'
+import { indicatorTemplatesEnabled } from './builder/indicatorTemplates'
+
+/** `styles.<name>` → `"<name> <hashed look>"`. The plain word is the stable hook tests, the UCT
+ *  Agent's guide and `[class*="insRowName"]`-style queries find; the hashed class is the look,
+ *  from `ChartSettingsIndicators.module.css` only — so the window's older `ins*` rules can never
+ *  leak onto this tab. A name with no rule in the module is just the hook. */
+const styles = new Proxy({}, {
+  get: (_, k) => (typeof k === 'string' ? (ui[k] ? `${k} ${ui[k]}` : k) : undefined),
+})
+
+/** The small line icons this tab draws (16-unit grid, 1.4 stroke, `currentColor`). */
+const PATHS = {
+  plus: 'M8 3v10M3 8h10',
+  gear: 'M8 5.8a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4zM8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1',
+  eye: 'M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8zM8 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
+  eyeoff: 'M2 2l12 12M6.4 6.5a2 2 0 0 0 2.9 2.9M4.2 4.3C2.6 5.5 1.5 8 1.5 8S4 12.5 8 12.5c1.3 0 2.4-.4 3.4-1M7 3.6c.3 0 .7-.1 1-.1 4 0 6.5 4.5 6.5 4.5s-.6 1.1-1.7 2.3',
+  x: 'M4 4l8 8M12 4l-8 8',
+  chev: 'M5 6.5 8 9.5l3-3',
+  chevr: 'M6.5 4.5 10 8l-3.5 3.5',
+  back: 'M10 4 6 8l4 4',
+  dup: 'M7 5.5h5a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 12V7A1.5 1.5 0 0 1 7 5.5zM3 10.5V4a1.5 1.5 0 0 1 1.5-1.5H11',
+  trash: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5',
+  more: 'M3.5 8h.01M8 8h.01M12.5 8h.01',
+  send: 'M3 8h9M8.5 4.5 12 8l-3.5 3.5',
+  search: 'M7 2.8a4.2 4.2 0 1 0 0 8.4 4.2 4.2 0 0 0 0-8.4zM10.2 10.2 13.5 13.5',
+  spark: 'M8 2l1.5 4.5L14 8l-4.5 1.5L8 14l-1.5-4.5L2 8l4.5-1.5z',
+}
+
+const Icon = ({ name, size = 15, className }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor"
+    strokeWidth={name === 'more' ? 2.4 : 1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d={PATHS[name]} />
+  </svg>
+)
+const SOON = 'Coming soon'
 
 /** ⭐ PHASE 4 — the "Your indicators" tab (`discoveryCatalog.tabOf` files a member's
  *  own formula under `formulas`, which `resultsForTab` already answers). */
 const YOUR_INDICATORS_TAB = Object.freeze({ key: 'formulas', label: 'Your indicators' })
+/** ⭐ MEMBERS (2026-11-16) — what other members published, shown here instead of only on a
+ *  page of its own (`IndicatorMembersTab`). Not a catalogue category: its rows are not in
+ *  `results`, so a universal search does not list them; the tab filters by the same box. */
+export const MEMBERS_TAB = Object.freeze({ key: 'members', label: 'Members' })
+/** ⭐ UCT (2026-11-16) — the house set (`IndicatorHouseTab`): indicators UCT built and checked
+ *  bar by bar. Like Members, not a catalogue category; it sits just before Members. */
+export const HOUSE_TAB = Object.freeze({ key: 'uct', label: 'UCT' })
 import SourceField from './SourceField'
 // FT-070 / COV-11 — save / apply indicator templates (renders nothing unless
 // VITE_INDICATOR_TEMPLATES_ENABLED=1; see IndicatorTemplatesBar.jsx).
@@ -126,7 +188,14 @@ import {
 } from './engine/displayTarget'
 import { sourceInputsOf, parseSource } from './engine/sourceRef'
 import { ohlcCapableFor, sourceCapabilityFor } from './engine/styleCapability'
-import { setInstancePlotStyle, setInstanceDisplayTarget } from './engine/instanceControls'
+import { setInstancePlotStyle, setInstanceDisplayTarget, setInstanceDotSize, dotPlotsOf, DOT_SIZE_OPTIONS,
+  instanceDotSizeReading, DOT_SIZE_MIXED } from './engine/instanceControls'
+// ⭐ UCT RS PHASE 2a VISUAL (A6) — the Inspector's Preset row reads and writes
+// through the ENGINE's preset helpers, the ones the settings dialog and the phone
+// sheet use, so the three surfaces cannot name different presets for one instance.
+import { applyPresetInputs, presetsOf, detectPreset, CUSTOM_PRESET } from './engine/instanceControls'
+import IndicatorMembersTab from './IndicatorMembersTab'
+import IndicatorHouseTab from './IndicatorHouseTab'
 // ⭐⭐ THE PANE MAP, AS A READ. `chartDataMap` asks `resolveDisplayTarget`,
 // `paneOwnerOf`, `paneOwnKeys` and `paneOwnersNeeded` — the same four answers
 // `StockChart` hands `computePaneLayout` — so this component never forms its own
@@ -144,6 +213,7 @@ import { movePane, movePaneTo } from './engine/paneOrder'
 import { moveSeriesWithinPane, moveSeriesTo, canMoveSeries } from './engine/paneSeriesOrder'
 import { safeCssColour } from './engine/objectColour'
 import { tagRestatesName } from './shortTag'
+import YourIndicatorActions from './YourIndicatorActions'
 
 /**
  * Is this row a chart FIXTURE — an MA overlay or the volume pane — rather than an
@@ -266,10 +336,16 @@ export default function ChartSettingsIndicators({
   // mounted `BuilderSheet`); the multi-chart grid does not, and simply shows no
   // New Formula action rather than a button that opens nothing.
   onCreateFormula = null,
-  // ⭐ P2 Track B — "+ Create Indicator" (UCT Intelligence). Same absent-prop ⇒
-  // absent-door rule, and additionally DARK behind `useCreateIndicatorFlag`
-  // (default off): with the flag off this surface is byte-identical to before.
+  // ⭐ UCT SIGNATURE R2 (owner Option 1, 2026-11-16) — `onCreateFormula(opts?)` is now the
+  // window's ONE "✦ Create indicator" button, opening the New formula window on its start view.
+  // `opts.description` (the search text, from "Build … with the UCT Agent") is PRE-FILLED into
+  // that view's Describe it box and never sent. `onCreateIndicator` is still accepted (hosts pass
+  // it) but this window no longer offers the separate Create Indicator door.
+  // eslint-disable-next-line no-unused-vars
   onCreateIndicator = null,
+  // (door) => void: open the New formula window on 'pine' | 'image' | 'formula' (the name master
+  // uses for the same doors). Absent ⇒ the "Or …" links under the UCT Agent row are not shown.
+  onOpenBuilderDoor = null,
   // ⭐ THE TIMEFRAME THE CHART IS ON, when the host knows it. Only ever used to SAY
   // something (a calculation timeframe that cannot draw on this chart, a Custom
   // visibility seeded from where the member is) — never to decide what is stored.
@@ -285,6 +361,12 @@ export default function ChartSettingsIndicators({
   // Opened from the chart's own "Add to Chart" control: land IN the add surface
   // with the caret in search, rather than on the structure list.
   openAdd = false,
+  // ⭐ UCT RS Phase 4 (4-11) — `onFirstAdd(defId)`: an add here made the FIRST live
+  // instance of a definition that declares `meta.tour` (`isTouredFirstAdd`, the
+  // library's own rule: never a re-enable, never a second instance). The HOST
+  // decides whether and when the tour shows (seen, claimed, nothing open over the
+  // chart). Absent ⇒ nothing reported.
+  onFirstAdd = null,
   // ⭐ PHASE 4 — UNIFIED EDITING: `{canModify(), modify(defId), editFormula(defId),
   // customCopy(def, inputs)}` from the host (it reaches the chart's toolbar). Absent ⇒
   // the inspector offers only instance-level actions, exactly as before.
@@ -292,13 +374,7 @@ export default function ChartSettingsIndicators({
 }) {
   // ⭐ The prefix for each catalogue result's state id (`aria-describedby`).
   const resultIdBase = useId()
-  // ⭐ P2 Track B — DARK, TWO KEYS: the per-browser opt-in (see the flag module)
-  // AND the server-provided admin role. A member flipping localStorage from
-  // DevTools still sees exactly the old "+ New Formula".
-  // ⭐ ROLLOUT — the same one rule as the sheet (`createIndicatorAccess`): an admin
-  // with this browser's opt-in, or a member the server's `cohorts` list releases.
-  const createIndicatorOn = useCreateIndicatorAccess(useContext(AuthContext))
-  const showCreateIndicator = !!(createIndicatorOn && onCreateIndicator)
+  const soonDescId = `${resultIdBase}-soon`
   // 'active' — what the chart draws, plus the ways in.
   // 'browse'  — the catalogue, entered by focusing/typing in search or picking a
   //             category, left by Back, Escape or clearing the box.
@@ -326,6 +402,8 @@ export default function ChartSettingsIndicators({
   // Click a tab WHILE searching and it narrows, and stays narrowed until the box
   // is cleared. One flag, three behaviours, no hidden mode.
   const [tabPinned, setTabPinned] = useState(false)
+  // ⭐ how many UCT house indicators match a search across every tab (the UCT set is its own file)
+  const [houseMatchCount, setHouseMatchCount] = useState(0)
   // ⛔ SEEDED FROM `openRowId`, AND `useState`'s INITIALISER IS THE WHOLE POINT.
   // The modal is unmounted when closed (`if (!open) return null`), so this
   // component is fresh on every open and the initial value IS the deep link. An
@@ -362,6 +440,23 @@ export default function ChartSettingsIndicators({
   // list the member is already looking at. A toast would announce it somewhere
   // else; this tints the actual row for a beat and then stops.
   const [landed, setLanded] = useState(null)
+  // ⭐ UCT SIGNATURE — panel-local view state only (nothing here is stored): the panes a member
+  // folded, the editor's ⋯ menu, and the row the list's ONE tab stop sits on. In a single column
+  // ↑/↓ move that focus; Enter (or a click) opens the row's editor.
+  const [foldedPanes, setFoldedPanes] = useState({})
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [focusRow, setFocusRow] = useState(null)
+  /** The row whose editor was just left — its name button takes focus back in the list. */
+  const returnFocusRef = useRef(null)
+  /** The editor's ⋯ menu and its button — a press anywhere else closes the menu. */
+  const moreRef = useRef(null)
+  useEffect(() => {
+    if (!moreOpen) return undefined
+    const doc = moreRef.current?.ownerDocument || document
+    const onDown = (e) => { if (!moreRef.current || !moreRef.current.contains(e.target)) setMoreOpen(false) }
+    doc.addEventListener('mousedown', onDown, true)
+    return () => doc.removeEventListener('mousedown', onDown, true)
+  }, [moreOpen])
   // ⚠️ NARROW IS A **VIEW**, NOT A MODE. `mode` is what the member is doing
   // (editing / adding / arranging) and is identical at every width; this is only
   // which of the two regions has the screen when there is room for one.
@@ -432,6 +527,29 @@ export default function ChartSettingsIndicators({
   const searchRef = useRef(null)
   /** The row ids present at the moment an ADD was issued — see the effect below. */
   const pendingAddRef = useRef(null)
+  /** The row id whose arrival should take keyboard focus — see the effect after the landing one. */
+  const focusLandedRef = useRef(null)
+  /** The tab's own root, so the focus hand-off can tell "lost to the add" from "put elsewhere". */
+  const tabRootRef = useRef(null)
+  // ⭐ UCT SIGNATURE — a slot in the Chart Settings window's OWN header row (just before its ✕), so
+  // "+ Add indicator" sits beside the section title, as in the lab. Made and removed by this tab;
+  // nothing else in the window's header is touched. No window header (a bare mount) ⇒ no slot,
+  // and the button renders in a row of its own instead.
+  const [headSlot, setHeadSlot] = useState(null)
+  useLayoutEffect(() => {
+    const root = tabRootRef.current
+    const win = root && root.closest ? root.closest('[data-guide="chartSettings"]') : null
+    const close = win ? win.querySelector('[data-modal-close]') : null
+    if (!close || !close.parentNode) return undefined
+    const slot = close.ownerDocument.createElement('span')
+    slot.className = ui.headSlot || ''
+    // inline too, so a style reload can never leave the slot unstyled in a live window
+    slot.style.cssText = 'flex:1 1 auto;display:flex;justify-content:flex-end;align-items:center;padding-right:6px;min-width:0'
+    slot.setAttribute('data-indicators-head', '')
+    close.parentNode.insertBefore(slot, close)
+    setHeadSlot(slot)
+    return () => { slot.remove(); setHeadSlot(null) }
+  }, [])
 
   // ─── REMOTE RESULTS ARRIVE LATE, AND NOTHING THE MEMBER IS AIMING AT MAY MOVE ──
   //
@@ -635,7 +753,53 @@ export default function ChartSettingsIndicators({
     setSelected(id)
     setLanded(id)
     setNarrowView('inspector')
+    focusLandedRef.current = id
   }, [rows])
+
+  // ─── …AND KEYBOARD FOCUS LANDS WITH IT (2026-11-08) ──────────────────────
+  //
+  // ⚰️ MEASURED: Enter on a result added it, the Add surface closed (the add is
+  // finished — see `addRow`), the button that had focus left the DOM with it, and
+  // focus fell to <body>. A keyboard member then had to Tab from the top of the
+  // page to reach the series they had just made.
+  //
+  // ⭐ SO FOCUS GOES TO THE NEW ROW ITSELF — its name button in the structure
+  // list, which is selected and therefore already showing its Inspector on the
+  // right; ↑/↓ walk on from there and Tab reaches the Inspector. At the narrow
+  // layout the list is not on screen (the Inspector is the view), so it goes to
+  // the Inspector's first control instead (its Back arrow).
+  //
+  // ⛔ ONLY WHEN FOCUS WAS LOST TO THE ADD, never stolen from somewhere the member
+  // put it: it moves when focus is on <body>, on a node no longer in the
+  // document, or inside (or around) this tab. Keyed on the render AFTER the
+  // landing effect's own state writes, so the row and the Inspector exist.
+  useEffect(() => {
+    const id = focusLandedRef.current
+    if (!id) return
+    focusLandedRef.current = null
+    if (typeof document === 'undefined') return
+    const active = document.activeElement
+    const root = tabRootRef.current
+    const lost = !active || active === document.body || !active.isConnected
+      || (!!root && (root.contains(active) || active.contains(root)))
+    if (!lost) return
+    // ⭐ UCT SIGNATURE (one column): the new row's EDITOR is the view after an add, so focus goes
+    // to its first control (← All indicators); the list is mounted but hidden behind it.
+    const panel = document.getElementById(inspectorDomId(id))
+    const target = panel && panel.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    try { target?.focus() } catch { /* a node that cannot take focus simply does not */ }
+  }, [selected, narrowView, landed])
+
+  // ⭐ BACK TO THE LIST LANDS ON THE ROW YOU LEFT — its name button, so ↑/↓ carry on from there.
+  useEffect(() => {
+    const id = returnFocusRef.current
+    if (!id || selected) return
+    returnFocusRef.current = null
+    const btn = listRef.current
+      ? Array.from(listRef.current.querySelectorAll('[data-row-primary]')).find((el) => el.getAttribute('data-row-primary') === id)
+      : null
+    try { btn?.focus() } catch { /* noop */ }
+  }, [selected])
 
   useEffect(() => {
     if (!landed) return undefined
@@ -717,17 +881,21 @@ export default function ChartSettingsIndicators({
   // with a tombstoned overlay the legacy `ma` row is revealed so the member can
   // get their EMA 9 back; renaming it *Restore EMA 9* is what stops that being a
   // SECOND row reading "Moving Average" (§34).
+  // ⭐ RS split U1 — a `meta.requiresServer` definition is subtracted until the
+  // live server lists it (`isCatalogRowOffered`), the same way and at the same
+  // place as `hidden`; `serverVersion` moves when the answer lands.
+  const serverVersion = useSyncExternalStore(subscribeServerDefinitions, serverDefinitionsVersion, () => 0)
   const catalog = useMemo(
     () => {
       const hidden = hiddenLibraryIds(settings)
       return [
         ...BUILT_IN_ROWS.filter((r) => !hidden.includes(r.id)).map((r) => libraryRowFor(r, settings)),
-        ...catalogRows(registry).filter((r) => !hidden.includes(r.id)),
+        ...catalogRows(registry).filter((r) => !hidden.includes(r.id) && isCatalogRowOffered(r, registry)),
         ...userCatalogRows(registry),
       ]
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version; see above
-    [registry, generation, settings],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `generation` IS the registry's version; `serverVersion` the gate's
+    [registry, generation, settings, serverVersion],
   )
 
   // ─── ACTIVE: WHAT THE CHART IS DRAWING ────────────────────────────────────
@@ -865,7 +1033,10 @@ export default function ChartSettingsIndicators({
   // discovery component reached two ways rather than an empty state in front of
   // it. The right side now answers exactly two questions: what can I add, and how
   // is this one configured.
-  const discovering = mode === 'browse' || (mode === 'active' && !selected)
+  // ⭐⭐ UCT SIGNATURE (owner 11-15): THE SECTION SHOWS WHAT IS ON THE CHART, and adding opens its
+  // OWN Indicators window over Chart Settings. So discovery is a place again — `browse` and only
+  // `browse` — and the catalogue's requests run only while that window is open.
+  const discovering = mode === 'browse'
   const { results: symbolResults, loading: symbolsLoading } = useSymbolDiscovery(query, discovering)
   // ⚠️ THE SAME WINDOW `useSymbolDiscovery` NORMALISES AGAINST, so a browsed row
   // and a searched row report the same capability for the same instrument. The
@@ -907,7 +1078,8 @@ export default function ChartSettingsIndicators({
     [registry, generation])
   const libraryTabs = useMemo(() => {
     const base = libraryTabsFor({ economic: econAvailable, research: featureRows.length > 0 })
-    return ownFormulaCount > 0 ? [YOUR_INDICATORS_TAB, ...base] : base
+    // Members sits after the catalogue's own tabs, so the tab a member lands on is unchanged.
+    return ownFormulaCount > 0 ? [YOUR_INDICATORS_TAB, ...base, HOUSE_TAB, MEMBERS_TAB] : [...base, HOUSE_TAB, MEMBERS_TAB]
   }, [econAvailable, featureRows.length, ownFormulaCount])
   // ⚠️ A TAB ARRIVING LATE (`Economic`, once its catalogue answers) widens the strip's
   // CONTENT without resizing the strip, so the ResizeObserver never re-measures.
@@ -1002,7 +1174,14 @@ export default function ChartSettingsIndicators({
   }, [browsed, symbolResults])
 
   const results = useMemo(() => {
-    const byQuery = catalog.filter((r) => matches(r, query))
+    let byQuery = catalog.filter((r) => matches(r, query))
+    // Owner 11-16: a sentence ("rsi below 30 above the 200 day") matches nothing as a whole phrase — fall back to
+    // its meaningful words so the closest indicators (RSI) still show above the "Build it with the UCT Agent" row.
+    if (!byQuery.length && /\s/.test(String(query || '').trim())) {
+      const words = String(query).toLowerCase().split(/[^a-z0-9]+/)
+        .filter((w) => w.length >= 2 && !/^\d+$/.test(w) && !SEARCH_STOP_WORDS.has(w))
+      if (words.length) byQuery = catalog.filter((r) => words.some((w) => matches(r, w)))
+    }
     // ⛔ THE REMOTE ROWS ARE NOT RE-FILTERED BY `matches`. They are already the
     // answer to this query — `useSymbolDiscovery` asked the server and the breadth
     // library with it — and a second substring test over a name the server ranked
@@ -1203,6 +1382,9 @@ export default function ChartSettingsIndicators({
       if (next === settings) return false
       onChange?.({ ...next, preset: 'custom' })
       leaveBrowse()
+      if (typeof onFirstAdd === 'function' && isTouredFirstAdd(row, settings, next, registry)) {
+        try { onFirstAdd(row.id) } catch { /* a tour never blocks an add */ }
+      }
       return true
     }
     // ⛔ BEFORE `armAdd` AND BEFORE `resultByKey`: a feature row IS in the map
@@ -1229,7 +1411,19 @@ export default function ChartSettingsIndicators({
     // persisting a no-op would mark the preset custom for a click that did nothing
     // — and must leave the member's current selection alone, hence the disarm.
     if (!commit(next)) pendingAddRef.current = null
-  }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse, openFeature])
+  }, [settings, onChange, registry, resultByKey, armAdd, leaveBrowse, openFeature, onFirstAdd])
+
+  /** ⭐ MEMBERS — put a just-installed copy on this chart: the same write a result row's
+   *  first add makes for a definition (`addInstance`), and the same landing (browse closes).
+   *  A refused write returns `settings` itself and persists nothing. */
+  const putInstalledOnChart = useCallback((defId) => {
+    if (!defId || !registry?.getDefinition?.(defId)) return false
+    const next = addInstance(settings, defId, registry)
+    if (next === settings) return false
+    onChange?.({ ...next, preset: 'custom' })
+    leaveBrowse()
+    return true
+  }, [settings, onChange, registry, leaveBrowse])
 
   const addAnother = useCallback((row, e) => {
     e.stopPropagation()
@@ -1389,6 +1583,22 @@ export default function ChartSettingsIndicators({
     () => flatRows.find((r) => r.id === selected) || null,
     [flatRows, selected],
   )
+  // ⭐ UCT RS Phase 3, unit 3-02b — THE SERVER GATE, for the one row the Inspector
+  // edits. Only a `server` definition can carry a gate (`defSchema`), so only one
+  // asks: selecting RSI never spends the page's one definitions GET. The snapshot
+  // is memoised and frozen per definition (`serverDeclares`), so it is
+  // reference-stable between landings, and the subscription re-renders the panel
+  // the moment the answer lands.
+  const gateDef = selectedRow && selectedRow.defId && typeof registry?.getDefinition === 'function'
+    ? registry.getDefinition(selectedRow.defId) : null
+  const gateId = gateDef && gateDef.compute && gateDef.compute.kind === 'server' ? gateDef.id : null
+  const serverDeclared = useSyncExternalStore(
+    subscribeServerDefinitions,
+    () => (gateId ? serverDeclares(gateId) : null),
+    () => null,
+  )
+  /** What the live row declares for `def` — null (nothing) for any other definition. */
+  const declaredFor = (def) => (def && gateId && def.id === gateId ? serverDeclared : null)
   // A selected HOST FEATURE. Only an added one can be selected — a feature
   // removed while it was open simply stops being found, exactly like a row.
   const selectedFeature = useMemo(
@@ -1411,7 +1621,8 @@ export default function ChartSettingsIndicators({
     () => [...flatRows.map((r) => r.id), ...addedFeatures.map((f) => featureRowId(f.id))],
     [flatRows, addedFeatures],
   )
-  const structureTabStop = structureIds.includes(selected) ? selected : (structureIds[0] ?? null)
+  const structureTabStop = structureIds.includes(focusRow) ? focusRow
+    : structureIds.includes(selected) ? selected : (structureIds[0] ?? null)
 
   /** The group a row is filed under, for the Inspector's contextual name. */
   const groupOfRow = useCallback(
@@ -1464,11 +1675,21 @@ export default function ChartSettingsIndicators({
    */
   const selectRow = useCallback((rowId) => {
     setSelected(rowId)
+    setFocusRow(rowId)
+    setMoreOpen(false)
     // Choosing something already on the chart means MANAGING it: leave discovery so its
-    // inspector takes the right side (both doors — header Add to Chart and ＋ Add to Chart).
+    // editor takes the section.
     setMode((m) => (m === 'browse' ? 'active' : m))
     if (narrow) setNarrowView('inspector')
   }, [narrow])
+
+  /** "← All indicators": close the editor; focus returns to that row's name in the list. */
+  const backToList = useCallback(() => {
+    returnFocusRef.current = selected
+    setMoreOpen(false)
+    setSelected(null)
+    setNarrowView('list')
+  }, [selected])
 
   /**
    * ↑ / ↓ / Home / End across the whole structure, panes included.
@@ -1483,9 +1704,15 @@ export default function ChartSettingsIndicators({
     const step = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
     const ids = structureIds
     if (!ids.length) return
+    // ⭐ UCT SIGNATURE (one column): the arrows move the list's FOCUS, not the selection — opening
+    // an editor replaces the list, so walking it must not. Enter / a click on the name opens one.
+    // ⛔ Only from a row's name button (or the list itself): the row's own icon buttons and the
+    // grip keep their keys.
+    const from = e.target && e.target.closest ? e.target.closest('[data-row-primary]') : null
+    if (!from && e.target !== e.currentTarget) return
     let next = null
     if (step) {
-      const at = ids.indexOf(selected)
+      const at = ids.indexOf(from ? from.getAttribute('data-row-primary') : structureTabStop)
       next = at < 0
         ? ids[step > 0 ? 0 : ids.length - 1]
         : ids[Math.min(ids.length - 1, Math.max(0, at + step))]
@@ -1493,11 +1720,12 @@ export default function ChartSettingsIndicators({
     else if (e.key === 'End') next = ids[ids.length - 1]
     if (next == null) return
     e.preventDefault()
-    setSelected(next)
-    try {
-      listRef.current?.querySelector(`[data-row-primary="${CSS.escape(next)}"]`)?.focus()
-    } catch { /* jsdom has no CSS.escape; the selection still moved */ }
-  }, [structureIds, selected])
+    setFocusRow(next)
+    const btn = listRef.current
+      ? Array.from(listRef.current.querySelectorAll('[data-row-primary]')).find((el) => el.getAttribute('data-row-primary') === next)
+      : null
+    try { btn?.focus() } catch { /* a node that cannot take focus simply does not */ }
+  }, [structureIds, structureTabStop])
 
   // ─── HOST FEATURES IN THE STRUCTURE LIST ──────────────────────────────────
   //
@@ -1518,7 +1746,10 @@ export default function ChartSettingsIndicators({
         className={styles.insGroup}
         data-feature-group={f.destination}
       >
-        <div className={styles.insGroupHead}>{f.group}</div>
+        <div className={styles.paneHead}>
+          <span className={`${styles.iconBtn} ${styles.chev}`} aria-hidden="true" />
+          <span className={styles.paneName}><span className={styles.insGroupHead}>{f.group}</span></span>
+        </div>
         <div
           data-row-id={rid}
           data-feature-row={f.id}
@@ -1542,11 +1773,16 @@ export default function ChartSettingsIndicators({
             tabIndex={structureTabStop === rid ? 0 : -1}
             aria-current={isSel ? 'true' : undefined}
           >
-            <i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" />
             <span className={styles.insRowName} title={f.name}>{f.name}</span>
-            {collapsed && <span className={styles.insRowOffTag}>Collapsed</span>}
+            {collapsed && <span className={styles.tfTag}>Collapsed</span>}
           </button>
           <span className={styles.insRowGripSlot} />
+          <span className={styles.rowBar}><i className={styles.insRail} style={{ background: 'transparent' }} aria-hidden="true" /></span>
+          <span className={styles.rowActs} onClick={(e) => e.stopPropagation()}>
+            <button type="button" className={styles.iconBtn} aria-label={`Edit ${f.name}`} title="Settings"
+              tabIndex={structureTabStop === rid ? 0 : -1}
+              onClick={() => selectRow(rid)}><Icon name="gear" size={14} /></button>
+          </span>
         </div>
       </div>
     )
@@ -1557,6 +1793,9 @@ export default function ChartSettingsIndicators({
     const on = rowVisible(row)
     const isSel = selected === row.id
     const tint = safeCssColour(rowColor(row))   // ⛔ only a CSS-safe colour reaches the rail (objectColour.js)
+    const pick = rowColorPick(row, meta.name)
+    const offHere = offOnChartTf(row)
+    const rowStop = structureTabStop === row.id
     // ⛔ A PANE OF ONE HAS NOTHING TO REORDER (§11), so its grip is not a control
     // — and it is not removed either, because a row that loses its grip when a
     // sibling is deleted would shift its name 14px left under the pointer.
@@ -1647,16 +1886,6 @@ export default function ChartSettingsIndicators({
           tabIndex={structureTabStop === row.id ? 0 : -1}
           aria-current={isSel ? 'true' : undefined}
         >
-          {/* ⭐⭐ THE MICRO-RAIL, TO LEGEND V2'S EXACT SPEC — 2×10px, 1px radius,
-              `flex: none`, nudged half a pixel onto the text's x-height. Not a
-              swatch (retired: reads as a bullet), not a chevron (retired), not a
-              line sample. `aria-hidden` and no handler of its own: the ROW is the
-              target, so pointing at the rail already points at the row. */}
-          <i
-            className={styles.insRail}
-            style={tint ? { background: tint } : undefined}
-            aria-hidden="true"
-          />
           {/* ⚠️⚠️ THE FULL NAME IS ON THE ROW, because the column truncates now. At
               35% `Relative Strength Index (period 14)` ellipsizes — which is
               explicitly acceptable — but the member must still be able to find out
@@ -1664,12 +1893,25 @@ export default function ChartSettingsIndicators({
               convention for exactly that, and the canonical name is untouched:
               nothing is abbreviated, persisted or renamed. */}
           <span className={styles.insRowName} title={meta.name}>{meta.name}</span>
-          {/* ⭐ THE VISIBILITY STATE, AS ONE DIMMED WORD. A switch on every row is
-              the toolbar the brief rules out; the row is dimmed AND says why, so a
-              member scanning the column sees which lines are off without hovering
-              anything, and a screen reader is told rather than shown. */}
+          {/* ⭐ UCT SIGNATURE — "Hidden on 5m": the row's own Show on policy leaves it off on the
+              timeframe the chart is on right now (a grey tag, never gold). */}
+          {offHere && (
+            <span className={styles.tfTag} title={`Turned off for ${tfLabel(chartTf)} under Show on in its settings`}>
+              {`Hidden on ${tfLabel(chartTf)}`}
+            </span>
+          )}
+          {/* ⭐ THE VISIBILITY STATE: the name is struck through and the eye stays showing; the
+              word is for a screen reader. */}
           {!on && <span className={styles.insRowOffTag}>Off</span>}
         </button>
+        {/* ⭐⭐ THE VERTICAL COLOUR BAR (3×16, the chart legend's mark). The rail is the series'
+            own colour; the window's colour swatch sits invisibly over it, so a click opens the
+            same colour panel the editor's Color row opens. A row with no colour of its own keeps
+            the bar's width and paints nothing. */}
+        <span className={`${styles.rowBar} ${pick ? styles.hasPick : ''}`} onClick={(e) => e.stopPropagation()}>
+          <i className={styles.insRail} style={tint ? { background: tint } : undefined} aria-hidden="true" />
+          {pick && cloneElement(colorSwatch(pick.target, pick.label, pick.value), { tabIndex: rowStop ? 0 : -1 })}
+        </span>
         {/* ⚰️⚰️ FOURTEEN ARROWS STOOD AT THE FAR RIGHT OF THIS LIST — a ↑ and a
             ↓ on every row, two of them permanently dimmed at each pane's edges.
             They were correct and they were LOUD: owner, 2026-09-17: *"with many
@@ -1709,7 +1951,7 @@ export default function ChartSettingsIndicators({
               className={styles.insRowGrip}
               data-row-grip={row.id}
               data-grip-inert={movable ? undefined : 'true'}
-              tabIndex={movable && isSel ? 0 : -1}
+              tabIndex={movable && structureTabStop === row.id ? 0 : -1}
               aria-disabled={movable ? undefined : 'true'}
               aria-label={movable
                 ? `Reorder ${meta.name} within ${group.name}`
@@ -1756,6 +1998,23 @@ export default function ChartSettingsIndicators({
             </button>
           )}
         </span>
+        {/* ⭐ UCT SIGNATURE — the row's three verbs, revealed on hover / focus: settings (opens
+            the editor), show / hide (the same `hidden` write as the editor's eye — a hidden row
+            keeps its eye showing), and remove (the same `removeRow`). */}
+        <span className={styles.rowActs} onClick={(e) => e.stopPropagation()}>
+          {/* ⛔ ONE TAB STOP PER LIST: the row's own controls join the tab order only on the row
+              the list's roving stop sits on (Tab walks name → grip → colour → these). */}
+          <button type="button" className={styles.iconBtn} aria-label={`Edit ${meta.name}`} title="Settings"
+            tabIndex={rowStop ? 0 : -1}
+            onClick={() => selectRow(row.id)}><Icon name="gear" size={14} /></button>
+          <button type="button" className={styles.iconBtn} data-row-vis={row.id}
+            aria-label={`${on ? 'Hide' : 'Show'} ${meta.name}`} title={on ? 'Hide' : 'Show'}
+            tabIndex={rowStop ? 0 : -1}
+            onClick={() => setRowVisible(row, !on)}><Icon name={on ? 'eye' : 'eyeoff'} size={14} /></button>
+          <button type="button" className={styles.iconBtn} aria-label={`Remove ${meta.name}`} title="Remove"
+            tabIndex={rowStop ? 0 : -1}
+            onClick={() => removeRow(row)}><Icon name="x" size={13} /></button>
+        </span>
         {/* ⚰️⚰️ A `↑` AND A `↓` STOOD HERE ON EVERY ORDERABLE ROW — a span at
             the far right, boundary members carrying a dimmed, `aria-disabled`
             ghost so the column would not ripple as rows moved. Every word of that
@@ -1774,7 +2033,33 @@ export default function ChartSettingsIndicators({
     )
   }
 
-  const renderStructureGroup = (group, ref) => (
+  /** The colour target the row's bar opens — the row's first colour (a signed histogram's UP
+   *  colour, the same one `rowColor` paints), through the window's own swatch. Null ⇒ no picker. */
+  const rowColorPick = (row, name) => {
+    if (typeof colorSwatch !== 'function' || !row) return null
+    if (row.instanceId && signHidesColor(row)) {
+      return { target: signTarget(row.instanceId, 'upColor'), label: `${name} up color`, value: undefined }
+    }
+    const f = mainColorFields(row)[0]
+    if (!f) return null
+    return { target: indTarget(row.id, f.key), label: `${name} · ${f.label || 'Color'}`, value: row.values?.[f.key] }
+  }
+
+  /** Is this row switched off (its own Show on policy) on the timeframe the chart is on? */
+  const offOnChartTf = (row) => {
+    if (!chartTf || !row || !row.instanceId || !row.engineOwned) return false
+    const inst = findInstance(settings, row.instanceId)
+    return !!inst && !isVisibleOnTimeframe(inst, chartTf)
+  }
+
+  // ⭐ UCT SIGNATURE — ONE CARD PER PANE: a header (fold chevron · "<Name> pane" · count), then
+  // its rows. ⛔ No pane-level hide / remove / "+ add here": the pane model has no such writers,
+  // so the header offers only what it can do (fold is view state, never stored).
+  const renderStructureGroup = (group, ref) => {
+    const real = orderable(group)
+    const folded = !!foldedPanes[group.id]
+    const title = real ? `${group.name} pane` : group.name
+    return (
     <div
       key={group.id}
       ref={ref || undefined}
@@ -1784,7 +2069,17 @@ export default function ChartSettingsIndicators({
       data-pane-group={group.id}
       data-pane-kind={group.kind}
     >
-      <div className={styles.insGroupHead}>{group.name}</div>
+      <div className={styles.paneHead}>
+        <button
+          type="button" className={`${styles.iconBtn} ${styles.chev}`}
+          aria-expanded={!folded}
+          aria-label={`${folded ? 'Expand' : 'Collapse'} ${title}`} title={folded ? 'Expand' : 'Collapse'}
+          onClick={() => setFoldedPanes((m) => ({ ...m, [group.id]: !folded }))}
+        ><Icon name={folded ? 'chevr' : 'chev'} size={16} /></button>
+        {/* the bare pane name stays its own node (`insGroupHead`), the word "pane" beside it */}
+        <span className={styles.paneName}><span className={styles.insGroupHead}>{group.name}</span>{real ? ' pane' : ''}</span>
+        <span className={styles.paneCount}>{group.rows.length}</span>
+      </div>
       {/* ⛔⛔ THE TWO GROUPS THAT ARE NOT PANES OWE A SENTENCE, and they are the one
           exception to a structure list that otherwise says nothing but names.
           Every other heading names a rectangle on the chart; these two name a
@@ -1807,9 +2102,10 @@ export default function ChartSettingsIndicators({
           pane comes back with it.
         </p>
       )}
-      {group.rows.map((r) => renderStructureRow(r, group))}
+      {!folded && group.rows.map((r) => renderStructureRow(r, group))}
     </div>
-  )
+    )
+  }
 
   // ─── ARRANGE — AN EXPLICIT MODE, NOT A PERMANENT TOOLBAR ───────────────────
   //
@@ -1875,6 +2171,7 @@ export default function ChartSettingsIndicators({
                     <button
                       type="button" className={styles.insArrBtn}
                       aria-label={`Move ${group.name} pane ${word}`}
+                      data-guide="indicators.movePane"
                       title={why || `Move pane ${word}`}
                       disabled={off}
                       {...(off ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : {})}
@@ -1946,11 +2243,24 @@ export default function ChartSettingsIndicators({
     })
   }, [settings, registry])
 
-  const partitionFields = useCallback((row, def) => {
+  const partitionFields = useCallback((row, def, model = null) => {
     const styleKeys = def ? styleInputKeys(def) : null
-    const isLook = (f) => f.appearance === true
-      || f.type === 'color'
-      || !!(styleKeys && styleKeys.has(f.key))
+    // ⭐⭐ ONE FORM MODEL (2026-11-17). Where the per-instance model answers (`fieldsForInstance`: the
+    // legend dialog's, the phone sheet's, and the one `pinePresentation.test.js` holds to TradingView's
+    // Inputs tab), ITS split is this split: a field it puts on Inputs is CORE here, one it puts on
+    // Style is APPEARANCE. ⚰️ This modal sorted every colour to Appearance on its own rule, so RS
+    // Rating's seven script colours (the five "Color" rows, Positive / Negative Area) left their
+    // groups for one flat list, where TradingView shows them inline in Inputs. The house rule below
+    // stays only for a field the model does not hold (a fixture row, a legacy overlay's placeholder).
+    const modelInputs = model ? new Set((model.inputs || []).map((f) => f.key)) : null
+    const modelStyle = model ? new Set((model.style || []).map((f) => f.key)) : null
+    const isLook = (f) => {
+      if (modelStyle && modelStyle.has(f.key)) return true
+      if (modelInputs && modelInputs.has(f.key)) return false
+      return f.appearance === true
+        || f.type === 'color'
+        || !!(styleKeys && styleKeys.has(f.key))
+    }
     // ⭐⭐ A SIGN-COLOURED HISTOGRAM HAS NO SINGLE COLOUR, so its declared `color`
     // control is a box nothing reads: `presentedPlot` stamps `colorMode: 'sign'`
     // and the renderer paints per point from the Up/Down pair. Offering it beside
@@ -2038,7 +2348,7 @@ export default function ChartSettingsIndicators({
     // not currently in a pane.
     const inRealPane = group && ['price', 'volume', 'pane'].includes(group.kind)
     if (!row.engineOwned && inRealPane && group.name) {
-      out.push({ key: '__where__', label: 'Display', value: group.name,
+      out.push({ key: '__where__', label: 'Pane', value: group.name,
         why: 'A moving average added before display destinations existed always draws on the price pane.' })
     }
     return out
@@ -2108,7 +2418,7 @@ export default function ChartSettingsIndicators({
   /** A CORE fact that is true and not editable — see `readOnlyCore`. */
   const renderReadOnly = (f) => (
     <div key={f.key} className={styles.insField} data-field={f.key} data-readonly="true"
-      data-measure="wide" title={f.why}>
+      data-measure="wide" title={withoutGuardIds(f.why)}>
       <span className={styles.insFieldLabel}>{f.label}</span>
       <span className={styles.insFieldCtl}>
         {/* ⛔ NOT A CONTROL, AND IT MUST NOT LOOK LIKE ONE. No border, no chevron,
@@ -2172,6 +2482,9 @@ export default function ChartSettingsIndicators({
   const isSegment = (f) => f && f.type === 'select'
     && Array.isArray(f.options) && f.options.length === 2
     && f.options.every((o) => String(o?.[1] ?? '').length <= 5)
+    // ⭐ 3-02b — a stored gated option (`{disabled: true}`) is a select's job: a
+    // segment has no honest way to show a pressed answer that cannot be pressed.
+    && !f.options.some((o) => o?.[2] && o[2].disabled)
 
   // ⚰️⚰️ `packFields` / `renderPacked` STOOD HERE AND ARE RETIRED. They paired
   // adjacent non-`wide` controls onto one line — `Period [20]   Type [SMA|EMA]` —
@@ -2191,15 +2504,35 @@ export default function ChartSettingsIndicators({
   // Whitespace AFTER a correctly sized control is fine; whitespace INSIDE a giant
   // input holding `20` is what this is not.
 
+  /** The tooltip a regular input row's label shows on hover (S1): the generated
+   *  field's own, else the definition's declared one, else nothing. */
+  const tooltipOf = (row, f) => {
+    if (typeof f.tooltip === 'string' && f.tooltip) return f.tooltip
+    const declared = (registry?.getDefinition?.(row.defId)?.inputs || []).find((i) => i && i.key === f.key)
+    return declared && typeof declared.tooltip === 'string' && declared.tooltip ? declared.tooltip : undefined
+  }
+
   const renderField = (row, f) => {
     const val = row.values?.[f.key]
     const dis = !!f.disabled
+    // ⭐ UCT RS PHASE 2a VISUAL (A6) — `activeWhen` DIMS, NEVER REMOVES, exactly as
+    // the phone sheet does: the row keeps its place and its words, the label takes
+    // the off tier and the control is `disabled` + `aria-disabled`. It wakes on the
+    // same click that satisfies the condition, because `row.values` is the resolved
+    // state that click writes. A field with no `activeWhen` is untouched.
+    const off = !dis && !!f.activeWhen && !evalActiveWhen(f.activeWhen, row.values)
     // The reason has to reach a screen reader, not just a pointer — the rule this
     // tab already followed, kept verbatim.
     const whyId = dis ? `ind-why-${row.id}-${f.key}` : undefined
+    // ⭐ a11y gate §12.2 (2026-11-08) — the visible label NAMES its control. The
+    // select and the number box had no accessible name, so a screen reader read
+    // "combo box, S&P 500 (SPY)" with no "Benchmark" (and "Reading", "Line width"…).
+    // `aria-labelledby` points at the label span, so the name and the words on
+    // screen are one value. The other controls already carry `aria-label`.
+    const labelId = `ins-lbl-${resultIdSafe(row.id)}-${resultIdSafe(f.key)}`
     const inert = dis
       ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
-      : {}
+      : off ? { disabled: true, 'aria-disabled': 'true' } : {}
     const seg = isSegment(f)
     return (
       <div
@@ -2207,23 +2540,36 @@ export default function ChartSettingsIndicators({
         className={styles.insField}
         data-field={f.key}
         data-measure={seg ? 'segment' : measureOf(f)}
+        data-active={f.activeWhen ? String(!off) : undefined}
         title={f.disabled || undefined}
       >
-        <span className={`${styles.insFieldLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
+        {/* ⭐ visual review S1 — the declared tooltip rides the label as `title`, so a
+            label the column truncates can still be read on hover. ⚠️ `row.fields` come
+            from `fieldsFromDefinition`, which carries no `tooltip` (only
+            `fieldsForInstance` adds it), so the definition's own declaration is the
+            fallback; absent both, no `title` at all. */}
+        <span id={labelId} className={`${styles.insFieldLabel} ${dis || off ? styles.indLabelOff : ''}`} title={tooltipOf(row, f)}>{f.label}</span>
         {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
         <span className={styles.insFieldCtl}>
-          {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
+          {f.type === 'color' && !off && colorSwatch(indTarget(row.id, f.key), f.label, val)}
+          {/* An inactive colour: the modal's swatch has no disabled state, so the
+              cell around it is inert (no pointer, the off tier) and says so. */}
+          {f.type === 'color' && off && (
+            <span className={styles.insCtlOff} aria-disabled="true">
+              {colorSwatch(indTarget(row.id, f.key), f.label, val)}
+            </span>
+          )}
           {f.type === 'toggle' && (
             <button
-              type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
+              type="button" role="switch" aria-checked={f.numeric ? Number(val) === 1 : val !== false} aria-label={f.label}
               {...inert}
-              className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis ? styles.toggleOff : ''}`}
-              onClick={() => onRowPatch?.(row, { [f.key]: val === false })}
+              className={`${styles.toggle} ${(f.numeric ? Number(val) === 1 : val !== false) ? styles.toggleOn : ''} ${dis || off ? styles.toggleOff : ''}`}
+              onClick={() => onRowPatch?.(row, { [f.key]: f.numeric ? (Number(val) === 1 ? 0 : 1) : val === false })}
             ><span className={styles.toggleKnob} /></button>
           )}
           {f.type === 'number' && (
             <input
-              type="number" className={styles.indNum} {...inert}
+              type="number" className={styles.indNum} {...inert} aria-labelledby={labelId}
               min={f.min} max={f.max} step={f.step} value={val ?? ''}
               onChange={(e) => onRowPatch?.(row, { [f.key]: Number(e.target.value) })}
             />
@@ -2254,12 +2600,12 @@ export default function ChartSettingsIndicators({
               className={styles.insSeg}
               role="radiogroup"
               aria-label={f.label}
-              {...(dis ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : {})}
+              {...(dis ? { 'aria-disabled': 'true', 'aria-describedby': whyId } : off ? { 'aria-disabled': 'true' } : {})}
               /* ⭐ ARROW KEYS MOVE THE CHOICE, which is what a radio group is
                  defined to do and what a member reaches for after tabbing to it.
                  Home/End are the same two answers here, so they are not bound. */
               onKeyDown={(e) => {
-                if (dis) return
+                if (dis || off) return
                 if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight'
                   && e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
                 e.preventDefault()
@@ -2281,8 +2627,8 @@ export default function ChartSettingsIndicators({
                        on every option in turn is how a two-choice control becomes
                        two controls for a keyboard member. */
                     tabIndex={picked ? 0 : -1}
-                    disabled={dis}
-                    {...(dis ? { 'aria-disabled': 'true', title: f.disabled } : {})}
+                    disabled={dis || off}
+                    {...(dis ? { 'aria-disabled': 'true', title: f.disabled } : off ? { 'aria-disabled': 'true' } : {})}
                     className={`${styles.insSegBtn} ${picked ? styles.insSegBtnOn : ''}`}
                     onClick={() => onRowPatch?.(row, { [f.key]: v })}
                   >{l}</button>
@@ -2292,15 +2638,48 @@ export default function ChartSettingsIndicators({
           )}
           {f.type === 'select' && !seg && (
             <select
-              className={styles.indSelect} {...inert} value={val ?? ''}
+              className={styles.indSelect} {...inert} value={val ?? ''} aria-labelledby={labelId}
               onChange={(e) => {
                 const raw = e.target.value
                 const opt = f.options.find(([v]) => String(v) === raw)
                 onRowPatch?.(row, { [f.key]: opt ? opt[0] : raw })
               }}
             >
-              {f.options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              {/* ⭐ 3-02b — a third element `{disabled: true}` is a STORED gated value
+                  the live server does not declare (`fieldsForInstance`): shown, so the
+                  select tells the truth about what the chart computes, and not
+                  choosable. */}
+              {f.options.map(([v, l, extra]) => (
+                <option key={v} value={v} disabled={!!(extra && extra.disabled)}>{l}</option>
+              ))}
             </select>
+          )}
+          {/* ⭐ UCT RS Phase 3, unit 3-02b — the generic text box (a `string`
+              input), with the settings dialog's rules: commits on Enter or blur,
+              never writes a value the input refuses, and says why under itself. */}
+          {f.type === 'text' && (
+            <InspectorTextBox
+              key={`${row.id}::${f.key}`}
+              field={f} value={val} inert={inert} styles={styles}
+              idBase={`ins-text-${resultIdSafe(row.id)}-${resultIdSafe(f.key)}`}
+              onCommit={(next) => onRowPatch?.(row, { [f.key]: next })}
+            />
+          )}
+          {/* ⭐ 2026-11-12 — a server-owned list (`optionsSource`, the RS "Pick a
+              theme" benchmark): the shared searchable chooser, one write per pick. */}
+          {f.type === 'pick' && (
+            <span className={styles.insTextCell} data-text-cell="true">
+              <OptionsSourcePicker
+                key={`${row.id}::${f.key}`}
+                field={f} value={val ?? ''} disabled={!!inert.disabled}
+                inputClassName={styles.insText}
+                idBase={`ins-pick-${resultIdSafe(row.id)}-${resultIdSafe(f.key)}`}
+                aria={{ 'aria-labelledby': labelId,
+                  ...(inert['aria-describedby'] ? { 'aria-describedby': inert['aria-describedby'] } : null),
+                  ...(inert['aria-disabled'] ? { 'aria-disabled': inert['aria-disabled'] } : null) }}
+                onPick={(next) => onRowPatch?.(row, { [f.key]: next })}
+              />
+            </span>
           )}
         </span>
       </div>
@@ -2318,50 +2697,159 @@ export default function ChartSettingsIndicators({
     const rid = featureRowId(f.id)
     return (
       <div className={styles.insPanel} id={inspectorDomId(rid)} data-inspector-for={rid} data-feature-inspector={f.id}>
+        <div className={styles.edTop}>
+          <button type="button" className={styles.insBack} onClick={backToList} aria-label="Back to all indicators">
+            <Icon name="back" size={14} />All indicators
+          </button>
+        </div>
         <div className={styles.insHead}>
-          {narrow && (
-            <button
-              type="button"
-              className={styles.insBack}
-              onClick={() => setNarrowView('list')}
-              aria-label="Back to the chart structure"
-            >←</button>
-          )}
           <span className={styles.insHeadText}>
             <span className={styles.insHeadName}>{f.name}</span>
-            <span className={styles.insHeadKind}>{f.place}</span>
+            <span className={styles.insHeadSub}><span className={styles.insHeadKind}>{f.place}</span></span>
           </span>
-          {/* The shared Switch, wearing the header switch's own classes — so it
-              looks exactly like an indicator's Hide/Show and adds no hand-rolled
-              switch (TERM-067). */}
-          {f.collapsible && (
-            <Switch
-              checked={!!f.open}
-              aria-label={`${f.open ? 'Collapse' : 'Show'} ${f.name}`}
-              title={`${f.open ? 'Collapse' : 'Show'} ${f.name}`}
-              className={`${styles.toggle} ${styles.insVis}`}
-              checkedClassName={styles.toggleOn}
-              knobClassName={styles.toggleKnob}
-              onClick={() => chartFeatures?.setOpen?.(f.id, !f.open)}
-            />
-          )}
+          <span className={styles.tacts}>
+            <button
+              type="button" className={styles.iconBtn}
+              aria-label={`Remove ${f.name}`} title="Remove"
+              onClick={() => {
+                chartFeatures?.remove?.(f.id)
+                setSelected((cur) => (cur === rid ? null : cur))
+              }}
+            ><Icon name="trash" size={15} /></button>
+          </span>
         </div>
-        <section className={styles.insSection} data-section="about">
-          <p className={styles.insGroupWhy}>{f.description}</p>
-        </section>
-        <div className={styles.insActions}>
-          <button
-            type="button"
-            className={`${styles.insAction} ${styles.insActionDanger}`}
-            aria-label={`Remove ${f.name}`}
-            onClick={() => {
-              chartFeatures?.remove?.(f.id)
-              setSelected((cur) => (cur === rid ? null : cur))
-            }}
-          >Remove</button>
+        <div className={styles.edBody}>
+          <section className={styles.insSection} data-section="about">
+            <div className={styles.card}><p className={styles.insNote}>{f.description}</p></div>
+          </section>
+          {/* The shared Switch (TERM-067), worn as a soft square: EXPANDED vs COLLAPSED, the same
+              state the feature's own chevron and edge rail drive. */}
+          {f.collapsible && (
+            <section className={styles.insSection} data-section="chart">
+              <div className={styles.insSectionLabel}>On the chart</div>
+              <div className={styles.card}>
+                <div className={styles.optRow} onClick={(e) => { if (!e.target.closest('button')) chartFeatures?.setOpen?.(f.id, !f.open) }}>
+                  <Switch
+                    checked={!!f.open}
+                    aria-label={`${f.open ? 'Collapse' : 'Show'} ${f.name}`}
+                    title={`${f.open ? 'Collapse' : 'Show'} ${f.name}`}
+                    className={styles.soft}
+                    checkedClassName={styles.softOn}
+                    knobClassName={styles.softKnob}
+                    onClick={() => chartFeatures?.setOpen?.(f.id, !f.open)}
+                  />
+                  <span className={styles.optText}><span>Expanded</span></span>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
       </div>
     )
+  }
+
+  // ─── UCT RS PHASE 2a VISUAL (A6) — THE INSPECTOR REACHES THE DIALOG'S PARITY ─
+  //
+  // ⭐ PRESETS, GROUPS AND `activeWhen`, read from the definition exactly as the
+  // settings dialog and the phone sheet read them: `presetsOf` / `detectPreset` /
+  // `applyPresetInputs` from the engine, `sectionize` / `initialCollapsed` /
+  // `fieldsForInstance` from the registry. A definition that declares none of
+  // them renders exactly what it did — no Preset row, no head, no dimming.
+  //
+  // Group disclosure is panel-local UI state keyed `<rowId>::<group>`; an absent
+  // key reads the definition's `meta.groupsCollapsed` hint, so a group starts as
+  // the definition asks and keeps the member's toggle for the life of the panel.
+  const [insGroupOpen, setInsGroupOpen] = useState({})
+  // The preset each instance last matched or was set to, so "Reset to preset" has
+  // a target after a tweak reads Custom — the dialog's `pickedPresetId`, per row.
+  const pickedPresetRef = useRef({})
+
+  /** The Preset row, first in CORE, for a definition that declares `meta.presets`. */
+  const presetControl = (row, def) => {
+    if (!row || !row.instanceId || !row.engineOwned || !def) return null
+    // ⭐ 3-02b — through `visiblePresets`, as the dialog and the phone sheet list
+    // them: a `requiresServer` preset, or one that sets a hidden gated input or
+    // option, is not offered until the live row declares it.
+    const shownPresets = new Set(visiblePresets(def, declaredFor(def)))
+    const presets = presetsOf(def).filter((p) => shownPresets.has(p))
+    if (!presets.length) return null
+    const inst = findInstance(settings, row.instanceId)
+    if (!inst) return null
+    const current = detectPreset(presets, row.values || {}, { instance: inst, def, cs: settings })
+    const memo = pickedPresetRef.current
+    if (current) memo[row.instanceId] = current.id
+    const target = current || presets.find((p) => p.id === memo[row.instanceId]) || null
+    const apply = (p) => {
+      if (!p) return
+      memo[row.instanceId] = p.id
+      // (the `rs_preset` count was retired with the presets, RS split U9)
+      commitWrite(applyPresetInputs(settings, row.instanceId, def, p, registry))
+    }
+    const originId = `ins-preset-origin-${resultIdSafe(row.id)}`
+    return (
+      <Fragment key="preset">
+        <div className={styles.insField} data-field="__preset__" data-measure="wide"
+          data-preset={current ? current.id : CUSTOM_PRESET}>
+          <span className={styles.insFieldLabel}>Preset</span>
+          <span className={`${styles.insFieldCtl} ${styles.insPresetCtl}`}>
+            <select
+              className={styles.indSelect}
+              value={current ? current.id : CUSTOM_PRESET}
+              aria-label={`${row.label} preset`}
+              aria-describedby={current && current.origin ? originId : undefined}
+              onChange={(e) => {
+                // ⛔ Custom is a STATE, not a preset: choosing it writes nothing.
+                const id = e.target.value
+                if (id === CUSTOM_PRESET) return
+                apply(presets.find((p) => p.id === id))
+              }}
+            >
+              {presets.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              {!current && <option value={CUSTOM_PRESET}>Custom</option>}
+            </select>
+            <button
+              type="button"
+              className={styles.insPresetReset}
+              disabled={!target}
+              onClick={() => apply(target)}
+            >Reset to preset</button>
+          </span>
+        </div>
+        {current && current.origin && (
+          <div className={styles.insPresetOrigin} id={originId} data-testid="preset-origin">{current.origin}</div>
+        )}
+      </Fragment>
+    )
+  }
+
+  /** CORE's input rows, in the definition's declared GROUPS when it declares any. */
+  const renderCoreFields = (row, def, core) => {
+    if (!def || !core.some((f) => f.group)) return core.map((f) => renderField(row, f))
+    const hint = initialCollapsed(def)
+    return sectionize(def, core).map((sec, si) => {
+      const body = sec.fields.map((f) => renderField(row, f))
+      if (!sec.group) return <Fragment key={`ungrouped-${si}`}>{body}</Fragment>
+      const k = `${row.id}::${sec.group}`
+      const open = Object.prototype.hasOwnProperty.call(insGroupOpen, k) ? insGroupOpen[k] : !hint.has(sec.group)
+      const bodyId = `ins-group-${resultIdSafe(row.id)}-${si}`
+      return (
+        <div key={`group-${sec.group}`} className={styles.insGroup} data-group={sec.group}>
+          <button
+            type="button"
+            className={styles.insGroupHead}
+            aria-expanded={open}
+            aria-controls={bodyId}
+            onClick={() => setInsGroupOpen((m) => ({ ...m, [k]: !open }))}
+          >
+            <span className={styles.insGroupHeadText}>{sec.label}</span>
+            <span className={styles.insGroupHeadIcon} aria-hidden="true">
+              <UIcon name={open ? 'chevronDown' : 'chevronRight'} size={12} gold={false} />
+            </span>
+          </button>
+          {open && <div id={bodyId} className={styles.insGroupBody}>{body}</div>}
+        </div>
+      )
+    })
   }
 
   const renderInspector = (row) => {
@@ -2370,7 +2858,52 @@ export default function ChartSettingsIndicators({
     const meta = paneRowMeta(row, group, settings, defOf)
     const kind = kindLabel(row, def, rawSourceOf(row, def))
     const on = rowVisible(row)
-    const { core, look } = partitionFields(row, def)
+    // ⭐ A6 — the generated row fields carry no `group` / `activeWhen`; the
+    // registry's per-instance model does (`fieldsForInstance`, the dialog's call).
+    // Merged by key, so a definition that declares neither gets its fields back
+    // unchanged.
+    const instForMeta = def && row.instanceId ? findInstance(settings, row.instanceId) : null
+    const instModel = def && instForMeta
+      ? fieldsForInstance(def, instForMeta, { declared: declaredFor(def) }) : null
+    const declaredMeta = instModel ? new Map(instModel.all.map((f) => [f.key, f])) : null
+    // ⭐ UCT RS Phase 3, unit 3-02b — THE FIELD LIST IS THE GATED MODEL'S. `row.fields`
+    // is `fieldsFromDefinition(def)` with nothing declared, so it can never show a
+    // gated input the server DOES declare, and it drops a stored gated option
+    // instead of showing it "(not available)". The per-instance model answers
+    // both (legacy inputs are absent from either). Each field keeps its row twin's
+    // own shape (a `disabled` reason rides there) and takes the model's options;
+    // a definition with no gate yields the same keys, in the same order, with the
+    // same options — the Inspector it always rendered.
+    const gatedRow = instModel && row.engineOwned
+      ? (() => {
+        const twin = new Map((row.fields || []).map((f) => [f.key, f]))
+        return {
+          ...row,
+          fields: instModel.all.map((m) => {
+            const r = twin.get(m.key)
+            if (!r) return m
+            return m.options ? { ...r, options: m.options } : r
+          }),
+        }
+      })()
+      : row
+    const parts = partitionFields(gatedRow, def, instModel)
+    // ⭐ the model's `inline` and Pine `tooltip` ride too (they were dropped: a Pine document declares
+    // its tooltips in the script, which only the model reads)
+    const withMeta = (f) => {
+      const m = declaredMeta && declaredMeta.get(f.key)
+      if (!m || (!m.group && !m.activeWhen && !m.inline && !m.tooltip)) return f
+      return {
+        ...f,
+        group: m.group,
+        activeWhen: m.activeWhen,
+        ...(m.inline && !f.inline ? { inline: m.inline } : {}),
+        ...(m.tooltip && !f.tooltip ? { tooltip: m.tooltip } : {}),
+      }
+    }
+    const core = parts.core.map(withMeta)
+    const look = parts.look.map(withMeta)
+    const preset = presetControl(row, def)
     const readOnly = readOnlyCore(row, group, meta.source)
     const display = displayInControl(row)
     const timeframe = timeframeControl(row)
@@ -2381,153 +2914,199 @@ export default function ChartSettingsIndicators({
     const duplicate = duplicateWriter(row)
     const tint = safeCssColour(rowColor(row))   // ⛔ only a CSS-safe colour reaches the rail (objectColour.js)
 
+    // ⭐ UCT SIGNATURE (owner 11-15) — the editor REPLACES the list: "← All indicators", a title
+    // row (big colour bar · name · "kind · pane") with icon actions, the UCT Intelligence bar,
+    // then cards: Inputs · Style · On the chart · Calculation · Show on. Every control below is
+    // the same control with the same writer as before; only where it sits changed.
+    const pick = rowColorPick(row, meta.name)
+    const paneWord = group ? (orderable(group) ? `${group.name} pane` : group.name) : null
+    const showKind = !!kind && kind.toLowerCase() !== meta.name.trim().toLowerCase()
+    const doorKind = definitionDoors && def ? definitionKindOf(def) : 'other'
+    const instForDoors = row.instanceId ? (settings.indicatorInstances || []).find((i) => i && i.instanceId === row.instanceId) : null
+    const copy = doorKind !== 'other' ? copyVerdict(def, (instForDoors && instForDoors.inputs) || {}) : null
+    const canModify = doorKind === 'user' && definitionDoors.canModify()
+    const hasMore = doorKind !== 'other'
+    const where = readOnly.filter((f) => f.key === '__where__')
+    const soonSquare = (label, checked) => (
+      <button type="button" className={`${styles.soft} ${checked ? styles.softOn : ''}`} disabled aria-disabled="true"
+        aria-label={`${label} (coming soon)`} title={SOON} aria-describedby={soonDescId} data-soon-control="">
+        <span className={styles.softKnob} />
+      </button>
+    )
+    const soonField = (label, ctl, { lead = false } = {}) => (
+      <div key={label} className={`${styles.insField} ${styles.soonRow} ${lead ? styles.leadField : ''}`} data-soon="" title={SOON}>
+        {lead && ctl}
+        <span className={styles.insFieldLabel}>{label}<span className={modalStyles.soonTag}>Soon</span></span>
+        {!lead && <span className={styles.insFieldCtl}>{ctl}</span>}
+      </div>
+    )
+
     return (
       <div className={styles.insPanel} id={inspectorDomId(row.id)} data-inspector-for={row.id}>
-        {/* ─── HEADER: what this is, and whether it is drawing ──────────── */}
-        <div className={styles.insHead}>
-          {narrow && (
-            <button
-              type="button"
-              className={styles.insBack}
-              onClick={() => setNarrowView('list')}
-              aria-label="Back to the chart structure"
-            >←</button>
-          )}
-          <i className={styles.insHeadRail} style={tint ? { background: tint } : undefined} aria-hidden="true" />
-          <span className={styles.insHeadText}>
-            <span className={styles.insHeadName}>{meta.name}</span>
-            {/* ⛔ ONLY WHEN IT ADDS SOMETHING. `RSI 14` over `Relative Strength
-                Index` explains the abbreviation; `Volume` over `Volume` is
-                furniture, so the line is simply absent when the two agree. */}
-            {kind && kind.toLowerCase() !== meta.name.trim().toLowerCase() && (
-              <span className={styles.insHeadKind}>{kind}</span>
-            )}
-          </span>
-          {/* ⚰️⚰️ IT WAS AN OUTLINED `• ON` PILL, and it read as a STATUS BADGE
-              rather than a control — owner, 2026-09-17: *"it feels more like a
-              status badge than an interactive visibility control."* A bordered
-              chip with a dot and a word is what this panel uses to LABEL things;
-              a thing you flip should look like the other things you flip.
-              ⭐ SO IT IS THE PANEL'S OWN SWITCH — `.toggle` / `.toggleKnob` /
-              `.toggleOn`, the same component `Overlap candles` uses four rows
-              below it, at a header-sized variant that changes nothing but the
-              geometry. ⛔ NOT A SECOND TOGGLE SYSTEM: the classes are the shared
-              ones and `.insVis` only resizes them.
-              ⛔ AND NO VISIBLE WORD. The header already says WHICH indicator this
-              is and the switch says whether it draws; `ON` beside a switch
-              restates the switch, and `Visible` restates the header's own
-              subject. The label a screen reader gets is the ACTION, not the
-              state — `Hide EMA 20` / `Show EMA 20` — which is what a member is
-              about to do rather than what they are looking at, and it carries a
-              `title` so a pointer gets the same sentence.
-              ⛔ SAME WRITER, SAME STATE. `setRowVisible(row, !on)` is untouched:
-              this is a control swap, not a visibility change. */}
-          <button
-            type="button" role="switch" aria-checked={on}
-            aria-label={`${on ? 'Hide' : 'Show'} ${meta.name}`}
-            title={`${on ? 'Hide' : 'Show'} ${meta.name}`}
-            className={`${styles.toggle} ${styles.insVis} ${on ? styles.toggleOn : ''}`}
-            onClick={() => setRowVisible(row, !on)}
-          >
-            <span className={styles.toggleKnob} />
+        <div className={styles.edTop}>
+          <button type="button" className={styles.insBack} onClick={backToList} aria-label="Back to all indicators">
+            <Icon name="back" size={14} />All indicators
           </button>
         </div>
-
-        {/* ─── CORE ─────────────────────────────────────────────────────── */}
-        {(core.length > 0 || display || timeframe || visibility || readOnly.length > 0) && (
-          <section className={styles.insSection} data-section="core">
-            <div className={styles.insSectionLabel}>Core</div>
-            {readOnly.filter((f) => f.key === '__source__').map(renderReadOnly)}
-            {core.map((f) => renderField(row, f))}
-            {/* ⭐ WHAT IT READS, HOW LONG, WHICH KIND, AT WHAT RESOLUTION, WHERE IT
-                DRAWS — Timeframe sits between the maths and the destination. */}
-            {timeframe}
-            {display}
-            {/* ⭐ VISIBILITY SITS UNDER TIMEFRAME'S NEIGHBOURHOOD ON PURPOSE: Timeframe
-                is the resolution it is CALCULATED on, Visibility the chart timeframes
-                it is SHOWN on. Two behavioural controls, read together, above the fold
-                — it used to be its own section below all of Appearance. */}
-            {visibility}
-            {readOnly.filter((f) => f.key !== '__source__').map(renderReadOnly)}
-          </section>
-        )}
-
-        {/* ─── APPEARANCE ───────────────────────────────────────────────── */}
-        {(look.length > 0 || (plotStyle && plotStyle.length > 0) || appearance
-          || (signColors && signColors.length > 0)) && (
-          <section className={styles.insSection} data-section="appearance">
-            <div className={styles.insSectionLabel}>Appearance</div>
-            {/* ⭐ THE PAIR SITS WHERE THE SINGLE COLOUR WOULD. A signed histogram
-                has no one colour, so `Up color` / `Down color` ARE its colour
-                control — they replace nothing and duplicate nothing, because a
-                signed output's own `color` field is what `look` would have shown
-                and the definition does not declare one for `dataSeries`. */}
-            {signColors}
-            {look.map((f) => renderField(row, f))}
-            {/* ⭐ STROKE BEFORE GEOMETRY: Line style / Line width (how the line is
-                drawn) sit above Plot style (what shape it is). Two properties,
-                never one control — see `presentation.lineLookPatch`. */}
-            {appearance}
-            {plotStyle}
-          </section>
-        )}
-
-        {/* ─── ACTIONS ──────────────────────────────────────────────────────
-            ⭐ THE ROWS LOST THEIR ✕ AND THE INSPECTOR GAINED IT. One verb, one
-            control, one level in — a dense structure list is exactly where a
-            mis-click deletes a configured indicator, and the Inspector is a place
-            a member arrived at deliberately. `removeRow` itself is unchanged: a
-            fixture is TOMBSTONED (slot kept, nothing shifts, settings preserved)
-            and an instance goes through `removeInstance`. */}
-        {definitionDoors && def && (() => {
-          // ⭐ PHASE 4 — THE INDICATOR ITSELF, separate from this instance's settings
-          // above. A member's own formula can be modified (UCT Intelligence, where
-          // authorized) or edited as a formula; a formula or a parity-approved built-in
-          // can be copied into a NEW indicator of their own. A built-in that cannot be
-          // reproduced exactly shows the copy action disabled, with its reason.
-          const k = definitionKindOf(def)
-          if (k === 'other') return null
-          const inst = row.instanceId ? (settings.indicatorInstances || []).find((i) => i && i.instanceId === row.instanceId) : null
-          const copy = copyVerdict(def, (inst && inst.inputs) || {})
-          return (
-            <>
-            <div className={styles.insActions} data-testid="inspector-definition-actions" data-definition-kind={k}>
-              {k === 'user' && definitionDoors.canModify() && (
-                <button type="button" className={styles.insAction} data-testid="inspector-modify"
-                  onClick={() => definitionDoors.modify(def.id)}>Modify with UCT Intelligence</button>
-              )}
-              {k === 'user' && (
-                <button type="button" className={styles.insAction} data-testid="inspector-edit-formula"
-                  onClick={() => definitionDoors.editFormula(def.id)}>Edit formula</button>
-              )}
-              <button type="button" className={styles.insAction} data-testid="inspector-custom-copy"
-                disabled={!copy.ok} title={copy.ok ? 'A new, independent indicator of your own — this one stays as it is' : copy.reason}
-                onClick={() => { if (copy.ok) definitionDoors.customCopy(def, (inst && inst.inputs) || {}) }}>Create custom copy</button>
-            </div>
-            {!copy.ok && <div className={styles.insNote} data-testid="inspector-not-customizable">{copy.reason}</div>}
-            </>
-          )
-        })()}
-        <div className={styles.insActions}>
-          {duplicate && (
+        {/* ─── TITLE: what this is, where it draws, and its verbs ─────────── */}
+        <div className={styles.insHead} ref={moreRef}>
+          <span className={`${styles.rowBar} ${styles.bigBar} ${pick ? styles.hasPick : ''}`}>
+            <i className={styles.insRail} style={tint ? { background: tint } : undefined} aria-hidden="true" />
+            {pick && colorSwatch(pick.target, pick.label, pick.value)}
+          </span>
+          <span className={styles.insHeadText}>
+            <span className={styles.insHeadName}>{meta.name}</span>
+            <span className={styles.insHeadSub}>
+              {/* ⛔ THE KIND ONLY WHEN IT ADDS SOMETHING: `RSI 14` over `Relative Strength Index`
+                  explains the abbreviation; `Volume` over `Volume` is furniture. */}
+              {showKind && <span className={styles.insHeadKind}>{kind}</span>}
+              {showKind && paneWord && ' · '}
+              {paneWord}
+              {!on && ' · hidden'}
+            </span>
+          </span>
+          <span className={styles.tacts}>
+            {/* ⭐ THE SAME SWITCH, NOW AN EYE: `setRowVisible(row, !on)`, named by the action. */}
             <button
-              type="button"
-              className={styles.insAction}
-              onClick={() => {
-                const next = duplicate()
-                // Identity, not deep equality — a REFUSED write returns `settings`
-                // itself, and persisting a no-op would mark the preset custom for
-                // a click that did nothing.
-                if (next !== settings) onChange?.({ ...next, preset: 'custom' })
-              }}
-             title="Another copy of this same indicator on the chart">Duplicate on chart</button>
+              type="button" role="switch" aria-checked={on}
+              aria-label={`${on ? 'Hide' : 'Show'} ${meta.name}`}
+              title={`${on ? 'Hide' : 'Show'} ${meta.name}`}
+              className={styles.iconBtn}
+              onClick={() => setRowVisible(row, !on)}
+            ><Icon name={on ? 'eye' : 'eyeoff'} size={15} /></button>
+            {duplicate && (
+              <button
+                type="button" className={styles.iconBtn}
+                aria-label={`Duplicate ${meta.name}`} title="Duplicate on chart"
+                onClick={() => {
+                  const next = duplicate()
+                  // Identity, not deep equality — a REFUSED write returns `settings` itself.
+                  if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+                }}
+              ><Icon name="dup" size={15} /></button>
+            )}
+            <button
+              type="button" className={styles.iconBtn}
+              aria-label={`Remove ${meta.name}`} title="Remove"
+              data-guide="indicators.remove"
+              onClick={() => removeRow(row)}
+            ><Icon name="trash" size={15} /></button>
+            {hasMore && (
+              <button
+                type="button" className={styles.iconBtn} aria-label="More actions" title="More"
+                aria-haspopup="menu" aria-expanded={moreOpen}
+                onClick={() => setMoreOpen((o) => !o)}
+              ><Icon name="more" size={15} /></button>
+            )}
+          </span>
+          {/* ⭐ PHASE 4 — THE INDICATOR ITSELF, separate from this instance's settings: a member's
+              own formula can be modified (the UCT Agent, where authorized) or opened in the
+              formula builder; a formula or a parity-approved built-in can be copied into a NEW
+              indicator of their own (a built-in that cannot be reproduced exactly says why). */}
+          {hasMore && moreOpen && (
+            <div className={styles.menu} role="menu" style={{ right: 14, top: 44 }}
+              data-testid="inspector-definition-actions" data-definition-kind={doorKind}
+              onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setMoreOpen(false) } }}>
+              {canModify && (
+                <button type="button" role="menuitem" className={styles.menuItem} data-testid="inspector-modify"
+                  onClick={() => { setMoreOpen(false); definitionDoors.modify(def.id) }}>
+                  <span>Change it with the UCT Agent</span><Icon name="spark" size={13} className={styles.spark} />
+                </button>
+              )}
+              {doorKind === 'user' && (
+                <button type="button" role="menuitem" className={styles.menuItem} data-testid="inspector-edit-formula"
+                  onClick={() => { setMoreOpen(false); definitionDoors.editFormula(def.id) }}>
+                  <span>Open in formula builder</span>
+                </button>
+              )}
+              <button type="button" role="menuitem" className={styles.menuItem} data-testid="inspector-custom-copy"
+                disabled={!copy.ok}
+                title={copy.ok ? 'A new, independent indicator of your own — this one stays as it is' : copy.reason}
+                onClick={() => { if (copy.ok) { setMoreOpen(false); definitionDoors.customCopy(def, (instForDoors && instForDoors.inputs) || {}) } }}>
+                <span>Make my own copy</span>
+              </button>
+              {!copy.ok && <div className={styles.menuNote} data-testid="inspector-not-customizable">{copy.reason}</div>}
+            </div>
           )}
-          <button
-            type="button"
-            className={`${styles.insAction} ${styles.insActionDanger}`}
-            aria-label={`Remove ${meta.name}`}
-            onClick={() => removeRow(row)}
-          >Remove</button>
+        </div>
+
+        {/* ─── UCT INTELLIGENCE: change it in plain words (Soon — no door takes free text yet) ── */}
+        <label className={`${styles.aiBar} ${styles.soon}`} title={SOON}>
+          <Icon name="spark" size={14} className={styles.spark} />
+          <input type="text" disabled aria-disabled="true" title={SOON} aria-describedby={soonDescId}
+            placeholder="Change it in plain words, e.g. “dashed, 150 days”"
+            aria-label={`Change ${meta.name} in plain words (coming soon)`} />
+          <span className={`${modalStyles.soonTag} ${styles.aiSoon}`}>Soon</span>
+          <button type="button" className={styles.iconBtn} disabled aria-disabled="true" aria-label="Apply (coming soon)" title={SOON} aria-describedby={soonDescId}>
+            <Icon name="send" size={14} />
+          </button>
+        </label>
+
+        {/* ⭐ WHOLE-ROW TOGGLING (owner 11-15, as on every Chart Settings row): a click anywhere on
+            a row that holds an on/off soft square flips it; the row's other controls keep theirs. */}
+        <div className={styles.edBody} onClick={(e) => {
+          const fld = e.target.closest?.('[data-field]')
+          if (!fld || e.target.closest('button, input, select, a, label, [role="switch"]')) return
+          fld.querySelector('[role="switch"]:not([disabled]):not([aria-disabled="true"])')?.click()
+        }}>
+          {/* ─── INPUTS — what it computes ─────────────────────────────────── */}
+          {(preset || core.length > 0 || readOnly.some((f) => f.key === '__source__')) && (
+            <section className={styles.insSection} data-section="core">
+              <div className={styles.insSectionLabel}>Inputs</div>
+              <div className={styles.card}>
+                {/* ⭐ A6 — the Preset row is FIRST: the first decision a member makes. */}
+                {preset}
+                {readOnly.filter((f) => f.key === '__source__').map(renderReadOnly)}
+                {renderCoreFields(row, def, core)}
+              </div>
+            </section>
+          )}
+
+          {/* ─── STYLE — how it is drawn ───────────────────────────────────── */}
+          {(look.length > 0 || (plotStyle && plotStyle.length > 0) || appearance
+            || (signColors && signColors.length > 0)) && (
+            <section className={styles.insSection} data-section="appearance">
+              <div className={styles.insSectionLabel}>Style</div>
+              <div className={styles.card}>
+                {/* ⭐ A signed histogram's Up / Down pair sits where its single colour would. */}
+                {signColors}
+                {look.map((f) => renderField(row, f))}
+                {/* stroke before geometry: Line style / width above Plot style */}
+                {appearance}
+                {plotStyle}
+              </div>
+            </section>
+          )}
+
+          {/* ─── ON THE CHART — where it draws, and how it is labelled ─────── */}
+          <section className={styles.insSection} data-section="chart">
+            <div className={styles.insSectionLabel}>On the chart</div>
+            <div className={styles.card}>
+              {display || where.map(renderReadOnly)}
+              {soonField('Legend name', (
+                <input type="text" className={styles.insText} disabled aria-disabled="true" value={meta.name} readOnly
+                  aria-label="Legend name (coming soon)" title={SOON} aria-describedby={soonDescId} />
+              ))}
+              {soonField('Show in the legend', soonSquare('Show in the legend', true), { lead: true })}
+              {soonField('Value on the price scale', soonSquare('Value on the price scale', false), { lead: true })}
+            </div>
+          </section>
+
+          {/* ─── CALCULATION — which bars compute it ───────────────────────── */}
+          {timeframe && (
+            <section className={styles.insSection} data-section="calculation">
+              <div className={styles.insSectionLabel}>Calculation</div>
+              <div className={styles.card}>{timeframe}</div>
+            </section>
+          )}
+
+          {/* ─── SHOW ON — which chart timeframes draw it ──────────────────── */}
+          <section className={styles.insSection} data-section="showOn">
+            <div className={styles.insSectionLabel}>Show on</div>
+            <div className={styles.card}>
+              {visibility || soonField('Timeframes', <span className={styles.insFieldValue}>All timeframes</span>)}
+            </div>
+          </section>
         </div>
       </div>
     )
@@ -2544,24 +3123,8 @@ export default function ChartSettingsIndicators({
   // exists and is three lines below. `discovering` renders it directly, and the
   // right side now has exactly two states — DISCOVER and EDIT.
 
-  /**
-   * ARRANGE's right-hand side — deliberately almost nothing.
-   *
-   * ⭐ THE SIMPLEST TREATMENT THAT LOOKS INTENTIONAL. The left column is doing the
-   * work in this mode, so the right states the rule and gets out of the way.
-   * Keeping the Inspector live here would offer edits to a row the member is not
-   * currently looking at, and mounting a second arrangement UI would be two ways
-   * to do one thing.
-   */
-  const renderArrangeAside = () => (
-    <div className={styles.insEmpty} data-testid="arrange-aside">
-      <div className={styles.insEmptyLede}>Drag a pane to restack the chart.</div>
-      <div className={styles.insEmptyNote}>
-        Everything drawn inside a pane travels with it. To move a single series to
-        a different pane, leave Arrange and use its Display setting.
-      </div>
-    </div>
-  )
+  // ⚰️ `renderArrangeAside` (Arrange's right-hand note) is now the hint at the top of the
+  // one-column Arrange list (`data-testid="arrange-aside"`).
 
   /**
    * The DISPLAY-IN control — WHERE this instance draws.
@@ -2641,7 +3204,7 @@ export default function ChartSettingsIndicators({
 
     return (
       <div className={styles.insField} data-field="__display__" data-measure="wide" key="display-in">
-        <span className={styles.insFieldLabel}>Display</span>
+        <span className={styles.insFieldLabel}>Pane</span>
         <span className={styles.insFieldCtl}>
           <select
             className={styles.indSelect}
@@ -2721,17 +3284,38 @@ export default function ChartSettingsIndicators({
     }
     const plots = Array.isArray(def.plots) ? def.plots : []
     // ⭐ BATCH 2 — a `hidden: true` plot is never drawn, so it has no style to pick.
-    const restyleable = plots.filter((pl) => pl && pl.hidden !== true && availableStyles(pl, styleCtx).length > 0)
-    if (!restyleable.length) return null
+    // ⭐ UCT RS 3-14 — and a `requiresServer` plot (a Phase 3 reading's line) has no
+    // style row until the live row declares the definition's gated inputs.
+    const declared = declaredFor(def)
+    const restyleable = plots.filter((pl) => pl && pl.hidden !== true && !isPlotHidden(def, pl, declared)
+      && availableStyles(pl, styleCtx).length > 0)
+    // ⭐ 2a-12 — the outputs that draw as DOTS get one Dot size control beside Plot
+    // style, through `setInstanceDotSize` (the dialog's Style tab and the `setDotSize`
+    // agent op share it). A definition with neither has nothing here.
+    const dots = dotPlotsOf(def)
+    if (!restyleable.length && !dots.length) return null
 
     // ⭐ ONE OUTPUT ⇒ NO OUTPUT NAME. Printing "Value" above a single control,
     // inside a panel already titled `QQQ`, is furniture.
     const single = restyleable.length === 1
+    // ⭐⭐ A PLOT IS NAMED AS THE FORM NAMES ITS COLOUR AND WIDTH (`plotTitlesOf`): its title, else the
+    // group of the script colour it draws in, else TradingView's `Plot`. ⚰️ It printed the column key,
+    // so RS Rating's untitled MA plots read "out2 style". Two plots sharing a name are told apart by
+    // their position in the accessible name only, where a screen reader needs it.
+    const titles = plotTitlesOf(def)
+    const nameOf = (plot) => titles.get(plot.key) || plot.label || 'Plot'
+    const seenName = new Map()
+    const spoken = new Map(restyleable.map((plot) => {
+      const n = nameOf(plot)
+      const k = (seenName.get(n) || 0) + 1
+      seenName.set(n, k)
+      return [plot.key, k > 1 ? `${n} ${k}` : n]
+    }))
 
-    return restyleable.map((plot) => {
+    const rows = restyleable.map((plot) => {
       const style = resolvePlotStyle(inst, plot, styleCtx)
       const choices = availableStyles(plot, styleCtx)
-      const label = single ? 'Plot style' : `${plot.label || plot.key} style`
+      const label = single ? 'Plot style' : `${nameOf(plot)} style`
       return (
         <div className={styles.insField} data-field={`__style__:${plot.key}`} data-measure="medium"
           key={`style-${plot.key}`}>
@@ -2740,7 +3324,7 @@ export default function ChartSettingsIndicators({
             <select
               className={styles.indSelect}
               value={style}
-              aria-label={`${row.label} ${single ? 'plot style' : `${plot.key} plot style`}`}
+              aria-label={`${row.label} ${single ? 'plot style' : `${spoken.get(plot.key)} plot style`}`}
               onChange={(e) => {
                 const next = setInstancePlotStyle(
                   settings, row.instanceId, e.target.value, registry,
@@ -2757,7 +3341,33 @@ export default function ChartSettingsIndicators({
         </div>
       )
     })
-  }, [settings, registry, onChange])
+    if (dots.length) {
+      // ⭐ U8 #11 (2026-11-07): "Mixed" while a per-dot size disagrees with the
+      // instance level; the writer deletes per-dot sizes on any word chosen.
+      const dotReading = instanceDotSizeReading(inst, def)
+      rows.push(
+        <div className={styles.insField} data-field="__dotSize__" data-measure="medium" key="dot-size">
+          <span className={styles.insFieldLabel}>Dot size</span>
+          <span className={styles.insFieldCtl}>
+            <select
+              className={styles.indSelect}
+              value={dotReading}
+              aria-label={`${row.label} dot size`}
+              onChange={(e) => {
+                const next = setInstanceDotSize(settings, row.instanceId, e.target.value, registry)
+                if (next !== settings) onChange?.({ ...next, preset: 'custom' })
+              }}
+            >
+              {dotReading === DOT_SIZE_MIXED && <option value={DOT_SIZE_MIXED} disabled>Mixed</option>}
+              {DOT_SIZE_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </span>
+        </div>,
+      )
+    }
+    return rows
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `declaredFor` reads `gateId` and `serverDeclared`, listed
+  }, [settings, registry, onChange, gateId, serverDeclared])
 
   /** Write one settings blob through the ONE persist path this tab uses. A refused
    *  write comes back as `settings` itself and is not persisted. */
@@ -2874,11 +3484,11 @@ export default function ChartSettingsIndicators({
       const on = pres.overlap === true
       out.push(
         <div key="overlap" className={styles.insField} data-field="overlap" data-measure="compact">
-          <span className={styles.insFieldLabel}>Overlap candles</span>
+          <span className={styles.insFieldLabel}>Draw above candles</span>
           <span className={styles.insFieldCtl}>
             <Switch
-              checked={on} aria-label="Overlap candles"
-              className={styles.toggle} checkedClassName={styles.toggleOn} knobClassName={styles.toggleKnob}
+              checked={on} aria-label="Draw above candles"
+              className={styles.soft} checkedClassName={styles.softOn} knobClassName={styles.softKnob}
               onClick={() => write('overlap', !on)}
             />
           </span>
@@ -2974,7 +3584,7 @@ export default function ChartSettingsIndicators({
     return (
       <Fragment key="visibility">
         <div className={styles.insField} data-field="__visibility__" data-measure="wide">
-          <span className={styles.insFieldLabel}>Visibility</span>
+          <span className={styles.insFieldLabel}>Timeframes</span>
           <span className={styles.insFieldCtl}>
             <select
               className={styles.indSelect}
@@ -3133,7 +3743,9 @@ export default function ChartSettingsIndicators({
            be. `title` on the row rather than on the name, so the whole row is the
            hover target for it. */
         title={row.description || undefined}
-        className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''}`}
+        /* ⭐ A MEMBER'S OWN ROW PUTS ITS DOORS ON A SECOND LINE (`resRowOwn`): five of them on the
+           name's line left the name no room (seen on production, 2026-11-17). */
+        className={`${styles.resRow} ${on ? styles.resRowOn : ''} ${refused ? styles.resRefused : ''} ${row.userDefined && definitionDoors ? styles.resRowOwn : ''}`}
         onClick={() => { if (canAct) addRow(row) }}
       >
         {/* ⭐⭐ THE FAMILY MARK. ⛔ IT IS NOT A DECORATION AND IT IS NOT THE SERIES'
@@ -3145,7 +3757,7 @@ export default function ChartSettingsIndicators({
             down a list would spend the one accent this product reserves for "you
             are here" on furniture. `aria-hidden`: the row already says its name. */}
         <span className={styles.resGlyph} data-glyph={glyphFamilyOf(row)} aria-hidden="true">
-          <UIcon name={glyphNameOf(row)} size={20} gold={false} strokeWidth={1.5} />
+          <UIcon name={glyphNameOf(row)} size={16} gold={false} strokeWidth={1.5} />
         </span>
         {/* ⭐ AN ECONOMIC ROW IS TWO LEVELS (owner, 2026-09-30): the NAME owns line one
             and `SYMBOL · agency · frequency · units` sits under it in the muted ink.
@@ -3178,7 +3790,7 @@ export default function ChartSettingsIndicators({
                 {row.chip || row.shortName}
               </span>
             )}
-            {row.userDefined && <span className={styles.resMine}>Your formula</span>}
+            {row.userDefined && <span className={styles.resMine}>Your indicator</span>}
             {/* ⭐ PHASE 4 — IS IT USED HERE? The member's own indicator says so. */}
             {/* (`ACTIVE` already marks one that is on; this says the other half.) */}
             {row.userDefined && !on && (
@@ -3192,7 +3804,7 @@ export default function ChartSettingsIndicators({
               <span
                 className={styles.resRepaint}
                 data-repaint={row.measuredRepaint}
-                title={(row.repaintingPlots || []).map((n) => `${n.label} — ${n.sentence}`).join(' ')}
+                title={(row.repaintingPlots || []).map((n) => `${n.label} — ${withoutGuardIds(n.sentence)}`).join(' ')}
               >{String(row.measuredRepaint).charAt(0).toUpperCase() + String(row.measuredRepaint).slice(1)}</span>
             )}
             {/* Tier only when it is NOT free, and NEVER on the member's own
@@ -3209,20 +3821,10 @@ export default function ChartSettingsIndicators({
           {row.userDefined && definitionDoors && (() => {
             const d = registry?.getDefinition?.(row.id) || null
             if (!d || definitionKindOf(d) !== 'user') return null
-            const stop = (fn) => (e) => { e.stopPropagation(); fn() }
-            return (
-              <span className={styles.resActions} data-testid="your-indicator-actions">
-                {definitionDoors.canModify() && (
-                  <button type="button" className={styles.resAction} data-testid="your-indicator-modify"
-                    onClick={stop(() => definitionDoors.modify(d.id))}>Modify</button>
-                )}
-                <button type="button" className={styles.resAction} data-testid="your-indicator-edit"
-                  onClick={stop(() => definitionDoors.editFormula(d.id))}>Edit formula</button>
-                <button type="button" className={styles.resAction} data-testid="your-indicator-copy"
-                  title="A new, independent indicator of your own — this one stays as it is"
-                  onClick={stop(() => definitionDoors.customCopy(d, {}))}>Custom copy</button>
-              </span>
-            )
+            // ⭐ R1 (2026-11-17) — the doors are `YourIndicatorActions` (its own tested file), which adds
+            // "Run over a list": the Screener's existing run flow, opened on this indicator.
+            return <YourIndicatorActions def={d} doors={definitionDoors}
+              className={styles.resActions} actionClassName={styles.resAction} />
           })()}
           {/* ⚠️⚠️ EXCEPT FOR A SECURITY, WHERE THE "DESCRIPTION" IS THE INSTRUMENT'S
               NAME. `securityResults` builds a ticker row as `name: QQQ`,
@@ -3279,20 +3881,22 @@ export default function ChartSettingsIndicators({
         {refused ? (
           <span className={styles.resActive}><span className={styles.resActiveTag} id={stateId}>Unavailable</span></span>
         ) : on ? (
+          /* ⭐ UCT SIGNATURE §2b-7 — already in use: a small gold dot and "On chart" in grey. */
           <span className={styles.resActive}>
-            <span className={styles.resActiveTag} id={stateId}>Active</span>
+            <span className={`${styles.resActiveTag} ${styles.resOnDot}`} id={stateId}>On chart</span>
             {!row.carvedOut && !row.singleton && (
               <button
                 type="button"
                 className={styles.resAddMore}
                 aria-label={`Add another ${row.name}`}
+                data-guide="indicators.addAnother"
                 title={`Add a second ${row.shortName} with the default settings`}
                 onClick={(e) => addAnother(row, e)}
-              >＋</button>
+              ><Icon name="plus" size={14} /></button>
             )}
           </span>
         ) : (
-          <span className={styles.resAdd} aria-hidden="true">＋ Add</span>
+          <span className={styles.resAdd} aria-hidden="true">+ Add</span>
         )}
       </li>
     )
@@ -3315,66 +3919,23 @@ export default function ChartSettingsIndicators({
   const renderAddSurface = () => {
     const tabLabel = (libraryTabs.find((t) => t.key === activeTab) || { label: 'anything' }).label
     return (
-    <div className={styles.insAdd} data-testid="add-surface">
-      <div className={styles.insHead}>
-        {/* ⚰️⚰️ IT WAS UNCONDITIONAL, AND IT USED TO MEAN SOMETHING: discovery was a
-            place you went FROM the orientation screen, so there was always
-            somewhere to come back to. That screen is gone and discovery is the
-            default, so an arrow rendered with nothing selected would return the
-            member to… discovery. Owner: *"no dead back arrow."*
-            ⭐ IT APPEARS EXACTLY WHEN THERE IS A SELECTION TO RETURN TO — a member
-            who was editing `EMA 20`, pressed `＋ Add Indicator` and changed their
-            mind gets `EMA 20` back. No history stack: the selection IS the
-            history, and it was never cleared. */}
-        {/* ⚠️⚠️ AND ALWAYS AT NARROW, WHICH IS NOT A SECOND RULE — it is the same
-            one. The arrow exists when leaving discovery LEADS SOMEWHERE, and on a
-            phone it always does: the two regions are one at a time, so the left
-            list is off screen while Add is up and this is the only way back to
-            it. Measured: without this a member with nothing selected had no exit
-            from Add on a narrow layout at all. */}
-        {(selectedRow || narrow) && (
+    <div className={styles.insAdd} data-testid="add-surface" data-guide="indicators.addSurface">
+      {/* ⭐ UCT SIGNATURE R2 (owner Option 1, 2026-11-16) — the window's header: its title and ONE
+          way to make an indicator, "✦ Create indicator" (soft-bright; gold only on the ✦). It opens
+          the New formula window on its start view (Describe it, or start from a script / a picture /
+          conditions / a setup). ⚰️ It replaces "Describe one (Soon)" and "+ New formula": two
+          buttons for one job. Search stays the first and only input. */}
+      <div className={styles.bHead}>
+        <h3 className={styles.bTitle}>Indicators</h3>
+        {onCreateFormula && (
           <button
             type="button"
-            className={styles.insBack}
-            onClick={leaveBrowse}
-            aria-label={selectedRow
-              ? `Back to ${paneRowMeta(selectedRow, groupOfRow(selectedRow.id), settings, defOf).name}`
-              : 'Back to the chart structure'}
-          >←</button>
-        )}
-        <span className={styles.insHeadText}>
-          <span className={styles.insHeadName}>Add to Chart</span>
-        </span>
-        {/* ⚰️ IT WORE `.insHeadAct` — the same faint grey as `Arrange`, which is a
-            MODE SWITCH, and at the far end of a header a member reads for a
-            title. Owner, 2026-09-17: *"the existing + New Formula action is too
-            dark/subtle and easy to miss."*
-            ⭐ A GHOST BUTTON, NOT A GOLD ONE. It is the SECONDARY task on this
-            surface — search is the primary one — so it gets an outline and real
-            ink and stops there. Filling it would put the loudest object on the
-            panel next to the thing it must not outrank. */}
-        {showCreateIndicator && (
-          <button
-            type="button"
-            className={styles.insNewFormula}
+            className={styles.addPrim}
             data-testid="settings-create-indicator"
-            onClick={() => onCreateIndicator()}
-            title="Build an indicator by describing it — UCT Intelligence previews it on this chart"
-          >
-            <span className={styles.insNewFormulaPlus} aria-hidden="true">＋</span>
-            Create Indicator
-          </button>
-        )}
-        {onCreateFormula && !showCreateIndicator && (
-          <button
-            type="button"
-            className={styles.insNewFormula}
-            data-testid="settings-new-formula"
+            data-guide="indicators.create"
             onClick={() => onCreateFormula()}
-            title="Build your own indicator — conditions, plain English, Pine or ThinkScript"
           >
-            <span className={styles.insNewFormulaPlus} aria-hidden="true">＋</span>
-            New Formula
+            <span className={styles.spark} aria-hidden="true">✦</span>Create indicator
           </button>
         )}
       </div>
@@ -3391,7 +3952,7 @@ export default function ChartSettingsIndicators({
 
       <div className={styles.insSearchRow}>
         <div className={styles.indSearchWrap}>
-          <span className={styles.indSearchIcon} aria-hidden="true">⌕</span>
+          <span className={styles.indSearchIcon} aria-hidden="true"><Icon name="search" size={14} /></span>
           <input
             ref={searchRef}
             type="search"
@@ -3401,7 +3962,7 @@ export default function ChartSettingsIndicators({
                deliberately absent — see `FUNDAMENTALS_STATUS`; promising a search
                that can return nothing is the "fake availability" the brief rules
                out. */
-            placeholder="Search indicators, symbols, or formulas…"
+            placeholder="Search indicators or symbols…"
             aria-label="Search indicators"
             value={query}
             onChange={(e) => {
@@ -3424,7 +3985,7 @@ export default function ChartSettingsIndicators({
               // surface Escape has a nearer meaning — go back to the structure —
               // and closing the modal from under a member who was searching is the
               // wrong one.
-              if (e.key === 'Escape') { e.stopPropagation(); leaveBrowse() }
+              if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); leaveBrowse() }
             }}
           />
           {query && (
@@ -3433,7 +3994,7 @@ export default function ChartSettingsIndicators({
               className={styles.indClear}
               aria-label="Clear search"
               onClick={() => { setQuery(''); setTabPinned(false); searchRef.current?.focus() }}
-            >✕</button>
+            ><Icon name="x" size={12} /></button>
           )}
         </div>
       </div>
@@ -3509,7 +4070,25 @@ export default function ChartSettingsIndicators({
             )}
           </div>
         )}
-        {(activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0 && (
+        {activeTab === HOUSE_TAB.key && (
+          <IndicatorHouseTab
+            styles={styles}
+            query={query}
+            listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={putInstalledOnChart}
+          />
+        )}
+        {activeTab === MEMBERS_TAB.key && (
+          <IndicatorMembersTab
+            styles={styles}
+            query={query}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={putInstalledOnChart}
+          />
+        )}
+        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && (activeTab !== 'fundamentals' || fundAvailable) && tabResults.length === 0 && refusals.length === 0
+          && !(activeTab === null && query.trim() && houseMatchCount > 0) && (
           <div className={styles.indEmpty}>
             {/* ⚠️ "SEARCHING" IS NOT "NOTHING MATCHES", and the difference is a
                 network round trip. Telling a member their ticker does not exist
@@ -3555,6 +4134,19 @@ export default function ChartSettingsIndicators({
             <div className={styles.insSearching}>Searching symbols…</div>
           </section>
         )}
+        {/* ⭐ A SEARCH ACROSS EVERY TAB REACHES THE UCT SET TOO (2026-11-18): "Fred" found nothing while
+            Fred RS sat in the UCT tab. Its matches lead the results, under their own heading. */}
+        {activeTab === null && query.trim() && (
+          <IndicatorHouseTab
+            styles={styles}
+            query={query}
+            searchOnly
+            onMatches={setHouseMatchCount}
+            listOwn={() => (generation >= 0 && registry?.listUserDefinitions?.()) || []}
+            isOnOffer={(defId) => generation >= 0 && !!registry?.getDefinition?.(defId)}
+            onPutOnChart={putInstalledOnChart}
+          />
+        )}
         {groups.map((c) => (
           <section key={c} className={styles.insAddGroup}>
             {/* ⚠️ ONE GROUP, ONE HEADING — AND NOT WHEN IT WOULD REPEAT THE TAB.
@@ -3566,14 +4158,44 @@ export default function ChartSettingsIndicators({
             </ul>
           </section>
         ))}
+        {/* ⭐ UCT SIGNATURE R2 — "NOT QUITE IT?" (owner Option 1). While the search has text, always —
+            matches or not — the UCT Agent is offered for exactly what was typed. It opens the New
+            formula window's start view with the words PRE-FILLED in Describe it; nothing is sent
+            until the member presses Send there. With no matches it sits right under that sentence. */}
+        {query.trim() && onCreateFormula && (
+          <section className={styles.insAddGroup} data-testid="agent-build" aria-label="Not quite it?">
+            <div className={styles.insSectionLabel}>Not quite it?</div>
+            <button
+              type="button"
+              className={styles.agentRow}
+              data-testid="agent-build-row"
+              onClick={() => onCreateFormula({ description: query.trim() })}
+            >
+              <span className={styles.spark} aria-hidden="true">✦</span>
+              <span className={styles.agentMain}>
+                <span className={styles.agentName}>Build “{query.trim()}” with the UCT Agent</span>
+                <span className={styles.agentSub}>It writes the formula and shows you a plain-English read-back and a preview before anything is added</span>
+              </span>
+              <span className={styles.agentArrow} aria-hidden="true">→</span>
+            </button>
+            {onOpenBuilderDoor && (
+              <div className={styles.agentAlt} data-testid="agent-build-doors">
+                <span>Or</span>
+                <button type="button" className={styles.agentAltLink} data-testid="door-pine" onClick={() => onOpenBuilderDoor('pine')}>Paste a TradingView script</button>
+                <button type="button" className={styles.agentAltLink} data-testid="door-image" onClick={() => onOpenBuilderDoor('image')}>Start from a picture</button>
+                <button type="button" className={styles.agentAltLink} data-testid="settings-new-formula" onClick={() => onOpenBuilderDoor('formula')}>Write a formula</button>
+              </div>
+            )}
+          </section>
+        )}
         {/* Saved, and not offered — with the gate's own reason, verbatim. Rendered
             only when something was actually refused, so a member whose formulas
             all install sees no heading about nothing. */}
-        {refusals.length > 0 && (
+        {activeTab !== MEMBERS_TAB.key && activeTab !== HOUSE_TAB.key && refusals.length > 0 && (
           <section className={styles.insAddGroup} data-testid="user-definition-refusals">
             <div className={styles.insSectionLabel}>{REFUSED_CATEGORY}</div>
             <p className={styles.resRefusedLede}>
-              These saved formulas are not being offered on this chart. The reason
+              These saved indicators are not being offered on this chart. The reason
               below comes from the check that refused each one.
             </p>
             <ul className={styles.resList}>
@@ -3587,7 +4209,7 @@ export default function ChartSettingsIndicators({
                   <span className={styles.resMain}>
                     <span className={styles.resTitleRow}>
                       <span className={styles.resName}>{row.name}</span>
-                      <span className={styles.resMine}>Your formula</span>
+                      <span className={styles.resMine}>Your indicator</span>
                     </span>
                     {row.messages.map((message, i) => (
                       <span key={i} className={styles.resRefusedWhy} data-testid="user-definition-refusal-reason">{message}</span>
@@ -3603,170 +4225,211 @@ export default function ChartSettingsIndicators({
     )
   }
 
-  // ─── THE PANEL ─────────────────────────────────────────────────────────────
+  // ─── THE PANEL — ONE COLUMN (UCT Signature, the owner-approved Chart Settings Lab, 11-15) ─
   //
-  // ⭐⭐ LEFT = WHAT IS ON MY CHART. RIGHT = EDIT THE THING I SELECTED. Two regions
-  // with two different jobs, which is what makes the width worth spending — and is
-  // the difference from Hybrid 2, where the extra 120px bought a THIRD and FOURTH
-  // column of the same kind of thing.
+  // ⚰️⚰️ IT WAS TWO COLUMNS — the structure list on the left, the Inspector or the Add surface on
+  // the right. The lab replaced that: the section is ONE column at the window's own width (the
+  // window is a fixed 700 × 620 and nothing here may widen it), showing EITHER the list of what is
+  // on the chart (one card per pane) OR one indicator's editor (← All indicators). Adding opens its
+  // own Indicators window, floating over Chart Settings.
   //
-  // ⛔⛔ AND THE GEOMETRY DOES NOT MOVE. There is no inline accordion: selecting
-  // `RSI 14` after `EMA 20` swaps the right column's CONTENTS and changes nothing
-  // about the left column's heights, so a member walking the list with ↑/↓ is not
-  // reading a panel that reflows under them. The old expander pushed every row
-  // below it down by the height of a form.
-  //
-  // ⚠️ AT NARROW THE TWO REGIONS BECOME TWO VIEWS OF ONE STATE, not a second
-  // architecture: the same `selected`, the same Inspector, the same read model,
-  // rendered one at a time with a Back arrow instead of side by side. Squeezing a
-  // 264px column and a form into 360px is how a desktop panel arrives on a phone
-  // looking broken.
-  const showLeft = !narrow
-    || mode === 'arrange'
-    || (mode === 'active' && narrowView === 'list')
-  const showRight = !narrow
-    || mode === 'browse'
-    || (mode === 'active' && narrowView === 'inspector')
+  // ⭐ THE LIST STAYS MOUNTED WHILE AN EDITOR IS OPEN — `hidden`, not unmounted — so coming back
+  // keeps its scroll position, its folded panes and its keyboard place.
+  const editing = mode !== 'arrange' && !!(selectedRow || selectedFeature)
+  const isArrange = mode === 'arrange'
+  const nothing = activeRows.length === 0 && addedFeatures.length === 0
+  const templatesOn = indicatorTemplatesEnabled()
+  const maLabelsOn = !!(settings && settings.showMaLabels)
+  const setMaLabels = (v) => onChange?.({ ...settings, showMaLabels: v, preset: 'custom' })
+
+  // ⭐ THE ONE PRIMARY BUTTON SITS IN THE WINDOW'S OWN HEADER ROW, beside the "Indicators" title
+  // (the lab). Hosts without that header (tests, a bare mount) get it in a row of its own.
+  const headAction = isArrange ? (
+    <button type="button" className={styles.addPrim} data-testid="arrange-done" onClick={leaveArrange}>Done</button>
+  ) : (
+    <button type="button" className={styles.addPrim} data-testid="add-enter" data-guide="indicators.add" onClick={enterBrowse}>
+      <Icon name="plus" size={13} />Add indicator
+    </button>
+  )
 
   return (
-    <div className={styles.indTab} data-mode={mode} data-narrow={narrow ? 'true' : undefined}>
-      <div className={styles.insSplit}>
-        {showLeft && (
-          <div className={styles.insLeft} data-testid="chart-structure">
-            <div className={styles.insLeftHead}>
-              <span className={styles.insLeftTitle}>
-                {mode === 'arrange' ? 'Arrange panes' : 'Indicators'}
-              </span>
-              {mode === 'arrange' ? (
-                <button
-                  type="button"
-                  className={styles.insHeadAct}
-                  data-testid="arrange-done"
-                  onClick={leaveArrange}
-                >Done</button>
-              ) : (
-                <>
-                  {/* ⭐ A1.2 — Undo / Redo for this chart's indicator changes (the toast's
-                      stack). It is the door that works while this modal covers the toast. */}
-                  <IndicatorHistoryButtons surfaceKey={historyKey} userId={historyUserId} cs={settings} write={onChange} />
-                  {/* ⛔ OFFERED ONLY WHEN THERE IS SOMETHING TO ARRANGE. One pane
-                      cannot be restacked, and a control that cannot act is not a
-                      control. */}
-                  {arrangeable.length > 1 && (
-                    <button
-                      type="button"
-                      className={styles.insHeadAct}
-                      data-testid="arrange-enter"
-                      onClick={enterArrange}
-                    >Arrange</button>
-                  )}
-                  {/* ⚰️⚰️ A TINY `＋ Add` STOOD HERE, beside `Arrange`, and it is
-                      retired. Two words of chrome in a heading is where an action
-                      goes when nobody has decided how important it is — it was
-                      the same size as `Arrange`, which is a MODE, and it sat at
-                      the top of a list it was supposed to extend. Owner,
-                      2026-09-17: *"remove the tiny + Add from that location...
-                      replace it with a clear button at the BOTTOM of the left
-                      Indicators section."*
-                      ⭐ THE LIST NOW READS AS ONE SENTENCE: these are my
-                      indicators — and then, where the list ends, add another.
-                      See `.insAddIndicator` at the foot of this column. */}
-                </>
-              )}
-            </div>
+    <div className={styles.indTab} ref={tabRootRef} data-mode={mode} data-view={editing ? 'editor' : 'list'}
+      data-narrow={narrow ? 'true' : undefined}>
+      {/* the one description every "Soon" control points at */}
+      <span id={soonDescId} hidden>{SOON}</span>
+      {headSlot ? createPortal(headAction, headSlot) : <div className={styles.headSlot}>{headAction}</div>}
 
-            {mode === 'arrange' ? (
-              <div className={styles.insStructure} data-testid="arrange-list">
-                {arrangeable.map((g, i) => renderArrangeGroup(g, i))}
-              </div>
-            ) : (activeRows.length === 0 && addedFeatures.length === 0) ? (
-              <div className={styles.indEmpty}>
-                Nothing on this chart yet.{' '}
-                <button type="button" className={styles.indEmptyLink} onClick={enterBrowse}>Add something</button>.
-              </div>
-            ) : (
-              <div
-                className={styles.insStructure}
-                role="group"
-                aria-label="Series on this chart"
-                /* ⚰️ `aria-controls` WAS ON EVERY ROW'S EXPANDER, paired with
-                   `aria-expanded`, because each row opened a region of its own.
-                   There is ONE region now and the LIST drives it, so the pointer
-                   belongs here, and
-                   `aria-expanded` has nothing left to describe. A member told
-                   that something changed still has a way to find WHAT changed. */
-                aria-controls={selected ? inspectorDomId(selected) : undefined}
-                ref={listRef}
-                onKeyDown={onStructureKeys}
-              >
-                {/* ⚠️ `volumeRef` STAYS WITH THE VOLUME GROUP. It is the modal's
-                    scroll anchor for the Volume deep link, and the volume group is
-                    where Volume lives — putting it on the first heading instead
-                    would scroll members to the top of the structure and call it a
-                    deep link. */}
-                {paneGroups.map((g) => renderStructureGroup(g, g.id === 'volume' ? volumeRef : null))}
-                {addedFeatures.map(renderFeatureGroup)}
-              </div>
-            )}
-
-            {/* ⭐⭐ WHERE THE LIST ENDS. It is OUTSIDE the scrolling structure, so a
-                member with fifteen indicators does not have to scroll to the
-                bottom to find the way to add a sixteenth — the list scrolls
-                under it and this stays put.
-                ⛔ NOT IN ARRANGE. Arrange is about the panes that already exist;
-                offering to add a new series in the middle of restacking is a
-                second job on a surface that deliberately has one. */}
-            {mode !== 'arrange' && (
-              <button
-                type="button"
-                className={styles.insAddIndicator}
-                data-testid="add-enter"
-                onClick={enterBrowse}
-              >
-                <span className={styles.insAddIndicatorPlus} aria-hidden="true">＋</span>
-                Add to Chart
-              </button>
-            )}
-            {mode !== 'arrange' && (
-              <IndicatorTemplatesBar settings={settings} onChange={onChange} registry={registry} />
-            )}
-            {/* ⭐ A1.4 — the stored indicators this chart cannot show, with Repair / Remove /
-                Keep (and Open in Builder where this host can open the editor). */}
-            {mode !== 'arrange' && (
-              <UnavailableIndicators variant="group" cs={settings} registry={registry} write={onChange}
-                surfaceKey={historyKey || 'global'} userId={historyUserId}
-                onOpenBuilder={definitionDoors && typeof definitionDoors.editFormula === 'function' ? (id) => definitionDoors.editFormula(id) : null} />
-            )}
+      <div className={styles.listView} data-testid="chart-structure" hidden={editing || undefined}>
+        {isArrange ? (
+          <div className={styles.insStructure} data-testid="arrange-list">
+            <p className={styles.arrangeHint} data-testid="arrange-aside">
+              Drag a pane to restack the chart. Everything drawn inside a pane travels with it; to move
+              one series to another pane, open it and change its Pane.
+            </p>
+            {arrangeable.map((g, i) => renderArrangeGroup(g, i))}
           </div>
-        )}
-
-        {/* ⚠️⚠️ TWO BOXES CANNOT BOTH OWN THE SCROLLBAR, AND BOTH WERE
-            RESERVING ONE. `.insRight` scrolls when it holds the Inspector or
-            Arrange — a long form is taller than the panel — so it keeps a stable
-            gutter for those. Discovery brings its OWN scroller (`.insAddBody`,
-            because the search box and the category strip must stay put while the
-            results move), and the outer reservation then bought nothing: measured
-            at 10.8px of unreachable strip between the results scrollbar and the
-            workspace edge, on top of `.body`'s 10.4.
-            ⛔ GIVEN BACK ONLY WHERE IT IS PROVABLY UNUSED. The class is keyed on
-            `discovering`, which is the same flag that chooses the surface below
-            — so the mode that scrolls here still reserves, and there is no state
-            where the bar can appear against an unreserved box. */}
-        {showRight && (
+        ) : nothing ? (
+          <div className={styles.emptyAll}>
+            <span>No indicators on this chart</span>
+            <button type="button" className={styles.indEmptyLink} onClick={enterBrowse}>Add something</button>
+          </div>
+        ) : (
           <div
-            className={`${styles.insRight} ${discovering && mode !== 'arrange' ? styles.insRightFlush : ''}`}
-            data-testid="inspector"
+            className={styles.insStructure}
+            role="group"
+            aria-label="Series on this chart"
+            aria-controls={editing && selected ? inspectorDomId(selected) : undefined}
+            ref={listRef}
+            onKeyDown={onStructureKeys}
           >
-            {mode === 'arrange'
-              ? renderArrangeAside()
-              // ⛔ A SELECTION THAT NAMES NO ROW (a deep link to something no longer
-              // on the chart) shows the add surface rather than an editor of nothing.
-              : discovering ? renderAddSurface()
-                : selectedFeature ? renderFeatureInspector(selectedFeature)
-                  : selectedRow ? renderInspector(selectedRow) : renderAddSurface()}
+            {/* ⚠️ `volumeRef` STAYS WITH THE VOLUME GROUP — the modal's scroll anchor for the
+                Volume deep link. */}
+            {paneGroups.map((g) => renderStructureGroup(g, g.id === 'volume' ? volumeRef : null))}
+            {addedFeatures.map(renderFeatureGroup)}
+            {/* ⭐ "Labels on the price scale" — the chart's existing `showMaLabels` (also on Canvas). */}
+            <div className={styles.optCard}>
+              <div className={styles.optRow} onClick={(e) => { if (!e.target.closest('button')) setMaLabels(!maLabelsOn) }}>
+                <Switch
+                  checked={maLabelsOn} aria-label="Labels on the price scale"
+                  className={styles.soft} checkedClassName={styles.softOn} knobClassName={styles.softKnob}
+                  onClick={() => setMaLabels(!maLabelsOn)}
+                />
+                <span className={styles.optText}>
+                  <span>Labels on the price scale</span>
+                  <span className={styles.hint}>each moving average’s current value on the right axis</span>
+                </span>
+              </div>
+            </div>
+            {/* ⭐ A1.4 — the stored indicators this chart cannot show, with Repair / Remove / Keep. */}
+            <UnavailableIndicators variant="group" cs={settings} registry={registry} write={onChange}
+              surfaceKey={historyKey || 'global'} userId={historyUserId}
+              onOpenBuilder={definitionDoors && typeof definitionDoors.editFormula === 'function' ? (id) => definitionDoors.editFormula(id) : null} />
           </div>
         )}
+        {/* FT-070 — save / apply indicator templates, when that flag is on. */}
+        {!isArrange && templatesOn && (
+          <div className={styles.templatesSlot}>
+            <IndicatorTemplatesBar settings={settings} onChange={onChange} registry={registry} />
+          </div>
+        )}
+        <div className={styles.tfoot}>
+          {/* ⭐ A1.2 — Undo / Redo for this chart's indicator changes (the toast's stack). */}
+          <IndicatorHistoryButtons surfaceKey={historyKey} userId={historyUserId} cs={settings} write={onChange} />
+          <span className={styles.sp} />
+          {/* ⛔ OFFERED ONLY WHEN THERE IS SOMETHING TO ARRANGE. */}
+          {!isArrange && arrangeable.length > 1 && (
+            <button type="button" className={styles.footBtn} data-testid="arrange-enter" data-guide="indicators.arrange"
+              onClick={enterArrange}>Arrange panes</button>
+          )}
+          {/* Indicator sets (save as a set · use on new charts · apply a set) — Soon, unless the
+              templates flag is on, where the bar above already does it. */}
+          {!isArrange && !templatesOn && (
+            <button type="button" className={`${styles.footBtn} ${styles.soonRow}`} disabled aria-disabled="true"
+              aria-label="Indicator sets (coming soon)" title={SOON} aria-describedby={soonDescId} aria-haspopup="menu">
+              Indicator sets<Icon name="chev" size={12} /><span className={modalStyles.soonTag}>Soon</span>
+            </button>
+          )}
+        </div>
       </div>
+
+      {editing && (
+        <div className={styles.editorView} data-testid="inspector">
+          {selectedFeature ? renderFeatureInspector(selectedFeature) : renderInspector(selectedRow)}
+        </div>
+      )}
+
+      {/* ⭐ THE INDICATORS WINDOW — its own floating window over Chart Settings, centred, with its
+          own ✕; Escape or a click on the dim outside closes it (and only it). It is rendered INSIDE
+          the settings window's DOM, so the UCT Agent's guide (`within: 'chartSettings'`) and the
+          window's outside-click rule both keep seeing it as part of Chart Settings. */}
+      {discovering && (
+        <div
+          className={styles.pickBackdrop}
+          onMouseDown={(e) => { if (e.target === e.currentTarget) leaveBrowse() }}
+          onKeyDown={(e) => {
+            if (e.key !== 'Escape' || e.defaultPrevented) return
+            e.preventDefault(); e.stopPropagation(); leaveBrowse()
+          }}
+        >
+          <div className={styles.pickWin} role="dialog" aria-modal="true" aria-label="Indicators">
+            {renderAddSurface()}
+            <button type="button" className={styles.winClose} aria-label="Close Indicators" title="Close" onClick={leaveBrowse}>
+              <Icon name="x" size={13} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+  )
+}
+
+/**
+ * ⭐ UCT RS PHASE 3, UNIT 3-02b — THE INSPECTOR'S TEXT BOX (a `string` input).
+ *
+ * The settings dialog's rules (`IndicatorSettingsDialog`, 3-02), reimplemented
+ * here because the dialog's version is woven into its own draft/flush state:
+ *   · the box shows what the member types (`textInputDraft`: upper-cased when the
+ *     input says so, never trimmed under the cursor) and writes NOTHING while
+ *     they type;
+ *   · Enter or blur commits, and only a value the input accepts
+ *     (`textInputCommit` — the engine's own `validateInputValue`); an unchanged
+ *     value writes nothing;
+ *   · a miss keeps the text, sets `aria-invalid`, and shows the input's own
+ *     `hint` (else "Not a valid value") under the box through
+ *     `aria-describedby`; it clears the moment the text reads right.
+ * A write from elsewhere (a preset, Undo, another surface) replaces the box: the
+ * stored value is the truth once it moves.
+ *
+ * ⚠️ WIDTH: the cell is `min(210px, 100%)` and `min-width: 0`, so a narrow
+ * Inspector shrinks the box rather than pushing the row past the panel (the 2a
+ * visual round's column truncation); the label column is untouched.
+ */
+function InspectorTextBox({ field, value, inert, styles, idBase, onCommit }) {
+  const stored = value == null ? '' : String(value)
+  const [draft, setDraft] = useState(null)    // null = showing the stored value
+  const [miss, setMiss] = useState(null)
+  const [seen, setSeen] = useState(stored)
+  if (seen !== stored) {
+    // the stored value moved under the box — the documented "adjust state on a
+    // prop change" pattern, not an effect, so no frame shows the stale draft
+    setSeen(stored)
+    setDraft(null)
+    setMiss(null)
+  }
+  const commit = () => {
+    if (draft === null) return
+    const c = textInputCommit(field, draft)
+    if (!c.ok) { setMiss(c.hint); return }
+    setDraft(null)
+    setMiss(null)
+    if (c.value === stored) return
+    onCommit(c.value)
+  }
+  const missId = miss ? `${idBase}-miss` : null
+  const { 'aria-describedby': whyId, ...rest } = inert || {}
+  const describedBy = [whyId, missId].filter(Boolean).join(' ') || undefined
+  return (
+    <span className={styles.insTextCell} data-text-cell="true">
+      <input
+        type="text" id={idBase} className={styles.insText}
+        aria-label={field.label}
+        {...rest}
+        aria-describedby={describedBy}
+        aria-invalid={miss ? 'true' : undefined}
+        placeholder={field.placeholder}
+        maxLength={Number.isInteger(field.maxLength) ? field.maxLength : undefined}
+        autoCapitalize={field.case === 'upper' ? 'characters' : undefined}
+        autoComplete="off" autoCorrect="off" spellCheck={false}
+        value={draft === null ? stored : draft}
+        onChange={(e) => {
+          const text = textInputDraft(field, e.target.value)
+          setDraft(text)
+          if (miss && textInputCommit(field, text).ok) setMiss(null)
+        }}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); commit() } }}
+      />
+      {miss && <span className={styles.insTextMiss} id={missId} role="status">{miss}</span>}
+    </span>
   )
 }

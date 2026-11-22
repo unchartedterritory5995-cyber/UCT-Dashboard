@@ -1,0 +1,143 @@
+# head d9486ea660 2026-11-10T23:19:54Z dirty: 1 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/whichWidget.rules.rail.test.js src/agent/agentWhichWidget.rail.test.jsx src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx src/agent/watchlistTarget.rail.test.js src/agent/agentWatchlistShow.test.jsx src/agent/agentWatchlistOut.test.jsx src/agent/agentWatchlistShowHeldOut.test.js src/agent/agentWatchlistOutHeldOut.test.js
+ RUN  v4.0.18 C:/w/pl-widget-pre2/app
+ ✓ src/agent/agentWatchlistOutHeldOut.test.js (1 test) 2ms
+ ✓ src/agent/agentWatchlistShowHeldOut.test.js (1 test) 3ms
+ ✓ src/agent/whichWidget.rules.rail.test.js (16 tests) 8ms
+ ✓ src/agent/watchlistTarget.rail.test.js (10 tests) 12ms
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests | 1 failed) 3197ms
+     ✓ the plan picked the left one: a question, and neither widget's look changed  1168ms
+     ✓ the plan picked Momentum's view: a question, and no saved column layout  1013ms
+     × control: "move the volume column after the symbol in Momentum" names it: moved, no question 1013ms
+ ❯ src/agent/agentWhichWidget.rail.test.jsx (6 tests | 3 failed) 6152ms
+     ✓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed  1132ms
+     ✓ "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed  978ms
+     × u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question 1015ms
+     × u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question 1004ms
+     × "refresh the IPOs scanner" with two Scanners: that one only 988ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1034ms
+ ✓ src/agent/agentWatchlistOut.test.jsx (29 tests) 28695ms
+     ✓ held-out "copy the Momentum list to my clipboard"  1207ms
+     ✓ held-out "copy the Swing Ideas list to my clipboard"  1038ms
+     ✓ held-out "put the tickers in Momentum on the clipboard"  1044ms
+     ✓ held-out "put the tickers in Swing Ideas on the clipboard"  1036ms
+     ✓ held-out "copy my Momentum watchlist so I can paste it"  1052ms
+     ✓ held-out "copy my Swing Ideas watchlist so I can paste it"  1036ms
+     ✓ held-out "export Momentum as a CSV"  1041ms
+     ✓ held-out "export Swing Ideas as a CSV"  1043ms
+     ✓ held-out "download the Momentum list as csv"  1038ms
+     ✓ held-out "download the Swing Ideas list as csv"  1041ms
+     ✓ held-out "save my Momentum watchlist to a csv file"  1042ms
+     ✓ held-out "save my Swing Ideas watchlist to a csv file"  1056ms
+     ✓ held-out "export Momentum to Excel"  984ms
+     ✓ held-out "export Swing Ideas to Excel"  989ms
+     ✓ held-out "download the Momentum watchlist as an excel file"  992ms
+     ✓ held-out "download the Swing Ideas watchlist as an excel file"  992ms
+     ✓ held-out "give me Momentum as an xlsx"  995ms
+     ✓ held-out "give me Swing Ideas as an xlsx"  993ms
+     ✓ Excel: Apply downloads through the menu's handler, once  1214ms
+     ✓ a REFUSED clipboard write is never "copied": it is said, with the menu item  1043ms
+     ✓ held-out "export this watchlist as a csv": export is the member's own lists only — refused, nothing called  997ms
+     ✓ held-out "download the flagged list to excel": export is the member's own lists only — refused, nothing called  990ms
+     ✓ no export quota: Excel refused in words (CSV offered), nothing called  982ms
+     ✓ two Watchlist widgets and none named: asked, nothing called  1025ms
+     ✓ held-out "tag NVDA red": no model call; the Journal's ticker tags named; nothing changed  957ms
+     ✓ held-out "colour tag AMD blue": no model call; the Journal's ticker tags named; nothing changed  946ms
+     ✓ held-out "mark TSLA with a green tag": no model call; the Journal's ticker tags named; nothing changed  952ms
+     ✓ held-out "give META a purple tag": no model call; the Journal's ticker tags named; nothing changed  965ms
+ ✓ src/agent/agentWatchlistShow.test.jsx (35 tests) 37305ms
+     ✓ held-out "show my Momentum list in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1297ms
+     ✓ held-out "show my Swing Ideas list in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1072ms
+     ✓ held-out "switch the watchlist widget to Momentum": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1152ms
+     ✓ held-out "switch the watchlist widget to Swing Ideas": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1052ms
+     ✓ held-out "put Momentum up in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1147ms
+     ✓ held-out "put Swing Ideas up in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1050ms
+     ✓ held-out "show the Leaders list": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1136ms
+     ✓ held-out "show the Semis Watch list": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1150ms
+     ✓ held-out "open UCT's Leaders list in the watchlist widget": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1162ms
+     ✓ held-out "open UCT's Semis Watch list in the watchlist widget": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1152ms
+     ✓ held-out "switch the watchlist to the prebuilt Leaders": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1132ms
+     ✓ held-out "switch the watchlist to the prebuilt Semis Watch": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1124ms
+     ✓ held-out "open the community list Breakout Club": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1145ms
+     ✓ held-out "open the community list Value Hunters": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1161ms
+     ✓ held-out "show the Breakout Club community watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1150ms
+     ✓ held-out "show the Value Hunters community watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1142ms
+     ✓ held-out "put the public Breakout Club list in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1125ms
+     ✓ held-out "put the public Value Hunters list in my watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1167ms
+     ✓ held-out "show my flagged list": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1122ms
+     ✓ held-out "put my flagged tickers in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1129ms
+     ✓ held-out "switch the watchlist to Flagged": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1153ms
+     ✓ held-out "go back to the list picker": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1149ms
+     ✓ held-out "take the watchlist back to its picker": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1129ms
+     ✓ held-out "let me pick a different list in the watchlist": the widget shows it; the receipt names it; Undo restores the previous watchKey exactly  1150ms
+     ✓ held-out "show my red tags in the watchlist": REFUSED — nothing changes; the reason (or the near names) is said  1003ms
+     ✓ held-out "open the blue tag list in the widget": REFUSED — nothing changes; the reason (or the near names) is said  984ms
+     ✓ held-out "show the Leadrs list": REFUSED — nothing changes; the reason (or the near names) is said  961ms
+     ✓ held-out "open the community list Breakout": REFUSED — nothing changes; the reason (or the near names) is said  983ms
+     ✓ held-out "show my Momo list in the watchlist": REFUSED — nothing changes; the reason (or the near names) is said  983ms
+     ✓ already showing that list: nothing changes and nothing changed is said  995ms
+     ✓ a widget showing a list UCT chose or a followed list is not switched (as the open action's rule)  995ms
+     ✓ held-out "show the Leaders list in the watchlist"  979ms
+     ✓ held-out "show the Leaders list in the left watchlist"  1028ms
+     ✓ held-out "put my flagged list in the right watchlist widget"  1040ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > over-asks (AUDIT 3): a widget named by the list it shows acts with no question > u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question
+AssertionError: UCT Agent6:20 PMYou have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet.: expected 'user:s1' to be 'user:l1' // Object.is equality
+Expected: "user:l1"
+Received: "user:s1"
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:73:47
+     71|     p.st.envelopes.push(plan(['watchlist.showList', { widget: 'wb', so…
+     72|     const out = await say('put Long Term on the Swing watchlist widget…
+     73|     expect(optsOf(board, 'wb').watchKey, out).toBe('user:l1')
+       |                                               ^
+     74|     expect(JSON.stringify(optsOf(board, 'wa'))).toBe(before)
+     75|     expect(out).not.toMatch(/which one/i)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > over-asks (AUDIT 3): a widget named by the list it shows acts with no question > u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question
+AssertionError: UCT Agent6:20 PMYou have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet.: expected [] to deeply equal [ [ 'export', 'csv' ] ]
+- Expected
++ Received
+- [
+-   [
+-     "export",
+-     "csv",
+-   ],
+- ]
++ []
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:82:26
+     80|     p.st.envelopes.push(plan(['watchlist.exportList', { widget: 'wb', …
+     81|     const out = await say('export the Swing watchlist as a csv file')
+     82|     expect(b.calls, out).toEqual([['export', 'csv']])
+       |                          ^
+     83|     expect(a.calls).toEqual([])
+     84|     expect(out).not.toMatch(/which one/i)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > controls (AUDIT 5): a uniquely named widget, or the only one of its kind, acts with no question > "refresh the IPOs scanner" with two Scanners: that one only
+AssertionError: UCT Agent6:20 PMWhich Scanner — Scanner (top) or Scanner (bottom)?Scanner (top)Scanner (bottom): expected [] to deeply equal [ 'refresh' ]
+- Expected
++ Received
+- [
+-   "refresh",
+- ]
++ []
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:94:26
+     92|     p.st.envelopes.push(plan(refresh('sa')))
+     93|     const out = await say('refresh the IPOs scanner')
+     94|     expect(a.calls, out).toEqual(['refresh'])
+       |                          ^
+     95|     expect(b.calls).toEqual([])
+     96|     expect(out).not.toMatch(/which/i)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+ FAIL  src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (c) u18-cols-07: two Watchlists, "move the volume column after the symbol": asked, no column moved > control: "move the volume column after the symbol in Momentum" names it: moved, no question
+AssertionError: expected 'UCT Agent5:00 PMWhich Watchlist — Wat…' not to match /which/i
+- Expected: 
+/which/i
++ Received: 
+"UCT Agent5:00 PMWhich Watchlist — Watchlist (left) or Watchlist (right)?Watchlist (left)Watchlist (right)"
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx:186:21
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+ Test Files  2 failed | 6 passed (8)
+      Tests  4 failed | 97 passed (101)
+   Start at  18:19:58
+   Duration  45.24s (transform 19.23s, setup 2.68s, import 28.60s, tests 75.37s, environment 7.16s)

@@ -348,25 +348,26 @@ describe('block entries (Wave 5)', () => {
   })
 })
 
-// UX pass 2026-10-10: a bare `/` leads with the trading blocks, then the everyday basics, then
-// everything else. Filtering by typed text is unchanged; only the bare list is grouped. Notebook widgets
-// Task 8 split Trading into the moments a member reaches for it; with no widget wave on, the trading
-// captures and blocks all sit in Planning a trade (and Transcript passage in Reviewing).
-describe('bare slash menu groups (planning first)', () => {
+// S8 (the audit's M3, 2026-11-05): a bare `/` reads Basics, Live data, Trading, AI, Embeds. It led with
+// trading (UX pass 2026-10-10), which left the everyday basics around item 45 of 80. The moment groups stay
+// each row's own tag (the widget palette groups by them); the SECTION is what the menu orders and labels by.
+// Filtering by typed text is unchanged; only the bare list is grouped.
+describe('bare slash menu sections (basics first)', () => {
   const bare = () => groupedSlashItems(ITEMS, [...widgetItems(''), ...factItems(''), ...consensusFactItems('')])
 
-  it('the first options are planning a trade, the headings come after them', () => {
+  it('the first options are the basics, the live data and trading come after them', () => {
     const items = bare()
-    expect(items[0].title).toBe('Chart')
-    expect(items[0].group).toBe('plan')
-    const firstHeading = items.findIndex((i) => i.title === 'Heading 1')
-    const lastPlan = items.map((i) => i.group).lastIndexOf('plan')
-    expect(firstHeading).toBeGreaterThan(lastPlan)
+    expect(items[0].title).toBe('Heading 1')
+    expect(items[0].section).toBe('basics')
+    const chart = items.findIndex((i) => i.title === 'Chart')
+    const lastBasic = items.map((i) => i.section).lastIndexOf('basics')
+    expect(chart).toBeGreaterThan(lastBasic)
+    expect(items[chart].section).toBe('live')
   })
 
-  it('groups appear in order plan, review, basics, more and never interleave', () => {
-    const order = bare().map((i) => i.group).filter((g, i, a) => g !== a[i - 1])
-    expect(order).toEqual(['plan', 'review', 'basics', 'more'])
+  it('sections appear in order basics, live, trading, ai, embeds and never interleave', () => {
+    const order = bare().map((i) => i.section).filter((g, i, a) => g !== a[i - 1])
+    expect(order).toEqual(['basics', 'live', 'trading', 'ai', 'embeds'])
   })
 
   it('no block is lost or duplicated by grouping', () => {
@@ -376,13 +377,19 @@ describe('bare slash menu groups (planning first)', () => {
     expect(new Set(items.map((i) => i.title)).size).toBe(items.length)
   })
 
-  it('the deeper headings sit in More, the first three in Basics', () => {
+  it('each block keeps its moment group and lands in its section', () => {
     const byTitle = (t) => ITEMS.find((i) => i.title === t)
     expect(blockItemGroup(byTitle('Heading 1'))).toBe('basics')
     expect(blockItemGroup(byTitle('Heading 4'))).toBe('more')
     expect(blockItemGroup(byTitle('Trade-plan canvas'))).toBe('plan')
     expect(blockItemGroup(byTitle('Transcript passage'))).toBe('review')
-    expect(blockItemGroup(byTitle('Journal style'))).toBe('plan')
+    expect(blockItemGroup(byTitle('Template'))).toBe('plan')
+    const section = Object.fromEntries(bare().map((i) => [i.title, i.section]))
+    expect(section['Heading 4']).toBe('basics')
+    expect(section['Trade-plan canvas']).toBe('trading')
+    expect(section['Writing help']).toBe('ai')
+    expect(section['Transcript passage']).toBe('embeds')
+    expect(section.Price).toBe('live')
   })
 })
 
@@ -593,8 +600,9 @@ describe('snapshot widget items (Task 8)', () => {
     expect(mine.map((i) => i.title).sort()).toEqual(['My recurring mistakes', 'My rules check'])
     expect(mine.every((i) => i.group === 'review')).toBe(true)
     const { container } = render(<SlashList items={groupedSlashItems(ITEMS, on)} command={() => {}} />)
-    const labels = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
-    expect(labels).toContain('Reviewing')
+    const labels = [...container.querySelectorAll('[data-slash-label]')].map((n) => n.textContent)
+    // S8: a review widget keeps its moment tag and shows under Trading (the section M3 names).
+    expect(labels).toContain('Trading')
     expect(screen.getByText('My rules check')).toBeInTheDocument()
     expect(screen.getByText('My recurring mistakes')).toBeInTheDocument()
     // Control: with wave 2 off (wave 1 on) neither is offered, but wave 1's Reviewing items still are.
@@ -617,8 +625,9 @@ describe('snapshot widget items (Task 8)', () => {
     expect(snapshotWidgetItems('flow NVDA').map((i) => i.title)).toEqual(['Options flow on a ticker — NVDA'])
     expect(snapshotWidgetItems('flow nvda!')).toEqual([])
     const { container } = render(<SlashList items={groupedSlashItems(ITEMS, on)} command={() => {}} />)
-    const labels = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
-    expect(labels).toEqual(expect.arrayContaining(['Before the open', 'Planning a trade']))
+    const labels = [...container.querySelectorAll('[data-slash-label]')].map((n) => n.textContent)
+    // S8: both are live data now (M3's section); their moment tags are unchanged above.
+    expect(labels).toEqual(expect.arrayContaining(['Live data']))
     expect(screen.getByText('Market on my names')).toBeInTheDocument()
     expect(screen.getByText('Options flow on a ticker')).toBeInTheDocument()
     // Control: with wave 3 off (waves 1 and 2 on) neither is offered, but wave 1's items still are.
@@ -649,29 +658,29 @@ describe('snapshot widget items (Task 8)', () => {
     expect(t).not.toContain('Market on my names')      // wave 3
   })
 
-  it('bare_slash_groups_in_order: the menu shows the five moment labels in order', () => {
+  // S8 (M3) replaced the five moment labels with the five sections; the moments still order rows inside one.
+  it('bare_slash_sections_in_order: the menu shows the five section labels in order', () => {
     latchNotebookFlags(WAVES_ON)
     const items = bare()
-    const order = items.map((i) => i.group).filter((g, i, a) => g !== a[i - 1])
-    expect(order).toEqual(['open', 'plan', 'review', 'basics', 'more'])
+    const order = items.map((i) => i.section).filter((g, i, a) => g !== a[i - 1])
+    expect(order).toEqual(['basics', 'live', 'trading', 'ai', 'embeds'])
     const { container } = render(<SlashList items={items} command={() => {}} />)
-    const labels = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
-    expect(labels).toEqual(['Before the open', 'Planning a trade', 'Reviewing', 'Basics', 'More'])
+    const labels = [...container.querySelectorAll('[data-slash-label]')].map((n) => n.textContent)
+    expect(labels).toEqual(['Basics', 'Live data', 'Trading', 'AI', 'Embeds'])
     expect(screen.getByText('My watchlist today')).toBeInTheDocument()
     expect(screen.getByText('Ticker card')).toBeInTheDocument()
     expect(screen.getByText('My P&L and stats')).toBeInTheDocument()
-    expect(screen.queryByText('Trading')).toBeNull()
+    expect(screen.queryByText('Before the open')).toBeNull()
   })
 
-  it('with every wave off, the bare list keeps its old order, under Planning a trade first', () => {
+  it('with every wave off, the bare list leads with Basics, live data next', () => {
     const items = bare()
-    expect(items[0].title).toBe('Chart')
-    expect(items[0].group).toBe('plan')
+    expect(items[0].title).toBe('Heading 1')
     expect(items.some((i) => i.group === 'open')).toBe(false)
-    expect(items.some((i) => i.group === 'trading')).toBe(false)
+    expect(items.find((i) => i.section === 'live').title).toBe('Chart')
     render(<SlashList items={items} command={() => {}} />)
-    expect(screen.getByText('Planning a trade')).toBeInTheDocument()
-    expect(screen.queryByText('Before the open')).toBeNull()
+    expect(screen.getByText('Live data')).toBeInTheDocument()
+    expect(screen.queryByText('Planning a trade')).toBeNull()
   })
 
   it('ticker_bare_completes: /ti offers Ticker card and completes the text to /ticker ', () => {
@@ -970,7 +979,7 @@ describe('chart sets and presets (Task 17)', () => {
   const loaded = async (q) => { mineItems(q); await __mineLoad(); return mineItems(q) }
   const labelsOf = (items) => {
     const { container, unmount } = render(<SlashList items={items} command={() => {}} />)
-    const out = [...container.querySelectorAll('[aria-hidden="true"]')].map((n) => n.textContent)
+    const out = [...container.querySelectorAll('[data-slash-label]')].map((n) => n.textContent)
     unmount()
     return out
   }
@@ -982,7 +991,8 @@ describe('chart sets and presets (Task 17)', () => {
     // Off, the menu never reads the preference at all.
     expect(global.fetch).not.toHaveBeenCalled()
     expect(slashItems('set', null).map((i) => i.title)).not.toContain('Manage chart sets')
-    expect(labelsOf(slashItems('', null))).not.toContain('My presets')
+    // S8: the moment labels gave way to M3's five sections; the group tag is what says the rows are there.
+    expect(slashItems('', null).some((i) => i.group === 'mine')).toBe(false)
     // Control: the same queries answer once wave 5 is on and the background load has landed.
     __resetNotebookFlags()
     latchNotebookFlags(W5)
@@ -1033,7 +1043,8 @@ describe('chart sets and presets (Task 17)', () => {
   it('a bare / shows the member presets and sets under "My presets"', async () => {
     latchNotebookFlags(W5)
     const items = slashItems('', null, await loaded(''))
-    expect(labelsOf(items)).toContain('My presets')
+    // S8: the moment labels gave way to M3's five sections; the group tag is what says the rows are there.
+    expect(labelsOf(items)).toContain('Embeds')
     expect(items.filter((i) => i.group === 'mine').map((i) => i.title))
       .toEqual(['Preset — Flagged only', 'Set — Semis', 'Manage chart sets'])
   })

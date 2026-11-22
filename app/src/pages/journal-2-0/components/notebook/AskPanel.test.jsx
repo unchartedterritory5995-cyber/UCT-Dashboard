@@ -73,7 +73,8 @@ describe('the scope that was searched is always legible', () => {
 
   it('labels the dialog by scope for screen readers', async () => {
     await ask()
-    expect(screen.getByRole('dialog').getAttribute('aria-label')).toBe('Ask This note')
+    // Simplify pass 2 (A6): a note's panel carries its door's words, "Ask about this note".
+    expect(screen.getByRole('dialog').getAttribute('aria-label')).toBe('Ask about this note')
   })
 
   it('the question input is labelled', async () => {
@@ -355,13 +356,14 @@ describe('scanned-text provenance on a citation', () => {
 })
 
 // P0.7: Research Home has ONE Ask section ("Ask your Notebook"), so a note's own header door is
-// named for what it asks: "Ask this note", in its visible text AND its accessible name (a speech
-// user says what they see). The other scopes keep "Ask".
+// named for what it asks, in its visible text AND its accessible name (a speech user says what they
+// see). Simplify pass 2 (A6): the words are "Ask about this note", the words every other door uses
+// (the AI menu, the phone More panel, the command palette). The other scopes keep "Ask".
 describe('the Ask door names what it asks', () => {
-  it('the note door reads "Ask this note", visibly and to a screen reader', () => {
+  it('the note door reads "Ask about this note", visibly and to a screen reader', () => {
     render(<AskPanel scope="note" target="n1" />)
-    const door = screen.getByRole('button', { name: 'Ask this note' })
-    expect(door).toHaveTextContent('Ask this note')
+    const door = screen.getByRole('button', { name: 'Ask about this note' })
+    expect(door).toHaveTextContent(/^Ask about this note$/)
     expect(door).toHaveAttribute('data-ask-toggle')
     expect(screen.queryByRole('button', { name: /^Ask a question about/ })).toBeNull()
   })

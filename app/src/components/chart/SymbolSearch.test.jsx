@@ -85,3 +85,40 @@ test('without ariaLabel the trigger keeps its default name', () => {
   render(<SymbolSearch sym="AAPL" displayLabel="+ Compare" onSymbolChange={vi.fn()} />)
   expect(screen.getByRole('button', { name: 'AAPL — click to search a different ticker' })).toBeInTheDocument()
 })
+
+// ⭐ TYPE-TO-SEARCH WARM (2026-11-11): the host learns the typed ticker once it holds still,
+// before Enter, so the chart can start fetching it (warmTypedSymbol). Prefixes typed THROUGH
+// (G, GO, GOO, GOOG) are not intent and are never reported.
+const SETTLED = 260   // > TYPED_INTENT_SETTLE_MS
+const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+
+test('typing tells the host the typed ticker before Enter (onTypedIntent)', async () => {
+  const onTypedIntent = vi.fn()
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  const input = screen.getByRole('textbox', { name: 'Search symbol or company' })
+  fireEvent.change(input, { target: { value: 'nvda' } })
+  await wait(SETTLED)
+  expect(onTypedIntent).toHaveBeenCalledWith('NVDA')
+  // Its own symbol is not re-warmed, and a cleared box says nothing.
+  onTypedIntent.mockClear()
+  fireEvent.change(input, { target: { value: 'aapl' } })
+  await wait(SETTLED)
+  fireEvent.change(input, { target: { value: '' } })
+  await wait(SETTLED)
+  expect(onTypedIntent).not.toHaveBeenCalled()
+})
+
+test('typing GOOGL at a typist pace (~70 ms/key) reports ONE intent, for GOOGL — no prefix', async () => {
+  const onTypedIntent = vi.fn()
+  render(<SymbolSearch sym="AAPL" onSymbolChange={vi.fn()} onTypedIntent={onTypedIntent} />)
+  fireEvent.click(screen.getByRole('button', { name: /AAPL — click to search/i }))
+  const input = screen.getByRole('textbox', { name: 'Search symbol or company' })
+  for (const v of ['G', 'GO', 'GOO', 'GOOG', 'GOOGL']) { fireEvent.change(input, { target: { value: v } }); await wait(70) }
+  await wait(SETTLED)
+  expect(onTypedIntent.mock.calls).toEqual([['GOOGL']])
+  // An unrelated re-render (the breadth catalogue landing) is not new intent.
+  fireEvent.change(input, { target: { value: 'GOOGL' } })
+  await wait(SETTLED)
+  expect(onTypedIntent).toHaveBeenCalledTimes(1)
+})

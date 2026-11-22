@@ -422,12 +422,22 @@ def test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step(wired, pars
     """
     indicator = a_shipped_ast_definition(parsed)
     scan = add_comparison(parsed, indicator)
-    h = scan["compute"]["fn"]
-    assert h == astHash_of(scan)
+    # ⭐⭐ ONE IDENTITY = `user_definitions.result_identity` (owner decision A, 2026-10-06),
+    # never the bare tree hash. A NEW native save is stamped definition semantics 2, and every
+    # shared/durable result of it (sweep hits, coverage receipt, chart/alert `def_hash`, the
+    # run-now job) is filed under `<tree hash>~s2`; a semantics-1 document keeps the bare hash.
+    # ⚰️ This read `scan["compute"]["fn"]` (the TREE hash) as the identity, which was true
+    # only before decision A, so the three legs below compared the product's one identity
+    # against a key no leg writes. The store's `ast_hash` column stays the tree hash.
+    tree = scan["compute"]["fn"]
+    assert tree == astHash_of(scan)
+    h = user_definitions.result_identity(scan)
+    # a NEW native save is semantics 2 (`user_definitions.save`, P0G), so the identity is suffixed
+    assert h == tree + user_definitions.SEMANTICS_IDENTITY_SUFFIX
 
     # ⛔ AND THE COMPARISON REALLY IS A DIFFERENT FORMULA. Without this the whole
     # path could be running the indicator and every hash would still agree.
-    assert h != indicator["compute"]["fn"]
+    assert tree != indicator["compute"]["fn"]
 
     result = scan_evaluator.evaluate_one(scan, TF, universe=UNIVERSE, as_of=SESSION)
     assert result["def_hash"] == h
@@ -459,7 +469,7 @@ def test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step(wired, pars
 
     # ⛔ AND NOTHING WAS RE-AUTHORED. One row in the definition store for the
     # whole path — derived from the store, not from a count kept in the test.
-    assert _definition_rows_for(h) == 1
+    assert _definition_rows_for(tree) == 1
 
     # ⚠️ ASCII ONLY. This console is cp1252 and a box-drawing character in a
     # `capsys.disabled()` print raises `UnicodeEncodeError` — which fails the
@@ -470,7 +480,7 @@ def test_the_PINE_SCREENER_PARITY_PATH__one_definition_at_every_step(wired, pars
         print(f"  screener        : {result['def_hash']}")
         print(f"  chart           : {charted['def_hash']}")
         print(f"  alert           : {armed['def_hash']}")
-        print(f"  store rows @ h  : {_definition_rows_for(h)}"
+        print(f"  store rows @ tree: {_definition_rows_for(tree)}"
               f"   (indicator's own hash: {_definition_rows_for(indicator['compute']['fn'])})")
         print(f"  hits            : {result['hits']} of {list(UNIVERSE)}")
 
@@ -510,7 +520,7 @@ def test_the_SCAN_SURFACE_and_the_CHART_read_the_SAME_ROW(wired, parsed):
     filed its receipt under.
     """
     scan = add_comparison(parsed, a_shipped_ast_definition(parsed))
-    h = scan["compute"]["fn"]
+    h = user_definitions.result_identity(scan)  # the ONE identity every leg files under
     result = scan_evaluator.evaluate_one(scan, TF, universe=UNIVERSE, as_of=SESSION)
 
     receipt = scan_store.coverage(h, TF, SESSION)
@@ -566,7 +576,8 @@ def test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED(wire
     from tests.test_scan_run import _wait
 
     scan = add_comparison(parsed, a_shipped_ast_definition(parsed))
-    h = scan["compute"]["fn"]
+    tree = scan["compute"]["fn"]
+    h = user_definitions.result_identity(scan)  # the ONE identity every leg files under
     nightly = scan_evaluator.evaluate_one(scan, TF, universe=UNIVERSE, as_of=SESSION)
     before = (scan_store.coverage(h, TF, SESSION), sorted(scan_store.hits(h, TF, SESSION)))
     assert before[0] is not None, "the nightly leg wrote no receipt to compare against"
@@ -616,7 +627,7 @@ def test_the_RUN_NOW_leg_holds_the_SAME_hash_and_leaves_the_store_UNTOUCHED(wire
 
     after = (scan_store.coverage(h, TF, SESSION), sorted(scan_store.hits(h, TF, SESSION)))
     assert after == before, "the on-demand run moved the shared nightly receipt"
-    assert _definition_rows_for(h) == 1
+    assert _definition_rows_for(tree) == 1
 
     with capsys.disabled():
         print("\n  -- A2.5 + W4a: one definition, five surfaces ----------------")

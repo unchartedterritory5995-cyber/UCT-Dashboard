@@ -7,11 +7,15 @@ ts encoding:
 First request for a ticker: full API fetch (~4-8 s), stored forever.
 Every subsequent request: delta fetch of only new bars (<200 ms).
 """
+import json
 import logging
 import os
 import sqlite3
+import struct
 import threading
 import time
+
+from api.services import bg_lane as _bg_lane
 
 _logger = logging.getLogger(__name__)
 
@@ -38,6 +42,49 @@ _RECOVERY_COOLDOWN_SECONDS = 60.0
 # orderly in-process queueing instead of wasteful lock-collision churn.
 # Per-process (web and worker are separate processes / separate DBs).
 _WRITE_LOCK = threading.Lock()
+
+#: Held by whoever REPLACES bars.db wholesale (snapshot install, clustered adoption)
+#: across the rename + `bump_db_epoch`, and by any long-lived connection that is not
+#: `_conn()` (the WAL checkpointer) around its epoch check + use. A connection still on
+#: the OLD inode can then never checkpoint/truncate the -wal/-shm the new file now shares.
+DB_SWAP_LOCK = threading.Lock()
+
+#: (ticker, tf) pairs written through put_bars/put_bars_many while tracking is on -- lets
+#: a store adoption re-carry ONLY what changed during its long unlocked pass.
+_tracked_writes: set | None = None
+_tracked_lock = threading.Lock()
+
+
+def start_write_tracking() -> None:
+    global _tracked_writes
+    with _tracked_lock:
+        _tracked_writes = set()
+
+
+def stop_write_tracking() -> set:
+    """Stop tracking; return the pairs written since `start_write_tracking`."""
+    global _tracked_writes
+    with _tracked_lock:
+        out, _tracked_writes = (_tracked_writes or set()), None
+    return out
+
+
+def swap_write_tracking() -> set:
+    """Return the pairs written since the last start/swap and keep tracking from now, with
+    no gap between the two (one lock): the adoption's catch-up rounds re-carry each batch."""
+    global _tracked_writes
+    with _tracked_lock:
+        out = _tracked_writes or set()
+        _tracked_writes = set() if _tracked_writes is not None else None
+    return out
+
+
+def _track(pairs) -> None:
+    if _tracked_writes is None:
+        return
+    with _tracked_lock:
+        if _tracked_writes is not None:
+            _tracked_writes.update(pairs)
 
 # Connection epoch — bumped whenever /data/bars.db is replaced wholesale
 # (currently: data_sync.download_snapshot when the web pulls a fresh
@@ -157,6 +204,43 @@ BARS_INDEX_DDL = {
     ),
 }
 
+def ohlcv_ddl(name: str = "ohlcv") -> str:
+    """⭐ THE ONE DDL for the bar table: CLUSTERED (WITHOUT ROWID) on its primary key.
+
+    Rows are stored in (ticker, tf, ts) order, so a series' newest N bars are a handful of
+    ADJACENT pages however their writes were interleaved -- the universe live store writes
+    every ticker's bucket every few seconds, which in a rowid table put each of a ticker's
+    600 newest 5m bars on a different page (0.05-1.4 s cold reads at the open, measured
+    2026-11-11). The PK b-tree IS the table: no `idx_ohlcv_lookup` is needed on it.
+
+    An EXISTING rowid store is never altered in place: the worker's snapshot pipeline
+    builds a clustered copy offline (`bars_cluster.cluster_copy`, called by
+    `data_sync._make_tarball`) and serving pods adopt it through the ordinary
+    wholesale snapshot install."""
+    return (f"CREATE TABLE IF NOT EXISTS {name} ("
+            "ticker TEXT NOT NULL, tf TEXT NOT NULL, ts INTEGER NOT NULL, "
+            "o REAL, h REAL, l REAL, c REAL, v INTEGER, "
+            "PRIMARY KEY (ticker, tf, ts)) WITHOUT ROWID")
+
+
+def expected_index_ddl(conn: sqlite3.Connection) -> dict:
+    """`BARS_INDEX_DDL` as it applies to THIS store's `ohlcv` layout: a clustered table's
+    primary key already is the (ticker, tf, ts) b-tree, so `LOOKUP_INDEX` would only be
+    a redundant second copy of every key (and a third b-tree on every write)."""
+    if ohlcv_layout(conn) == "clustered":
+        return {k: v for k, v in BARS_INDEX_DDL.items() if k != LOOKUP_INDEX}
+    return dict(BARS_INDEX_DDL)
+
+
+def ohlcv_layout(conn: sqlite3.Connection, schema: str = "main") -> str:
+    """'clustered' | 'rowid' | 'absent' for `ohlcv` in `schema` of `conn`."""
+    row = conn.execute(f"SELECT sql FROM {schema}.sqlite_master WHERE type='table' AND name='ohlcv'"
+                       ).fetchone()
+    if not row:
+        return "absent"
+    return "clustered" if "WITHOUT ROWID" in " ".join(str(row[0]).upper().split()) else "rowid"
+
+
 # One-time migrations: (name, sql_to_run). Runs once per name. Add a new entry
 # whenever the upstream intraday fetch path changes so existing cached rows get
 # re-fetched through the corrected code path.
@@ -173,16 +257,9 @@ MIGRATION_NAMES = tuple(name for name, _sql in _MIGRATIONS)
 
 def init_db() -> None:
     c = _conn()
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS ohlcv (
-            ticker TEXT NOT NULL,
-            tf     TEXT NOT NULL,
-            ts     INTEGER NOT NULL,
-            o REAL, h REAL, l REAL, c REAL, v INTEGER,
-            PRIMARY KEY (ticker, tf, ts)
-        )
-    """)
-    c.execute(BARS_INDEX_DDL[LOOKUP_INDEX])
+    c.execute(ohlcv_ddl())   # a no-op on an existing store (see ohlcv_ddl for how rowid stores convert)
+    if LOOKUP_INDEX in expected_index_ddl(c):
+        c.execute(BARS_INDEX_DDL[LOOKUP_INDEX])
     # ⚰️ `bars_provenance` LIVED HERE UNTIL 2026-08-09 AND ITS COMMENT PROMISED
     # A DEBUGGING AFFORDANCE THAT NEVER EXISTED. It said future audit logic
     # "joins ohlcv ⨝ bars_provenance to report 'this bad bar came from yfinance
@@ -212,7 +289,9 @@ def init_db() -> None:
     # 2026-05-01). Pre-feature rows merged the 9:00 pre-market bar with
     # the 9:30 RTH-open bar into one 9:00 bucket, persisting incorrect
     # bars after the fix. Marker row records that the migration ran.
+    _create_meta_tables(c)
     c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
+    _wholesale = False
     for migration_name, sql in _MIGRATIONS:
         already = c.execute("SELECT 1 FROM _migrations WHERE name=?", (migration_name,)).fetchone()
         if not already:
@@ -221,16 +300,810 @@ def init_db() -> None:
                 c.execute("INSERT INTO _migrations(name, applied_at) VALUES (?, ?)",
                           (migration_name, int(__import__('time').time())))
                 print(f"[sqlite-migration] Applied {migration_name}: deleted {cur.rowcount} rows")
+                _wholesale = _wholesale or bool(cur.rowcount)
             except Exception:
                 pass
     c.commit()
+    if _wholesale:
+        bump_store_floor("init_db migration")
+
+
+# ── SERIES META: series_rev + verified_through, IN THE STORE (P1 bar contract) ──
+# ⭐ Contract: docs/architecture/bar-contract.md. One row per STORED series
+# (ticker, tf). A chart session never selects different stored rows (rth/eth read the
+# same 1-30m rows; the ETH 60m grid is derived from 15m), so (ticker, tf, session) maps
+# onto exactly one stored series — `bar_contract.source_series`.
+#
+#   rev               hybrid-logical-clock MILLISECONDS: every committed write that
+#                     touches the series' rows sets rev = max(rev + 1, now_ms) IN THE
+#                     SAME TRANSACTION as the rows. Monotonic; ms-valued so a rev also
+#                     says "as of when".
+#   verified_through  unix seconds: the provider (or the live stream) was asked at this
+#                     instant and every row it returned had already reached this store.
+#                     Written write-behind (batched, `flush_meta`), max()-merged.
+#   proof_floor       unix seconds: a DELETE of the series' rows invalidates every proof
+#                     taken before it (verified_through is cleared and a late flush of an
+#                     older proof is refused).
+#
+# ⛔ ONE WRITER RULE. Row writers go through `bump_series_revs` inside their own
+# transaction; wholesale writers (snapshot install, bulk heals that delete across
+# series) call `bump_store_floor`. `tests/test_bar_contract.py` holds a census rail:
+# a new `INTO ohlcv` / `DELETE FROM ohlcv` site that calls neither fails by name.
+# ⚖️ Why not an SQLite trigger: measured 2026-11-11, a per-row AFTER INSERT trigger
+# made a 4M-row bulk load ~6x slower (25 s -> 156 s), and the R2 merge is exactly that
+# shape. One upsert per (series, transaction) costs one extra row per write.
+_META_DDL = (
+    "CREATE TABLE IF NOT EXISTS series_meta ("
+    " ticker TEXT NOT NULL, tf TEXT NOT NULL,"
+    " rev INTEGER NOT NULL DEFAULT 0,"
+    " history_rev INTEGER NOT NULL DEFAULT 0,"
+    " verified_through REAL,"
+    " sealed_through REAL,"
+    " sealed_checked_at REAL,"
+    " unsealed_from INTEGER,"
+    " covered_at REAL,"
+    " proof_floor REAL,"
+    " adj_basis TEXT,"
+    " PRIMARY KEY (ticker, tf)) WITHOUT ROWID",
+    "CREATE TABLE IF NOT EXISTS store_meta (k TEXT PRIMARY KEY, v REAL)",
+)
+# `history_rev`: the rev of the newest write that changed HELD history — a row at or
+# below the series' history floor (stored tail - MUTABLE_WINDOW_S; D/W/M: before the tail
+# period) or inside its seal, whose values changed or whose empty in-span bucket got a
+# row (`_history_keys`), or any delete. A client holding history_rev H only needs
+# `since = tail - window` deltas while H is current; a newer history_rev means re-read the
+# window (a correction: split re-adjust, heal, merge correction, reconciliation).
+_REV_SET = "rev = max(series_meta.rev + 1, excluded.rev)"
+_HIST_SET = "history_rev = max(series_meta.rev + 1, excluded.rev)"
+_REV_UPSERT_SQL = (
+    "INSERT INTO series_meta(ticker, tf, rev) VALUES (?, ?, ?) "
+    f"ON CONFLICT(ticker, tf) DO UPDATE SET {_REV_SET}")
+_REV_HISTORY_UPSERT_SQL = (
+    "INSERT INTO series_meta(ticker, tf, rev, history_rev) VALUES (?, ?, ?, ?) "
+    f"ON CONFLICT(ticker, tf) DO UPDATE SET {_REV_SET}, {_HIST_SET}")
+_REV_DELETE_UPSERT_SQL = (
+    "INSERT INTO series_meta(ticker, tf, rev, history_rev, proof_floor, unsealed_from) "
+    "VALUES (?, ?, ?, ?, ?, ?) "
+    f"ON CONFLICT(ticker, tf) DO UPDATE SET {_REV_SET}, {_HIST_SET}, "
+    "verified_through = NULL, sealed_through = NULL, sealed_checked_at = NULL, "
+    "proof_floor = excluded.proof_floor, unsealed_from = CASE "
+    " WHEN excluded.unsealed_from IS NULL THEN series_meta.unsealed_from "
+    " WHEN series_meta.unsealed_from IS NULL THEN excluded.unsealed_from "
+    " ELSE min(series_meta.unsealed_from, excluded.unsealed_from) END")
+_VERIFIED_UPSERT_SQL = (
+    "INSERT INTO series_meta(ticker, tf, rev, verified_through) VALUES (?, ?, 0, ?) "
+    "ON CONFLICT(ticker, tf) DO UPDATE SET verified_through = CASE "
+    " WHEN excluded.verified_through <= COALESCE(series_meta.proof_floor, 0) "
+    "   THEN series_meta.verified_through "
+    " ELSE max(COALESCE(series_meta.verified_through, 0), excluded.verified_through) END")
+#: `sealed_through` (unix s): every bucket of the series that ENDED at or before it is
+#: final in this store. Advanced only by a provider answer whose rewritten window
+#: STARTS at or before the current value (a contiguous proof), to its instant minus the
+#: seal lag (`record_sealed`). A series with no value yet trusts the rows below the
+#: window: they are the repair's own "already-final history" (`_DELTA_HEAL_WINDOW_SECONDS`).
+#: store_meta keys: wholesale-change floors (see `bump_store_floor`).
+REV_FLOOR_KEY = "rev_floor_ms"
+PROOF_FLOOR_KEY = "proof_floor_s"
+#: ⭐ THE SHARED HISTORY FLOOR (2026-11-21, the content-derived base). The served history_rev (and rev) of
+#: every series is at least this, on EVERY store, because it is a committed constant rather than a store's own
+#: clock or floor. Why: a browser compares history_rev across whichever store answered (it refuses a LOWER
+#: one and re-reads on a HIGHER one), and on 2026-11-21 web and bars-api served different bases for 70 of 70
+#: series measured (their floors 7.7 h apart). Set ABOVE every floor and series measured that day
+#: (web 1794637146710, bars-api 1794609510375, snapshot 1794665511070, highest series 1795159493420) and
+#: BELOW the deploy, so a write after it still rises: every untouched series is then the same number on
+#: every pod. The deploy costs ONE full re-read of every cached series for every browser.
+#: ⛔ ONLY EVER RAISED, by a deliberate PR that appends to `T_LEDGER` (tests/test_history_rev_content_base.py).
+HISTORY_REV_SHARED_FLOOR_MS = 1795231800000          # 2026-11-21T03:30:00Z
+#: A wholesale DELETE (the boot heals) leaves holes in every series: the oldest deleted
+#: key and when — a series that has not been covered since must reach back to it.
+GLOBAL_UNSEALED_FROM_KEY = "unsealed_from_ts"
+GLOBAL_UNSEALED_AT_KEY = "unsealed_at_s"
+
+
+def _create_meta_tables(c: sqlite3.Connection) -> None:
+    for ddl in _META_DDL:
+        c.execute(ddl)
+    cols = {row[1] for row in c.execute("PRAGMA table_info(series_meta)").fetchall()}
+    if "history_rev" not in cols:      # a pre-release dev store
+        c.execute("ALTER TABLE series_meta ADD COLUMN history_rev INTEGER NOT NULL DEFAULT 0")
+    for col, typ in (("sealed_through", "REAL"), ("sealed_checked_at", "REAL"),
+                     ("unsealed_from", "INTEGER"), ("covered_at", "REAL"),
+                     ("adj_basis", "TEXT")):
+        if col not in cols:
+            c.execute(f"ALTER TABLE series_meta ADD COLUMN {col} {typ}")
+
+
+_hlc_lock = threading.Lock()
+_hlc_last_ms = 0
+_hlc_seeded = False
+
+
+def _hlc_seed() -> int:
+    """The highest stamp the store already holds (its floor and every series' revs), read once per process
+    (D4): a new process whose wall clock stepped back never stamps below what it served before. Read-only,
+    a separate connection, never raises (0 when the store cannot be read)."""
+    try:
+        c = sqlite3.connect(f"file:{_DB_PATH}?mode=ro", uri=True, timeout=1)
+        try:
+            vals = [HISTORY_REV_SHARED_FLOOR_MS]
+            for sql in ("SELECT MAX(v) FROM store_meta WHERE k='rev_floor_ms'",
+                        "SELECT MAX(rev) FROM series_meta", "SELECT MAX(history_rev) FROM series_meta"):
+                try:
+                    v = c.execute(sql).fetchone()[0]
+                    if v is not None:
+                        vals.append(int(float(v)))
+                except sqlite3.OperationalError:
+                    pass
+            return max(vals)
+        finally:
+            c.close()
+    except Exception:                                    # noqa: BLE001 - a clock must never fail
+        return 0
+
+
+def _now_ms() -> int:
+    """This process's hybrid-logical clock in ms: wall time, but strictly increasing
+    across calls (two writes in one millisecond still get distinct, ordered revs), and
+    never below what the store already holds (`_hlc_seed`, once per process)."""
+    global _hlc_last_ms, _hlc_seeded
+    if not _hlc_seeded:
+        seed = _hlc_seed()
+        with _hlc_lock:
+            _hlc_last_ms = max(_hlc_last_ms, seed)
+            _hlc_seeded = True
+    with _hlc_lock:
+        _hlc_last_ms = max(_hlc_last_ms + 1, int(time.time() * 1000))
+        return _hlc_last_ms
+
+
+def bump_series_revs(c: sqlite3.Connection, keys, *, deleted: bool = False,
+                     history=(), deleted_from=None) -> None:
+    """Advance `rev` of every (ticker, tf) in `keys` INSIDE the caller's open write
+    transaction (same commit as the rows). `history` = the keys whose write changed
+    sealed history (`True` = all of them); `deleted=True` implies history for every key
+    and invalidates the series' proofs; `deleted_from` = the OLDEST deleted key (int, or
+    {(ticker, tf): int}) — a later seal must reach back to it (`unsealed_from`). None =
+    every row of the series went (or a full rebuild), nothing below to distrust.
+    Self-heals a store that predates the meta table."""
+    keys = sorted({(str(t).upper(), str(tf)) for t, tf in keys})
+    if not keys:
+        return
+    if history is True or deleted:
+        hist = set(keys)
+    else:
+        hist = {(str(t).upper(), str(tf)) for t, tf in (history or ())}
+    now_ms = _now_ms()
+    batches = []
+    if deleted:
+        now_s = time.time()
+        def _from(t, tf):
+            if isinstance(deleted_from, dict):
+                v = deleted_from.get((t, tf), deleted_from.get((t.lower(), tf)))
+                if v is None:
+                    v = next((x for (a, b), x in deleted_from.items()
+                              if str(a).upper() == t and str(b) == tf), None)
+                return None if v is None else int(v)
+            return None if deleted_from is None else int(deleted_from)
+        batches.append((_REV_DELETE_UPSERT_SQL,
+                        [(t, tf, now_ms, now_ms, now_s, _from(t, tf)) for t, tf in keys]))
+    else:
+        h = [(t, tf, now_ms, now_ms) for t, tf in keys if (t, tf) in hist]
+        p = [(t, tf, now_ms) for t, tf in keys if (t, tf) not in hist]
+        if h:
+            batches.append((_REV_HISTORY_UPSERT_SQL, h))
+        if p:
+            batches.append((_REV_UPSERT_SQL, p))
+    for sql, params in batches:
+        try:
+            c.executemany(sql, params)
+        except sqlite3.OperationalError as e:
+            msg = str(e).lower()
+            if "no such table" not in msg and "no column" not in msg and "has no column" not in msg:
+                raise
+            _create_meta_tables(c)
+            c.executemany(sql, params)
+    if deleted:
+        _drop_pending_verified(keys)
+
+
+def _differs(old: tuple, new: tuple) -> bool:
+    for a, b in zip(old, new):
+        if a is None or b is None:
+            if a is not b:
+                return True
+        elif abs(float(a) - float(b)) > 1e-9 * max(1.0, abs(float(b))):
+            return True
+    return False
+
+
+def _sealed_through_many(c: sqlite3.Connection, tf: str, tickers: list) -> dict:
+    """{TICKER: sealed_through} (as `series_meta` states it) for many series at once."""
+    rows = {}
+    _rev_floor, store_pfloor = _store_floors(c)
+    for i in range(0, len(tickers), 400):
+        chunk = tickers[i:i + 400]
+        qs = ",".join("?" for _ in chunk)
+        try:
+            for t, sealed, ck, uns, cov, pf in c.execute(
+                    f"SELECT ticker, sealed_through, sealed_checked_at, unsealed_from, covered_at, "
+                    f"proof_floor FROM series_meta WHERE tf=? AND ticker IN ({qs})",
+                    [tf, *chunk]).fetchall():
+                rows[t] = ((sealed, ck, uns, cov), max(store_pfloor, float(pf or 0)))
+        except sqlite3.OperationalError:
+            break
+    with _pending_lock:
+        pend = {t: list(_pending_seals.get((t, tf), ())) for t in tickers
+                if (t, tf) in _pending_seals}
+    glob = _store_unsealed(c)
+    out = {}
+    for t in set(rows) | set(pend):
+        base, pf = rows.get(t, ((None, None, None, None), store_pfloor))
+        st = _seal_state(base, pend.get(t, ()), pf, glob)
+        if st[0] is not None:
+            out[t] = st[0]
+    return out
+
+
+#: ⭐ THE MUTABLE WINDOW (one owner; `bars_fetch._DELTA_HEAL_WINDOW_SECONDS` is this
+#: value). The stretch behind a series' stored tail that a tail repair may still rewrite
+#: and that a client re-reads on every poll (`since = held tail - window`). Rows at or
+#: below its floor change only with `history_rev`.
+#: CLIENT_MUTABLE_WINDOW_S is the CLIENT's contract value (app/src/data/barStore/
+#: network.js `MUTABLE_WINDOW_S`): a server window WIDER than it would leave rows the
+#: repair rewrites without a history bump but outside the client's delta, so the env
+#: value is clamped to it (narrower is safe: more rows count as history).
+CLIENT_MUTABLE_WINDOW_S = 8 * 3600
+
+
+def _mutable_window_from_env(raw) -> int:
+    try:
+        w = int(raw) if raw not in (None, "") else CLIENT_MUTABLE_WINDOW_S
+    except (TypeError, ValueError):
+        _logger.warning("[sqlite] BARS_DELTA_HEAL_WINDOW_SECONDS=%r is not an int; using %d",
+                        raw, CLIENT_MUTABLE_WINDOW_S)
+        return CLIENT_MUTABLE_WINDOW_S
+    if w > CLIENT_MUTABLE_WINDOW_S:
+        _logger.warning("[sqlite] BARS_DELTA_HEAL_WINDOW_SECONDS=%d exceeds the client "
+                        "contract window %d; clamped (a wider server window under-bumps "
+                        "history_rev)", w, CLIENT_MUTABLE_WINDOW_S)
+        return CLIENT_MUTABLE_WINDOW_S
+    return max(0, w)
+
+
+MUTABLE_WINDOW_S = _mutable_window_from_env(os.environ.get("BARS_DELTA_HEAL_WINDOW_SECONDS"))
+_DATE_TFS = ("D", "W", "M")
+
+
+def history_floor(tf: str, tail) -> int | None:
+    """The newest stored key that is HELD HISTORY for a series whose stored tail is
+    `tail`: a client polling `since = tail - window` (server answers `ts > since`) never
+    re-reads a row keyed at or below it, so a write that changes such a row must move
+    `history_rev`. Intraday: `tail - MUTABLE_WINDOW_S`. D/W/M (YYYYMMDD keys; the daily
+    delta rewrites only the tail period, `_delta_daily` & co.): every row before the
+    tail. None = empty series (nothing is held)."""
+    if tail is None:
+        return None
+    if tf in _DATE_TFS:
+        return int(tail) - 1
+    return int(tail) - int(MUTABLE_WINDOW_S)
+
+
+def is_held_history(key, floor) -> bool:
+    """⭐ THE window boundary, used by both sides: `_history_keys` (a change here moves
+    history_rev) and the tail repair (`bars_fetch._delta_keep_bar` rewrites only rows that
+    are NOT held history). The row AT the floor is history: the client asks
+    `since = tail - window` and the server answers `ts > since`."""
+    return floor is not None and int(key) <= int(floor)
+
+
+def _series_ends(c: sqlite3.Connection, tf: str, tickers: list, *, newest: bool) -> dict:
+    """{TICKER: newest (or oldest) stored key} for many series — one PK seek each, one
+    statement per 400 series."""
+    out: dict = {}
+    order = "DESC" if newest else "ASC"
+    for i in range(0, len(tickers), 400):
+        chunk = tickers[i:i + 400]
+        vals = ",".join("(?)" for _ in chunk)
+        for t, k in c.execute(
+                f"WITH w(t) AS (VALUES {vals}) SELECT w.t, (SELECT ts FROM ohlcv "
+                f"WHERE ticker=w.t AND tf=? ORDER BY ts {order} LIMIT 1) FROM w",
+                [*chunk, tf]).fetchall():
+            if k is not None:
+                out[t] = int(k)
+    return out
+
+
+def _history_keys(c: sqlite3.Connection, tf: str, written, *, replace: bool = True) -> set:
+    """The (TICKER, tf) keys among `written` row tuples (ticker, tf, ts, o, h, l, c, v)
+    whose write changes HELD HISTORY — a row a client may hold and will not re-read
+    through `since=` deltas:
+      * a row keyed at or below `history_floor(tf, stored tail)` (older than the mutable
+        window, sealed or not — split re-adjust, merge, gap-fill, rebuild, deep write), or
+      * a row whose bucket ENDED at or before the series' `sealed_through` (the region
+        `complete_through` calls final),
+    whose stored values differ (`replace`) or whose bucket was EMPTY inside the stored
+    span (a hole: a client may hold the absence). A row older than the series' oldest
+    stored row (prepending history) is not a change to anything held. Rows inside the
+    mutable window and past the seal never count: deltas carry them (tail repairs, live
+    updates, completing provisional rows). The stored tail is read BEFORE the write.
+    Read under the caller's write lock; bounded by the rows being written (one PK seek
+    per series + the written keys)."""
+    by_t: dict = {}
+    for r in written:
+        by_t.setdefault(r[0], []).append(r)
+    out = set()
+    if not by_t:
+        return out
+    tickers = list(by_t)
+    tails = _series_ends(c, tf, tickers, newest=True)
+    if not tails:
+        return out                        # every series empty: nothing is held
+    sealed = _sealed_through_many(c, tf, [t for t in tickers if t in tails])
+    grid = None
+    if sealed:
+        from api.services import bar_contract
+        grid = bar_contract.grid_for(tf)
+    heads: dict | None = None
+    for tkr, rs in by_t.items():
+        tail = tails.get(tkr)
+        if tail is None:
+            continue
+        floor = history_floor(tf, tail)
+        st = sealed.get(tkr)
+        hits = []
+        for r in rs:
+            k = int(r[2])
+            if is_held_history(k, floor):
+                hits.append(r)
+            elif st is not None:
+                b = bar_contract.bucket_bounds(tf, k, grid)
+                if b is not None and b[1] <= st:
+                    hits.append(r)
+        if not hits:
+            continue
+        stored = {}
+        for i in range(0, len(hits), 400):
+            part = hits[i:i + 400]
+            qs = ",".join("?" for _ in part)
+            stored.update({int(t): v for t, *v in c.execute(
+                f"SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf=? AND ts IN ({qs})",
+                [tkr, tf, *[int(r[2]) for r in part]]).fetchall()})
+        for r in hits:
+            old = stored.get(int(r[2]))
+            if old is None:
+                if heads is None:
+                    heads = _series_ends(c, tf, [t for t in tickers if t in tails], newest=False)
+                if int(r[2]) > heads.get(tkr, tail):   # a hole inside the stored span
+                    out.add((tkr, tf))
+                    break
+            elif replace and _differs(tuple(old), tuple(r[3:8])):
+                out.add((tkr, tf))
+                break
+    return out
+
+
+# Process-local view of the store floors (also persisted to store_meta by the flusher,
+# so a restart or another process reading this store sees them).
+_floor_lock = threading.Lock()
+_mem_floors = {"rev_floor_ms": 0.0, "proof_floor_s": 0.0}   # + global unsealed keys
+_pending_floors: dict = {}
+
+
+def _persist_floors_now(vals: dict) -> None:
+    """Write the floors to store_meta at once (max-merge), on a short-lived connection of its own."""
+    c = sqlite3.connect(_DB_PATH, timeout=5)
+    try:
+        c.executemany("INSERT INTO store_meta(k, v) VALUES (?, ?) "
+                      "ON CONFLICT(k) DO UPDATE SET v = max(store_meta.v, excluded.v)", list(vals.items()))
+        c.commit()
+    finally:
+        c.close()
+
+
+def bump_store_floor(reason: str = "", deleted_from: int | None = None, persist: bool = False) -> None:
+    """A WHOLESALE change (bars.db replaced by a snapshot, a bulk delete across many
+    series): every series' served rev becomes >= now_ms and every proof taken before
+    now is void. Lock-free for the caller (persisted by the meta flusher) so it is safe
+    to call from any writer, including one holding its own connection or the lock.
+    `deleted_from` = the oldest key a bulk DELETE removed (every series may now have a
+    hole from there): no series is sealed again until a repair / fill reaches back to it."""
+    now_ms, now_s = float(_now_ms()), time.time()
+    with _floor_lock:
+        _mem_floors[REV_FLOOR_KEY] = max(_mem_floors[REV_FLOOR_KEY], now_ms)
+        _mem_floors[PROOF_FLOOR_KEY] = max(_mem_floors[PROOF_FLOOR_KEY], now_s)
+        _pending_floors[REV_FLOOR_KEY] = _mem_floors[REV_FLOOR_KEY]
+        _pending_floors[PROOF_FLOOR_KEY] = _mem_floors[PROOF_FLOOR_KEY]
+        if deleted_from is not None:
+            prev = _mem_floors.get(GLOBAL_UNSEALED_FROM_KEY)
+            _mem_floors[GLOBAL_UNSEALED_FROM_KEY] = (float(deleted_from) if not prev
+                                                     else min(prev, float(deleted_from)))
+            _mem_floors[GLOBAL_UNSEALED_AT_KEY] = now_s
+            _pending_floors[GLOBAL_UNSEALED_FROM_KEY] = _mem_floors[GLOBAL_UNSEALED_FROM_KEY]
+            _pending_floors[GLOBAL_UNSEALED_AT_KEY] = now_s
+    with _pending_lock:
+        _pending_verified.clear()       # every queued proof predates the floor
+        _pending_seals.clear()
+    _logger.info("[sqlite] store floor bumped (%s)", reason or "wholesale change")
+    if persist:
+        # ⭐ D4 (2026-11-21): an INSTALL's floor reaches disk before the call returns. Left to the 1 s flusher,
+        # a restart in that second served the new file at the worker's lower floor: every series this pod had
+        # just served at the install instant FELL, and browsers refuse a lower history_rev. Only callers that
+        # hold no write transaction pass persist=True; a failure falls back to the flusher, never raises.
+        try:
+            with _floor_lock:
+                vals = {REV_FLOOR_KEY: _mem_floors[REV_FLOOR_KEY], PROOF_FLOOR_KEY: _mem_floors[PROOF_FLOOR_KEY]}
+            _persist_floors_now(vals)
+        except Exception as e:                           # noqa: BLE001
+            _logger.warning("[sqlite] store floor persist deferred to the flusher: %s", e)
+    _ensure_meta_flusher()
+
+
+# Write-behind buffers: verified_through (TICKER, tf) -> newest checked_at, and seals
+# (TICKER, tf) -> [(sealed, window_start, checked_at), ...] in the order they happened.
+_pending_lock = threading.Lock()
+_pending_verified: dict = {}
+_pending_seals: dict = {}
+_META_FLUSH_S = float(os.environ.get("BARS_META_FLUSH_SECONDS", "1.0"))
+_flusher_started = False
+_flusher_lock = threading.Lock()
+_meta_flush_stats = {"flushes": 0, "rows": 0, "lock_ms_max": 0.0, "lock_ms_total": 0.0,
+                     "errors": 0}
+
+
+def _drop_pending_verified(keys) -> None:
+    with _pending_lock:
+        for k in keys:
+            _pending_verified.pop(k, None)
+            _pending_seals.pop(k, None)
+
+
+def _queue_seal_op(key, op: tuple) -> None:
+    with _pending_lock:
+        lst = _pending_seals.setdefault(key, [])
+        if len(lst) >= 256:
+            # ⛔ Never trim the OLDEST entries: a later seal is only valid on top of the
+            # earlier ones (contiguity), so a trimmed head would let the rest be applied
+            # to "no seal" and trusted. A runaway buffer (flusher dead) drops them ALL —
+            # losing proofs only weakens what is claimed.
+            lst.clear()
+            return
+        lst.append(op)
+    _ensure_meta_flusher()
+
+
+def record_sealed(ticker: str, tf: str, sealed: float, window_start: float,
+                  checked_at: float, covers_from: float | None = None) -> None:
+    """Queue a seal: a provider answer at `checked_at` rewrote the series from
+    `window_start` (and, a gap-fill, restored missing rows from `covers_from`), so every
+    bucket that ended by `sealed` is final — under `_apply_seal`'s rule. Visible
+    in-process at once, other processes after a flush."""
+    cov = float(window_start) if covers_from is None else min(float(window_start), float(covers_from))
+    _queue_seal_op((ticker.upper(), str(tf)),
+                   ("seal", float(sealed), float(window_start), float(checked_at), cov))
+
+
+def record_cover(ticker: str, tf: str, covers_from: float, checked_at: float) -> None:
+    """A provider answer at `checked_at` re-supplied the series from `covers_from` (a full
+    / deep fetch): rows deleted at or after it are restored, so the series no longer has
+    to reach back to its delete point to be sealed again (review #1098 F4 follow-up)."""
+    _queue_seal_op((ticker.upper(), str(tf)),
+                   ("cover", None, None, float(checked_at), float(covers_from)))
+
+
+def _apply_seal(state: tuple, op: tuple, pfloor: float, glob: tuple) -> tuple:
+    """THE seal rule (the only implementation — the flush persists what this returns).
+
+    state = (sealed_through, sealed_checked_at, unsealed_from, covered_at)
+    op    = ("seal", sealed, window_start, checked, covers_from)
+          | ("cover", None, None, checked, covers_from)
+    glob  = (global unsealed_from, its instant) from a bulk delete, or (None, None).
+
+    A seal applies when its check is newer than the last delete / wholesale change and
+    not older than the current seal's check, and EITHER its rewritten window starts at or
+    before the current seal (contiguous proof) OR, with no seal, the answer reaches back
+    to the oldest row deleted since (`unsealed_from`, and the bulk-delete point while
+    this series has not been covered since it). With nothing deleted, the rows below the
+    window are the repair's own already-final history."""
+    cur, cur_ck, uns, cov = state
+    kind, sealed, wstart, checked, covers = op
+    if checked <= pfloor:
+        return state
+    eff = uns
+    g_from, g_at = glob
+    if g_from is not None and (cov is None or cov < g_at):
+        eff = g_from if eff is None else min(eff, g_from)
+    reaches = eff is None or covers <= eff
+    if kind == "cover":
+        if cur is None and reaches:
+            return cur, cur_ck, None, checked
+        return state
+    if checked < (cur_ck or 0.0):
+        return state
+    if cur is not None:
+        return (max(cur, sealed), checked, uns, cov) if wstart <= cur else state
+    if reaches:
+        return sealed, checked, None, checked
+    return state
+
+
+def _seal_state(row: tuple, pending, pfloor: float, glob: tuple) -> tuple:
+    """(sealed_through, sealed_checked_at, unsealed_from, covered_at) as this store states
+    it: the persisted state (a seal is void when its CHECK predates the floor — a delete
+    or a wholesale change) with this process's unflushed ops applied in order."""
+    sealed, ck, uns, cov = (None if x is None else float(x) for x in row)
+    if sealed is not None and (ck is None or ck <= pfloor):
+        sealed, ck = None, None
+    state = (sealed, ck, uns, cov)
+    for op in pending:
+        state = _apply_seal(state, op, pfloor, glob)
+    return state
+
+
+def record_verified(ticker: str, tf: str, checked_at: float) -> None:
+    """Queue a proof (see `_VERIFIED_UPSERT_SQL`). Readers see it at once in this
+    process (`series_meta` merges the buffer); other processes after the next flush."""
+    key = (ticker.upper(), str(tf))
+    with _pending_lock:
+        prev = _pending_verified.get(key)
+        if prev is None or checked_at > prev:
+            _pending_verified[key] = float(checked_at)
+    _ensure_meta_flusher()
+
+
+def flush_meta() -> int:
+    """Write every queued proof + floor in ONE short transaction. Returns rows written.
+    A failure re-queues (max-merged) and is retried on the next tick."""
+    with _pending_lock:
+        batch = dict(_pending_verified)
+        _pending_verified.clear()
+        seals = {k: list(v) for k, v in _pending_seals.items()}
+        _pending_seals.clear()
+    with _floor_lock:
+        floors = dict(_pending_floors)
+        _pending_floors.clear()
+        pfloor = _mem_floors[PROOF_FLOOR_KEY]
+    if not batch and not floors and not seals:
+        return 0
+    seal_params = sum(len(v) for v in seals.values())
+
+    def _write(c):
+        if floors:
+            c.executemany(
+                "INSERT INTO store_meta(k, v) VALUES (?, ?) "
+                "ON CONFLICT(k) DO UPDATE SET v = max(store_meta.v, excluded.v)",
+                [kv for kv in floors.items() if kv[0] != GLOBAL_UNSEALED_FROM_KEY])
+            if GLOBAL_UNSEALED_FROM_KEY in floors:
+                c.execute("INSERT INTO store_meta(k, v) VALUES (?, ?) "
+                          "ON CONFLICT(k) DO UPDATE SET v = min(store_meta.v, excluded.v)",
+                          (GLOBAL_UNSEALED_FROM_KEY, floors[GLOBAL_UNSEALED_FROM_KEY]))
+        if batch:
+            c.executemany(_VERIFIED_UPSERT_SQL,
+                          [(t, tf, vt) for (t, tf), vt in batch.items()])
+        if seals:
+            _persist_seals(c, seals)
+
+    try:
+        t0 = time.perf_counter()
+        with _WRITE_LOCK:
+            c = _conn()
+            try:
+                _write(c)
+            except sqlite3.OperationalError as e:
+                msg = str(e).lower()
+                if "no such table" not in msg and "no column" not in msg:
+                    raise
+                c.rollback()
+                _create_meta_tables(c)
+                _write(c)
+            c.commit()
+        held = (time.perf_counter() - t0) * 1000.0
+        _meta_flush_stats["flushes"] += 1
+        n = len(batch) + len(floors) + seal_params
+        _meta_flush_stats["rows"] += n
+        _meta_flush_stats["lock_ms_total"] += held
+        _meta_flush_stats["lock_ms_max"] = max(_meta_flush_stats["lock_ms_max"], held)
+        return n
+    except Exception as e:                               # noqa: BLE001 — retried next tick
+        _meta_flush_stats["errors"] += 1
+        _logger.warning("[sqlite] meta flush failed (%s); re-queued", type(e).__name__)
+        try:
+            _conn().rollback()
+        except Exception:                                # noqa: BLE001
+            pass
+        with _pending_lock:
+            for k, vt in batch.items():
+                if vt > _pending_verified.get(k, 0.0):
+                    _pending_verified[k] = vt
+            for k, lst in seals.items():
+                _pending_seals[k] = lst + _pending_seals.get(k, [])
+        with _floor_lock:
+            for k, v in floors.items():
+                _pending_floors[k] = max(_pending_floors.get(k, 0.0), v)
+        return 0
+
+
+def _persist_seals(c: sqlite3.Connection, seals: dict) -> None:
+    """Apply queued seal ops to the persisted state with `_apply_seal` (read-modify-write
+    under the caller's write transaction — the rule exists once, in Python)."""
+    rev_floor, store_pfloor = _store_floors(c)
+    glob = _store_unsealed(c)
+    for (t, tf), ops in seals.items():
+        row = c.execute("SELECT sealed_through, sealed_checked_at, unsealed_from, covered_at, "
+                        "proof_floor FROM series_meta WHERE ticker=? AND tf=?", (t, tf)).fetchone()
+        base = row[:4] if row else (None, None, None, None)
+        pf = max(store_pfloor, float(row[4] or 0)) if row else store_pfloor
+        st = _seal_state(base, ops, pf, glob)
+        c.execute("INSERT INTO series_meta(ticker, tf, rev, sealed_through, sealed_checked_at, "
+                  "unsealed_from, covered_at) VALUES (?, ?, 0, ?, ?, ?, ?) "
+                  "ON CONFLICT(ticker, tf) DO UPDATE SET sealed_through = excluded.sealed_through, "
+                  "sealed_checked_at = excluded.sealed_checked_at, "
+                  "unsealed_from = excluded.unsealed_from, covered_at = excluded.covered_at",
+                  (t, tf, st[0], st[1], None if st[2] is None else int(st[2]), st[3]))
+
+
+def reset_meta_state_for_tests() -> None:
+    """Test-only: forget every unflushed proof / seal / floor and cached floor read
+    (what a process restart forgets). The persisted store is untouched."""
+    with _pending_lock:
+        _pending_verified.clear()
+        _pending_seals.clear()
+    with _floor_lock:
+        _pending_floors.clear()
+        for k in list(_mem_floors):
+            if k in (GLOBAL_UNSEALED_FROM_KEY, GLOBAL_UNSEALED_AT_KEY):
+                del _mem_floors[k]
+            else:
+                _mem_floors[k] = 0.0
+    _floors_cache.clear()
+
+
+def meta_flush_stats() -> dict:
+    with _pending_lock:
+        pending = len(_pending_verified)
+    return dict(_meta_flush_stats, pending=pending)
+
+
+def _ensure_meta_flusher() -> None:
+    global _flusher_started
+    if _flusher_started or _META_FLUSH_S <= 0:
+        return
+    with _flusher_lock:
+        if _flusher_started:
+            return
+        _flusher_started = True
+
+        def _loop():
+            while True:
+                time.sleep(_META_FLUSH_S)
+                try:
+                    flush_meta()
+                except Exception:                        # noqa: BLE001
+                    pass
+
+        threading.Thread(target=_loop, name="bars-meta-flush", daemon=True).start()
+
+
+_FLOORS_TTL_S = 1.0
+_floors_cache: dict = {}        # db path -> (monotonic read time, epoch, rev_floor, proof_floor)
+
+
+def _store_meta_cached(c: sqlite3.Connection) -> dict:
+    """store_meta, re-read at most once a second (and after every epoch bump): it moves
+    only on wholesale changes."""
+    now = time.monotonic()
+    hit = _floors_cache.get(_DB_PATH)
+    if hit is not None and hit[1] == _db_epoch and now - hit[0] < _FLOORS_TTL_S:
+        return hit[2]
+    vals: dict = {}
+    try:
+        vals = {k: float(v) for k, v in c.execute("SELECT k, v FROM store_meta").fetchall()
+                if v is not None}
+    except sqlite3.OperationalError:
+        pass
+    _floors_cache[_DB_PATH] = (now, _db_epoch, vals)
+    return vals
+
+
+def _store_floors(c: sqlite3.Connection) -> tuple[float, float]:
+    """The store-wide floors (persisted; another process may have raised them) merged
+    with this process's."""
+    vals = _store_meta_cached(c)
+    return (max(_mem_floors[REV_FLOOR_KEY], vals.get(REV_FLOOR_KEY, 0.0)),
+            max(_mem_floors[PROOF_FLOOR_KEY], vals.get(PROOF_FLOOR_KEY, 0.0)))
+
+
+def _store_unsealed(c: sqlite3.Connection) -> tuple:
+    """(oldest bulk-deleted key, when) — persisted merged with this process's — or (None, None)."""
+    vals = _store_meta_cached(c)
+    frm = [x for x in (vals.get(GLOBAL_UNSEALED_FROM_KEY), _mem_floors.get(GLOBAL_UNSEALED_FROM_KEY))
+           if x]
+    at = [x for x in (vals.get(GLOBAL_UNSEALED_AT_KEY), _mem_floors.get(GLOBAL_UNSEALED_AT_KEY)) if x]
+    return (min(frm), max(at)) if frm and at else (None, None)
+
+
+_META_SELECT = ("SELECT rev, history_rev, verified_through, proof_floor, sealed_through, "
+                "sealed_checked_at, unsealed_from, covered_at{} FROM series_meta "
+                "WHERE ticker=? AND tf=?")
+
+
+def series_meta(ticker: str, tf: str, _conn_override=None) -> dict:
+    """{"rev", "history_rev", "verified_through", "sealed_through", "adj_basis"} for a stored
+    series, as THIS store states it (persisted value merged with this process's unflushed
+    proofs). rev 0 = no write recorded since the meta table existed (still a valid rev; it
+    only grows). `adj_basis` = the split-adjustment basis id the stored rows are on
+    (`adjustment_basis.basis_id`; None = unknown); `adj_events` = the applied events it
+    names (the column stores their canonical text). Never raises: an unreadable store
+    answers rev 0 / no proof."""
+    key = (ticker.upper(), str(tf))
+    rev, hrev, vt, pfloor = 0, 0, None, _mem_floors[PROOF_FLOOR_KEY]
+    hrow, floor_ms = 0, 0
+    adj = None
+    seal_row = (None, None, None, None)
+    glob = (None, None)
+    try:
+        c = _conn_override if _conn_override is not None else _conn()
+        rev_floor, store_pfloor = _store_floors(c)
+        try:
+            row = c.execute(_META_SELECT.format(", adj_basis"), key).fetchone()
+        except sqlite3.OperationalError:
+            # A store installed from a snapshot that predates the column (never ALTERed on
+            # a read path): every other field still reads; the basis is unknown.
+            try:
+                row = c.execute(_META_SELECT.format(""), key).fetchone()
+            except sqlite3.OperationalError:
+                row = None
+        if row:
+            if len(row) > 8:
+                adj = row[8]           # canonical applied-event text (adjustment_basis)
+            rev = int(row[0] or 0)
+            hrev = int(row[1] or 0)
+            vt = float(row[2]) if row[2] is not None else None
+            pfloor = max(pfloor, float(row[3] or 0))
+            seal_row = (row[4], row[5], row[6], row[7])
+        hrow, floor_ms = hrev, int(rev_floor)            # the series' own number, for the stamp (D6)
+        # The shared floor covers every series this store HOLDS; one never written keeps "rev 0 = no write".
+        shared = HISTORY_REV_SHARED_FLOOR_MS if row else 0
+        hrev = max(hrev, floor_ms, shared)
+        rev = max(rev, floor_ms, shared, hrev if row else 0)          # a history change is a change
+        pfloor = max(pfloor, store_pfloor)
+        glob = _store_unsealed(c)
+    except Exception:                                    # noqa: BLE001
+        pass
+    with _pending_lock:
+        pend = _pending_verified.get(key)
+        seals = list(_pending_seals.get(key, ()))
+    if pend is not None and (vt is None or pend > vt):
+        vt = pend
+    if vt is not None and vt <= pfloor:
+        vt = None
+    sealed, sealed_ck, _uns, _cov = _seal_state(seal_row, seals, pfloor, glob)
+    adj_events = adj_id = None
+    if adj is not None:
+        # ⛔ The stamp holds only while the series is the one it was taken on (review of
+        # #1144 D3): same history_rev AND same first stored row — a later write that changed
+        # held history or prepended rows (an old-basis fallback, a merge) voids it.
+        from api.services import adjustment_basis as _ab
+        st = _ab.parse_stamp(adj)
+        # ⭐ D6 (2026-11-21): a stamp binds to the series' OWN history_rev (`hrow`), so a floor (a store's or the
+        # shared one) never voids it; one bound before that, to max(own, store floor), still holds.
+        if st is not None and st[0] in (hrow, max(hrow, floor_ms)):
+            try:
+                first = c.execute("SELECT MIN(ts) FROM ohlcv WHERE ticker=? AND tf=?", key).fetchone()[0]
+            except Exception:                            # noqa: BLE001
+                first = -1
+            if first == st[1]:
+                adj_events = st[2]
+                adj_id = _ab.basis_id(adj_events)
+    return {"rev": rev, "history_rev": hrev, "verified_through": vt,
+            "sealed_through": sealed, "sealed_checked_at": sealed_ck,
+            "adj_basis": adj_id, "adj_events": adj_events}
 
 
 def daily_bydate_index_ready() -> bool:
     """True if the by-date daily index exists — a cheap catalog check (no build)."""
     try:
         return _conn().execute(
-            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=? AND tbl_name='ohlcv'",
             (DAILY_BYDATE_INDEX,),
         ).fetchone() is not None
     except Exception:
@@ -351,7 +1224,7 @@ def ensure_indexes_at(db_path: str) -> list[str]:
         present = {r[0] for r in c.execute(
             "SELECT name FROM sqlite_master WHERE type='index'").fetchall()}
         created = []
-        for name, ddl in BARS_INDEX_DDL.items():
+        for name, ddl in expected_index_ddl(c).items():
             if name in present:
                 continue
             c.execute(ddl)
@@ -462,6 +1335,8 @@ def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     c = _conn()
     if ticker and tf:
         cur = c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf=?", (ticker.upper(), tf))
+        if cur.rowcount:
+            bump_series_revs(c, [(ticker, tf)], deleted=True)
     elif tf:
         cur = c.execute("DELETE FROM ohlcv WHERE tf=?", (tf,))
     elif ticker:
@@ -469,7 +1344,415 @@ def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     else:
         cur = c.execute("DELETE FROM ohlcv")
     c.commit()
+    if cur.rowcount and not (ticker and tf):
+        bump_store_floor("delete_bars wildcard")
     return cur.rowcount
+
+
+def prune_before(tickers, tf: str, before_ts: int, *, chunk: int = 100) -> int:
+    """Delete every `tf` row older than `before_ts` of each of `tickers`: a bounded-retention
+    trim of the OLDEST rows (the first-frame seed's long-tail 1m, `ffseed_onemin.retention`).
+    Returns rows deleted.
+
+    One short write transaction per `chunk` tickers, so the trim never holds the write lock
+    for long. The series it trims get `bump_series_revs(deleted=True)` (history changed, the
+    one-writer rule) with `deleted_from=None`: a PREFIX trim leaves nothing below the kept rows
+    to distrust, so the series may seal again from its new head; naming the oldest deleted row
+    there would demand a provider answer reaching back below rows that were removed on purpose,
+    and the series could never seal again."""
+    total = 0
+    names = sorted({str(t).upper() for t in (tickers or ()) if t})
+    for i in range(0, len(names), max(1, int(chunk))):
+        part = names[i:i + max(1, int(chunk))]
+        qs = ",".join("?" * len(part))
+        with _WRITE_LOCK:
+            c = _conn()
+            hit = [r[0] for r in c.execute(
+                f"SELECT DISTINCT ticker FROM ohlcv WHERE tf=? AND ticker IN ({qs}) AND ts < ?",
+                [str(tf), *part, int(before_ts)])]
+            if not hit:
+                continue
+            hq = ",".join("?" * len(hit))
+            cur = c.execute(f"DELETE FROM ohlcv WHERE tf=? AND ticker IN ({hq}) AND ts < ?",
+                            [str(tf), *hit, int(before_ts)])
+            bump_series_revs(c, [(t, str(tf)) for t in hit], deleted=True, deleted_from=None)
+            c.commit()
+            total += cur.rowcount
+    return total
+
+
+def iter_tickers(conn: sqlite3.Connection):
+    """Yield each distinct ticker in ohlcv, in order, by seeking the primary key.
+
+    `SELECT DISTINCT ticker` reads every index entry, about 58M on the worker.
+    Each step here is one index seek, so the cost follows the number of tickers."""
+    current = ""
+    while True:
+        row = conn.execute(
+            "SELECT ticker FROM ohlcv WHERE ticker>? ORDER BY ticker LIMIT 1",
+            (current,),
+        ).fetchone()
+        if row is None:
+            return
+        current = row[0]
+        yield current
+
+
+# ── 60m grid migration (2026-11-10: clock hours → TradingView session grid) ──
+# The stored tf=60 layout moved from 09:30(30 min), 10:00, 11:00 … 15:00 to
+# TradingView's 09:30, 10:30 … 15:30 (bars_fetch.SIXTY_MIN_GRID). A row stamped
+# on an ET :00 between 10:00 and the regular close can ONLY come from the old
+# layout, and an old ticker's 09:30 row has the right key but 30 minutes of
+# content — so detection is per row, healing is per TICKER: drop every 60m row
+# of a ticker that has any, and the next request re-resamples from 15m.
+_ET_ZONE = None
+
+
+def is_old_grid_60m_ts(ts: int) -> bool:
+    """True when a stored tf=60 ``ts`` is a pre-2026-11-10 clock-hour RTH bucket
+    (an ET :00 in [10:00, regular close)), which the session grid never emits."""
+    global _ET_ZONE
+    from datetime import datetime
+    if _ET_ZONE is None:
+        from zoneinfo import ZoneInfo
+        _ET_ZONE = ZoneInfo("America/New_York")
+    try:
+        dt = datetime.fromtimestamp(int(ts), tz=_ET_ZONE)
+    except (TypeError, ValueError, OverflowError, OSError):
+        return False
+    if dt.minute != 0 or dt.second != 0:
+        return False
+    close_h = 16
+    try:
+        from api.services.nyse_calendar import NYSE_EARLY_CLOSES_YYYYMMDD
+        if dt.year * 10000 + dt.month * 100 + dt.day in NYSE_EARLY_CLOSES_YYYYMMDD:
+            close_h = 13
+    except Exception:  # noqa: BLE001 — calendar unreadable → regular day
+        pass
+    return 10 <= dt.hour < close_h
+
+
+def ticker_has_old_grid_60m(c: sqlite3.Connection, ticker: str, probe: int = 120) -> bool:
+    """Index-seek both ends of a ticker's tf=60 rows for an old-layout bucket."""
+    for order in ("DESC", "ASC"):
+        rows = c.execute(
+            f"SELECT ts FROM ohlcv WHERE ticker=? AND tf='60' ORDER BY ts {order} LIMIT ?",
+            (ticker, int(probe)),
+        ).fetchall()
+        if any(is_old_grid_60m_ts(r[0]) for r in rows):
+            return True
+    return False
+
+
+def _invalidate_60m_caches(tkr: str) -> None:
+    try:
+        from api.services import bars_disk_cache as _disk
+        _disk.delete(tkr, "60")
+    except Exception:  # noqa: BLE001 — a stale disk JSON is re-validated on read anyway
+        pass
+    try:
+        from api.services.cache import cache as _mem
+        _mem.delete_prefix(f"bars_{tkr}_60_")
+        _mem.delete_prefix(f"histfull_{tkr}_60")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def replace_ticker_tf_rows(ticker: str, tf: str, bars: list[dict]) -> tuple[int, int]:
+    """Atomically replace ALL of (ticker, tf)'s rows with ``bars`` (validated like
+    ``put_bars``). One transaction under the write lock: a reader sees the old set
+    or the new one, never a mix. Returns (rows deleted, rows written)."""
+    tkr = ticker.upper()
+    keep, _rej = _writable_bars(tkr, tf, bars)
+    rows = [(tkr, tf, int(b["t"]), b.get("o"), b.get("h"), b.get("l"), b.get("c"),
+             int(b.get("v") or 0)) for b in keep]
+    c = _conn()
+    with _WRITE_LOCK:
+        try:
+            cur = c.execute("DELETE FROM ohlcv WHERE ticker=? AND tf=?", (tkr, tf))
+            deleted = cur.rowcount
+            if rows:
+                c.executemany(
+                    "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)", rows)
+            if deleted or rows:
+                bump_series_revs(c, [(tkr, tf)], deleted=bool(deleted), history=True)
+            c.commit()
+        except BaseException:
+            c.rollback()
+            raise
+    return deleted, len(rows)
+
+
+_ADJ_STAMP_SQL = ("INSERT INTO series_meta(ticker, tf, rev, adj_basis) VALUES (?, ?, 0, ?) "
+                  "ON CONFLICT(ticker, tf) DO UPDATE SET adj_basis = excluded.adj_basis")
+
+#: ⭐ THE INTRADAY SPLIT HEAL'S UNDO (2026-11-21). Every rescale writes the EXACT pre-image of each
+#: row it touches (o2..v2 = what the heal wrote) IN THE SAME TRANSACTION as the rows: a heal that
+#: rolls back leaves neither. The pre-image is the stored original, so a reverse split's volume
+#: rounding (`round(v x 0.25)`) is undone exactly, not inverted. The tables live in bars.db itself:
+#: a WAL store makes a transaction over two attached databases non-atomic. One log row per heal.
+#: Revert: `undo_split_basis` (compare-and-set) / `python -m api.services.intraday_split_heal undo`.
+_UNDO_DDL = (
+    "CREATE TABLE IF NOT EXISTS split_heal_undo ("
+    " ticker TEXT NOT NULL, tf TEXT NOT NULL, healed_at_ms INTEGER NOT NULL, ts INTEGER NOT NULL,"
+    " o REAL, h REAL, l REAL, c REAL, v INTEGER,"
+    " o2 REAL, h2 REAL, l2 REAL, c2 REAL, v2 INTEGER,"
+    " PRIMARY KEY (ticker, tf, healed_at_ms, ts)) WITHOUT ROWID",
+    "CREATE TABLE IF NOT EXISTS split_heal_undo_log ("
+    " ticker TEXT NOT NULL, tf TEXT NOT NULL, healed_at_ms INTEGER NOT NULL, rescale TEXT NOT NULL,"
+    " rows INTEGER NOT NULL, rev_before INTEGER, history_rev_after INTEGER,"
+    " reverted_at_ms INTEGER, restored INTEGER, skipped INTEGER,"
+    " PRIMARY KEY (ticker, tf, healed_at_ms))",
+)
+_UNDO_PRE_SQL = ("INSERT INTO split_heal_undo (ticker, tf, healed_at_ms, ts, o, h, l, c, v) "
+                 "SELECT ticker, tf, ?, ts, o, h, l, c, v FROM ohlcv WHERE ticker=? AND tf=? AND ts < ?")
+_UNDO_POST_SQL = ("UPDATE split_heal_undo AS u SET o2 = x.o, h2 = x.h, l2 = x.l, c2 = x.c, v2 = x.v "
+                  "FROM ohlcv AS x WHERE u.ticker=? AND u.tf=? AND u.healed_at_ms=? "
+                  "AND x.ticker = u.ticker AND x.tf = u.tf AND x.ts = u.ts")
+
+
+def apply_split_basis(ticker: str, plans: dict) -> dict:
+    """THE intraday split heal's write: ONE short transaction PER SERIES of `ticker`.
+
+    `plans` = {tf: {"rev": <series rev the plan was computed at>, "adj_events": <applied
+    [(iso, ratio)] | None = unknown>, "rescale": [(boundary_ts, ratio), ...]}}. Per series,
+    under the write lock (`BEGIN IMMEDIATE`):
+      1. the series must still be at the rev it was planned at (optimistic concurrency: a
+         write that landed after the plan's read may have put rows on another basis, so the
+         plan is void — "raced", nothing written for that series);
+      2. each rescale divides the rows before its boundary (one indexed UPDATE per event;
+         the planner caps the rows one series may touch — `intraday_split_heal._max_rows`);
+      3. `bump_series_revs(history=True)` once when rows were rescaled — `history_rev` moves
+         exactly once, in the same commit as the rows;
+      4. `adj_basis` is stamped, BOUND to the series' history_rev and first row after the
+         write (`adjustment_basis.bind_stamp`).
+    A reader sees the old basis + old stamp or the new basis + new stamp of a series, never a
+    mix; series are independent row sets (one client key each), so the lock is held per
+    series, not for the whole ticker. Returns {"status", "rows", "rows_by_tf", "rescaled",
+    "by_tf": {tf: {"status": "applied"|"raced", "rows", "held_ms"}}}."""
+    from api.services import adjustment_basis as _ab
+    tkr = ticker.upper()
+    plans = {str(tf): p for tf, p in (plans or {}).items()}
+    by_tf = {}
+    for tf, p in plans.items():
+        last_lock_err = None
+        for attempt in range(3):
+            try:
+                t0 = time.perf_counter()
+                with _WRITE_LOCK:
+                    c = _conn()
+                    if c.in_transaction:
+                        c.commit()
+                    c.execute("BEGIN IMMEDIATE")
+                    try:
+                        if int(series_meta(tkr, tf, _conn_override=c)["rev"]) != int(p.get("rev") or 0):
+                            c.rollback()
+                            by_tf[tf] = {"status": "raced", "rows": 0,
+                                         "held_ms": (time.perf_counter() - t0) * 1000.0}
+                            break
+                        rescale = [(int(b), float(r)) for b, r in (p.get("rescale") or ())]
+                        healed_at = None
+                        if rescale:
+                            healed_at = _now_ms()
+                            for ddl in _UNDO_DDL:
+                                c.execute(ddl)
+                            c.execute(_UNDO_PRE_SQL, (healed_at, tkr, tf, max(b for b, _r in rescale)))
+                        n = 0
+                        for boundary, ratio in rescale:
+                            f = float(ratio)
+                            # Every price of the rows BEFORE the boundary / ratio, volume x
+                            # ratio (`bars_sanitize.split_factor` / `scale_bar` semantics).
+                            # Prices are NOT rounded: a 4-decimal round would erase a
+                            # sub-penny name, and the provider's adjusted values are floats.
+                            cur = c.execute(
+                                "UPDATE ohlcv SET o = o / ?, h = h / ?, l = l / ?, c = c / ?, "
+                                "v = CAST(round(v * ?) AS INTEGER) "
+                                "WHERE ticker=? AND tf=? AND ts < ?",
+                                (f, f, f, f, f, tkr, tf, int(boundary)))
+                            n += max(0, cur.rowcount or 0)
+                        if n:
+                            bump_series_revs(c, [(tkr, tf)], history=True)
+                        if healed_at is not None:
+                            c.execute(_UNDO_POST_SQL, (tkr, tf, healed_at))
+                            c.execute("INSERT INTO split_heal_undo_log (ticker, tf, healed_at_ms, rescale, rows, "
+                                      "rev_before, history_rev_after) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                      (tkr, tf, healed_at, json.dumps(rescale), n, int(p.get("rev") or 0),
+                                       series_meta(tkr, tf, _conn_override=c)["history_rev"]))
+                        stamp = None
+                        if p.get("adj_events") is not None:
+                            # D6: the series' OWN history_rev (just moved by this write), never the floored one.
+                            hrev = int((c.execute("SELECT history_rev FROM series_meta WHERE ticker=? AND tf=?",
+                                                  (tkr, tf)).fetchone() or (0,))[0] or 0)
+                            first = c.execute("SELECT MIN(ts) FROM ohlcv WHERE ticker=? AND tf=?",
+                                              (tkr, tf)).fetchone()[0]
+                            stamp = _ab.bind_stamp(p["adj_events"], hrev, first)
+                        try:
+                            c.execute(_ADJ_STAMP_SQL, (tkr, tf, stamp))
+                        except sqlite3.OperationalError as e:
+                            if "adj_basis" not in str(e).lower() and "no column" not in str(e).lower():
+                                raise
+                            _create_meta_tables(c)
+                            c.execute(_ADJ_STAMP_SQL, (tkr, tf, stamp))
+                        c.commit()
+                    except BaseException:
+                        c.rollback()
+                        raise
+                by_tf[tf] = {"status": "applied", "rows": n,
+                             "held_ms": (time.perf_counter() - t0) * 1000.0}
+                if n:
+                    _track(((tkr, tf),))
+                break
+            except sqlite3.OperationalError as e:
+                if "locked" not in str(e).lower():
+                    raise
+                last_lock_err = e
+                time.sleep(0.05 * (attempt + 1))
+        else:
+            raise last_lock_err
+    rows_by_tf = {tf: r["rows"] for tf, r in by_tf.items() if r["rows"]}
+    statuses = {r["status"] for r in by_tf.values()}
+    return {"status": "raced" if "raced" in statuses else "applied",
+            "rows": sum(rows_by_tf.values()), "rows_by_tf": rows_by_tf,
+            "rescaled": sorted(rows_by_tf), "by_tf": by_tf}
+
+
+def list_split_heals(ticker: str, tf: str) -> list[dict]:
+    """The intraday split heals recorded for one series (`split_heal_undo_log`), oldest first."""
+    c = _conn()
+    try:
+        rows = c.execute("SELECT healed_at_ms, rescale, rows, rev_before, history_rev_after, reverted_at_ms, "
+                         "restored, skipped FROM split_heal_undo_log WHERE ticker=? AND tf=? "
+                         "ORDER BY healed_at_ms", (ticker.upper(), str(tf))).fetchall()
+    except sqlite3.OperationalError as e:
+        if "no such table" in str(e).lower():
+            return []
+        raise
+    keys = ("healed_at_ms", "rescale", "rows", "rev_before", "history_rev_after", "reverted_at_ms",
+            "restored", "skipped")
+    return [dict(zip(keys, r)) for r in rows]
+
+
+def undo_split_basis(ticker: str, tf: str, healed_at_ms: int | None = None) -> dict:
+    """REVERT one intraday split heal of one series (default: its newest one not yet reverted).
+
+    ONE transaction. COMPARE-AND-SET per row: a pre-image is restored only where the stored row
+    is still EXACTLY what the heal wrote (o2..v2); a row rewritten or deleted since is left as it
+    is and counted in `skipped` (it is on whatever basis that later write put it). Then
+    history_rev moves once (clients refetch), `adj_basis` is cleared (basis unknown again: the
+    planner re-checks it), and the heal's log row is marked reverted. A later heal of the same
+    series that is not reverted must be undone first ("later-heal-first").
+    ⚠️ Take the series out of INTRADAY_SPLIT_HEAL_ALLOW (or MODE=report) first, or the next serve
+    plans the same rescale again.
+    Returns {"status": "reverted"|"nothing-to-undo"|"unknown-heal"|"already-reverted"|
+    "later-heal-first", "healed_at_ms", "restored", "skipped"}."""
+    tkr, tf = ticker.upper(), str(tf)
+    out = {"status": "nothing-to-undo", "healed_at_ms": healed_at_ms, "restored": 0, "skipped": 0}
+    with _WRITE_LOCK:
+        c = _conn()
+        if c.in_transaction:
+            c.commit()
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            for ddl in _UNDO_DDL:
+                c.execute(ddl)
+            if healed_at_ms is None:
+                healed_at_ms = c.execute(
+                    "SELECT MAX(healed_at_ms) FROM split_heal_undo_log WHERE ticker=? AND tf=? "
+                    "AND reverted_at_ms IS NULL", (tkr, tf)).fetchone()[0]
+                if healed_at_ms is None:
+                    c.rollback()
+                    return out
+            out["healed_at_ms"] = int(healed_at_ms)
+            log = c.execute("SELECT reverted_at_ms FROM split_heal_undo_log WHERE ticker=? AND tf=? "
+                            "AND healed_at_ms=?", (tkr, tf, int(healed_at_ms))).fetchone()
+            later = c.execute("SELECT COUNT(*) FROM split_heal_undo_log WHERE ticker=? AND tf=? "
+                              "AND healed_at_ms > ? AND reverted_at_ms IS NULL",
+                              (tkr, tf, int(healed_at_ms))).fetchone()[0]
+            why = ("unknown-heal" if log is None else "already-reverted" if log[0] is not None
+                   else "later-heal-first" if later else None)
+            if why:
+                c.rollback()
+                out["status"] = why
+                return out
+            total = c.execute("SELECT COUNT(*) FROM split_heal_undo WHERE ticker=? AND tf=? AND healed_at_ms=?",
+                              (tkr, tf, int(healed_at_ms))).fetchone()[0]
+            cur = c.execute(
+                "UPDATE ohlcv AS x SET o = u.o, h = u.h, l = u.l, c = u.c, v = u.v "
+                "FROM split_heal_undo AS u WHERE u.ticker=? AND u.tf=? AND u.healed_at_ms=? "
+                "AND x.ticker = u.ticker AND x.tf = u.tf AND x.ts = u.ts "
+                "AND x.o IS u.o2 AND x.h IS u.h2 AND x.l IS u.l2 AND x.c IS u.c2 AND x.v IS u.v2",
+                (tkr, tf, int(healed_at_ms)))
+            restored = max(0, cur.rowcount or 0)
+            if restored:
+                bump_series_revs(c, [(tkr, tf)], history=True)
+            c.execute(_ADJ_STAMP_SQL, (tkr, tf, None))
+            c.execute("UPDATE split_heal_undo_log SET reverted_at_ms=?, restored=?, skipped=? "
+                      "WHERE ticker=? AND tf=? AND healed_at_ms=?",
+                      (_now_ms(), restored, total - restored, tkr, tf, int(healed_at_ms)))
+            c.commit()
+        except BaseException:
+            c.rollback()
+            raise
+    if restored:
+        _track(((tkr, tf),))
+    out.update(status="reverted", restored=restored, skipped=total - restored)
+    return out
+
+
+#: One-time marker: set once a full sweep finds no old-grid 60m ticker. After
+#: it, boot/snapshot passes skip the per-ticker probe entirely (snapshot merges
+#: reject old-grid 60m rows at the door — data_sync._merge_pair).
+SIXTY_GRID_CLEAN_MARKER = "sixty_min_grid_tv_2026_11_10_clean"
+#: Tickers rebuilt per sweep pass (local 15m/30m resample, no provider call).
+#: The rest are rebuilt lazily on serve, or by the next pass.
+SIXTY_GRID_REBUILDS_PER_PASS = int(os.environ.get("BARS_SIXTY_GRID_REBUILDS_PER_PASS", "400"))
+
+
+def _sixty_grid_clean(c: sqlite3.Connection) -> bool:
+    try:
+        return c.execute("SELECT 1 FROM _migrations WHERE name=?",
+                         (SIXTY_GRID_CLEAN_MARKER,)).fetchone() is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+#: Set once a boot pass has scanned EVERY ticker's full daily history for off-calendar
+#: keys (`purge_off_calendar_daily`). After it, each pass scans only the last
+#: `OFF_CALENDAR_RECENT_DAYS` — the write door and the serve guard stop new bad rows,
+#: so the full scan (tens of millions of D rows, and the R2 uploader waits on this
+#: pass) is a one-time cost. It lives IN bars.db, so a restored snapshot that never
+#: had the full pass carries no marker and gets one.
+OFF_CALENDAR_CLEAN_MARKER = "daily_off_calendar_2026_11_11_clean"
+OFF_CALENDAR_RECENT_DAYS = 30
+
+
+def _marker_set(c: sqlite3.Connection, name: str) -> bool:
+    try:
+        return c.execute("SELECT 1 FROM _migrations WHERE name=?", (name,)).fetchone() is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _set_marker(c: sqlite3.Connection, name: str) -> None:
+    try:
+        with _WRITE_LOCK:
+            c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
+            c.execute("INSERT OR IGNORE INTO _migrations(name, applied_at) VALUES (?, ?)",
+                      (name, int(time.time())))
+            c.commit()
+    except Exception as e:  # noqa: BLE001
+        _logger.warning(f"[sqlite] marker {name} not written (non-fatal): {e}")
+
+
+def _mark_sixty_grid_clean(c: sqlite3.Connection) -> None:
+    try:
+        with _WRITE_LOCK:
+            c.execute("CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at INTEGER)")
+            c.execute("INSERT OR IGNORE INTO _migrations(name, applied_at) VALUES (?, ?)",
+                      (SIXTY_GRID_CLEAN_MARKER, int(time.time())))
+            c.commit()
+    except Exception as e:  # noqa: BLE001
+        _logger.warning(f"[sqlite] 60m grid clean marker not written (non-fatal): {e}")
 
 
 def purge_mis_keyed_weekly_rows() -> int:
@@ -491,52 +1774,186 @@ def purge_mis_keyed_weekly_rows() -> int:
     IN (...)` full-scans the ~58M-row table PER CHUNK. The first deploy of
     this purge did exactly that while holding _WRITE_LOCK at worker boot,
     blocked the healthcheck past its 600s budget, and FAILED the deploy.
-    This version deletes per-ticker (PK-prefixed → indexed) and takes the
-    write lock per-ticker so the prewarmer is never starved. Callers on a
-    boot path MUST use purge_mis_keyed_weekly_rows_async().
+    This version reads and deletes per-ticker (PK-prefixed → indexed) and
+    takes the write lock only for a ticker with something to delete, so the
+    prewarmer is never starved. Callers on a boot path MUST use
+    purge_mis_keyed_weekly_rows_async().
+
+    2026-11-09: discovery was still one `WHERE tf='W'` table scan. It took 35
+    minutes on the worker, and the R2 uploader waits for this purge, so
+    frequent deploys kept the uploader from ever running.
 
     Returns rows deleted.
     """
-    import datetime as _dt
+    from api.services import date_bar_keys as _dk
+
+    def _is_bad(ts: int) -> bool:
+        return not _dk.key_ok("W", ts)  # the ISO-week-Friday rule — `date_bar_keys`
 
     c = _conn()
-    # One pass to collect distinct weekly keys. Unavoidable scan (tf is not
-    # a leading index column), but it's a single read pass with no lock held.
-    rows = c.execute("SELECT DISTINCT ts FROM ohlcv WHERE tf='W'").fetchall()
-    bad: list[int] = []
-    for (ts,) in rows:
-        s = str(ts)
-        if len(s) != 8:
-            bad.append(ts)  # not a YYYYMMDD key — malformed for a date TF
-            continue
-        try:
-            d = _dt.date(int(s[:4]), int(s[4:6]), int(s[6:]))
-        except ValueError:
-            bad.append(ts)
-            continue
-        if d.weekday() != 4:  # 4 = Friday
-            bad.append(ts)
-    if not bad:
-        return 0
-    # Tickers that hold weekly rows — DISTINCT ticker walks the PK index.
-    tickers = [t for (t,) in c.execute(
-        "SELECT DISTINCT ticker FROM ohlcv WHERE tf='W'"
-    ).fetchall()]
     deleted = 0
-    for tkr in tickers:
-        with _WRITE_LOCK:
-            for i in range(0, len(bad), 500):
-                chunk = bad[i:i + 500]
-                qs = ",".join("?" for _ in chunk)
-                cur = c.execute(
-                    f"DELETE FROM ohlcv WHERE ticker=? AND tf='W' AND ts IN ({qs})",
-                    [tkr, *chunk],
-                )
-                deleted += cur.rowcount
-            c.commit()
+    off_calendar = 0
+    # Full daily history once (until the marker), then a bounded recent window.
+    off_full = not _marker_set(c, OFF_CALENDAR_CLEAN_MARKER)
+    off_since = None if off_full else _off_calendar_window_start()
+    off_errors = 0
+    # ⭐ Same pass, same PK-prefixed seeks: a ticker still carrying the
+    # pre-2026-11-10 clock-hour 60m layout is REBUILT in place from its own stored
+    # 15m/30m rows (bars_fetch.rebuild_sixty_min_grid — local, no provider call),
+    # bounded per pass. Skipped entirely once a pass has found none (marker).
+    sixty_probe = not _sixty_grid_clean(c)
+    sixty_old = sixty_rebuilt = 0
+    for tkr in iter_tickers(c):
+        # ⚡ One ticker per lane turn on the web pod (api/services/bg_lane.py): after the boot
+        # settles, one item of background sweep work at a time, at a bounded share of the clock.
+        # A pass-through in every other process (the worker's SYNC purge is never paced).
+        with _bg_lane.turn("weekly-key-purge"):
+            if sixty_probe:
+                try:
+                    if ticker_has_old_grid_60m(c, tkr):
+                        sixty_old += 1
+                        if sixty_rebuilt < SIXTY_GRID_REBUILDS_PER_PASS:
+                            from api.services.bars_fetch import rebuild_sixty_min_grid
+                            rebuild_sixty_min_grid(tkr)
+                            sixty_rebuilt += 1
+                except Exception as e:  # noqa: BLE001 — never let the 60m check stop the weekly purge
+                    _logger.warning(f"[sqlite] 60m grid rebuild {tkr} failed (non-fatal): {e}")
+            # Same pass, same PK-prefixed seek: daily rows on a non-trading day (+ the
+            # weeks/months they were summed into). Runs before the W scan below so a W row
+            # it rewrites is judged by that scan like any other.
+            try:
+                off_calendar += purge_off_calendar_daily(tkr, c, since_ymd=off_since)
+            except Exception as e:  # noqa: BLE001 — never let it stop the weekly purge
+                off_errors += 1
+                _logger.warning(f"[sqlite] off-calendar daily purge {tkr} failed (non-fatal): {e}")
+            bad = [
+                ts for (ts,) in c.execute(
+                    "SELECT ts FROM ohlcv WHERE ticker=? AND tf='W'", (tkr,)
+                ).fetchall()
+                if _is_bad(ts)
+            ]
+            if not bad:
+                continue
+            with _WRITE_LOCK:
+                for i in range(0, len(bad), 500):
+                    chunk = bad[i:i + 500]
+                    qs = ",".join("?" for _ in chunk)
+                    cur = c.execute(
+                        f"DELETE FROM ohlcv WHERE ticker=? AND tf='W' AND ts IN ({qs})",
+                        [tkr, *chunk],
+                    )
+                    deleted += cur.rowcount
+                bump_series_revs(c, [(tkr, "W")], deleted=True, deleted_from=min(bad))
+                c.commit()
+    if sixty_probe:
+        _logger.info(f"[sqlite] 60m grid: {sixty_old} old-layout ticker(s), {sixty_rebuilt} rebuilt this pass")
+        if sixty_old == 0:
+            _mark_sixty_grid_clean(c)
     if deleted:
         _logger.info(f"[sqlite] purge_mis_keyed_weekly_rows: deleted {deleted} stale weekly rows")
+    if off_calendar:
+        _logger.warning(f"[sqlite] purge_off_calendar_daily: deleted {off_calendar} non-trading-day daily rows")
+    if off_full and not off_errors:
+        _set_marker(c, OFF_CALENDAR_CLEAN_MARKER)
     return deleted
+
+
+def _off_calendar_window_start() -> int:
+    """YYYYMMDD of the bounded per-boot scan's lower edge (ET date − N days)."""
+    import datetime as _dt
+    from zoneinfo import ZoneInfo
+    d = _dt.datetime.now(ZoneInfo("America/New_York")).date() - _dt.timedelta(days=OFF_CALENDAR_RECENT_DAYS)
+    return int(d.strftime("%Y%m%d"))
+
+
+def _off_calendar_candidate_sql() -> tuple[str, list]:
+    """A SQL PRE-FILTER (superset) for D keys that are not NYSE trading days:
+    Saturday/Sunday, a calendar holiday, or not a real date. Every candidate is
+    re-judged by `date_bar_keys.key_ok` — the SQL never decides a deletion alone
+    (same discipline as `_IMPOSSIBLE_CANDIDATE_SQL`). Spelled in SQL so the scan of
+    a ticker's daily rows stays in C instead of one Python call per row."""
+    from api.services import session_calendar as _sc
+    hol = sorted(int(d.strftime("%Y%m%d")) for d in _sc.calendar().holidays)
+    iso = "printf('%04d-%02d-%02d', ts / 10000, (ts / 100) % 100, ts % 100)"
+    sql = (f"(date({iso}) IS NULL OR date({iso}) != {iso} "
+           f"OR strftime('%w', {iso}) IN ('0','6')"
+           + (f" OR ts IN ({','.join('?' for _ in hol)})" if hol else "") + ")")
+    return sql, hol
+
+
+def purge_off_calendar_daily(ticker: str, c: sqlite3.Connection | None = None,
+                             since_ymd: int | None = None) -> int:
+    """Delete ``ticker``'s daily rows keyed on a non-trading day, then rebuild the
+    stored W / M rows those days were summed into from the remaining daily rows.
+
+    Idempotent (a second run finds nothing) and bounded (one PK-prefixed read per
+    ticker; writes only for a ticker that has a bad row). A W/M row is rebuilt only
+    when the store holds the period's daily rows from its start — otherwise it is
+    left as it is rather than replaced by a partial period. ``since_ymd`` bounds the
+    scan to keys at/after it (the per-boot window once the full pass has run; see
+    `OFF_CALENDAR_CLEAN_MARKER`); None scans the whole history. Returns D rows deleted.
+    Rule: `date_bar_keys`. The write gate (`_writable_bars`) stops new ones."""
+    from api.services import date_bar_keys as _dk
+    tkr = ticker.upper()
+    if not _dk.calendar_applies(tkr):
+        return 0
+    c = c or _conn()
+    pred, params = _off_calendar_candidate_sql()
+    lo = "" if since_ymd is None else " AND ts>=?"
+    cand = [ts for (ts,) in c.execute(
+        f"SELECT ts FROM ohlcv WHERE ticker=? AND tf='D'{lo} AND {pred}",
+        [tkr, *([] if since_ymd is None else [int(since_ymd)]), *params]).fetchall()]
+    bad = [ts for ts in cand if not _dk.key_ok("D", ts)]
+    if not bad:
+        return 0
+    with _WRITE_LOCK:
+        qs = ",".join("?" for _ in bad)
+        cur = c.execute(f"DELETE FROM ohlcv WHERE ticker=? AND tf='D' AND ts IN ({qs})", [tkr, *bad])
+        if cur.rowcount:
+            bump_series_revs(c, [(tkr, "D")], deleted=True, deleted_from=min(bad))
+        c.commit()
+    n = cur.rowcount
+    _logger.warning("[sqlite] %s: deleted %d non-trading-day daily row(s): %s", tkr, n, bad[:5])
+    _rebuild_periods_from_daily(tkr, bad, c)
+    return n
+
+
+def _rebuild_periods_from_daily(tkr: str, bad_ts: list[int], c: sqlite3.Connection) -> None:
+    """Recompute the stored W and M rows covering ``bad_ts`` from stored D rows,
+    with the one W/M resampler (`bars_fetch._resample_*_iso`)."""
+    import datetime as _dt
+    from api.services import date_bar_keys as _dk
+    from api.services.bars_fetch import _resample_monthly_iso, _resample_weekly_iso
+
+    def ymd(x) -> int:
+        return int(x.strftime("%Y%m%d"))
+
+    first_d = get_first_ts(tkr, "D")
+    periods = set()
+    for ts in bad_ts:
+        d = _dk.key_date(ts)
+        if d is None:
+            continue
+        mon = d - _dt.timedelta(days=d.weekday())
+        periods.add(("W", mon, mon + _dt.timedelta(days=6), mon + _dt.timedelta(days=4)))
+        m1 = d.replace(day=1)
+        nxt = (m1 + _dt.timedelta(days=32)).replace(day=1)
+        periods.add(("M", m1, nxt - _dt.timedelta(days=1), m1))
+    for tf, start, end, key in sorted(periods):
+        if not first_d or first_d > ymd(start):
+            continue  # the store's daily history does not reach the period start
+        if not c.execute("SELECT 1 FROM ohlcv WHERE ticker=? AND tf=? AND ts=?",
+                         (tkr, tf, ymd(key))).fetchone():
+            continue  # no stored row to correct
+        rows = c.execute("SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf='D' AND ts>=? AND ts<=? "
+                         "ORDER BY ts", (tkr, ymd(start), ymd(end))).fetchall()
+        daily = [{"t": f"{str(r[0])[:4]}-{str(r[0])[4:6]}-{str(r[0])[6:]}", "o": r[1], "h": r[2],
+                  "l": r[3], "c": r[4], "v": r[5]} for r in rows if None not in r[1:5]]
+        if not daily:
+            continue
+        built = (_resample_weekly_iso if tf == "W" else _resample_monthly_iso)(daily, ticker=tkr)
+        if built:
+            put_bars(tkr, tf, built[-1:], date_tf=True)
 
 
 _purge_weekly_thread_lock = threading.Lock()
@@ -643,6 +2060,11 @@ def purge_impossible_bars(tf: str | None = None, *, apply: bool = False,
         c = _conn()
         c.executemany("DELETE FROM ohlcv WHERE ticker=? AND tf=? AND ts=?",
                       [(r["ticker"], r["tf"], r["ts"]) for r in found])
+        _oldest: dict = {}
+        for r in found:
+            k = (r["ticker"], r["tf"])
+            _oldest[k] = min(_oldest.get(k, r["ts"]), r["ts"])
+        bump_series_revs(c, list(_oldest), deleted=True, deleted_from=_oldest)
         c.commit()
     summary["deleted"] = len(found)
     _logger.warning("[sqlite] purged %d impossible bars: %s",
@@ -682,38 +2104,355 @@ def get_count(ticker: str, tf: str) -> int:
     return row[0] if row else 0
 
 
-def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
-    """Return up to max_bars rows as (ts, o, h, l, c, v), oldest-first."""
-    return _conn().execute(
-        """SELECT ts,o,h,l,c,v FROM (
+_ROWS_SQL = """SELECT ts,o,h,l,c,v FROM (
                SELECT ts,o,h,l,c,v FROM ohlcv
                WHERE ticker=? AND tf=?
                ORDER BY ts DESC LIMIT ?
-           ) ORDER BY ts ASC""",
-        (ticker.upper(), tf, max_bars),
-    ).fetchall()
+           ) ORDER BY ts ASC"""
+
+
+def _get_bars_rows(ticker: str, tf: str, max_bars: int) -> list[tuple]:
+    """Up to max_bars rows as (ts, o, h, l, c, v), oldest-first, ONE `sqlite3_step` PER ROW.
+
+    The fastest read there is while nothing else in the process runs Python, and the slowest
+    while something does (see "THE SAME ROWS IN A FEW STEPS" below). `get_bars` is the reader
+    to call; this is the one it starts with and the one every other read is held equal to."""
+    return _conn().execute(_ROWS_SQL, (ticker.upper(), tf, max_bars)).fetchall()
+
+
+# ── THE STORE'S READER NOTICES A CONVOY AND LEAVES IT ────────────────────────
+#
+# ⚰️ MEASURED ON PRODUCTION 2026-11-13 (the web pod's own thread report, sampled 60 times in
+# 25 s): on average TWELVE threads were inside the row reader at once (the gainers scan, the
+# theme index, background refreshes, the bars API itself) and four more queued to write. Each
+# of them gives the GIL up and takes it back once per row, so each waits on all the others,
+# once per row. A member's `/api/bars` for a symbol not in memory read its 5,000 rows that
+# way: 1 to 7 s in those stretches. On a desk with the pod's own switch interval, beside
+# eight busy threads: 1,390 to 1,606 ms row by row, 65 ms in chunks (below).
+#
+# The cure for one lane (the RS columns, the split label) was to read in one step,
+# unconditionally. That is the wrong default for EVERY reader:
+#   * alone, the row reader is the fastest (4.8 ms for 5,000 rows against 18.8 ms);
+#   * the one-step read parses one long string with the GIL held, and eight background jobs
+#     doing that back to back made a bystander's small request wait 30 to 46 ms (p90 to p99).
+#     Row by row it waited 2 ms.
+#
+# So `get_bars` reads rows and WATCHES them. sqlite does the whole query in the first step;
+# every later step only hands a row over, which takes about a microsecond unless somebody
+# else holds the GIL. A batch of `_WATCH_ROWS` rows that takes longer than `_WATCH_BUDGET_S`
+# is a convoy: the read stops and starts over in chunks (`get_bars_packed`, `_PACK_CHUNK_ROWS`
+# rows a step: about ten handoffs for 5,000 rows, and no parse long enough to hold anybody up.
+# Bystander beside eight chunked readers: p99 7 ms). The rows are the same either way, bit
+# for bit: only the time differs.
+#
+# ⚰️ AND THE WATCH ITSELF MUST NOT WAIT IN THE CONVOY IT IS LOOKING FOR. Measured on
+# production the night this shipped (the `get_bars` stage of `/api/bars`' own Server-Timing,
+# 183 reads after against 2,665 before): p99 1,229 -> 109 ms and no read over a second (31
+# before), but ONE read of 600 rows still took 739 ms. That was the first watched batch: 128
+# rows handed over at 5 ms each, timed only once all 128 had arrived. So the first two
+# watched batches are small (`_WATCH_FIRST`): eight rows at that pace is 44 ms, and eight
+# rows that take over the budget are stronger evidence of a convoy than 128 that do. After
+# them the batch is `_WATCH_ROWS`, so an uncontended read still makes few calls.
+#
+# Knob: `BARS_PACKED_READS` (docs/feature_flags.json). `0` reads row by row always.
+_WATCH_ROWS = 128
+_WATCH_FIRST = (8, 32)
+_WATCH_BUDGET_S = 0.002
+
+
+def _packed_default_on() -> bool:
+    return os.environ.get("BARS_PACKED_READS", "1").strip() != "0"
+
+
+def _rows_while_fast(cur, clock=time.perf_counter) -> list[tuple] | None:
+    """Every row of `cur`, or None the moment a FULL watched batch runs over
+    `_WATCH_BUDGET_S`. The first row is not timed (it carries the query's own work); the
+    watched batches are `_WATCH_FIRST` in turn, then `_WATCH_ROWS` each."""
+    out = cur.fetchmany(1)
+    if not out:
+        return out
+    step = 0
+    while True:
+        size = _WATCH_FIRST[step] if step < len(_WATCH_FIRST) else _WATCH_ROWS
+        step += 1
+        t0 = clock()
+        batch = cur.fetchmany(size)
+        if not batch:
+            return out
+        out.extend(batch)
+        if len(batch) == size and clock() - t0 > _WATCH_BUDGET_S:
+            return None
+
+
+def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
+    """Return up to max_bars rows as (ts, o, h, l, c, v), oldest-first.
+
+    Row by row while the rows come at once; in chunks from the moment they do not (the block
+    above). The answer is the row reader's, value for value, whichever way it was read. D/W/M rows then pass the store's read door (`_door`: the published corrections
+    ledger, unless the caller is inside `bars_corrections.raw_reads()`)."""
+    if not _packed_default_on():
+        return _door(ticker, tf, _get_bars_rows(ticker, tf, max_bars))
+    cur = _conn().execute(_ROWS_SQL, (ticker.upper(), tf, max_bars))
+    try:
+        rows = _rows_while_fast(cur)
+    except AttributeError:                    # a stand-in connection without `fetchmany`: its rows, its way
+        return _door(ticker, tf, cur.fetchall())
+    if rows is not None:
+        return _door(ticker, tf, rows)
+    try:
+        cur.close()
+    except Exception:                         # noqa: BLE001 — nothing depends on the abandoned cursor
+        pass
+    packed = get_bars_packed(ticker, tf, max_bars)          # already through the door
+    return packed if packed is not None else _door(ticker, tf, _get_bars_rows(ticker, tf, max_bars))
+
+
+def _door(ticker: str, tf: str, rows):
+    """⭐ THE STORE'S READ DOOR for D/W/M rows: the published corrections ledger (`bars_corrections.apply_rows`,
+    compare-and-set, the ONE applier the serve path also runs), so every reader of the store API -- the chart, RS
+    Rating, the screener, the alert evaluator -- reads one authority. A read-modify-write caller (split repair, the
+    audits) reads inside `bars_corrections.raw_reads()` and gets the rows exactly as stored, so a correction is never
+    written into a row. Never raises; intraday rows pass untouched."""
+    if not rows or tf not in ("D", "W", "M"):
+        return rows
+    try:
+        from api.services import bars_corrections as _cor
+        return _cor.apply_rows(ticker, tf, rows)
+    except Exception:  # noqa: BLE001 — the stored rows still read
+        return rows
+
+
+#: The store's own reader, by identity. A caller that goes around it to the packed read does
+#: so only while `get_bars` IS this function: a test (or a host) that swaps the reader keeps
+#: every row it serves on the reader it swapped in. (The name is from when the store's reader
+#: read rows and nothing else.)
+ROW_READER = get_bars
+
+# ── THE SAME ROWS IN A FEW STEPS ─────────────────────────────────────────────
+#
+# (Read "one step" below as "one step per `_PACK_CHUNK_ROWS` rows": since 2026-11-13 the
+# aggregate is grouped, so that no single string is long enough for its parse to hold the GIL
+# against a bystander. sqlite still does the whole walk in the first step.)
+#
+# ⚰️ WHY (measured on production 2026-11-12/13). `get_bars` hands rows to Python one
+# `sqlite3_step` at a time, and CPython's sqlite3 releases the GIL around every step. A
+# thread that has released the GIL waits a full switch interval to get it back whenever
+# another thread is running Python, so on the web pod (dozens of live threads) a read costs
+# about one interval PER ROW: Server-Timing `rs-bars` 0.9 to 3.4 s for a ~5,000-bar daily
+# series whose rows sqlite finds in a few ms, and, with a member scanning a list fast,
+# 44 such requests at once took a median 37 s each (the pod's own request log). The
+# switch interval was already cut from 5 ms to 0.5 ms (`api/services/gil_tuning.py`); the
+# number of handoffs is what is left.
+#
+# So the rows are aggregated INSIDE sqlite and come back as ONE result row: one step, one
+# handoff, however many bars. sqlite does the whole walk with the GIL released; Python then
+# parses one string.
+#
+# ⛔ AND THE VALUES ARE BIT-FOR-BIT THE ROW READER'S, not "close". sqlite renders a REAL
+# into JSON with 15 significant digits, which does not round-trip a double (a split-adjusted
+# price needs 17). No float is ever rendered here: each price is split, in sqlite, into
+# three INTEGERS
+#
+#     a = trunc(x)        b = trunc((x - a) * 2^52)        c = ((x - a) * 2^52 - b) * 2^52
+#
+# and rebuilt in Python as `a + (b + c * 2^-52) * 2^-52`. Every operation is a subtraction
+# of an integer part or a multiplication by a power of two, which binary floating point
+# does without rounding, so the rebuilt double IS the stored one for every |x| < 2^53 whose
+# lowest bit is at or above 2^-104 (any price). The statement checks that itself, per row
+# (`c` must come out a whole number, the value must be a REAL below 2^53, the volume an
+# INTEGER); if one row fails, or this sqlite has no JSON functions, the answer is None and
+# the caller reads the rows the old way. (-0.0 comes back as 0.0: equal, and not a price.)
+_PACK_SCALE = 1 << 52
+_PACK_INV = 2.0 ** -52
+_PACK_PRICES = ("o", "h", "l", "c")
+
+
+def _packed_sql() -> str:
+    scale, limit = str(_PACK_SCALE), str(1 << 53)
+    whole = ", ".join(f"CAST({x} AS INTEGER) AS {x}_a" for x in _PACK_PRICES)
+    frac = ", ".join(f"({x} - {x}_a) * {scale} AS {x}_p" for x in _PACK_PRICES)
+    mid = ", ".join(f"CAST({x}_p AS INTEGER) AS {x}_b" for x in _PACK_PRICES)
+    rest = ", ".join(f"({x}_p - {x}_b) * {scale} AS {x}_q" for x in _PACK_PRICES)
+    cells = ", ".join(f"{x}_a, {x}_b, CAST({x}_q AS INTEGER)" for x in _PACK_PRICES)
+    exact = " AND ".join(
+        f"({x} IS NULL OR (typeof({x}) = 'real' AND abs({x}) < {limit} AND {x}_q = CAST({x}_q AS INTEGER)))"
+        for x in _PACK_PRICES)
+    # Parameters: (rows per chunk, ticker, tf, max_bars). One result row per chunk.
+    return (
+        f"SELECT json_group_array(json_array(ts, {cells}, v)),"
+        f" min(({exact}) AND typeof(v) IN ('integer', 'null')), count(*) "
+        f"FROM (SELECT *, {rest} FROM (SELECT *, {mid} FROM (SELECT *, {frac} FROM ("
+        f"SELECT ts, o, h, l, c, v, {whole}, (row_number() OVER (ORDER BY ts DESC) - 1) / ? AS g FROM ("
+        "SELECT ts, o, h, l, c, v FROM ohlcv WHERE ticker=? AND tf=? ORDER BY ts DESC LIMIT ?))))) GROUP BY g"
+    )
+
+
+_PACKED_SQL = _packed_sql()
+#: Rows per result row of the packed read. Parsing one chunk holds the GIL for well under a
+#: millisecond; one string for a whole 5,000-bar series held it for several.
+_PACK_CHUNK_ROWS = 512
+
+
+def _packed_ts(row: tuple) -> int:
+    return row[0]
+
+
+def _unpack(results) -> list[tuple] | None:
+    """The packed statement's result rows (one per chunk; a cursor is read as it goes, so the
+    GIL changes hands between chunks), as `get_bars`' tuples. None: not exact."""
+    inv = _PACK_INV
+    out = []
+    for text, exact, count in results:
+        if not count:
+            continue
+        if exact != 1:
+            return None
+        for ts, oa, ob, oc, ha, hb, hc, la, lb, lc, ca, cb, cc, v in json.loads(text):
+            out.append((ts,
+                        None if oa is None else oa + (ob + oc * inv) * inv,
+                        None if ha is None else ha + (hb + hc * inv) * inv,
+                        None if la is None else la + (lb + lc * inv) * inv,
+                        None if ca is None else ca + (cb + cc * inv) * inv,
+                        v))
+    out.sort(key=_packed_ts)        # neither the groups nor an aggregate's input come in a promised order
+    return out
+
+
+# ⛔ PROVEN ON THE SQLITE THIS PROCESS RUNS, BEFORE THE FIRST ANSWER. The arithmetic above is
+# exact by the rules of binary floating point, and the suite holds it bit for bit, but the
+# suite ran on the sqlite of the machine that ran it: production is `python:3.12-slim-bookworm`
+# (sqlite 3.40), a laptop is not, and CI does not run that file on that image. So the first
+# call in every process pushes a fixed set of doubles (values that do not survive 15 digits,
+# sub-dollar and very large ones, negatives, and 256 with every mantissa bit in play)
+# through the SAME statement on an in-memory database and compares them with the row read by
+# their 64 bits. Anything but a perfect match, or any error, turns the one-step read OFF for
+# the life of the process (every read is then row by row) and says so in the log, once.
+_packed_proof: bool | None = None
+_packed_proof_lock = threading.Lock()
+
+
+def _proof_values() -> list:
+    vals = [0.1 + 0.2, 1 / 3, 2 / 3, 123456.78901234567, 1.0000000000000002, 0.9999999999999999,
+            33.333333333333336, 4503599627370495.5, 9007199254740991.0, 2.0 ** -20, 5e-10, -17.25, -0.1,
+            0.0, 1.0, 1e15 + 0.125, 0.0007, 32.78, 711000.0]
+    state = 0x9E3779B97F4A7C15
+    for _ in range(256):
+        state = (state * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+        exponent = 1023 - 30 + (state & 0xFFF) % 70             # 2^-30 .. 2^39: what a price can be
+        vals.append(struct.unpack("<d", struct.pack("<Q", (exponent << 52) | (state >> 12)))[0])
+    return vals
+
+
+def _same_bits(a, b) -> bool:
+    if a is None or b is None:
+        return a is b
+    return struct.pack("<d", a) == struct.pack("<d", b)
+
+
+#: The proof reads its ~275 values in chunks this small, so it crosses chunk edges as a real read does.
+_PROOF_CHUNK_ROWS = 16
+
+
+def _packed_self_test() -> bool:
+    """True when this sqlite reproduces `_proof_values` bit for bit through `_PACKED_SQL`."""
+    try:
+        mem = sqlite3.connect(":memory:")
+        try:
+            mem.execute(ohlcv_ddl())
+            rows = [("T", "D", i, x, x / 3, x * 0.7, x / 2 + 0.1, i) for i, x in enumerate(_proof_values())]
+            mem.executemany("INSERT INTO ohlcv(ticker, tf, ts, o, h, l, c, v) VALUES (?,?,?,?,?,?,?,?)", rows)
+            want = mem.execute("SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker='T' AND tf='D' ORDER BY ts").fetchall()
+            got = _unpack(mem.execute(_PACKED_SQL, (_PROOF_CHUNK_ROWS, "T", "D", len(rows))))
+        finally:
+            mem.close()
+    except Exception:                                     # noqa: BLE001 — any failure is "not proven"
+        return False
+    return (got is not None and len(got) == len(want) == len(rows)
+            and all(g[0] == w[0] and g[5] == w[5] and all(_same_bits(x, y) for x, y in zip(g[1:5], w[1:5]))
+                    for g, w in zip(got, want)))
+
+
+def packed_reads_proven() -> bool:
+    """Has this process proven the one-step read exact on its own sqlite? (Run once, remembered.)"""
+    global _packed_proof
+    if _packed_proof is None:
+        with _packed_proof_lock:
+            if _packed_proof is None:
+                ok = _packed_self_test()
+                if ok:
+                    _logger.info("[bars] one-step reads ON: sqlite %s reproduced the proof set bit for bit",
+                                 sqlite3.sqlite_version)
+                else:
+                    _logger.error("[bars] one-step reads OFF for this process: sqlite %s did not reproduce the "
+                                  "proof set; every read is row by row", sqlite3.sqlite_version)
+                _packed_proof = ok
+    return _packed_proof
+
+
+def get_bars_packed(ticker: str, tf: str, max_bars: int) -> list[tuple] | None:
+    """`get_bars(ticker, tf, max_bars)`, read in ONE sqlite step (see above): the same
+    tuples, oldest first, every value equal to the row reader's. ``None`` means "this read
+    cannot be made exactly in one step" (this sqlite did not pass the proof, a value outside
+    the proven range, a fractional volume, a sqlite without JSON functions): read the rows
+    with `get_bars` instead. A database error other than a missing JSON function is the row
+    reader's to raise."""
+    rows = _packed_rows(ticker, tf, max_bars)
+    return None if rows is None else _door(ticker, tf, rows)
+
+
+def _packed_rows(ticker: str, tf: str, max_bars: int) -> list[tuple] | None:
+    """`get_bars_packed` before the read door (the rows exactly as stored)."""
+    if not packed_reads_proven():
+        return None
+    try:
+        return _unpack(_conn().execute(_PACKED_SQL, (_PACK_CHUNK_ROWS, ticker.upper(), tf, max_bars)))
+    except sqlite3.OperationalError:
+        return None
+
+
+def get_bars_fast(ticker: str, tf: str, max_bars: int) -> list[tuple]:
+    """`get_bars(ticker, tf, max_bars)`: the same rows, read in ONE sqlite step when that
+    is exact (`get_bars_packed`), row by row otherwise.
+
+    ⚡ 2026-11-13. For a request-path caller that reads a few hundred to a few thousand rows
+    on the busy web pod. Measured on production: `/api/adjustment-basis/{ticker}` (the chart
+    header's split label, 400 daily rows) answered in 3.2 s at the median while a member
+    scanned a list, because a row-by-row read waits about one thread switch interval per
+    row whenever another thread runs Python (the same cause, and the same cure, as the RS
+    lane's `signature._lane_rows`).
+
+    ⛔ ONLY WHILE THE STORE'S READER IS ITS OWN. A reader somebody swapped in (a test's, a
+    host's) serves every row itself: the one-step read would go around it to the database.
+    `RS_PACKED_READS=0` turns the one-step read off here too (docs/feature_flags.json, knobs)."""
+    if get_bars is not ROW_READER:
+        return get_bars(ticker, tf, max_bars)
+    if os.environ.get("RS_PACKED_READS", "1").strip() != "0":
+        rows = get_bars_packed(ticker, tf, max_bars)         # already through the door
+        if rows is not None:
+            return rows
+    return _door(ticker, tf, _get_bars_rows(ticker, tf, max_bars))
 
 
 def get_bars_before(ticker: str, tf: str, max_bars: int, to_key: int) -> list[tuple]:
     """Up to max_bars rows with ts <= to_key, oldest-first — the pre-cutoff window used
     by replay mode. Uses the (ticker, tf, ts DESC) index, so it's a fast index seek even
-    for a deep window. (ts is YYYYMMDD for D/W/M, unix seconds for intraday.)"""
-    return _conn().execute(
+    for a deep window. (ts is YYYYMMDD for D/W/M, unix seconds for intraday.) D/W/M rows pass the read door."""
+    return _door(ticker, tf, _conn().execute(
         """SELECT ts,o,h,l,c,v FROM (
                SELECT ts,o,h,l,c,v FROM ohlcv
                WHERE ticker=? AND tf=? AND ts<=?
                ORDER BY ts DESC LIMIT ?
            ) ORDER BY ts ASC""",
         (ticker.upper(), tf, int(to_key), max_bars),
-    ).fetchall()
+    ).fetchall())
 
 
 def get_bars_since(ticker: str, tf: str, since_ts: int) -> list[tuple]:
-    """Return bars with ts > since_ts, oldest-first (for browser delta sync)."""
-    return _conn().execute(
+    """Return bars with ts > since_ts, oldest-first (for browser delta sync). D/W/M rows pass the read door."""
+    return _door(ticker, tf, _conn().execute(
         "SELECT ts,o,h,l,c,v FROM ohlcv WHERE ticker=? AND tf=? AND ts>? ORDER BY ts ASC",
         (ticker.upper(), tf, since_ts),
-    ).fetchall()
+    ).fetchall())
 
 
 def max_daily_volume_in_range(from_ymd: int, to_ymd: int, min_sessions: int = 2) -> dict:
@@ -730,6 +2469,18 @@ def max_daily_volume_in_range(from_ymd: int, to_ymd: int, min_sessions: int = 2)
         (int(from_ymd), int(to_ymd), int(min_sessions)),
     ).fetchall()
     return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
+def daily_volume_stats_in_range(from_ymd: int, to_ymd: int) -> dict:
+    """{TICKER: (max daily volume, session count)} over DAILY bars with from_ymd <= ts < to_ymd.
+    The building block of the all-time volume reference's incremental fold
+    (`scan_volume._ever_reference`): a short recent window rides the by-date index."""
+    rows = _conn().execute(
+        """SELECT ticker, MAX(v), COUNT(*) FROM ohlcv
+           WHERE tf='D' AND ts>=? AND ts<? GROUP BY ticker""",
+        (int(from_ymd), int(to_ymd)),
+    ).fetchall()
+    return {str(r[0]).upper(): (int(r[1] or 0), int(r[2])) for r in rows}
 
 
 def closes_near_date(to_ymd: int, from_ymd: int) -> dict:
@@ -781,11 +2532,26 @@ def closes_asof(symbols, to_ymd: int, from_ymd: int) -> dict:
 def recent_first_trade(since_ymd: int) -> dict:
     """{TICKER: earliest daily-bar ts (YYYYMMDD)} for tickers whose FIRST daily bar is
     on/after since_ymd — a proxy for "first traded (IPO'd) within the window", given
-    bars.db's since-inception daily coverage for the tracked universe. One indexed
-    GROUP BY; powers the IPO-in-last-year scan."""
+    bars.db's since-inception daily coverage for the tracked universe. Powers the
+    IPO-in-last-year scan.
+
+    ⚡ SKIP-SCAN, one index seek per ticker (2026-11-12). The old
+    `WHERE tf='D' GROUP BY ticker` walked EVERY index entry of every timeframe (~92M
+    locally, more on the pods) to read one MIN per ticker: 19.3 s on a 3.3 GB local
+    store, and the boot probe's `ipo-scan-ref` thread at ~90% of a core right after
+    each deploy. Hopping ticker to ticker and asking each for its first daily bar is
+    two seeks per ticker: 0.03 s, identical result. Works on both layouts (the rowid
+    store's (ticker, tf, ts) lookup index and the clustered store's primary key)."""
     rows = _conn().execute(
-        """SELECT ticker, MIN(ts) AS first_ts FROM ohlcv
-           WHERE tf='D' GROUP BY ticker HAVING first_ts>=? AND first_ts>0""",
+        """WITH RECURSIVE t(x) AS (
+               SELECT (SELECT MIN(ticker) FROM ohlcv)
+               UNION ALL
+               SELECT (SELECT MIN(ticker) FROM ohlcv WHERE ticker > t.x) FROM t
+               WHERE t.x IS NOT NULL)
+           SELECT x, first_ts FROM (
+               SELECT x, (SELECT MIN(ts) FROM ohlcv WHERE ticker = t.x AND tf = 'D') AS first_ts
+               FROM t WHERE x IS NOT NULL)
+           WHERE first_ts >= ? AND first_ts > 0""",
         (int(since_ymd),),
     ).fetchall()
     return {str(r[0]).upper(): int(r[1]) for r in rows}
@@ -1068,10 +2834,19 @@ def integrity_smoke_ok() -> bool:
         try:
             c.execute("PRAGMA schema_version").fetchone()               # db header
             c.execute("SELECT count(*) FROM sqlite_master").fetchone()  # schema b-tree
-            # ohlcv table b-tree — head page (LIMIT 1) + tail page (rowid DESC).
+            # ohlcv table b-tree — head page (LIMIT 1) + tail page.
             # Any ticker: this validates STRUCTURE, not the presence of a symbol.
             c.execute("SELECT ticker,tf,ts,c FROM ohlcv LIMIT 1").fetchone()
-            c.execute("SELECT ts FROM ohlcv ORDER BY rowid DESC LIMIT 1").fetchone()
+            # ⛔ A CLUSTERED (WITHOUT ROWID) store has no rowid: `ORDER BY rowid` raises
+            # "no such column: rowid", an OperationalError, i.e. a DatabaseError -- and
+            # this probe read a HEALTHY store as corrupt, so web's boot force_resync
+            # deleted its freshly adopted 19.7 GB store (2026-11-14). Its tail page is
+            # the primary key's last entry.
+            if ohlcv_layout(c) == "clustered":
+                c.execute("SELECT ts FROM ohlcv ORDER BY ticker DESC, tf DESC, ts DESC "
+                          "LIMIT 1").fetchone()
+            else:
+                c.execute("SELECT ts FROM ohlcv ORDER BY rowid DESC LIMIT 1").fetchone()
             # Lookup index b-tree via the exact hot serve path (idx_ohlcv_lookup).
             c.execute("SELECT ts FROM ohlcv WHERE ticker='AAPL' AND tf='D' "
                       "ORDER BY ts DESC LIMIT 1").fetchone()
@@ -1290,10 +3065,26 @@ def _writable_bars(ticker: str, tf: str, bars: list[dict]) -> tuple[list[dict], 
         from api.services.bar_validation import possible_bar_reasons
     except Exception:                                    # pragma: no cover
         return list(bars), []
+    # 🔴 THE DATE-KEY INVARIANT, AT THE SAME DOOR (2026-11-11): a D row only on an NYSE
+    # trading day, a W row only on its ISO-week Friday, an M row only on the 1st. Prod
+    # held a SATURDAY daily bar (META et al. 2026-11-07) that drew as an extra candle
+    # and was summed into the week. Rule + rationale: `date_bar_keys` module doc.
+    key_reason = None
+    if tf in ("D", "W", "M"):
+        try:
+            from api.services import date_bar_keys as _dk
+            if tf != "D" or _dk.calendar_applies(ticker):
+                key_reason = _dk.key_reason
+        except Exception:                                # pragma: no cover
+            key_reason = None
     keep, rejected = [], []
     for b in bars:
         try:
             reasons = possible_bar_reasons(b)
+            if key_reason is not None:
+                why = key_reason(tf, b.get("t"))
+                if why:
+                    reasons = [*reasons, why]
         except Exception:                                # pragma: no cover
             reasons = []
         if reasons:
@@ -1308,6 +3099,24 @@ def _writable_bars(ticker: str, tf: str, bars: list[dict]) -> tuple[list[dict], 
     return keep, rejected
 
 
+#: 🔴 THE GRID INVARIANT, AT THE SAME DOOR (2026-11-10). An intraday row is keyed on
+#: its BUCKET START. Prod held post-market rows stamped at a trade time (SPY 5m
+#: 16:35:50 beside 16:35:00), each drawn as an extra candle — the yfinance fallback's
+#: separate live row, written add-only beside the Massive grid row. A misaligned row
+#: whose bucket has a row in the batch is dropped (that row wins); otherwise it is
+#: snapped to the bucket start and written INSERT OR IGNORE (fills an empty bucket,
+#: never replaces a stored one). Rule + rationale: `intraday_grid` module doc.
+def _grid_rows(ticker: str, tf: str, bars: list[dict], date_tf: bool) -> tuple[list[dict], list[dict]]:
+    if date_tf or not bars:
+        return bars, []
+    try:
+        from api.services import intraday_grid
+        return intraday_grid.fold_for_write(ticker, tf, bars)
+    except Exception as e:                               # pragma: no cover
+        _logger.warning("[sqlite] grid fold failed for %s tf=%s (writing as-is): %s", ticker, tf, e)
+        return bars, []
+
+
 def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
     """Upsert many tickers' bars of ONE timeframe in a single transaction.
 
@@ -1316,24 +3125,38 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
     write lock. Same validity gate and the same INSERT OR REPLACE as `put_bars`.
     `t` is the stored integer key (unix seconds intraday, YYYYMMDD for D)."""
     rows = []
+    snapped_rows = []
     for ticker, bars in (bars_by_ticker or {}).items():
         keep, _rejected = _writable_bars(ticker.upper(), tf, bars)
+        keep, snapped = _grid_rows(ticker.upper(), tf, keep, False)
         for b in keep:
             rows.append((ticker.upper(), tf, int(b.get("t", 0)), b.get("o"), b.get("h"),
                          b.get("l"), b.get("c"), int(b.get("v") or 0)))
-    if not rows:
+        for b in snapped:
+            snapped_rows.append((ticker.upper(), tf, int(b["t"]), b.get("o"), b.get("h"),
+                                 b.get("l"), b.get("c"), int(b.get("v") or 0)))
+    if not rows and not snapped_rows:
         return 0
     last_lock_err: sqlite3.OperationalError | None = None
     for attempt in range(3):
         try:
             with _WRITE_LOCK:
                 c = _conn()
+                _hist = _history_keys(c, tf, rows) | _history_keys(c, tf, snapped_rows, replace=False)
                 c.executemany(
                     "INSERT OR REPLACE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
                     rows,
                 )
+                if snapped_rows:
+                    c.executemany(
+                        "INSERT OR IGNORE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                        snapped_rows,
+                    )
+                bump_series_revs(c, {(r[0], tf) for r in rows} | {(r[0], tf) for r in snapped_rows},
+                                 history=_hist)
                 c.commit()
-            return len(rows)
+            _track({(r[0], tf) for r in rows} | {(r[0], tf) for r in snapped_rows})
+            return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             if "locked" not in str(e).lower():
                 raise
@@ -1344,8 +3167,144 @@ def put_bars_many(tf: str, bars_by_ticker: dict[str, list[dict]]) -> int:
     return 0
 
 
+# ── PROVIDER CHECK INSTANT OF A WRITE (bar contract, review #1098 F2) ────────────
+# ⛔ Concurrent repairs of one series (the request tail repair, the since= background
+# repair, the background gap-fill, the warm loop) each persist what the provider said AT
+# THEIR CHECK. One that checked EARLIER but writes LATER would REPLACE final rows with an
+# older partial aggregate inside the span a newer check already sealed — and
+# complete_through would call that partial final. A write that knows its check instant
+# (`checked_at=`, or the thread's `provider_check` context the repair opens) may not
+# change rows inside the sealed span when that instant predates the seal's own check.
+# Writes with no check instant (corrections: split repair, merges, rebuilds) are not
+# filtered — they are what `history_rev` announces.
+_check_ctx = threading.local()
+
+
+class provider_check:
+    """`with provider_check(checked_at):` — every `put_bars` on this thread inside the
+    block persists a provider answer taken at `checked_at`."""
+
+    def __init__(self, checked_at: float):
+        self.checked_at = float(checked_at)
+
+    def __enter__(self):
+        self._prev = getattr(_check_ctx, "at", None)
+        _check_ctx.at = self.checked_at
+        return self
+
+    def __exit__(self, *exc):
+        _check_ctx.at = self._prev
+        return False
+
+
+_stale_sealed_drops = {"rows": 0, "writes": 0}
+
+
+def _drop_stale_sealed(c, ticker: str, tf: str, rows: list, snapped: list, checked_at: float):
+    """Rows of a write checked at `checked_at` minus those inside a seal taken by a NEWER
+    check (see the block above)."""
+    m = series_meta(ticker, tf, _conn_override=c)
+    sealed, sealed_ck = m.get("sealed_through"), m.get("sealed_checked_at")
+    if sealed is None or sealed_ck is None or checked_at >= sealed_ck:
+        return rows, snapped
+    try:
+        from api.services import bar_contract
+        grid = bar_contract.grid_for(tf)
+
+        def keep(r):
+            b = bar_contract.bucket_bounds(tf, int(r[2]), grid)
+            return b is None or b[1] > sealed
+    except Exception:                                    # noqa: BLE001
+        return rows, snapped
+    k_rows = [r for r in rows if keep(r)]
+    k_snap = [r for r in snapped if keep(r)]
+    dropped = len(rows) + len(snapped) - len(k_rows) - len(k_snap)
+    if dropped:
+        _stale_sealed_drops["rows"] += dropped
+        _stale_sealed_drops["writes"] += 1
+        _logger.info("[sqlite] %s tf=%s: kept %d sealed row(s) from an older check's write",
+                     ticker, tf, dropped)
+    return k_rows, k_snap
+
+
+class AddOnlyBar(dict):
+    """A bar a writer may ADD to the store but must never let REPLACE a row the store already holds:
+    `put_bars` writes it INSERT OR IGNORE even inside a replacing write. It is the plain dict it wraps
+    (JSON, `.get`, comparisons), so a reader that is not a writer never notices it.
+
+    ⚰️ 2026-11-21, web's CX: a deep fetch's yfinance graft (bars older than Massive's 2003-09-10 floor)
+    written on Yahoo's basis, which is 1.04^4 below the vendor's for CX, REPLACED the 1,001 stored rows
+    before the floor. That put a x1.16 cliff at 2003-09-10, an overnight move that never traded. A graft
+    whose join cannot be proven (`bars_fetch._yf_join_factor` None) is AddOnlyBar
+    (`bars_fetch._merge_daily_bars`). Rails: tests/test_deep_merge_join.py."""
+    __slots__ = ()
+
+
+#: ⭐ PROVENANCE OF UNJOINED ROWS (ruling 2026-11-21). Every write that FILLED dates from an AddOnlyBar
+#: (an unjoined source: no proven join factor, or an empty Massive answer) logs the span it filled, so
+#: rows on an unproven basis can be found and rebased. A later proven join rebases them on its own: it
+#: is a plain, replacing write. Best effort: the log never fails the bar write.
+#: ⭐ A ROW IS ONE LOGGED FILL, so its key is a rowid alias (`id INTEGER PRIMARY KEY`): two fills of one series in
+#: one millisecond are two rows, never one replacing the other (a natural key of ticker/tf/ts_min/written_at_ms
+#: could collide and drop a note). The address book requires every table to say what one row is one of.
+_UNJOINED_DDL = ("CREATE TABLE IF NOT EXISTS unjoined_writes (id INTEGER PRIMARY KEY, ticker TEXT NOT NULL, "
+                 "tf TEXT NOT NULL, ts_min INTEGER NOT NULL, ts_max INTEGER NOT NULL, rows INTEGER NOT NULL, "
+                 "written_at_ms INTEGER NOT NULL, source TEXT NOT NULL)")
+
+
+def _bar_key(b: dict, date_tf: bool) -> int | None:
+    try:
+        t = b.get("t")
+        return int(str(t).replace("-", "")) if date_tf else int(t)
+    except (TypeError, ValueError):
+        return None
+
+
+def _held_keys(ticker: str, tf: str, bars: list, date_tf: bool) -> set:
+    """The stored keys among `bars`' key range (one PK range seek), read just before an add-only write."""
+    keys = [k for k in (_bar_key(b, date_tf) for b in bars) if k is not None]
+    if not keys:
+        return set()
+    try:
+        rows = _conn().execute("SELECT ts FROM ohlcv WHERE ticker=? AND tf=? AND ts BETWEEN ? AND ?",
+                               (ticker.upper(), tf, min(keys), max(keys))).fetchall()
+    except sqlite3.Error:
+        return set(keys)                  # unknown: claim nothing was filled
+    return {r[0] for r in rows}
+
+
+def _note_unjoined(ticker: str, tf: str, bars: list, date_tf: bool, held_before: set) -> None:
+    filled = sorted(k for k in {_bar_key(b, date_tf) for b in bars} - set(held_before) if k is not None)
+    if not filled:
+        return
+    try:
+        present = _held_keys(ticker, tf, [{"t": k} for k in filled], False)
+        filled = [k for k in filled if k in present]   # refused bars (validation, calendar) were not written
+        if not filled:
+            return
+        with _WRITE_LOCK:
+            c = _conn()
+            c.execute(_UNJOINED_DDL)
+            c.execute("INSERT INTO unjoined_writes (ticker, tf, ts_min, ts_max, rows, written_at_ms, source) "
+                      "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                      (ticker.upper(), tf, filled[0], filled[-1], len(filled), _now_ms(), "unjoined-yfinance"))
+            c.commit()
+    except Exception:  # noqa: BLE001 — provenance never fails the write
+        _logger.warning("[sqlite] %s tf=%s: unjoined-provenance log failed", ticker, tf)
+
+
+def unjoined_writes(ticker: str, tf: str) -> list[dict]:
+    """The logged unjoined fills of one series, oldest first."""
+    try:
+        rows = _conn().execute("SELECT ts_min, ts_max, rows, written_at_ms, source FROM unjoined_writes "
+                               "WHERE ticker=? AND tf=? ORDER BY written_at_ms", (ticker.upper(), tf)).fetchall()
+    except sqlite3.OperationalError:
+        return []
+    return [dict(zip(("ts_min", "ts_max", "rows", "written_at_ms", "source"), r)) for r in rows]
+
+
 def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
-             on_conflict: str = "replace") -> int:
+             on_conflict: str = "replace", checked_at: float | None = None) -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.
 
     ``on_conflict``: "replace" (default — INSERT OR REPLACE, the authoritative
@@ -1362,12 +3321,24 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
     On ``DatabaseError: disk image is malformed`` schedules a background
     recovery (snapshot re-pull from R2) and re-raises so the caller's
     exception handler can return an empty result for this single request.
+
+    An ``AddOnlyBar`` in a replacing write is written ADD-ONLY (its own INSERT OR IGNORE
+    write): it may fill a date the store lacks, never replace a row the store holds.
     """
     if not bars:
         return 0
+    if on_conflict != "ignore" and any(isinstance(b, AddOnlyBar) for b in bars):
+        plain = [b for b in bars if not isinstance(b, AddOnlyBar)]
+        add = [b for b in bars if isinstance(b, AddOnlyBar)]
+        n = put_bars(ticker, tf, plain, date_tf, on_conflict, checked_at) if plain else 0
+        held = _held_keys(ticker, tf, add, date_tf)
+        n += put_bars(ticker, tf, add, date_tf, "ignore", checked_at)
+        _note_unjoined(ticker, tf, add, date_tf, held)
+        return n
     ticker = ticker.upper()
     bars, _rejected = _writable_bars(ticker, tf, bars)
-    if not bars:
+    bars, snapped = _grid_rows(ticker, tf, bars, date_tf)
+    if not bars and not snapped:
         return 0
     rows = []
     for b in bars:
@@ -1378,6 +3349,8 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
             b.get("o"), b.get("h"), b.get("l"), b.get("c"),
             int(b.get("v") or 0),
         ))
+    snapped_rows = [(ticker, tf, int(b["t"]), b.get("o"), b.get("h"), b.get("l"),
+                     b.get("c"), int(b.get("v") or 0)) for b in snapped]
 
     _verb = "INSERT OR IGNORE" if on_conflict == "ignore" else "INSERT OR REPLACE"
     last_lock_err: sqlite3.OperationalError | None = None
@@ -1385,12 +3358,30 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
         try:
             with _WRITE_LOCK:
                 c = _conn()
-                c.executemany(
-                    f"{_verb} INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
-                    rows,
-                )
+                _ck = checked_at if checked_at is not None else getattr(_check_ctx, "at", None)
+                if _ck is not None and not date_tf:
+                    rows, snapped_rows = _drop_stale_sealed(c, ticker, tf, rows, snapped_rows, _ck)
+                    if not rows and not snapped_rows:
+                        return 0
+                _hist = (_history_keys(c, tf, rows, replace=(on_conflict != "ignore"))
+                         | _history_keys(c, tf, snapped_rows, replace=False))
+                _changes0 = c.total_changes
+                if rows:
+                    c.executemany(
+                        f"{_verb} INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                        rows,
+                    )
+                if snapped_rows:
+                    # Snapped off-grid rows fill an EMPTY bucket only (intraday_grid doc).
+                    c.executemany(
+                        "INSERT OR IGNORE INTO ohlcv(ticker,tf,ts,o,h,l,c,v) VALUES(?,?,?,?,?,?,?,?)",
+                        snapped_rows,
+                    )
+                if c.total_changes != _changes0:
+                    bump_series_revs(c, [(ticker, tf)], history=_hist)
                 c.commit()
-            return len(rows)
+            _track(((ticker, tf),))
+            return len(rows) + len(snapped_rows)
         except sqlite3.OperationalError as e:
             # OperationalError covers "locked" (contention) and a few non-
             # corruption cases; only retry the locked variant. Other
@@ -1413,3 +3404,28 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False,
     if last_lock_err is not None:
         raise last_lock_err
     return 0  # unreachable
+
+
+def iter_ts_close(ticker: str, tf: str, batch: int = 20_000):
+    """Yield ``(ts, c)`` for every stored row of (ticker, tf), oldest first, paged by
+    primary-key seeks of ``batch`` rows. O(batch) memory however deep the series is —
+    the intraday split detector only needs closes, never a materialised bar list."""
+    ticker = ticker.upper()
+    last = None
+    while True:
+        if last is None:
+            rows = _conn().execute(
+                "SELECT ts, c FROM ohlcv WHERE ticker=? AND tf=? ORDER BY ts LIMIT ?",
+                (ticker, tf, int(batch))).fetchall()
+        else:
+            rows = _conn().execute(
+                "SELECT ts, c FROM ohlcv WHERE ticker=? AND tf=? AND ts>? ORDER BY ts LIMIT ?",
+                (ticker, tf, int(last), int(batch))).fetchall()
+        if not rows:
+            return
+        yield from rows
+        last = rows[-1][0]
+        if len(rows) < batch:
+            return
+
+

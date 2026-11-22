@@ -13,6 +13,7 @@ import time
 import pathlib
 import re
 import sqlite3
+import statistics
 import subprocess
 import sys
 import types
@@ -477,6 +478,13 @@ def test_get_item_with_wave_11_off_is_byte_identical_to_before_task_11_8(db, mon
                                        default=str)
                 for gid in (g_p3a, g_shared, g_tool) for who in (MEMBER, "admin")}
     waves(monkeypatch, *[w for w in ALL_WAVES if w != 11])
+    # The pre-11.8 module still reads the switches retired as always on (2026-11-04): give it production's values,
+    # and the starter-packs reader it calls (gone from the live module), so both answer the same world.
+    for name in ("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_STYLE_LIBRARY_ENABLED", "NOTEBOOK_EXAMPLE_NOTES_ENABLED",
+                 "NOTEBOOK_STARTER_PACKS_ENABLED", "NOTEBOOK_JOURNAL_STYLES_ENABLED"):
+        monkeypatch.setenv(name, "1")
+    from api.services.journal_two import starter_packs
+    monkeypatch.setattr(starter_packs, "enabled", lambda: True, raising=False)
     live_off, old_off = reads(gallery), reads(old)
 
     # W11-R76 (review I-3, live on master) is the ONE deliberate change to the wave-off answer: a card line that is
@@ -536,8 +544,8 @@ ADDRESS_FORMS = {
                                                   _lk(ACCT, f"https://{HOST}/acct/{ACCT}/", BOLD)],
     "LF inside one text node": [_lk(f"https://{HOST}/acct/\n{ACCT}")],
     "CRLF inside one text node": [_lk(f"https://{HOST}/acct/\r\n{ACCT}")],
-    "U+2028 inside one text node": [_lk(f"https://{HOST}/acct/ {ACCT}")],
-    "U+2029 inside one text node": [_lk(f"https://{HOST}/acct/ {ACCT}")],
+    "U+2028 inside one text node": [_lk(f"https://{HOST}/acct/\u2028{ACCT}")],
+    "U+2029 inside one text node": [_lk(f"https://{HOST}/acct/\u2029{ACCT}")],
     "TAB inside one text node": [_lk(f"https://{HOST}/acct/\t{ACCT}")],
     "ideographic space inside": [_lk(f"https://{HOST}/acct/　{ACCT}")],
     "LF inside the bare host form": [_lk(f"{HOST}/acct/\n{ACCT}")],
@@ -647,7 +655,7 @@ def test_a_line_break_between_two_different_links_does_not_join_them(db):
 def test_the_skeleton_is_nfkc_casefold_letters_and_digits():
     """W11-R47's skeleton, exactly: NFKC, casefold, then only `[a-z0-9]` (the ruling's) or only alphanumerics (every
     script). A fullwidth letter folds, capitals fold, and every space, line break, mark, blank and punctuation goes."""
-    s = "ＡB\n c d̲e⠀f.-_g9é　h\t​i"
+    s = "ＡB\n c\u2028d̲e⠀f.-_g9é　h\t​i"
     assert gallery._skeleton(s, latin=True) == "abcdefg9hi"
     assert gallery._skeleton(s, latin=False) == "abcdefg9éhi"
 
@@ -816,47 +824,129 @@ def _many_links(n: int, sep: str = ", ") -> list:
     return out
 
 
-def _timed(content) -> float:
-    doc = {"type": "doc", "content": [{"type": "paragraph", "content": content}]}
-    t0 = time.perf_counter()
-    out = gallery._shared_outline(doc, AUTHOR)
-    took = time.perf_counter() - t0
-    assert "broker" not in json.dumps(out) and "acct" not in json.dumps(out)
-    return took
+# ⛔ COUNTED, NOT TIMED (2026-11-21). These rails held a WALL-CLOCK budget (`< 0.5` s) and the "one host" case
+# failed on a GitHub runner (6,500 links) with the code unchanged: a shared runner's clock is no reference, and
+# widening the number would only move the flake. What C-1 guards is the SHAPE of the work (linear, never every link x
+# every href) and its size, so that is what is measured: the Python lines template_gallery.py executes while it
+# reduces (`sys.settrace`), which the same input repeats exactly on any machine.
+#   * linear: 4x the links costs at most 4.4x the lines (a linear pass is 4.0x; W11-R53's every-link x every-href ~16x);
+#   * bounded: lines per link at most TWICE what master 104db22eb5 measured (tiny 239, one host 171, a URL list 226,
+#     words 449), so a constant-factor regression past 2x fails too.
+# ⚠️ A line count cannot see work inside C (a regex that backtracks, a giant join): the regex shapes have their own
+# rails below (the shape check runs 1 MB in a child process with a deadline).
+_REDUCER_FILE = gallery.__file__
+LINES_PER_LINK_BUDGET = {"tiny": 480, "host": 345, "urls": 455, "words": 900}
 
 
-@pytest.mark.parametrize("sep", [", ", " ", "\n"], ids=["comma", "space", "newline"])
-def test_1600_links_reduce_in_under_half_a_second(db, sep):
+def _reduce(content) -> str:
+    out = json.dumps(gallery._shared_outline({"type": "doc", "content": [{"type": "paragraph", "content": content}]},
+                                             AUTHOR))
+    assert "broker" not in out and "acct" not in out
+    return out
+
+
+def _work(content) -> tuple[int, str]:
+    """(lines template_gallery.py executed, the reduced outline as JSON) for one reduce of `content`."""
+    count = 0
+
+    def tracer(frame, event, arg):
+        nonlocal count
+        if frame.f_code.co_filename != _REDUCER_FILE:
+            return None
+        if event == "line":
+            count += 1
+        return tracer
+
+    previous = sys.gettrace()
+    sys.settrace(tracer)
+    try:
+        out = _reduce(content)
+    finally:
+        sys.settrace(previous)
+    return count, out
+
+
+def _assert_linear_and_bounded(build, n: int, budget_key: str) -> str:
+    small, _ = _work(build(n))
+    big, out = _work(build(4 * n))
+    assert small >= 10 * n, f"non-vacuity: {small} lines for {n} links -- the reducer never walked them"
+    assert big <= 4.4 * small, f"not linear: {n} links cost {small} lines, {4 * n} cost {big} ({big / small:.1f}x)"
+    per = big / (4 * n)
+    assert per <= LINES_PER_LINK_BUDGET[budget_key], f"{per:.0f} lines per link, budget {LINES_PER_LINK_BUDGET[budget_key]}"
+    return out
+
+
+def _urls(sep):
+    return lambda n: _many_links(n, sep)
+
+
+@pytest.mark.parametrize("sep", [", ", " ", chr(10)], ids=["comma", "space", "newline"])
+def test_1600_links_reduce_in_linear_bounded_work(db, sep):
     """The re-review's C-1: 1,600 links, each its own href, in ONE run (23 s for 800 before W11-R53)."""
-    assert _timed(_many_links(1600, sep)) < 0.5
+    _assert_linear_and_bounded(_urls(sep), 400, "urls")
 
 
-def test_1600_word_links_that_travel_reduce_in_under_half_a_second(db):
-    """The judgement that runs for EVERY part is the one for a part that is not an address (nothing short-circuits it):
-    1,600 adjacent links of words, each its own href, are judged in linear time and every word travels."""
+def _word_links(n):
     content = []
-    for i in range(1600):
+    for i in range(n):
         content += [_lk(f"my note number {i}", f"https://site{i}.example.com/n/{i}"), {"type": "text", "text": " "}]
-    doc = {"type": "doc", "content": [{"type": "paragraph", "content": content}]}
-    t0 = time.perf_counter()
-    out = json.dumps(gallery._shared_outline(doc, AUTHOR))
-    assert time.perf_counter() - t0 < 0.5
+    return content
+
+
+def test_1600_word_links_that_travel_reduce_in_linear_bounded_work(db):
+    """The judgement that runs for EVERY part is the one for a part that is not an address (nothing short-circuits it):
+    1,600 adjacent links of words, each its own href, are judged in linear work and every word travels."""
+    out = _assert_linear_and_bounded(_word_links, 400, "words")
     assert "my note number 1599" in out and "site1599" not in out
 
 
+def _tiny(n):
+    return [x for i in range(n) for x in (_lk(f"{i}", f"https://a{i}.co/{i}"), {"type": "text", "text": " "})]
+
+
+def _one_host(n):
+    return [_lk(f"https://broker.example.com/acct/{i} ", f"https://broker.example.com/acct/{i}") for i in range(n)]
+
+
 @pytest.mark.parametrize("shape", ["tiny links, each its own host", "one host, 1 MB"])
-def test_the_one_mb_worst_case_reduces_in_under_half_a_second(db, shape):
+def test_the_one_mb_worst_case_reduces_in_linear_bounded_work(db, shape):
     """The outline cap's worst case: 1 MB of adjacent links in one run -- tiny ones with a host each (the most hrefs),
-    or all of one host (the longest stretch and joined text)."""
-    content, i = [], 0
-    while len(json.dumps(content)) < 1_000_000:
-        for _ in range(500):
-            if shape.startswith("tiny"):
-                content += [_lk(f"{i}", f"https://a{i}.co/{i}"), {"type": "text", "text": " "}]
-            else:
-                content.append(_lk(f"https://broker.example.com/acct/{i} ", f"https://broker.example.com/acct/{i}"))
-            i += 1
-    assert _timed(content) < 0.5, i
+    or all of one host (the longest stretch and joined text). The larger run is past 1 MB of JSON."""
+    build, key = (_tiny, "tiny") if shape.startswith("tiny") else (_one_host, "host")
+    n = 4_000
+    assert len(json.dumps(build(4 * n))) >= 1_000_000, "the larger run must be the 1 MB worst case"
+    _assert_linear_and_bounded(build, n, key)
+
+
+def test_the_work_count_can_fail():
+    """CONTROL: the counter sees a quadratic pass and a constant-factor slowdown (both fail the checks above)."""
+    count = 0
+
+    def tracer(frame, event, arg):
+        nonlocal count
+        if event == "line":
+            count += 1
+        return tracer
+
+    def quadratic(n):
+        hits = 0
+        for i in range(n):
+            for j in range(n):
+                hits += i == j
+        return hits
+
+    def lines_of(n):
+        nonlocal count
+        count = 0
+        previous = sys.gettrace()
+        sys.settrace(tracer)
+        try:
+            quadratic(n)
+        finally:
+            sys.settrace(previous)
+        return count
+
+    assert lines_of(80) > 4.4 * lines_of(20)            # what `not linear` refuses
 
 
 def _legacy_listing(db, n_links: int) -> str:
@@ -1089,66 +1179,120 @@ def test_the_shape_check_has_no_nested_quantifier():
     assert gallery._DECIMAL.pattern == r"\d"
 
 
+# ⛔ AN IN-RUN RATIO, NOT A WALL CLOCK (2026-11-21, ruled). These rails held `< 0.5` s, and a shared runner's clock is no
+# reference (the C-1 one-host case failed on GitHub with the code unchanged). What they guard is work inside C -- a
+# pattern that backtracks, a scan per character -- which the line count above cannot see. So the same reduce is timed
+# in the SAME process on N and on 4N, one warm-up each, then 5 INTERLEAVED pairs (so a load change on the box hits both
+# sizes alike), the median of each, and 4N may cost at most RATIO_MAX times N: a linear pass is ~4x (measured on the
+# dev PC 2026-11-21: 3.9-5.1x), and backtracking blows far past it, on a fast box or a slow one alike.
+# ⚠️ BELOW NOISE_FLOOR_S THE CLOCK CANNOT TELL LINEAR FROM NOISE: a 1 MB text over the cap is skipped in ~0.06 ms, the
+# same at 250 KB. So N is read as at least the floor: 4N there must stay under RATIO_MAX x the floor (12 ms), which a
+# path that started judging the text would not. ONE absolute ceiling stays, at 10x the 4N median measured on the dev
+# PC (shape 30 ms, under the cap 160 ms, one site 235 ms) and never under half a second, so a hang still fails.
+RATIO_MAX = 6.0
+NOISE_FLOOR_S = 0.002
+CEILING_S = {"shape": 0.5, "over the cap": 0.5, "under the cap": 1.6, "one site": 2.4}
+
+
+def _medians_s(small_fn, big_fn, repeats: int = 5) -> tuple[float, float]:
+    small_fn(), big_fn()                                     # warm-up: first-call allocations are not the pass
+    small, big = [], []
+    for _ in range(repeats):
+        for fn, out in ((small_fn, small), (big_fn, big)):
+            t0 = time.perf_counter()
+            fn()
+            out.append(time.perf_counter() - t0)
+    return statistics.median(small), statistics.median(big)
+
+
+def _assert_ratio(small: float, big: float, ceiling_key: str, what: str) -> None:
+    base = max(small, NOISE_FLOOR_S)
+    assert big <= RATIO_MAX * base, (f"{what}: N took {small * 1000:.2f} ms, 4N took {big * 1000:.2f} ms "
+                                     f"({big / base:.1f}x of max(N, {NOISE_FLOOR_S * 1000:.0f} ms); linear is ~4x, "
+                                     f"at most {RATIO_MAX}x)")
+    assert big <= CEILING_S[ceiling_key], f"{what}: 4N took {big:.3f} s, past the {CEILING_S[ceiling_key]} s ceiling"
+
+
+def _scales_linearly(make, n: int, ceiling_key: str, what: str) -> None:
+    """`make(size)` builds one input and returns a zero-argument reduce of it (built outside the timing)."""
+    _assert_ratio(*_medians_s(make(n), make(4 * n)), ceiling_key, what)
+
+
 _SHAPE_PROBE = r"""
-import sys, time
+import statistics, sys, time
 sys.path.insert(0, sys.argv[1])
 from api.services.journal_two import template_gallery as g
-n, shape = 1_000_000, sys.argv[2]
-s = {"word": "a" * n, "hyphen": ("ab-" * n)[:n - 1] + "b", "dots": ("a." * n)[:n - 1] + "1"}[shape]
-form = g._address_form(s)
-t0 = time.perf_counter()
-got = g._has_address_shape(form)
-print(repr((time.perf_counter() - t0, got)))
+shape = sys.argv[2]
+def form_of(n):
+    s = {"word": "a" * n, "hyphen": ("ab-" * n)[:n - 1] + "b", "dots": ("a." * n)[:n - 1] + "1"}[shape]
+    return g._address_form(s)
+quarter, whole = form_of(250_000), form_of(1_000_000)
+g._has_address_shape(quarter), g._has_address_shape(whole)
+small, big = [], []
+for _ in range(5):
+    for form, out in ((quarter, small), (whole, big)):
+        t0 = time.perf_counter()
+        got = g._has_address_shape(form)
+        out.append(time.perf_counter() - t0)
+print(repr((statistics.median(small), statistics.median(big), got)))
 """
 
 
 @pytest.mark.parametrize("shape", ["word", "hyphen", "dots"])
 def test_the_shape_check_alone_is_linear_on_one_mb(shape):
-    """The shape check itself, BELOW the cap that normally guards it: 1 MB of each shape is judged in under half a
-    second (the round-2 pattern needs hours). It runs in a child process with a deadline, so a quadratic check fails
-    this rail by timing out instead of hanging the suite."""
+    """The shape check itself, BELOW the cap that normally guards it: 1 MB of each shape costs at most RATIO_MAX times
+    a quarter of it (the round-2 pattern needs hours). It runs in a child process with a deadline, so a pattern that
+    backtracks fails this rail by timing out instead of hanging the suite."""
     root = pathlib.Path(__file__).resolve().parents[1]
     try:
         r = subprocess.run([sys.executable, "-c", _SHAPE_PROBE, str(root), shape], capture_output=True, text=True,
                            timeout=60, cwd=str(root))
     except subprocess.TimeoutExpired:
-        pytest.fail(f"the shape check did not finish 1 MB of {shape} in 60 s")
+        pytest.fail(f"the shape check did not finish 250 KB and 1 MB of {shape} (5 runs each) in 60 s")
     assert r.returncode == 0, r.stderr
-    took, got = eval(r.stdout.strip().splitlines()[-1])            # noqa: S307 -- our own child's repr
-    assert got is False and took < 0.5, (shape, took)
+    small, big, got = eval(r.stdout.strip().splitlines()[-1])            # noqa: S307 -- our own child's repr
+    assert got is False, shape
+    _assert_ratio(small, big, "shape", f"the shape check on {shape}")
 
 
 def _one_link_paragraph(text: str, href: str) -> dict:
     return {"type": "paragraph", "content": [_lk(text, href)]}
 
 
+def _one_text_doc(shape: str, size: int) -> tuple[str, dict]:
+    text = LONG_SHAPES[shape](size)
+    return text, {"type": "doc", "content": [_one_link_paragraph(text, "https://x.example.org/a"), para("stays")]}
+
+
 @pytest.mark.parametrize("shape", list(LONG_SHAPES))
-def test_a_one_mb_linked_text_reduces_in_under_half_a_second_and_goes_whole(db, shape):
+def test_a_one_mb_linked_text_reduces_in_linear_time_and_goes_whole(db, shape):
     """The re-review's C-1 bodies at the outline cap: ONE linked text of 1 MB in each shape. It is over
-    `LINK_TEXT_JUDGE_MAX`, so it is not judged and goes whole (toward privacy), in under half a second."""
-    text = LONG_SHAPES[shape](1_000_000)
-    doc = {"type": "doc", "content": [_one_link_paragraph(text, "https://x.example.org/a"), para("stays")]}
-    t0 = time.perf_counter()
-    out = gallery._shared_outline(doc, AUTHOR)
-    took = time.perf_counter() - t0
-    assert took < 0.5, took
-    blob = json.dumps(out)
+    `LINK_TEXT_JUDGE_MAX`, so it is not judged and goes whole (toward privacy), in linear time (an in-run ratio)."""
+    _scales_linearly(lambda size: (lambda doc=_one_text_doc(shape, size)[1]: gallery._shared_outline(doc, AUTHOR)),
+                     250_000, "over the cap", f"one linked text, {shape}")
+    text, doc = _one_text_doc(shape, 1_000_000)
+    blob = json.dumps(gallery._shared_outline(doc, AUTHOR))
     assert text[:64] not in blob and "stays" in blob
 
 
-@pytest.mark.parametrize("shape", list(LONG_SHAPES))
-def test_one_mb_of_linked_texts_just_under_the_cap_reduce_in_under_half_a_second(db, shape):
-    """Under the cap every text IS judged: 1 MB of distinct linked texts of `LINK_TEXT_JUDGE_MAX` characters in each
-    shape (each its own paragraph and href, so nothing is joined and no judgement is shared) reduce in under half a
-    second, and every one travels as words. The round-2 pattern took about 0.05 s for EACH of them."""
+def _texts_under_the_cap(shape: str, size: int) -> list:
     n = gallery.LINK_TEXT_JUDGE_MAX
-    paras = [_one_link_paragraph(LONG_SHAPES[shape](n - 6) + f"{i:06d}", f"https://site{i}.example.org/a")
-             for i in range(1_000_000 // n)]
+    return [_one_link_paragraph(LONG_SHAPES[shape](n - 6) + f"{i:06d}", f"https://site{i}.example.org/a")
+            for i in range(size // n)]
+
+
+@pytest.mark.parametrize("shape", list(LONG_SHAPES))
+def test_one_mb_of_linked_texts_just_under_the_cap_reduce_in_linear_time(db, shape):
+    """Under the cap every text IS judged: 1 MB of distinct linked texts of `LINK_TEXT_JUDGE_MAX` characters in each
+    shape (each its own paragraph and href, so nothing is joined and no judgement is shared) reduce in linear time (an
+    in-run ratio), and every one travels as words. The round-2 pattern took about 0.05 s for EACH of them."""
+    n = gallery.LINK_TEXT_JUDGE_MAX
+    _scales_linearly(lambda size: (lambda d={"type": "doc", "content": _texts_under_the_cap(shape, size)}:
+                                   gallery._shared_outline(d, AUTHOR)),
+                     250_000, "under the cap", f"linked texts under the cap, {shape}")
+    paras = _texts_under_the_cap(shape, 1_000_000)
     assert all(len(p["content"][0]["text"]) == n for p in paras)
-    t0 = time.perf_counter()
     out = gallery._shared_outline({"type": "doc", "content": paras}, AUTHOR)
-    took = time.perf_counter() - t0
-    assert took < 0.5, (shape, took)
     kept = [p["content"][0]["text"] for p in out["content"] if p.get("content")]
     assert kept == [p["content"][0]["text"] for p in paras]
 
@@ -1240,20 +1384,20 @@ def test_W11_R62_CONTROL_the_small_pieces_are_harmless_alone():
     assert gallery._link_text_is_an_address(joined[n // 2:], [plain])
 
 
-def test_W11_R62_one_mb_of_a_one_site_link_list_reduces_in_under_half_a_second(db):
-    """1 MB of one stretch to one site (about 1,000 links of about 1,000 characters each): the window pass and the
-    per-part judgement together stay under half a second, and every link travels. Best of three runs, so a loaded
-    box (the suite under xdist) does not read as a slow check; a quadratic pass takes many seconds on every run."""
+def _one_site_list(count: int) -> list:
     words = ("reading the tape well " * 50)[:990]
-    nodes = [x for i in range(1_000) for x in (_lk(f"Lesson {i:05d}: " + words, f"https://learn.tapereading.org/{i}"),
+    return [x for i in range(count) for x in (_lk(f"Lesson {i:05d}: " + words, f"https://learn.tapereading.org/{i}"),
                                               {"type": "text", "text": ", "})]
+
+
+def test_W11_R62_one_mb_of_a_one_site_link_list_reduces_in_linear_time(db):
+    """1 MB of one stretch to one site (about 1,000 links of about 1,000 characters each): the window pass and the
+    per-part judgement together scale linearly (an in-run ratio, 250 links against 1,000), and every link travels."""
+    _scales_linearly(lambda count: (lambda d=_para_of(_one_site_list(count)): gallery._shared_outline(d, AUTHOR)),
+                     250, "one site", "a one-site link list")
+    nodes = _one_site_list(1_000)
     assert sum(len(n["text"]) for n in nodes) >= 1_000_000
-    took = []
-    for _ in range(3):
-        t0 = time.perf_counter()
-        out = gallery._shared_outline(_para_of(nodes), AUTHOR)
-        took.append(time.perf_counter() - t0)
-    assert min(took) < 0.5, took
+    out = gallery._shared_outline(_para_of(nodes), AUTHOR)
     assert len(out["content"][0]["content"]) == len(nodes)               # every lesson and comma travels
 
 
@@ -1485,7 +1629,6 @@ def gallery_client(db, monkeypatch):
     from api.limiter import limiter
     from api.middleware import auth_middleware as authmw
     from api.routers import notebook_template_gallery
-    monkeypatch.setenv("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "1")
     limiter.reset()
     fa = FastAPI()
     fa.include_router(notebook_template_gallery.router)

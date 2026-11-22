@@ -24,6 +24,7 @@
         "text": "Target Note"
       }
     ],
+    "notices": [],
     "pending": [
       {
         "key": "name:obsidian:vault-1/ghost note",

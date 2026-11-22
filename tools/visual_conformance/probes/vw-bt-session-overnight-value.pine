@@ -1,0 +1,29 @@
+//@version=6
+indicator("UCTPROBE_VW_BT_SESSION_OVERNIGHT_VALUE", overlay = false)
+
+// bt unit (2026-11-16). THE VALUE OF `time(tf, session)` INSIDE A SESSION THAT WRAPS MIDNIGHT.
+//
+// Membership of a wrapping session is measured (`vw-w4-session-overnight-btcusd-60-2026-11-16`)
+// and served where the script reads only `na(time(...))`. The VALUE is not: inside a same-day
+// session the vendor answers the open of the chart-period bar on a grid anchored at the session
+// start (`vw-time-session-spy-60-*-2026-09-28`, S04/S08), and whether that grid continues across
+// midnight, or restarts, or the bar's own open is answered instead, is unread. A session that
+// starts at :30 on hourly bars that open on the hour separates the readings.
+//
+// Grade, per bar, from HOUR / MINUTE: V1..V4 are (t - time) in seconds, -1 outside the session.
+//   grid continued  : V1 = -1800 on every in-session bar (00:00 and 01:00 included)
+//   bar's own open  : V1 = 0 on every in-session bar
+// V3/V4 are the same question on the chart's DAILY period ("D"), read on a 1D chart.
+//
+// ⛔ CAPTURE: BITSTAMP:BTCUSD 60 (>= 400 bars) and BITSTAMP:BTCUSD 1D (>= 300 bars). Inputs at
+// defaults.
+
+secs(t) => na(t) ? -1.0 : (t - time) / 1000.0
+
+plot(bar_index, "V0_bar_index_CONTROL")
+plot(hour, "HOUR")
+plot(minute, "MINUTE")
+plot(secs(time(timeframe.period, "1930-0230:1234567")), "V1_secs_wrap_half_hour")
+plot(secs(time(timeframe.period, "1800-0200:1234567")), "V2_secs_wrap_on_the_hour_CONTROL")
+plot(secs(time(timeframe.period, "1700-1700:1234567")), "V3_secs_whole_day_wrap")
+plot(secs(time(timeframe.period, "2000-1630:1234567")), "V4_secs_wrap_through_the_day")

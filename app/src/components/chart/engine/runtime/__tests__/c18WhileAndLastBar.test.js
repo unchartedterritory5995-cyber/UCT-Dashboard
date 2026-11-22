@@ -103,9 +103,12 @@ describe('⭐ what the two C18 scripts write around their loops', () => {
     expect(out0('count = 0\ncount += 2\nplot(count)\n')).toEqual(all(2))
   })
 
-  it('`max_bars_back(x, 5000)` is a no-op here; a smaller bound still refuses', () => {
+  // ⭐ engine 83 (WS-C M4, `vw-w4-max-bars-back-m4-spy-1d-2026-11-18`): any whole bound is served as
+  // declared and bounds nothing (it refused `runtime:directive` below 5,000); a computed bound still refuses
+  it('`max_bars_back(x, n)` is a no-op here for any whole n; a computed bound still refuses', () => {
     expect(out0('x = close\nmax_bars_back(x, 5000)\nplot(x[1])\n').slice(1)).toEqual([100, 101, 102])
-    const r = build('x = close\nmax_bars_back(x, 100)\nplot(x[1])\n')
+    expect(out0('x = close\nmax_bars_back(x, 100)\nplot(x[1])\n').slice(1)).toEqual([100, 101, 102])
+    const r = build('x = close\nn = 100\nmax_bars_back(x, n + 1)\nplot(x[1])\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:directive')
   })
@@ -123,7 +126,7 @@ describe('⭐ what the two C18 scripts write around their loops', () => {
       + 'load(n) =>\n    array.clear(strikes)\n    i = 0\n    while i < n\n        array.push(strikes, i)\n        i += 1\n'
       + 'load(3)\nplot(array.size(strikes))\n'
     expect(out0(src)).toEqual(all(3))
-    const r = build('g(n) =>\n    i = 0\n    while i < n\n        i += 1\nplot(g(3))\n')
+    const r = build('g(n) =>\n    i = 0\n    while i < n\n        i += 1\n        if i > 1\n            break\nplot(g(3))\n')
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:function')
     expect(r.refusal.message).toMatch(/ends in a loop/)
@@ -175,8 +178,10 @@ describe('⭐⭐ v6 `and`/`or` and `?:` do not run the side that is not taken', 
 describe('⭐⭐ an unmeasured value under a caller\'s PROBE', () => {
   it('without a probe, an empty reduction and a gradient still stop the run by name', () => {
     // ⭐ UIE PHASE 3 (M5) — `array.avg` of an empty array is MEASURED now (na,
-    // `vw-rt7-empty-reduce-fixnan`); `array.median` is what stays unmeasured
-    expect(() => run('a = array.new<float>()\nplot(array.median(a))\n')).toThrow(/array\.median/)
+    // `vw-rt7-empty-reduce-fixnan`). ⭐ W6-T5 — `array.median` of an empty array is `na`
+    // from its v6 reference entry now; only a caller with a probe (the C18 object door,
+    // below) keeps master's unmeasured answer.
+    expect(run('a = array.new<float>()\nplot(array.median(a))\n').outputs[0].every(Number.isNaN)).toBe(true)
     // ⚰️ C29 computes a gradient; only what no capture pins stops. ⭐ C48 re-pin —
     // that was an empty range (`1, 1`), measured now (the zero colour); a value
     // outside REVERSED bounds is what is left.

@@ -1,0 +1,57 @@
+{
+  "enml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>See <a href=\"evernote:///view/123/s1/22222222-0000-4000-8000-00000000000a/22222222-0000-4000-8000-00000000000a/\"><b>Target Note</b></a> first.</div><div>Then <a href=\"https://www.evernote.com/shard/s1/nl/123/22222222-0000-4000-8000-00000000000b/\">Other Note</a>.</div><div>Shared: <a href=\"https://www.evernote.com/l/AbCdEf\">Third Note</a></div><div>Web: <a href=\"https://example.com/page\">site</a></div></en-note>",
+  "id": "04-note-links",
+  "note": {
+    "created": "20260101T090000Z",
+    "guid": "11111111-0000-4000-8000-000000000004",
+    "notebook": "Trading",
+    "notes": {
+      "22222222-0000-4000-8000-00000000000a": "Target Note",
+      "22222222-0000-4000-8000-00000000000b": "Other Note"
+    },
+    "resources": [],
+    "title": "Links note"
+  },
+  "server": {
+    "blocks": [
+      {
+        "text": "See Target Note first.",
+        "type": "paragraph"
+      },
+      {
+        "text": "Then Other Note.",
+        "type": "paragraph"
+      },
+      {
+        "text": "Shared: Third Note",
+        "type": "paragraph"
+      },
+      {
+        "text": "Web: site",
+        "type": "paragraph"
+      }
+    ],
+    "chips": [],
+    "images": [],
+    "links": [
+      {
+        "target": "note:Target Note",
+        "text": "Target Note"
+      },
+      {
+        "target": "note:Other Note",
+        "text": "Other Note"
+      },
+      {
+        "target": "note:Third Note",
+        "text": "Third Note"
+      },
+      {
+        "target": "https://example.com/page",
+        "text": "site"
+      }
+    ],
+    "notices": [],
+    "task_checked": []
+  }
+}

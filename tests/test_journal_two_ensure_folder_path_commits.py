@@ -223,3 +223,32 @@ def test_a_caller_already_in_a_transaction_is_left_to_commit_it(db_path):
         assert {name for _, name, _ in _fresh_rows(path)} == {"Earlier", "Inbox"}
     finally:
         c.close()
+
+
+# -- Follow-up B, item 4c: a ROOT segment reuses a folder of the same name in any casing; nested stays exact --------
+# An import (or the Roam connector, which files daily pages under "Daily Notes") used to make "Daily Notes" beside a
+# member's root "Daily notes".
+
+def test_4c_a_root_segment_reuses_a_root_folder_of_the_same_name_in_any_casing(db_path):
+    path, _ = db_path
+    home = notes_svc.create_folder(U, "Daily notes")["id"]
+    assert notes_svc.ensure_folder_path(U, ["Daily Notes"]) == home
+    assert notes_svc.ensure_folder_path(U, ["DAILY NOTES", "2026"]) != home
+    names = sorted(name for _id, name, _p in _fresh_rows(path))
+    assert names == ["2026", "Daily notes"], "no second root folder was made"
+
+
+def test_4c_nested_segments_stay_exact(db_path):
+    path, _ = db_path
+    trading = notes_svc.create_folder(U, "Trading")["id"]
+    inner = notes_svc.create_folder(U, "Daily notes", parent_id=trading)["id"]
+    made = notes_svc.ensure_folder_path(U, ["Trading", "Daily Notes"])
+    assert made != inner, "a nested folder is matched exactly, as before"
+    assert notes_svc.ensure_folder_path(U, ["Trading", "Daily notes"]) == inner   # control: the exact name
+
+
+def test_4c_with_both_casings_at_the_root_the_exact_one_is_kept(db_path):
+    _path, _ = db_path
+    notes_svc.create_folder(U, "Daily notes")
+    exact = notes_svc.create_folder(U, "Daily Notes")["id"]
+    assert notes_svc.ensure_folder_path(U, ["Daily Notes"]) == exact

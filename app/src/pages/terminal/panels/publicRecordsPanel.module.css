@@ -1,0 +1,133 @@
+/* PUBR: the four sections, the names each matched, and the two- and three-line cells. App tokens only (the terminal
+   wears the member's theme). The tables, notes, chips and the phone fold (phoneHide) come from marketPanels.module.css.
+   No screen-width rule here: a column folds through the shared fit rules, and every cell wraps between words. */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  min-width: 0;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-sm);
+}
+
+.title {
+  margin: 0;
+  color: var(--text-bright);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.cell > span {
+  display: block;
+}
+
+/* A short cell that may take a second line (a phase and its status, a date and "(estimated)"): it wraps between
+   words and never shrinks below its longest word. Two classes, so it outranks the shared table's one-line rule. */
+.cell.wrap {
+  white-space: normal;
+  overflow-wrap: break-word;
+  min-width: 5rem;
+}
+
+/* A list in a cell (the lobbying issue areas): the small size, so a quarter's row stays a few lines tall. */
+.small {
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.strong {
+  color: var(--text-bright);
+  overflow-wrap: break-word;
+}
+
+.sub {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 2px;
+}
+
+.link:hover,
+.link:focus-visible {
+  color: var(--accent);
+}
+
+.names {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.line {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+  overflow-wrap: break-word;
+}
+
+.label {
+  color: var(--text-muted);
+}
+
+.empty {
+  margin: 0;
+  color: var(--text);
+  line-height: var(--lh-normal);
+  overflow-wrap: break-word;
+}
+
+.fail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs) var(--space-sm);
+}
+
+.matching {
+  min-width: 0;
+  font-size: var(--text-xs);
+}
+
+.matching > p {
+  margin-top: var(--space-xs);
+}
+
+/* The row that opens the matching details is a finger target everywhere (44px), not only on touch. */
+.summary {
+  box-sizing: border-box;
+  min-height: var(--tap-min);
+  padding: var(--space-sm) 0;
+  cursor: pointer;
+  color: var(--text);
+  overflow-wrap: break-word;
+}
+
+.footer {
+  margin: 0;
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: var(--lh-normal);
+}

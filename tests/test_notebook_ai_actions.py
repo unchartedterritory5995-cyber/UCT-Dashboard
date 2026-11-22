@@ -829,3 +829,60 @@ def test_the_server_plans_and_applies_a_tag_no_note_has_ever_carried(app, client
     assert [c["op"] for c in cs["changes"]] == ["add_tag", "add_tag"]
     _apply(client, cs)
     assert "security" in _get("u1", a["id"])["tags"] and "security" in _get("u1", b["id"])["tags"]
+
+
+def test_S5_the_plan_summary_is_future_tense_with_note_titles_never_keys(app, client, gate_on, stub, db_path):
+    """Audit 2026-11-05, spec S5 (B15): the plan read "Added #security to (n1 and n2)" BEFORE anything
+    was applied -- the model's own sentence, in the past tense, naming the fence's note KEYS. The
+    summary a member reads is now written from the VALIDATED changes: future tense, note titles."""
+    _as_member(app, "u1")
+    _note("u1", "CRWD plan", "CRWD breakout")
+    _note("u1", "CRWD after", "CRWD report")
+
+    def answer(kwargs):
+        return {"summary": "Added #security to (n1 and n2).", "changes": [
+            {"note": key_of(kwargs, "CRWD plan"), "op": "add_tag", "tag": "security"},
+            {"note": key_of(kwargs, "CRWD after"), "op": "add_tag", "tag": "security"}]}
+
+    stub["client"] = _StubClient(answer)
+    cs = _plan(client, 'Tag my two CRWD notes with "security".')
+    assert cs["summary"] == "Will add #security to 2 notes: CRWD plan, CRWD after."
+
+
+def test_S5_plan_summary_sentences_per_kind_of_change():
+    changes = [
+        {"op": "add_tag", "noteTitle": "A", "args": {"tag": "x"}},
+        {"op": "remove_tag", "noteTitle": "B", "args": {"tag": "old"}},
+        {"op": "set_property", "noteTitle": "A", "args": {"name": "Status", "value": "Active"}},
+        {"op": "move", "noteTitle": "C", "args": {"path": "Ideas / Q4"}},
+        {"op": "append", "noteTitle": "D", "args": {"kind": "task", "text": "t"}},
+        {"op": "create_note", "noteTitle": "New one", "args": {"title": "New one"}},
+        {"op": "add_tag", "noteTitle": "E", "args": {"tag": "x"}},
+    ]
+    assert ai.plan_summary(changes) == (
+        "Will add #x to 2 notes: A, E. Will remove #old from 1 note: B. Will set Status to Active on 1 note: A. "
+        "Will move 1 note to Ideas / Q4: C. Will add to 1 note: D. Will create 1 note: New one.")
+    many = [{"op": "add_tag", "noteTitle": t, "args": {"tag": "y"}} for t in "ABCDE"]
+    assert ai.plan_summary(many) == "Will add #y to 5 notes: A, B, C and 2 more."
+    assert ai.plan_summary([]) == ""
+
+
+def test_S5_a_plan_with_no_change_keeps_the_model_sentence_with_titles_for_keys():
+    ctx = {"keymap": {"n1": "id-a", "n12": "id-b"},
+           "notes": [{"id": "id-a", "title": "CRWD plan"}, {"id": "id-b", "title": "Q4 review"}]}
+    assert ai._named_by_title("I can't delete n1 or n12.", ctx) == "I can't delete CRWD plan or Q4 review."
+    assert ai._named_by_title("nothing about n9", ctx) == "nothing about n9"
+
+
+def test_S5_fix_round_1_a_property_change_says_its_value_and_different_values_stay_apart():
+    """Review minor 15: "Will set Status on 1 note" dropped what it will be set TO, and two
+    different values for one property were merged into one sentence."""
+    changes = [
+        {"op": "set_property", "noteTitle": "A", "args": {"name": "Status", "value": "Active"}},
+        {"op": "set_property", "noteTitle": "B", "args": {"name": "Status", "value": "Closed"}},
+        {"op": "set_property", "noteTitle": "C", "args": {"name": "Status", "value": "Active"}},
+        {"op": "set_property", "noteTitle": "D", "args": {"name": "Setups", "value": ["Flag", "Base"]}},
+    ]
+    assert ai.plan_summary(changes) == (
+        "Will set Status to Active on 2 notes: A, C. Will set Status to Closed on 1 note: B. "
+        "Will set Setups to Flag, Base on 1 note: D.")

@@ -10,12 +10,21 @@
   ],
   "saved": [
     {"input": "alma", "value": 2.5, "ast": {"type": "op", "name": "+", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "alma"}]}, {"type": "series", "name": "open"}]}},
+    {"input": "stochPine", "value": 4, "ast": {"type": "op", "name": "+", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "stochPine"}]}},
     {"input": "rci", "value": 0.25, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "high"}, {"type": "op", "name": "*", "args": [{"type": "series", "name": "rci"}, {"type": "series", "name": "low"}]}]}},
     {"input": "acos", "value": 3, "ast": {"type": "call", "name": "sma", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "acos"}]}, {"type": "num", "value": 2}]}},
+    {"input": "asin", "value": 3, "ast": {"type": "call", "name": "sma", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "asin"}]}, {"type": "num", "value": 2}]}},
     {"input": "percentileNearestRank", "value": 1.5, "ast": {"type": "op", "name": ">", "args": [{"type": "op", "name": "*", "args": [{"type": "series", "name": "volume"}, {"type": "series", "name": "percentileNearestRank"}]}, {"type": "num", "value": 1600}]}},
     {"input": "accum2", "value": 0.5, "ast": {"type": "op", "name": "*", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "accum2"}]}},
     {"input": "accum3", "value": 2, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "high"}, {"type": "series", "name": "accum3"}]}},
-    {"input": "accum4", "value": 4, "ast": {"type": "call", "name": "sma", "args": [{"type": "op", "name": "+", "args": [{"type": "series", "name": "low"}, {"type": "series", "name": "accum4"}]}, {"type": "num", "value": 2}]}}
+    {"input": "accum4", "value": 4, "ast": {"type": "call", "name": "sma", "args": [{"type": "op", "name": "+", "args": [{"type": "series", "name": "low"}, {"type": "series", "name": "accum4"}]}, {"type": "num", "value": 2}]}},
+    {"input": "boolNaWithheld", "value": 5, "ast": {"type": "call", "name": "sma", "args": [{"type": "op", "name": "+", "args": [{"type": "series", "name": "low"}, {"type": "series", "name": "boolNaWithheld"}]}, {"type": "num", "value": 2}]}},
+    {"input": "tieNewest", "value": 3, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "tieNewest"}]}},
+    {"input": "sessionOpen", "value": 2, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "sessionOpen"}]}},
+    {"input": "sessionHigh", "value": 4, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "sessionHigh"}]}},
+    {"input": "sessionLow", "value": 1, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "sessionLow"}]}},
+    {"input": "openingRangeHigh", "value": 5, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "openingRangeHigh"}]}},
+    {"input": "openingRangeLow", "value": 0.5, "ast": {"type": "op", "name": "-", "args": [{"type": "series", "name": "close"}, {"type": "series", "name": "openingRangeLow"}]}}
   ],
   "old_names": ["sma", "atan", "percentileLinearInterpolation", "valuewhenOccurrence"],
   "call_refused": {"input": "alma", "value": 9, "ast": {"type": "call", "name": "alma", "args": [{"type": "series", "name": "close"}, {"type": "num", "value": 3}, {"type": "num", "value": 0.85}, {"type": "num", "value": 6}]}}

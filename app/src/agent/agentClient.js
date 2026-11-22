@@ -87,7 +87,7 @@ export function streamingEnabled() {
 }
 // Whether THIS server streams turns (GET /api/agent/config, read once when the Agent opens). Until it
 // has answered yes, every turn is asked the old way — a server with streaming off sees no change at all.
-let serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', failed: false, inflight: null, at: 0 }
+let serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', coach: false, routingV2: false, failed: false, inflight: null, at: 0 }
 const CONFIG_TTL_MS = 5 * 60 * 1000
 export function loadAgentConfig() {
   if (serverStream.inflight) return serverStream.inflight
@@ -100,6 +100,8 @@ export function loadAgentConfig() {
       serverStream.kinds = serverStream.data && Array.isArray(c.data_kinds) ? c.data_kinds.filter(k => typeof k === 'string') : null
       serverStream.news = !!(c && c.news === true); serverStream.failed = false
       serverStream.planner = c && c.planner === 'v2' ? 'v2' : 'v1'
+      serverStream.coach = !!(c && c.coach === true)          // Wave 3 (UCT_AGENT_COACH): false unless the server says true
+      serverStream.routingV2 = !!(c && c.routing_v2 === true)  // NLM-1 (UCT_AGENT_ROUTING_V2): false unless the server says true
       serverStream.at = Date.now(); return serverStream.on
     })
     .catch(() => { serverStream.failed = true; return serverStream.on })
@@ -119,7 +121,11 @@ export const serverDataKinds = () => (serverStream.data === true && Array.isArra
 // News -> Agent (UCT_AGENT_NEWS): true / false once the config has answered (false on any error, or an Agent this
 // server does not serve), null while it has not.
 export const serverNewsState = () => (serverStream.at ? serverStream.news === true : (serverStream.failed ? false : null))
-export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', failed: false, inflight: null, at: 0 } }
+export const _resetAgentConfig = () => { serverStream = { on: false, nl1: false, data: false, scan: false, kinds: null, news: false, planner: 'v1', coach: false, routingV2: false, failed: false, inflight: null, at: 0 } }
+// Wave 3 COACH (UCT_AGENT_COACH -> config `coach`): false until the config has answered true, and on any error.
+export const serverServesCoach = () => serverStream.coach === true
+// NLM-1 D1 (UCT_AGENT_ROUTING_V2 -> config `routing_v2`): false until the config has answered true, and on any error.
+export const serverRoutingV2 = () => serverStream.routingV2 === true
 // PLANNER v2 (Wave 1 A-05, UCT_AGENT_PLANNER=v2 → config `planner`): 'v1' until the config has answered 'v2', and on any error.
 export const serverPlanner = () => (serverStream.planner === 'v2' ? 'v2' : 'v1')
 // One MD-1 gateway read (POST /api/agent/data) -> { ok, data: DataEnvelope } | { ok: false, error }.

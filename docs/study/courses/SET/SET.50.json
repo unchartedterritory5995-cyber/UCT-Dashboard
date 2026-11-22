@@ -1,0 +1,4402 @@
+{
+ "unit": "SET.50",
+ "track": "SET",
+ "title": "Wyckoff Spring",
+ "teaches": "The Wyckoff spring as we teach it: in a leader above its 200-day, resting in a flat sideways range, price dips a little under the floor and closes back inside. We read the range, the depth of the dip (0.1 to 1 ATR) and the close, buy the reclaim or the later quiet test, put the stop a few cents under the spring low, and take the stop as the trade, because a spring that fails usually fails at once. A single swing low is a 2B, a rising average is an undercut and rally, and a dip of 2 ATR or more is a breakdown.",
+ "skills": [
+  {
+   "id": "setup.wyckoff_spring",
+   "title": "Wyckoff Spring"
+  }
+ ],
+ "as_of": "2026-11-10",
+ "card": "docs/study/setups/criteria/35-wyckoff-spring-upthrust.json",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 2,
+   "publisher": "StockCharts",
+   "title": "ChartSchool, The Wyckoff Method: A Tutorial (Roman Bogomazov and Michael Lipsett)",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/market-analysis/wyckoff-analysis-articles/the-wyckoff-method-a-tutorial",
+   "accessed": "2026-11-10",
+   "why_reliable": "The Wyckoff school's standard text, republished by an established educator (schematics edited by Hank Pruden). Not Wyckoff's own words."
+  },
+  {
+   "id": "s2",
+   "tier": 2,
+   "publisher": "Hank Pruden and Max von Lichtenstein, Market Technician (STA) 55, via Wyckoff Analytics",
+   "title": "Wyckoff Schematics: Visual templates for market timing decisions (2006)",
+   "url": "https://www.wyckoffanalytics.com/wp-content/uploads/2019/09/WyckoffSchematics-VisualTemplatesForMarketTimingDecisions.pdf",
+   "accessed": "2026-11-10",
+   "why_reliable": "Originator school, published in a technical analysts' journal. A PDF: the quote checker needs pypdf, so it may report it unreachable."
+  },
+  {
+   "id": "s3",
+   "tier": 2,
+   "publisher": "StockCharts",
+   "title": "Bruce Fraser, Wyckoff Power Charting: Francis Bacon Reveals the Nature of Trends (2015-06)",
+   "url": "https://articles.stockcharts.com/article/articles-wyckoff-2015-06-francis-bacon-reveals-the-nature-of-trends/",
+   "accessed": "2026-11-10",
+   "why_reliable": "Fraser has taught Wyckoff at Golden Gate University since 1987; the most concrete rules in the literature."
+  },
+  {
+   "id": "s4",
+   "tier": 2,
+   "publisher": "StockCharts",
+   "title": "Bruce Fraser, Wyckoff Power Charting: Springing into Action (2016-05-06)",
+   "url": "https://articles.stockcharts.com/article/articles-wyckoff-2016-05-springing-into-action/",
+   "accessed": "2026-11-10",
+   "why_reliable": "As s3: the same author and publisher, so it never counts as a second publisher."
+  },
+  {
+   "id": "s5",
+   "tier": 2,
+   "publisher": "CMT Association (Stewart Taylor, CMT)",
+   "title": "Reversal Bars Part 4-1: Springs and Upthrust (2023-08-21)",
+   "url": "https://cmtassociation.org/tradingview-ideas/erjgdnni-reversal-bars-part-4-1-springs-and-upthrust/",
+   "accessed": "2026-11-10",
+   "why_reliable": "One CMT member's teaching, not an official standard; it disagrees with the Wyckoff school on volume, and the unit uses it for that disagreement."
+  },
+  {
+   "id": "p1",
+   "tier": 3,
+   "publisher": "UCT Substack (Sunday Scans section)",
+   "title": "Sunday Scans 2026-03-08: the DELL plan",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-dcf",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "p2",
+   "tier": 3,
+   "publisher": "UCT Substack (Sunday Scans section)",
+   "title": "Sunday Scans 2026-11-08: a good UnR he held off",
+   "url": "https://unchartedterritoryy.substack.com/p/sunday-scans-70f",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "h1",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "c1",
+   "tier": 3,
+   "publisher": "UCT setup criteria card",
+   "title": "Wyckoff Spring criteria card (docs/study/setups/criteria/35-wyckoff-spring-upthrust.json, as of 2026-11-10)",
+   "url": "repo:docs/study/setups/criteria/35-wyckoff-spring-upthrust.json",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "d1",
+   "tier": 3,
+   "publisher": "UCT setup research (examples read from our own daily bars)",
+   "title": "Wyckoff Spring dossier, sections 13 and 14: examples, failures and near-misses from our data",
+   "url": "repo:docs/study/setups/research/35-wyckoff-spring-upthrust.md#13-examples-from-our-data",
+   "accessed": "2026-11-10"
+  },
+  {
+   "id": "h2",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Setup decisions: the owner's rulings (2026-11-12)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-owners-rulings-2026-11-12",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "w01",
+   "source": "s2",
+   "quote": "A spring is a price move below the support level of a trading range that quickly reverses and moves back into the range.",
+   "claim": "Pruden: a spring is a move below support that quickly reverses back into the range."
+  },
+  {
+   "id": "w03",
+   "source": "s2",
+   "quote": "does a better job of cleaning out remaining supply from weak holders",
+   "claim": "Pruden: the spring does a better job of cleaning out supply from weak holders than a test higher in the range."
+  },
+  {
+   "id": "w04",
+   "source": "s2",
+   "quote": "The shakeout at point 8 on our Schematic 1 represents our first prescribed place to initiate a long position. The secondary test at point 10 is better,",
+   "claim": "Pruden: the spring is the first place to buy; the later secondary test is better."
+  },
+  {
+   "id": "w05",
+   "source": "s2",
+   "quote": "Also according to Wyckoff, you should not buy breakouts because that would leave you vulnerable to swift moves in the opposite direction if the breakout turned out to be false.",
+   "claim": "Pruden: according to Wyckoff, do not buy breakouts."
+  },
+  {
+   "id": "t01",
+   "source": "s1",
+   "quote": "A “spring” takes price below the low of the TR and then reverses to close within the TR",
+   "claim": "ChartSchool: a spring takes price below the low of the range and reverses to close within it."
+  },
+  {
+   "id": "t02",
+   "source": "s1",
+   "quote": "Springs or shakeouts usually occur late within a TR",
+   "claim": "ChartSchool: springs or shakeouts usually occur late within a range."
+  },
+  {
+   "id": "t03",
+   "source": "s1",
+   "quote": "A low-volume spring (or a low-volume test of a shakeout) indicates that the stock is likely to be ready to move up, so this is a good time to initiate at least a partial long position.",
+   "claim": "ChartSchool: a low-volume spring is a good time to start at least a partial long position."
+  },
+  {
+   "id": "t04",
+   "source": "s1",
+   "quote": "A spring is often followed by one or more tests; a successful test (indicating that further price increases will follow) typically makes a higher low on lesser volume.",
+   "claim": "ChartSchool: a successful test typically makes a higher low on lesser volume."
+  },
+  {
+   "id": "t05",
+   "source": "s1",
+   "quote": "However, springs and terminal shakeouts are not required elements",
+   "claim": "ChartSchool: springs are not required elements."
+  },
+  {
+   "id": "t06",
+   "source": "s1",
+   "quote": "Time your commitment with a turn in the stock market index.",
+   "claim": "ChartSchool: time your commitment with a turn in the stock market index."
+  },
+  {
+   "id": "f01",
+   "source": "s3",
+   "quote": "The Number 3 Spring is a shallow penetration of the prior low on modest volume and can be bought immediately.",
+   "claim": "Fraser: a number 3 spring is a shallow penetration on modest volume and can be bought immediately."
+  },
+  {
+   "id": "f02",
+   "source": "s3",
+   "quote": "The Number 2 Spring goes further below the low on expanded volume and then has a brief lift followed by a drop back toward the lows (this is called a test).",
+   "claim": "Fraser: a number 2 spring goes further below the low on expanded volume, then lifts briefly and drops back for a test."
+  },
+  {
+   "id": "f03",
+   "source": "s3",
+   "quote": "The Number 1 Spring is actually a Shakeout that is a complete breakdown. It should not be bought.",
+   "claim": "Fraser: a number 1 spring is a complete breakdown and should not be bought."
+  },
+  {
+   "id": "f04",
+   "source": "s3",
+   "quote": "High volume Springs need to be tested in the following days or weeks.",
+   "claim": "Fraser: high volume springs need to be tested in the following days or weeks."
+  },
+  {
+   "id": "f05",
+   "source": "s3",
+   "quote": "The volume signature is the final arbiter of the type of Spring developing and this also determines the strategy for entry.",
+   "claim": "Fraser: the volume signature decides the type of spring and the strategy for entry."
+  },
+  {
+   "id": "f06",
+   "source": "s4",
+   "quote": "Buy the Spring or any of the demand bars that follow. Place stops under the low of the Spring day.",
+   "claim": "Fraser: buy the spring or the demand bars after it; place stops under the low of the spring day."
+  },
+  {
+   "id": "f07",
+   "source": "s3",
+   "quote": "Typically the Spring action would develop later in the Accumulation formation.",
+   "claim": "Fraser: the spring action typically develops later in the accumulation."
+  },
+  {
+   "id": "y01",
+   "source": "s5",
+   "quote": "Volume on the spring is typically quite high (the higher the better) and the price spread should be reasonably wide.",
+   "claim": "Taylor: volume on the spring is typically quite high, the higher the better."
+  },
+  {
+   "id": "y02",
+   "source": "s5",
+   "quote": "In my view, the spring low should not be violated by any significant degree or the structure is invalidated.",
+   "claim": "Taylor: the spring low should not be violated by any significant degree."
+  },
+  {
+   "id": "y03",
+   "source": "s5",
+   "quote": "Slower violations that fail can be thought of as washouts or bear traps.",
+   "claim": "Taylor: slower violations that fail are washouts or bear traps."
+  },
+  {
+   "id": "u01",
+   "source": "p1",
+   "quote": "Entry-Shakeout to $140 and reclaim of $142, so entry $142.",
+   "claim": "Our DELL plan: entry on the reclaim of $142 after a shakeout to $140."
+  },
+  {
+   "id": "u02",
+   "source": "p1",
+   "quote": "Stop $140 so we are risking $2 per share.",
+   "claim": "Our DELL plan: stop $140, risking $2 per share."
+  },
+  {
+   "id": "u03",
+   "source": "p1",
+   "quote": "We will be 3-1 gain on our risk by the time the breakout buyers step in.",
+   "claim": "Our DELL plan: a 3-1 gain on the risk by the time the breakout buyers step in."
+  },
+  {
+   "id": "u04",
+   "source": "p2",
+   "quote": "My hard rule, as soon as there is buyout stuff I take it off my list.",
+   "claim": "Our rule: as soon as there is buyout news, the stock comes off the list."
+  },
+  {
+   "id": "h01",
+   "source": "h1",
+   "quote": "Stop first (by default a few cents under the day's low or the prior day's low, F62); the size comes from the stop; if the honest stop does not fit the risk, skip the trade.",
+   "claim": "A3: stop first, a few cents under the day's low; the size comes from the stop; if the honest stop does not fit, skip."
+  },
+  {
+   "id": "h02",
+   "source": "h1",
+   "quote": "The stop is the exit. It only moves up, never down or wider. The one exception is the gap rule (B20).",
+   "claim": "A4: the stop is the exit; it only moves up, never wider; the gap rule is the one exception."
+  },
+  {
+   "id": "h04",
+   "source": "h1",
+   "quote": "\"I almost never take a loss greater than 3%\": the stop usually sits within about 3% of the buy (a loss on the position, not the account).",
+   "claim": "A13: the stop usually sits within about 3% of the buy."
+  },
+  {
+   "id": "h05",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "h06",
+   "source": "h1",
+   "quote": "A gap against the stop: the first 30 minutes of the gap-down day decide. The low of the first 30-minute bar is the new stop.",
+   "claim": "B20: on a gap through the stop, the first 30-minute low is the new stop."
+  },
+  {
+   "id": "h07",
+   "source": "h1",
+   "quote": "With a ceiling: if the first 30 minutes take the loss past 2R, get out.",
+   "claim": "B20's ceiling: if the first 30 minutes take the loss past 2R, get out."
+  },
+  {
+   "id": "h08",
+   "source": "h1",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "B22: no new buys in the 3 days before a report; hold through one only if up 5R."
+  },
+  {
+   "id": "h09",
+   "source": "h1",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "B23: only stocks at $10 or more trading at least $20 million a day."
+  },
+  {
+   "id": "h10",
+   "source": "h1",
+   "quote": "The 200-day line: no longs below the 200-day simple moving average, unless it is a parabolic long; shorts only below the 200-day, never above it unless it is a parabolic short.",
+   "claim": "B26: no longs below the 200-day simple moving average, except a parabolic long."
+  },
+  {
+   "id": "h13",
+   "source": "hw",
+   "quote": "Too stretched to buy: skip a long that is more than 10% above its 9 EMA.",
+   "claim": "We skip a long that is more than 10% above its 9 EMA: too stretched to buy."
+  },
+  {
+   "id": "h14",
+   "source": "h1",
+   "quote": "Buy leaders: an RS rating of 80 or more, in one of the strongest groups, except parabolic and mean-reversion trades.",
+   "claim": "C31: buy leaders, an RS rating of 80 or more in a strong group."
+  },
+  {
+   "id": "h15",
+   "source": "h1",
+   "quote": "Time stop: a trade still under 1R after 10 trading days is sold, freeing the money.",
+   "claim": "C33: a trade still under 1R after 10 trading days is sold."
+  },
+  {
+   "id": "h20",
+   "source": "hw",
+   "quote": "Later sells are a judgment too: sell more into strength on a later push, and trail what is left.",
+   "claim": "Later sells are a judgment: sell more into strength on a later push, and trail what is left."
+  },
+  {
+   "id": "h21",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
+  },
+  {
+   "id": "h22",
+   "source": "h1",
+   "quote": "Entries are market orders.",
+   "claim": "E57: entries are market orders."
+  },
+  {
+   "id": "h24",
+   "source": "h1",
+   "quote": "The stop sits a few cents under the day's low, not exactly on it.",
+   "claim": "F62: the stop sits a few cents under the day's low."
+  },
+  {
+   "id": "h25",
+   "source": "h1",
+   "quote": "If a stock opens above a trim level (3R, 5R), take that trim at the open.",
+   "claim": "F63: a trim level the day opens past is taken at the open."
+  },
+  {
+   "id": "h26",
+   "source": "h1",
+   "quote": "The market reading as a guide (A10): Green, full risk per grade and up to 10 positions; Yellow, smaller and fewer; Orange, only A+ setups; Red, mostly cash and shorts.",
+   "claim": "F65: Green full risk; Yellow smaller and fewer; Orange only A+; Red mostly cash and shorts."
+  },
+  {
+   "id": "h28",
+   "source": "h1",
+   "quote": "After a stop-out, buy again only if the setup triggers again, as a new trade with its own stop and every rule.",
+   "claim": "B21: after a stop-out, buy again only on a new trigger, as a new trade."
+  },
+  {
+   "id": "h28b",
+   "source": "h1",
+   "quote": "The full size at one price with one stop; no adding.",
+   "claim": "A5: the full size at one price with one stop; no adding."
+  },
+  {
+   "id": "c01",
+   "source": "c1",
+   "quote": "Preferred: the 60 sessions before the range rose (a reaccumulation pause, Fraser's stepping stone), not a base after a decline.",
+   "claim": "Preferred: the 60 sessions before the range rose, a reaccumulation pause, not a base after a decline."
+  },
+  {
+   "id": "c02",
+   "source": "c1",
+   "quote": "RS rating 80 or more; stronger than the market through the range.",
+   "claim": "RS rating 80 or more; stronger than the market through the range."
+  },
+  {
+   "id": "c03",
+   "source": "c1",
+   "quote": "Price $10 or more and $20 million a day or more.",
+   "claim": "Price $10 or more and $20 million a day or more."
+  },
+  {
+   "id": "c04",
+   "source": "c1",
+   "quote": "No new buy within 3 days of a report; skip on buyout news.",
+   "claim": "No new buy within 3 days of a report; skip on buyout news."
+  },
+  {
+   "id": "c05",
+   "source": "c1",
+   "quote": "Springs: a Green or Yellow market.",
+   "claim": "Springs: a Green or Yellow market."
+  },
+  {
+   "id": "c06",
+   "source": "c1",
+   "quote": "Best when the index itself has just sprung back from a correction",
+   "claim": "Best when the index itself has just sprung back from a correction."
+  },
+  {
+   "id": "c07",
+   "source": "c1",
+   "quote": "Range height 6% to 20% from the floor to the top. Over 20%: grade lower.",
+   "claim": "Range height 6% to 20% from the floor to the top; over 20% grades lower."
+  },
+  {
+   "id": "c08",
+   "source": "c1",
+   "quote": "Flat: no clear slope, the closes drift less than a quarter of the range height.",
+   "claim": "Flat: no clear slope; the closes drift less than a quarter of the range height."
+  },
+  {
+   "id": "c09",
+   "source": "c1",
+   "quote": "The spring: the day's low goes under the range's lowest low by at least 0.1 ATR (a real undercut) and at most about 1 ATR.",
+   "claim": "The spring: the day's low goes under the range's lowest low by at least 0.1 ATR and at most about 1 ATR."
+  },
+  {
+   "id": "c10",
+   "source": "c1",
+   "quote": "Over 1 ATR is a shakeout (grade lower); over 2 ATR is a breakdown, not a spring.",
+   "claim": "Over 1 ATR is a shakeout (grade lower); over 2 ATR is a breakdown, not a spring."
+  },
+  {
+   "id": "c11",
+   "source": "c1",
+   "quote": "Close quality: the reclaim day closes in the upper half of its range.",
+   "claim": "The reclaim day closes in the upper half of its range."
+  },
+  {
+   "id": "c12",
+   "source": "c1",
+   "quote": "Often the spring undercuts the 20-day or 50-day too",
+   "claim": "Often the spring undercuts the 20-day or 50-day too."
+  },
+  {
+   "id": "c13",
+   "source": "c1",
+   "quote": "Not the breakout over the range top with the stop under the spring low (the app's scanner plan): a median 12.5% stop and 1% reached 3R.",
+   "claim": "Not the breakout over the range top with the stop under the spring low: a median 12.5% stop and 1% reached 3R."
+  },
+  {
+   "id": "c14",
+   "source": "c1",
+   "quote": "At entry, no more than 10% above the 9 EMA.",
+   "claim": "At entry, no more than 10% above the 9 EMA."
+  },
+  {
+   "id": "c15",
+   "source": "c1",
+   "quote": "A few cents under the spring low (for a two-bar spring the lower of the two days). The same for the test entry.",
+   "claim": "A few cents under the spring low; the same for the test entry."
+  },
+  {
+   "id": "c16",
+   "source": "c1",
+   "quote": "A gap through the stop: the first 30-minute low is the new stop; out if past 2R.",
+   "claim": "A gap through the stop: the first 30-minute low is the new stop; out if past 2R."
+  },
+  {
+   "id": "c17",
+   "source": "hw",
+   "quote": "The first sell is a judgment, not a fixed third at 3R.",
+   "claim": "Our rule: the first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "c18",
+   "source": "c1",
+   "quote": "Breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "c19",
+   "source": "c1",
+   "quote": "A third at 5R.",
+   "claim": "A third at 5R."
+  },
+  {
+   "id": "c20",
+   "source": "c1",
+   "quote": "If it opens above a trim level, take that trim at the open.",
+   "claim": "If it opens above a trim level, take that trim at the open."
+  },
+  {
+   "id": "c21",
+   "source": "c1",
+   "quote": "Trail the rest under the 21-day (most springs) or the 10-day (fast movers), out on a close below it.",
+   "claim": "Trail under the 21-day (most springs) or the 10-day (fast movers), out on a close below it."
+  },
+  {
+   "id": "c22",
+   "source": "c1",
+   "quote": "The top of the range is the first resistance. From the reclaim entry it sat a median 4.8R away (72% of the time 3R or more), so the 3R trim usually comes at or before the range top.",
+   "claim": "The top of the range is the first resistance, a median 4.8R away from the reclaim entry."
+  },
+  {
+   "id": "c23",
+   "source": "c1",
+   "quote": "Before the buy: no real range behind the dip. A falling stock makes a new low every day; that is not a spring.",
+   "claim": "No real range behind the dip: a falling stock makes a new low every day; that is not a spring."
+  },
+  {
+   "id": "c24",
+   "source": "c1",
+   "quote": "Before the buy: a close back under the spring low, or a dip that keeps going (over 2 ATR) on heavy volume (Fraser's #1 spring, which should not be bought).",
+   "claim": "A close back under the spring low, or a dip over 2 ATR on heavy volume, is not bought."
+  },
+  {
+   "id": "c25",
+   "source": "c1",
+   "quote": "After the buy: the stop under the spring low is the exit. A spring that fails usually fails at once: 41% broke their low before any test came, 77% before a close over the range top.",
+   "claim": "The stop under the spring low is the exit; a spring that fails usually fails at once: 41% broke their low before any test, 77% before a close over the range top."
+  },
+  {
+   "id": "c26",
+   "source": "c1",
+   "quote": "Under 1R after 10 sessions: out.",
+   "claim": "Under 1R after 10 sessions: out."
+  },
+  {
+   "id": "c27",
+   "source": "c1",
+   "quote": "A U&R's level can be one swing low, a rising average or a prior high",
+   "claim": "A U&R's level can be one swing low, a rising average or a prior high."
+  },
+  {
+   "id": "c28",
+   "source": "c1",
+   "quote": "A 2B's level is one swing low",
+   "claim": "A 2B's level is one swing low."
+  },
+  {
+   "id": "c29",
+   "source": "c1",
+   "quote": "a spring's floor is a flat level",
+   "claim": "A spring's floor is a flat level."
+  },
+  {
+   "id": "c30",
+   "source": "c1",
+   "quote": "A flat base is bought through the TOP of the range with the stop under the breakout day's low",
+   "claim": "A flat base is bought through the top of the range with the stop under the breakout day's low."
+  },
+  {
+   "id": "c31",
+   "source": "c1",
+   "quote": "a spring is bought at the FLOOR on the reclaim after the undercut, with the stop under the dip and the range top a median 4.8R away.",
+   "claim": "A spring is bought at the floor on the reclaim after the undercut, with the stop under the dip and the range top a median 4.8R away."
+  },
+  {
+   "id": "c32",
+   "source": "c1",
+   "quote": "An Oops breaks yesterday's low and reclaims yesterday's close on one candle",
+   "claim": "An Oops breaks yesterday's low and reclaims yesterday's close on one candle."
+  },
+  {
+   "id": "c33",
+   "source": "c1",
+   "quote": "a spring breaks the floor of a range",
+   "claim": "A spring breaks the floor of a range."
+  },
+  {
+   "id": "c34",
+   "source": "c1",
+   "quote": "A spring goes 0.1 to 1 ATR under the floor in a stock above its 200-day; over 2 ATR is a breakdown",
+   "claim": "A spring goes 0.1 to 1 ATR under the floor in a stock above its 200-day; over 2 ATR is a breakdown."
+  },
+  {
+   "id": "c35",
+   "source": "c1",
+   "quote": "and a 2 ATR flush on 2x volume under the fast averages with the burst boxes checked is a capitulation",
+   "claim": "A 2 ATR flush on 2x volume under the fast averages with the burst boxes checked is a capitulation."
+  },
+  {
+   "id": "d01",
+   "source": "d1",
+   "quote": "GIS | 2001-10-15 | spring, one-bar | 60 d, 21.30-23.30, 9.4%, 4 touches | 0.13 ATR under the floor, 1.16x volume",
+   "claim": "GIS 2001-10-15: a one-bar spring; range 21.30 to 23.30, 9.4% tall, 4 floor touches; the probe 0.13 ATR under the floor on 1.16x volume."
+  },
+  {
+   "id": "d02",
+   "source": "d1",
+   "quote": "21.43 | 21.22 (0.96%) | 7 d | 23.8R",
+   "claim": "GIS: buy 21.43, stop 21.22 (0.96%); 3R in 7 days; 23.8R best."
+  },
+  {
+   "id": "d03",
+   "source": "d1",
+   "quote": "A flat 12-week shelf with four floor touches above a rising 200-day, a shallow one-day undercut that closes back inside, then a straight run through the ceiling.",
+   "claim": "GIS: a flat shelf with four floor touches above a rising 200-day, a shallow undercut that closes back inside, then a run through the ceiling."
+  },
+  {
+   "id": "d04",
+   "source": "d1",
+   "quote": "HWM | 2025-08-20 | spring, one-bar | 40 d, 170.34-193.26, 13.5%, 3 touches | 0.14 ATR, 0.84x",
+   "claim": "HWM 2025-08-20: range 170.34 to 193.26, 13.5% tall, 3 touches; the probe 0.14 ATR under the floor on 0.84x volume."
+  },
+  {
+   "id": "d05",
+   "source": "d1",
+   "quote": "171.85 | 169.42 (1.41%) | 10 d | 16.5R",
+   "claim": "HWM: buy 171.85, stop 169.42 (1.41%); 3R in 10 days; 16.5R best."
+  },
+  {
+   "id": "d06",
+   "source": "d1",
+   "quote": "A stepping-stone range after a 31% run (the preferred prior trend in 8.1), three floor touches, a shallow quiet probe",
+   "claim": "HWM: a stepping-stone range after a 31% run, three floor touches, a shallow quiet probe."
+  },
+  {
+   "id": "d07",
+   "source": "d1",
+   "quote": "MSFT | 2023-08-08 | 40 d, 324.41-366.78, 13.1%, 3 | 0.16 ATR to 323.00, on 0.76x / 0 / same day | 326.47 (08-09) | 322.97 (1.07%) | 08-09, low 321.05, close 322.23",
+   "claim": "MSFT 2023-08-08: range 324.41 to 366.78, 13.1% tall, 3 touches; probe 0.16 ATR to 323.00 on 0.76x volume; buy 326.47, stop 322.97 (1.07%); stopped next day, low 321.05."
+  },
+  {
+   "id": "d08",
+   "source": "d1",
+   "quote": "A cents-deep probe on light volume, three touches, a 1% stop: everything the rules ask for, and it was stopped on the entry day",
+   "claim": "MSFT: a cents-deep probe on light volume, three touches, a 1% stop, everything the rules ask for, and stopped on the entry day."
+  },
+  {
+   "id": "d09",
+   "source": "d1",
+   "quote": "A spring that fails usually fails at once.",
+   "claim": "A spring that fails usually fails at once."
+  },
+  {
+   "id": "d10",
+   "source": "d1",
+   "quote": "The entry day dipped through the stop and closed back above the entry; the stock then fell to 51.35 by 06-03",
+   "claim": "GOOGL: the entry day dipped through the stop; the stock then fell to 51.35 by 06-03."
+  },
+  {
+   "id": "d11",
+   "source": "d1",
+   "quote": "Not a Green market.",
+   "claim": "GOOGL: not a Green market."
+  },
+  {
+   "id": "d12",
+   "source": "d1",
+   "quote": "QQQ sprang the same day and failed too (0.0R in the same scan). The index's own spring had not held.",
+   "claim": "AAPL 2021: QQQ sprang the same day and failed too; the index's own spring had not held."
+  },
+  {
+   "id": "d13",
+   "source": "d1",
+   "quote": "Never traded above the entry; broke the spring low on the entry day and gapped on",
+   "claim": "TSLA: never traded above the entry; broke the spring low on the entry day."
+  },
+  {
+   "id": "d14",
+   "source": "d1",
+   "quote": "a 17.9% tall range (near the 20% limit) after a 73% run in the prior 60 sessions",
+   "claim": "TSLA: a 17.9% tall range after a 73% run in the prior 60 sessions."
+  },
+  {
+   "id": "d15",
+   "source": "d1",
+   "quote": "The probe went 1.34 ATR under the 359.50 floor (to 352.44)",
+   "claim": "COST: the probe went 1.34 ATR under the 359.50 floor."
+  },
+  {
+   "id": "d16",
+   "source": "d1",
+   "quote": "A deeper shakeout, two-bar: buy 361.30 at the 01-21 open, stop 352.41 (2.46%); made 0.52R and was stopped",
+   "claim": "COST: a deeper shakeout; buy 361.30, stop 352.41 (2.46%); made 0.52R and was stopped."
+  },
+  {
+   "id": "d17",
+   "source": "d1",
+   "quote": "The floor (164.99) was touched by ONE swing low, 40 sessions old, that price rallied 14% off",
+   "claim": "AMZN 2021: the floor was touched by one swing low, 40 sessions old, that price rallied 14% off."
+  },
+  {
+   "id": "d18",
+   "source": "d1",
+   "quote": "A 2B of a single swing low (setup 28), not a spring: there is no flat range to look left at.",
+   "claim": "AMZN 2021: a 2B of a single swing low, not a spring; there is no flat range to look left at."
+  },
+  {
+   "id": "d19",
+   "source": "d1",
+   "quote": "ODFL | 2021-10-01 | spring, one-bar | 25 d, 141.88-152.11, 7.2%, 5 touches | 0.75 ATR, 0.96x",
+   "claim": "ODFL 2021-10-01: range 141.88 to 152.11, 7.2% tall, 5 touches; probe 0.75 ATR under the floor on 0.96x volume."
+  },
+  {
+   "id": "d20",
+   "source": "d1",
+   "quote": "Five floor touches then one deeper probe (three-quarters of an ATR) that still closes back inside on normal volume",
+   "claim": "ODFL: five floor touches, then one deeper probe of three-quarters of an ATR that still closes back inside on normal volume."
+  },
+  {
+   "id": "d21",
+   "source": "d1",
+   "quote": "By side: 3,173 springs, 27.1% to 3R, 17.7% to 5R, 83.8% stopped within the window (median stop 2.15%)",
+   "claim": "Our scan: 3,173 springs, 27.1% to 3R, 17.7% to 5R, 83.8% stopped within the window."
+  },
+  {
+   "id": "w06",
+   "source": "s2",
+   "quote": "occur late within the trading range and allow the market and its dominant players to make a definitive test of available supply",
+   "claim": "Pruden: springs or shakeouts usually occur late within the trading range and let the market test available supply."
+  },
+  {
+   "id": "w07",
+   "source": "s2",
+   "quote": "the way is clear for a sustained advance",
+   "claim": "Pruden: light volume on the break means the way is clear for a sustained advance."
+  },
+  {
+   "id": "f08",
+   "source": "s4",
+   "quote": "The BUEC is a classic place to add to the position.",
+   "claim": "Fraser: the BUEC (back-up) is a classic place to add to the position."
+  },
+  {
+   "id": "t07",
+   "source": "s1",
+   "quote": "LPSs in this phase are generally excellent places to initiate or add to profitable long positions.",
+   "claim": "ChartSchool: a last point of support (LPS) is a good place to start or add to a long position."
+  },
+  {
+   "id": "t08",
+   "source": "s1",
+   "quote": "Price targets derived from Wyckoff P&F counts represent points where you should stop, look and listen. These targets should never be looked upon as exact points of where a trend will change.",
+   "claim": "ChartSchool: targets from the point-and-figure count are points to stop, look and listen, not exact turns."
+  },
+  {
+   "id": "t09",
+   "source": "s1",
+   "quote": "Wyckoff's cause can be measured by the horizontal point count in a Point and Figure chart.",
+   "claim": "ChartSchool: Wyckoff's cause is measured by the horizontal point count in a Point and Figure chart."
+  },
+  {
+   "id": "h41",
+   "source": "h1",
+   "quote": "Every position has a real stop order with the broker, not a stop kept in your head.",
+   "claim": "D41: every position has a real stop order with the broker."
+  },
+  {
+   "id": "c36",
+   "source": "c1",
+   "quote": "Option C, the back-up (LPS or BUEC): after the push to the top of the range, the first light-volume pullback that holds the old top. The add or the second chance; it overlaps the flat-base breakout.",
+   "claim": "Card: the back-up is the first light-volume pullback that holds the old top after the push; the school's add or second chance."
+  },
+  {
+   "id": "c37",
+   "source": "c1",
+   "quote": "The Wyckoff point-and-figure count may be shown as a stop, look and listen level, not taught as a rule.",
+   "claim": "Card: the point-and-figure count may be shown as a stop, look and listen level, not taught as a rule."
+  },
+  {
+   "id": "c38",
+   "source": "c1",
+   "quote": "Never lower it; a real stop order with the broker.",
+   "claim": "Card: the stop is never lowered, and it is a real stop order with the broker."
+  },
+  {
+   "id": "c39",
+   "source": "c1",
+   "quote": "The app's target of twice the range height is in no source.",
+   "claim": "Card: a target of twice the range height is in no source."
+  },
+  {
+   "id": "w08",
+   "source": "s2",
+   "quote": "If the amount of supply that surfaces on a break of support is very light (low volume), it will be an indication that the way is clear for a sustained advance.",
+   "claim": "Pruden: very light supply (low volume) on a break of support indicates the way is clear for a sustained advance."
+  },
+  {
+   "id": "w09",
+   "source": "s2",
+   "quote": "use point and figure counts from these points to calculate price projections",
+   "claim": "Pruden: point and figure counts are used to calculate price projections."
+  },
+  {
+   "id": "w10",
+   "source": "s2",
+   "quote": "a relatively narrow price-spread reaction or rally on comparatively lighter volume that tests and confirms the legitimacy of the preceding jump action",
+   "claim": "Pruden: a backup is a narrow reaction on lighter volume that tests and confirms the jump."
+  },
+  {
+   "id": "h50",
+   "source": "h1",
+   "quote": "Grading a setup (A+, A, B, B-) is discretionary and hard to define; no fixed checklist is taught as ours.",
+   "claim": "E50: grading a setup is discretionary; no fixed checklist is taught as ours."
+  },
+  {
+   "id": "r01",
+   "source": "h2",
+   "quote": "Below the 200-day is a hard no for stocks.",
+   "claim": "For stocks, below the 200-day is a hard no."
+  },
+  {
+   "id": "r02",
+   "source": "h2",
+   "quote": "The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "claim": "Indexes and leveraged ETFs may go under it on a reversal extension or a parabolic long."
+  },
+  {
+   "id": "r05",
+   "source": "h2",
+   "quote": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable.",
+   "claim": "Stops: 1-3% preferred, 3.5% good, up to 5% acceptable."
+  },
+  {
+   "id": "r06",
+   "source": "h2",
+   "quote": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R.",
+   "claim": "The first sell is a judgment, not a fixed third at 3R."
+  },
+  {
+   "id": "r07",
+   "source": "hw",
+   "quote": "We very rarely sell on day 1 of the buy; we usually wait until day 3 at the earliest.",
+   "claim": "We very rarely sell on day 1 of the buy and usually wait until day 3 at the earliest."
+  },
+  {
+   "id": "r08",
+   "source": "h2",
+   "quote": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best.",
+   "claim": "Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best."
+  },
+  {
+   "id": "r09",
+   "source": "h2",
+   "quote": "Looking for 3-5-7 day push for our first sell and that might be 10-12-20R.",
+   "claim": "The first sell is often day based: a 3, 5 or 7 day push, which can be 10, 12 or 20R."
+  },
+  {
+   "id": "r21",
+   "source": "h2",
+   "quote": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "claim": "Owner: the 9 and 20 EMA everywhere, with the 50 and 200 SMA."
+  },
+  {
+   "id": "rg1",
+   "source": "h2",
+   "quote": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule",
+   "claim": "Owner: a gap past 3R is not an automatic sell. Selling part at the open is a judgment, never a rule."
+  },
+  {
+   "id": "h05b",
+   "source": "hw",
+   "quote": "The stop may move up to breakeven between 2R and 5R, or at the first sell.",
+   "claim": "Our stop may move up to breakeven between 2R and 5R, or at the first sell."
+  },
+  {
+   "id": "d31",
+   "source": "d1",
+   "quote": "ULTA | 2015-05-15 | spring, one-bar | 25 d, 149.53-158.97, 6.3%, 2 touches | 0.15 ATR, 0.93x",
+   "claim": "ULTA 2015-05-15: range 149.53 to 158.97, 6.3% tall, 2 touches; the probe 0.15 ATR under the floor on 0.93x volume."
+  },
+  {
+   "id": "d32",
+   "source": "d1",
+   "quote": "150.40 | 149.09 (0.87%) | 7 d | 15.9R",
+   "claim": "ULTA: buy 150.40, stop 149.09 (0.87%); 3R in 7 days; 15.9R best."
+  },
+  {
+   "id": "d33",
+   "source": "d1",
+   "quote": "PH | 2017-08-18 | spring, one-bar | 40 d, 155.04-167.50, 8.0%, 2 touches | 0.49 ATR, 0.81x",
+   "claim": "PH 2017-08-18: range 155.04 to 167.50, 8.0% tall, 2 touches; the probe 0.49 ATR under the floor on 0.81x volume."
+  },
+  {
+   "id": "d34",
+   "source": "d1",
+   "quote": "155.40 | 153.62 (1.15%) | 8 d | 19.3R",
+   "claim": "PH: buy 155.40, stop 153.62 (1.15%); 3R in 8 days; 19.3R best."
+  },
+  {
+   "id": "d35",
+   "source": "d1",
+   "quote": "AVGO | 2023-05-04 | spring, one-bar | 40 d, 60.32-64.85, 7.5%, 2 touches | 0.15 ATR, 0.82x",
+   "claim": "AVGO 2023-05-04: range 60.32 to 64.85, 7.5% tall, 2 touches; the probe 0.15 ATR under the floor on 0.82x volume."
+  },
+  {
+   "id": "d36",
+   "source": "d1",
+   "quote": "61.59 | 60.10 (2.43%) | 9 d | 20.6R",
+   "claim": "AVGO: buy 61.59, stop 60.10 (2.43%); 3R in 9 days; 20.6R best."
+  },
+  {
+   "id": "d37",
+   "source": "d1",
+   "quote": "KMX | 2020-12-29 | spring, two-bar | 25 d, 91.25-100.68, 10.3%, 4 touches | 0.31 ATR, 0.94x",
+   "claim": "KMX 2020-12-29: a two-bar spring; range 91.25 to 100.68, 10.3% tall, 4 floor touches; the probe 0.31 ATR under the floor on 0.94x volume."
+  },
+  {
+   "id": "aw1",
+   "source": "hw",
+   "quote": "We buy the full size at one price with one stop: no starter piece, and we never add to a loser. Adding to a working winner on strength happens, but it is rare and a feel call, never the plan.",
+   "claim": "We buy the full size at one price with one stop, with no starter piece, and never add to a loser. Adding to a working winner on strength is rare, a feel call, never the plan."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "GIS, October 2001: the clean one-bar spring",
+   "steps": [
+    "GIS, October 2001. A flat 12-week shelf from 21.30 to 23.30, above a rising 200-day. Four touches of the floor.",
+    "October 15 it dips just under the floor and closes back inside the same day. That's the spring.",
+    "Buy at market, 21.43. Stop a few cents under the spring low, 21.22. That's 0.96% of risk.",
+    "3R came in 7 days, then a straight run through the ceiling. Sell some into the push, trail the rest."
+   ],
+   "facts": [
+    "d01",
+    "d02",
+    "d03",
+    "c17"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "HWM, August 2025: a stepping-stone range",
+   "steps": [
+    "HWM, August 2025. After a 31% run it goes sideways, 170.34 to 193.26. A stepping stone, three touches of the floor.",
+    "August 20 it pokes just under the floor on light volume, 0.84x, and closes back inside. A quiet shakeout.",
+    "Buy at market, 171.85. Stop a few cents under the spring low, 169.42, 1.41% away.",
+    "3R took 10 days. The range top is the first resistance. Selling some into a push up there is your call."
+   ],
+   "facts": [
+    "d04",
+    "d05",
+    "d06",
+    "c17",
+    "c22"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "MSFT, August 2023: everything right, and it failed",
+   "steps": [
+    "Here's the hard one. MSFT, August 2023: a 40-day range, 324.41 to 366.78, three touches of the floor.",
+    "August 8 it probes just under the floor to 323.00 on light volume. Everything we want is there.",
+    "Next day, buy at market, 326.47. Stop 322.97, 1.07% away. That same session it trades 321.05 and closes 322.23.",
+    "Stopped out on the entry day. A spring that fails usually fails right away. Take the small loss and move on."
+   ],
+   "facts": [
+    "d07",
+    "d08",
+    "d09"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "setup.wyckoff_spring",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "spr.dip_depth",
+   "q": "Wyckoff traders talk about a spring inside a sideways range. What actually happens on a spring?",
+   "choices": [
+    "Price dips under the floor, snaps back",
+    "Price breaks over the top and holds",
+    "Price slides through the floor slowly",
+    "Price closes under the floor, stays"
+   ],
+   "answer": "Price dips under the floor, snaps back",
+   "why": "It dips under the floor and snaps right back inside. That's a spring. Everyone can see that floor, so stops and nervous sellers sit just under it. The dip runs them, nothing follows, and price is right back in the box. Speed is the tell. Pruden's spring quickly reverses back into the range. Taylor calls a slow slide that fails a washout or a bear trap. Slow means sellers had real control. Fast means they got trapped.",
+   "lesson_line": "A spring dips under the floor and snaps right back inside.",
+   "facts": [
+    "w01",
+    "t01",
+    "y03"
+   ],
+   "wrong": {
+    "Price breaks over the top and holds": "That's a breakout over resistance. A spring happens at the bottom of the range, under the floor.",
+    "Price slides through the floor slowly": "Too slow. A spring snaps back quickly. A slow slide that fails is a washout or a bear trap.",
+    "Price closes under the floor, stays": "That's a breakdown. On a spring, price gets right back inside the range."
+   },
+   "simple": "A quick dip under the range floor that gets right back inside.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "three publishers agree (Pruden, ChartSchool, Taylor); a stable definition"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "setup.wyckoff_spring",
+   "rung": 1,
+   "format": "tf",
+   "criterion": "spr.dip_depth",
+   "q": "A spring takes price below the low of a range and then closes back inside the range.",
+   "answer": "True",
+   "why": "True. A spring takes price below the low of the range, then reverses and closes within it.",
+   "lesson_line": "Under the floor, then back inside the range.",
+   "facts": [
+    "t01",
+    "w01"
+   ]
+  },
+  {
+   "key": "q03",
+   "skill": "setup.wyckoff_spring",
+   "rung": 1,
+   "format": "fill",
+   "criterion": "spr.entry_reclaim",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A spring is bought at the floor on the ___ after the undercut.",
+   "bank": [
+    "reclaim",
+    "breakout",
+    "gap",
+    "close",
+    "rally"
+   ],
+   "answer": "reclaim",
+   "why": "Reclaim. A spring is bought at the floor on the reclaim after the undercut, with the stop under the dip.",
+   "lesson_line": "Buy the reclaim at the floor, not the breakout at the top.",
+   "facts": [
+    "c31"
+   ],
+   "house": true
+  },
+  {
+   "key": "q04",
+   "skill": "setup.wyckoff_spring",
+   "rung": 1,
+   "format": "mcq",
+   "criterion": "spr.range_length",
+   "q": "A stock has built a sideways range for weeks. When in that range do Wyckoff traders expect the spring to show up?",
+   "choices": [
+    "Late, once the floor is set",
+    "On the first day of the range",
+    "Any time, there's no pattern",
+    "Only after the top breaks"
+   ],
+   "answer": "Late, once the floor is set",
+   "why": "Late. The floor has to earn it first. A level that's held again and again is one everybody watches, and that's the one worth undercutting. Pruden's reason is the useful part. The late dip is the market's final test of the supply left. If that test comes up empty, the range is ready to go. Fraser and ChartSchool put it late too. It's a tendency though, not a day count.",
+   "lesson_line": "A spring comes late, after the floor has proven itself.",
+   "facts": [
+    "f07",
+    "t02",
+    "w06"
+   ],
+   "wrong": {
+    "On the first day of the range": "There's no floor yet on day one. A floor has to be tested before a dip under it means anything.",
+    "Any time, there's no pattern": "There is one. ChartSchool, Fraser and Pruden all put the spring late in the range.",
+    "Only after the top breaks": "That's after the range is over. The spring comes late inside the range, at the floor."
+   },
+   "simple": "Late in the range, after the floor has been tested enough to matter.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (second publisher added)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q05",
+   "skill": "setup.wyckoff_spring",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "spr.stop",
+   "q": "On a spring buy, your stop goes a few cents under the low of the dip.",
+   "answer": "True",
+   "why": "True. The low of the dip is your line. If price goes back under it, the spring failed and you want out. A few cents under, not right on it, so a tick to the exact low doesn't shake you out. Don't use the old floor. It sits above the dip's low, so the same wiggle that made the spring takes you out. Same stop if you buy the test instead.",
+   "lesson_line": "Stop a few cents under the spring low. That's where you're wrong.",
+   "facts": [
+    "c15",
+    "h24",
+    "f06"
+   ],
+   "house": true,
+   "simple": "True, a few cents under the low of the dip, because that's where the spring has failed.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A3, F62)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "setup.wyckoff_spring",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "spr.range_height",
+   "q": "How tall is a spring's range, floor to top?",
+   "choices": [
+    "6% to 20%",
+    "1% to 3%",
+    "30% to 50%",
+    "3% to 6%"
+   ],
+   "answer": "6% to 20%",
+   "why": "6% to 20%, measured from the floor to the top. That band is on our setup card. A range over 20% is not ruled out; it grades lower. A range much tighter than 6% falls short of it.",
+   "lesson_line": "A spring range is 6% to 20% tall.",
+   "facts": [
+    "c07"
+   ],
+   "house": true,
+   "wrong": {
+    "1% to 3%": "Too small. Our card asks for a range 6% to 20% tall, floor to top.",
+    "30% to 50%": "Over 20% grades lower. This is far past it.",
+    "3% to 6%": "Our card's band is 6% to 20%, floor to top. This sits under it."
+   },
+   "simple": "A spring's range should be 6% to 20% tall, from the floor to the top.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one source only (the card)",
+     "proposed card criterion, the owner's review pending"
+    ]
+   },
+   "batch": "wave5"
+  },
+  {
+   "key": "q07",
+   "skill": "setup.wyckoff_spring",
+   "rung": 2,
+   "format": "fill",
+   "criterion": "spr.dip_depth",
+   "q": "Tap the number that fits the blank.",
+   "sentence": "On our card, a dip over ___ ATR under the floor is a shakeout that grades lower.",
+   "bank": [
+    "1",
+    "2",
+    "5",
+    "10"
+   ],
+   "answer": "1",
+   "why": "1. On our card a dip over 1 ATR under the floor is a shakeout, and it grades lower. A full spring dips at least 0.1 ATR and at most about 1 ATR. Over 2 ATR is a breakdown, not a spring.",
+   "lesson_line": "A real undercut, but no deeper than about 1 ATR.",
+   "facts": [
+    "c09",
+    "c10"
+   ],
+   "house": true,
+   "simple": "Over 1 ATR under the floor, the dip is a shakeout that grades lower.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one source only (the card)",
+     "proposed card criterion (spr.dip_depth), the owner's review pending"
+    ]
+   },
+   "batch": "wave5"
+  },
+  {
+   "key": "q08",
+   "skill": "setup.wyckoff_spring",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "spr.dip_depth",
+   "q": "A stock drops 3 ATR under its range floor in one day on heavy selling. That's still a spring.",
+   "answer": "False",
+   "why": "False. That's not a dip under the floor, that's sellers running it right through. A spring is a small undercut that snaps back. A drop of 3 ATR is about three normal days of movement gone in one session. A stop under that low would also sit a long way from any sane buy. Fraser calls this kind of complete breakdown his number 1 spring, and he says don't buy it.",
+   "lesson_line": "A spring scratches the floor. A breakdown goes right through it.",
+   "facts": [
+    "c10",
+    "f03",
+    "c24"
+   ],
+   "house": true,
+   "simple": "False. A drop that big is a breakdown, not a quick dip that snaps back.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card criterion awaiting the owner's review (the ATR bands)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q09",
+   "skill": "setup.wyckoff_spring",
+   "rung": 2,
+   "format": "mcq",
+   "criterion": "spr.leader",
+   "q": "You're scanning for springs. What RS rating should the stock carry before you even care about the pattern?",
+   "choices": [
+    "80 or more, a real leader",
+    "20 or less, a beaten-down name",
+    "Around 50, an average stock",
+    "Any rating, the pattern's enough"
+   ],
+   "answer": "80 or more, a real leader",
+   "why": "80 or more. We buy leaders, stocks in the strongest groups that have been beating the market. A spring is a shakeout inside a strong stock's rest. In a weak stock the same dip is just the next leg down. So check the RS Rating on the chart in our app first, then look at the pattern. The only trades we let off this rule are parabolic and mean-reversion ones.",
+   "lesson_line": "Leaders spring. Weak stocks just break.",
+   "facts": [
+    "c02",
+    "h14"
+   ],
+   "house": true,
+   "wrong": {
+    "20 or less, a beaten-down name": "That's one of the weakest stocks out there. Its dip under a floor is more likely the next leg down.",
+    "Around 50, an average stock": "Average isn't a leader. We want 80 or more.",
+    "Any rating, the pattern's enough": "The pattern only works in a leader. The RS rating comes first."
+   },
+   "simple": "80 or more, because a spring only works in a leader that's been beating the market.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C31)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q10",
+   "skill": "setup.wyckoff_spring",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "spr.reclaim_close",
+   "q": "A stock dips under its range floor in the morning and closes back inside, up near the day's high. That close is a good sign.",
+   "answer": "True",
+   "why": "True. Where it closes tells you who won the day. Sellers pushed it under the floor, and buyers took it all back by the close. A close up near the high says demand showed up and stayed. A close back under the spring low is the opposite, and that one you don't buy. I want to see the day finish strong, not limp back in.",
+   "lesson_line": "Where it closes tells you who won the day.",
+   "facts": [
+    "c11",
+    "c24"
+   ],
+   "house": true,
+   "simple": "True, a close near the high shows buyers took the whole dip back and held it.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one source only (the card)",
+     "proposed card criterion (spr.reclaim_close), the owner's review pending"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "spr.market_reading",
+   "q": "A clean spring is on your list. Which readings on our market filter (Green, Yellow, Orange, Red) suit buying it?",
+   "choices": [
+    "Green or Yellow readings",
+    "Red, when fear peaks",
+    "Orange or Red, any grade",
+    "Any reading, chart decides"
+   ],
+   "answer": "Green or Yellow readings",
+   "why": "Green or Yellow. A spring is a bet that the shakeout fails and buyers win. That's a lot easier with the market behind you. Green means full risk for the grade. Yellow means smaller and fewer. In Orange we only take an A+, and Red is mostly cash for us. The reading is a guide, not a switch, but it sets how hard you press.",
+   "lesson_line": "Let the market tell you how hard to press.",
+   "facts": [
+    "c05",
+    "h26"
+   ],
+   "house": true,
+   "wrong": {
+    "Orange or Red, any grade": "Orange is A+ only, and Red is mostly cash. Neither is a spot for an ordinary spring.",
+    "Red, when fear peaks": "Red is mostly cash for us. Fear at its peak can get worse first.",
+    "Any reading, chart decides": "A clean chart doesn't override the market. The reading sets how much you trade."
+   },
+   "simple": "Green or Yellow, because a spring needs buyers to show up, and that's easier when the market is healthy.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F65)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q12",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "spr.flat",
+   "q": "GIS spent 12 weeks between 21.30 and 23.30, tapping the floor four times. What makes a range like that flat?",
+   "choices": [
+    "No clear slope up or down",
+    "A higher high every week",
+    "Its height is small",
+    "Volume dries up through it"
+   ],
+   "answer": "No clear slope up or down",
+   "why": "No clear slope. The highs and lows go sideways, and the floor keeps holding in the same spot. That's what makes the floor mean something. Sellers showed up at the top and buyers at the bottom, again and again. A range that slopes is a trend, not a floor. You judge flat by eye: draw the floor and the top, and see if price stays in the box.",
+   "lesson_line": "Draw the box. If price stays in it, it's flat.",
+   "facts": [
+    "c08",
+    "c07",
+    "d01",
+    "d03"
+   ],
+   "house": true,
+   "wrong": {
+    "A higher high every week": "That's a stair-step up, a trend. Flat goes sideways.",
+    "Its height is small": "Height and slope are different things. A tight range can still slope.",
+    "Volume dries up through it": "Nice to see, and it raises the grade. But flat is about price going sideways."
+   },
+   "simple": "Flat means no clear slope, price going sideways in a box with a floor that keeps holding.",
+   "tier": "core",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one source only (the card)",
+     "proposed card criterion (spr.flat), the owner's review pending"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q13",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "spr.earnings_window",
+   "q": "A clean spring triggers Tuesday. The company reports Thursday, two days out. You can take the buy.",
+   "answer": "False",
+   "why": "False. Two days out is inside our window. We make no new buys in the 3 days before a report. A report can gap a stock right through your stop, and no chart pattern protects you from that. Pass for now and look again after the report. The rule is about new buys. A trade already up 5R may be held through one.",
+   "lesson_line": "No new buys in the 3 days before a report.",
+   "facts": [
+    "c04",
+    "h08"
+   ],
+   "house": true,
+   "simple": "False. Two days before a report is too close, because the report can gap it through your stop.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B22)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q14",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "spr.not_breakout_entry",
+   "q": "Wyckoff's advice, as Pruden writes it, is to buy a range when price breaks out over the top.",
+   "answer": "False",
+   "why": "False. Pruden writes that, per Wyckoff, you shouldn't buy breakouts. A false breakout leaves you open to a fast move the other way. The spring is the answer to that. You buy down at the floor, after the shakeout fails, with the stop just under the low. Your risk is small, and the whole range sits above you as room.",
+   "lesson_line": "Buy the spring at the floor, not the breakout at the top.",
+   "facts": [
+    "w05",
+    "c31",
+    "c13",
+    "c15"
+   ],
+   "house": true,
+   "simple": "False. Wyckoff warned against buying breakouts, so we buy a spring down at the floor.",
+   "deeper": {
+    "counter": "Some scanners buy over the range top but keep the stop under the spring low. That's the worst of both. The stop ends up the whole range away from the buy, so your size shrinks and the reward for the risk falls apart. A spring is bought at the floor."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the Wyckoff line rests on one publisher (Pruden), so it is asked as his",
+     "the floor entry rests on a proposed card criterion awaiting the owner's review (spr.not_breakout_entry)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "scenario",
+   "criterion": "spr.range_height",
+   "q": "Floor 91.25, top 100.68. How much room is that, floor to top, as a percent of the floor?",
+   "answer": "10.3%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(b - a) / a * 100",
+     "a": 91.25,
+     "b": 100.68
+    },
+    "round": 1
+   },
+   "why": "10.3%. 100.68 minus 91.25 is 9.43. Divide that by the floor, 91.25, and you get 10.3%. That's your room. The top of the range is the first place sellers show up, so it's the first spot the move can stall. Buy near the floor with a tight stop and 10.3% of room is plenty of R to work with. Measure off the floor, since that's where you're buying.",
+   "lesson_line": "Top minus floor, over the floor. That's your room to the ceiling.",
+   "facts": [
+    "c07",
+    "d01",
+    "d37"
+   ],
+   "house": true,
+   "suffix": "%",
+   "simple": "The range is 10.3% tall, so there's about that much room from the floor up to the top.",
+   "tier": "core",
+   "risk": {
+    "score": 7,
+    "reasons": [
+     "one source only (the card)",
+     "computed key",
+     "proposed card criterion (spr.range_height), the owner's review pending"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "9.4%",
+    "110.3%",
+    "10.3%",
+    "1.0%"
+   ],
+   "wrong": {
+    "9.4%": "You divided by the top. Measure off the floor, where you buy.",
+    "110.3%": "That's the top as a share of the floor, not the room between them.",
+    "1.0%": "The decimal point slipped a place."
+   },
+   "story": "December 2020. This stock just closed back inside its range after one close under the floor. You're looking at a buy near the floor.",
+   "chart": {
+    "sym": "KMX",
+    "asof": "2020-12-29",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "spr.dip_depth",
+   "q": "The floor is 150.00 and ATR is 3.00. The dip bottoms at 149.10, then closes back inside. How deep was it, in ATR?",
+   "answer": "0.3 ATR",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / c",
+     "a": 150.0,
+     "b": 149.1,
+     "c": 3.0
+    },
+    "round": 1
+   },
+   "why": "0.3 ATR. 150.00 minus 149.10 is 0.9 under the floor. Divide by the 3.00 ATR and you get 0.3. ATR sizes the dip against a normal day for this stock. A third of a normal day's range is a scratch under the floor, not a break. And a shallow dip keeps your stop, a few cents under 149.10, close to where you buy.",
+   "lesson_line": "Dollars under the floor, divided by the ATR.",
+   "facts": [
+    "c09",
+    "f01"
+   ],
+   "house": true,
+   "suffix": " ATR",
+   "simple": "0.3 ATR, because 0.9 under the floor divided by an ATR of 3.00 is 0.3.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on a proposed card criterion awaiting the owner's review (0.1 to 1 ATR)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "0.9 ATR",
+    "0.3 ATR",
+    "3.3 ATR",
+    "0.6 ATR"
+   ],
+   "wrong": {
+    "0.9 ATR": "That's the dollars under the floor. You still have to divide by the 3.00 ATR.",
+    "3.3 ATR": "Flipped the division, ATR over the dollars.",
+    "0.6 ATR": "That's the percent under the floor, not the ATR."
+   },
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "line",
+      "label": "The floor",
+      "price": 150.0
+     },
+     {
+      "key": "low",
+      "label": "Spring low",
+      "price": 149.1
+     }
+    ],
+    "find": {
+     "label": "Dip depth",
+     "as": "num",
+     "unit": "ATR"
+    },
+    "title": "The spring (ATR 3.00)"
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "spr.dip_depth",
+   "q": "Fraser numbers his springs 1 to 3. A shallow dip under the prior low, on modest volume: which one is it?",
+   "choices": [
+    "A number 3 spring",
+    "A number 1 spring",
+    "A number 2 spring",
+    "A test on high volume"
+   ],
+   "answer": "A number 3 spring",
+   "why": "Number 3. Fraser's number 3 is the shallow dip on modest volume, and he says you can buy it right away. His number 2 goes deeper on heavier volume and needs a test before you buy. Number 1 is a complete breakdown, never bought. Watch out, the numbers run backwards: 3 is the good one. For us, volume only raises the grade. It's never a must.",
+   "lesson_line": "Fraser's number 3: shallow, quiet, and you can buy it.",
+   "facts": [
+    "f01",
+    "f02",
+    "f03",
+    "t03",
+    "t04",
+    "w08",
+    "y01"
+   ],
+   "wrong": {
+    "A test on high volume": "A test comes after the spring, and a good one is lighter, not heavier.",
+    "A number 1 spring": "Fraser's number 1 is a complete breakdown. You don't buy it.",
+    "A number 2 spring": "Fraser's number 2 goes deeper on expanded volume, then needs a test."
+   },
+   "simple": "A number 3 spring, the shallow quiet one Fraser says you can buy right away.",
+   "deeper": {
+    "trap": "Fraser's numbers run backwards: number 1 is the deepest and the worst, a breakdown not to buy, and number 3 is the shallow one you can buy. And quiet is not settled. Taylor, a CMT member, wants volume on the spring quite high, the higher the better. Treat the volume read as the Wyckoff school's view, not a fact."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "tied to the held volume decision D-006",
+     "fixed before (second publisher added)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "spr.inv_close_under_low",
+   "q": "Your stock sprang and closed back inside. Next day, before you've bought, it closes back under the spring low. You skip it.",
+   "answer": "True",
+   "why": "True. Pass on this one. A spring only works if that low holds. A close back under it says the shakeout wasn't a shakeout. The sellers came back. Buy it there and you're buying a breakdown. Let it go and wait for a new range to form. Taylor puts it plainly: if the spring low gets violated by any real degree, the structure is invalidated.",
+   "lesson_line": "If the spring low breaks before you buy, there's no trade.",
+   "facts": [
+    "c24",
+    "y02"
+   ],
+   "house": true,
+   "simple": "True. A close back under the spring low means the spring failed, so there's nothing to buy.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card criterion awaiting the owner's review (spr.inv_close_under_low)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "spr.location_averages",
+   "q": "Leaders often shake out under more than the range floor. Besides the floor, what does a spring often dip through?",
+   "choices": [
+    "The 20 EMA or the 50-day",
+    "The 200-day line",
+    "A new multi-year low",
+    "Nothing but the floor"
+   ],
+   "answer": "The 20 EMA or the 50-day",
+   "why": "The 20 EMA or the 50-day. A shakeout under the floor often takes out a fast average too. That's normal, leaders do it. It flushes the people using those lines as stops, then price comes right back. The 200-day is different. Below it is a hard no for stocks. A spring is a scratch under a floor inside an uptrend, not a collapse.",
+   "lesson_line": "A shakeout through the 20 or the 50 is normal. Under the 200-day is a no.",
+   "facts": [
+    "c12",
+    "h10",
+    "c09",
+    "r01",
+    "r02"
+   ],
+   "house": true,
+   "wrong": {
+    "A new multi-year low": "That's a collapse. A spring is a small dip under a flat floor.",
+    "Nothing but the floor": "Leaders often shake out under the 20 EMA or the 50-day as well.",
+    "The 200-day line": "Below the 200-day is a hard no for stocks. A spring lives above it."
+   },
+   "simple": "The 20 EMA or the 50-day, which leaders often shake out under, but never the 200-day.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B26) and sits beside the held D-009",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "setup.wyckoff_spring",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "spr.inv_no_range",
+   "q": "Any dip under a recent low counts as a spring, even with no range behind it.",
+   "answer": "False",
+   "why": "False. A falling stock makes a new low every day. With no real range behind the dip, that is not a spring.",
+   "lesson_line": "No range, no spring.",
+   "facts": [
+    "c23",
+    "c29"
+   ],
+   "house": true
+  },
+  {
+   "key": "q21",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "spr.dip_depth",
+   "q": "What are you looking at?",
+   "choices": [
+    "A spring at the floor",
+    "A breakdown of the floor",
+    "A 2B of a single low",
+    "A flat-base breakout"
+   ],
+   "story": "October 2001. A flat 12-week range, 9.4% tall, floor tapped four times. One day it dips 0.13 ATR under the floor and closes back inside.",
+   "answer": "A spring at the floor",
+   "why": "That's a spring, and a clean one. The floor's been tapped four times, so everyone can see it. The dip under it was 0.13 ATR, barely a scratch. Then it closed right back inside the same day. Sellers had their shot under an obvious floor and nothing came of it. That was GIS, and it ran straight through the ceiling after.",
+   "lesson_line": "Flat floor, tiny scratch under it, back inside the same day. That's a spring.",
+   "facts": [
+    "t01",
+    "c07",
+    "c09",
+    "c10",
+    "c28",
+    "d01"
+   ],
+   "house": true,
+   "wrong": {
+    "A flat-base breakout": "A breakout goes over the top. This one dipped under the floor.",
+    "A breakdown of the floor": "A breakdown keeps going and closes under. This was a scratch that closed back inside.",
+    "A 2B of a single low": "A 2B is one swing low. This floor was tapped four times."
+   },
+   "simple": "A spring, because a flat range got a tiny dip under its floor that closed right back inside.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card criterion awaiting the owner's review (height, depth, close)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "GIS",
+    "asof": "2001-10-15",
+    "window": 120,
+    "forward": 30
+   }
+  },
+  {
+   "key": "q22",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "spr.inv_no_range",
+   "q": "Spring or not?",
+   "choices": [
+    "No, there's no range behind it",
+    "Yes, it bounced right back",
+    "Yes, any reclaimed dip counts",
+    "No, the volume looks wrong"
+   ],
+   "story": "A stock has made a new low every day for two weeks. Today it ticks up and closes above yesterday's low.",
+   "answer": "No, there's no range behind it",
+   "why": "Not a spring. There's no floor here. A stock making a new low every day has no level for a spring to dip under. One up day in a downtrend is just a bounce. A spring needs a sideways range first, with a floor that's held a few times. Volume isn't your issue. The missing range is.",
+   "lesson_line": "No floor, no spring.",
+   "facts": [
+    "c23",
+    "c29"
+   ],
+   "house": true,
+   "wrong": {
+    "Yes, it bounced right back": "A bounce in a downtrend isn't a spring. There's no floor to reclaim.",
+    "Yes, any reclaimed dip counts": "A spring needs a flat range behind the dip. This one has none.",
+    "No, the volume looks wrong": "Volume isn't the problem. The missing range is."
+   },
+   "simple": "No, because a stock falling to a new low every day has no floor to spring off.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card criterion awaiting the owner's review (spr.inv_no_range)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "spr.dip_depth",
+   "q": "Is that a spring you can buy?",
+   "choices": [
+    "No, it was too slow to come back",
+    "Yes, it closed back inside",
+    "Yes, six days is a deep test",
+    "No, it had to hold the 50-day"
+   ],
+   "story": "A stock closes under its range floor six sessions in a row. On the seventh day it closes back inside.",
+   "answer": "No, it was too slow to come back",
+   "why": "No. A spring snaps back. Six closes under the floor is a slow slide. Pruden's spring quickly reverses back into the range, and Taylor calls slow failures like this washouts or bear traps. Here's why it matters. The fast reclaim is what tells you sellers got trapped. Six days under means they had control for over a week. I'm not counting days exactly, I'm looking for the snap.",
+   "lesson_line": "A spring snaps back. Six closes under is a slide.",
+   "facts": [
+    "w01",
+    "y03",
+    "t01",
+    "c12"
+   ],
+   "wrong": {
+    "Yes, it closed back inside": "Closing back inside is half of it. The reversal also has to be quick.",
+    "Yes, six days is a deep test": "A test comes after a spring. Six closes under is a slow violation.",
+    "No, it had to hold the 50-day": "Nothing here says where the 50-day is, and leaders often shake out under it."
+   },
+   "simple": "No, because a spring snaps back fast, and six closes under the floor is a slow slide.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the reclaim window is a held decision (D-005); only 'quickly reverses' is keyed"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q24",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "spr.dip_depth",
+   "q": "How would you grade it?",
+   "choices": [
+    "A shakeout, grade it lower",
+    "A clean spring, full grade",
+    "A breakdown, don't buy it",
+    "An undercut and rally"
+   ],
+   "story": "January 2021. The floor is 359.50. The dip goes 1.34 ATR under it and closes under for a day, then closes back inside the next day.",
+   "answer": "A shakeout, grade it lower",
+   "why": "A shakeout, and I'd grade it lower. It came back, so it's not a breakdown. But 1.34 ATR is a real drop, and it closed under the floor for a day before it got back in. Sellers had control for a full session. That's sloppier than a quick scratch. You can still trade it, just smaller. COST was bought at 361.30 with the stop at 352.41, 2.46% away. It made 0.52R and got stopped.",
+   "lesson_line": "The deeper and slower the dip, the lower the grade.",
+   "facts": [
+    "c10",
+    "d15",
+    "d16"
+   ],
+   "house": true,
+   "wrong": {
+    "A clean spring, full grade": "A clean spring is a quick scratch. This went 1.34 ATR under and sat there a day.",
+    "A breakdown, don't buy it": "A breakdown keeps going. This one closed back inside the next day.",
+    "An undercut and rally": "That uses a rising average or one swing low. This level is a flat floor."
+   },
+   "simple": "A shakeout that grades lower, because the dip was deep and sat under the floor a day before it came back.",
+   "deeper": {
+    "example": "COST: the floor was 359.50 and the probe went 1.34 ATR under it. The buy was 361.30 with the stop at 352.41, a 2.46% stop. It made 0.52R and was stopped. A deeper dip puts the stop further from the buy."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card criterion awaiting the owner's review (1 and 2 ATR bands)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "COST",
+    "asof": "2021-01-20",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q25",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "spr.stop",
+   "q": "Where's your stop?",
+   "choices": [
+    "A few cents under the spring low",
+    "Right on the 149.53 floor",
+    "Near 5% under the buy, for room",
+    "A few cents under the floor"
+   ],
+   "story": "May 2015. You bought at 150.40 the morning after the dip. The floor is 149.53, and the dip went 0.15 ATR under it.",
+   "answer": "A few cents under the spring low",
+   "why": "A few cents under the spring low. In the real trade that was 149.09, 0.87% under the 150.40 buy. The low of the dip is where the spring fails, so that's where you're wrong. The 149.53 floor sits above that low. Put the stop there and the same kind of wiggle that made the spring takes you out. Then set it as a real stop order with your broker.",
+   "lesson_line": "The stop goes under the spring low, not the old floor.",
+   "facts": [
+    "c15",
+    "f06",
+    "h24",
+    "h41",
+    "d31",
+    "d32"
+   ],
+   "house": true,
+   "wrong": {
+    "Right on the 149.53 floor": "The floor sits above the dip's low. A stop there is inside the dip's noise.",
+    "Near 5% under the buy, for room": "That's extra risk for nothing. The chart says you're wrong just under the spring low, 0.87% away.",
+    "A few cents under the floor": "149.53 is the old floor, above the spring low. Go under the low of the dip."
+   },
+   "simple": "A few cents under the spring low, because that's where the spring fails, not at the old floor.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A3, F62, D41)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "ULTA",
+    "asof": "2015-05-18",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 150.4,
+     "stop": 149.09
+    }
+   }
+  },
+  {
+   "key": "q26",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "spr.stop_width",
+   "q": "How far is your stop, as a percent of the buy?",
+   "answer": "1.15%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - b) / a * 100",
+     "a": 155.4,
+     "b": 153.62
+    },
+    "round": 2
+   },
+   "why": "1.15%. 155.40 minus 153.62 is 1.78 a share. Divide that by 155.40 and you get 1.15%. That's inside the 1-3% we like. A tight stop like that is the whole appeal of a spring. You're buying right at the floor, so the line where you're wrong is close. This one reached 3R in 8 days.",
+   "lesson_line": "Buy minus stop, over the buy. A spring gives you a tight one.",
+   "facts": [
+    "h04",
+    "r05",
+    "d33",
+    "d34"
+   ],
+   "house": true,
+   "suffix": "%",
+   "simple": "The stop is 1.15% under the buy, right inside the 1-3% we like.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (A13) and the held stop-width decision D-022"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "1.15%",
+    "1.78%",
+    "98.85%",
+    "11.45%"
+   ],
+   "wrong": {
+    "1.78%": "That's the dollar gap, 1.78 a share. You still divide it by the buy.",
+    "11.45%": "The decimal point slipped a place.",
+    "98.85%": "That's the stop as a share of the buy, not the distance."
+   },
+   "story": "August 2017. You bought at the open the day after the dip at 155.40, stop at 153.62 under the spring low.",
+   "chart": {
+    "sym": "PH",
+    "asof": "2017-08-21",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 155.4,
+     "stop": 153.62
+    }
+   }
+  },
+  {
+   "key": "q27",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.market_reading",
+   "q": "Do you take it?",
+   "choices": [
+    "Pass, Red is mostly cash for us",
+    "Buy it, the chart is clean",
+    "Pass, and short it instead",
+    "Half size with a tighter stop"
+   ],
+   "story": "A clean spring in a stock above its 200-day. Our market filter, the app's Green to Red reading, is Red.",
+   "answer": "Pass, Red is mostly cash for us",
+   "why": "Pass. Red is mostly cash for us. A spring needs buyers to show up after the shakeout, and in a Red market the market isn't backing anything. The reading is a guide, but Red means sit on your hands. A clean chart doesn't change that, and neither does a smaller size. Shorting it is out too. We only short below the 200-day, and this one is above it.",
+   "lesson_line": "The market comes before the chart.",
+   "facts": [
+    "h26",
+    "c05",
+    "h10"
+   ],
+   "house": true,
+   "wrong": {
+    "Buy it, the chart is clean": "A clean chart doesn't beat the market. Red is mostly cash.",
+    "Pass, and short it instead": "We only short below the 200-day. This stock is above it.",
+    "Half size with a tighter stop": "Smaller size doesn't change the market. Keep it on your list for a better one."
+   },
+   "simple": "Pass, because Red means mostly cash for us, and a clean chart doesn't change that.",
+   "deeper": {
+    "trap": "The trap is a perfect chart. The market reading comes first. Springs are Green or Yellow trades, and Red is mostly cash."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (F65) and the card's market row",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q28",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.index_sprung",
+   "q": "What's the index telling you?",
+   "choices": [
+    "The market turn hasn't come",
+    "Nothing, only the stock matters",
+    "Size up, the leader is stronger",
+    "The turn is in, QQQ sprang"
+   ],
+   "story": "A leader springs off its range floor. QQQ sprang the same day. Before you buy, QQQ closes back under its own spring low.",
+   "answer": "The market turn hasn't come",
+   "why": "The turn hasn't come. QQQ's own spring just failed when it closed back under its low. Wyckoff's step is to time your buy with a turn in the market index. When the index can't hold its spring, the leader's spring is fighting the whole market. That's what happened here. AAPL and QQQ sprang the same day, and both failed. I want the index behind me before I put money in.",
+   "lesson_line": "Check the index before you buy a leader's spring.",
+   "facts": [
+    "t06",
+    "d12",
+    "c24"
+   ],
+   "house": true,
+   "wrong": {
+    "Nothing, only the stock matters": "The index matters. Wyckoff times the buy with a turn in the market.",
+    "Size up, the leader is stronger": "A failing index spring is a warning, not a reason to press.",
+    "The turn is in, QQQ sprang": "QQQ's spring failed when it closed back under its low. No turn yet."
+   },
+   "simple": "The market hasn't turned yet, because the index's own spring just failed.",
+   "deeper": {
+    "example": "AAPL and QQQ sprang on the same day in our data, and both failed. The scan scored the QQQ spring 0.0R. The index's own spring had not held, so the leader had no market turn to ride."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card criterion awaiting the owner's review (spr.index_sprung)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "AAPL",
+    "asof": "2021-10-01",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q29",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.after_entry_stop",
+   "q": "What do you take from it?",
+   "choices": [
+    "A failing spring fails fast",
+    "The setup is broken; quit it",
+    "The stop was too tight"
+   ],
+   "story": "A 0.16 ATR dip on light volume in a 40-day range with three touches. A 1% stop. It is stopped on the entry day with no profit.",
+   "answer": "A failing spring fails fast",
+   "why": "A spring that fails usually fails at once. 41% broke their low before any test came. The stop under the spring low is the exit.",
+   "lesson_line": "The stop is the trade, not a formality.",
+   "facts": [
+    "c25",
+    "d07",
+    "d08",
+    "d09",
+    "h02"
+   ],
+   "house": true,
+   "wrong": {
+    "The setup is broken; quit it": "One failed spring is the cost of the setup. 41% broke their low before any test.",
+    "The stop was too tight": "The stop sat under the spring low, where it belongs."
+   }
+  },
+  {
+   "key": "q30",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "spr.earnings_window",
+   "q": "What's the play?",
+   "choices": [
+    "Skip it, take it off the list",
+    "Buy it, the shape is perfect",
+    "Buy half size until it settles",
+    "Keep it on the list for later"
+   ],
+   "story": "A textbook spring in a leader. Then a report hits that the company may be bought out.",
+   "answer": "Skip it, take it off the list",
+   "why": "Skip it and take it off the list. A buyout report changes what moves the stock. It trades on the deal now, not on buyers and sellers in the range. One headline can gap it either way, and your stop can't help you there. A perfect chart doesn't change that. As soon as there's buyout news, it comes off the list.",
+   "lesson_line": "Buyout news, off the list.",
+   "facts": [
+    "c04",
+    "u04"
+   ],
+   "house": true,
+   "wrong": {
+    "Keep it on the list for later": "Off the list means off. Buyout news ends it.",
+    "Buy it, the shape is perfect": "The shape stopped mattering when the buyout news hit. The deal moves it now.",
+    "Buy half size until it settles": "Off the list means no buy at any size."
+   },
+   "simple": "Skip it, because buyout news means the stock trades on the deal, not the chart.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's published hard rule (u04) and the card"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q31",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "spr.not_stretched",
+   "q": "A spring triggers, but the stock has run well above its 9 EMA. How far above it is too stretched to buy?",
+   "choices": [
+    "More than 10% above it",
+    "More than 1% above it",
+    "More than 25% above it",
+    "There's no limit on it"
+   ],
+   "answer": "More than 10% above it",
+   "why": "More than 10% above the 9 EMA, and we skip it. A stock that far over its fast average is stretched. Buy there and your stop is a long way back, so your size shrinks. A stretched stock also often comes back in toward the average, right into your stop. On a spring this rarely bites. You're buying near the bottom of a range, close to the averages.",
+   "lesson_line": "More than 10% over the 9 EMA, skip it.",
+   "facts": [
+    "c14",
+    "h13",
+    "r21"
+   ],
+   "house": true,
+   "wrong": {
+    "More than 1% above it": "Far too tight. A healthy stock sits a little above its 9 EMA all the time.",
+    "More than 25% above it": "Way past our line. Over 10% is already too stretched.",
+    "There's no limit on it": "There is one: more than 10% over the 9 EMA, we skip it."
+   },
+   "simple": "Past 10% above the 9 EMA it's too stretched, so you skip it.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C29)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q32",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "spr.not_breakout_entry",
+   "q": "What is wrong with that plan?",
+   "choices": [
+    "The stop is far from the entry",
+    "The stop is too tight",
+    "Breakouts never work",
+    "The range is too flat"
+   ],
+   "story": "The scanner says to buy the range-top breakout and put the stop under the spring low.",
+   "answer": "The stop is far from the entry",
+   "why": "The stop is far from the entry. That plan had a median 12.5% stop and only 1% reached 3R. Wyckoff also says not to buy breakouts.",
+   "lesson_line": "Buy at the floor. A breakout buy leaves the stop far away.",
+   "facts": [
+    "c13",
+    "w05"
+   ],
+   "house": true,
+   "wrong": {
+    "The stop is too tight": "It is the opposite. The stop sits far under a breakout entry.",
+    "Breakouts never work": "Some do. The problem is the distance to the stop.",
+    "The range is too flat": "A flat range is what we want."
+   }
+  },
+  {
+   "key": "q33",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "tf",
+   "criterion": "spr.time_stop",
+   "q": "You bought a spring 10 trading days ago and it's still under 1R. You sell it.",
+   "answer": "True",
+   "why": "True. That's our time stop. A trade still under 1R after 10 trading days gets sold. A good spring should go once the shakeout fails. If it just sits, your money is stuck in something that isn't working. Free it up for a setup that is. This is separate from your price stop under the spring low.",
+   "lesson_line": "Ten days and under 1R, sell it and move on.",
+   "facts": [
+    "c26",
+    "h15"
+   ],
+   "house": true,
+   "simple": "True. After 10 days under 1R it isn't working, so you free the money.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (C33)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q34",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "spr.after_entry_stop",
+   "q": "Your spring breaks back under its low. Buying more down there to average your cost is fine.",
+   "answer": "False",
+   "why": "False. The spring low breaking means you're out, not buying more. The stop under that low is your exit, and its whole job is to get you out when the spring fails. We buy the full size at one price with one stop, and we never add to a loser. That turns one small loss into a big one.",
+   "lesson_line": "A broken spring low means out, not more.",
+   "facts": [
+    "h02",
+    "c25",
+    "aw1"
+   ],
+   "house": true,
+   "simple": "False. When the spring low breaks your stop takes you out, and we never add to a loser.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A4, A5)"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q35",
+   "skill": "setup.wyckoff_spring",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "spr.trim_1",
+   "q": "Do you sell any here?",
+   "choices": [
+    "Hold, day 1 is too early to sell",
+    "Sell a third, move stop to 64.00",
+    "Sell half, leave the stop alone",
+    "Add more at 68.80 on strength"
+   ],
+   "story": "You bought at 64.00 with a stop at 62.40. On the buy day itself, price runs to 68.80, which is 3R.",
+   "answer": "Hold, day 1 is too early to sell",
+   "calc": {},
+   "why": "Hold. We very rarely sell on day 1, and we usually wait until day 3 at the earliest. 3R in a day means this thing has power. Sell a chunk now and you cap your best trades. I'd rather let it run into a 3, 5 or 7 day push and sell into that. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "Don't sell your best trade on day 1.",
+   "facts": [
+    "r06",
+    "r07",
+    "r08",
+    "r09",
+    "aw1"
+   ],
+   "house": true,
+   "wrong": {
+    "Sell a third, move stop to 64.00": "That's the old fixed third at 3R. The first sell is a judgment, and day 1 is rarely the day.",
+    "Sell half, leave the stop alone": "Selling on day 1 is rare for us. We usually wait until day 3 at the earliest.",
+    "Add more at 68.80 on strength": "Not the plan. The full size went on at one price with one stop. Adding on strength is rare, a feel call."
+   },
+   "simple": "Hold, because we rarely sell on day 1 and the first sell is a judgment, not a fixed 3R.",
+   "deeper": {
+    "counter": "A day-based push can run far past 3R. A 3, 5 or 7 day push may be 10, 12 or 20R, so a fixed third at 3R can leave most of the move behind."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B19)",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q36",
+   "skill": "setup.wyckoff_spring",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "spr.trail",
+   "q": "You've sold some of your spring into a push. How do you trail what's left?",
+   "choices": [
+    "Under the 20 EMA, or 9 EMA if fast",
+    "Under the 200-day line",
+    "A fixed 3% under your entry",
+    "Leave it under the spring low"
+   ],
+   "answer": "Under the 20 EMA, or 9 EMA if fast",
+   "why": "Under the 20 EMA, or the 9 EMA if it's running fast. You sell what's left on a close below it. Most springs move at a steady pace, so the 20 EMA fits them. A rising average follows the move up and gives the trend room to breathe. Leave the stop down at the spring low and you give back the whole move. The 200-day is far too slow.",
+   "lesson_line": "Trail the 20 EMA. Switch to the 9 when it really runs.",
+   "facts": [
+    "h04",
+    "c15",
+    "r21"
+   ],
+   "house": true,
+   "wrong": {
+    "Under the 200-day line": "Far too slow. You'd give back most of the move before it sold.",
+    "A fixed 3% under your entry": "A fixed stop doesn't follow the move up. The trail rides a rising average.",
+    "Leave it under the spring low": "That's your first stop. Leave it there and you give back the whole move."
+   },
+   "simple": "Under the 20 EMA, or the 9 EMA for a fast mover, and sell on a close below it.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (E52)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q37",
+   "skill": "setup.wyckoff_spring",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "spr.range_top_resistance",
+   "q": "In our scan, about how far was the range top from a reclaim entry, at the median?",
+   "choices": [
+    "About 4.8R, past the 3R mark",
+    "About 1.6R, before the 3R mark",
+    "About 9.6R, far past that mark",
+    "About 3R, right at the mark"
+   ],
+   "answer": "About 4.8R, past the 3R mark",
+   "why": "About 4.8R, the median in our scan, and 3R or more 72% of the time. The range top is the first resistance, so 3R usually comes at or before it. It is a median, not a promise: some range tops sit closer than 3R.",
+   "lesson_line": "The range top is the first resistance, often past 3R.",
+   "facts": [
+    "c22"
+   ],
+   "house": true,
+   "wrong": {
+    "About 3R, right at the mark": "The median in our scan is 4.8R, past the 3R mark. 72% of the time it is 3R or more.",
+    "About 1.6R, before the 3R mark": "The median is 4.8R, and 72% of the time it is 3R or more.",
+    "About 9.6R, far past that mark": "The median in our scan is 4.8R, not 9.6R."
+   },
+   "simple": "In our scan the range top sat a median 4.8R away, so 3R usually comes first.",
+   "tier": "extended",
+   "risk": {
+    "score": 8,
+    "reasons": [
+     "one source only (the card)",
+     "a scan statistic that a recheck can change",
+     "proposed card criterion (spr.range_top_resistance)",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings2"
+  },
+  {
+   "key": "q38",
+   "skill": "setup.wyckoff_spring",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "spr.stop_gap",
+   "q": "What now?",
+   "choices": [
+    "Out, 2.5R is past the 2R cap",
+    "Hold, it should bounce back",
+    "New stop at 95.00, the 30-min low",
+    "Buy more at 95.00 to average"
+   ],
+   "story": "You bought at 100.00 with a stop at 98.00. News hits overnight and it gaps down. The first 30-minute low is 95.00.",
+   "answer": "Out, 2.5R is past the 2R cap",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(a - c) / (a - b)",
+     "a": 100.0,
+     "b": 98.0,
+     "c": 95.0
+    },
+    "round": 1
+   },
+   "why": "Get out. On a gap through the stop, the first 30-minute low becomes your new stop. But there's a ceiling. Past 2R, you're done. Your risk was 2 a share, 100.00 minus 98.00. The 95.00 low is 5 under your buy. 5 over 2 is 2.5R, past the cap. The rule is there so a gap can't turn a planned loss into a disaster.",
+   "lesson_line": "A gap gets 30 minutes, and never more than 2R.",
+   "facts": [
+    "c16",
+    "h06",
+    "h07",
+    "h02",
+    "aw1"
+   ],
+   "house": true,
+   "wrong": {
+    "Buy more at 95.00 to average": "That's adding to a loser. Full size at one price with one stop.",
+    "New stop at 95.00, the 30-min low": "That's the gap rule without its ceiling. 2.5R is past 2R, so you're out.",
+    "Hold, it should bounce back": "Hoping isn't a plan. On a gap, the 30-minute low and the 2R cap decide."
+   },
+   "simple": "Get out, because the gap took the loss to 2.5R, past our 2R cap.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B20, A4)",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings-2026-11-17",
+   "visual": {
+    "kind": "ladder",
+    "side": "long",
+    "levels": [
+     {
+      "key": "entry",
+      "label": "Bought at",
+      "price": 100.0
+     },
+     {
+      "key": "stop",
+      "label": "Stop",
+      "price": 98.0
+     },
+     {
+      "key": "price",
+      "label": "First 30-min low",
+      "price": 95.0
+     }
+    ],
+    "find": {
+     "label": "R lost at the low",
+     "as": "r_loss"
+    },
+    "r": {
+     "entry": 100.0,
+     "stop": 98.0
+    },
+    "title": "The gap down"
+   }
+  },
+  {
+   "key": "q39",
+   "skill": "setup.wyckoff_spring",
+   "rung": 6,
+   "format": "scenario",
+   "criterion": "spr.trim_gap_open",
+   "q": "What do you do at the open?",
+   "choices": [
+    "Weigh selling some into the gap",
+    "Sell a third, the gap forces it",
+    "Sell the whole thing at the open",
+    "Add more at 57.50 on the gap"
+   ],
+   "story": "You bought at 50.00 with a stop at 48.00. It's day 3, and you're thinking about a first sell near 56.00, 3R. The stock opens at 57.50.",
+   "answer": "Weigh selling some into the gap",
+   "why": "Weigh selling some into it. It's day 3, the earliest we usually sell, and it opened past your level. A gap up past a sell level isn't an automatic sell though. Selling part into a big gap is a fine choice. So is letting it run and selling into the push later. It's your call, never a rule.",
+   "lesson_line": "A gap past your level is a chance to sell, never an order.",
+   "facts": [
+    "rg1",
+    "r06",
+    "r07",
+    "aw1"
+   ],
+   "house": true,
+   "wrong": {
+    "Add more at 57.50 on the gap": "A gap past your level is a spot to sell, not buy. Adding is rare, a feel call.",
+    "Sell a third, the gap forces it": "No gap forces a sell. Selling part into it is your call.",
+    "Sell the whole thing at the open": "The first sell is part of the position. The rest keeps working."
+   },
+   "simple": "Weigh selling some, because a gap past your level is a chance to sell, never a rule.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (F63, B19)"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q40",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "mcq",
+   "criterion": "spr.volume",
+   "q": "Volume on the spring day: do the Wyckoff writers agree on what they want to see?",
+   "choices": [
+    "No, Fraser quiet, Taylor loud",
+    "Yes, they all want it loud",
+    "Yes, they all want it quiet",
+    "No, Fraser loud, Taylor quiet"
+   ],
+   "answer": "No, Fraser quiet, Taylor loud",
+   "why": "They don't agree. Fraser's number 3, the one he buys right away, comes on modest volume. A loud one he wants tested first. Taylor says volume on the spring is typically quite high, the higher the better. So don't turn either view into a rule. For us, volume only raises the grade. It's never the reason to buy or to pass.",
+   "lesson_line": "The writers split on volume. For us it raises the grade, that's all.",
+   "facts": [
+    "f01",
+    "y01",
+    "f04",
+    "f02"
+   ],
+   "wrong": {
+    "Yes, they all want it loud": "Fraser buys the modest-volume spring right away.",
+    "Yes, they all want it quiet": "Taylor wants volume on the spring high, the higher the better.",
+    "No, Fraser loud, Taylor quiet": "Backwards. Fraser buys the quiet one, and Taylor wants it loud."
+   },
+   "simple": "No, Fraser wants it quiet and Taylor wants it loud, so volume is a plus for us, not a rule.",
+   "deeper": {
+    "trap": "Do not turn one author's view into a rule. Fraser sorts springs by volume: a quiet number 3 he buys at once, a loud number 2 he waits to see tested. Taylor wants the loud one. This lesson keys only that they disagree."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "volume is a held decision (D-006); only the disagreement is keyed"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q41",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "mcq",
+   "criterion": "spr.entry_test",
+   "q": "A stock springs under its floor on huge volume, a deep loud flush. What do Wyckoff traders wait for before buying?",
+   "choices": [
+    "A test that holds a higher low",
+    "A gap up on heavy volume",
+    "The 200-day to turn up",
+    "The next earnings report"
+   ],
+   "answer": "A test that holds a higher low",
+   "why": "Wait for the test. A loud, deep flush means a lot of sellers showed up. You want proof they're done before you put money in. The test is that proof. Price comes back down toward the low on lighter volume and holds a higher low. That's your buy, with the stop a few cents under the spring low. Fraser says high volume springs need to be tested. Pruden calls the test a better buy than the spring itself.",
+   "lesson_line": "After a loud spring, let it prove itself on the test.",
+   "facts": [
+    "f04",
+    "t04",
+    "w04",
+    "y02",
+    "c04"
+   ],
+   "wrong": {
+    "A gap up on heavy volume": "That's chasing. The Wyckoff buy is the quiet test, not a gap.",
+    "The 200-day to turn up": "The line isn't the test. The test is a pullback that holds above the spring low.",
+    "The next earnings report": "A report isn't a test. And we make no new buys in the 3 days before one."
+   },
+   "simple": "A test, because after a loud flush you want proof the sellers are done, a higher low on less volume.",
+   "deeper": {
+    "trap": "A test that breaks the spring low is not a test that held. Taylor says the spring low should not be violated by any significant degree, or the structure is invalidated. The good test holds above it, on lighter volume."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "which entry we teach is a held decision (D-003); keyed as the school's view"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q42",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "mcq",
+   "criterion": "spr.prior_advance",
+   "q": "Which range is the better place for a spring?",
+   "choices": [
+    "A pause after a rise",
+    "A base after a long decline",
+    "A range under the 200-day",
+    "A range right after an IPO"
+   ],
+   "answer": "A pause after a rise",
+   "why": "A pause after a rise. The 60 sessions before the range rose, a reaccumulation pause, is preferred to a base after a decline.",
+   "lesson_line": "Prefer a pause after a rise to a base after a fall.",
+   "facts": [
+    "c01",
+    "h10"
+   ],
+   "house": true,
+   "wrong": {
+    "A base after a long decline": "That is the classic accumulation spring. We prefer a pause after a rise.",
+    "A range under the 200-day": "No longs under the 200-day unless a parabolic long.",
+    "A range right after an IPO": "A new issue has no rise or floor history to read."
+   }
+  },
+  {
+   "key": "q43",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "spr.leader",
+   "q": "Buy the spring?",
+   "choices": [
+    "Skip; the RS is under 80",
+    "Buy; the shape is textbook",
+    "Buy; springs are exempt",
+    "Buy at half size"
+   ],
+   "story": "A textbook spring in a stock with an RS rating of 55, in a weak group.",
+   "answer": "Skip; the RS is under 80",
+   "why": "Skip. A spring is bought in a leader, RS 80 or more. Only parabolic and mean-reversion trades are exempt.",
+   "lesson_line": "No leader, no spring.",
+   "facts": [
+    "c02",
+    "h14"
+   ],
+   "house": true,
+   "wrong": {
+    "Buy; the shape is textbook": "A textbook shape in a weak stock is still a pass.",
+    "Buy; springs are exempt": "Only parabolic and mean-reversion trades are exempt from the leader rule.",
+    "Buy at half size": "Size does not fix a weak stock."
+   }
+  },
+  {
+   "key": "q44",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.above_200",
+   "q": "Can you take it?",
+   "choices": [
+    "Pass, it's under the 200-day",
+    "Buy it, it's a textbook spring",
+    "Buy half size, tight stop",
+    "Pass until the 200-day rises"
+   ],
+   "story": "A textbook spring in a stock trading under a flat 200-day, after a nine-month decline.",
+   "answer": "Pass, it's under the 200-day",
+   "why": "Pass. Under the 200-day is a hard no for stocks, however clean the pattern looks. The only things we'll buy under that line are indexes and levered ETFs, on a reversal extension or a parabolic long. The springs we want sit in leaders resting after a run, not in stocks coming off a long slide. Put it on watch and come back if it gets back over the line.",
+   "lesson_line": "Under the 200-day, no stock long. The shape doesn't matter.",
+   "facts": [
+    "c01",
+    "r01",
+    "r02"
+   ],
+   "house": true,
+   "wrong": {
+    "Buy it, it's a textbook spring": "A textbook shape under the 200-day is still a no for a stock.",
+    "Buy half size, tight stop": "Half size doesn't fix a hard no.",
+    "Pass until the 200-day rises": "It's about where price sits, not the slope. Under the line is enough to pass."
+   },
+   "simple": "Pass, because we don't buy stocks under the 200-day, however clean the spring looks.",
+   "deeper": {
+    "trap": "The trap is the textbook shape. After a long decline a spring can look perfect on its own chart. Our 200-day rule is hard for stocks: no long below the line. The shape never overrides the line."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B26) beside the held D-009",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q45",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.range_height",
+   "q": "How would you grade it?",
+   "choices": [
+    "Lower, the range is wide and loose",
+    "Full grade, the dip is shallow",
+    "Higher, a tall range is strong",
+    "Pass, too tall to be a spring"
+   ],
+   "story": "A spring comes out of a flat range 30% tall. The dip is 0.4 ATR under the floor and closes back inside.",
+   "answer": "Lower, the range is wide and loose",
+   "why": "Lower. The dip itself is fine, 0.4 ATR and right back inside. But 30% from floor to top is a wide, loose range. I want tight. A range that wide tells you the stock swings hard, so the dip and your stop tend to run wider. It's still a spring, just not an A. Grading is my judgment, not a checklist.",
+   "lesson_line": "Tight ranges grade higher than wide, loose ones.",
+   "facts": [
+    "c09",
+    "h50"
+   ],
+   "house": true,
+   "wrong": {
+    "Full grade, the dip is shallow": "The dip is fine, but a wide, loose range costs grade.",
+    "Higher, a tall range is strong": "Tight ranges grade higher. Wide and loose grades lower.",
+    "Pass, too tall to be a spring": "It's still a spring. A wide range costs grade, it doesn't rule it out."
+   },
+   "simple": "Lower, because a wide loose range is weaker than a tight one, even with a clean dip.",
+   "deeper": {
+    "trap": "The trap is calling it a pass. A wide range costs grade, it doesn't throw the spring out. The 0.4 ATR dip is a clean one."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card criterion awaiting the owner's review (20% height)",
+     "grading is discretionary (E50); the cue is credited to the card"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q46",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.range_length",
+   "q": "Name the setup.",
+   "choices": [
+    "An undercut and rally",
+    "A spring off the 50-day",
+    "A capitulation flush",
+    "A 2B of one swing low"
+   ],
+   "story": "A stock dips just under its rising 50-day for a day and closes back above it. No flat range sits behind it.",
+   "answer": "An undercut and rally",
+   "why": "An undercut and rally. Name the level first. A spring's floor is a flat level with a range behind it. Here there's no range, just a rising 50-day. A dip under a rising average that closes back above it is a U&R. Both trap the people who sold under the level. The level tells you which setup you're trading.",
+   "lesson_line": "Flat floor, spring. Rising average, U&R.",
+   "facts": [
+    "c27",
+    "c29",
+    "c35",
+    "c28"
+   ],
+   "house": true,
+   "wrong": {
+    "A capitulation flush": "A capitulation is a huge flush after a long fall. This barely dipped under the line.",
+    "A spring off the 50-day": "A spring needs a flat floor with a range behind it. A rising average is a U&R level.",
+    "A 2B of one swing low": "A 2B uses one swing low. Here the level is a rising average."
+   },
+   "simple": "An undercut and rally, because the level is a rising 50-day, not a flat floor.",
+   "deeper": {
+    "trap": "The trap is calling every undercut a spring. Both dip under a level and close back above it. The difference is the level: a spring needs a flat floor with a range behind it, while a U&R can use a rising average, one swing low or a prior high."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the card's lookalike tells (house)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q47",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.entry_reclaim",
+   "q": "What did each trader just buy?",
+   "choices": [
+    "A a spring, B a flat base",
+    "A a flat base, B a spring",
+    "Both bought a spring",
+    "Both bought a flat base"
+   ],
+   "story": "Two traders watch the same flat range. Trader A buys the reclaim at the floor after a dip under it. Trader B buys as price trades through the top.",
+   "answer": "A a spring, B a flat base",
+   "why": "A traded the spring, B the flat base. Same range, two setups. The spring buyer gets in at the floor, with the stop a few cents under the dip. The flat-base buyer gets in through the top, with the stop under the breakout day's low. Each one has its own stop, and that's the point. Don't buy at the top and leave your stop down at the floor.",
+   "lesson_line": "Floor reclaim, spring. Top breakout, flat base. Each gets its own stop.",
+   "facts": [
+    "c30",
+    "c31",
+    "c15"
+   ],
+   "house": true,
+   "wrong": {
+    "A a flat base, B a spring": "Other way round. The floor buy is the spring.",
+    "Both bought a spring": "A spring is bought at the floor, not through the top.",
+    "Both bought a flat base": "A flat base is bought through the top, not at the floor."
+   },
+   "simple": "A bought the spring at the floor, and B bought the flat base through the top of the same range.",
+   "deeper": {
+    "counter": "Mixing them is the trap: buy over the top but keep the stop under the spring low. Now the stop is the whole range away, your size shrinks, and the reward for the risk is gone."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the reclaim entry is a held decision (D-003); keyed as the card's lookalike tell"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q48",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.range_length",
+   "q": "What would you call this?",
+   "choices": [
+    "An Oops Reversal",
+    "A spring low",
+    "A capitulation",
+    "A failed break"
+   ],
+   "story": "After a short pullback with no range behind it, a stock trades under the prior day's low. Same session, it closes back above the prior day's close.",
+   "answer": "An Oops Reversal",
+   "why": "An Oops Reversal. It broke yesterday's low and took back yesterday's close on one candle. That's the Oops. A spring needs the floor of a range, a level the stock has held for weeks. This short pullback has no range behind it, just yesterday's low. Same kind of trap, different level, so you trade it by that setup's plan.",
+   "lesson_line": "Yesterday's low is an Oops. A range floor is a spring.",
+   "facts": [
+    "c32",
+    "c33",
+    "c35"
+   ],
+   "house": true,
+   "wrong": {
+    "A spring low": "A spring breaks the floor of a range. This only broke yesterday's low.",
+    "A capitulation": "A capitulation is a huge flush after a long fall. This was a short pullback.",
+    "A failed break": "A failed breakout is a break over a level that falls back. This broke a low."
+   },
+   "simple": "An Oops Reversal, because it only broke yesterday's low, not the floor of a range.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the card's lookalike tells (house)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q49",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.dip_depth",
+   "q": "Which setup fits?",
+   "choices": [
+    "A capitulation flush",
+    "A shakeout spring",
+    "An undercut and rally",
+    "An Oops Reversal"
+   ],
+   "story": "A leader falls in a straight line. Then it drops 2.5 ATR in one day on twice its usual volume, under all its fast averages.",
+   "answer": "A capitulation flush",
+   "why": "A capitulation. A straight-line fall, then one huge flush on twice the usual volume, under every fast average. That's sellers giving up all at once. A spring is a small dip under a flat floor that snaps back. A 2.5 ATR drop in a day is no scratch, and there's no flat range here at all. Different setup, different plan.",
+   "lesson_line": "A huge flush after a straight fall is a capitulation, not a spring.",
+   "facts": [
+    "c34",
+    "c35",
+    "c10",
+    "c27",
+    "c32"
+   ],
+   "house": true,
+   "wrong": {
+    "An Oops Reversal": "An Oops breaks yesterday's low and takes back yesterday's close. Nothing here took anything back.",
+    "A shakeout spring": "A shakeout still comes out of a flat range. This one's a straight fall and a huge flush.",
+    "An undercut and rally": "A U&R dips under a level and rallies back. This was a straight-line flush."
+   },
+   "simple": "A capitulation, because a 2.5 ATR flush on twice the volume after a straight fall is no small dip.",
+   "deeper": {
+    "trap": "Depth is the tell. A spring is a scratch under a flat floor. Deeper and sloppier, and it's a shakeout that grades lower. A one-day flush on heavy volume after a straight fall, with no range at all, is a capitulation, its own setup."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the card's lookalike tells (house)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q50",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "spr.after_entry_stop",
+   "q": "What do you do now?",
+   "choices": [
+    "You're out, the stop did its job",
+    "Buy it back bigger right away",
+    "Move the stop under the next low",
+    "Hold, it may close back inside"
+   ],
+   "story": "February 2025. You bought a spring in a range 17.9% tall, after a 73% run. The same day it fell through your stop under the spring low.",
+   "answer": "You're out, the stop did its job",
+   "why": "You're out, and that's fine. The stop under the spring low was the plan, and it did its job. A spring that fails usually fails right away. In our study, 41% broke their low before any test came. Don't chase it back. Buy again only if the setup triggers again, as a new trade with its own stop. A tall range after a big run was the warning here.",
+   "lesson_line": "A stop-out is the cost of the setup. Take it and move on.",
+   "facts": [
+    "c25",
+    "d14",
+    "h28",
+    "h02",
+    "h41"
+   ],
+   "house": true,
+   "wrong": {
+    "Move the stop under the next low": "The stop only moves up, never lower. It was hit, so the trade is over.",
+    "Buy it back bigger right away": "A new buy needs a new trigger, as a new trade with its own stop.",
+    "Hold, it may close back inside": "The stop is the exit, and it was hit. It's a real order with your broker."
+   },
+   "simple": "You're out, because the stop under the spring low was the plan, and it worked.",
+   "deeper": {
+    "example": "TSLA in our study: a 17.9% tall range after a 73% run. A tall range after a big run is a weaker spring. When it fails, the stop doing its job is the plan."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A4, B21)",
+     "fixed before (a dossier quote was wrong against the bars)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "TSLA",
+    "asof": "2025-02-07",
+    "window": 120,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q51",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "spr.range_top_resistance",
+   "q": "How many R is the range top from your entry?",
+   "answer": "3.0R",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(c - a) / (a - b)",
+     "a": 142.0,
+     "b": 140.0,
+     "c": 148.0
+    },
+    "round": 1
+   },
+   "why": "3R. Your risk is 142.00 minus 140.00, 2 a share. The top is 148.00 minus 142.00, 6 above you. 6 over 2 is 3.0R. That's why I like buying the shakeout. By the time the breakout buyers step in at the top, you're already up 3-1 on your risk. The top is the first place sellers can show up, so know that number before you buy.",
+   "lesson_line": "Buy the shakeout, and you're up 3-1 before the breakout buyers show up.",
+   "facts": [
+    "u01",
+    "u02",
+    "u03",
+    "c22"
+   ],
+   "house": true,
+   "suffix": "R",
+   "simple": "3R, because the 2 of risk fits three times into the 6 up to the 148.00 top.",
+   "deeper": {
+    "counter": "Here the top is close. When it's only 3R away, the first resistance and 3R arrive together. That's a fine spot to think about a first sell, if it's day 3 or later."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on house sources (the DELL plan, the card)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "6.0R",
+    "3.0R",
+    "4.0R",
+    "0.3R"
+   ],
+   "wrong": {
+    "6.0R": "That's the dollar climb, 6. You still divide it by the 2 of risk.",
+    "4.0R": "You measured from the stop, not your entry.",
+    "0.3R": "Flipped the division, risk over the climb."
+   },
+   "story": "DELL. Our plan: a shakeout to 140.00, then buy the reclaim of 142.00 with the stop at 140.00. The old range top is 148.00."
+  },
+  {
+   "key": "q52",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "mcq",
+   "criterion": "spr.after_entry_stop",
+   "q": "In our scan of 3,173 springs, about what share reached 3R before the stop?",
+   "choices": [
+    "About a quarter",
+    "About half",
+    "About nine in ten",
+    "Almost none"
+   ],
+   "answer": "About a quarter",
+   "why": "About a quarter: 27.1% reached 3R and 17.7% reached 5R, and 83.8% were stopped within the window. That is a fixed stop with no trims.",
+   "lesson_line": "A quarter got to 3R. The stop is the trade.",
+   "facts": [
+    "d21"
+   ],
+   "house": true,
+   "wrong": {
+    "About half": "Only 27.1% reached 3R.",
+    "About nine in ten": "Only 27.1% reached 3R, and 83.8% were stopped.",
+    "Almost none": "27.1% reached 3R."
+   }
+  },
+  {
+   "key": "q53",
+   "skill": "setup.wyckoff_spring",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "spr.stop",
+   "q": "Write the plan. Entry, stop, first sell?",
+   "choices": [
+    "61.59, stop 60.10, sell from day 3",
+    "Over 64.85, stop 60.32, sell at top",
+    "61.59, stop 60.32, hold a month",
+    "Over 64.85, stop 60.10, sell day 3"
+   ],
+   "story": "May 2023. A flat shelf runs from 60.32 to 64.85. A quiet one-day dip, 0.15 ATR under the floor, closes back inside. The next open is 61.59.",
+   "answer": "61.59, stop 60.10, sell from day 3",
+   "why": "Buy the open at 61.59, stop at 60.10, and no selling before day 3. The dip went under the 60.32 floor, so the stop goes a few cents under the dip's low, not on the floor. That's 60.10. It keeps your risk tight, which is the whole reason to buy a spring. The first sell is a judgment, from day 3 at the earliest, into a push.",
+   "lesson_line": "Entry at the reclaim, stop under the spring low, first sell from day 3.",
+   "facts": [
+    "h22",
+    "h24",
+    "c15",
+    "c13",
+    "r06",
+    "r07",
+    "d35",
+    "d36"
+   ],
+   "house": true,
+   "wrong": {
+    "Over 64.85, stop 60.32, sell at top": "That's the breakout over the top, and 60.32 is the old floor, above the spring low.",
+    "61.59, stop 60.32, hold a month": "60.32 is the old floor, above the spring low. The stop goes a few cents under the dip.",
+    "Over 64.85, stop 60.10, sell day 3": "That buys over the top but keeps the stop down under the floor. The stop is now the whole range away."
+   },
+   "simple": "Buy 61.59 at the open, stop just under the spring low at 60.10, and sell from day 3.",
+   "deeper": {
+    "trap": "The trap is the breakout plan. Buy over the top at 64.85 with the stop still under the spring low, and your stop is the whole range wide. The spring's edge is the low-risk buy at the floor."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (E57, F62, B19)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "AVGO",
+    "asof": "2023-05-04",
+    "window": 120,
+    "forward": 30
+   }
+  },
+  {
+   "key": "q54",
+   "skill": "setup.wyckoff_spring",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "spr.dip_depth",
+   "q": "Take it or pass, on the pattern alone?",
+   "choices": [
+    "Take it, flat floor, modest dip",
+    "Pass, there's no range here",
+    "Pass, the dip is a breakdown",
+    "Take it, the volume was heavy"
+   ],
+   "answer": "Take it, flat floor, modest dip",
+   "why": "I'd take it. Five taps of the floor make it a real level. The probe went three-quarters of an ATR under, a bit deeper than a scratch, and it still closed right back inside. Volume was 0.96x, about normal, so nobody was dumping it. Taking it means it's worth a plan: buy the reclaim, stop a few cents under the low.",
+   "lesson_line": "Judge the snap back, not the drama of the dip.",
+   "facts": [
+    "d19",
+    "d20",
+    "c09",
+    "c10"
+   ],
+   "house": true,
+   "wrong": {
+    "Pass, there's no range here": "Look again. The floor was tapped five times.",
+    "Pass, the dip is a breakdown": "A breakdown keeps going. This one closed back inside the same day.",
+    "Take it, the volume was heavy": "Volume was 0.96x, about normal. The floor and the snap back make this one."
+   },
+   "chart": {
+    "sym": "ODFL",
+    "asof": "2021-10-01",
+    "window": 120,
+    "forward": 20
+   },
+   "simple": "Take it, because the floor is real and the 0.75 ATR dip still closed back inside.",
+   "deeper": {
+    "trap": "The trap is the deeper probe. After five taps, three-quarters of an ATR under can look like a break. It closed back in on normal volume, and that's a spring."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on our own scan's example, not yet reviewed by the owner",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "story": "October 2021. A flat range 7.2% tall, floor tapped five times. Today it probes 0.75 ATR under the floor, then closes back inside on 0.96x volume."
+  },
+  {
+   "key": "q55",
+   "skill": "setup.wyckoff_spring",
+   "rung": 9,
+   "format": "scenario",
+   "criterion": "spr.floor_touches",
+   "q": "Spring or pass?",
+   "choices": [
+    "Pass, one swing low is a 2B",
+    "Take it, the dip was shallow",
+    "Take it, the floor is flat",
+    "Pass, that low is too old"
+   ],
+   "answer": "Pass, one swing low is a 2B",
+   "why": "Pass, as a spring at least. One swing low isn't a floor. A spring needs a flat range, a level the stock tested again and again. Here price touched once, then ran 14% away. Undercut one swing low and reclaim it, and that's a 2B, a different setup with its own plan. Look left first: no range, no spring.",
+   "lesson_line": "Look left first. No range, no spring.",
+   "facts": [
+    "c28",
+    "c29",
+    "d17",
+    "d18"
+   ],
+   "house": true,
+   "wrong": {
+    "Take it, the dip was shallow": "A shallow dip doesn't make a floor. A spring needs a flat range.",
+    "Take it, the floor is flat": "There's no flat floor here, just one swing low.",
+    "Pass, that low is too old": "Age isn't the problem. The level is one swing low, and that's a 2B."
+   },
+   "chart": {
+    "sym": "AMZN",
+    "asof": "2021-08-12",
+    "window": 120,
+    "forward": 20
+   },
+   "simple": "Pass, because one old swing low makes a 2B, and a spring needs a flat floor.",
+   "deeper": {
+    "trap": "The trap is a clean undercut. The dip was shallow and closed back above the low, just like a spring. But the level was one swing low that price rallied 14% off, with no flat range behind it. Look left first: no range, no spring."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "tied to the held floor-touch decision D-112",
+     "fixed before"
+    ]
+   },
+   "depends_on": [
+    "D-112"
+   ],
+   "batch": "voice-8-2026-11-17",
+   "story": "August 2021. The floor is one swing low from 40 sessions ago, and price rallied 14% off it. Today it undercuts that low and closes back above."
+  },
+  {
+   "key": "q57",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "spr.index_sprung",
+   "q": "What does Wyckoff's step 5 ask of the buyer?",
+   "choices": [
+    "Time your buy with a turn in the index",
+    "Buy before the index turns",
+    "Ignore the index",
+    "Buy only on a Monday"
+   ],
+   "answer": "Time your buy with a turn in the index",
+   "why": "Time your commitment with a turn in the stock market index. Springs work best when the index itself has just sprung back.",
+   "lesson_line": "Wait for the index to turn.",
+   "facts": [
+    "t06",
+    "c06"
+   ],
+   "house": true,
+   "wrong": {
+    "Buy before the index turns": "Step 5 says to time your buy with the turn, not ahead of it.",
+    "Ignore the index": "The index matters. A failed index spring takes leaders with it.",
+    "Buy only on a Monday": "Nothing in the step mentions a weekday."
+   }
+  },
+  {
+   "key": "q58",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "spr.inv_close_under_low",
+   "q": "Taylor says the spring low should not be violated by any significant degree.",
+   "answer": "True",
+   "why": "True. In his view the spring low should not be violated by any significant degree, or the structure is invalidated.",
+   "lesson_line": "A spring that breaks its low is invalid.",
+   "facts": [
+    "y02",
+    "c24"
+   ],
+   "house": true
+  },
+  {
+   "key": "q59",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "spr.entry_test",
+   "q": "Pruden calls the spring the first place to buy. What does he say is better?",
+   "choices": [
+    "The later secondary test",
+    "The breakout over the top",
+    "The selling climax",
+    "Waiting a year"
+   ],
+   "answer": "The later secondary test",
+   "why": "The later secondary test. Pruden says the spring is the first prescribed place to buy and the secondary test is better.",
+   "lesson_line": "A quiet test can beat the spring itself.",
+   "facts": [
+    "w04",
+    "t04",
+    "w03"
+   ],
+   "wrong": {
+    "The breakout over the top": "Wyckoff says not to buy breakouts.",
+    "The selling climax": "The test comes after the spring, not at a climax.",
+    "Waiting a year": "The test comes in the following days or weeks."
+   }
+  },
+  {
+   "key": "q60",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.range_height",
+   "q": "Which candidate grades higher?",
+   "choices": [
+    "A; the range, dip and close are cleaner",
+    "B; the deeper dip shook out more",
+    "They grade the same",
+    "Neither; both are breakdowns"
+   ],
+   "story": "A: a range 8% tall, a dip of 0.3 ATR, a reclaim that closes in the upper half. B: a range 24% tall, a dip of 1.4 ATR, a reclaim that closes mid-range.",
+   "answer": "A; the range, dip and close are cleaner",
+   "why": "A. A range over 20% tall grades lower. A dip over 1 ATR is a shakeout that grades lower. A good reclaim closes in the upper half.",
+   "lesson_line": "Short range, shallow dip, strong close: the higher grade.",
+   "facts": [
+    "c07",
+    "c09",
+    "c10",
+    "c11"
+   ],
+   "house": true,
+   "wrong": {
+    "B; the deeper dip shook out more": "A dip over 1 ATR is a shakeout, and it grades lower.",
+    "They grade the same": "Range height, dip depth and close quality all separate them.",
+    "Neither; both are breakdowns": "A breakdown is over 2 ATR. Neither dip is that deep."
+   }
+  },
+  {
+   "key": "q61",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.index_sprung",
+   "q": "Does the index make this one better or worse?",
+   "choices": [
+    "Better, the market just turned",
+    "No change, only the stock counts",
+    "Worse, the index is correcting",
+    "Worse, the bounce is used up"
+   ],
+   "story": "A leader springs off a flat range floor. Last week the index dipped under its correction low and closed back above it. Our market reading is Green.",
+   "answer": "Better, the market just turned",
+   "why": "Better. Last week's dip and close back above the low was the index's own spring. Wyckoff's step is to time your buy with a turn in the market index. Here you have it. The market just sprang, the reading is Green, and a leader is springing with it. That's the kind I want to press. When the market and the leader turn together, you're not fighting anything.",
+   "lesson_line": "A leader's spring with the index turning too, that's one to press.",
+   "facts": [
+    "c06",
+    "c05",
+    "t06",
+    "t01"
+   ],
+   "house": true,
+   "wrong": {
+    "No change, only the stock counts": "The index matters. A spring works best with the market turning too.",
+    "Worse, the index is correcting": "The index just sprang back off its correction low. That's the turn.",
+    "Worse, the bounce is used up": "An index that just sprang is a fresh turn, not a late one."
+   },
+   "simple": "Better, because the index just sprang too and the reading is Green, so the market is behind you.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card criterion awaiting the owner's review (spr.index_sprung)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q62",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "spr.prior_advance",
+   "q": "Does the run before this range help or hurt?",
+   "choices": [
+    "Helps, it's a pause after a rise",
+    "Hurts, a fall before is better",
+    "Doesn't matter either way",
+    "Hurts, it's too late to buy now"
+   ],
+   "story": "August 2025. A flat range 13.5% tall follows a 31% run. Today it dips under the floor and closes back inside.",
+   "answer": "Helps, it's a pause after a rise",
+   "why": "It helps. A leader that ran 31% and then went sideways is resting, not topping. Fraser calls a range like that a stepping stone. The spring shakes out the weak hands before the next leg. A base after a long decline is the other kind, and those often sit under the 200-day, where we don't buy stocks. HWM went on to 16.5R at its best.",
+   "lesson_line": "I want a pause after a run, not a base after a fall.",
+   "facts": [
+    "c01",
+    "d06",
+    "c07",
+    "d04",
+    "d05",
+    "r01"
+   ],
+   "house": true,
+   "wrong": {
+    "Hurts, a fall before is better": "A base after a fall often sits under the 200-day. We want a pause in a leader.",
+    "Doesn't matter either way": "It matters. A pause after a run is the spring we're after.",
+    "Hurts, it's too late to buy now": "A prior run is the good setting, not a reason to pass."
+   },
+   "simple": "It helps, because a flat pause after a run in a leader is the spring we want.",
+   "deeper": {
+    "example": "HWM: a stepping-stone range after a 31% run, three floor touches and a shallow quiet probe. The range ran from 170.34 to 193.26, 13.5% tall. The buy was 171.85 with the stop at 169.42, and it reached 16.5R at best."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on a proposed card criterion awaiting the owner's review (spr.prior_advance)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "HWM",
+    "asof": "2025-08-20",
+    "window": 150,
+    "forward": 20
+   }
+  },
+  {
+   "key": "q63",
+   "skill": "setup.wyckoff_spring",
+   "rung": 6,
+   "format": "mcq",
+   "criterion": "spr.breakeven",
+   "q": "When does the stop go to breakeven on a spring?",
+   "choices": [
+    "At the first trim, by default",
+    "Never",
+    "Before the buy",
+    "At the open each day"
+   ],
+   "answer": "At the first trim, by default",
+   "why": "At the first trim by default, and anywhere between 2R and 5R. The first sell is a judgment, not a fixed third at 3R.",
+   "lesson_line": "Breakeven comes with the first trim.",
+   "facts": [
+    "c18",
+    "h05",
+    "r06"
+   ],
+   "house": true,
+   "wrong": {
+    "Never": "The stop moves to breakeven between 2R and 5R.",
+    "Before the buy": "There is no position yet. Breakeven comes after the first trim.",
+    "At the open each day": "The stop only moves up when the rule says so, not each day."
+   }
+  },
+  {
+   "key": "q64",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "scenario",
+   "criterion": "spr.dip_depth",
+   "q": "What type is this, and what next?",
+   "choices": [
+    "A number 2 spring; wait for the test",
+    "A number 3 spring; buy now",
+    "A number 1 spring; buy now",
+    "A breakout; add"
+   ],
+   "story": "The dip goes much further under the low on expanded volume. Then it lifts briefly and drops back toward the lows.",
+   "answer": "A number 2 spring; wait for the test",
+   "why": "A number 2 spring. It goes further below the low on expanded volume, then lifts and drops back for a test. High volume springs need to be tested first.",
+   "lesson_line": "A deeper, louder spring waits for its test.",
+   "facts": [
+    "f02",
+    "f04",
+    "w04"
+   ],
+   "wrong": {
+    "A number 3 spring; buy now": "A number 3 spring is shallow on modest volume. This one is deeper and louder.",
+    "A number 1 spring; buy now": "A number 1 spring is a complete breakdown, and it should not be bought.",
+    "A breakout; add": "The stock dipped under the low. A breakout goes over the top."
+   }
+  },
+  {
+   "key": "q65",
+   "skill": "setup.wyckoff_spring",
+   "rung": 9,
+   "format": "mcq",
+   "criterion": "spr.after_entry_stop",
+   "q": "Four valid springs lost. Which one had no warning sign?",
+   "choices": [
+    "MSFT; every rule was met",
+    "GOOGL; the market was weak",
+    "AAPL; the index failed",
+    "TSLA; a tall range after a run"
+   ],
+   "answer": "MSFT; every rule was met",
+   "why": "MSFT. It met every rule and was stopped on the entry day. GOOGL's market, AAPL's index and TSLA's 17.9% range after a 73% run were warnings.",
+   "lesson_line": "Some good springs still fail. The stop is the trade.",
+   "facts": [
+    "d08",
+    "d09",
+    "d11",
+    "d12",
+    "d14"
+   ],
+   "house": true,
+   "wrong": {
+    "GOOGL; the market was weak": "It was not a Green market, a warning sign.",
+    "AAPL; the index failed": "QQQ sprang the same day and failed too, a warning sign.",
+    "TSLA; a tall range after a run": "A 17.9% range after a 73% run was a warning sign."
+   }
+  },
+  {
+   "key": "q66",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "mcq",
+   "criterion": "spr.entry_backup",
+   "q": "Your spring has pushed up to the top of its range. Wyckoff traders then watch for a back-up. What is it?",
+   "choices": [
+    "A light dip that holds the old top",
+    "A heavy drop back under the floor",
+    "The first dip under the floor",
+    "A gap up through the range top"
+   ],
+   "answer": "A light dip that holds the old top",
+   "why": "A light pullback that holds the old top. After the push, price backs off on lighter volume, and the old ceiling acts as support. Pruden describes it as a narrow reaction on lighter volume that confirms the jump. What it tells you is that the push was real. Don't mix it up with the spring, which dips under the floor.",
+   "lesson_line": "After the push, a quiet pullback that holds the old top is the back-up.",
+   "facts": [
+    "c36",
+    "w10",
+    "c33"
+   ],
+   "wrong": {
+    "The first dip under the floor": "That's the spring itself. The back-up comes later, after the push.",
+    "A heavy drop back under the floor": "That's a failure, not a back-up. A back-up is light and holds the old top.",
+    "A gap up through the range top": "That's the push. The back-up is the pullback after it."
+   },
+   "house": true,
+   "simple": "The back-up is the first light pullback after the push that holds the old top.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q67",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "spr.entry_backup",
+   "q": "Fraser calls this a classic place to add. What do you do?",
+   "choices": [
+    "Just hold, adding isn't the plan",
+    "Add half size, keep the same stop",
+    "Double up and raise the stop",
+    "Sell it, the pullback is a warning"
+   ],
+   "answer": "Just hold, adding isn't the plan",
+   "why": "Just hold. Fraser and ChartSchool both call this a place to add. We don't plan it. We buy the full size at one price with one stop, and that's the position. Adding to a working winner on strength does happen, but it's rare and a feel call, never the plan. A light pullback that holds the old top is a good sign, so sit on your hands.",
+   "lesson_line": "Wyckoff adds at the back-up. We buy once and let it work.",
+   "facts": [
+    "f08",
+    "c36",
+    "t07",
+    "h02",
+    "aw1"
+   ],
+   "wrong": {
+    "Add half size, keep the same stop": "That's the textbook add. For us adding is never the plan. The full size went on once.",
+    "Double up and raise the stop": "Doubling up is the textbook's plan. We buy once and let it work.",
+    "Sell it, the pullback is a warning": "A light pullback that holds the old top is support showing up. The stop is your exit."
+   },
+   "house": true,
+   "story": "You hold a long from the spring. The stock has pushed to the top of the range and now pulls back on light volume, holding the old top.",
+   "simple": "Just hold. We buy the full size once, and adding is never part of the plan.",
+   "deeper": {
+    "trap": "Where the textbook and our rules split, our rules win. Fraser and ChartSchool add here. We buy once, at one price with one stop."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A5) over a web view",
+     "fixed before"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q68",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "scenario",
+   "criterion": "spr.liquidity",
+   "q": "Can you trade it?",
+   "choices": [
+    "No, the price is under 10",
+    "Yes, the dollar volume is big",
+    "Half size, it's a tight range",
+    "No, 60 million a day is too low"
+   ],
+   "answer": "No, the price is under 10",
+   "why": "No. We only trade stocks at $10 or more that trade at least $20 million a day. This one clears the dollar volume easily at about 60 million. But 9.40 is under the $10 line, so it's a pass. Both have to clear. Miss either one and it doesn't go on your list.",
+   "lesson_line": "Two floors: $10 a share and $20 million a day. Miss either, pass.",
+   "facts": [
+    "h09",
+    "c03"
+   ],
+   "wrong": {
+    "Yes, the dollar volume is big": "Both floors have to clear. The price is under $10.",
+    "Half size, it's a tight range": "Half size doesn't waive a floor.",
+    "No, 60 million a day is too low": "60 million clears our 20 million floor. The price is the problem."
+   },
+   "house": true,
+   "story": "A clean spring shows up in a 9.40 stock that trades about 60 million dollars a day.",
+   "simple": "No, because 9.40 is under our $10 floor, even though the volume is fine.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (B23)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q69",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "mcq",
+   "criterion": "spr.liquidity",
+   "q": "A stock with a clean spring trades 750,000 shares a day at 24.00. How much is that in dollars a day?",
+   "answer": "$18,000,000",
+   "calc": {
+    "fn": "dollar_volume",
+    "args": {
+     "shares": 750000,
+     "price": 24.0
+    },
+    "round": 0
+   },
+   "why": "$18 million a day. Shares times price: 750,000 times 24.00 is 18,000,000. That's under our $20 million floor, so it's off the list, however good the chart looks. A thin stock is hard to get out of when you need to. Check dollar volume before you even look at the pattern.",
+   "lesson_line": "Check dollar volume before the pattern.",
+   "facts": [
+    "h09",
+    "c03"
+   ],
+   "house": true,
+   "prefix": "$",
+   "simple": "$18 million a day, which is under our $20 million floor, so it's off the list.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B23)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$18,000,000",
+    "$36,000,000",
+    "$180,000,000",
+    "$432,000,000"
+   ],
+   "wrong": {
+    "$180,000,000": "The decimal point slipped a place.",
+    "$36,000,000": "You counted each share twice.",
+    "$432,000,000": "You multiplied by the price twice."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "Dollar volume",
+    "rows": [
+     {
+      "key": "shares",
+      "label": "Shares a day",
+      "value": 750000,
+      "fmt": "shares"
+     },
+     {
+      "key": "price",
+      "label": "Price",
+      "value": 24,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Dollars traded a day",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q70",
+   "skill": "setup.wyckoff_spring",
+   "rung": 3,
+   "format": "tf",
+   "criterion": "spr.stop_never_lower",
+   "q": "Apart from a gap through it, your stop on a spring only ever moves up.",
+   "answer": "True",
+   "why": "True. The stop is your exit. It moves up as the trade works, never down or wider. The one exception is a gap. On a gap through the stop, the first 30-minute low becomes your new stop, and you're out if that's past 2R. Lowering a stop because price is close to it is how a small loss turns into a big one.",
+   "lesson_line": "A stop moves up, never down. A gap is the one exception.",
+   "facts": [
+    "h02",
+    "c38",
+    "h06",
+    "h07"
+   ],
+   "house": true,
+   "simple": "True, a stop only moves up, except when a gap opens below it.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (A4, B20)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q71",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "spr.stop_never_lower",
+   "q": "What do you do with the stop?",
+   "choices": [
+    "Leave it at 51.10, it stays put",
+    "Drop it to 50.20 to give it room",
+    "Cancel it and watch the close",
+    "Widen it and sell some shares"
+   ],
+   "answer": "Leave it at 51.10, it stays put",
+   "why": "Leave it at 51.10. Your size came from 52.40 and 51.10. Drop the stop to 50.20 and you're risking more than you planned, on a trade that's going against you. The stop only moves up. Keep it as a real order with your broker, not a level you watch. If the spring fails, it fails fast, and the stop is what gets you out.",
+   "lesson_line": "Leave the stop alone. It moves up, never down.",
+   "facts": [
+    "h02",
+    "h41",
+    "c38",
+    "c25",
+    "h01"
+   ],
+   "wrong": {
+    "Drop it to 50.20 to give it room": "A stop never goes lower. Your size already came from 51.10.",
+    "Cancel it and watch the close": "The stop is a real order with your broker, not a close you watch.",
+    "Widen it and sell some shares": "Cutting shares doesn't make a lower stop okay. After the buy, it only moves up."
+   },
+   "house": true,
+   "story": "You bought a spring at 52.40 with a real stop order at 51.10. The stock sags to 51.60 and you feel like dropping the stop to 50.20.",
+   "simple": "Leave the stop at 51.10, because after the buy a stop only moves up, never lower.",
+   "deeper": {
+    "trap": "Cutting shares to widen the stop feels like the same risk. It is not the plan. The size came from the honest stop at the buy, and after the entry the stop only moves up. A spring that fails usually fails at once, so the old stop is doing its job."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (A4, D41)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q72",
+   "skill": "setup.wyckoff_spring",
+   "rung": 2,
+   "format": "tf",
+   "criterion": "spr.breakeven",
+   "q": "On a spring trade, it's fine to move your stop to breakeven at your first sell.",
+   "answer": "True",
+   "why": "True. We move the stop to breakeven somewhere between 2R and 5R, or at the first sell. When you've just sold some into strength, that's a natural time to do it. Now the rest of the trade can't turn into a loss. When exactly is a judgment. Too early, and a normal pullback takes you out at zero.",
+   "lesson_line": "Breakeven between 2R and 5R, or at the first sell.",
+   "facts": [
+    "h05b",
+    "c18",
+    "r06"
+   ],
+   "house": true,
+   "simple": "True. At the first sell, moving the stop to breakeven means the rest can't become a loss.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q73",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "scenario",
+   "criterion": "spr.breakeven",
+   "q": "Where's 2R, the earliest spot you'd think about breakeven?",
+   "answer": "$176.71",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a + 2 * (a - b)",
+     "a": 171.85,
+     "b": 169.42
+    },
+    "round": 2
+   },
+   "why": "176.71. Your risk is 171.85 minus 169.42, which is 2.43 a share. Two of those is 4.86. Add that to 171.85 and you get 176.71. That's where our breakeven window opens. It runs from 2R to 5R, or the first sell. Know the number before the open, so you're not doing math with the stock moving.",
+   "lesson_line": "Know your 2R before the open.",
+   "facts": [
+    "h05b",
+    "c18",
+    "d04",
+    "d05"
+   ],
+   "house": true,
+   "prefix": "$",
+   "simple": "2R is 176.71, the buy plus twice the 2.43 of risk.",
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (B19)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$176.71",
+    "$179.14",
+    "$181.57",
+    "$184.00"
+   ],
+   "wrong": {
+    "$179.14": "That's 3R, one R too many.",
+    "$181.57": "Two R too many. You doubled the 2R.",
+    "$184.00": "That's 5R, the far end of the window."
+   },
+   "story": "August 2025. You bought at 171.85 with the stop at 169.42.",
+   "chart": {
+    "sym": "HWM",
+    "asof": "2025-08-21",
+    "window": 120,
+    "forward": 30,
+    "trade": {
+     "entry": 171.85,
+     "stop": 169.42
+    }
+   }
+  },
+  {
+   "key": "q74",
+   "skill": "setup.wyckoff_spring",
+   "rung": 5,
+   "format": "mcq",
+   "criterion": "spr.trim_2",
+   "q": "You bought 900 shares of a spring. You sold 300 into the first push and 300 into a later one. How many are left to trail?",
+   "answer": "300 shares",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "a - 2 * a / 3",
+     "a": 900
+    },
+    "round": 0
+   },
+   "why": "300. You've sold 300 and 300, so 600 are gone. 900 minus 600 leaves 300 to trail. How much you sell, and when, is a judgment, so these are just example numbers. What's left rides under the 20 EMA, or the 9 EMA if it's fast, until a close below it.",
+   "lesson_line": "Whatever you sell, trail what's left.",
+   "facts": [
+    "r06",
+    "h21"
+   ],
+   "house": true,
+   "suffix": " shares",
+   "simple": "300 are left, because two sells of 300 come off the 900.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "computed key",
+     "rests on the owner's rulebook (E51)",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "300 shares",
+    "200 shares",
+    "150 shares",
+    "100 shares"
+   ],
+   "wrong": {
+    "100 shares": "That sells far too much. Two sells of 300 leave 300.",
+    "200 shares": "That counts one sell as bigger than 300.",
+    "150 shares": "That halves the 300 left. There's no third sell here."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The position",
+    "rows": [
+     {
+      "key": "bought",
+      "label": "Position",
+      "value": 900,
+      "fmt": "shares"
+     },
+     {
+      "key": "s1",
+      "label": "First sell",
+      "value": 300,
+      "fmt": "shares"
+     },
+     {
+      "key": "s2",
+      "label": "Later sell",
+      "value": 300,
+      "fmt": "shares"
+     }
+    ],
+    "find": {
+     "label": "Left to trail",
+     "as": "shares"
+    }
+   }
+  },
+  {
+   "key": "q75",
+   "skill": "setup.wyckoff_spring",
+   "rung": 8,
+   "format": "scenario",
+   "criterion": "spr.trim_2",
+   "q": "What's the plan from here?",
+   "choices": [
+    "Weigh a later sell, trail the rest",
+    "Sell everything and lock it in",
+    "Add back what you already sold",
+    "Sell a fixed third, trail the rest"
+   ],
+   "answer": "Weigh a later sell, trail the rest",
+   "why": "Weigh another sell and trail the rest. Later sells are a judgment, like the first. Selling at about 5 to 10R is often best, so 5R is a fine spot to think about it. But no fixed third comes off at 5R. Whatever's left trails under the 9 EMA if it's fast, or the 20 EMA if it's steady. And you don't buy back what you sold.",
+   "lesson_line": "Sell into strength by judgment. Trail what's left.",
+   "facts": [
+    "r06",
+    "r08",
+    "r21",
+    "aw1"
+   ],
+   "wrong": {
+    "Sell everything and lock it in": "That ends a trade that's still working. Sell part by judgment and trail the rest.",
+    "Add back what you already sold": "Buying back what you sold isn't the plan. The trail handles the rest.",
+    "Sell a fixed third, trail the rest": "No fixed third comes off at 5R. Later sells are a judgment too."
+   },
+   "house": true,
+   "story": "Your spring buy has made its first sell. Price now touches 5R and the stop is at breakeven.",
+   "simple": "Weigh a later sell and trail the rest, because later sells are a judgment, not a fixed third.",
+   "deeper": {
+    "trap": "The trap is to sell a fixed third at 5R. A later sell is a judgment, and what is left trails under a rising average."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "rests on the owner's rulebook (E51)"
+    ]
+   },
+   "batch": "rulings-2026-11-17"
+  },
+  {
+   "key": "q76",
+   "skill": "setup.wyckoff_spring",
+   "rung": 4,
+   "format": "tf",
+   "criterion": "spr.pf_count",
+   "q": "On a spring, you sell when price reaches its Wyckoff point-and-figure target.",
+   "answer": "False",
+   "why": "False. A Wyckoff count is a place to stop, look and listen, not an exit. ChartSchool says those targets should never be treated as exact turning points. We sell into strength by judgment and trail the rest under the 20 EMA or the 9 EMA. If price nears a count, pay attention to how it acts there. That's all.",
+   "lesson_line": "A Wyckoff target is a place to look and listen, not an exit.",
+   "facts": [
+    "t08",
+    "c37",
+    "h20",
+    "r06",
+    "h21"
+   ],
+   "house": true,
+   "simple": "False. A Wyckoff target is only a place to look and listen, and we sell by judgment.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on the owner's rulebook (E51)",
+     "question reworded in this batch"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q77",
+   "skill": "setup.wyckoff_spring",
+   "rung": 7,
+   "format": "mcq",
+   "criterion": "spr.pf_count",
+   "q": "Wyckoff traders project how far a stock can run out of its range. What do they measure that with?",
+   "choices": [
+    "The point-and-figure count",
+    "Twice the range's height",
+    "A fixed 3R on every trade",
+    "The prior all-time high"
+   ],
+   "answer": "The point-and-figure count",
+   "why": "The point-and-figure count. That's the Wyckoff tool for it. ChartSchool says the cause a range builds is measured by the horizontal count on a point-and-figure chart. The bigger the range, the bigger the cause, and the bigger the move it can feed. Pruden uses those counts for his projections too. Twice the range height looks like Wyckoff, but no Wyckoff source uses it. For us even a real count is a place to look and listen, not a sell order.",
+   "lesson_line": "Wyckoff measures the run with the point-and-figure count.",
+   "facts": [
+    "t09",
+    "w09",
+    "t08",
+    "c37",
+    "c39",
+    "h20",
+    "r06"
+   ],
+   "wrong": {
+    "Twice the range's height": "Some scanners use it, but no Wyckoff source does.",
+    "A fixed 3R on every trade": "3R is our yardstick for risk, not Wyckoff's objective. And our first sell is a judgment.",
+    "The prior all-time high": "Wyckoff's objectives come from the count, not a prior high."
+   },
+   "house": true,
+   "simple": "The point-and-figure count, which measures how much cause a range has built.",
+   "deeper": {
+    "trap": "Twice the range height shows up on some scanners, but no Wyckoff source uses it. Even the real count is a place to stop, look and listen."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "UNIT ID IS PROVISIONAL: UNITS-method.md has no row for this card (the card's unit is 'none'). SET.50 and the skill id setup.wyckoff_spring are built from the criteria card and its dossier alone and wait on the setup map (D-002: the dossier and the register lean to a named variant inside U&R under a flat base, taught as a U&R) and the names (UCT never says 'Wyckoff spring' in public; its words are shakeout, failed breakdown and UnR).",
+  "Pending-owner criteria kept OUT of every key (our current default, waiting on the owner): spr.above_200 as a spring-specific rule (D-009; q19, q42 and q44 key only the settled B26 line, no longs under the 200-day unless a parabolic long, and the card's 'must stay above the 200-day' sentence is not quoted); spr.range_length, 20 sessions against the app's 15 (D-112; no range length is keyed, and the NFLX 2025-09-15 near-miss of a 19-session range is not used); spr.floor_touches, two swing lows at least 5 sessions apart (D-112; the stories give touch counts as givens, and the only touch rule keyed is that one old swing low is a 2B, q55, which fails every option); spr.reclaim_window, the same day or the next (D-005; nothing keys 'one-bar' or 'two-bar' as a rule, the INTC 2005-08-29 near-miss of 3 closes under is not used, q23 keys only Pruden's 'quickly reverses' and Taylor's 'slower violations'); spr.volume, quiet under 1.0x and loud 1.5x or more (D-006; q40 teaches the sources' disagreement and q17 and q41 teach Fraser's types as his, never a cutoff); spr.entry_reclaim and spr.entry_test, which entry we teach (D-003; q03 keys 'buy the reclaim at the floor' as the card's lookalike tell against the flat base, and q41 and q59 key the test as the Wyckoff school's, never as ours); spr.no_chase, 4% over the old range low (D-004/D-113; no item); spr.stop_width, 3% and 5% bands (D-022; only the arithmetic of a stop distance is asked, q26); the upthrust short, whether to teach it, the warning only, or drop it (D-001; no item names the upthrust or a short).",
+  "Settled and proposed criteria are keyed: spr.leader (C31, RS 80), spr.liquidity, spr.earnings_window (B22), spr.market_reading (F65), spr.stop (A3, F62), spr.stop_gap (B20), spr.trim_1, spr.breakeven, spr.trim_2, spr.trim_gap_open, spr.trail, spr.time_stop (C33), spr.not_stretched (C29), spr.after_entry_stop; and the proposed spr.prior_advance, spr.index_sprung, spr.range_height, spr.flat, spr.dip_depth (0.1 to 1 ATR, 1 to 2 ATR grades lower, over 2 ATR a breakdown), spr.reclaim_close, spr.location_averages, spr.not_breakout_entry, spr.range_top_resistance, spr.inv_no_range, spr.inv_close_under_low. Every question keyed on them carries house: true except the two-publisher items (q01, q02, q04, q17, q23, q40, q41, q59, and the Fraser items q64), and the owner's review is the gate. The ranges (6% to 20%, a quarter of the height, 0.1 to 1 ATR) are the dossier's own proposals, marked 'my proposal' there; no source publishes a number for a spring.",
+  "The unit separates the spring from U&R, 2B, the flat base, Oops and Capitulation by the card's tells that carry no pending number: a flat floor against one swing low (2B, q55), a flat floor against a rising average or a prior high (U&R, q46), the floor buy against the top buy (flat base, q47), the range floor against yesterday's low (Oops, q48), the 0.1 to 1 ATR dip against a 2 ATR flush (Capitulation, q49). The numbers those tells carry for the OTHER cards (the 2B's 1 ATR rally, the U&R's 3 sessions, the Oops range under 3 ATR, the Remount's 5 closes) are left out of every quote and key.",
+  "Sources: the Pruden, ChartSchool, Fraser and Taylor quotes are the dossier's section 3 quotes. The Pruden and von Lichtenstein paper (s2) is a PDF, and the PDF text extraction drops spaces in places, so two Pruden lines ('springs or shakeouts usually occur late' and 'an upthrust is the opposite of a spring') are not quoted; w01, w03, w04 and w05 are matched by the quote checker. Fraser's two StockCharts posts (s3, s4) are one author on one site, so they never count as two publishers; the UCT items (u01 to u04) are public Substack quotes in the owner's own Sunday Scans section, cited as Tier 3 house sources with their public URLs. The DELL math (u01 to u03) is the owner's only written spring plan; it uses a stop at $140, the shakeout low, not 'a few cents under' it, and q35 and q51 use it only for the 3R arithmetic and the 3-1 gain the plan expected.",
+  "Volume is the sources' biggest disagreement (Fraser, Pruden and ChartSchool want a quiet spring and a test after a loud one; Taylor wants heavy volume, the higher the better). q40 asks only whether they agree, and the answer is no; our own use of volume is D-006 and is not taught. The dossier's measurement found no separation on daily bars.",
+  "The dossier's example numbers (d1) are a Tier 3 repo source: read off our own daily bars by the research scan (dossier sections 13 and 14), survivors only, fixed stop three cents beyond the probe's extreme, no RS rating or group applied; the owner has not reviewed the examples. The walk-throughs (GIS, HWM, MSFT) and the chart questions (q54 ODFL asof 2021-10-01, the spring day; q55 AMZN asof 2021-08-12, the day of the probe) depend on it. The chart ends on the spring day, so 'take it' means 'this is a spring worth the plan', not an order at that bar. The buy in the scan is the next open, usually worse than the intraday reclaim.",
+  "KMX 2020-12-29 (a two-bar spring) is not used because the one-bar and two-bar windows are D-005; the AAPL 2014, ULTA, PH, AVGO and GS/TGT upthrust examples are not used either (AVGO and PH have 2 floor touches, which D-112 may raise; the upthrusts are D-001). The four failures kept are GOOGL (market), AAPL 2021 (the index's own spring), MSFT (fails at once) and TSLA (a 17.9% tall range after a 73% run); MSFT and TSLA are asked as 'what do you do' items, GOOGL and AAPL as market and index lessons.",
+  "q35, q38 and q39 use the house trim, gap and breakeven rules (B19, B20, F63) with stated prices; q35's calc proves 148 = 142 + 3 x 2 and q38's calc proves the 2.5R loss. The base rate in q52 (27.1% to 3R, 17.7% to 5R, 83.8% stopped) is a fixed-stop, no-trim measurement of the scan's springs, not the house trade.",
+  "Cold check 2026-11-10: 52 pass (15 fixed), 0 fix, 15 cut; the three things the owner should look at first: (1) the name and home (D-002): UCT says shakeout, failed breakdown and UnR in public, never 'Wyckoff spring', and the register leans to a named variant inside U&R; (2) D-003: q47 and the walk-throughs key buying the reclaim at the floor as the card's tell (the entry we teach is pending); (3) the dossier's example notes disagree with the bars in two places (MSFT 'never showed a profit', TSLA 'never traded above the entry'), so the dossier's failure table needs a recheck before it is used elsewhere. Publisher decision: StockCharts ChartSchool (Bogomazov and Lipsett) and Fraser's two articles are all on stockcharts.com, so they count as one publisher; q04 and q17 rested on that miscount and now add Pruden (w06, w07) as the independent second source; Pruden and Taylor (CMT) stay separate publishers. Upthrust and short material: none in the unit. No sizing question; A7's 40% cap does not arise.",
+  "Requoted 2026-11-10: d08 after the cards' market-reading rows were corrected."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "d01/d02/d03 verbatim; bars: GIS 2001-10-15 low 21.25, close 21.475 back over the 21.30 floor, volume 1.16x, 60-day range 21.30-23.30 (9.4%); buy 21.43 is the next open, stop 21.22 is 3 cents under 21.25. Key facts right.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "d04/d05/d06 verbatim; bars: HWM 2025-08-20 low 169.45, next open 171.85, stop 169.42 (3 cents under), 0.14 ATR, 0.84x, range 170.34-193.26 (13.5%). 3R at 179.14 is well before the top at 193.26, so the 'trim comes at or before the top' line holds.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "d07/d08/d09 verbatim; bars: MSFT 2023-08-08 low 323.00, next open 326.47, stop 322.97, 2023-08-09 low 321.05, close 322.23. The dossier says it was stopped 'without ever showing a profit', but that day's high was 327.11, 0.64 over the buy; step 4 said 'with no profit shown'; now 'The stop hits on the entry day'. Requoted 2026-11-10: dossier dropped 'without ever showing a profit' (the day's high was over the fill); the quote ends at 'stopped on the entry day', which step 4 already says. No text change.",
+   "fixed": true,
+   "by": "requoter"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: three sources stacked reads like a research summary. Rewritten to say what the trap does, then the sources on speed (rule 13 allows them here)."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: 'inside the dip's own noise' is stiff and unclear. Rewritten in plain words."
+  },
+  "q06": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
+  },
+  "q07": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: the story ('The day this stock closes back inside...') is a fragment and never says why you'd care. Story now sets up the buy; the why ties the room to R and to where sellers show up."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'Fraser's word for that kind of failed spring is a complete breakdown' stretches f03 (Fraser's number 1 is the deep complete breakdown, not a close back under the low). Replaced with Taylor's own line (y02), which says exactly this."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3 and a weak reason: 'You pay for it in the stop' then cites a 2.46% stop, which is inside our preferred 1-3%. Rewritten so the reason is the full session under the floor, with the grade setting the size."
+  },
+  "q26": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q28": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q31": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q33": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q34": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Agrees: never add to a loser. Voice 4."
+  },
+  "q35": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Agrees: adding on strength rare, a feel call; hold on day 1 right. 64 + 3 x 1.60 = 68.80, right. Voice 4."
+  },
+  "q36": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q37": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in voice-8-2026-11-17: see the resolver's notes"
+  },
+  "q38": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Agrees: adding to a loser. (100-95)/(100-98) = 2.5R, right. Voice 4."
+  },
+  "q39": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Agrees: adding rare, a feel call. 50 + 3 x 2 = 56, right. Voice 4."
+  },
+  "q40": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q41": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: three authors in a row ('Fraser says... ChartSchool says... Pruden calls...') is a research summary. Rewritten to lead with why you wait and how you buy the test; sources kept short (rule 13)."
+  },
+  "q45": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: a 22% range sits just over the proposed 6-20% height band (c07, status proposed), so the question quietly tests that scanner cutoff. Made the range plainly wide (30%) so it's judged by eye, and dropped c07 from its facts."
+  },
+  "q47": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q51": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q61": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q62": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Story named 'the 60 sessions before it', the proposed prior-advance window. Trimmed; the idea (a pause after a run) is unchanged."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: 'ChartSchool and Fraser both put...' opens like a literature review. Rewritten to lead with the reason the floor has to earn it."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "'That's room for nothing' and 'inside the dip's own noise' are odd phrasing. Plain words now."
+  },
+  "q27": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q30": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q44": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q46": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q48": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q49": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q50": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Deeper named 'the 60 sessions before it', the proposed prior-advance window. Trimmed to the run itself."
+  },
+  "q53": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q54": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q55": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q02": {
+   "status": "cut",
+   "notes": "Duplicate of q01: the same fact (t01/w01, a spring goes below the range low and closes back inside), asked as true/false.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q03": {
+   "status": "cut",
+   "notes": "Duplicate of q47: the same card tell (c31, floor reclaim against top breakout); q47 asks it with the flat base named.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q20": {
+   "status": "cut",
+   "notes": "Duplicate of q22: the same fact (c23, no range behind the dip is not a spring).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q29": {
+   "status": "cut",
+   "notes": "Duplicate of q50 and q34 (a failed spring is the cost of the setup). It also says 'stopped with no profit', but MSFT's entry-day high was 327.11, over the 326.47 buy.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q32": {
+   "status": "cut",
+   "notes": "Duplicate of q14: the same facts (c13, w05), and it tells members that our own scanner's plan is wrong, which the owner has not ruled on (D-004).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q42": {
+   "status": "cut",
+   "notes": "Duplicate of q62: the same fact (c01, prefer a pause after a rise to a base after a decline).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q43": {
+   "status": "cut",
+   "notes": "Duplicate of q09: the same fact (C31, RS 80 or more for a spring).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q52": {
+   "status": "cut",
+   "notes": "Cut: the 27.1% to 3R is a fixed-stop, no-trim hit rate for a scan whose gates are pending (D-112 range length and touches, D-113 reclaim window), survivor-tilted and unreviewed; it would read as the odds of the taught trade.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q57": {
+   "status": "cut",
+   "notes": "Duplicate of q61: the same facts (t06, c06, timing a buy with a turn in the index).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q58": {
+   "status": "cut",
+   "notes": "Duplicate of q08 and q18: a spring that dives well past its low is not a spring. It is also trivia about one author's wording.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q59": {
+   "status": "cut",
+   "notes": "Duplicate of q41: the same facts (w04, t04, wait for the test after a spring).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q60": {
+   "status": "cut",
+   "notes": "Duplicate of q45: the same numbers (a 24% range and a 1.4 ATR dip grade lower).",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q63": {
+   "status": "cut",
+   "notes": "Duplicate of q35: the same fact (c18, breakeven at the first trim), already part of q35's answer.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q64": {
+   "status": "cut",
+   "notes": "Cut: the story restates Fraser's sentence for a number 2 spring almost word for word, so the key is the quote; the facts also repeat q41.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q65": {
+   "status": "cut",
+   "notes": "Cut: asks which of four named examples had no warning sign, but the stem gives no facts about them; the member can only recall earlier screens. GOOGL 'weak market' also overstates the dossier ('not a Green market').",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q66": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q67": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Rewrite teaches the ruling: textbook add vs ours, adding never the plan, rare and a feel call. Answer clearly right. Voice 4."
+  },
+  "q68": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q69": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q70": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q71": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q72": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q73": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q74": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q75": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Agrees: buying back what you sold isn't the plan. Voice 4."
+  },
+  "q76": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads as him; numbers recomputed and match the facts; answer right, wrong choices clearly wrong; no working words or card proposals stated as ours."
+  },
+  "q77": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3: textbook source chain. Rewritten to say what the count is for and where we stand on it."
+  }
+ }
+}

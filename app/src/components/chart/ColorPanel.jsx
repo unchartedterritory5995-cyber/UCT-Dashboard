@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import UIcon from '../ui/UIcon'
+import ChoiceMenu from './ChoiceMenu'
 import styles from './ColorPanel.module.css'
 
 /**
@@ -85,6 +87,21 @@ const COLUMNS = [
   ramp('#d24ba8'), // magenta
 ]
 const PALETTE = [0, 1, 2, 3, 4, 5].map((r) => COLUMNS.map((col) => col[r]))
+
+// Line controls (line-type targets only): the same values the old segmented rows offered.
+// Style codes: 0 solid · 2 dashed · 1 dotted (1 MEANS dotted — drawingStyle.test.js reads this list).
+const lineSample = (width, style) => <span className={styles.lineSample} style={{ borderTopWidth: width, borderTopStyle: style }} />
+const LINE_WIDTHS = [1, 2, 3, 4].map((w) => ({ value: w, label: `${w}px`, icon: lineSample(w, 'solid') }))
+const LINE_STYLES = [[0, 'solid'], [2, 'dashed'], [1, 'dotted']].map(([s, name]) => (
+  { value: s, label: name[0].toUpperCase() + name.slice(1), icon: lineSample(2, name) }
+))
+// A stored style the three above don't offer (the crosshair defaults to 3, the chart's "long
+// dash") is shown truthfully as its own option rather than mislabelled as Solid.
+const EXTRA_STYLES = { 3: { label: 'Long dash', css: 'dashed' }, 4: { label: 'Sparse dots', css: 'dotted' } }
+function lineStyleOptions(cur) {
+  if (LINE_STYLES.some((o) => o.value === cur) || !EXTRA_STYLES[cur]) return LINE_STYLES
+  return [...LINE_STYLES, { value: cur, label: EXTRA_STYLES[cur].label, icon: lineSample(2, EXTRA_STYLES[cur].css) }]
+}
 
 export default function ColorPanel({ title, value, onChange, onClose, savedColors = [], onSaveColor, onDeleteColor, line = null }) {
   const [customOpen, setCustomOpen] = useState(false)
@@ -200,16 +217,18 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
     <div className={styles.panel} role="dialog" aria-label={`${title} color`}>
       <div className={styles.head}>
         <span className={styles.title}>{title}</span>
-        <button type="button" className={styles.close} onClick={onClose} aria-label="Close color picker">✕</button>
+        <button type="button" className={styles.close} onClick={onClose} aria-label="Close color picker">
+          <UIcon name="x" size={12} strokeWidth={2} gold={false} />
+        </button>
       </div>
 
       <div className={styles.grid}>
         {paletteGrid}
       </div>
 
-      {savedColors.length > 0 && (
+      {(savedColors.length > 0 || onSaveColor) && (
         <>
-          <div className={styles.savedLabel}>Saved</div>
+          <div className={styles.label}>Saved</div>
           <div className={styles.savedRow}>
             {savedColors.map((c, i) => (
               <span key={`s-${c}-${i}`} className={styles.savedItem}>
@@ -221,17 +240,41 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
                 )}
               </span>
             ))}
+            {onSaveColor && (
+              <button type="button" className={styles.addSw} title="Save this color" aria-label="Save this color"
+                onClick={() => onSaveColor(curRgb)}>
+                <UIcon name="plus" size={12} strokeWidth={2} gold={false} />
+              </button>
+            )}
           </div>
         </>
       )}
 
-      <div className={styles.footer}>
-        <span className={styles.hash}>#</span>
-        <input className={styles.hexInput} aria-label="Hex color" value={(hexText || '').replace(/^#/, '')} spellCheck={false} maxLength={6}
-          onChange={(e) => setHexText(e.target.value)} onBlur={commitHex}
-          onKeyDown={(e) => { if (e.key === 'Enter') commitHex() }} />
-        <button type="button" className={`${styles.custBtn} ${customOpen ? styles.custOn : ''}`} onClick={() => setCustomOpen(o => !o)}>Custom</button>
-        <button type="button" className="btn btn-primary" onClick={() => onSaveColor?.(curRgb)}>Save</button>
+      {/* Opacity — per-color (each swatch: body/borders/wick, up/down). */}
+      <div className={styles.label}>Opacity</div>
+      <div className={styles.opRow}>
+        <div className={styles.opTrack} ref={opRef} onPointerDown={opDrag}>
+          <div className={styles.opChecker} />
+          <div className={styles.opFill} style={{ background: `linear-gradient(to right, ${curRgb}00, ${curRgb})` }} />
+          {/* left is written imperatively (paintAlpha) — never via React — so a drag is never fought by a re-render */}
+          <div className={styles.opThumb} ref={opThumbRef} />
+        </div>
+        <span className={styles.opVal} ref={opValRef}>{Math.round(curA * 100)}%</span>
+      </div>
+
+      <div className={styles.label}>Hex</div>
+      <div className={styles.hexRow}>
+        <span className={styles.preview} aria-hidden="true">
+          <span className={styles.previewFill} style={{ background: joinColor(curRgb, curA) }} />
+        </span>
+        <span className={styles.hexWell}>
+          <span className={styles.hash}>#</span>
+          <input className={styles.hexInput} aria-label="Hex color" value={(hexText || '').replace(/^#/, '')} spellCheck={false} maxLength={6}
+            onChange={(e) => setHexText(e.target.value)} onBlur={commitHex}
+            onKeyDown={(e) => { if (e.key === 'Enter') commitHex() }} />
+        </span>
+        <button type="button" className={`${styles.custBtn} ${customOpen ? styles.custOn : ''}`} aria-pressed={customOpen}
+          onClick={() => setCustomOpen(o => !o)}>Custom</button>
       </div>
 
       {customOpen && (
@@ -247,40 +290,17 @@ export default function ColorPanel({ title, value, onChange, onClose, savedColor
         </div>
       )}
 
-      {/* Opacity — per-color (each swatch: body/borders/wick, up/down). */}
-      <div className={styles.opLabel}>Opacity</div>
-      <div className={styles.opRow}>
-        <div className={styles.opTrack} ref={opRef} onPointerDown={opDrag}>
-          <div className={styles.opChecker} />
-          <div className={styles.opFill} style={{ background: `linear-gradient(to right, ${curRgb}00, ${curRgb})` }} />
-          {/* left is written imperatively (paintAlpha) — never via React — so a drag is never fought by a re-render */}
-          <div className={styles.opThumb} ref={opThumbRef} />
-        </div>
-        <span className={styles.opVal} ref={opValRef}>{Math.round(curA * 100)}%</span>
-      </div>
-
-      {/* Thickness + line style — only for line-type targets (e.g. crosshair). */}
+      {/* Thickness + line style — only for line-type targets (e.g. crosshair). Two ChoiceMenu
+          dropdowns (UCT Signature: a choice is a dropdown, never a segmented row). The list is
+          portalled to <body> as [data-choice-menu]; a host's outside-click must ignore it. */}
       {line && (
         <>
-          <div className={styles.opLabel}>Thickness</div>
-          <div className={styles.lineOpts}>
-            {[1, 2, 3, 4].map((w) => (
-              <button key={w} type="button"
-                className={`${styles.lineOpt} ${line.width === w ? styles.lineOptOn : ''}`}
-                onClick={() => line.onWidth?.(w)} aria-label={`Thickness ${w}`}>
-                <span className={styles.lineSample} style={{ borderTopWidth: w }} />
-              </button>
-            ))}
-          </div>
-          <div className={styles.opLabel}>Line style</div>
-          <div className={styles.lineOpts}>
-            {[[0, 'solid'], [2, 'dashed'], [1, 'dotted']].map(([s, name]) => (
-              <button key={s} type="button"
-                className={`${styles.lineOpt} ${line.style === s ? styles.lineOptOn : ''}`}
-                onClick={() => line.onStyle?.(s)} aria-label={name}>
-                <span className={styles.lineSample} style={{ borderTopWidth: 2, borderTopStyle: name }} />
-              </button>
-            ))}
+          <div className={styles.label}>Line</div>
+          <div className={styles.lineRow}>
+            <ChoiceMenu ariaLabel="Thickness" title="Thickness" value={line.width} options={LINE_WIDTHS}
+              onChange={(w) => line.onWidth?.(w)} />
+            <ChoiceMenu ariaLabel="Line style" title="Line style" value={line.style} options={lineStyleOptions(line.style)}
+              onChange={(s) => line.onStyle?.(s)} />
           </div>
         </>
       )}

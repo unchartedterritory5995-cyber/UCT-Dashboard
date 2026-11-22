@@ -90,6 +90,7 @@ CREATE TABLE IF NOT EXISTS catalyst_cost_log (
   was_cached      INTEGER DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_catalyst_cost_date ON catalyst_cost_log(market_date);
+CREATE INDEX IF NOT EXISTS idx_catalyst_cost_ticker_ts ON catalyst_cost_log(ticker, ts);
 
 -- Dedup table for catalyst-triggered alerts. PK on (user_id, ticker, market_date)
 -- means each (user, ticker) gets at most one alert per day, regardless of how
@@ -225,6 +226,12 @@ def _init_db() -> None:
             except sqlite3.OperationalError as e:
                 if "duplicate column name" not in str(e).lower():
                     raise
+        # What the provider reported, apart from `cost_usd`, which may still be a reservation's worst case.
+        try:
+            c.execute("ALTER TABLE catalyst_cost_log ADD COLUMN confirmed_usd REAL")
+        except sqlite3.OperationalError as e:
+            if "duplicate column name" not in str(e).lower():
+                raise
         c.commit()
 
 
@@ -890,6 +897,70 @@ def log_cost(*, market_date: str, ticker: str, model: str,
              input_tokens, output_tokens, cost_usd, 1 if was_cached else 0),
         )
         c.commit()
+
+
+def reserve_cost(*, market_date: str, ticker: str, model: str, worst_usd: float,
+                 since_ts: int, now: int, admit) -> tuple:
+    """Admit one call and write its row AT ITS WORST CASE, in ONE transaction.
+
+    ``admit(rows, recent_ts)`` sees today's ``[(ticker, usd)]`` and this ticker's row
+    times since ``since_ts``; it returns None to admit, anything else to refuse.
+    Returns ``(rowid, None)`` or ``(None, verdict)``.
+
+    ⛔ THE ROW IS THE RESERVATION. `BEGIN IMMEDIATE` means two calls racing for the
+    last dollars cannot both read the same total, across threads, processes and
+    instances, and a process that dies mid-call leaves the row counting its worst
+    case, because nothing ever lowered it. `settle_cost` replaces the figure.
+    """
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.isolation_level = None
+        c.execute("BEGIN IMMEDIATE")
+        try:
+            rows = [(r[0], float(r[1] or 0.0)) for r in c.execute(
+                "SELECT ticker, COALESCE(SUM(cost_usd), 0.0) FROM catalyst_cost_log"
+                " WHERE market_date = ? GROUP BY ticker", (market_date,)).fetchall()]
+            recent = [int(r[0]) for r in c.execute(
+                "SELECT ts FROM catalyst_cost_log WHERE ticker = ? AND ts >= ?"
+                " ORDER BY ts", (ticker, int(since_ts))).fetchall()]
+            verdict = admit(rows, recent)
+            if verdict is not None:
+                c.execute("ROLLBACK")
+                return None, verdict
+            cur = c.execute(
+                """INSERT INTO catalyst_cost_log
+                   (ts, market_date, ticker, model, input_tokens, output_tokens,
+                    cost_usd, was_cached)
+                   VALUES (?, ?, ?, ?, 0, 0, ?, 0)""",
+                (int(now), market_date, ticker, model, float(worst_usd)))
+            c.execute("COMMIT")
+            return int(cur.lastrowid), None
+        except Exception:
+            c.execute("ROLLBACK")
+            raise
+
+
+def settle_cost(rowid: int, *, ticker: str, input_tokens: int, output_tokens: int,
+                cost_usd: float) -> bool:
+    """Replace a reservation's worst case with what the call cost. A row that
+    cannot be found stays as it is: over-counting is the safe side."""
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        n = c.execute(
+            "UPDATE catalyst_cost_log SET input_tokens = ?, output_tokens = ?, cost_usd = ?, confirmed_usd = ?"
+            " WHERE rowid = ? AND ticker = ?",
+            (int(input_tokens), int(output_tokens), float(cost_usd), float(cost_usd), int(rowid), ticker)).rowcount
+        c.commit()
+    return bool(n)
+
+
+def estimated_and_confirmed(market_date: str, ticker_prefix: str) -> dict:
+    """A reserved lane's day, split: dollars the provider confirmed, and dollars still at a worst-case estimate
+    (a timeout, a reply with no usage, a call that has not finished)."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT COALESCE(SUM(confirmed_usd), 0), COALESCE(SUM(CASE WHEN confirmed_usd IS NULL THEN cost_usd END), 0)"
+            " FROM catalyst_cost_log WHERE market_date = ? AND ticker LIKE ?",
+            (market_date, ticker_prefix + "%")).fetchone()
+    return {"confirmed_usd": round(float(row[0]), 6), "estimated_usd": round(float(row[1]), 6)}
 
 
 def cost_stats_for_date(market_date: str) -> dict:

@@ -35,6 +35,7 @@ import { useCallback, useMemo, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import { fetchSnapshot } from './widgetSnapshotFetcher'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import CaptureMenu from '../../journal-2-0/components/CaptureMenu'
 import UIcon from '../../../components/ui/UIcon'
@@ -103,6 +104,7 @@ export default function MarketContextWidget({
     () => buildMarketContextCapture({ readings, wireDate, updated }),
     [readings, wireDate, updated],
   )
+  useWidgetDoor(() => ({ capture: () => (journalDoor && !readOnly && readings ? { kind: 'marketcontext', capture: buildCapture(), label: 'Market context' } : null) }))
 
   return (
     <div className={styles.root}>

@@ -101,7 +101,15 @@ def test_D1_the_default_is_pinned_in_SOURCE_not_only_in_behaviour():
     """The literal, not just the effect: changing the default and "fixing" the
     behaviour test would leave every member on a variable nobody set."""
     assert rt.STAGE_OFF == "off"
-    assert rt.PINE_RUNTIME_MODE_FLAGS == {"PINE_RUNTIME_STAGE": ("off", ("off", "admins", "cohort", "all"))}
+    assert rt.PINE_RUNTIME_MODE_FLAGS == {
+        "PINE_RUNTIME_STAGE": ("off", ("off", "admins", "cohort", "all")),
+        # W5 T12 (ruling Q4): the server lanes' stage; its own rails are tests/test_runtime_server_stage.py
+        "PINE_RUNTIME_SERVER_STAGE": ("off", ("off", "admins", "cohort", "all")),
+        # WS-I Part 2 (2026-11-13): admission by capability; its rails are tests/test_pine_capability_admission.py
+        "PINE_RUNTIME_CAPABILITY_ADMISSION": ("off", ("off", "on")),
+        # U5 (2026-11-14): the detector in its own process; its rails are tests/test_pine_capability_detector_worker.py
+        "PINE_CAPABILITY_DETECTOR_WORKER": ("off", ("off", "on")),
+    }
     src = (ROOT / "api" / "services" / "runtime_definitions.py").read_text(encoding="utf-8")
     assert "os.environ.get(STAGE_ENV, STAGE_OFF)" in src
     # and the mode-flag index derives it, so the ledger can hold it to a decision
@@ -202,10 +210,29 @@ def test_D1_the_save_SWITCH_is_still_asked_first(store, monkeypatch):
 
 # ═══ D6 — the starter allowlist ══════════════════════════════════════════════
 
+#: RS Rating (fred6724), admitted 2026-11-16 on the SUBSTITUTED path (three MATCH_SUBSTITUTED captures,
+#: `syminfo.industry` answered from UCT data and disclosed): docs/pine/RS-RATING-TRANSFER.md.
+RS_RATING_HASH = "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0"
+#: its captures: the three at the defaults (Q-RS8 re-takes), then each settings set (A, B, C: the colours, D: the
+#: comparison symbol, E2: the see-through dot colours) on RDDT and ALAB
+RS_CAPTURES = ([f"rs-rating-fred6724-{s}-1d-2026-11-16" for s in ("rddt", "alab", "crwv")]
+               + [f"rs-rating-fred6724-{v}-{s}-1d-2026-11-16" for v in ("seta", "setb", "setc", "setd", "sete2") for s in ("rddt", "alab")])
+
+
 def test_D6_the_committed_allowlist_holds_ONLY_adx_and_di_for_v4():
+    """The name is the history: it held one script until RS Rating was graded and admitted."""
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert [s["slug"] for s in doc["scripts"]] == ["adx-and-di-for-v4"]
-    assert rt.allow_list() == [ADX["meta"]["runtimeSourceHash"]]
+    assert [s["slug"] for s in doc["scripts"]] == ["adx-and-di-for-v4", "rs-rating-fred6724"]
+    assert rt.allow_list() == [ADX["meta"]["runtimeSourceHash"], RS_RATING_HASH]
+    # the second record is on the substituted path and says what it substitutes
+    rs = doc["scripts"][1]
+    assert rs["admission"] == "substituted" and rs["substituted"] == ["syminfo.industry"]
+    assert all(c["verdict"] == "MATCH_SUBSTITUTED" and c["substituted"] == ["syminfo.industry"] for c in rs["captures"])
+    # the three defaults captures (Q-RS8), then the settings captures (settings parity 2c, colours), each named
+    assert [c["id"] for c in rs["captures"]] == RS_CAPTURES
+    defaults, settings = rs["captures"][:3], rs["captures"][3:]
+    assert not any(c.get("inputs") for c in defaults)
+    assert all(isinstance(c.get("inputs"), dict) and c["inputs"] for c in settings)
     assert ADX["meta"]["runtimeSourceHash"] == rt.source_hash(ADX["compute"]["source"])
 
 
@@ -269,10 +296,10 @@ def test_D6_a_stored_ungraded_row_is_SERVED_stamped_and_never_rewritten(store, m
 
 def test_D6_the_preview_read_carries_the_allowlist(store, monkeypatch):
     got = _client("member").get("/api/user-definitions/runtime-kill").json()
-    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"]]
+    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"], RS_RATING_HASH]
     monkeypatch.setenv(rt.ALLOW_ENV, "B" * 12)
     got = _client("member").get("/api/user-definitions/runtime-kill").json()
-    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"], "b" * 12]
+    assert got["allow"] == [ADX["meta"]["runtimeSourceHash"], RS_RATING_HASH, "b" * 12]
 
 
 # ═══ D2 — the cap, split by kind ═════════════════════════════════════════════
@@ -283,6 +310,9 @@ def test_D2_the_two_caps_are_what_the_owner_ruled():
 
 
 def test_D2_trend_targets_saves_under_the_runtime_cap(store, monkeypatch):
+    # RT1 2026-11-15: the COMMITTED kill list is set aside (trend-targets was on it until PR #1374 lifted
+    # it); this rail is about the size cap
+    monkeypatch.setattr(rt, "KILLLIST_PATH", "no-committed-kills.json")
     monkeypatch.setenv(rt.SAVE_ENV, "1")
     monkeypatch.setenv(rt.STAGE_ENV, "all")
     monkeypatch.setenv(rt.ALLOW_ENV, TREND["meta"]["runtimeSourceHash"])
@@ -300,7 +330,7 @@ def test_D2_a_FORMULA_keeps_its_64_KiB_cap(store):
          "plots": [{"key": "value", "style": "line", "role": "primary"}], "inputs": []}
     d["meta"]["description"] = "x" * (svc.MAX_DEFINITION_BYTES + 1024)
     assert svc.MAX_DEFINITION_BYTES < _blob_size(d) < rt.RUNTIME_MAX_DEFINITION_BYTES
-    with pytest.raises(ValueError, match=rf"definition exceeds {svc.MAX_DEFINITION_BYTES} bytes"):
+    with pytest.raises(ValueError, match=rf"too large to keep: .* a saved indicator may hold at most {svc.MAX_DEFINITION_BYTES}\. Nothing was saved"):
         svc.save(USER, d["id"], d)
     assert svc.get(USER, d["id"]) is None
 
@@ -529,16 +559,42 @@ def test_WSI_R1_each_rule_withholds_BY_NAME(script, needle):
     assert reasons and any(needle in r for r in reasons), reasons
 
 
+def test_WSI_R1_three_MATCH_and_one_DIVERGE_is_not_admitted_the_DIVERGE_dominates():
+    """(coordinator ruling 2026-11-19) A DIVERGE on the members' lane is never outweighed by MATCHes: a record that
+    lists one capture graded DIVERGE with the runtime pane on is withheld BY NAME, on either admission path.
+    CONTROLS: the same record without it is admitted; a DIVERGE graded with the pane OFF (the host lane) is not a
+    members'-lane grade and vetoes nothing."""
+    matches = [dict(MATCH_ON, id=f"cap-m{i}") for i in range(3)]
+    diverge = dict(MATCH_ON, id="cap-d", verdict="DIVERGE")
+    reasons = rg.pine_runtime_admission({"capabilities": ["a", "b"], "captures": matches + [diverge]}, REG)
+    assert reasons and "cap-d" in reasons[0] and "graded DIVERGE with the runtime pane on" in reasons[0], reasons
+    assert rg.pine_runtime_admission({"capabilities": ["a", "b"], "captures": matches}, REG) == []
+    assert rg.pine_runtime_admission({"capabilities": ["a", "b"],
+                                      "captures": matches + [dict(diverge, runtimePane="off")]}, REG) == []
+    sub = {"capabilities": ["a"], "admission": "substituted", "substituted": ["syminfo.industry"],
+           "captures": [{"id": "cap-s", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+                         "substituted": ["syminfo.industry"]}]}
+    assert rg.pine_runtime_admission(sub, REG) == []
+    assert any("cap-d" in r for r in rg.pine_runtime_admission(dict(sub, captures=sub["captures"] + [diverge]), REG))
+
+
 def test_WSI_R1_capabilities_are_asked_BEFORE_captures_and_both_must_hold():
     reasons = rg.pine_runtime_admission({"capabilities": ["d"]}, REG)
     assert len(reasons) == 2 and "divergent" in reasons[0] and "MATCH" in reasons[1]
 
 
-def test_WSI_R4_conditional_ta_is_a_DIVERGENT_row_that_withholds_its_users():
+def test_WSI_R4_conditional_ta_is_CONFORMANT_since_COND_TA_and_a_divergent_row_still_withholds():
+    """COND-TA (engine 58): R4's `divergent` row described the lane before WS-C (#557). The
+    runtime lane is now exact on every conditional `ta.*` it serves and refuses the rest by
+    name (`ast/condTaLanes.test.js`, `runtime/__tests__/conditionalCallSite.test.js`), so the
+    row is conformant. The rule it exercised stands: the SAME row marked divergent withholds."""
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
-    assert doc["capabilities"]["conditional-ta"]["status"] == "divergent"
+    row = doc["capabilities"]["conditional-ta"]
+    assert row["status"] == "conformant" and row["admitted"] is True
     s = dict(doc["scripts"][0], capabilities=doc["scripts"][0]["capabilities"] + ["conditional-ta"])
-    assert any("conditional-ta" in r for r in rg.pine_runtime_admission(s, doc["capabilities"]))
+    assert rg.pine_runtime_admission(s, doc["capabilities"]) == []
+    held = dict(doc["capabilities"], **{"conditional-ta": dict(row, status="divergent")})
+    assert any("conditional-ta" in r for r in rg.pine_runtime_admission(s, held))
 
 
 def test_WSI_R1_every_COMMITTED_script_passes_R1_and_its_evidence_is_real():
@@ -546,7 +602,7 @@ def test_WSI_R1_every_COMMITTED_script_passes_R1_and_its_evidence_is_real():
     script is a script somebody believed was served."""
     rep = rt.allow_report()
     assert rep["withheld"] == [], rep["withheld"]
-    assert [r["slug"] for r in rep["served"]] == ["adx-and-di-for-v4"]
+    assert [r["slug"] for r in rep["served"]] == ["adx-and-di-for-v4", "rs-rating-fred6724"]
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
     for s in doc["scripts"]:
         for c in s["captures"]:
@@ -555,7 +611,9 @@ def test_WSI_R1_every_COMMITTED_script_passes_R1_and_its_evidence_is_real():
             assert rt.source_hash(cap["source"]["text"]) == s["sha256"], c["id"]
         assert rt.source_hash((ROOT / s["source"]).read_text(encoding="utf-8")) == s["sha256"]
     for name, row in doc["capabilities"].items():
-        for cid in row["evidence"]:
+        for e in row["evidence"]:
+            # WS-I Part 2: an evidence entry is {capture, script, verdict, runtimePane}
+            cid = e["capture"] if isinstance(e, dict) else e
             assert (HARNESS / f"{cid}.json").is_file(), (name, cid)
 
 
@@ -567,7 +625,7 @@ def test_WSI_R1_a_script_can_never_UNDER_declare_its_census_capabilities():
     doc = json.loads(Path(rt.ALLOWLIST_PATH).read_text(encoding="utf-8"))
     for s in doc["scripts"]:
         code, _ = cm.strip_code((ROOT / s["source"]).read_text(encoding="utf-8"))
-        found = {fid for fid, _l, rx, fl in cm.FEATURES if re.search(rx, code, fl)}
+        found = cm.features_of(code)
         assert found, s["slug"]
         assert found <= set(s["capabilities"]), (s["slug"], sorted(found - set(s["capabilities"])))
 

@@ -24,11 +24,20 @@ import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
 import { normalizeColor } from './chart'
 import {
   common, oneChange, targetOf, planFor, refusalSentence, extReceiptLine, VOLUME_OPTS, placeWord, indicatorEditsRef, defIdOfWords,
+  inputsOfDef, receiptLine, ownIndicatorName, calcWord,
 } from './indicatorEdits'
+import { isValidTf } from '../../components/chart/timeframes'
+import { activeAlertsOnInstance } from './indicatorAlerts'
 
 const APPEARANCE = ['lineWidth', 'lineStyle', 'overlap']
-const PROPERTIES = ['color', 'upColor', 'downColor', 'lineWidth', 'lineStyle', 'plotStyle', 'overlap']
+// ⭐ PACKAGE 3: `showOn` — which chart timeframes it draws on (Indicators' `setVisibility`, the Inspector's "Show on")
+// ⭐ UCT RS Phase 2a (2a-12b): `dotSize` — the Dot size control on an indicator that draws dots (Indicators' `setDotSize`)
+const PROPERTIES = ['color', 'upColor', 'downColor', 'lineWidth', 'lineStyle', 'plotStyle', 'overlap', 'showOn', 'dotSize']
 const lc = (s) => String(s ?? '').trim().toLowerCase()
+// the member's word for a dot size → the store's word (the three `DOT_SIZES` keys); the control labels "medium" as "Default"
+const DOT_SIZE_SYNONYMS = { default: 'medium', normal: 'medium', regular: 'medium', standard: 'medium', big: 'large', bigger: 'large', larger: 'large', tiny: 'small', smaller: 'small', little: 'small' }
+const dotSizeOf = (v) => { const w = lc(v); return DOT_SIZE_SYNONYMS[w] || w }
+const dotSizeLabel = (w) => (w === 'medium' ? 'Default (medium)' : w)
 
 // ── the request for ONE style change (or why there is none) ──
 /** A colour as the contract accepts it: a name or hex (→ #rrggbb), or a theme token / rgb() / hsl() as said. */
@@ -56,6 +65,33 @@ function relativeWidth(opts, word) {
   const j = word === 'thicker' ? i + 1 : i - 1
   return j >= 0 && j < a.options.length ? a.options[j] : a.current
 }
+// ── PACKAGE 3: "only on the daily" / "intraday only" / "daily and weekly" / "all timeframes" → the stored policy shape ──
+const TF_WORDS = { daily: 'D', day: 'D', d: 'D', '1d': 'D', weekly: 'W', week: 'W', w: 'W', '1w': 'W', monthly: 'M', month: 'M', m: 'M',
+  hourly: '60', '1h': '60', '60m': '60', '60': '60', '4h': '240', '240': '240', '30m': '30', '30': '30', '15m': '15', '15': '15', '5m': '5', '5': '5', '1min': '1' }
+/** @returns 'all' | {preset:'intraday'} | {preset:'dailyUp'} | {preset:'custom', tfs} | null (not understood) */
+export function showOnOf(value) {
+  const w = lc(value).replace(/\b(?:charts?|timeframes?|only|just|the|on|show|it)\b/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!w || /^(?:all|any|every|everywhere|always)$/.test(w)) return 'all'
+  if (/^intra-?day$/.test(w)) return { preset: 'intraday' }
+  if (/^(?:daily (?:and|&|or) (?:above|up|higher)|daily ?\+|dailyup|higher)$/.test(w)) return { preset: 'dailyUp' }
+  const parts = w.split(/\s*(?:,|\band\b|&|\+|\bor\b|\/)\s*/).filter(Boolean)
+  const tfs = []
+  for (const p of parts) {
+    const code = TF_WORDS[p] || (parts.length === 1 && isValidTf(String(value).trim()) ? String(value).trim() : null)
+    if (!code) return null
+    if (!tfs.includes(code)) tfs.push(code)
+  }
+  return tfs.length ? { preset: 'custom', tfs } : null
+}
+/** An authored indicator's own "Line width" SETTING (its `lineWidth` input), when it has no Inspector width control. */
+function widthInputOf(st, id) {
+  const inst = (st.cs?.indicatorInstances || []).find(i => i && i.instanceId === id)
+  if (!inst) return null
+  const spec = inputsOfDef(inst.defId).find(i => i.key === 'lineWidth' && (i.type === 'int' || i.type === 'number'))
+  if (!spec) return null
+  const cur = Number(inst.inputs?.lineWidth ?? spec.default ?? 1)
+  return { spec, cur: Number.isFinite(cur) ? cur : 1 }
+}
 export function styleRequest(st, { instance, property, value, output }) {
   const t = targetOf(st, instance)
   if (!t.ok) return { why: refusalSentence(t, { chart: st.chart }) }
@@ -64,6 +100,37 @@ export function styleRequest(st, { instance, property, value, output }) {
   let opts
   try { opts = styleOptionsOf(st.cs, nativeRegistry, id) } catch { opts = null }
   if (!opts || !opts.ok) return { why: refusalSentence(opts || { reason: REASONS.BAD_REQUEST }, { chart: st.chart }) }
+  if (property === 'showOn') {
+    const visibility = showOnOf(value)
+    if (!visibility) return { why: `I can show ${t.name} on all timeframes, intraday only, daily & above, or on the timeframes you name (daily, weekly, 1h…) — which?` }
+    return { req: { op: 'setVisibility', instanceId: id, visibility }, name: t.name }
+  }
+  // ⭐ 2a-12b: the Dot size control — only on an indicator that draws dots (`styleOptionsOf(...).dotSize` is null otherwise);
+  // the word is validated against the options Indicators offers, never invented; `output` names ONE dot output (else the instance level)
+  if (property === 'dotSize') {
+    const ds = opts.dotSize
+    if (!ds) return { why: `${t.name} has no dot size to change — this indicator draws no dots.` }
+    const size = dotSizeOf(value)
+    if (!(ds.options || []).includes(size)) return { why: `“${value}” isn't a dot size I know — ${t.name}'s dots can be ${(ds.options || []).map(dotSizeLabel).join(', ')}.` }
+    const plots = ds.plots || []
+    const pick = output ? plots.find(p => lc(p.label) === lc(output) || lc(p.plotKey) === lc(output)) : null
+    if (output && !pick) return { why: `${t.name} draws no dots on “${output}” — its dots: ${plots.map(p => p.label).join(', ')}.` }
+    return { req: { op: 'setDotSize', instanceId: id, size, ...(pick ? { plotKey: pick.plotKey } : {}) }, name: t.name }
+  }
+  // PACKAGE 3: an indicator built in Create Indicator has no Inspector width control — its width is its own "Line width"
+  // SETTING (the `lineWidth` input), changed through the same setInputs door as any setting (exact Undo)
+  if (property === 'lineWidth' && !(opts.appearance || []).some(a => a.key === 'lineWidth')) {
+    const w = widthInputOf(st, id)
+    if (w) {
+      const lo = Number.isFinite(w.spec.min) ? w.spec.min : 1
+      const hi = Number.isFinite(w.spec.max) ? w.spec.max : 10
+      const v = lc(value) === 'thicker' ? w.cur + 1 : lc(value) === 'thinner' ? w.cur - 1 : Number(value)
+      if (!Number.isFinite(v)) return { why: 'Say a line width (a number), thicker or thinner.' }
+      const next = Math.min(hi, Math.max(lo, Math.round(v)))
+      if (next === w.cur) return { why: `${t.name} is already as ${lc(value) === 'thinner' ? 'thin' : 'thick'} as it goes (line width ${w.cur}).` }
+      return { req: { op: 'setInputs', instanceId: id, inputs: { lineWidth: next } }, name: t.name }
+    }
+  }
   if (APPEARANCE.includes(property)) {
     let v = value
     if (property === 'lineWidth' && (lc(value) === 'thicker' || lc(value) === 'thinner')) v = relativeWidth(opts, lc(value))
@@ -78,7 +145,7 @@ export function styleRequest(st, { instance, property, value, output }) {
     return { req: { op: 'setPlotStyle', instanceId: id, style: lc(value), ...(pick ? { plotKey: pick.plotKey } : {}) }, name: t.name }
   }
   const color = colorValueOf(value)
-  if (!color) return { why: `“${value}” isn't a colour I know — use a name like green or a #hex.` }
+  if (!color) return { why: `“${value}” isn't a color I know — use a name like green or a #hex.` }
   if (property === 'upColor' || property === 'downColor') {
     const signs = (opts.colors || []).filter(c => c.target === (property === 'upColor' ? 'sign:up' : 'sign:down'))
     const pick = output ? signs.find(c => lc(c.plotKey) === lc(output) || lc(c.label).includes(lc(output))) : signs[0]
@@ -86,9 +153,46 @@ export function styleRequest(st, { instance, property, value, output }) {
   }
   const tgt = colorTargetOf(opts, output)
   if (tgt.ask) {
-    return { why: tgt.ask.length ? `${t.name} has more than one colour — which one: ${tgt.ask.map(c => c.label).join(', ')}?` : `${t.name} has no colour setting I can change.` }
+    return { why: tgt.ask.length ? `${t.name} has more than one color — which one: ${tgt.ask.map(c => c.label).join(', ')}?` : `${t.name} has no color setting I can change.` }
   }
   return { req: { op: 'setColor', instanceId: id, target: tgt.target, color }, name: t.name }
+}
+
+// ── calc-TF family: WHICH BARS compute one indicator (the Inspector's "Timeframe"), never the chart's timeframe ──
+// "weekly RSI on this daily chart" = this; "show RSI only on weekly charts" = showOn (setVisibility); "switch the chart to
+// weekly" = chart.setTimeframe. The member's word → a CALC_TIMEFRAMES code, or null for the chart's own; anything else is
+// NOT coerced (a 4-hour or quarterly calculation does not exist — it asks).
+const CALC_CODES = ['1', '5', '15', '30', '60', 'D', 'W', 'M']
+const CALC_SAID = { daily: 'D', day: 'D', '1d': 'D', d: 'D', weekly: 'W', week: 'W', '1w': 'W', w: 'W', monthly: 'M', month: 'M', '1mo': 'M',
+  hourly: '60', hour: '60', '1h': '60', '1 hour': '60', '60m': '60', '60 minute': '60', '1 minute': '1', '1m': '1', '1min': '1',
+  '5 minute': '5', '5m': '5', '5min': '5', '15 minute': '15', '15m': '15', '15min': '15', '30 minute': '30', '30m': '30', '30min': '30' }
+const CHART_SAID = /^(?:chart|chart'?s|chart'?s own|chart time ?frame|chart'?s (?:own )?time ?frame|same as (?:the )?chart|reset|default|none|auto|automatic|its own|own)$/
+/** @returns {code} (a CALC code, or null = the chart's own) | {unknown: true} */
+export function calcTimeframeOfWords(value) {
+  if (value === null) return { code: null }
+  const raw = String(value ?? '').trim()
+  if (CALC_CODES.includes(raw)) return { code: raw }
+  const w = lc(raw).replace(/’/g, '\'').replace(/-/g, ' ').replace(/\b(?:the|a|an|on|its|it|back|to)\b/g, ' ').replace(/[-\s]+(?:bars?|data|candles?|closes?|time ?frame|resolution|period)\b/g, '').replace(/\s+/g, ' ').trim()
+  if (!w || CHART_SAID.test(w)) return { code: null }
+  const minute = /^(\d+) ?(?:minutes?|mins?)$/.exec(w)
+  const said = CALC_SAID[w] ?? (minute ? CALC_SAID[`${minute[1]} minute`] : undefined)
+  return said ? { code: said } : { unknown: true }
+}
+const CALC_CHOICES = 'on 1-minute, 5-minute, 15-minute, 30-minute, 1-hour, daily, weekly or monthly bars, or on the chart\'s own timeframe'
+export function calcRequest(st, { instance, timeframe }) {
+  const t = targetOf(st, instance)
+  if (!t.ok) return { why: refusalSentence(t, { chart: st.chart }) }
+  const r = calcTimeframeOfWords(timeframe)
+  if (r.unknown) return { why: `I can calculate ${t.name} ${CALC_CHOICES} — “${timeframe}” isn't one of those, so nothing was changed. Which one?` }
+  return { req: { op: 'setCalculationTimeframe', instanceId: t.instanceId, timeframe: r.code, chartTf: st.chartTf ?? null }, name: t.name }
+}
+/** A line the receipt adds when an ACTIVE indicator alert armed from this instance runs on another frame than it now computes on. */
+function calcAlertNote(st, built, after) {
+  let alerts = []
+  try { alerts = activeAlertsOnInstance(built.req.instanceId, st.symbol) } catch { alerts = [] }
+  const frame = after ?? st.chartTf ?? null
+  const off = alerts.filter(a => frame && a.tf !== frame)
+  return off.length ? `Heads up: ${off.length === 1 ? 'your alert' : `your ${off.length} alerts`} on ${built.name} still run${off.length === 1 ? 's' : ''} on ${calcWord(off[0].tf)} bars, so ${off.length === 1 ? 'it' : 'they'} now watch${off.length === 1 ? 'es' : ''} a different line than the chart draws — the alert${off.length === 1 ? ' was' : 's were'} not changed.` : null
 }
 
 // ── panes ──
@@ -166,7 +270,7 @@ export function copyRequest(st, { from, instances }, env) {
 }
 
 // ── the shared check / apply / describe for one built request ──
-function checkBuilt(st, built, op) {
+export function checkBuilt(st, built, op) {
   if (built.why) return built.why
   return oneChange(st) || planCheckP2(st, built.req, op)
 }
@@ -176,7 +280,7 @@ function planCheckP2(st, req, op) {
   if (!p.ok && p.reason === REASONS.NO_CHANGE) return null                 // said as a no-op, not a refusal
   return p.ok ? null : refusalSentence(p, { chart: st.chart, op: op || req.op })
 }
-function applyBuilt(st, built) {
+export function applyBuilt(st, built) {
   if (built.why || !built.req) return st
   const p = planFor(st, built.req)
   return p.ok ? { ...st, change: { request: built.req, plan: p.plan } } : st
@@ -185,7 +289,9 @@ function describeBuilt(a) {
   if (!a.change) return null
   const { plan } = a.change
   const pv = plan.preview || {}
-  return extReceiptLine({ op: plan.op, change: pv.change, copied: pv.copied, already: pv.already, from: pv.from }, pv.nameAfter || pv.name || 'the indicator', ` on ${a.chart}`)
+  // PACKAGE 3: a width set through the indicator's own Line width setting is said as a settings change
+  if (plan.op === 'setInputs' && pv.inputs) return receiptLine({ op: 'setInputs', inputs: pv.inputs, defId: plan.target?.defId, name: pv.nameAfter || pv.name }, a.chart)
+  return extReceiptLine({ op: plan.op, change: pv.change, copied: pv.copied, already: pv.already, from: pv.from }, ownIndicatorName(plan.target?.defId) || pv.nameAfter || pv.name || 'the indicator', ` on ${a.chart}`)
 }
 
 let registered = false
@@ -198,8 +304,8 @@ export function registerIndicatorControlCapabilities() {
     ...common,
     name: 'indicatorStyle.set',
     fanOut: true,
-    summary: 'Change how ONE indicator on ONE chart looks — its colour (or a histogram\'s up / down colours), line width, line style or plot style — exactly what its settings / Inspector offer. One change per op; Undo puts it back.',
-    hints: 'target = the ref of that chart\'s indicatorEdits entry; instance = the indicator\'s id from that chart\'s indicators list (or "#20" for the one of length 20, "#20:ema"). property = color | upColor | downColor | lineWidth (1–4, or "thicker" / "thinner") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap. value = the member\'s value (a colour name or #hex for colours). output = which line or colour when the indicator has several (its label), else null. "Make the 9 green and the 20 red and dashed" = three ops.',
+    summary: 'Change how ONE indicator on ONE chart looks — its color (or a histogram\'s up / down colors), line width, line style, plot style, dot size (on an indicator that draws dots), or which chart timeframes it shows on — exactly what its settings / Inspector offer. One change per op; Undo puts it back.',
+    hints: 'target = the ref of that chart\'s indicatorEdits entry; instance = the indicator\'s id from that chart\'s indicators list (or "#20" for the one of length 20, "#20:ema"). property = color | upColor | downColor | lineWidth (1–4, or "thicker" / "thinner") | lineStyle (solid | dashed | dotted) | plotStyle (line, histogram, area… as offered) | overlap | showOn (which chart timeframes it draws on: value = "daily", "weekly", "daily and weekly", "intraday", "daily and above" or "all" — "only show it on the daily" = showOn daily) | dotSize (small | medium | large — "medium" is the default; only an indicator that draws dots, e.g. "make the RS dots large" = dotSize large). value = the member\'s value (a color name or #hex for colors). output = which line, color or dot output when the indicator has several (its label), else null. "Make the 9 green and the 20 red and dashed" = three ops.',
     args: { type: 'object', properties: { instance: instanceArg, property: { type: 'string', enum: PROPERTIES }, value: { type: ['string', 'number', 'boolean'] }, output: { type: ['string', 'null'] } }, required: ['instance', 'property', 'value', 'output'], additionalProperties: false },
     fast: ({ lower }) => fastStyle(lower),
     check: (st, args) => checkBuilt(st, styleRequest(st, args)),
@@ -226,6 +332,32 @@ export function registerIndicatorControlCapabilities() {
     apply: (st, args) => applyBuilt(st, placeRequest(st, args)),
     describe: (b, a) => describeBuilt(a),
     noop: (b, a, { place } = {}) => `it is already ${placeWord(place)}`,
+  })
+
+  // ⭐ calc-TF family (owner-approved, Indicators' `setCalculationTimeframe`): the Inspector's "Timeframe" — the chart's own
+  // timeframe never moves. Marker: the action id 'indicatorStyle.setCalcTimeframe'.
+  registerCapability({
+    ...common,
+    name: 'indicatorStyle.setCalcTimeframe',
+    fanOut: true,
+    summary: 'Calculate ONE indicator on another timeframe\'s bars (a weekly RSI on a daily chart), or back on the chart\'s own — the chart\'s timeframe does not change. Undo puts it back.',
+    hints: 'target = the chart\'s indicatorEdits entry; instance = the indicator; timeframe = 1, 5, 15, 30, 60, D, W, M or "chart". Not showOn (which charts it shows on) and not chart.setTimeframe. "Put the RSI on weekly" is unclear: ask which.',
+    args: { type: 'object', properties: { instance: instanceArg, timeframe: { type: 'string' } }, required: ['instance', 'timeframe'], additionalProperties: false },
+    fast: ({ lower, typed }) => fastCalc(lower, typed),
+    fastWhole: true,
+    check: (st, args) => checkBuilt(st, calcRequest(st, args)),
+    apply(st, args) {
+      const built = calcRequest(st, args)
+      const next = applyBuilt(st, built)
+      if (!next.change) return next
+      const note = calcAlertNote(st, built, next.change.plan.preview?.change?.after ?? null)
+      return note ? { ...next, change: { ...next.change, note } } : next
+    },
+    describe: (b, a) => describeBuilt(a),
+    noop: (b, a, { timeframe } = {}) => {
+      const r = calcTimeframeOfWords(timeframe)
+      return r.code ? `it is already calculated on ${calcWord(r.code)} bars` : 'it is already calculated on the chart\'s own timeframe'
+    },
   })
 
   registerCapability({
@@ -277,7 +409,7 @@ export function registerIndicatorControlCapabilities() {
     name: 'indicatorCopy.copyTo',
     addsIndicators: true,
     fanOut: true,
-    summary: 'Copy indicators from one chart onto ANOTHER chart, exactly as configured (colours, settings, panes and links between them — the Indicator templates copy). One op per destination chart; an indicator already there is skipped and said. Undo removes what was added.',
+    summary: 'Copy indicators from one chart onto ANOTHER chart, exactly as configured (colors, settings, panes and links between them — the Indicator templates copy). One op per destination chart; an indicator already there is skipped and said. Undo removes what was added.',
     hints: 'target = the DESTINATION chart\'s indicatorEdits entry; from = the ref of the chart to copy FROM; instances = the indicators to copy (ids or names from that chart), or [] for all of them. "Copy these indicators to all my charts" = one op per other chart.',
     argRefs: { from: ['chart', 'indicators', 'indicatorEdits'] },
     args: { type: 'object', properties: { from: { type: 'string' }, instances: { type: 'array', items: { type: 'string' } } }, required: ['from', 'instances'], additionalProperties: false },
@@ -322,6 +454,31 @@ function fastStyle(lower) {
   }
   m = /^(?:show|draw|make) (.+?) (?:as )?an? (histogram|line|area|columns)$/.exec(lower)
   if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), property: 'plotStyle', value: m[2], output: null }
+  // ⭐ 2a-12b: "make the RS dots large" / "make sar's dots small" — the Dot size control (styleRequest validates the word)
+  m = /^make (.+?)(?:'s)? dots (small|medium|large|default|big|tiny)$/.exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), property: 'dotSize', value: m[2], output: null }
+  return null
+}
+// calc-TF family: only the shapes that SAY calculate / use-bars / back-to-the-chart's-timeframe; "put the RSI on weekly"
+// (calc? show-on? the chart?) is answered with a question in fixed words, never guessed — and only when it is the whole message
+const CALC_TF = '(daily|weekly|monthly|hourly|\\d+ minute|\\d+ hour)'
+const CALC_TAIL = '(?: bars| data| candles| closes| timeframe)?(?: on the (?:\\w+ )?chart)?'
+const CHART_TF = 'back (?:to|on) (?:the )?chart\'?s? (?:own )?time ?frame|on (?:the )?chart\'?s? (?:own )?time ?frame'
+function fastCalc(lower, typed) {
+  let m = new RegExp(`^(?:calculate|compute|calc) (.+?) (?:on|using|with|from|off) (?:the )?${CALC_TF}${CALC_TAIL}$`).exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), timeframe: m[2] }
+  m = new RegExp(`^(?:make|have|set) (.+?) (?:use|using|calculate on|compute on|run on) (?:the )?${CALC_TF}${CALC_TAIL}$`).exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), timeframe: m[2] }
+  m = new RegExp(`^(?:put|set|move|switch|change|calculate|compute|reset) (.+?) (?:${CHART_TF})$`).exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), timeframe: 'chart' }
+  m = /^reset (.+?)(?:'s)? (?:calculation )?time ?frame$/.exec(lower)
+  if (m && instanceWord(m[1])) return { instance: instanceWord(m[1]), timeframe: 'chart' }
+  m = /^(?:put|set|make|change|switch|turn|move) (.+?) (?:(?:on|to|onto|into) )?(?:the )?(daily|weekly|monthly|hourly)$/.exec(lower)
+  if (m && instanceWord(m[1]) && !/[,;&]|\b(?:and|then)\b/.test(lc(typed))) {
+    const n = m[1].replace(/^(?:the|my) /, '').toUpperCase()
+    const tf = m[2]
+    return { __say: `Do you want ${n} calculated on ${tf} bars on this chart (the chart stays as it is), shown only on ${tf} charts, or the chart itself switched to ${tf}? Say “calculate ${n} on ${tf}”, “only show ${n} on ${tf}” or “switch the chart to ${tf}”. Nothing was changed.` }
+  }
   return null
 }
 function fastPlace(lower) {

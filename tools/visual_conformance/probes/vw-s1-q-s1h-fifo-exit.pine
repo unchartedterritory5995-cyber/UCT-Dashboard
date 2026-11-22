@@ -1,0 +1,20 @@
+//@version=5
+strategy("vw-s1-q-s1h-fifo-exit", overlay = false, pyramiding = 2)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row Q-S1h of
+// docs/pine/capture-queue-2026-10-05-s1.md (the row elides the stop level: the bar's low, re-placed every bar). One behaviour, no licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: entries A (5) then B (10), an exit from B only: how the CSV splits the close across A and B (FIFO).
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults, Strategy properties at the script's own defaults (Properties tab untouched);
+// export the Strategy Tester List of trades as CSV beside the capture (the doc's header).
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+if bar_index == 50
+    strategy.entry("A", strategy.long, qty = 5)
+if bar_index == 52
+    strategy.entry("B", strategy.long, qty = 10)
+if bar_index > 52 and strategy.opentrades > 0
+    strategy.exit("x", "B", stop = low)
+plot(strategy.position_size, "P01_position_size")
+plot(strategy.opentrades, "P02_opentrades")

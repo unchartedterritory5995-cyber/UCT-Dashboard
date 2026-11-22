@@ -1,0 +1,70 @@
+diff --git a/app/src/agent/useAgent.js b/app/src/agent/useAgent.js
+index 8f0ade161c..8a589200ea 100644
+--- a/app/src/agent/useAgent.js
++++ b/app/src/agent/useAgent.js
+@@ -26,6 +26,8 @@ import { setAuthoringSources, draftAmbiguity, selectDraft, isDraftAction, lastSa
+ import { fastParse, matchPosition } from './fastPath'
+ import { screenNewChart, screenEmptyBoardChart } from './capabilities/workspace'
+ import { resolveDeictic, screenDeicticOps, screenUnnamedTargets, pickedChoice, chartRefOf, selectedChart, chartNameWord, clausesNameDifferentCharts } from './deixis'
++import { screenWatchlistWidget } from './watchlistTarget'
++import { whichListView, LIST_VIEW_WHICH } from './whichWidget'
+ import { checkSpatialConstraints, excludedCharts, spatialConstraints, UNPLACED, withoutExcludedCharts, everyExceptSet } from './spatialCheck'
+ import { groundSymbols } from './nl/tickers'
+ import { multiChartPlan, screenChartGrid, isWorkspaceRequest, gridChoiceFor } from './multiChart'
+@@ -1508,6 +1510,12 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
+         if (typeof cap?.resolveArgs !== 'function') continue
+         let r = null
+         try { r = cap.resolveArgs(opsIn[i].args || {}, host, words ?? member, { approved: suggested === 'approved' }) } catch { r = null }   // `words`: the turn's own message on the model path
++        // F2 (AUDIT #1027): a widget the member's words set aside is never acted on, and with no other of its type nothing is: refused
++        if (r?.refuse) {
++          push({ role: 'refusal', text: r.refuse })
++          record({ member, outcome: r.refuse, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
++          return undefined
++        }
+         if (r?.ask) {
+           pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), pickArg: { action: opsIn[i].action, arg: r.ask.arg } }
+           push({ role: 'question', text: r.ask.text, choices: r.ask.choices, local: true })
+@@ -1516,6 +1524,27 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
+         }
+         if (r?.args) opsIn = opsIn.map((o, j) => (j === i ? { ...o, args: r.args } : o))
+       }
++      // F1 (AUDIT #1027): a LIST-VIEW op (its target is a list view, not a widget arg) acts on the widget the words name, by the same
++      // rule (whichWidget.js); asked → the pick re-aims the op at that widget's view
++      for (let i = 0; i < opsIn.length; i++) {
++        if (!LIST_VIEW_WHICH.has(opsIn[i]?.action)) continue
++        let r = null
++        try { r = whichListView(opsIn[i], host, words ?? member, { approved: suggested === 'approved' }) } catch { r = null }
++        if (r?.refuse) {
++          push({ role: 'refusal', text: r.refuse })
++          record({ member, outcome: r.refuse, outcomeData: { kind: 'refused', actions: opsIn.map(o => o?.action) }, telemetry: { path, refused: true, voice } })
++          return undefined
++        }
++        if (r?.ask) {
++          const action = opsIn[i].action, refOf = r.refOf
++          const then = (filled) => filled.map(o => (o.action === action && o.args?.__widget != null ? { ...o, target: refOf(o.args.__widget) || o.target, args: Object.fromEntries(Object.entries(o.args).filter(([k]) => k !== '__widget')) } : o))
++          pendingRef.current = { kind: 'target', ops: opsIn, path, mode: suggested, member, voice, epoch: epochOf(host), pickArg: { action, arg: '__widget', then } }
++          push({ role: 'question', text: r.ask.text, choices: r.ask.choices, local: true })
++          record({ member, outcome: r.ask.text, outcomeData: { kind: 'clarify-arg', actions: opsIn.map(o => o?.action) }, telemetry: { path, disposition: 'clarify', voice } })
++          return undefined
++        }
++        if (r?.target) opsIn = opsIn.map((o, j) => (j === i ? { ...o, target: r.target } : o))
++      }
+     }
+     const amb = chosen ? null : draftAmbiguity(host, opsIn)
+     if (amb) {
+@@ -3037,6 +3066,15 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
+         record({ member: null, outcome: unnamed.ask.text, outcomeData: { kind: 'clarify-unnamed-chart', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
+         return
+       }
++      // watchlist group A (Lead 2026-11-09): which Watchlist widget a showList acts on is decided by the WORDS — several widgets and
++      // none named is asked, never guessed (watchlistTarget.js)
++      const wlTarget = screenWatchlistWidget({ host, ops: screened.ops, text })
++      if (wlTarget?.ask) {
++        push({ role: 'agent', text: wlTarget.ask })
++        record({ member: null, outcome: wlTarget.ask, outcomeData: { kind: 'clarify-watchlist-widget', actions: screened.ops.map(o => o?.action) }, telemetry: { path: 'model', disposition: 'clarify', voice } })
++        return
++      }
++      if (wlTarget?.ops) screened.ops = wlTarget.ops
+       // ⛔ #988 (AUDIT probe 17): the LAST safety net behind the resolvers — every spatial constraint the words state (a line, a
+       // place, a relation from a named anchor or the click, a count), checked on the plan's own targets. A violation is asked
+       // (only the cells that satisfy them are offered, never an anchor) and nothing runs. spatialCheck.js

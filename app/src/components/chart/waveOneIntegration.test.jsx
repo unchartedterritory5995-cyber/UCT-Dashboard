@@ -299,11 +299,11 @@ describe('scales — all four reachable, and correct in COMBINATION', () => {
 
   it('the two doors agree: the chip and the menu row write the same fact', () => {
     const v = mountChart()
-    const chip = v.container.querySelector('[aria-label="Percentage price scale"]')
+    const chip = v.container.querySelector('[aria-label="Logarithmic price scale"]')
     expect(chip, 'the desktop chips are gone').toBeTruthy()
     act(() => { fireEvent.click(chip) })
-    expect(v.last().percentScale).toBe(true)
-    expect(ticked(scaleSec()), 'the menu disagrees with the chip').toEqual(['p-pct'])
+    expect(v.last().logScale).toBe(true)
+    expect(ticked(scaleSec()), 'the menu disagrees with the chip').toEqual(['p-log'])
   })
 })
 

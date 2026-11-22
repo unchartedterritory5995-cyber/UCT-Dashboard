@@ -55,7 +55,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import { createChart, LineSeries, CandlestickSeries } from 'lightweight-charts'
 import { resolvePlacement } from '../placement'
-import { seriesOptionsForPlot, AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, fixedRangeProvider } from '../pool'
+import { seriesOptionsForPlot, AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, fixedRangeProvider, includeRangeProvider } from '../pool'
 import { __setPaneModeForTest } from '../paneLayout'
 import * as engineRegistry from '../nativeRegistry'
 // ⭐ 2026-10-01 — A FIXED-RANGE SCALE AUTOSCALES THROUGH ITS PROVIDER (`autoScale: true`).
@@ -276,17 +276,27 @@ describe('autoscaleInfoProvider on a REAL fixed-range price scale (B3 carry #1, 
   })
 
   it('every definition resolves to a mode the pool can map — AUTOSCALE_MODES has a consumer', () => {
+    // ⭐ RS split F1 (2026-11-10): a plot's `autoscaleInclude` (rsLine rev 5) resolves
+    // to the include-range provider, memoised by range — the pool maps it beside the
+    // two mode singletons (`providerFor`, `pool.test.js` "emits no function EXCEPT").
+    // `rsRating` is the first definition whose FIRST plot carries one (rsLine's sits
+    // on a context plot this loop never reads), so the accepted set names it, and
+    // the mode half of the claim still holds: a guest (`exclude`) is never widened.
+    let sawInclude = 0
     for (const def of engineRegistry.listDefinitions()) {
       const p = resolvePlacement({ instanceId: `i:${def.id}`, defId: def.id }, def, CTX)
-      const emitted = seriesOptionsForPlot(
-        def.plots.find(pl => pl.style !== 'hlines'),
-        { scaleId: p.scaleId, autoscale: p.autoscale },
-      ).autoscaleInfoProvider
-      expect([AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT], def.id).toContain(emitted)
+      const plot = def.plots.find(pl => pl.style !== 'hlines')
+      const emitted = seriesOptionsForPlot(plot, { scaleId: p.scaleId, autoscale: p.autoscale }).autoscaleInfoProvider
+      const inc = plot.autoscaleInclude && p.autoscale !== 'exclude'
+        ? includeRangeProvider(plot.autoscaleInclude.min, plot.autoscaleInclude.max) : null
+      if (inc) sawInclude++
+      expect([AUTOSCALE_EXCLUDE, AUTOSCALE_DEFAULT, ...(inc ? [inc] : [])], def.id).toContain(emitted)
       expect(
-        emitted === (p.autoscale === 'exclude' ? AUTOSCALE_EXCLUDE : AUTOSCALE_DEFAULT),
+        emitted === (p.autoscale === 'exclude' ? AUTOSCALE_EXCLUDE : (inc || AUTOSCALE_DEFAULT)),
         `${def.id}: pool disagreed with placement`,
       ).toBe(true)
     }
+    // …and the include branch really ran, or the widened set is a loosening wearing a reason.
+    expect(sawInclude, 'no definition exercised the include-range provider').toBeGreaterThan(0)
   })
 })

@@ -3,7 +3,7 @@
 `tests/test_leak_finder.py` already pins every detector against fixtures with known
 n and dollars; this file proves the WIRING: real rows in `j2_trades` flow through
 `review_drafts.py` into a payload whose numbers equal their authority's own field,
-member-scoped, gated by `NOTEBOOK_REVIEW_DRAFTS_ENABLED`.
+member-scoped (always on: `NOTEBOOK_REVIEW_DRAFTS_ENABLED` was retired 2026-11-04).
 """
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ from fastapi.testclient import TestClient
 
 from api.middleware import auth_middleware as authmw
 
-FLAG = "NOTEBOOK_REVIEW_DRAFTS_ENABLED"
 U, OTHER = "user-rd-a", "user-rd-b"
 ACCOUNT = "acc-rd-1"
 
@@ -62,7 +61,6 @@ def conn(db_path):
 
 @pytest.fixture
 def client(db_path, monkeypatch):
-    monkeypatch.setenv(FLAG, "1")
     from api.routers import notebook_review_drafts
     fa = FastAPI()
     fa.include_router(notebook_review_drafts.router)
@@ -91,20 +89,6 @@ def add_trade(conn, *, symbol, entry_date, exit_date, entry_price, exit_price, s
     )
     conn.commit()
     return tid
-
-
-def test_the_gate_is_a_router_dependency(db_path, monkeypatch):
-    monkeypatch.delenv(FLAG, raising=False)
-    from api.routers import notebook_review_drafts
-    fa = FastAPI()
-    fa.include_router(notebook_review_drafts.router)
-    fa.dependency_overrides[authmw.get_current_user] = lambda: {"id": U, "role": "member", "plan": "pro"}
-    fa.dependency_overrides[authmw.get_current_user_with_plan] = lambda: {"id": U, "role": "member", "plan": "pro"}
-    c = TestClient(fa)
-    assert c.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30"}).status_code == 404
-    assert c.get("/api/j2/review-drafts/weekly", params={"weekStart": "2026-09-28"}).status_code == 404
-    assert c.get("/api/j2/review-drafts/monthly", params={"month": "2026-09"}).status_code == 404
-    fa.dependency_overrides.clear()
 
 
 def test_daily_aggregates_equal_coach_data_assemblers_own_field(conn, client):
@@ -303,14 +287,11 @@ def test_the_daily_draft_reads_the_day_through_the_filter_modules_own_spine():
     assert review_drafts._DAY is filters._DAY
 
 
-# ── fin-flags I5: review drafts never write plan-grading state while plan grading is off ────
+# ── fin-flags I5: a draft grades each trade and freezes its plan ─────────────────────────────
 #
 # A draft grades each trade through `plan_grading.grade_payload`, and a first match FREEZES the
-# plan (`j2_trade_plan_links`, ruling R4). With review drafts armed and plan grading not, a
-# draft froze plans the member could neither see nor Re-link (that control is behind the
-# plan-grading switch). A feature must not write another feature's data while it is off.
-
-PG_FLAG = "NOTEBOOK_PLAN_GRADING_ENABLED"
+# plan (`j2_trade_plan_links`, ruling R4). Plan grading is always on since its flag was retired
+# (2026-11-04), so every draft grades.
 
 
 def _own_plan_note(conn, symbol="NVDA", stop=95.0, written="2026-09-29T12:00:00+00:00"):
@@ -335,21 +316,7 @@ def _three_drafts(client):
     ]
 
 
-def test_with_plan_grading_off_a_draft_writes_no_plan_link_and_shows_no_grade(conn, client, monkeypatch):
-    monkeypatch.delenv(PG_FLAG, raising=False)
-    _own_plan_note(conn)
-    add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
-              exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=94.0, stop=95.0)
-    for payload in _three_drafts(client):
-        assert payload["tradeCount"] == 1
-        assert payload["discipline"] is None, "a plan-grading surface was built with plan grading off"
-        assert payload["links"]["plans"] == []
-        assert not {f["kind"] for f in payload["leaks"]} & {"unplanned_trades", "stops_not_honoured"}
-    assert _plan_links(conn) == [], "review drafts wrote plan-grading state while plan grading was off"
-
-
-def test_control_with_plan_grading_on_the_same_draft_freezes_the_plan_and_grades(conn, client, monkeypatch):
-    monkeypatch.setenv(PG_FLAG, "1")
+def test_a_draft_freezes_the_plan_and_grades(conn, client, monkeypatch):
     note_id = _own_plan_note(conn)
     add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
               exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=94.0, stop=95.0)
@@ -359,21 +326,19 @@ def test_control_with_plan_grading_on_the_same_draft_freezes_the_plan_and_grades
     assert [r["note_id"] for r in _plan_links(conn)] == [note_id]
 
 
-def test_every_caller_that_can_freeze_a_plan_is_behind_the_plan_grading_switch():
-    """The rail. `plan_grading`'s matcher writes on a read, so every module that calls it must
-    be gated on the plan-grading switch. A new caller is not in this list and fails by name."""
+def test_every_caller_that_can_freeze_a_plan_is_known():
+    """The rail. `plan_grading`'s matcher writes on a read, so every module that calls it is
+    named here on purpose. A new caller is not in this list and fails by name."""
     import ast
     import pathlib
     repo = pathlib.Path(__file__).resolve().parents[1]
     writers = {"grade_payload", "match_trade", "statuses", "discipline_record", "freeze", "relink"}
     gated = {
-        # every route sits behind the router-level dependency (asserted below)
+        # the plan-grades routes
         "api/routers/notebook_plan_grades.py",
-        # asks `plan_grading_enabled()` before grading (the two tests above)
+        # a review draft grades each period trade (the test above)
         "api/services/journal_two/review_drafts.py",
-        # the post-trade review block's read (`trade_review`) calls `grade_payload` only inside
-        # `if plan_grading.enabled():`, else answers {"needs": "plan grading"}; proved by the
-        # off / on-control pair in tests/test_trader_blocks_review.py over a real plan note
+        # the post-trade review block's read (`trade_review`, tests/test_trader_blocks_review.py)
         "api/services/journal_two/trader_blocks.py",
     }
     callers = set()
@@ -393,15 +358,9 @@ def test_every_caller_that_can_freeze_a_plan_is_behind_the_plan_grading_switch()
             if isinstance(f, ast.Name) and f.id in writers and f.id in names:
                 callers.add(rel)
     assert callers, "the scan found no caller at all; it is not looking at the code"
-    assert callers <= gated, ("these call plan_grading's matcher and are not known to be gated on "
-                              "NOTEBOOK_PLAN_GRADING_ENABLED: " + ", ".join(sorted(callers - gated)))
-    assert gated <= callers, "listed as a gated caller but no longer calls it: " + ", ".join(sorted(gated - callers))
-    router = (repo / "api/routers/notebook_plan_grades.py").read_text(encoding="utf-8")
-    assert "dependencies=[Depends(_require_enabled)]" in router
-    drafts = (repo / "api/services/journal_two/review_drafts.py").read_text(encoding="utf-8")
-    assert "plan_grading_enabled()" in drafts
-    blocks = (repo / "api/services/journal_two/trader_blocks.py").read_text(encoding="utf-8")
-    assert "if plan_grading.enabled():" in blocks
+    assert callers <= gated, ("these call plan_grading's matcher and are not named here: "
+                              + ", ".join(sorted(callers - gated)))
+    assert gated <= callers, "listed as a caller but no longer calls it: " + ", ".join(sorted(gated - callers))
 
 
 # ── fin-data M6: the draft carries how many trades the leak finder could not read ────────────
@@ -422,7 +381,6 @@ def test_the_payload_says_how_many_trades_have_no_R(conn, client):
 def _draft_statements(conn, monkeypatch, n_trades, symbol):
     """Body reads issued while enriching `n_trades` unplanned trades on one ticker."""
     from api.services.journal_two import notes, review_drafts
-    monkeypatch.setenv(PG_FLAG, "1")
     notes.import_confirm(U, {"source": "file", "notes": [{
         "importKey": f"journal:{symbol}:{i}", "title": f"{symbol} journal {i}", "tags": [], "folderPath": [],
         "ticker": symbol, "createdAt": "2026-09-20T12:00:00+00:00", "updatedAt": "2026-09-20T12:00:00+00:00",
@@ -451,7 +409,6 @@ def test_a_draft_reads_a_tickers_note_bodies_once_however_many_trades_it_has(con
 
 def test_grading_in_a_draft_is_capped_and_the_payload_says_how_many_were_left_out(conn, client, monkeypatch):
     from api.services.journal_two import review_drafts
-    monkeypatch.setenv(PG_FLAG, "1")
     monkeypatch.setattr(review_drafts, "MAX_GRADED_TRADES", 2)
     for hour in (13, 14, 15):
         add_trade(conn, symbol="NVDA", entry_date=f"2026-09-30T{hour}:00:00+00:00",
@@ -460,15 +417,6 @@ def test_grading_in_a_draft_is_capped_and_the_payload_says_how_many_were_left_ou
     assert payload["tradeCount"] == 3 and payload["aggregates"]["trade_count"] == 3   # all still counted
     assert payload["gradingCap"] == {"limit": 2, "graded": 2, "ungraded": 1}
     assert payload["discipline"]["unplannedCount"] == 2                                # the newest two
-
-
-def test_with_plan_grading_off_there_is_no_grading_cap_to_report(conn, client, monkeypatch):
-    monkeypatch.delenv(PG_FLAG, raising=False)
-    add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
-              exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=101.0)
-    payload = client.get("/api/j2/review-drafts/daily", params={"day": "2026-09-30", "accountId": ACCOUNT}).json()
-    assert payload["gradingCap"] is None
-    assert conn.execute("SELECT COUNT(*) FROM j2_trade_plan_misses").fetchone()[0] == 0
 
 
 # ── round 2: weekly and monthly drafts use Eastern trading weeks and months ──────────────────
@@ -590,24 +538,9 @@ def test_with_no_compass_review_the_draft_says_there_is_none_and_never_blames_th
     assert "draftOnly" not in payload["compassOmitted"]
 
 
-# ── fin walk P7: a draft SAYS the discipline part is unavailable, and why ───────────────────
+# ── fin walk P7: the discipline part is always present ──────────────────────────────────────
 
-def test_with_plan_grading_off_the_draft_says_the_discipline_part_is_unavailable_and_why(conn, client, monkeypatch):
-    """Leaving the section out silently while the box still promises "the discipline record" is
-    a promise nobody keeps. The payload names the reason, so the client can say it."""
-    monkeypatch.delenv(PG_FLAG, raising=False)
-    add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
-              exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=94.0, stop=95.0)
-    for payload in _three_drafts(client):
-        assert payload["discipline"] is None
-        assert payload["disciplineOmitted"] == {
-            "reason": "plan_grading_off",
-            "sentence": "Plan grading is switched off, so this draft has no discipline record.",
-        }
-
-
-def test_with_plan_grading_on_nothing_is_said_to_be_left_out(conn, client, monkeypatch):
-    monkeypatch.setenv(PG_FLAG, "1")
+def test_nothing_is_said_to_be_left_out(conn, client, monkeypatch):
     add_trade(conn, symbol="NVDA", entry_date="2026-09-30T13:30:00+00:00",
               exit_date="2026-09-30T19:00:00+00:00", entry_price=100.0, exit_price=94.0, stop=95.0)
     for payload in _three_drafts(client):

@@ -1,33 +1,46 @@
-// B/NewNoteMenu.jsx — Research Home's create door (spec P0.1). One press makes a blank note;
-// the caret lists the other ways in. An item appears only when its handler exists, so a gate
-// that is off leaves no door that opens nothing (plan Review Focus 1).
-// P1 follow-up (owner GO 2026-10-12): the notes list renders the caret alone (NewNoteCaret) beside
-// its own "+ New note". Both forms run the ONE caret + menu below; only the wrapper differs.
-import { useRef, useState, useEffect } from 'react'
+// NewNoteMenu.jsx -- the Notebook's ONE menu-button engine (`useMenuButton`) and the rows it draws (`MenuRows`).
+// The name is historical: it was Research Home's create door (spec P0.1), a split button whose caret listed the other
+// ways to start a note. S11 (audit 2026-11-05) moved the notes list's toolbar menus onto the same engine, and go-live
+// wave 1 deleted the split button itself with Research home. What is left is used by the list's View, New and More
+// menus (tabs/NotebookTab.jsx), the note's "AI" and "Aa" menus and the saved views group.
+import { Fragment, useRef, useState, useEffect, useLayoutEffect } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
+import { trackMenuRow } from '../../lib/notebookTelemetry'
 import styles from './NewNoteMenu.module.css'
 
-// The caret and its menu, as siblings: the caller's wrapper is the box the menu hangs from.
-function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onToday = null }) {
+// ONE menu-button engine (S11, audit 2026-11-05): the notes list's toolbar menus (View, New, More, in
+// tabs/NotebookTab.jsx) and the note's own menus run this hook, so the keyboard contract is written once. Headless on purpose: a caller renders its own trigger <button> (a tour anchor is a
+// LITERAL `data-tour` attribute on it, which tourAnchors.test.js reads by AST) and spreads
+// `triggerProps` onto it; `menuProps` go on the role="menu" element.
+// Follow-up A (usage counting): `name` is the menu's id in `menu_row_used` (lib/notebookTelemetry.js); `run(fn, row)`
+// and a second view's opening count one press of the row whose id is `row`, written where the row is defined.
+export function useMenuButton(name = null) {
   const [open, setOpen] = useState(false)
-  const caretRef = useRef(null)
+  const triggerRef = useRef(null)
   const menuRef = useRef(null)
-  // Which item an ArrowDown / ArrowUp on the caret asked for; read once, when the menu opens.
+  // Which item an ArrowDown / ArrowUp on the trigger asked for; read once, when the menu opens.
   const wantLast = useRef(false)
-  // ⛔ Tour anchors are LITERAL attributes in JSX (tourAnchors.test.js reads them by AST and
-  // refuses an expression), so the voice item's anchor is written on its own element below,
-  // not carried through this list as data. ("From a style" has no anchor: no tour points at it, and a
-  // branch of its own for one costs the Notebook's first open ~200 B.)
-  const items = [
-    { key: 'outline', label: 'From an outline', run: onFromOutline, icon: 'document' },
-    onFromStyle && { key: 'style', label: 'From a style', run: onFromStyle, icon: 'sliders' },
-    onVoice && { key: 'voice', label: 'Voice note', run: onVoice, icon: 'mic' },
-    onToday && { key: 'today', label: "Today's note", run: onToday, icon: 'sun' },
-  ].filter(Boolean)
+  // Simplify pass 2 (C1-C3): the open SECOND VIEW, the key of the row whose `children` replace the menu's rows (MenuRows),
+  // or null. Lifted from the "Aa" menu's Font and Size lists (NoteFormatMenu.jsx), which now run this one. `subFrom` is
+  // the row to put focus back on when the view closes.
+  const [sub, setSub] = useState(null)
+  const subFrom = useRef(null)
+
+  // Final fix (C3): the room from the open menu's top to the foot of the window, as `--menu-room` on the menu. On a
+  // phone the menu's height is held to it, less the floating "+" (NewNoteMenu.module.css), and the rows scroll inside
+  // it: the list's ⋯ menu is a dozen rows, and its last ones sat under the "+" or past the screen's end. A layout
+  // effect, so the first frame of the open menu is already the right height. Arrow keys focus a row, and focusing a
+  // row scrolls it into view inside the menu.
+  useLayoutEffect(() => {
+    const el = menuRef.current
+    if (!open || !el) return
+    const top = el.getBoundingClientRect().top
+    el.style.setProperty('--menu-room', `${Math.max(0, Math.round(window.innerHeight - top))}px`)
+  }, [open])
 
   useEffect(() => {
     if (!open) return undefined
-    const rows = menuRef.current?.querySelectorAll('[role="menuitem"]') || []
+    const rows = rowsOf(menuRef.current)
     rows[wantLast.current ? rows.length - 1 : 0]?.focus()
     wantLast.current = false
     const away = (e) => {
@@ -35,39 +48,58 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
       // `data-tour-card` by GenericTourEngine) describes the voice item: a press on the card's
       // Next is "outside" the menu, and closing here ended the tour before the click landed.
       if (e.target?.closest?.('[data-tour-card]')) return
-      if (!menuRef.current?.contains(e.target) && !caretRef.current?.contains(e.target)) setOpen(false)
+      if (!menuRef.current?.contains(e.target) && !triggerRef.current?.contains(e.target)) setOpen(false)
     }
     document.addEventListener('pointerdown', away)
     return () => document.removeEventListener('pointerdown', away)
   }, [open])
 
-  const close = () => { setOpen(false); caretRef.current?.focus() }
-  // ArrowDown / ArrowUp on the caret open the menu on its first / last item (the menu button pattern);
+  // A closed menu always reopens on its first view.
+  useEffect(() => { if (!open) { setSub(null); subFrom.current = null } }, [open])
+  // A second view takes focus to its first child (after "Back"; "Back" itself when every child is disabled). Closing it
+  // puts focus back on the row that opened it.
+  // Final fix M7: the row that opened the view can leave while the view is open (its gate turns off). MenuRows then goes
+  // back to the first view, and with the row gone focus lands on the first row, never left on the page.
+  useEffect(() => {
+    const el = menuRef.current
+    if (!el) return
+    if (sub) { const rows = rowsOf(el); (rows[1] || rows[0])?.focus() }
+    else if (subFrom.current) (el.querySelector(`[data-menu-sub="${subFrom.current}"]`) || rowsOf(el)[0])?.focus()
+  }, [sub])
+  const track = (row) => { if (name) trackMenuRow(name, row) }
+  const openSub = (key, row) => { track(row); subFrom.current = key; setSub(key) }
+  const back = () => setSub(null)
+
+  const close = () => { setOpen(false); triggerRef.current?.focus() }
+  // ArrowDown / ArrowUp on the trigger open the menu on its first / last item (the menu button pattern);
   // on an already-open menu they just move focus into it.
-  const onCaretKey = (e) => {
+  const onTriggerKey = (e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
     e.preventDefault()
     const last = e.key === 'ArrowUp'
     if (!open) { wantLast.current = last; setOpen(true); return }
-    const rows = menuRef.current?.querySelectorAll('[role="menuitem"]') || []
+    const rows = rowsOf(menuRef.current)
     rows[last ? rows.length - 1 : 0]?.focus()
   }
   // Tab (or a click) that takes focus out of the open menu closes it, so it is not left hanging open
-  // over the page. Focus staying inside the menu, going back to the caret, or going to the tour card
+  // over the page. Focus staying inside the menu, going back to the trigger, or going to the tour card
   // (which keeps the menu open on purpose, see `away`) leaves it open; a null target (the window lost
   // focus) does too, since the pointer handler owns outside presses.
   const onMenuBlur = (e) => {
     const to = e.relatedTarget
-    if (!to || menuRef.current?.contains(to) || caretRef.current?.contains(to) || to.closest?.('[data-tour-card]')) return
+    if (!to || menuRef.current?.contains(to) || triggerRef.current?.contains(to) || to.closest?.('[data-tour-card]')) return
     setOpen(false)
   }
   const onMenuKey = (e) => {
-    const list = [...menuRef.current.querySelectorAll('[role="menuitem"]')]
+    const list = rowsOf(menuRef.current)
     const i = list.indexOf(document.activeElement)
-    if (e.key === 'Escape') { e.preventDefault(); close() }
+    // In a second view Escape and Left go back to the first view; Right on a row that opens one opens it.
+    if (sub && (e.key === 'Escape' || e.key === 'ArrowLeft')) { e.preventDefault(); e.stopPropagation(); back() }
+    else if (e.key === 'ArrowRight' && document.activeElement?.dataset?.menuSub) { e.preventDefault(); e.stopPropagation(); document.activeElement.click() }
+    else if (e.key === 'Escape') { e.preventDefault(); close() }
     else if (e.key === 'ArrowDown') { e.preventDefault(); list[(i + 1) % list.length]?.focus() }
     else if (e.key === 'ArrowUp') { e.preventDefault(); list[(i - 1 + list.length) % list.length]?.focus() }
-    // An open menu keeps Left/Right/Home/End to itself, in BOTH forms. The list's caret sits in a
+    // An open menu keeps Left/Right/Home/End to itself, in every form. The list's triggers sit in a
     // role="toolbar" whose Left/Right/Home/End rove its controls (they would move focus out and leave the
     // menu hanging open); on Home nothing roves, but a window-level Left/Right (the video seek shortcuts)
     // no longer sees them while an item holds focus. Home/End go to the first/last item, not the page.
@@ -77,55 +109,119 @@ function CaretMenu({ caretClass, onFromOutline, onFromStyle, onVoice = null, onT
       if (e.key[0] > 'A') { e.preventDefault(); list.at(e.key < 'F' ? -1 : 0).focus() }
     }
   }
-  // Focus goes back to the caret BEFORE the item runs: the menu (and the item holding focus) is gone
-  // on the next render, and what the item opens (the New-note sheet, the voice dialog) returns focus
-  // to whatever held it when it opened.
-  const run = (fn) => () => { setOpen(false); caretRef.current?.focus(); fn() }
+  // Focus goes back to the trigger BEFORE the item runs: the menu (and the item holding focus) is gone
+  // on the next render, and what the item opens (a sheet, a dialog) returns focus to whatever held it
+  // when it opened.
+  const run = (fn, row) => () => { track(row); setOpen(false); triggerRef.current?.focus(); fn?.() }
 
+  return {
+    open,
+    run,
+    track,
+    sub,
+    openSub,
+    back,
+    triggerProps: {
+      ref: triggerRef,
+      'aria-haspopup': 'menu',
+      'aria-expanded': open,
+      onClick: () => setOpen((o) => !o),
+      onKeyDown: onTriggerKey,
+    },
+    menuProps: { ref: menuRef, className: styles.menu, role: 'menu', onKeyDown: onMenuKey, onBlur: onMenuBlur },
+  }
+}
+const ROW = '[role="menuitem"], [role="menuitemradio"]'
+const icon = (name) => <UIcon name={name} size={14} gold={false} />
+// Tier 1b fix round 1 (review Important 4): a row with NO BOX (the list's phone-only ⋯ rows on a desktop) is not a
+// stop -- focusing it is a no-op that left the menu open with focus nowhere useful. Where NOTHING has a box (a test
+// environment with no layout) every row counts: the same rule as lib/useToolbarRoving.js.
+// Go-live wave 1, fix round 1 (review 4b): nor is a DISABLED row (the Reviews rows while a draft runs): focus() on a
+// disabled button does nothing, so Up/Down/End stuck on it.
+function rowsOf(menuEl) {
+  const all = [...(menuEl?.querySelectorAll(ROW) || [])].filter((el) => !el.disabled)
+  const shown = all.filter((el) => el.getClientRects().length > 0)
+  return shown.length ? shown : all
+}
+
+/** The rows of a `useMenuButton` menu. `items`: {key, label, icon?, run, checked?, current?, separator?, className?,
+ *  disabled?, children?, childLabel?, row}. `row` is the row's fixed usage id (follow-up A, `menu_row_used`). A row whose `checked` is a boolean is a `menuitemradio` (the View menu's modes);
+ *  `current` marks a plain row as holding the mode in use (aria-current); `separator: true` draws a rule.
+ *  Notebook simplify, Task 3: `{key, group, items, heading?, className?}` is a named role="group" of rows (the View
+ *  menu's "Show as" under List, the New menu's "Reviews"); `heading: true` also draws its name, set apart by a rule.
+ *  Its rows are still the menu's rows, so the menu's Up and Down reach them.
+ *  Go-live wave 1: `render(rowProps, content)` lets the caller draw a row (or a group's box) itself, from the props and
+ *  content MenuRows would have used. It exists for walkthrough anchors: a `data-tour` is a LITERAL attribute in the
+ *  file its tour step names (onboarding/tourAnchors.test.js reads it by AST and refuses an expression), so the caller
+ *  writes `<button {...rowProps} data-tour="...">{content}</button>` in its own file.
+ *  Simplify pass 2 (C1-C3): a row with `children` (Items) opens a SECOND VIEW: pressing it (Enter, a click or Right)
+ *  replaces the rows with "Back" (named "Back to {label}", `label` being the menu's own name) and the children, in a
+ *  group named `childLabel` (default: the row's label), inside the SAME role="menu" element -- no nested popup, so the
+ *  menu's height cap and keyboard stay as they are. Back, Escape or Left return to the first view with focus on that
+ *  row; Escape there closes the menu. The "Aa" menu's Font and Size lists were the first; they run on this now. */
+export function MenuRows({ menu, items, label = '' }) {
+  const parent = menu.sub && findSub(items, menu.sub)
+  // Final fix M7: the open view's row is gone from `items` -- back to the first view, focus on its first row.
+  const lost = Boolean(menu.sub) && !parent
+  useEffect(() => { if (lost) menu.back() }, [lost, menu])
+  if (!parent) return rowsFor(menu, items)
   return (
     <>
-      <button ref={caretRef} type="button" className={caretClass}
-        aria-haspopup="menu" aria-expanded={open} aria-label="More ways to start a note"
-        onClick={() => setOpen((o) => !o)} onKeyDown={onCaretKey}>
-        <UIcon name="chevronDown" size={12} gold={false} />
+      <button type="button" role="menuitem" className={styles.item} aria-label={`Back to ${label}`} onClick={menu.back}>
+        {icon('chevronLeft')} Back
       </button>
-      {open && (
-        <div ref={menuRef} className={styles.menu} role="menu" aria-label="Start a note" onKeyDown={onMenuKey} onBlur={onMenuBlur}>
-          {items.map((it) => (it.key === 'voice' ? (
-            <button key={it.key} type="button" role="menuitem" className={styles.item}
-              data-tour="new-note-voice" onClick={run(it.run)}>
-              <UIcon name={it.icon} size={14} gold={false} /> {it.label}
-            </button>
-          ) : (
-            <button key={it.key} type="button" role="menuitem" className={styles.item}
-              onClick={run(it.run)}>
-              <UIcon name={it.icon} size={14} gold={false} /> {it.label}
-            </button>
-          )))}
-        </div>
-      )}
+      <div role="separator" className={styles.separator} />
+      <div role="group" aria-label={parent.childLabel || parent.label} className={styles.subGroup}>{rowsFor(menu, parent.children)}</div>
     </>
   )
 }
-
-// The notes list's form: the caret alone, sized like the list's `btn-sm` "+ New note". No tour
-// anchor on the wrapper: "new-note-home" is Home's, and the voice tour starts there. Its CSS (touch
-// floor, phone placement) is keyed on `.listCaret`, railed by NewNoteMenu.listCaret.css.test.js.
-export function NewNoteCaret(doors) {
-  return (
-    <div className={styles.listCaret}>
-      <CaretMenu caretClass="btn btn-primary btn-sm" {...doors} />
-    </div>
-  )
+function findSub(items, key) {
+  for (const it of items) {
+    const hit = it.key === key && it.children ? it : it.items && findSub(it.items, key)
+    if (hit) return hit
+  }
+  return null
 }
-
-export default function NewNoteMenu({ onBlank, ...doors }) {
-  return (
-    <div className={styles.split} data-tour="new-note-home">
-      <button type="button" className={`btn btn-primary ${styles.main}`} onClick={onBlank}>
-        <UIcon name="plus" size={14} gold={false} /> New note
-      </button>
-      <CaretMenu caretClass={`btn btn-primary ${styles.caret}`} {...doors} />
-    </div>
-  )
+function rowsFor(menu, items) {
+  return items.map((it) => {
+    if (it.separator) return <div key={it.key} role="separator" className={styles.separator} />
+    if (it.group) {
+      const groupProps = {
+        role: 'group', 'aria-label': it.group, className: `${it.heading ? styles.group : ''} ${it.className || ''}`,
+      }
+      const groupContent = (
+        <>
+          {it.heading && <div className={styles.groupLabel} aria-hidden="true">{it.group}</div>}
+          {rowsFor(menu, it.items)}
+        </>
+      )
+      if (it.render) return <Fragment key={it.key}>{it.render(groupProps, groupContent)}</Fragment>
+      return <div key={it.key} {...groupProps}>{groupContent}</div>
+    }
+    const radio = typeof it.checked === 'boolean'
+    const sub = Boolean(it.children)
+    const rowProps = {
+      type: 'button',
+      role: radio ? 'menuitemradio' : 'menuitem',
+      'aria-checked': radio ? it.checked : undefined,
+      // `current`: the row holds the mode in use without being a radio (the View menu's "More views" while Graph is on).
+      className: `${styles.item} ${it.checked || it.current ? styles.itemChecked : ''} ${it.className || ''}`,
+      'aria-current': it.current || undefined,
+      onClick: sub ? () => menu.openSub(it.key, it.row) : menu.run(it.run, it.row),
+      // Follow-up A: the row's usage id (`menu_row_used`); notebookUsage.test.js fails by name on a row without one.
+      'data-row': it.row,
+      // Go-live wave 1 (D4): a row whose door is busy (a review drafting) cannot be pressed again meanwhile.
+      disabled: it.disabled || undefined,
+      'aria-haspopup': sub ? 'menu' : undefined,
+      'data-menu-sub': sub ? it.key : undefined,
+    }
+    const content = (
+      <>
+        {it.icon && icon(it.icon)} {sub ? <span className={styles.subLabel}>{it.label}</span> : it.label}
+        {sub && icon('chevronRight')}
+      </>
+    )
+    if (it.render) return <Fragment key={it.key}>{it.render(rowProps, content)}</Fragment>
+    return <button key={it.key} {...rowProps}>{content}</button>
+  })
 }

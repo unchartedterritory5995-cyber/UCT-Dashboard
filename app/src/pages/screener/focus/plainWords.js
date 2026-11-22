@@ -48,6 +48,76 @@ export const PLAIN_COLUMN_LABELS = {
   close_position: 'Close in day range',
   candle_type: 'Candle type',
   candle_label: 'Candle',
+  // UCT Relative Strength (Phase 2a, 2a-08): the chart's RS line, said plainly. "RS line" is the
+  // stock against SPY; "52-week" is the 252-session lookback the chart draws its dots on.
+  rs_new_high: 'RS line at a 52-week high',
+  rs_nh_before_price: 'RS line at a 52-week high before price',
+  rs_nh_red_day: 'RS line at a 52-week high on a red day',
+  rs_nh_bars_ago: 'Sessions since the RS high',
+  green_on_red_20: 'Up on down days (of 20)',
+  rs_line_above_ma: 'RS line above its 21-day avg',
+  rs_cross_up_bars_ago: 'Sessions since RS crossed its 21-day avg',
+  mansfield: 'Mansfield RS vs 200-day avg',
+  mansfield_cross_bars_ago: 'Sessions since Mansfield crossed zero',
+  rs_benchmark_agree: 'RS agrees vs SPY and RSP',
+  rs_rating_ibd: 'RS rating (IBD-style)',
+  rs_rating_chg_5: 'RS rating change, 1 week',
+  rs_rating_chg_20: 'RS rating change, 1 month',
+  rs_rating_1m: '1-month return rank',
+  rs_rating_3m: '3-month average return rank',
+  rs_rating_6m: '6-month weighted return rank',
+  rs_rating_9m: '9-month weighted return rank',
+  rs_rating_12m: '12-month weighted return rank',
+  // UCT RS Phase 3 (unit 3-11). The quadrant is read on WEEKLY bars, the other two on daily.
+  rrg_quadrant: 'Rotation vs SPY (weekly)',
+  clenow_score: 'Clenow trend score (90 days)',
+  vars_state: 'Volatility-adjusted RS vs SPY',
+  // UCT RS Exit Warnings (Mike Webster's method): the RS line against SPY, daily.
+  rs_exit_last: 'Latest RS exit warning',
+  rs_exit_bars_ago: 'Sessions since an RS exit warning',
+  rs_quicksand_bars_ago: 'Sessions since a Quicksand',
+  rs_quick_break_bars_ago: 'Sessions since a Quick Break',
+  rs_dead_break_bars_ago: 'Sessions since a Grateful Dead Break',
+  // UCT RS screens (unit U1): a place is a position in the liquid-stock ranking, 1 = strongest.
+  rs_rating_pos: 'RS Rating place',
+  rs_rating_pos_n: 'Stocks ranked',
+  rs_rating_pos_prev20: 'Place a month ago',
+  rs_pos_1m: '1-month place',
+  rs_pos_3m: '3-month place',
+  rs_pos_6m: '6-month place',
+  rs_pos_12m: '12-month place',
+  rs_rating_session: 'Ratings as of',
+  rs_rating_score: 'RS Rating score',
+  // UCT RS screens (unit U4): the rating a month ago, the RS line's recent highs, the Setup label.
+  rs_rating_prev20: 'RS Rating a month ago',
+  rs_nh_count_20: 'RS highs in the last 20 sessions',
+  rs_nh_quiet: 'Sessions between the last two RS highs',
+  rs_nh_red_bars_ago: 'Sessions since an RS high on a market down day',
+  rs_nhbp_age: 'Sessions since an RS high ahead of price',
+  rs_nh_span: 'How long a high the RS line made',
+  px_below_high_pct: 'Below its 52-week closing high',
+  rs_setup: 'Setup',
+  rs_tight: 'Tight range',
+  rs_flag: 'Setup flag',
+  rs_near_buy: 'Near a buy point',
+  atr_ext_ema21: 'ATRs from 21-day exp. avg',
+  pct_vs_ema8: 'vs 8-day exp. avg',
+  pct_vs_ema21: 'vs 21-day exp. avg',
+  // UCT RS screens (unit U12): the weekly RS new high.
+  rs_nh_weekly: 'Weekly RS line at a 52-week high',
+  rs_nhbp_weekly: 'Weekly RS high ahead of price',
+  // UCT RS screens (unit U12): UCT RS Leaders' list.
+  rs_leaders_member: 'On the UCT RS Leaders list',
+  rs_leaders_days: 'Sessions on the UCT RS Leaders list',
+  // Fundamental trends (2026-11-21): from SEC filings, quarter by quarter.
+  rev_accel_q: 'Quarters of rising revenue growth',
+  eps_streak_25: 'Quarters of 25%+ EPS growth',
+  eps_growth_min_2q: 'Weakest EPS growth, last 2 quarters',
+  eps_growth_min_3q: 'Weakest EPS growth, last 3 quarters',
+  eps_growth_min_4q: 'Weakest EPS growth, last 4 quarters',
+  net_margin_chg_1y: 'Net margin change vs a year ago',
+  gross_margin_chg_1y: 'Gross margin change vs a year ago',
+  shares_chg_1y: 'Share count change vs a year ago',
 }
 
 export const plainColumnLabel = key => PLAIN_COLUMN_LABELS[key] || null
@@ -81,10 +151,39 @@ export function plainMeta(meta) {
 }
 
 // One short fact per column, for the chart pane's fact line.
+const sessions = n => `${n} session${n === 1 ? '' : 's'}`
+const ratingDelta = (v, span) => v === 0 ? `unchanged in a ${span}` : `${v > 0 ? 'up' : 'down'} ${Math.abs(v)} in a ${span}`
 const FACTS = {
   vol_ratio: v => `Volume ${v.toFixed(1)}× avg`,
   rvol_live: v => `Volume ${v.toFixed(1)}× usual by now`,
   adr_pct: v => `Avg daily range ${v.toFixed(1)}%`,
+  // UCT Relative Strength (Phase 2a, 2a-08). A flag at 0 is no fact (the pane says what IS, not
+  // what is not); an age of 0 is "today"; the rating is "N of 99" so the scale travels with it.
+  rs_new_high: v => v === 1 ? 'RS line at a 52-week high' : null,
+  rs_nh_before_price: v => v === 1 ? 'RS line at a 52-week high while price is not' : null,
+  rs_nh_red_day: v => v === 1 ? 'RS line at a 52-week high on a red day' : null,
+  rs_nh_bars_ago: v => v === 0 ? 'RS line at a 52-week high today' : `RS high ${sessions(v)} ago`,
+  green_on_red_20: v => `Up on ${v} down day${v === 1 ? '' : 's'} in the last 20 sessions`,
+  rs_line_above_ma: v => v === 1 ? 'RS line above its 21-day avg' : 'RS line below its 21-day avg',
+  rs_cross_up_bars_ago: v => v === 0 ? 'RS line crossed above its 21-day avg today' : `RS line crossed above its 21-day avg ${sessions(v)} ago`,
+  mansfield: v => `Mansfield RS ${v >= 0 ? '+' : ''}${v.toFixed(2)}% vs its 200-day avg`,
+  mansfield_cross_bars_ago: v => v === 0 ? 'Mansfield RS crossed zero today' : `Mansfield RS crossed zero ${sessions(v)} ago`,
+  rs_benchmark_agree: v => v === 1 ? 'RS slope agrees vs SPY and RSP' : 'RS slope differs vs SPY and RSP',
+  rs_rating_ibd: v => `RS rating ${Math.round(v)} of 99`,
+  rs_rating_chg_5: v => `RS rating ${ratingDelta(v, 'week')}`,
+  rs_rating_chg_20: v => `RS rating ${ratingDelta(v, 'month')}`,
+  rs_rating_1m: v => `1-month return rank ${Math.round(v)} of 99`,
+  rs_rating_3m: v => `3-month average return rank ${Math.round(v)} of 99`,
+  rs_rating_6m: v => `6-month weighted return rank ${Math.round(v)} of 99`,
+  rs_rating_9m: v => `9-month weighted return rank ${Math.round(v)} of 99`,
+  rs_rating_12m: v => `12-month weighted return rank ${Math.round(v)} of 99`,
+  // UCT RS Phase 3 (unit 3-11): the Clenow score is a fraction, so it prints as the number, never a %.
+  clenow_score: v => `Clenow trend score ${v.toFixed(2)} over 90 sessions`,
+  // RS Exit Warnings: an age of 0 is "today"; a warning is a prompt to review, never "sell".
+  rs_exit_bars_ago: v => v === 0 ? 'RS exit warning today' : `RS exit warning ${sessions(v)} ago`,
+  rs_quicksand_bars_ago: v => v === 0 ? 'RS Quicksand today' : `RS Quicksand ${sessions(v)} ago`,
+  rs_quick_break_bars_ago: v => v === 0 ? 'RS Quick Break today' : `RS Quick Break ${sessions(v)} ago`,
+  rs_dead_break_bars_ago: v => v === 0 ? 'RS Grateful Dead Break today' : `RS Grateful Dead Break ${sessions(v)} ago`,
 }
 
 export function plainFact(key, v) {
@@ -95,6 +194,24 @@ export function plainFact(key, v) {
 // The chart pane's ONE volume fact: the live "by now" reading when the session has one, else the
 // completed-session ratio. Never both: two volume numbers side by side read as a contradiction.
 export const volumeFact = row => plainFact('rvol_live', row?.rvol_live) || plainFact('vol_ratio', row?.vol_ratio)
+
+// The RS rating said once, with its week's move folded in: "RS rating 94 of 99, up 6 in a week".
+// Null when the rating job has not rated the name (no rating, no sentence).
+export function rsRatingFact(row) {
+  const head = plainFact('rs_rating_ibd', row?.rs_rating_ibd)
+  if (!head) return null
+  const chg = plainFact('rs_rating_chg_5', row?.rs_rating_chg_5)
+  return chg ? `${head}, ${chg.replace(/^RS rating /, '')}` : head
+}
+
+// The ONE RS-line fact for a row: the most specific flag that fired, else the line's phase. Never
+// two: "at a 52-week high" and "at a 52-week high before price" side by side read as a repeat.
+export function rsLineFact(row) {
+  return plainFact('rs_nh_before_price', row?.rs_nh_before_price)
+    || plainFact('rs_nh_red_day', row?.rs_nh_red_day)
+    || plainFact('rs_new_high', row?.rs_new_high)
+    || plainFact('rs_line_above_ma', row?.rs_line_above_ma)
+}
 
 // Structure names that are trader shorthand, said plainly. The textbook name stays in the tooltip
 // (setupLine's tooltipFor). Keys are the library's labels exactly as base_catalog ships them; a

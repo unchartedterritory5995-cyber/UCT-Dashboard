@@ -1,0 +1,4480 @@
+{
+ "version": 1,
+ "indicators": [
+  {
+   "slug": "distribution_day_count",
+   "name": "Distribution Day Count",
+   "summary": "Counts distribution days (down 0.2% or more on higher volume) over the last 25 sessions, and marks each one.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_distribution_day_count",
+    "version": 1,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:d2f831b35a215d20569f4a3be1ea55a41b56a21a38b3e2f12b37f91a5ada60bc",
+     "rev": 1,
+     "ast": {
+      "type": "call",
+      "name": "sum",
+      "args": [
+       {
+        "type": "op",
+        "name": "?:",
+        "args": [
+         {
+          "type": "op",
+          "name": "&&",
+          "args": [
+           {
+            "type": "op",
+            "name": "<=",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "op",
+              "name": "*",
+              "args": [
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 0.998
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": ">",
+            "args": [
+             {
+              "type": "series",
+              "name": "volume"
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "volume"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 1
+         },
+         {
+          "type": "num",
+          "value": 0
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 25
+       }
+      ]
+     },
+     "source": "sum(close <= close[1] * 0.998 && volume > volume[1] ? 1 : 0, 25)",
+     "trees": {
+      "ddCount": {
+       "type": "call",
+       "name": "sum",
+       "args": [
+        {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": "&&",
+           "args": [
+            {
+             "type": "op",
+             "name": "<=",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 0.998
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1
+          },
+          {
+           "type": "num",
+           "value": 0
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 25
+        }
+       ]
+      },
+      "isDD": {
+       "type": "op",
+       "name": "&&",
+       "args": [
+        {
+         "type": "op",
+         "name": "<=",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "op",
+           "name": "*",
+           "args": [
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 0.998
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "volume"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:471cb4a382a6d29bb1dfbe82c64964e373f0357bd108af12bdff08ae086c480f",
+     "scanPlot": "ddCount",
+     "sources": {
+      "ddCount": "sum(close <= close[1] * 0.998 && volume > volume[1] ? 1 : 0, 25)",
+      "isDD": "close <= close[1] * 0.998 && volume > volume[1]"
+     }
+    },
+    "meta": {
+     "name": "Distribution Day Count",
+     "shortName": "Distribution",
+     "category": "Custom",
+     "description": "the sum of (1 when ((1 when close is less than or equal to ((close 1 bar ago) times 0.998) and 0 otherwise) and (1 when volume is greater than (volume 1 bar ago) and 0 otherwise)) is not zero, 0 when it is zero, and nothing while it is unknown) over the last 25 bars",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.15
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "isDDColor",
+      "type": "color",
+      "label": "Close at or below 0.998 times previous Close and Volume abo\u2026 colour",
+      "default": "#F23645"
+     },
+     {
+      "key": "isDDWidth",
+      "type": "int",
+      "label": "Close at or below 0.998 times previous Close and Volume abo\u2026 width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "ddCount",
+      "label": "Distribution",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      }
+     },
+     {
+      "key": "isDD",
+      "label": "Close at or below 0.998 times previous Close and Volume abo\u2026",
+      "style": "markers",
+      "color": "$isDDColor",
+      "width": "$isDDWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "circle",
+       "position": "aboveBar",
+       "size": 0.5
+      }
+     }
+    ]
+   }
+  },
+  {
+   "slug": "relative_strength_vs_spy",
+   "name": "Relative Strength vs SPY",
+   "summary": "The relative strength line against SPY (close divided by the close of SPY) with its 21-bar average.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_relative_strength_vs_spy",
+    "version": 1,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:ec2f5687848b6fc187c5421e750e3d4b518b5318868706ddb75f3cbe177f1d71",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "sym",
+        "value": "SPY",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     },
+     "source": "close / sym('SPY', close)",
+     "trees": {
+      "rs": {
+       "type": "op",
+       "name": "/",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "sym",
+         "value": "SPY",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          }
+         ]
+        }
+       ]
+      },
+      "rsEma": {
+       "type": "call",
+       "name": "ema",
+       "args": [
+        {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "sym",
+           "value": "SPY",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 21
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:9c7498b236dd26326b9ddf031b0f7550d31e08fc4cdfa4a7264627fc9e58d60d",
+     "scanPlot": "rs",
+     "sources": {
+      "rs": "close / sym('SPY', close)",
+      "rsEma": "ema(close / sym('SPY', close), 21)"
+     }
+    },
+    "meta": {
+     "name": "Relative Strength vs SPY",
+     "shortName": "Relative",
+     "category": "Custom",
+     "description": "close divided by (SPY\u2019s close)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.15
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "rsEmaColor",
+      "type": "color",
+      "label": "EMA 21 (Close divided by SPY Close) colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "rsEmaWidth",
+      "type": "int",
+      "label": "EMA 21 (Close divided by SPY Close) width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "rs",
+      "label": "Relative",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      }
+     },
+     {
+      "key": "rsEma",
+      "label": "EMA 21 (Close divided by SPY Close)",
+      "style": "line",
+      "color": "$rsEmaColor",
+      "width": "$rsEmaWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      }
+     }
+    ]
+   }
+  },
+  {
+   "slug": "rs_new_high_vs_spy",
+   "name": "RS New High vs SPY",
+   "summary": "Marks a new 52-week high in relative strength against SPY while price is still below its own 52-week high.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_rs_new_high_vs_spy",
+    "version": 1,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:ec2f5687848b6fc187c5421e750e3d4b518b5318868706ddb75f3cbe177f1d71",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "series",
+        "name": "close"
+       },
+       {
+        "type": "sym",
+        "value": "SPY",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         }
+        ]
+       }
+      ]
+     },
+     "source": "close / sym('SPY', close)",
+     "trees": {
+      "rs": {
+       "type": "op",
+       "name": "/",
+       "args": [
+        {
+         "type": "series",
+         "name": "close"
+        },
+        {
+         "type": "sym",
+         "value": "SPY",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          }
+         ]
+        }
+       ]
+      },
+      "sig": {
+       "type": "op",
+       "name": "&&",
+       "args": [
+        {
+         "type": "op",
+         "name": ">=",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "sym",
+             "value": "SPY",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "highest",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "sym",
+               "value": "SPY",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 252
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "op",
+         "name": "<",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "call",
+           "name": "highest",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "num",
+             "value": 252
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:f764df7f9b37c3ad25f6383f7786e74d412b116550d2211243e3f2427f42167d",
+     "scanPlot": "rs",
+     "sources": {
+      "rs": "close / sym('SPY', close)",
+      "sig": "close / sym('SPY', close) >= highest(close / sym('SPY', close), 252) && high < highest(high, 252)"
+     }
+    },
+    "meta": {
+     "name": "RS New High vs SPY",
+     "shortName": "RS New High",
+     "category": "Custom",
+     "description": "close divided by (SPY\u2019s close)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "sigColor",
+      "type": "color",
+      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d\u2026 colour",
+      "default": "#089981"
+     },
+     {
+      "key": "sigWidth",
+      "type": "int",
+      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d\u2026 width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "rs",
+      "label": "RS New High",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "sig",
+      "label": "Close divided by SPY Close at or above HIGHEST 252 (Close d\u2026",
+      "style": "markers",
+      "color": "$sigColor",
+      "width": "$sigWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowUp",
+       "position": "belowBar",
+       "text": "RS high"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "slug": "atr_extension",
+   "name": "ATR Extension",
+   "summary": "How far price is above its 50-day average, in multiples of the 14-day ATR. Red above 7, orange above 4.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_atr_extension",
+    "version": 1,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:4d86b693179f8ab317f699f73a81b0c398614dad1b3651741a4299272a423023",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "op",
+        "name": "-",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "call",
+          "name": "sma",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 50
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "atr",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "series",
+          "name": "low"
+         },
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "num",
+          "value": 14
+         }
+        ]
+       }
+      ]
+     },
+     "source": "(close - sma(close, 50)) / atr(high, low, close, 14)",
+     "trees": {
+      "ext": {
+       "type": "op",
+       "name": "/",
+       "args": [
+        {
+         "type": "op",
+         "name": "-",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "call",
+         "name": "atr",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "num",
+           "value": 14
+          }
+         ]
+        }
+       ]
+      },
+      "ext_cs": {
+       "type": "op",
+       "name": "?:",
+       "args": [
+        {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "atr",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "num",
+               "value": 14
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 7
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 0
+        },
+        {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "call",
+                 "name": "sma",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  },
+                  {
+                   "type": "num",
+                   "value": 50
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "call",
+               "name": "atr",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                },
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "num",
+                 "value": 14
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 4
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1
+          },
+          {
+           "type": "num",
+           "value": 2
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:8b0cd18e229dd2fb645a6f1cca365dbaa84bf58580e69d32cebf12f221505c94",
+     "scanPlot": "ext",
+     "sources": {
+      "ext": "(close - sma(close, 50)) / atr(high, low, close, 14)",
+      "ext_cs": "(close - sma(close, 50)) / atr(high, low, close, 14) > 7 ? 0 : (close - sma(close, 50)) / atr(high, low, close, 14) > 4 ? 1 : 2"
+     }
+    },
+    "meta": {
+     "name": "ATR Extension",
+     "shortName": "ATR Extensio",
+     "category": "Custom",
+     "description": "(close minus (the 50-bar average of close)) divided by (the 14-bar average true range of high, low and close)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.15
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "ext_csColor",
+      "type": "color",
+      "label": "ext colour rule colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "ext_csWidth",
+      "type": "int",
+      "label": "ext colour rule width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "ext",
+      "label": "ATR Extensio",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "colorMode": "column:ext_cs",
+      "colorPalette": [
+       "#F23645",
+       "#FF9800",
+       "#2962FF"
+      ]
+     },
+     {
+      "key": "ext_cs",
+      "label": "ext colour rule",
+      "style": "line",
+      "color": "$ext_csColor",
+      "width": "$ext_csWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "levels",
+      "label": "Levels",
+      "style": "hlines",
+      "levels": [
+       0,
+       4,
+       7
+      ],
+      "color": "rgba(255,255,255,0.12)",
+      "width": 1,
+      "lineStyle": "largeDashed",
+      "role": "context"
+     }
+    ]
+   }
+  },
+  {
+   "slug": "percent_distance_from_10_week_ma",
+   "name": "Percent Distance from 10 Week MA",
+   "summary": "The percent distance of the close from the 10-week average, with lines at +20% and -8%.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_percent_distance_from_10_week_ma",
+    "version": 1,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:ecbf2d0c035e2332be29540d05810cf0d998d86de627eb8229e3cac426fb49d1",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "*",
+      "args": [
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "tf",
+            "value": "W",
+            "args": [
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "num",
+                "value": 10
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "tf",
+          "value": "W",
+          "args": [
+           {
+            "type": "call",
+            "name": "sma",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 10
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 100
+       }
+      ]
+     },
+     "source": "(close - tf(sma(close, 10), 'W')) / tf(sma(close, 10), 'W') * 100"
+    },
+    "meta": {
+     "name": "Percent Distance from 10 Week MA",
+     "shortName": "Percent",
+     "category": "Custom",
+     "description": "((close minus ((the 10-bar average of close) on the weekly timeframe)) divided by ((the 10-bar average of close) on the weekly timeframe)) times 100",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.15
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "pctDist",
+      "label": "Percent",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      }
+     },
+     {
+      "key": "levels",
+      "label": "Levels",
+      "style": "hlines",
+      "levels": [
+       20,
+       -8
+      ],
+      "color": "rgba(255,255,255,0.12)",
+      "width": 1,
+      "lineStyle": "largeDashed",
+      "role": "context"
+     }
+    ]
+   }
+  },
+  {
+   "slug": "volume_with_50_average",
+   "name": "Volume with 50 Average",
+   "summary": "Volume with its 50-day average. Blue on an up day 40% above average, pink on a down day 40% above average.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_volume_with_50_average",
+    "version": 2,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:768274096e378fe106495faa89f1c584bdde5a224780a81e0e9fb71ffc2b60f2",
+     "rev": 1,
+     "ast": {
+      "type": "series",
+      "name": "volume"
+     },
+     "source": "volume",
+     "trees": {
+      "vol": {
+       "type": "series",
+       "name": "volume"
+      },
+      "avg": {
+       "type": "call",
+       "name": "sma",
+       "args": [
+        {
+         "type": "series",
+         "name": "volume"
+        },
+        {
+         "type": "num",
+         "value": 50
+        }
+       ]
+      },
+      "upSurge": {
+       "type": "op",
+       "name": "&&",
+       "args": [
+        {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "volume"
+          },
+          {
+           "type": "op",
+           "name": "*",
+           "args": [
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1.4
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      "downSurge": {
+       "type": "op",
+       "name": "&&",
+       "args": [
+        {
+         "type": "op",
+         "name": "<",
+         "args": [
+          {
+           "type": "series",
+           "name": "close"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "volume"
+          },
+          {
+           "type": "op",
+           "name": "*",
+           "args": [
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 50
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1.4
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      "vol_cs": {
+       "type": "op",
+       "name": "?:",
+       "args": [
+        {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "close"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">",
+           "args": [
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "op",
+             "name": "*",
+             "args": [
+              {
+               "type": "call",
+               "name": "sma",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "volume"
+                },
+                {
+                 "type": "num",
+                 "value": 50
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1.4
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 0
+        },
+        {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": "&&",
+           "args": [
+            {
+             "type": "op",
+             "name": "<",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "op",
+               "name": "*",
+               "args": [
+                {
+                 "type": "call",
+                 "name": "sma",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "volume"
+                  },
+                  {
+                   "type": "num",
+                   "value": 50
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1.4
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1
+          },
+          {
+           "type": "num",
+           "value": 2
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:545c218d2e2ad59351d8445234ad68afa9efe126e6d69a5de05f7e49aaa19913",
+     "scanPlot": "vol",
+     "sources": {
+      "vol": "volume",
+      "avg": "sma(volume, 50)",
+      "upSurge": "close > close[1] && volume > sma(volume, 50) * 1.4",
+      "downSurge": "close < close[1] && volume > sma(volume, 50) * 1.4",
+      "vol_cs": "close > close[1] && volume > sma(volume, 50) * 1.4 ? 0 : close < close[1] && volume > sma(volume, 50) * 1.4 ? 1 : 2"
+     }
+    },
+    "meta": {
+     "name": "Volume with 50 Average",
+     "shortName": "Volume with",
+     "category": "Custom",
+     "description": "volume",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.15
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#787B86"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "avgColor",
+      "type": "color",
+      "label": "SMA 50 (Volume) colour",
+      "default": "#FF9800"
+     },
+     {
+      "key": "avgWidth",
+      "type": "int",
+      "label": "SMA 50 (Volume) width",
+      "default": 2,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "upSurgeColor",
+      "type": "color",
+      "label": "Close above previous Close and Volume above 1.4 times SMA 5\u2026 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "upSurgeWidth",
+      "type": "int",
+      "label": "Close above previous Close and Volume above 1.4 times SMA 5\u2026 width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "downSurgeColor",
+      "type": "color",
+      "label": "Close below previous Close and Volume above 1.4 times SMA 5\u2026 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "downSurgeWidth",
+      "type": "int",
+      "label": "Close below previous Close and Volume above 1.4 times SMA 5\u2026 width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "vol_csColor",
+      "type": "color",
+      "label": "vol colour rule colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "vol_csWidth",
+      "type": "int",
+      "label": "vol colour rule width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "vol",
+      "label": "Volume with",
+      "style": "histogram",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "colorMode": "column:vol_cs",
+      "colorPalette": [
+       "#2962FF",
+       "#E91E63",
+       "#787B86"
+      ]
+     },
+     {
+      "key": "avg",
+      "label": "SMA 50 (Volume)",
+      "style": "line",
+      "color": "$avgColor",
+      "width": "$avgWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      }
+     },
+     {
+      "key": "upSurge",
+      "label": "Close above previous Close and Volume above 1.4 times SMA 5\u2026",
+      "style": "line",
+      "color": "$upSurgeColor",
+      "width": "$upSurgeWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "downSurge",
+      "label": "Close below previous Close and Volume above 1.4 times SMA 5\u2026",
+      "style": "line",
+      "color": "$downSurgeColor",
+      "width": "$downSurgeWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "vol_cs",
+      "label": "vol colour rule",
+      "style": "line",
+      "color": "$vol_csColor",
+      "width": "$vol_csWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     }
+    ]
+   }
+  },
+  {
+   "slug": "tight_weekly_closes",
+   "name": "Tight Weekly Closes",
+   "summary": "Shades the background when the last three weekly closes are within 1.5% of each other.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_tight_weekly_closes",
+    "version": 1,
+    "paints": [
+     {
+      "kind": "bgcolor",
+      "title": "Signal background",
+      "colorMode": "column:tight",
+      "colorUp": "#FFEB3B",
+      "colorDown": "transparent",
+      "opacity": 0.2
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:9e843d4411b1ebc8d6e990585882c99bf4c1437aacf8db14794b639f321db852",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "<=",
+      "args": [
+       {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "call",
+            "name": "max",
+            "args": [
+             {
+              "type": "tf",
+              "value": "W",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "max",
+              "args": [
+               {
+                "type": "tf",
+                "value": "W",
+                "args": [
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "tf",
+                "value": "W",
+                "args": [
+                 {
+                  "type": "offset",
+                  "value": 2,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "min",
+            "args": [
+             {
+              "type": "tf",
+              "value": "W",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "min",
+              "args": [
+               {
+                "type": "tf",
+                "value": "W",
+                "args": [
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "tf",
+                "value": "W",
+                "args": [
+                 {
+                  "type": "offset",
+                  "value": 2,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "min",
+          "args": [
+           {
+            "type": "tf",
+            "value": "W",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "min",
+            "args": [
+             {
+              "type": "tf",
+              "value": "W",
+              "args": [
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "tf",
+              "value": "W",
+              "args": [
+               {
+                "type": "offset",
+                "value": 2,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 0.015
+       }
+      ]
+     },
+     "source": "(max(tf(close, 'W'), max(tf(close[1], 'W'), tf(close[2], 'W'))) - min(tf(close, 'W'), min(tf(close[1], 'W'), tf(close[2], 'W')))) / min(tf(close, 'W'), min(tf(close[1], 'W'), tf(close[2], 'W'))) <= 0.015"
+    },
+    "meta": {
+     "name": "Tight Weekly Closes",
+     "shortName": "Tight Weekly",
+     "category": "Custom",
+     "description": "1 when (((the larger of (close on the weekly timeframe) and (the larger of ((close 1 bar ago) on the weekly timeframe) and ((close 2 bars ago) on the weekly timeframe))) minus (the smaller of (close on the weekly timeframe) and (the smaller of ((close 1 bar ago) on the weekly timeframe) and ((close 2 bars ago) on the weekly timeframe)))) divided by (the smaller of (close on the weekly timeframe) and (the smaller of ((close 1 bar ago) on the weekly timeframe) and ((close 2 bars ago) on the weekly timeframe)))) is less than or equal to 0.015 and 0 otherwise",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "tight",
+      "label": "Tight Weekly",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     }
+    ]
+   }
+  },
+  {
+   "slug": "gap_up_on_volume",
+   "name": "Gap Up on Volume",
+   "summary": "Marks a gap up of 4% or more on above-average volume with an arrow under the bar.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_gap_up_on_volume",
+    "version": 1,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:dda9d9890ea8d828968941abf0ee89a766a1768b0e603aa08cc4e007fd157770",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": ">=",
+        "args": [
+         {
+          "type": "op",
+          "name": "*",
+          "args": [
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "series",
+                "name": "open"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 100
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 4
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "series",
+          "name": "volume"
+         },
+         {
+          "type": "call",
+          "name": "sma",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "num",
+            "value": 50
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "source": "(open - close[1]) / close[1] * 100 >= 4 && volume > sma(volume, 50)"
+    },
+    "meta": {
+     "name": "Gap Up on Volume",
+     "shortName": "Gap Up on",
+     "category": "Custom",
+     "description": "(1 when (((open minus (close 1 bar ago)) divided by (close 1 bar ago)) times 100) is greater than or equal to 4 and 0 otherwise) and (1 when volume is greater than (the 50-bar average of volume) and 0 otherwise)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#089981"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "gapUpVol",
+      "label": "Gap Up on",
+      "style": "markers",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowUp",
+       "position": "belowBar"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "slug": "inside_outside_bars",
+   "name": "Inside / Outside Bars",
+   "summary": "Paints inside bars grey and outside bars purple.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_inside_outside_bars",
+    "version": 1,
+    "paints": [
+     {
+      "kind": "barcolor",
+      "title": "Candle states",
+      "colorMode": "column:candles_cs",
+      "colorPalette": [
+       "#787B86",
+       "#9C27B0"
+      ]
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:001cb5006dd2d577546609764f4ca6a5028e34ba895510d9553f970c743923ec",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "<=",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "offset",
+          "value": 1,
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">=",
+        "args": [
+         {
+          "type": "series",
+          "name": "low"
+         },
+         {
+          "type": "offset",
+          "value": 1,
+          "args": [
+           {
+            "type": "series",
+            "name": "low"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "source": "high <= high[1] && low >= low[1]",
+     "trees": {
+      "insideBar": {
+       "type": "op",
+       "name": "&&",
+       "args": [
+        {
+         "type": "op",
+         "name": "<=",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "op",
+         "name": ">=",
+         "args": [
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      "outsideBar": {
+       "type": "op",
+       "name": "&&",
+       "args": [
+        {
+         "type": "op",
+         "name": ">",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "op",
+         "name": "<",
+         "args": [
+          {
+           "type": "series",
+           "name": "low"
+          },
+          {
+           "type": "offset",
+           "value": 1,
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      "candles_cs": {
+       "type": "op",
+       "name": "?:",
+       "args": [
+        {
+         "type": "op",
+         "name": "&&",
+         "args": [
+          {
+           "type": "op",
+           "name": "<=",
+           "args": [
+            {
+             "type": "series",
+             "name": "high"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "op",
+           "name": ">=",
+           "args": [
+            {
+             "type": "series",
+             "name": "low"
+            },
+            {
+             "type": "offset",
+             "value": 1,
+             "args": [
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 0
+        },
+        {
+         "type": "op",
+         "name": "?:",
+         "args": [
+          {
+           "type": "op",
+           "name": "&&",
+           "args": [
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "op",
+             "name": "<",
+             "args": [
+              {
+               "type": "series",
+               "name": "low"
+              },
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 1
+          },
+          {
+           "type": "num",
+           "value": 2
+          }
+         ]
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:2d6c4ad9e687c89fd0bf64e1fa4bd662441f46ec7219dea5c5ec405d16011370",
+     "scanPlot": "insideBar",
+     "sources": {
+      "insideBar": "high <= high[1] && low >= low[1]",
+      "outsideBar": "high > high[1] && low < low[1]",
+      "candles_cs": "high <= high[1] && low >= low[1] ? 0 : high > high[1] && low < low[1] ? 1 : 2"
+     }
+    },
+    "meta": {
+     "name": "Inside / Outside Bars",
+     "shortName": "Inside",
+     "category": "Custom",
+     "description": "(1 when high is less than or equal to (high 1 bar ago) and 0 otherwise) and (1 when low is greater than or equal to (low 1 bar ago) and 0 otherwise)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "outsideBarColor",
+      "type": "color",
+      "label": "High above previous High and Low below previous Low colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "outsideBarWidth",
+      "type": "int",
+      "label": "High above previous High and Low below previous Low width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "candles_csColor",
+      "type": "color",
+      "label": "candles colour rule colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "candles_csWidth",
+      "type": "int",
+      "label": "candles colour rule width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "insideBar",
+      "label": "Inside",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "outsideBar",
+      "label": "High above previous High and Low below previous Low",
+      "style": "line",
+      "color": "$outsideBarColor",
+      "width": "$outsideBarWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "candles_cs",
+      "label": "candles colour rule",
+      "style": "line",
+      "color": "$candles_csColor",
+      "width": "$candles_csWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     }
+    ]
+   }
+  },
+  {
+   "slug": "average_daily_range",
+   "name": "Average Daily Range %",
+   "summary": "The 20-day average daily range in percent, and today's range as a share of it, in a small table.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_average_daily_range",
+    "version": 1,
+    "objects": {
+     "programVersion": 1,
+     "regs": [
+      {
+       "id": "r0",
+       "family": "table"
+      }
+     ],
+     "colls": [],
+     "ops": [
+      {
+       "k": "create",
+       "family": "table",
+       "site": "s1",
+       "into": "r0",
+       "when": null,
+       "once": true,
+       "props": {
+        "position": {
+         "v": "const",
+         "value": "top_right"
+        },
+        "columns": {
+         "v": "const",
+         "value": 2
+        },
+        "rows": {
+         "v": "const",
+         "value": 2
+        }
+       }
+      },
+      {
+       "k": "cell",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 0
+       },
+       "row": {
+        "v": "const",
+        "value": 0
+       },
+       "when": null,
+       "lastBarOnly": true,
+       "props": {
+        "text": {
+         "v": "text",
+         "node": {
+          "t": "lit",
+          "s": "ADR % (20)"
+         }
+        },
+        "text_color": {
+         "v": "color",
+         "node": {
+          "c": "lit",
+          "hex": "chart.fg_color"
+         }
+        },
+        "text_size": {
+         "v": "const",
+         "value": "small"
+        }
+       }
+      },
+      {
+       "k": "cell",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 1
+       },
+       "row": {
+        "v": "const",
+        "value": 0
+       },
+       "when": null,
+       "lastBarOnly": true,
+       "props": {
+        "text": {
+         "v": "text",
+         "node": {
+          "t": "if",
+          "cond": {
+           "v": "tree",
+           "tree": 1
+          },
+          "then": {
+           "t": "lit",
+           "s": "\u2014"
+          },
+          "else": {
+           "t": "cat",
+           "args": [
+            {
+             "t": "num",
+             "tree": 0,
+             "fmt": "0.00"
+            },
+            {
+             "t": "lit",
+             "s": "%"
+            }
+           ]
+          }
+         }
+        },
+        "text_color": {
+         "v": "color",
+         "node": {
+          "c": "lit",
+          "hex": "chart.fg_color"
+         }
+        },
+        "text_size": {
+         "v": "const",
+         "value": "small"
+        }
+       }
+      },
+      {
+       "k": "cell",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 0
+       },
+       "row": {
+        "v": "const",
+        "value": 1
+       },
+       "when": null,
+       "lastBarOnly": true,
+       "props": {
+        "text": {
+         "v": "text",
+         "node": {
+          "t": "lit",
+          "s": "Today vs ADR"
+         }
+        },
+        "text_color": {
+         "v": "color",
+         "node": {
+          "c": "lit",
+          "hex": "chart.fg_color"
+         }
+        },
+        "text_size": {
+         "v": "const",
+         "value": "small"
+        }
+       }
+      },
+      {
+       "k": "cell",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 1
+       },
+       "row": {
+        "v": "const",
+        "value": 1
+       },
+       "when": null,
+       "lastBarOnly": true,
+       "props": {
+        "text": {
+         "v": "text",
+         "node": {
+          "t": "if",
+          "cond": {
+           "v": "tree",
+           "tree": 3
+          },
+          "then": {
+           "t": "lit",
+           "s": "\u2014"
+          },
+          "else": {
+           "t": "cat",
+           "args": [
+            {
+             "t": "num",
+             "tree": 2,
+             "fmt": "0.0"
+            },
+            {
+             "t": "lit",
+             "s": "%"
+            }
+           ]
+          }
+         }
+        },
+        "text_color": {
+         "v": "color",
+         "node": {
+          "c": "lit",
+          "hex": "chart.fg_color"
+         }
+        },
+        "text_size": {
+         "v": "const",
+         "value": "small"
+        }
+       }
+      }
+     ],
+     "trees": [
+      {
+       "type": "op",
+       "name": "*",
+       "args": [
+        {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 20
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 100
+        }
+       ]
+      },
+      {
+       "type": "call",
+       "name": "na",
+       "args": [
+        {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "op",
+       "name": "*",
+       "args": [
+        {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 100
+        }
+       ]
+      },
+      {
+       "type": "call",
+       "name": "na",
+       "args": [
+        {
+         "type": "op",
+         "name": "*",
+         "args": [
+          {
+           "type": "op",
+           "name": "/",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            },
+            {
+             "type": "call",
+             "name": "sma",
+             "args": [
+              {
+               "type": "op",
+               "name": "-",
+               "args": [
+                {
+                 "type": "op",
+                 "name": "/",
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "high"
+                  },
+                  {
+                   "type": "series",
+                   "name": "low"
+                  }
+                 ]
+                },
+                {
+                 "type": "num",
+                 "value": 1
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 20
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 100
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:22a32d4d3d319ae17922777d65255c845dfa196a90d6d52288b9e9b57a1ba164",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "*",
+      "args": [
+       {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 1
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 20
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 100
+       }
+      ]
+     },
+     "source": "sma(high / low - 1, 20) * 100",
+     "trees": {
+      "adr": {
+       "type": "op",
+       "name": "*",
+       "args": [
+        {
+         "type": "call",
+         "name": "sma",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 20
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 100
+        }
+       ]
+      },
+      "todayPct": {
+       "type": "op",
+       "name": "*",
+       "args": [
+        {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "op",
+           "name": "-",
+           "args": [
+            {
+             "type": "op",
+             "name": "/",
+             "args": [
+              {
+               "type": "series",
+               "name": "high"
+              },
+              {
+               "type": "series",
+               "name": "low"
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 1
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "sma",
+           "args": [
+            {
+             "type": "op",
+             "name": "-",
+             "args": [
+              {
+               "type": "op",
+               "name": "/",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "high"
+                },
+                {
+                 "type": "series",
+                 "name": "low"
+                }
+               ]
+              },
+              {
+               "type": "num",
+               "value": 1
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 20
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 100
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:5c18e6759ca6c4a96d73400d02c8acab24ca66056532c3492e1932d3be002004",
+     "scanPlot": "adr",
+     "sources": {
+      "adr": "sma(high / low - 1, 20) * 100",
+      "todayPct": "(high / low - 1) / sma(high / low - 1, 20) * 100"
+     }
+    },
+    "meta": {
+     "name": "Average Daily Range %",
+     "shortName": "Average",
+     "category": "Custom",
+     "description": "(the 20-bar average of ((high divided by low) minus 1)) times 100",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.15
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "todayPctColor",
+      "type": "color",
+      "label": "Today vs ADR colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "todayPctWidth",
+      "type": "int",
+      "label": "Today vs ADR width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "adr",
+      "label": "ADR % (20)",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "todayPct",
+      "label": "Today vs ADR",
+      "style": "line",
+      "color": "$todayPctColor",
+      "width": "$todayPctWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     }
+    ]
+   }
+  },
+  {
+   "slug": "previous_week_high_low",
+   "name": "Previous Week High/Low",
+   "summary": "The previous week's high and low, drawn across this week's bars.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_previous_week_high_low",
+    "version": 1,
+    "objects": {
+     "programVersion": 1,
+     "regs": [
+      {
+       "id": "r0",
+       "family": "table"
+      }
+     ],
+     "colls": [],
+     "ops": [
+      {
+       "k": "create",
+       "family": "table",
+       "site": "s1",
+       "into": "r0",
+       "when": null,
+       "once": true,
+       "props": {
+        "position": {
+         "v": "const",
+         "value": "top_right"
+        },
+        "columns": {
+         "v": "const",
+         "value": 2
+        },
+        "rows": {
+         "v": "const",
+         "value": 3
+        }
+       }
+      },
+      {
+       "k": "cell",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 0
+       },
+       "row": {
+        "v": "const",
+        "value": 0
+       },
+       "when": null,
+       "lastBarOnly": true,
+       "props": {
+        "text": {
+         "v": "text",
+         "node": {
+          "t": "lit",
+          "s": "Prev Week"
+         }
+        },
+        "text_color": {
+         "v": "color",
+         "node": {
+          "c": "lit",
+          "hex": "chart.fg_color"
+         }
+        },
+        "text_formatting": {
+         "v": "const",
+         "value": "bold"
+        }
+       }
+      },
+      {
+       "k": "cell",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 0
+       },
+       "row": {
+        "v": "const",
+        "value": 1
+       },
+       "when": null,
+       "lastBarOnly": true,
+       "props": {
+        "text": {
+         "v": "text",
+         "node": {
+          "t": "lit",
+          "s": "High"
+         }
+        },
+        "text_color": {
+         "v": "color",
+         "node": {
+          "c": "lit",
+          "hex": "chart.fg_color"
+         }
+        }
+       }
+      },
+      {
+       "k": "cell",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 1
+       },
+       "row": {
+        "v": "const",
+        "value": 1
+       },
+       "when": null,
+       "lastBarOnly": true,
+       "props": {
+        "text": {
+         "v": "text",
+         "node": {
+          "t": "if",
+          "cond": {
+           "v": "tree",
+           "tree": 1
+          },
+          "then": {
+           "t": "lit",
+           "s": "\u2014"
+          },
+          "else": {
+           "t": "num",
+           "tree": 0,
+           "fmt": "0.00"
+          }
+         }
+        },
+        "text_color": {
+         "v": "color",
+         "node": {
+          "c": "lit",
+          "hex": "chart.fg_color"
+         }
+        }
+       }
+      },
+      {
+       "k": "cell",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 0
+       },
+       "row": {
+        "v": "const",
+        "value": 2
+       },
+       "when": null,
+       "lastBarOnly": true,
+       "props": {
+        "text": {
+         "v": "text",
+         "node": {
+          "t": "lit",
+          "s": "Low"
+         }
+        },
+        "text_color": {
+         "v": "color",
+         "node": {
+          "c": "lit",
+          "hex": "chart.fg_color"
+         }
+        }
+       }
+      },
+      {
+       "k": "cell",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 1
+       },
+       "row": {
+        "v": "const",
+        "value": 2
+       },
+       "when": null,
+       "lastBarOnly": true,
+       "props": {
+        "text": {
+         "v": "text",
+         "node": {
+          "t": "if",
+          "cond": {
+           "v": "tree",
+           "tree": 3
+          },
+          "then": {
+           "t": "lit",
+           "s": "\u2014"
+          },
+          "else": {
+           "t": "num",
+           "tree": 2,
+           "fmt": "0.00"
+          }
+         }
+        },
+        "text_color": {
+         "v": "color",
+         "node": {
+          "c": "lit",
+          "hex": "chart.fg_color"
+         }
+        }
+       }
+      },
+      {
+       "k": "mergecells",
+       "target": {
+        "r": "reg",
+        "id": "r0"
+       },
+       "col": {
+        "v": "const",
+        "value": 0
+       },
+       "row": {
+        "v": "const",
+        "value": 0
+       },
+       "col2": {
+        "v": "const",
+        "value": 1
+       },
+       "row2": {
+        "v": "const",
+        "value": 0
+       },
+       "when": null,
+       "lastBarOnly": true
+      }
+     ],
+     "trees": [
+      {
+       "type": "tf",
+       "value": "W",
+       "args": [
+        {
+         "type": "series",
+         "name": "high"
+        }
+       ]
+      },
+      {
+       "type": "call",
+       "name": "na",
+       "args": [
+        {
+         "type": "tf",
+         "value": "W",
+         "args": [
+          {
+           "type": "series",
+           "name": "high"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "type": "tf",
+       "value": "W",
+       "args": [
+        {
+         "type": "series",
+         "name": "low"
+        }
+       ]
+      },
+      {
+       "type": "call",
+       "name": "na",
+       "args": [
+        {
+         "type": "tf",
+         "value": "W",
+         "args": [
+          {
+           "type": "series",
+           "name": "low"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:01c598b0398aabf550ebb46ed1da462265f217cd31ae70a4340e535487752295",
+     "rev": 1,
+     "ast": {
+      "type": "tf",
+      "value": "W",
+      "args": [
+       {
+        "type": "series",
+        "name": "high"
+       }
+      ]
+     },
+     "source": "tf(high, 'W')",
+     "trees": {
+      "pwh": {
+       "type": "tf",
+       "value": "W",
+       "args": [
+        {
+         "type": "series",
+         "name": "high"
+        }
+       ]
+      },
+      "pwl": {
+       "type": "tf",
+       "value": "W",
+       "args": [
+        {
+         "type": "series",
+         "name": "low"
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:5cea001f9ef914cb588acad5b5968fb2410b14d98fe2e59f93cc91b8595c061a",
+     "scanPlot": "pwh",
+     "sources": {
+      "pwh": "tf(high, 'W')",
+      "pwl": "tf(low, 'W')"
+     }
+    },
+    "meta": {
+     "name": "Previous Week High/Low",
+     "shortName": "Previous",
+     "category": "Custom",
+     "description": "high on the weekly timeframe",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#F23645"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 2,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "pwlColor",
+      "type": "color",
+      "label": "Low (W) colour",
+      "default": "#089981"
+     },
+     {
+      "key": "pwlWidth",
+      "type": "int",
+      "label": "Low (W) width",
+      "default": 2,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "pwh",
+      "label": "Previous",
+      "style": "stepline",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      }
+     },
+     {
+      "key": "pwl",
+      "label": "Low (W)",
+      "style": "stepline",
+      "color": "$pwlColor",
+      "width": "$pwlWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      }
+     }
+    ]
+   }
+  },
+  {
+   "slug": "flat_base",
+   "name": "Flat Base",
+   "summary": "Shades a flat base: a 25-session range under 15%, within 15% of the 52-week high, after an advance of 20% or more.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_flat_base",
+    "version": 1,
+    "paints": [
+     {
+      "kind": "bgcolor",
+      "title": "Signal background",
+      "colorMode": "column:flatBase",
+      "colorUp": "#2962FF",
+      "colorDown": "transparent",
+      "opacity": 0.2
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:6665f543177879aa89ec640e75b8d2465fbb57b28c406460e8c16b010094ab5a",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "call",
+            "name": "highest",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "num",
+              "value": 25
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "lowest",
+              "args": [
+               {
+                "type": "series",
+                "name": "low"
+               },
+               {
+                "type": "num",
+                "value": 25
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1.15
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "highest",
+              "args": [
+               {
+                "type": "series",
+                "name": "high"
+               },
+               {
+                "type": "num",
+                "value": 252
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0.85
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": ">=",
+        "args": [
+         {
+          "type": "offset",
+          "value": 25,
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "*",
+          "args": [
+           {
+            "type": "offset",
+            "value": 125,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 1.2
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "source": "highest(high, 25) <= lowest(low, 25) * 1.15 && close >= highest(high, 252) * 0.85 && close[25] >= close[125] * 1.2"
+    },
+    "meta": {
+     "name": "Flat Base",
+     "shortName": "Flat Base",
+     "category": "Custom",
+     "description": "((1 when (the highest high of the last 25 bars) is less than or equal to ((the lowest low of the last 25 bars) times 1.15) and 0 otherwise) and (1 when close is greater than or equal to ((the highest high of the last 252 bars) times 0.85) and 0 otherwise)) and (1 when (close 25 bars ago) is greater than or equal to ((close 125 bars ago) times 1.2) and 0 otherwise)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "flatBase",
+      "label": "Flat Base",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     }
+    ]
+   }
+  },
+  {
+   "slug": "up_down_volume_ratio_50",
+   "name": "Up/Down Volume Ratio (50)",
+   "summary": "Volume on up days divided by volume on down days over 50 sessions, with a line at 1.0 and shading above 1.2.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_up_down_volume_ratio_50",
+    "version": 2,
+    "paints": [
+     {
+      "kind": "bgcolor",
+      "title": "Signal background",
+      "colorMode": "column:strong",
+      "colorUp": "#089981",
+      "colorDown": "transparent",
+      "opacity": 0.2
+     }
+    ],
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:7d8b906aed678ce573e43bce06fa8260175f4d0adca412125609974e2968be45",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": ">",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "num",
+            "value": 0
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 50
+         }
+        ]
+       },
+       {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "<",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "num",
+            "value": 0
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 50
+         }
+        ]
+       }
+      ]
+     },
+     "source": "sum(close > close[1] ? volume : 0, 50) / sum(close < close[1] ? volume : 0, 50)",
+     "trees": {
+      "udr": {
+       "type": "op",
+       "name": "/",
+       "args": [
+        {
+         "type": "call",
+         "name": "sum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": ">",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        },
+        {
+         "type": "call",
+         "name": "sum",
+         "args": [
+          {
+           "type": "op",
+           "name": "?:",
+           "args": [
+            {
+             "type": "op",
+             "name": "<",
+             "args": [
+              {
+               "type": "series",
+               "name": "close"
+              },
+              {
+               "type": "offset",
+               "value": 1,
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                }
+               ]
+              }
+             ]
+            },
+            {
+             "type": "series",
+             "name": "volume"
+            },
+            {
+             "type": "num",
+             "value": 0
+            }
+           ]
+          },
+          {
+           "type": "num",
+           "value": 50
+          }
+         ]
+        }
+       ]
+      },
+      "strong": {
+       "type": "op",
+       "name": ">",
+       "args": [
+        {
+         "type": "op",
+         "name": "/",
+         "args": [
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": ">",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 0
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          },
+          {
+           "type": "call",
+           "name": "sum",
+           "args": [
+            {
+             "type": "op",
+             "name": "?:",
+             "args": [
+              {
+               "type": "op",
+               "name": "<",
+               "args": [
+                {
+                 "type": "series",
+                 "name": "close"
+                },
+                {
+                 "type": "offset",
+                 "value": 1,
+                 "args": [
+                  {
+                   "type": "series",
+                   "name": "close"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "type": "series",
+               "name": "volume"
+              },
+              {
+               "type": "num",
+               "value": 0
+              }
+             ]
+            },
+            {
+             "type": "num",
+             "value": 50
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": "num",
+         "value": 1.2
+        }
+       ]
+      }
+     },
+     "treesHash": "sha256:89bed4da59c7b28b405eaf88c948e090e50898e519911a9b0e57b0dbdf36ba2a",
+     "scanPlot": "udr",
+     "sources": {
+      "udr": "sum(close > close[1] ? volume : 0, 50) / sum(close < close[1] ? volume : 0, 50)",
+      "strong": "sum(close > close[1] ? volume : 0, 50) / sum(close < close[1] ? volume : 0, 50) > 1.2"
+     }
+    },
+    "meta": {
+     "name": "Up/Down Volume Ratio (50)",
+     "shortName": "Up/Down",
+     "category": "Custom",
+     "description": "(the sum of (volume when (1 when close is greater than (close 1 bar ago) and 0 otherwise) is not zero, 0 when it is zero, and nothing while it is unknown) over the last 50 bars) divided by (the sum of (volume when (1 when close is less than (close 1 bar ago) and 0 otherwise) is not zero, 0 when it is zero, and nothing while it is unknown) over the last 50 bars)",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "pane",
+     "pane": {
+      "height": 0.15
+     }
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     },
+     {
+      "key": "strongColor",
+      "type": "color",
+      "label": "SUM 50 (Volume when Close above previous Close, else 0) div\u2026 colour",
+      "default": "#c9a84c"
+     },
+     {
+      "key": "strongWidth",
+      "type": "int",
+      "label": "SUM 50 (Volume when Close above previous Close, else 0) div\u2026 width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "udr",
+      "label": "Up/Down",
+      "style": "line",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      }
+     },
+     {
+      "key": "strong",
+      "label": "SUM 50 (Volume when Close above previous Close, else 0) div\u2026",
+      "style": "line",
+      "color": "$strongColor",
+      "width": "$strongWidth",
+      "role": "secondary",
+      "legend": {
+       "decimals": 2
+      },
+      "hidden": true
+     },
+     {
+      "key": "levels",
+      "label": "Levels",
+      "style": "hlines",
+      "levels": [
+       1
+      ],
+      "color": "rgba(255,255,255,0.12)",
+      "width": 1,
+      "lineStyle": "largeDashed",
+      "role": "context"
+     }
+    ]
+   }
+  },
+  {
+   "slug": "follow_through_day",
+   "name": "Follow-Through Day",
+   "summary": "Marks a follow-through day: up 1.7% or more on higher volume, 4 to 12 bars after the 50-session low.",
+   "definition": {
+    "schemaVersion": 1,
+    "id": "house_follow_through_day",
+    "version": 1,
+    "compute": {
+     "kind": "ast",
+     "fn": "sha256:0d15ac7c0d35186076747e7d5d3171c125ea38451280090bfd17524f40cbb41e",
+     "rev": 1,
+     "ast": {
+      "type": "op",
+      "name": "&&",
+      "args": [
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 0.017
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "volume"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "call",
+            "name": "lowestbars",
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 4
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "call",
+            "name": "lowestbars",
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 12
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "source": "(close - close[1]) / close[1] >= 0.017 && volume > volume[1] && (lowestbars(low, 50) >= 4 && lowestbars(low, 50) <= 12)"
+    },
+    "meta": {
+     "name": "Follow-Through Day",
+     "shortName": "Follow-Throu",
+     "category": "Custom",
+     "description": "((1 when ((close minus (close 1 bar ago)) divided by (close 1 bar ago)) is greater than or equal to 0.017 and 0 otherwise) and (1 when volume is greater than (volume 1 bar ago) and 0 otherwise)) and ((1 when (the number of bars back to the bar holding the lowest low of the last 50 bars, the newest of a tie over a bar price and withheld on a tie over anything else) is greater than or equal to 4 and 0 otherwise) and (1 when (the number of bars back to the bar holding the lowest low of the last 50 bars, the newest of a tie over a bar price and withheld on a tie over anything else) is less than or equal to 12 and 0 otherwise))",
+     "tags": [
+      "custom"
+     ],
+     "tier": "premium",
+     "repaint": "non-repainting",
+     "freshness": "live"
+    },
+    "placement": {
+     "target": "price"
+    },
+    "inputs": [
+     {
+      "key": "color",
+      "type": "color",
+      "label": "Color",
+      "default": "#089981"
+     },
+     {
+      "key": "lineWidth",
+      "type": "int",
+      "label": "Line width",
+      "default": 1,
+      "min": 1,
+      "max": 10,
+      "step": 1
+     }
+    ],
+    "plots": [
+     {
+      "key": "ftd",
+      "label": "Follow-Throu",
+      "style": "markers",
+      "color": "$color",
+      "width": "$lineWidth",
+      "role": "primary",
+      "legend": {
+       "decimals": 2
+      },
+      "marker": {
+       "shape": "arrowUp",
+       "position": "belowBar",
+       "text": "FTD"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

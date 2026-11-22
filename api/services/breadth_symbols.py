@@ -184,6 +184,46 @@ def _library_index() -> dict:
     return idx
 
 
+_LIBRARY_KEYS: Optional[frozenset] = None
+
+
+def _library_keys() -> frozenset:
+    """The KEYS of `_library_index()`, built WITHOUT its rows and without touching a disk.
+
+    ⛔⛔ 2026-11-16: `_library_index()` is no longer the pure projection its docstring
+    describes. `library_rows()` gained `display_floor()`, which reads the exchange
+    authority's SQLite history (`breadth_exchange_authority.universe_dates` ->
+    `_rows`, a walk of a universe's whole slice, cold after every deploy). And
+    `is_breadth_symbol` is asked about EVERY ticker on the chart path, from `async`
+    routes that run ON the event loop. So the first ordinary ticker after a deploy
+    walked the database on the loop and froze the whole site: 127 s at 16:42Z on
+    2026-11-16, captured mid-stall by the event-loop watchdog
+    (`/api/bars-history` -> `_is_breadth_symbol` -> ... -> `_rows`).
+
+    These keys come from the same pure sources the index's keys come from
+    (`symbol_for` over every universe x metric, then `library_aliases()` whose target
+    exists), so `resolve()` can answer "not a breadth identity" for AAPL without
+    building a single row. Rail: `_library_keys() == set(_library_index())`.
+    """
+    global _LIBRARY_KEYS
+    if _LIBRARY_KEYS is not None:
+        return _LIBRARY_KEYS
+    from api.services import breadth_metrics as _bm
+    from api.services import breadth_universes as _bu
+    keys = set()
+    for uni in _bu.UNIVERSE_IDS:
+        u = _bu.get(uni)
+        for metric in _bm.metrics_for(u["id"]):
+            sym = symbol_for(u["id"], metric)
+            if sym:
+                keys.add(sym.upper())
+    for alias, target in library_aliases().items():
+        if target.upper() in keys:
+            keys.add(alias.upper())
+    _LIBRARY_KEYS = frozenset(keys)
+    return _LIBRARY_KEYS
+
+
 def library_aliases() -> dict:
     """`{alias: canonical symbol}` — EXPLICIT, never inferred.
 
@@ -274,7 +314,10 @@ def resolve(sym: str, published_only: bool = True) -> Optional[dict]:
     from api.services import breadth_universes as _bu
     if not sym:
         return None
-    row = _library_index().get(str(sym).replace(" ", "").strip().upper())
+    key = str(sym).replace(" ", "").strip().upper()
+    if key not in _library_keys():
+        return None  # not a breadth identity: answered without building the rows (no disk)
+    row = _library_index().get(key)
     if row is None:
         return None
     # ⛔ ONE PREDICATE. This used to test the universe flag alone, which made a

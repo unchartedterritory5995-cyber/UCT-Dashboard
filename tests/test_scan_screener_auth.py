@@ -98,8 +98,15 @@ ROOT = Path(__file__).resolve().parents[1]
 #: because the unguessable token IS the credential. The new route resolves to
 #: `paid`, which is what it must be: it returns the full criteria library
 #: including verbatim source quotes.
-EXPECTED_SCANS_ROUTES = 16
-EXPECTED_SCREENER_ROUTES = 27  # +1 2026-10-16: GET /api/screener/sparks (~3 months of daily
+EXPECTED_SCANS_ROUTES = 17  # +1 2026-11-22: GET /api/scans/ipo-lockups (IPO LOCKUP), paid with the same
+#   `require_paid` as every other scan route (checked by the walk below, UNGATED == 0 on scans).
+EXPECTED_SCREENER_ROUTES = 29  # +1 2026-11-14: GET /api/screener/rows (RS screens unit U12, the
+#   "N dropped" popover's reasons: the single-row read below, batched, at most 25 names).
+#   PAID like /scan; 404 while RS_SCREENS_ENABLED is off.
+#                              # +1 2026-11-14: GET /api/screener/row/{ticker} (RS screens unit
+#   U8, "Why isn't a stock here?": one stock's row for named columns). PAID like /scan,
+#   whose stored numbers it returns; 404 while RS_SCREENS_ENABLED is off.
+#                              # +1 2026-10-16: GET /api/screener/sparks (~3 months of daily
 #   closes for up to 60 tickers, the Focus list's per-row line). PAID like /scan,
 #   whose rows it decorates; it reads the local bars store only.
 #                              # +1 2026-10-15: GET /api/screener/volume-curve (dadb1b1d48 added
@@ -163,7 +170,9 @@ PATH_PARAM_SAMPLES = {"sid": "1", "share_token": SHARE_TOKEN,
                       # An unsubscribe for a hash nobody subscribed is a
                       # clean no-op (`removed: false`), which is what makes
                       # it safe to probe on every plan in this file.
-                      "def_hash": "no_such_hash"}
+                      "def_hash": "no_such_hash",
+                      # GET /api/screener/row/{ticker} (RS screens unit U8)
+                      "ticker": "NVDA"}
 
 #: Sample values for every REQUIRED query parameter. Same self-policing rule.
 QUERY_PARAM_SAMPLES = {"start": 20260601, "end": 20260701, "group": "sector"}
@@ -358,7 +367,8 @@ def stub_services(monkeypatch):
     # warmer, which is a different subsystem and not this file's subject.
     monkeypatch.setattr(scr_router, "get_candidates", lambda: {"candidates": {}})
     monkeypatch.setattr(breadth_monitor, "get_universe_stocks", lambda date_str=None: dict(sentinel))
-    monkeypatch.setattr(scr_filters, "meta", lambda user_id=None: dict(sentinel))
+    # 2026-11-14 (RS screens U10): the route also passes the user, for the owner-only look.
+    monkeypatch.setattr(scr_filters, "meta", lambda user_id=None, user=None: dict(sentinel))
     # ⛔ THE STUB TAKES `user_id` because the ROUTE PASSES IT — the `list`
     # filter resolves a member's own watchlists, and the id must come from the
     # authenticated dependency rather than the request body. A stub that
@@ -373,6 +383,13 @@ def stub_services(monkeypatch):
     monkeypatch.setattr(scr_query, "preview_count",
                         lambda spec, user_id=None, conn=None, overlay=None, user=None:
                         dict(sentinel, _user_id=user_id))
+    # GET /api/screener/row/{ticker} (RS screens unit U8) is part of the RS screens: it
+    # answers 404 while they are off, which is not what this sweep measures. Armed here
+    # so the sweep reads its GATE; the reader is stubbed with the route's own arguments.
+    monkeypatch.setattr(scr_saved, "rs_screens_served", lambda user=None: True)
+    monkeypatch.setattr(scr_query, "rows_for",
+                        lambda tickers, columns, user=None:
+                        {t: {"row": {"ticker": t}, "stale": False} for t in tickers})
     monkeypatch.setattr(scr_db, "status", lambda: dict(sentinel))
     monkeypatch.setattr(snapshot_builder, "run_build", lambda max_tickers=800: None)
     # rebuild-universe (#173) calls a whole-reference Massive build; stubbed with the

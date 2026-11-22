@@ -24,6 +24,7 @@ Normalized series:
 """
 from __future__ import annotations
 
+import math
 from typing import Any, Optional
 
 from api.services import breadth_metrics as _bm
@@ -72,6 +73,14 @@ _TECH = {
     "pct_from_sma": ("{sym} % from its {n}-day SMA", "percent_change", "signed", (2, 400)),
     "bb_pct_b": ("{sym} Bollinger %B ({n}, 2σ)", "percent_b", DOMAIN_ANY, (5, 200)),
     "macd_hist": ("{sym} MACD histogram (12, 26, 9)", "price_units", DOMAIN_ANY, None),
+    # W2-B2 (UCT Agent history.eventStudy): the opening gap vs the previous close, from the stored opens / closes
+    "gap_pct": ("{sym} opening gap vs the previous close (%)", "percent_change", "signed", None),
+    # PKG2 (UCT Agent "after N-day breakouts"): the close vs the highest close of the N sessions BEFORE it, in %.
+    # Above 0 = a new N-day closing high; `cross_above 0` = the session it broke out. Stored closes only.
+    "pct_from_high": ("{sym} close vs its prior {n}-day closing high (%)", "percent_change", "signed", (5, 252)),
+    # Phase 2 history (UCT Agent "after it fell 3% in a day"): the session's close vs the previous stored close, in %.
+    # Known at that session's close; uses that close and the one before it only.
+    "day_pct": ("{sym} one-day change, close vs the previous close (%)", "percent_change", "signed", None),
 }
 
 
@@ -86,7 +95,8 @@ def _tech_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
     bounds = _TECH[ind][3]
     if bounds is None:
         if n is not None:
-            return None, _refused("bad_period", "MACD uses the standard 12/26/9 settings; leave the period out.")
+            return None, _refused("bad_period", "MACD uses the standard 12/26/9 settings; leave the period out."
+                                  if ind == "macd_hist" else f"{ind} takes no period; leave it out.")
     elif not isinstance(n, int) or isinstance(n, bool) or not bounds[0] <= n <= bounds[1]:
         return None, _refused("bad_period", f"The period must be a whole number from {bounds[0]} to {bounds[1]}.")
     tmpl, unit, dom, _b = _TECH[ind]
@@ -95,13 +105,57 @@ def _tech_describe(spec: dict) -> tuple[Optional[dict], Optional[dict]]:
             "alignment": "session"}, None
 
 
+def _finite_positive(v: Any) -> Optional[float]:
+    """A usable price: a finite number above zero, else None (never a ZeroDivisionError, inf or NaN downstream)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) and f > 0 else None
+
+
 def _tech_load(spec: dict) -> dict:
     """The indicator computed by the SAME functions the alert evaluator uses (`indicator_compute`,
     unrounded `_raw` lane where it exists) over the stored daily closes. No new calculation."""
     from api.services import indicator_compute as ic
+    if spec["indicator"] == "gap_pct":
+        oc = _pr.daily_open_close(spec["symbol"])
+        if oc.get("status") != "ok":
+            return oc
+        r = oc["rows"]
+        rows = [(r[k][0], (r[k][1] / r[k - 1][2] - 1.0) * 100.0) for k in range(1, len(r)) if r[k - 1][2] > 0]
+        if not rows:
+            return {"status": "unavailable", "reason": "not_enough_history",
+                    "detail": f"{spec['symbol']} has too little stored history for a gap series."}
+        return {"status": "ok", "alignment": "session", "rows": rows, "max_staleness_days": None,
+                "coverage": {"first": rows[0][0], "last": rows[-1][0], "basis": oc.get("basis")},
+                "source": {"interface": "price_reads.daily_open_close (read-only store); gap = open / previous close - 1"}}
     ps = _pr.daily_closes(spec["symbol"])
     if ps.get("status") != "ok":
         return ps
+    if spec["indicator"] == "day_pct":
+        # Guarded HERE, not trusted to the reader / bars_sanitize: a session whose close or previous close is zero,
+        # negative or non-finite gets NO value (a gap, which never qualifies and ends a run) and is counted.
+        c = ps["closes"]
+        rows, skipped = [], []
+        for k in range(1, len(c)):
+            prev, cur = _finite_positive(c[k - 1][1]), _finite_positive(c[k][1])
+            v = (cur / prev - 1.0) * 100.0 if prev is not None and cur is not None else None
+            if v is None or not math.isfinite(v):
+                skipped.append(c[k][0])
+                continue
+            rows.append((c[k][0], v))
+        if not rows:
+            return {"status": "unavailable", "reason": "not_enough_history",
+                    "detail": f"{spec['symbol']} has too little usable stored history for a one-day change series."}
+        notes = ([f"{len(skipped)} session(s) have no one-day change because their close or the previous close is zero, "
+                  f"negative or not a number in the stored history (first {skipped[0]}); they are gaps, never events."]
+                 if skipped else [])
+        return {"status": "ok", "alignment": "session", "rows": rows, "max_staleness_days": None,
+                "coverage": {"first": rows[0][0], "last": rows[-1][0], "basis": ps.get("basis"),
+                             "skipped_sessions": len(skipped)},
+                "notes": notes,
+                "source": {"interface": "price_reads.daily_closes (read-only store); change = close / previous close - 1"}}
     dates = [d for d, _ in ps["closes"]]
     closes = [c for _, c in ps["closes"]]
     n = spec["period"]
@@ -113,6 +167,12 @@ def _tech_load(spec: dict) -> dict:
                 for c, u, l in zip(closes, up, lo)]
     elif spec["indicator"] == "macd_hist":
         _m, _s, vals = ic.compute_macd_raw(closes, 12, 26, 9)
+    elif spec["indicator"] == "pct_from_high":
+        # the prior N closes only (never the session itself), so a value > 0 IS a new N-day closing high
+        vals = [None] * len(closes)
+        for k in range(n, len(closes)):
+            hi = max(closes[k - n:k])
+            vals[k] = None if hi <= 0 else (closes[k] / hi - 1.0) * 100.0
     else:
         sma = ic.compute_sma(closes, n)
         vals = [None if (s is None or s == 0) else (c / s - 1.0) * 100.0 for c, s in zip(closes, sma)]

@@ -1,0 +1,72 @@
+# head 799fb22964 2026-11-11T09:12:14Z mutant: ii-no-excluded-check
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentWhichWidget.rail.test.jsx src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx
+
+ RUN  v4.0.18 C:/w/pl-widget/app
+
+stderr | src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (c) u18-cols-07: two Watchlists, "move the volume column after the symbol": asked, no column moved > control: "move the volume column after the symbol in Momentum" names it: moved, no question
+[uct-agent] routing budget cut: indicators not sent (indicator.list, indicator.add, indicator.remove, indicator.update, indicator.show, indicator.hide)
+
+ ✓ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests) 3211ms
+     ✓ the plan picked the left one: a question, and neither widget's look changed  1140ms
+     ✓ the plan picked Momentum's view: a question, and no saved column layout  996ms
+     ✓ control: "move the volume column after the symbol in Momentum" names it: moved, no question  1074ms
+ ❯ src/agent/agentWhichWidget.rail.test.jsx (7 tests | 2 failed) 7358ms
+     ✓ "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed  1088ms
+     × "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed 1063ms
+     × u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won't guess 1042ms
+     ✓ u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question  1042ms
+     ✓ u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question  1040ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1044ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1037ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (d) u18-refresh-06: an EXCLUDED widget is never acted on > "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed
+AssertionError: UCT Agent4:12 AMRefreshed the Period Sort: expected [ 'refresh' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "refresh",
++ ]
+
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:61:27
+     59|     p.st.envelopes.push(plan(refresh('ps')))
+     60|     const out = await say("don't touch the period sort, just reload th…
+     61|     expect(ps.calls, out).toEqual([])                                 …
+       |                           ^
+     62|     expect(out).not.toMatch(/Refreshed/)
+     63|     expect(s.calls).toEqual([])                                       …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (d) u18-refresh-06: an EXCLUDED widget is never acted on > u18-refresh-06: the refusal names the Period Sort AND the Scanner, and says it won't guess
+AssertionError: UCT Agent4:12 AMRefreshed the Period Sort: expected [ 'refresh' ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "refresh",
++ ]
+
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:72:27
+     70|     p.st.envelopes.push(plan(refresh('ps')))
+     71|     const out = await say("don't touch the period sort, just reload th…
+     72|     expect(ps.calls, out).toEqual([])
+       |                           ^
+     73|     expect(s.calls, out).toEqual([])
+     74|     expect(out, out).toMatch(/leave the Period Sort alone/)
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  2 failed | 8 passed (10)
+   Start at  04:12:15
+   Duration  12.96s (transform 7.37s, setup 514ms, import 9.97s, tests 10.57s, environment 801ms)
+

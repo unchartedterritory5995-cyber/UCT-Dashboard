@@ -2,6 +2,9 @@
 
 Run with: python -m api.flow_worker_main  (Railway: FLOW_WORKER_ENABLED=1)
 
+Redeploy trigger 2026-11-08 (video + YouTube embeds): substack_article.py is statically reachable from this worker but off
+its watch list. The Substack poller runs on web, so this only keeps the rail honest.
+
 Redeploy trigger 2026-10-11: ships the flow_exposure_history.py empty-store fix (a
 stranded file; it rides along with this watched one).
 
@@ -246,11 +249,18 @@ import time
 import logging
 from contextlib import asynccontextmanager
 
+
+# ⛔ SECURITY (2026-11-10): redact credential query params (Massive `apiKey=`) in
+# every log record -- this pod's httpx/Massive clients log URLs carrying the key.
+from api.services.log_redaction import install as _install_log_redaction
+_install_log_redaction()
+
 from fastapi import FastAPI
 import uvicorn
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(name)s] %(message)s")
+_install_log_redaction()   # put RedactSecretsFilter on the handlers basicConfig just made
 
 # Crash forensics (2026-07-17: three in-place CRASHes — 9:34/10:14/10:26 ET —
 # left NO trace in logs). faulthandler catches C-level deaths (segfault/abort);
@@ -632,12 +642,87 @@ def _start_flow_schedulers():
             log.warning("auto-push scanner scheduling failed: %s", e)
 
         try:
-            # Daily OI snapshot (5:30 AM ET) — captures Schwab live OI for
+            # flow.db corruption canary (2026-11-09). flow.db corrupted TWICE
+            # that day and BOTH times the onset minute had rolled out of the
+            # logs before anyone looked, which is why the cause is still open.
+            # A cheap read-only probe on a schedule turns "we noticed hours
+            # later" into "here is the minute it happened, with context".
+            #
+            # ⛔⛔ TWO JOBS, AND THE SPLIT IS THE POINT. The fast tick is a BOUNDED
+            # WRITE-HEAD READ (max_id + the newest N rows by explicit id window).
+            # It must never run `quick_check`: measured 2026-11-09 on the live
+            # 10.7GB file, `quick_check(1)` alone ran past 600 s without finishing,
+            # because it verifies every page of every btree and the `(1)` bounds
+            # ERRORS REPORTED, not bytes read. At FLOW_CANARY_SEC=300 with
+            # coalesce=True that is not a 5-minute probe, it is a permanent 10.7GB
+            # read loop beside the OPRA write path — on the very volume that
+            # corrupted twice that day — and a tick that never finishes never logs
+            # the onset it exists to catch.
+            #
+            # The whole-file proof runs ONCE DAILY at a quiet hour instead, on the
+            # closed tape, where many minutes of scanning costs nothing.
+            from apscheduler.triggers.interval import IntervalTrigger as _IT
+            from apscheduler.triggers.cron import CronTrigger as _CT
+            from api import flow_integrity_canary as _canary
+            _canary_sec = int(os.environ.get("FLOW_CANARY_SEC", "300"))
+            if _canary_sec > 0:
+                sched.add_job(_canary.run_tick,
+                              trigger=_IT(seconds=_canary_sec),
+                              id="flow_integrity_canary", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db write-head canary registered (every %ds)", _canary_sec)
+            else:
+                log.info("[startup] flow.db write-head canary DISABLED (FLOW_CANARY_SEC=0)")
+
+            # 03:30 ET: tape closed, no gap to lose, and clear of the 05:30 syncs.
+            if os.environ.get("FLOW_CANARY_FULL_ENABLED", "1") == "1":
+                sched.add_job(_canary.run_full_tick,
+                              trigger=_CT(hour=3, minute=30,
+                                          timezone=ZoneInfo("America/New_York")),
+                              id="flow_integrity_canary_full", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db FULL quick_check registered (daily 03:30 ET)")
+            else:
+                log.info("[startup] flow.db FULL quick_check DISABLED")
+
+            # ⛔ WAL tripwire every 30 s (2026-11-13): a handle to a DELETED flow.db/-wal/-shm means
+            # two logs are in play; the 5-minute canary tick let prints stall ~3 min before it fired.
+            # Reading /proc/self/fd costs microseconds.
+            from api import flow_db_guard as _guard
+            sched.add_job(_guard.check_and_heal, trigger=_IT(seconds=30),
+                          id="flow_db_wal_tripwire", max_instances=1,
+                          coalesce=True, replace_existing=True)
+            n += 1
+            log.info("[startup] flow.db WAL tripwire registered (every 30s)")
+
+            # ⭐ 22:15 ET weekdays: one VERIFIED backup a night (2026-11-13). Gap-fill runs make a
+            # backup only when they fill something, so a quiet stretch left none; the 11/13
+            # restore only worked because the 11/10 fill happened to take one. Clear of the
+            # 21:00 gap-fill and the 03:30 whole-file check; quick_check runs on the COPY.
+            if os.environ.get("FLOW_NIGHTLY_BACKUP_ENABLED", "1") == "1":
+                from api import flow_db_autorestore as _far
+                sched.add_job(_far.nightly_backup,
+                              trigger=_CT(day_of_week="mon-fri", hour=22, minute=15,
+                                          timezone=ZoneInfo("America/New_York")),
+                              id="flow_nightly_backup", max_instances=1,
+                              coalesce=True, replace_existing=True)
+                n += 1
+                log.info("[startup] flow.db nightly verified backup registered (22:15 ET weekdays)")
+        except Exception as e:  # noqa: BLE001
+            log.warning("flow integrity canary scheduling failed: %s", e)
+
+        try:
+            # Daily OI snapshot (5:30 AM ET) — captures open interest for
             # contracts with recent flow (retroactive B-side confirmation). Moved
-            # from web at the P5 cutover: flow.db AND the Schwab OPRA consumer +
+            # from web at the P5 cutover: flow.db AND the OPRA consumer +
             # on-demand OI fetch live HERE now, so this cron must too. Gated on
-            # Schwab creds being present on this pod (copied at cutover).
-            if os.getenv("SCHWAB_APP_KEY"):
+            # the Massive key, its one source since 2026-11-17 (the gate used to
+            # be SCHWAB_APP_KEY, from when Schwab was asked first). Read from the
+            # module that makes the calls, so the gate and the fetch cannot disagree.
+            from api import massive_oi_snapshots as _massive_oi
+            if _massive_oi.MASSIVE_API_KEY:
                 from apscheduler.triggers.cron import CronTrigger as _OICron
                 from api.oi_snapshots import daily_snapshot_job, init_db as _init_oi_snapshots
                 _init_oi_snapshots()
@@ -657,7 +742,7 @@ def _start_flow_schedulers():
                 n += 1
                 log.info("[startup] OI snapshot 5:30am cron registered on flow-worker")
             else:
-                log.info("[startup] OI snapshot cron skipped (SCHWAB_APP_KEY unset)")
+                log.info("[startup] OI snapshot cron skipped (MASSIVE_API_KEY unset)")
         except Exception as e:  # noqa: BLE001
             log.warning("OI snapshot scheduling failed: %s", e)
 
@@ -833,7 +918,7 @@ def _start_flow_schedulers():
             # Massive/OCC-accurate daily OI capture for the OI Update card — ISOLATED
             # (own table oi_massive_snapshots; shared oi_snapshots untouched). 07:00 ET
             # weekdays, before the 08:00 card, after OCC updates overnight. Dark until
-            # OI_MASSIVE_ENABLED=1. Fixes the Schwab-lags-OCC data bug (verified 8/24).
+            # OI_MASSIVE_ENABLED=1. Fixes the shared-snapshot-lags-OCC data bug (verified 8/24).
             if os.getenv("OI_MASSIVE_ENABLED", "0") == "1":
                 from apscheduler.triggers.cron import CronTrigger as _OIMassCron
                 from api import oi_massive_snapshots as _oms
@@ -1126,16 +1211,39 @@ def main():
     # This pod OWNS the consumer + flow.db and serves the flow routers.
     os.environ.setdefault("WORKER_SERVES_FLOW", "1")
     log.info("[startup] flow-worker: consumer + flow routers only (no bars prewarm)")
+    # ⛔ WAL GUARD (2026-11-13, api/flow_db_guard.py): one connection held for the process life,
+    # so SQLite never deletes flow.db-wal under a live writer.
+    # ⛔ The anchor is the FIRST connection this process opens on flow.db (2026-11-13 second pass):
+    # opening it after `FlowDB()` let FlowDB's own init connection close as the "last" one, and
+    # deleted handles still appeared in freshly started processes. Path from the same env as FlowDB.
+    try:
+        from api import flow_db_guard
+        flow_db_guard.open_anchor()
+    except Exception as e:  # noqa: BLE001
+        log.warning("[flow-db-guard] anchor setup failed: %s", e)
     _start_consumer()
     _start_recent_cache_warmer()  # keep /recent snapshot cache hot (cold-load fix)
     _start_rest_side_heal()  # recover sides for big blank whales via REST NBBO (dark)
     _sched = _start_flow_schedulers()  # noqa: F841 - held alive for process lifetime
+    # OBSERVE ONLY (2026-11-06): see api/services/mem_observe.py. Reads only; MEM_OBSERVE_ENABLED=0 stops it.
+    # It also logs per-file page-cache residency (MEM_OBSERVE_FILES=0 stops that part). mem_observe.py is NOT
+    # on flow-worker's watch list: a change there alone never redeploys this service; touch this file too.
+    try:
+        from api.services import mem_observe
+        mem_observe.start("flow-worker", mem_observe.FLOW_WORKER_TARGETS)
+    except Exception as e:  # noqa: BLE001 -- observation must never stop the flow-worker booting
+        log.warning("[memobs] not started: %s", type(e).__name__)
     app = _build_app()
     port = int(os.environ.get("PORT", "8080"))
     # timeout_graceful_shutdown=5 mirrors web/worker: reach lifespan.shutdown ->
     # consumer stop() within Railway's 30s drain instead of a SIGKILL.
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="info",
                 timeout_graceful_shutdown=5)
+    # Graceful shutdown is done (consumer stopped, OPRA slot released). Leave WITHOUT interpreter
+    # teardown: closing the SQLite connections here could checkpoint-and-delete flow.db-wal while
+    # the next container already writes to it (flow_db_guard).
+    from api import flow_db_guard
+    flow_db_guard.exit_now(0)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,554 @@
+{
+ "_about": "Synthetic Evernote MCP dump for the messy live corpus (Plan E Task 9). Measured key names only (docs/notebook-connectors/evernote-mcp-probe.md). No member data.",
+ "user": "u-evernote",
+ "oauth": {
+  "accessToken": "at-1",
+  "refreshToken": "rt-1",
+  "clientId": "corpus-evernote-client",
+  "rotateTo": {
+   "access_token": "at-2",
+   "refresh_token": "rt-2",
+   "expires_in": 3600,
+   "token_type": "bearer"
+  },
+  "expireBeforePass": 1
+ },
+ "notebooks": [
+  {
+   "notebookId": "nb-trading",
+   "label": "Trading",
+   "searchFilter": "notebook:\"Trading\"",
+   "score": null,
+   "stack": "Markets",
+   "primaryAccess": "OWNED",
+   "workspaceId": null,
+   "workspaceName": null
+  },
+  {
+   "notebookId": "nb-research",
+   "label": "Research",
+   "searchFilter": "notebook:\"Research\"",
+   "score": null,
+   "stack": "Markets",
+   "primaryAccess": "OWNED",
+   "workspaceId": null,
+   "workspaceName": null
+  },
+  {
+   "notebookId": "nb-inbox",
+   "label": "Inbox",
+   "searchFilter": "notebook:\"Inbox\"",
+   "score": null,
+   "stack": null,
+   "primaryAccess": "OWNED",
+   "workspaceId": null,
+   "workspaceName": null
+  }
+ ],
+ "tags": [
+  {
+   "tagId": "f0000000-0000-4000-8000-000000000001",
+   "label": "earnings",
+   "searchFilter": "tag:earnings",
+   "score": null
+  },
+  {
+   "tagId": "f0000000-0000-4000-8000-000000000002",
+   "label": "A+",
+   "searchFilter": "tag:A+",
+   "score": null
+  }
+ ],
+ "notes": {
+  "e0000000-0000-4000-8000-000000000001": {
+   "title": "Hub",
+   "notebookId": "nb-trading",
+   "created": 1787994000000,
+   "updated": "2026-10-20T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Hub of the trading notes.</div><table><tr><td colspan=\"2\"><b>Q3 watchlist</b></td></tr><tr><td>Ticker</td><td>Setup</td></tr><tr><td>NVDA</td><td>Flag</td></tr></table><div>Guid form: <a href=\"evernote:///view/123/s1/e0000000-0000-4000-8000-000000000002/e0000000-0000-4000-8000-000000000002/\">the target</a> first.</div><div>Web form: <a href=\"https://www.evernote.com/shard/s1/nl/123/e0000000-0000-4000-8000-000000000010/\">Later note</a> arrives in pass two.</div><div>Shared: <a href=\"https://www.evernote.com/l/AbCdEfGhIj\">Target Note</a></div><div>Links: <a href=\"https://example.com/page\">site</a> | <a href=\"javascript:alert(1)\">script</a> | <a href=\"/docs/x\">root relative</a> | <a href=\"page.html\">file relative</a></div><div>Secret: <en-crypt hint=\"pw\" cipher=\"AES\" length=\"128\">U2FsdGVkX19vY29ycHVz</en-crypt></div></en-note>",
+   "tags": [
+    "f0000000-0000-4000-8000-000000000001",
+    "swing"
+   ],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000002": {
+   "title": "Target Note",
+   "notebookId": "nb-research",
+   "created": 1787994060000,
+   "updated": "2026-10-19T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>The target of the hub links.</div></en-note>",
+   "tags": [
+    {
+     "guid": "f0000000-0000-4000-8000-000000000002",
+     "name": "A+"
+    }
+   ],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000003": {
+   "title": "Checklist",
+   "notebookId": "nb-inbox",
+   "created": 1787994120000,
+   "updated": "2026-10-18T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div><en-todo checked=\"true\"/>Buy the dip <b>only</b> on volume</div><div><en-todo checked=\"false\"/>Review stops</div><div><en-todo/>Journal the trade</div><div style=\"-en-codeblock:true;\"><div>def risk(r):</div><div>    return r * 0.01</div></div><ol><li>Level one<ul><li>Level two<ol><li>Level three</li></ol></li></ul></li><li>Level one again</li></ol></en-note>",
+   "tags": [
+    {
+     "guid": "f0000000-0000-4000-8000-000000000001"
+    }
+   ],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000004": {
+   "title": "Media wall",
+   "notebookId": "nb-trading",
+   "created": 1787994180000,
+   "updated": "2026-10-17T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>PNG: <en-media hash=\"bff139fa05ac583f685a523ab3d110a0\" type=\"image/png\"/></div><div>JPEG: <en-media hash=\"ab4f3ccba74857c5f2ba0d5b7dbf65e1\" type=\"image/jpeg\"/></div><div>HEIC: <en-media hash=\"916b9e7e50880182e220b645f1b0939d\" type=\"image/heic\"/></div><div>PDF: <en-media hash=\"437175ba4191210ee004e1d937494d09\" type=\"application/pdf\"/></div><div>SVG: <en-media hash=\"ae8eb96df05e788ac39d88948eaf295c\" type=\"image/svg+xml\"/></div><div>Octet: <en-media hash=\"e7e4b902cd921ddff17c1d06e34fd67c\" type=\"application/octet-stream\"/></div><div>Huge: <en-media hash=\"b7cf27ffe6ea83cdcf8af2ef29de9285\" type=\"application/zip\"/></div><div>Expired: <en-media hash=\"c4bfb2a0bab0e91bc7dcfbe3bbec246e\" type=\"image/png\"/></div><div>Moved: <en-media hash=\"11dfd868d93bc2b0e4ce0bee5756f8b1\" type=\"image/png\"/></div><div>Missing: <en-media hash=\"ea21841da70e6405af19fabc4ff8bdd9\" type=\"application/pdf\"/></div><div>Linked: <a href=\"evernote:///view/123/s1/e0000000-0000-4000-8000-000000000002/e0000000-0000-4000-8000-000000000002/\"><en-media hash=\"d48e37bc19b9fe2c72923c30fd7a4152\" type=\"image/png\"/></a></div></en-note>",
+   "tags": [],
+   "resources": [
+    "bff139fa05ac583f685a523ab3d110a0",
+    "ab4f3ccba74857c5f2ba0d5b7dbf65e1",
+    "916b9e7e50880182e220b645f1b0939d",
+    "437175ba4191210ee004e1d937494d09",
+    "ae8eb96df05e788ac39d88948eaf295c",
+    "e7e4b902cd921ddff17c1d06e34fd67c",
+    "b7cf27ffe6ea83cdcf8af2ef29de9285",
+    "c4bfb2a0bab0e91bc7dcfbe3bbec246e",
+    "11dfd868d93bc2b0e4ce0bee5756f8b1",
+    "35b527fc8d5638bfa35f2fbd5fb65676",
+    "d48e37bc19b9fe2c72923c30fd7a4152"
+   ],
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000005": {
+   "title": "Clipped story",
+   "notebookId": "nb-research",
+   "created": 1787994240000,
+   "updated": "2026-10-16T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Clipped article body.</div><div><a href=\"../more.html\">read more</a></div><div><img src=\"https://news.example.com/img/hero.png\"/></div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {
+    "sourceURL": "https://news.example.com/markets/story.html",
+    "source": "web.clip7"
+   }
+  },
+  "e0000000-0000-4000-8000-000000000006": {
+   "title": "Six hundred KB",
+   "notebookId": "nb-inbox",
+   "created": 1787994300000,
+   "updated": "2026-10-15T10:00:00Z",
+   "content_repeat": {
+    "count": 3000,
+    "line": "<div>Line {n}: the quick brown fox jumps over the lazy dog while the tape prints green and the breadth thrust keeps the bid under every small cap.</div>"
+   },
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000007": {
+   "title": "Over the limit",
+   "notebookId": "nb-inbox",
+   "created": 1787994360000,
+   "updated": "2026-10-14T10:00:00Z",
+   "content_repeat": {
+    "count": 9000,
+    "line": "<div>Row {n}: the quick brown fox jumps over the lazy dog while the tape prints green and the breadth thrust keeps the bid under every small cap.</div>"
+   },
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000008": {
+   "title": "Edited and changed",
+   "notebookId": "nb-trading",
+   "created": 1787994420000,
+   "updated": "2026-10-13T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Remote text, version one.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000009": {
+   "title": "Edited, remote same",
+   "notebookId": "nb-trading",
+   "created": 1787994480000,
+   "updated": "2026-10-12T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Remote text that never changes.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000010": {
+   "title": "Later note",
+   "notebookId": "nb-research",
+   "created": 1788340000000,
+   "updated": "2026-10-24T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Written after the first sync.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000011": {
+   "title": "Trashed after sync",
+   "notebookId": "nb-inbox",
+   "created": 1787994540000,
+   "updated": "2026-10-11T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Will be trashed in Evernote.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000012": {
+   "title": "Trashed long ago A",
+   "notebookId": "nb-inbox",
+   "created": 1787994600000,
+   "updated": "2026-10-01T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Old trash.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000013": {
+   "title": "Trashed long ago B",
+   "notebookId": "nb-inbox",
+   "created": 1787994660000,
+   "updated": "2026-10-01T11:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Old trash too.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000014": {
+   "title": "Purged later",
+   "notebookId": "nb-inbox",
+   "created": 1787994720000,
+   "updated": "2026-10-10T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Will be expunged outright.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000015": {
+   "title": "No attachments",
+   "notebookId": "nb-research",
+   "created": 1787994780000,
+   "updated": "2026-10-09T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>A note whose resources field is null.</div></en-note>",
+   "tags": [
+    "swing"
+   ],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000016": {
+   "title": "Undated hit",
+   "notebookId": "nb-research",
+   "created": 1787994840000,
+   "updated": "2026-10-08T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Its search hit carries no timestamps.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {},
+   "hit": {
+    "createdAt": null,
+    "updatedAt": null
+   }
+  },
+  "e0000000-0000-4000-8000-000000000017": {
+   "title": "Imported plan",
+   "notebookId": "nb-trading",
+   "created": "2026-09-01T12:00:30.000Z",
+   "updated": "2026-09-02T08:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Plan imported from the export.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  },
+  "e0000000-0000-4000-8000-000000000018": {
+   "title": "Edited, image pending",
+   "notebookId": "nb-research",
+   "created": 1787994900000,
+   "updated": "2026-10-05T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Chart to come:</div><div><en-media hash=\"58a450f3d510a104dae49e74318360d4\" type=\"image/png\"/></div></en-note>",
+   "tags": [],
+   "resources": [
+    "58a450f3d510a104dae49e74318360d4"
+   ],
+   "attributes": {}
+  }
+ },
+ "notes_pass2": {
+  "e0000000-0000-4000-8000-000000000008": {
+   "title": "Edited and changed",
+   "notebookId": "nb-trading",
+   "created": 1787994420000,
+   "updated": "2026-10-25T10:00:00Z",
+   "content": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><div>Remote text, version two.</div></en-note>",
+   "tags": [],
+   "resources": null,
+   "attributes": {}
+  }
+ },
+ "resources": {
+  "bff139fa05ac583f685a523ab3d110a0": {
+   "name": "chart.png",
+   "mime": "image/png",
+   "body": {
+    "kind": "png",
+    "w": 40,
+    "h": 20,
+    "seed": 1
+   }
+  },
+  "ab4f3ccba74857c5f2ba0d5b7dbf65e1": {
+   "name": "photo.jpg",
+   "mime": "image/jpeg",
+   "body": {
+    "kind": "jpeg",
+    "w": 30,
+    "h": 18,
+    "seed": 2
+   }
+  },
+  "916b9e7e50880182e220b645f1b0939d": {
+   "name": "IMG_0412.heic",
+   "mime": "image/heic",
+   "body": {
+    "kind": "heic_fixture"
+   }
+  },
+  "437175ba4191210ee004e1d937494d09": {
+   "name": "report.pdf",
+   "mime": "application/pdf",
+   "body": {
+    "kind": "filler",
+    "prefix": "%PDF-1.4\n",
+    "size": 1024
+   }
+  },
+  "ae8eb96df05e788ac39d88948eaf295c": {
+   "name": "logo.svg",
+   "mime": "image/svg+xml",
+   "body": {
+    "kind": "text",
+    "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"8\" height=\"8\"><rect width=\"8\" height=\"8\" fill=\"#c9a227\"/></svg>"
+   }
+  },
+  "e7e4b902cd921ddff17c1d06e34fd67c": {
+   "name": "shot.png",
+   "mime": "application/octet-stream",
+   "body": {
+    "kind": "png",
+    "w": 24,
+    "h": 12,
+    "seed": 3
+   }
+  },
+  "b7cf27ffe6ea83cdcf8af2ef29de9285": {
+   "name": "archive.zip",
+   "mime": "application/zip",
+   "declaredSizeBytes": 27262976,
+   "body": {
+    "kind": "filler",
+    "prefix": "PK",
+    "size": 64
+   }
+  },
+  "c4bfb2a0bab0e91bc7dcfbe3bbec246e": {
+   "name": "expired.png",
+   "mime": "image/png",
+   "body": {
+    "kind": "png",
+    "w": 16,
+    "h": 16,
+    "seed": 4
+   },
+   "downloads": [
+    403,
+    200
+   ]
+  },
+  "11dfd868d93bc2b0e4ce0bee5756f8b1": {
+   "name": "moved.png",
+   "mime": "image/png",
+   "body": {
+    "kind": "png",
+    "w": 14,
+    "h": 14,
+    "seed": 5
+   },
+   "redirect": "https://evil.example.com/moved.png"
+  },
+  "35b527fc8d5638bfa35f2fbd5fb65676": {
+   "name": "uncited.png",
+   "mime": "image/png",
+   "body": {
+    "kind": "png",
+    "w": 12,
+    "h": 6,
+    "seed": 6
+   }
+  },
+  "d48e37bc19b9fe2c72923c30fd7a4152": {
+   "name": "linked.png",
+   "mime": "image/png",
+   "body": {
+    "kind": "png",
+    "w": 20,
+    "h": 10,
+    "seed": 7
+   }
+  },
+  "58a450f3d510a104dae49e74318360d4": {
+   "name": "stuck.png",
+   "mime": "image/png",
+   "body": {
+    "kind": "png",
+    "w": 18,
+    "h": 9,
+    "seed": 9
+   },
+   "downloads": [
+    403,
+    403,
+    403,
+    403,
+    403,
+    403,
+    403,
+    403,
+    403,
+    403
+   ]
+  }
+ },
+ "media": {
+  "https://news.example.com/img/hero.png": {
+   "status": 200,
+   "content_type": "image/png",
+   "body": {
+    "kind": "png",
+    "w": 10,
+    "h": 10,
+    "seed": 8
+   }
+  }
+ },
+ "passes": [
+  {
+   "active": [
+    "e0000000-0000-4000-8000-000000000001",
+    "e0000000-0000-4000-8000-000000000002",
+    "e0000000-0000-4000-8000-000000000003",
+    "e0000000-0000-4000-8000-000000000004",
+    "e0000000-0000-4000-8000-000000000005",
+    "e0000000-0000-4000-8000-000000000006",
+    "e0000000-0000-4000-8000-000000000007",
+    "e0000000-0000-4000-8000-000000000008",
+    "e0000000-0000-4000-8000-000000000009",
+    "e0000000-0000-4000-8000-000000000011",
+    "e0000000-0000-4000-8000-000000000014",
+    "e0000000-0000-4000-8000-000000000015",
+    "e0000000-0000-4000-8000-000000000016",
+    "e0000000-0000-4000-8000-000000000017",
+    "e0000000-0000-4000-8000-000000000018"
+   ],
+   "trash": [
+    "e0000000-0000-4000-8000-000000000012",
+    "e0000000-0000-4000-8000-000000000013"
+   ]
+  },
+  {
+   "active": [
+    "e0000000-0000-4000-8000-000000000001",
+    "e0000000-0000-4000-8000-000000000002",
+    "e0000000-0000-4000-8000-000000000003",
+    "e0000000-0000-4000-8000-000000000004",
+    "e0000000-0000-4000-8000-000000000005",
+    "e0000000-0000-4000-8000-000000000006",
+    "e0000000-0000-4000-8000-000000000007",
+    "e0000000-0000-4000-8000-000000000008",
+    "e0000000-0000-4000-8000-000000000009",
+    "e0000000-0000-4000-8000-000000000010",
+    "e0000000-0000-4000-8000-000000000015",
+    "e0000000-0000-4000-8000-000000000016",
+    "e0000000-0000-4000-8000-000000000017",
+    "e0000000-0000-4000-8000-000000000018"
+   ],
+   "trash": [
+    "e0000000-0000-4000-8000-000000000012",
+    "e0000000-0000-4000-8000-000000000013",
+    "e0000000-0000-4000-8000-000000000011"
+   ]
+  },
+  {
+   "active": [
+    "e0000000-0000-4000-8000-000000000001",
+    "e0000000-0000-4000-8000-000000000002",
+    "e0000000-0000-4000-8000-000000000003",
+    "e0000000-0000-4000-8000-000000000004",
+    "e0000000-0000-4000-8000-000000000005",
+    "e0000000-0000-4000-8000-000000000006",
+    "e0000000-0000-4000-8000-000000000007",
+    "e0000000-0000-4000-8000-000000000008",
+    "e0000000-0000-4000-8000-000000000009",
+    "e0000000-0000-4000-8000-000000000010",
+    "e0000000-0000-4000-8000-000000000015",
+    "e0000000-0000-4000-8000-000000000016",
+    "e0000000-0000-4000-8000-000000000017",
+    "e0000000-0000-4000-8000-000000000018"
+   ],
+   "trash": [
+    "e0000000-0000-4000-8000-000000000012",
+    "e0000000-0000-4000-8000-000000000013",
+    "e0000000-0000-4000-8000-000000000011"
+   ]
+  },
+  {
+   "active": [
+    "e0000000-0000-4000-8000-000000000001",
+    "e0000000-0000-4000-8000-000000000002",
+    "e0000000-0000-4000-8000-000000000003",
+    "e0000000-0000-4000-8000-000000000004",
+    "e0000000-0000-4000-8000-000000000005",
+    "e0000000-0000-4000-8000-000000000006",
+    "e0000000-0000-4000-8000-000000000007",
+    "e0000000-0000-4000-8000-000000000008",
+    "e0000000-0000-4000-8000-000000000009",
+    "e0000000-0000-4000-8000-000000000010",
+    "e0000000-0000-4000-8000-000000000015",
+    "e0000000-0000-4000-8000-000000000016",
+    "e0000000-0000-4000-8000-000000000017",
+    "e0000000-0000-4000-8000-000000000018"
+   ],
+   "trash": [
+    "e0000000-0000-4000-8000-000000000012",
+    "e0000000-0000-4000-8000-000000000013",
+    "e0000000-0000-4000-8000-000000000011"
+   ],
+   "member": true
+  }
+ ],
+ "member_edits": {
+  "e0000000-0000-4000-8000-000000000008": "My own notes, written in UCT. Do not overwrite.",
+  "e0000000-0000-4000-8000-000000000009": "My edit; the remote never changed.",
+  "e0000000-0000-4000-8000-000000000018": "I wrote this myself; the chart can wait."
+ },
+ "enex_seed": [
+  {
+   "importKey": "evernote:Trading/Imported plan/2026-09-01T12:00:00.000+00:00",
+   "title": "Imported plan",
+   "text": "Plan imported from the export.",
+   "folderPath": [
+    "Trading"
+   ],
+   "createdAt": "2026-09-01T12:00:00.000+00:00",
+   "updatedAt": "2026-09-02T08:00:00.000+00:00"
+  }
+ ]
+}

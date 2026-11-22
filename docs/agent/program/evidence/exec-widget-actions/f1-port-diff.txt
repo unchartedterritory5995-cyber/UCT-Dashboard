@@ -1,0 +1,140 @@
+--- #1029 app/src/agent/capabilities/board.js lines 1215-1248 (the whichWidget block; pl-widget-f16 at acb8aadd75, same as 673a92b65e)
++++ #1027 app/src/agent/whichWidget.js
+@@ -1,3 +1,24 @@
++// app/src/agent/whichWidget.js — WHICH widget a widget op acts on, decided by the member's WORDS, never by the planner's pick
++// (owner rule: ASK when the target widget is unclear). ONE module for every widget op that names a widget (AUDIT #1027 F1):
++//   widget.setOption, widget.sendToJournal (resolveArgs, capabilities/board.js), watchlist.showList / watchlist.exportList
++//   (resolveArgs, and screenWatchlistWidget on the model path, watchlistTarget.js), watchlist.arrangeColumns (a list-view op:
++//   whichListView, useAgent execute).
++// The block from "── WHICH WIDGET" to the end of whichWidget is #1029's board.js whichWidget, ported VERBATIM (its 2-space indent
++// kept); every line added to it here is an ADDITION (the port diff is kept as evidence: docs/agent/program/evidence/
++// exec-widget-actions/f1-port-diff.txt). What the additions do:
++//   F2 EXCLUDED words: a widget named right after a negation ("not the left watchlist", "anything but the IPOs scanner",
++//      "don't touch the period sort") is set ASIDE. It is never acted on and never picked; with no other widget of its type the op
++//      is REFUSED (nothing claimed), never re-aimed across types; with others, the member is asked among the rest (nothing is
++//      inferred by elimination) unless the words name exactly one of them.
++//   an op with NO widget (showList / exportList take null when one): the widgets of its type are the candidates (`type`).
++//   `can`: which widgets are candidates at all (a Watchlist widget bound to a source cannot switch lists).
++// ⛔ No lookbehind (noRegexLookbehind.test.js).
++import { positionWord } from './host'
++import { labelMap } from '../widgets/registry'
++import { widgetNamesOf } from './widgetNames'
++
++const LABEL = labelMap('menu')
++const label = (t) => LABEL[t] || t
+   // ── WHICH WIDGET (owner rule: ASK when the target widget is unclear). One guard for every widget op of the shared layer: when the
+   // op's widget is one of 2+ of its type on the board and the member's words name none of them — by position ("the left one"), by
+   // what it shows (a list or scan name, its linked ticker) — the op is not run on the planner's pick: the member is asked, with
+@@ -17,19 +38,112 @@
+   // was named, or picked), and its ops carry that widget. (#988's stored original words replace this on rebase.)
+   function whichWidget(args, host, member, { approved = false } = {}) {
+     if (approved) return null
++    const how = arguments[3] || {}                                      // (added) type / can, below
++    member = notAPlace(member)                                          // (added) "right after" is no place, below
+     let s = null
+     try { s = host?.widgets?.snapshot?.() } catch { s = null }
+     // the widgets ON the board (the visible ones: a floating or popped-out widget is no candidate), whole (geometry, opts)
+     const vis = Array.isArray(s?.visible) ? new Set(s.visible.map(v => String(v.id))) : null
+     const raw = (s?.raw || []).filter(x => !vis || vis.has(String(x.id)))
++    if (typeof how.can === 'function') for (let i = raw.length - 1; i >= 0; i--) if (!how.can(raw[i])) raw.splice(i, 1)
+     const w = raw.find(x => String(x.id) === String(args?.widget))
++    if (!w && how.type) return unaimed(args, host, member, how, raw)
+     if (!w) return null
++    // F2: a widget the words set aside is never acted on (refused when it is the only one of its type)
++    const aside = asideOf(member, raw, s?.groupSyms)
++    if (aside.has(String(w.id))) return amongRest(args, w, raw, aside, member, s)
+     const same = raw.filter(x => x.type === w.type)
+     if (same.length < 2) return null
+     const said = WORDS(member)
+     const named = same.filter(x => callNames(x, same, s?.groupSyms, raw).some(n => said.includes(n)))
++    for (let i = named.length - 1; i >= 0; i--) if (aside.has(String(named[i].id))) named.splice(i, 1)
+     if (named.length === 1) return named[0].id === w.id ? null : { args: { ...args, widget: named[0].id } }
++    if (aside.size) return amongRest(args, w, raw, aside, member, s)
+     const lbl = (x) => `${label(x.type)}${positionWord(x, same) ? ` (${positionWord(x, same)})` : ''}`
+     return { ask: { arg: 'widget', text: `Which ${label(w.type)} — ${same.map(lbl).join(' or ')}?`, choices: same.map(x => ({ ref: String(x.id), label: lbl(x) })) } }
+   }
+ 
++// ── additions (AUDIT #1027 F1 / F2) ──
++// "right" that only means "immediately" ("move volume right after symbol", "right before price", "right now") is not a place, so it
++// never names the widgets on the right (u18-cols-06: the static count's one over-ask). "the right one" / "right watchlist" still do.
++const notAPlace = (m) => (typeof m === 'string' ? m.replace(/\bright(?=\s+(?:after|before|next to|beside|below|above|under|over|now|away|then)\b)/gi, ' ') : m)
++// a negation, then (optionally) the verb it denies; the widget named right after it is set aside
++const NEGATION = / (?:not|never|except|besides|without|other than|instead of|anything but|everything but|all but|don t|dont|do not)(?: (?:touch|touching|change|changing|refresh|refreshing|reload|reloading|rerun|update|run|move|edit|alter|mess with))? /g
++const FILLER = new Set(['the', 'my', 'that', 'this', 'these', 'those', 'in', 'on', 'to', 'for', 'a', 'an', 'of', 'any', 'from', 'with', 'at'])
++const STOP = new Set(['and', 'just', 'then', 'but', 'only', 'please', 'so', 'instead', 'also', 'one', 'widget', 'widgets'])
++const typeNames = (type) => {
++  let n = []
++  try { n = widgetNamesOf(type).map(ws => ws.join(' ')) } catch { n = [] }
++  return [...new Set([...n, String(label(type) || '').toLowerCase().replace(/[^a-z0-9$]+/g, ' ').trim()].filter(Boolean))]
++}
++// does `rest` (" w1 w2 … ") begin with `name` (" n1 n2 "), and is what follows it the end, a stop word or the widget's own type?
++const leads = (rest, name, own) => {
++  if (!rest.startsWith(name)) return false
++  const after = rest.slice(name.length - 1)
++  const next = after.trim().split(' ')[0] || ''
++  return !next || STOP.has(next) || own.some(t => after.startsWith(` ${t} `))
++}
++/** The ids of the widgets the words set aside (a name right after a negation). */
++function asideOf(member, raw, syms) {
++  const said = WORDS(member)
++  const out = new Set()
++  for (const m of said.matchAll(NEGATION)) {
++    const toks = said.slice(m.index + m[0].length - 1).trim().split(' ').filter(Boolean)
++    while (toks.length && FILLER.has(toks[0])) toks.shift()
++    const rest = ` ${toks.join(' ')} `
++    if (!toks.length) continue
++    const specific = raw.filter(x => {
++      const same = raw.filter(o => o.type === x.type)
++      return callNames(x, same, syms, raw).some(n => leads(rest, n, typeNames(x.type)))
++    })
++    const byType = raw.filter(x => typeNames(x.type).some(t => rest.startsWith(` ${t} `)))
++    for (const x of (specific.length ? specific : byType)) out.add(String(x.id))
++  }
++  return out
++}
++const asideWhy = (w) => `You asked me to leave the ${label(w.type)} alone, so I didn’t touch it. Nothing changed.`
++/** The op's widget is set aside, or another of its type is: the rest are the candidates (named one → it; none left → refused). */
++function amongRest(args, w, raw, aside, member, s) {
++  const all = raw.filter(x => x.type === w.type)
++  const rest = all.filter(x => !aside.has(String(x.id)))
++  if (!rest.length) return { refuse: asideWhy(w) }
++  const said = WORDS(member)
++  const named = rest.filter(x => callNames(x, all, s?.groupSyms, raw).some(n => said.includes(n)))
++  if (named.length === 1) return String(named[0].id) === String(w.id) ? null : { args: { ...args, widget: named[0].id } }
++  const lbl = (x) => `${label(x.type)}${positionWord(x, all) ? ` (${positionWord(x, all)})` : ''}`
++  return { ask: { arg: 'widget', text: `Which ${label(w.type)} — ${rest.map(lbl).join(' or ')}?`, choices: rest.map(x => ({ ref: String(x.id), label: lbl(x) })) } }
++}
++/** An op with no widget (null: "only one"): its type's widgets are the candidates. */
++function unaimed(args, host, member, how, raw) {
++  const all = raw.filter(x => x.type === how.type)
++  if (!all.length) return null
++  const r = whichWidget({ ...args, widget: all[0].id }, host, member, { ...how, type: null })
++  if (r) return r
++  return all.length < 2 ? null : { args: { ...args, widget: all[0].id } }
++}
++
++export { whichWidget, asideOf }
++// a Watchlist widget bound to a source (opts.source / opts.listSub) cannot switch lists: no candidate for showList / exportList
++export const listSwitchable = (x) => x.type !== 'watchlist' || (!x.opts?.source && !x.opts?.listSub)
++// list-view ops guarded by whichListView (useAgent execute)
++export const LIST_VIEW_WHICH = new Set(['watchlist.arrangeColumns'])
++
++/**
++ * A LIST-VIEW op (its target is a list view's ref, host.listViews: watchlist.arrangeColumns) under the same rule: the view's widget
++ * is the op's widget. → null | { target } (the view of the widget the words name) | { refuse } | { ask, refOf } (choices are widget
++ * ids; refOf maps the one picked back to its view's ref).
++ */
++export function whichListView(op, host, member, how = {}) {
++  let views = []
++  try { views = host?.listViews?.snapshot?.() || [] } catch { views = [] }
++  const v = views.find(x => x.ref === op?.target)
++  if (!v || v.widgetId == null) return null
++  const r = whichWidget({ widget: v.widgetId }, host, member, how)
++  if (!r) return null
++  const refOf = (id) => views.find(x => String(x.widgetId) === String(id))?.ref || null
++  if (r.refuse) return r
++  if (r.args) return refOf(r.args.widget) ? { target: refOf(r.args.widget) } : null
++  if (r.ask) return { ask: { ...r.ask, choices: r.ask.choices.filter(c => refOf(c.ref)) }, refOf }
++  return null
++}
++

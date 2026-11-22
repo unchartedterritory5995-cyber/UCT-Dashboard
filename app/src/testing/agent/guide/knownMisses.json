@@ -1,0 +1,61 @@
+{
+ "note": "Held-out phrasings that do NOT reach what their held-out file named. Asserted both ways in that file (not what was named; what they reach today), so they pass as tests but are NOT passes. Kept in step with COV3_MISSES, COV4_MISSES, COV4B_MISSES and COV5_MISSES in the agentGuideHeldOutCov3/Cov4/Cov4b/Cov5 test files.",
+ "misses": [
+  {
+   "set": "cov-3",
+   "say": "how do I only see call options with a big premium",
+   "named": "Flow filters",
+   "reaches": "Options Flow: minimum premium",
+   "why": "the Options Flow catalog control is more specific than the row the held-out named"
+  },
+  {
+   "set": "cov-3",
+   "say": "how do I open the options flow then filter it to puts",
+   "named": "Flow filters",
+   "reaches": "Options Flow: calls or puts",
+   "why": "the Options Flow catalog control is more specific than the row the held-out named"
+  },
+  {
+   "set": "cov-3",
+   "say": "how do I add a horizontal line and then lock it",
+   "named": "Locking a drawing",
+   "reaches": "Drawing a Horizontal Line, then locking a drawing",
+   "why": "a two-part walkthrough's title lowercases its second part"
+  },
+  {
+   "set": "cov-4",
+   "say": "how do I show the market cap in the info row",
+   "named": "Market cap in the info row",
+   "reaches": "The header’s info row",
+   "why": "the info row's own panel walkthrough (the matrix's assignment for C1-066) takes it first"
+  },
+  {
+   "set": "cov-4b",
+   "say": "how do I get alerted at a fib level",
+   "named": "An alert on a line",
+   "reaches": "Setting a price alert",
+   "why": "a fib has no Set alert of its own (drawingSettingsSchema.js), so the truthful walkthrough is a price alert at the level"
+  },
+  {
+   "set": "cov-5",
+   "say": "how do I set a solid colour behind the candles",
+   "named": "The chart’s background",
+   "reaches": "Finding chart settings",
+   "why": "no word of the background’s own: “behind the candles” names nothing the catalog or the settings table holds"
+  },
+  {
+   "set": "cov-5",
+   "say": "how do I make the crosshair snap to the candles",
+   "named": "The magnet crosshair",
+   "reaches": "Changing Crosshair",
+   "why": "the magnet crosshair’s only toggles (StockChart’s region menu, ChartToolbar’s panel) are not opened by a desktop /charts right-click; the workspace chart menu has no such row"
+  },
+  {
+   "set": "cov-5",
+   "say": "how do I turn on the magnet crosshair",
+   "named": "The magnet crosshair",
+   "reaches": "Changing Crosshair",
+   "why": "the magnet crosshair’s only toggles (StockChart’s region menu, ChartToolbar’s panel) are not opened by a desktop /charts right-click; the workspace chart menu has no such row"
+  }
+ ]
+}

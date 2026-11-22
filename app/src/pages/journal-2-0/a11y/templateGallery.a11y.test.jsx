@@ -2,7 +2,7 @@
 //
 // Wave 12, lane 12A: the community template gallery through 8A's axe harness (the ONE way
 // a Notebook rail asks axe-core). The tab and picker recipes run with
-// NOTEBOOK_TEMPLATE_GALLERY_ENABLED off, so they never render these components -- hence
+// the notebook_template_gallery_enabled key unset, so they never render these components -- hence
 // their own recipes here rather than a `coveredBy` entry that would be untrue. Each recipe
 // proves the state it is about rendered before axe runs, so an empty screen can never pass
 // as a clean one:
@@ -10,13 +10,14 @@
 //   * community-gallery-mine    -- Your submissions in every state;
 //   * community-gallery-review  -- the admin review queue (TemplateGalleryReviewPanel);
 //   * community-gallery-preview -- a gallery template's read-only preview sheet;
-//   * gallery-publish-form      -- Share from Your templates, the form open.
+//   * gallery-publish-form      -- Share from Manage templates' Plain templates group, the form open.
 import { describe, beforeEach, afterEach, vi } from 'vitest'
 import { render, screen, within, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Providers } from './fixtures'
 import { axeSurface } from './surface'
 import TemplatePicker from '../components/notebook/TemplatePicker'
+import { PlainTemplatesManage } from '../components/notebook/MemberTemplates'
 import { latchNotebookFlags, __resetNotebookFlags } from '../lib/offline/notebookFlags'
 
 const settle = (ms = 30) => act(async () => { await new Promise((r) => setTimeout(r, ms)) })
@@ -73,8 +74,8 @@ function renderPicker() {
 
 async function openGallery() {
   const user = renderPicker()
-  await user.click(await screen.findByRole('button', { name: /Browse the community gallery/ }))
-  await screen.findByRole('heading', { name: 'Community gallery' })
+  await user.click(await screen.findByRole('button', { name: /Browse the Template library/ }))
+  await screen.findByRole('heading', { name: 'Template library · From members' })
   return user
 }
 
@@ -121,9 +122,11 @@ describe('lane 12A surfaces (community template gallery)', () => {
     await within(sheet).findByText('Trigger, stop, size.')
   })
 
+  // Follow-up C: Share on a plain template is in Manage templates' Plain templates group now.
   axeSurface('gallery-publish-form', async () => {
-    const user = renderPicker()
-    await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the community gallery' }))
-    await screen.findByRole('form', { name: 'Share Swing plan to the community gallery' })
+    const user = userEvent.setup()
+    render(<Providers><PlainTemplatesManage /></Providers>)
+    await user.click(await screen.findByRole('button', { name: 'Share Swing plan to the Template library' }))
+    await screen.findByRole('form', { name: 'Share Swing plan to the Template library' })
   })
 })

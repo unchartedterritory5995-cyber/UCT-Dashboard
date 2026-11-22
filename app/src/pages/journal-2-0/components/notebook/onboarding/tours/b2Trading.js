@@ -34,7 +34,8 @@ export const TOURS = [
     flag: 'notebook_review_drafts_enabled',
     title: 'Reviews that write themselves',
     replayable: true,
-    start: '/journal/notebook',
+    // the notes list's New menu row "Draft a review" and its second view (on a phone, ⋯ carries it; pass 2, C2)
+    start: '/journal/notebook?view=all',
     load: steps(() => import('./reviewDrafts.steps')),
   },
   {

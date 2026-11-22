@@ -636,6 +636,80 @@ Method) drilled on real charts, with no AI at runtime, every item reviewed by th
   list is left except the imports that wait on deploys: `import_go_hourly_run.ps1` after #478's web SUCCESS (watched),
   then after #538: the same again (adds WING) + `import_bear_gaps_run.ps1`.
 
+- **2026-10-31 ~14:15Z: #538 MERGED (47bab8eab0) after #478 (27976a08f6, web SUCCESS 04:52Z); hourly review STARTED.**
+  Hourly import ran on the #478 pod: 40 inserted, all flagged "question over 22 words" (cosmetic; shortening the
+  question changes the item ids, so it stays). Branch now `feat/study-hourly-review-1031` (same worktree). The 40
+  full-window hourly charts are captured at `C:/Users/pgosz/projects/study-review-sheets/2026-10-31/img/goh_NN_SYM_DATE.png`
+  (review-queue positions 41-80 = hourly 1-40; `hourly_ids.json` maps ids; `file_caps.py` files captures by id).
+  FIRST FOUR SENT: owner on #1 VST 2026-10-16: "Wait stop I need to see the mkt open of the days we are looking at";
+  #2 VGZ 10-16 okay, #3 VGZ 09-28 good, #4 MSFT 07-14 okay (all logged, marked re-confirm on the close-up).
+  FIX SHIPPED IN #538: StudyReview frames hourly items by sessions (was 112 bars read as 112 sessions, bars in the
+  right half) and has an "Open close-up" toggle (O key: 6 calendar days back, 4 forward) for hourly items.
+  NEXT (after #538 web SUCCESS): re-run `import_go_hourly_run.ps1` (adds WING, 41), run `import_bear_gaps_run.ps1`
+  (39 bear gaps), reload the review screen, capture every hourly item in close-up (O) and send full+close-up pairs
+  four at a time starting again from #1; then the bear-gap review; then calibrate `find_go_signal_hourly.py` and
+  retire the 40 daily Go Signal drafts (positions 1-40) as superseded.
+
+- **2026-11-01: hourly sitting waits on PR #559 (branch feat/study-hourly-review-1031, checks green, MERGE BLOCKED).**
+  Ruled on the full-window captures: #1 VST 2026-10-16 "Eh C average" (okay), #2 VGZ 2026-10-16 "Okay" then
+  "Wait I cant tell what the first 3 hourly candles are that Im supposed to be watching!" (pending, CHART RULE),
+  #3 VGZ 2026-09-28 "Okay", #4 MSFT 2022-07-14 "Eh so this is more of a pivot vs go signal btw" (cut; DEFINITION
+  NOTE: an undercut without the red-to-green that works higher later is a pivot, not a go signal). All in
+  owner_verdicts.jsonl (297 lines). FIX IN #559 (not deployed): `goSignalOverlay.js` OPEN_BARS=3 +
+  `goSignalOpenBarTimes`, `studyOverlays.js` `studyHighlightBars` (white #ffffff) on StudyReview AND DrillPlayer,
+  hourly marker text "the open: first 3 hours in white" at first_hour_t; vitest 23 files / 201 pass.
+  BEAR GAPS: `import_bear_gaps_run.ps1` ran (39 drafts, skill setup.family3.bear_gap); captures bg_01..39 in the
+  2026-10-31 sheet folder; SITTING PAUSED after 8 of 39 (MPWR 2024-10-31 good; 7 cut, "more of just an earnings
+  breakdown", seed NFLX 2022-01-21 "this is stupid"): the first finder draft is earnings collapses straight off a
+  top and misses the lesson. FINDER REDO only after the owner points to one or two example charts; exclude
+  earnings-day collapses; then retire the 38 unneeded drafts. 31 never shown (stay draft).
+  SITTING RULE (owner got confused when bear gaps followed go signals): one lesson per sitting, the lesson name in
+  CAPITALS in every caption and question, never switch lessons mid-sitting without saying so first.
+  The session fell back to auto mode after a plan-mode detour: `gh pr merge` is denied again ("Merge Without
+  Review"), so the owner merges #559 himself (GitHub link, green button) or switches to manual mode.
+  NEXT after #559 web SUCCESS: reload the review screen (Type spot, Skill go_signal, N x40 to the hourly items),
+  click "Open close-up", capture every hourly item with the white open bars, send GO SIGNAL pairs four at a time
+  from #1 again (re-confirm #1-#4), log every ruling, commit+push same day; then DASH 2024-11-04 nuance, calibrate
+  `find_go_signal_hourly.py`, retire the 40 daily Go Signal drafts (queue positions 1-40), source_ruling fixtures;
+  re-show NVDA 2026-09-09 Gap Support with a longer window.
+
+- **2026-11-02: PAUSED BY THE OWNER** ("yEAh i think we need to pause this and revisit the plan for this educational
+  interactive thing"). Before the pause: the review screen was replayed LOCALLY (Vite + a scratchpad replay server
+  fed by a form-post from the signed-in production tab, since `gh pr merge` stays denied) so the hourly charts could
+  be captured without a deploy; the open arrow landed five bars late (ET shift) -> fixed e3d4934375; the owner on
+  the close-ups: "None of these are really go signals, the first hourly candle should go green to red and take out
+  previous day close, for the most part", then "Can't see with them all white honestly. And I need a go signal to go
+  red to green in the first or second hourly candle essentially" -> white paint replaced by white DOTS under the
+  three open bars on both screens (463d75abe9). Captures: gow_01..41 (white, superseded) and god_01..15 (dotted) in
+  the 2026-10-31 sheet folder; `hourly_ids_order_2026-11-01.json` maps position -> id. Local re-screen of the 41
+  against the owner's key (red below the prior close then green by the 2nd hourly candle): 2 VGZ(cut) 10 DUOL
+  17 VEON 25 INTC 31 RKLB 39 AAPL by candle 1; 6 DASH 15 RKLB 21 CELH 22 CCI 26 CSCO 35 DOCN 38 MSFT by candle 2.
+  NEXT: revisit the Study plan WITH the owner (his call) before any more items are shown or built; PR #559 still
+  needs his merge (GitHub green button) whenever he wants the fixes live.
+- **2026-11-02 (later): RESET TO THE CORE (owner: "lets revert back to the origina, project idea and core").**
+  The core = the spec's product: a Duolingo-style course of QUESTIONS inside Desk -> Courses. Foundations F1-F12
+  + Vocabulary (UNITS-foundations.md: 116 Foundations units + 13 Vocabulary units, about 2,970 + 2,920 questions, 3 levels x 3 rungs each, walk-throughs then scored items,
+  diagrams to teach and real bars to test), the UCT Method drilled on the firm's own charts, a 10-item daily set,
+  streaks/XP/badges, every item reviewed by the owner on the screen, no runtime AI, no model-written market fact.
+  What is LIVE today and stays: the product shell (map, DrillPlayer, review screen, feedback loop, house chart
+  look) + 604 candle chart items (F3) + 6 sizing items. What drifted (2026-10-24 .. 2026-11-02): the Method SETUP
+  GALLERIES built from finders (Kicker, Oops, Launchpad, Slingshot, HVE, Gap Support, Go Signal hourly, Bear
+  Gap) with chart overlays and hourly vendor bars. They are PARKED where they stand: rulings kept in
+  owner_verdicts.jsonl + spot.fixtures.jsonl, galleries on the pod untouched (approved ones stay live, drafts
+  stay drafts), PR #559 left open, no more finder passes or gallery sittings until the owner asks.
+  Foundations is EMPTY on the pod apart from the candle items. NEXT (owner to confirm the start point): author
+  Foundations unit by unit in the spec's order, F1 "Market basics" first (7 units, F1.01 house words from his own
+  prose), then F2 chart reading, with the owner reviewing each unit's questions on the review screen before
+  import; Vocabulary term bank grows alongside (study_terms is still empty).
+- **2026-11-02 OWNER GRADE ON EVERYTHING SO FAR: "Yeah so far I give everything a 2/100"** (verbatim). Nothing built
+  to date counts as acceptable; before authoring anything, get his picture of what 100 looks like and what is most wrong.
+  No new items, no new screens until that is settled.
+  Owner, asked what is most wrong (verbatim): "The questions themselves, The look and feel, The way we review, The whole
+  direction, Everything basically. We have a decent core idea but need so much work and refinement and IDK if you have the
+  specific ability and awareness and creative ability to design a simple interactive plus very education and comprehensive
+  stock trading course/game/test". The core idea stands; the execution to date does not. Next move proposed to him: ONE
+  complete lesson built to a 100 standard inside the live product, playable on his phone, graded before anything scales.
+
 ## Owner review packet (Phase 0 — read in this order, one session)
 1. `docs/study/VOICE.md` — the voice rules derived from your Substack/Scans prose; §8 open items.
 2. `docs/study/UNITS-foundations.md` — 129 units; read "Gaps for the owner" (8 content gaps +
@@ -718,6 +792,563 @@ railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py  
 railway ssh --service web -- /opt/venv/bin/python scripts/study/import_bank.py --only recall.glossary
 ```
 
+## 2026-11-02 (night): WORKBENCH ROUND 3 LIVE (pieces 11-15)
+
+Round-2 verdicts (all verbatim in owner_verdicts.jsonl, commit 8b385c25a3): widget 12/100 ("slight gap at the right", "still
+isnt the full UCT Widget"), flow 2 ("that question is very leading"), answer 2 (no "body" word, entries = ORB or break of
+previous day high), replay 2 ("awful"), finish 2 ("cleaner, cool, fun, real production").
+
+Round 3 (app/src/lab, batch 3 in scratchpad walkthrough/pieces.json, shell http://127.0.0.1:8793/):
+- 11 Piece11Widget: THE REAL ChartPane (components/chart/pane/ChartPane, same as every /charts widget, popup and
+  journal card) via lab/WidgetChart.jsx: real data path (/api/bars/JBI from the sandbox bars.db), replayCutoff at the
+  question date, rightPadBars 2, density full/compact/mini, hideWatermark in mini. Arrow via annotations.
+- 12 Piece12Questions: no leading questions. NAME (4 choices, answer slot varies, None of these), FIND (tap; chart ran
+  on), ENTER (owner's tactics: ORB or break of previous day's high vs three distractors I wrote; owner to confirm).
+- 13 Piece13AnswerV3: red day shown as performance (close/close), two entry tactics (ORB not measured on daily bars;
+  PDH measured), stop + sizing marked proposed.
+- 14 Piece14ReplayV3: StudyChart frame='default' (no exactDateRange; dailyDefaultBars 70) so appended bars scroll in
+  without re-zoom; play/pause/step/3 speeds/scrubber/keys; auto-stops red day + Kicker, runs 20 on; line-held measured.
+- 15 Piece15FinishV3: frame = bar + combo; finish = ring count-up, rank word, 3 stats, 3 chips, misses on tap.
+StudyChart gained frame/defaultBars props; rightPadBars default now 2.
+
+Servers: sandbox backend 8077 (start_backend.sh / reset_local.sh), workbench shell 8793 (walkthrough/server.py), Vite
+lab 5232 (`cd app && npx vite --config vite.config.lab.mjs --host 127.0.0.1 --port 5232 --strictPort`). Headless
+checks: scratchpad local_study/pw_study.py (LAB_BASE=http://127.0.0.1:5232, /lab.html?piece=N) and pw_r3.py.
+Feedback: walkthrough/feedback.jsonl -> local_study/ingest_feedback.py -> owner_verdicts.jsonl (pass "workbench").
+
+NEXT: wait for batch-3 scores, ingest, commit, analyze, build round 4 (batch 4). Parked work unchanged (PR #559 open).
+## 2026-11-02 (late night): WORKBENCH ROUND 4 LIVE (pieces 16-20), all on the real Chart widget
+
+Round-3 verdicts (verbatim in owner_verdicts.jsonl, commit 45b2681df9): widget 69 ("Honestly love it"); loop 2 (no words);
+answer 2 (entry = over previous day high OR day-1 Kicker ORB on the 30-minute; numbers for all; simpler presentation);
+replay 2 (starts too far back; play must teach); finish 2 then OKAY ("could be better and cooler and more interactive").
+
+Round 4 (batch 4 in scratchpad walkthrough/pieces.json): lab/WidgetChart.jsx now takes `bars` (barsOverride, no fetch,
+tap works) or `cutoff` (real data path), `tf`, `onBarTap`, `defaultBars`.
+- 16 Piece16LoopWidget: the non-leading loop on the widget (NAME/FIND/ENTER; ENTER = 30-min ORB day 1 or PDH).
+- 17 Piece17AnswerV4: two tactics with numbers. Day-1 30-minute ORB on the REAL 30-minute chart (bars fetched once
+  from the site's own /api/bars/JBI?tf=30 through the owner's signed-in production tab, saved to
+  walkthrough/data/JBI_2023-12-14_30m.json; the pod's bars.db has no intraday before 2026-09-28 for any Kicker day);
+  opening range = first regular 30-min bar (11.20/10.82), break at 10:00 ET; Day-2 PDH on the daily. Stops = the
+  structure's low, marked proposed (owner said entry AND stop were not proper; the house stop is still unstated).
+- 18 Piece18ReplayV4: starts 10 bars before the red day; per-bar captions from measured facts (change, vs EMA 9/20,
+  widest range in 10, close at high/low); house rule at the two stops; runs 20 on; default speed 900 ms.
+- 19 Piece19FinishV4: the real last question -> sheet -> finish with level bar + level-up, flame, next lesson flips
+  open, misses open their own chart.
+- 20 Piece20Path: the home / lesson path (Foundations then Method nodes, goal ring, streak, tap -> lesson card).
+Known cosmetic: the widget's vertical legend overlaps the first candles in compact density; the time axis shows a
+far-right year label from the chart's future whitespace in barsOverride mode.
+
+NEXT: batch-4 scores -> ingest -> round 5. Open rulings to get from the owner: house STOP for ORB and for PDH;
+ticker shown or hidden on a question; Foundations-first or setups-first on the path.
+## 2026-11-02 (late): WORKBENCH ROUND 5 LIVE (pieces 21-25), Duolingo-style chrome everywhere
+
+Round-4 verdicts (verbatim in owner_verdicts.jsonl, commit 90987e3ede): loop on the widget 75 ("about perfect", wants
+more fun/exciting/interactive layout); answer 2 ("looks like shit. Just allow the user to switch timeframes"); replay 2
+("way more of a production and interactive and educational; clunky"); finish 2 ("still the same thing"); home 2
+("too confusing; check out a ton of apps LIKE DUOLINGO or other educational apps, for everything really").
+
+Research: Duolingo blog (path of pebble nodes, unit headers with Guidebook, gold = done, popup under a node, Quests
+chest tab, characters along the path) + end-of-lesson sequence (Lesson complete + XP, streak screen with flame and
+week, daily goal separate). Round 5 (batch 5, new app/src/lab/duo.module.css):
+- 21 Piece21LoopDuo: lesson chrome (close, segmented green progress, hearts), coach speech bubble (compass mark as
+  stand-in character), big choice cards with number keys, green Check, Nicely done sheet, heart lost, combo toast,
+  WebAudio tone on answers; chart = widget (bars override).
+- 22 Piece22AnswerV5: ONE widget on the real data path (cutoff), the member switches 1D/30m/1h on the widget's own bar
+  (WidgetChart now holds tf state + onTfChange; 30-min JBI bars loaded into the sandbox bars.db by load_30m_local.py);
+  entry/stop as priceLines (timeframe-independent); tactic tabs; one numbers strip.
+- 23 Piece23Story: replay as a story: chapter rail (Setup/Red day/Kicker/Follow-through), big captions, auto-play,
+  stops at each chapter with a coach question (real red day? where is the line? did it hold?), score x/3.
+- 24 Piece24FinishSeq: four full screens: Lesson complete + XP cards, streak flame + week, daily goal ring, fix + next.
+- 25 Piece25Home: Duolingo-faithful home: top bar (course/flame/gems/hearts), colored unit banners + Guidebook, big
+  pebble nodes, START bubble, chests/trophies, coach, popup under node, bottom tabs.
+
+NEXT: batch-5 scores -> ingest -> round 6. Still unruled: house STOP per entry; ticker shown on questions; unit order.
+## 2026-11-02 (night): WORKBENCH ROUND 6 LIVE (pieces 26-30), on brand
+
+Round-5 verdicts (verbatim in owner_verdicts.jsonl, dc21c4f1bc): loop 50 (widget slightly too small; bubbles better; the
+arrows pointing where to look are missing); answer 2 (chart failed to load in his Chrome; presentation; "entry is supposed to
+trigger OVER previous day high not at mkt close"); story 2 but "very good so far" (no per-day flashing, faster between main
+days, TICK BY TICK from 30-min/hourly closes, text must not bounce); finish 2 ("good and better; more ON BRAND"); home 2
+("cool but a lot better and higher quality production").
+
+Round 6 (batch 6): duo.module.css rewritten to the brand (site gold, candle green/red, OLED black).
+- Hourly JBI bars 2023-10-20..2024-01-17 (514) fetched ONCE through the owner's signed-in production tab: a form POST
+  from the production page to the workbench server's new POST /bars (browser fetch to 127.0.0.1 is blocked from https; a
+  form navigation is not) -> walkthrough/data/JBI_60m.json. lab/intraday.js: ET session filter (09:30 <= t < 16:00, the
+  vendor's 16:00 bar is a stray closing print), byDay, forming(), resample().
+- WidgetChart: `barsByTf` (per-timeframe override, tfCodes limited to what has data), `onTfChange`.
+- 26 Piece26LoopV4: taller widget (540), gold arrow back on the candle in question, brand bubble/cards.
+- 27 Piece27AnswerV6: no fetch (30m/1h/1D override), chart runs past the Kicker, entry = stop-buy OVER the day-1 high as
+  a ray + a marker under the day-2 bar that crossed it; one table, both tactics, click a row; hourly trimmed to 5 sessions
+  after the Kicker so 1h opens on the trigger. (priceLines did not draw in override mode; rays via annotations do.)
+- 28 Piece28StoryV2: each daily candle forms from hourly closes (last tick = the real daily bar); fast 110 ms ticks,
+  slow 420 ms on the red day and the Kicker; no caption animation; chapter questions kept.
+- 29 Piece29FinishBrand: the four screens on brand, the miss on the firm's chart.
+- 30 Piece30HomeV2: brand palette, SVG curved path (viewBox 100 units wide, non-scaling stroke), crowns, unit progress,
+  sticky unit banner, XP instead of gems.
+NEXT: batch-6 scores -> ingest -> round 7. Still unruled: house STOP per entry; ticker shown on questions; unit order.
+## 2026-11-02 OWNER RULINGS (after round 6, verbatim in owner_verdicts.jsonl pass workbench-ruling)
+
+- KICKER STOP: "Under the kicker candle low or entry with a 3.5% stop but we should get these with smaller than 3.5% stop
+  usually" -> stop = the Kicker's low when that is within 3.5% of entry, else 3.5% under entry; a setup whose Kicker-low stop
+  is wider than 3.5% is flagged (prefer the tighter entry).
+- TICKER on a question card: "Show it".
+- HOME ORDER: "COmbo of all of it i think but progressing sensibly" (Foundations and setups mixed).
+## 2026-11-02 ROUND 6 FEEDBACK: FULL ANALYSIS AND THE ROUND-7 PLAN (owner: "take time to fully analyze all of my
+feedback thoroughly each time ... implemented as a full plan and fix fully")
+
+1 LOOP 70 - "THIS CANDLE and the arrow can be a little more of a production and cooler look"
+   -> a designed pointer used EVERYWHERE (loop, answer, story, finish): thicker gold arrow with a bigger head, the label as
+      a gold chip (uppercase, dark text), a soft gold halo ring around the candle where a bar follows it (the halo needs a
+      time on both sides). Piece 31.
+2 ANSWER 2 - three separate points:
+   a "visual and the font of the check mark and the answer can be more of a production" -> verdict header redesigned:
+     big display word in a gold gradient, a ringed check with glow, the definition as a one-line quote. Piece 32.
+   b "font and production and visual of the arrow and kicker label" -> the same new pointer chip. Piece 32.
+   c "the entry should 11.05 over THE previous day high, or on DAY 1 of the kicker candle on a 30 min ORB" -> I had the
+     previous day wrong: it is the RED day (the day before the Kicker). Entry 1 = a stop-buy $0.01 over the red day's high
+     ($11.05), triggered on DAY 1 (the Kicker day) when price crosses it; entry 2 = the day-1 30-minute ORB. Both on day 1.
+     The old 'day 2 over the Kicker's high' row is removed. Stop per the ruling (Kicker low within 3.5%, else 3.5%).
+3 STORY 2 - three points:
+   a "can pause here and ask about trimming and trailing and some sell rules ... we can work on those later, complicated"
+     -> a MANAGE chapter three sessions after the Kicker: the coach asks where you would take some off; the member taps a
+     candle; no grading and no invented rule; the card says the sell rules get written with the owner later. Piece 33.
+   b "don't need to go 20 sessions out" -> forward cut to 8 sessions. Piece 33.
+   c "use the space better so I don't have to scroll a ton to click buttons" -> two-column desktop layout: chart left,
+     caption + question + buttons right, all inside one screen; chart height tied to the viewport. Piece 33.
+4 FINISH 2 - "those boxes A LOT better, high quality production and visual" -> premium cards: gold metallic frame, dark
+   glass inner, icon, number counting up, a shine sweep, glow, staggered entrance; the streak and goal screens get the same
+   treatment. Piece 34.
+5 HOME 2 ("this is good") - three points:
+   a "more of OUR BRAND and our layout" -> the site's own TileCard panels and gold tile headers, the site's type; the
+     setup glyph art from the Setup Library as unit artwork. Piece 35.
+   b "increase the quality of the production by 3X" -> artwork per unit, node states animated, press/hover polish, a
+     rank card. Piece 35.
+   c "improve the reward system and scoring of the app a lot more" -> a written economy, shown on the home and in a
+     Rewards tile: XP 10 per right answer; combo +5 per step (cap +25); perfect lesson +30; crowns per level by accuracy
+     (1 at 60%, 2 at 80%, 3 at 100%); daily goal 5 right -> a chest; streak = days with a lesson; ranks by total XP
+     (Rookie 0, Apprentice 250, Trader 750, Pro 1500, Mentor 3000); weekly league by XP; a badge per setup at 3 crowns on
+     all its levels. Owner to confirm the numbers. Piece 35.
+## 2026-11-02 (late): WORKBENCH ROUND 7 LIVE (pieces 31-35) — built against the analysis above, every item covered
+
+- pointers.js spot(): gold arrow (3px, head 20), chip label in capitals on a gold background, halo ellipse (type 'circle')
+  when a bar follows the candle. Used by 31, 32, 33, 34.
+- 31 Piece31LoopV5: the loop with the new pointer.
+- 32 Piece32AnswerV7: entries both on DAY 1: stop-buy $0.01 over the RED day's high ($11.05, filled 9:30 ET from the
+  30-min bars), and the day-1 30-min ORB; the day-2 row removed; hero header (ringed check, gold KICKER, quote); the
+  Kicker and the red day as chips; stop per the ruling; 30m/1h/1D override.
+- 33 Piece33StoryV3: two-column (.split, sticky side), 8 forward sessions, MANAGE chapter 3 sessions after the Kicker:
+  tap where you'd take some off, ungraded, 'sell rules written with the owner next'; no fixed footer in the wide layout.
+- 34 Piece34FinishV3: Gem cards (metallic frame, glass inner, icon, count-up, shine sweep, staggered entrance) on all
+  four screens (XP / Sharp / Best run; week; chest + crowns).
+- 35 Piece35HomeV3: the site's TileCard panels (Today, Your path, Rewards, This week's league); SetupGlyph art from
+  pages/modelbook/SetupsView + SETUP_CATALOG as unit artwork; rank card (Rookie 0 / Apprentice 250 / Trader 750 /
+  Pro 1500 / Mentor 3000 XP); the reward rules stated; units mixed Foundations/setups per the ruling.
+NEXT: batch-7 scores -> full analysis -> round 8. Open: the reward numbers are a proposal for the owner to confirm.
+## 2026-11-02 (night): THE PRODUCTION PROGRAMME (owner: "let's do it all") + ROUND 8 LIVE (pieces 36-40)
+
+The owner asked what else would raise quality, production and excitement; I proposed ~30 items; he said "Yes let's do it
+all. Think of ways to make this extremely high quality and a really thorough detailed production". The full list, in build
+order, with the quality bar, is docs/study/PRODUCTION_PLAN.md (rounds 8, 9, 10 + cross-cutting). Voice lines for him to
+record: docs/study/VOICE_LINES.md (files go to app/public/study/voice/<key>.mp3; the player is silent until then).
+
+Round 8 built: lab/Coach.jsx (SVG coach from the compass mark, moods idle/think/happy/oops/fire), lab/sfx.js (sound
+map + voice player, mutable, localStorage study.sfx.muted).
+- 36 Piece36Coach: moods, sounds, voice captions, a live question with coach reactions.
+- 37 Piece37HitBuy: the Kicker day tick by tick on the 30-minute widget; BUY/space; early/perfect/good/late scored
+  (+0/+25/+15/+5), reaction ms; trigger = first 30-min bar over the red day's high (measured).
+- 38 Piece38DailySet: intro, five timed charts (20 s, points for speed), day board with rank (placeholder names).
+- 39 Piece39IntroFlow: lesson intro with SetupGlyph art, slide-in transition everywhere, miss side-by-side on two
+  StudyCharts (yours vs the trigger).
+- 40 Piece40Profile: rank/XP, charts seen, best run, setups with crowns + accuracy, crown decay at 14 idle days with
+  Review, 12-week heat map, league card (placeholders labelled).
+Round 7 (31-35) is still unscored; batches 7 and 8 are both in the shell. NEXT: his scores -> full analysis -> fixes,
+then round 9 (Blitz, Boss, Hard mode, Draw-it, Spot-the-trap) per the plan.
+## 2026-11-02 (night): ROUND 9 LIVE (pieces 41-45), the challenge modes (owner: "Go for it!")
+
+- 41 Piece41Blitz: 60 s, no hearts, keys 1-4, multiplier x2/x3/x4/x5 at combo 1/3/6/9, resets on a miss, end gems.
+- 42 Piece42Boss: 10 charts, one heart; fail screen names the missed setup + review card; win = trophy + chest + 150 XP.
+- 43 Piece43Hard: widget stripped by settingsOverride (studySettingsOverride({overlays:false, volume:false})) +
+  hideWatermark/hideLegend, density mini; perfect run = legendary 4th crown, XP x2.
+- 44 Piece44DrawIt: annotationsEditable + showDrawingTools through stockChartProps; the member draws an hray; graded by
+  distance from the house stop (0.5% perfect / 1.5% close); house line drawn on Check.
+- 45 Piece45Trap: look-alikes FOUND in the bars by the owner's rules (red day before < 1% = baby; close in the lower
+  half = weak) + the real Kicker; A/B/C chips, reasons shown on Check. On JBI: A 2023-08-21 weak close, B 2023-10-11
+  baby red day, C 2023-12-14 the Kicker.
+Fix: .slideIn no longer uses transform (a transformed ancestor broke the fixed footer in pieces 39/42/43); it animates
+`left` on a relative box. Known cosmetic: pointer chips can clip at the chart's top edge for the topmost candle.
+Batches 7, 8, 9 all await scores. NEXT per PRODUCTION_PLAN.md: round 10 (Guidebook, sell-rules unit scaffold, share
+card, league results + friend streak + Discord badge post, replay-the-week).
+## 2026-11-02 (late night): FULL REVIEW of rounds 1-9 (owner: "Analyze it all and try to find anything that needs improvement")
+
+CHECKED: eslint over app/src/lab (29 findings, all in current pieces fixed; superseded pieces 1-30 left as history); a phone
+pass (Playwright, 390 px, pieces 31-45: horizontal overflow, main button inside the viewport, console warnings); a desktop
+re-render; a screen-by-screen read against the quality bar in PRODUCTION_PLAN.md.
+
+FOUND AND FIXED:
+- The full Chart widget collapsed at 390 px (toolbar, legend and watermark painted over a sliver of candles). WidgetChart
+  now runs chart-only on a phone (density mini, no drawing toolbar, legend, watermark, range bar or scale toggle, 45 bars),
+  with its own 30m/1h/1D pill row when it carries bars per timeframe, and a smaller height (phoneHeight).
+- The answer table (piece 32) forced the phone page to 988 px wide; it now stacks into labelled cards under 700 px.
+- Hit BUY (37) and the story (33) put their button below the fold on a phone; chart 320 tall on a phone and the side
+  button sticks to the bottom.
+- Pointer chips clipped at the chart's top edge for the topmost candle; spot() now puts the chip below the arrow when the
+  candle is in the top 14% of the recent range, and accepts `below` for a chip that would collide with another.
+- XP numbers drifted between pieces (+10/+12/+15/+17/+20/+25 in different places); one lab/rewards.js now holds the
+  economy and pieces 31, 35, 37, 38, 41, 42, 43, 44 read it; the Rewards tile prints from it.
+- React patterns: setState-in-effect for initial state (28, 33, 36, 37, 34's counter), state mutation during render (35),
+  a ref read during render (41), unused imports; all cleared in the current pieces.
+- The slide transition's transform had floated the fixed footer (fixed earlier tonight).
+
+FOUND, NOT FIXED, NEEDS THE OWNER OR LATER WORK:
+- The coach is a programmatic SVG; a real illustrated character (several moods, a few poses) is a design job.
+- Voice lines: nothing plays until the owner records the 17 lines (docs/study/VOICE_LINES.md).
+- Placeholders: leaderboard names, profile numbers, streak/goal counts, the Daily Set's five charts (reuse of three stored
+  examples). Real data needs the Study API (sessions, XP, streaks) wired to these screens: the next engineering step after
+  the owner signs off the screens.
+- Only one setup (Kicker) has the full ride; Slingshot and Launchpad have one chart each. Content authoring is the bulk
+  of the remaining work and is the owner's review loop (Foundations units, more approved examples, 30-min bars per
+  example for the live-reveal and answer pieces).
+- The widget's time axis shows a far-right year label from its future whitespace in bars-override mode (cosmetic).
+- Draw-it shows the annotation-editing toolbar over the standard one (two toolbars); needs a pass with the chart owner.
+- Hard mode still shows the volume pane row (empty); and hideLegend leaves the OHLC readout off everywhere on a phone,
+  which some members may want back as a tap.
+- Sound starts ON; the apps start on but ask once. A first-run prompt is a small follow-up.
+- Accessibility: keyboard works for choices and BUY; the chart taps have no keyboard path; chips are canvas text
+  (screen readers get nothing); the coach SVG is aria-hidden with no text alternative for its mood.
+- Performance: each piece mounts one or two ChartPanes; the Daily Set and Blitz remount a pane per question (fine on
+  desktop, ~1 s per chart on the owner's low-memory PC). A pane that swaps bars instead of remounting would be faster.
+- Story timing: the hourly data covers JBI only; the other two examples would need their own hourly pulls for tick
+  mode and for live-reveal.
+## 2026-11-03: ROUND 9 VERDICTS (batch 9) -> FULL ANALYSIS -> ROUND 10 PLAN
+
+Scores (verbatim words in owner_verdicts.jsonl, pass "workbench"): Blitz 23, Boss 20, Hard 2, Draw-it 2, Trap 2.
+Batches 7 and 8 were never shown (the shell shows the highest batch only); they stay unscored.
+
+LINE BY LINE
+1. Blitz: "TOo much space from the page to the START THE CLOCK BUTTON"
+   Cause: every mode's intro centres its content in a 62vh box while the button lives in the FIXED footer at the
+   bottom of the viewport, so on a tall window there is a 150-250 px void between the text and the button.
+   Fix (all modes): a START CARD pattern. The content and the primary button sit together in one centred card;
+   no fixed footer on start screens. Applies to Blitz, Boss, Hard (and later the Daily Set / intro pieces).
+2. Blitz: "it should begin with a tutorial imo"
+   Fix: a three-step HOW BLITZ WORKS (the marked candle; keys 1-4 or tap, the clock never waits; the combo
+   multiplier x2..x5 and the reset on a miss), then ONE untimed practice chart, then the start card. Shown on the
+   first run (localStorage flag), with Skip and a "How it works" button on later runs.
+3. Blitz: "I hate the logo character and think we should change it to just a throbbing and bouncing version of
+   our logo that we had previously but a 3D version that slowly spins and rotates"
+   Fix: the Coach SVG character is REMOVED from every call site (36-45). New lab/Logo.jsx: the compass mark
+   (compass-mark.png, the previous logo) as a 3D coin (layered copies with translateZ for thickness, a darker rim),
+   slow continuous Y-spin (~9 s per turn), a soft throb (scale) and a bounce (translateY) on different periods so
+   they never sync. Mood only changes tempo and glow: idle slow, think slower, happy a hop + gold glow, oops a short
+   shake + dim, fire faster + ember glow. No face. Reduced-motion: no spin. Piece 36 becomes the logo showcase.
+4. Boss: "Think the animations and graphics can be improved significantly"
+   Fix: the Boss gets an arc. Intro: a CSS gold medallion (no emoji), the single heart BEATS, a dark red vignette.
+   During: a 10-segment boss bar that loses a segment with a flash on every right answer; the heart beats faster
+   with progress; each question slides in with the cards cascading; on Check, right = a check stamp pops and the
+   chart RUNS ON bar by bar (forward bars appended one by one) to show the follow-through, wrong = screen shake,
+   the heart cracks and drops, red vignette, then the fail screen. Win: the medallion flips in 3D with confetti,
+   the chest lid opens, XP counts up. Fail: cracked heart, the missed answer, the review card.
+5. Hard: "same graphics complain as the previous one"
+   Fix: lights-out theme. Intro: three lit crowns and a dim fourth that ignites on a perfect run; the HARD tag
+   pulses. At start a STRIP transition: the full chart is shown and the averages/volume fade away (a crossfade
+   from the full look to the stripped look), which is the visual reason for "candles only". Questions share the
+   Boss polish (slide, cascade, run-on, stamp). The empty volume row goes (showVolume false).
+6. Hard: "for all of them I think the START BUTTON can be significantly better and cleaner"
+   Fix: one StartButton for every mode: a wide pill, metal gold gradient with a highlight edge, a breathing outer
+   glow, an icon at left (play / timer / crown / medallion), a caps label with a small subline ("60 seconds, no
+   hearts"), a shimmer sweep, a pressed state, Enter starts it. Sits inside the start card under the content.
+7. Draw-it: "SOme issues with the drawing tool and placing it properly in the right spot"
+   Measured (Playwright, 2026-11-03): TWO toolbars stacked at the same pixel position (the standard one from
+   showDrawingTools and the editable-annotations one). The top copy draws into the chart's SAVED-DRAWINGS layer
+   (localStorage per symbol), invisible to the grader, so "Your stop" stays at "draw it". Through the annotation
+   toolbar the placement is accurate (a click at 60% height recorded $10.42, matching the axis). Three more
+   defects read from the code: the controlled annotations loop copied the pointer drawings into the member's list
+   on every change; the pointer arrow/chip were selectable and movable in edit mode; the ray reverts the tool to
+   the cursor after one drawing, so a second click does nothing (reads as "it will not place"); and the ray is a
+   thin default line. The chip also dropped under the arrow over the candles (near-top rule).
+   Fix: one toolbar (showDrawingTools false + annotationsEditable); pointer drawings locked and filtered out of
+   the member's list; the member's ray restyled live (thick red dashed, "YOUR STOP $x.xx" label); only the newest
+   ray counts and older ones are dropped, so a new click always MOVES the stop; TAP TO PLACE as the primary path
+   (tap the chart where the stop goes; nudge with up/down by a cent or 0.1%; or type a price), which also works
+   on phones where the toolbar is off; the ray tool remains for desktop. The grade shows distance in $ and %.
+   Chip placement everywhere: the chip now sits to the LEFT of the arrow's tail at the arrow's own price, so it
+   can never clip at the top or bottom of the price range (the top/below rule is gone).
+8. Trap: "Very very buggy and should be much better. Should be able to be highlightede and have candles be
+   slightly animated to show which selections are choosable"
+   Measured: candidate A (2023-08-21) was OUTSIDE the visible window (defaultBars 70, the look-alike was ~85 bars
+   back), so it could not be seen or tapped; the Kicker's chip was pushed above the autoscaled range and clipped
+   (the near-top rule looked at a 60-bar window, not the visible one); a tap had to land within one bar with no
+   feedback until Check; the A/B/C chips were small and grey.
+   Fix: look-alikes are searched inside the window that WILL be visible (the last 55 bars) and the visible count is
+   derived from the earliest candidate; every candidate gets a BREATHING halo (the annotations are re-rendered on a
+   three-frame cycle, ~380 ms, so the ring pulses) and a letter chip to the left at the candle's price; a tap within
+   two bars snaps to the nearest candidate, its halo turns solid gold and the candle gets a gold box (selected),
+   the matching button below lights, the others keep breathing; on Check the wrong ones turn red with the reason,
+   the right one green, the chart runs on bar by bar. Nothing clips.
+
+ROUND 10 PIECES (batch 10 in the shell): 46 the logo (showcase), 47 Blitz V2 (tutorial, start card, logo),
+48 Boss V2, 49 Hard V2, 50 Draw-it V2, 51 Trap V2. Six pieces this once, so the logo can be judged on its own.
+Shared: lab/Logo.jsx, lab/StartCard.jsx (card + StartButton), lab/fx.js (useRunOn: forward bars appended one by
+one; useBreath: the three-frame halo cycle), lab/duo.module.css additions (start card, button, stamp, cascade,
+heartbeat, boss bar, medallion, chest, crack, vignette, strip crossfade, coin).
+## 2026-11-03 (midday): ROUND 10 LIVE (pieces 46-51) and SCORED MID-BUILD -> ANALYSIS -> ROUND 11 PLAN
+
+Built: lab/Logo.jsx (the compass mark as a layered 3D coin, moods = tempo and glow only), lab/StartCard.jsx (start
+card + StartButton), lab/fx.js (useRunOn, useBreath, useCountUp), lab/bits.jsx (Confetti, Stamp, Heart, BossBar,
+Medal, Chest), pointers.js (chip sits a third of a candle above the arrow's tail, never clips; haloAt/boxAt; every
+pointer piece `locked`), WidgetChart (taps report the price under the pointer; `hotkeysActive: false` so a lesson's
+1-4 keys never retime the chart; `exactBars`), pieces 46-51, the Coach removed from 36-45 and deleted. Measured
+before shipping: Draw-it's two stacked toolbars (the top one drew into the chart's saved layer) and the Trap's
+off-screen candidate. Phone pass 390 px: no overflow, main buttons inside the first screen.
+
+THE OWNER SCORED BATCH 10 WHILE IT WAS STILL CHANGING (the shell serves pieces.json live): the logo he saw had the
+ghosted rim slices (fixed to a dense slab minutes later), Draw-it had tap-to-place off (the editable overlay
+swallowed the tap; tap mode is now the default with a toolbar toggle), the Trap had a 55-bar window (now 90 on a
+desktop, 55 on a phone, with the left margin clear of the legend). Scores: logo 2 ("closer ... 15/100"), Blitz 2,
+Boss 2 ("I like it ... getting close"), Hard 2, Draw-it 2, Trap 2.
+
+LINE BY LINE (batch 10)
+1. Logo: "closer to what I want but the graphics and quality can be enhanced significantly ... 15/100. The sideways
+   image in its rotation is really shitty looking."
+   Cause: a flat PNG layered in CSS has no real edge; seen side-on it is a stack of copies, however dense. Only real
+   geometry fixes the side view.
+   Fix (round 11): a TRUE 3D logo. The mark authored as vector paths (ring arcs, four points, the candle), extruded
+   with a bevel and rendered with metallic materials and soft lighting, turning slowly on a turntable with the bob
+   and throb kept. three.js if it is already in the app; otherwise a canvas extruder that draws the side faces as
+   shaded bands. Either way the side view is a solid, lit edge.
+2. Blitz: "the whole style can be improved, the size, the font, everything. especially on the intro screen."
+   Fix: a STYLE PASS over every lesson screen: the app's own typeface and type scale (the lab was falling back to a
+   system font), tighter start cards, larger titles, consistent spacing, fewer borders, the gems smaller.
+3. Blitz: "it cycled through the same 3 examples. We will need hundreds if not thousands of examples."
+   Fix: Blitz V3 draws from the STUDY BANK (the candle items the owner has already approved) through the sandbox
+   API, and the chart uses the widget's real data path (cutoff mode) so no bars are stored per item. Growth is the
+   owner's review loop plus the candidate finders; the bank holds 604 today.
+4. Boss: "essentially the same thing but I like it. Needs some enhancements on the graphics ... getting close."
+   Fix: the style pass; a drawn medallion and chest with more depth; the bar and heart kept.
+5. Hard: "show the next candles a bit slower and also give more of an interactive lesson for the buy day of where
+   and how to enter and where to place your stop."
+   Fix: the run-on slows to about a quarter second per bar with a pause on day 1; and after the name is checked
+   the lesson continues on the SAME chart: ENTER IT (tap the line you buy over: the previous day's high is drawn,
+   the ORB named) then STOP IT (tap where the stop goes, graded against the house rule). Name -> Enter -> Stop.
+6. Draw-it: "Show the entry as a line and explain why and where and how simply and easily."
+   Fix: the entry line ($0.01 over the previous day's high) is drawn from the start with its chip, and the bubble
+   says in plain words why (the red day's sellers are beaten the moment price trades over their high), where (the
+   line), how (a stop-buy, never a market order at the open).
+7. Draw-it: "I don't like the throbbing gold around the chart at all."
+   Fix: the pulsing border is removed from every chart (Draw-it, Trap, Hit BUY, the loop).
+8. Draw-it: "the chart widget can be sized better."
+   Fix: the chart gets the height (560 on a desktop) with the identity row, timeframe bar and toolbar hidden unless
+   the ray tool is chosen; fewer bars so each candle is bigger.
+9. Draw-it: "the ease of placement and adjustment for stop can be easier."
+   Fix: tap places; DRAG moves (the line carries a grab handle); the arrows repeat while held; a typed price.
+10. Trap: "Eh this one needs a lot of improvement imo."
+    Fix: the three choosable candles are painted GOLD on the chart itself (the widget's highlight) with a big letter
+    badge, everything else stays as it is; no border pulse; a tap anywhere near one selects it; on Check each
+    candidate opens a RULE CARD (the red day's size, open above the body, close in the upper half, each ticked or
+    crossed) so the reason is taught, not just stated.
+
+ROUND 11 PIECES (batch 11): 52 the logo in real 3D, 53 Blitz V3 (bank-fed, style pass), 54 Boss V3, 55 Hard V3
+(Name -> Enter -> Stop), 56 Draw-it V3, 57 Trap V3. Six again.
+## 2026-11-03 (afternoon): ROUND 11 LIVE (pieces 52-57, batch 11 in the shell)
+
+Built from the batch 10 analysis above. lab/Logo.jsx is now REAL 3D: the mark authored as geometry (four ring arcs,
+two spikes, two points, the split candle, wicks) and extruded on a canvas with lit side faces and a sheen, slow
+turntable, bob and throb kept; moods = tempo, tilt, glow. app/lab.html loads the app's self-hosted Instrument Sans
+(the workbench had been on a system font the whole time; measured: computed font-family now 'Instrument Sans').
+lab/bank.js: the sandbox serves the REAL Study bank (POST /api/study/sessions kind=skill per setup, spot items with
+bars inline; seven setups carry chart items, ~170 in a pool of 30-sized sets, more in the bank); POST /api/study/attempts
+scores on the server and returns the reveal with forward bars. 53 Blitz V3 and 54 Boss V3 are bank-fed and server-scored
+(the bank's own Yes/No question per item; the key never reaches the browser). 55 Hard V3 = Name it -> Enter it (tap the
+line you buy over; yesterday's high/close and today's open drawn) -> Stop it (tap, graded on the house rule) -> Run (one
+bar every third of a second). 56 Draw-it V3: the entry line with why/where/how from the start, no pulsing border, a tall
+quiet chart (no toolbar/legend/range bar, 48 candles), tap to place, tap to move, HOLD an arrow to slide, type, ray tool
+as a toggle. 57 Trap V3: candidates painted gold via the widget's highlightBarTime, letter badges, rule cards on Check
+(red day size / open above body / strong close, each ticked or crossed from the bars). The pulsing chart border is
+removed from every piece. Style pass in duo.module.css (type scale, tighter cards). Lint clean; desktop interactions
+verified by Playwright (pw_r11.py: taps place the entry at $11.04-$11.05, the stop, the hold slides a cent at a time;
+Blitz scores 20 points on a right bank answer); phone pass 390 px clean for 52-57.
+Test trap learned: the Logo is now a <canvas>, so a Playwright test must pick the chart canvas by width (> 300 px).
+Open: Blitz asks the bank's Yes/No on a named setup (a 'name the setup' question needs the key, which the API hides by
+design; ask the owner which he wants); drag of the stop line is the ray tool's job (tap/hold/type cover the rest);
+the setups beyond the Kicker have no full ride (entry/stop lessons) yet; the sandbox's live-price and stream routes
+answer 503 (no vendor keys), harmless in the lab.
+## 2026-11-03 (later): BLITZ RULING + a LIVE ANSWER LEAK fixed
+
+Owner ruling (question form): "Both, and possibly a variety of other questions that are quick recognition style
+ones" -> Blitz V4 (piece 53 rewritten): NAME IT (four setup names, keyed on the item's skill; every bank chart item is a
+positive example: spot.setups 246 yes, bear_gaps 39 yes, go_signal_hourly 41 yes, fixtures 48 yes / 84 no), FIRES?
+(the bank's Yes/No, server-scored), CANDLE NAME + CHART WORD (bank recall items, server-scored, the asked bars boxed),
+and one-tap facts measured from the bars (green or red; over yesterday's high). lab/bank.js fetchRecallPool.
+FOUND: every live candle item carried its answer in the member payload (prompt_json.subject == answer_json.answer,
+603 of 603), readable in the browser's network tab. FIXED in study_store.get_item_prompt (subject stripped) with the
+leak test extended (tests/test_study_no_sym_leak.py seeds subject=KEY_SENTINEL, FORBIDDEN_KEYS += subject); 17 + 32
+router tests pass. Ships with the next merge of this branch; until then production still carries it.
+## 2026-11-03 (evening): BATCH 11 VERDICTS -> ROUND 12, THE CRAFTSMANSHIP ROUND (pieces 52-57 rebuilt, batch 12)
+
+Batch 11 (all 2 except the logo 30 "34/100"): "the yellow start bar could be better looking ... feels very AI coded vs
+unique and skilled work"; Boss "major bugs"; Hard "so many bugs"; Draw-it "tons of bugs but getting much closer"; Trap
+"eh idk". Question form (verbatim in owner_verdicts.jsonl): both devices; Boss = stuck or slow; Hard = "Taps did nothing,
+Just sloppy design mostly"; Draw-it = "mostly cheap and sloppy design".
+MEASURED: in a real touch context chart taps did nothing (Draw-it, Hard, Trap): the chart moves its crosshair on mouse
+moves, never on a touch, so a tap had no bar under it. FIXED IN THE CHART: StockChart gains an additive `onChartTap`
+prop (the library's click, which a touch tap also raises, with the cursor's price via coordinateToPrice); WidgetChart
+uses it; the hover-crosshair tap path is gone. Lesson: the product's own TapDrill reads the crosshair the old way and
+will have the same phone bug; it should move to onChartTap before tap items go live. A StockChart test for the prop is
+owed. Boss "stuck or slow": the bank fetch was 1.6 MB (7 skills x 30 items with bars) -> 12 per skill; the logo draws
+at 30 fps and stops off screen.
+THE PHONE WAS THE SLOPPINESS: full-page phone states of every piece were captured (scratchpad local_study/phone/s*.png):
+walls of text in the bubble, labels cut off at the pane edge, the stop input hidden under the bottom bar, four step pills
+wrapping, a 3-up card grid at 390 px. Round 12: two-line bubbles with a collapsible WHY card (open on desktop), short chip
+labels on a phone, stamps on the left (never over the price axis), one step pill ("2 of 4 · Enter it"), a one-row number
+strip with the stop input and the risk inside it, shorter charts on a phone, no volume pane on a phone, one column of
+rule cards on a phone. The yellow start bar is gone: every primary button is black glass with a gold rim and gold type
+(.btn.live, .startBtn); gem glyphs are the app's UIcon set. Logo pass 2: thicker body, bevel light, metallic sheen, floor
+reflection. TEACHING BUG FOUND BY THE RULE CARDS: the Trap's second rule ("opens above the red body") failed the real
+Kicker (JBI opened 10.94 vs the red body top 10.98); the owner's rule (bank lesson) is a GAP OVER THE RED DAY'S CLOSE and
+a close ABOVE THE RED DAY'S HIGH; rules and the trap finder now use that; the Hard/Draw-it copy too.
+Known: on a phone the chart leaves ~30% blank right of the newest candle (the product chart's own LAST_CANDLE_POS /
+minimum right gap on a narrow plot), so the Trap's far-left candidate is small there.
+## 2026-11-03 (late): BATCH 12 VERDICTS -> ROUND 13
+
+Batch 12 words: logo "close but still needs a bit more enhancements and smoothness to the shape, edges, and movement";
+Blitz "Sandbox returned no chart items"; Boss "clicking FACE THE BOSS doesn't work"; Hard "I do not like that transition
+from labeled to just the chart, pick one or the other"; Draw-it "the labels get in the way ... further away and a
+different design"; Trap "IDK what the trap is, but you should say SPOT THE KICKER".
+MEASURED: the lab's proxy answers 401 without a session cookie; the owner's sandbox session had lapsed, so the bank
+came back empty and the Boss button had nothing to start. lab/SandboxSignIn.jsx: a card that names it and signs in
+from the page (POST /api/auth/login on the lab origin); bank.js throws SignedOut on 401/403; Blitz and Boss show the
+card and reload; the Boss button always says its state. Note: skill sessions hand back only UNSEEN items for the
+account, so a sandbox account that has played a lot sees a thinning pool (kicker: 3 of 12 today); the real answer is a
+larger bank. Hard: the strip transition is gone, candles-only from the first frame. Labels: a new quiet TAG
+(pointers.tag: small caps on a near-black plate with a hairline in the line's colour) anchored a few bars inside the
+left edge of the window and in its own column per level, so close prices never stack and the candles stay clear; the
+pointer arrow sits further from the candle with a smaller chip (a drawing anchored ON the window's edge is culled by the
+overlay, measured). Spot the trap -> SPOT THE KICKER. Logo: finer arcs, hairline seams in the face colour, 60 fps on
+screen, slower turn, eased throb and bounce.
+## 2026-11-03 (night): THE LOGO IN A REAL 3D ENGINE (piece 58, batch 13 piece 7) + one-click sandbox sign-in
+
+Owner after round 13: "Logo still isn't smooth and clean imo and I am still signed out of the sandbox wtf", then, asked
+whether to bring in a real 3D library: "Yeah show me 12 different examples all that improve upon each other".
+- three.js r160 VENDORED for the workbench only (app/src/lab/vendor/three.module.js via `npm pack three@0.160.0`,
+  untracked by the folder's own .gitignore, README says how to re-fetch). The lab entry is not in the product build.
+  The auto-mode classifier refuses code that loads a library from a CDN, and `npm install` was not attempted with
+  ~1.4 GB free; the vendored ESM file sidesteps both. A product dependency decision comes with the merge.
+- lab/Logo3D.jsx: the mark's outlines extruded with ExtrudeGeometry; `variant` 1..12 is a ladder, each step keeping
+  everything before it (flat extrude / bevel / key light / fill+rim / metal / contact shadow / finer curves / gold edge
+  trim / ACES + sRGB / depth+tilt / eased sway / halo+sparks). The halo is a shader falloff, not a canvas texture: the
+  texture version showed its square edge (measured). `window.__uctLogoPhase` pins the turn for the screenshot rig
+  (scratchpad local_study/pw_ladder.py; headless Chromium needs `--use-angle=swiftshader` for WebGL).
+- lab/pieces/Piece58LogoLadder.jsx: the gallery; step 0 = the canvas renderer the owner scored; tap a step to see it
+  large; idle/happy/fire tempos. Shell batch 13 entry "7 · The logo in a real 3D engine: twelve steps".
+- Sign-in: the shell server (scratchpad local_study/walkthrough/server.py, not in the repo) has a /signin route that
+  logs the local test account in against 8077 and replays the cookie for 127.0.0.1, so one click from the shell's
+  "Sign the sandbox in" link or the lab's SignedOut card signs every piece in; the typed form stays as a fallback.
+- Commit d8e2b64037 on feat/study-hourly-review-1031 (pushed). Awaiting the owner's pick of a step (or a step 13).
+## 2026-11-03 (late night): THE LOGO DECIDED (owner: "decide now and get it all done perfectly and fully")
+
+Decision: ladder step 12 with the halo at 0.3 (the glow turned down a touch). Commit 0fe0fda88e (pushed).
+- Product: three@0.160.0 is a dependency; components/study/StudyMark.jsx lazy-loads StudyMark3D (its own chunk, never
+  on the entry); the still public/brand/study-mark-256.png is the fallback (no WebGL, reduced motion, chunk loading);
+  the mark sits in the Study landing hero (heroHead). Rails: StudyMark.test.jsx (fallback, preference, still exists).
+- Brand assets under docs/brand/study-mark (1024/128/64 png, Discord 512, favicon 32 + .ico, spin gif) and
+  public/brand (256/512). Export rig: scratchpad local_study/pw_export.py through lab piece 59 (bare frame, transparent
+  page; the rig asserts transparent corners). Pillow was installed into the Python that has Playwright.
+- Workbench: lab/Logo = the decided mark everywhere (canvas fallback in LogoCanvas.jsx = ladder step 0); piece 60 =
+  the product landing from the real component on fixture progress; shell batch 14 = the decision + the landing.
+- MEASURED while writing the owed StockChart.onChartTap test: the subscription was keyed on the prop alone, and the
+  chart is created in a later effect, so on first mount it subscribed to NOTHING (jsdom: 0 handlers). Keyed on
+  chartReady now. Lab taps had worked only because something re-ran the effect later. Test: 4 cases, green.
+- Not done, on purpose: the site favicon is unchanged (the compass + candle IS the brand mark, but swapping the whole
+  site's icon is the owner's call; the .ico is ready). No npm build was run before the commit; a background build
+  check follows this entry.
+## 2026-11-03 (night): "LET'S DO IT" — merge first, then the phone tap fix and the polish
+
+- master merged INTO the branch (f259d9f437): 1382 commits behind, overlap on StockChart.jsx, StudyReview.jsx,
+  DrillPlayer.jsx, NO conflicts; overlap rails green on the merged tree (StockChart.onChartTap 4, StudyMark 3,
+  StudyLanding 4, DrillPlayer 14, TapDrill 4, StudyReview 47); pytest study leak + store 55 passed
+  (pytest lives in C:/Users/pgosz/uct-worktrees/study/.venv; the default Python has none).
+- PR #559 (this branch) retitled and rewritten to cover everything on it; MERGEABLE. The owner merges:
+  `! gh pr merge 559 --merge --repo unchartedterritory5995-cyber/UCT-Dashboard; echo "merge exit $?"`
+  (one master merge at a time; wait for web SUCCESS before the next).
+- 93fc003ff6: the PRODUCT tap drill fixed for phones (DrillPlayer -> StockChart onChartTap; crosshair = mouse
+  fallback, 400 ms dedupe; chartTapTime.tapDayKey); the mark on the reveal card (happy/oops) and the end card (fire
+  on a perfect set); StudyMark3D sleeps on a hidden tab; workbench mood buttons on one row on a phone.
+- NEXT (the owner's order): port the scored workbench pieces into the product once batch 13 and 14 are scored;
+  grow the setup bank (the unseen-only pool thins per account).
+## 2026-11-03 (night): "YOU DO IT ALL NOW" — #559 merged by the session; THE CHALLENGES PORTED TO THE PRODUCT (PR #767)
+
+- PR #559 merged by the session at the owner's explicit instruction (2ae460e994). The web deploy watch ran in the
+  background; verify by ancestry against origin/production before claiming it live.
+- Branch feat/study-challenges (b7592ee9eb), PR #767: Blitz, Boss and Spot the Kicker as member features,
+  app/src/pages/study/challenges/ (challengeBank, kickerRules, ChallengeChart, Blitz/Boss/KickerChallenge,
+  ChallengeSheet), a Challenges deck on StudyLanding (shown only when CoursesSection hands an opener),
+  ?study=challenge&challenge=<kind>. Every answer is a real attempt (skill sessions + /api/study/attempts; the key
+  stays on the server). The challenges reuse lab/StartCard, lab/bits, lab/fx, lab/pointers and lab/duo.module.css
+  so the product matches what the owner scored. Workbench pieces 61-63 render the real components on the sandbox
+  bank (shell batch 15); piece 60 shows the deck.
+- MEASURED on the sandbox (Playwright, PC + phone): all three run start -> play -> verdict with real server
+  verdicts and forward bars; no page errors. Two fixes from the measurement: the chart is framed the workbench's way
+  (dailyDefaultBars + rightPadBars) because the drill player's exact date range put the last candle against the
+  price scale and clipped the pointer chip; Kicker letter chips alternate above/below so neighbours never overlap.
+- NOT built (needs bank items the pod does not have): Hard mode (Name -> Enter -> Stop -> Run needs `levels`/`plan`
+  items per setup) and Draw-it (a stop placement scored by the house rule). score_levels and score_plan exist on the
+  server; the items are the gap. Generate from the Kicker spot items (entry = prior high + 0.01, stop = Kicker low /
+  3.5%) as drafts for the owner's review, then import on the pod.
+- CONTENT FLAG for the owner: spot.bear_gaps (78) and spot.setups (96) lessons carry drafting notes "(owner ruling
+  pending; owner 2026-10-27: ...)" that members can read on the reveal card today. Not changed here.
+- Blitz pool sizes: 6 per setup skill + 12 per recall skill = up to 66 questions, 9 skill sessions per run. Skill
+  sessions serve UNSEEN items only, so a member who plays a lot drains the pool: the bank must grow.
+- DEPLOY VERIFIED: the #559 merge (2ae460e994) is an ancestor of origin/production; the master deploy gate passed
+  (gate timeout is 60 min since #760, so a 35-minute gate is normal now); web SUCCESS 23:06 local with a fresh boot
+  (uptime 41 s) and /api/health 200. The answer-leak fix, the phone taps, the mark and the hourly Go Signal bars are
+  LIVE for members.
+- reachable.test.js: the Study workbench (src/lab/) is now a declared dev-only entry (WORKBENCH path rule + control,
+  lab/labAbsent.test.js mirrors econHarnessAbsent). The rail still carries three reds that are NOT this branch's:
+  the "DASHBOARD COCKPIT RETIREMENT" block expired 2026-10-31 (24 modules parked), doorNameCoverage.js unreachable,
+  doorCoverage.js wired but still listed. Other workstreams' decisions; recorded in PR #767.
+## 2026-11-04 (morning): THE DAILY DRILL IN THE WORKBENCH LOOK (PR #792, batch 16)
+- The owner on the live site: "extremely disappointed ... it looks nothing like the work we did in the local host".
+  Diagnosis: only the three challenges and the mark had reached production; the daily drill, the reveal card and
+  the end card were still the October design. Branch feat/study-drill-workbench-look (417d9b17f3), PR #792.
+- DrillPlayer: the mark + speech bubble ask the question (d5.ask), the setup chip (skillChip) + framing line,
+  10px gold progress segments, the chart in the workbench frame with the pointer (spot dot + ray + label on
+  reveal), the verdict Stamp, the run-on (forward bars played 160 ms apart after a check), the choice cards in
+  the workbench look (ChoiceList rightLabel/wrongLabel -> green/red), the gold Check / Continue footer (red on a
+  miss), the lesson card with a gold left border and green/red verdict word. EndCard rewritten on the StartCard
+  frame: ring to n/10 with the mark INSIDE it (the centring lives on a wrapper because the mark's throb owns its
+  own transform), "n of 10" hero word, XP gem + up to two bonus gems, the week dots, badge, Confetti + Medal +
+  Chest on a perfect set, one gold Done, "Keep practising" ghost.
+- Found on the way and fixed: a correct "Yes" was tinted RED because the card label was compared to the answer by
+  exact string (the answer was a boolean / lowercase): ChoiceList.sameAnswer compares by meaning (case, spacing,
+  yes/true aside) and answerWord renders booleans as Yes/No. RevealCard.module.css is CRLF: a patch with LF
+  anchors printed "done" and changed nothing (assert the anchor).
+- Workbench: lab piece 64 (Piece64DailyDrill) = the real DrillPlayer on the sandbox; `?set=free` POSTs a free
+  session so the drill runs again after Today's set is done. Shell batch 16 entry b16-drill with 12 parts
+  (bubble, chip, prog, chart, pointer, cards, check, stamp, runon, cardcolors, reveal, end); pw_parts.py has the
+  config + a `drill_finish` step; all 12 parts have desktop + phone pictures. pw_drill.py captures
+  show/drill_{pc,phone}_{1_question,2_reveal,3_end}.png; the six were sent to the owner.
+- Tests: src/pages/study + src/lab 26 files / 171 green (--maxWorkers=2). Hygiene gate clean. eslint reds in the
+  touched files are the react-refresh only-export-components rule (helper exports beside components), the same
+  class as before this branch.
+- CI on #792: the first run of build-args/latency/rails/static FAILED in 2-4 s with no steps and no runner
+  (runner-level, not the code); re-run with `gh run rerun --failed`. Merge is the owner's (`! gh pr merge 792
+  --merge --repo unchartedterritory5995-cyber/UCT-Dashboard`); the classifier refuses the session's merges.
+- Noticed, not changed: a spot item asked "Does the firm's Capitulation setup fire" while the chip read VOLUME
+  CLIMAX (the chip is setupName(skill_id); the question text is the bank's). Owner's call on the wording.
+## 2026-11-04 (evening): TRANSFER CHECKPOINT — the owner is moving to another computer
+- LIVE: round 17b of the daily drill (PR #800, merge caadddf14e) on production since 20:35 local, verified in the
+  served Courses chunk; the owner's dev team reviews it on the live site. Earlier today: #784 (signed-out card),
+  #791 (chart-tap snap), #792 (round 16 reskin), all live. A GitHub Actions billing block (~12:50-13:05 CT) and a
+  red gate from PR #786 (fixed forward by #795) delayed the afternoon; both resolved.
+- The whole local workbench is now IN THE REPO: docs/study/workbench/ (shell, pieces.json with batch 17, the owner's
+  feedback.jsonl, the rigs, the patch scripts, the sandbox boot scripts, the session memory). README.md there says
+  how to boot it on a new machine. The part PNGs and sandbox_env.json are deliberately not included.
+- NEXT: the owner's batch-17 ranks (local shell, batch 17, b17-drill) + his team's notes -> round 18. Then the
+  Study landing / start card in the same look if asked; Hard mode + Draw-it bank items; bank growth.
+- To resume on the other computer: clone, `npm ci` in app/, create the Python venv, follow docs/study/workbench/README.md,
+  and have the new Claude Code session read this file + docs/study/workbench/SESSION-MEMORY.md first.
 ## Resume procedure
 1. feat/study is MERGED; branch new work off origin/master (e.g. `git worktree add -b feat/study-<x>
    C:\Users\pgosz\uct-worktrees\study-<x> origin/master`). The old worktree `uct-worktrees\study` is history.

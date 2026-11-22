@@ -62,7 +62,7 @@ function Wrap() {
   )
 }
 
-test('the workspace settings modal shows Separate pane as not-applicable', () => {
+test('the workspace settings modal: Separate pane is a real choice, ON by default (owner 11-16: Volume can overlay the price pane)', () => {
   render(<Wrap />)
 
   fireEvent.click(screen.getByRole('button', { name: 'Chart settings' }))
@@ -76,7 +76,6 @@ test('the workspace settings modal shows Separate pane as not-applicable', () =>
   fireEvent.click(document.body.querySelector('[data-row-id="volume"][data-structure-row]'))
 
   const toggle = screen.getByRole('switch', { name: 'Separate pane' })
-  expect(toggle).toBeDisabled()
-  // A grey control with no stated reason is still a mystery — the reason must ship.
-  expect(toggle.getAttribute('title')).toBeTruthy()
+  expect(toggle).not.toBeDisabled()
+  expect(toggle.getAttribute('aria-checked')).toBe('true')   // /charts: its own pane unless the member moves it
 })

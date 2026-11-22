@@ -7,6 +7,7 @@ synthesis → post as 'UCT Mentor'. Runs async so the send returns instantly; th
 appears via SSE when ready. Gated on COMMUNITY_ASK_ENABLED (owner opt-in — it costs tokens)
 and needs the Brain Pack installed (BRAIN_PACK_ENABLED) + ANTHROPIC/OpenAI keys. Never raises.
 """
+from api.services import llm_models
 import json
 import logging
 import os
@@ -18,7 +19,7 @@ _logger = logging.getLogger(__name__)
 _ask_lock = threading.Lock()
 _ask_last = {}   # user_id -> epoch (per-user throttle)
 _ASK_COOLDOWN = int(os.environ.get("COMMUNITY_ASK_COOLDOWN", "20"))
-_ASK_MODEL = os.environ.get("COMMUNITY_ASK_MODEL", "claude-haiku-4-5-20251001")
+_ASK_MODEL = os.environ.get("COMMUNITY_ASK_MODEL", llm_models.HAIKU)
 
 
 def enabled() -> bool:
@@ -77,7 +78,7 @@ def _generate(question):
             "direct, no fluff, no disclaimers. If the passages don't cover it, say so briefly.\n\n"
             f"QUESTION: {question}\n\nPASSAGES:\n{context}")
         resp = client.with_options(timeout=45).messages.create(
-            model=_ASK_MODEL, max_tokens=320,
+            model=_ASK_MODEL, max_tokens=320, **llm_models.plain(_ASK_MODEL),
             messages=[{"role": "user", "content": prompt}])
         parts = [b.text for b in resp.content if getattr(b, "type", "") == "text"]
         return ("".join(parts)).strip() or None

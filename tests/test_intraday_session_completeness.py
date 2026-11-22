@@ -42,19 +42,19 @@ def _clear_attempts():
     ("60", 10, 0),    # BATRK 60m, measured
 ])
 def test_the_measured_truncated_tails_are_incomplete(tf, h, m):
-    assert bf.intraday_session_complete(tf, ts(h, m)) is False
+    assert bf.session_complete(tf, ts(h, m), "rth") is False
 
 
 @pytest.mark.parametrize("tf,h,m", [
     ("5", 15, 55),    # the last RTH 5m bucket
     ("5", 19, 55),    # a post-market tail is complete by construction
-    ("60", 15, 0),    # the last session-anchored hourly bucket
+    ("60", 15, 30),   # the last session-anchored hourly bucket (the 15:30 half bar)
     ("1", 15, 59),
     ("30", 15, 30),
     ("15", 15, 45),
 ])
 def test_a_tail_that_reaches_its_close_is_complete(tf, h, m):
-    assert bf.intraday_session_complete(tf, ts(h, m)) is True
+    assert bf.session_complete(tf, ts(h, m), "rth") is True
 
 
 def test_an_early_close_shortens_the_bar_it_must_reach():
@@ -64,14 +64,21 @@ def test_an_early_close_shortens_the_bar_it_must_reach():
     early = sorted(NYSE_EARLY_CLOSES_YYYYMMDD)
     assert early, "calendar carries no early closes — this test would be vacuous"
     y, mo, d = int(str(early[-1])[:4]), int(str(early[-1])[4:6]), int(str(early[-1])[6:])
-    assert bf.intraday_session_complete("5", ts(12, 55, (y, mo, d))) is True
-    assert bf.intraday_session_complete("5", ts(12, 55, FRIDAY)) is False
+    assert bf.session_complete("5", ts(12, 55, (y, mo, d)), "rth") is True
+    assert bf.session_complete("5", ts(12, 55, FRIDAY), "rth") is False
+
+
+@pytest.mark.parametrize("tf,h,m", [("5", 15, 50), ("1", 15, 58), ("60", 14, 30), ("15", 15, 30)])
+def test_a_tail_missing_only_the_FINAL_bucket_is_incomplete(tf, h, m):
+    """Review #1098 F5: one bucket short of the close is a hole the background repair
+    must still fill (the tolerance is only for currentness against a moving frontier)."""
+    assert bf.session_complete(tf, ts(h, m), "rth") is False
 
 
 def test_daily_and_unparseable_abstain_rather_than_force_a_refetch():
-    assert bf.intraday_session_complete("D", ts(10, 0)) is True
-    assert bf.intraday_session_complete("5", None) is True
-    assert bf.intraday_session_complete("5", "not-a-number") is True
+    assert bf.session_complete("D", ts(10, 0), "rth") is True
+    assert bf.session_complete("5", None, "rth") is True
+    assert bf.session_complete("5", "not-a-number", "rth") is True
 
 
 # ── the wiring into _needs_fresh ─────────────────────────────────────────────

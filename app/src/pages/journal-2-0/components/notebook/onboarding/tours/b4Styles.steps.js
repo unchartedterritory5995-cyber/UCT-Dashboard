@@ -28,25 +28,29 @@ export const JOURNAL_STYLES_STEPS = Object.freeze([
 
 export const JOURNAL_STYLES_COPY = Object.freeze({
   open: {
-    title: 'Journal styles',
-    body: 'Styles opens the Journal styles manager, where you choose how each kind of note starts. Select Styles to open it.',
+    title: 'Templates',
+    body: 'Manage templates, in the ⋯ menu, opens your templates, where you choose how each note type starts. Open ⋯ and select Manage templates.',
   },
   manager: {
     title: 'How a note starts',
-    body: 'A style is a starting outline, its blocks and the properties it fills. Changing a style never changes a note you already made unless you choose to update it.',
+    body: 'A template is a starting outline, its blocks and the properties it fills. Changing a template never changes a note you already made unless you choose to update it.',
   },
   kinds: {
-    title: 'Styles by kind of note',
-    body: 'Each kind of note, such as a trade plan or a review, lists its styles here. Set one as the default, or use Duplicate to edit on a built-in style to make it your own.',
+    title: 'Templates by note type',
+    body: 'Each note type, such as a trade plan or a review, lists its templates here. Set one as the default, or use Duplicate to edit on a built-in template to make it your own.',
   },
   new: {
-    title: 'Make a new style',
-    body: 'New style starts a style from scratch. Pick its kind of note, then write its outline and add its blocks.',
+    title: 'Make a new template',
+    body: 'New template starts a template from scratch. Pick its note type, then write its outline and add its blocks.',
   },
 })
 
+// Final fix (A1): on a phone the ▾ (`templates`) is not drawn, so the library tour opens there through ⋯ > "New from a
+// template" (the same phone door the template-gallery tour uses); steps 2 to 4 are the same at every width.
 export const STYLE_LIBRARY_STEPS = Object.freeze([
-  Object.freeze({ id: 'templates', anchor: 'templates', file: TAB, waitFor: 'template-gallery-door' }),
+  Object.freeze({ id: 'templates', anchor: 'templates', file: TAB, waitFor: 'template-gallery-door', tier: 'wide' }),
+  Object.freeze({ id: 'phone-open', anchor: 'styles-button', file: TAB, waitFor: 'new-from-template-phone', tier: 'phone' }),
+  Object.freeze({ id: 'phone-templates', anchor: 'new-from-template-phone', file: TAB, waitFor: 'template-gallery-door', tier: 'phone' }),
   Object.freeze({ id: 'door', anchor: 'template-gallery-door', file: PICKER, waitFor: 'library-types' }),
   step('types', 'library-types', GALLERY),
   step('adopt', 'library-adopt', CARD),
@@ -54,19 +58,27 @@ export const STYLE_LIBRARY_STEPS = Object.freeze([
 
 export const STYLE_LIBRARY_COPY = Object.freeze({
   templates: {
-    title: 'Styles other traders share',
-    body: 'The community library is in the template gallery. Select Templates to open the picker.',
+    title: 'Templates other traders share',
+    body: 'The Template library is in the New note sheet. Open the ▾ beside New and select From a template to open it.',
+  },
+  'phone-open': {
+    title: 'Templates other traders share',
+    body: 'The Template library is in the New note sheet. Open More notebook actions (the three dots) to find New from a template.',
+  },
+  'phone-templates': {
+    title: 'Templates other traders share',
+    body: 'The Template library is in the New note sheet. Select New from a template to open it.',
   },
   door: {
-    title: 'Open the community gallery',
-    body: 'Browse the community gallery shows what other members shared. Select it to open the library.',
+    title: 'Open the Template library',
+    body: 'Browse the Template library shows what other members shared. Select it to open the library.',
   },
   types: {
-    title: 'Outlines and styles',
-    body: 'These chips choose what you see: All, Outlines or Styles. A style brings its outline, blocks and properties with it.',
+    title: 'Outlines and templates',
+    body: 'These chips choose what you see: All, Outlines or Templates. A template brings its outline, blocks and properties with it.',
   },
   adopt: {
-    title: 'Adopt a style',
-    body: 'Adopt copies a style into your Journal styles, ready for new notes. If its author improves it later, Journal styles offers you the update to review.',
+    title: 'Use a template',
+    body: 'Use makes a note from it at once. To keep a copy among your templates, choose Customize first or Add to my templates; if its author improves it later, Manage templates offers you the update to review.',
   },
 })

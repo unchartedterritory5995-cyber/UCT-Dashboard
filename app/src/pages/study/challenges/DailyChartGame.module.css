@@ -1,0 +1,46 @@
+/* DAILY CHART (docs/study/GAMES.md, kind `daily`). Only what the Study kit lacks: the day's card on the end screen (the
+   share line, its copy note, the streak and the countdown chips), the run log laid out for three charts, the two lines
+   inside the verdict takeover, and the note when an answer did not land. On the kit's own tokens (study.module.css .kit:
+   --k-gold, --k-gold-bright, --k-ink, --k-ink-soft, --k-ink-dim, --k-line, --k-glass, --k-plate, --k-up, --k-down) and the
+   golds, greens and reds the kit already uses; no new colour. */
+
+/* ── the end screen: the day's charts as one row of cards, as many columns as charts (a thin day of one or two fills the
+   row too), one column on a phone ──────────────────────────────────────────────────────────────────────────────────── */
+.end [data-testid='run-log'] { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+@media (max-width: 640px) { .end [data-testid='run-log'] { grid-template-columns: minmax(0, 1fr); grid-auto-flow: row; grid-auto-columns: auto; } }
+
+/* ── the day's card ─────────────────────────────────────────────────────────────────────────────────────────────── */
+.card { display: grid; justify-items: center; gap: 10px; width: 100%; margin: 6px auto 0; padding: 16px 16px 14px; border-radius: 18px;
+  border: 1px solid rgba(220, 187, 94, .4); background: var(--k-glass), var(--k-plate);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, .42), inset 0 1px 0 rgba(255, 241, 194, .1); }
+.cardHead { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--k-gold-bright); }
+.cardHead svg { flex: none; display: block; }
+
+/* the line a member shares: shown exactly as it copies, and selectable whole where a browser blocks the copy */
+.share { display: block; max-width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px dashed rgba(220, 187, 94, .55);
+  background: rgba(220, 187, 94, .06); font-size: 17px; line-height: 1.35; font-weight: 800; letter-spacing: .02em; color: var(--k-ink);
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; cursor: text; }
+.copyNote { font-size: 13px; line-height: 1.45; color: var(--k-ink-dim); }
+.copyNote.copied { color: var(--k-up); font-weight: 800; }
+
+.meta { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 7px; min-height: 36px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--k-line);
+  background: var(--k-glass), var(--k-plate); font-size: 13px; font-weight: 700; color: var(--k-ink-soft); font-variant-numeric: tabular-nums; }
+.chip svg { flex: none; display: block; color: var(--k-gold-bright); }
+.chip b { color: var(--k-ink); font-weight: 900; }
+.flame svg { color: #ff9a2e; }
+.fresh { border-color: rgba(220, 187, 94, .55); color: var(--k-gold-bright); }
+
+/* ── the verdict takeover: where and what was said, then the setup's rule ───────────────────────────────────────── */
+.tkLine { display: block; }
+.tkRule { display: block; margin-top: 10px; color: var(--k-ink); font-weight: 600; line-height: 1.45; }
+.tkRule b { color: var(--k-gold-bright); font-weight: 900; }
+
+/* ── an answer that did not land ────────────────────────────────────────────────────────────────────────────────── */
+.fail { display: grid; gap: 10px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(223, 70, 70, .5); background: rgba(223, 70, 70, .08);
+  font-size: 14px; line-height: 1.5; color: var(--k-ink-soft); }
+.fail p { margin: 0; }
+
+/* ── the start screen's way back when there is nothing to play ──────────────────────────────────────────────────── */
+.way { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }

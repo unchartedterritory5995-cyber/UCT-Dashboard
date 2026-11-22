@@ -24,6 +24,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { STARTERS } from './StarterLibrary'
 import { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
@@ -50,16 +51,18 @@ const flush = async () => {
 const noop = () => {}
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
-const field = () => screen.getByLabelText('Formula')
+const field = () => formulaBox()
 
 async function settle() {
   await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 1) })
@@ -67,7 +70,7 @@ async function settle() {
 }
 
 const tab = (name) => screen.getByRole('tab', { name })
-const openLibrary = () => fireEvent.click(tab(/library/i))
+const openLibrary = () => openSource('library')
 
 function escapeRe(text) { return text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&') }
 
@@ -89,7 +92,7 @@ async function pickStarter(setup) {
 }
 
 async function nameIt(text = 'From the library') {
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: text } })
+  fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: text } })
   await flush()
 }
 
@@ -127,7 +130,10 @@ afterEach(() => {
 })
 
 describe('🔴 the starter library is REACHABLE from the sheet', () => {
-  it('🔴 A NEW FORMULA OPENS ON THE LIBRARY, with the firm\'s scans already on screen', async () => {
+  it('🔴 A NEW FORMULA OPENS ON THE START VIEW, and "A UCT setup" puts the firm\'s scans on screen', async () => {
+    // ⭐ DIRECTION A (owner 2026-11-16) MOVED THE DEFAULT: a new formula opens on the
+    // start view, where "A UCT setup" is one of the four starts. The rail below still
+    // reds when the gallery is unreachable or empty, or when typing stops working.
     // ⭐ THE PRODUCT CALL, AND THE RAIL THAT REDS WHEN IT IS UNDONE. (E-8 left
     // this as an owner call; the owner delegated it and the default moved.)
     // The argument is that `FormulaField` is rendered and autofocused in EVERY
@@ -138,7 +144,10 @@ describe('🔴 the starter library is REACHABLE from the sheet', () => {
     // it and a one-click way to put one in the box and change it.
     mount()
     await settle()
-    expect(tab(/library/i)).toHaveAttribute('aria-selected', 'true')
+    toStart()
+    expect(screen.getByRole('button', { name: /A UCT setup/ })).toBeTruthy()
+    openLibrary()
+    expect(tab(/^setup$/i)).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByTestId('starter-library')).toBeTruthy()
     // ⛔ AND THE CARDS ARE REALLY THERE. A Library tab that opened onto an empty
     // gallery would be a worse first screen than the box it replaced, so the
@@ -150,19 +159,23 @@ describe('🔴 the starter library is REACHABLE from the sheet', () => {
     // that typing WORKS from this tab, not that the box holds focus — focus is
     // `Sheet`'s rAF and jsdom's, and a test of it would measure the harness.
     expect(field()).toHaveValue('')
+    fireEvent.click(tab(/formula/i))
     await typeFormula('close > open')
     expect(field()).toHaveValue('close > open')
     expect(screen.getByTestId('readback')).toHaveTextContent(
       evaluateFormula('close > open', BUILDER_INPUT_SCOPE).readback)
-    expect(tab(/library/i)).toHaveAttribute('aria-selected', 'true')
+    // …and the gallery is still one click away, with the typed formula untouched
+    fireEvent.click(tab(/^setup$/i))
+    expect(screen.getByTestId('starter-library')).toBeTruthy()
+    expect(field()).toHaveValue('close > open')
   })
 
   it('and the picker is still NOT mounted until it is asked for', async () => {
     mount()
     await settle()
-    expect(tab(/conditions/i)).toHaveAttribute('aria-selected', 'false')
+    expect(screen.queryByRole('tab', { name: /conditions/i })).toBeNull()
     expect(screen.queryByTestId('criteria-picker')).toBeNull()
-    fireEvent.click(tab(/conditions/i))
+    openSource('picker')
     expect(screen.getByTestId('criteria-picker')).toBeTruthy()
     expect(screen.queryByTestId('starter-library')).toBeNull()
   })
@@ -222,7 +235,7 @@ describe('🔴 the starter library is REACHABLE from the sheet', () => {
     mount()
     await pickStarter(entry.setup)
     expect(field()).toHaveValue(STARTERS[entry.setup].source)
-    fireEvent.click(tab(/conditions/i))
+    openSource('picker')
     await settle()
     const read = fromAst(entry.ast)
     if (read.ok) {
@@ -326,14 +339,16 @@ describe('🔴 a starter is an ORDINARY definition', () => {
 })
 
 describe('the sheet still behaves as it did', () => {
-  it('the three doors are TABS, exactly one is open, and each names itself', async () => {
+  it('the editor tabs name themselves, exactly one is open, and a start names its source', async () => {
     mount()
     await settle()
+    openLibrary()
     const tabs = screen.getAllByRole('tab')
     // ⛔ THE NAMES, NOT THE COUNT. A typed count is a second authority over how
     // many doors the sheet has, and it goes red on a change that broke nothing.
+    // Direction A: the start a formula came from is its Source tab ("Setup").
     expect(tabs.map((t) => t.textContent)).toEqual(
-      expect.arrayContaining(['Library', 'Conditions', 'Formula']))
+      expect.arrayContaining(['Setup', 'Formula']))
     // ⛔ AND EXACTLY ONE IS SELECTED, whichever one that is. WHICH door opens is
     // a product decision with its own case above; that a tablist never shows two
     // selected tabs (or none) is the invariant that belongs here and survives
@@ -349,9 +364,11 @@ describe('the sheet still behaves as it did', () => {
     openLibrary()
     await settle()
     const panel = document.querySelector('[role="dialog"]')
+    // the trap skips explicitly hidden nodes (the kept-mounted Formula / Inputs / Plots panels)
     const items = [...panel.querySelectorAll(
       'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
       + 'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+      .filter((n) => !n.closest('[hidden],[aria-hidden="true"]'))
     expect(items.length).toBeGreaterThan(3)
     items[items.length - 1].focus()
     fireEvent.keyDown(panel, { key: 'Tab' })
@@ -381,9 +398,10 @@ describe('🔴 "Open it and edit" carries the setup`s name', () => {
   it('prefills Name from the starter', async () => {
     mount()
     await flush()
+    openLibrary()
     fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
     await flush()
-    expect(screen.getByLabelText('Name').value).toBe('Classic Flag/Pullback')
+    expect((writeMyself(), screen.getByLabelText('Name')).value).toBe('Classic Flag/Pullback')
   })
 
   it('⛔ …and NEVER overwrites a name the member already typed', async () => {
@@ -391,11 +409,12 @@ describe('🔴 "Open it and edit" carries the setup`s name', () => {
     // your own work must not rename it.
     mount()
     await flush()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My own name' } })
+    fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: 'My own name' } })
     await flush()
+    openLibrary()
     fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
     await flush()
-    expect(screen.getByLabelText('Name').value).toBe('My own name')
+    expect((writeMyself(), screen.getByLabelText('Name')).value).toBe('My own name')
   })
 })
 
@@ -410,11 +429,13 @@ describe('🔴 picking a starter marks the description stale — through the SHE
   it('the note appears on the real concierge box', async () => {
     mount()
     await flush()
-    fireEvent.change(screen.getByRole('textbox', { name: /plain English/i }),
+    toStart()
+    fireEvent.change(screen.getByLabelText('Describe it'),
       { target: { value: 'stocks above the 200 day average' } })
     await flush()
     expect(screen.queryByTestId('concierge-stale')).toBeNull()
 
+    openLibrary()
     fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
     await flush()
 
@@ -426,6 +447,7 @@ describe('🔴 picking a starter marks the description stale — through the SHE
   it('⛔ THE CONTROL — with no description there is nothing to mark', async () => {
     mount()
     await flush()
+    openLibrary()
     fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
     await flush()
     expect(screen.queryByTestId('concierge-stale')).toBeNull()

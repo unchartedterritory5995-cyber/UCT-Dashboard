@@ -50,7 +50,7 @@ test('an active-trial member is routed to /dashboard, not the free page', async 
   })
   renderLogin()
   await submit()
-  expect(navigateSpy).toHaveBeenCalledWith('/dashboard', { replace: true })
+  expect(navigateSpy).toHaveBeenCalledWith('/charts', { replace: true })
 })
 
 test('a genuinely free, non-trial member lands on the upgrade screen (no free page since 2026-10-02)', async () => {
@@ -70,7 +70,7 @@ test('a paid-plan member still lands on /dashboard', async () => {
   })
   renderLogin()
   await submit()
-  expect(navigateSpy).toHaveBeenCalledWith('/dashboard', { replace: true })
+  expect(navigateSpy).toHaveBeenCalledWith('/charts', { replace: true })
 })
 
 test('an admin still lands on /dashboard', async () => {
@@ -80,5 +80,5 @@ test('an admin still lands on /dashboard', async () => {
   })
   renderLogin()
   await submit()
-  expect(navigateSpy).toHaveBeenCalledWith('/dashboard', { replace: true })
+  expect(navigateSpy).toHaveBeenCalledWith('/charts', { replace: true })
 })

@@ -1,6 +1,10 @@
 import os
 import sys
 
+# Bars series meta (bar contract): no background flusher in tests — a test that needs
+# persistence calls `bars_sqlite.flush_meta()` itself (see `_isolate_bars_series_meta`).
+os.environ.setdefault("BARS_META_FLUSH_SECONDS", "0")
+
 import pytest
 
 # ─── AUTH_DB_PATH isolation ────────────────────────────────────────────────
@@ -129,6 +133,14 @@ def _isolate_fundamentals_snapshot_store(tmp_path, monkeypatch):
     dir and stale-while-revalidate would serve one test's persisted payload to
     another (or to a later full run)."""
     monkeypatch.setenv("FUNDAMENTALS_TABLES_DB_PATH", str(tmp_path / "fund_snapshots.db"))
+
+
+@pytest.fixture(autouse=True)
+def _isolate_fmp_response_cache(tmp_path, monkeypatch):
+    """The on-disk FMP response cache is OFF in the suite (a stored body would answer the next test's
+    mocked GET) and, if a test turns it on, points at a per-test file, never /data."""
+    monkeypatch.setenv("FMP_RESPONSE_CACHE", "0")
+    monkeypatch.setenv("FMP_RESPONSE_CACHE_PATH", str(tmp_path / "fmp_response_cache.db"))
 
 
 @pytest.fixture(autouse=True)
@@ -308,6 +320,27 @@ def _no_live_tbd_session_resolver(monkeypatch):
     Off for every test so a calendar fixture never reaches a live vendor; the
     resolver's own rails turn it back on with fakes in place."""
     monkeypatch.setenv("CALENDAR_TBD_RESOLVER", "0")
+
+
+@pytest.fixture(autouse=True)
+def _own_daily_bars_cannot_answer(monkeypatch):
+    """The earnings run-up and past-moves helpers read our own daily bars first
+    and Yahoo only when those cannot answer. Off for every test (the read
+    answers "no bars"), so a test that stubs Yahoo keeps testing the Yahoo path
+    and no test reaches the bar store or a vendor through it.
+    `tests/test_earnings_moves_own_bars.py` overrides this fixture and drives
+    the read itself.
+
+    Stood in at the two names that read goes through in
+    `earnings_reaction`: `last_stored_daily_session` (asked first: "the store
+    holds nothing for this symbol", so no read is started and the bar store is
+    never opened) and `daily_bars_since` (the read itself). That module
+    imports only the standard library: this runs before every test, and
+    importing `earnings_enrichment` here instead would load yfinance and
+    pandas into every test process (about 2 s and 850 modules, measured)."""
+    import api.services.earnings_reaction as _er
+    monkeypatch.setattr(_er, "last_stored_daily_session", lambda sym: None)
+    monkeypatch.setattr(_er, "daily_bars_since", lambda sym, since_iso: [])
 
 
 @pytest.fixture(autouse=True)
@@ -509,3 +542,133 @@ def _no_test_leaks_a_dependency_override():
             # restore is the empty mapping a fresh FastAPI app carries.
             mod.app.dependency_overrides.clear()
             mod.app.dependency_overrides.update(before or {})
+
+
+# ─── ⛔⛔ A PATCHED FUNCTION CAPTURED BY AN IMPORT OUTLIVES THE PATCH ─────────────────────────
+#
+# ⚰️ 2026-11-17: 34 tests in three files (Notebook email-in, voice notes, plan grading) failed with
+# `no such table` whenever `tests/test_term086_inbound_alerts.py` ran earlier in the same process,
+# and passed alone (runs 44122066704 red in company; 44123855004, 44123863322, 44123874234 green
+# alone). Its fixture did `monkeypatch.setattr(auth_db, "get_connection", _conn)` and THEN imported
+# `api.main`. Every product module that `api.main` imported for the first time ran
+# `from api.services.auth_db import get_connection` while the patch stood, and so bound the TEST's
+# `_conn` (a scratch file holding one `users` table). Monkeypatch put `auth_db.get_connection` back
+# at teardown; nothing can put back a name another module copied. `note_personal_api`,
+# `voice_usage` and `plan_grading` then opened that scratch file for the rest of the session.
+#
+# ⭐ The rail: after every test, a product module FIRST IMPORTED during that test may not hold, at
+# module level, a function or mock defined in a test file. It runs after every fixture (and
+# every monkeypatch) has been torn down, so a patch the test itself put on a module is already
+# undone; what is left is a copy nothing will ever undo. Only the modules new to `sys.modules` are
+# read, so the cost is paid once per module per session, never per test.
+_TESTS_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def _is_test_code(path: str) -> bool:
+    path = os.path.abspath(path)
+    base = os.path.basename(path)
+    if base == "conftest.py":
+        return False                      # session-wide shims are installed on purpose
+    return (path.startswith(_TESTS_ROOT + os.sep) or base.startswith("test_")
+            or base.endswith("_test.py"))
+
+
+def captured_test_objects(module_names) -> list[str]:
+    """`module.attr <- where` for each product module in `module_names` holding a test's
+    function (or a unittest.mock object) at module level."""
+    from unittest import mock
+
+    out = []
+    for name in sorted(module_names):
+        last = name.rsplit(".", 1)[-1]
+        if not name.startswith("api.") or last.startswith("test_") or last.endswith("_test"):
+            continue
+        mod = sys.modules.get(name)
+        try:
+            items = list(vars(mod).items())
+        except TypeError:
+            continue
+        for attr, val in items:
+            if isinstance(val, mock.NonCallableMock):
+                out.append(f"{name}.{attr} <- a unittest.mock object")
+                continue
+            code = getattr(val, "__code__", None)
+            if code is not None and _is_test_code(code.co_filename):
+                where = os.path.relpath(os.path.abspath(code.co_filename), os.path.dirname(_TESTS_ROOT))
+                out.append(f"{name}.{attr} <- {getattr(val, '__qualname__', attr)} "
+                           f"({where.replace(os.sep, '/')}:{code.co_firstlineno})")
+    return out
+
+
+_MODULES_BEFORE = pytest.StashKey[set]()
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_setup(item):
+    item.stash[_MODULES_BEFORE] = set(sys.modules)        # before any fixture of this test runs
+    return (yield)
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_teardown(item, nextitem):
+    result = yield                                         # every fixture and patch is undone now
+    before = item.stash.get(_MODULES_BEFORE, None)
+    if before is not None:
+        captured = captured_test_objects(set(sys.modules) - before)
+        if captured:
+            pytest.fail(
+                "a product module imported during this test bound a test's function, and keeps it "
+                "after the patch was undone (patch the DATA the function reads, e.g. "
+                "`auth_db._DB_PATH`, or import the module before patching): "
+                + "; ".join(captured[:8]) + (f" (+{len(captured) - 8} more)" if len(captured) > 8 else ""),
+                pytrace=False)
+    return result
+
+
+@pytest.fixture
+def routed_schema(monkeypatch):
+    """The kill switch (UCT_AGENT_CONSTANT_SCHEMA=0): for tests of the routed schema, which it must keep restoring exactly."""
+    monkeypatch.setenv("UCT_AGENT_CONSTANT_SCHEMA", "0")
+
+@pytest.fixture(autouse=True)
+def _reset_screener_live_rest():
+    """Clear `live_tier._LAST_WORK`, the screener sweeper's rest ledger.
+
+    A real sweep that happens to take over a second on a slow box would make
+    the NEXT test's `sweep_job()` rest instead of run. Looked up via
+    sys.modules so the fixture never imports the screener into an unrelated test."""
+    def _clear():
+        # A test may park a stand-in module there (the surface tests do), so
+        # read the attribute defensively rather than assume the real module.
+        mod = sys.modules.get("api.services.screener.live_tier")
+        try:
+            ledger = mod.__dict__.get("_LAST_WORK") if mod is not None else None
+        except Exception:  # noqa: BLE001 -- a deliberately exploding stand-in
+            ledger = None
+        if isinstance(ledger, list):
+            ledger.clear()
+
+    _clear()
+    yield
+    _clear()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_bars_series_meta():
+    """Per-test: the bars store's in-process meta state (queued proofs, store floors)
+    starts empty, so one test's `_mark_tail_verified` cannot verify another's tail."""
+    def _clear():
+        try:
+            from api.services import bars_sqlite as _bs
+        except Exception:
+            return
+        _bs.reset_meta_state_for_tests()
+        try:
+            from api.services import bar_contract as _bc
+            _bc._stream_rev_cache.clear()
+        except Exception:
+            pass
+
+    _clear()
+    yield
+    _clear()

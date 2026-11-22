@@ -90,7 +90,7 @@ function TradeResearchTrigger({ symbol, tradeId }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Research actions"
-        title="Full Research / Ask AI / Compare"
+        title="Full Research / Ask the UCT Agent / Compare"
         aria-haspopup="menu"
         aria-expanded={open}
         style={{
@@ -114,7 +114,7 @@ function TradeResearchTrigger({ symbol, tradeId }) {
             <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
           </button>
           <button type="button" style={_menuItemStyle} onClick={goToAskAi}>
-            <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {symbol}
+            <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask the UCT Agent about {symbol}
           </button>
           {!showCompare ? (
             <button type="button" style={_menuItemStyle} onClick={() => setShowCompare(true)}>

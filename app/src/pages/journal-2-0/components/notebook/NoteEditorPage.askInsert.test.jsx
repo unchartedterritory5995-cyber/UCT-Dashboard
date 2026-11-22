@@ -152,8 +152,8 @@ describe('NoteEditorPage — G-064 Ask insert', () => {
   it('"Insert into this note" appends the answer from the note\'s own Ask panel', async () => {
     latchNotebookFlags({ notebook_ask_insert_on: true })
     await renderEditor()
-    fireEvent.click(screen.getByRole('button', { name: 'Ask this note' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Ask This note' })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask about this note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ask about this note' })
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Insert into this note' }))
@@ -262,8 +262,8 @@ describe('NoteEditorPage — G-064 Ask insert', () => {
     }))
     await renderEditor()
     await screen.findByRole('button', { name: 'Restore' })
-    fireEvent.click(screen.getByRole('button', { name: 'Ask this note' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Ask This note' })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask about this note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ask about this note' })
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
     // A finished, cited answer: every other condition for the button holds.
@@ -291,8 +291,8 @@ describe('NoteEditorPage — G-064 Ask insert', () => {
     fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Edited Title' } })
     await waitFor(() => expect(updateSpy).toHaveBeenCalledWith('n1', expect.objectContaining({ title: 'Edited Title' })), { timeout: 3000 })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ask this note' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Ask This note' })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask about this note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ask about this note' })
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'margins?' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
     const insert = await within(dialog).findByRole('button', { name: 'Insert into this note' })
@@ -379,8 +379,8 @@ describe('NoteEditorPage — an Ask citation that is exactly one block atom', ()
     // Control: nothing has selected the chip before the citation is clicked.
     expect(chip).not.toHaveClass('ProseMirror-selectednode')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ask this note' }))
-    const dialog = await screen.findByRole('dialog', { name: 'Ask This note' })
+    fireEvent.click(screen.getByRole('button', { name: 'Ask about this note' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ask about this note' })
     fireEvent.change(within(dialog).getByRole('textbox'), { target: { value: 'which filing?' } })
     fireEvent.click(within(dialog).getByRole('button', { name: 'Ask' }))
     fireEvent.click(await within(dialog).findByRole('button', { name: 'Source 1: This note' }))

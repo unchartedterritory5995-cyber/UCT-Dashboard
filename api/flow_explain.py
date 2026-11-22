@@ -18,12 +18,13 @@ Guarantees:
     FLOW_EXPLAIN_DB_PATH).
 
 GEX context note (inspected api/gex_service.py 2026-07-06): get_gex_data()
-is a LIVE Schwab /chains fetch with NO cache anywhere in the codebase, so
+was a LIVE Schwab /chains fetch with NO cache anywhere in the codebase (it is a Massive
+chain walk since Schwab was retired, 2026-11-17, cached 60s and still slow when cold), so
 there is no cheap cache-backed GEX read available today. We therefore only
 attach GEX context when a cached classification snapshot exists under the
 shared TTL cache key ``flow_gex_state_{TICKER}`` (populated by nothing yet
 — a future caching layer can write it); otherwise the field is omitted.
-We NEVER make the slow uncached Schwab call on this request path.
+We NEVER make the slow chain call on this request path.
 
 Blocking work (SQLite, Anthropic) runs in a sync ``def`` route so FastAPI
 dispatches it to the anyio threadpool — never on the shared event loop.
@@ -432,7 +433,7 @@ def _earnings_proximity(ticker: str) -> str:
 
 def get_cached_gex(ticker: str) -> Optional[dict]:
     """Cheap, cache-backed GEX read ONLY. gex_service.get_gex_data() is a
-    live uncached Schwab fetch (verified 2026-07-06) — never call it here.
+    live, slow option-chain walk (verified 2026-07-06) — never call it here.
     A future GEX caching layer can populate ``flow_gex_state_{TICKER}`` in
     the shared TTL cache with get_gex_data()'s classification block."""
     try:
@@ -616,24 +617,40 @@ def _call_llm(p: FlowPrint, ctx: dict) -> tuple[str, list[str], str, float]:
     catches everything and falls back deterministically."""
     model = _model_name()
     client = _anthropic()
-    resp = client.messages.create(
-        model=model,
-        max_tokens=_MAX_TOKENS,
-        system=_SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": _user_prompt(p, ctx)}],
-    )
+    request = {
+        "model": model,
+        "max_tokens": _MAX_TOKENS,
+        "system": _SYSTEM_PROMPT,
+        "messages": [{"role": "user", "content": _user_prompt(p, ctx)}],
+    }
+    try:
+        resp = client.messages.create(**request)
+    except Exception as exc:
+        _charge_failed_call(exc, request)
+        raise
     text = "".join(
         getattr(block, "text", "") for block in resp.content
         if getattr(block, "type", "") == "text"
     )
-    if not text.strip():
-        raise ValueError("empty LLM response")
     usage = getattr(resp, "usage", None)
     in_tok = getattr(usage, "input_tokens", 0) or 0
     out_tok = getattr(usage, "output_tokens", 0) or 0
     cost = _estimate_cost_usd(model, in_tok, out_tok)
+    if not text.strip():
+        _add_cost(_today_et(), cost)        # a billed reply, even if it is unusable
+        raise ValueError("empty LLM response")
     explanation, signals = _parse_llm_output(text, p, ctx)
     return explanation, signals, model, cost
+
+
+def _charge_failed_call(exc: Exception, request: dict) -> None:
+    """A timeout or dropped connection reports no usage, and every SDK attempt of it may have been
+    billed: charge the worst case x (retries + 1). Only an HTTP error response is free. The caller's
+    fallback catches anything raised here, so the route still never 500s."""
+    import anthropic
+    from api.services.uct_agent import budget
+    if not budget._is_provider_error_response(exc):
+        _add_cost(_today_et(), budget.worst_case_usd(request) * (anthropic.DEFAULT_MAX_RETRIES + 1))
 
 
 def _estimate_cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:

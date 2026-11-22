@@ -1,0 +1,52 @@
+//@version=6
+indicator("UCTPROBE_VW_DATA_USI", overlay = false)
+
+// PROVENANCE: written 2026-11-22 (track 4 breadth unit B0, Q-T4-B1, docs/pine/capture-queue-2026-11-22-t4-breadth.md).
+// NEVER COMPILED ON TRADINGVIEW. Written here; no third-party text.
+//
+// ─── WHAT TRADINGVIEW'S `USI:` BREADTH SPELLINGS HOLD, AND ON WHICH CHART BAR EACH SESSION LANDS ───
+//
+// Track 4 serves the `USI:` breadth spellings a member's script reads from UCT's own breadth data, labelled as
+// UCT data and graded as a substitution, never as TradingView's. Two things are licensed only by a capture:
+//   1. the ALIGNMENT: is a session's count read on that session's chart bar, or on the next one (TradingView's
+//      `SP:SPX` on a stock's daily chart reads the PREVIOUS session, Q-RS3)?  U01 vs U02 answers it for one
+//      spelling at "D" and at `timeframe.period`;
+//   2. the SIZE of the divergence between TradingView's official exchange counts and UCT's operating-equity
+//      counts, per spelling, so the member's sentence states it rather than assumes it.
+// Every read is a daily close (`close`), the way the corpus reads these spellings. `ignore_invalid_symbol` on
+// every call, so one spelling TradingView no longer serves does not stop the rest (it reads `na`).
+//
+//   U01   USI:ADVN.NY  at "D"               (NYSE advancing issues)
+//   U02   USI:ADVN.NY  at timeframe.period  (the same, the chart's own period: equal to U01 on a 1D chart?)
+//   U03   USI:DECL.NY  NYSE declining          U04   USI:UNCH.NY  NYSE unchanged
+//   U05   USI:ADV      (is it ADVN.NY?)        U06   USI:DECL     (is it DECL.NY?)
+//   U07   USI:ADVN.NQ  Nasdaq advancing        U08   USI:DECL.NQ  Nasdaq declining
+//   U09   USI:ADVQ     (is it ADVN.NQ?)        U10   USI:DECLQ    (is it DECL.NQ?)
+//   U11   USI:ADD      (= ADVN.NY - DECL.NY?)
+//   U12   USI:UVOL     NYSE up volume          U13   USI:DVOL     NYSE down volume
+//   U14   USI:UVOLQ    Nasdaq up volume        U15   USI:DVOLQ    Nasdaq down volume
+//   U16   USI:TVOL     NYSE total volume
+//   U17   ADVN (bare)  U18 DECN (bare)         (the legacy bare spellings two scripts read)
+//   U19   the spread "(USI:ADVN.NY - USI:DECL.NY) / (USI:UNCH.NY + 1)" (TradingView's own Advance Decline Line reads it)
+//   U20   time (the chart bar's open, to name each bar)
+
+plot(request.security("USI:ADVN.NY", "D", close, ignore_invalid_symbol = true), "U01 ADVN.NY D")
+plot(request.security("USI:ADVN.NY", timeframe.period, close, ignore_invalid_symbol = true), "U02 ADVN.NY period")
+plot(request.security("USI:DECL.NY", "D", close, ignore_invalid_symbol = true), "U03 DECL.NY D")
+plot(request.security("USI:UNCH.NY", "D", close, ignore_invalid_symbol = true), "U04 UNCH.NY D")
+plot(request.security("USI:ADV", "D", close, ignore_invalid_symbol = true), "U05 ADV D")
+plot(request.security("USI:DECL", "D", close, ignore_invalid_symbol = true), "U06 DECL D")
+plot(request.security("USI:ADVN.NQ", "D", close, ignore_invalid_symbol = true), "U07 ADVN.NQ D")
+plot(request.security("USI:DECL.NQ", "D", close, ignore_invalid_symbol = true), "U08 DECL.NQ D")
+plot(request.security("USI:ADVQ", "D", close, ignore_invalid_symbol = true), "U09 ADVQ D")
+plot(request.security("USI:DECLQ", "D", close, ignore_invalid_symbol = true), "U10 DECLQ D")
+plot(request.security("USI:ADD", "D", close, ignore_invalid_symbol = true), "U11 ADD D")
+plot(request.security("USI:UVOL", "D", close, ignore_invalid_symbol = true), "U12 UVOL D")
+plot(request.security("USI:DVOL", "D", close, ignore_invalid_symbol = true), "U13 DVOL D")
+plot(request.security("USI:UVOLQ", "D", close, ignore_invalid_symbol = true), "U14 UVOLQ D")
+plot(request.security("USI:DVOLQ", "D", close, ignore_invalid_symbol = true), "U15 DVOLQ D")
+plot(request.security("USI:TVOL", "D", close, ignore_invalid_symbol = true), "U16 TVOL D")
+plot(request.security("ADVN", "D", close, ignore_invalid_symbol = true), "U17 ADVN bare D")
+plot(request.security("DECN", "D", close, ignore_invalid_symbol = true), "U18 DECN bare D")
+plot(request.security("(USI:ADVN.NY - USI:DECL.NY) / (USI:UNCH.NY + 1)", "D", close, ignore_invalid_symbol = true), "U19 ADL spread D")
+plot(time, "U20 bar time")

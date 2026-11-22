@@ -190,7 +190,7 @@ class _FakeEngine:
     @staticmethod
     def run_backtest(tree, symbols, frm, to, *, bars_for, horizons,
                      min_signals=30, membership="current", bars_source=None,
-                     opts=None, withheld_for=None):
+                     opts=None, withheld_for=None, column_for=None, warmup_bars=0):  # W5-T15 kwargs (train fix)
         return _FakeReceipt({
             "backtestable": False, "refused": "stubbed", "names": [],
             "detail": "stubbed engine", "universe": {"symbols_requested": len(symbols)},
@@ -410,9 +410,10 @@ def test_exactly_TWO_router_modules_declare_an_api_screener_path():
     #   screen_promote.py, screener_nl.py -> tests/test_screener_side_routers_auth.py
     #     (added 2026-10-05 when this census found them ungoverned)
     #   screener_new_today.py -> tests/test_screener_side_routers_auth.py (2026-10-17)
+    #   screener_layout_gallery.py -> tests/test_screener_side_routers_auth.py (2026-11-17)
     assert set(declarers) == {"screener.py", "screener_backtest.py",
                               "screen_promote.py", "screener_nl.py",
-                              "screener_new_today.py"}, (
+                              "screener_new_today.py", "screener_layout_gallery.py"}, (
         "a NEW module declares an /api/screener/ route. That is a new paid "
         "surface, and no paywall rail is looking at it: add it to one before "
         f"adding it here: {sorted(declarers)}")

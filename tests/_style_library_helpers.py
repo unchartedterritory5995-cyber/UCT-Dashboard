@@ -45,8 +45,7 @@ def conn(monkeypatch):
 
 @pytest.fixture
 def lib_on(monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 @pytest.fixture
@@ -56,7 +55,6 @@ def api(conn, monkeypatch):
     from api.limiter import limiter
     from api.middleware import auth_middleware as authmw
     from api.routers import notebook_template_gallery
-    monkeypatch.setenv("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "1")
     limiter.reset()
     app = FastAPI()
     app.include_router(notebook_template_gallery.router)
@@ -126,7 +124,7 @@ def bump_and_approve(conn, item, **style_patch):
 # Shared by test_page_layout_share and test_page_layout_adopt (P4b T5 final row 11), so neither test module
 # imports from the other.
 
-SWITCHES = ("NOTEBOOK_STYLE_LIBRARY_ENABLED", "JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED")
+SWITCHES = ("JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED")   # the library's was retired (always on)
 
 
 def _set(monkeypatch, on: dict[str, bool]) -> None:

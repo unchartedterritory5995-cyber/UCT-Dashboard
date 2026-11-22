@@ -1,4 +1,5 @@
-// Notebook P1 (spec P1.3): the "Update layout" offer under a styled note's title. Lazy chunk.
+// Notebook P1 (spec P1.3): the "Update template" offer (was "Update layout", simplify pass 2 A5) under a styled
+// note's title. Lazy chunk.
 // It shows ONLY when all of these hold (Task 14 + integrator carry note b):
 //   * the note records a style and that style is in the member's list at a NEWER version
 //     (a deleted style is not in the list, so a note whose style is gone gets no offer: Review Focus 5);
@@ -33,8 +34,8 @@ export default function StyleUpdateBanner({ note, onOpen, hideUpTo = 0 }) {
     <div className={styles.banner} role="status" data-export-exclude>
       <span className={styles.text}>
         {from === null
-          ? `This note uses an earlier version of ${style.name}. Update layout to v${latest}?`
-          : `This note uses ${style.name} v${from}. Update layout to v${latest}?`}
+          ? `This note uses an earlier version of ${style.name}. Update template to v${latest}?`
+          : `This note uses ${style.name} v${from}. Update template to v${latest}?`}
       </span>
       <button type="button" className={styles.btn} onClick={onOpen}>Review update</button>
     </div>

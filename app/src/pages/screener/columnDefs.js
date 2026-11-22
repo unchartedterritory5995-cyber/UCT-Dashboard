@@ -25,7 +25,7 @@
 // ⛔ `columnDescCoverage.test.js` is the RATCHET: it names the columns that
 // must carry text and holds the count, so this number can only go up.
 
-import { formatCompact } from '../../lib/presentation/presentationPrimitives'
+import { formatCompact, formatNumber } from '../../lib/presentation/presentationPrimitives'
 
 // `descFor` and the trigger's width live in this component-free module so both
 // the affordance and the layout that reserves room for it read ONE value.
@@ -83,6 +83,34 @@ const netUsd = v => {
   const s = formatCompact(Math.abs(v), { tiers: NET_USD_TIERS, prefix: '$' })
   return `${v < 0 ? '-' : '+'}${s}`
 }
+// ── UCT Relative Strength (Phase 2a, unit 2a-08) ──
+// A flag prints "Yes" at 1 and an em dash otherwise (the unit's spec: 0/1 →
+// Yes / —). A stored 0 is "we looked, no" and NULL "the window was short"; the
+// filter's Yes/No control is where the two are told apart, the cell stays quiet.
+const yesDash = v => v == null ? '—' : v ? 'Yes' : '—'
+// The Setup label and its flags (UCT RS screens): the stored key -> the words a member reads. The same
+// words as `rs_setup.SETUP_LABELS` on the server (tests/test_rs_screens_u4_registration.py).
+const RS_SETUP_WORDS = {
+  below_50: 'Below its 50-day line', extended: 'Extended', at_pivot: 'At pivot',
+  pullback_8: 'Pullback to the 8-day', pullback_21: 'Pullback to the 21-day', uptrend: 'Uptrend, no setup',
+  buyout_pending: 'Buyout pending', one_day_move: 'One-day move', new_issue: 'New issue',
+}
+// An age in sessions: "today" on the event bar itself, else "n bars ago".
+const barsAgo = v => v == null ? '—' : v === 0 ? 'today' : `${v} bar${v === 1 ? '' : 's'} ago`
+// A signed percent to two places: Mansfield RS is a distance from its own average.
+const pctSigned2 = v => v == null ? '—' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`
+// A signed whole number: a rating delta.
+const signedInt = v => v == null ? '—' : `${v > 0 ? '+' : ''}${v}`
+const heatSign = v => v == null ? '' : v > 0 ? 'g' : v < 0 ? 'r' : ''
+// Fundamental trends: a count of quarters, and a change in percentage points (a margin moving
+// from 10% to 12% is +2.0 pts, never "+20%"). A change that rounds to zero carries no sign.
+const quarters = v => v == null ? '—' : `${v} qtr${v === 1 ? '' : 's'}`
+const points = v => {
+  if (v == null) return '—'
+  const body = formatNumber(Math.abs(v), { decimals: 1 })
+  const sign = Number(body) === 0 ? '' : v > 0 ? '+' : '-'
+  return `${sign}${body} pts`
+}
 
 export const COLUMN_DEFS = {
   ticker: { label: 'Ticker', fmt: v => v },
@@ -100,8 +128,11 @@ export const COLUMN_DEFS = {
     desc: "Change in extended hours, from the last pre-market or after-hours trade. Before the open (4:00–9:30 ET) the change is against the prior close; after the close (to 8:00 PM ET) it is against today's close. Overnight and on weekends it shows the last after-hours trade; blank during the session. No extended-hours volume is available, so these screens cannot filter on it." },
   premarket_price: { label: 'Ext-hrs price', fmt: usd,
     desc: "The last pre-market or after-hours trade. Before the open (4:00–9:30 ET) the change is against the prior close; after the close (to 8:00 PM ET) it is against today's close. Overnight and on weekends it shows the last after-hours trade; blank during the session. No extended-hours volume is available, so these screens cannot filter on it." },
+  // U5a (2026-11-09): one RS rating everywhere. The server hands this column the nightly
+  // IBD-style RS Rating (the chart's UCT RS number), so it reads the same as RS Rating; the
+  // hourly rank stands in only for a name with no stored rating. Copy describes the armed state.
   rs_rank: { label: 'RS', fmt: num(0), heat: heatRs, cell: 'rs',
-    desc: 'Price-performance rank, 1-99 (99 = strongest), against every name we rank — our own coverage list, not the whole market. It is the percentile of the RS Ret column, so the two always agree in order (checked on every row of the 2026-10-18 snapshot). Without a 3-month price history there is no rank.' },
+    desc: 'The RS Rating, 1-99 (99 = strongest): the IBD-style rating the chart\'s UCT RS shows, so this column and the RS Rating column carry the same number. The 63-session return weighted 40% with the 126-, 189- and 252-session returns 20% each, ranked against every name we rate — our own coverage list minus ETFs, not the whole market. Written once a night by the 04:15 ET rating job; it does not move during the session. A name with no stored rating shows our hourly rank instead. Without a 3-month price history there is no rank.' },
   uct_composite: { label: 'UCT', fmt: num(0), heat: heatRs, cell: 'rs',
     desc: 'The house composite, 1-99: a weighted blend of six ratings — EPS, relative strength, growth, SMR, accumulation/distribution and value — momentum-first (the weights are in the methodology panel). ⚠️ It is renormalised over the ratings a company actually has, so a name missing one is scored on a smaller basis rather than given a zero, and two equal scores are not always the same measurement. ⚠️ Its relative-strength leg is ranked from the ratings store\'s own copy of the RS return, refreshed on a rolling cycle of up to six days, so it can sit a few points away from the RS column.' },
   rs_return: { label: 'RS Ret', fmt: num(2),
@@ -140,6 +171,29 @@ export const COLUMN_DEFS = {
     desc: 'The 14-period Relative Strength Index, Wilder’s smoothing — the same definition this platform draws on the chart, so the screener and the chart cannot disagree. ⚠️ CHANGED 2026-08-24: this column previously used simple averages (Cutler’s RSI), which ran a median 6 points away from Wilder and put hundreds of rows on the wrong side of the 70/30 lines. A scan saved before that date will select a different set now.' },
   pct_vs_sma50: { label: 'vs50', fmt: pct, heat: heatPos },
   pct_vs_sma200: { label: 'vs200', fmt: pct, heat: heatPos },
+  // Scan primitives (technicals.scan_primitives). The definitions are the filter catalog's (filters.py).
+  pct_vs_ema9: { label: 'EMA9', fmt: pct },
+  pct_vs_ema10: { label: 'EMA10', fmt: pct },
+  run_close_ema20: { label: 'Run E20', fmt: num(0) },
+  run_close_sma50: { label: 'Run S50', fmt: num(0) },
+  run_close_sma200: { label: 'Run S200', fmt: num(0) },
+  run_ema9_ema20: { label: 'E9/E20', fmt: num(0) },
+  run_sma20_sma50: { label: 'S20/S50', fmt: num(0) },
+  run_sma50_sma200: { label: 'S50/S200', fmt: num(0) },
+  sma20_rising: { label: 'S20 Up', fmt: tri },
+  sma50_rising: { label: 'S50 Up', fmt: tri },
+  sma200_rising: { label: 'S200 Up', fmt: tri },
+  avg_volume_10d: { label: 'Vol 10d', fmt: shares },
+  avg_volume_50d: { label: 'Vol 50d', fmt: shares },
+  min_volume_3d_prior: { label: 'Min Vol 3d', fmt: shares },
+  vol_trend_pct: { label: 'Vol Trend', fmt: pct },
+  vol_up_run: { label: 'Vol Up Run', fmt: num(0) },
+  vol_down_run: { label: 'Vol Dn Run', fmt: num(0) },
+  new_high_lookback: { label: 'High Bars', fmt: num(0) },
+  new_low_lookback: { label: 'Low Bars', fmt: num(0) },
+  breakout_20d_age: { label: 'BO Age', fmt: num(0) },
+  high_52w_age: { label: '52WH Age', fmt: num(0) },
+  low_52w_age: { label: '52WL Age', fmt: num(0) },
   pct_vs_ema20: { label: 'EMA20', fmt: pct },
   adr_pct: { label: 'ADR%', fmt: num(1),
     desc: 'Average Daily Range as a percentage of price — the mean of each day’s high-to-low spread, a plain measure of how far a stock typically travels. ⚠️ This is NOT ATR: it ignores overnight gaps, where ATR (the column beside it) includes them, so a gappy stock reads calmer here than it trades.' },
@@ -367,8 +421,10 @@ export const COLUMN_DEFS = {
   shares_outstanding: { label: 'Shs Out', fmt: shares },
   float_shares: { label: 'Float', fmt: shares },
   float_pct: { label: 'Float%', fmt: pctPlain(0) },
-  short_float_pct: { label: 'Short%', fmt: pctPlain(1) },
-  short_ratio: { label: 'Days2Cvr', fmt: num(1) },
+  short_float_pct: { label: 'Short%', fmt: pctPlain(1),
+    desc: 'Shares sold short as a percent of the float. The share count is FINRA short interest: brokers report it twice a month and FINRA publishes it about a week and a half after each settlement date, so this number changes when a new report lands, not every night. It is divided by the float shown on this row, so the two columns agree with each other. A stock the FINRA report does not cover, or one where the two figures cannot describe the same share count, shows the figure from the nightly data export instead. Blank means not known, never zero.' },
+  short_ratio: { label: 'Days2Cvr', fmt: num(1),
+    desc: 'Days to cover: shares sold short divided by the average daily volume, so the number of average trading days it would take every short to buy back. From FINRA short interest, which brokers report twice a month and FINRA publishes about a week and a half after each settlement date, so it changes when a new report lands, not every night. A stock the FINRA report does not cover shows the figure from the nightly data export instead. Blank means not known, never zero.' },
   insider_own_pct: { label: 'Insider%', fmt: pctPlain(0) },
   insider_cluster_days: { label: 'Cluster', fmt: v => v == null ? '—' : `${v}d` },
   next_earnings_date: { label: 'Earnings', fmt: v => v ? String(v).slice(5, 10) : '—' },
@@ -524,4 +580,168 @@ export const COLUMN_DEFS = {
     desc: 'The pattern ENGINE has an active VCP detection on this symbol (daily timeframe, 7-day window) — a different instrument from the always-on patterns heuristic, which uses the same "vcp" key on far cheaper evidence. ✗ means the engine has active detections here and none of them is a VCP; a blank means the engine has no active detection for this symbol at all, which is not the same as "no".' },
   pattern_engine_flat_base: { label: 'Flat Base (Eng)', fmt: tri,
     desc: 'The pattern ENGINE has an active flat-base detection on this symbol (daily timeframe, 7-day window) — a different instrument from the always-on patterns heuristic, which uses the same "flat_base" key on far cheaper evidence. ✗ means the engine has active detections here and none of them is a flat base; a blank means the engine has no active detection for this symbol at all.' },
+  // ── UCT Relative Strength (Phase 2a, unit 2a-08) ──
+  // Ten bar-derived columns (`rs_columns.collect_one`, the builder's
+  // `_step("bars_rs")`: the last bar of the SAME `relative_strength` columns the
+  // chart's rsLine draws) and seven rating columns (`rs_rating_history`, the
+  // 04:15 ET job, read by the next 03:00 build). Views control visibility
+  // (`filters.VIEWS`: the family's own view plus three Momentum seats; `filters.meta()`
+  // leaves out each family's seats, and the RS view, while its writer's flag is off) and the
+  // sort menu derives "numeric" from the filter type, so there is no group or
+  // hidden key here. NULL is an em dash, never a 0: a short window, a missing
+  // SPY bar, a hole in the lookback, a dark rating job.
+  rs_new_high: { label: 'RS NH', fmt: yesDash,
+    desc: 'Yes when the stock\'s RS line against SPY (its close divided by SPY\'s close, daily bars) closed the last session at or above its highest value of the previous 252 sessions, ties included; blank until a full year of bars exists or when the window has a gap.' },
+  rs_nh_before_price: { label: 'RS NH Before Px', fmt: yesDash,
+    desc: 'Yes when the RS line made a 252-session high on the last daily bar while price is still more than 2% below its own 252-session high; IBD calls it more bullish, not a precondition, and no published study measures how often it precedes a breakout; blank where the RS high itself is blank.' },
+  rs_nh_red_day: { label: 'RS NH Red Day', fmt: yesDash,
+    desc: 'Yes when the RS line made a 252-session high on a daily bar where SPY closed down 0.5% or more, the stress-test day; blank where the RS high itself is blank.' },
+  rs_nh_bars_ago: { label: 'RS NH Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line last made a 252-session high on daily bars, "today" on the event bar itself and counting up after; blank until one has been seen inside the stored window, and a gap can only make the age too large, never invent a high.' },
+  green_on_red_20: { label: 'Up on Red', fmt: num(0),
+    desc: 'How many of the last 20 daily bars were SPY down days (down 0.5% or more) on which this stock closed up, the up-on-down-days count; blank until 20 sessions with a prior bar exist, and the ceiling is the number of red days in the window, not 20.' },
+  rs_line_above_ma: { label: 'RS > 21E', fmt: yesDash,
+    desc: 'Yes when the RS line against SPY sits at or above its 21-session EMA on the last daily bar, an em dash when it sits below or the 21 sessions do not exist yet; the filter\'s Yes/No control separates the two.' },
+  rs_cross_up_bars_ago: { label: 'RS Cross Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line last crossed from below to above its 21-session EMA on daily bars, "today" on the cross bar; the count keeps running even if the line has since fallen back, so pair it with RS > 21E to require that the cross still holds.' },
+  mansfield: { label: 'Mansfield', fmt: pctSigned2, heat: heatSign,
+    desc: 'Mansfield RS on 200 daily bars: the RS line against SPY as a signed percent above or below its own 200-session simple average (Weinstein\'s formula, read daily rather than on his weekly 52), so above zero means the RS line is above its own 200-session average and zero is at it; blank until 200 sessions exist.' },
+  mansfield_cross_bars_ago: { label: 'Mans Cross Age', fmt: barsAgo,
+    desc: 'Sessions since Mansfield RS last crossed zero in either direction on daily bars, "today" on the cross bar; read beside Mansfield\'s sign to know which way, blank on a gap bar or until 201 sessions exist.' },
+  rs_benchmark_agree: { label: 'RS Agree', fmt: yesDash,
+    desc: 'Yes when the 20-session slope of the stock\'s RS line has the same sign against SPY and against equal-weight RSP on daily bars (both rising or both falling), an em dash when they disagree, either is flat, or 20 sessions do not exist; the sector-ETF leg the chart reads is not part of the nightly build.' },
+  rs_rating_ibd: { label: 'RS Rating', fmt: num(0), heat: heatRs, cell: 'rs',
+    desc: 'IBD-style RS Rating, 1-99, our own calculation, not MarketSurge\'s: the 63-session return weighted 40% with the 126-, 189- and 252-session returns 20% each, ranked as a percentile across every stock with a recent daily price, ETFs excluded, written by the 04:15 ET rating job after the 03:00 build so the row carries the prior session\'s rating; the measured difference to MarketSurge is printed in the methodology panel once known.' },
+  rs_rating_chg_5: { label: 'Rtg Chg 5', fmt: signedInt, heat: heatSign,
+    desc: 'The IBD-style RS Rating minus its value 5 stored sessions earlier in the daily rating history, signed; blank until 5 earlier sessions exist, and a rank can move on a flat stock when the rest of the universe moves.' },
+  rs_rating_chg_20: { label: 'Rtg Chg 20', fmt: signedInt, heat: heatSign,
+    desc: 'The IBD-style RS Rating minus its value 20 stored sessions earlier in the daily rating history, signed; blank until 20 earlier sessions exist, and a change in rank is a change in position, not a return.' },
+  rs_rating_1m: { label: 'Rank 1M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of the plain 21-session return across every stock with a recent daily price, ETFs excluded, a companion percentile the IBD-style rating does not weight; blank where the rating job has not rated the name.' },
+  rs_rating_3m: { label: 'Rank 3M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of the equal-weighted average of the 1-, 2- and 3-month returns (the 21-, 42- and 63-session close ratios, each counting once) across every stock with a recent daily price, ETFs excluded, the quarter the IBD-style rating weights heaviest; blank where the rating job has not rated the name.' },
+  rs_rating_6m: { label: 'Rank 6M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of a recency-weighted six-month blend (the 63-session close ratio counts double, the 126-session once) across every stock with a recent daily price, ETFs excluded, the same newest-quarter weighting the IBD-style rating uses; blank where the rating job has not rated the name.' },
+  rs_rating_9m: { label: 'Rank 9M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of a recency-weighted nine-month blend (the 63-session close ratio counts double, the 126- and 189-session ones once) across every stock with a recent daily price, ETFs excluded, a companion percentile the IBD-style rating does not carry; blank where the rating job has not rated the name.' },
+  rs_rating_12m: { label: 'Rank 12M', fmt: num(0), heat: heatRs,
+    desc: 'Percentile rank, 1-99, of a recency-weighted twelve-month blend (the 63-session close ratio counts double, the 126-, 189- and 252-session ones once) across every stock with a recent daily price, ETFs excluded, the same newest-quarter weighting the IBD-style rating uses; blank where the rating job has not rated the name.' },
+  // ── UCT Relative Strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──
+  // Written by the same `bars_rs` step only while RS_V3_ENABLED is armed
+  // (`rs_columns.PHASE3_COLUMNS`); `filters.meta()` leaves out their controls and
+  // seats until then. The two text columns print the writer's own names as they
+  // are; `clenow_score` is a FRACTION, printed to 2 places, never as a percent.
+  rrg_quadrant: { label: 'Rotation', fmt: v => v || '—',
+    desc: 'Where the stock sits on a rotation graph against SPY, read on weekly bars built from its daily closes: Leading (stronger than SPY and still gaining ground), Weakening (stronger than SPY but losing pace), Lagging (weaker than SPY and still losing ground) or Improving (weaker than SPY but gaining pace). RRG-style, UCT\'s own formula, the same one the Terminal\'s rotation graph draws, so it will not always match StockCharts; blank until 14 weeks of history exist.' },
+  clenow_score: { label: 'Clenow', fmt: num(2), heat: heatSign,
+    desc: 'A Clenow-style trend score over the last 90 daily closes: how fast price has been rising, as a yearly rate, multiplied by how steadily it rose (R², from 0 for a jumpy path to 1 for a straight line). 0.50 is about a 50%-a-year pace after that steadiness discount, a negative score is a falling trend, and a smooth climb scores higher than a jumpy one of the same size. It describes the last 90 sessions, not the next ones; blank until 90 sessions exist.' },
+  vars_state: { label: 'VARS', fmt: v => v || '—',
+    desc: 'Volatility-adjusted relative strength against SPY on daily bars (VARS-style): each day\'s move is counted in units of the stock\'s own typical daily range (its 20-session ATR), SPY\'s move the same way, and the difference is added up over 60 sessions. Strong means the stock has out-moved SPY on that measure and Weak means it has trailed; the second word says whether the reading is above its own 50-session average (rising, improving) or not (fading, falling). Blank until about 130 sessions exist.' },
+  // ── UCT RS Exit Warnings (2026-11-13; the chart's rsExit, Mike Webster\'s method) ──
+  // Written by the same RS_V2 `bars_rs` step as the ten (`rs_columns.EXIT_COLUMNS`), so they
+  // follow that family's seats. `rs_exit_last` prints the writer's own name as it is.
+  rs_exit_last: { label: 'RS Exit', fmt: v => v || '—',
+    desc: 'The newest of Mike Webster\'s three exit warnings on the RS line against SPY (daily bars, 21- and 50-session simple averages of the RS line): Quick Break (the RS line closed below its 21-day average), Quicksand (later in that same dip it closed below its level on the Quick Break day) or Grateful Dead Break (it closed below its 50-day average). The worse one is named when two fire on the same day. A warning to review the position, not an order to sell; blank when none has fired.' },
+  rs_exit_bars_ago: { label: 'Exit Age', fmt: barsAgo,
+    desc: 'Sessions since the newest RS exit warning (Quick Break, Quicksand or Grateful Dead Break), "today" on the warning bar; 0 to 9 is "a warning in the last 10 sessions". The count keeps running after the RS line recovers, and a warning is a prompt to review, not an order to sell.' },
+  rs_quicksand_bars_ago: { label: 'Quicksand Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line last undercut its own Quick Break level within the same dip below its 21-day average (Mike Webster\'s Quicksand), "today" on the warning bar; 0 to 4 is "Quicksand in the last 5 sessions". Blank when none has fired; a warning, not an order to sell.' },
+  rs_quick_break_bars_ago: { label: 'Quick Brk Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line against SPY last closed below its 21-day simple average after closing at or above it (Mike Webster\'s Quick Break, the first and mildest warning), "today" on the warning bar; blank when none has fired.' },
+  rs_dead_break_bars_ago: { label: 'GD Break Age', fmt: barsAgo,
+    desc: 'Sessions since the RS line against SPY last closed below its 50-day simple average after closing at or above it (Mike Webster\'s Grateful Dead Break, the most serious of the three), "today" on the warning bar; blank when none has fired. A warning to review, not an order to sell.' },
+  // ── UCT RS screens (unit U1, 2026-11-14) ──
+  // Written by `rs_post_pass.run` after each build and after the 04:15 ET rating job, only while
+  // RS_SCREENS_ENABLED is on; `filters.meta()` leaves out their controls and seats until then.
+  // The floor in these sentences is `rs_post_pass.LIQUID_FLOOR` (tests/test_rs_screens_u1_registration.py
+  // holds the two together).
+  rs_rating_pos: { label: 'RS Rating place', fmt: num(0),
+    desc: 'Where this stock ranks by RS Rating among liquid stocks: 1 is the strongest. Liquid means not a fund, price $10 or more, $20M or more traded a day on a 30-day average, and a full year of price history. Stocks that share a rating are told apart by the unrounded score behind it, then by their 3-month value, dollar volume and ticker, so no two share a place; blank for a stock off that list. A place is a rank of past return, not a forecast.' },
+  rs_rating_pos_n: { label: 'Stocks ranked', fmt: num(0),
+    desc: 'How many liquid stocks the RS Rating place is out of, the same number on every ranked row, so a place reads as "14 of 1,931"; it moves a little each session as stocks cross the price and volume floors, and is blank on a row with no place.' },
+  rs_rating_pos_prev20: { label: 'Place a month ago', fmt: num(0),
+    desc: 'The RS Rating place this stock held 20 stored sessions earlier, about a month. Blank until that much history is stored, and for a stock that was off the liquid list then or is off it now. A climb is partly stocks bouncing back, so read it as a list to study, not a signal.' },
+  rs_pos_1m: { label: '1M place', fmt: num(0),
+    desc: 'Where this stock ranks on its 1-month return among liquid stocks: 1 is the strongest. Liquid here means not a fund, price $10 or more and $20M or more traded a day; unlike the RS Rating place it does not need a full year of price history, so a newer listing is ranked too and this list can be longer. Ordered by the exact value behind Rank 1M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+  rs_pos_3m: { label: '3M place', fmt: num(0),
+    desc: 'Where this stock ranks on its 3-month return among liquid stocks: 1 is the strongest. Liquid here means not a fund, price $10 or more and $20M or more traded a day; unlike the RS Rating place it does not need a full year of price history, so a newer listing is ranked too and this list can be longer. Ordered by the exact value behind Rank 3M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+  rs_pos_6m: { label: '6M place', fmt: num(0),
+    desc: 'Where this stock ranks on its 6-month return among liquid stocks: 1 is the strongest. Liquid here means not a fund, price $10 or more and $20M or more traded a day; unlike the RS Rating place it does not need a full year of price history, so a newer listing is ranked too and this list can be longer. Ordered by the exact value behind Rank 6M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+  rs_pos_12m: { label: '12M place', fmt: num(0),
+    desc: 'Where this stock ranks on its 12-month return among liquid stocks: 1 is the strongest. Liquid here means not a fund, price $10 or more and $20M or more traded a day; unlike the RS Rating place it does not need a full year of price history, so a newer listing is ranked too and this list can be longer. Ordered by the exact value behind Rank 12M, so no two share a place; blank for a stock off the liquid list. A single-window place flips more often than the overall one.' },
+  rs_rating_session: { label: 'Ratings as of', fmt: v => v || '—',
+    desc: 'The market session the RS Rating columns on this row describe. The rating job scores each completed session at 04:15 ET the next morning and the row is refreshed to it; blank when the stock has no rating for that session. It dates the rating columns only, not the price.' },
+  rs_rating_score: { label: 'RS Rating score', fmt: num(4),
+    desc: 'The unrounded weighted return the RS Rating is a rank of, where 1.0000 means no change over the weighted year. Dozens of stocks share each rating from 1 to 99; this number tells them apart and sets the RS Rating place. It orders stocks and is not a return to quote.' },
+  // ── UCT RS screens (unit U4, 2026-11-14) ──
+  // Filled only while RS_SCREENS_ENABLED is on: `rs_rating_prev20` by the pass after each build and
+  // after the 04:15 ET rating job, the other thirteen by the nightly build itself. `filters.meta()`
+  // leaves out their controls and seats until then. Every number in these sentences is a constant of
+  // `rs_setup` or `rs_columns`, and the label words are `rs_setup.SETUP_LABELS`
+  // (tests/test_rs_screens_u4_registration.py holds each pair together).
+  rs_rating_prev20: { label: 'RS a month ago', fmt: num(0),
+    desc: 'The RS Rating this stock held 20 stored sessions earlier, about a month. It is the rating now minus its 20-session change, so the three numbers always agree. Blank until 21 sessions of ratings are stored, and for a stock that had no rating that day.' },
+  rs_nh_count_20: { label: 'RS highs (20)', fmt: num(0),
+    desc: 'On how many of the last 20 sessions the RS line against SPY closed at a 52-week high. A high count means the stock kept outpacing the index, not once. Blank until the stock has about a year of daily bars. It counts the past and is not a forecast.' },
+  rs_nh_quiet: { label: 'RS high gap', fmt: num(0),
+    desc: 'How many sessions passed between the newest 52-week high in the RS line and the one before it. 1 means highs on back-to-back sessions; a large number means the newest high was the first in a long while. Blank when the bars we read hold fewer than two such highs.' },
+  rs_nh_red_bars_ago: { label: 'Down-day RS high', fmt: barsAgo,
+    desc: 'Sessions since the RS line last closed at a 52-week high on a market down day, a session SPY closed down 0.5% or more: "today" on that session, blank when the bars we read hold none. Holding up on a weak day is a house reading with no published test.' },
+  rs_nhbp_age: { label: 'RS high before price', fmt: barsAgo,
+    desc: 'Sessions since the RS line made a 52-week high that price has not yet followed: "today" on the session of the RS high. Price has followed once it closes within 2% of its own 52-week closing high. Blank from then on, when no such RS high came in the last 63 sessions, and when the bars cannot settle it.' },
+  rs_nh_span: { label: 'RS high span', fmt: num(0),
+    desc: 'Only on a session the RS line closed at a 52-week high: how many sessions the RS line had gone without closing this high, as far as the bars we read go. A larger number is a longer high: 500 means it had not closed this high in about two years. Blank on every other session.' },
+  px_below_high_pct: { label: 'Below high', fmt: pct,
+    desc: 'How far the last close sits under the highest close of the past 252 sessions, in percent. 0% is a close at that high and the number is never above 0. Measured on closing prices only. Blank until 252 closes exist, and for a stock whose price history contradicts itself.' },
+  rs_setup: { label: 'Setup', fmt: v => RS_SETUP_WORDS[v] || '—',
+    desc: 'Where price sits against its own averages, by the first rule that matches. Below its 50-day line. Extended: 4 or more ATRs above the 50-day average, 3 or more above the 21-day EMA, or more than 5% past a base pivot. At pivot: 3% below a base pivot to 5% above it. Pullback: a 20-session closing high in the last 15 sessions, the close at least 0.5 ATR under that high, and the low within 0.5 ATR of a rising 8-day or 21-day EMA. Otherwise an uptrend with no setup. Blank when a measure it needs is missing. It describes the chart and is not a recommendation.' },
+  rs_tight: { label: 'Tight range', fmt: yesDash,
+    desc: 'Yes when the recent closes sit in a tight range, the same reading as the Tight column. It is a second tag beside the Setup label, and it can sit next to any of them.' },
+  rs_flag: { label: 'Setup flag', fmt: v => RS_SETUP_WORDS[v] || '—',
+    desc: 'A caution beside the Setup label, the first that applies. Buyout pending: one session closed 15% or more above the prior close at least 5 sessions ago and every close since has stayed inside 1.5%. One-day move: over the last 63 sessions one session supplied more than half of the gain and was 15% or more on its own. New issue: fewer than 253 daily bars. Blank when none applies.' },
+  rs_near_buy: { label: 'Near a buy point', fmt: tri,
+    desc: 'Yes when the Setup label is At pivot or a Pullback, or the range is tight, and the stock is not Extended, Below its 50-day line, Buyout pending or a One-day move. It says where price sits against its own averages and is not a recommendation. Blank when the stock has no Setup label.' },
+  atr_ext_ema21: { label: 'ATR Ext 21E', fmt: num(1),
+    desc: 'How many ATRs the last close is above the 21-day EMA (negative when below), where ATR is the 14-session average true range. The Setup label reads Extended at 3 or more. Blank until the averages exist, and for a stock with no daily range to measure.' },
+  pct_vs_ema8: { label: 'EMA8', fmt: pct,
+    desc: 'The last close against the 8-day EMA, in percent: positive above it, negative below. The 8-day is one of the two averages the Setup label reads a pullback against. Blank for a stock whose price history contradicts itself.' },
+  pct_vs_ema21: { label: 'EMA21', fmt: pct,
+    desc: 'The last close against the 21-day EMA, in percent: positive above it, negative below. The 21-day is one of the two averages the Setup label reads a pullback against. Blank for a stock whose price history contradicts itself.' },
+  // ── UCT RS screens, the weekly RS new high (unit U12, 2026-11-14) ──
+  // Filled by the nightly build only while RS_SCREENS_ENABLED is on, and only for a stock on the RS
+  // liquid floor. The 52 weeks, the 53 the answer needs and the 3% are constants of `rs_columns`
+  // (tests/test_rs_screens_u12_weekly.py holds each to these sentences).
+  rs_nh_weekly: { label: 'Weekly RS high', fmt: tri,
+    desc: 'Yes when the weekly RS line against SPY (the last close of the week divided by the same close of SPY) finished the last full week at or above its highest value of the 52 weeks before it. Only finished weeks count, so the answer changes once a week. Blank until the stock has 53 finished weeks of bars, and for a stock under $10 or under $20M traded a day. It describes the past year and is not a forecast.' },
+  rs_nhbp_weekly: { label: 'Weekly RS high before price', fmt: tri,
+    desc: 'Yes when the weekly RS line finished the last full week at a 52-week high while the close of that week was still more than 3% below its own highest weekly close of the same 52 weeks. Only finished weeks count. Blank until the stock has 53 finished weeks of bars, and for a stock under $10 or under $20M traded a day. The RS line leading price is a rule traders use, with no published test.' },
+  // ── UCT RS screens, UCT RS Leaders' list (unit U12, 2026-11-14) ──
+  // Filled by the pass after each build and after the 04:15 ET rating job, only while
+  // RS_SCREENS_ENABLED is on. The 50 and the 65 are `rs_screens.LEADERS_TOP_N` and
+  // `LEADERS_HOLD_RANK` (tests/test_rs_screens_u12_leaders.py holds both to these sentences).
+  rs_leaders_member: { label: 'On RS Leaders', fmt: tri,
+    desc: 'Yes when the stock is on the UCT RS Leaders list today. A stock joins when it passes every rule of that screen, and ranks in the top 50 of the stocks that do by RS Rating score. It stays until it falls past 65th or stops passing a rule, so a stock at the edge does not come and go from one day to the next, and the list holds 50 to 65 stocks. Decided once a session. It is a list to study and is not a recommendation.' },
+  rs_leaders_days: { label: 'Days on RS Leaders', fmt: num(0),
+    desc: 'How many sessions in a row the stock has been on the UCT RS Leaders list, counting today, as far back as our record goes: 1 means it joined today. Blank for a stock that is not on the list. A long run says the stock kept its place among the strongest. It does not say the run will go on.' },
+  // ── Fundamental trends (2026-11-21), from SEC filings, point in time (`fund_trends`) ──
+  // Worked out each evening from the quarters filed by that session's close and read into the
+  // row by the next nightly build. The numbers in these sentences (the 4, the 8, the 25%) are
+  // `fund_trends.ACCEL_MAX`, `EPS_STREAK_MAX` and `EPS_STREAK_THRESHOLD` on the server
+  // (tests/test_screener_fund_trends.py holds each to these sentences).
+  rev_accel_q: { label: 'Rev Accel', fmt: quarters,
+    desc: 'How many quarters in a row year-over-year revenue growth has risen, from SEC filings: 1 when the newest quarter grew faster than the quarter before it, 2 when that quarter also grew faster than the one before it, and so on up to 4. 0 means the newest quarter did not grow faster. Only quarters filed by the evening before the build count, and a 10-Q or 10-K can follow the earnings release by days. Blank, never 0, with fewer than two quarters, a missing quarter, or a year-earlier revenue of zero or less.' },
+  eps_streak_25: { label: 'EPS 25%+ Qtrs', fmt: quarters,
+    desc: 'How many quarters in a row diluted EPS grew at least 25% against the same quarter a year earlier, from SEC filings, counted back from the newest quarter, up to 8. A quarter whose year-earlier EPS was zero or negative has no growth rate, so it ends the count, and when it is the newest quarter this is blank: a turnaround from a loss never counts. 25% is UCT\'s default; the EPS Min columns take any threshold. Not the EPS Gr column, which is the data provider\'s figure.' },
+  eps_growth_min_2q: { label: 'EPS Min 2Q', fmt: pct, heat: heatSign,
+    desc: 'The lowest year-over-year diluted EPS growth of the last 2 quarters, from SEC filings: "at least 30% in each of the last 2 quarters" is this column at 30 or more. Blank when either quarter has no growth rate (a year-earlier EPS of zero or less) or a quarter is missing. Updates when the 10-Q or 10-K is filed, which can be days after the earnings release.' },
+  eps_growth_min_3q: { label: 'EPS Min 3Q', fmt: pct, heat: heatSign,
+    desc: 'The lowest year-over-year diluted EPS growth of the last 3 quarters, from SEC filings: "at least 30% in each of the last 3 quarters" is this column at 30 or more. Blank when any of the 3 has no growth rate (a year-earlier EPS of zero or less) or a quarter is missing. Updates when the 10-Q or 10-K is filed, which can be days after the earnings release.' },
+  eps_growth_min_4q: { label: 'EPS Min 4Q', fmt: pct, heat: heatSign,
+    desc: 'The lowest year-over-year diluted EPS growth of the last 4 quarters, from SEC filings: "at least 30% in each of the last 4 quarters" is this column at 30 or more. Blank when any of the 4 has no growth rate (a year-earlier EPS of zero or less) or a quarter is missing. Updates when the 10-Q or 10-K is filed, which can be days after the earnings release.' },
+  net_margin_chg_1y: { label: 'Net Mgn Chg', fmt: points, heat: heatSign,
+    desc: 'Trailing-twelve-month net margin now minus the same margin a year earlier, in percentage points, from SEC filings: +2.0 pts means the margin went from, say, 10% to 12%. Uses the four quarters ending at the newest filed quarter and the four ending a year before it. Blank without both. Not the Net Mgn column, which is the data provider\'s current figure.' },
+  gross_margin_chg_1y: { label: 'Gross Mgn Chg', fmt: points, heat: heatSign,
+    desc: 'Trailing-twelve-month gross margin now minus the same margin a year earlier, in percentage points, from SEC filings. Only for companies that report gross profit, about a third of them, so it is blank for most banks and insurers. Blank without both quarters. Not the Gr Mgn column, which is the data provider\'s current figure.' },
+  shares_chg_1y: { label: 'Shares Chg 1Y', fmt: pct,
+    desc: 'Shares outstanding on the newest filing\'s cover page against the count about a year earlier, in percent, from SEC filings. Below 0 means fewer shares (net buybacks), above 0 means more (dilution). Split-adjusted, so a stock split is not dilution. Blank for companies with more than one share class and where the split history cannot be verified.' },
 }

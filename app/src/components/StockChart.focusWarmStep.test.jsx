@@ -18,10 +18,14 @@ import { pinWallClock } from '../testing/pinnedWallClock'
 //
 // /api/bars never answers in this file, so a draw can only come from the cache.
 
+// Candle draws, so the walk can see WHICH symbol's bars were drawn and when (each walk symbol's
+// bars open at its own price, `walkBase`).
+const draws = vi.hoisted(() => ({ list: [] }))
 vi.mock('lightweight-charts', async (importOriginal) => {
   const real = await importOriginal()
   const series = {
-    setData: () => {}, update: () => {}, applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {} }),
+    setData: (d) => { if (Array.isArray(d) && d.length && d[0]?.open != null) draws.list.push({ at: Date.now(), open0: d[0].open }) },
+    update: () => {}, applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {} }),
     createPriceLine: () => ({}), removePriceLine: () => {}, setMarkers: () => {}, attachPrimitive: () => {},
     detachPrimitive: () => {}, priceToCoordinate: () => 0, coordinateToPrice: () => 0, options: () => ({}),
     getPane: () => ({ paneIndex: () => 0 }), priceFormatter: () => ({ format: (p) => String(p) }),
@@ -79,7 +83,7 @@ const { default: StockChart } = await import('./StockChart')
 const { memPut, memClear } = await import('../utils/barsMemCache')
 
 // N weekday-dated daily bars ending at `endISO` (no holidays in the window used).
-function dailyEndingAt(endISO, n = 60) {
+function dailyEndingAt(endISO, n = 60, base = 100) {
   const out = []
   const d = new Date(`${endISO}T12:00:00Z`)
   while (out.length < n) {
@@ -87,8 +91,10 @@ function dailyEndingAt(endISO, n = 60) {
     if (dow !== 0 && dow !== 6) out.unshift(d.toISOString().slice(0, 10))
     d.setUTCDate(d.getUTCDate() - 1)
   }
-  return out.map((t, i) => ({ t, o: 100 + i, h: 102 + i, l: 99 + i, c: 101 + i, v: 1000 + i }))
+  return out.map((t, i) => ({ t, o: base + i, h: base + 2 + i, l: base - 1 + i, c: base + 1 + i, v: 1000 + i }))
 }
+/** Walk symbol Qn's bars open at their own price, so a candle draw names its symbol. */
+const walkBase = (sym) => 1000 * (Number(String(sym).slice(1)) + 1)
 
 let netCalls
 beforeEach(() => {
@@ -147,7 +153,10 @@ describe('a warmed daily neighbour draws from the cache on the first frame', () 
 // slow; this rail asserts EVERY step of an 8-step walk is fast.
 describe('a Focus walk draws every step from the cache', () => {
   it('8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land', async () => {
-    const NET_MS = 400, PAUSE_MS = 700, CACHE_MS = 150
+    // The pane's chart is the full /charts Chart widget since 2026-10-18, and mounting it in jsdom
+    // takes 120-200 ms of a step whatever the cache holds. So the network is slow here (1 s) and
+    // a cache draw is anything inside 400 ms: the two are 2.5x apart, not 150 vs 400.
+    const NET_MS = 1000, PAUSE_MS = 1400, CACHE_MS = 400
     idbh.on = true; idbh.store.clear()
     try { localStorage.setItem('barspack.version', 'v1') } catch { /* ignore */ }
     const { default: useFocusSelection } = await import('../pages/screener/focus/useFocusSelection')
@@ -158,7 +167,7 @@ describe('a Focus walk draws every step from the cache', () => {
     vi.stubGlobal('fetch', vi.fn((url) => {
       netCalls.push(String(url))
       const m = String(url).match(/\/api\/bars\/(Q\d+)\?/)
-      if (m) return new Promise(r => setTimeout(() => r({ ok: true, status: 200, json: () => Promise.resolve({ ticker: m[1], bars: dailyEndingAt('2026-09-22') }) }), NET_MS))
+      if (m) return new Promise(r => setTimeout(() => r({ ok: true, status: 200, json: () => Promise.resolve({ ticker: m[1], bars: dailyEndingAt('2026-09-22', 60, walkBase(m[1])) }) }), NET_MS))
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) })
     }))
     let api
@@ -167,14 +176,20 @@ describe('a Focus walk draws every step from the cache', () => {
       api = sel
       return <ChartPane row={sel.selected} why={{ items: [], more: 0 }} onFlag={() => {}} onWatch={() => {}} />
     }
+    const { MemoryRouter } = await import('react-router-dom')
     try {
-      render(<Focus />)
-      await new Promise(r => setTimeout(r, 1500))           // first row loads; the warm runs
+      render(<MemoryRouter><Focus /></MemoryRouter>)   // the pane's chart widget links into the app
+      await new Promise(r => setTimeout(r, 2500))           // first row loads (NET_MS); the warm runs
+      // READY = the pane names the new symbol AND that symbol's candles were drawn after the key.
+      // ⚰️ This read `[data-chart-state="ready"]`, an attribute the pane lost on 2026-10-18
+      // (7f80af2a45: the pane's chart became the /charts Chart widget), so no step could ever
+      // be ready and the rail was red for a reason that said nothing about the cache.
+      let t0 = 0
       const ready = (s) => document.querySelector('[data-testid="focus-chart-pane"]')?.getAttribute('aria-label') === `${s} chart`
-        && document.querySelector('[data-chart-state]')?.getAttribute('data-chart-state') === 'ready'
+        && draws.list.some(d => d.at >= t0 && d.open0 === walkBase(s))
       const steps = []
       for (let k = 0; k < 8; k++) {
-        const t0 = Date.now()
+        t0 = Date.now()
         act(() => api.onKeyDown({ key: 'ArrowDown', preventDefault() {}, target: document.body }))
         const s = api.selected.ticker
         let at = null

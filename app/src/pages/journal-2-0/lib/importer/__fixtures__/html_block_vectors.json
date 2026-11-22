@@ -67,7 +67,8 @@
     {"name": "two images in one link read the first alt", "md": "[![a](https://e.com/1.png) ![b](https://e.com/2.png)](https://e.com/p)", "shape": "doc(image, image, paragraph('a'[link=https://e.com/p]))"},
     {"name": "a refused href keeps the image and makes no link", "md": "[![x](https://e.com/c.png)](javascript:alert(1))", "shape": "doc(image)"},
     {"name": "an HTML file's anchor around an image", "html": "<p><a href=\"https://e.com/p\"><img src=\"https://e.com/c.png\" alt=\"pic\"></a></p>", "shape": "doc(image, paragraph('pic'[link=https://e.com/p]))"},
-    {"name": "an HTML file's anchor around an image with a blank alt", "html": "<p><a href=\"https://e.com/p\"><img src=\"https://e.com/c.png\" alt=\" \"></a></p>", "shape": "doc(image, paragraph('https://e.com/p'[link=https://e.com/p]))"}
+    {"name": "an HTML file's anchor around an image with a blank alt", "html": "<p><a href=\"https://e.com/p\"><img src=\"https://e.com/c.png\" alt=\" \"></a></p>", "shape": "doc(image, paragraph('https://e.com/p'[link=https://e.com/p]))"},
+    {"name": "an HTML file's anchor around an image carrying only data-uct-alt reads the href (final review M3: the private alt is Evernote's alone)", "html": "<p><a href=\"https://e.com/p\"><img src=\"https://e.com/c.png\" data-uct-alt=\"secret\"></a></p>", "shape": "doc(image, paragraph('https://e.com/p'[link=https://e.com/p]))"}
   ],
   "known_differences_doc": "Differences kept ON PURPOSE, each pinned per lane so a change on either side is seen (D3 review M7). `server` and `client` are each lane's shape (the markdown_vectors spelling).",
   "known_differences": [

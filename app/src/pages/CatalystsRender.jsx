@@ -6,15 +6,15 @@
 //
 // Public route (no AuthGuard). Data comes from /api/r/catalysts?token= (a
 // token-gated public twin of the auth-gated /api/catalysts/today). Logos use the
-// public /api/ticker-logo proxy. ?token= is checked against VITE_CHART_RENDER_TOKEN.
+// public /api/ticker-logo proxy. ?token= is checked by the server on that read.
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import HighlightThesis from '../utils/highlightThesis'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 
-import { renderTokenOk } from '../lib/renderToken'
+import { renderReadError } from '../lib/renderToken'
 import { CATALYST_TAG, CATALYST_TAGS, keyedBy } from '../lib/taxonomy/a8Taxonomy'
 // Keyed by A8's tag vocabulary (TERM-075) and checked against it at load.
 const TAG_STYLE = keyedBy(CATALYST_TAGS, {
@@ -78,12 +78,12 @@ export default function CatalystsRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
+    // The server checks ?token= on this read; a refused read (401/403) shows "unauthorized".
     const extra = `${quality ? `&quality=${quality}` : ''}${compact ? `&compact=${compact}` : ''}`
     fetch(`/api/r/catalysts?token=${encodeURIComponent(token)}&n=${n}${extra}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => setRows(Array.isArray(d.rows) ? d.rows : []))
-      .catch(() => setErr('data unavailable'))
+      .catch((e) => setErr(renderReadError(e)))
   }, [token, n, quality, compact])
 
   // Signal readiness once rows are in + logos have had time to resolve/paint.

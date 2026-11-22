@@ -13,6 +13,7 @@ Unified event: {date, type:'catalyst'|'earnings'|'breaking', direction:'up'|'dow
 |'neutral', title, description, move_pct?, source, url?, ts}.
 """
 from __future__ import annotations
+from api.services import llm_models
 
 import json
 import logging
@@ -29,10 +30,10 @@ from api.services.news_catalysts import store
 
 _logger = logging.getLogger(__name__)
 
-HIST_PERIOD = "ytd2026_v10"  # v10 = drop vague 'moved on optimism' non-catalysts
+HIST_PERIOD = "ytd2026_v11"  # v11 = the search names the US company (AGL was read as AGL Energy)
 YTD_LO = "2026-01-01"
 
-_MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", "claude-sonnet-4-6")
+_MODEL = os.environ.get("NEWS_LLM_MODEL") or os.environ.get("MODELBOOK_LLM_MODEL", llm_models.SONNET)
 _TWEET_HOURS = int(os.environ.get("NEWS_TWEET_WINDOW_HOURS", "48") or 48)
 # Only the real news WIRES carry breaking catalysts — not the lower-signal
 # aggregator/retail accounts the tweet store also ingests (AIStockSavvy,
@@ -159,6 +160,33 @@ def _shorten(text, limit=240):
     return (cut[:sp] if sp > 0 else cut).rstrip(" ,;:-") + "…"
 
 
+def _company(sym):
+    """The US issuer's registered name for ``sym`` (SEC's list, through the news
+    lane's cached `subject.company_name`), or ``None``. Never raises.
+
+    WHY THE SEARCHES NEED IT. They named the stock by its bare symbol ("AGL stock"),
+    and a symbol is not unique across markets: on 2026-11-15 the catalysts stored for
+    AGL (agilon health, NYSE) were AGL Energy's, an Australian utility on the ASX
+    ("Government backs Tomago smelter", "AGL posts annual profit dip"). Nothing after
+    the search can tell the two apart, so the search itself has to be told who is meant.
+    A fund or a name the SEC list does not carry gets ``None`` and the search it had."""
+    try:
+        from api.services.news import subject
+        return (subject.company_name(sym) or "").strip() or None
+    except Exception:
+        return None
+
+
+def _only_this_company(sym, company) -> str:
+    """One sentence for a search prompt: which company the symbol means. Empty when the
+    name is not known (the prompt is then the one it was)."""
+    if not company:
+        return ""
+    return (f"{sym} here means ONLY the US-listed company {company}. Ignore any other "
+            f"company, in any country, that trades under the same ticker or a similar name "
+            f"(for example a listing on an Australian, Canadian or London exchange). ")
+
+
 def _web_catalysts(sym, company, bars, movers, *, outcome=None):
     """Perplexity → structured JSON of REAL, web-sourced 2026 catalysts.
 
@@ -192,7 +220,8 @@ def _web_catalysts(sym, company, bars, movers, *, outcome=None):
     label = f"{sym} ({company}) stock" if company else f"{sym} stock"
     query = (
         f"Search the web for the most significant COMPANY-SPECIFIC catalysts and news events for "
-        f"{label} during 2026 (January 1 to today). Cover: major customer/partner/contract deals, "
+        f"{label} during 2026 (January 1 to today). {_only_this_company(sym, company)}"
+        f"Cover: major customer/partner/contract deals, "
         f"strategic investments or funding rounds, mergers & acquisitions, notable institutional "
         f"stake disclosures, product/platform launches, regulatory or FDA events, analyst rating "
         f"or price-target changes, and standalone guidance updates. "
@@ -773,9 +802,12 @@ def _recent_catalysts(sym):
     except Exception:
         return []
     bars = _daily_bars_since(sym)
+    company = _company(sym)
+    label = f"{sym} ({company})" if company else sym
     query = (
-        f"Why is {sym} stock moving today, and what specific news has driven it over the last day "
-        f"or two? Search the live web including this morning's headlines. Name the EXACT catalyst "
+        f"Why is {label} stock moving today, and what specific news has driven it over the last day "
+        f"or two? {_only_this_company(sym, company)}"
+        f"Search the live web including this morning's headlines. Name the EXACT catalyst "
         f"behind any gap or spike — it may be a company event (deal, investment, contract, M&A, "
         f"product, analyst action, guidance, stake) OR an INDUSTRY / POLICY / REGULATORY development "
         f"affecting {sym} and its sector (e.g. a tariff, an import/export ban, or a government "
@@ -946,10 +978,11 @@ def _generate_and_store(sym: str) -> None:
         # the actual 2026 events). FALLBACK: from-memory generation when Perplexity is
         # unavailable (produces less — the model is pre-cutoff).
         web_oc: dict = {}
-        items, _cite = _web_catalysts(sym, None, bars, None, outcome=web_oc)
+        company = _company(sym)
+        items, _cite = _web_catalysts(sym, company, bars, None, outcome=web_oc)
         if not items:
             gen = significant_catalysts.generate(
-                sym, None, bars, "2026 YTD", direction="both",
+                sym, company, bars, "2026 YTD", direction="both",
                 model=_MODEL, max_items=_MAX_HIST_ITEMS, top_n=_HIST_TOP_N, enabled=True,
                 trading_bounds=(YTD_LO, _today_iso()),
             )
@@ -1012,7 +1045,7 @@ def debug_web(sym: str) -> dict:
     sym = (sym or "").upper()
     bars = _daily_bars_since(sym)
     movers = significant_catalysts.rank_big_move_days(bars, top_n=_HIST_TOP_N, direction="both") if bars else []
-    items, citation = _web_catalysts(sym, None, bars, movers)
+    items, citation = _web_catalysts(sym, _company(sym), bars, movers)
     recent = _recent_catalysts(sym)          # LIVE recent-layer result (today's drivers)
     breaking = _breaking_events(sym) if _breaking_enabled() else []   # curated news-wire layer
     return {

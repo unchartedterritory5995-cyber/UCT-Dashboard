@@ -31,7 +31,6 @@ from fastapi.testclient import TestClient
 
 from api.middleware import auth_middleware as authmw
 
-FLAG = "NOTEBOOK_PLAYBOOK_ENABLED"
 U, OTHER = "user-pb-a", "user-pb-b"
 
 # The 12-trade Breakout fixture: 7 wins, 5 losses. Oracle (scipy 1.17): Wilson(7, 12) =
@@ -73,7 +72,6 @@ def conn(db_path):
 
 @pytest.fixture
 def client(db_path, monkeypatch):
-    monkeypatch.setenv(FLAG, "1")
     from api.routers import notebook_playbook
     fa = FastAPI()
     fa.include_router(notebook_playbook.router)
@@ -240,21 +238,6 @@ def test_another_members_trades_never_appear(conn, client):
     assert [r["tradeCount"] for r in p["setups"]] == [1]
     p2 = client.get("/api/j2/my-playbook", params={"accountId": "someone-elses"}).json()
     assert p2["setups"] == [] and p2["untagged"]["count"] == 0
-
-
-# ── the gate ────────────────────────────────────────────────────────────────────────────────
-
-def test_404_while_the_flag_is_off_before_any_session(db_path, monkeypatch):
-    monkeypatch.delenv(FLAG, raising=False)
-    from api.routers import notebook_playbook
-    fa = FastAPI()
-    fa.include_router(notebook_playbook.router)
-    c = TestClient(fa)
-    assert c.get("/api/j2/my-playbook").status_code == 404          # no session read: not a 401
-    monkeypatch.setenv(FLAG, "1")
-    assert c.get("/api/j2/my-playbook").status_code == 401          # control: on, the session IS read
-    monkeypatch.setenv(FLAG, "0")
-    assert c.get("/api/j2/my-playbook").status_code == 404
 
 
 # ── patterns ────────────────────────────────────────────────────────────────────────────────

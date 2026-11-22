@@ -11,6 +11,7 @@ No network, no uvicorn.
 from __future__ import annotations
 
 import asyncio
+import os
 import logging
 import sys
 import threading
@@ -144,7 +145,8 @@ def _run_sampler(boot_window: float, ticks: int = 3) -> None:
     async def _main():
         task = asyncio.get_running_loop().create_task(
             boot_probe.run_sampler(tick=0.01, boot_window=boot_window))
-        await asyncio.sleep(0.01 * ticks + 0.05)
+        # + 2.0 s: the lines are built on a worker thread (2026-11-16), one hop per line, and a cold first reading takes ~0.8 s on Windows
+        await asyncio.sleep(0.01 * ticks + 2.0)
         task.cancel()
         try:
             await task
@@ -169,6 +171,44 @@ def test_control_the_sampler_is_silent_after_the_boot_window(caplog):
     with caplog.at_level(logging.INFO, logger="boot_probe"):
         _run_sampler(boot_window=0.0)
     assert not [m for m in caplog.messages if m.startswith("[boot-probe]")]
+
+
+def test_after_the_boot_window_a_cpu_probe_line_reports_the_interval(caplog, monkeypatch):
+    """2026-11-13: the per-thread view only existed for 7 minutes after boot, so a pod that
+    was CPU-bound in market hours could not say by what."""
+    monkeypatch.setattr(boot_probe, "STEADY_S", 0.02)
+    with caplog.at_level(logging.INFO, logger="boot_probe"):
+        _run_sampler(boot_window=0.0, ticks=8)
+    lines = [m for m in caplog.messages if m.startswith("[cpu-probe]")]
+    assert lines, caplog.messages
+    assert "loop-lag-max=" in lines[0] and "cpu=" in lines[0] and " anyio " in lines[0], lines[0]
+    assert not [m for m in caplog.messages if m.startswith("[boot-probe]")]
+
+
+def test_control_cpu_probe_off_when_steady_s_is_zero(caplog, monkeypatch):
+    monkeypatch.setattr(boot_probe, "STEADY_S", 0.0)
+    with caplog.at_level(logging.INFO, logger="boot_probe"):
+        _run_sampler(boot_window=0.0, ticks=8)
+    assert not [m for m in caplog.messages if m.startswith("[cpu-probe]")]
+
+
+@pytest.mark.skipif(not os.path.isdir("/proc/self/task"), reason="per-thread CPU is Linux /proc")
+def test_cpu_probe_names_the_thread_that_burned_the_cpu(caplog, monkeypatch):
+    import threading
+    stop = threading.Event()
+    def burn():
+        while not stop.is_set():
+            sum(range(2000))
+    t = threading.Thread(target=burn, name="zz-burner", daemon=True)
+    t.start()
+    monkeypatch.setattr(boot_probe, "STEADY_S", 0.2)
+    try:
+        with caplog.at_level(logging.INFO, logger="boot_probe"):
+            _run_sampler(boot_window=0.0, ticks=40)
+    finally:
+        stop.set()
+    lines = [m for m in caplog.messages if m.startswith("[cpu-probe]")]
+    assert any("zz-burner" in m for m in lines), lines
 
 
 def test_the_lifespan_starts_the_sampler_on_the_loop():
@@ -261,3 +301,112 @@ def test_control_the_route_entry_line_is_silent_after_the_window(monkeypatch, ca
     with caplog.at_level(logging.INFO, logger=r._logger.name):
         r.research_estimates("ZZEN", consensus=1)
     assert not [m for m in caplog.messages if m.startswith("[ee-enter]")]
+
+
+# -- per-thread CPU: which thread groups are burning the boot window (2026-11-12) --------
+
+def test_thread_group_folds_pool_indexes_and_default_names():
+    from api.services.boot_probe import _thread_group
+    assert _thread_group("ThreadPoolExecutor-3_7") == "ThreadPoolExecutor"
+    assert _thread_group("ThreadPoolExecutor-3_2") == "ThreadPoolExecutor"
+    assert _thread_group("Thread-12 (_bootstrap_scan)") == "_bootstrap_scan"
+    assert _thread_group("bars-prewarm") == "bars-prewarm"
+
+
+def test_hot_threads_ranks_groups_by_cpu_and_counts_new_threads_fully():
+    from api.services.boot_probe import hot_threads
+    before = {1: 10.0, 2: 5.0, 3: 1.0}
+    after = {1: 14.0, 2: 5.1, 3: 1.0, 4: 2.0}     # tid 4 born in the interval
+    names = {1: "warm-pool_0", 2: "MainThread", 4: "warm-pool_1"}
+    line = hot_threads(before, after, 5.0, names)
+    # warm-pool: (14-10) + 2 = 6 s over 5 s wall = 120%; MainThread 2% is below the 5% floor
+    assert line == "warm-pool 120%"
+
+
+def test_hot_threads_names_unknown_tids_native():
+    from api.services.boot_probe import hot_threads
+    assert hot_threads({9: 0.0}, {9: 1.0}, 2.0, {}) == "native 50%"
+
+
+def test_generic_pool_work_names_the_job_a_nameless_pool_is_running():
+    """A ThreadPoolExecutor with no thread_name_prefix shows up as `ThreadPoolExecutor`;
+    the probe must say what job it runs (outermost own-code frame) and where it is."""
+    import sys
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    from api.services import boot_probe as bp
+    from api.services import cache as own_module   # any module under api/: its file path is ours
+
+    gate = threading.Event()
+    started = threading.Event()
+
+    def job():
+        started.set()
+        gate.wait(5)
+
+    # Run `job` with a code object whose filename sits under api/, as a real job would.
+    code = compile("def _api_job(job):\n    return job()\n", own_module.__file__, "exec")
+    ns = {}
+    exec(code, ns)
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        pool.submit(ns["_api_job"], job)
+        assert started.wait(5)
+        threads = threading.enumerate()
+        worker = next(t for t in threads if t.name.startswith("ThreadPoolExecutor"))
+        before = {worker.native_id: 0.0}
+        after = {worker.native_id: 1.0}
+        line = bp.generic_pool_work(before, after, threads, sys._current_frames())
+        assert "_api_job" in line and "x1" in line, line
+        # a named pool is never reported here
+        worker.name = "named-pool_0"
+        assert bp.generic_pool_work(before, after, threading.enumerate(), sys._current_frames()) == ""
+    finally:
+        gate.set()
+        pool.shutdown(wait=True)
+
+
+# ── 4. the per-thread reading is built OFF the loop (2026-11-16) ───────────────────────
+
+def test_the_lines_are_built_off_the_loop_and_the_limiter_is_read_on_it(caplog, monkeypatch):
+    """⚰️ 2026-11-16: stored stall captures showed the loop thread in `_thread_cpu_ticks` <-
+    `summary_line` <- `run_sampler` for 1.5 s at a time during boot (one /proc read per thread,
+    each handing the interpreter lock back). Both lines are now built on a worker thread; only
+    the anyio reading stays on the loop. Control: the loop thread is known and differs."""
+    import threading
+    seen = {}
+    real_summary, real_steady, real_tokens = boot_probe.summary_line, boot_probe.steady_line, boot_probe._anyio_tokens
+
+    def summary(*a, **k):
+        seen.setdefault("summary", threading.get_ident())
+        return real_summary(*a, **k)
+
+    def steady(*a, **k):
+        seen.setdefault("steady", threading.get_ident())
+        return real_steady(*a, **k)
+
+    def tokens():
+        seen.setdefault("tokens", threading.get_ident())
+        return real_tokens()
+
+    async def _main(boot_window, ticks):
+        seen["loop"] = threading.get_ident()
+        task = asyncio.get_running_loop().create_task(boot_probe.run_sampler(tick=0.01, boot_window=boot_window))
+        await asyncio.sleep(0.01 * ticks + 0.3)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    monkeypatch.setattr(boot_probe, "summary_line", summary)
+    monkeypatch.setattr(boot_probe, "steady_line", steady)
+    monkeypatch.setattr(boot_probe, "_anyio_tokens", tokens)
+    monkeypatch.setattr(boot_probe, "STEADY_S", 0.02)
+    with caplog.at_level(logging.INFO, logger="boot_probe"):
+        asyncio.run(_main(1e9, 3))
+        asyncio.run(_main(0.0, 8))
+    assert {"summary", "steady", "tokens", "loop"} <= set(seen), seen
+    assert seen["summary"] != seen["loop"] and seen["steady"] != seen["loop"]
+    assert seen["tokens"] == seen["loop"]
+    assert any(m.startswith("[boot-probe]") and " anyio 0/" in m for m in caplog.messages)

@@ -25,7 +25,11 @@ copy it back into `worker.js` in the same change.
 | `/api/bars/US:*`, `NASDAQ:*`, `NYSE:*` (namespaced breadth) | `WEB_ORIGIN` — **any ticker containing a colon**. Added 2026-09-16: the Library is one metric across universes, so `pct_above_50sma` is `UCTA50` *and* `US:A50`, and only the first starts with `UCT`. Until this, `US:A50` was forwarded to the tier — whose breadth DB is 16 KB and empty — and answered `symbol_not_carried`, while the same symbol returned a proper 401 on `WEB_ORIGIN`. |
 | `/api/bars/<symbol>` | `BARS_ORIGIN` (bars-api tier) |
 | anything else | passed through untouched to the zone's default origin (web) |
-| tier returns >= 500, or times out (8 s) | falls back to `WEB_ORIGIN` |
+| tier network error, times out (8 s), 502/504, or any non-deliberate 5xx | falls back to `WEB_ORIGIN` |
+| tier DELIBERATE 503 + Retry-After (`X-Bars-Shed: warming`/`warm-shed`, or a `warming` body) | passes to the browser, `X-Bars-Edge: tier` |
+| a GET/HEAD the tier has not answered within 1.2 s (`BARS_HEDGE_MS`) | also asked of web; the first good answer is served (`X-Bars-Edge: web-hedge`). ⛔ `/api/bars/<symbol>` waits 2.5 s instead (see below) |
+| a GET/HEAD after web answered for a failing or out-waited tier (the CIRCUIT BREAKER, 2026-11-21) | straight to web for 20 s in that isolate (`BARS_BREAKER_MS`, `X-Bars-Edge: web-breaker`); a web failure still tries the tier. A tier restart (~11 s: a volume cannot be mounted twice) then costs one hedge, not one per read |
+| `/api/bars/<symbol>` (carries `history_rev`) | hedged only at **2.5 s** (`BARS_HISTORY_REV_HEDGE_MS`, ~2.9x the tier's measured p99 of 868 ms through the edge, 2026-11-21), so a normal read never leaves the tier; a FAILURE or that long hedge opens a breaker window these reads honour, a window opened by a short-hedge win does not. `history_rev` is comparable only within one store, and web's and bars-api's differ for every series measured (70/70), so a web answer re-points the browser at web's history and it then refuses the tier's. A 10-20 s bars-api swap costs at most 2.5 s on the first read per isolate. `/api/bars-history` keeps the 1.2 s hedge |
 
 **The fallback does not cover 401/403.** Those pass straight to the member. That
 is why the tier gate was a visible outage rather than a silent degradation.
@@ -49,6 +53,53 @@ Also latent: the regex matches `/api/bars-history/...`, but the **route** does
 not (`/api/bars-` is not `/api/bars/`), so history never reaches this Worker.
 Widening the route would silently activate that branch and put the edge in front
 of the cached historical surfaces. Don't.
+
+## Deep intraday history: `/api/hist/*` (history.js, not live until its route and bucket exist)
+
+`history.js` answers two paths straight from the `HISTORY` R2 bucket (the history lake,
+`tools/history_lake/`); no origin is asked:
+
+* `/api/hist/v1/index/<s-SYMBOL>.json` — the symbol's index: every piece it has, with each piece's
+  CRC and its place (`off`, `bytes`) in its pack, plus the symbol's split table.
+* `/api/hist/v1/<series>/<s-SYMBOL>/<period>.ubh?c=<crc>&o=<off>&n=<bytes>` — one piece, read as ONE
+  ranged read of `packs/<series>/<period>.pack`. The bytes must be a whole piece whose own header
+  names this symbol, series, period and CRC, or the answer is 409 (the client re-reads the index).
+  Sent with `Content-Encoding: br` and the piece header in `X-Ubh-Header`, so the browser inflates
+  it natively; `immutable` for a year (the URL names one exact content). The header comment in
+  `history.js` has the details.
+
+**Entitlement is enforced on this surface** (valid member cookie or valid service header,
+otherwise 401). `/api/bars/*` below is unchanged and still shadow-only. `HISTORY_PREFIX` (optional
+variable) is prepended to every object key if the lake shares a bucket.
+
+To turn it on: (1) build the packs and run `tools/history_lake/publish.py --upload` (packs first,
+then indexes), (2) bind the bucket to this Worker as `HISTORY`, (3) add the Worker Route
+`uctintelligence.com/api/hist/*`, (4) deploy `worker.js` and `history.js` together (Wrangler, or both
+files in the dashboard editor). Until step 3 the path never reaches this Worker; until step 2 it
+answers 503. Then a browser opts in with `localStorage['uct.historyLake']='1'`
+(`app/src/data/barStore/historyFeed.js`) until the default changes.
+
+## First-frame seed: `/api/seed/*` (seed.js, not live until its route exists)
+
+`seed.js` serves the first-frame seed packs (`docs/charts/first-frame-seed-format.md`) straight from
+R2; no origin is asked:
+
+* `/api/seed/v1/latest.json` — the manifest (build id, as-of session, per-timeframe url, bytes,
+  sha256). `private, max-age=60`.
+* `/api/seed/v1/<YYYYMMDDTHHMMZ>/<tf>.ffs` (`tf` = 1 5 15 30 60 D) — one timeframe's whole pack.
+  `private, immutable` for a year; a single `Range` is answered 206 (resumed downloads); the Worker
+  keeps a copy of each whole pack in the data center's Cache API under `/api/seed/__edge/`.
+
+Entitlement is enforced exactly as on `/api/hist/` (member cookie or service header, else 401).
+Bindings: `SEED` (R2 bucket; falls back to `HISTORY`), optional `SEED_PREFIX` (default `ffseed/`,
+the prefix the worker's builder `api/services/ffseed.py` uploads under in the `DATA_SYNC_BUCKET`).
+
+To turn it on (owner): (1) arm the builder on the worker (`FFSEED_ENABLED=1`, manual worker deploy)
+and confirm `ffseed/latest.json` exists in the bucket, (2) bind that bucket to this Worker as `SEED`
+(or reuse `HISTORY` if it is the same bucket, with `SEED_PREFIX` if needed), (3) add the Worker
+Route `uctintelligence.com/api/seed/*`, (4) deploy `worker.js` + `seed.js` together. Until step 3
+the path never reaches this Worker; until step 2 it answers 503. Tests: `node --test seed.test.mjs`
+(packs built by the Python encoder, `tools/ffseed_make_js_fixture.py`).
 
 ## Phase 1 — shadow entitlement (current)
 

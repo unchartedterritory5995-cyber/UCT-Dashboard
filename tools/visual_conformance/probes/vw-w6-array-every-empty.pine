@@ -1,0 +1,12 @@
+//@version=6
+indicator("vw-w6-array-every-empty", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit, split out of tools/visual_conformance/probes/vw-w6-array-members.pine after capture queue
+// run cq1-2026-11-16 (PR #1472) read that file as one compile error ("Cannot call {funId} with argument ...") whose text names no line or value. One question
+// per file, so an error here IS this file's reading: record its text and the bar it names. No licence-held text.
+// QUESTION: `array.every` / `array.some` of an EMPTY `array<bool>` (E01 / E02: 1 = true). The old rows asked it over `array<float>`, which TradingView does not compile (the reference types `id` as `array<bool>`).
+// CAPTURE: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE. A00 is the control (it must plot on every bar).
+plot(bar_index, "A00_bar_index_CONTROL")
+array<bool> ee = array.new_bool()
+plot(array.every(ee) ? 1 : 0, "E01_every_of_empty")
+plot(array.some(ee) ? 1 : 0, "E02_some_of_empty")

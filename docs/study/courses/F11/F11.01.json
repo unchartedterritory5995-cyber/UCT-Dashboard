@@ -1,0 +1,1582 @@
+{
+ "unit": "F11.01",
+ "track": "F11",
+ "title": "Day, swing, position",
+ "teaches": "The three trading clocks by holding period: day trades open and close the same day, swing trades hold overnight for days to weeks, position trades hold for months; what each costs you in screen time, overnight risk and trading costs; and what one bar means on the chart each trader reads.",
+ "skills": [
+  {
+   "id": "styles.horizons",
+   "title": "Day, swing, position"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Frequent Intraday Trading: Understanding the Basics (Investor Insights, June 4, 2026)",
+   "url": "https://www.finra.org/investors/insights/frequent-intraday-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Regulatory Notice 26-10: FINRA Adopts New Intraday Margin Standards to Replace the Day Trading Margin Requirements (April 20, 2026)",
+   "url": "https://www.finra.org/rules-guidance/notices/26-10",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Pattern Day Trader (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/pattern-day-trader",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Day Trade (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/day-trade",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Day Trading (glossary)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/day-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "Day Trading: Your Dollars at Risk (investor publication, last reviewed April 20, 2005)",
+   "url": "https://www.sec.gov/about/reports-publications/investorpubsdaytipshtm",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "NYSE",
+   "title": "Holidays & Trading Hours",
+   "url": "https://www.nyse.com/markets/hours-calendars",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Investor Bulletin: Exchange-Traded Funds (ETFs)",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Is Day Trading? How It Works, Strategies, & Risks (Joe Mazzola, October 29, 2026)",
+   "url": "https://www.schwab.com/learn/story/introduction-to-pattern-day-trader-rules",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "What Is Swing Trading and How Does It Work? (August 11, 2026)",
+   "url": "https://www.schwab.com/learn/story/swing-trading-strategies",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "The Ins and Outs of a Swing Trade (Joe Mazzola, March 7, 2025)",
+   "url": "https://www.schwab.com/learn/story/ins-and-outs-swing-trade",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Stock trading (Fidelity Learning Center, Smart Money, June 5, 2026)",
+   "url": "https://www.fidelity.com/learning-center/smart-money/what-is-trading",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Mastering Swing Trading: Techniques and Strategies (Adam Hayes, updated July 24, 2026)",
+   "url": "https://www.investopedia.com/terms/s/swingtrading.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Master Trading With Multiple Time Frames (Joey Fundora, updated October 12, 2025)",
+   "url": "https://www.investopedia.com/articles/trading/07/timeframes.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "What Are Charts? (ChartSchool)",
+   "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/what-are-charts",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "StockCharts.com",
+   "title": "StockCharts Insider: John Murphy's Law #1, Map the Trends (Karl Montevirgen, November 17, 2025)",
+   "url": "https://articles.stockcharts.com/article/stockcharts-insider-john-murphys-law-1-map-the-trends/",
+   "accessed": "2026-11-09",
+   "why_reliable": "A StockCharts.com editorial article that applies John Murphy's published Ten Laws of Technical Trading (Murphy is a listed Tier 2 author). The same advice is in StockCharts' own Ten Laws PDF (https://stockcharts.com/ten-laws/murphys-ten-laws.pdf). Filed under the same publisher as ChartSchool, so the two never count as two publishers."
+  },
+  {
+   "id": "s17",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The house sizing rule, section 9: The account rulebook (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "hw",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "Our rules, in our words (2026-11-14)",
+   "url": "repo:docs/study/setups/DECISIONS.md#the-rulings-in-our-words-for-lessons-2026-11-14",
+   "accessed": "2026-11-14"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "Investors who actively trade securities, including stocks or options, throughout the day might attempt to profit from small price movements, typically related to volatile stocks, and often make these trades using margin.",
+   "claim": "Intraday traders try to profit from small price moves during the day, often in volatile stocks and often on margin."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "trading throughout the day is time-intensive and requires that you pay continuous attention to your holdings and the market as a whole.",
+   "claim": "Trading through the day takes a lot of time and constant attention to your positions and the market."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "Frequent trading can also come with higher costs that might erode your returns",
+   "claim": "Trading often brings higher costs that can eat into your returns."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "To trade using margin (funds borrowed from your firm), you must maintain a minimum of $2,000 in equity in your margin account.",
+   "claim": "To trade on margin you need at least $2,000 of equity in the account."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "Your brokerage firm may require higher minimum equity amounts",
+   "claim": "Your broker can require more equity than the FINRA minimum."
+  },
+  {
+   "id": "f6",
+   "source": "s2",
+   "quote": "replace in their entirety the outdated day trading margin requirements, including the day trade count requirements for designating a customer as a “pattern day trader” and the $25,000 pattern day trader minimum equity requirement.",
+   "claim": "FINRA's new intraday margin standards replace the old day trading rules, including the pattern day trader count and its $25,000 minimum."
+  },
+  {
+   "id": "f7",
+   "source": "s2",
+   "quote": "Effective Date: June 4, 2026; Phase-in Period: Ends October 20, 2027",
+   "claim": "The new standards took effect June 4, 2026, and firms have until October 20, 2027 to phase them in."
+  },
+  {
+   "id": "f8",
+   "source": "s3",
+   "quote": "The new intraday margin requirements, effective June 4, 2026, permit a transition period until October 20, 2027, for brokerage firms that need more time to comply.",
+   "claim": "The new rules took effect June 4, 2026, with a transition to October 20, 2027 for brokers that need more time."
+  },
+  {
+   "id": "f9",
+   "source": "s3",
+   "quote": "Your brokerage firm might continue operating under the old day trading margin requirements during the transition, or they might choose to migrate to the new intraday margin standards sooner.",
+   "claim": "During the transition, your broker may still run the old day trading rules or may already use the new ones."
+  },
+  {
+   "id": "f10",
+   "source": "s4",
+   "quote": "FINRA rules define a “day trade” as the purchase and sale, or the sale and purchase, of the same security on the same day in a margin account.",
+   "claim": "A day trade is buying and then selling, or selling and then buying, the same security on the same day."
+  },
+  {
+   "id": "f11",
+   "source": "s4",
+   "quote": "Exceptions to this definition include: a long security position held overnight and sold the next day prior to any new purchase of the same security",
+   "claim": "A stock held overnight and sold the next day, before any new buy of it, is not a day trade."
+  },
+  {
+   "id": "f12",
+   "source": "s5",
+   "quote": "Day traders rapidly buy, sell and short-sell stocks throughout the day in the hope that the stocks continue climbing or falling in value for the seconds or minutes they hold the shares",
+   "claim": "Day traders trade throughout the day and often hold for only seconds or minutes."
+  },
+  {
+   "id": "f13",
+   "source": "s6",
+   "quote": "True day traders do not own any stocks overnight because of the extreme risk that prices will change radically from one day to the next, leading to large losses.",
+   "claim": "Day traders hold nothing overnight, to stay out of big price changes from one day to the next."
+  },
+  {
+   "id": "f14",
+   "source": "s6",
+   "quote": "Day traders must watch the market continuously during the day at their computer terminals.",
+   "claim": "Day traders watch the market the whole session."
+  },
+  {
+   "id": "f15",
+   "source": "s7",
+   "quote": "Core Trading Session: 9:30 a.m. to 4:00 p.m. ET",
+   "claim": "The NYSE's regular session runs 9:30 a.m. to 4:00 p.m. ET."
+  },
+  {
+   "id": "f16",
+   "source": "s8",
+   "quote": "If an investor buys 200 ETF shares at the ask price of $60 and sells them immediately at the bid price of $59.50, the investor would incur a loss of $100.",
+   "claim": "Buy at the ask and sell straight back at the bid, and you lose the spread on every share."
+  },
+  {
+   "id": "f17",
+   "source": "s8",
+   "quote": "The spread can be thought of as a hidden cost to investors since spreads reduce potential returns.",
+   "claim": "The spread is a hidden cost of every trade."
+  },
+  {
+   "id": "f18",
+   "source": "s9",
+   "quote": "Day trading is the purchasing and selling (or short selling and purchasing) of the same security on a single day",
+   "claim": "Day trading is buying and selling, or shorting and buying back, the same security on one day."
+  },
+  {
+   "id": "f19",
+   "source": "s9",
+   "quote": "The key is that every position is opened and closed on the same day.",
+   "claim": "In day trading, every position opens and closes the same day."
+  },
+  {
+   "id": "f20",
+   "source": "s9",
+   "quote": "Real-time charts: Price charts that update throughout the day, often on one-minute or five-minute timeframes.",
+   "claim": "Day traders often use one-minute or five-minute charts that update through the day."
+  },
+  {
+   "id": "f21",
+   "source": "s9",
+   "quote": "Day traders make many trades, which means they pay more in commissions, spreads, and other fees.",
+   "claim": "Many trades mean more paid in commissions, spreads and fees."
+  },
+  {
+   "id": "f22",
+   "source": "s9",
+   "quote": "Day trading is a full-time endeavor that requires constant attention during market hours.",
+   "claim": "Day trading is a full-time job that needs constant attention while the market is open."
+  },
+  {
+   "id": "f23",
+   "source": "s9",
+   "quote": "Swing trading can be done with less screen time, but still requires daily monitoring.",
+   "claim": "Swing trading takes less screen time than day trading but still needs a daily check."
+  },
+  {
+   "id": "f24",
+   "source": "s9",
+   "quote": "No. The old $25,000 minimum equity requirement was eliminated in June 2026. You still need at least $2,000 in equity to trade on margin",
+   "claim": "The old $25,000 day trading minimum is gone since June 2026; trading on margin still needs $2,000 of equity."
+  },
+  {
+   "id": "f25",
+   "source": "s9",
+   "quote": "Exceptions include a long security position (holder owns the security) held overnight and then sold the next day prior to any new purchase of the same security",
+   "claim": "A stock held overnight and sold the next day, before any new buy, is not a day trade."
+  },
+  {
+   "id": "f26",
+   "source": "s10",
+   "quote": "Swing traders seek to capitalize on price swings over a period of days or weeks, typically using technical analysis to identify price patterns and entry and exit points.",
+   "claim": "Swing traders try to profit from price swings over days or weeks, mostly with chart analysis."
+  },
+  {
+   "id": "f27",
+   "source": "s10",
+   "quote": "Unlike day traders, swing traders hold positions overnight but target shorter-term opportunities than position traders or long-term investors.",
+   "claim": "Swing traders hold overnight, but for shorter moves than position traders or long-term investors."
+  },
+  {
+   "id": "f28",
+   "source": "s10",
+   "quote": "Swing traders, on the other hand, hold their positions for days or weeks. This exposes them to the risk of potential gaps at the market open due to news that occurred during non-trading hours.",
+   "claim": "Holding for days or weeks exposes swing traders to gaps at the open from news that lands while the market is closed."
+  },
+  {
+   "id": "f29",
+   "source": "s10",
+   "quote": "For example, they may use a longer period (like a daily chart) for the trade setup but refer to an hourly chart when planning and executing entry and exit points.",
+   "claim": "Swing traders often find the setup on a daily chart and time entries and exits on an hourly chart."
+  },
+  {
+   "id": "f30",
+   "source": "s10",
+   "quote": "Like investors, position traders may hold a security for weeks or months. Longer holding periods often lead position traders to place greater weight than swing traders on business fundamentals, valuations, institutional money flows, and the economic backdrop.",
+   "claim": "Position traders hold for weeks or months and weigh fundamentals, valuation, fund flows and the economy more than swing traders do."
+  },
+  {
+   "id": "f31",
+   "source": "s10",
+   "quote": "Within those longer time horizons, most securities will naturally cycle through many smaller rallies and pullbacks.",
+   "claim": "Over months, most stocks go through many smaller rallies and pullbacks."
+  },
+  {
+   "id": "f32",
+   "source": "s10",
+   "quote": "A position trader would likely weather these shifts as long as the trend remains intact, while a swing trader might target multiple trading opportunities within the longer move.",
+   "claim": "A position trader sits through those pullbacks while the trend holds; a swing trader may trade several moves inside it."
+  },
+  {
+   "id": "f33",
+   "source": "s10",
+   "quote": "Though they often track the news and short-term market sentiment, day traders pay little attention to market fundamentals, which are unlikely to shift within a single day.",
+   "claim": "Day traders pay little attention to fundamentals, which rarely change within one day."
+  },
+  {
+   "id": "f34",
+   "source": "s10",
+   "quote": "By definition, short-term trading opportunities occur more frequently, but more frequent trading brings more frequent exposure to risk and additional transaction costs.",
+   "claim": "Trading more often means more exposure to risk and more transaction costs."
+  },
+  {
+   "id": "f35",
+   "source": "s10",
+   "quote": "Many swing traders also track market fundamentals, longer-term trends, and economic cycles to ensure they aren't trading against the broader market.",
+   "claim": "Many swing traders also watch fundamentals and the bigger trend so they don't trade against the market."
+  },
+  {
+   "id": "f36",
+   "source": "s11",
+   "quote": "If the stock gaps up or down on market open, the trade is likely to execute above or below the intended price, which can result in greater losses than expected.",
+   "claim": "If a stock gaps at the open, a triggered stop likely fills beyond your price, for a bigger loss than planned."
+  },
+  {
+   "id": "f37",
+   "source": "s12",
+   "quote": "When you trade intraday, you buy and sell stocks, ETFs, and other assets multiple times a day. Before the end of the trading day, you usually sell everything off",
+   "claim": "Intraday traders buy and sell many times a day and usually close everything before the day ends."
+  },
+  {
+   "id": "f38",
+   "source": "s12",
+   "quote": "intraday trading can be as all-consuming as a full-time job.",
+   "claim": "Intraday trading can take as much time as a full-time job."
+  },
+  {
+   "id": "f39",
+   "source": "s12",
+   "quote": "swing trading is when you hold investments for days or weeks to capitalize on upticks",
+   "claim": "Swing trading means holding for days or weeks to catch a swing."
+  },
+  {
+   "id": "f40",
+   "source": "s12",
+   "quote": "Like intraday trading, swing trading requires a lot of research and awareness of market and investment trends.",
+   "claim": "Swing trading still takes steady research and attention to the market."
+  },
+  {
+   "id": "f41",
+   "source": "s12",
+   "quote": "Position traders may hold their position for many months or years.",
+   "claim": "Position traders can hold for many months or years."
+  },
+  {
+   "id": "f42",
+   "source": "s12",
+   "quote": "Based on their research and knowledge of investment trends, they hope that prices will rise through the periodic downturns that may frustrate traders with shorter investment time horizons.",
+   "claim": "Position traders hope prices rise through the periodic downturns that frustrate shorter-term traders."
+  },
+  {
+   "id": "f43",
+   "source": "s12",
+   "quote": "A longer timeframe means a position isn’t necessarily dependent on a single day’s market movements.",
+   "claim": "The longer you hold, the less any one day decides the trade."
+  },
+  {
+   "id": "f44",
+   "source": "s13",
+   "quote": "Swing trading aims to profit from short- to medium-term price moves, typically lasting days to weeks.",
+   "claim": "Swing trading targets moves that usually last days to weeks."
+  },
+  {
+   "id": "f45",
+   "source": "s13",
+   "quote": "Swing trade positions are subject to overnight and weekend market risk",
+   "claim": "Swing trades carry overnight and weekend risk."
+  },
+  {
+   "id": "f46",
+   "source": "s13",
+   "quote": "Swing trading occupies a middle ground between day trading and position trading, which is driven more by fundamentals and involves holding on to positions for weeks or months at a time.",
+   "claim": "Position trading holds for weeks or months and leans more on fundamentals; swing trading sits between it and day trading."
+  },
+  {
+   "id": "f47",
+   "source": "s14",
+   "quote": "A swing trader, who focuses on daily charts for decisions, could use weekly charts to define the primary trend and 60-minute charts to define the short-term trend.",
+   "claim": "A swing trader decides on daily charts, with weekly for the main trend and 60-minute for the short term."
+  },
+  {
+   "id": "f48",
+   "source": "s14",
+   "quote": "A day trader could trade off of 15-minute charts, use 60-minute charts to define the primary trend and a five-minute chart (or even a tick chart) to define the short-term trend.",
+   "claim": "A day trader works from minute charts: 15-minute to trade, 60-minute for the trend, five-minute or tick for the short term."
+  },
+  {
+   "id": "f49",
+   "source": "s14",
+   "quote": "A long-term position trader could focus on weekly charts while using monthly charts to define the primary trend and daily charts to refine entries and exits.",
+   "claim": "A position trader works from weekly charts, with monthly for the main trend and daily to fine-tune entries and exits."
+  },
+  {
+   "id": "f50",
+   "source": "s14",
+   "quote": "A general rule is that the longer the time frame, the more reliable the signals being given. As you drill down in time frames, the charts become more polluted with false moves and noise.",
+   "claim": "Longer time frames give more reliable signals; shorter ones carry more false moves and noise."
+  },
+  {
+   "id": "f51",
+   "source": "s15",
+   "quote": "Daily data consists of intraday data compressed to show each day as a single data point or period. Weekly data includes daily data that has been compressed to show each week as a single data point.",
+   "claim": "On a daily chart each bar is one day; on a weekly chart each bar is one week."
+  },
+  {
+   "id": "f52",
+   "source": "s15",
+   "quote": "While long on detail, short-term charts can be volatile and contain a lot of noise.",
+   "claim": "Short-term charts show more detail but also a lot of noise."
+  },
+  {
+   "id": "f53",
+   "source": "s15",
+   "quote": "There's no right data compression and timeframe to use. It depends on the data available and your trading or investing style.",
+   "claim": "The right chart timeframe depends on your trading style."
+  },
+  {
+   "id": "f54",
+   "source": "s16",
+   "quote": "If you’re day trading, let the daily chart set the bias; if you’re swing trading, pay attention to the weekly chart; and if you’re investing for the long term, check both the weekly and monthly charts as well.",
+   "claim": "Match the chart to the style: the daily for a day trader's bias, the weekly for a swing trader, weekly and monthly for the long term."
+  },
+  {
+   "id": "f55",
+   "source": "s12",
+   "quote": "because they take a long-term view, position traders aren’t likely to let the news of the day influence their investment strategies, unless that news changes their understanding of an investment’s future long-term growth.",
+   "claim": "Position traders take a long-term view and don't let the day's news change their plan unless it changes the long-term story."
+  },
+  {
+   "id": "h01",
+   "source": "s17",
+   "quote": "We swing trade: days to a few weeks; a winner can be held longer while it keeps working.",
+   "claim": "Our rule C35: UCT swing trades, days to a few weeks, and a winner can be held longer while it keeps working."
+  },
+  {
+   "id": "h02",
+   "source": "s17",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "Our rule B22: no new buys in the 3 days before an earnings report, and hold through a report only when up 5R."
+  },
+  {
+   "id": "h03",
+   "source": "s17",
+   "quote": "Prefer stocks with growing sales and earnings; the chart comes first.",
+   "claim": "Our rule D40: prefer stocks with growing sales and earnings, with the chart first."
+  },
+  {
+   "id": "h04",
+   "source": "s17",
+   "quote": "Sell some into strength and trail the rest under the rising averages.",
+   "claim": "Our rule A11: sell some into strength and trail the rest under the rising averages."
+  },
+  {
+   "id": "h05",
+   "source": "hw",
+   "quote": "Default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; sell what is left on a close below it.",
+   "claim": "Our default trail: the 9 EMA for fast movers, the 20 EMA for steadier ones; a close below it sells what is left."
+  },
+  {
+   "id": "h06",
+   "source": "s17",
+   "quote": "The stop is the exit. It only moves up, never down or wider.",
+   "claim": "Our rule A4: the stop is the exit and only moves up, never down or wider."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "Three clocks",
+   "steps": [
+    "Three clocks. A day trader is in and out the same day, flat by the close, nothing held overnight.",
+    "A swing trader holds overnight, days to a few weeks, to catch one move. That's us.",
+    "A position trader rides the bigger trend for weeks or months, sometimes years.",
+    "How long you held tells you which one you were."
+   ],
+   "facts": [
+    "f10",
+    "f13",
+    "f19",
+    "f26",
+    "f27",
+    "h01",
+    "f30",
+    "f41",
+    "f32"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "What one bar means",
+   "steps": [
+    "Each clock reads a different bar. A day trader lives on one-minute or five-minute bars.",
+    "A swing trader decides on the daily chart. One bar, one day.",
+    "A position trader works off the weekly. Each bar is a whole week.",
+    "Shorter bars show more detail and more noise. Match the bar to how long you plan to hold."
+   ],
+   "facts": [
+    "f20",
+    "f48",
+    "f47",
+    "f51",
+    "f49",
+    "f52",
+    "f54",
+    "f53"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "What each clock costs you",
+   "steps": [
+    "Day trading costs you the whole session at the screen, and fees and spreads pile up over all those trades.",
+    "Swing trading takes less screen time, but you check in every day. And you carry the overnight and weekend gaps.",
+    "Position trading leans least on any one day. You still hold the gaps, and you sit through the pullbacks."
+   ],
+   "facts": [
+    "f2",
+    "f14",
+    "f21",
+    "f17",
+    "f23",
+    "f45",
+    "f28",
+    "f13",
+    "f55",
+    "f43",
+    "f30",
+    "f31",
+    "f32",
+    "f42"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "styles.horizons",
+   "rung": 1,
+   "format": "mcq",
+   "term": "day trade",
+   "q": "Your buddy says he day traded AMD today. What actually makes a trade a day trade?",
+   "choices": [
+    "In and out the same day",
+    "Held less than a week",
+    "Bought in the first hour",
+    "Made in a margin account"
+   ],
+   "answer": "In and out the same day",
+   "why": "In and out the same day. That's the whole test. You buy and sell the same stock on one day, and it's a day trade. Short it and buy it back that day, same thing. How long you held it inside the day doesn't matter, ten minutes or all session. What matters is whether you carried it past the close. We swing trade, so most of our trades sleep at least one night in the account.",
+   "lesson_line": "Bought and sold the same day. That's a day trade.",
+   "facts": [
+    "f10",
+    "f18",
+    "f19",
+    "f11",
+    "f1"
+   ],
+   "wrong": {
+    "Held less than a week": "That's a short swing trade. Hold it even one night and it isn't a day trade.",
+    "Bought in the first hour": "When you buy doesn't decide it. Whether you sell it the same day does.",
+    "Made in a margin account": "Margin is how your broker funds and counts your trades. It isn't what makes one a day trade. Hold weeks on margin and it's still a swing trade."
+   },
+   "simple": "A day trade is a buy and a sell of the same stock on the same day. The day decides it, nothing else.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (margin wrong note)",
+     "Tier 1 Investor.gov plus Schwab agree"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "styles.horizons",
+   "rung": 1,
+   "format": "tf",
+   "q": "You buy RBRK's breakout on a Tuesday. The plan is to hold it days to a few weeks, nights included. That's a swing trade.",
+   "answer": "True",
+   "why": "True. That's the swing trader's clock. You're after one move in the stock. That takes days or weeks, so you hold through the nights in between. It's our clock too. We swing trade. Most of our trades last days to a few weeks, and a winner that keeps working can stay on longer. So it's a normal range, not a hard cap. Sit in it for many months and you've become a position trader.",
+   "lesson_line": "Days to weeks, held overnight. That's a swing trade, and it's how we trade.",
+   "facts": [
+    "f26",
+    "f39",
+    "f44",
+    "f27",
+    "h01"
+   ],
+   "simple": "True. A swing trade is held overnight for days to a few weeks, and that's how we trade.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "why cites our rule C35 (owner rulebook)",
+     "three Tier 2 publishers agree"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q03",
+   "skill": "styles.horizons",
+   "rung": 2,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "A position trader often holds for ___ at a time.",
+   "bank": [
+    "minutes",
+    "hours",
+    "days",
+    "months",
+    "decades"
+   ],
+   "answer": "months",
+   "why": "Months. Schwab and Investopedia put position trades at weeks or months. Fidelity says many months or years. Months is the span all three name. Minutes and hours are a day trader's clock, and days a swing trader's. None of the three sources says decades.",
+   "lesson_line": "Day traders count minutes, swing traders count days, position traders count months.",
+   "facts": [
+    "f30",
+    "f46",
+    "f41",
+    "f12",
+    "f19",
+    "f26"
+   ],
+   "simple": "Months, because position traders ride a big trend and hold much longer than swing traders do.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (instruction line)",
+     "sources differ on the upper bound (conflicts line); months is in all three"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q04",
+   "skill": "styles.horizons",
+   "rung": 2,
+   "format": "tf",
+   "q": "A true day trader is out of every position by the close. Nothing gets held overnight.",
+   "answer": "True",
+   "why": "True. Flat by the close, every day. That's the point of day trading. A stock can change a lot between one close and the next open, and the day trader wants no part of that. So every position opens and closes in the same session. Hold it past the close and you've got a swing trade, and you own the overnight risk. We take that risk on purpose. It's also why a tight stop never earns you a monster position: a stop can't catch a gap.",
+   "lesson_line": "Flat by the close. That's a day trader. Hold overnight and you hold the gap.",
+   "facts": [
+    "f13",
+    "f19",
+    "f37",
+    "f27"
+   ],
+   "simple": "True. A day trader closes everything before the bell, so a move overnight can't hurt him.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "SEC (Tier 1, an old page whose definition does not date) plus Schwab and Fidelity agree"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q05",
+   "skill": "styles.horizons",
+   "rung": 3,
+   "format": "mcq",
+   "q": "You want trades that last days to a few weeks. Which chart do you hunt for setups on?",
+   "choices": [
+    "The daily chart",
+    "A 1-minute chart",
+    "A monthly chart",
+    "An hourly chart"
+   ],
+   "answer": "The daily chart",
+   "why": "The daily. Each bar is one full day, and your trade lasts days to weeks, so the bar fits the hold. That's where we look for our bases, flags and pullbacks, and where you mark your levels the night before. Check the weekly too, for the bigger trend. The hourly comes in later, to time the entry once the daily gives you the setup. A 1-minute chart is a day trader's tool, and over a hold of days it's mostly noise.",
+   "lesson_line": "Match the bar to the hold. A trade you hold for days lives on the daily.",
+   "facts": [
+    "f47",
+    "f29",
+    "f51",
+    "f52",
+    "f26",
+    "f49",
+    "f20"
+   ],
+   "wrong": {
+    "A monthly chart": "One bar a month is far too slow to time a trade of days. It shows the long-term trend.",
+    "A 1-minute chart": "That's a day trader's chart. Over a trade that lasts days, one-minute bars are mostly noise.",
+    "An hourly chart": "Good for timing the entry, not for finding the setup. The setup lives on the daily."
+   },
+   "simple": "The daily, because each bar is one day and a swing trade lasts days to weeks.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two Tier 2 publishers agree (Investopedia, Schwab)",
+     "no weekly choice by design (conflicts line on Murphy's weekly)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "styles.horizons",
+   "rung": 3,
+   "format": "tf",
+   "q": "Day trading fits into a few spare minutes a day.",
+   "answer": "False",
+   "why": "False. FINRA says trading through the day takes continuous attention to your holdings and the market. The SEC says day traders watch the market all day.",
+   "lesson_line": "Day trading takes the whole session. If you can't watch the screen, it isn't your style.",
+   "facts": [
+    "f2",
+    "f14",
+    "f22"
+   ]
+  },
+  {
+   "key": "q07",
+   "skill": "styles.horizons",
+   "rung": 3,
+   "format": "tf",
+   "q": "You're in three swing trades. They run days to weeks, so a check once a week is plenty.",
+   "answer": "False",
+   "why": "False. Less screen time than day trading, yes. Once a week, no. A swing trade still needs a look every day. Your stops and your trail have to keep up with price. A close under the 9 or 20 EMA, a gap, earnings coming up: you want to see it that night. So check every position after the close, every day. Once your stops are in, it takes a few minutes.",
+   "lesson_line": "Less screen time, not zero. Look at your swing trades every day.",
+   "facts": [
+    "f23",
+    "f40",
+    "h05"
+   ],
+   "simple": "False. Swing trades need less screen time than day trades, but you still check them every day.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two Tier 2 publishers agree (Schwab, Fidelity)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "styles.horizons",
+   "rung": 4,
+   "format": "scenario",
+   "story": "You buy a stock at 3:50 p.m. on Tuesday. You sell it at 9:45 a.m. on Wednesday. You make no other trades in it.",
+   "q": "Day trade or not?",
+   "choices": [
+    "No, you held it overnight",
+    "Yes, it was under 24 hours",
+    "Yes, it was one quick flip",
+    "No, a day trade needs two buys"
+   ],
+   "answer": "No, you held it overnight",
+   "why": "Not a day trade. You held it overnight. A day trade is a buy and a sell on the same day, and you bought Tuesday and sold Wednesday. The calendar decides it, not the hours. Those few minutes either side of the close still carried all of Tuesday night's risk. Any news that broke after the bell could've gapped it at the open. So treat a trade you hold overnight like a swing trade, because that's what it is.",
+   "lesson_line": "Overnight is the line. Hold past the close and it isn't a day trade.",
+   "facts": [
+    "f11",
+    "f25",
+    "f10",
+    "f27"
+   ],
+   "wrong": {
+    "Yes, it was under 24 hours": "There's no 24-hour test. You bought Tuesday and sold Wednesday: two different days.",
+    "No, a day trade needs two buys": "One buy and one sell on the same day is enough. This one isn't a day trade because it crossed a night.",
+    "Yes, it was one quick flip": "Speed isn't the test. The day is, and you bought Tuesday and sold Wednesday."
+   },
+   "simple": "No. You held it overnight, and a day trade opens and closes on the same day.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "the FINRA definition sat in the day trading margin rule FINRA replaced (conflicts line); used only as the word's meaning",
+     "fixed before (distractor)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q09",
+   "skill": "styles.horizons",
+   "rung": 4,
+   "format": "mcq",
+   "q": "Four trades from your journal. Which one is a swing trade?",
+   "choices": [
+    "Bought 9:45 a.m., sold at 3:30 p.m.",
+    "Bought Monday, sold next Thursday",
+    "Bought in March, sold in October",
+    "Bought and sold in 90 seconds"
+   ],
+   "answer": "Bought Monday, sold next Thursday",
+   "why": "Monday to next Thursday. That's a week and a half, held through every night in between. Days to weeks, overnight: that's a swing trade, and it's the kind of hold we live in. The 9:45 to 3:30 trade and the 90-second one both opened and closed the same day, so they're day trades. March to October is months in the stock. That's a position trader's hold.",
+   "lesson_line": "Same day is a day trade. Months is a position. Days to weeks is us.",
+   "facts": [
+    "f26",
+    "f39",
+    "f27",
+    "f10",
+    "f41",
+    "f12"
+   ],
+   "wrong": {
+    "Bought in March, sold in October": "That's months in the trade, a position trader's hold. A swing trade runs days to weeks.",
+    "Bought and sold in 90 seconds": "Seconds in and out. That's the fastest kind of day trade.",
+    "Bought 9:45 a.m., sold at 3:30 p.m.": "In and out the same day. That's a day trade."
+   },
+   "simple": "Monday to next Thursday, because a swing trade is held overnight for days to weeks.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Schwab and Fidelity agree on days to weeks; Investor.gov for the same-day picks"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q10",
+   "skill": "styles.horizons",
+   "rung": 4,
+   "format": "numeric",
+   "q": "The regular session runs 9:30 a.m. to 4:00 p.m. ET. How many 5-minute bars make up one daily bar?",
+   "answer": 78,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(close_h - open_h) * 60 / bar_min",
+     "open_h": 9.5,
+     "close_h": 16,
+     "bar_min": 5
+    }
+   },
+   "suffix": "bars",
+   "why": "78 bars. Six and a half hours, cut into 5-minute pieces. One bar on a swing trader's daily chart is 78 bars on a day trader's 5-minute chart.",
+   "lesson_line": "One daily bar holds a whole session. A day trader sees 78 bars inside it.",
+   "facts": [
+    "f15",
+    "f51",
+    "f20"
+   ]
+  },
+  {
+   "key": "q11",
+   "skill": "styles.horizons",
+   "rung": 5,
+   "format": "scenario",
+   "story": "You're three days into a swing trade, up a bit. The company reports earnings after today's close. Your stop sits 4% below the price.",
+   "q": "What are you risking if you hold it through the report?",
+   "choices": [
+    "A gap past your stop at the open",
+    "Just 4%, the stop caps it",
+    "Only the usual swings in the day",
+    "Not much, you're up on the trade"
+   ],
+   "answer": "A gap past your stop at the open",
+   "why": "A gap right through your stop. The report comes out after the close, when you can't do a thing about it. If the stock opens well below your stop, the order fills at the open, not at your price. So that 4% is a plan, not a cap. That's why we don't hold into earnings unless the trade is already up 5R. Up 5R, a bad gap eats into open profit. Three days in and up a bit, it eats your account. I'd sell before the report.",
+   "lesson_line": "Hold overnight and you hold the gap. A stop can't catch it.",
+   "facts": [
+    "f28",
+    "f36",
+    "f45",
+    "f13",
+    "h02"
+   ],
+   "wrong": {
+    "Not much, you're up on the trade": "Up a bit is no cushion. The stock can open below your stop and the loss runs bigger than you planned.",
+    "Just 4%, the stop caps it": "A stop can't catch a gap. If the stock opens below it, you're filled below your stop price.",
+    "Only the usual swings in the day": "Those come too. The real risk is the move that happens while the market is closed."
+   },
+   "simple": "A gap past your stop. Earnings land while the market's closed, and the stock can open below your stop.",
+   "deeper": {
+    "trap": "Our rules keep you out of this spot from both ends. We make no new buys in the 3 days before an earnings report. And we only hold through a report when the trade is up 5R. This trade is three days old and up a bit, so it comes off before tonight's report."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "story holds a small winner into earnings, which our rule B22 forbids; key unaffected (owner flag)",
+     "two Tier 2 publishers (Schwab, Investopedia)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q12",
+   "skill": "styles.horizons",
+   "rung": 5,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Many swing traders find the trade on a longer chart and time the entry on the ___ chart.",
+   "bank": [
+    "hourly",
+    "weekly",
+    "monthly",
+    "quarterly"
+   ],
+   "answer": "hourly",
+   "why": "Hourly. Schwab describes a longer chart for the setup and an hourly chart for planning and executing entries and exits. Investopedia's example swing trader uses 60-minute charts for the short-term trend. A weekly, monthly or quarterly bar is too long to time a trade that lasts days.",
+   "lesson_line": "The longer chart finds the trade. The shorter chart times it.",
+   "facts": [
+    "f29",
+    "f47",
+    "f26",
+    "f51"
+   ],
+   "simple": "Hourly, because the longer chart finds the trade and the shorter hourly chart times the entry.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (instruction line)",
+     "two Tier 2 publishers agree (Schwab, Investopedia)"
+    ]
+   },
+   "batch": "wave9"
+  },
+  {
+   "key": "q13",
+   "skill": "styles.horizons",
+   "rung": 5,
+   "format": "mcq",
+   "q": "Same stock, three traders. Who leans hardest on the business behind it: sales, earnings, valuation?",
+   "choices": [
+    "Position trader",
+    "Swing trader",
+    "Day trader",
+    "All three equally"
+   ],
+   "answer": "Position trader",
+   "why": "The position trader. Hold for months and the business is what carries the stock. Sales, earnings, valuation, where the big money's flowing, the economy. A day trader barely looks, since none of that changes inside one day. We sit in the middle. We swing trade off the chart first, but we still want growing sales and earnings behind it. A great chart on a growing business is the one I want to own.",
+   "lesson_line": "The longer you hold, the more the business behind the chart matters.",
+   "facts": [
+    "f30",
+    "f46",
+    "f33",
+    "f35",
+    "h01",
+    "h03"
+   ],
+   "wrong": {
+    "Swing trader": "Swing traders lean on the chart. Plenty track the business too, just with less weight than someone holding for months.",
+    "Day trader": "The business doesn't change inside one day, so day traders pay it little attention.",
+    "All three equally": "Not equally. The longer the hold, the more weight the business gets. Day traders barely look at it."
+   },
+   "simple": "The position trader, because over a hold of months the business matters more than any single day.",
+   "deeper": {
+    "counter": "Weighing the business isn't only for position traders. We swing trade and we still prefer stocks with growing sales and earnings, with the chart first. The difference is how much weight the business gets. The longer the hold, the more it tends to get."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (asks who 'usually')",
+     "Schwab and Investopedia agree; sources hedge"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q14",
+   "skill": "styles.horizons",
+   "rung": 6,
+   "format": "mcq",
+   "q": "You plan to hold a leader for months, not days. What bar size should your main chart be?",
+   "choices": [
+    "One week",
+    "One hour",
+    "Five minutes",
+    "One quarter"
+   ],
+   "answer": "One week",
+   "why": "Weekly bars. Each bar is a whole week, so months of the trend fit on one screen without the daily chop. Use the monthly for the big trend and drop to the daily to fine-tune an entry or an exit. Hourly and five-minute bars are mostly noise across months. A quarterly bar is too coarse to manage anything. We're swing traders and we still pull up the weekly. It shows you what the stock's really been doing.",
+   "lesson_line": "The longer the hold, the bigger the bar. Months of holding, weekly bars.",
+   "facts": [
+    "f49",
+    "f54",
+    "f51",
+    "f52",
+    "f20"
+   ],
+   "wrong": {
+    "One hour": "Way too short for a hold of months. Hourly bars are full of noise that won't matter to the trade.",
+    "Five minutes": "That's a day trader's bar. Over months it's nothing but noise.",
+    "One quarter": "Too coarse. You'd get a handful of bars a year and no way to manage the trade."
+   },
+   "simple": "One week, because each weekly bar sums up a whole week and fits a trade you hold for months.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (question wording)",
+     "Investopedia plus StockCharts; Investopedia unreachable to WebFetch today"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "styles.horizons",
+   "rung": 7,
+   "format": "mcq",
+   "q": "You day trade 12 round trips a day, 300 shares each, and the spread costs you $0.03 a share every trip. What's that a day?",
+   "answer": "$108",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "spread * shares * trips",
+     "spread": 0.03,
+     "shares": 300,
+     "trips": 12
+    }
+   },
+   "prefix": "$",
+   "why": "$108 a day, and that's before commissions and fees. Here's the math. $0.03 times 300 shares is $9 a round trip. $9 times 12 trips is $108. You buy at the ask and sell at the bid, so the spread is gone the second you're in. You pay it whether the trade works or not, every trip, every day. That's one more reason we swing trade. Fewer trades, fewer spreads, less leaking out of the account.",
+   "lesson_line": "Every round trip pays the spread. More trades, more cost.",
+   "facts": [
+    "f16",
+    "f17",
+    "f21",
+    "f3"
+   ],
+   "simple": "$108. Each of the 12 round trips gives up $0.03 on all 300 shares.",
+   "deeper": {
+    "trap": "Don't count the spread just once. Every round trip pays it again, so the cost grows with how often you trade. Frequent trading brings higher costs that can eat into your returns, and day traders pay more in commissions, spreads and fees because they make so many trades."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key (calc recomputed: 108)",
+     "the SEC bulletin page (investor.gov) refused WebFetch today"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$9",
+    "$216",
+    "$1,080",
+    "$108"
+   ],
+   "wrong": {
+    "$9": "That's one round trip. You make 12 of them a day.",
+    "$216": "You charged the spread twice per round trip. Each round trip pays it once.",
+    "$1,080": "A decimal slip, ten times too big. Redo the steps one at a time."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The spread's daily cost",
+    "rows": [
+     {
+      "key": "round_trips_a_day",
+      "label": "Round trips a day",
+      "value": 12,
+      "fmt": "count"
+     },
+     {
+      "key": "shares_each",
+      "label": "Shares each",
+      "value": 300,
+      "fmt": "shares"
+     },
+     {
+      "key": "spread_each_time",
+      "label": "Spread each time",
+      "value": 0.03,
+      "fmt": "$"
+     }
+    ],
+    "find": {
+     "label": "Spread cost a day",
+     "as": "dollars"
+    }
+   }
+  },
+  {
+   "key": "q16",
+   "skill": "styles.horizons",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You buy a breakout at 10:15 a.m., planning to hold it for weeks. It reverses, and your stop fills at 2:40 p.m. the same day.",
+   "q": "Does that count as a day trade?",
+   "choices": [
+    "Yes, in and out the same day",
+    "No, you planned a swing trade",
+    "No, your stop sold it, not you",
+    "Yes, any stop-out is a day trade"
+   ],
+   "answer": "Yes, in and out the same day",
+   "why": "Yes. Bought and sold the same day, so it's a day trade. What you planned doesn't change it, and neither does who pressed the button. A stop fill is your sell. This happens to us too. You buy a breakout, it fails that afternoon, and the stop does its job. That's fine. That's exactly what the stop is there for. Just know some brokers count these, so check how yours does if you trade on margin.",
+   "lesson_line": "Your plan doesn't decide a day trade. Same day in and out does.",
+   "facts": [
+    "f10",
+    "f18",
+    "f9",
+    "f6"
+   ],
+   "wrong": {
+    "No, you planned a swing trade": "The plan doesn't decide it. Bought and sold on the same day is a day trade.",
+    "No, your stop sold it, not you": "A stop fill is still your sell. Same day in and out makes it a day trade.",
+    "Yes, any stop-out is a day trade": "Not any stop-out. A stop that fills days later ends a swing trade. Only a same-day buy and sell is a day trade."
+   },
+   "simple": "Yes. You bought and sold on the same day, and the plan you had doesn't change that.",
+   "deeper": {
+    "trap": "The plan doesn't change the count. In a margin account your broker may count day trades, and same-day stop-outs on swing plans add up. Read how your broker counts them before it surprises you."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "rests on a rule in transition (old day trading rules until the phase-in ends)",
+     "fixed before (question rewritten)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "styles.horizons",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You're a position trader. Your stock has trended up for months. It pulls back for two weeks, but the weekly uptrend is still intact.",
+   "q": "What's the play?",
+   "choices": [
+    "Hold through the pullback",
+    "Sell before the pullback deepens",
+    "Sell now, rebuy the next swing",
+    "Hold, but lower your stop"
+   ],
+   "answer": "Hold through the pullback",
+   "why": "Hold it. A trend that runs for months is full of pullbacks like this one. A position trader signs up to sit through them as long as the weekly trend holds. What gets him out is a broken trend, not a dip. And lowering the stop is never the answer. The stop only moves up. We'd handle this one differently. We swing trade and trail the 9 or 20 EMA, so a two-week pullback that closes under our line ends our trade. Different clock, different exit.",
+   "lesson_line": "A position trader exits a broken trend, not a normal pullback.",
+   "facts": [
+    "f31",
+    "f32",
+    "f42",
+    "f34",
+    "h04",
+    "h01",
+    "h05",
+    "h06"
+   ],
+   "wrong": {
+    "Sell now, rebuy the next swing": "That's swing trading, working each move inside the trend. More trades, more costs, more chances to miss the re-entry.",
+    "Hold, but lower your stop": "Holding fits. Lowering the stop never does. The stop only moves up, never down or wider.",
+    "Sell before the pullback deepens": "That's a shorter clock's worry. A position trader sits through dips while the weekly trend holds."
+   },
+   "simple": "Hold. Long trends have normal dips, and a position trader stays in while the trend holds.",
+   "deeper": {
+    "counter": "So when would we sell? We swing trade. We trail the 9 EMA on fast movers and the 20 EMA on steadier ones, and sell what's left on a close below it. A two-week pullback can close under that line while the weekly trend holds. Then our trade is over, while the position trader in this story sits tight."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (key reworded)",
+     "Schwab and Fidelity agree"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q18",
+   "skill": "styles.horizons",
+   "rung": 8,
+   "format": "scenario",
+   "story": "Dana works 9 to 5 and can't watch the market. She studies daily charts at night and sets her orders before work. Her trades last a few days to a few weeks.",
+   "q": "What style is Dana built for?",
+   "choices": [
+    "Swing trading",
+    "Day trading",
+    "Position trading",
+    "Long-term investing"
+   ],
+   "answer": "Swing trading",
+   "why": "Swing trading. Her trades run a few days to a few weeks, and she can't watch the screen during the day. Swing trading fits both. Do the homework at night on the daily, set your buy orders and stops before work, then check everything each evening. Day trading needs your eyes on the screen all session, and she holds overnight anyway. Position trading means months or longer. If you work a job, swing trading fits your day. Don't force a style your day can't support.",
+   "lesson_line": "Pick the style your day allows. If you can't watch the screen, don't day trade.",
+   "facts": [
+    "f23",
+    "f26",
+    "f39",
+    "f2",
+    "f22",
+    "f41",
+    "f27"
+   ],
+   "wrong": {
+    "Day trading": "Day trading takes your full attention all session, and Dana holds overnight. Neither fits.",
+    "Position trading": "Position traders ride a trend for months. Dana's out within a few weeks.",
+    "Long-term investing": "Long-term investors hold longer still. Dana's trades are over in days to weeks."
+   },
+   "simple": "Swing trading. Her trades last days to weeks and need a daily check, not the whole session.",
+   "deeper": {
+    "counter": "Schedule alone doesn't pick the style. With the same 9 to 5 job, Dana could be a position trader if her holds ran for months. It's the hold plus the schedule that points to swing trading here."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (asks hold and schedule)",
+     "Schwab and Fidelity agree"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "styles.horizons",
+   "rung": 8,
+   "format": "scenario",
+   "story": "It's November 2026. You have $12,000 in a margin account. A friend says you can't day trade with under $25,000.",
+   "q": "Is your friend right?",
+   "choices": [
+    "Not anymore, but ask your broker",
+    "He's right, save to $25,000 first",
+    "FINRA kept it, so he's right",
+    "Brokers can't keep that rule now"
+   ],
+   "answer": "Not anymore, but ask your broker",
+   "why": "Not anymore, but check with your broker. FINRA's new intraday margin standards took effect June 4, 2026. They drop the pattern day trader count and the old $25,000 minimum. Brokers that need more time can phase them in until October 20, 2027. So yours may still run the old rule today. One look at your broker's terms settles it. Margin still takes at least $2,000 in equity. Know the rule before you trade, not after you get flagged.",
+   "lesson_line": "Account rules change. Read the current rule and ask your broker before you day trade.",
+   "facts": [
+    "f6",
+    "f8",
+    "f9",
+    "f4",
+    "f5",
+    "f24"
+   ],
+   "wrong": {
+    "He's right, save to $25,000 first": "That was the old pattern day trader minimum. FINRA replaced it, though your broker may run the old rule until it switches.",
+    "FINRA kept it, so he's right": "FINRA didn't keep it. Its new intraday margin standards replace the $25,000 minimum.",
+    "Brokers can't keep that rule now": "They can, for now. Brokers that need more time may run the old rules until October 20, 2027."
+   },
+   "simple": "FINRA dropped the $25,000 rule, but your broker may still use it for a while, so ask them.",
+   "deeper": {
+    "trap": "Don't read a rule change as instant. FINRA's standards took effect June 4, 2026, and your broker may keep the old day trading rules until October 20, 2027. Two traders with the same $12,000 can face different rules at two brokers on the same day. Read your broker's current terms first."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "a rule and dates that change over time (FINRA Notice 26-10 re-read 2026-11-12: dates unchanged)",
+     "FINRA insight page (429) and Investor.gov (403) unreachable to WebFetch today"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "styles.horizons",
+   "rung": 9,
+   "format": "tf",
+   "q": "You're holding a stock for months. This morning the 5-minute chart flashes a sell signal. That's a good reason to get out.",
+   "answer": "False",
+   "why": "False. A five-minute signal is about this morning, not a trend you've held for months. Short charts throw off a lot of false moves. The longer the timeframe, the more you can trust what it tells you. So judge the trade on the chart you're holding it on. For a position, that's the weekly. Same for us on a swing trade. We judge it on the daily and the 9 or 20 EMA, not a five-minute wiggle.",
+   "lesson_line": "Judge a trade on the clock you hold it on.",
+   "facts": [
+    "f52",
+    "f50",
+    "f49",
+    "h05"
+   ],
+   "simple": "False. A five-minute chart is mostly noise for a trade you plan to hold for months.",
+   "deeper": {
+    "trap": "The trap is mixing clocks. A five-minute chart shows the noise inside a single day. Exit on a five-minute signal and you let that noise end a trade built on a much longer clock."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (usually judged)",
+     "StockCharts plus Investopedia"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q21",
+   "skill": "styles.horizons",
+   "rung": 9,
+   "format": "scenario",
+   "story": "You review your last 10 trades. Nine were held 2 to 12 trading days. One was stopped out the same day you bought it.",
+   "q": "So what kind of trader are you?",
+   "choices": [
+    "Swing trader",
+    "Day trader",
+    "Position trader",
+    "Long-term investor"
+   ],
+   "answer": "Swing trader",
+   "why": "A swing trader. Nine of your 10 trades lasted 2 to 12 trading days, held through the nights in between. That's days to weeks. The one same-day stop-out is just a trade that failed fast. It happens to all of us, and it doesn't make you a day trader. Not one of these ran for months, so you're not a position trader either. Your style is how you normally hold, not your fastest or your longest trade.",
+   "lesson_line": "Your style is how long you normally hold. One stop-out doesn't change it.",
+   "facts": [
+    "f26",
+    "f39",
+    "f10",
+    "f13",
+    "f41",
+    "f27",
+    "h01"
+   ],
+   "wrong": {
+    "Day trader": "Only one of ten closed the same day. A day trader holds nothing overnight.",
+    "Position trader": "Not one of these ran for months. Months is the position trader's clock.",
+    "Long-term investor": "Nine of ten ran 2 to 12 trading days. Long-term investors hold far longer than any of these."
+   },
+   "simple": "Swing trader. Nine of your ten trades were held for days, and one stop-out doesn't change that.",
+   "deeper": {
+    "counter": "The other end works the same way. A swing winner can stay on longer while it keeps working. One winner held past a few weeks doesn't make you a position trader. Style comes from how you normally hold, not from one trade at either end."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "Schwab and Fidelity agree; deeper cites our rule C35, the key does not rest on it"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q97",
+   "skill": "styles.horizons",
+   "rung": 5,
+   "format": "mcq",
+   "q": "The daily chart hands you a swing setup. Then you pull up the hourly. What's the hourly for?",
+   "choices": [
+    "Time the entry and exit",
+    "Read the main trend",
+    "Judge the company's value",
+    "Pick which stocks to scan"
+   ],
+   "answer": "Time the entry and exit",
+   "why": "Timing. The daily finds the trade, the hourly times it. It shows the little pivot inside the bigger setup. That gives you a tighter level to buy through and a tighter area to risk against. A tighter stop keeps the risk small if it fails. On the way out, it can show a push stalling when you want to sell some into strength. The main trend is the weekly's job, and the hourly says nothing about the business. It's just price.",
+   "lesson_line": "The daily finds the trade. The hourly times it.",
+   "facts": [
+    "f29",
+    "f47",
+    "f30"
+   ],
+   "wrong": {
+    "Read the main trend": "That's the longer chart's job. The weekly shows you the main trend.",
+    "Judge the company's value": "Value comes from the business, not an hourly chart. The hourly only shows price.",
+    "Pick which stocks to scan": "Finding the setup happens on the daily. The hourly times the entry once you have one."
+   },
+   "simple": "Timing the entry and exit. The daily finds the trade, and the hourly tells you when to act.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable practice: Schwab and Investopedia agree"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "Position-trade horizon: Schwab (Aug 11, 2026) and Investopedia (July 24, 2026) say position traders hold for weeks or months; Fidelity (June 5, 2026) says many months or years. All three include months, so the keys use months (q03, q09, q14, q17, q21). No question puts the swing/position line inside 'weeks', where the sources overlap: every keyed hold is clearly days (swing) or clearly months (position). w1 says 'weeks to months, sometimes years' to carry both.",
+  "The FINRA definition of a day trade: Investor.gov's glossary (s4) still says 'FINRA rules define a day trade...', but Regulatory Notice 26-10 says the amendments eliminate Rule 4210(f)(8)(B), the day trading margin provision where that definition sat, effective June 4, 2026 with a phase-in to October 20, 2027. The live Rule 4210 page (fetched 2026-11-09) has the new intraday margin deficit terms and no pattern day trader. The file uses the definition only as the meaning of the word (the same security bought and sold the same day), which Schwab's October 29, 2026 article also gives (f18, f25). The account rule is asked once (q19) as 'FINRA replaced it; check your broker'; q16's why says the old rules, which some brokers still run, count a same-day stop-out as a day trade (f9).",
+  "Schwab's day trading article says that at Schwab 'A new trading day begins at 8 p.m. ET', so trades in its overnight session can count as day trades. q08 uses a 3:50 p.m. buy and a 9:45 a.m. sell, which fall on different trading days under either reading.",
+  "The SEC's 'Day Trading: Your Dollars at Risk' (s6) was last reviewed April 20, 2005. Only its two lines that do not date are used (true day traders hold nothing overnight; they watch the market continuously). Its commission and margin remarks are not used. FINRA's June 4, 2026 page (s1) carries the same time-cost point today.",
+  "Day traders' charts: Schwab says one-minute or five-minute charts; Investopedia's example trades off 15-minute charts with a five-minute for the short term. Both are minute charts and both name five-minute, which is what q10 uses. For a day trader's bigger-picture chart they differ (Murphy/StockCharts: the daily sets the bias; Investopedia: 60-minute for the primary trend), so no question asks it.",
+  "Swing traders and the weekly: Murphy (StockCharts) says a swing trader should pay attention to the weekly chart and Investopedia uses weekly for the swing trader's primary trend, while both say the decisions are made lower (daily). q05 keys 'the daily chart' as where the swing trader decides and offers no weekly choice, so the two readings never collide.",
+  "Not used, by the unit plan ('no claims about which style wins'): FINRA's 'Attempting to capture profits in the short term is generally less reliable than investing long-term' (s1) and Schwab's line that long-term investing has historically been a more reliable path for most people (s9).",
+  "Not used, out of date: Investopedia's swing page lists 'Avoids pattern day trader restrictions' as a pro; after June 4, 2026 that holds only at brokers still on the old rules during the transition. FINRA Rule 2270's $16-a-trade commission example dates from the commission era and is not used. Tax lines on the Schwab and Fidelity pages are not used (no taxes).",
+  "StockCharts ChartSchool (s15) and StockCharts Insider (s16) are filed under one publisher, StockCharts.com, so they never count as two publishers. Every question that leans on them also cites Investopedia or Schwab (or a Tier 1 page).",
+  "Track audit 2026-11-09 (all five F11 units read together): q06 is cut as a duplicate of F11.04 q03 (day trading does not fit a sliver of your day, as a true/false) and q10 as a duplicate of F1.05 q07 (78 five-minute bars in one regular session); the day traders' charts note above still records why q10 used the five-minute bar. q19 agrees with F9.07 q11, q16 and q17 on FINRA's intraday margin standard (effective June 4, 2026, phase-in to October 20, 2027), re-read today. Fill instructions now read 'Tap the word that fits the blank.' as in most course units."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Every step matches its facts, read in context on fresh fetches: f10/f19 same day, f13 nothing overnight, f26/f27 days to weeks held overnight, f30/f41 weeks to months (Fidelity: or years), f32 rides the trend. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f20 (Schwab 1-/5-minute), f47/f49 (Investopedia), f51-f53 (ChartSchool) confirmed in context. Investopedia gives these as examples ('could use'), so steps 2-3 now say 'often decides' and 'often works from' instead of 'decides' and 'works mostly from'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f2, f14, f21, f23, f45, f28 confirmed. Step 1 said 'every trade pays the spread', not true of a limit filled at your price; now 'spreads and fees add up over many trades' (f21). Step 3 'takes the least watching' had no cited fact and implied no gap risk; now 'leans least on any one day's news' (new f55, Fidelity) and 'You still hold the gaps'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice good: verdict first, plain test, ties to how we hold. Truth: FINRA's own definition (f10) names a margin account, so the wrong note 'that's not the test' was too flat; reworded to say margin is how the broker funds and counts trades, not what makes it a day trade. Answer unchanged."
+  },
+  "q02": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Why reads like him (our clock, normal range not a hard cap). Stem was a bare definition; now a real name (RBRK, one of his picks) and a plan on the screen. Same claim, same True answer, no new numbers."
+  },
+  "q03": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Flat by the close, the reason (overnight change, f13) and our side of it (we take the gap on purpose, a stop can't catch a gap). True stays right. No numbers."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "The daily, with the reason (the bar fits the hold), the how (bases, flags, pullbacks, levels the night before), weekly for trend and hourly for timing (f47, f29). Wrong notes name each mistake."
+  },
+  "q06": {
+   "status": "cut",
+   "notes": "duplicate of F11.04#q03. Track audit 2026-11-09: both are true/false items keyed False on one fact, that day trading does not fit into a sliver of your day (FINRA's 'continuous attention', the SEC's 'watch the market continuously'). F11.04 q03 names the real habit, checking prices at lunch around a full-time job, and rests on the same FINRA and SEC lines, so it is kept. This unit still teaches the time cost in w3, q07 (a swing trade still needs a daily check) and q18 (Dana's schedule). This item was right as written. The checker's earlier note: f2 FINRA (June 4, 2026: continuous attention), f14 SEC, f22 Schwab (full-time endeavor). No change.",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Real swing book in the stem; why says what the daily look catches (a close under the 9 or 20 EMA, a gap, earnings) and the how (after the close, a few minutes). h05 supports the trail. False stays right."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Calendar not hours, with the reason (Tuesday night's news risk) and the practical line (treat it as a swing trade). 3:50 and 9:45 come from the story. f11/f25 support."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Why is clean and sorts all four holds. Its lesson line was a near copy of q02's ('Days to weeks, held overnight...'); rewritten so the two read differently."
+  },
+  "q10": {
+   "status": "cut",
+   "notes": "duplicate of F1.05#q07. Track audit 2026-11-09: the same sum with the same key: (4:00 p.m. - 9:30 a.m.) x 60 / 5 = 78 five-minute bars in one regular session. F1.05 q07 comes first in the course, and its checker already flagged this pair. w2 here still teaches what one bar means on each trader's chart. This item was right as written (calc rechecked: 78). The checker's earlier note: Calc (16 - 9.5) x 60 / 5 = 78, rechecked by hand. NYSE core session 9:30 a.m. to 4:00 p.m. ET confirmed on the live hours page (f15). The question states the session, so half days do not break it. Why now says '78 bars on a day trader's 5-minute chart' (was just 'chart').",
+   "fixed": false,
+   "by": "track-auditor"
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Strong why: the 4% stop is a plan not a cap, our 5R earnings rule stated right (h02), 'I'd sell before the report'. Stem said 'really risking', which hints the obvious answer is wrong; now a plain question."
+  },
+  "q12": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Verdict, the reason (over months the business carries the stock, f30), where we sit (chart first, growing sales and earnings, h03) and a line of his judgment. No sources in the why."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Weekly bars with the reason and the how (monthly for trend, daily to fine-tune, f49). 'We still pull up the weekly' keeps it ours. No sources in the why."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Recomputed: 0.03 x 300 = 9 a round trip, 9 x 12 = 108. Steps shown; $216 (spread twice), $9 (one trip), $1,080 (ten times) are named mistakes. Ties the cost to why we swing trade."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Sounds like him: a stop fill is your sell, 'that's exactly what the stop is there for', and the practical broker check (f9). Yes stays right; 'any stop-out' wrong note is precise."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Hold, with the reason (trend full of pullbacks, f31/f32) and our different exit (9/20 EMA close, h05); the stop only moves up (h06) stated right. No 10/21-day trails."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Practical how is good (homework on the daily at night, orders and stops before work, check each evening). 'Swing trading is the honest way to trade' is an odd, judgy line he wouldn't say; replaced."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Dates and numbers checked against f6/f8/f9/f4: June 4, 2026; October 20, 2027; $2,000; $25,000. 'Know the rule before you trade, not after you get flagged' is his register. FINRA belongs in the why here (it is the subject)."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False stays right; reason (short charts throw false moves, f50/f52) and our version (the daily and the 9 or 20 EMA, h05). Plain stem, one claim."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Reads like a trade review: nine of 10 held 2 to 12 trading days, one fast failure 'happens to all of us', style is how you normally hold. Numbers all from the story."
+  },
+  "q97": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Daily finds, hourly times (f29/f47), with the reason (tighter level, tighter area to risk against, smaller risk if it fails) and the exit use. 'It's just price' is a good blunt close."
+  }
+ }
+}

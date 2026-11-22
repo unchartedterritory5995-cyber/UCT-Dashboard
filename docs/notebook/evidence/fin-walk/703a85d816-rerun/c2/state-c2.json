@@ -1,0 +1,21 @@
+{
+ "report_day": "2026-11-18",
+ "data_dir": "<temp>\\t4-rerun-703a85d816\\data\\c2",
+ "c2_email": "q1c2m7994868@local.dev",
+ "tip": "703a85d816",
+ "amd_note": "599703e712c2433bbd638f1e91d7dbeb",
+ "amd_plan": {
+  "target": 513.0783675236726,
+  "entry": 337.1928404984883,
+  "stop": 161.30731347330394
+ },
+ "amd_embed": "54e58470-9e76-48f8-a256-cc06bb82cadb",
+ "amd_tag": "VCP",
+ "amd_pos": "e28ef8ea-285d-4fe1-86d0-0f75776fe11c",
+ "nvda_pos": "ffbe5497-6f85-4e71-afa7-a52ca93c9b38",
+ "ibm_note": "2684c29177854a7b971813d513271120",
+ "ibm_v1": "e3176c3305cd4d38a8ec51faf997d641",
+ "ibm_pos": "754035bf-3c1a-4109-938b-9d2f313b91f8",
+ "ibm_trade": "0d34b1e9-0e7a-44d0-95a5-40e96ce50659",
+ "amd_trade": "70fab0aa-18d6-41d3-accc-afa126879db7"
+}

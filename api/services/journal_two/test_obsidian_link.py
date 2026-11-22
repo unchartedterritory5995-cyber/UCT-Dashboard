@@ -38,9 +38,10 @@ def test_the_three_tables_exist():
     # tables this test predates.
     # + j2_obsidian_attachments (connector fidelity Plan C Task 1): the staged
     # attachment blobs, purged with the vault (revoke_devices) and the account.
+    # + j2_obsidian_renames (L2, 2026-11-03): renames a final push showed, for the next sync.
     assert names == {
         "j2_obsidian_devices", "j2_obsidian_staging", "j2_obsidian_manifest",
-        "j2_obsidian_connect_epoch", "j2_obsidian_attachments",
+        "j2_obsidian_connect_epoch", "j2_obsidian_attachments", "j2_obsidian_renames",
     }
 
 

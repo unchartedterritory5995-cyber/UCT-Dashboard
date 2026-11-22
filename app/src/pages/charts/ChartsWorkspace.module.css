@@ -59,7 +59,7 @@
   background: transparent; border: none; color: var(--text-muted, #6b7280);
   cursor: pointer; padding: 0 4px; font-size: 12px; line-height: 1;
 }
-.popOutBtn:hover { color: var(--ut-gold, #dcbb5e); }
+.popOutBtn:hover { color: var(--ut-gold); }
 
 /* Fills a popped-out window: the grid inside is viewport-locked the same way the
    main board is, so it needs a definite height to divide into rows rather than
@@ -86,7 +86,7 @@
   position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
   z-index: 9000; display: flex; align-items: center; gap: 10px;
   background: var(--bg-elevated, #0f141b);
-  border: 1px solid var(--ut-gold, #dcbb5e);
+  border: 1px solid var(--ut-gold);
   color: var(--text, #e5e7eb);
   border-radius: var(--radius-sm); padding: 8px 12px; font-size: 12px;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5);
@@ -377,7 +377,7 @@
   line-height: 1;
   border-radius: 3px;
 }
-.wtabScroll:hover:not(:disabled) { color: var(--ut-gold, #dcbb5e); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
+.wtabScroll:hover:not(:disabled) { color: var(--ut-gold); background: var(--widget-row-hover, rgba(255, 255, 255, 0.06)); }
 .wtabScroll:disabled { opacity: 0.28; cursor: default; }
 .wtabChip {
   display: inline-flex;
@@ -406,7 +406,7 @@
   letter-spacing: 0.2px;
   color: var(--widget-text-strong, var(--text, #e5e7eb));
   background: var(--widget-canvas, rgba(0, 0, 0, 0.25));
-  border: 1px solid var(--ut-gold, #dcbb5e);
+  border: 1px solid var(--ut-gold);
   border-radius: 3px;
   padding: 0 3px;
   outline: none;
@@ -446,7 +446,7 @@
   line-height: 1;
   font-weight: 600;
 }
-.wtabAdd:hover { color: var(--ut-gold, #dcbb5e); }
+.wtabAdd:hover { color: var(--ut-gold); }
 /* Portaled to document.body + positioned `fixed` (inline top/left) so it escapes
    the widget's overflow:hidden and never clips on a short widget. */
 .wtabAddMenu {
@@ -530,6 +530,31 @@
   display: flex;
 }
 .studioDock:empty { display: none; }
+/* PHONE (the touch tier, and only the OVERLAY case: a pane too narrow to give the dock a
+   column). Measured on production at 390px, 2026-11-16: the dock overlaid the chart's right
+   edge at 360px, leaving a 30px sliver of chart, and the joystick's edge tab sat over its Send
+   button. Here it is a sheet across the bottom of the SCREEN instead, so the chart being
+   previewed stays in view above it (354px at 390x844). Fixed, and above the joystick tab, so
+   nothing covers its controls. A pane wide enough to dock (a tablet) is untouched. */
+@media (max-width: 1024px) {
+  .studioDock[data-studio-dock="overlay"] {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: min(58dvh, 560px);
+    z-index: 8500;
+  }
+  /* TABLET, the docked column. Measured on production at 820x1180, 2026-11-16: the joystick's
+     edge tab (fixed, z-index 360) sat over the dock's Send button and took its taps. The dock
+     owns the right edge while it is open, as the phone sheet above does, so it sits just above
+     the tab. Tried on the live page first: the element under Send became Send. */
+  .studioDock[data-studio-dock="dock"] {
+    z-index: 370;
+  }
+}
 
 .chartFill {
   flex: 1; min-height: 0; min-width: 0; position: relative;
@@ -630,13 +655,29 @@
    The TickerPopup's chart (`data-ticker-popup-chart`) is the same case: its header is the same
    unset-`--widget-canvas` app surface, and axe (WebKit, light theme, a DOWN ticker) flagged
    #ff3b47 on #ffffff there (3.6:1). Rail: `components/TickerPopup.chartHeaderInk.test.js`.
-   Rail: `components/mobile/TickerHubSheet.dayGainInk.test.jsx`. */
+   Rail: `components/mobile/TickerHubSheet.dayGainInk.test.jsx`.
+   B2 (2026-11-07): a /charts widget's header on the LIGHT app theme is the same case, since
+   its rows now sit on the page's `--bg-elevated` (the lift block further down), so its
+   selectors join every list here: one set of header inks for every app-surface header.
+   Rail: `pages/charts/lightChrome.b2.test.js`. */
 :global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='up'],
-:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='up'] { color: var(--success-ink) !important; }
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='up'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop [data-day-gain='up'] { color: var(--success-ink) !important; }
 :global([data-ticker-hub-chart]) .chartHeaderTop [data-day-gain='down'],
-:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='down'] { color: var(--danger-ink) !important; }
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-day-gain='down'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop [data-day-gain='down'] { color: var(--danger-ink) !important; }
 :global([data-ticker-hub-chart]) .chartDayGainExt,
-:global([data-ticker-popup-chart]) .chartDayGainExt { background: var(--bg-surface); }
+:global([data-ticker-popup-chart]) .chartDayGainExt,
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop .chartDayGainExt { background: var(--bg-surface); }
+/* The delisted badge's gold is an inline literal (#c9a84c, 2.3:1 on white): on an app-surface
+   header it takes the surface's own gold, with its border and wash derived from it. */
+:global([data-ticker-hub-chart]) .chartHeaderTop [data-delisted],
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-delisted],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop [data-delisted] {
+  color: var(--ut-gold) !important;
+  border-color: color-mix(in srgb, var(--ut-gold) 45%, transparent) !important;
+  background: color-mix(in srgb, var(--ut-gold) 10%, transparent) !important;
+}
 
 /* The same app surface, the identity label and the info strip. Their colours are CHART-canvas
    colours: the title is `header.colors.title`, which applying a /charts theme writes from that
@@ -651,19 +692,26 @@
    inline style. Desktop /charts keeps its chart colours: every rule is scoped.
    Rail: `components/TickerPopup.chartHeaderInk.test.js`. */
 :global([data-ticker-hub-chart]) .chartHeaderTop [data-testid='sym-label'],
-:global([data-ticker-popup-chart]) .chartHeaderTop [data-testid='sym-label'] { color: var(--text-bright) !important; }
+:global([data-ticker-popup-chart]) .chartHeaderTop [data-testid='sym-label'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop [data-testid='sym-label'] { color: var(--text-bright) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal,
-:global([data-ticker-popup-chart]) .chartMetaVal { color: var(--text-bright) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal,
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal { color: var(--text-bright) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal[data-meta-key='mcap'],
 :global([data-ticker-hub-chart]) .chartMetaVal[data-meta-key='earn'],
 :global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='mcap'],
-:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='earn'] { color: var(--info) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='earn'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-meta-key='mcap'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-meta-key='earn'] { color: var(--info) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal[data-meta-key='rating'],
-:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='rating'] { color: var(--accent) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal[data-meta-key='rating'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-meta-key='rating'] { color: var(--accent) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal[data-sign='pos'],
-:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='pos'] { color: var(--success-ink) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='pos'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-sign='pos'] { color: var(--success-ink) !important; }
 :global([data-ticker-hub-chart]) .chartMetaVal[data-sign='neg'],
-:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='neg'] { color: var(--danger-ink) !important; }
+:global([data-ticker-popup-chart]) .chartMetaVal[data-sign='neg'],
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar .chartMetaVal[data-sign='neg'] { color: var(--danger-ink) !important; }
 
 /* The hub's 1D/1W/1M chips measured 32-35 x 40 (390) and x 18 (834) in WebKit: on the touch
    tier, and on any coarse pointer, they clear `--tap-min`. Three chips in a row, so the extra
@@ -915,8 +963,18 @@
   align-self: center;
   background: var(--clk-tone, #6b7280);
   box-shadow: 0 0 5px 0 var(--clk-glow, transparent);
-  animation: clockPulse 2.4s ease-in-out infinite;
 }
+/* ⛔ NO ENDLESS ANIMATION HERE (2026-11-10, measured). This dot sits in EVERY chart widget,
+   popped out or not. The old `animation: clockPulse 2.4s infinite` made each window produce a
+   compositor frame at the display rate forever: 12 popped widgets meant ~550 presents a second,
+   which saturated the GPU process's main thread (90% busy, 78% in Present) and held every window
+   to 9-16 fps. Killing only this animation took 12 widgets from p95 34 ms to 17 ms and p99 84 ms
+   to 18 ms, and cut CPU 43% (desktop `charts-load-proofs.mjs --kill-anim=clockDot`).
+   The live cue now rides the clock's own once-a-second render: `data-beat` flips with the
+   seconds, a stepped change with no transition, so it costs no frame the time text was not
+   already paying for. */
+.clockDot[data-beat="1"] { opacity: 0.5; }
+.clkClosed .clockDot[data-beat="1"] { opacity: 1; }
 .clockTime {
   font-size: 13px;
   font-weight: 700;
@@ -952,12 +1010,8 @@
 .clkExt    { --clk-tone: var(--warn); --clk-glow: color-mix(in srgb, var(--warn) 50%, transparent); }
 .clkClosed { --clk-tone: var(--text-muted); --clk-glow: transparent; }
 
-@keyframes clockPulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: 0.45; }
-}
 @media (prefers-reduced-motion: reduce) {
-  .clockDot { animation: none; }
+  .clockDot[data-beat="1"] { opacity: 1; }
 }
 
 /* Shift+F flag confirmation toast, centered near the top of the chart. */
@@ -1061,6 +1115,161 @@
   --shadow-lg: 0 4px 16px rgba(0,0,0,0.5);
   --shadow-modal: 0 20px 50px rgba(0,0,0,0.5);
   --shadow-popover: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+/* ── App theme = Light: a chart widget's CHROME follows the page (B2, 2026-11-07) ──
+   Decision B2: the chart CANVAS keeps its own theme (members pick dark canvases on
+   purpose, and the canvas colours come from the chart settings, never from here), but
+   the chrome around it reads as part of the light page: the widget's drag bar, the
+   chart tab strip, the identity row (symbol badge, day change, session toggle, clock)
+   and the TF bar (timeframes, info fields, gear and the tool buttons). The drawing
+   toolbar is NOT chrome in this sense: it is drawn ON the canvas and takes its ink from
+   the canvas (`--chart-cmd-*`), so dark-page ink there would be dark on a dark chart.
+
+   ⭐ HOW THE PAGE VALUE GETS BACK IN. The block above re-asserts dark literals on
+   `.widget`, so every row inside inherits dark. A nested scope cannot "un-set" a custom
+   property back to the page's value, but a token declared ON <html> can carry it: a
+   custom property that references another is substituted where it is DECLARED and then
+   inherited as a finished value (tokens.css, LEGACY ALIASES). So `--pg-*` below is
+   declared on the light <html> and holds the PAGE's value of each token, whatever light
+   theme is active (catalog light themes write their tokens inline on <html>, and these
+   read them there). The rows then point each token back at its `--pg-` twin. The set is
+   exactly the dark block's own list, so whatever that block darkens, this lifts
+   (rail: pages/charts/lightChrome.b2.test.js). */
+:global([data-theme='light']) {
+  --pg-bg: var(--bg);
+  --pg-bg-surface: var(--bg-surface);
+  --pg-bg-elevated: var(--bg-elevated);
+  --pg-bg-hover: var(--bg-hover);
+  --pg-border: var(--border);
+  --pg-border-accent: var(--border-accent);
+  --pg-text: var(--text);
+  --pg-text-muted: var(--text-muted);
+  --pg-text-bright: var(--text-bright);
+  --pg-text-heading: var(--text-heading);
+  --pg-ut-gold: var(--ut-gold);
+  --pg-ut-gold-dim: var(--ut-gold-dim);
+  --pg-ut-gold-glow: var(--ut-gold-glow);
+  --pg-ut-cream: var(--ut-cream);
+  --pg-ut-green: var(--ut-green);
+  --pg-ut-green-bright: var(--ut-green-bright);
+  --pg-ut-green-dim: var(--ut-green-dim);
+  --pg-ut-green-glow: var(--ut-green-glow);
+  --pg-ut-red: var(--ut-red);
+  --pg-ut-red-bright: var(--ut-red-bright);
+  --pg-ut-red-dim: var(--ut-red-dim);
+  --pg-gain: var(--gain);
+  --pg-gain-bg: var(--gain-bg);
+  --pg-gain-border: var(--gain-border);
+  --pg-loss: var(--loss);
+  --pg-loss-bg: var(--loss-bg);
+  --pg-loss-border: var(--loss-border);
+  --pg-warn: var(--warn);
+  --pg-warn-bg: var(--warn-bg);
+  --pg-warn-border: var(--warn-border);
+  --pg-info: var(--info);
+  --pg-info-bg: var(--info-bg);
+  --pg-info-border: var(--info-border);
+  --pg-tick-up-bg: var(--tick-up-bg, var(--gain-bg));
+  --pg-tick-down-bg: var(--tick-down-bg, var(--loss-bg));
+  --pg-shadow-sm: var(--shadow-sm);
+  --pg-shadow-md: var(--shadow-md);
+  --pg-shadow-lg: var(--shadow-lg);
+  --pg-shadow-modal: var(--shadow-modal);
+  --pg-shadow-popover: var(--shadow-popover);
+}
+/* The three rows are ChartPane's direct children. (The drag bar has its own rule below.) */
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartTabStrip,
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .chartHeaderTop,
+:global([data-theme='light']) [data-charts-theme='default'] .widget .chartWidget > .tfBar {
+  --bg: var(--pg-bg);
+  --bg-surface: var(--pg-bg-surface);
+  --bg-elevated: var(--pg-bg-elevated);
+  --bg-hover: var(--pg-bg-hover);
+  --border: var(--pg-border);
+  --border-accent: var(--pg-border-accent);
+  --text: var(--pg-text);
+  --text-muted: var(--pg-text-muted);
+  --text-bright: var(--pg-text-bright);
+  --text-heading: var(--pg-text-heading);
+  --ut-gold: var(--pg-ut-gold);
+  --ut-gold-dim: var(--pg-ut-gold-dim);
+  --ut-gold-glow: var(--pg-ut-gold-glow);
+  --ut-cream: var(--pg-ut-cream);
+  --ut-green: var(--pg-ut-green);
+  --ut-green-bright: var(--pg-ut-green-bright);
+  --ut-green-dim: var(--pg-ut-green-dim);
+  --ut-green-glow: var(--pg-ut-green-glow);
+  --ut-red: var(--pg-ut-red);
+  --ut-red-bright: var(--pg-ut-red-bright);
+  --ut-red-dim: var(--pg-ut-red-dim);
+  --gain: var(--pg-gain);
+  --gain-bg: var(--pg-gain-bg);
+  --gain-border: var(--pg-gain-border);
+  --loss: var(--pg-loss);
+  --loss-bg: var(--pg-loss-bg);
+  --loss-border: var(--pg-loss-border);
+  --warn: var(--pg-warn);
+  --warn-bg: var(--pg-warn-bg);
+  --warn-border: var(--pg-warn-border);
+  --info: var(--pg-info);
+  --info-bg: var(--pg-info-bg);
+  --info-border: var(--pg-info-border);
+  --tick-up-bg: var(--pg-tick-up-bg);
+  --tick-down-bg: var(--pg-tick-down-bg);
+  --shadow-sm: var(--pg-shadow-sm);
+  --shadow-md: var(--pg-shadow-md);
+  --shadow-lg: var(--pg-shadow-lg);
+  --shadow-modal: var(--pg-shadow-modal);
+  --shadow-popover: var(--pg-shadow-popover);
+  /* --accent is a :root alias of --ut-gold, so it must be re-pointed here too or the
+     active timeframe would keep whatever the alias resolved to at the root. */
+  --accent: var(--pg-ut-gold);
+  /* The canvas-derived chrome family WidgetHost publishes inline on .widget (session
+     toggle, clock, leverage pill, the holdings panel's snapshot): on these rows it is
+     the page's, so nothing on them is tuned to a canvas they no longer sit on. */
+  --widget-canvas: var(--pg-bg-elevated);
+  --widget-divider: var(--pg-border);
+  --widget-divider-strong: var(--pg-border-accent);
+  --widget-text: var(--pg-text-muted);
+  --widget-text-strong: var(--pg-text-bright);
+  --widget-accent: var(--pg-ut-gold);
+  --widget-accent-bg: var(--pg-ut-gold-dim);
+  --widget-row-hover: var(--pg-bg-hover);
+  --widget-popup-bg: var(--pg-bg-elevated);
+  --widget-popup-border: var(--pg-border-accent);
+  background: var(--pg-bg-elevated);
+  border-color: var(--pg-border);
+}
+/* The chart widget's drag bar (grip, link dot, widget tabs, window buttons), named by
+   `:has()` so it follows the ACTIVE tab: a slot showing its watchlist tab keeps the
+   workspace look. Its own rule, because a browser without `:has()` (the floor is Chrome
+   and Firefox 100) drops a whole selector list over one selector it cannot parse, and
+   the three rows above must not go with it. It carries the tokens its children read. */
+:global([data-theme='light']) [data-charts-theme='default'] .widget:has(.chartWidget) > .widgetHeader {
+  --bg-elevated: var(--pg-bg-elevated);
+  --bg-hover: var(--pg-bg-hover);
+  --border: var(--pg-border);
+  --border-accent: var(--pg-border-accent);
+  --text: var(--pg-text);
+  --text-muted: var(--pg-text-muted);
+  --text-bright: var(--pg-text-bright);
+  --ut-gold: var(--pg-ut-gold);
+  --accent: var(--pg-ut-gold);
+  --widget-canvas: var(--pg-bg-elevated) !important;
+  --widget-divider: var(--pg-border) !important;
+  --widget-divider-strong: var(--pg-border-accent) !important;
+  --widget-text: var(--pg-text-muted) !important;
+  --widget-text-strong: var(--pg-text-bright) !important;
+  --widget-accent: var(--pg-ut-gold) !important;
+  --widget-accent-bg: var(--pg-ut-gold-dim) !important;
+  --widget-row-hover: var(--pg-bg-hover) !important;
+  /* ⭐ THE CANVAS VARS ARE `!important` (review, 2026-11-07): a bottom-docked header
+     over a GRADIENT canvas carries them INLINE (WidgetHost headerStyle), and only a
+     stylesheet `!important` out-ranks an inline value. Without it the bar turned white
+     here while its tab labels kept the dark canvas's light grey: light on white. */
+  background: var(--pg-bg-elevated);
+  border-color: var(--pg-border);
 }
 
 /* News / Profile widgets OPT OUT of the dark re-assertion above and follow the
@@ -1643,10 +1852,10 @@
 .chartCtxAi {
   margin-top: 4px; padding-top: 11px;
   border-top: 1px solid var(--menu-divider, var(--border, #232b36));
-  color: var(--menu-accent, var(--ut-gold, #dcbb5e)); font-weight: 600;
+  color: var(--menu-accent, var(--ut-gold)); font-weight: 600;
 }
 /* the AI row keeps its gold accent — its icon matches the gold text, full strength */
-.chartCtxAi .chartCtxIcon { color: var(--menu-accent, var(--ut-gold, #dcbb5e)); opacity: 1; }
+.chartCtxAi .chartCtxIcon { color: var(--menu-accent, var(--ut-gold)); opacity: 1; }
 
 /* "Chart template" side flyout — a second menu that opens to the RIGHT of the
    parent row (left:100%), listing the user's saved chart-settings templates. */
@@ -1664,6 +1873,21 @@
   font-family: 'Instrument Sans', sans-serif;
 }
 .chartCtxTplName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* B9 · the pane indicator's rows. The Preset row names the current preset as a
+   muted trailing label before its caret (the chip menu's `Preset  Classic ›`). */
+.chartCtxTrail {
+  margin-left: auto; padding-left: 14px; max-width: 140px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; opacity: 0.6;
+}
+.chartCtxTrail + .chartCtxCaret { margin-left: 0; padding-left: 6px; }
+/* The preset tick: a fixed slot so labels align whether or not a row is ticked.
+   Neutral ink, never green or gold: a tick says "current", not "money up". */
+.chartCtxCheck { display: inline-flex; width: 14px; flex-shrink: 0; justify-content: center; }
+/* A refused row (and the Custom state row) reads as present but not pressable. */
+.chartCtxItem:disabled { cursor: default; opacity: 0.5; }
+.chartCtxItem:disabled:hover { background: transparent; }
+.chartCtxItem[aria-checked="true"]:disabled { opacity: 0.75; }
 .chartCtxFlyoutEmpty {
   padding: 9px 11px; max-width: 210px; font-size: 12px; line-height: 1.4;
   color: var(--menu-text, var(--text, #e5e7eb)); opacity: 0.6;
@@ -1828,3 +2052,1014 @@
    flex sibling at the far right, and the column shrinks to make room. */
 .workspaceRow { flex: 1; min-height: 0; min-width: 0; display: flex; }
 .workspaceMainCol { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+/* ═══ INTEGRATED CHART HEADER — "One surface" (.widgetIntegrated: WidgetHost, /charts board) ═══
+   The chart's identity row IS the widget's title bar (link dot · ticker + name · day change …
+   session · clock · window controls) and its drag handle; the timeframe row sits directly
+   under it on the SAME surface, with ONE hairline under both. Compact: title 36px, controls
+   32px. Information is plain text; only real controls look like controls. On a dark canvas
+   WidgetHost points --widget-text / --widget-text-strong at the site's own grey / white. */
+.widgetIntegrated .chartHeaderTop {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 6px 0 8px;
+  gap: 10px;
+  background: var(--widget-canvas, var(--bg-elevated, #0d1218));
+  border-bottom: none;
+  cursor: grab;
+}
+.widgetIntegrated .chartHeaderTop:active { cursor: grabbing; }
+.widgetIntegrated .symbolSlot { cursor: auto; }
+.widgetIntegrated [data-sym-ticker] {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.widgetIntegrated [data-sym-name] {
+  font-size: 13px;
+  font-weight: 500;
+  margin-left: 4px;
+}
+.widgetIntegrated [data-sym-ticker]:not([data-sym-custom]) { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated [data-sym-name]:not([data-sym-custom]) { color: var(--widget-text, var(--text-muted, #cfcac0)); }
+.widgetIntegrated .chartHeaderTop .chartDayGain { font-size: 13px; font-weight: 600; }
+.widgetIntegrated .headerTopRight { gap: 12px; cursor: auto; }
+.widgetIntegrated .headerTopRight .ctrlGroup {
+  padding-left: 10px;
+  margin-left: 2px;
+  border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+.widgetIntegrated .tfBar {
+  min-height: 32px;
+  padding: 0 8px 2px;
+  gap: 8px;
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+/* Info, not controls: plain label · value text, no boxes. */
+.widgetIntegrated .chartMeta { gap: 16px; margin-left: 10px; }
+.widgetIntegrated .chartMetaItem { padding: 0; border: none; background: none; }
+.widgetIntegrated .chartMetaLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+/* Timeframes + RTH/PM: plain text on the header surface (no track, no bubbles). The
+   active choice is white with a short gold bar under it — owner's pick 11-11. */
+.widgetIntegrated .tfBar > div[data-guide='chart.timeframe'],
+.widgetIntegrated .sessionToggle {
+  padding: 0;
+  gap: 2px !important;
+  border: none;
+  border-radius: 0;
+  background: none;
+}
+.widgetIntegrated .tfBtn,
+.widgetIntegrated .sessionBtn {
+  position: relative;
+  border: none;
+  border-radius: 0;
+  padding: 7px 7px;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+  background: transparent;
+}
+.widgetIntegrated .tfBtn:hover,
+.widgetIntegrated .sessionBtn:hover:not(:disabled) { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated .tfBtnActive,
+.widgetIntegrated .tfBtnActive:hover,
+.widgetIntegrated .sessionBtnActive,
+.widgetIntegrated .sessionBtnActive:hover {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 700;
+  background: none;
+  box-shadow: none;
+}
+.widgetIntegrated .tfBtnActive::after,
+.widgetIntegrated .sessionBtnActive::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+
+/* ── E2: one header row when wide (ChartPane puts the tf bar INSIDE the title row) ── */
+.widgetIntegrated .chartHeaderTop > .tfBar {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 0 0 0 6px;
+  margin-left: 6px;
+  border-bottom: none;
+  border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+  background: transparent;
+}
+/* One row → the hairline moves under the title row itself. */
+.widgetIntegrated .chartHeaderTop:has(> .tfBar) {
+  height: 40px;
+  min-height: 40px;
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+/* Regroup by purpose: chart buttons (new tab · settings · add to chart) in ONE colour —
+   the header white, not gold — and the window controls (float · pop out · close) quiet. */
+.widgetIntegrated .tfBarRight .chartSettingsBtn { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated .tfBarRight .chartSettingsBtn svg {
+  stroke: currentColor !important;
+  color: inherit !important;
+  filter: none !important;
+}
+.widgetIntegrated .headerTopRight .ctrlGroup .closeBtn,
+.widgetIntegrated .headerTopRight .ctrlGroup .popOutBtn,
+.widgetIntegrated .headerTopRight .ctrlGroup .wtabAdd { color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.85; }
+/* Settings gear: one of the right-hand buttons (gear · + · float · pop out · close). */
+.widgetIntegrated .headerTopRight > .chartSettingsBtn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; height: 22px; padding: 0 0 0 10px; box-sizing: content-box;
+  margin-right: -10px;   /* the cluster gap is 12px; buttons in the group sit 2px apart */
+  border: none; border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+  border-radius: 0; background: transparent;
+  color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.85;
+}
+.widgetIntegrated .headerTopRight > .chartSettingsBtn:hover { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated .headerTopRight > .chartSettingsBtn + .ctrlGroup { border-left: none; padding-left: 0; margin-left: 0; }
+.widgetIntegrated .sessionToggle { flex-shrink: 0; }
+
+/* Day change sits right after the company name; the after-hours badge is hidden in this
+   header for now (owner 11-11) — it widened the row and pushed the timeframes around. */
+.widgetIntegrated .chartHeaderTop .chartDayGainExt { display: none; }
+
+/* Title alignment (integrated header): logo, ticker, company name and day change all sit
+   on ONE centre line (mixed 17px / 13px text was baseline-aligned, so the name sat low
+   against the ticker). The logo is 20px here (SymbolSearch splitLabel) to match the ticker. */
+.widgetIntegrated .symbolSlot > div > button:first-child { display: inline-flex; align-items: center; height: 28px; }
+.widgetIntegrated .symbolSlot span:has(> [data-testid=sym-label]) { display: inline-flex; align-items: center; gap: 8px; }
+.widgetIntegrated [data-testid=sym-label]:has([data-sym-ticker]) { display: inline-flex; align-items: center; gap: 8px; line-height: 1; }
+.widgetIntegrated [data-sym-ticker],
+.widgetIntegrated [data-sym-name] { display: inline-block; line-height: 1; margin-left: 0; }
+.widgetIntegrated .chartHeaderTop > .chartDayGainWrap,
+.widgetIntegrated .chartHeaderTop > .chartDayGain { margin: 0 4px 0 2px; line-height: 1; }
+
+/* OPTICAL CENTRING (owner 11-11: midpoints did not line up). Each text box is trimmed to
+   exactly its CAP HEIGHT (text-box, Chrome 133+), so align-items:center lines up the
+   middles of the capitals across the 17px ticker, 13px name / day change and 11.5px
+   timeframes — instead of their line boxes, which carry different empty ascender /
+   descender space per font size. Browsers without text-box fall back to line-height:1. */
+.widgetIntegrated [data-sym-ticker],
+.widgetIntegrated [data-sym-name],
+.widgetIntegrated .chartHeaderTop .chartDayGain,
+.widgetIntegrated .tfBtn,
+.widgetIntegrated .sessionBtn,
+.widgetIntegrated .chartMetaLabel,
+.widgetIntegrated .chartMetaVal {
+  line-height: 1;
+  text-box: trim-both cap alphabetic;
+}
+.widgetIntegrated .chartMetaItem { align-items: center; }
+
+/* ── Title group (owner 11-11): logo+badge · TICKER · quieter name │ $ change  % change ── */
+/* Company name: smaller and dimmer, so the ticker leads. */
+.widgetIntegrated [data-sym-name]:not([data-sym-custom]) {
+  font-size: 12px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--widget-text, #cfcac0) 80%, transparent);
+}
+/* A thin divider sets the price change apart as its own block. */
+.widgetIntegrated .chartHeaderTop > .chartDayGainWrap,
+.widgetIntegrated .chartHeaderTop > .chartDayGain:not([data-delisted]) {
+  margin: 0 2px 0 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+/* $ change then (% change) in brackets, both full colour (owner 11-11). The space before
+   the bracket collapses inside the flex readout, so the gap is a margin. */
+.widgetIntegrated .chartHeaderTop [data-dg-pct] { margin-left: 5px; }
+
+/* Link dot → a small badge on the logo's bottom-right corner (one element instead of
+   two). The button stays fully clickable; it simply takes no row space and is moved
+   onto the 20px logo (the row's 10px gap is absorbed by the negative margin). */
+.widgetIntegrated .chartHeaderTop > button[data-guide='widget.link'] {
+  position: relative;
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  margin-right: -24px;
+  transform: translate(11px, 7px);
+}
+.widgetIntegrated .chartHeaderTop > button[data-guide='widget.link']::after {
+  inset: 3px;
+  box-shadow: 0 0 0 2px var(--widget-canvas, var(--bg-elevated, #0d1218));
+}
+/* Not-linked (grey) badge would read as clutter on every logo — keep it, but quieter. */
+.widgetIntegrated .chartHeaderTop > button[data-guide='widget.link'][class*='colorDotN']::after { opacity: 0.6; }
+
+/* Info fields (IPO date · Market cap · Next earnings · UCT rating): styled like the rest of
+   the row — normal-case labels in the same grey / size as the timeframes, values in the same
+   weight, even spacing. Value COLOURS stay as set in Chart Settings → Header. */
+.widgetIntegrated .chartMeta { gap: 18px; margin-left: 4px; }
+.widgetIntegrated .chartMetaItem { gap: 6px; }
+.widgetIntegrated .chartMetaLabel {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+.widgetIntegrated .chartMetaVal {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Chart widget integrated header: the pieces WidgetHeader lends it (part='dot' /
+      part='controls'). Scoped to the chart; every other widget keeps the stock header. ── */
+.ctrlGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  cursor: default;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.ctrlGroup:empty { display: none; }
+.widgetIntegrated .ctrlGroup .closeBtn,
+.widgetIntegrated .ctrlGroup .popOutBtn,
+.widgetIntegrated .ctrlGroup .wtabAdd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.widgetIntegrated .ctrlGroup .closeBtn:hover,
+.widgetIntegrated .ctrlGroup .popOutBtn:hover,
+.widgetIntegrated .ctrlGroup .wtabAdd:hover {
+  opacity: 1;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.07));
+}
+.widgetIntegrated .ctrlGroup .closeBtn:hover {
+  color: var(--danger-ink, #f87171);
+  background: color-mix(in srgb, var(--loss, #ef4444) 16%, transparent);
+}
+
+/* Link dot = a small badge on the logo's corner. The stock dot paints with a radial
+   background; here it is an ::after jewel in the group colour (--dot). */
+.widgetIntegrated .chartHeaderTop > .colorDot { background: none !important; border: none; padding: 0; cursor: pointer; }
+.widgetIntegrated .chartHeaderTop > .colorDot::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  background: var(--dot, #6b7280);
+  pointer-events: none;
+}
+.widgetIntegrated .colorDotA { --dot: #dcbb5e; }
+.widgetIntegrated .colorDotB { --dot: #60a5fa; }
+.widgetIntegrated .colorDotC { --dot: #4ade80; }
+.widgetIntegrated .colorDotD { --dot: #c084fc; }
+.widgetIntegrated .colorDotE { --dot: #f87171; }
+.widgetIntegrated .colorDotF { --dot: #2dd4bf; }
+.widgetIntegrated .colorDotG { --dot: #fb923c; }
+.widgetIntegrated .colorDotH { --dot: #f472b6; }
+.widgetIntegrated .colorDotN { --dot: #6b7280; }
+
+/* Kept but hidden for now (owner 11-11): the ETF View Holdings and breadth Line buttons.
+   Both stay MOUNTED — the holdings control still serves the UCT Agent's holdings door —
+   they are simply not shown in the chart's header. */
+.widgetIntegrated .tfBarRight .viewHoldingsBtn,
+.widgetIntegrated .tfBarRight .breadthLineBtn { display: none; }
+
+/* Chart widget frame (owner 11-11, chart only): rounded corners + a soft hairline/shadow,
+   and NO gold corner marks at rest — a mark shows only while the pointer is ON that
+   corner's resize handle. Every other widget keeps the stock frame and marks. */
+.widgetIntegrated {
+  border-radius: 10px;
+  border-color: color-mix(in srgb, var(--border, #1f2937) 70%, transparent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+:global([data-theme='light']) .widgetIntegrated { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.08); }
+:global(.react-grid-item[data-widget-type='chart']) .rzCorner::after,
+:global(.react-grid-item[data-widget-type='chart']:hover) .rzCorner::after { border-color: transparent; }
+:global(.react-grid-item[data-widget-type='chart']) .rzCorner:hover::after { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+/* The drag / resize tint follows the rounded corners on a chart. */
+:global(.react-grid-item.react-draggable-dragging[data-widget-type='chart'])::after { border-radius: 10px; }
+:global(.react-grid-item[data-widget-type='chart']) .rzPlaceholder { border-radius: 10px; }
+
+/* ── Chart widget symbol menu (▾ after the company name → leveraged ETFs / top holdings) ── */
+.symbolActionsCaret {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: -4px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+.symbolActionsCaret:hover,
+.symbolActionsCaret[aria-expanded='true'] {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.07));
+}
+.symbolActionsCaret svg { transition: transform 0.15s ease; }
+.symbolActionsCaret[aria-expanded='true'] svg { transform: rotate(180deg); }
+.symbolActionsMenu {
+  position: fixed;
+  z-index: 6000;
+  min-width: 240px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+}
+.symbolActionsMenu[hidden] { display: none; }
+.symActRow { display: flex; flex-direction: column; gap: 4px; }
+.symActLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--menu-text-muted, var(--text-muted, #8b8a85));
+}
+.symbolActionsMenu .viewHoldingsBtn {
+  margin: 0;
+  align-self: flex-start;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Price-scale switch (A · L · %) at the chart's bottom-right, chart widget only: compact
+   plain text like the header's timeframes — grey, the active one white with a short gold
+   underline — instead of boxed chips. */
+.widgetIntegrated [data-guide='chart.scale'] {
+  gap: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  box-shadow: none;
+}
+.widgetIntegrated [data-guide='chart.scale'] button {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  padding: 3px 5px 5px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+.widgetIntegrated [data-guide='chart.scale'] button:hover { background: none; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated [data-guide='chart.scale'] button[aria-pressed='true'] {
+  background: none;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 700;
+}
+.widgetIntegrated [data-guide='chart.scale'] button[aria-pressed='true']::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+
+/* ═══ UCT FRAME — every widget in the chart widget's style (owner 11-13) ═══════════════
+   WidgetHost adds .widgetUct (uctFrame, /charts board, non-merged) and WidgetHeader renders
+   look='uct'. Same values as the chart's integrated header: a 36px title row on the
+   widget's own canvas (one surface — no separate bar), the widget's icon with the link
+   colour as a small badge, the name in the header white, quiet window controls behind a
+   hairline divider; rounded 10px corners + soft shadow; no gold corner marks at rest. */
+.widgetUct {
+  border-radius: 10px;
+  border-color: color-mix(in srgb, var(--border, #1f2937) 70%, transparent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 26px rgba(0, 0, 0, 0.28);
+}
+:global([data-theme='light']) .widgetUct { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.08); }
+:global(.react-grid-item):has(.widgetUct) .rzCorner::after,
+:global(.react-grid-item:hover):has(.widgetUct) .rzCorner::after { border-color: transparent; }
+:global(.react-grid-item):has(.widgetUct) .rzCorner:hover::after { border-color: color-mix(in srgb, var(--accent) 70%, transparent); }
+:global(.react-grid-item.react-draggable-dragging):has(.widgetUct)::after { border-radius: 10px; }
+:global(.react-grid-item):has(.widgetUct) .rzPlaceholder { border-radius: 10px; }
+/* Merged board (owner 11-14): the same UCT widgets tiled flush into one surface: no
+   gaps, no rounded cards, no shadows; one hairline seam (right + bottom, as
+   .widgetMerged) between neighbours, the outer top/left/bottom from .workspaceBodyMerged. */
+.widgetUct.widgetMerged {
+  border: none;
+  border-right: 1px solid var(--border-accent);
+  border-bottom: 1px solid var(--border-accent);
+  border-radius: 0;
+  box-shadow: none;
+}
+:global([data-theme='light']) .widgetUct.widgetMerged { box-shadow: none; }
+:global(.react-grid-item.react-draggable-dragging):has(.widgetMerged)::after,
+:global(.react-grid-item):has(.widgetMerged) .rzPlaceholder { border-radius: 0; }
+
+.uctHeader {
+  /* --uct-head-bg = the colour the widget's body paints (WidgetHost / uctSurface.js). */
+  background: var(--uct-head-bg, var(--widget-canvas, var(--bg-elevated, #0d1218)));
+  height: 36px;
+  min-height: 36px;
+  flex: 0 0 36px;
+  padding: 0 6px 0 10px;
+  gap: 10px;
+  border-bottom: none;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+.uctHeader.widgetHeaderBottom { border-top: 1px solid var(--widget-divider, var(--border, #2a2c31)); }
+/* Icon + link badge: the widget's catalog glyph in the header white, the link colour a
+   small jewel on its bottom-right corner (as on the chart's logo). */
+.uctIdent {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+.uctIdent > .colorDot {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 14px;
+  height: 14px;
+  background: none !important;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+.uctIdent > .colorDot::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--dot, #6b7280);
+  box-shadow: 0 0 0 2px var(--uct-head-bg, var(--widget-canvas, var(--bg-elevated, #0d1218)));
+  pointer-events: none;
+}
+.uctIdent > .colorDotN::after { opacity: 0.6; }
+.uctIdent > .colorDotA { --dot: #dcbb5e; }
+.uctIdent > .colorDotB { --dot: #60a5fa; }
+.uctIdent > .colorDotC { --dot: #4ade80; }
+.uctIdent > .colorDotD { --dot: #c084fc; }
+.uctIdent > .colorDotE { --dot: #f87171; }
+.uctIdent > .colorDotF { --dot: #2dd4bf; }
+.uctIdent > .colorDotG { --dot: #fb923c; }
+.uctIdent > .colorDotH { --dot: #f472b6; }
+.uctIdent > .colorDotN { --dot: #6b7280; }
+.uctTitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1px;
+  line-height: 1;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+/* Window controls: grey, compact, behind one hairline — the chart's right-hand group. */
+.uctCtrl {
+  padding-left: 8px;
+  margin-left: 2px;
+  border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+.uctCtrl .closeBtn,
+.uctCtrl .popOutBtn,
+.uctCtrl .wtabAdd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 22px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+  opacity: 0.85;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.uctCtrl .closeBtn:hover,
+.uctCtrl .popOutBtn:hover,
+.uctCtrl .wtabAdd:hover {
+  opacity: 1;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.07));
+}
+.uctCtrl .closeBtn:hover {
+  color: var(--danger-ink, #f87171);
+  background: color-mix(in srgb, var(--loss, #ef4444) 16%, transparent);
+}
+/* Widget tabs (a slot holding several widgets): plain text, the active one white with the
+   short gold bar under it — the chart's timeframe style. */
+.uctHeader .wtabRegion { height: 100%; }
+.uctHeader .wtabStrip { gap: 2px; height: 100%; }
+.uctHeader .wtabChip {
+  position: relative;
+  height: 100%;
+  padding: 0 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+.uctHeader .wtabChip:hover { background: none; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.uctHeader .wtabChipActive {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 700;
+  background: none;
+}
+.uctHeader .wtabChipActive::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+
+/* One-row title (uctHeaderSlot.js): a wide widget's own top row (tabs · New · gear) sits in
+   the title row after the name, set off by a hairline — the chart's one-row header (E2).
+   The slot is empty (no width) when nothing is portaled in. */
+.uctSlot {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.uctSlot:empty { display: none; }
+.uctSlot:not(:empty) {
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid var(--widget-divider, var(--border, #2a2c31));
+  margin-block: 9px;
+}
+.uctSlot:not(:empty) > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0 !important;
+  margin-block: -9px;
+  border-bottom: none !important;
+  background: transparent !important;
+  padding-left: 2px !important;
+  padding-right: 0 !important;
+}
+.uctSlot:not(:empty) ~ .headerSpacer { display: none; }
+/* One row → the hairline moves under the title row itself (as on the chart). */
+.uctHeader:has(> .uctSlot:not(:empty)) {
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+/* Never wrap a label in the one-row title; the name keeps its width until the widget is
+   narrow, then the icon alone names it (the tabs beside it say the rest). */
+.widgetUct { container-type: inline-size; container-name: uctw; }
+.uctSlot :is(button, [role='tab'], span) { white-space: nowrap; }
+.uctHeader:has(> .uctSlot:not(:empty)) .uctTitle { flex-shrink: 0; }
+@container uctw (max-width: 600px) {
+  .uctHeader:has(> .uctSlot:not(:empty)) .uctTitle { display: none; }
+}
+.uctSlot:not(:empty) { margin-right: 6px; }
+/* Gear slot (uctHeaderSlot.js controls): a widget's settings ⚙ leads the window controls,
+   in the same grey, size and hover as + · float · pop out · close (the chart's cluster). */
+.uctCtrlSlot { display: inline-flex; align-items: center; }
+.uctCtrlSlot:empty { display: none; }
+.uctCtrlSlot > button {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 24px !important;
+  height: 22px !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: var(--widget-text, var(--text-muted, #cfcac0)) !important;
+  opacity: 0.85;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.uctCtrlSlot > button:hover,
+.uctCtrlSlot > button[aria-expanded='true'] {
+  opacity: 1;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3)) !important;
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)) !important;
+}
+.uctCtrlSlot > button svg { stroke: currentColor; color: inherit; }
+/* Icon-only title (UCT_ICON_ONLY_TITLE): the hairline after the icon only when a row sits beside it. */
+/* The icon component paints gold by default — the gear wears the controls' grey, as on the chart. */
+.uctCtrlSlot > button svg,
+.uctCtrlSlot > button svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+/* Icon-only header: a hairline right after the icon, always (owner 11-13). The one-row slot
+   then sits right after it without a second line. */
+.uctIdentSep {
+  align-self: center;
+  width: 1px;
+  height: 18px;
+  margin-left: 2px;
+  flex-shrink: 0;
+  background: var(--widget-divider, var(--border, #2a2c31));
+}
+.uctIdentSep + .widgetLabel + .uctSlot:not(:empty) { border-left: none; margin-left: 0; padding-left: 0; }
+.uctCtrlSlot > button svg { color: inherit !important; }
+
+/* ── One header height for every widget (owner 11-13: chart + watchlist side by side must
+      line up). The chart's one-row header is 40px; every UCT header — and the chart's own
+      title row when it splits into two rows — is 40px too, so the top rows (and the hairline
+      under a one-row header) sit at the same height across the board. ── */
+.uctHeader { height: 40px; min-height: 40px; flex: 0 0 40px; box-sizing: border-box; }
+.widgetIntegrated .chartHeaderTop { height: 40px; min-height: 40px; box-sizing: border-box; }
+
+/* ═══ Top-bar menus — Widgets · Layouts · Tools (owner 11-14) ═══════════════════════════
+   The widgets' menu look (the Theme sets menu): a dark rounded panel, sentence-case group
+   labels, 13px rows with a soft hover, hairline separators; the GOLD glyph before each row
+   stays. Active modes get a ✓ on the right, submenus a ›. Scoped to .tbMenu so the shared
+   .addMenuItem (the in-widget "+" tab menu) is untouched. */
+.tbMenu,
+.tbMenu .addMenu {
+  margin-top: 6px;
+  padding: 6px;
+  gap: 1px;
+  border-radius: 10px;
+  background: var(--menu-bg, #1b1c20);
+  border: 1px solid var(--menu-border, #383b41);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans);
+}
+.tbMenu .addMenu { margin-top: 0; }
+.tbMenu .addMenuItem {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 32px; padding: 7px 10px; border-radius: 6px;
+  font-size: 13px; color: var(--menu-text, #e9e6de); text-align: left;
+}
+.tbMenu .addMenuItem:hover:not(:disabled),
+.tbMenu .addMenuItem:focus-visible { background: var(--menu-hover, rgba(255, 255, 255, 0.07)); color: var(--menu-text-strong, #f8f7f3); outline: none; }
+.tbMenu .addMenuItem:disabled { opacity: 0.45; cursor: default; }
+.tbGlyph { width: 18px; flex: 0 0 18px; display: inline-flex; align-items: center; justify-content: center; }
+.tbLbl { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbCheck { flex: 0 0 auto; display: inline-flex; color: var(--menu-text-strong, #f8f7f3); }
+.tbChev { flex: 0 0 auto; display: inline-flex; color: var(--menu-text-muted, #a9a59b); }
+.tbCheck svg, .tbCheck svg *, .tbChev svg, .tbChev svg *, .tbBack svg, .tbBack svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbMenu .tbBack { gap: 6px; color: var(--menu-text-muted, #a9a59b); font-size: 12.5px; min-height: 28px; }
+/* Group labels + section titles: sentence case, small grey (no caps, no tracking). */
+.tbMenu .addMenuGroupLabel,
+.tbMenu .menuSection { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--menu-text-muted, #a9a59b); }
+.tbMenu .menuDivider { height: 1px; margin: 5px 4px; background: var(--menu-divider, #2c2e33); }
+/* Widgets: the grouped 2-column grid, the same rows — gold glyph + name, soft hover. */
+.tbMenu.wAddMenu { min-width: 330px; padding: 6px; }
+.tbMenu .wAddGroup + .wAddGroup { border-top: 1px solid var(--menu-divider, #2c2e33); margin-top: 4px; padding-top: 2px; }
+.tbMenu .wAddGrid { gap: 1px 4px; padding: 0 0 4px; }
+.tbMenu .wAddChip { gap: 10px; padding: 7px 10px; border: none; border-radius: 6px; font-size: 13px; color: var(--menu-text, #e9e6de); }
+.tbMenu .wAddChip:hover:not(:disabled) { background: var(--menu-hover, rgba(255, 255, 255, 0.07)); color: var(--menu-text-strong, #f8f7f3); border-color: transparent; }
+.tbMenu .boardBoundNote { border-bottom-color: var(--menu-divider, #2c2e33); border-radius: 6px; }
+/* Open-layout rows: the row hover is the item's; the ✕ stays quiet until the row is hovered. */
+.tbMenu .menuRow { border-radius: 6px; }
+.tbMenu .menuRow:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.07)); }
+.tbMenu .menuRow .addMenuItem { min-height: 30px; }
+.tbMenu .menuDel { border-radius: 5px; padding: 4px 8px; opacity: 0; }
+.tbMenu .menuRow:hover .menuDel, .tbMenu .menuDel:focus-visible { opacity: 1; }
+/* Save-as form + Multi Chart's checkboxes in the same quiet voice. */
+.tbMenu .menuForm { padding: 6px 10px 8px; }
+.tbMenu .menuInput { height: 28px; border-radius: 7px; border-color: rgba(248, 247, 243, 0.08); background: rgba(248, 247, 243, 0.06); font-size: 12.5px; color: var(--menu-text-strong, #f8f7f3); }
+.tbMenu .menuInput:focus { border-color: rgba(248, 247, 243, 0.22); }
+.tbMenu .menuCheck { padding: 6px 10px; font-size: 12.5px; color: var(--menu-text, #e9e6de); }
+.tbMenu .menuForm .toolbarBtn { height: 28px; padding: 0 12px; border-radius: 7px; }
+
+/* Owner 11-14: no gold corner "L" on the resize corners — at rest, on hover, or while
+   dragging, on every widget. The corners still resize; only the mark is gone. */
+.rzCorner::after,
+:global(.react-grid-item):hover .rzCorner::after,
+:global(.react-grid-item) .rzCorner:hover::after { display: none !important; }
+/* Ultra-smooth resize (owner 11-14): while a widget resizes, the whole board's items keep
+   no transition (the drag writes their boxes every frame) and the browser is told the
+   boxes will change, so it can prepare the layers. */
+:global(.charts-resizing) :global(.react-grid-item) { transition: none !important; }
+
+/* One-row chart header (owner 11-14): the window controls never leave. The right cluster
+   holds its width; the ticker area may shrink (and, last of all, ellipsize) instead, so a
+   very narrow chart still shows ⚙ · + · pop out · ✕. */
+.widgetIntegrated .chartHeaderTop > .headerTopRight { flex: 0 0 auto; margin-left: auto; }
+.widgetIntegrated .chartHeaderTop > .symbolSlot { flex: 0 1 auto; min-width: 28px; overflow: hidden; }
+.widgetIntegrated .chartHeaderTop > .symbolSlot [data-testid='sym-label'] { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Dark menu, dark scrollbar (owner 11-14): the browser draws a thin dark scrollbar, never the
+   white light-theme one, inside this always-dark menu. */
+.tbMenu, .tbMenu .addMenu { color-scheme: dark; scrollbar-width: thin; scrollbar-color: rgba(248, 247, 243, 0.22) transparent; }
+
+/* A widget whose settings menu is open (owner 11-14, useWidgetMenuPlacement): its gear stays lit
+   (a widget outline was tried and dropped at owner request). */
+:global(button[data-menu-open]) { color: var(--accent, #dcbb5e) !important; background: rgba(220, 187, 94, 0.14) !important; }
+
+/* The in-widget "+" add-tab menu in the board menu style (owner 11-14). */
+.wtabAddMenu.tbMenu { width: 210px; margin-top: 0; color-scheme: dark; }
+.wtabAddMenu.tbMenu .addMenuItem { color: var(--menu-text, #e9e6de); }
+.wtabAddMenu.tbMenu .addMenuItem:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.07)); color: var(--menu-text-strong, #f8f7f3); }
+.wtabAddMenu.tbMenu .addMenuGroupLabel { padding: 4px 10px 6px; }
+
+/* One menu colour (owner 11-14): the top-bar Widgets / Layouts / Tools menus and the "+" add-tab
+   menu wear the widget settings menu's panel (#111214), text (#ededed) and card shade on hover. */
+.tbMenu, .tbMenu .addMenu { background: #111214; }
+.tbMenu .addMenuItem, .tbMenu .wAddChip, .wtabAddMenu.tbMenu .addMenuItem { color: #ededed; }
+.tbMenu .addMenuItem:hover:not(:disabled), .tbMenu .addMenuItem:focus-visible, .tbMenu .wAddChip:hover:not(:disabled), .wtabAddMenu.tbMenu .addMenuItem:hover { background: #1a1b1f; color: #f8f7f3; }
+
+/* A tabbed slot's own title row (owner 11-14, WidgetHost subRow): under the tab strip, the
+   active widget's week / note path / periods — one quiet row; nothing when it is empty. */
+.uctSubRow {
+  display: flex; align-items: stretch; flex: 0 0 auto; min-width: 0; min-height: 36px;
+  padding: 0 6px 0 10px;
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2a2c31));
+}
+.uctSubRow:empty { display: none; }
+.uctSubRow > * { flex: 1 1 auto; min-width: 0; border-bottom: none !important; background: transparent !important; }
+
+/* Steady tabs (owner 11-14): selecting a tab or showing its x never moves the strip.
+   The bold width is reserved on every label; the x floats over the tab's top-right corner,
+   appearing on hover (a pending "click again" check stays visible). */
+.uctHeader .wtabLabel { display: inline-flex; flex-direction: column; align-items: center; }
+.uctHeader .wtabLabel::after { content: attr(data-label); height: 0; overflow: hidden; visibility: hidden; font-weight: 700; pointer-events: none; }
+.uctHeader .wtabClose {
+  position: absolute; top: 5px; right: -3px; width: 15px; height: 15px; border-radius: 50%;
+  font-size: 11px; opacity: 0; pointer-events: none;
+  background: var(--uct-head-bg, #16171a); color: var(--widget-text, #cfcac0);
+  box-shadow: 0 0 0 1px var(--widget-divider, #2a2c31);
+  transition: opacity 0.1s;
+}
+.uctHeader .wtabChip:hover .wtabClose { opacity: 1; pointer-events: auto; }
+.uctHeader .wtabClose:hover { color: var(--danger-ink, #f0525a); background: var(--uct-head-bg, #16171a); }
+.uctHeader .wtabCloseConfirm { opacity: 1; pointer-events: auto; color: var(--success-ink, #3fd47a); }
+
+/* Right-click a widget tab (owner 11-14): the Theme Tracker "..." menu look, a size smaller. */
+.wtabCtxMenu { position: fixed; z-index: 6500; min-width: 168px; padding: 5px; display: flex; flex-direction: column; gap: 1px;
+  border-radius: 9px; background: #111214; border: 1px solid var(--menu-border, #383b41); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-sans); color-scheme: dark; }
+.wtabCtxItem { display: flex; align-items: center; gap: 9px; padding: 6px 9px; border: none; border-radius: 6px; background: none;
+  font: 500 12.5px var(--font-sans); color: #ededed; text-align: left; cursor: pointer; white-space: nowrap; }
+.wtabCtxItem:hover:not(:disabled), .wtabCtxItem:focus-visible { background: #1a1b1f; color: #f8f7f3; outline: none; }
+.wtabCtxItem:disabled { opacity: 0.4; cursor: default; }
+.wtabCtxItem svg { color: var(--text-muted, #a9a59b) !important; filter: none !important; flex: 0 0 auto; }
+.wtabCtxItem svg * { stroke: currentColor !important; }
+.wtabCtxDivider { height: 1px; margin: 4px 6px; background: var(--menu-divider, #2a2c31); }
+
+
+/* The open tab's gold line sits just under its word (owner 11-14), like RTH / EXT — not at the
+   bottom edge of the header, where it read as part of the row below. */
+.uctHeader .wtabChipActive::after { bottom: 7px; }
+
+/* ═══ The chart right-click menu in the board-menu look (owner 11-15): always the #111214 panel,
+   #ededed rows, the #1a1b1f card shade on hover, grey icons, hairline dividers — the Theme
+   Tracker "…" menu and the widget settings menus. The gold Ask AI row keeps its accent. ═══ */
+.chartCtxMenu, .chartCtxFlyout {
+  background: #111214; border-color: #383b41; border-radius: 10px; padding: 5px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5); font-family: var(--font-sans); color-scheme: dark;
+}
+.chartCtxMenu .chartCtxItem, .chartCtxFlyout .chartCtxItem {
+  color: #ededed; font-family: var(--font-sans); font-size: 13px; padding: 7px 10px; border-radius: 6px;
+}
+.chartCtxMenu .chartCtxItem:hover:not(:disabled), .chartCtxFlyout .chartCtxItem:hover:not(:disabled),
+.chartCtxMenu .chartCtxItemOpen { background: #1a1b1f; color: #f8f7f3; }
+.chartCtxMenu .chartCtxIcon, .chartCtxFlyout .chartCtxIcon { color: #a9a59b; opacity: 1; }
+.chartCtxMenu .menuDivider, .chartCtxFlyout .menuDivider { background: #2a2c31; margin: 4px 6px; }
+.chartCtxMenu .chartCtxAi { border-top-color: #2a2c31; color: var(--accent, #dcbb5e); }
+.chartCtxMenu .chartCtxAi .chartCtxIcon { color: var(--accent, #dcbb5e); }
+.chartCtxMenu .chartCtxAi:hover { color: var(--accent, #dcbb5e); }
+
+/* Owner 11-15: NO gold in the chart right-click menu — every icon (they paint their own gold
+   stroke) and the Ask AI row are the menus' grey. */
+.chartCtxMenu .chartCtxIcon svg, .chartCtxMenu .chartCtxIcon svg *, .chartCtxFlyout .chartCtxIcon svg, .chartCtxFlyout .chartCtxIcon svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.chartCtxMenu .chartCtxAi, .chartCtxMenu .chartCtxAi:hover { color: #ededed; font-weight: 500; }
+.chartCtxMenu .chartCtxAi .chartCtxIcon { color: #a9a59b; }
+
+/* M4 · "Labelled, no icons" (owner 11-15): the chart right-click menu shows no icons; small grey
+   group labels (At this price · This chart · Settings · Add · Drawings) replace the dividers,
+   and a submenu row ends in a quiet chevron. Every row, its order and its handler are unchanged. */
+.chartCtxMenu .chartCtxIcon, .chartCtxFlyout .chartCtxIcon { display: none; }
+.chartCtxLabel { padding: 8px 10px 3px; font: 600 10.5px var(--font-sans); color: #93939a; letter-spacing: 0; }
+.chartCtxMenu .chartCtxLabel:first-child { padding-top: 5px; }
+.chartCtxMenu .chartCtxItem { gap: 0; padding: 6px 10px; }
+.chartCtxMenu .chartCtxCaret { color: #93939a; opacity: 1; font-size: 10px; }
+.chartCtxMenu .chartCtxAi { margin-top: 4px; padding-top: 9px; }
+
+/* Chart-type button centred between its two hairlines (owner 11-15): this header's 8px item gap
+   would otherwise sit between the button and the date box's line (the left line is the button's
+   own, inside the gap), leaving the right side 8px wider. */
+.widgetIntegrated .tfBar [data-guide='chart.typeMenu'] { margin-right: -8px; }
+/* UCT Signature gold "mix" (owner 11-15): gold marks only what is current or chosen — see docs/uct-signature-style.md §2b. */
+/* the right-click menu: the chosen template's ✓, and UCT Intelligence's mark on "Ask AI" (its one icon) */
+.chartCtxMenu .chartCtxCheck, .chartCtxFlyout .chartCtxCheck { color: var(--ut-gold); }
+.chartCtxMenu .chartCtxAi .chartCtxIcon { display: inline-flex; color: var(--ut-gold); margin-right: 8px; }
+
+/* ═══ The /charts top row in UCT Signature (owner 11-15, docs/uct-signature-style.md) ═══
+   Left: the open layout's NAME (it is the Layouts button) + its save state. Then "+ Add widget"
+   (the one white button) and "Tools" (a soft button). Right: Merge widgets as an icon toggle and
+   the UCT Agent. Gold only on what is current or on: the ✓ on the open layout / running tool, the
+   1D-style underline on a toggle or a running mode, the dot for unsaved changes. */
+.workspaceHeader { gap: 6px; padding: 10px 14px 10px 12px; }
+.tbName {
+  display: inline-flex; align-items: center; gap: 8px; height: 34px; max-width: 320px; padding: 0 10px 0 8px;
+  border: 0; border-radius: 8px; background: none; cursor: pointer;
+  color: var(--text-bright, #f8f7f3); font: 700 16px var(--font-sans); letter-spacing: 0;
+}
+.tbNameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbName svg, .tbName svg * { stroke: currentColor !important; filter: none !important; }
+.tbName > svg { color: #a9a59b; flex: 0 0 auto; }
+.tbName:hover, .tbName[aria-expanded='true'] { background: rgba(248, 247, 243, 0.06); }
+.tbName:focus-visible, .tbPrim:focus-visible, .tbSoft:focus-visible, .tbIcon:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: 1px; }
+.tbState { display: inline-flex; align-items: center; gap: 6px; margin: 0 6px 0 2px; font: 500 12px var(--font-sans); color: #93939a; white-space: nowrap; }
+.tbStateDot { width: 6px; height: 6px; border-radius: 50%; background: #6f6c66; flex: 0 0 auto; }
+.tbStateDirty { color: #ededed; }
+.tbStateDirty .tbStateDot { background: var(--ut-gold); }
+/* a refused save (owner 11-16): the dot and the retry link in the soft error red */
+.tbStateFailed .tbStateDot { background: #f0827a; }
+.tbStateFailed .tbStateSave { color: #f0827a; text-decoration-color: rgba(240, 130, 122, 0.45); }
+.tbStateFailed .tbStateSave:hover { text-decoration-color: #f0827a; }
+.tbStateSave {
+  border: 0; background: none; padding: 0 2px; cursor: pointer; color: #f8f7f3; font: 600 12px var(--font-sans);
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(248, 247, 243, 0.35);
+}
+.tbStateSave:hover { text-decoration-color: #f8f7f3; }
+.tbSep { width: 1px; height: 18px; background: #26282c; margin: 0 6px; flex: 0 0 auto; }
+.tbSpacer { flex: 1 1 auto; }
+.tbPrim {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border: 0; border-radius: 7px;
+  background: #f8f7f3; color: #111214; font: 700 12.5px var(--font-sans); cursor: pointer; white-space: nowrap;
+}
+.tbPrim:hover { background: #ffffff; }
+.tbPrim svg, .tbPrim svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbSoft {
+  position: relative; display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border: 0; border-radius: 7px;
+  background: rgba(248, 247, 243, 0.06); color: #ededed; font: 600 12.5px var(--font-sans); cursor: pointer; white-space: nowrap;
+}
+.tbSoft:hover, .tbSoft[aria-expanded='true'] { background: rgba(248, 247, 243, 0.11); color: #f8f7f3; }
+.tbSoft svg, .tbSoft svg * { stroke: currentColor !important; filter: none !important; }
+.tbSoft > svg { color: #a9a59b; }
+.tbModeOn { box-shadow: inset 0 -2px 0 var(--ut-gold); }
+.tbSoft .tbSpark { color: var(--ut-gold) !important; }
+.tbIcon {
+  position: relative; display: inline-grid; place-items: center; width: 32px; height: 30px; border: 0; border-radius: 7px;
+  background: none; color: #a9a59b; cursor: pointer;
+}
+.tbIcon svg, .tbIcon svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbIcon:hover { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
+.tbIcon[aria-pressed='true'] { color: #f8f7f3; }
+.tbIcon[aria-pressed='true']::after { content: ""; position: absolute; left: 9px; right: 9px; bottom: 2px; height: 2px; border-radius: 2px; background: var(--ut-gold); }
+
+/* the menus: grey glyphs, the gold ✓ (the old menus painted every glyph gold) */
+.tbMenu .tbGlyph { color: #a9a59b; }
+.tbMenu .tbGlyph svg, .tbMenu .tbGlyph svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbMenu .tbCheck { color: var(--ut-gold); }
+.tbMenu .tbCheck svg, .tbMenu .tbCheck svg * { stroke: currentColor !important; color: inherit !important; }
+.tbMenu .addMenuItem .tbLbl { display: flex; flex-direction: column; }
+.tbHint { font-size: 11.5px; font-weight: 500; color: #93939a; white-space: normal; line-height: 1.3; margin-top: 1px; }
+.tbMenu { background: #111214; border-color: #383b41; }
+
+/* the Add-widget picker: search well, one-column list, the hovered widget's blurb at the foot */
+.tbMenu.wAddMenu.wAddMenu { min-width: 300px; width: 300px; padding: 0; display: flex; flex-direction: column; max-height: min(520px, 76vh); overflow: hidden; }
+.wFind { display: flex; align-items: center; gap: 8px; margin: 6px; padding: 0 10px; height: 32px; border-radius: 7px; background: #1a1b1f; color: #93939a; flex: 0 0 auto; }
+.wFind:focus-within { box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.25); }
+.wFind svg, .wFind svg * { stroke: currentColor !important; filter: none !important; }
+.wFindInput, .wFindInput:focus { flex: 1; min-width: 0; height: 30px; border: none !important; background: none !important; box-shadow: none !important; outline: none; color: #ededed; font: 500 13px var(--font-sans); padding: 0; }
+.wFindInput::placeholder { color: #6f6c66; }
+.wPickScroll { flex: 1 1 auto; overflow-y: auto; padding: 0 5px 5px; scrollbar-width: thin; scrollbar-color: #383b41 transparent; }
+.tbMenu .wPickScroll .wAddGroup + .wAddGroup { border-top: 0; margin-top: 0; padding-top: 0; }
+.tbMenu .wPickScroll .wAddGrid { grid-template-columns: 1fr; }
+/* the icon keeps its OWN colour (grey; gold when hovered) — only its parts inherit it */
+.tbMenu .wAddChip svg { stroke: currentColor !important; filter: none !important; }
+.tbMenu .wAddChip svg * { stroke: currentColor !important; color: inherit !important; filter: none !important; }
+.tbMenu .wAddChip > svg { color: #a9a59b; }
+.tbMenu .wAddChip:hover:not(:disabled) > svg { color: #ededed; }
+.wPickEmpty { padding: 16px 10px; color: #93939a; font-size: 12px; text-align: center; }
+.wPickDesc { flex: 0 0 auto; border-top: 1px solid #26282c; padding: 9px 12px; min-height: 52px; font: 500 12px/1.4 var(--font-sans); color: #a9a59b; }
+.wPickDesc b { color: #ededed; font-weight: 600; }
+
+/* Owner 11-15, round 2: the row is 44px (was 60) — the rhythm of the chart widget's own 40px header
+   under it — and "+ Add widget" is a soft button like Tools with a brighter label, not the loud
+   white pill. */
+.workspaceHeader { min-height: 44px; padding: 6px 14px 6px 10px; }
+.tbName { height: 30px; font-size: 15px; }
+/* Owner 11-16, top-bar option 2: the Layouts button is a quiet grey caption ahead of the tabs. */
+.tbName:not([data-grid]) { height: 26px; padding: 0 6px; gap: 4px; color: #93939a; font: 600 12px var(--font-sans); }
+.tbName:not([data-grid]):hover, .tbName:not([data-grid])[aria-expanded='true'] { color: #ededed; }
+.tbCapSep { width: 1px; height: 16px; background: #2a2c31; margin: 0 2px; flex: 0 0 auto; }
+.tbPrim { background: rgba(248, 247, 243, 0.08); color: #f8f7f3; font-weight: 600; }
+.tbPrim:hover, .tbPrim[aria-expanded='true'] { background: rgba(248, 247, 243, 0.13); color: #ffffff; }
+.tbPrim > svg { color: #f8f7f3; }
+/* no search well in the Add-widget menu (owner 11-15): the list starts at the top */
+.tbMenu.wAddMenu .wPickScroll { padding-top: 5px; }
+
+/* Gold in ACTION menus (owner 11-15, style guide §2b rules 6-7): an action menu has nothing "chosen",
+   so the mix adds (6) the highlighted row's icon turns gold — "you are here" while you point or
+   arrow — and (7) widgets already on the board carry a small gold dot (and a count when >1). */
+.tbMenu .addMenuItem:hover:not(:disabled) .tbGlyph,
+.tbMenu .addMenuItem:focus-visible .tbGlyph,
+.tbMenu .wAddChip:hover:not(:disabled) > svg,
+.tbMenu .wAddChip:focus-visible > svg { color: var(--ut-gold); }
+.wOnBoard { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; flex: 0 0 auto; }
+.wOnBoardDot { width: 6px; height: 6px; border-radius: 50%; background: var(--ut-gold); }
+.wOnBoardN { font: 600 11px var(--font-sans); color: #93939a; font-variant-numeric: tabular-nums; }
+.tbMenu .wAddChip { display: flex; align-items: center; }
+
+/* Info row in UCT Signature (owner 11-15): grey 12px labels, bright 13px values (even-width digits);
+   signed fields keep their green / red and a member's own colour (inline) still wins. */
+/* Owner 11-16: "same contrast and brightness" — the label and its neutral value share ONE ink (the header's
+   resting text, --widget-text → --text-muted: #cfcac0 on the dark theme); the value takes the label's weight too (500); size is the only step. */
+/* Owner 11-16 step-up: the shared ink is lifted 45% toward the theme's bright text (≈#e1ddd5 on dark), a step under the title. */
+.widgetIntegrated .chartMetaLabel { font-size: 12px; font-weight: 500; color: color-mix(in srgb, var(--widget-text, var(--text-muted, #cfcac0)) 55%, var(--text-bright, #f8f7f3)); }
+.widgetIntegrated .chartMetaVal { font-size: 13px; font-weight: 500; color: color-mix(in srgb, var(--widget-text, var(--text-muted, #cfcac0)) 55%, var(--text-bright, #f8f7f3)); }
+/* Info-row dividers (owner 11-15): the header's own divider (1px, --widget-divider, as around the chart-type
+   button and the date box) centred in the gap between stats. */
+.widgetIntegrated .chartMetaItem { position: relative; }
+.widgetIntegrated .chartMetaItem + .chartMetaItem::before {
+  content: ''; position: absolute; left: -9px; top: 50%; height: 16px; margin-top: -8px; width: 1px;
+  background: var(--widget-divider, #2a2c31); pointer-events: none;
+}
+
+/* Owner 11-16, top-bar option A: the layout tabs sit on the row's bottom edge (LayoutDock), so the
+   row loses its bottom padding; the buttons keep their centre. The Layouts menu is a small ▾ after
+   the tabs' ＋ (like a browser's tab list). */
+.workspaceHeader { padding-top: 6px; padding-bottom: 0; align-items: center; }
+.workspaceHeader > * { margin-bottom: 0; }
+.tbTabList {
+  align-self: center; width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 6px; background: none; color: #93939a; cursor: pointer;
+}
+.tbTabList:hover, .tbTabList[aria-expanded='true'] { background: rgba(248, 247, 243, 0.07); color: #f8f7f3; }
+.tbTabList svg, .tbTabList svg * { stroke: currentColor !important; filter: none !important; }
+.tbTabList { width: 28px; height: 28px; color: #dedad2; background: rgba(248, 247, 243, 0.05); }
+.tbTabList:hover, .tbTabList[aria-expanded='true'] { background: rgba(248, 247, 243, 0.11); color: #ffffff; }
+/* Owner 11-16: 10px between the ＋ and the ▾, and more air before the divider. */
+.tbTabList { margin-left: 4px; margin-right: 4px; }
+
+/* Owner 11-16: the blank workspace's centred prompt (new members start here). */
+.emptyBoard {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; pointer-events: none; font-family: var(--font-sans);
+}
+.emptyBoardTitle { color: #c9c6be; font: 600 15px var(--font-sans); }
+.emptyBoardBtn {
+  pointer-events: auto; display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 16px;
+  border: 1px solid rgba(220, 187, 94, 0.35); border-radius: 8px; background: rgba(248, 247, 243, 0.06);
+  color: #f8f7f3; font: 600 13px var(--font-sans); cursor: pointer;
+}
+.emptyBoardBtn:hover { background: rgba(248, 247, 243, 0.11); border-color: rgba(220, 187, 94, 0.6); }
+.emptyBoardHint { color: #93939a; font-size: 12.5px; }
+/* Owner 11-16: the main action's ＋ is the one gold glyph in the row. */
+.tbPrim > svg, .tbPrim > svg * { color: var(--ut-gold, #dcbb5e) !important; stroke: var(--ut-gold, #dcbb5e) !important; }
+.emptyBoardBtn > svg, .emptyBoardBtn > svg * { color: var(--ut-gold, #dcbb5e); stroke: var(--ut-gold, #dcbb5e); }
+/* Owner 11-16: the two ＋ buttons side by side must match — Add widget's ＋ is white again. */
+.tbPrim > svg, .tbPrim > svg * { color: #f8f7f3 !important; stroke: #f8f7f3 !important; }
+
+/* Clickable info-row stats (owner 11-17): each stat opens its quick-edit menu (HeaderStatMenu.jsx), like the
+   timeframes beside it. Rest = exactly today's look; a soft shade on hover / while its menu is open; no gold. */
+.chartMetaItemBtn { cursor: pointer; border-radius: 5px; outline: none; }
+.chartMetaItemBtn:hover, .chartMetaItemOpen { box-shadow: 0 0 0 3px rgba(248, 247, 243, 0.07); background-color: rgba(248, 247, 243, 0.07); }
+.chartMetaItemBtn:focus-visible { box-shadow: 0 0 0 2px rgba(248, 247, 243, 0.4); }
+/* A boxed stat (owner 11-17): the pill must hug the text at S/M/L/XL. The integrated header trims every label/value
+   to its cap height (`text-box: trim-both cap alphabetic`), which is right for bare text but lets descenders
+   (g, p, %, the comma) hang out of a box — so inside a box the text keeps its full, em-relative line box. */
+.chartMetaItem[data-stat-box] { line-height: 1; }
+.chartMetaItem[data-stat-box] > .chartMetaLabel,
+.chartMetaItem[data-stat-box] > .chartMetaVal { text-box: normal; line-height: 1.25; }

@@ -30,6 +30,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import re
 import sqlite3
 import threading
 import time
@@ -64,13 +65,16 @@ def env(tmp_path, monkeypatch):
     c.commit()
     c.close()
 
-    def _conn():
-        k = sqlite3.connect(db, timeout=5)
-        k.row_factory = sqlite3.Row
-        return k
-
+    # ⛔⛔ PATCH THE PATH, NEVER `get_connection` ITSELF. This fixture used to replace
+    # `auth_db.get_connection` with a local `_conn` and THEN import `api.main` (below). Every module
+    # that import loaded for the first time ran `from api.services.auth_db import get_connection`
+    # while the patch stood and kept `_conn` -- this test's scratch file, one `users` table -- for
+    # the rest of the session: 34 Notebook tests later in the same process failed with
+    # `no such table` (2026-11-17, run 44122066704). The real `get_connection` reads
+    # `auth_db._DB_PATH` on every call, so pointing that at the scratch file reaches every importer,
+    # and monkeypatch puts it back. tests/conftest.py now fails any test that leaves such a copy.
     import api.services.auth_db as adb
-    monkeypatch.setattr(adb, "get_connection", _conn)
+    monkeypatch.setattr(adb, "_DB_PATH", str(db))
     monkeypatch.delenv(ia.FLAG, raising=False)
     monkeypatch.delenv(ia.RATE_ENV, raising=False)
     monkeypatch.delenv("RATE_LIMIT_POLICY", raising=False)
@@ -145,7 +149,13 @@ def _receipts(env):
 
 
 def _shape(r):
-    return r.status_code, r.content, sorted(r.headers.items())
+    # ⛔ `server-timing: app;dur=<ms>` is the app's request-timing middleware MEASURING this one
+    # request: two identical answers carry two durations. Compared byte for byte it decided this
+    # rail on the clock (red alone on a runner, 2026-11-17 run 44123847528: `app;dur=2.8` vs
+    # `app;dur=3.8`). Its presence and its name are still compared; only the number is not.
+    headers = sorted((k, re.sub(r"dur=[0-9.]+", "dur=<ms>", v) if k.lower() == "server-timing" else v)
+                     for k, v in r.headers.items())
+    return r.status_code, r.content, headers
 
 
 # ── 1. DARK ──────────────────────────────────────────────────────────────────
@@ -464,18 +474,15 @@ def test_the_REAL_delivery_never_reaches_the_admin_discord(env):
     import api.services.auth_db as adb      # … so re-apply only what this test needs
     db = env["db"]
 
-    def _conn():
-        k = sqlite3.connect(db, timeout=5)
-        k.row_factory = sqlite3.Row
-        return k
-
     mp = pytest.MonkeyPatch()
     try:
-        mp.setattr(adb, "get_connection", _conn)
-        # watchlist_alert_service binds get_connection at IMPORT, so the owner's
-        # email lookup needs its own patch (measured: without it the result
-        # depended on which suite ran first).
-        mp.setattr(was, "get_connection", _conn)
+        # The PATH, which every importer's `get_connection` reads -- including the owner-email
+        # lookup in watchlist_alert_service, which binds `get_connection` at IMPORT: if another
+        # file's patch was standing when it was first imported, it holds that file's function
+        # (measured: `[] == ['a@example.test']` behind tests/test_calendar_ics_token_v2.py's old
+        # fixture, run 44128429459). So it is pointed back at auth_db's own function too.
+        mp.setattr(adb, "_DB_PATH", str(db))
+        mp.setattr(was, "get_connection", adb.get_connection)
         mp.setattr(ia, "_clock", lambda: T0)
         mp.setattr(iar, "_dispatch", lambda fn, *a: fn(*a))
         mp.setattr(durable, "should_persist", lambda alert: False)

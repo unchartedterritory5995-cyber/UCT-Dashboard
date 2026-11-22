@@ -3,7 +3,7 @@ import {
   read, publish, position, step, syncToSymbol, currentSymbol, REVIEW_EVENT,
   neighbours, adopt,
 } from './reviewSession'
-import { prefetchBars } from '../../../utils/prefetchBars'
+import { prefetchBars } from '../../../utils/barsWarm'
 
 /* React binding for the review session.
  *

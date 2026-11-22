@@ -40,11 +40,14 @@ def _doc() -> dict:
 def _run(case: dict, doc: dict):
     sink: dict = {}
     opts = dict(case.get("opts") or {}, chartClockSink=sink)
-    return ai.interpret(case["ast"], doc["bars"], {}, opts=opts), sorted(sink)
+    return ai.interpret(case["ast"], doc["bars"], case.get("inputs") or {}, opts=opts), sorted(sink)
 
 
 @pytest.mark.parametrize("case", _doc()["cases"], ids=lambda c: c["name"])
 def test_the_python_lane_reproduces_the_js_lane(case):
+    if case.get("jsOnly"):
+        # a `var` from the listing is the JS listing pass (C12w); no server lane holds a listing
+        pytest.skip("JS-only: the listing pass")
     doc = _doc()
     verdict = ai.bar_index_verdict(case["ast"])
     assert verdict["cls"] == case["cls"], case["name"]
@@ -112,3 +115,80 @@ def test_the_whole_series_code_is_declared_whole_in_both_lanes():
     assert "bar-index:window" in ai.CHART_CLOCK_WHOLE
     assert "bar-index:early-bars" in ai.CHART_CLOCK_WITHHELD_CODES
     assert "bar-index:early-bars" not in ai.CHART_CLOCK_WHOLE
+
+
+def test_a_var_read_on_other_bars_is_withheld_whole():
+    """r1 (review VAR-OFF N3, V2) -- ``interpret.js::varOriginMask``'s rule, this lane: a
+    recurrence under ``sym`` / ``tf`` reads other bars, and no window here describes them."""
+    doc = _doc()
+    cases = {c["name"]: c for c in doc["cases"]}
+    acc = cases["var set on a frequent bar \u00b7 var origin \u00b7 off the listing"]["ast"]
+    opts = {"tf": "D", "barIndexAbsolute": True, "varOriginAbsolute": True}
+    for kind, value in (("sym", "QQQ"), ("tf", "W")):
+        sink: dict = {}
+        mask = ai.var_origin_mask({"type": kind, "value": value, "args": [acc]}, doc["bars"], {},
+                                  opts=dict(opts, chartClockSink=sink))
+        assert mask == [1] * len(doc["bars"]), kind
+        assert sorted(sink) == ["var-origin:window"], kind
+
+
+@pytest.mark.parametrize("case", _doc()["rally"]["cases"], ids=lambda c: c["name"])
+def test_the_python_lane_reproduces_the_rally_window(case):
+    """r1 (review VAR-OFF N1/N2) -- the reviewer's oracle shape: a rally to 200, then a
+    95-105 range; the last 600 bars off the listing. The JS lane withholds every bar whose
+    `var` may still hold what the rally set; this lane must answer the same."""
+    rally = _doc()["rally"]
+    sink: dict = {}
+    got = ai.interpret(case["ast"], rally["bars"][rally["from"]:], {}, opts=dict(rally["opts"], chartClockSink=sink))
+    for i, (a, b) in enumerate(zip(got, case["expected"])):
+        if b is None:
+            assert a is None, f"{case['name']} bar {i}: {a} where the other lane withheld"
+        else:
+            assert a is not None and abs(a - b) <= 1e-9 * max(1.0, abs(b)), f"{case['name']} bar {i}: {a} vs {b}"
+    assert sorted(sink) == case["codes"], case["name"]
+
+
+def test_an_arm_an_input_switches_off_is_no_path():
+    """r2 (review VAR-OFF N-b) -- ``interpret.js::prunedUpdate``, this lane: keltner's
+    ``trend`` compares with ``jz ? dn[1] : na`` and ``jz`` is an input that is off, so the
+    direction never flips and is its seed. Gated by the input (not folded to ``na``) it must
+    be served exactly as the folded tree is."""
+    doc = _doc()
+    case = {c["name"]: c for c in doc["cases"]}[
+        "a direction whose levels an input turns off \u00b7 var origin \u00b7 off the listing"]
+
+    def gate(n):
+        if isinstance(n, dict) and n.get("type") == "op" and n.get("name") == "/" and all(
+                isinstance(a, dict) and a.get("type") == "num" and a.get("value") == 0 for a in n.get("args", [])):
+            return {"type": "op", "name": "?:", "args": [
+                {"type": "series", "name": "jz"},
+                {"type": "offset", "value": 1, "args": [{"type": "series", "name": "close"}]}, n]}
+        if isinstance(n, dict) and isinstance(n.get("args"), list):
+            return dict(n, args=[gate(a) for a in n["args"]])
+        return n
+    sink: dict = {}
+    got = ai.interpret(gate(case["ast"]), doc["bars"], {"jz": 0}, opts=dict(case["opts"], chartClockSink=sink))
+    assert [g is None for g in got] == [e is None for e in case["expected"]]
+    assert sorted(sink) == []
+
+
+@pytest.mark.parametrize("bz", [0, 1])
+def test_an_or_is_not_an_and(bz):
+    """r3 (review VAR-OFF P4) -- ``interpret.js::prunedUpdate``'s ``||`` rule, this lane:
+    ``r == 1 || bz`` with ``bz`` off IS ``r == 1`` (a probe case, withheld as the plain
+    latch); with ``bz`` on it is true on every bar (``r`` is 1, served past the warm-up)."""
+    doc = _doc()
+    case = {c["name"]: c for c in doc["cases"]}["a latch read only in its test \u00b7 var origin \u00b7 off the listing"]
+    ast = case["ast"]
+    body = ast["args"][1]
+    gated = dict(ast, args=[ast["args"][0], dict(body, args=[
+        {"type": "op", "name": "||", "args": [body["args"][0], {"type": "series", "name": "bz"}]}] + body["args"][1:])]
+        + ast["args"][2:])
+    sink: dict = {}
+    got = ai.interpret(gated, doc["bars"], {"bz": bz}, opts=dict(case["opts"], chartClockSink=sink))
+    if bz == 0:
+        assert got == case["expected"]
+        assert sorted(sink) == ["var-origin:bars"]
+    else:
+        assert got[250:] == [1] * (len(got) - 250)
+        assert sorted(sink) == []

@@ -1,0 +1,32 @@
+[
+[
+"control:noop-comment",
+"src/components/chart/engine/runtime/serverEntry.js",
+"// the module that declares each: the worker's wall budget",
+"// (control) the module that declares each: the worker's wall budget"
+],
+[
+"entry:drop-budget",
+"src/components/chart/engine/runtime/serverEntry.js",
+"  RUNTIME_PANE_TIME_BUDGET_MS,\n",
+""
+],
+[
+"entry:drop-incremental-key",
+"src/components/chart/engine/runtime/serverEntry.js",
+"  RUNTIME_INCREMENTAL_KEY,\n",
+""
+],
+[
+"entry:drop-failed-guard",
+"src/components/chart/engine/runtime/serverEntry.js",
+"  RUNTIME_FAILED_GUARD,\n",
+""
+],
+[
+"entry:drop-objects-key",
+"src/components/chart/engine/runtime/serverEntry.js",
+"export { RUNTIME_OBJECTS_KEY } from './runtimeObjects.js'\n",
+""
+]
+]

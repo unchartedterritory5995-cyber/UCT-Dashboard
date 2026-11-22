@@ -136,7 +136,8 @@
  * @typedef {Object} HubChipProps
  * @property {string} label
  * @property {string} tapHint
- * @property {string} [modeColor]  token NAME
+ *   (no mode colour: since B4, 2026-11-07, the chip's mode word is --ut-gold on every mode;
+ *   the per-mode hue stays on the knob's dot, HubKnobProps.modeColor)
  * @property {boolean} [scrubbing]
  * @property {string|null} [scrubReadout]  falls back to the literal "Scrub" while scrubbing
  * @property {boolean} [open]      TRUE hides the chip (the fan replaces it)
@@ -191,7 +192,7 @@ export const COMPONENT_PROPS = Object.freeze({
   HubPad: Object.freeze(['mirrored', 'onPointerDown', 'onPointerMove', 'onPointerUp', 'onPointerCancel']),
   HubKnob: Object.freeze(['mode', 'modeColor', 'targetColor', 'offset', 'pressing', 'dragging', 'mirrored']),
   HubFan: Object.freeze(['actions', 'open', 'selectedId', 'disabledIds', 'mirrored']),
-  HubChip: Object.freeze(['label', 'tapHint', 'modeColor', 'scrubbing', 'scrubReadout', 'open', 'mirrored']),
+  HubChip: Object.freeze(['label', 'tapHint', 'scrubbing', 'scrubReadout', 'open', 'mirrored']),
   HubScrim: Object.freeze(['open', 'excludeBottom', 'onPointerDown']),
   HubActionsButton: Object.freeze(['mode', 'actions', 'disabledIds', 'onAction', 'onFeedback', 'mirrored']),
 })

@@ -22,7 +22,8 @@
 // restored on reload. It is never read into a model request — the server's history door replays only
 // a row's text (and, for a local-only row, a fixed note): api/services/uct_agent/turn.py.
 
-export const VIEW_KINDS = ['value', 'comparison', 'metrics', 'range', 'table', 'headlines', 'text', 'error']
+//   research    facts / interpretation / unknown + dated sources (RS-1)  { facts, interpretation, unknown, cited: [{title, url, when}], note }
+export const VIEW_KINDS = ['value', 'comparison', 'metrics', 'range', 'table', 'headlines', 'text', 'error', 'research']
 export const VIEW_VERSION = 1
 //: News shows this many headlines up front; the rest stay one tap away under Details.
 export const HEADLINES_SHOWN = 5
@@ -61,13 +62,27 @@ function named(item, message) {
 }
 
 const LEAD_CHARS = 220
-/** Concise text: the lead (first line/paragraph) shown; the rest in details — unless depth was asked. */
+// A reply of several blocks answers several things ("Your price alerts (3):" + rows, then "You have no indicator alerts."). The
+// lead states every one: a block left under Details reads as not said, and it is often the truthful negative. Only for blocks that
+// open with a short line of their own; paragraphs of prose keep the single lead.
+const BLOCK_LINE_CHARS = 160
+const MAX_BLOCKS = 4
+function blockHeads(t) {
+  const blocks = t.split(/\n\s*\n/).map(b => b.trim()).filter(Boolean)
+  if (blocks.length < 2 || blocks.length > MAX_BLOCKS) return null
+  const heads = blocks.map(b => b.split('\n')[0].trim())
+  return heads.every(h => h.length <= BLOCK_LINE_CHARS) ? heads.map(h => h.replace(/:$/, '')) : null
+}
+/** Concise text: the lead (first line/paragraph, or every block's first line) shown; the rest in details — unless depth was asked. */
 function conciseText(text, detail) {
   const t = String(text || '').trim()
   if (!t) return { lead: '', rest: '' }
   if (detail) return { lead: t, rest: '' }
   const lines = t.split('\n')
   if (t.length <= LEAD_CHARS && lines.length <= 2) return { lead: t, rest: '' }
+  const heads = blockHeads(t)
+  // (blocks that are nothing but their first line: all of it is in the lead, so there is nothing left to tuck away)
+  if (heads) return { lead: heads.join('\n'), rest: lines.filter(l => l.trim()).length > heads.length ? t : '' }
   return { lead: lines[0].length <= LEAD_CHARS * 1.6 ? lines[0] : `${lines[0].slice(0, LEAD_CHARS)}…`, rest: t }
 }
 
@@ -79,6 +94,7 @@ export function isView(v) {
     case 'comparison': case 'metrics': case 'range': return items(v.items).length > 0
     case 'table': return !!table(v.table)
     case 'headlines': return Array.isArray(v.headlines) && v.headlines.length > 0
+    case 'research': return ['facts', 'interpretation', 'unknown'].some(k => Array.isArray(v[k]) && v[k].length > 0)
     default: return !!str(v.text, 20000)
   }
 }
@@ -106,6 +122,12 @@ export function presentOf(answer, { message = '' } = {}) {
       const hs = (p.headlines || []).slice(0, 15).map(h => ({ title: str(h.title, 220), meta: str(h.meta, 120) }))
       const n = detail ? hs.length : HEADLINES_SHOWN
       Object.assign(view, { headlines: hs.slice(0, n), ...(hs.length > n ? { details: { headlines: hs.slice(n) } } : {}) })
+    } else if (p.kind === 'research') {
+      // RS-1: three bounded lists of sentences and the dated sources; the capability already separated them
+      const list = (xs, n, max) => (Array.isArray(xs) ? xs : []).filter(s => typeof s === 'string' && s.trim()).slice(0, n).map(s => str(s, max))
+      const cited = (Array.isArray(p.cited) ? p.cited : []).slice(0, 8).filter(c => c && (c.title || c.url))
+        .map(c => ({ title: str(c.title, 140) || str(c.url, 140), when: str(c.when, 60), ...(typeof c.url === 'string' && /^https?:\/\//.test(c.url) ? { url: c.url.slice(0, 500) } : {}) }))
+      Object.assign(view, { facts: list(p.facts, 12, 400), interpretation: list(p.interpretation, 6, 300), unknown: list(p.unknown, 8, 200), cited, ...(p.note ? { note: str(p.note, 300) } : {}) })
     }
     if (p.text) view.text = str(p.text, 4000)
     if (p.source) view.source = str(p.source, 160)
@@ -120,7 +142,8 @@ export function presentOf(answer, { message = '' } = {}) {
         view = { ...view, items: hit, details: { items: items(p.items) } }
       }
     }
-    if (detail && view.kind !== 'table' && view.kind !== 'text' && full) view.text = view.text || full
+    // (a research view's sections ARE the full answer: depth adds nothing, so the text is never doubled)
+    if (detail && !['table', 'text', 'research'].includes(view.kind) && full) view.text = view.text || full
   } else if (tbl) {
     const { lead, rest } = conciseText(full, detail)
     view = { kind: 'table', table: tbl, ...(lead ? { text: lead } : {}) }
@@ -133,7 +156,7 @@ export function presentOf(answer, { message = '' } = {}) {
   // Everything the full answer had stays one tap away (unless it IS what is shown).
   const det = { ...(view.details || {}) }
   // (an error view already says its specific reason; the long answer adds nothing but noise)
-  if (p && full && !det.text && view.text !== full && view.kind !== 'error') det.text = full
+  if (p && full && !det.text && view.text !== full && view.kind !== 'error' && view.kind !== 'research') det.text = full
   // (headlines: the rows already shown or listed under Details ARE the table — only the provenance text stays)
   if (p && tbl && view.kind !== 'table' && view.kind !== 'headlines' && !det.table) det.table = tbl
   if (Object.keys(det).length) view.details = det

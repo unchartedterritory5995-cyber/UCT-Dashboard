@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import ChartSettingsModal from './ChartSettingsModal'
+// Chart Settings choices are a ChoiceMenu (owner 11-15): open the menu by its label, pick an option.
+const pickChoice = (label, option) => {
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${label}:`) }))
+  fireEvent.click(screen.getByRole('option', { name: option }))
+}
 import { mergeChartSettings } from './chartDefaults'
 
 // The Markers tab (ported from the old gear panel): swing labels, event markers,
@@ -20,7 +25,7 @@ describe('ChartSettingsModal — Markers tab', () => {
     // Collapsed until enabled.
     expect(screen.queryByRole('tab', { name: 'Med' })).toBeNull()
 
-    fireEvent.click(screen.getByRole('switch', { name: 'Swing prices' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Swing highs & lows' }))
     expect(lastCall(onChange).swingLabels.enabled).toBe(true)
   })
 
@@ -30,7 +35,7 @@ describe('ChartSettingsModal — Markers tab', () => {
     render(<ChartSettingsModal open settings={enabled} onChange={onChange} />)
     openMarkers()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'High' }))
+    pickChoice('Swing sensitivity', 'High')
     expect(lastCall(onChange).swingLabels.sensitivity).toBe('high')
 
     // Tint-by-type on → up/down swatches are present; pick the up color.
@@ -151,10 +156,10 @@ describe('ChartSettingsModal — Markers tab', () => {
     expect(lastCall(onChange).markers.desk).toBe(false)
   })
 
-  it('countdown toggle writes cs.countdown', () => {
+  it('countdown toggle writes cs.countdown (it moved to Price style → Price line, owner 11-15)', () => {
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
-    openMarkers()
+    fireEvent.click(screen.getByRole('tab', { name: 'Price style' }))
     fireEvent.click(screen.getByRole('switch', { name: /Countdown to bar close/i }))
     expect(lastCall(onChange).countdown).toBe(true)
   })

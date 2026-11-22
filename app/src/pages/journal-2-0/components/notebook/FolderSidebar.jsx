@@ -19,11 +19,12 @@ import {
 import { isScannedText, SCANNED_TEXT_LABEL, SCANNED_TEXT_HINT }
   from '../../lib/documentProvenance'
 import UIcon from '../../../../components/ui/UIcon'
+import { Link } from 'react-router-dom'
+import { PLAYBOOK_IN_NOTEBOOK_PATH, playbookEnabled } from '../../lib/myPlaybookLink'
 import ConfirmModal from '../ConfirmModal'
 import LoadFailed from '../LoadFailed'
 import { keysInOrder, neighbourFallback, neighbourKeys, treeRowOf } from '../../lib/focusAfterRemoval'
 import { SkeletonLine } from '../../../../components/Skeleton'
-import { VIEW_MODES } from '../../lib/savedViewModes'
 import { useOpenFromList } from '../../lib/splitView'
 import {
   ancestorKeys, buildTagTree, fallbackNodes, hasNestedTags, tagKey,
@@ -35,6 +36,7 @@ import ContextPopover from '../../../../components/mobile/ContextPopover'
 import useTreeRoving from '../../lib/useTreeRoving'
 import useToolbarRoving from '../../lib/useToolbarRoving'
 import useGridRoving from '../../lib/useGridRoving'
+import { NOTEBOOK_EVENTS, trackNotebookEvent } from '../../lib/notebookTelemetry'
 
 // Debounce before the search query reaches the server (below) — short enough
 // to feel instant, long enough that fast typing doesn't fire a request per
@@ -109,6 +111,14 @@ export function renderSnippetMarks(snippet) {
 // no word of the query, so it says why it is there -- never a bare title that reads as a match.
 export const RELATED_BY_MEANING = 'Related by meaning'
 export const isMeaningRow = (note) => note?.matchKind === 'meaning'
+
+/** Audit 2026-11-05, spec S4 (B18): said under a search that found nothing by meaning while the
+ *  index has not reached some notes yet (the sweep runs every 15 minutes). */
+export function meaningWaitingSentence(n, capped = false) {
+  // Fix round 2 (re-review N4): at the server's cap the count is a floor ("1,000+").
+  const said = capped ? `${Number(n).toLocaleString('en-US')}+` : String(n)
+  return `New notes join meaning search within about 15 minutes. ${said} ${n === 1 && !capped ? 'is' : 'are'} waiting.`
+}
 
 export function matchReasonFor(note, query) {
   if (isMeaningRow(note)) return RELATED_BY_MEANING
@@ -198,7 +208,17 @@ function NoteIcon() {
 // queries `[data-note-card-id]` against the WHOLE document, so a note row
 // with no such attribute was simply invisible to it, silently. Competitive
 // audit finding UX #11 / Accessibility QW-6.
-function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
+// Follow-up A (usage counting): a press on a left-panel row counts once as `panel_row_used`, by the `data-panel-row`
+// id the row (or its list) carries where it is drawn. Never a folder's or a tag's name: the id says only "folder".
+function countPanelRow(e) {
+  const row = e.target?.closest?.('[data-panel-row]')
+  if (row && e.currentTarget.contains(row)) {
+    trackNotebookEvent(NOTEBOOK_EVENTS.PANEL_ROW_USED, { row: row.getAttribute('data-panel-row') })
+  }
+}
+const SHELF_ROW = { __unfiled__: 'unfiled', __archived__: 'archived', __trash__: 'trash' }
+
+function RecencySection({ label, icon, notes, activeNoteId, onOpenNote, usage }) {
   const [expanded, setExpanded] = useState(true)
   // Wave 6 item 7: Ctrl/Cmd+click opens the note beside (desktop split view).
   const openRow = useOpenFromList(onOpenNote)
@@ -223,7 +243,7 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
         </span>
       </div>
       {expanded && (
-        <div role="group" aria-label={label} ref={rows.ref} onKeyDown={rows.onKeyDown} onFocus={rows.onFocus}>
+        <div role="group" aria-label={label} ref={rows.ref} onKeyDown={rows.onKeyDown} onFocus={rows.onFocus} data-panel-row={usage}>
           {notes.map((note) => (
             <div key={note.id} className={styles.rowWrap}>
               <span className={styles.disclosureSpacer} aria-hidden="true" />
@@ -245,149 +265,57 @@ function RecencySection({ label, icon, notes, activeNoteId, onOpenNote }) {
   )
 }
 
-// Wave E — Saved Views section. Same populated-conditional/collapsible
-// shape as RecencySection above (checkpoint §20: zero nav clutter at zero
-// saved views), adapted for a view (name + id) instead of a note (title).
-//
-// Wave G checkpoint §48: `onAddStarterViews` (present only once the member
-// has zero saved views of their own) offers the four canonical thesis
-// starter views as ONE click -- ordinary saved-view rows afterward, fully
-// renameable/deletable, never a permanent fixture. It disappears the
-// moment the member has any saved view (their own or the starter set), so
-// nothing here becomes nav clutter for someone who doesn't use thesis
-// properties at all.
-function SavedViewsSection({ views, activeViewId, onSelectView, onRenameView, onDeleteView, onAddStarterViews }) {
-  const [expanded, setExpanded] = useState(true)
-  const [addingStarters, setAddingStarters] = useState(false)
-  // ⛔⛔ UX #1, 2026-09-22: this section's own comment two paragraphs above
-  // has always claimed saved views are "fully renameable/deletable" -- the
-  // hook (useJ2SavedViews.js) always was; nothing in this component ever
-  // called it. Mirrors FolderNode's exact rename-affordance pattern
-  // (double-click OR a visible pencil icon opens an inline input; Enter/
-  // blur submits, Escape cancels) so a member learns one interaction, not
-  // two, for renaming anything in this sidebar.
-  const [editingViewId, setEditingViewId] = useState(null)
-  const [editViewName, setEditViewName] = useState('')
-  const submitViewRename = (id) => {
-    const trimmed = editViewName.trim()
-    setEditingViewId(null)
-    if (!trimmed) return // empty submit = cancel, never an empty-named view
-    onRenameView(id, trimmed)
+// Notebook simplify, Task 2 (2026-11-11): the Saved Views section that stood here moved to the notes list's View
+// menu (SavedViewsMenuGroup.jsx), with its rename, delete and "Add thesis starter views". The panel is for finding
+// notes.
+
+/** Task 2: a fold's open state, remembered in this browser under `key` as '1' (open) or absent (closed, the
+ *  default). Storage can be missing or refuse (a private window, blocked site data): the fold still works, it just
+ *  forgets. */
+function useStoredFold(key) {
+  const [open, setOpen] = useState(() => {
+    try { return window.localStorage.getItem(key) === '1' } catch { return false }
+  })
+  const toggle = () => {
+    const next = !open
+    setOpen(next)
+    try {
+      if (next) window.localStorage.setItem(key, '1')
+      else window.localStorage.removeItem(key)
+    } catch { /* not remembered; the fold still opens and closes */ }
   }
-  if (!views.length) {
-    if (!onAddStarterViews) return null
-    return (
-      <div className={styles.section}>
-        <div className={styles.rowWrap}>
-          <button
-            type="button"
-            className={styles.starterViewsBtn}
-            disabled={addingStarters}
-            onClick={async () => {
-              setAddingStarters(true)
-              try { await onAddStarterViews() } finally { setAddingStarters(false) }
-            }}
-          >
-            <UIcon name="sliders" size={12} gold={false} />
-            {addingStarters ? 'Adding…' : 'Add thesis starter views'}
-          </button>
-        </div>
-      </div>
-    )
-  }
+  return [open, toggle]
+}
+export const MORE_FOLD_KEY = 'uct.notebook.sidebar.moreOpen'
+export const TAGS_FOLD_KEY = 'uct.notebook.sidebar.tagsOpen'
+/** The list views the "More" fold holds (the selection sentinels NotebookTab already uses). */
+const SHELF_IDS = ['__unfiled__', '__archived__', '__trash__']
+/** A counter worth drawing: a known number above 0. */
+const shownCount = (n) => (typeof n === 'number' && n > 0 ? n : null)
+
+/**
+ * Task 2: a labelled fold of the panel ("More", "Tags"). Closed, its rows are not drawn at all. `forced` holds it
+ * open while what it holds is the thing on screen (the Trash, a tag), so the selected row is never folded away; the
+ * button then says so and does nothing.
+ */
+function SidebarFold({ id, label, open, forced = false, onToggle, children }) {
+  const shown = open || forced
+  const bodyId = `notebook-fold-${id}`
   return (
-    <div className={styles.section}>
-      <div className={styles.rowWrap}>
-        <button
-          type="button"
-          className={styles.disclosureBtn}
-          aria-label={`${expanded ? 'Collapse' : 'Expand'} Saved Views`}
-          aria-expanded={expanded}
-          onClick={() => setExpanded((e) => !e)}
-        >
-          <Chevron expanded={expanded} />
-        </button>
-        <span className={styles.sectionHeaderLabel}>
-          <UIcon name="sliders" size={12} gold={false} />
-          Saved Views
-        </span>
-      </div>
-      {/*
-        ⛔ THREE SIBLING BUTTONS, NEVER A BUTTON INSIDE A BUTTON (wave 7 lane J, J5). The
-        row used to be the select <button> with Rename/Delete nested INSIDE it as spans:
-        invalid HTML, two controls no keyboard could reach, and an accessible name that
-        concatenated all three. `title={view.name}` stays on the select button ALONE --
-        the wave-6 walk locates the row with `get_by_title(view_name)` -- and the two
-        controls keep the literal titles "Rename view"/"Delete view". `.viewRow` reveals
-        them on hover AND on keyboard focus (`:focus-within`), so a Tab stop is never an
-        invisible control. Rail: FolderSidebar.test.jsx, "...three sibling buttons...".
-      */}
-      {expanded && views.map((view) => (
-        <div key={view.id} className={`${styles.rowWrap} ${styles.viewRow}`}>
-          <span className={styles.disclosureSpacer} aria-hidden="true" />
-          {editingViewId === view.id ? (
-            <input
-              className={styles.editInput}
-              autoFocus
-              value={editViewName}
-              // Wave 8 (8A, axe `label`): the rename field is named.
-              aria-label={`Rename view ${view.name}`}
-              onChange={(e) => setEditViewName(e.target.value)}
-              onBlur={() => submitViewRename(view.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') submitViewRename(view.id)
-                if (e.key === 'Escape') setEditingViewId(null)
-              }}
-            />
-          ) : (<>
-            <button
-              type="button"
-              className={`${styles.noteRow} ${activeViewId === view.id ? styles.rowActive : ''}`}
-              // Wave 8 (8A): which view is on is said, not only painted.
-              aria-current={activeViewId === view.id ? 'true' : undefined}
-              onClick={() => onSelectView(view)}
-              onDoubleClick={() => { setEditingViewId(view.id); setEditViewName(view.name) }}
-              title={view.name}
-              // F7 Part C: where focus goes after a neighbouring view is deleted.
-              data-saved-view-row={view.id}
-            >
-              {/*
-                ⛔ DERIVED FROM VIEW_MODES, NEVER A LIST/TABLE BINARY -- a saved
-                Board/Calendar/Graph view used to render the same generic "rows"
-                icon as List, a hand-typed second authority over data
-                `lib/savedViewModes` already has correct. An unrecognised
-                viewType (an older view, or one saved by a newer client) falls
-                back to `rows`, matching FALLBACK_VIEW_MODE ('list'). Competitive
-                audit finding UX #6, 2026-09-22. `data-view-icon` is a test seam
-                only, not a product attribute.
-              */}
-              <UIcon
-                name={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
-                size={13}
-                gold={false}
-                data-view-icon={VIEW_MODES.find((m) => m.id === view.viewType)?.icon || 'rows'}
-              />
-              <span className={styles.noteTitle}>{view.name}</span>
-            </button>
-            <span className={styles.actions}>
-              <button
-                type="button"
-                className={styles.iconBtn}
-                onClick={() => { setEditingViewId(view.id); setEditViewName(view.name) }}
-                title="Rename view"
-                aria-label={`Rename ${view.name}`}
-              ><UIcon name="edit" size={11} gold={false} /></button>
-              <button
-                type="button"
-                className={styles.iconBtn}
-                onClick={() => onDeleteView(view.id, view.name)}
-                title="Delete view"
-                aria-label={`Delete ${view.name}`}
-              ><UIcon name="x" size={11} gold={false} /></button>
-            </span>
-          </>)}
-        </div>
-      ))}
+    <div className={styles.section} data-sidebar-fold={id}>
+      <button
+        type="button"
+        className={styles.foldBtn}
+        aria-expanded={shown}
+        aria-controls={shown ? bodyId : undefined}
+        aria-disabled={forced ? 'true' : undefined}
+        title={forced ? `${label} stays open while you are in it` : undefined}
+        onClick={forced ? undefined : onToggle}
+      >
+        <Chevron expanded={shown} />
+        <span>{label}</span>
+      </button>
+      {shown && <div id={bodyId} className={styles.foldBody}>{children}</div>}
     </div>
   )
 }
@@ -463,6 +391,7 @@ function TagRenameableRow({
           type="button"
           className={`${styles.row} ${active ? styles.rowActive : ''}`}
           onClick={onSelect}
+          data-panel-row="tag"
           aria-current={active ? 'true' : undefined}
           aria-label={ariaLabel}
           title={title}
@@ -714,6 +643,7 @@ function FolderNode({
             // rows already carried this; folders and All notes did not).
             aria-current={activeFolderId === node.id ? 'true' : undefined}
             onClick={() => { onSelectFolder(node.id); onSelectTag(null) }}
+            data-panel-row="folder"
             onDoubleClick={() => { setEditingId(node.id); setEditName(node.name) }}
             // F7 Part C: where focus goes after a neighbouring folder is deleted.
             data-folder-row={node.id}
@@ -870,16 +800,6 @@ export default function FolderSidebar({
   // Lane KEYS3 round 3: whether the panel is on screen. "Skip to folder navigation" shows a
   // hidden panel before it lands. Defaults to shown, which is what a caller that omits it has.
   sidebarOpen = true,
-  // Wave E: populated-conditional, same convention as Favorites/Recents
-  // above -- renders nothing at zero saved views (checkpoint §20).
-  savedViews = [],
-  activeViewId = null,
-  onSelectView = () => {},
-  // UX #1, 2026-09-22: optional, default no-op so an existing caller/test
-  // that only exercises selection still renders exactly as before.
-  onRenameView = () => {},
-  onDeleteView = () => {},
-  onAddStarterViews = null,
   // Wave H: Research Home is now the bare-root state (checkpoint decision
   // 32/33) -- both null, same as "All notes" with no filter, so an explicit
   // flag is needed to keep the "All notes" row's active-highlight honest
@@ -890,6 +810,10 @@ export default function FolderSidebar({
   // behavior when omitted, so an existing caller/test is unaffected.
   isHome = false,
   onSelectAllNotes = null,
+  // Notebook simplify, Task 5: the "Daily brief" row (the Today home, `?view=today`), directly under All notes --
+  // drawn only when the Notebook hands in its door, so a caller or test without it renders exactly as before.
+  isToday = false,
+  onSelectToday = null,
   // Wave 6 fix round 1, I4 — item 8's rename, client side: `(from, to,
   // noteIds) => Promise<void>`, the caller's own runBulk('renameTag', ...)
   // door. ⛔ M6 (wave 6 fix round 2): `null`, never a no-op default — a
@@ -1101,6 +1025,8 @@ export default function FolderSidebar({
   const searchEnabled = mode === 'search' && Boolean(debouncedQuery || hasActiveFilters)
   const {
     notes: serverSearchResults,
+    meaningPending,
+    meaningPendingCapped,
     isLoading: searchLoading,
     isValidating: searchValidating,
     error: searchError,
@@ -1405,6 +1331,12 @@ export default function FolderSidebar({
   // go to the ends, and a typed letter moves to the next tag that starts with it (stopped at
   // the list, so it does not reach the Journal's "g then letter" shortcuts).
   const tagsGrid = useGridRoving({ rowSelector: '[data-tag-row]', typeahead: true })
+  // Notebook simplify, Task 2: the two folds, each remembered in this browser. "More" is held open while the list
+  // on screen is one of its shelves; "Tags" while a tag is the filter.
+  const [moreOpen, toggleMore] = useStoredFold(MORE_FOLD_KEY)
+  const [tagsOpen, toggleTags] = useStoredFold(TAGS_FOLD_KEY)
+  const shelfActive = SHELF_IDS.includes(activeFolderId)
+  const moreTree = useTreeRoving()
   const sidebarSkipRef = useRef(null)
   const skipToSidebar = (e) => {
     e.preventDefault()
@@ -1444,7 +1376,7 @@ export default function FolderSidebar({
   }
 
   return (
-    <aside ref={asideRef} className={styles.sidebar} data-tour="sidebar">
+    <aside ref={asideRef} className={styles.sidebar} data-tour="sidebar" onClick={countPanelRow}>
       <SkipLinkPortal>
         <a href="#notebook-folder-nav" className={styles.skipLink} onClick={skipToSidebar}>
           Skip to folder navigation
@@ -1480,6 +1412,7 @@ export default function FolderSidebar({
             aria-selected={mode === 'search'}
             className={`${styles.sbHeaderBtn} ${mode === 'search' ? styles.sbHeaderBtnActive : ''}`}
             onClick={() => setMode('search')}
+            data-panel-row="search_tab"
             title="Search notes"
             aria-label="Search notes"
             data-tour="search"
@@ -1717,6 +1650,9 @@ export default function FolderSidebar({
           ) : (
             <div className={styles.searchEmpty}>
               {trimmedQuery ? <>No notes match “{trimmedQuery}”.</> : 'No notes match these filters.'}
+              {trimmedQuery && meaningPending > 0 && (
+                <p className={styles.searchEmptyHint} data-meaning-waiting>{meaningWaitingSentence(meaningPending, meaningPendingCapped)}</p>
+              )}
             </div>
           )}
 
@@ -1885,6 +1821,7 @@ export default function FolderSidebar({
           ]} />
           <RecencySection
             label="Favorites"
+            usage="favorites"
             icon="star-fill"
             notes={favoriteNotes}
             activeNoteId={activeNoteId}
@@ -1892,18 +1829,11 @@ export default function FolderSidebar({
           />
           <RecencySection
             label="Recents"
+            usage="recents"
             icon="clock"
             notes={recentNotes}
             activeNoteId={activeNoteId}
             onOpenNote={onOpenNote}
-          />
-          <SavedViewsSection
-            views={savedViews}
-            activeViewId={activeViewId}
-            onSelectView={onSelectView}
-            onRenameView={onRenameView}
-            onDeleteView={onDeleteView}
-            onAddStarterViews={onAddStarterViews}
           />
           <div className={styles.section}>
             {/* Lane KEYS round 4: ONE Tab stop for the whole folder tree. Down and Up between
@@ -1926,6 +1856,7 @@ export default function FolderSidebar({
                 onClick={onSelectAllNotes || (() => { onSelectFolder(null); onSelectTag(null) })}
                 // F7 Part C: the list's standing control, focus's last landing after a delete.
                 data-all-notes-row=""
+                data-panel-row="all_notes"
               >
                 <span>All notes</span>
                 {/* The TRUE total (from SQL), never `notes.length` — that page
@@ -1936,61 +1867,25 @@ export default function FolderSidebar({
                 <span className={styles.count}>{notesTotal ?? notes.length}</span>
               </button>
             </div>
-            <div className={styles.rowWrap} role="treeitem" aria-level={1}
-              aria-label={`Unfiled, ${unfiledCount}`}
-              aria-selected={activeFolderId === '__unfiled__' ? 'true' : undefined}>
-              <span className={styles.disclosureSpacer} aria-hidden="true" />
-              <button
-                type="button"
-                tabIndex={-1}
-                data-tree-primary=""
-                className={`${styles.row} ${activeFolderId === '__unfiled__' ? styles.rowActive : ''}`}
-                onClick={() => { onSelectFolder('__unfiled__'); onSelectTag(null) }}
-              >
-                <span>Unfiled</span>
-                <span className={styles.count}>{unfiledCount}</span>
-              </button>
-            </div>
-            <div className={styles.rowWrap} role="treeitem" aria-level={1}
-              aria-label={archivedTotalFromServer !== undefined ? `Archived, ${archivedTotalFromServer}` : 'Archived'}
-              aria-selected={activeFolderId === '__archived__' ? 'true' : undefined}>
-              <span className={styles.disclosureSpacer} aria-hidden="true" />
-              {/* Wave 6: archived notes leave every default list but are never
-                  deleted — this is where they are, each still in its folder. */}
-              <button
-                type="button"
-                tabIndex={-1}
-                data-tree-primary=""
-                className={`${styles.row} ${activeFolderId === '__archived__' ? styles.rowActive : ''}`}
-                onClick={() => { onSelectFolder('__archived__'); onSelectTag(null) }}
-              >
-                <span>Archived</span>
-                {archivedTotalFromServer !== undefined && (
-                  <span className={styles.count}>{archivedTotalFromServer}</span>
-                )}
-              </button>
-            </div>
-            <div className={styles.rowWrap} role="treeitem" aria-level={1}
-              aria-label={trashTotalFromServer !== undefined ? `Trash, ${trashTotalFromServer}` : 'Trash'}
-              aria-selected={activeFolderId === '__trash__' ? 'true' : undefined}>
-              <span className={styles.disclosureSpacer} aria-hidden="true" />
-              <button
-                type="button"
-                tabIndex={-1}
-                data-tree-primary=""
-                className={`${styles.row} ${activeFolderId === '__trash__' ? styles.rowActive : ''}`}
-                onClick={() => { onSelectFolder('__trash__'); onSelectTag(null) }}
-              >
-                <span>Trash</span>
-                {/* No page-derived fallback here (unlike Unfiled) — the
-                    `notes` prop never contains trashed notes at all, so a
-                    client-side count would always read a false 0 while
-                    loading. Show nothing rather than a wrong number. */}
-                {trashTotalFromServer !== undefined && (
-                  <span className={styles.count}>{trashTotalFromServer}</span>
-                )}
-              </button>
-            </div>
+            {/* Notebook simplify, Task 5: the Daily brief, directly under All notes. No counter: it is a page, not a list. */}
+            {onSelectToday && (
+              <div className={styles.rowWrap} role="treeitem" aria-level={1} aria-label="Daily brief"
+                aria-selected={isToday ? 'true' : undefined}>
+                <span className={styles.disclosureSpacer} aria-hidden="true" />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  data-tree-primary=""
+                  className={`${styles.row} ${isToday ? styles.rowActive : ''}`}
+                  aria-current={isToday ? 'true' : undefined}
+                  onClick={onSelectToday}
+                  data-today-row=""
+                  data-panel-row="daily_brief"
+                >
+                  <span>Daily brief</span>
+                </button>
+              </div>
+            )}
             {tree.map((node) => (
               <FolderNode
                 key={node.id}
@@ -2042,9 +1937,64 @@ export default function FolderSidebar({
             )}
           </div>
 
+          {/* Notebook simplify, Task 2: the shelves (Unfiled, Archived, Trash) and My Playbook, folded under "More",
+              closed by default and remembered. It is held open while one of its rows is the list on screen. A counter
+              of 0 is not drawn: it was three zeros of noise on most panels. Its rows are their own one-Tab-stop tree,
+              with the same keys as the folder tree above. */}
+          <SidebarFold id="more" label="More" open={moreOpen} forced={shelfActive} onToggle={toggleMore}>
+            <div role="tree" aria-label="More" ref={moreTree.ref}
+              onKeyDown={moreTree.onKeyDown} onFocus={moreTree.onFocus}>
+              {[
+                { id: '__unfiled__', name: 'Unfiled', count: unfiledCount },
+                // Wave 6: archived notes leave every default list but are never deleted -- this is where they are,
+                // each still in its folder. The badge is its OWN list's total, never a second count.
+                { id: '__archived__', name: 'Archived', count: archivedTotalFromServer },
+                // No page-derived fallback for the Trash: the `notes` prop never holds trashed notes, so a client-side
+                // count would read a false 0 while loading. Nothing is shown rather than a wrong number.
+                { id: '__trash__', name: 'Trash', count: trashTotalFromServer },
+              ].map(({ id, name, count }) => {
+                const shown = shownCount(count)
+                const active = activeFolderId === id
+                return (
+                  <div key={id} className={styles.rowWrap} role="treeitem" aria-level={1}
+                    aria-label={shown ? `${name}, ${shown}` : name}
+                    aria-selected={active ? 'true' : undefined}>
+                    <span className={styles.disclosureSpacer} aria-hidden="true" />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      data-tree-primary=""
+                      className={`${styles.row} ${active ? styles.rowActive : ''}`}
+                      aria-current={active ? 'true' : undefined}
+                      onClick={() => { onSelectFolder(id); onSelectTag(null) }}
+                      data-shelf-row={id}
+                      data-panel-row={SHELF_ROW[id]}
+                    >
+                      <span>{name}</span>
+                      {shown && <span className={styles.count}>{shown}</span>}
+                    </button>
+                  </div>
+                )
+              })}
+              {/* S13 (audit 2026-11-05, detail #67): My Playbook, from the Notebook's own panel. It opens INSIDE the
+                  Journal shell (the tabs stay, "Back to Notebook"); its data is the same read. Only while its gate is
+                  on. */}
+              {playbookEnabled() && (
+                <div className={styles.rowWrap} role="treeitem" aria-level={1} aria-label="My Playbook">
+                  <span className={styles.disclosureSpacer} aria-hidden="true" />
+                  <Link to={PLAYBOOK_IN_NOTEBOOK_PATH} tabIndex={-1} data-tree-primary="" className={styles.row}
+                    data-sidebar-playbook="" data-panel-row="playbook">
+                    <span><UIcon name="book" size={12} gold={false} /> My Playbook</span>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </SidebarFold>
+
           {tagNodes.length > 0 && (
-            <div className={styles.section}>
-              <div className={styles.sectionLabel}>Tags</div>
+            // Task 2: the tag list, unchanged, under a "Tags" fold (closed by default, remembered), held open while a
+            // tag is the filter on screen.
+            <SidebarFold id="tags" label="Tags" open={tagsOpen} forced={Boolean(activeTag)} onToggle={toggleTags}>
               {tagsOverCap && (
                 <input
                   type="text"
@@ -2146,7 +2096,7 @@ export default function FolderSidebar({
                   Show all tags ({tagRoots.length})
                 </button>
               )}
-            </div>
+            </SidebarFold>
           )}
         </>
       )}

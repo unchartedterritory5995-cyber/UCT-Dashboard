@@ -1,0 +1,159 @@
+{
+ "about": "The owner's answers to the open decisions (docs/study/setups/DECISIONS.md), given on the local review page on 2026-11-12, with the session's reading of each. 'owner' is his note verbatim; 'reading' is how the lessons apply it; 'changes_lessons' says whether questions keyed to the old default must change. Two clarifications were answered in chat the same day (D-002, D-005).",
+ "rulings": {
+  "D-003": {
+   "owner": "I very rarely buy at close. It is always just the trigger for each trade never the close. My stop is always LOD or PLOD or range low. I have a variety of ways of buying and a variety of setups and patterns.",
+   "reading": "Every setup buys as price trades through its trigger, during the day. There is NO close-entry exception (drop the proposed Slingshot / Launchpad / Kell Wedge Pop close carve-out). The stop goes under the low of day, the prior day's low, or the range low. Entry methods vary by setup; the trigger is always the entry event.",
+   "changes_lessons": true
+  },
+  "D-002": {
+   "owner": "a flag is a flag imo and i think the slight variations are not as important.",
+   "chat": "One Flag setup, HTF a version",
+   "reading": "One Flag setup. The High Tight Flag is the strongest version of a flag, taught inside the flag family, not a separate setup with its own rules. Do not test fine distinctions between flag variants as right/wrong. Every other row of the setup map keeps the proposed default.",
+   "changes_lessons": true
+  },
+  "D-005": {
+   "owner": "will go up to 5% but prefer 1-3% risk ish. 3.5% is good. But I will take them, think this is based on buying at close and i rarely do that it is always through the trigger or based on \"is this the LOD\"",
+   "chat": "Over 5%: mostly wait for a tighter trigger",
+   "reading": "Stop distance: 1-3% preferred, 3.5% is good, up to 5% is acceptable. Past 5% from the trigger, mostly wait for a tighter trigger (one whose low of day puts the stop within 5%) rather than take it. This replaces the proposed one-ADR rule. Never move the stop up to make a trade fit.",
+   "changes_lessons": true
+  },
+  "D-008": {
+   "owner": "well all of those are fine but yes LOD is primarily the spot where the stop should be taken.",
+   "reading": "The low of day (the entry day's low) is the primary stop. The pattern's low and a line minus a cushion are acceptable alternatives, not wrong answers.",
+   "changes_lessons": true
+  },
+  "D-006": {
+   "owner": "volume really only raises the grade, it is not a major requirement but some people disagree with me so idk. Always a bit of it is it depends.",
+   "reading": "Volume raises the grade; it is not a requirement for the setup to count (except where volume IS the setup, as proposed: HVE and the burst setups). Questions must not make big volume a must-have; it can be a plus.",
+   "changes_lessons": true
+  },
+  "D-009": {
+   "owner": "Yeah thats a pretty hard rule yes. will buy leverage etfs or indexes under on a reversal extension or parabolic long",
+   "reading": "Below the 200-day is a hard no for stocks. The one exception: indexes and leveraged ETFs may be bought under their 200-day on a reversal extension or a parabolic long.",
+   "changes_lessons": true
+  },
+  "D-013": {
+   "owner": "sometimes it is not R based. SOmetimes it is day based. Looking for 3-5-7 day push for our first sell and that might be 10-12-20R.",
+   "reading": "The first sell is a judgment that depends on a variety of factors, not a fixed third at 3R. He very rarely sells on day 1 of the buy; he usually waits until day 3 at the earliest. Selling into a 3, 5 or 7 day push, or at about 5 to 10R, is often best. This supersedes B19's 'a third at 3R' as the taught first sell: no question may key 'sell a third at 3R' (or any day-1 sell) as the right answer.",
+   "changes_lessons": true,
+   "chat": "it depends on a variety of factors! I very rarely sell on the day 1 of the buy day. I usually wait until day 3 at the earliest. SO 3-5-7 day or 5-10 R is often best.",
+   "supersedes": "B19 (docs/study/sizing_rule.md section 9): the third at 3R is no longer the taught first sell (owner, chat 2026-11-12)"
+  },
+  "D-001": {
+   "owner": "Yeah short teachings are fine but only recomended for traders who have made $1 Million.",
+   "reading": "Shorts may be taught, but every short lesson says shorting is recommended only for traders who have already made $1 million trading. This replaces the proposed bar of 50 journaled trades.",
+   "changes_lessons": true
+  },
+  "D-115": {
+   "owner": "yeah all of that is fine. Especially because when you buy it these all essentially start the same",
+   "reading": "Agrees with the default: both wick-play forms are ours (strict day-3 and same-day push).",
+   "changes_lessons": false
+  },
+  "D-022": {
+   "owner": "If there is a gap past it you can potentially buy it intraday on a morning flush/pullback and curl back up",
+   "reading": "The buy point is the trigger level (default). When the day gaps more than 4% past it, one more way in is allowed: buy intraday on a morning flush or pullback that curls back up (besides the 30-minute ORB or the first pause).",
+   "changes_lessons": true
+  },
+  "D-032": {
+   "owner": "those are fine but eh not a main emphasis besies earnings and really notable news.",
+   "reading": "Agrees with the default list, but the lessons put the emphasis on earnings and really notable news; lesser catalysts are mentioned, not drilled.",
+   "changes_lessons": false
+  },
+  "D-031": {
+   "owner": "Yeah i will trade certain strong moves at the trigger at the open if they trigger properly really. Also use the hourly and the 30 minute for pivots and reversals later in the session",
+   "reading": "The first 30-minute bar stays the default window, but a strong move may be bought at the trigger right at the open if it triggers properly; the hourly and 30-minute bars are used for pivots and reversals later in the session. Questions must not make waiting 30 minutes mandatory.",
+   "changes_lessons": true
+  },
+  "D-033": {
+   "owner": "any of those work really",
+   "reading": "Agrees with the default (4% plus 0.75 ATR for the scan and a PEG; 10% is the EP floor and the A+ mark). Do not test the exact floor as a hard right/wrong.",
+   "changes_lessons": false
+  },
+  "D-025": {
+   "owner": "yeah if its earnings then its just earnings",
+   "reading": "Agrees with the default: the earnings day itself belongs to the earnings/catalyst-gap units.",
+   "changes_lessons": false
+  },
+  "D-029": {
+   "owner": "I have no problem with any of those really",
+   "reading": "Agrees with the default (30% prior advance). Do not test the exact number as a hard right/wrong.",
+   "changes_lessons": false
+  },
+  "D-036": {
+   "owner": "def more of just a judgement thing",
+   "reading": "How deep an undercut may go and how fast it must reclaim is a judgment call, not a fixed number. The default (about 1 ATR, back the same day for an A) is a guide; questions must not key a single number as the only right answer.",
+   "changes_lessons": true
+  },
+  "D-103": {
+   "owner": "yeah all of those work good depending on the situation",
+   "reading": "Any obvious level works for a U&R depending on the situation: prior lows, base lows, rising moving averages, gap lows, prior highs, round numbers, VWAP. (The prior day's low alone stays with the Oops reversal, as proposed.)",
+   "changes_lessons": true
+  },
+  "D-116": {
+   "owner": "idk whatever you think is ebst make an analysis and judgement call",
+   "reading": "Delegated to the session: keep the default. A little touch of the body is allowed (about 0.25 ATR, as Kell allowed on GOOG), and day 1 needs a real upper wick (about a quarter of its range). Both are measurable and match the best-known example.",
+   "changes_lessons": false
+  },
+  "D-021": {
+   "owner": "(agreed with the default)",
+   "reading": "9 and 20 EMA everywhere, with the 50 and 200 SMA.",
+   "changes_lessons": false
+  },
+  "D-040": {
+   "owner": "(agreed with the default)",
+   "reading": "Default stands.",
+   "changes_lessons": false
+  },
+  "D-023": {
+   "owner": "(agreed with the default)",
+   "reading": "Default stands.",
+   "changes_lessons": false
+  },
+  "D-024": {
+   "owner": "(agreed with the default)",
+   "reading": "Default stands.",
+   "changes_lessons": false
+  },
+  "GAP-TRIM": {
+   "owner": "Optional, my judgment",
+   "reading": "A gap up past 3R at the open is not an automatic sell. Selling part at the open on a big gap is one choice he may make by judgment, never a rule; questions must not key it as required.",
+   "changes_lessons": true
+  },
+  "SHORT-ENTRY": {
+   "owner": "Through the trigger",
+   "reading": "Shorts enter like buys: as price trades through the trigger, never at the close.",
+   "changes_lessons": true
+  },
+  "HEAVY-DOWN": {
+   "owner": "Does not void the setup, just more mindful of the distribution day but by no means invalid",
+   "date": "2026-11-14",
+   "reading": "A heavy-volume down day during a pullback (for example 1.5 times the 50-day volume into the line) does not void the setup. Treat it as a distribution day to be mindful of, a warning and a lower grade, never an invalidation.",
+   "changes_lessons": true
+  },
+  "VCP-HEAVY": {
+   "owner": "Eh doesn't matter most of the time honestly",
+   "date": "2026-11-14",
+   "reading": "In a VCP, a heavy-volume down day in the right side of the base does not end the setup; most of the time it does not matter. At most it is a warning to note, never an invalidation.",
+   "changes_lessons": true
+  },
+  "ADD-WINNER": {
+   "owner": "sometimes it is okay but it is rare. mostly a feel thing lol which isnt a great answer",
+   "date": "2026-11-17",
+   "asked": "Adding to a winner: the rulebook says full size at one spot with one stop (A5), but his posts describe adding on strength. What should the course teach?",
+   "reading": "The buy is still full size at one price with one stop: no starter or pilot piece, and never adding to a loser. Adding to a working winner on strength happens, but rarely, and it is a feel call, never part of the plan. Lessons no longer say we never add to a winner; they say it is rare and a judgment.",
+   "changes_lessons": true
+  },
+  "MA-50-200": {
+   "owner": "mostly a must but not always.",
+   "date": "2026-11-17",
+   "asked": "Is the 50-day above the 200-day a must for a long setup, or just a plus?",
+   "reading": "For a long, we want the 50-day above the 200-day: it is mostly a must, not always, and an exception is a judgment call. Price below the 200-day stays a hard no for stocks (D-009).",
+   "changes_lessons": true
+  }
+ },
+ "still_open": {
+  "D-007": "He was not sure what it asks. Plain version for him: before any chart example goes into a lesson, do you want to see and approve each one (keep / keep with a note / cut), as you did for the Kicker? Default stays until he answers.",
+  "D-016": "He was not sure what it asks. Plain version for him: a table of small naming choices (which name a setup goes by, and which family it is filed under in the journal). Default stays until he answers."
+ }
+}

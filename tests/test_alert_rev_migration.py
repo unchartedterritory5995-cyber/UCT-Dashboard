@@ -656,6 +656,9 @@ def test_the_migration_touches_NO_STORED_CHART_SETTINGS_BLOB(env):
     assert after == before and before, "the migration wrote to the preferences store"
 
 
+# ⭐ Phase 3 (units 3-05 / 3-08): `ADDRESS_REVS["rsLine"]` and the JS definition
+# both say 4 since 3-08, so the one pending difference 3-05 carried (and its gap
+# rail) is gone and the full rail below holds every entry equal again.
 def test_the_python_rev_table_matches_the_JS_registry(env):
     """⭐ ONE VOCABULARY, TWO LANES — as a rail, not a habit.
 

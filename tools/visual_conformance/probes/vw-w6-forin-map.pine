@@ -1,0 +1,32 @@
+//@version=6
+indicator("vw-w6-forin-map")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row W6-F1 of
+// docs/pine/capture-queue-2026-11-06-w6-t6.md, whose shapes are W6-BREAKDOWN.md section 6's W6-F1 row
+// (branch docs/pine-w6-breakdown): "over ... a map (`[k, v]`)". One shape of W6-F1 per file.
+// No licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: `for [k, v] in m` over a map put in the order "b" = 2, "a" = 1, "c" = 3: how many passes (K01),
+// and in which order are the pairs handed (K02 folds the values as acc * 10 + v: 213 in insertion order,
+// 123 in key order)? K03 checks that `k` names the value it is paired with. Our runtime lane refuses it by name:
+// "a walk over a matrix / map ..." (W6-F1; first refused at the map creation, `runtime:array`).
+// A00 is the control.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+m = map.new<string, float>()
+m.put("b", 2.0)
+m.put("a", 1.0)
+m.put("c", 3.0)
+
+int passes = 0
+float acc = 0.0
+int paired = 0
+for [k, v] in m
+    passes += 1
+    acc := acc * 10 + v
+    paired += (k == "a" and v == 1.0) or (k == "b" and v == 2.0) or (k == "c" and v == 3.0) ? 1 : 0
+
+plot(passes, "K01_passes_over_map")
+plot(acc, "K02_values_in_walk_order")
+plot(paired, "K03_keys_paired_with_their_values")

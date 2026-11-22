@@ -231,6 +231,48 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     expect(vh.cleanup().globalsLeft).toEqual([])
   })
 
+  it('records an hline (metaInfo band), a fill (filled area) and a candle (OHLC plot): declared, defaults and live state — null when absent', () => {
+    const read = (study) => {
+      const vh = install({ studies: [study], bars: BARS })
+      const sum = vh.capture({ study: 'UCTVH probe', source: SRC, newestBarIsForming: false, chunkSize: 1500 })
+      const parts = []
+      for (let i = 0; i < sum.chunks; i++) parts.push(vh.chunk(i).text)
+      vh.cleanup()
+      const cap = JSON.parse(parts.join(''))
+      expect(validateCapture(cap)).toEqual({ ok: true, errors: [] })
+      return cap.study
+    }
+    const band = { id: 'hline_0', name: 'Zero' }
+    const fill = { id: 'fill_0', objAId: 'plot_0', objBId: 'plot_1', type: 'plot_plot', title: 'Band fill' }
+    const base = mkStudy()
+    const candle = { plotcandle_0: { title: 'Candles' } }
+    const candleDefaults = { plotcandle_0: { color: '#26A69A', wickColor: '#737375', borderColor: '#378658', drawWick: true, drawBorder: true, visible: true } }
+    const candleState = { plotcandle_0: { color: '#EF5350', wickColor: '#737375', borderColor: '#378658', drawWick: false, drawBorder: true, visible: true } }
+    const st = read(mkStudy({
+      mi: { ...base.mi, bands: [band], filledAreas: [fill], ohlcPlots: candle,
+        defaults: { ...base.mi.defaults, bands: [{ color: '#787B86', linestyle: 2, linewidth: 1, value: 0, visible: true }],
+          filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 90, visible: true } }, ohlcPlots: candleDefaults } },
+      state: { ...base.state, bands: [{ color: '#FF0000', linestyle: 0, linewidth: 2, value: 50, visible: true }],
+        filledAreasStyle: { fill_0: { color: '#2196F3', transparency: 80, visible: true } }, ohlcPlots: candleState },
+    }))
+    expect(st.ohlcPlots).toEqual(candle)
+    expect(st.ohlcPlotDefaults).toEqual(candleDefaults)
+    expect(st.ohlcPlotState).toEqual(candleState)
+    expect(st.bands).toEqual([band])
+    expect(st.bandDefaults).toEqual([{ color: '#787B86', linestyle: 2, linewidth: 1, value: 0, visible: true }])
+    expect(st.bandState).toEqual([{ color: '#FF0000', linestyle: 0, linewidth: 2, value: 50, visible: true }])
+    expect(st.filledAreas).toEqual([fill])
+    expect(st.filledAreaDefaults).toEqual({ fill_0: { color: '#2196F3', transparency: 90, visible: true } })
+    expect(st.filledAreaState).toEqual({ fill_0: { color: '#2196F3', transparency: 80, visible: true } })
+    // a study with no hline and no fill: every field is null (the model held none), and the plots are unchanged
+    const plainStudy = read(mkStudy())
+    for (const k of ['bands', 'bandDefaults', 'bandState', 'filledAreas', 'filledAreaDefaults', 'filledAreaState',
+      'ohlcPlots', 'ohlcPlotDefaults', 'ohlcPlotState']) {
+      expect(plainStudy[k]).toBeNull()
+    }
+    expect(plainStudy.plots.map((p) => p.title)).toEqual(['B', 'A', null])
+  })
+
   it('⛔ refuses an ambiguous study name, and a study that failed to compile', () => {
     let vh = install({ studies: [mkStudy(), mkStudy()], bars: BARS })
     expect(() => vh.capture({ study: 'UCTVH', source: SRC })).toThrow(/matched 2 indicators/)
@@ -256,6 +298,50 @@ describe('2 · the TradingView-side snippet, against a RECORDING DOUBLE of the m
     expect(cap.objects.texts.tableCells).toEqual(['UCT', '1.5'])
     expect(cap.objects.unreadable).toEqual(['linefills'])   // absent accessor is NAMED, not zero
     vh.cleanup()
+  })
+
+  // ⭐ U13 (G1) — the x table: an object's x is a POSITION in the study's `_indexes`,
+  // whose entries are model bar indices (object-semantics-spy-1d-2026-09-08).
+  it('records the x table: found where it lives, each entry\'s bar time, the model bars — read-only', () => {
+    const byId = (recs) => ({ _primitivesDataById: new Map(recs.map((r, i) => [i, r])) })
+    const capOfG = (g) => {
+      const vh = install({ studies: [mkStudy({ graphics: g })], bars: BARS })
+      const sum = vh.capture({ study: 'UCTVH', source: SRC })
+      const cap = JSON.parse(Array.from({ length: sum.chunks }, (_, i) => vh.chunk(i).text).join(''))
+      vh.cleanup()
+      return cap
+    }
+    let calls = 0
+    const g = {
+      dwglines: () => new Map([['a', new Map([['f', byId([{ id: 1, x1: 0, x2: 1 }])]])]]),
+      _indexes: [0, 2],
+      // ⛔ a getter must never run (read through descriptors only)
+      get indexes() { calls += 1; return [9, 9] },
+    }
+    const cap = capOfG(g)
+    expect(validateCapture(cap)).toEqual({ ok: true, errors: [] })
+    expect(cap.objects.xIndex).toMatchObject({ found: true, path: 'graphics()._indexes', indexes: [0, 2],
+      times: [BARS[0][0], BARS[2][0]], modelBars: { first: 0, last: 2, count: 3, contiguous: true } })
+    expect(calls).toBe(0)
+    // a table off the loaded bars is recorded with a null time, never a guess
+    // (built without the getter: spreading `g` would RUN it and copy its value)
+    expect(capOfG({ dwglines: g.dwglines, _indexes: [1, 5] }).objects.xIndex.times).toEqual([BARS[1][0], null])
+    // ⛔ NOT FOUND is said, with what was looked at — never an empty table
+    const none = capOfG({ dwglines: g.dwglines, _indexes: 'nochange' }).objects.xIndex
+    expect(none).toMatchObject({ found: false })
+    expect(none.indexes).toBeUndefined()
+    expect(none.looked.join(' ')).toMatch(/_indexes: string/)
+    // ⛔ two DIFFERENT tables is ambiguous, never a pick
+    const amb = capOfG({ dwglines: g.dwglines, _indexes: [0, 1], _graphicsData: { _indexes: [3, 4] } }).objects.xIndex
+    expect(amb).toMatchObject({ found: false, ambiguous: true })
+    // `graphics()._indexes` held behind an accessor (not an own data property) is still read,
+    // by that one name (S10 read it as `g._indexes`)
+    const proto = { get _indexes() { return [0, 1] } }
+    const viaAccessor = Object.assign(Object.create(proto), { dwglines: g.dwglines })
+    expect(capOfG(viaAccessor).objects.xIndex).toMatchObject({ found: true, path: 'graphics()._indexes (accessor)', indexes: [0, 1] })
+    // the same table in two places is one table
+    expect(capOfG({ dwglines: g.dwglines, _indexes: [0, 1], _graphicsData: { _indexes: [0, 1] } }).objects.xIndex)
+      .toMatchObject({ found: true, alsoAt: ['graphics()._graphicsData._indexes'] })
   })
 
   it('an OBJECTS-ONLY study (no declared plots, no rows) captures its drawings; a study WITH plots and no rows is still refused', () => {
@@ -656,6 +742,16 @@ describe('3 · the comparator', () => {
     expect(compareCapture(atDefault, ours).verdict).toBe('MATCH')
   })
 
+  it('⭐ a refused script captured at moved settings names OUR refusal first, and keeps the moved settings', () => {
+    const edited = { ...SMA_CAPTURE, study: { ...SMA_CAPTURE.study, inputs: [
+      { id: 'in_0', name: 'Anchor Period', defval: 'Session', value: 'Earnings', isHidden: false },
+    ] } }
+    const r = compareCapture(edited, { ok: false, refusal: 'pine:reassign' })
+    expect(r).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/^refused on our side: pine:reassign \(the vendor study also ran with non-default inputs: Anchor Period="Earnings" vs default "Session"\)$/) })
+    // ⛔ CONTROL — our side ran and did not take the settings: still the settings sentence
+    expect(compareCapture(edited, runOurSide(SMA_CAPTURE)).reason).toMatch(/non-default inputs .*re-capture at defaults/)
+  })
+
   it('a refused script and an invalid capture are INCONCLUSIVE with the reason', () => {
     expect(compareCapture(SMA_CAPTURE, { ok: false, refusal: 'pine:function' })).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/refused.*pine:function/) })
     expect(compareCapture(SMA_CAPTURE, null, { integrity: { ok: false, errors: ['receipt: broken'] } })).toMatchObject({ verdict: 'INCONCLUSIVE', reason: expect.stringMatching(/receipt: broken/) })
@@ -735,12 +831,17 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
   })
 
   // ── the non-vacuity of all of the above ──
-  it('⛔ the three verdicts are all reachable, and the comparator never returns anything else', () => {
+  it('⛔ every verdict is reachable, and the comparator never returns anything else', () => {
     const seen = new Set()
-    seen.add(gradeCapture(SMA_CAPTURE).verdict.verdict)
+    const graded = gradeCapture(SMA_CAPTURE)
+    seen.add(graded.verdict.verdict)
     const d = clone(SMA_CAPTURE); d.plotValues.rows[1500][1] += 1
     seen.add(gradeCapture(sealCapture(d)).verdict.verdict)
     seen.add(compareCapture(SMA_CAPTURE, { ok: false, refusal: 'x' }).verdict)
+    // ⭐ L7 — MATCH_SUBSTITUTED: our side declaring one input it was fed off the capture
+    // (`vendorHarness.l7Substituted.test.js` holds the rule; this is the reachability)
+    seen.add(compareCapture(SMA_CAPTURE, { ...graded.ours, substituted: [
+      { name: 'syminfo.ticker', source: 'uct:test', vendorValueFrom: 'capture.symbol.name', value: SMA_CAPTURE.symbol.name }] }).verdict)
     expect([...seen].sort()).toEqual([...VERDICTS].sort())
   })
 
@@ -759,16 +860,23 @@ describe('4 · end to end on REAL vendor bars, through the member door', () => {
       // palette-by-version-rddt-1d-2026-09-27.json). The synthetic state said `#FF5252`
       // — v5's red — while the engine's palette was version-blind.
       const plots = [{ id: 'plot_0', type: 'line', title: 'sma20' }]
-      const agree = captureFrom({ source: SRC, rows, plots, values, extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#F23645', transparency: 0 } } } } })
+      // ⭐ DIV-1 (2026-11-09): these are real AMEX:SPY 1D bars, so the harness now replays
+      // SPY's proved history before them — but the SMA observation's own values are `na` on
+      // its first 19 bars (TradingView computed THAT observation from this window). The
+      // synthetic capture states so (`warmup`), as the observation does; the colour, which
+      // is what this rail grades, is compared on every valued bar either way.
+      const warmup = { bars: 19, source: 'the SMA observation is na on its first 19 bars' }
+      const agree = captureFrom({ source: SRC, rows, plots, values, extra: { warmup, study: { title: 'x', plots, styleState: { plot_0: { color: '#F23645', transparency: 0 } } } } })
       const g1 = gradeCapture(agree).verdict
       expect(g1.verdict, JSON.stringify(g1.plots.map((p) => [p.verdict, p.reason, p.color]))).toBe('MATCH')
       expect(g1.plots[0].color).toBe('compared')
       expect(g1.plots[0].stats.colorCompared).toBeGreaterThan(1000)
 
-      const differ = captureFrom({ source: SRC, rows, plots, values, extra: { study: { title: 'x', plots, styleState: { plot_0: { color: '#2962FF', transparency: 0 } } } } })
+      const differ = captureFrom({ source: SRC, rows, plots, values, extra: { warmup, study: { title: 'x', plots, styleState: { plot_0: { color: '#2962FF', transparency: 0 } } } } })
       const g2 = gradeCapture(differ).verdict
       expect(g2.verdict).toBe('DIVERGE')
-      expect(g2.plots[0].stats.firstDivergence).toMatchObject({ kind: 'color', vendorColor: '#2962ffff', ourColor: '#f23645ff' })
+      // (the first STEADY divergence: the 19 declared warm-up bars are na on the vendor's side only)
+      expect(g2.plots[0].stats.steady.first).toMatchObject({ kind: 'color', vendorColor: '#2962ffff', ourColor: '#f23645ff' })
     })
 
     // A per-bar two-colour vendor state over the real bars: palette index 0 on

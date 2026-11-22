@@ -259,3 +259,38 @@ describe('reconnect + watchdog', () => {
     expect(es1.closed).toBe(false)
   })
 })
+
+describe('recovery: reconnectNow and isConnected', () => {
+  it('reopens every bucket at once, with the backoff reset, after an error had it waiting', () => {
+    mgr.subscribe(['AAPL'], () => {})
+    flushRebuild()
+    const first = openInstances()[0]
+    first.emitOpen()
+    expect(mgr.isConnected()).toBe(true)
+    first.emitError() // now waiting on a backoff timer
+    expect(mgr.isConnected()).toBe(false)
+    expect(openInstances()).toHaveLength(0)
+    mgr.reconnectNow()
+    expect(openInstances()).toHaveLength(1)
+    expect(openInstances()[0]).not.toBe(first)
+    vi.advanceTimersByTime(60000) // the old backoff timer must not open a second connection
+    expect(openInstances()).toHaveLength(1)
+    openInstances()[0].emitOpen()
+    expect(mgr.isConnected()).toBe(true)
+  })
+
+  it('closes a connection that looks open but is dead, and reports not connected until it reopens', () => {
+    mgr.subscribe(['AAPL'], () => {})
+    flushRebuild()
+    const first = openInstances()[0]
+    first.emitOpen()
+    mgr.reconnectNow()
+    expect(first.closed).toBe(true)
+    expect(mgr.isConnected()).toBe(false)
+  })
+
+  it('with nothing subscribed there is nothing to wait for', () => {
+    expect(mgr.isConnected()).toBe(true)
+    expect(() => mgr.reconnectNow()).not.toThrow()
+  })
+})

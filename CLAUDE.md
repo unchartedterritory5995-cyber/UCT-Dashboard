@@ -22,6 +22,161 @@
 
 This file provides guidance to Claude Code when working in this repository.
 
+## ⛔⛔ THIS REPO IS PUBLIC (since 2026-11-08) — everything you push is readable by the internet
+
+Owner decision: public for free, faster Actions while we build with 0 users. It is NOT open source
+(`LICENSE`: all rights reserved). Only our account can write; the internet can only READ. Team rules:
+**`docs/TEAM-WORKFLOW.md`**.
+
+- **Never commit** keys, tokens, passwords, `.env` files, raw prod logs or pod output (redact emails and
+  `?auth=`/`token=`/`apiKey=` first), member data of any kind, anything from the PRIVATE sibling repos
+  (TSDR ledger, brain DB, agent training data, Discord exports, unpublished Substack), or licensed vendor
+  data dumps. PR text, commit messages and Actions logs are public too.
+- **Guards:** GitHub push protection (blocks known key formats at push time, web-UI commits included) +
+  `.github/workflows/secret-scan.yml` (gitleaks over each push/PR's new commits, advisory,
+  `promotion-gate: no`). A red there means **ROTATE THE KEY FIRST** (vendor -> Railway var -> redeploy),
+  then remove it; deleting the commit does not un-leak it.
+- Workflows from outside contributors' PRs need approval; secrets are never exposed to fork PRs.
+  Never add `pull_request_target` without a security review.
+
+## Push discipline (was "GitHub Actions is BILLED", owner, 2026-11-06)
+
+⚰️ Billed while the repo was private (2026-10-19 → 2026-11-08): the $300 budget ran out on 11-06, five
+days into the month (6,819 runs in 6 days; most were `agent ci` runs on per-commit pushes, ~76 min each).
+Since going public, standard-runner minutes are free — the rules below still stand, because every
+master push is a full deploy gate and a deploy, and wasted runs still cost wall-clock and queue time.
+
+- **Push a branch once per finished, locally tested unit of work.** Never push after every commit to
+  "save progress"; a commit can stay local. Run the focused tests locally first: CI confirms, it is not the
+  test loop.
+- **A push runs the workflow files ON THAT BRANCH.** A branch cut before PR #877 still runs the old,
+  unfiltered `agent ci` on every push. Merge master into a long-lived branch before you keep pushing to it.
+- **New or edited workflows** need `paths:` on PR triggers and on non-master push triggers, and the
+  SHA-grouped PR-cancel `concurrency:` block. Never `cancel-in-progress: true` on anything that runs on master
+  pushes. `tests/test_ci_cost_rails.py` enforces this and the master deploy gate runs it.
+- The master deploy gate running the full Agent suite on every master push is deliberate. Do not path-filter it.
+- If runs fail with "The job was not started because ... spending limit": that is the budget, not the code.
+  Tell the owner; do not re-push to retry.
+
+### The queue is the cost now: 40 jobs at once, for every session (measured 2026-11-16)
+
+The account runs **40 jobs at a time** (GitHub Pro) and every session shares them, first come first served:
+a deploy-gate job waits behind whatever PR jobs were queued before it. On 2026-11-16, 20:06-23:06Z, the 40
+slots were full the whole three hours with 50-130 jobs waiting; the deploy gate (12-13 minutes of work)
+finished 28-68 minutes after its push; a Pine PR took a median 64 minutes from open to merge (a quarter took
+over 4 hours) against 23 minutes for everything else. `pine heavy` alone was 50% of all runner minutes, and
+24% of all runner minutes went to runs a newer push then cancelled. Measure it again with
+`python tools/ci_queue_report.py --hours 3` before believing a number here.
+
+- **One push carries the whole unit: code, tests, evidence docs, runbooks.** A one-file docs commit pushed
+  minutes after the code re-runs every job of every workflow the PR triggers (`pine heavy`: 19 jobs,
+  ~100 runner-minutes; a PR's `paths:` filter reads the WHOLE PR, never the new commit). 6 of 41 `pine heavy`
+  PR runs in that window were docs-only pushes.
+- **One check per commit.** Never dispatch a workflow by hand on a commit whose PR run already ran it. For a
+  mutant proof on a PR branch: `gh workflow run pine-heavy.yml --ref <branch> -f mutants_manifest=<path> -f
+  skip_legs=true` runs the mutant job alone (three such doubled runs in that window, ~100 runner-minutes each).
+- **`docs/pine/vendor-harness/capture-queue.json` is NOT committed** (since 2026-11-16; git ignores it). It
+  was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge that day, and every conflict
+  cost a merge of master, a regenerate commit and a full `pine heavy` re-run. Anything that wants the queue
+  derives it (`evidence_engine.build_queue()`, ~6 s); `python tools/vendor_harness/evidence_engine.py queue`
+  writes a local copy to read. **A branch cut before that change conflicts on it ONCE when it merges master:
+  resolve with `git rm docs/pine/vendor-harness/capture-queue.json`.** Never `git add -f` it back.
+- **Merge master into a PR only when GitHub reports a conflict or the PR needs something master has.** A
+  catch-up merge re-runs everything: 15 of those 41 runs were triggered by one.
+- **Batch small related PRs into a train** (the `train/eNN` precedent): one check and one deploy instead of N.
+
+## ⭐ Heavy tests run on GitHub, not on this PC (2026-11-16, GitHub Pro: 40 concurrent jobs)
+
+The dev PC runs ONE heavy test job at a time (`heavy_lock`, RAM limits) and every session queues behind it.
+Commit, then send the run to GitHub runners instead:
+
+```sh
+python tools/remote_tests.py --pytest tests/test_a.py tests/test_b.py::test_x
+python tools/remote_tests.py --vitest src/pages/charts src/agent/nl --shards 4
+```
+
+It tests the COMMITTED HEAD (uncommitted edits are not included), pushes it to `refs/remote-tests/<id>` (no
+workflow triggers on that ref, nothing deploys; the repo is public, so it is readable like any push), runs the
+`remote tests` workflow from MASTER, prints the failing test ids, and deletes the ref. Exit 0 green / 1 red /
+2 the lane could not run. Paths: pytest under `tests/`, vitest app-relative under `src/`. Keep tiny local checks
+local; send anything heavier than a few files here. Rails: `tests/test_remote_tests_lane.py`.
+⛔ **Never delete a `refs/remote-tests/*` ref you did not create.** Other sessions' runs are using them (one was
+deleted mid-run on 2026-11-16 by a "leftover ref" cleanup that counted every session's refs); the tool deletes
+its own ref when it finishes.
+
+**It waits for room before it enqueues (2026-11-20).** GitHub has no job priority, so on a full 40-job pool a
+session's run sat in the same queue as the master deploy gate (11/20: gate jobs waited up to 22 min for a runner;
+a ~16 min gate took 44). Now, BEFORE it pushes its ref, the tool waits on this PC while the deploy gate has a job
+waiting for a runner, or while 4+ remote runs are in flight and other runs are queued; it prints why and re-checks
+every 60-75 s. The wait is capped at 30 min (`--max-wait-min N`) and then it dispatches anyway: it never drops a
+request, it dispatches at once if it cannot read the load, and a wait that is stopped leaves nothing behind (no
+ref, no run). `--max-wait-min 0` skips the wait: for a production incident only. Spend the pool deliberately: one
+request per finished change (not one per step of a train), only the tests and shards you need, and no second
+dispatch while one of yours is still queued or running.
+
+## ⛔⛔ flow-worker DEPLOYS ARE MANUAL (owner decision 2026-11-12) — read before touching options-flow code
+
+Railway **auto deploy is DISABLED for `flow-worker`** (the live options tape, Live Flow, Options Flow,
+gap-fill). Merging or pushing a change to a file it runs no longer restarts it: someone deploys it by
+hand, **outside market hours only** (Railway → flow-worker → Ctrl/Cmd+K → "Deploy latest commit").
+Why: flow-worker deploys corrupted `flow.db` (Railway pulls the volume from the still-running old
+container); on 2026-11-12 an unrelated PR cost 1.5 h of live tape mid-session. Do not re-enable it.
+How to deploy, verify, and recover a damaged flow.db: **`docs/runbooks/flow-worker-deploys-and-flow-db.md`**.
+
+## ⛔⛔ worker DEPLOYS ARE MANUAL TOO (owner decision 2026-11-13)
+
+Railway **auto deploy is DISABLED for `worker`** (bars prewarm + the R2 snapshot uploader every other
+service pulls bars from). A merge to a file it runs no longer restarts it; deploy by hand outside market
+hours (Railway → worker → Ctrl/Cmd+K → "Deploy latest commit"). Why: every merge restarted it and killed
+the 40+ minute delta and multi-hour base, so no snapshot shipped from 2026-11-10 to 2026-11-13. How to
+deploy, and how to read the uploader's state: **`docs/runbooks/worker-deploys.md`**.
+
+## ⭐ Speed and reliability: how every change is made (owner standing rule, 2026-11-10)
+
+The owner's bar: **instant, smooth, reliable, no lag, for every member** (browser and the desktop app), at
+the level of the largest consumer apps. Targets, plan and measurements: the desktop speed plan
+(`C:\Users\Patrick\reports\UCT desktop app FINAL plan - speed and reliability.md`, local). These rules apply
+to every session and every agent, whatever the task.
+
+1. **Measure the real member path, before and after. Trace before you theorize.** On 2026-11-10 two plausible
+   theories (React re-renders; one renderer thread) were both wrong; a Chromium trace found the real cause in
+   minutes (endless CSS animations saturating the GPU process). Proof tools live in the `uct-desktop` repo,
+   `scripts/proofs/`: `charts-load-proofs.mjs` (real Charts widget pop-outs; `--trace`, `--profile=N`,
+   `--animations`, `--kill-anim`), `analyze-trace.py`, `launch-phases.mjs`, `motion-sweep.mjs`. Never measure
+   a surface members do not use (the Terminal pop-out pages are not the Charts path).
+2. **Nothing always on screen animates forever.** An `infinite` CSS animation makes the window draw at the
+   display rate forever (12 chart widgets: 549 presents/s, GPU main thread 90% busy). Rail:
+   `app/src/styles/endlessAnimations.test.js` (stylesheets, inline styles AND SVG SMIL: an endless
+   `<animateTransform>` is invisible to `document.getAnimations()` yet re-laid-out /dashboard 60 times a second).
+   Ambient cues ride an existing once-a-second render (`.clockDot`, `data-beat`) or run a few iterations and rest.
+3. **No unconditional per-frame loop.** A `requestAnimationFrame` that re-arms itself forever costs every chart,
+   every frame. Use `createAdaptiveFrameLoop` (`app/src/components/chart/adaptiveFrameLoop.js`): every frame while
+   something moves, a 250 ms safety pass when still, woken by pointer/resize/range/data events.
+4. **Background work never competes with the first paint.** Heavy background work (pack ingests and the like)
+   starts after the page's first chart (`afterFirstChartPaint`, `lib/barsPackClient.js`) and runs one window at
+   a time (`navigator.locks`). A page left early must not throw away and restart the same work.
+5. **First-open bytes are a budget, paid for, not raised.** After every production build:
+   `python tools/notebook_perf_budgets.py --dist app/dist`. A change that adds to first open moves something else
+   off it (2026-11-10: the drawings store left Notebook first open, -10.4 KB). Raising the line is the owner's call.
+6. **Polls respect visibility.** SWR's `isVisible` is `lib/deskVisibility.isAppVisible`: polls pause when the
+   desktop desk is hidden or a tab is hidden. Live streams and alerts are not polls. Never add a polling loop
+   that bypasses it.
+7. **Every test and guard must be proven able to fail.** Break the code on purpose and watch the test go red,
+   restore from a saved copy (never `git checkout`), then commit. A green suite proves nothing on its own.
+8. **Deploy as a lane, not a crowd.** Batch changes; one master merge at a time; confirm a push landed with
+   `git merge-base --is-ancestor <sha> origin/master` (push output alone has lied); a red master gate blocks
+   every member-facing deploy, so fix it forward at once. **A Screener server change ships its own bookkeeping
+   in the same PR:** re-pin `SCREENER_PIN` (`tests/test_uct_agent_qa_f16.py`), regenerate `screener-fields.json`
+   (`python -m tests.test_uct_agent_qa_scan_corpus --write-baseline`) and the SAT-1 capture
+   (`UPDATE_SAT1_REQUESTS=1`). On 2026-11-10 skipping these left master red for every session for hours.
+9. **The CDN is part of the product.** Check what Cloudflare actually delivers (fetch `/assets/*` through the edge
+   AND from `web-production-05cb6.up.railway.app`), not just what the origin sends. See `ASSETS_NO_TRANSFORM_ENABLED`
+   in `docs/feature_flags.json` for why compressed origin files reached members uncompressed. **Check with an
+   `Origin` header too** (browsers send one on every module script): Cloudflare caches that variant separately, and
+   a purge must name both (`tools/cdn_asset_integrity.py` checks both). Proof windows go on a display nobody covers:
+   a window under a full-screen window draws no frames and every number reads idle.
+
+
 ## Project Overview
 
 **UCT Dashboard** is a live bento-box trading dashboard for Uncharted Territory. It is a full-stack app:
@@ -223,6 +378,9 @@ The standing rail is `app/src/components/screener/reachable.test.js`, which now
 sweeps **all of `app/src`** and fails by name on the next one — so this table
 should never again be assembled by hand.
 
+## ⭐ UCT Signature style — the house look for menus, settings, pickers and widgets (owner, 2026-11-15)
+When the owner says **"UCT Signature style"** (or "make it look like the new menus"), read **`docs/uct-signature-style.md`** first and build to it: graphite `#111214` panels, `#1a1b1f` cards with hairline rows, `#ededed`/`#a9a59b` text, **a touch of UCT gold (`var(--ut-gold)`) ONLY on what is current or chosen — "the mix", spec section 2b**, sentence case, dropdowns instead of segmented controls, soft-square on/offs left of the label, hover-revealed row actions. It supersedes `docs/brand-design-system.md` for those surfaces.
+
 ## UI Icons — `UIcon` (NO emoji)
 
 **`app/src/components/ui/UIcon.jsx` is the single source of truth for all UI
@@ -317,8 +475,8 @@ A full side-by-side rebuild of the Journal tab lives at `/journal` → "Journal 
     asserts a hover costs one frame (mutation-proved: the defect makes it 221).
     ⚠️ `create_saved_view` accepts only `("list", "table")`, so the Save-view
     control is hidden in graph mode rather than offering a button that 400s.
-  - `j2_note_connectors` + `j2_note_sources` + `j2_note_sync_log` + `j2_note_remote_index` — **background note-sync connectors** (Roam/Craft graph-token connect; Notion/Dropbox OAuth; scheduled + manual sync with conflict + delete detection) shipped 2026-08-12 on branch `note-connectors`. Router `/api/j2/notes/connectors/*` (`api/routers/note_sync.py`) mounts unconditionally; syncing itself is **double-gated** — `NOTE_SYNC_ENABLED=1` (scheduler registration in `main.py`) AND per-provider config, checked in-endpoint — unset either and it's fully inert.
-  - **OneNote + OneDrive** joined the connector roster shipped dark 2026-08-12, same branch — Microsoft Graph OAuth, one shared Azure app (`MSGRAPH_CLIENT_ID`/`MSGRAPH_CLIENT_SECRET`), same `note_sync.py` router and the same `NOTE_SYNC_ENABLED` + per-provider msgraph-config double-gate as above. OneNote syncs via a resumable per-tick watermark queue (bounded enumeration + paced content fetch across ticks), not a one-shot pull.
+  - `j2_note_connectors` + `j2_note_sources` + `j2_note_sync_log` + `j2_note_remote_index` — **background note-sync connectors** (Roam/Craft graph-token connect; Notion/Evernote OAuth; Obsidian device connect; scheduled + manual sync with conflict + delete detection) shipped 2026-08-12 on branch `note-connectors`. Router `/api/j2/notes/connectors/*` (`api/routers/note_sync.py`) mounts unconditionally; syncing itself is **double-gated** — `NOTE_SYNC_ENABLED=1` (scheduler registration in `main.py`) AND per-provider config, checked in-endpoint — unset either and it's fully inert.
+  - ⚰️ **Dropbox, OneNote and OneDrive were ARCHIVED 2026-11-04** (never configured in production, so no member could connect one): their provider modules, registry rows, the Microsoft Graph OAuth configs, the Dropbox revoke, the `GET /{provider}/folders` picker and their Settings tiles are gone. `registry.ARCHIVED_PROVIDERS` still names them, so a stored row stays safe (left out of `/status`, skipped by the sync loops, never deleted) and the import repair keeps classing their notes as connector notes. Restore with `git revert` of the archive commit. `MSGRAPH_*` / `DROPBOX_APP_*` vars, if set anywhere, are now read by nothing.
   - `j2_playbook_entries` — **deprecated** (kept as backup; manual `DROP TABLE` after ~30d of green prod). Old Playbook tab + UI + routes removed.
   - `j2_option_strategies`, `j2_option_legs` — Pattern C multi-leg options
 - **Phases shipped:** 1 (Calendar) · 2 (Accounts) · 3 (Analytics 14 charts + Edge Scorecard) · 4 (Goals + Report) · 5 (Fees, Daily Notes, ~~Playbook~~ → **Notebook**, Options multi-leg)
@@ -508,7 +666,10 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   only, so a second process doubles it, and since connector fidelity Plan F Task 9
   `notebook-import-repair-notice` (60/minute, keyed on the member, `NOTE_IMPORT_REPAIR_NOTICE_RATE`
   in `api/routers/journal_two.py`, shared by `GET /api/j2/notes/import/repair-notice` and its
-  `POST .../dismiss`), in-process only, so a second process doubles it · that door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
+  `POST .../dismiss`), in-process only, so a second process doubles it, and since Import a tweet
+  `notebook-tweet-resolve` (30/minute, keyed on the member, `TWEET_RESOLVE_RATE` in
+  `api/routers/notebook_tweet_capture.py`, `POST /api/j2/research-capture/tweets/resolve`, dark behind
+  `NOTEBOOK_TWEET_IMPORT_ENABLED`), in-process only, so a second process doubles it, and `notebook-tweet-save` (20/minute, keyed on the member, `TWEET_SAVE_RATE` in the same file, `POST /api/j2/research-capture/tweets/save`, dark behind the same flag), in-process only, so a second process doubles it, and since community scan-board layouts (2026-11-17, dark behind `SCREENER_LAYOUT_GALLERY_ENABLED`) three scopes on `api/routers/screener_layout_gallery.py`, keyed on the member: `screener-layout-publish` (10/hour, plus a DURABLE 10/day in `daily_usage_counters`, so a second process doubles only the hourly half), `screener-layout-report` (30/hour) and `screener-layout-use` (60/hour), both in-process only, so a second process doubles both · `notebook_tweet_capture._SAVE_INFLIGHT` under `_SAVE_INFLIGHT_LOCK` (one tweet save running per member, one more answers 429): a second process allows one per process · `tweet_price._FETCH_POOL` (`FETCH_POOL_WORKERS` = 4 bars reads for tweet imports at once; a read past its import's time limit is abandoned, and its thread finishes on its own): a second process doubles it · the `notebook-media-fetch` door's in-flight caps `journal_two._MEDIA_FETCH_SEM`
   (`MEDIA_FETCH_GLOBAL_INFLIGHT` = 8 downloads at once) and `journal_two._media_fetch_inflight`
   (`MEDIA_FETCH_PER_MEMBER_INFLIGHT` = 2 per member, one more answers 429): a second process
   doubles both · since the connector fidelity Plan A final review (I3), the editor upload doors'
@@ -563,7 +724,7 @@ trades (`imported:true` flag + `coach_prompts.py` rule).
   (`PREVIEW_RATE`, 60/hour, keyed on the member, one budget with the example preview), and preview with my data
   also spends its own `notebook-gallery-preview-mine` (`PREVIEW_MINE_RATE`, 10/minute); both in-process only, so a
   second process doubles both (the wave 11 publish, adopt, use and Helpful doors spend the existing scopes above,
-  so they add no new budget). A second web process doubles each bound.
+  so they add no new budget) · since the Evernote rate-limit fix (PR #750, scheduling hardened after it), the note-connector engine's pass slots (`engine._pass_slots_used` and the waiter queue `_slot_waiters` under `_PASS_SLOTS_LOCK`, `FOLLOW_UP_CONCURRENCY` = 3 background Evernote passes at once plus `_member_slots_used`, `MEMBER_RESERVED_SLOTS` = 1 more for a member's press), its import write lock `engine._IMPORT_WRITE_LOCK` (one pooled pass's write section at a time, held `IMPORT_WRITE_GAP_S` after each commit) and `evernote_mcp`'s trip guard `_GLOBAL_TRIPS` under `_GLOBAL_LOCK` (a new session waits while `GLOBAL_TRIP_THRESHOLD` = 6 trips landed in the last minute): a second process doubles the slots, serializes only its own imports and sees only its own trips. A second web process doubles each bound.
   ⚰️ `note_ask._writing_help_by_user` was listed here until the wave-7 whole-branch fix; ruling
   D-H5b moved writing help's 60/day, Ask's per-member count, the shared LLM dollar cap and
   the meaning search's daily embed count into ONE durable table, so none of them doubles or
@@ -1400,7 +1561,7 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 ### Architecture
 - **Top-level shell:** `app/src/pages/charts/ChartsWorkspace.jsx` — owns layout state + 4 color groups + viewport-lock sizing. Layout persists to `usePreferences('charts_workspace_layout')` (debounced 500ms). Color-group syms persist to `charts_workspace_groups`.
 - **Grid:** `react-grid-layout@^1.5.3` Responsive component. `cols={12}`, `FIXED_ROWS=20`, `rowHeight` computed dynamically via `ResizeObserver` on `.workspaceBody` so the grid always fills the visible viewport exactly. `maxRows={20}` + `overflow: hidden` on body = no outer scroll. `margin=[6,6]`, `compactType: 'vertical'`. `resizeHandles={['nw','ne','sw','se']}` enables resize from all 4 corners.
-- **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
+- **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. ⭐ On /charts `groupSyms` is a store the board owns (`groupSymsStore.js`, 2026-11-20), not board state: a symbol switch re-renders only the components whose render READS `groupSyms` (useWorkspace subscribes them), never the board, the grid or the widget hosts. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
 - **Widget types — ⭐ measure it, don't quote it:** the authoritative list is
   `WIDGET_REGISTRY` in `app/src/widgets/registry.js` (metadata + menu membership
   + journal-embed params), with the /charts component bindings in
@@ -1549,12 +1710,14 @@ All charts use TradingView Lightweight Charts (NOT TradingView iframes). Key com
 - TradingView-style overlay at top-left of chart, appears on hover
 - Shows: date/time, O, H, L, C, V (formatted K/M), change + change%, MA overlay values with colors
 - Developing bar: falls back to REST session volume + last computed MA values
-- Uses `chart.subscribeCrosshairMove()` API, state in `crosshairData`
+- Uses `chart.subscribeCrosshairMove()` API. The payload (`crosshairData`) is NOT StockChart state (2026-11-20): it lives in a per-chart store (`chart/readoutStore.js`) printed by `ReadoutIsland`s, so a hover frame or a switch's readout re-renders the legend rows, never the whole chart. Read it inside an island's render function, never at StockChart's top level
 - Works on all chart surfaces (TickerPopup, Breadth, ThemeTracker, Watchlists, CustomScan)
 
 ### Chart Performance Architecture
 - **Chart instance reuse**: no DOM destroy on ticker switch — `setData()` on existing series, `applyOptions()` for settings. Only `chart.remove()` on unmount.
 - **Memoized data**: `ohlcData`, `closeData`, `volData`, `overlayData`, `resolvedOverlays` all wrapped in `useMemo`. Prevents recomputation on non-data changes.
+- **A live price tick never renders the chart** (2026-11-20): under BARSTORE StockChart reads quotes through `useQuietRealtimePrices(tickers, { renderKey, onTickRef })` (`hooks/useQuietRealtimePrices.js`, `lib/liveQuote.js`; its own module because `useRealtimePrices.js` is on the Notebook's first open): the render re-runs only when the feed badge or the include-mode session candle's ext price changes; the Pre/Post tags, the screenshot price and `livePricesRef` update between renders. Never read the quote through a hook that re-renders per publish in the chart body. Rail: `StockChart.liveTicks.test.jsx`.
+- **Per-symbol metadata never renders the chart** (2026-11-20): ticker meta, listing date, event / news / desk markers, the watermark logo and the pane's next-earnings date are read by `ChartMetaFeed` (in `StockChart.jsx`) into a per-chart store (`chart/chartMetaStore.js`); an answer redraws the watermark lines, markers and badges directly (`_drawMeta`). Never add a per-symbol read as a hook or `useState` in the chart body; only a fact the engine computes on re-renders it. Rail: `StockChart.metaRenders.test.jsx`.
 - **GZip compression**: `GZipMiddleware` on FastAPI (skips `/api/stream/*` SSE endpoints), ~6x smaller payloads
 - **3-layer cache**: in-memory TTLCache (~1ms, 5-15min) → persistent disk `/data/bars_cache/` (~10ms, 2-72hr) → Massive API (4-30s)
 - **Disk cache TTLs**: D=48hr, W=72hr, 60m=8hr, 30m=4hr, 5m=2hr. Empty results never cached.
@@ -1700,7 +1863,12 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
   `uct.barsPool.disabled`.
 - **Observability:** `GET /api/admin/bars-stream-status` (no-auth) — WS connected + subscribers +
   `bars_emitted_total`/`bars_dropped_total`/`last_emit_age_s`. Flat emitted while subscribers>0
-  during RTH = "push silently dead, everyone fell back to Finnhub". Boot fingerprint:
+  during RTH = "push silently dead, everyone fell back to Finnhub". `websocket.ingest` (2026-11-13,
+  measurement-only) splits live-price lag into LOCAL vs UPSTREAM per wall-clock minute
+  (`this_minute`/`last_minute`): `trade_lag_ms`/`recv_lag_ms` (now / frame-dequeue minus T.t, bucketed
+  p50/p90 = "<=" bounds), `busy_ratio` (near 1 = the consumer never waits = local backlog),
+  `busy_cpu_over_wall` (far below 1 = runnable but waiting for the GIL), `recv_queue_max` +
+  `frames_read_paused` (websockets max_queue backpressure), per-type `events` counts. Boot fingerprint:
   `[startup] bars-push-rail: …`. `tools/market_open_chart_check.py` reads the stream directly
   (the scheduled 9:45 ET agent's push-render proof).
 - **Env (web pod):** `STREAM_BARS_ENABLED=1` (backend push on) · `VITE_REALTIME_BARS=1`. Deliberately
@@ -2367,7 +2535,38 @@ an OOM, and thirteen concurrent contexts is still an account limit. **Scoping ea
 bound the sum of the jobs.** The cap is on the sum, which is why it is a number and not a
 principle.
 
-Worktrees live in `.worktrees/` (project-local, gitignored).
+## ⛔⛔ WORKTREES: create with `wt_new.py` on C:, never by hand; the sweep is the only reaper (2026-11-18)
+
+⚰️ C: reached **0 GB** on 2026-11-18 when four agents ran `git worktree add` + `npm ci` at once (about 2.6 GB
+each), with no floor and no ordering. Measured: a dashboard checkout is 2.24 GB (`docs/notebook` 0.86,
+`tests/fixtures` 0.71); `app/node_modules` is 0.31 GB. Worktrees live in `C:\Users\Patrick\uct-worktrees\`
+(⚰️ this line used to say `.worktrees/`; that folder holds only old ones).
+
+```sh
+python C:/Users/Patrick/uct-monitors/wt_new.py <name> --branch <branch> --session <your session id>
+python C:/Users/Patrick/uct-monitors/wt_new.py <name> --done --session <your session id>   # once merged
+```
+
+- **One at a time, with a floor.** It holds a short create-lock, then refuses (exit 3, nothing created) when
+  the target drive would drop below 15 GB free. It never deletes anything to make room: it prints the
+  sweep's dry run to read, and the answer is to ask the coordinator.
+- **C:, always, for active work.** D: is a spinning HDD (owner rule): `--drive D` is only for a COLD lane
+  nobody builds or tests in. A backend or test started from a D: directory also writes `D:\data`.
+- **`node_modules` is `npm ci --prefer-offline` in the worktree. NEVER a junction.** Every recursive delete
+  (`git worktree remove`, `rm -rf`, `Remove-Item -Recurse`) follows a junction and empties the shared target
+  (five recorded wipes); `npm ci` inside a junctioned worktree rebuilds the shared tree under every borrower;
+  a branch with a different lockfile silently tests against the wrong packages.
+- **It writes `.uct-session-owner`** (the ownership rule below). `--done` removes ONLY your own worktree,
+  merged into origin/master and clean, through the same guards as the sweep.
+- **Every other removal is the sweep's job: `C:\Users\Patrick\uct-monitors\weekly_sweep.ps1`**, at 02:30 and,
+  while C: is below 40 GB free, every 2 h ("UCT Worktree Reclaim"). It removes a worktree only when it is
+  merged into GitHub master (or pushed and idle 3 days), clean, idle 6 h, not `git worktree lock`ed, not the
+  target of a junction anywhere on C: or D:, and not in use: no process names it or has its current
+  directory inside it, and no live Claude session mentioned it in the last 12 h. Small local-only ignored
+  files are archived to `D:\uct-archive\sweeps\ignored-<stamp>\` first; every removal writes a recovery line.
+  Thresholds: `worktree_policy.json`; guards: `wt_guards.ps1`, both in `C:\Users\Patrick\uct-monitors`.
+- **To keep a worktree the sweep would take:** `git worktree lock --reason "<why>" <path>` (unlock when done).
+  Dry run, read-only and safe at any time: `pwsh -NoProfile -File C:\Users\Patrick\uct-monitors\weekly_sweep.ps1`.
 
 ## ⛔⛔ WORKTREE OWNERSHIP — A SESSION DELETES ONLY WHAT IT CREATED
 
@@ -3184,12 +3383,18 @@ gets.** C1–C3 still carry the real argument (the incoming commits cannot inter
 branch); what is gone is the net that was believed to be under it. When in doubt, re-gate.
 
 ⭐ **What C5 DOES do, and it is not nothing:** its verdict decides whether `production` is
-promoted, and **`web` deploys from `production`** — so a red gate stops the member-facing
-deploy. ⚠️ The other five services (`worker`, `bars-api`, `chart-renderer`, `flow-worker`,
-`terminal-next-monitor`) deploy from **`master`** and are NOT gated by it. Measured
-2026-09-20, `railway status --json`. This also supersedes `master-deploy-gate.yml`'s own
-*"a RED gate still deploys"* line, which was true on 2026-09-14 and stopped being true for
-`web` at the cutover.
+promoted, and **`web` AND `bars-api` deploy from `production`** — so a red gate stops both
+member-facing serving tiers. ⚠️ `worker` and `flow-worker` deploy from **`master`** and are NOT
+gated by it. Measured 2026-11-21, read-only `railway deployment list --service <svc> --json`
+(each SUCCESS row's `meta.branch`): web `production`, bars-api `production` (the same
+`createdAt` as web's deploy of each commit), worker `master`, flow-worker `master`;
+`chart-renderer` and `terminal-next-monitor` listed no SUCCESS deployment, so their branch is
+UNMEASURED — measure before relying on it. ⚰️ This line said "the other five services (incl.
+`bars-api`) deploy from `master`" (measured 2026-09-20); bars-api moved to `production` since,
+and the stale line was taken as fact on 2026-11-20 (docs/incidents/
+2026-11-20-index-intraday-tail-goes-back.md § Deploy). This also supersedes
+`master-deploy-gate.yml`'s own *"a RED gate still deploys"* line, which was true on 2026-09-14
+and stopped being true for `web` at the cutover.
 
 ⛔ **Any of C1–C3 failing ⇒ local re-gate.** The "third supersession = STOP" rule counts
 C1–C3 failures **only** — disjoint commits that carry are not supersessions.
@@ -3936,7 +4141,7 @@ PASS; it also carried the H14 fix for the single-note export's Latin-1 header). 
 `notebook-wave6-tip-2026-09-26` (`96051c043`; the older `-2026-09-25` tag predates the
 round-5 fixes), wave 7's `notebook-wave7-tip-2026-09-26`. Wave 8 is `feat/notebook-w8`
 (worktree `notebook-w8`, its own `node_modules` since D-W4), wave 9's soak kit is
-`feat/notebook-w9c`. Both landed: #197 (9C, `2e0598bfa`) then #198 (wave 8, `caf6d1b9e`, web SUCCESS 2026-09-26 18:48Z, tagged `notebook-wave8-tip-2026-09-26`). Wave 8's three gates — `J2_SHARE_LINKS_ENABLED`, `NOTEBOOK_PUBLISH_ENABLED`, `NOTEBOOK_ONBOARDING_ENABLED` — were ARMED on web 2026-09-26 18:53–18:58Z, one at a time (see `docs/feature_flags.json`). Wave 9 LIVE as #202 (`1c4b0bf74`, web SUCCESS 2026-09-26 22:27Z, tagged `notebook-wave9-tip-2026-09-26`): the benchmark instrument (9A), the parity scorecard (9B), the four-format selected export and the folder Publish door (9D). The wave-7 gates `NOTEBOOK_PERSONAL_API_ENABLED` and `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` were ARMED on web 2026-09-26 23:11:17Z with `NOTEBOOK_TASK_REMINDERS_ENABLED=1` made explicit (one --set, one boot; see `docs/feature_flags.json`). Wave 10 builds on `feat/notebook-w10` (lanes on `feat/notebook-w10-a` / `-b` / `-c` / `-d`). Two H14 hotfixes shipped ahead of it: #203 (`c6a8a9d3a`: note-body depth cap, Word intake, a time/size budget on PDF text extraction) and #204 (`2ab637644`: every note write's compare-and-set takes `BEGIN IMMEDIATE`). **Phase I LIVE as #205 (`4f708a0d2`, web booted 2026-09-27 ~04:56Z, tagged `notebook-wave10-L1a-tip2-2026-09-26`)**: lanes 10B (touch Undo/Redo, table column resize and sort, `.xlsx` documents, Best matches, property autofill, ten more importers) and 10C (an unbuildable body refused at create and at import -- NOT yet on the PUT save path, a queued follow-up -- tombstone-first account deletion with replay on restore, the restore drill's attachment sampling, the switch-rehearsal tool), plus the phone fix for the Journal header's More and Log Trade menus (clipped since 2026-09-22; verified tappable on production at 390 px). ⚠️ The a11y job's fixture uses a per-render SWR cache: a recipe that types must end with `landPendingAutosave()` (`app/src/pages/journal-2-0/a11y/fixtures.jsx`) or its autosave is flushed after the cache is torn down and a retry outlives the test. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
+`feat/notebook-w9c`. Both landed: #197 (9C, `2e0598bfa`) then #198 (wave 8, `caf6d1b9e`, web SUCCESS 2026-09-26 18:48Z, tagged `notebook-wave8-tip-2026-09-26`). Wave 8's three gates — `J2_SHARE_LINKS_ENABLED`, `NOTEBOOK_PUBLISH_ENABLED`, `NOTEBOOK_ONBOARDING_ENABLED` — were ARMED on web 2026-09-26 18:53–18:58Z, one at a time (see `docs/feature_flags.json`). Wave 9 LIVE as #202 (`1c4b0bf74`, web SUCCESS 2026-09-26 22:27Z, tagged `notebook-wave9-tip-2026-09-26`): the benchmark instrument (9A), the parity scorecard (9B), the four-format selected export and the folder Publish door (9D). The wave-7 gates `NOTEBOOK_PERSONAL_API_ENABLED` and `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` were ARMED on web 2026-09-26 23:11:17Z with `NOTEBOOK_TASK_REMINDERS_ENABLED=1` made explicit (one --set, one boot; see `docs/feature_flags.json`; the documents gate was later retired as always on, 2026-11-04). Wave 10 builds on `feat/notebook-w10` (lanes on `feat/notebook-w10-a` / `-b` / `-c` / `-d`). Two H14 hotfixes shipped ahead of it: #203 (`c6a8a9d3a`: note-body depth cap, Word intake, a time/size budget on PDF text extraction) and #204 (`2ab637644`: every note write's compare-and-set takes `BEGIN IMMEDIATE`). **Phase I LIVE as #205 (`4f708a0d2`, web booted 2026-09-27 ~04:56Z, tagged `notebook-wave10-L1a-tip2-2026-09-26`)**: lanes 10B (touch Undo/Redo, table column resize and sort, `.xlsx` documents, Best matches, property autofill, ten more importers) and 10C (an unbuildable body refused at create and at import -- NOT yet on the PUT save path, a queued follow-up -- tombstone-first account deletion with replay on restore, the restore drill's attachment sampling, the switch-rehearsal tool), plus the phone fix for the Journal header's More and Log Trade menus (clipped since 2026-09-22; verified tappable on production at 390 px). ⚠️ The a11y job's fixture uses a per-render SWR cache: a recipe that types must end with `landPendingAutosave()` (`app/src/pages/journal-2-0/a11y/fixtures.jsx`) or its autosave is flushed after the cache is torn down and a retry outlives the test. Plan: `docs/notebook/NOTEBOOK-10-OF-10-PLAN.md`.
 
 ✅ **Merged and LIVE on production (2026-09-24):** #187 (the H14 metadata-settle
 hotfix, master `d4a1a13b6`) and #183 (Ask on phones / paste / citations / G-064
@@ -5376,16 +5581,48 @@ board image. **Live: seven posts a session, mon-fri**, into a ~750-member room.
   contextual`. The collision list must be derived from `#main-chat`'s OWN corpus —
   it was first derived from `#tsdr` and booked 1,059 junk mentions (7.7%), with
   `EVER` ranking 10th on 48 people.
-- ⛔⛔ **ON-DEMAND IS EPHEMERAL AND THROTTLED; THE SCHEDULED POST IS NEITHER.**
-  Owner ruling 2026-09-02. `/buzz` is open to every member with no role gate, so
-  a public reply meant one member could put a second board in front of 750
-  people at will. The interaction reply now carries `flags: 64` and the command
-  spends the same per-member budget as `/chart` (`DISCORD_CHART_USER_RATE`,
-  12/min — both land on the same 4-slot render valve, so one budget is the
-  honest model). ⛔ **The flag goes on the DEFER (`type: 5`), not the follow-up**
-  — Discord fixes a deferred reply's visibility at defer time and silently
-  ignores flags on the later PATCH, so a bare defer ships the board publicly and
-  looks correct in review. ⛔⛔ **The scheduled post must NEVER become
+- ⭐ **ON-DEMAND `/buzz` AND `/lesson` REPLY IN THE CHANNEL, FOR EVERYONE.**
+  Owner ruling 2026-11-13 ("visible to all"). ⚰️ From 2026-09-02 until then
+  `/buzz` was ephemeral (`flags: 64`) so one member could not put a second board
+  in front of the room, and `/lesson` was private from the day it shipped; that
+  cost is now accepted on purpose. What stays private is whatever is not the
+  answer: the throttle message, `/lesson`'s empty-query nudge and the
+  missing-token refusal. The command still spends the same per-member budget as
+  `/chart` (`DISCORD_CHART_USER_RATE` — both land on the same 4-slot render
+  valve), which also bounds one member filling the channel with boards.
+  ⭐ **BOTH ARE HELD TO `#uct-intelligence`** (owner ruling 2026-11-13, "just in
+  UCT Intelligence"): they read the SAME allowlist as `/chart`, `/flow` and
+  `/cot` (`CHART_FLOW_CHANNEL_ID`, `di.cmd_channel_ok`), never a variable of
+  their own, so there is one list of where the bot answers. Elsewhere the
+  member gets a private `_channel_nudge("/buzz")` naming the FIRST id on the
+  list. ⛔ The gate sits on BOTH reply paths (`/buzz` in the router and in
+  `discord_render/commands.py`; `/lesson` has only the router path) and is
+  checked BEFORE the throttle, so a refusal does not spend the member's budget.
+  It does not touch the scheduled posts, which are not interactions and still
+  go to `BUZZ_DIGEST_CHANNEL` (`#main-chat`): a member who runs `/buzz` under a
+  scheduled board there is pointed to `#uct-intelligence`. Same watch-coverage
+  classification as below (INERT STRAND, no flow-worker deploy).
+  ⛔ **Visibility is decided on the DEFER (`type: 5`), not
+  the follow-up** — Discord fixes a deferred reply's visibility at defer time and
+  silently ignores flags on the later PATCH, so to make either private again the
+  flag goes back on the defer (old path in `api/routers/discord_interactions.py`,
+  V2 path in `discord_render/commands.py`, where the job's `ephemeral` record
+  must say the same thing). ⛔⛔ **A PUBLIC REPLY THAT ECHOES THE MEMBER'S WORDS
+  CAN PING** — `/lesson @everyone`, `/buzz ticker:<@&role>` — so
+  `discord_interactions.edit_original` sends `allowed_mentions: {"parse": []}`
+  on every shape it builds (`NO_MENTIONS`; rail
+  `tests/test_discord_public_replies_cannot_ping.py`, which reads the wire).
+  Never remove it, and give any new public reply door the same field.
+  ⭐ **Watch-coverage classification for that change (required by
+  `docs/runbooks/deploy-windows.md`): INERT STRAND, no flow-worker deploy.** The
+  rail names `api/routers/discord_interactions.py`,
+  `api/services/discord_interactions.py`, `api/services/discord_render/commands.py`
+  and `api/services/tsdr_lessons.py`. flow-worker imports them and never runs
+  what changed: Discord POSTs interactions to `web` only
+  (`api/main.py` mounts the router; `api/flow_worker_main.py` does not), and
+  `edit_original` is called only from those reply paths. A flow-worker on the
+  older files behaves exactly as before.
+  ⛔⛔ **The scheduled post must NEVER become
   ephemeral** — it IS what the room is meant to see, and an ephemeral one would
   leave every check green (job ran, `posted` stamped, attachment exists) while
   seven boards a day reached nobody. They cannot collide today: the digest posts

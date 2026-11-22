@@ -2098,7 +2098,7 @@
         "key": "corrColor",
         "type": "color",
         "label": "CORRELATION 20 (SPY Close) colour",
-        "default": "#c9a84c"
+        "default": "#4ade80"
       },
       {
         "key": "corrWidth",

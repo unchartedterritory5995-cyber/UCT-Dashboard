@@ -100,7 +100,11 @@ describe('C29 rule 6 — a comparison with an `na` operand is false, `!=` includ
     expect(vend.get('Q09_not_x_eq_close').filter((v, i) => vend.get('Q01_x_is_na')[i] === 1).every((v) => v === 1)).toBe(true)
   })
 
-  it('⭐ C45 — on the capture\'s own 300 bars (not from the listing) every row keyed on `bar_index % 2` is WITHHELD by name', () => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): was "every row keyed on `bar_index % 2` is WITHHELD by
+  // name" — the 300 bars graded cold. The harness now replays SPY's proved history from
+  // its 1993 listing first (the member's daily chart computes the same series), so the
+  // index is TradingView's own (odd 8175 on bar 0) and all twelve rows are served.
+  it('⭐ C45 / DIV-1 — replayed from the listing, every row keyed on `bar_index % 2` is served (the index is TradingView\'s)', () => {
     const cap = load('vw-ne-na-spy-1d-2026-09-30.json')
     expect(cap.history.startsAtBar0).toBe(false)
     // ⚰️ what was served there: the window counts from 0 and the vendor from 8175,
@@ -108,13 +112,10 @@ describe('C29 rule 6 — a comparison with an `na` operand is false, `!=` includ
     expect(b0Of(cap) % 2).toBe(1)
     const ours = runOurSide({ ...cap, source: { ...cap.source, text: carried(cap.source.text) } })
     expect(ours.ok, ours.refusal).toBe(true)
+    expect(ours.historyReplay.kind).toBe('replayed')
     const served = ours.plots.filter((p) => p.column).map((p) => p.title)
-    // the two rows that read a `var` left `na` and never touch the index
-    expect(served).toEqual(['Q10_na_var_ne_close', 'Q11_na_var_eq_close'])
-    for (const p of ours.plots.filter((q) => !q.column)) {
-      expect(p.missingReason, p.title).toMatch(/withheld on this chart on every bar, by name \(bar-index:window\)/)
-    }
-    expect(ours.notes.some((n) => /`bar_index` withheld \(bar-index:window\) on 10 plot\(s\)/.test(n))).toBe(true)
+    expect(served.length).toBe(12)
+    expect(ours.notes.some((n) => /`bar_index` withheld \(bar-index:window\)/.test(n))).toBe(false)
   })
 
   it('the bind fold agrees: `na != 1` folds to 0, not JavaScript\'s 1', () => {

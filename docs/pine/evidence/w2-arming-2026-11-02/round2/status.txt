@@ -1,0 +1,15 @@
+04:18:04 start tree 93efdb607f27b62f6364283f87bfe41428dcb3d9 clean=[0] free RAM 4682 MB
+04:18:04 A vitest: parity + J2 + lane rails + W1 rail + member door
+04:19:32 A exit 0
+04:19:32 B J3a harness runtime-on
+04:28:20 B J3a exit 0
+04:28:20 B J3b harness production
+04:35:35 B J3b exit 0
+04:35:35 C pytest rails with linkify-it-py from C:/Users/pgosz/uct-worktrees/_resume-laptop/runs/w2/round2/pydeps
+04:39:58 C exit 0
+04:39:58 D deploy gate + census detector pytest
+04:47:30 D exit 0
+04:47:31 E tree before P11: HEAD 93efdb607f27b62f6364283f87bfe41428dcb3d9 dirty=[] free RAM 4532 MB
+04:47:32 E P11 six-shard gate
+08:08:12 E exit 1 (free RAM 2930 MB)
+08:08:12 end tree 93efdb607f27b62f6364283f87bfe41428dcb3d9 dirty=[]

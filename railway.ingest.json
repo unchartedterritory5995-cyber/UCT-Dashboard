@@ -1,0 +1,33 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "buildCommand": "pip install -r requirements.txt",
+    "watchPatterns": [
+      "api/stream_ingest_main.py",
+      "api/services/ingest_runtime.py",
+      "api/services/ingest_side_feeds.py",
+      "api/services/ingest_feed_server.py",
+      "api/services/feed_protocol.py",
+      "api/services/ingest_core.py",
+      "api/services/massive_reconnect.py",
+      "api/services/bar_stream.py",
+      "api/services/bar_broadcaster.py",
+      "api/services/bar_rollup.py",
+      "api/services/trade_conditions.py",
+      "api/services/vendor_socket_guard.py",
+      "api/services/bars_live_ingest.py",
+      "api/services/minute_frame_publisher.py",
+      "api/services/minute_frames.py",
+      "requirements.txt",
+      "railway.ingest.json"
+    ]
+  },
+  "deploy": {
+    "startCommand": "python -m api.stream_ingest_main",
+    "drainingSeconds": 15,
+    "healthcheckPath": "/api/health",
+    "healthcheckTimeout": 120,
+    "restartPolicyType": "ALWAYS",
+    "overlapSeconds": 0
+  }
+}

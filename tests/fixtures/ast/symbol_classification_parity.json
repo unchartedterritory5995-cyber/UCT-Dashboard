@@ -1,0 +1,197 @@
+{
+  "_": "⭐⭐ RS RATING L3 — THE JS/PYTHON AGREEMENT RAIL FOR THE CLASSIFICATION FOLD, ON A PINNED ARTIFACT. `bind.js::classificationTable` / `classificationWith` and `ast_bind.py::classification_table` / `classification_with` each read `table` (shaped like `symbolScope.json::classification`, with SYNTHETIC rows: the production table is empty until Q-RS4) and assert their own answer against `served`, `values` and `substituted`. Neither lane is the other's oracle, so a drift in either, or both in step, goes red. Asserted by `app/src/components/chart/engine/ast/symbolClassificationParity.test.js` and `tests/test_ast_bind_classification.py`.",
+  "table": {
+    "industry": {
+      "by_class": {
+        "ETF": {
+          "value": "Investment Trusts/Mutual Funds",
+          "witnesses": [
+            "AMEX:SPY"
+          ],
+          "captures": [
+            "tests/fixtures/vendor/injected.json"
+          ],
+          "captured": "2026-11-15",
+          "how": "SYNTHETIC agreement-rail row, not a capture"
+        },
+        "_note": "commentary"
+      },
+      "by_ours": {
+        "Semiconductors": {
+          "value": "Semiconductors (TV)",
+          "witnesses": [
+            "NASDAQ:NVDA"
+          ],
+          "captures": [
+            "tests/fixtures/vendor/injected.json"
+          ],
+          "captured": "2026-11-15",
+          "how": "SYNTHETIC agreement-rail row, not a capture"
+        },
+        "Broken": {
+          "value": "x",
+          "witnesses": [
+            "A:B"
+          ],
+          "captured": "2026-11-15",
+          "how": "no captures"
+        }
+      }
+    },
+    "sector": {
+      "by_class": {},
+      "by_ours": {
+        "Technology": {
+          "value": "Electronic Technology",
+          "witnesses": [
+            "NASDAQ:NVDA"
+          ],
+          "captures": [
+            "tests/fixtures/vendor/injected.json"
+          ],
+          "captured": "2026-11-15",
+          "how": "SYNTHETIC agreement-rail row, not a capture"
+        }
+      }
+    }
+  },
+  "served": {
+    "industry": {
+      "byClass": {
+        "ETF": "Investment Trusts/Mutual Funds"
+      },
+      "byOurs": {
+        "Semiconductors": "Semiconductors (TV)"
+      }
+    },
+    "sector": {
+      "byClass": {},
+      "byOurs": {
+        "Technology": "Electronic Technology"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "etf_class_row_wins_over_our_string",
+      "symbol": {
+        "ticker": "SPY",
+        "securityType": "ETF",
+        "industry": "Asset Management",
+        "sector": "Financial Services"
+      },
+      "values": {
+        "syminfo.industry": "Investment Trusts/Mutual Funds",
+        "syminfo.sector": "Financial Services"
+      },
+      "substituted": [
+        {
+          "name": "syminfo.sector",
+          "source": "uct:ticker_meta",
+          "vendorValueFrom": "capture.symbol.sector"
+        }
+      ]
+    },
+    {
+      "id": "class_row_wins_even_where_an_our_string_row_also_matches",
+      "symbol": {
+        "ticker": "SMH",
+        "securityType": "ETF",
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      },
+      "values": {
+        "syminfo.industry": "Investment Trusts/Mutual Funds",
+        "syminfo.sector": "Electronic Technology"
+      },
+      "substituted": []
+    },
+    {
+      "id": "our_string_rows_serve_tradingview_untagged",
+      "symbol": {
+        "ticker": "NVDA",
+        "securityType": "Stock",
+        "industry": "Semiconductors",
+        "sector": "Technology"
+      },
+      "values": {
+        "syminfo.industry": "Semiconductors (TV)",
+        "syminfo.sector": "Electronic Technology"
+      },
+      "substituted": []
+    },
+    {
+      "id": "no_row_serves_ours_tagged",
+      "symbol": {
+        "ticker": "MSFT",
+        "securityType": "Stock",
+        "industry": "Software - Infrastructure",
+        "sector": "Software"
+      },
+      "values": {
+        "syminfo.industry": "Software - Infrastructure",
+        "syminfo.sector": "Software"
+      },
+      "substituted": [
+        {
+          "name": "syminfo.industry",
+          "source": "uct:ticker_meta",
+          "vendorValueFrom": "capture.symbol.industry"
+        },
+        {
+          "name": "syminfo.sector",
+          "source": "uct:ticker_meta",
+          "vendorValueFrom": "capture.symbol.sector"
+        }
+      ]
+    },
+    {
+      "id": "a_row_missing_captures_is_not_served",
+      "symbol": {
+        "ticker": "X",
+        "industry": "Broken"
+      },
+      "values": {
+        "syminfo.industry": "Broken"
+      },
+      "substituted": [
+        {
+          "name": "syminfo.industry",
+          "source": "uct:ticker_meta",
+          "vendorValueFrom": "capture.symbol.industry"
+        }
+      ]
+    },
+    {
+      "id": "whitespace_is_trimmed_and_blank_is_no_data",
+      "symbol": {
+        "ticker": "Y",
+        "securityType": " ETF ",
+        "industry": "  ",
+        "sector": " Technology "
+      },
+      "values": {
+        "syminfo.industry": "Investment Trusts/Mutual Funds",
+        "syminfo.sector": "Electronic Technology"
+      },
+      "substituted": []
+    },
+    {
+      "id": "no_data_settles_nothing",
+      "symbol": {
+        "ticker": "ZZZZ"
+      },
+      "values": {},
+      "substituted": []
+    },
+    {
+      "id": "an_underscore_class_is_commentary",
+      "symbol": {
+        "ticker": "Q",
+        "securityType": "_note"
+      },
+      "values": {},
+      "substituted": []
+    }
+  ]
+}

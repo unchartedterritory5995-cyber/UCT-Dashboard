@@ -145,6 +145,26 @@ def test_account_crud(store):
     assert len(store.list_accounts(enabled_only=False)) == 1
 
 
+def test_content_kind_defaults_to_commentary(store):
+    store.add_account("DeItaone")
+    assert store.list_accounts()[0]["content_kind"] == "commentary"
+
+
+def test_set_content_kind_round_trips(store):
+    store.add_account("DeItaone")
+    store.set_account_content_kind("DeItaone", "news")
+    assert store.list_accounts()[0]["content_kind"] == "news"
+    store.set_account_content_kind("DeItaone", "commentary")
+    assert store.list_accounts()[0]["content_kind"] == "commentary"
+
+
+def test_set_content_kind_rejects_unknown_value(store):
+    store.add_account("DeItaone")
+    with pytest.raises(ValueError):
+        store.set_account_content_kind("DeItaone", "rumor")
+    assert store.list_accounts()[0]["content_kind"] == "commentary"
+
+
 def test_poll_state_roundtrip(store):
     store.add_account("DeItaone")
     store.update_poll_state("DeItaone", last_seen_tweet_id="200", status="ok", tweets_seen=5)

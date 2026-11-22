@@ -1279,7 +1279,7 @@ export default function LiveFlow() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   // On-demand OI fetch — fills priorOI on rows where the daily snapshot
   // cron missed the ticker. Operator clicks the "Fetch OI" button to
-  // trigger a bulk Schwab call for all currently-null rows.
+  // trigger a bulk OI fetch for all currently-null rows.
   const [oiFetchLoading, setOiFetchLoading] = useState(false);
   const [oiFetchResult, setOiFetchResult] = useState(null);  // { filled, total } | null
   // ─── Click-to-filter state (added 2026-06-24) ────────────────────────────
@@ -1603,7 +1603,7 @@ export default function LiveFlow() {
 
   // Bulk on-demand OI fetch. Posts all null-OI contracts to the backend,
   // which checks our snapshot table first then batch-fetches misses from
-  // Schwab. Updates priorOI and volumeOIRatio on each matched row in
+  // the OI source. Updates priorOI and volumeOIRatio on each matched row in
   // local state so the table fills in without a full reload.
   const handleFetchOI = async () => {
     if (oiFetchLoading) return;
@@ -1615,7 +1615,7 @@ export default function LiveFlow() {
     setOiFetchLoading(true);
     setOiFetchResult(null);
 
-    // Dedup by contract so we don't hit Schwab for the same contract
+    // Dedup by contract so we don't fetch the same contract
     // when multi-fire rows share the same strike/exp.
     const contractMap = new Map();
     for (const a of nullOIAlerts) {

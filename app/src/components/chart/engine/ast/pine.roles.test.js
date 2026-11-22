@@ -121,7 +121,9 @@ describe('the argument roles this translator assumes are the roles the engine ru
   it('ta.stoch(source, high, low, len) permutes onto stoch(high, low, source, len)', () => {
     const { formula, values } = runPine(wrap('s', 'ta.stoch(close, high, low, 14)'))
     // The permutation, spelled out, so a change to it changes this line.
-    expect(formula).toBe('stoch(high, low, close, 14)')
+    // ⭐ engine 57 (landing train 1): `ta.stoch` lands on `stochPine`, Pine's own stochastic (the last n
+    // finite highs / lows, the previous value kept where the formula has none); same permutation
+    expect(formula).toBe('stochPine(high, low, close, 14)')
     const { compared, worst } = agree(pineStoch(C, 14), values)
     expect(compared).toBeGreaterThan(20)
     expect(worst).toBeLessThan(1e-9)
@@ -259,7 +261,8 @@ describe('the fail-closed default', () => {
   it('a shape that no longer fits the manifest refuses instead of filling what it can', () => {
     const shrunk = {
       ...TABLE,
-      functions: { ...TABLE.functions, stoch: { args: ['series', 'int'], lookback: 'arg1', yields: 'num' } },
+      // (engine 57: `ta.stoch` reads the `stochPine` entry, so that is the one shrunk)
+      functions: { ...TABLE.functions, stochPine: { args: ['series', 'int'], lookback: 'arg1', yields: 'num' } },
     }
     const out = translatePine(wrap('s', 'ta.stoch(close, high, low, 14)'), { table: shrunk })
     expect(out.ok).toBe(false)

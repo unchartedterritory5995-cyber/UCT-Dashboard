@@ -1,9 +1,40 @@
-import { useEffect, useState } from 'react'
+import { Component, Suspense, useEffect, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import useNoteExcerpts from '../../hooks/useNoteExcerpts'
+import { lazyLeaf } from '../../lib/lazyChunk'
 import UIcon from '../../../../components/ui/UIcon'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './ExcerptView.module.css'
+
+// An imported post's card loads on use, so a note with no posts never pays for it. A leaf, because
+// a card that cannot load must not reload the page out from under the note being written.
+const TweetCard = lazyLeaf(() => import('./TweetCard'))
+
+class TweetCardBoundary extends Component {
+  state = { failed: false }
+
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children
+    return (
+      <div className={`${styles.card} ${styles.unavailable}`}>
+        <UIcon name="warning" size={16} style={{ verticalAlign: '-2px', marginRight: 4 }} />
+        <span>This post couldn't load. Reload the page to see it.</span>
+      </div>
+    )
+  }
+}
+
+const LOADING_CARD = (
+  <div className={styles.card} role="status" aria-label="Loading excerpt…">
+    <SkeletonLine width="90%" height={12} />
+    <div style={{ height: 6 }} />
+    <SkeletonLine width="50%" height={11} />
+  </div>
+)
 
 /**
  * Wave J — the React node view for a `documentExcerpt` atom: a quiet card
@@ -39,11 +70,7 @@ export default function ExcerptView({ node, editor, deleteNode }) {
     // small card, instead of bare italic text.
     return (
       <NodeViewWrapper as="div" className={styles.wrap} data-document-excerpt>
-        <div className={styles.card} role="status" aria-label="Loading excerpt…">
-          <SkeletonLine width="90%" height={12} />
-          <div style={{ height: 6 }} />
-          <SkeletonLine width="50%" height={11} />
-        </div>
+        {LOADING_CARD}
       </NodeViewWrapper>
     )
   }
@@ -55,6 +82,20 @@ export default function ExcerptView({ node, editor, deleteNode }) {
           <UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
           <span>This excerpt's source is no longer available</span>
         </div>
+      </NodeViewWrapper>
+    )
+  }
+
+  if (excerpt.tweet) {
+    return (
+      <NodeViewWrapper as="div" className={styles.wrap} data-document-excerpt contentEditable={false}>
+        <TweetCardBoundary>
+          <Suspense fallback={LOADING_CARD}>
+            {/* The key: TipTap reuses this node view when only the node type matches, and the
+                card's save is bound to the excerpt it first rendered. */}
+            <TweetCard key={excerpt.id} excerpt={excerpt} deleteNode={deleteNode} noteId={noteId} />
+          </Suspense>
+        </TweetCardBoundary>
       </NodeViewWrapper>
     )
   }

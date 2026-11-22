@@ -314,7 +314,7 @@ describe('⭐ WHAT THE MEMBER SEES AFTERWARDS — and what stays hidden', () => 
     await waitFor(() => expect(rowByKey('security:SPX')).toBeTruthy())
     const row = rowByKey('security:SPX')
     expect(resultIsOn(row)).toBe(false)
-    expect(row.textContent).not.toMatch(/Active/)
+    expect(row.textContent).not.toMatch(/On chart/)
     expect(row.querySelector('[class*="resAdd"]'), 'the row stopped offering to add').toBeTruthy()
   })
 })

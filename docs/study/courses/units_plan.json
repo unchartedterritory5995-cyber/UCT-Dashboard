@@ -1,0 +1,613 @@
+[
+ {
+  "id": "F1.02",
+  "track": "F1",
+  "title": "What a share is, and where it trades",
+  "skill": "basics.shares",
+  "hint": "Tier 1: Investor.gov (stocks, exchanges), SEC (national securities exchanges), the index providers' own pages for what SPY / QQQ / IWM track (S&P Dow Jones Indices, Nasdaq, FTSE Russell) and the fund sponsors' fact pages (State Street SPDR, Invesco, iShares)."
+ },
+ {
+  "id": "F1.04",
+  "track": "F1",
+  "title": "Volume and liquidity",
+  "skill": "basics.volume",
+  "hint": "Tier 1: SEC / Investor.gov on liquidity and trading volume; FINRA on thinly traded stocks. Dollar volume via calc dollar_volume. No 'liquidity floor' number unless sourced; never invent a floor."
+ },
+ {
+  "id": "F1.05",
+  "track": "F1",
+  "title": "Market hours and extended hours",
+  "skill": "basics.hours",
+  "hint": "Tier 1: NYSE and Nasdaq trading-hours pages, SEC / FINRA investor alerts on extended-hours trading risks. Check current hours on the exchange pages; set as_of."
+ },
+ {
+  "id": "F1.06",
+  "track": "F1",
+  "title": "Float, shares outstanding, market cap",
+  "skill": "basics.float_cap",
+  "hint": "Tier 1: SEC / Investor.gov definitions (shares outstanding, market capitalization). Float: Tier 2 from two publishers. Cap buckets differ by source: ask the convention or cite one named source and say so."
+ },
+ {
+  "id": "F1.07",
+  "track": "F1",
+  "title": "Indexes and ETFs",
+  "skill": "basics.etfs",
+  "hint": "Tier 1: SEC / Investor.gov ETF bulletins, SEC and FINRA investor alerts on leveraged and inverse ETFs (daily reset, decay). Sector funds: State Street's Select Sector SPDR pages. Leveraged decay arithmetic via calc leveraged_path."
+ },
+ {
+  "id": "F5.01",
+  "track": "F5",
+  "title": "Reading a report",
+  "skill": "fund.report",
+  "hint": "Tier 1: SEC 'Beginner's guide to financial statements', Investor.gov on 10-Q / 10-K / 8-K, EDGAR. Earnings per share, revenue, margins in plain words. Any number from a real filing must quote the filing."
+ },
+ {
+  "id": "F5.02",
+  "track": "F5",
+  "title": "Estimates, surprises and guidance",
+  "skill": "fund.estimates",
+  "hint": "Tier 2 from two publishers (Investopedia, Fidelity / Schwab learning centres, Nasdaq) for consensus, surprise and guidance; SEC on Regulation FD for guidance disclosure. Surprise % via calc pct_change / arith."
+ },
+ {
+  "id": "F5.03",
+  "track": "F5",
+  "title": "Growth numbers the desk screens for",
+  "skill": "fund.growth",
+  "hint": "Year-over-year growth (calc yoy_growth), quarter-over-quarter, acceleration. Growth-stock criteria from O'Neil's CAN SLIM as published by IBD (Tier 2) plus a second publisher. Say 'O'Neil's rule' when a number is his, never present it as a law."
+ },
+ {
+  "id": "F5.04",
+  "track": "F5",
+  "title": "Earnings season and the calendar",
+  "skill": "fund.season",
+  "hint": "Tier 1/2: Nasdaq earnings calendar pages, SEC on 8-K timing; BMO / AMC conventions from two Tier 2 publishers. Earnings risk for a holder: gaps through stops (SEC / FINRA on gaps and stop orders)."
+ },
+ {
+  "id": "F5.05",
+  "track": "F5",
+  "title": "Expected vs realised move",
+  "skill": "fund.expected_move",
+  "hint": "The options-implied move: Cboe / OIC education on implied volatility and expected move (Tier 1/2). The straddle-price approximation must be stated as an approximation with its source. Calcs for every number."
+ },
+ {
+  "id": "F5.06",
+  "track": "F5",
+  "title": "The Earnings Decision",
+  "skill": "fund.earnings_decision",
+  "hint": "Holding into a report vs selling before: gap risk past a stop (FINRA / SEC on stop orders and gaps), position size and earnings. Our own rules only from docs/study/sizing_rule.md owner lines; docs/curriculum is a lead, never a source. Scenario-heavy."
+ },
+ {
+  "id": "F5.07",
+  "track": "F5",
+  "title": "Post earnings: the gap and the drift",
+  "skill": "fund.post_earnings",
+  "hint": "Post-earnings-announcement drift is a documented academic finding (Ball and Brown 1968; Bernard and Thomas 1989; cite a published paper page or a Federal Reserve / NBER summary). Never key it as a sure thing; teach it as a tendency with its source."
+ },
+ {
+  "id": "F6.01",
+  "track": "F6",
+  "title": "Calls and puts: the right, not the obligation",
+  "skill": "options.calls_puts",
+  "hint": "Tier 1: Options Industry Council (optionseducation.org), OCC 'Characteristics and Risks of Standardized Options' (PDF), FINRA options pages. Contract multiplier 100 from the OIC / OCC."
+ },
+ {
+  "id": "F6.02",
+  "track": "F6",
+  "title": "What you pay: premium",
+  "skill": "options.premium",
+  "hint": "Tier 1: OIC, OCC, Cboe. Premium x 100 per contract, what moves the premium. Calcs for every dollar figure."
+ },
+ {
+  "id": "F6.04",
+  "track": "F6",
+  "title": "Delta",
+  "skill": "options.delta",
+  "hint": "Tier 1/2: OIC Greeks pages, Cboe education. Delta as price sensitivity; the 'probability of finishing in the money' reading only as an approximation with a source."
+ },
+ {
+  "id": "F6.05",
+  "track": "F6",
+  "title": "Theta",
+  "skill": "options.theta",
+  "hint": "Tier 1/2: OIC, Cboe. Time decay speeds up near expiry; per-day theta in dollars via calc arith."
+ },
+ {
+  "id": "F6.06",
+  "track": "F6",
+  "title": "Vega and implied volatility",
+  "skill": "options.vega_iv",
+  "hint": "Tier 1/2: OIC, Cboe (VIX methodology page for what VIX measures). IV crush after earnings as a sourced tendency."
+ },
+ {
+  "id": "F6.07",
+  "track": "F6",
+  "title": "Gamma",
+  "skill": "options.gamma",
+  "hint": "Tier 1/2: OIC, Cboe. Gamma highest at the money near expiry."
+ },
+ {
+  "id": "F6.08",
+  "track": "F6",
+  "title": "IV and the expected move",
+  "skill": "options.expected_move",
+  "hint": "Tier 1/2: Cboe / OIC on the one-standard-deviation move from IV (IV x price x sqrt(days/365)); state it as an approximation. Calc arith for every number."
+ },
+ {
+  "id": "F6.09",
+  "track": "F6",
+  "title": "Picking the strike",
+  "skill": "options.strike",
+  "hint": "Tier 1/2: OIC strategy pages, Cboe. In / at / out of the money; delta as a strike guide. No house strike rule unless docs/study has the owner's words."
+ },
+ {
+  "id": "F6.10",
+  "track": "F6",
+  "title": "Picking the expiry",
+  "skill": "options.expiry",
+  "hint": "Tier 1/2: OIC, Cboe on expiration cycles, weeklies, time decay vs time for the move. Check current expiration conventions."
+ },
+ {
+  "id": "F6.11",
+  "track": "F6",
+  "title": "Directional trades: long calls and long puts",
+  "skill": "options.directional",
+  "hint": "Tier 1: OIC strategy pages (long call, long put), OCC risks PDF. Max loss = premium paid; breakeven via calc option_breakeven; payoffs via calc option_payoff."
+ },
+ {
+  "id": "F6.12",
+  "track": "F6",
+  "title": "Debit and credit verticals",
+  "skill": "options.verticals",
+  "hint": "Tier 1: OIC strategy pages (bull call spread, bear put spread, bull put spread, bear call spread). Max gain / loss / breakeven via calcs (vertical_payoff, arith)."
+ },
+ {
+  "id": "F6.13",
+  "track": "F6",
+  "title": "Covered calls and cash-secured puts",
+  "skill": "options.income",
+  "hint": "Tier 1: OIC strategy pages, OCC risks PDF (assignment risk). Payoffs via calcs."
+ },
+ {
+  "id": "F6.14",
+  "track": "F6",
+  "title": "Straddles, strangles, calendars, diagonals",
+  "skill": "options.vol_spreads",
+  "hint": "Tier 1: OIC strategy pages. Breakevens via calc arith."
+ },
+ {
+  "id": "F6.15",
+  "track": "F6",
+  "title": "Iron condors and butterflies",
+  "skill": "options.condors_flies",
+  "hint": "Tier 1: OIC strategy pages. Max gain / loss via calc arith. Keep it plain; these are advanced."
+ },
+ {
+  "id": "F6.16",
+  "track": "F6",
+  "title": "Assignment, exercise and expiry",
+  "skill": "options.assignment",
+  "hint": "Tier 1: OCC (exercise and assignment, automatic exercise threshold: check the CURRENT OCC rule page), OIC, FINRA. American vs European style; early assignment risk around dividends with a source."
+ },
+ {
+  "id": "F6.17",
+  "track": "F6",
+  "title": "Managing an options position",
+  "skill": "options.manage",
+  "hint": "Tier 1/2: OIC on closing, rolling, adjusting. Scenario-heavy. No profit-taking percentages unless a named source gives them as that source's rule."
+ },
+ {
+  "id": "F6.18",
+  "track": "F6",
+  "title": "Flow and dealer positioning, last",
+  "skill": "options.flow",
+  "hint": "Be conservative: open interest vs volume (OCC / Cboe definitions, Tier 1), what unusual options activity can and cannot tell you (Tier 2 from two publishers). Dealer gamma claims are contested: teach them only as a theory with sources for both sides, or leave them out and say so in left_out."
+ },
+ {
+  "id": "F7.01",
+  "track": "F7",
+  "title": "How markets move",
+  "skill": "history.how_markets_move",
+  "hint": "Corrections vs bear markets (the 10% / 20% conventions, Tier 2 from two publishers, or S&P Dow Jones Indices research), bull and bear market history from S&P DJI or Federal Reserve sources. Numbers only as quoted."
+ },
+ {
+  "id": "F7.02",
+  "track": "F7",
+  "title": "The fast crash: 1987 and 2020",
+  "skill": "history.fast_crash",
+  "hint": "Tier 1: Federal Reserve History (federalreservehistory.org) on the 1987 crash, the SEC's own history pages, the Fed and SEC on March 2020. Drops and dates exactly as quoted; any derived number via calc."
+ },
+ {
+  "id": "F7.03",
+  "track": "F7",
+  "title": "The long bear: 2000-02 and 2008-09",
+  "skill": "history.long_bear",
+  "hint": "Tier 1: Federal Reserve History essays (the Great Recession, the dot-com era), NBER business-cycle dates. Numbers only as quoted."
+ },
+ {
+  "id": "F7.04",
+  "track": "F7",
+  "title": "2022 and how bottoms form",
+  "skill": "history.bottoms",
+  "hint": "2022 bear market facts from Tier 1/2 (S&P DJI, Federal Reserve rate decisions 2022 from federalreserve.gov). Follow-through day from IBD (Tier 2) plus a second publisher; teach it as IBD's method, never as a guarantee."
+ },
+ {
+  "id": "F7.05",
+  "track": "F7",
+  "title": "Breadth: the market's X-ray",
+  "skill": "history.breadth",
+  "hint": "Advance/decline line, % of stocks above the 50-day / 200-day, new highs vs new lows, McClellan oscillator: StockCharts ChartSchool and Investopedia (two Tier 2 publishers), or the exchanges' own breadth data pages. No house tier words."
+ },
+ {
+  "id": "F7.06",
+  "track": "F7",
+  "title": "The Fed, rates and the yield curve",
+  "skill": "history.fed_rates",
+  "hint": "Tier 1: federalreserve.gov (FOMC, the federal funds rate, dual mandate), US Treasury yield curve pages, FRED series pages, NY Fed research on the yield curve as a recession indicator."
+ },
+ {
+  "id": "F7.07",
+  "track": "F7",
+  "title": "CPI, jobs and the data calendar",
+  "skill": "history.data_calendar",
+  "hint": "Tier 1: BLS (CPI, the Employment Situation release, release schedules), BEA (GDP, PCE). Release timing from the agencies' own schedule pages; set as_of."
+ },
+ {
+  "id": "F8.01",
+  "track": "F8",
+  "title": "Map your pattern first",
+  "skill": "psych.pattern",
+  "hint": "Trading psychology from named, reputable authors: Jared Tendler (The Mental Game of Trading), Brett Steenbarger, Mark Douglas, as published or quoted by reputable pages; behavioural finance from SEC / FINRA investor pages (behavioral biases) and academic papers. Scenario-heavy. No pop-psychology claims without a source."
+ },
+ {
+  "id": "F8.02",
+  "track": "F8",
+  "title": "FOMO and chasing",
+  "skill": "psych.fomo",
+  "hint": "FINRA / SEC investor pages on behavioural biases, plus named trading authors. Scenario-heavy: chasing an extended stock vs waiting for the setup."
+ },
+ {
+  "id": "F8.03",
+  "track": "F8",
+  "title": "Fear: freezing, hesitating, cutting winners",
+  "skill": "psych.fear",
+  "hint": "Loss aversion and the disposition effect (Kahneman and Tversky; Shefrin and Statman 1985; Odean 1998), cited from a published paper page or a reputable summary (Tier 2). Scenario-heavy."
+ },
+ {
+  "id": "F8.04",
+  "track": "F8",
+  "title": "Tilt and revenge",
+  "skill": "psych.tilt",
+  "hint": "Tendler on tilt; named authors; FINRA on overtrading. Scenario-heavy: what to do after three losses."
+ },
+ {
+  "id": "F8.05",
+  "track": "F8",
+  "title": "Euphoria and oversizing after wins",
+  "skill": "psych.euphoria",
+  "hint": "Overconfidence (Barber and Odean, 'Trading is hazardous to your wealth', 2000; published paper page). Tie to sizing: our 2% ceiling from docs/study/sizing_rule.md owner lines."
+ },
+ {
+  "id": "F8.06",
+  "track": "F8",
+  "title": "The mental hand history",
+  "skill": "psych.hand_history",
+  "hint": "Jared Tendler's mental hand history (his published book / site), stated as his method. Fill-in and scenario questions on the five steps as he names them."
+ },
+ {
+  "id": "F8.07",
+  "track": "F8",
+  "title": "The daily mental routine",
+  "skill": "psych.routine",
+  "hint": "Named authors on routines (Steenbarger, Tendler); keep claims modest and sourced. Scenario-heavy."
+ },
+ {
+  "id": "F9.01",
+  "track": "F9",
+  "title": "Risk per trade",
+  "skill": "risk.per_trade",
+  "hint": "Our rule: 0.25% to 2% of the account, 2% the ceiling (docs/study/sizing_rule.md section 1, owner lines; Tier 3, house: true). General: the 1-2% rule from two Tier 2 publishers. Calcs for every number."
+ },
+ {
+  "id": "F9.03",
+  "track": "F9",
+  "title": "R, expectancy and the marble game",
+  "skill": "risk.expectancy",
+  "hint": "R-multiples and expectancy (Van Tharp, as published by his institute or quoted by Investopedia); calcs r_multiple and expectancy_r for every number. A positive edge can still lose many in a row: streak probability via calc arith."
+ },
+ {
+  "id": "F9.04",
+  "track": "F9",
+  "title": "Drawdown arithmetic and the protocol",
+  "skill": "risk.drawdown",
+  "hint": "Gain to recover a loss via calc gain_to_recover; drawdown via calc drawdown_pct. Our drawdown protocol (the owner's drawdown ladder in docs/study/sizing_rule.md, owner lines only; Tier 3, house: true)."
+ },
+ {
+  "id": "F9.05",
+  "track": "F9",
+  "title": "Heat and the book",
+  "skill": "risk.heat",
+  "hint": "Portfolio heat = total open risk as a percent of the account (Seykota and Druz 1993 as cited; two Tier 2 publishers). Our heat cap only if docs/study/sizing_rule.md has the owner's number. Calcs for every number."
+ },
+ {
+  "id": "F9.06",
+  "track": "F9",
+  "title": "Open risk after a partial",
+  "skill": "risk.partials",
+  "hint": "Open risk after selling part and moving the stop: pure calcs (risk_dollars, arith). Our trim rules only from docs/study/TRADE_PLANS.md (house)."
+ },
+ {
+  "id": "F9.07",
+  "track": "F9",
+  "title": "Margin, PDT, settlement, cash",
+  "skill": "risk.account_rules",
+  "hint": "Tier 1 only, CURRENT pages: FINRA margin pages and Rule 4210, FINRA pattern day trader page (FINRA has been changing this rule: read the current page, phrase as 'under FINRA's rule as of <date>'), SEC T+1 settlement (effective May 28, 2024, check the SEC page), Investor.gov on cash vs margin accounts and good-faith violations."
+ },
+ {
+  "id": "F9.08",
+  "track": "F9",
+  "title": "Our account rules: size, caps and grades",
+  "skill": "risk.our_rules",
+  "hint": "Tier 3: docs/study/sizing_rule.md section 9 (the owner's account rulebook, 2026-11-09): A5, A7, A13, D38, E49, C37, B23, D42, B24, F60, E54, E56, D43, A2. Outside: Investor.gov (margin, liquidity, leveraged ETFs), FINRA stop orders."
+ },
+ {
+  "id": "F9.09",
+  "track": "F9",
+  "title": "Our account rules: the market and the trade",
+  "skill": "risk.trade_rules",
+  "hint": "Tier 3: sizing_rule.md section 9: B18, F65, A10, B26 (the 200-day hard rule, the parabolic exception from Bracco's 'The Parabolic Short'), C28, C29, C31, B22, C33, B20, B21, D41, E57, E58, D39, F64, D44, D45, F66, F67, F68, B27, E59. Outside: FINRA, NYSE hours, StockCharts ChartSchool, Fidelity, IBD."
+ },
+ {
+  "id": "F10.01",
+  "track": "F10",
+  "title": "Market and limit orders",
+  "skill": "orders.market_limit",
+  "hint": "Tier 1: SEC Investor.gov 'Types of orders', FINRA on market vs limit orders and best execution."
+ },
+ {
+  "id": "F10.02",
+  "track": "F10",
+  "title": "Stop, stop-limit, trailing",
+  "skill": "orders.stops",
+  "hint": "Tier 1: SEC / Investor.gov stop and stop-limit definitions, FINRA investor insights on stop orders in volatile markets and gaps."
+ },
+ {
+  "id": "F10.03",
+  "track": "F10",
+  "title": "Brackets and OCO",
+  "skill": "orders.brackets",
+  "hint": "Tier 2 from two broker education centres (Schwab, Fidelity, Interactive Brokers) for bracket and one-cancels-other orders; FINRA / SEC for the underlying order types."
+ },
+ {
+  "id": "F10.04",
+  "track": "F10",
+  "title": "Slippage, partial fills, extended hours",
+  "skill": "orders.slippage",
+  "hint": "Tier 1: SEC / FINRA on order execution, partial fills, extended-hours risks; Rule 605/606 execution-quality reports in plain words."
+ },
+ {
+  "id": "F10.05",
+  "track": "F10",
+  "title": "Trims, trails and scaling out",
+  "skill": "orders.scaling",
+  "hint": "Teaches: the full size at one price with one stop, never add (account rulebook A5); scale OUT: a third at 3R with the stop to breakeven, a third at 5R, trail the last third under the 10 or 21-day (B19, E51, E52); never average down; what scaling out costs and buys. Trim prices via calc arith; average cost via calc avg_price. Averaging down vs up from named authors (O'Neil via IBD, plus a second publisher). Our rules only from docs/study/sizing_rule.md section 9 (house)."
+ },
+ {
+  "id": "F10b.01",
+  "track": "F10b",
+  "title": "Shorting: borrow, locate, cover",
+  "skill": "short.mechanics",
+  "hint": "Tier 1: SEC Regulation SHO (locate requirement), SEC / Investor.gov on short sales, FINRA on short interest; margin requirements for shorts from FINRA. Short P&L via calc short_pnl."
+ },
+ {
+  "id": "F10b.02",
+  "track": "F10b",
+  "title": "Short risk: squeezes and the mirror",
+  "skill": "short.risk",
+  "hint": "Tier 1: SEC staff report on the January 2021 equity and options market structure (GameStop), Investor.gov on short-selling risk (losses unlimited in theory), borrow fees and buy-ins from FINRA / SEC."
+ },
+ {
+  "id": "F11.01",
+  "track": "F11",
+  "title": "Day, swing, position",
+  "skill": "styles.horizons",
+  "hint": "Tier 1: FINRA day-trading page and investor alert; Tier 2 from two publishers for swing and position trading definitions. No claims about which style 'wins'."
+ },
+ {
+  "id": "F11.02",
+  "track": "F11",
+  "title": "Which setups fit which style",
+  "skill": "styles.setups_fit",
+  "hint": "Timeframes and holding periods per style from Tier 2 sources; examples from the setups the app teaches only when docs/study/TRADE_PLANS.md states their rules. If you cannot source a fit, leave it out."
+ },
+ {
+  "id": "F11.03",
+  "track": "F11",
+  "title": "Our method in each style",
+  "skill": "styles.method_by_style",
+  "hint": "House-heavy: only what docs/study/TRADE_PLANS.md and docs/study/sizing_rule.md (owner lines) state. docs/curriculum is a lead, never a source. If the house sources are too thin for a full unit, write fewer questions and say so in left_out."
+ },
+ {
+  "id": "F11.04",
+  "track": "F11",
+  "title": "Pick your lane",
+  "skill": "styles.lane",
+  "hint": "Specialising in a few setups (named authors: Mike Bellafiore 'One Good Trade' / 'The PlayBook', Steenbarger), Tier 2. Scenario-heavy."
+ },
+ {
+  "id": "F11.05",
+  "track": "F11",
+  "title": "Time of day and the week",
+  "skill": "styles.time_of_day",
+  "hint": "Intraday volume and volatility patterns (the U-shaped intraday volume curve: academic papers or exchange research, Tier 1/2), the opening and closing auctions (NYSE / Nasdaq pages). Avoid folklore without a source."
+ },
+ {
+  "id": "F12.01",
+  "track": "F12",
+  "title": "The written plan",
+  "skill": "process.plan",
+  "hint": "A trading plan's parts (FINRA / SEC investor pages, CMT Association, named authors). Our five fields only if a docs/study house page states them in the owner's words."
+ },
+ {
+  "id": "F12.02",
+  "track": "F12",
+  "title": "The daily routine",
+  "skill": "process.routine",
+  "hint": "Pre-market preparation from named authors and broker education (Tier 2 from two publishers): the calendar, the index futures, the watchlist, the levels. Scenario-heavy."
+ },
+ {
+  "id": "F12.03",
+  "track": "F12",
+  "title": "Journaling with fixed fields",
+  "skill": "process.journal",
+  "hint": "Trade journals (named authors: Steenbarger, Tendler; broker education). Fill-in and scenario questions on what a useful entry records."
+ },
+ {
+  "id": "F12.04",
+  "track": "F12",
+  "title": "Grading on three axes",
+  "skill": "process.grading",
+  "hint": "Separate process from outcome (Annie Duke 'Thinking in Bets' on resulting, Tier 2 as published or quoted). Our three axes only if a docs/study house page names them in the owner's words; otherwise teach process vs outcome and say so in left_out."
+ },
+ {
+  "id": "F12.05",
+  "track": "F12",
+  "title": "The weekly and monthly review",
+  "skill": "process.review",
+  "hint": "Reviewing trades by setup and by mistake; stats via calcs (win rate, average R, expectancy_r). Named authors as sources."
+ },
+ {
+  "id": "F12.06",
+  "track": "F12",
+  "title": "Your playbook",
+  "skill": "process.playbook",
+  "hint": "Mike Bellafiore's PlayBook method (SMB Capital, his published book / site), Tier 2, stated as his method. Scenario-heavy: writing one entry for a setup."
+ },
+ {
+  "id": "V.02",
+  "track": "V",
+  "title": "Chart words",
+  "skill": "vocab.chart_terms",
+  "hint": "Trend, pullback, extended, tight, coiled, leader, overbought, oversold, heavy volume, gap, near highs, support, resistance, breakout, base. Tier 2 from two publishers (StockCharts ChartSchool, Investopedia, CMT Association) or one Tier 1. Existing skill vocab.chart already has 29 chart-word items: do not repeat its words verbatim; cover the rest.",
+  "n": 60
+ },
+ {
+  "id": "V.03",
+  "track": "V",
+  "title": "Candle words",
+  "skill": "vocab.candle_terms",
+  "hint": "Candle parts and names: body, wick / shadow, doji, hammer, shooting star, engulfing, harami, inside bar, outside bar, marubozu, morning / evening star. Steve Nison as published or quoted, StockCharts, Investopedia, Bulkowski. Names and shapes only: never key a candle's 'prediction' as a fact.",
+  "n": 60
+ },
+ {
+  "id": "V.04",
+  "track": "V",
+  "title": "Pattern and base words",
+  "skill": "vocab.pattern_terms",
+  "hint": "Base, pivot, handle, cup, flag, pennant, pole, wedge, triangle, double bottom, head and shoulders, contraction, undercut, shakeout. Bulkowski (thepatternsite.com), O'Neil via IBD, StockCharts. Any statistic only as the source states it.",
+  "n": 60
+ },
+ {
+  "id": "V.05",
+  "track": "V",
+  "title": "Setup words",
+  "skill": "vocab.setup_terms",
+  "hint": "The setups the app teaches and their plain meaning, ONLY from docs/study/TRADE_PLANS.md and docs/study/skill_map.json setups (Tier 3, house: true), plus the nearest textbook term from docs/study/research/definitions.json sources where it cites a real page. Never docs/curriculum. If a setup has no house definition in the owner's words or the app's detector rule, leave it out.",
+  "n": 60
+ },
+ {
+  "id": "V.06",
+  "track": "V",
+  "title": "Risk words",
+  "skill": "vocab.risk_terms",
+  "hint": "R, R-multiple, expectancy, position size, stop loss, drawdown, risk of ruin, portfolio heat, breakeven stop, trailing stop, ATR. Van Tharp (published), Investopedia, broker education; FINRA / SEC where official.",
+  "n": 60
+ },
+ {
+  "id": "V.07",
+  "track": "V",
+  "title": "Order words",
+  "skill": "vocab.order_terms",
+  "hint": "Market, limit, stop, stop-limit, trailing stop, bracket, OCO, fill, partial fill, slippage, good-til-canceled, day order, locate, borrow, cover, short squeeze. Tier 1: SEC Investor.gov 'Types of orders', FINRA, SEC Regulation SHO.",
+  "n": 60
+ },
+ {
+  "id": "V.08",
+  "track": "V",
+  "title": "Options words",
+  "skill": "vocab.options_terms",
+  "hint": "Call, put, strike, expiration, premium, intrinsic value, time value, in / at / out of the money, delta, gamma, theta, vega, implied volatility, open interest, assignment, exercise, the common strategy names. Tier 1: OIC (optionseducation.org) glossary and strategy pages, OCC.",
+  "n": 60
+ },
+ {
+  "id": "V.09",
+  "track": "V",
+  "title": "Fundamentals words",
+  "skill": "vocab.fund_terms",
+  "hint": "EPS, revenue, gross / operating margin, guidance, consensus estimate, earnings surprise, year over year, before market open / after market close, P/E, market cap, float. SEC / Investor.gov (Tier 1) and two Tier 2 publishers.",
+  "n": 60
+ },
+ {
+  "id": "V.10",
+  "track": "V",
+  "title": "Macro words",
+  "skill": "vocab.macro_terms",
+  "hint": "Federal funds rate, FOMC, CPI, core CPI, PCE, nonfarm payrolls, unemployment rate, GDP, yield curve, inversion, basis point, Treasury yields, quantitative easing / tightening. Tier 1: federalreserve.gov, BLS, BEA, US Treasury, FRED.",
+  "n": 60
+ },
+ {
+  "id": "V.11",
+  "track": "V",
+  "title": "Breadth words",
+  "skill": "vocab.breadth_terms",
+  "hint": "Advance / decline, A/D line, new highs / new lows, percent above the 50-day / 200-day, McClellan oscillator, distribution day, follow-through day, up/down volume. StockCharts ChartSchool, Investopedia, IBD (for distribution and follow-through days, stated as IBD's).",
+  "n": 60
+ },
+ {
+  "id": "V.12",
+  "track": "V",
+  "title": "Psychology words",
+  "skill": "vocab.psych_terms",
+  "hint": "FOMO, tilt, revenge trading, overconfidence, loss aversion, disposition effect, confirmation bias, anchoring, recency bias, hindsight bias. FINRA / SEC investor pages on behavioural biases (Tier 1), named authors and published papers (Tier 2).",
+  "n": 60
+ },
+ {
+  "id": "V.13",
+  "track": "V",
+  "title": "Process words",
+  "skill": "vocab.process_terms",
+  "hint": "Trading plan, watchlist, pre-market routine, trade journal, playbook, post-trade review, process vs outcome, win rate, average win / loss, expectancy. Named authors (Bellafiore, Steenbarger, Tendler, Annie Duke), broker education. NEVER 'the loop' (a model invented it; the owner never used it).",
+  "n": 60
+ },
+ {
+  "id": "F5.08",
+  "track": "F5",
+  "title": "Earnings Desk: real quarters",
+  "skill": "fund.earnings_desk",
+  "n": 24,
+  "hint": "Feeds the Earnings Desk game. Real, well-known quarters from 2015 to 2026 (large, liquid US companies). For each: the reported EPS and revenue from the company's own earnings release or 8-K on SEC EDGAR (Tier 1), the consensus estimate as a named outlet reported it ('analysts polled by LSEG expected ...', Reuters / AP / CNBC, Tier 2), and the stock's reaction as that outlet reported it. Questions: beat, miss or in line (mcq), the surprise in percent (numeric, calc pct_change or arith), and scenarios that teach that a beat does not guarantee a rally (guidance, expectations). Never key a reaction you cannot quote. Name the company and quarter in the question (these are dated, public facts); the reaction stays in the reveal."
+ },
+ {
+  "id": "F7.08",
+  "track": "F7",
+  "title": "History Detective",
+  "skill": "history.detective",
+  "n": 20,
+  "hint": "Feeds the History Detective game. Famous US market declines from 2000 on: 2000-02, 2008-09, August 2011, 2015-16, Q4 2018, February-March 2020, 2022. Every date, depth and cause from Tier 1 (Federal Reserve History, Fed and SEC reports, NBER) or two Tier 2 publishers. Use the contract's `chart` field for SPY (from 2000) or QQQ (from 2000) with asof on the decline's low or a key day, window 120 to 250. A member sees the chart's date axis in a lesson, so a chart question must not be answerable by reading a date: ask how deep, how long, what came next, what caused it, what the market did in the weeks after. Depths and durations only as quoted or by calc from quoted values; never read a number off the picture."
+ },
+ {
+  "id": "F7.09",
+  "track": "F7",
+  "title": "Sector leadership",
+  "skill": "history.sectors",
+  "n": 20,
+  "hint": "Feeds the Sector Race game. The 11 GICS sectors and their sector funds (State Street Select Sector SPDR pages, S&P Dow Jones Indices GICS pages, Tier 1). Which sector led or lagged in well-documented years or episodes (e.g. energy in 2022, technology in 2023, utilities and staples in defensive stretches), each from S&P Dow Jones Indices dashboards or year-end reports, or two Tier 2 publishers (Reuters, AP, Morningstar). Teach group strength before stock, rotation, defensive vs cyclical sectors. Percent returns only as quoted."
+ },
+ {
+  "id": "F12.07",
+  "track": "F12",
+  "title": "Spot the mistake",
+  "skill": "process.mistakes",
+  "n": 24,
+  "hint": "Feeds the Spot the Mistake game. Every question is a `scenario`: the story is a four-line trade plan or journal entry, each line on its own numbered sentence ('1. ... 2. ... 3. ... 4. ...'), exactly ONE line breaks a sound rule; q is 'Which line breaks the plan?' and the choices are exactly 'Line 1', 'Line 2', 'Line 3', 'Line 4'; `wrong` says why each other line is fine. The broken rules: risking more than the plan (our 2% ceiling, docs/study/sizing_rule.md owner lines, house: true), no stop, moving a stop further away, averaging down a loser, sizing before the stop, holding full size through earnings with a tight stop (gap risk, FINRA / SEC), chasing an extended stock, revenge trading after losses, a market order in a thin premarket. General rules from Tier 1 (SEC, FINRA) or two Tier 2 publishers; ours only from house pages. The right line must be clearly wrong to an experienced trader and the other three clearly fine."
+ }
+]

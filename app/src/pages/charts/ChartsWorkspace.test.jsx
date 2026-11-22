@@ -10,6 +10,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 // Mock the widget host + heavy children so we don't bring in real widget
 // internals. WidgetHost surfaces the widget type so tests can assert which
 // widgets are on the board.
+const hostReady = vi.hoisted(() => new Map())
 vi.mock('./WidgetHost', () => ({
   // `data-mounted` surfaces the S1 CP3 mount-cap prop for
   // test_board_mount_count_is_bounded_by_staggered_mount below; every other
@@ -17,7 +18,7 @@ vi.mock('./WidgetHost', () => ({
   // `data-watchkey` surfaces a watchlist widget's opts.watchKey for the A12 CP2
   // ?openWatchlist= tests below; every other test still reads only `data-testid`.
   // `data-themeset` surfaces a themes widget's opts.themeSetId for the TERM-038 ?openThemeSet= tests.
-  default: ({ widget, mounted }) => <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)} data-watchkey={widget.opts?.watchKey || ''} data-themeset={widget.opts?.themeSetId || ''}>{widget.type}</div>,
+  default: ({ widget, mounted, onPanelReady }) => { hostReady.set(widget.id, onPanelReady); return <div data-testid={`body-${widget.type}`} data-mounted={String(mounted)} data-watchkey={widget.opts?.watchKey || ''} data-themeset={widget.opts?.themeSetId || ''}>{widget.type}</div> },
 }))
 vi.mock('./mobile/MobileChartsApp', () => ({ default: () => <div data-testid="mobile-charts-app">MOBILE</div> }))
 vi.mock('./grid/MultiChartGrid', () => ({ default: () => <div data-testid="multichart-grid">GRID</div> }))
@@ -85,6 +86,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 
 import ChartsWorkspace, { uctDefaultChartSettings } from './ChartsWorkspace'
 import { MAX_BOARD_WIDGETS } from './boardBound'
+import { UCT_DEFAULT_OFFERED } from './layoutDockPins'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../components/chart/chartDefaults'
 import { withoutAdopted } from '../../components/chart/__fixtures__/adoptedAverages'
 
@@ -118,6 +120,37 @@ test('the main board mount count is bounded by PANEL_MOUNT_CAP, not by widget co
   expect(queuedNodes.length).toBe(CAP_TEST_TYPES.length - 3)
 })
 
+// Speed pass 2026-11-09: the main board queued panels behind the 5 s safety timer because nothing
+// ever released a slot, so a panel past the cap read "Loading…" for ~5 s behind a chart already up.
+const slotBoard = (types) => JSON.stringify({ widgets: types.map((type, i) => ({ id: `w${i}`, type, color: 'A', x: 0, y: i * 4, w: 6, h: 4, opts: {} })), cols: 24 })
+const queuedCount = () => document.querySelectorAll('[data-mounted="false"]').length
+test('panels with no chart in them do not wait out the chart slot timer', () => {
+  mockPrefs = { charts_workspace_layout: slotBoard(['watchlist', 'themes', 'fundamentals', 'breadth', 'indexes', 'news']) }
+  renderWS()
+  expect(queuedCount()).toBe(3)
+  act(() => { vi.advanceTimersByTime(900) })
+  expect(queuedCount()).toBe(0)
+})
+test('12 charts ready at once join the board no faster than one per 300 ms', async () => {
+  mockPrefs = { charts_workspace_layout: slotBoard(Array(12).fill('chart')) }
+  renderWS()
+  expect(queuedCount()).toBe(9)
+  await act(async () => { for (let i = 0; i < 12; i += 1) hostReady.get(`w${i}`)?.(`w${i}`) })
+  expect(queuedCount(), 'ready at once admits nobody yet').toBe(9)
+  act(() => { vi.advanceTimersByTime(299) })
+  expect(queuedCount()).toBe(9)
+  act(() => { vi.advanceTimersByTime(1) })
+  expect(queuedCount()).toBe(8)
+})
+test('CONTROL: chart panels keep their slot until they report bars, then free it', async () => {
+  mockPrefs = { charts_workspace_layout: slotBoard(['chart', 'chart', 'chart', 'watchlist', 'themes']) }
+  renderWS()
+  act(() => { vi.advanceTimersByTime(900) })
+  expect(queuedCount(), 'chart slots outlast the short timer').toBe(2)
+  await act(async () => { hostReady.get('w0')?.('w0') })
+  expect(queuedCount(), 'bars ready frees the slot at once').toBe(1)
+})
+
 // ── Toolbar navigation ──────────────────────────────────────────────────────
 // The header used to be seven flat buttons and is now two dropdowns ("Widgets ▾"
 // / "Layouts ▾") with sub-panels — and it will very plausibly be regrouped again.
@@ -136,13 +169,14 @@ function toolbarDropdownTriggers() {
   return [...header.querySelectorAll('button')].filter(b => b.parentElement?.parentElement === header)
 }
 
-/** Scoped to the <header>: the Layout Dock at the bottom of the workspace offers
- *  the same layout names as the Open Layout menu, so a document-wide search would
- *  return whichever happened to render first. */
+/** Scoped to the <header>'s own controls: the Layout Dock (the layout tabs, in the top row
+ *  since 11-16) offers the same layout names as the Open Layout menu and its own "New layout"
+ *  ＋, so its buttons are left out — dockButton() below is how a test reaches the tabs. */
 function headerButton(name) {
   const header = document.querySelector('header')
   if (!header) return null
-  return within(header).queryAllByRole('button', { name })[0] || null
+  return within(header).queryAllByRole('button', { name })
+    .find(b => !b.closest('[role="toolbar"][aria-label="Saved layouts"]')) || null
 }
 
 /** The toolbar button matching `name`, opening menus as needed. Null if nothing offers it. */
@@ -196,8 +230,8 @@ test('every workspace action a member needs is still reachable from the toolbar'
   // not be able to fail this file. Losing one outright still must.
   for (const name of [
     // Adding a widget is now the WIDGETS menu's iconified chip grid — a representative
-    // chip (Volume Surge) being reachable proves the add affordance survived.
-    /volume surge/i, /merge widgets/i, /new layout/i, /open layout/i,
+    // chip (Theme Tracker) being reachable proves the add affordance survived.
+    /theme tracker/i, /merge widgets/i, /new layout/i, /open layout/i,
     /save layout/i, /multi chart/i, /pop out layout/i,
   ]) {
     expect(toolbarButton(name), `the toolbar no longer reaches ${name}`).toBeTruthy()
@@ -210,7 +244,8 @@ test('every workspace action a member needs is still reachable from the toolbar'
 function openWidgetChips() {
   const header = document.querySelector('header')
   const before = new Set(header.querySelectorAll('button'))
-  const trigger = [...header.querySelectorAll('button')].find(b => /widgets/i.test(b.textContent))
+  // UCT Signature top row (owner 11-15): the trigger reads "Add widget" (was "Widgets")
+  const trigger = [...header.querySelectorAll('button')].find(b => /\bwidgets?\b/i.test(b.textContent) && !/merge/i.test(b.getAttribute('aria-label') || ''))
   expect(trigger, 'the toolbar has no WIDGETS menu').toBeTruthy()
   act(() => { trigger.click() })
   return [...header.querySelectorAll('button')].filter(b => !before.has(b) && !/merge/i.test(b.textContent))
@@ -252,23 +287,72 @@ test('ghost preview appears only when a widget must be adjusted — Cancel adds 
   expect(btnByText('Place'), 'ghost should be gone after Cancel').toBeFalsy()
 })
 
-test('first visit (no saved layout) applies the frozen UCT Default arrangement once prefs + templates settle', () => {
+// ── UCT Default HIDDEN (owner 11-16, layoutDockPins UCT_DEFAULT_OFFERED = false) ─────────────
+// "Users open on a blank empty workspace and create their own." The UCT Default tests below run
+// only while it is offered again; these pin the hidden behaviour.
+const onBoardCount = () => document.querySelectorAll('[data-testid^="body-"]').length
+
+test.skipIf(UCT_DEFAULT_OFFERED)('UCT Default hidden: first visit (no saved layout) opens a BLANK board, and still gets the starting look', () => {
+  mockPrefs = {}
+  renderWS()
+  expect(onBoardCount()).toBe(0)
+  // The look a brand-new member starts with is still written (TERM-010) …
+  expect(setPref.mock.calls.some(([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'))).toBe(true)
+  // … but no layout is named, and never the hidden sentinel.
+  expect(setPref.mock.calls.some(([k, v]) => k === 'charts_active_template' && String(v).includes('uct-default'))).toBe(false)
+  // The Add widget door is on the toolbar of the empty board.
+  expect(headerButton(/add widget/i)).toBeTruthy()
+})
+
+test.skipIf(UCT_DEFAULT_OFFERED)('UCT Default hidden: a member who already has chart settings lands blank and keeps them', () => {
+  mockPrefs = { chart_settings: JSON.stringify({ chartType: 'line' }) }
+  renderWS()
+  expect(onBoardCount()).toBe(0)
+  expect(setPref.mock.calls.some(([k]) => k === 'chart_settings')).toBe(false)
+})
+
+test.skipIf(UCT_DEFAULT_OFFERED)('UCT Default hidden: a member whose open layout is still uct-default is moved to a blank board, once', () => {
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify({ widgets: [{ id: 'c1', type: 'chart', color: 'A', x: 0, y: 0, w: 24, h: 20, opts: {} }], cols: 24 }),
+    charts_active_template: JSON.stringify({ id: 'uct-default', name: 'UCT Default', scope: 'global' }),
+  }
+  renderWS()
+  expect(onBoardCount()).toBe(0)
+  const layoutWrites = setPref.mock.calls.filter(([k]) => k === 'charts_workspace_layout')
+  expect(layoutWrites).toHaveLength(1)
+  expect(JSON.parse(layoutWrites[0][1]).widgets).toEqual([])
+  const activeWrites = setPref.mock.calls.filter(([k]) => k === 'charts_active_template')
+  expect(activeWrites.map(([, v]) => v)).toEqual(['null'])
+})
+
+test.skipIf(UCT_DEFAULT_OFFERED)('UCT Default hidden: neither the Open layout menu nor the dock offers it', () => {
+  mockLayouts.mine = [{ id: 42, name: 'My Setup', scope: 'user', layout: { widgets: [], cols: 24 } }]
+  renderWS()
+  clickToolbar(/open layout/i)
+  expect(headerButton(/^UCT Default$/)).toBeNull()
+  expect(headerButton(/^My Setup$/)).toBeTruthy()
+  // No firm layout published → no empty "Prebuilt" heading either.
+  expect(within(document.querySelector('header')).queryByText('Prebuilt')).toBeNull()
+  expect(document.body.textContent).not.toMatch(/UCT Default/)
+})
+
+test.runIf(UCT_DEFAULT_OFFERED)('first visit (no saved layout) applies the frozen UCT Default arrangement once prefs + templates settle', () => {
   renderWS()
   // No "chart" template exists → falls back to UCT_DEFAULT_LAYOUT: themes + chart +
-  // fundamentals + watchlist + aisearch (no scanner).
+  // watchlist (no scanner). Fundamentals + AI Search left it 2026-11-13 (hidden widgets).
   expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
   expect(screen.getByTestId('body-themes')).toBeInTheDocument()
-  expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
-  expect(screen.getByTestId('body-aisearch')).toBeInTheDocument()
+  expect(screen.queryByTestId('body-fundamentals')).not.toBeInTheDocument()
+  expect(screen.queryByTestId('body-aisearch')).not.toBeInTheDocument()
   expect(screen.queryByTestId('body-scanner')).not.toBeInTheDocument()
 })
 
-test('TERM-010: a brand-new member (no board, no chart settings) starts on the WHOLE UCT Default, look included', () => {
+test.runIf(UCT_DEFAULT_OFFERED)('TERM-010: a brand-new member (no board, no chart settings) starts on the WHOLE UCT Default, look included', () => {
   mockPrefs = {}
   renderWS()
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
-  expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
+  expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
   // The frozen look is persisted, through the same apply the Open Layout menu runs.
   const look = setPref.mock.calls.find(
     ([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'),
@@ -277,7 +361,7 @@ test('TERM-010: a brand-new member (no board, no chart settings) starts on the W
   expect(setPref.mock.calls.some(([k]) => k === 'charts_workspace_layout')).toBe(true)
 })
 
-test('TERM-010: a member who already has chart settings keeps them when their board is empty', () => {
+test.runIf(UCT_DEFAULT_OFFERED)('TERM-010: a member who already has chart settings keeps them when their board is empty', () => {
   mockPrefs = { chart_settings: JSON.stringify({ chartType: 'line' }) }
   renderWS()
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()   // the arrangement still seeds
@@ -285,7 +369,7 @@ test('TERM-010: a member who already has chart settings keeps them when their bo
     'their own chart settings must never be overwritten by a first-run default').toBe(false)
 })
 
-test('clicking "UCT Default" applies the frozen layout AND writes the frozen chart settings', () => {
+test.runIf(UCT_DEFAULT_OFFERED)('clicking "UCT Default" applies the frozen layout AND writes the frozen chart settings', () => {
   // Start from a corrupted/empty board, then open the locked default.
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
@@ -293,7 +377,7 @@ test('clicking "UCT Default" applies the frozen layout AND writes the frozen cha
   act(() => { headerButton(/^UCT Default$/).click() })
   // Frozen arrangement is on the board.
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
-  expect(screen.getByTestId('body-fundamentals')).toBeInTheDocument()
+  expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
   // The frozen chart_settings blob is persisted (header titleMode 'both').
   const chartSettingsSave = setPref.mock.calls.find(
     ([k, v]) => k === 'chart_settings' && typeof v === 'string' && v.includes('"titleMode":"both"'),
@@ -357,7 +441,7 @@ function expectEngineKeysFollowTheDefault(parsed) {
   expect(withoutAdopted(mergeChartSettings(JSON.stringify(parsed)).indicatorInstances)).toEqual([])
 }
 
-test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not the frozen capture', () => {
+test.runIf(UCT_DEFAULT_OFFERED)('site #22: "UCT Default" persists engine keys that FOLLOW the default, not the frozen capture', () => {
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
   clickToolbar(/open layout/i)
@@ -541,7 +625,7 @@ test('deleting a layout asks to confirm; Go back cancels without deleting', () =
   expect(mockLayouts.deleteLayout).not.toHaveBeenCalled()
 })
 
-test('confirming delete of the OPEN layout deletes it and falls back to UCT Default', async () => {
+test('confirming delete of the OPEN layout deletes it and falls back to the starting board', async () => {
   mockLayouts.mine = [{
     id: 42, name: 'My Setup', scope: 'user',
     layout: { widgets: [{ id: 's1', type: 'scanner', color: 'C', x: 0, y: 0, w: 8, h: 10, opts: {} }], cols: 24 },
@@ -555,11 +639,18 @@ test('confirming delete of the OPEN layout deletes it and falls back to UCT Defa
   act(() => { screen.getByRole('button', { name: '✕' }).click() })
   await act(async () => { screen.getByRole('button', { name: /^Yes$/ }).click() })
   expect(mockLayouts.deleteLayout).toHaveBeenCalledWith(42)
-  // Fell back to UCT Default: frozen layout persisted + active template cleared.
   const layoutCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_workspace_layout')
-  expect(JSON.parse(layoutCall[1]).widgets.some(w => w.type === 'chart')).toBe(true)
   const activeCall = [...setPref.mock.calls].reverse().find(([k]) => k === 'charts_active_template')
-  expect(JSON.parse(activeCall[1])).toEqual({ id: 'uct-default', name: 'UCT Default', scope: 'global' })
+  if (UCT_DEFAULT_OFFERED) {
+    // Fell back to UCT Default: frozen layout persisted + the sentinel named.
+    expect(JSON.parse(layoutCall[1]).widgets.some(w => w.type === 'chart')).toBe(true)
+    expect(JSON.parse(activeCall[1])).toEqual({ id: 'uct-default', name: 'UCT Default', scope: 'global' })
+  } else {
+    // UCT Default hidden: a BLANK board persisted, and no layout named.
+    expect(JSON.parse(layoutCall[1]).widgets).toEqual([])
+    expect(activeCall[1]).toBe('null')
+    expect(onBoardCount()).toBe(0)
+  }
 })
 
 test('first visit prefers a prebuilt template named "chart" over the starter fallback', () => {
@@ -603,8 +694,14 @@ test('restores saved workspace layout from preferences', () => {
 test('corrupted preferences blob falls back safely to the default (starter) layout', () => {
   mockPrefs = { charts_workspace_layout: '{not valid json' }
   renderWS()
-  expect(screen.getByTestId('body-chart')).toBeInTheDocument()
-  expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
+  if (UCT_DEFAULT_OFFERED) {
+    expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+    expect(screen.getByTestId('body-watchlist')).toBeInTheDocument()
+  } else {
+    expect(onBoardCount()).toBe(0)   // the blank starting board
+  }
+  // STATE-2: an unreadable stored board is never overwritten on mount.
+  expect(setPref.mock.calls.some(([k]) => k === 'charts_workspace_layout')).toBe(false)
 })
 
 test('renders MobileChartsApp (chart-first phone shell) when useMediaQuery indicates mobile', () => {
@@ -696,9 +793,21 @@ function popped(fake, type) {
   return fake.document.querySelector(`[data-testid="body-${type}"]`)
 }
 
+// The board these tests pop out. It used to be whatever first visit opened (UCT Default); first
+// visit is a blank board now (owner 11-16), so the board is stored explicitly.
+const POP_BOARD = JSON.stringify({
+  widgets: [
+    { id: 'p1', type: 'chart', color: 'A', x: 0, y: 0, w: 16, h: 20, opts: {} },
+    { id: 'p2', type: 'watchlist', color: 'A', x: 16, y: 0, w: 8, h: 10, opts: {} },
+    { id: 'p3', type: 'themes', color: 'B', x: 16, y: 10, w: 8, h: 10, opts: {} },
+  ],
+  cols: 24,
+})
+
 test('popping out the layout empties the main board and moves the widgets into the window', () => {
   const fake = makeFakeWindow()
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+  mockPrefs = { charts_workspace_layout: POP_BOARD }   // a stored board (first visit is blank now)
   try {
     renderWS()
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
@@ -718,6 +827,7 @@ test('popping out the layout empties the main board and moves the widgets into t
 test('closing a popped-out layout docks its widgets back into the main board', () => {
   const fake = makeFakeWindow()
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+  mockPrefs = { charts_workspace_layout: POP_BOARD }   // a stored board (first visit is blank now)
   try {
     renderWS()
     clickToolbar(/pop out layout/i)
@@ -734,6 +844,7 @@ test('a blocked popup leaves the board intact instead of losing the layout', () 
   // window.open returns null when blocked. Without the dock-on-blocked path the
   // widgets would have been cleared off main with nowhere to have gone.
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
+  mockPrefs = { charts_workspace_layout: POP_BOARD }   // a stored board (first visit is blank now)
   try {
     renderWS()
     clickToolbar(/pop out layout/i)
@@ -752,14 +863,16 @@ test('pop out layout is disabled while the board is empty', () => {
 test('a popped-out layout is not disturbed by opening a different layout on the main tab', () => {
   const fake = makeFakeWindow()
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
+  mockPrefs = { charts_workspace_layout: POP_BOARD }   // a stored board (first visit is blank now)
+  mockLayouts.mine = [{ id: 77, name: 'Second board', scope: 'user', layout: { widgets: [{ id: 'q1', type: 'chart', color: 'A', x: 0, y: 0, w: 24, h: 20, opts: {} }], cols: 24 } }]
   try {
     renderWS()
     clickToolbar(/pop out layout/i)
     expect(popped(fake, 'chart')).toBeTruthy()
 
-    // Load a fresh layout into the now-blank main tab.
+    // Load a fresh layout into the now-blank main tab (a saved one: UCT Default is hidden).
     clickToolbar(/open layout/i)
-    act(() => { headerButton(/^UCT Default$/).click() })
+    act(() => { headerButton(/^Second board$/).click() })
 
     // Main has its own board again...
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
@@ -815,8 +928,10 @@ test('?ensure=themes is idempotent — a themes widget already on the saved layo
 
 test('?ensure=themes on a brand-new member (no saved layout at all) still yields exactly one themes widget', () => {
   // No charts_workspace_layout in prefs -> the pre-existing "first visit"
-  // effect also fires and applies UCT_DEFAULT_LAYOUT, which already contains
-  // a themes widget. The ensure-effect must not race that into a duplicate.
+  // effect also fires. While UCT Default was offered it applied UCT_DEFAULT_LAYOUT
+  // (which contains a themes widget — no duplicate allowed); with it hidden the
+  // board starts blank and the first-visit apply must NOT wipe the seeded widget
+  // (applyUctDefault keepBoard). Exactly one either way.
   mockPrefs = {}
   goTo('/charts?ensure=themes')
   renderWS()
@@ -991,7 +1106,7 @@ test('?openShared=<token> for a dead link (404) degrades — no crash, no widget
   expect(document.querySelectorAll('[data-testid^="body-"]').length).toBe(0)
 })
 
-/** A layout button on the bottom Layout Dock (not the Open-layout menu). */
+/** A layout tab on the Layout Dock in the top row (not the Open-layout menu). */
 function dockButton(name) {
   const dock = document.querySelector('[role="toolbar"][aria-label="Saved layouts"]')
   if (!dock) return null
@@ -1150,6 +1265,91 @@ test('auto-save still persists a board that grew', async () => {
   expect(saved.layout.widgets.map(w => w.id).sort()).toEqual(['w1', 'w2'])
 })
 
+// ── The layout tabs in the top row (owner 11-16) ──────────────────────────────
+// The bottom rail is gone: the pinned tabs sit in the header right after the layout name,
+// the library is a row in the Layouts menu, and the save state is a quiet dot by the name.
+function tabsSetup(stored) {
+  const board = { widgets: [{ i: 'w1', id: 'w1', type: 'chart', x: 0, y: 0, w: 12, h: 10 }], cols: 24 }
+  mockPrefs = {
+    charts_workspace_layout: JSON.stringify(board),
+    charts_active_template: JSON.stringify({ id: 1, name: 'Main Trading', scope: 'user' }),
+  }
+  mockLayouts = {
+    global: [],
+    mine: [
+      { id: 1, name: 'Main Trading', scope: 'user', layout: stored || board },
+      { id: 2, name: 'Breadth', scope: 'user', layout: { widgets: [], cols: 24 } },
+    ],
+    isLoading: false,
+    saveLayout: vi.fn(async () => ({})),
+    deleteLayout: vi.fn(async () => {}),
+  }
+}
+const saveDot = () => screen.queryByTestId('layout-save-state')
+
+test('the layout tabs sit in the top row, FIRST (browser-style, owner 11-16 option A) — no rail under the board', () => {
+  tabsSetup()
+  renderWS()
+  const header = document.querySelector('header')
+  const bar = document.querySelector('[role="toolbar"][aria-label="Saved layouts"]')
+  expect(bar).toBeTruthy()
+  expect(header.contains(bar)).toBe(true)
+  expect(bar).toHaveAttribute('data-guide', 'workspace.layouts')
+  // tabs first, then the small ▾ layouts menu, then + Add widget
+  const nameBtn = header.querySelector('[data-guide="workspace.layoutsMenuBtn"]')
+  const addBtn = header.querySelector('[data-guide="workspace.widgets"]')
+  expect(bar.compareDocumentPosition(nameBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(nameBtn.compareDocumentPosition(addBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(bar.compareDocumentPosition(addBtn) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  // exactly one bar, and nothing of it after the board
+  expect(document.querySelectorAll('[role="toolbar"][aria-label="Saved layouts"]').length).toBe(1)
+  const main = document.querySelector('main')
+  expect(main.compareDocumentPosition(bar) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  expect(dockButton('Main Trading')).toHaveAttribute('aria-current', 'true')
+  expect(within(bar).getByRole('button', { name: 'New layout' })).toBeTruthy()
+})
+
+test('the Layouts menu offers "Layout library…" (workspace.layoutLibrary), and it opens the library', () => {
+  tabsSetup()
+  renderWS()
+  expect(document.querySelector('[data-guide="workspace.layoutLibrary"]')).toBeNull()
+  act(() => { document.querySelector('[data-guide="workspace.layoutsMenuBtn"]').click() })
+  const row = document.querySelector('[data-guide="workspace.layoutsMenu"] [data-guide="workspace.layoutLibrary"]')
+  expect(row).toBeTruthy()
+  expect(row.textContent).toMatch(/Layout library…/)
+  act(() => { row.click() })
+  const lib = screen.getByRole('menu', { name: 'Layout library' })
+  expect(lib).toHaveAttribute('data-guide', 'workspace.layoutLibraryMenu')
+  expect(within(lib).getByRole('menuitem', { name: 'Breadth' })).toBeTruthy()
+  expect(document.querySelector('[data-guide="workspace.layoutsMenu"]')).toBeNull()
+})
+
+test('save state: a clean layout that saves itself paints NOTHING in the header — the open tab says it (owner 11-16, top-bar option 2)', () => {
+  tabsSetup()
+  renderWS()
+  expect(screen.queryByTestId('layout-save-state')).toBeNull()
+  // the old resting words are not painted anywhere (only the dot's screen-reader text)
+  expect([...document.querySelectorAll('*')].some(n => n.childNodes.length === 1 && n.textContent === 'Saves automatically' && !n.classList.contains('sr-only'))).toBe(false)
+})
+
+test('save dot: "Saving…" while the auto-save is pending, "Couldn’t save — retry" when it is refused, and retry saves again', async () => {
+  tabsSetup({ widgets: [], cols: 24 })   // stored is empty, so the live board is dirty
+  mockLayouts.saveLayout = vi.fn(async () => { throw new Error('nope') })
+  renderWS()
+  expect(saveDot()).toHaveAttribute('data-state', 'saving')
+  expect(saveDot().textContent).toMatch(/Saving…/)
+  act(() => { vi.advanceTimersByTime(400) })
+  await act(async () => { for (let i = 0; i < 8; i++) await Promise.resolve() })
+  expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)
+  expect(saveDot()).toHaveAttribute('data-state', 'failed')
+  const retry = within(saveDot()).getByRole('button', { name: /Couldn’t save — retry/ })
+  mockLayouts.saveLayout = vi.fn(async () => ({}))
+  act(() => { retry.click() })
+  await act(async () => { for (let i = 0; i < 8; i++) await Promise.resolve() })
+  expect(mockLayouts.saveLayout).toHaveBeenCalledWith(expect.objectContaining({ name: 'Main Trading' }))
+  expect(saveDot().getAttribute('data-state')).not.toBe('failed')
+})
+
 // ── TERM-001 — the board-size bound ─────────────────────────────────────────
 // The number is boardBound.json's (read through boardBound.js); these tests read it from
 // there and never type it, so moving the bound moves every expectation below.
@@ -1260,12 +1460,12 @@ test('TERM-001: a saved layout over the bound does not replace a smaller board, 
 describe('UCT News in the WIDGETS menu, for every signed-in role', () => {
   const chip = (type) => document.querySelector(`[data-guide="workspace.widgets.${type}"]`)
   const openWidgets = () => {
-    const trigger = [...document.querySelector('header').querySelectorAll('button')].find(b => /widgets/i.test(b.textContent))
+    const trigger = [...document.querySelector('header').querySelectorAll('button')].find(b => b.dataset.guide === "workspace.widgets")  // "Add widget" (UCT Signature top row, owner 11-15)
     act(() => { trigger.click() })
   }
 
   for (const role of ['user', 'admin']) {
-    test(`a ${role} sees UCT News next to News & Catalysts under Research, and can add it`, () => {
+    test(`a ${role} sees UCT News under Research (News & Catalysts hidden), and can add it`, () => {
       localStorage.removeItem('uct.nb.capture.enabled')
       mockUser = { id: role === 'admin' ? 1 : 42, role }
       mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
@@ -1275,10 +1475,8 @@ describe('UCT News in the WIDGETS menu, for every signed-in role', () => {
       expect(news, `a ${role} is not offered UCT News`).toBeTruthy()
       expect(news.textContent).toBe('News')
       expect(news.disabled).toBe(false)
-      // The legacy per-stock widget is still offered, unchanged, beside it.
-      expect(chip('news')?.textContent).toBe('News & Catalysts')
-      const group = news.closest('[class*="wAddGroup"]')
-      expect(group.contains(chip('news')), 'both live in the same (Research) group').toBe(true)
+      // Owner 2026-11-13: the legacy per-stock News & Catalysts widget is hidden.
+      expect(chip('news'), 'News & Catalysts is a hidden widget').toBeNull()
 
       act(() => { news.click() })
       expect(screen.getByTestId('body-tradeExchangeNews')).toBeInTheDocument()

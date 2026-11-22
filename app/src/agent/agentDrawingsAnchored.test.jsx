@@ -14,7 +14,6 @@ import { routeManifest } from './routing'
 import { resolveDateWord, dayWord } from './dateWords'
 import { setupPanel, TWO } from './testing/panelHarness'
 import * as store from '../components/chart/drawingsStore'
-import { ET_OFFSET } from '../components/chart/barTime'
 import { UCT_DRAW_GOLD } from '../components/chart/drawingColors'
 
 vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: () => null }))
@@ -133,7 +132,7 @@ describe('drawing.addTrendline — the toolbar\'s own trendline, placed from two
     expect(await refuse(h, 'drawing.addTrendline', { ...ok, from: pt('2026-10-01', 0) })).toMatch(/isn't a price/)
     expect(await refuse(h, 'drawing.addTrendline', { ...ok, to: pt('2026-10-01', 10) })).toMatch(/two points are the same/)
     expect(await refuse(h, 'drawing.addTrendline', { from: pt('2026-10-14', 10), to: pt('2026-10-01', 12), color: null, style: null })).toMatch(/is before the first .* time order/)
-    expect(await refuse(h, 'drawing.addTrendline', { ...ok, color: 'sparkly' })).toMatch(/isn't a colour/)
+    expect(await refuse(h, 'drawing.addTrendline', { ...ok, color: 'sparkly' })).toMatch(/isn't a color/)
     const { p, env } = await plan(h, [op('drawing.addTrendline', ok)])
     await commitPlan(h, p, { env })
     expect(await refuse(h, 'drawing.addTrendline', ok)).toMatch(/already a trendline between those two points/)
@@ -145,7 +144,7 @@ describe('drawing.addTrendline — the toolbar\'s own trendline, placed from two
     expect(p.ok).toBe(true)
     await commitPlan(h5, p, { env })
     const [d] = drawings()
-    expect(d.points.map(x => x.time)).toEqual([Date.UTC(2026, 9, 15, 13, 30) / 1000 + ET_OFFSET, Date.UTC(2026, 9, 16, 13, 30) / 1000 + ET_OFFSET])
+    expect(d.points.map(x => x.time)).toEqual([Date.UTC(2026, 9, 15, 13, 30) / 1000, Date.UTC(2026, 9, 16, 13, 30) / 1000])   // RAW unix 09:30 EDT
     expect(await refuse(h5, 'drawing.addTrendline', { from: pt('2026-10-15', 1), to: pt('2999-10-16', 2), color: null, style: null })).toMatch(/future/)
     SYM = `${SYM}W`
     const hw = host({ tf: 'W' })

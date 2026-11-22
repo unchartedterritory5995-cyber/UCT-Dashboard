@@ -1,0 +1,194 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "M1-typed-colour-param",
+   "mutant": "a parameter declared `color` is not marked a colour",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "const colourParam = !atObjectDoor && ((pty && pty.kind === 'colour')",
+   "to": "const colourParam = !atObjectDoor && ((false)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "compiles and paints"
+  },
+  {
+   "id": "M2-method-call-colour",
+   "mutant": "a method in the dotted form is not read as the call it rewrites to",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "if (mc && typeof mc.name === 'string' && fnByName.has(mc.name)) return holdsColour(mc, scope)",
+   "to": "if (mc && typeof mc.name === 'string' && fnByName.has(mc.name)) return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "compiles and paints"
+  },
+  {
+   "id": "M3-colour-specialisation-off",
+   "mutant": "no per-call-site copy for an untyped colour parameter",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (atObjectDoor || inRequestValue || !held || held.guard !== 'runtime:colour') return null",
+   "to": "    if (true) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "two call sites, two colours"
+  },
+  {
+   "id": "M4-colourParams-not-named",
+   "mutant": "the colour refusal does not name its untyped parameter",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (ps.length) err.colourParams = [...new Set(ps)]",
+   "to": "    if (false) err.colourParams = [...new Set(ps)]",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "two call sites, two colours"
+  },
+  {
+   "id": "M5-colour-ctor-not-pointwise",
+   "mutant": "a colour constructor in a held helper body reads as history",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (!atObjectDoor && Object.prototype.hasOwnProperty.call(COLOUR_FNS, v) && !definedNames.has(v)) return true",
+   "to": "    if (false) return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "is pointwise"
+  },
+  {
+   "id": "M6-var-color-result",
+   "mutant": "a helper ending in a reassigned var color is not a colour",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "                || (!atObjectDoor && !!bound && bound.kind === 'ident' && colourTypedNames.has(String(bound.value)))",
+   "to": "                || false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "reassigns is a colour"
+  },
+  {
+   "id": "M7-iff-colour-arms",
+   "mutant": "v4 iff with colour arms is not a colour",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (!atObjectDoor && node.type === 'call' && node.name === 'iff' && pineVersion !== null && pineVersion < 5\n      && !definedNames.has('iff')",
+   "to": "    if (false && node.type === 'call' && node.name === 'iff' && pineVersion !== null && pineVersion < 5\n      && !definedNames.has('iff')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "answer bar by bar"
+  },
+  {
+   "id": "M8-offset-is-colour",
+   "mutant": "a colour history read is not a colour",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "    if (!atObjectDoor && node.type === 'offset') return holdsColour(node.arg, scope)",
+   "to": "    if (false) return holdsColour(node.arg, scope)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "answer bar by bar"
+  },
+  {
+   "id": "M9-colour-history-commit",
+   "mutant": "a colour history read is not committed on its line",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        if (!atObjectDoor && holdsColour(node.arg, scope)) {\n          const hoisted = hoistCommittedSeries(node.arg, scope, 'colour history')",
+   "to": "        if (false) {\n          const hoisted = hoistCommittedSeries(node.arg, scope, 'colour history')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "answer bar by bar"
+  },
+  {
+   "id": "M10-route-colour-fallthrough",
+   "mutant": "a pure colour subtree stays with the columnar refusal",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        const colourHere = !atObjectDoor && e && e.guard === 'pine:colour-value' && touchesColour(node, scope)",
+   "to": "        const colourHere = false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "answer bar by bar"
+  },
+  {
+   "id": "M11-na-compare-served",
+   "mutant": "a colour against the literal na is served",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (isBuiltinNa(node.left, scope) || isBuiltinNa(node.right, scope)) {\n            note('runtime:colour')",
+   "to": "          if (false) {\n            note('runtime:colour')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "against the literal"
+  },
+  {
+   "id": "M12-fractional-served",
+   "mutant": "== over a fractional transparency is served",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (fractionalColourIn(node.left, scope) || fractionalColourIn(node.right, scope)) {",
+   "to": "          if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "fractional one is refused"
+  },
+  {
+   "id": "M13-other-operator-served",
+   "mutant": "an ordering operator over colours is served",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "          if (node.op !== '==' && node.op !== '!=') {\n            note('runtime:colour')",
+   "to": "          if (false) {\n            note('runtime:colour')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "any other operator over a colour"
+  },
+  {
+   "id": "M14-mintick-branch-off",
+   "mutant": "format.mintick is refused on the runtime lane again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            if (!atObjectDoor && f && f.type === 'name' && f.name === 'format.mintick'",
+   "to": "            if (false && f && f.type === 'name' && f.name === 'format.mintick'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js src/components/chart/engine/__tests__/vendorHarness/vendorHarness.cbcLiteralText.test.js",
+   "expectRed": "RDDT (NYSE, tick 0.01)"
+  },
+  {
+   "id": "M15-mintick-guessed-tick",
+   "mutant": "an unsettled tick is guessed as 0.01",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "              const tick = typeof bindConsts['syminfo.mintick'] === 'string' ? bindConsts['syminfo.mintick'] : ''",
+   "to": "              const tick = typeof bindConsts['syminfo.mintick'] === 'string' ? bindConsts['syminfo.mintick'] : '0.01'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js src/components/chart/engine/__tests__/vendorHarness/vendorHarness.cbcLiteralText.test.js",
+   "expectRed": "no symbol, no witnessed tick"
+  },
+  {
+   "id": "M16-patterned-off",
+   "mutant": "a written pattern with text is refused again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "            if (!atObjectDoor && f && f.type === 'string' && tostringPatternOf(String(f.value)) !== null",
+   "to": "            if (false && f && f.type === 'string' && tostringPatternOf(String(f.value)) !== null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "RDDT (NYSE, tick 0.01)"
+  },
+  {
+   "id": "M17-tick-why-wrong",
+   "mutant": "an unsettled tick is named a tie",
+   "file": "app/src/components/chart/engine/pineTextFormat.js",
+   "from": "  if (typeof tickText !== 'string' || !/^\\d+(\\.\\d+)?$/.test(tickText) || !(Number(tickText) > 0)) return 'format:tick-unsettled'",
+   "to": "  if (false) return 'format:tick-unsettled'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js src/components/chart/engine/__tests__/vendorHarness/vendorHarness.cbcLiteralText.test.js",
+   "expectRed": "no symbol, no witnessed tick"
+  },
+  {
+   "id": "M18-host-method-colour-off",
+   "mutant": "the host object reader does not open a read method",
+   "file": "app/src/components/chart/engine/ast/pine.js",
+   "from": "      if (!bound && plain && splitMethodName(node.name)) {",
+   "to": "      if (false) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/tcMethodColour.test.js src/components/chart/engine/__tests__/vendorHarness/vendorHarness.tcTextColour.test.js",
+   "expectRed": "reads exactly as"
+  },
+  {
+   "id": "M19-runtime-text-op-number",
+   "mutant": "the tick text op prints the raw number",
+   "file": "app/src/components/chart/engine/runtime/text.js",
+   "from": "    fn: (v, tick) => (typeof v === 'string' ? v : typeof v === 'number' ? runTickText(v, tick) : ''),",
+   "to": "    fn: (v, tick) => (typeof v === 'string' ? v : typeof v === 'number' ? String(v) : ''),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js src/components/chart/engine/__tests__/vendorHarness/vendorHarness.cbcLiteralText.test.js",
+   "expectRed": "RDDT (NYSE, tick 0.01)"
+  },
+  {
+   "id": "M20-differential-colour-new-off-by-one",
+   "mutant": "the runtime color.new paints transparency + 1",
+   "file": "app/src/components/chart/engine/runtime/colours.js",
+   "from": "    fn: (a) => (Number.isNaN(Number(a[0])) || Number.isNaN(Number(a[1])) ? NaN : withTransparency(a[0], a[1])),",
+   "to": "    fn: (a) => (Number.isNaN(Number(a[0])) || Number.isNaN(Number(a[1])) ? NaN : withTransparency(a[0], a[1] + 1)),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/tcTextColour.test.js",
+   "expectRed": "a v6 palette constant at a literal transparency"
+  },
+  {
+   "id": "M21-colour-cycle-guard-off",
+   "mutant": "the colour walker follows a binding it is already reading",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "      if (!bound || bound.kind !== 'expr' || colourNamesInFlight.has(node.name)) return false",
+   "to": "      if (!bound || bound.kind !== 'expr') return false",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/b0NaSeed.test.js",
+   "expectRed": "Maximum call stack"
+  }
+ ]
+}

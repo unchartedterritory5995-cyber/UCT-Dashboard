@@ -1,0 +1,50 @@
+//@version=6
+indicator("UCTPROBE_VW_W4_INT_DIV_WINDOW", overlay = false)
+
+// PROVENANCE: written 2026-11-03 for the Pine parity programme, W4-T17 (docs/pine/W4-BREAKDOWN.md
+// section T17), capture row W4-D1. NEVER COMPILED ON TRADINGVIEW: a line that does not compile
+// IS a reading - record its text and delete only that line, then capture the rest.
+//
+// QUESTION: what does an integer division ('/' between two ints) mean as a WINDOW LENGTH or a
+// history OFFSET, per Pine version and per operand qualifier (literal / const / input.int)?
+//   v4, v5: '/' on two int constants was documented to give a float; a length given a float
+//           is truncated or rounded - the capture says which.
+//   v6    : the migration guide says int/int is a true division returning a fraction.
+// Each division row sits beside its two integer neighbours so the candidate rules read as a
+// different NUMBER, never as a hidden fold:
+//   9/2 = 4.5   truncate -> wma(4)   round-half-up -> wma(5)   (the two controls below)
+//   21/2 = 10.5 truncate 10, round 11; the offset rows add 1: close[10.5+1]
+// CAPTURE: AMEX:SPY 1D, then NYSE:RDDT 1D, inputs at defaults (len = 9, dlen = 21).
+// READ: for each R row, which control (C row) it equals on every bar past the warm-up. A row
+// equal to NEITHER is a third rule (record it). 'na' on every bar = the call was rejected at
+// runtime. R rows named *_INPUT use an input operand; *_CONST a const; *_LIT a literal.
+
+len  = input.int(9,  "len")
+dlen = input.int(21, "dlen")
+const int CLEN = 9
+const int CDLEN = 21
+
+plot(bar_index, "A00_bar_index_CONTROL")
+
+// controls: the integer windows and offsets the division could mean
+plot(ta.wma(close, 4),  "C01_wma_4")
+plot(ta.wma(close, 5),  "C02_wma_5")
+plot(close[10],         "C03_close_10")
+plot(close[11],         "C04_close_11")
+plot(close[12],         "C05_close_12")
+
+// literal division
+plot(ta.wma(close, 9 / 2),    "R01_wma_LIT_9div2")
+plot(close[21 / 2 + 1],       "R02_offset_LIT_21div2p1")
+// const division
+plot(ta.wma(close, CLEN / 2), "R03_wma_CONST_len_div2")
+plot(close[CDLEN / 2 + 1],    "R04_offset_CONST_dlen_div2p1")
+// input.int division (the HMA / DPO shape: length / 2)
+plot(ta.wma(close, len / 2),  "R05_wma_INPUT_len_div2")
+plot(close[dlen / 2 + 1],     "R06_offset_INPUT_dlen_div2p1")
+// the HMA and DPO bodies, written as the built-ins write them
+plot(ta.wma(2 * ta.wma(close, len / 2) - ta.wma(close, len), math.round(math.sqrt(len))), "R07_hma_shape_INPUT")
+plot(close - ta.sma(close, dlen)[dlen / 2 + 1], "R08_dpo_shape_INPUT")
+// integer-only forms that must not depend on the rule (negative control for the fold)
+plot(ta.wma(close, 8 / 2),    "R09_wma_LIT_8div2_exact")
+plot(ta.wma(close, 4),        "R10_wma_4_same_as_C01")

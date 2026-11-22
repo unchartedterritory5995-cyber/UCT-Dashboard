@@ -363,6 +363,7 @@ export function yieldsOf(node, rules) {
     case 'sym':
     case 'ltf':
     case 'tf_live':
+    case 'tf_merge':
     case 'tf':
       // ⭐ NONE OF THEM CHANGES *WHAT*. A higher-timeframe read changes WHEN the value
       // comes from and a symbol read changes WHERE — `tf(close >
@@ -939,6 +940,35 @@ function renderOp(node, rules, inputs, depth, path, trace) {
     `operator ${name}`, path)
 }
 
+// ─── ⭐ engine 81 (studio, 2026-11-18) — A BAR-FIELD ARGUMENT IS NAMED BY ITS ROLE ────
+//
+// `stoch`, `atr`, `adx`, `cci`, the DI pair, `williamsR`, `mfi` and the Donchian and Ichimoku lines
+// take the bar's fields BY POSITION (high, low, close, then volume), and their phrases list the
+// arguments in that order: "the 14-bar stochastic %K of {0}, {1} and {2}".
+//
+// ⚰️ So `stoch(close, high, low, 14)` (another vendor's order, written from habit) read "the 14-bar
+// stochastic %K of the close, the high and the low": a natural sentence about a formula that
+// computes a different number on every bar. Nothing in the read-back said an argument was in the
+// wrong place, and members were shown that sentence as what they had asked for.
+//
+// Now: when those arguments are exactly the bar's own fields in the table's order, the sentence is
+// what it always was, byte for byte. When they are anything else, each is named by the place it
+// fills: "the 14-bar stochastic %K of highs from the close, lows from the high and closes from the
+// low". A deliberate formula (a stochastic OF an RSI) reads as what it is, and a slip reads wrong.
+// The roles are the manifest's own `argRoles`. A role that is one of the manifest's SERIES names
+// is a bar field, and is said as that name in the plural ("highs", "closes", "volumes"): no field
+// name is typed here.
+/** The leading bar-field roles of a function rule (two or more, each once), else null. */
+export function barFieldLead(rule, rules) {
+  const lead = []
+  for (const role of rule.argRoles || []) {
+    if (!own(rules.series, role)) break
+    lead.push(role)
+  }
+  return lead.length >= 2 && new Set(lead).size === lead.length ? lead : null
+}
+const isBareField = (arg, field) => !!arg && typeof arg === 'object' && arg.type === 'series' && arg.name === field
+
 function renderCall(node, rules, inputs, depth, path, trace) {
   const name = node.name
   if (typeof name !== 'string' || !own(rules.functions, name)) {
@@ -961,6 +991,10 @@ function renderCall(node, rules, inputs, depth, path, trace) {
     parts.push(rule.args[i] === 'int'
       ? spellWindow(node.args[i], name, i, childPath, trace, (rule.argRoles || [])[i] || null)
       : renderArg(node.args[i], rules, inputs, depth, childPath, trace))
+  }
+  const lead = barFieldLead(rule, rules)
+  if (lead && !lead.every((field, i) => isBareField(node.args[i], field))) {
+    for (let i = 0; i < lead.length; i++) parts[i] = `${lead[i]}s from ${parts[i]}`
   }
   return fill(rule.phrase, parts, `function ${name}`, path)
 }
@@ -1032,8 +1066,13 @@ function renderTf(node, rules, inputs, depth, path, trace) {
   // trust. A shared phrase would have made a repainting column indistinguishable
   // from a settled one in the sentence a member reads.
   const live = node.type === 'tf_live'
-  trace.push({ path, rule: live ? 'tf_live' : 'tf' })
+  // ⭐ ENGINE 55 — Pine's merged read (`tf_merge`) says WHICH BAR shows the period's
+  // value, because that is the one thing that separates it from `tf`: the period's
+  // value appears on the bar that closes it. A shared phrase would read back as `tf`.
+  const merge = node.type === 'tf_merge'
+  trace.push({ path, rule: live ? 'tf_live' : merge ? 'tf_merge' : 'tf' })
   const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
+  if (merge) return `${inner} on the ${word} timeframe, from the bar that closes each ${TF_LIVE_NOUN[String(node.value)]}`
   return live
     ? `${inner} so far this ${liveNoun}`
     : `${inner} on the ${word} timeframe`
@@ -1114,6 +1153,7 @@ function renderNode(node, rules, inputs, depth, path, trace) {
       return renderOffset(node, rules, inputs, depth, path, trace)
     case 'tf':
     case 'tf_live':
+    case 'tf_merge':
       return renderTf(node, rules, inputs, depth, path, trace)
     case 'sym':
       return renderSym(node, rules, inputs, depth, path, trace)

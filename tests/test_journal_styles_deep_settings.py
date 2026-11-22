@@ -29,6 +29,13 @@ UID = "u-deep-1"
 OTHER = "u-deep-2"
 
 
+#: Deep enough that pydantic-core refuses it on EVERY platform. ⚰️ These used 96, the reviewer's depth, which
+#: refuses only on Windows: pydantic-core's serialisation depth guard is about 99 there and 255 elsewhere, so on
+#: a Linux runner the CONTROL below did not raise and the seeded "unservable" rows were servable anyway (first full
+#: backend run, PR #1855). The reviewer's own 289-byte body keeps its 96: the cap refuses it on any OS.
+UNSERVABLE_DEPTH = 300
+
+
 def nested_list(depth: int) -> list:
     """A list nested `depth` deep (the outermost counts 1): [[[...]]]."""
     v: list = []
@@ -67,7 +74,6 @@ def db_path(monkeypatch):
 
 @pytest.fixture
 def client(db_path, monkeypatch):
-    monkeypatch.setenv(js.FLAG, "1")
     from api.routers import notebook_journal_styles as r
     app = FastAPI()
     app.include_router(r.router)
@@ -148,7 +154,7 @@ def test_every_verbatim_branch_takes_the_one_depth_check():
 
 # ── the read-side guard: a row stored BEFORE the cap ──────────────────────────────────────────────
 
-def _seed_deep_row(depth: int = 96) -> str:
+def _seed_deep_row(depth: int = UNSERVABLE_DEPTH) -> str:
     """A style row written straight into the temp DB, as one stored before the cap was: a `zzfuture` block whose
     settings nest `depth + 1` deep, beside an ordinary block."""
     made = js.create_style(UID, {"name": "Old", "kindId": "weekend_prep",
@@ -190,7 +196,7 @@ def test_CONTROL_the_seeded_row_is_the_failure_it_stands_for():
     """Without the guard, the seeded value is what 500ed: FastAPI's own serialisation refuses it."""
     from fastapi.encoders import jsonable_encoder  # noqa: F401 -- the import the route answer path uses
     from pydantic_core import to_jsonable_python
-    deep = {"style": {"blocks": [{"settings": {"x": nested_list(96)}}]}}
+    deep = {"style": {"blocks": [{"settings": {"x": nested_list(UNSERVABLE_DEPTH)}}]}}
     with pytest.raises(ValueError):
         to_jsonable_python(deep)
     shallow = {"style": {"blocks": [{"settings": settings_of_depth(CAP, "list")}]}}
@@ -199,7 +205,7 @@ def test_CONTROL_the_seeded_row_is_the_failure_it_stands_for():
 
 # ── W11-R67: the served {} of a stored deep LEGACY block is not an edit ────────────────────────────────────────────
 
-def _seed_deep_block(bid: str, depth: int = 96) -> tuple[str, object]:
+def _seed_deep_block(bid: str, depth: int = UNSERVABLE_DEPTH) -> tuple[str, object]:
     """A style written straight into the temp DB with a `chart` block and `bid` holding settings `depth + 1` deep, as
     a row stored before the cap (on master `routine_a` and `built_a` are unknown ids kept verbatim; `bad id!` is an
     id the grammar refuses). Returns (style id, the stored deep settings)."""

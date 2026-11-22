@@ -172,7 +172,7 @@ REL_TOL = 1e-9
 #: lane — it is NOT COMPUTABLE on every bar, and the case that carries it is an
 #: `_allNaN` row: what the two lanes must agree on is exactly that.
 CANONICAL_NODE_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
-                        "ltf")
+                        "ltf", "tf_merge")
 
 #: LANE-NATIVE ESCAPE PROBES -- the control that keeps "it errored" from reading
 #: as "it was safe". The must-refuse corpus names JS reaches (`toString`,

@@ -63,45 +63,12 @@
 import { printFormula } from '../engine/ast/pine.js'
 import { parseFormula, astHash } from '../engine/ast/parse.js'
 import { treesHash } from '../engine/ast/trees.js'
+import { getTree, readAt, literalValueOf } from '../engine/paramLiteral.js'
 
 const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
-function getTree(definition, treeIndex) {
-  const compute = definition.compute || {}
-  return treeIndex === null ? compute.ast : (compute.trees || {})[treeIndex]
-}
-
-/** Pure JSON read (never a parser) at an astPath — mirrors `param_manifest
- *  .py::_walk` exactly, key for key, so the two independently-written
- *  readers agree on what "args, then index 1" means by construction.
- *  Returns `undefined` if the path does not resolve. */
-function readAt(node, path) {
-  let cur = node
-  for (const step of path) {
-    if (typeof step === 'number') {
-      if (!Array.isArray(cur) || step < 0 || step >= cur.length) return undefined
-      cur = cur[step]
-    } else {
-      if (!isPlainObject(cur)) return undefined
-      cur = cur[step]
-    }
-  }
-  return cur
-}
-
-/** A resolved node's value IFF it is a plain numeric literal — mirrors
- *  `param_manifest.py::_literal_value` exactly (both shapes: a wrapped
- *  `{type:'num', value}` node, or the offset-node bare-number shape, kept
- *  here for parity even though `pineParamManifest.js` never emits a locator
- *  ending there today — see `paramEdit.js`'s own header on that gap). */
-function literalValueOf(node) {
-  let v
-  if (isPlainObject(node) && node.type === 'num') v = node.value
-  else if (typeof node === 'number') v = node
-  else return null
-  if (typeof v !== 'number' || !Number.isFinite(v)) return null
-  return v
-}
+// ⭐ DIV-4 — the locator read moved to a leaf (`engine/paramLiteral.js`), unchanged,
+// so the registry asks the same reader; imported here under the same names.
 
 export const ATTACHED = 'attached'
 export const DETACHED = 'detached'

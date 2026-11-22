@@ -362,6 +362,14 @@ class _VisionStub:
 def vision_ledger(monkeypatch):
     monkeypatch.setattr(cost_guard, "may_member_spend", lambda d: True)
     monkeypatch.setattr(cost_guard, "record", lambda *a, **k: 0.01)
+    # ⭐ 2026-11-17 -- THE RESERVATION DOOR, WHICH THIS STAND-IN NEVER LEARNED. Since 2026-11-05 the
+    # picture door reserves its worst case before the call (`reserve_member_call`) and settles or
+    # releases it after; with no real ledger behind this fixture the reservation raised, the door
+    # refused at `vision:spend-cap`, and the four cases below read `KeyError: 'refused'` for twelve
+    # days. The stand-in admits the call and settles it, as the real ledger does with room.
+    monkeypatch.setattr(cost_guard, "reserve_member_call", lambda *a, **k: {"id": 1})
+    monkeypatch.setattr(cost_guard, "settle_member_call", lambda *a, **k: 0.01)
+    monkeypatch.setattr(cost_guard, "release_member_call", lambda *a, **k: None)
 
 
 def _candidates(*trees):

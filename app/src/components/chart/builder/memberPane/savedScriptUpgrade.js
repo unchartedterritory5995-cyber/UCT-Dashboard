@@ -60,13 +60,19 @@
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { runtimePaneBuilt } from '../../engine/runtimePaneGate'
 import {
-  SCRIPT_ENGINE_VERSION, isStaleStamp, withEngineStamp,
+  SCRIPT_ENGINE_VERSION, isStaleStamp, withEngineStamp, PINE_IMPORT_HELD_SENTENCE,
 } from '../../engine/scriptEngineVersion'
+import { pineImportHeld } from '../../engine/pineImportHold'
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 /** Is this a document a Pine SCRIPT door wrote (the member pane, or a hand edit
  *  of one, which carries its stamps)? Only these can be translated again. */
+/** A stored RUNTIME document (`compute.kind === 'runtime'`): the member's Pine, recompiled on every run. */
+export function isRuntimeDocument(def) {
+  return !!(isObj(def) && isObj(def.compute) && def.compute.kind === 'runtime')
+}
+
 export function isScriptDocument(def) {
   return !!(isObj(def) && isObj(def.compute) && def.compute.kind === 'ast'
     && isObj(def.meta) && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
@@ -104,7 +110,9 @@ function writeFailedToday(row, current = SCRIPT_ENGINE_VERSION) {
 }
 
 /** What load-time work a store row needs.
- *  @returns {'current'|'retranslate'|'refused'|'retry'|'legacy'|'none'}
+ *  @returns {'current'|'retranslate'|'refused'|'retry'|'legacy'|'none'|'import-held'}
+ *   `import-held` — a Pine import with no script, applied before the COND-TA fix
+ *               (`pineImportHeld`): not drawn, by name, until it is re-applied;
  *   `refused` — today's engine already refused it (recorded), or an older engine
  *               refused the very maths it still carries: not drawn, no work;
  *   `retry`   — its upgrade could not be written back (recorded): drawn as stored,
@@ -117,10 +125,19 @@ export function upgradeKindOf(row, current = SCRIPT_ENGINE_VERSION) {
   // answer from the store's maths identity: a no-op Undo, a cosmetic studio save, a
   // share install) is held exactly as `engine_withheld_reason` holds it. A real maths
   // edit (`same_maths: false`) is the member's own maths and runs.
-  if (kind !== 'retranslate' && kind !== 'refused') {
+  // ⭐ TRACK 6 (a) (coordinator ruling 2026-11-22): NOT for a RUNTIME document. It is recompiled from its
+  // own source on every run, here and on the pine-runtime service, so an older engine's refusal expires with
+  // that engine and today's engine answers on the next run. The server (`engine_withheld_reason`) agrees.
+  if (kind !== 'retranslate' && kind !== 'refused' && !isRuntimeDocument(row && row.definition)) {
     const st = row && row.engine_status
     if (isObj(st) && st.status === 'refused' && st.same_maths === true) return 'refused'
   }
+  // ⭐⭐ COND-TA — A PINE IMPORT WITH NO SCRIPT, APPLIED BEFORE THE CONDITIONAL-CALL FIX, is held
+  // by name (`pineImportHeld`; the server's `engine_withheld_reason` holds it too): its formula
+  // may be the every-bar reading of a call that runs only on some bars, and without the script
+  // nothing can tell. Re-applying the import lifts it. A refusal already binding wins (its own
+  // sentence); a script document never reaches here (it holds its script, or has no import stamp).
+  if (kind !== 'refused' && pineImportHeld(row)) return 'import-held'
   return kind
 }
 
@@ -197,6 +214,9 @@ export function retranslateRow(row, memberPaneDefinition) {
   if (!built || !built.ok) {
     const reason = (built && built.reason) || 'the translator returned nothing'
     if (/^the translator threw/.test(reason)) return { status: 'inconclusive', reason }
+    // ⭐ door-deadline — the door ran out of time (`memberPaneDefinition.js::DOOR_TIMED_OUT`): a fact about this
+    // device's check, not about the script, so the stored picture is kept, never refused for it.
+    if (built && built.doorTimedOut === true) return { status: 'inconclusive', reason: `the check ran out of time: ${reason}` }
     if (runtimePaneBuilt()) return { status: 'inconclusive', reason: `runtime lane may draw it: ${reason}` }
     if (IMPORTS_LIBRARY.test(source)) return { status: 'inconclusive', reason: `imports a library: ${reason}` }
     return { status: 'refused', reason, guard: (built && built.guard) || null }
@@ -204,6 +224,14 @@ export function retranslateRow(row, memberPaneDefinition) {
   const next = built.definition
   if (!isObj(next) || !isObj(next.compute) || next.compute.kind !== 'ast') {
     return { status: 'inconclusive', reason: 'the script now translates to a different lane' }
+  }
+  // ⭐⭐ ITEM 2 (2026-11-21) — A TRANSLATION THE STORE CANNOT HOLD SAYS NOTHING ABOUT THE STORED ONE. Its size is not
+  // the engine learning the old document was wrong, so the stored document is drawn as it is and nothing is written
+  // back (the store would refuse it), with or without the runtime pane. ⚰️ The over-cap translation was drawn for one
+  // session and its write-back refused (`memberPaneDefinition.js::withOversizeKeep` names it, `pine:document-size`).
+  if (built.oversize) {
+    return { status: 'inconclusive',
+      reason: `${built.oversize.guard}: today's translation is ${built.oversize.bytes} bytes, past the store's ${built.oversize.cap}-byte cap` }
   }
   return { status: 'upgraded', definition: carryOwned(next, stored, row) }
 }
@@ -273,6 +301,21 @@ function idle(fn) {
   if (ric) ric(fn, { timeout: 1000 }); else setTimeout(fn, 0)
 }
 
+/** ⭐⭐ COLD-LOAD STORM, MEASURED 2026-11-13 — LANDINGS ARE ANNOUNCED IN BATCHES.
+ *  Each `notify` makes every chart re-run its install, bump the registry generation
+ *  and re-run `updateChart` (StockChart keys it on the generation). One per row made
+ *  the first load after an engine bump pay N full chart updates for N stale scripts
+ *  (sandbox, 25 scripts: ~2 s of React work after the write-back fix, vs 0.1 s warm).
+ *  Rows that land within `UPGRADE_NOTIFY_COALESCE_MS` of each other now share ONE
+ *  notify; a held row waits at most that long longer to draw. The last row of a
+ *  queue still announces itself (the timer fires), so nothing is left held. */
+export const UPGRADE_NOTIFY_COALESCE_MS = 250
+let _notifyTimer = null
+function notifyCoalesced() {
+  if (_notifyTimer !== null) return
+  _notifyTimer = setTimeout(() => { _notifyTimer = null; notify() }, UPGRADE_NOTIFY_COALESCE_MS)
+}
+
 function translateEach(entries, mod) {
   if (!entries.length) return
   const [[k, row], ...rest] = entries
@@ -280,7 +323,7 @@ function translateEach(entries, mod) {
     if (!_memo.has(k)) {
       _memo.set(k, retranslateRow(row, mod.memberPaneDefinition))
       _pending.delete(k)
-      notify()
+      notifyCoalesced()
     }
     translateEach(rest, mod)
   })
@@ -345,6 +388,8 @@ export function resolveRow(row) {
     // ⭐ REMEMBERED: no chunk download, no translation, no request — the refusal wins.
     return out(null, { refusal: `${nameOf()}: ${row.engine_status.reason}` })
   }
+  // ⭐ COND-TA — not drawn, by name, exactly where the server lanes withhold it.
+  if (kind === 'import-held') return out(null, { refusal: `${nameOf()}: ${PINE_IMPORT_HELD_SENTENCE}` })
   if (kind !== 'retranslate') return out(stored)
   const r = upgradedRow(row)
   if (!r) {
@@ -471,4 +516,5 @@ export function __resetSavedScriptUpgrade() {
   _memo.clear(); _writeBacks.clear(); _legacy.clear(); _pending.clear(); _queue.clear()
   _released.clear(); _retryLocal.clear(); _recorded.clear()
   _scheduled = false; _translator = null; _listeners.clear()
+  if (_notifyTimer !== null) { clearTimeout(_notifyTimer); _notifyTimer = null }
 }

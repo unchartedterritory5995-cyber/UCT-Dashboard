@@ -8,26 +8,26 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   member  GET    /api/j2/template-gallery/{gallery_id}/images/{n}  paid  an example note's image copy (P3b; ?rev=pending
                                                                        for the held revision's, author or admin only)
   member  POST   /api/j2/template-gallery                     paid     publish / resubmit one of Your templates
-  member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a; 404 while the library is off)
-  member  POST   /api/j2/template-gallery/examples/preview    paid     exactly what an example note of yours would show (P3b; 404 while its switch is off)
-  member  POST   /api/j2/template-gallery/examples            paid     publish / resubmit a note as an example of one of your styles (P3b; 404 while off)
+  member  POST   /api/j2/template-gallery/styles              paid     publish / resubmit one of Your journal styles (P3a)
+  member  POST   /api/j2/template-gallery/examples/preview    paid     exactly what an example note of yours would show (P3b)
+  member  POST   /api/j2/template-gallery/examples            paid     publish / resubmit a note as an example of one of your styles (P3b)
   member  GET    /api/j2/template-gallery/layouts/status      paid     the member's own shared page layouts (P4b; 404 while layout sharing is off)
   member  POST   /api/j2/template-gallery/layouts             paid     share / reshare a page of their saved layout (P4b; 404 while off; publish budget)
-  member  GET    /api/j2/template-gallery/updates             paid     the adopted styles with a newer listed version (P3a; 404 while the library is off)
-  member  GET    /api/j2/template-gallery/updates/{style_id}  paid     the preview of "Update my copy" (P3a; 404 while off)
-  member  POST   /api/j2/template-gallery/updates/{style_id}  paid     apply that update (P3a; 404 while off)
+  member  GET    /api/j2/template-gallery/updates             paid     the adopted styles with a newer listed version (P3a)
+  member  GET    /api/j2/template-gallery/updates/{style_id}  paid     the preview of "Update my copy" (P3a)
+  member  POST   /api/j2/template-gallery/updates/{style_id}  paid     apply that update (P3a)
   member  DELETE /api/j2/template-gallery/{gallery_id}        session  unpublish (always possible)
   member  POST   /api/j2/template-gallery/{gallery_id}/use    paid     copy into Your templates
-  member  POST   /api/j2/template-gallery/{gallery_id}/adopt  paid     adopt a listed style as the member's own copy (P3a; 404 while off)
+  member  POST   /api/j2/template-gallery/{gallery_id}/adopt  paid     adopt a listed style as the member's own copy (P3a)
   member  POST   /api/j2/template-gallery/{gallery_id}/adopt-layout  paid  the listed layout of a shared page (P4b; 404 while layout sharing is off; adopt budget)
   member  POST   /api/j2/template-gallery/{gallery_id}/report paid     report a listed template
-  member  POST   /api/j2/template-gallery/{gallery_id}/helpful paid    mark a listed item helpful (P3a; 404 while off; 60/hour)
-  member  DELETE /api/j2/template-gallery/{gallery_id}/helpful paid    take the mark back (P3a; 404 while off; same budget)
-  member  GET    /api/j2/template-gallery/feed                paid     what the authors you follow have listed (P3a; 404 while off)
-  member  GET    /api/j2/template-gallery/authors/{handle}    paid     an author's page by opaque handle (P3a; 404 while off)
-  member  POST   /api/j2/template-gallery/authors/{handle}/follow   paid  follow an author (P3a; 404 while off; 60/hour)
-  member  DELETE /api/j2/template-gallery/authors/{handle}/follow   paid  stop following (P3a; 404 while off; same budget)
-  Wave 11 (Task 11.12; each 404 while wave 11 or the library is off, read per request, before the plan and the body):
+  member  POST   /api/j2/template-gallery/{gallery_id}/helpful paid    mark a listed item helpful (P3a; 60/hour)
+  member  DELETE /api/j2/template-gallery/{gallery_id}/helpful paid    take the mark back (P3a; same budget)
+  member  GET    /api/j2/template-gallery/feed                paid     what the authors you follow have listed (P3a)
+  member  GET    /api/j2/template-gallery/authors/{handle}    paid     an author's page by opaque handle (P3a)
+  member  POST   /api/j2/template-gallery/authors/{handle}/follow   paid  follow an author (P3a; 60/hour)
+  member  DELETE /api/j2/template-gallery/authors/{handle}/follow   paid  stop following (P3a; same budget)
+  Wave 11 (Task 11.12; each 404 while wave 11 is off, read per request, before the plan and the body):
   member  POST   /api/j2/template-gallery/share/preview       paid     what sharing a widget/routine/tracker/template sends
   member  POST   /api/j2/template-gallery/tools               paid     share a widget, routine or tracker (publish budget)
   member  GET    /api/j2/template-gallery/library             paid     the official templates by group (?group=)
@@ -42,11 +42,11 @@ The service is `api/services/journal_two/template_gallery.py`; the client is
   admin   PATCH  /api/j2/template-gallery/admin/reports/{report_id}    hide|dismiss
 
 The rules, the share and publish routers' (`notebook_shares.py`, `notebook_publish.py`):
-  * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` off answers the one
-    404 for every route before the session, the plan or the body is read.
-  * THE BODY IS READ INSIDE THE DEPENDENCY CHAIN -- the gate, then the member, then the body
-    (`member_body` / `paid_body`), never a FastAPI body parameter, so a malformed body can
-    never answer 422 ahead of the gate.
+  * ALWAYS ON: `NOTEBOOK_TEMPLATE_GALLERY_ENABLED`, and the style library's and example notes' switches,
+    were retired as always on (2026-11-04). Layout sharing and wave 11 keep their route gates.
+  * THE BODY IS READ INSIDE THE DEPENDENCY CHAIN -- the member, then the body (`member_body` /
+    `paid_body`), never a FastAPI body parameter, so a malformed body can never answer 422 ahead
+    of the session check.
   * PLAN: browsing, previewing, using, reporting and publishing take this router's own
     `require_paid` (owner ruling 2026-10-02, "no free tier, everything is paywall"; security
     review I-7). UNPUBLISH DOES NOT, and that is a second ruling (2026-10-07): a member can
@@ -128,42 +128,17 @@ MAX_BODY_BYTES = 256_000
 TOO_LARGE_SENTENCE = "Request too large"
 
 
-def _require_enabled() -> None:
-    """Router-level, so it runs BEFORE any route's own dependencies: an off gate reads no
-    session, checks no plan, parses no body, and answers the one not-found."""
-    if not gallery.enabled():
-        raise public.not_found()
-
-
-def _require_library() -> None:
-    """P3a's gate for the STYLE routes (R-P3-10), a route dependency listed in `dependencies=[...]`, which
-    FastAPI resolves before the route's own parameters (the plan check, the body): a library-off pod
-    answers every caller, paid or not, signed in or not, with the one 404 that a route which does not
-    exist answers. Nothing else enforces it -- a second copy in the handler would be a guard repeated."""
-    if not gallery.library_enabled():
-        raise public.not_found()
-
-
 def _require_layout_sharing() -> None:
-    """P4b's gate for the LAYOUT routes (R-P4b-10), the same shape as `_require_library`: a route dependency,
-    resolved before the plan check and the body, so while layout sharing is off every caller, paid or not,
-    signed in or not, gets the one 404 a route that does not exist answers."""
+    """P4b's gate for the LAYOUT routes (R-P4b-10): a route dependency, resolved before the plan check and the
+    body, so while layout sharing is off every caller, paid or not, signed in or not, gets the one 404 a route
+    that does not exist answers."""
     if not gallery.layout_sharing_enabled():
-        raise public.not_found()
-
-
-def _require_example() -> None:
-    """P3b's gate for the EXAMPLE routes (R-P3b-6), the same shape as `_require_library`: a route dependency, so
-    an off switch (or the library off, which `example_enabled` includes) answers the one 404 before the plan
-    check and the body."""
-    if not gallery.example_enabled():
         raise public.not_found()
 
 
 router = APIRouter(
     prefix="/api/j2/template-gallery",
     tags=["journal-2-0", "notebook-template-gallery"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 
@@ -305,9 +280,9 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
     """The gallery as this member sees it; `viewer.admin` lets the client show the review
     queue's door (the queue itself is admin-gated on the server). P3a: `?type=outline|style` and
-    `?trading_style=` are the library's chips; the service refuses both style filters with a 400 while the
-    library is off (R-P3-10). Before P3a both were unknown parameters, ignored with a 200; no client sends
-    either while the switch is off, so a member sees today's gallery (final review M-13, item 4).
+    `?trading_style=` are the library's chips, always offered: the library switch that once refused both with a
+    400 (R-P3-10) was retired as always on, 2026-11-04; an unknown value is still the service's 400
+    (final review M-13, item 4).
 
     P4b: `capabilities.layoutSharing` is the server-only layout-sharing switch as this answer saw it (R-P4b-10);
     the lazy library reads it from here, so it costs the first-open closure nothing. `?type=page_layout` passes
@@ -321,7 +296,7 @@ def list_gallery_endpoint(q: str = "", category: str = "", sort: str = "newest",
     # R-P3b-6 (ruling P3b-R6): what the lazy library may offer, additively. A client reads a missing key as false.
     # Wave 11 (Task 11.12): each card's `contains` and the viewer's `credit` (`_card_facts`; unchanged while off).
     return {"templates": _card_facts(user["id"], items), "viewer": {"admin": _is_admin(user)},
-            "capabilities": {"exampleNotes": gallery.example_enabled(),
+            "capabilities": {"exampleNotes": True,          # always on since its switch was retired (2026-11-04)
                              "layoutSharing": gallery.layout_sharing_enabled()}}
 
 
@@ -330,11 +305,10 @@ def admin_queue_endpoint(_admin: dict = Depends(require_admin)) -> dict[str, Any
     return gallery.admin_queue()
 
 
-@router.post("/styles", dependencies=[Depends(_require_library)])
+@router.post("/styles")
 def publish_style_endpoint(body: dict[str, Any] = Depends(library_body), user: dict = Depends(require_paid)) -> Any:
     """`{styleId, title, description?, category, tradingStyle?}` -> a PENDING style item, or a
-    held revision of an approved one. 404 for everyone while the library is off (R-P3-10), by the
-    `_require_library` route dependency, before the plan check and the body.
+    held revision of an approved one.
 
     Wave 11 (Task 11.12): while wave 11 is on the author's share-preview answers travel too (`edits`, `keep`,
     W11-R6), every refusal answers from its class (`_w11`: a `ShareError` is 400 with its code), and the answer adds
@@ -383,8 +357,8 @@ def publish_layout_endpoint(body: dict[str, Any] = Depends(paid_body),
     return {"template": item, "droppedPanels": dropped}
 
 
-# ⛔ The literal `/examples` routes (P3b) are declared BEFORE `/{gallery_id}`, and gated by `_require_example`, a
-# route dependency: an off switch answers every caller the one 404 before the plan check and the body. The body is
+# ⛔ The literal `/examples` routes (P3b) are declared BEFORE `/{gallery_id}` (always on since the example switch was
+# retired, 2026-11-04). The body is
 # `{noteId, imagesOn}` / `{noteId, styleItemId, imagesOn, title}`; the SERVER reads and reduces the note, and any
 # body a client sends alongside is ignored (R-P3b, Global Constraints).
 
@@ -405,7 +379,7 @@ def _images_on(body: dict[str, Any]) -> list[str]:
     return raw
 
 
-@router.post("/examples/preview", dependencies=[Depends(_require_example)])
+@router.post("/examples/preview")
 def preview_example_endpoint(body: dict[str, Any] = Depends(paid_body),
                              user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{noteId, imagesOn?, title?}` -> `{bodyJson, changes, counts, images, title}`: exactly what other members
@@ -434,7 +408,7 @@ def preview_example_endpoint(body: dict[str, Any] = Depends(paid_body),
     return out
 
 
-@router.post("/examples", dependencies=[Depends(_require_example)])
+@router.post("/examples")
 def publish_example_endpoint(body: dict[str, Any] = Depends(paid_body),
                              user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{noteId, styleItemId, imagesOn?, title}` -> `{template}`: a PENDING example note linked to the style, or a
@@ -448,17 +422,16 @@ def publish_example_endpoint(body: dict[str, Any] = Depends(paid_body),
 
 
 # ⛔ The literal `/updates` routes are declared BEFORE `GET /{gallery_id}`: that route would take "updates"
-# as an item id and answer its 404. Each is gated by `_require_library` (R-P3-10), a route dependency, so a
-# library-off pod answers every caller with the one 404 before the plan check and the body.
+# as an item id and answer its 404.
 
-@router.get("/updates", dependencies=[Depends(_require_library)])
+@router.get("/updates")
 def list_updates_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{updates: [{galleryId, title, styleId, styleName, fromVersion, toVersion}]}` -- the member's adopted
     styles whose community item is now listed at a higher version."""
     return {"updates": gallery.list_updates(user["id"])}
 
 
-@router.get("/updates/{style_id}", dependencies=[Depends(_require_library)])
+@router.get("/updates/{style_id}")
 def plan_update_endpoint(style_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{plan}` -- what "Update my copy" would add. 404 when the style is not an adopted copy of theirs or
     nothing newer is listed."""
@@ -471,7 +444,7 @@ def plan_update_endpoint(style_id: str, user: dict = Depends(require_paid)) -> d
 TO_VERSION_SENTENCE = "Say which version you previewed: toVersion must be a whole number."
 
 
-@router.post("/updates/{style_id}", dependencies=[Depends(_require_library)])
+@router.post("/updates/{style_id}")
 def apply_update_endpoint(style_id: str, body: dict[str, Any] = Depends(paid_body),
                           user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{takeOutline?: bool, baseUpdatedAt, toVersion: int}` -> `{style}`. 409 when the copy changed since the
@@ -497,18 +470,18 @@ def apply_update_endpoint(style_id: str, body: dict[str, Any] = Depends(paid_bod
     return {"style": style}
 
 
-# ⛔ `/feed` and `/authors/...` (P3a Task 6) are literal paths too, declared BEFORE `GET /{gallery_id}`, and gated
-# the same way: `_require_library` ahead of the plan check (R-P3-10). Nothing here returns a user id or an
+# ⛔ `/feed` and `/authors/...` (P3a Task 6) are literal paths too, declared BEFORE `GET /{gallery_id}`. Nothing
+# here returns a user id or an
 # email (R-P3-2): an author is the opaque handle.
 
-@router.get("/feed", dependencies=[Depends(_require_library)])
+@router.get("/feed")
 def feed_endpoint(user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{templates: [...]}` -- what the authors this member follows have listed, newest first. The same item
     shape as the gallery list, so one card renders both."""
     return {"templates": _card_facts(user["id"], gallery.feed(user["id"]))}
 
 
-@router.get("/authors/{handle}", dependencies=[Depends(_require_library)])
+@router.get("/authors/{handle}")
 def author_page_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{author: {handle, label, itemCount, following, mine}, items: [...]}` -- 404 for a handle that is not one."""
     page = gallery.author_page(user["id"], handle)
@@ -519,7 +492,7 @@ def author_page_endpoint(handle: str, user: dict = Depends(require_paid)) -> dic
     return page
 
 
-@router.post("/authors/{handle}/follow", dependencies=[Depends(_require_library)])
+@router.post("/authors/{handle}/follow")
 def follow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{following: true}`. 404 for an unknown handle or your own (R-P3-11: 60/hour with unfollow)."""
     public.enforce_rate(FOLLOW_RATE, SCOPE_FOLLOW, f"member:{user['id']}", FOLLOW_RATE_SENTENCE, public=False)
@@ -529,7 +502,7 @@ def follow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str
     return out
 
 
-@router.delete("/authors/{handle}/follow", dependencies=[Depends(_require_library)])
+@router.delete("/authors/{handle}/follow")
 def unfollow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{following: false}`. The same 404s and the same budget as following."""
     public.enforce_rate(FOLLOW_RATE, SCOPE_FOLLOW, f"member:{user['id']}", FOLLOW_RATE_SENTENCE, public=False)
@@ -542,7 +515,7 @@ def unfollow_endpoint(handle: str, user: dict = Depends(require_paid)) -> dict[s
 # ── wave 11 (Task 11.12): sharing, adopting, using and previewing templates ─────────────────────
 #
 # ⛔ Every route in this block carries `_require_w11` in `dependencies=[...]`: while wave 11
-# (`notebook_widgets_wave_on(11)`) or the library switch is off, every caller gets the one `public.not_found()` 404,
+# (`notebook_widgets_wave_on(11)`) is off, every caller gets the one `public.not_found()` 404,
 # read PER REQUEST, before the plan check and before the body is read (11.11 m-3). The literal paths are declared
 # here, ABOVE `GET /{gallery_id}`, so "library", "share", "tools" and "notes" are never read as an item id.
 #   * BODIES: `w11_body`, at most W11_MAX_BODY_BYTES and W11_MAX_BODY_DEPTH levels (413 / 400 `invalid`).
@@ -580,12 +553,12 @@ W11_PATHS = (
 
 
 def _w11_on() -> bool:
-    """Wave 11 AND the library switch, read per call (both are needed by every wave 11 door)."""
-    return gallery.library_enabled() and notebook_widgets_wave_on(11)
+    """Wave 11, read per call (the library switch it also needed was retired as always on, 2026-11-04)."""
+    return notebook_widgets_wave_on(11)
 
 
 def _require_w11() -> None:
-    """The wave 11 gate, a route dependency (resolved after the router's gate, before the plan check and the
+    """The wave 11 gate, a route dependency (resolved before the plan check and the
     body): off, every caller gets the one 404 a route that does not exist answers."""
     if not _w11_on():
         raise public.not_found()
@@ -985,12 +958,12 @@ def get_item_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> di
     return {"template": _card_facts(user["id"], [item])[0]}
 
 
-@router.get("/{gallery_id}/images/{n}", dependencies=[Depends(_require_example)])
+@router.get("/{gallery_id}/images/{n}")
 def example_image_endpoint(gallery_id: str, n: str, rev: str = "", user: dict = Depends(require_paid)) -> Any:
     """An example note's image copy (P3b Task 4, R-P3b-7), with `PUBLIC_HEADERS` and the image CSP
     (`public.public_file`). Served when the item is approved and not hidden, or to its author or an admin;
     `?rev=pending` is the held revision's copy, for the author or an admin only (ruling P3b-R14). Anything else is the
-    one 404, and so is every route here while the example switch is off (`_require_example`, before the plan check)."""
+    one 404."""
     path = gallery.example_image_path(user["id"], gallery_id, n, is_admin=_is_admin(user), rev=rev or None)
     if path is None:
         raise public.not_found()
@@ -1048,11 +1021,10 @@ def _spend_adopt(user: dict, adopt, *, w11: bool = False) -> dict[str, Any]:
     return out
 
 
-@router.post("/{gallery_id}/adopt", dependencies=[Depends(_require_library)])
+@router.post("/{gallery_id}/adopt")
 def adopt_endpoint(gallery_id: str, request: Request, body: dict[str, Any] = Depends(library_body),
                    user: dict = Depends(require_paid)) -> dict[str, Any]:
-    """`{notify?: bool}` -> `{style, notify, credit}`: the member's own copy of a listed style (R-P3-10:
-    404 while the library is off, by `_require_library`, before the plan and the body). Rate-limited per
+    """`{notify?: bool}` -> `{style, notify, credit}`: the member's own copy of a listed style. Rate-limited per
     R-P3-11: 30/hour in-process plus a durable 50/day; a refused or failed adopt gives the day's charge back.
 
     Wave 11 (Task 11.12): while wave 11 is on, `{notify?, answers?, choices?}` answer a template's choices and reuse
@@ -1089,10 +1061,10 @@ def adopt_layout_endpoint(gallery_id: str, body: dict[str, Any] = Depends(paid_b
     return _spend_adopt(user, lambda: gallery.adopt_layout(user["id"], gallery_id, version=version))
 
 
-@router.post("/{gallery_id}/helpful", dependencies=[Depends(_require_library)])
+@router.post("/{gallery_id}/helpful")
 def helpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{helpful: true, count}`. One per member per item; 404 for an item they can't see, one that isn't listed,
-    or their own (R-P3-10: 404 for everyone while the library is off; R-P3-11: 60/hour with unmarking).
+    or their own (R-P3-11: 60/hour with unmarking).
     Wave 11 (W11-R8): before the 3rd use day, 409 `{"code": "helpful_days", "message": S_HELPFUL_DAYS}` (`_bad`)."""
     public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)
     try:
@@ -1104,7 +1076,7 @@ def helpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dic
     return out
 
 
-@router.delete("/{gallery_id}/helpful", dependencies=[Depends(_require_library)])
+@router.delete("/{gallery_id}/helpful")
 def unhelpful_endpoint(gallery_id: str, user: dict = Depends(require_paid)) -> dict[str, Any]:
     """`{helpful: false, count}`. The same 404s and the same budget as marking."""
     public.enforce_rate(HELPFUL_RATE, SCOPE_HELPFUL, f"member:{user['id']}", HELPFUL_RATE_SENTENCE, public=False)

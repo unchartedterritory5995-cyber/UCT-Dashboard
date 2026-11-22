@@ -1,0 +1,120 @@
+/* OPTIONS PAYOFF: only what the Study kit lacks (docs/study/GAMES.md §1.1): the hearts, the position ticket and the payoff
+   drawing. Everything else is the kit's (study.module.css, kit2.module.css). Every colour here is a kit token set on .kit
+   (--k-gold, --k-ink, --k-up, --k-down, ...), the kit's own rgba of one, or a literal the kit already uses (#9fe9bd,
+   #ffb3b3, #1c1709, ...); no new colours. Motion is one line drawing itself and the marks fading in after it, and it
+   stands down under prefers-reduced-motion (rule 18: calm motion). */
+
+/* the status line and the hearts beside it (Order Ticket's look, so the two hearts games read the same, rule 21) */
+.hudRow { display: flex; align-items: stretch; gap: 10px; }
+.hudRow > :first-child { flex: 1; min-width: 0; }
+.hearts { flex: none; display: inline-flex; align-items: center; gap: 3px; padding: 0 12px; border-radius: 16px; border: 1px solid var(--k-line);
+  background: var(--k-glass), var(--k-plate); box-shadow: 0 10px 30px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .04); }
+/* each heart is the kit's shield glyph (UIcon), lit gold while it stands and dim once lost */
+.heart { display: grid; place-items: center; font-style: normal; transition: color .3s, opacity .3s, filter .3s, transform .35s var(--k-ease); }
+.heart svg { display: block; }
+.heart.heartOn { color: var(--k-gold-bright); filter: drop-shadow(0 0 6px rgba(220, 187, 94, .45)); }
+.heart.lost { color: var(--k-line-lit); opacity: .75; transform: scale(.86); }
+
+/* the hero: the ticket beside its drawing, inside the arena's gold corner brackets (s.heroChart) */
+.board { display: grid; grid-template-columns: minmax(250px, .8fr) minmax(0, 1.2fr); border: 1px solid var(--k-line); border-radius: 20px;
+  background: var(--k-glass), var(--k-plate); box-shadow: 0 18px 44px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .04); }
+.ticket { display: grid; align-content: start; gap: 12px; min-width: 0; padding: 20px 22px; border-right: 1px solid var(--k-line); }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.plate { display: inline-flex; align-items: center; padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase;
+  white-space: nowrap; color: var(--k-gold-bright); border: 1px solid rgba(220, 187, 94, .45); background: linear-gradient(180deg, #1c1709, #0f0d06);
+  box-shadow: inset 0 1px 0 rgba(255, 241, 194, .25); }
+.sentence { margin: 0; font-size: 22px; line-height: 1.3; font-weight: 800; letter-spacing: -.01em; color: var(--k-ink); }
+.legs { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.legs li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px;
+  border: 1px solid #23252a; background: rgba(255, 255, 255, .025); font-size: 14.5px; color: var(--k-ink-soft); font-variant-numeric: tabular-nums; }
+.legs li b { font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.legs li em { font-style: normal; font-weight: 800; color: var(--k-ink); }
+.buy { color: var(--k-gold-bright); }
+.sell { color: var(--k-ink-soft); }
+.legs li.net { grid-template-columns: 1fr auto; border-style: dashed; background: none; }
+.legs li.net span { font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--k-ink-dim); }
+.note { margin: 0; font-size: 14px; line-height: 1.45; color: var(--k-ink-soft); }
+.context { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--k-ink-dim); }
+
+/* the drawing: x is the price at expiry, y the P/L; gold line, muted axes, the profit and loss zones faintly tinted */
+.plot { margin: 0; display: grid; align-content: center; gap: 6px; min-width: 0; padding: 14px 14px 12px; }
+.svg { display: block; width: 100%; height: auto; touch-action: pan-y; user-select: none; -webkit-user-select: none; overflow: visible; border-radius: 10px; }
+/* once drawn it is a slider: the arrow keys read along the line, so a keyboard focus shows a gold ring (never on a tap) */
+.svg:focus { outline: none; }
+.svg:focus-visible { outline: 2px solid var(--k-gold); outline-offset: 3px; }
+.zoneUp { fill: var(--k-up); fill-opacity: .07; }
+.zoneDown { fill: var(--k-down); fill-opacity: .07; }
+.grid { stroke: rgba(255, 255, 255, .05); stroke-width: 1; }
+.zero { stroke: var(--k-ink-dim); stroke-opacity: .7; stroke-width: 1.2; }
+.axis { stroke: var(--k-line-lit); stroke-width: 1; }
+.yTick { fill: var(--k-ink-dim); font-size: 11px; font-weight: 700; text-anchor: end; font-variant-numeric: tabular-nums; }
+/* a label drawn over a line keeps a halo in the plot's own colour, so it reads wherever it lands */
+.xTick, .zoneWord, .expiryText, .beText { paint-order: stroke; stroke: var(--k-plate); stroke-width: 4px; stroke-linejoin: round; }
+.xTick { fill: var(--k-ink-soft); font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.zoneWord { fill: var(--k-ink-dim); font-size: 10px; font-weight: 900; letter-spacing: .18em; text-transform: uppercase; }
+.strikeLine { stroke: rgba(255, 255, 255, .14); stroke-width: 1; stroke-dasharray: 2 4; }
+.expiryLine { stroke: var(--k-gold); stroke-opacity: .65; stroke-width: 1.4; stroke-dasharray: 5 4; }
+.expiryText { fill: var(--k-ink); font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ask circle { fill: #1a1708; stroke: var(--k-gold); stroke-width: 1.5; }
+.ask text { fill: var(--k-gold-bright); font-size: 17px; font-weight: 900; }
+.line { fill: none; stroke: var(--k-gold); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 6px rgba(220, 187, 94, .35)); animation: draw .9s cubic-bezier(.4, 0, .2, 1) .1s forwards; }
+.mark { animation: markIn .35s ease .85s both; }
+.beDot { fill: #0d0d0f; stroke: var(--k-ink); stroke-width: 2; }
+.beGuide { stroke: var(--k-ink-soft); stroke-opacity: .55; stroke-width: 1; stroke-dasharray: 1 3; }
+.beText { fill: var(--k-ink-soft); font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.exDot { fill: var(--k-gold-bright); stroke: #0d0d0f; stroke-width: 2.5; }
+.upFill { fill: #9fe9bd; }
+.downFill { fill: #ffb3b3; }
+.cross line { stroke: var(--k-ink-dim); stroke-width: 1; stroke-dasharray: 3 3; }
+.cross circle { fill: var(--k-ink); }
+.readout { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding: 0 4px; font-size: 14px; color: var(--k-ink-soft); font-variant-numeric: tabular-nums; }
+.readout b { color: var(--k-ink); font-weight: 800; }
+.readout small { font-size: 12px; color: var(--k-ink-dim); }
+.readout b.up { color: #9fe9bd; }
+.readout b.down { color: #ffb3b3; }
+
+/* the working: the coach's card is the kit's; these are its mistake line, the rule and the source */
+.mistake { margin: 0; padding: 12px 14px; border-radius: 12px; font-size: 15.5px; line-height: 1.45; color: var(--k-ink); background: rgba(223, 70, 70, .1); border: 1px solid rgba(223, 70, 70, .35); }
+.rule { margin: 0; font-size: 16px; line-height: 1.5; color: var(--k-ink); }
+.source { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--k-ink-dim); }
+
+/* the takeover's one line (inside VerdictTakeover's sub, so spans): the rule, or the mistake and the hearts. The working
+   stays out of it: the takeover cannot scroll, and its one button must stay on a phone's screen */
+.tkRule, .tkWhy { display: block; }
+.tkHearts { display: block; margin-top: 10px; font-weight: 800; color: #ffb3b3; }
+
+/* the end screen: the kit's spinning rays (endLooks .rays, a 360px square turning) are wider than a phone's column, and the
+   sheet's scroll region would scroll sideways for them; clip that axis only, as Size It does */
+.end { overflow-x: clip; }
+.saved { display: block; margin-top: 8px; font-size: 13px; color: var(--k-ink-dim); }
+.signIn { margin-top: 14px; }
+
+/* the run that did not deal (never seen in a test or a 60,000-seed sweep, but never a blank screen) */
+.empty { display: grid; justify-items: center; gap: 16px; padding: 40px 0; text-align: center; font-size: 16px; color: var(--k-ink-soft); }
+.empty p { margin: 0; max-width: 40ch; }
+.emptyGo { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes markIn { from { opacity: 0; } to { opacity: 1; } }
+
+@media (max-width: 1024px) {
+  .board { grid-template-columns: minmax(0, 1fr); }
+  .ticket { border-right: 0; border-bottom: 1px solid var(--k-line); }
+}
+@media (max-width: 640px) {
+  .hudRow { flex-direction: column; align-items: stretch; gap: 6px; }
+  .hearts { align-self: flex-end; padding: 5px 10px; gap: 3px; border-radius: 12px; }
+  .heart svg { width: 18px; height: 18px; }
+  .ticket { gap: 9px; padding: 14px 14px 12px; }
+  .sentence { font-size: 18px; }
+  .legs li { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 8px; padding: 7px 10px; font-size: 13.5px; }
+  .plot { padding: 10px 6px; }
+  .readout { font-size: 13px; }
+  .mistake { font-size: 15px; padding: 10px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .line { animation: none; stroke-dashoffset: 0; }
+  .mark { animation: none; }
+  .heart { transition: none; }
+}

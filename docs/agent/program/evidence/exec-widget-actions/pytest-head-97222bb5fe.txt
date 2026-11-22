@@ -1,0 +1,20 @@
+# pl-widget 97222bb5fe pytest (real, local venv, no lock) tests/test_agent_eval_proxy.py tests/test_agent_eval_run.py tests/test_ci_cost_rails.py tests/test_uct_agent_acceptance_stabilization.py tests/test_uct_agent_args_live_shapes.py tests/test_uct_agent_autoapply.py tests/test_uct_agent_breadth.py tests/test_uct_agent_breadth_history.py tests/test_uct_agent_capreg_baseline.py tests/test_uct_agent_contract.py tests/test_uct_agent_data_reply.py tests/test_uct_agent_nl1.py tests/test_uct_agent_nl1_selection.py tests/test_uct_agent_presentation.py tests/test_uct_agent_program_ownership.py tests/test_uct_agent_screen_research.py tests/test_uct_agent_turn_cap.py tests/test_uct_agent_undo_hotfix.py  
+C:\Users\blake\AppData\Local\Temp\claude\2ef397b80db79bf7\56266831-c770-46eb-8e87-f65def6d19f9\scratchpad\pl-grid\venv\Lib\site-packages\pytest_asyncio\plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [ 14%]
+........................................................................ [ 28%]
+........................................................................ [ 43%]
+........................................................................ [ 57%]
+........................................................................ [ 72%]
+........................................................................ [ 86%]
+...................................................................      [100%]
+============================== warnings summary ===============================
+..\..\Users\blake\AppData\Local\Temp\claude\2ef397b80db79bf7\56266831-c770-46eb-8e87-f65def6d19f9\scratchpad\pl-grid\venv\Lib\site-packages\starlette\testclient.py:40
+  C:\Users\blake\AppData\Local\Temp\claude\2ef397b80db79bf7\56266831-c770-46eb-8e87-f65def6d19f9\scratchpad\pl-grid\venv\Lib\site-packages\starlette\testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+499 passed, 1 warning in 43.57s
+PYT-DONE 

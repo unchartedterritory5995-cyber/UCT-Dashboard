@@ -187,6 +187,8 @@ const FORMS = [
   { kind: 'call', name: 'cos', parts: ['the cosine of ', 0] },
   { kind: 'call', name: 'tan', parts: ['the tangent of ', 0] },
   { kind: 'call', name: 'atan', parts: ['the arctangent of ', 0] },
+  // U-BUILTIN B3 (2026-11-19) -- `asin`, hand-typed from the manifest's sentence.
+  { kind: 'call', name: 'asin', parts: ['the arcsine of ', 0] },
   // ⭐ PHASE 1 (2026-10-30) -- `acos`, hand-typed from the manifest's sentence.
   { kind: 'call', name: 'acos', parts: ['the arccosine of ', 0] },
   { kind: 'call', name: 'sinh', parts: ['the hyperbolic sine of ', 0] },
@@ -222,6 +224,11 @@ const FORMS = [
   // far this session*) and this one names it (*the volume-weighted average of
   // close …*), so the two cannot both read one sentence.
   { kind: 'call', name: 'vwapOf', parts: ['the volume-weighted average of ', 0, ' so far this session'] },
+  // ⭐ 2026-11-17 — the opening range, hand-typed from the manifest's words like every form here.
+  // ⚠️ They cannot collide with `highest` / `lowest` ("the highest X of the last N bars"): those end
+  // in ` bars`, these in ` minutes of the regular session`, and `the grammar is UNAMBIGUOUS` asserts it.
+  { kind: 'call', name: 'openingRangeHigh', parts: ['the highest price of the first ', 0, ' minutes of the regular session'] },
+  { kind: 'call', name: 'openingRangeLow', parts: ['the lowest price of the first ', 0, ' minutes of the regular session'] },
 
   // ⭐⭐ `cum` (2026-09-09, owner Ruling D) — the UNANCHORED running total, and
   // the pair with `cumFrom` above is the whole reason this rail is hand-typed.
@@ -284,14 +291,16 @@ const FORMS = [
   // working, not friction: this oracle is hand-typed precisely so a wording
   // change has to be made twice by a human who agrees with it, instead of being
   // inherited from the renderer and proving nothing.
+  // ⭐ ENGINE 56 (2026-11-14): and the rule now depends on the source — the newest tied bar over a
+  // bar price (the builtin Aroon and a v4 pivot script, measured), withheld over anything else.
   { kind: 'call',
     name: 'highestbars',
-    parts: ['the number of bars back to the oldest bar holding the highest ', 0,
-            ' of the last ', 1, ' bars'] },
+    parts: ['the number of bars back to the bar holding the highest ', 0,
+            ' of the last ', 1, ' bars, the newest of a tie over a bar price and withheld on a tie over anything else'] },
   { kind: 'call',
     name: 'lowestbars',
-    parts: ['the number of bars back to the oldest bar holding the lowest ', 0,
-            ' of the last ', 1, ' bars'] },
+    parts: ['the number of bars back to the bar holding the lowest ', 0,
+            ' of the last ', 1, ' bars, the newest of a tie over a bar price and withheld on a tie over anything else'] },
   // ⭐ THE PIVOTS (2026-08-27). Hand-typed from the manifest's words like every
   // row here — deriving them would make the oracle agree with the renderer by
   // construction and the round trip would prove nothing.
@@ -357,6 +366,12 @@ const FORMS = [
   { kind: 'call', name: 'plusDI', parts: ['the ', 3, '-bar +DI of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'minusDI', parts: ['the ', 3, '-bar -DI of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'stoch', parts: ['the ', 3, '-bar stochastic %K of ', 0, ', ', 1, ' and ', 2] },
+  // ⭐ (2026-11-14, engine 57) Pine's `ta.stoch` — the same phrase plus what makes it a different
+  // number: the windows skip `na` values and the answer keeps its last value where it has none.
+  { kind: 'call',
+    name: 'stochPine',
+    parts: ['the ', 3, '-bar stochastic %K of ', 0, ', ', 1, ' and ', 2,
+            ', skipping missing values and keeping its last value where it has none'] },
   { kind: 'call', name: 'cci', parts: ['the ', 3, '-bar commodity channel index of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'williamsR', parts: ['the ', 3, '-bar Williams %R of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'mfi', parts: ['the ', 4, '-bar money flow index of ', 0, ', ', 1, ', ', 2, ' and ', 3] },
@@ -438,6 +453,9 @@ const FORMS = [
     parts: ['the ', 1, '-bar Arnaud Legoux average of ', 0, ' at offset ', 2, ' and sigma ', 3] },
   { kind: 'call', name: 'na', parts: [0, ' being unknown'] },
   { kind: 'call', name: 'nz', parts: [0, ' where it is known, and ', 1, ' where it is not'] },
+  // ⭐ ENGINE 56 (A3) — hand-typed from closedTable.json's words, as every row above
+  { kind: 'call', name: 'boolNaWithheld', parts: [0, ', withheld wherever ', 1] },
+  { kind: 'call', name: 'tieNewest', parts: [0, ', where a tie in a highest or lowest bars window names its newest bar'] },
 
   { kind: 'op', name: '+', parts: [0, ' plus ', 1] },
   { kind: 'op', name: '-', parts: [0, ' minus ', 1] },
@@ -548,6 +566,10 @@ const INPUT_PREFIX = 'the input '
  *  the manifest without this line lands as `0 parses`. */
 const NULLARY_PHRASE = Object.freeze({
   'the volume-weighted average price so far this session': 'vwap',
+  // ⭐ 2026-11-17 — the regular session's own values: three calls that take nothing
+  'the regular session\'s opening price': 'sessionOpen',
+  'the highest price of the regular session so far': 'sessionHigh',
+  'the lowest price of the regular session so far': 'sessionLow',
 })
 
 function readNullaryCall(s) {
@@ -669,11 +691,40 @@ function readTfLiveSentence(s) {
  *  this one `<digits>-minute` — and `the grammar is UNAMBIGUOUS` asserts it. */
 const LTF_SUFFIX = /^(.+) on the ([1-9][0-9]*)-minute timeframe$/
 
+/** ⭐ ENGINE 55 — PINE'S MERGED READ (`tf_merge`), hand-typed from `renderTf`'s words:
+ *  the `tf` chrome, then which bar shows the value. ⚠️ It cannot collide with
+ *  `TF_SUFFIX` (anchored on `timeframe$`), and `the grammar is UNAMBIGUOUS` asserts it. */
+const TF_MERGE_SUFFIX = /^(.+) on the (weekly|monthly) timeframe, from the bar that closes each (week|month)$/
+
+function readTfMergeSentence(s) {
+  const m = TF_MERGE_SUFFIX.exec(s)
+  if (!m) return null
+  if (TF_CODE_OF[m[2]] !== TF_LIVE_CODE_OF[m[3]]) return null
+  return { via: 'tf_merge', ast: { type: 'tf_merge', value: TF_CODE_OF[m[2]], args: [readOperand(m[1])] } }
+}
+
 function readLtfSentence(s) {
   const m = LTF_SUFFIX.exec(s)
   if (!m) return null
   return { via: 'ltf', ast: { type: 'ltf', value: m[2], args: [readOperand(m[1])] } }
 }
+
+/** ⭐ engine 81 (2026-11-18) — A BAR-FIELD ARGUMENT NAMED BY ITS ROLE. Hand-typed, like every
+ *  form in this file, and NOT read from the manifest's `argRoles`: which functions take the bar's
+ *  fields by position, and the word the walker says for each place. When a call's leading
+ *  arguments are not the bar's own fields in this order, the walker writes `highs from <operand>`
+ *  for each; when they are, it writes the operands bare. The reader holds it to exactly that:
+ *  role words on every leading operand or on none, and present IF AND ONLY IF the arguments are
+ *  not the bar's own fields in order (a sentence the walker never writes is not a parse). */
+const HLC = ['highs', 'lows', 'closes']
+const HL = ['highs', 'lows']
+const BAR_ROLE_LEAD = {
+  adx: HLC, atr: HLC, atrPine: HLC, cci: HLC, minusDI: HLC, plusDI: HLC, stoch: HLC, stochPine: HLC, williamsR: HLC,
+  ichimokuChikou: HLC, mfi: [...HLC, 'volumes'], mfiPine: [...HLC, 'volumes'],
+  donchianLower: HL, donchianMiddle: HL, donchianUpper: HL,
+  ichimokuKijun: HL, ichimokuSpanA: HL, ichimokuSpanB: HL, ichimokuTenkan: HL,
+}
+const ROLE_FIELD = { highs: 'high', lows: 'low', closes: 'close', volumes: 'volume' }
 
 function readSentenceCandidates(s) {
   const found = []
@@ -699,6 +750,10 @@ function readSentenceCandidates(s) {
     if (forming) found.push(forming)
   } catch { /* the chrome matched but the child did not read */ }
   try {
+    const merged = readTfMergeSentence(s)
+    if (merged) found.push(merged)
+  } catch { /* the chrome matched but the child did not read */ }
+  try {
     const lower = readLtfSentence(s)
     if (lower) found.push(lower)
   } catch { /* the chrome matched but the child did not read */ }
@@ -707,10 +762,19 @@ function readSentenceCandidates(s) {
     if (!slots) continue
     try {
       const arity = Math.max(...form.parts.filter((p) => typeof p === 'number')) + 1
+      const lead = form.kind === 'call' && own(BAR_ROLE_LEAD, form.name) ? BAR_ROLE_LEAD[form.name] : null
+      const bare = lead ? lead.map((word, i) => (own(slots, i) && slots[i].startsWith(`${word} from `)
+        ? slots[i].slice(`${word} from `.length) : null)) : []
+      const byRole = bare.some((text) => text !== null)
+      if (byRole && !bare.every((text) => text !== null)) throw new Error('some arguments named by role and some not')
       const args = []
       for (let i = 0; i < arity; i++) {
         if (!own(slots, i)) throw new Error(`form ${form.name} never captured argument ${i}`)
-        args.push(readOperand(slots[i]))
+        args.push(readOperand(byRole && i < lead.length ? bare[i] : slots[i]))
+      }
+      if (lead) {
+        const inOrder = lead.every((word, i) => args[i].type === 'series' && args[i].name === ROLE_FIELD[word])
+        if (byRole === inOrder) throw new Error('role words are written exactly when the fields are not the bar\'s own in order')
       }
       found.push({
         via: form.via || `${form.kind}:${form.name}`,
@@ -844,6 +908,11 @@ function predictTrace(node, at = '$') {
   if (node.type === 'ltf') {
     // ⭐ C41 — one `ltf` frame, then the child's own walk; no branch on the code.
     return [{ path: at, rule: 'ltf' },
+      ...predictTrace(node.args[0], `${at}.args[0]`)]
+  }
+  if (node.type === 'tf_merge') {
+    // ⭐ ENGINE 55 — its own rule name, as the renderer attributes it.
+    return [{ path: at, rule: 'tf_merge' },
       ...predictTrace(node.args[0], `${at}.args[0]`)]
   }
   if (node.type === 'tf_live') {
@@ -1110,6 +1179,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       // ⭐ `periodseconds` (2026-09-28): the chart's bar length, the session
       // clock's grid, read where the tree is evaluated rather than folded.
       'clock:periodseconds',
+      // ⭐ 2026-11-17 — the regular session's two clock leaves
+      'clock:regularfirst',
+      'clock:regularhours',
       'clock:sessionfirst',
       'clock:time',
       'clock:timeclose',
@@ -1142,6 +1214,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:alma',
       'function:aroonDown',
       'function:aroonUp',
+      // U-BUILTIN B3 (2026-11-19) -- Pine's `math.asin`.
+      'function:asin',
       'function:atan',
       'function:atr',
       // ⭐ (2026-09-27) Pine's `ta.atr`, with Pine's own seed — see `atrPine` in the forms above.
@@ -1156,6 +1230,8 @@ describe('totality over the closed table — derived from the manifest, never ha
       // `_functions_vendor_parity_resolutions`), not asserted from
       // documentation alone. Four named entries, not a bumped count.
       'function:bbw',
+      // ⭐ ENGINE 56 (A3): the Pine door's marker for a v1-v5 `bool` `na` meeting an unwitnessed operator
+      'function:boolNaWithheld',
       'function:bop',
       'function:cci',
       'function:ceil',
@@ -1216,6 +1292,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:na',
       'function:nz',
       'function:obvN',
+      // ⭐ 2026-11-17 — the regular session's own values (five entries, with the three below)
+      'function:openingRangeHigh',
+      'function:openingRangeLow',
       // `percentileLinearInterpolation` (2026-09-20): Pine's
       // `ta.percentile_linear_interpolation`, routed via `PINE_CALL_SHAPES`.
       // One named entry, not a bumped count.
@@ -1234,6 +1313,9 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:rma',
       'function:round',
       'function:rsi',
+      'function:sessionHigh',
+      'function:sessionLow',
+      'function:sessionOpen',
       'function:sign',
       'function:sin',
       'function:sinh',
@@ -1241,8 +1323,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:sqrt',
       'function:stdev',
       'function:stoch',
+      // ⭐ (2026-11-14, engine 57) Pine's `ta.stoch` — see `stochPine` in the forms above.
+      'function:stochPine',
       'function:sum',
       'function:tan',
+      // ⭐ ENGINE 56 (S1): the Pine door's mark on a v4 / v5 `highestbars` / `lowestbars` source
+      'function:tieNewest',
       'function:valuewhen',
       'function:valuewhenOccurrence',
       'function:vwap',
@@ -1270,7 +1356,12 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`, Pine's `ta.vwap(source)` for a bar price.
     // ⭐ 131 -> 138 (2026-10-30): Pine coverage Phase 1's `acos`, `alma`,
     // `percentileNearestRank`, `rci`, plus `accum2`, `accum3`, `accum4` (`_functions_multi_state`).
-    expect(entries.length).toBe(138)
+    // ⭐ 138 -> 139 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch`.
+    // ⭐ 139 -> 140 (2026-11-14, engine 56 A3): `boolNaWithheld`, the Pine door's bool-na marker.
+    // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
+    // ⭐ 141 -> 148 (2026-11-17): the regular session's two clock leaves and five readers.
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`, Pine's `math.asin`.
+    expect(entries.length).toBe(149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
   })
@@ -1293,7 +1384,13 @@ describe('totality over the closed table — derived from the manifest, never ha
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
     // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
-    expect(subjects.length).toBe(138)
+    // ⭐ 138 -> 139 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch`.
+    // ⭐ 139 -> 140 (2026-11-14, engine 56 A3): `boolNaWithheld`.
+    // ⭐ 140 -> 141 (2026-11-14, engine 56 S1): `tieNewest`.
+    // ⭐ 141 -> 148 (2026-11-17): the regular session, two clock leaves (`regularhours`, `regularfirst`) and five
+    // readers (`sessionOpen`, `sessionHigh`, `sessionLow`, `openingRangeHigh`, `openingRangeLow`).
+    // U-BUILTIN B3 (2026-11-19) 148 -> 149: `asin`.
+    expect(subjects.length).toBe(149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const { entry, ast: tree } of subjects) {
@@ -2480,7 +2577,10 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       // (2026-09-27) Pine's `ta.atr`, seeded from bar 0.
       'atr_pine_seeded_from_bar_zero',
       'plus_di', 'minus_di', 'stoch_k',
-      'stoch_d_by_composition', 'cci_20', 'williams_r', 'mfi_14',
+      'stoch_d_by_composition',
+      // (2026-11-14, engine 57) Pine's `ta.stoch`, the last n finite values, the last answer kept.
+      'stoch_pine_last_finite_values_held_answer',
+      'cci_20', 'williams_r', 'mfi_14',
       // (2026-09-28) Pine's `ta.mfi`, bar 0's flow on both sides.
       'mfi_pine_first_window_counts_bar_zero',
       'donchian_upper',
@@ -2518,6 +2618,9 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'accum2_fibonacci_steps_together', 'accum3_band_from_its_own_extremes', 'accum4_conditional_trend_machine',
       // ⭐ H3 (2026-10-02): `vwapOf(close)`, the same accumulator weighting a bar price.
       'vwap_of_close_session',
+      // ⭐ 2026-11-17 — the regular session: two clock leaves and five readers
+      'clock_regularhours', 'clock_regularfirst', 'session_regular_open', 'session_regular_high',
+      'session_regular_low', 'opening_range_high_30', 'opening_range_low_30',
       'avwap_from_a_mid_series_instant',
       // ⛔ AND ONE REFUSAL ROW: the anchor is one second before the first bar,
       // so `avwap` answers NOT COMPUTABLE rather than a column that would move
@@ -2560,6 +2663,9 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'sym_an_unsupplied_benchmark_is_not_computable',
       'tf_live_close_weekly',
       'tf_live_compared_to_the_closed_week',
+      // ⭐ ENGINE 55 — Pine's merged read (`tf_merge`), a thirteenth node type.
+      'tf_merge_close_weekly',
+      'tf_merge_against_the_closed_week',
       // ⭐ C41 — the read BELOW the chart's timeframe (`ltf`), a twelfth node type.
       'ltf_close_sixty_is_not_computable_without_a_supply',
       // ⭐ FOUR ADDED WITH THE mod/idiv OVERFLOW FIX. The two `*_overflow_to_nan`
@@ -2648,8 +2754,14 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'pine_percentile_linear_interpolation_between_two_ranks',
       // ⭐ PHASE 1 (2026-10-30) -- one corpus case per new function.
       'pine_acos_of_the_body_share_of_the_range',
+      // U-BUILTIN B3 (2026-11-19) -- `asin`, acos's twin.
+      'pine_asin_of_the_body_share_of_the_range',
       'pine_alma_9_085_6',
       'pine_percentile_nearest_rank_of_the_range',
+      // (2026-11-14, engine 56 S1) the v4 / v5 tie mark is its operand
+      'pine_tie_newest_is_its_operand',
+      // (2026-11-14, engine 56 A3) the bool-na marker is its operand
+      'pine_bool_na_withheld_is_its_operand',
       'pine_rci_close_10',
       // ⭐⭐ `timenow` + its five calendar fields (2026-09-20) — the real
       // "is_today" idiom measured across six corpus scripts, split into TWO
@@ -2743,7 +2855,12 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // ⭐ 129 -> 130 (2026-09-30, C38): `barsAgo`, Pine's `x[e]` with a per-bar index.
     // ⭐ 130 -> 131 (2026-10-02, H3): `vwapOf`.
     // ⭐ 131 -> 138 (2026-10-30): Phase 1's four plus `accum2`, `accum3`, `accum4`.
-    expect(sentences.length).toBe(CORPUS.cases.length + 138)
+    // ⭐ 138 -> 139 (2026-11-14, engine 57): `stochPine`, Pine's `ta.stoch`.
+    // ⭐ + 139 -> + 140 (2026-11-14, engine 56 A3): `boolNaWithheld`.
+    // ⭐ + 140 -> + 141 (2026-11-14, engine 56 S1): `tieNewest`.
+    // ⭐ + 141 -> + 148 (2026-11-17): the regular session's two clock leaves and five readers.
+    // U-BUILTIN B3 (2026-11-19) + 148 -> + 149: `asin`.
+    expect(sentences.length).toBe(CORPUS.cases.length + 149)
     // ⭐ +1 more: `mfiPine` (#241), merged beside the four clock columns at integration.
     // +1 more: `periodseconds` (#246), the chart's bar length, merged at integration.
     for (const s of sentences) {
@@ -3143,13 +3260,20 @@ describe('sentence.js is a pure function of (ast, inputs) — by AST over its ow
     // allowlist widened until it means nothing.
     expect(got.imports).toEqual(['./parse.js'])
     const parseImports = scan(acorn.parse(readSource('parse.js'), { ecmaVersion: 2023, sourceType: 'module' })).imports
-    expect(parseImports).toEqual(['./callExpansions.js', './closedTable.json', 'jsep'])
+    expect(parseImports).toEqual(['./callExpansions.js', './closedTable.json', './doorDeadline.js', 'jsep'])
     // ⭐ BATCH 2 — `parse.js` expands the exact-identity functions with
     // `callExpansions.js`, which is SCANNED here rather than allowed: no findings
     // and no imports of its own, so the closure stays exactly as narrow as before.
     const expansions = scan(acorn.parse(readSource('callExpansions.js'), { ecmaVersion: 2023, sourceType: 'module' }))
     expect(expansions.findings, 'callExpansions.js reached something outside a pure derivation').toEqual([])
     expect(expansions.imports).toEqual([])
+    // ⭐ door-deadline (2026-11-20) — `parse.js` ticks the member door's window (`doorDeadline.js`) from its tree walks,
+    // and that module is SCANNED too: no findings, no imports. It reads no clock of its own (a window carries the clock
+    // it was opened with), with no window open every tick is one null test, and inside one a tick can only STOP a walk
+    // (a throw), never change a value it returns: a derived sentence is still a function of (ast, inputs) alone.
+    const door = scan(acorn.parse(readSource('doorDeadline.js'), { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(door.findings, 'doorDeadline.js reached something outside a pure derivation').toEqual([])
+    expect(door.imports).toEqual([])
   })
 
   it('…and the detector can FAIL — the positive control', async () => {

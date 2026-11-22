@@ -75,14 +75,13 @@ function Wrap({ opts = {}, onOptsChange = () => {} }) {
 }
 
 // ── Meta row ───────────────────────────────────────────────────────────────
-test('meta row renders market cap, next earnings and UCT rating', () => {
+test('meta row renders market cap and next earnings, and no UCT Rating (retired 11-17)', () => {
   render(<Wrap />)
   expect(screen.getByText('Market Cap')).toBeTruthy()
   expect(screen.getByText('$1.2T')).toBeTruthy()
   expect(screen.getByText('Next Earnings')).toBeTruthy()
   expect(screen.getByText('8/28/2026')).toBeTruthy()   // ISO -> M/D/YYYY
-  expect(screen.getByText('UCT Rating')).toBeTruthy()
-  expect(screen.getByText('61')).toBeTruthy()
+  expect(screen.queryByText('UCT Rating')).toBeNull()
 })
 
 test('meta row is hidden entirely when all three items are toggled off', () => {

@@ -1,8 +1,9 @@
 """Wave 6 (lane E, item 4) — the member's daily note.
 
 "Today" (and Ctrl/Cmd+Alt+D) opens the member's note for today, creating it the
-first time: titled `YYYY-MM-DD · Weekday`, in a root `Daily` folder made on
-first use. The day is the member's ET day, computed by the CLIENT (`todayET`,
+first time: titled `YYYY-MM-DD · Weekday`, in a root `Daily notes` folder made
+on first use (simplify pass 2, A3: a member who already has a root `Daily` folder
+keeps getting their notes there; it is never renamed and nothing is migrated). The day is the member's ET day, computed by the CLIENT (`todayET`,
 lib/calendar.js) and sent here; this module only checks it is a real day.
 
 ⛔⛔ EXACTLY ONE PER MEMBER PER DAY, ENFORCED SERVER-SIDE — by the unique index
@@ -30,11 +31,17 @@ from __future__ import annotations
 import re
 import sqlite3
 from datetime import date
-from typing import Any
+from typing import Any, Callable
 
 from api.services.auth_db import get_connection
 
-DAILY_FOLDER_NAME = "Daily"
+#: The folder a member's daily notes go in when they have none yet (simplify pass 2, A3: was "Daily", which sat
+#: right under the panel row "Daily brief").
+DAILY_FOLDER_NAME = "Daily notes"
+#: Root folder names an existing member's daily notes already live in. Found before `DAILY_FOLDER_NAME` when the
+#: member's most recent day does not already say which folder is theirs (final fix I2, `_daily_folder_id`), so a
+#: member with both names never gets their days split.
+LEGACY_DAILY_FOLDER_NAMES = ("Daily",)
 _WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -59,29 +66,110 @@ def daily_title(day: date) -> str:
 
 
 def _daily_folder_id(user_id: str, conn: sqlite3.Connection) -> str:
-    """The member's root `Daily` folder (any casing they gave it), made on first
-    use. Inside the caller's transaction: no commit here."""
+    """The member's root daily folder, made on first use. In order:
+    1. the root folder holding the member's most recent LIVE daily note (latest day), when that folder's name is one
+       of the candidate names (legacy or new, any casing) -- final fix I2: a member whose days are in "Daily notes"
+       keeps them there when a root "Daily" appears later (a vault import, their own folder), and the mirror;
+    2. else a root folder named any legacy name (any casing they gave it; the oldest first);
+    3. else one named `DAILY_FOLDER_NAME`, else a new `DAILY_FOLDER_NAME`.
+    A most recent day in a folder the member renamed (or moved deeper) is not a daily folder any more: the name order
+    decides. No rename, no migration. Inside the caller's transaction: no commit here.
+
+    Follow-up B, item 4a: step 1 looks at the most recent live daily note ITSELF, wherever it is. It used to join
+    root folders only, so a most recent day moved into a nested folder or to Unfiled was skipped and an OLDER day's
+    root folder decided. Now such a day falls straight through to the name order; nothing older is looked at."""
     from api.services.journal_two import notes as notes_service
 
-    row = conn.execute(
-        "SELECT id FROM j2_note_folders WHERE user_id = ?"
-        " AND (parent_id IS NULL OR parent_id = '') AND name = ? COLLATE NOCASE"
-        " ORDER BY created_at, id LIMIT 1",
-        (user_id, DAILY_FOLDER_NAME),
+    candidates = {n.casefold() for n in (*LEGACY_DAILY_FOLDER_NAMES, DAILY_FOLDER_NAME)}
+    latest = conn.execute(
+        "SELECT f.id, f.name, f.parent_id FROM j2_notes n"
+        " LEFT JOIN j2_note_folders f ON f.id = n.folder_id AND f.user_id = n.user_id"
+        " WHERE n.user_id = ? AND n.daily_date IS NOT NULL AND n.deleted_at IS NULL"
+        " ORDER BY n.daily_date DESC LIMIT 1",
+        (user_id,),
     ).fetchone()
-    if row:
-        return row["id"]
+    if (latest and latest["id"] and not latest["parent_id"]
+            and str(latest["name"]).casefold() in candidates):
+        return latest["id"]
+    for name in (*LEGACY_DAILY_FOLDER_NAMES, DAILY_FOLDER_NAME):
+        row = conn.execute(
+            "SELECT id FROM j2_note_folders WHERE user_id = ?"
+            " AND (parent_id IS NULL OR parent_id = '') AND name = ? COLLATE NOCASE"
+            " ORDER BY created_at, id LIMIT 1",
+            (user_id, name),
+        ).fetchone()
+        if row:
+            return row["id"]
     return notes_service.create_folder(user_id, DAILY_FOLDER_NAME, conn=conn)["id"]
+
+
+def daily_note_exists(user_id: str, raw_date: Any) -> bool:
+    """Final fix I3: is there a LIVE daily note for this member and day (archived counts: it still opens)? A plain
+    read on its own connection, outside any write transaction, so the POST door can skip building the plan seed for
+    a note it would only open. A bad day raises DailyNoteError, as the door itself would. A note made by another tab
+    between this read and the door is still answered by the door (the seed is then dropped, as for any existing
+    note)."""
+    from api.services.journal_two import notes as notes_service
+
+    iso = parse_day(raw_date).isoformat()
+    conn = get_connection()
+    try:
+        return notes_service.find_daily_note_id(user_id, iso, conn) is not None
+    finally:
+        conn.close()
 
 
 def _answer(user_id: str, note_id: str, conn: sqlite3.Connection, *, created: bool, missing: bool) -> dict[str, Any]:
     from api.services.journal_two import notes as notes_service
 
     return {"note": notes_service.get_note(user_id, note_id, conn=conn),
-            "created": created, "templateMissing": missing}
+            "created": created, "templateMissing": missing, "planSeeded": False}
 
 
-def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None) -> dict[str, Any]:
+def _text_of(node: Any) -> str:
+    if not isinstance(node, dict):
+        return ""
+    if node.get("type") == "text":
+        return str(node.get("text") or "")
+    return "".join(_text_of(c) for c in node.get("content") or [])
+
+
+def merge_seed(seed: list[dict], content: list[dict]) -> list[dict]:
+    """The seed's blocks above the template's body -- unless the seed starts with a heading the template ALSO has
+    (the "Daily prep" shape: its own "Today's plan"). Then the seed's checklist items join the template's first
+    checklist under that heading (or a new one right after it), and no second heading is written (Tier 3b M9)."""
+    if not seed or seed[0].get("type") != "heading":
+        return [*seed, *content]
+    title = _text_of(seed[0]).strip().lower()
+    at = next((i for i, n in enumerate(content) if isinstance(n, dict) and n.get("type") == "heading"
+               and _text_of(n).strip().lower() == title), None)
+    if at is None:
+        return [*seed, *content]
+    items = [it for b in seed[1:] if b.get("type") == "taskList" for it in b.get("content") or []]
+    others = [b for b in seed[1:] if b.get("type") != "taskList"]
+    out = list(content)
+    nxt = out[at + 1] if at + 1 < len(out) else None
+    if items and isinstance(nxt, dict) and nxt.get("type") == "taskList":
+        out[at + 1] = {**nxt, "content": [*items, *(nxt.get("content") or [])]}
+    elif items:
+        out.insert(at + 1, {"type": "taskList", "content": items})
+    return [*others, *out] if others else out
+
+
+def _seed_list(seed_blocks: Any) -> list[dict]:
+    try:
+        got = seed_blocks() if callable(seed_blocks) else seed_blocks
+    except Exception:  # noqa: BLE001 -- the seed is a convenience; the day's note is not
+        return []
+    return [b for b in (got or []) if isinstance(b, dict)]
+
+
+def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None, *,
+                    seed_blocks: Callable[[], list[dict]] | list[dict] | None = None) -> dict[str, Any]:
+    """`seed_blocks` (the Today home, audit 2026-11-05 S18): blocks that START a note this call MAKES, above the
+    template's body -- a list, or a function called only when the note is made (so an open of an existing note
+    computes nothing). Never applied to a note that already exists, like the template itself. A seed that cannot
+    be built is left out; the note is still made."""
     from api.services.journal_two import notes as notes_service
     from api.services.journal_two import note_templates
 
@@ -110,6 +198,12 @@ def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None) -> dic
                 # it is not an edit (the one authority, journal_styles.with_trailing_paragraph).
                 payload["bodyJson"] = _js.with_trailing_paragraph(_js.without_placeholder_lines(tpl["bodyJson"]))
                 properties = tpl["properties"] or None
+        seed = _seed_list(seed_blocks)
+        if seed:
+            from api.services.journal_two import journal_styles as _js
+            body = payload.get("bodyJson") if isinstance(payload.get("bodyJson"), dict) else None
+            rest = list(body.get("content") or []) if body else []
+            payload["bodyJson"] = _js.with_trailing_paragraph({"type": "doc", "content": merge_seed(seed, rest)})
         try:
             note = notes_service.create_note(user_id, payload, conn=conn,
                                              daily_date=iso, properties=properties)
@@ -121,7 +215,9 @@ def open_daily_note(user_id: str, raw_date: Any, template_id: Any = None) -> dic
             if winner is None:
                 raise
             return _answer(user_id, winner, conn, created=False, missing=False)
-        return {"note": note, "created": True, "templateMissing": missing}
+        # Final fix M4: `planSeeded` says whether today's plan lines went into the note this call made (the first run
+        # says "Today's plan written" only then; an empty seed made a note with no plan).
+        return {"note": note, "created": True, "templateMissing": missing, "planSeeded": bool(seed)}
     except BaseException:
         if conn.in_transaction:
             conn.rollback()

@@ -1,17 +1,21 @@
 // app/src/pages/ThemeTrackerPage.jsx
+import { useWidgetDoor } from './charts/widgetDoors'
+import { isHiddenDeskKey } from './charts/deskKeyGate'
 import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback, useContext, lazy, Suspense, memo } from 'react'
 import { createPortal } from 'react-dom'
+import { useUctHeaderSlotAlways, useUctControlsSlot } from './charts/uctHeaderSlot'
 import useMobileSWR from '../hooks/useMobileSWR'
 import { SkeletonTileContent } from '../components/Skeleton'
 import styles from './ThemeTrackerPage.module.css'
 import StockChart from '../components/StockChart'
 import CompanyLogo from '../components/CompanyLogo'
-import uctMark from '../components/intro/assets/compass-mark.png'
+import uctMark from '../components/intro/assets/compass-mark.webp'
 import useThemeIndexBars from '../hooks/useThemeIndexBars'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
 import { TAG_BY_KEY } from '../constants/tagColors'
-import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, prewarmVisibleList } from '../utils/prefetchBars'
+import { prefetchBar, prefetchBars, prefetchAllTimeframes, prefetchBarOnIntent, prewarmVisibleList } from '../utils/barsWarm'
+import { sessionState, nextBoundary } from '../lib/marketClock/marketClock'
 import { useNeighborWarm } from '../hooks/useNeighborWarm'
 import { fetchTf } from '../components/chart/timeframes'
 import TickerActionsMenu, { useTickerActions } from '../components/TickerActions'
@@ -66,6 +70,28 @@ function fmtEtTime(iso) {
   } catch { return '' }
 }
 
+// /api/theme-performance is 161 KB a poll, about 58 MB an hour at 10 s, so 10 s is for the regular
+// session only. The clock is read at each tick (a page left open across the bell speeds up without a
+// re-render), and this stays one module-level function because SWR restarts its timer whenever the
+// interval's identity changes. `computing` is a short first-build state, so it keeps its own retry.
+//
+// Outside the session the timer also stops at the next session boundary, so the first poll of the
+// session lands at the bell instead of up to a full slow interval later. `pollFactor` is useMobileSWR's
+// touch multiplier: it is applied to the value returned here, so the boundary is divided by it.
+const THEME_PERF_SLOW_MS = 120_000
+const THEME_PERF_MIN_MS = 1_000
+function themePerformanceRefreshMs(d, pollFactor = 1) {
+  if (d?.status === 'computing') return 15_000
+  const now = new Date()
+  if (sessionState(now).isOpen) return 10_000
+  const boundary = nextBoundary(now)
+  const untilBoundary = boundary ? Math.ceil((boundary.at.getTime() - now.getTime()) / pollFactor) : Infinity
+  return Math.max(THEME_PERF_MIN_MS, Math.min(THEME_PERF_SLOW_MS, untilBoundary))
+}
+
+// The most rows one list prewarm may request from the open theme group.
+const THEME_PREWARM_ROW_CAP = 50
+
 // localStorage key holding the last /api/theme-performance response, used to
 // paint the tab instantly on load before the fresh (632KB) fetch returns.
 const THEME_PERF_CACHE_KEY = 'uct.themePerf.v1'
@@ -79,6 +105,8 @@ function RotationBadge({ delta }) {
 
 const PERIOD_LABELS = { '1d': '1D', 'open': 'Open', '1w': '1W', '1m': '1M', '3m': '3M', '1y': '1Y', 'ytd': 'YTD' }
 const RANK_TABS = ['Today', '1W', '1M', '3M', '1Y', 'YTD']
+// On a narrow board widget the periods from here on fold into a ▾ menu (the active one stays out).
+const FOLD_FROM = 3
 const RANK_TO_KEY = { 'Today': '1d', '1W': '1w', '1M': '1m', '3M': '3m', '1Y': '1y', 'YTD': 'ytd' }
 
 function fmtRet(val) {
@@ -204,6 +232,7 @@ const ThemeSearchBox = memo(function ThemeSearchBox({ onDebounced }) {
   }, [val, onDebounced])
   return (
     <div className={styles.searchBar}>
+      <span className={styles.searchGlyph} aria-hidden="true"><UIcon name="search" size={14} gold={false} /></span>
       <input aria-label="Search themes or tickers"
         className={styles.searchInput}
         placeholder="Search themes or tickers…"
@@ -247,7 +276,7 @@ function AddStockRow({ onAdd, autoFocus = false }) {
   )
 }
 
-function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices, tintEnabled = true, showLogos = true, logoSize = 16, editing = false, onHideTheme, onRemoveSym, onAddSym, groupRefs, flash = false, autoFocusAdd = false }) {
+function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym, activeKey, sortDir, open, onToggle, rowRefs, rotationRanking, getTag, tickerActions, onHoverSym, prices, tintEnabled = true, showLogos = true, logoSize = 16, editing = false, onHideTheme, onRemoveSym, onAddSym, groupRefs, flash = false, autoFocusAdd = false, grouped = false }) {
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const tk = themeKey || theme.ticker
   const isPortfolio = theme.ticker === 'UCT20'
@@ -267,7 +296,8 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
   return (
     <>
       <div
-        className={`${styles.groupRow} ${flash ? styles.groupFlash : ''}`}
+        data-guide="themes.group"
+        className={`${styles.groupRow} ${flash ? styles.groupFlash : ''}${open ? ' ' + styles.groupRowOpen : ''}`}
         ref={el => { if (groupRefs) groupRefs.current[tk] = el }}
         onClick={() => onToggle(tk)}
       >
@@ -290,6 +320,15 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
 
       {/* The equal-weight $IDX index row shows ONLY for an UNEDITED owner theme — a custom
           theme has no $IDX, and once membership is edited the shared $IDX no longer matches. */}
+      {/* Grouped (board, owner 11-13): an opened theme's rows sit in one group — a soft raised
+          block with a guide line joining the stocks to their theme. Off the board: unchanged. */}
+      {open && grouped && <div className={styles.groupBody}>{groupRows()}</div>}
+      {open && !grouped && groupRows()}
+    </>
+  )
+
+  function groupRows() {
+    return (<>
       {open && !theme.is_custom && !theme.user_edited && (() => {
         const indexSym = `$IDX:${themeSlug(theme.name)}`
         return (
@@ -300,12 +339,14 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
           >
             <span className={styles.stockLabel}>
               <span className={styles.stockLogo}><UIcon name="equity" size={13} /></span>
-              <span className={styles.sym} style={{ fontWeight: 700 }}>{theme.name} Index</span>
+              {grouped
+                ? <><span className={`${styles.sym} ${styles.indexName}`} title={`${theme.name} Index`}>{theme.name} Index</span><span className={styles.indexSub}>{theme.etf_name ? 'ETF · equal weight' : 'Equal weight'}</span></>
+                : <span className={styles.sym} style={{ fontWeight: 700 }}>{theme.name} Index</span>}
               {/* The row is always the equal-weight SYNTHETIC index ($IDX). Only
                   label it "ETF" when the theme is actually ETF-backed — the 48
                   curated-only themes (incl. all 12 new narrow ones) have no ETF,
                   so "ETF" there was misleading (mega-review). */}
-              <span className={styles.indexBadge}>{theme.etf_name ? 'ETF' : 'INDEX'}</span>
+              {!grouped && <span className={styles.indexBadge}>{theme.etf_name ? 'ETF' : 'INDEX'}</span>}
             </span>
             <ReturnCell value={groupLive} baseClass={`${styles.ret} ${retClass(groupLive, styles)}`} flashEnabled={tintEnabled} />
           </div>
@@ -354,31 +395,31 @@ function ThemeGroup({ theme, themeKey, selectedSym, selectedNavKey, onSelectSym,
       {open && editing && onAddSym && (
         <AddStockRow onAdd={(sym) => onAddSym(theme, sym)} autoFocus={autoFocusAdd} />
       )}
-    </>
-  )
+    </>)
+  }
 }
 
 // A dropdown menu rendered in a PORTAL (document.body) positioned under an anchor, so the
 // widget's overflow:hidden can never clip it — it floats on top and can spill past the edge.
-function FloatingMenu({ anchorRef, onClose, width = 210, up = false, children }) {
+function FloatingMenu({ anchorRef, onClose, width = 210, up = false, alignRight = false, className = '', children }) {
   const [pos, setPos] = useState(null)
   useLayoutEffect(() => {
     const el = anchorRef?.current
     if (!el) return
     const r = el.getBoundingClientRect()
-    let left = Math.max(6, Math.min(r.left, window.innerWidth - width - 6))
+    let left = Math.max(6, Math.min(alignRight ? r.right - width : r.left, window.innerWidth - width - 6))
     // `up` anchors the menu ABOVE its button (via bottom) so a bottom-bar menu opens upward
     // into the widget instead of spilling off the bottom of the screen.
     if (up) setPos({ bottom: Math.max(6, window.innerHeight - r.top + 4), left })
     else setPos({ top: r.bottom + 4, left })
-  }, [anchorRef, width, up])
+  }, [anchorRef, width, up, alignRight])
   const style = pos
     ? ('bottom' in pos ? { bottom: pos.bottom, left: pos.left, width } : { top: pos.top, left: pos.left, width })
     : { top: -9999, left: -9999, width }
   return createPortal(
     <>
       <div className={styles.floatBackdrop} onClick={onClose} />
-      <div className={styles.floatMenu} style={style}>{children}</div>
+      <div className={`${styles.floatMenu}${className ? ' ' + className : ''}`} style={style}>{children}</div>
     </>,
     document.body,
   )
@@ -397,16 +438,74 @@ const TrashIcon = () => (
 
 // Set picker + Edit toggle (rides the search row). Create / rename / delete all happen
 // IN-WIDGET (inline inputs, 2-click delete confirm) — no browser prompt/confirm dialogs.
-function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, editing, onToggleEdit }) {
+function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, editing, onToggleEdit, board = false }) {
   const [open, setOpen] = useState(false)
   const [renamingId, setRenamingId] = useState(null)
   const [renameVal, setRenameVal] = useState('')
   const [confirmDel, setConfirmDel] = useState(null)
   const btnRef = useRef(null)
   const close = () => { setOpen(false); setRenamingId(null); setConfirmDel(null) }
+  // Board look (UCT frame, owner 11-13): the set name is a quiet button like the search field;
+  // Edit / Customize moved into its menu (and the footer ⋯). Same handlers as below.
+  if (board) return (
+    <div className={styles.setPicker}>
+      <button ref={btnRef} type="button" className={`${styles.setPickerBtn} ${styles.setPickerUct}${open ? ' ' + styles.setPickerUctOpen : ''}`}
+        data-guide="themes.sets" aria-haspopup="menu" aria-expanded={open}
+        onClick={() => setOpen(o => !o)} title="Theme set — UCT Default or one of your own">
+        <span className={styles.setPickerUctName}>{activeSet ? activeSet.name : 'UCT Default'}</span>
+        <UIcon name="chevronDown" size={12} gold={false} />
+      </button>
+      {open && (
+        <FloatingMenu anchorRef={btnRef} onClose={close} width={240} alignRight className={styles.setMenuUct}>
+          <div className={styles.ttMenuLabel}>Theme sets</div>
+          <button type="button" role="menuitemradio" aria-checked={!themeSetId}
+            className={`${styles.ttMenuItem} ${styles.setUctItem}`} onClick={() => { onSelect(null); close() }}>
+            <span className={styles.setUctCheck}>{!themeSetId && <UIcon name="check" size={13} gold={false} />}</span>
+            <span className={styles.setUctName}>UCT Default</span>
+          </button>
+          {sets.map(s => (
+            <div key={s.id} className={styles.setUctRow}>
+              {confirmDel === s.id ? (
+                <div className={styles.setUctConfirm}>
+                  <span className={styles.setUctConfirmLabel}>Delete “{s.name}”?</span>
+                  <button type="button" className={styles.setUctDanger} onClick={() => { onDelete(s.id); close() }}>Delete</button>
+                  <button type="button" className={styles.setUctQuiet} onClick={() => setConfirmDel(null)}>Cancel</button>
+                </div>
+              ) : renamingId === s.id ? (
+                <input aria-label="Rename theme set" autoFocus className={styles.setUctInput} value={renameVal}
+                  onChange={e => setRenameVal(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { onRename(s.id, renameVal.trim() || s.name); setRenamingId(null) }
+                    if (e.key === 'Escape') setRenamingId(null)
+                  }}
+                  onBlur={() => setRenamingId(null)} />
+              ) : (
+                <>
+                  <button type="button" role="menuitemradio" aria-checked={s.id === themeSetId}
+                    className={`${styles.ttMenuItem} ${styles.setUctItem}`} onClick={() => { onSelect(s.id); close() }}>
+                    <span className={styles.setUctCheck}>{s.id === themeSetId && <UIcon name="check" size={13} gold={false} />}</span>
+                    <span className={styles.setUctName}>{s.name}</span>
+                  </button>
+                  <button type="button" className={styles.setUctIcon} title="Rename" aria-label={`Rename ${s.name}`}
+                    onClick={() => { setRenamingId(s.id); setRenameVal(s.name); setConfirmDel(null) }}><PencilIcon /></button>
+                  <button type="button" className={`${styles.setUctIcon} ${styles.setUctIconDanger}`} title="Delete" aria-label={`Delete ${s.name}`}
+                    onClick={() => setConfirmDel(s.id)}><TrashIcon /></button>
+                </>
+              )}
+            </div>
+          ))}
+          <div className={styles.ttMenuSep} />
+          <button type="button" role="menuitem" className={styles.ttMenuItem} onClick={() => { close(); onToggleEdit() }}>
+            <UIcon name="edit" size={14} gold={false} />
+            {editing ? 'Finish editing' : activeSet ? `Edit ${activeSet.name}` : 'Make your own set'}
+          </button>
+        </FloatingMenu>
+      )}
+    </div>
+  )
   return (
     <div className={styles.setPicker}>
-      <button ref={btnRef} className={styles.setPickerBtn} onClick={() => setOpen(o => !o)} title="Choose a preset">
+      <button ref={btnRef} className={styles.setPickerBtn} data-guide="themes.sets" onClick={() => setOpen(o => !o)} title="Choose a preset">
         {activeSet ? activeSet.name : 'UCT Default'} <span className={styles.setCaret}>▾</span>
       </button>
       {/* Default is read-only → "Customize" (forks an auto-saving preset on first edit); a preset
@@ -455,7 +554,7 @@ function SetPicker({ sets, themeSetId, activeSet, onSelect, onRename, onDelete, 
 
 // Add-theme picker (edit mode): search the full theme list + click to add (watchlist-style),
 // or type a name to create a custom theme. One "Add" affordance.
-function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
+function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false, board = false }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
   const [cname, setCname] = useState('')
@@ -465,9 +564,15 @@ function AddThemePicker({ palette, inSet, onAdd, onCreateCustom, up = false }) {
   const close = () => { setOpen(false); setQ(''); setCname('') }
   return (
     <div className={styles.addThemeWrap}>
-      <button ref={btnRef} className={styles.editBarAdd} onClick={() => setOpen(o => !o)}>＋ Add theme</button>
+      {board ? (
+        <button ref={btnRef} type="button" className={styles.editUctAdd} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(o => !o)}>
+          <UIcon name="plus" size={13} gold={false} /> Add theme
+        </button>
+      ) : (
+        <button ref={btnRef} className={styles.editBarAdd} onClick={() => setOpen(o => !o)}>＋ Add theme</button>
+      )}
       {open && (
-        <FloatingMenu anchorRef={btnRef} onClose={close} width={260} up={up}>
+        <FloatingMenu anchorRef={btnRef} onClose={close} width={260} up={up} className={board ? styles.setMenuUct : ''}>
           <input aria-label="Search themes" autoFocus className={styles.addThemeSearch} placeholder="Search themes…" value={q} onChange={e => setQ(e.target.value)} />
           <div className={styles.addThemeList}>
             {list.map(t => {
@@ -518,6 +623,17 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     [prefs, placedTheme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // UCT frame on the /charts board (owner 11-13, Theme Tracker draft A): the theme-set picker
+  // rides the widget's title row, ⚙ joins the window controls, Close / Open sits at the end of
+  // the period tabs, and Send to Journal moves to a ⋯ in the footer. Same elements, same handlers.
+  // The periods ALWAYS ride the title row on the board; when the widget is narrow the longer
+  // periods fold into a ▾ menu (CSS container query) instead of the row dropping a line.
+  const uctRowSlot = useUctHeaderSlotAlways('themes')
+  const [periodMenu, setPeriodMenu] = useState(null)   // {left, top} — the folded periods
+  const uctCtrlSlot = useUctControlsSlot()
+  const onBoard = !!uctCtrlSlot
+  const inUctRow = (el) => (uctRowSlot ? createPortal(el, uctRowSlot) : el)
+  const [footMenu, setFootMenu] = useState(null)   // {x, y} — the footer ⋯ menu
   const settingsBtnRef = useRef(null)
   const pageRef = useRef(null)
   const patchSettings = useCallback((patch) => {
@@ -550,6 +666,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // Seeded from + persisted to per-widget opts.
   const [todayBasis, setTodayBasisRaw] = useState(opts?.todayBasis === 'open' ? 'open' : 'close')
   const setTodayBasis = useCallback((b) => { setTodayBasisRaw(b); patchOpts({ todayBasis: b }) }, [patchOpts])
+  // seeded once, so follow a change that arrives through opts (the layout, Undo, the Agent); our own arrives equal
+  const optsBasis = opts?.todayBasis === 'open' ? 'open' : 'close'
+  useEffect(() => { setTodayBasisRaw(optsBasis) }, [optsBasis])
   // 'open' is a Today-only basis (no historical meaning), so it maps in only when Today is active.
   // Defined here (before the set-editor memos that depend on it) to avoid a TDZ reference.
   const activeKey = (activeTab === 'Today' && todayBasis === 'open') ? 'open' : RANK_TO_KEY[activeTab]
@@ -634,18 +753,20 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   }, [])
   // A selected personal set overlays server-side via ?set=<id>. Default = shared tracker.
   const perfUrl = themeSetId ? `/api/theme-performance?set=${encodeURIComponent(themeSetId)}` : '/api/theme-performance'
-  const { data, isLoading, mutate } = useMobileSWR(perfUrl, fetcher, {
-    // 10s so the theme %s stay near-live and the leaderboard re-sorts in order.
+  const { data: perfData, isLoading, mutate } = useMobileSWR(perfUrl, fetcher, {
+    // 10s in the regular session so the theme %s stay near-live and the leaderboard re-sorts in order.
     // (The server overlay is cached at the same 10s window — see _LIVE_1D_TTL —
     // so this polls no faster than the data actually refreshes.) Theme %s are
     // aggregates of up to ~2,050 holdings; we can't stream them tick-by-tick
     // like the watchlist (that would fan out the single-process SSE backend),
     // so a short server-refresh window is the live-enough, safe approach.
     fallbackData: themeSetId ? undefined : themeFallback,
-    refreshInterval: (d) => d?.status === 'computing' ? 15_000 : 10_000,
+    refreshInterval: themePerformanceRefreshMs,
     dedupingInterval: 8_000,
     revalidateOnFocus: false,
   })
+  const data = perfData
+
   const isComputing = data?.status === 'computing'
 
   // Full default dataset — fetched ONLY while editing, as the palette + data source so
@@ -950,11 +1071,11 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       const theme = data?.themes?.find(t => t.ticker === ticker)
       if (theme?.holdings?.length) {
         const syms = theme.holdings.map(h => h.sym)
-        // Warm the WHOLE just-opened group so arrowing/scrolling it is instant.
+        // Warm the just-opened group, up to the cap, so arrowing/scrolling it is instant.
         // Daily-only + idle-deferred via the shared helper — NOT all timeframes,
         // which 503-floods the origin at market open and starves the visible chart
         // (see prewarmVisibleList). Intraday warms on-demand per clicked symbol.
-        prewarmVisibleList(syms, { chartTf: warmTfRef.current })
+        prewarmVisibleList(syms, { chartTf: warmTfRef.current, cap: THEME_PREWARM_ROW_CAP })
       }
       return ticker                      // opening a new one closes the previous
     })
@@ -1066,6 +1187,41 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     setJournalMsg(await sendCaptureToJournal('themes', doorCapture(), { label: themesCaptureLabel }))
   }, [doorCapture, themesCaptureLabel, setJournalMsg])
 
+  // The same tab, sort, accordion and set a person's clicks reach, offered to the Agent (charts/widgetDoors.js). The tab
+  // and the accordion stay this widget's own state, on purpose unpersisted: the tracker still opens on Today every load.
+  useWidgetDoor(() => ({
+    read: () => {
+      const open = sortedThemes.find(t => t.ticker === openTheme)
+      // C3-174 (pl-exec round 3): the member's theme sets as the set menu lists them — what its Rename and Delete controls act on
+      return { period: RANK_TO_KEY[activeTab], sortDir, openTheme: open ? open.ticker : null, themeSet: activeSet?.id ?? null,
+        themeSets: themeSetsEnabled ? sets.map(x => ({ id: x.id, name: x.name })) : [] }
+    },
+    options: () => ({
+      openTheme: sortedThemes.map(t => ({ value: t.ticker, label: t.name || t.ticker })),
+      themeSet: themeSetsEnabled ? [{ value: null, label: 'Default' }, ...sets.map(x => ({ value: x.id, label: x.name }))] : [],
+    }),
+    write: (key, v) => {
+      if (key === 'period') {
+        const tab = Object.keys(RANK_TO_KEY).find(k => RANK_TO_KEY[k] === v)
+        if (tab && tab !== activeTab) setTabSort(prev => nextThemeTabSort(prev, tab))
+      } else if (key === 'sortDir') {
+        if (v !== sortDir) setTabSort(flipThemeSort)
+      } else if (key === 'openTheme') {
+        if (v == null) setOpenTheme(null)
+        else if (v !== openTheme) toggleTheme(v)
+      } else if (key === 'themeSet') selectSet(v)
+      else if (key === 'themeSets' && themeSetsEnabled && v && typeof v === 'object' && !Array.isArray(v)) {
+        // ONE operation, as the set menu's own control does it — Delete (deleteSet; a deleted active set falls back to Default,
+        // as its menu does) or Rename (renameSet). AUDIT S1-A: never a reconcile of the whole list (a set made since stays).
+        const x = sets.find(s => s.id === v.id)
+        if (!x) return
+        if (v.op === 'delete') deleteSet(x.id).then(() => { if (x.id === themeSetId) selectSet(null) }).catch(() => {})
+        else if (v.op === 'rename' && v.name && v.name !== x.name) renameSet(x.id, v.name)
+      }
+    },
+    capture: () => (filteredThemes.length > 0 ? { kind: 'themes', capture: doorCapture(), label: themesCaptureLabel } : null),
+  }))
+
   // While searching, open the FIRST matching theme (accordion stays single-open).
   useEffect(() => {
     const q = debouncedSearch.trim().toLowerCase()
@@ -1093,7 +1249,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         const bv = b.returns?.[activeKey] ?? (sortDir === 'desc' ? -Infinity : Infinity)
         return sortDir === 'desc' ? bv - av : av - bv
       })
-      return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker, key: `${theme.ticker}::${h.sym}` }))
+      return sorted.map(h => ({ sym: h.sym, name: h.name, themeTicker: theme.ticker, themeKey: theme.custom_key || theme.ticker, key: `${theme.ticker}::${h.sym}` }))
     }), [filteredThemes, activeKey, sortDir])
 
   // ── Live percentages ── Stream real-time prices for the holdings of EXPANDED
@@ -1133,6 +1289,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   }, [rtPrices, barPrices, expandedSyms])
 
   const handleKeyDown = useCallback((e) => {
+    if (isHiddenDeskKey(e)) return
     // Space advances like ArrowDown (next ticker).
     const navSpace = e.key === ' ' || e.key === 'Spacebar'
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && !navSpace) return
@@ -1203,6 +1360,13 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   const allStockSyms = useMemo(() => allStocks.map(s => s.sym), [allStocks])
   useNeighborWarm(allStockSyms, selectedSym, warmTf)
 
+  // ⛔ THE OPEN GROUP ONLY, AND CAPPED. This used to pass `allStockSyms`, every holding of every
+  // theme whether its group was open or not: ~370 bar requests in 30 s on a fresh profile, on a page
+  // where all themes start closed and no row is showing. Collapsed groups render no rows.
+  const openRowSyms = useMemo(() => (
+    openTheme ? allStocks.filter(s => s.themeKey === openTheme).map(s => s.sym) : []
+  ), [allStocks, openTheme])
+
   // RE-WARM THE OPEN LIST WHEN THE LINKED CHART RETIMES. `toggleTheme` warms the
   // whole group at the timeframe in force WHEN IT WAS OPENED; retiming the chart
   // afterwards used to leave only the ±6 neighbours above covered, so the first
@@ -1211,9 +1375,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   // and backpressure-guarded inside prefetchBars — so a timeframe keypress can't
   // flood the origin.
   useEffect(() => {
-    if (!allStockSyms.length) return
-    prewarmVisibleList(allStockSyms, { chartTf: warmTf })
-  }, [allStockSyms, warmTf])
+    if (!openRowSyms.length) return
+    prewarmVisibleList(openRowSyms, { chartTf: warmTf, cap: THEME_PREWARM_ROW_CAP })
+  }, [openRowSyms, warmTf])
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
   const tickerActions = useTickerActions()
@@ -1229,6 +1393,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
   useEffect(() => {
     if (!selectedSym) return
     const handler = (e) => {
+      if (isHiddenDeskKey(e)) return
       // S2 CP5 — reads the DECLARED chord table instead of spelling the modifier
       // set out inline. Behaviour is identical by construction and proved so in
       // ThemeTrackerPage.chordAdoption.test.jsx.
@@ -1244,6 +1409,24 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [selectedSym, isFlagged, toggleFlag])
+
+  // Close / Open, the Today basis — drawn at the end of the period tabs on the board.
+  const basisToggle = (
+    <span className={`${styles.basisToggle} ${styles.basisInTabs}`} role="group" aria-label="Today basis" data-guide="themes.basis">
+      <button
+        type="button"
+        className={`${styles.basisBtn} ${todayBasis === 'close' ? styles.basisBtnActive : ''}`}
+        onClick={() => setTodayBasis('close')}
+        title="Measure today from the previous close (includes the overnight gap)"
+      >Close</button>
+      <button
+        type="button"
+        className={`${styles.basisBtn} ${todayBasis === 'open' ? styles.basisBtnActive : ''}`}
+        onClick={() => setTodayBasis('open')}
+        title="Measure today from the market open (excludes the overnight gap)"
+      >Open</button>
+    </span>
+  )
 
   return (
     <div
@@ -1273,19 +1456,61 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
 
         {/* Period tabs + the Journal / ⚙ cluster on the right (same layout as the
             Watchlist / Scanner pickers — buttons ride the tab row, not the search). */}
-        <div className={styles.periodBar}>
-          {RANK_TABS.map(tab => (
+        {inUctRow(
+        <div className={styles.periodBar} data-guide="themes.periods">
+          {RANK_TABS.map((tab, i) => (
             <button
               key={tab}
-              className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}`}
+              className={`${styles.periodTab} ${activeTab === tab ? styles.periodTabActive : ''}${onBoard && i >= FOLD_FROM && activeTab !== tab ? ' ' + styles.periodTabFold : ''}${onBoard && i === FOLD_FROM - 1 && activeTab !== tab ? ' ' + styles.periodTabFoldNarrow : ''}${onBoard && i === 1 && activeTab !== tab ? ' ' + styles.periodTabFoldTiny : ''}`}
               onClick={() => handleTabClick(tab)}
             >
-              {tab}{activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
+              {tab}{!onBoard && activeTab === tab ? (sortDir === 'desc' ? ' ↑' : ' ↓') : ''}
             </button>
           ))}
+          {onBoard && (
+            <button
+              type="button"
+              className={styles.periodMoreBtn}
+              aria-haspopup="menu"
+              aria-expanded={!!periodMenu}
+              aria-label="More periods"
+              title="More periods"
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect()
+                // 1M is folded too only on a very narrow widget (the same 420px line as the CSS).
+                const w = e.currentTarget.closest('.uct-frame')?.clientWidth ?? 999
+                // …and at ~360px 1W and Close / Open fold too (the same lines as the CSS).
+                setPeriodMenu(periodMenu ? null : { left: r.left, top: r.bottom + 4, narrow: w <= 420, tiny: w <= 360 })
+              }}
+            ><svg width="10" height="7" viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg></button>
+          )}
+          {onBoard && periodMenu && createPortal(
+            <>
+              <div className={styles.ttMenuBackdrop} onClick={() => setPeriodMenu(null)} />
+              <div className={styles.ttMenu} role="menu" aria-label="More periods" style={{ left: periodMenu.left, top: periodMenu.top, minWidth: 120 }}>
+                {RANK_TABS.slice(periodMenu.tiny ? 1 : periodMenu.narrow ? FOLD_FROM - 1 : FOLD_FROM).filter(tab => !(periodMenu.tiny && tab === activeTab && tab === RANK_TABS[1])).map(tab => (
+                  <button key={tab} type="button" role="menuitemradio" aria-checked={activeTab === tab}
+                    className={`${styles.ttMenuItem}${activeTab === tab ? ' ' + styles.ttMenuItemOn : ''}`}
+                    onClick={() => { setPeriodMenu(null); handleTabClick(tab) }}>{tab}</button>
+                ))}
+                {periodMenu.tiny && activeTab === 'Today' && (<>
+                  <div className={styles.ttMenuSep} />
+                  <div className={styles.ttMenuLabel}>Today from</div>
+                  {[['close', 'Previous close'], ['open', "Today's open"]].map(([b, label]) => (
+                    <button key={b} type="button" role="menuitemradio" aria-checked={todayBasis === b}
+                      className={`${styles.ttMenuItem}${todayBasis === b ? ' ' + styles.ttMenuItemOn : ''}`}
+                      onClick={() => { setPeriodMenu(null); setTodayBasis(b) }}>{label}</button>
+                  ))}
+                </>)}
+              </div>
+            </>,
+            pageRef.current?.ownerDocument?.body || document.body,
+          )}
           <span className={styles.periodBarSpacer} />
-          {/* → Journal: freeze the visible ranking into a note (payload capture). */}
-          {filteredThemes.length > 0 && (
+          {/* → Journal: freeze the visible ranking into a note (payload capture). On the board
+              it lives in the footer's ⋯ menu instead. */}
+          {onBoard && activeTab === 'Today' && basisToggle}
+          {filteredThemes.length > 0 && !onBoard && (
             <>
               <button
                 className={`${styles.settingsBtn} ${styles.journalBtn}`}
@@ -1299,38 +1524,49 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
                 title="Send to Journal — choose where"
                 aria-label="Send to Journal — choose where"
               ><UIcon name="chevronDown" size={14} /></button>
-              {captureMenu && (
-                <CaptureMenu
-                  open
-                  onClose={() => setCaptureMenu(null)}
-                  anchor={captureMenu.anchor}
-                  widgetId="themes"
-                  capture={captureMenu.capture}
-                  label={themesCaptureLabel}
-                  onSent={setJournalMsg}
-                />
-              )}
             </>
           )}
-          <button
-            ref={settingsBtnRef}
-            className={`${styles.settingsBtn} ${styles.gearBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
-            onClick={() => setSettingsOpen(o => !o)}
-            title="Theme Tracker settings"
-            aria-label="Theme Tracker settings"
-          ><UIcon name="gear" size={14} /></button>
-        </div>
+          {captureMenu && (
+            <CaptureMenu
+              open
+              onClose={() => setCaptureMenu(null)}
+              anchor={captureMenu.anchor}
+              widgetId="themes"
+              capture={captureMenu.capture}
+              label={themesCaptureLabel}
+              onSent={setJournalMsg}
+            />
+          )}
+          {(() => {
+            const gear = (
+              <button
+                ref={settingsBtnRef}
+                className={`${styles.settingsBtn} ${styles.gearBtn}${settingsOpen ? ' ' + styles.settingsBtnActive : ''}`}
+                onClick={() => setSettingsOpen(o => !o)}
+                title="Theme Tracker settings"
+                aria-label="Theme Tracker settings"
+              ><UIcon name="gear" size={14} /></button>
+            )
+            return uctCtrlSlot ? createPortal(gear, uctCtrlSlot) : gear
+          })()}
+        </div>)}
 
         {/* Search row — the set picker rides alongside the search (no dedicated header row). */}
         {themeSetsEnabled ? (
           <div className={styles.searchRow}>
-            <SetPicker
-              sets={sets} themeSetId={themeSetId} activeSet={activeSet}
-              onSelect={selectSet}
-              onRename={renameSet}
-              onDelete={async (id) => { await deleteSet(id); if (id === themeSetId) selectSet(null) }}
-              editing={editing} onToggleEdit={() => editing ? stopEditing() : startEditing()}
-            />
+            {(() => {
+              const picker = (
+                <SetPicker
+                  sets={sets} themeSetId={themeSetId} activeSet={activeSet}
+                  onSelect={selectSet}
+                  onRename={renameSet}
+                  onDelete={async (id) => { await deleteSet(id); if (id === themeSetId) selectSet(null) }}
+                  editing={editing} onToggleEdit={() => editing ? stopEditing() : startEditing()}
+                  board={onBoard}
+                />
+              )
+              return picker
+            })()}
             <ThemeSearchBox onDebounced={setDebouncedSearch} />
           </div>
         ) : (
@@ -1340,7 +1576,41 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             list): "＋ Add theme", "Start over from Default", and the auto-save status — the
             editable preset name + "Saves automatically" (or an "adding tickers" hint). Everything
             here auto-saves; there is no Save button and Done never discards. */}
-        {editing && themeSetsEnabled && (
+        {editing && themeSetsEnabled && onBoard && (
+          <div className={styles.editUctBar} role="toolbar" aria-label="Edit theme set">
+            <AddThemePicker board
+              palette={themePalette}
+              inSet={new Set(themeOrder ?? (data?.themes || []).map(t => themeSlug(t.name)))}
+              onAdd={addThemeToSet} onCreateCustom={createCustomTheme}
+            />
+            <button type="button" className={styles.editUctQuiet} onClick={resetToDefault} title="Clear all changes back to the UCT default">Start over</button>
+            <span className={styles.editBarSpacer} />
+            {addingTo ? (
+              <span className={styles.editUctStatus}>Adding to <b>{addingTo.name}</b></span>
+            ) : activeSet ? (
+              <span className={styles.editUctStatus}>
+                {barRenaming ? (
+                  <input aria-label="Rename this set" autoFocus className={styles.setUctInput} value={barRenameText}
+                    onChange={e => setBarRenameText(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') commitBarRename(); if (e.key === 'Escape') setBarRenaming(false) }}
+                    onBlur={commitBarRename} />
+                ) : (
+                  <button type="button" className={styles.editUctName} title="Rename this set"
+                    onClick={() => { setBarRenameText(activeSet.name); setBarRenaming(true) }}>
+                    <span className={styles.editUctNameText}>{activeSet.name}</span><PencilIcon />
+                  </button>
+                )}
+                <span className={styles.editUctSaved}><UIcon name="check" size={11} gold={false} />Saved</span>
+              </span>
+            ) : (
+              <span className={styles.editUctStatus}>New set · saves as you go</span>
+            )}
+            <button type="button" className={styles.editUctDone}
+              onClick={() => (addingTo ? setAddingTo(null) : stopEditing())}
+              title={addingTo ? 'Done adding tickers' : 'Finish editing (already saved)'}>Done</button>
+          </div>
+        )}
+        {editing && themeSetsEnabled && !onBoard && (
           <div className={styles.editBar}>
             <AddThemePicker
               palette={themePalette}
@@ -1376,7 +1646,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         )}
         {/* One-line orientation while editing (hidden once you're mid-add). */}
         {editing && themeSetsEnabled && !addingTo && (
-          <div className={styles.editHintRow}>Add a theme, then tap it to add tickers.</div>
+          <div className={`${styles.editHintRow}${onBoard ? ' ' + styles.editUctHint : ''}`}>Add a theme, then tap it to add tickers.</div>
         )}
         {!editing && (
         <div className={styles.tableHeader}>
@@ -1389,7 +1659,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             // sort label (asc/desc) — no extra header height (it overflows left into the
             // empty header space). The pill conveys the basis; the label stays "1D".
             <span className={styles.headerBasis}>
-              <span className={styles.basisToggle} role="group" aria-label="Today basis">
+              {!onBoard && <span className={styles.basisToggle} role="group" aria-label="Today basis" data-guide="themes.basis">
                 <button
                   type="button"
                   className={`${styles.basisBtn} ${todayBasis === 'close' ? styles.basisBtnActive : ''}`}
@@ -1402,7 +1672,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
                   onClick={() => setTodayBasis('open')}
                   title="Measure today from the market open (excludes the overnight gap)"
                 >Open</button>
-              </span>
+              </span>}
               <button
                 type="button"
                 className={`${styles.colLabel} ${styles.colLabelActive} ${styles.sortBtn}`}
@@ -1451,7 +1721,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
               prices={openTheme === tk ? tickPrices : null}
               tintEnabled={ttSettings.tintEnabled} showLogos={ttSettings.showLogos} logoSize={rowLogoSize}
               editing={editing} onHideTheme={removeTheme} onRemoveSym={removeSym} onAddSym={addSym}
-              groupRefs={groupRefs} flash={flashKey === tk} autoFocusAdd={addingTo?.key === tk} />
+              groupRefs={groupRefs} flash={flashKey === tk} autoFocusAdd={addingTo?.key === tk} grouped={onBoard} />
             )
           })}
         </div>
@@ -1474,6 +1744,42 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
             <UIcon name="refresh" size={12} gold={false}
               className={refreshing ? styles.ttFooterRefreshSpin : undefined} />
           </button>
+          {onBoard && (
+            <button
+              type="button"
+              className={styles.ttFooterMenuBtn}
+              aria-haspopup="menu"
+              aria-label="Theme options"
+              title="Theme options — Send to Journal, edit your set"
+              data-guide="themes.footerMenu"
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect()
+                setFootMenu(footMenu ? null : { right: Math.max(8, window.innerWidth - r.right), bottom: Math.max(8, window.innerHeight - r.top + 6), x: r.left, y: r.top })
+              }}
+            ><UIcon name="more" size={15} gold={false} /></button>
+          )}
+          {onBoard && footMenu && createPortal(
+            <>
+              <div className={styles.ttMenuBackdrop} onClick={() => setFootMenu(null)} />
+              <div className={styles.ttMenu} role="menu" aria-label="Theme options" style={{ right: footMenu.right, bottom: footMenu.bottom }}>
+                <button type="button" role="menuitem" className={styles.ttMenuItem} disabled={!filteredThemes.length}
+                  onClick={() => { setFootMenu(null); sendThemesToJournal() }}>
+                  <UIcon name="journal" size={14} gold={false} /> Send ranking to Journal
+                </button>
+                <button type="button" role="menuitem" className={styles.ttMenuItem} disabled={!filteredThemes.length}
+                  onClick={() => { const a = { x: footMenu.x, y: footMenu.y }; setFootMenu(null); setCaptureMenu({ anchor: a, capture: doorCapture() }) }}>
+                  <UIcon name="chevronDown" size={14} gold={false} /> Send to Journal — choose where…
+                </button>
+                {themeSetsEnabled && (
+                  <button type="button" role="menuitem" className={styles.ttMenuItem}
+                    onClick={() => { setFootMenu(null); editing ? stopEditing() : startEditing() }}>
+                    <UIcon name="edit" size={14} gold={false} /> {editing ? 'Finish editing' : activeSet ? `Edit ${activeSet.name}` : 'Make your own set'}
+                  </button>
+                )}
+              </div>
+            </>,
+            pageRef.current?.ownerDocument?.body || document.body,
+          )}
         </div>
       )}
 

@@ -1,3 +1,5 @@
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 /**
  * Finish program, lane KEYS3: Notebook commands in the command palette.
  *
@@ -16,6 +18,7 @@ import CommandPalette from './CommandPalette'
 import {
   NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO, onNotebookDoor,
 } from '../pages/journal-2-0/lib/notebookDoors'
+import { NOTEBOOK_TODAY_TO } from '../pages/journal-2-0/lib/dailyBriefLink'
 import { EARNINGS_PREP_FLAG } from '../pages/journal-2-0/lib/earningsPrepShared'
 import { latchNotebookFlags, __resetNotebookFlags } from '../pages/journal-2-0/lib/offline/notebookFlags'
 import RouteFocusTarget from '../pages/journal-2-0/lib/routeFocus'
@@ -141,12 +144,12 @@ describe('palette: Ask about this note (Q9)', () => {
   })
 })
 
-describe('palette: Active setups (Q23)', () => {
+describe('palette: Setups (Q23)', () => {
   it('with the board\'s switch on, choosing it opens the board', async () => {
     latchNotebookFlags({ notebook_setups_board_enabled: true })
     renderPalette('/journal/notebook')
     await openAndType('active setups')
-    fireEvent.click(await screen.findByRole('option', { name: 'Active setups' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Setups' }))
     await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe('/journal/notebook/setups'))
   })
 
@@ -154,25 +157,25 @@ describe('palette: Active setups (Q23)', () => {
     latchNotebookFlags({ notebook_setups_board_enabled: true })
     renderPalette('/dashboard')
     await openAndType('setups')
-    expect(await screen.findByRole('option', { name: 'Active setups' })).toBeTruthy()
+    expect(await screen.findByRole('option', { name: 'Setups' })).toBeTruthy()
   })
 
   it('DARK: with the switch off, or never answered, it is not offered', async () => {
     renderPalette('/journal/notebook')
     const box = await openAndType('active setups')
-    expect(option('Active setups')).toBeNull()
+    expect(option('Setups')).toBeNull()
     __resetNotebookFlags()
     latchNotebookFlags({ notebook_setups_board_enabled: false })
     fireEvent.change(box, { target: { value: 'active setups ' } })
     fireEvent.change(box, { target: { value: 'active setups' } })
-    expect(option('Active setups')).toBeNull()
+    expect(option('Setups')).toBeNull()
   })
 
   it('"setup" (five letters) never offers it', async () => {
     latchNotebookFlags({ notebook_setups_board_enabled: true })
     renderPalette('/journal/notebook')
     await openAndType('setup')
-    expect(option('Active setups')).toBeNull()
+    expect(option('Setups')).toBeNull()
   })
 })
 
@@ -181,7 +184,7 @@ describe('palette: Active setups (Q23)', () => {
 // The palette closes in the same render as the move, so by the time the page looks, the dialog
 // is gone and the landing takes focus. Q23's count depends on that; a special "close first"
 // branch was written for it, shown to be unnecessary by removing it, and deleted.
-describe('palette: Active setups lands keyboard focus on the page (Q23)', () => {
+describe('palette: Setups lands keyboard focus on the page (Q23)', () => {
   it('after the move, focus is on the Journal page\'s landing, not on <body>', async () => {
     latchNotebookFlags({ notebook_setups_board_enabled: true })
     render(
@@ -191,9 +194,9 @@ describe('palette: Active setups lands keyboard focus on the page (Q23)', () => 
         <button type="button">first control of the page</button>
       </MemoryRouter>)
     await openAndType('active setups')
-    fireEvent.click(await screen.findByRole('option', { name: 'Active setups' }))
+    fireEvent.click(await screen.findByRole('option', { name: 'Setups' }))
     await waitFor(() => expect(document.activeElement?.hasAttribute('data-route-focus')).toBe(true))
-    expect(document.activeElement.textContent).toBe('Active setups')
+    expect(document.activeElement.textContent).toBe('Setups')
   })
 })
 
@@ -232,14 +235,34 @@ describe('palette: All notes (Q11)', () => {
   })
 })
 
+// Follow-up B, item 1b: the Daily brief from anywhere (the Journal's Today tab links to it as well).
+describe('palette: Daily brief', () => {
+  it('from anywhere in the app, choosing it lands on the Daily brief', async () => {
+    renderPalette('/journal')
+    await openAndType('daily brief')
+    fireEvent.click(await screen.findByRole('option', { name: 'Daily brief' }))
+    await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe(NOTEBOOK_TODAY_TO))
+    expect(NOTEBOOK_TODAY_TO).toBe('/journal/notebook?view=today')
+  })
+
+  it('"today\'s brief" finds it too; five characters or fewer never offer it ("daily" stays a plain query)', async () => {
+    renderPalette('/dashboard')
+    const box = await openAndType('daily')
+    expect(option('Daily brief')).toBeNull()
+    fireEvent.change(box, { target: { value: "today's" } })
+    expect(await screen.findByRole('option', { name: 'Daily brief' })).toBeTruthy()
+  })
+})
+
 describe('palette: Earnings prep (Q15)', () => {
-  it('with the switch on, choosing it lands on Research Home with the prep door', async () => {
+  // Notebook simplify, Task 5: Reporting soon is on the Daily brief now (Research Home is no longer routed).
+  it('with the switch on, choosing it lands on the Daily brief with the prep door', async () => {
     latchNotebookFlags({ notebook_earnings_prep_enabled: true })
     renderPalette('/dashboard')
     await openAndType('earnings prep')
     fireEvent.click(await screen.findByRole('option', { name: 'Earnings prep: reporting soon' }))
     await waitFor(() => expect(screen.getByTestId('route-spy').textContent).toBe(NOTEBOOK_PREP_TO))
-    expect(NOTEBOOK_PREP_TO).toBe('/journal/notebook#prep')
+    expect(NOTEBOOK_PREP_TO).toBe('/journal/notebook?view=today#prep')
   })
 
   it('DARK: with the switch off, or never answered, it is not offered', async () => {

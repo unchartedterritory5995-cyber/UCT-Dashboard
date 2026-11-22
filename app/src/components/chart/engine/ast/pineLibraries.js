@@ -48,7 +48,10 @@
 // order the statements run in. `remapLibraryLocation` turns a library line back
 // into the member's import line plus "in library X, line L".
 
-import { pineLibraryEntry } from './pineLibraryStore.js'
+import { pineLibraryEntry, pineLibraryHeld, libraryEntryProblem, libraryLicenceProblem, libraryDenied } from './pineLibraryStore.js'
+import {
+  crossVersionDifference, crossVersionAdmitted, admissionTableOf, LIBRARY_VERSION, stampLibraryVersion,
+} from './pineLibraryVersion.js'
 
 export { importPathsOf } from './pineLibraryStore.js'
 
@@ -103,8 +106,33 @@ const headOf = (v) => String(v).split('.')[0]
 const isWord = (t, v) => !!t && t.kind === 'ident' && t.value === v
 const STATE_WORDS = new Set(['var', 'varip'])
 
-/** Thrown inside the linker; becomes the reason the import line is refused for. */
-class LinkRefusal extends Error {}
+/** Thrown inside the linker; becomes the reason the import line is refused for, and
+ *  (U15) the refusal's own name when it is not the generic import refusal. */
+class LinkRefusal extends Error {
+  constructor(message, code = null) { super(message); this.code = code }
+}
+
+/** ⭐⭐ U15 — THE TWO NAMED LIBRARY REFUSALS. Both lanes refuse the import line under these
+ *  codes (`pine.js` REFUSALS, the runtime front end's table) instead of the generic one. */
+export const LIBRARY_CHANGED = 'pine:library-changed'
+export const LIBRARY_NO_SHA = 'pine:library-no-sha'
+// ⭐⭐ U15 (coordinator ruling 2026-11-15) — a non-commercial licence, never served on this paid product
+export const LIBRARY_LICENCE = 'pine:library-licence'
+// ⭐⭐ U15 (coordinator ruling 2026-11-15) — a version on the deny list (`pineLibraryDeny.json`)
+export const LIBRARY_DENIED = 'pine:library-denied'
+// ⭐⭐ U15 Phase B — a v5 library inside a v6 script whose reached code holds a construct the v6
+// migration guide changed (`pineLibraryVersion.js`)
+export { LIBRARY_VERSION }
+
+/** `opts.libraryPins` (a document's `meta.libraries`: `[{path, sha256}]`) -> path -> sha. */
+function pinsOf(opts) {
+  const out = new Map()
+  const pins = opts && opts.libraryPins
+  for (const p of Array.isArray(pins) ? pins : []) {
+    if (p && typeof p.path === 'string' && typeof p.sha256 === 'string') out.set(p.path, p.sha256.toLowerCase())
+  }
+  return out
+}
 
 function topFindEq(toks) {
   let depth = 0
@@ -261,12 +289,20 @@ function isLocalRef(locals, name, i) {
  *  tokens spliced in, plus `libraries` (what was linked, for the member's licence
  *  notice and for location remapping); or the input unchanged when it imports
  *  nothing. Never throws: a library that cannot be linked leaves its `import` line
- *  in place with `libraryRefusal` on its first token, and the lane refuses it. */
-export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
+ *  in place with `libraryRefusal` on its first token, and the lane refuses it.
+ *  ⭐⭐ The version island: `islandFamilies` (code-only, never a member's option) names the
+ *  families of the v6 migration guide the calling lane judges per token (`versionAt`); the
+ *  cross-version check skips exactly those (`RUNTIME_ISLAND_FAMILIES`, the runtime lane's). */
+export function linkLibraries(lexed, opts, { lexPine, blockStatements, islandFamilies = [] }) {
   const { tokens, indents } = lexed
   const lines = importLinesOf(tokens, indents)
   if (!lines.length) return lexed
   const resolve = resolverOf(opts)
+  const pins = pinsOf(opts)
+  const heldOf = opts && opts.libraries ? () => null : pineLibraryHeld
+  // the committed admission table, or (a rail) `opts.libraryCrossVersion`: a document `{admit: [{path}]}`
+  // read by the same fail-closed reader
+  const admission = opts && opts.libraryCrossVersion ? admissionTableOf(opts.libraryCrossVersion) : undefined
   const mainVersion = lexed.version
   const mainLineCount = (lexed.lines || []).length
 
@@ -279,9 +315,29 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   /** Link one library (and, first, what it imports). Returns its unit. */
   const link = (imp, needed, stack) => {
     if (stack.includes(imp.path)) throw new LinkRefusal(`the libraries import each other in a cycle (${[...stack, imp.path].join(' → ')})`)
+    // ⭐⭐ U15 — DENIED BEFORE ANYTHING IS READ: whatever any store or caller holds
+    const denied = libraryDenied(imp.path)
+    if (denied) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${denied}`, LIBRARY_DENIED)
     const entry = resolve(imp.path)
     if (!entry || typeof entry.source !== 'string') {
+      // ⭐ U15 — the store holds it and will not serve it: say so, under its own name
+      const held = heldOf(imp.path)
+      if (held) {
+        throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${held.reason}`,
+          held.code === 'licence' ? LIBRARY_LICENCE : held.code === 'denied' ? LIBRARY_DENIED : LIBRARY_NO_SHA)
+      }
       throw new LinkRefusal(`the library \`${imp.path}\` is not in this engine's library registry, so its code cannot be compiled`)
+    }
+    // ⭐⭐ U15 — SERVED ONLY WITH THE sha256 OF ITS OWN SOURCE, and, for a document that
+    // pinned it, only that sha. A library whose code changed under the same version is a
+    // different program from the one the member saved; it is refused, never drawn.
+    const licence = libraryLicenceProblem(entry)
+    if (licence) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${licence}`, LIBRARY_LICENCE)
+    const problem = libraryEntryProblem(entry)
+    if (problem) throw new LinkRefusal(`the library \`${imp.path}\` is not served: ${problem}`, LIBRARY_NO_SHA)
+    const pinned = pins.get(imp.path)
+    if (pinned && pinned !== entry.sha256.toLowerCase()) {
+      throw new LinkRefusal(`the library \`${imp.path}\` has changed since this script was saved (saved against sha256 ${pinned.slice(0, 12)}…, the store now holds ${entry.sha256.toLowerCase().slice(0, 12)}…): it is not the code the script was saved with, so it is not drawn until the script is saved again`, LIBRARY_CHANGED)
     }
     let unit = linked.get(imp.path)
     if (!unit) {
@@ -289,15 +345,27 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       try { lib = lexPine(entry.source) } catch (err) {
         throw new LinkRefusal(`the library \`${imp.path}\` could not be read (${err && err.message ? err.message : err})`)
       }
-      if (lib.version !== mainVersion) {
+      // ⭐⭐ U15 Phase B — A v5 LIBRARY IN A v6 SCRIPT IS LINKED, held to the v6 migration guide: at
+      // emit, the code the script reaches must hold no construct whose meaning v6 changed
+      // (`crossVersionDifference`), or the import line is refused naming it. Every other pair (a v6
+      // library in a v5 script, any older version) stays refused: TradingView runs each at its own
+      // version and this engine compiles one program at one version.
+      const crossVersion = lib.version === 5 && mainVersion === 6
+      if (lib.version !== mainVersion && !crossVersion) {
         throw new LinkRefusal(`the library \`${imp.path}\` is written in Pine v${lib.version} and this script in v${mainVersion}; TradingView runs each at its own version and this engine compiles one program at one version`)
+      }
+      // ⭐⭐ U15 Phase B (coordinator ruling 2026-11-16) — and only for a version on the admission table
+      // (`pineLibraryCrossVersion.json`: promoted, every newly attaching v6 importer MATCH), so linking
+      // across versions never widens the reach of a version nobody graded in a v6 script
+      if (crossVersion && !crossVersionAdmitted(imp.path, admission)) {
+        throw new LinkRefusal(`the library \`${imp.path}\` is written in Pine v5 and this script in v6. TradingView runs a library at its own version and this engine compiles one program at one version, so a v5 library is linked into a v6 script only for a version graded against TradingView in v6 scripts, and \`${imp.path}\` has not been`, LIBRARY_VERSION)
       }
       const stmts = blockStatements(lib.tokens, lib.indents, 0)
       const defs = stmts.map((s) => ({ stmt: s, ...classify(s) }))
       if (!defs.some((d) => d.kind === 'library')) {
         throw new LinkRefusal(`\`${imp.path}\` does not declare \`library()\``)
       }
-      unit = { imp, entry, lib, defs, id: linked.size, nested: new Map(), emitted: false, keep: new Set() }
+      unit = { imp, entry, lib, defs, id: linked.size, nested: new Map(), emitted: false, keep: new Set(), crossVersion }
       linked.set(imp.path, unit)
       // its own imports, linked first so their tokens precede this library's
       for (const d of defs) {
@@ -384,6 +452,13 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
   /** The library's kept tokens, renamed and repositioned. */
   const emit = (unit) => {
     const kept = unit.defs.filter((d) => unit.keep.has(d))
+    if (unit.crossVersion) {
+      const diff = crossVersionDifference(kept, unit.lib.indents, { skip: islandFamilies })
+      if (diff) {
+        const at = diff.tok && Number.isFinite(diff.tok.line) ? `, line ${diff.tok.line}` : ''
+        throw new LinkRefusal(`the library \`${unit.imp.path}\` is written in Pine v5 and this script in v6, and the code this script uses holds ${diff.what}${at}: ${diff.why}. TradingView runs a library at its own version; this engine compiles one program at one version, so it links a v5 library only where the two versions mean the same thing`, LIBRARY_VERSION)
+      }
+    }
     const values = new Map()
     const typesAndEnums = new Set()
     const fns = new Set()
@@ -435,7 +510,9 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
         if (t === skip) continue
         if (isPunct(t, '(') || isPunct(t, '[')) depth += 1
         else if (isPunct(t, ')') || isPunct(t, ']')) depth = Math.max(0, depth - 1)
-        const c = { ...t, line: t.line + lineBase, lib: unit.imp.path, libLine: t.line }
+        // ⭐⭐ the version island: a token of a library in another Pine version carries that version (`versionAt`)
+        const c = stampLibraryVersion({ ...t, line: t.line + lineBase, lib: unit.imp.path, libLine: t.line },
+          unit.lib.version, mainVersion)
         if (t.kind === 'ident' && !t.member) {
           const v = String(t.value)
           const parts = v.split('.')
@@ -508,7 +585,7 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       splices.push({ line: l, unit })
     } catch (err) {
       if (!(err instanceof LinkRefusal)) throw err
-      refusedAt.set(l.tok, err.message)
+      refusedAt.set(l.tok, err)
     }
   }
   if (!splices.length && !refusedAt.size) return lexed
@@ -528,7 +605,7 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       emitWithDeps(s.unit, acc)
     } catch (err) {
       if (!(err instanceof LinkRefusal)) throw err
-      refusedAt.set(s.line.tok, err.message)
+      refusedAt.set(s.line.tok, err)
       unitOfAlias.delete(s.line.imp.alias)
       continue
     }
@@ -543,11 +620,15 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       author: u.imp.author,
       name: u.imp.name,
       version: u.imp.version,
+      // ⭐ U15 — the pin: what was compiled, by its own sha256 (the member's document keeps it)
+      sha256: u.entry.sha256.toLowerCase(),
       licence: u.entry.licence || null,
       attribution: u.entry.attribution || null,
       url: u.entry.url || null,
       lineBase: u.lineBase,
       lineEnd: u.lineEnd,
+      // ⭐⭐ the version island: the Pine version its code is judged under, only when it is not the script's
+      ...(u.lib.version !== mainVersion ? { pineVersion: u.lib.version } : {}),
       importLine: s.line.tok.line,
       importColumn: s.line.tok.column,
       importIndex: s.line.tok.index,
@@ -576,9 +657,9 @@ export function linkLibraries(lexed, opts, { lexPine, blockStatements }) {
       if (!names.has(spelled)) names.set(spelled, `${u.imp.alias}.${d.name}`)
     }
   }
-  for (const [tok, reason] of refusedAt) {
+  for (const [tok, err] of refusedAt) {
     const i = newTokens.indexOf(tok)
-    if (i >= 0) newTokens[i] = { ...tok, libraryRefusal: reason }
+    if (i >= 0) newTokens[i] = { ...tok, libraryRefusal: err.message, ...(err.code ? { libraryRefusalCode: err.code } : {}) }
   }
 
   const out = {
@@ -613,11 +694,15 @@ export function remapLibraryLocation(r, link) {
     : null
   if (lib) {
     const libLine = r.line - lib.lineBase
+    // ⭐⭐ the version island: a refusal inside a library judged under another Pine version says which
+    const island = Number.isFinite(lib.pineVersion)
     out.line = lib.importLine
     out.column = lib.importColumn
     out.index = lib.importIndex
-    out.library = { path: lib.path, line: libLine }
-    if (typeof out.message === 'string') out.message = `${out.message} — in the imported library \`${lib.path}\`, line ${libLine}`
+    out.library = { path: lib.path, line: libLine, ...(island ? { pineVersion: lib.pineVersion } : {}) }
+    if (typeof out.message === 'string') {
+      out.message = `${out.message} — in the imported library \`${lib.path}\`${island ? ` (Pine v${lib.pineVersion})` : ''}, line ${libLine}`
+    }
   }
   for (const k of ['message', 'token', 'excerpt']) {
     if (typeof out[k] === 'string') out[k] = demangle(out[k], link)

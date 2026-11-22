@@ -23,25 +23,35 @@
 // zero. An object at coordinate zero is a drawing; an object that did not draw
 // is a fact.
 import { nodeTree } from './ast/graph'
+import { runHalfOnlySettingMoved } from './runHalfInputs.js'
+import { calcBarsWindowOf } from './calcBarsWindow.js'
 import { graphNodesReferenced, bindObjectProgram, runtimeAtIndex, withBarIndexHeld } from './ast/objectProgram'
 import {
   interpret, maxLookback, readsSwitchedState, probeValuesOf, PREFIX_PROBE, switchedDependencyMask,
-  symAlignmentMask, withheldReadMask, lowerTfMask, treeReadsLowerTf, CHART_CLOCK_WITHHELD, historyBeforeFirstKnown,
+  symAlignmentMask, withheldReadMask, lowerTfMask, treeReadsLowerTf, chartClockSentence, historyBeforeFirstKnown,
 } from './ast/interpret'
 import { barIndexClass } from './ast/barIndexShift'
 import { RECURRENCES } from './ast/parse.js'
+// ⭐ HOST WORKER — the helpers from where they live (`astColumns.js`, `ast/bind`), not through the chart
+// registry's re-exports (the same functions), and the registry's `computeFor` through its seam: this
+// module's closure is then host-neutral, so the host object lane can be evaluated in a worker
+// (`hostLaneAsync.js`, `tools/pine_runtime_closure.mjs`).
 import {
-  resolveInputs, treeScalars, bindConstsFor, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, otherSymbolsFor, lowerTfFor, computeFor,
+  resolveInputs, treeScalars, historyFromListingFor, listingOptsFor, barIndexAbsoluteFor, varOriginAbsoluteFor, otherSymbolsFor, lowerTfFor,
   runtimeErrorStopOf,
-} from './nativeRegistry'
+} from './astColumns.js'
+import { bindConstsFor } from './ast/bind'
+import { otherSymbolRefusalOfTree, withChartNewestDay } from './otherSymbols'
 import { periodReadsObjectRefusal } from './periodReads'
 import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
 // ⭐ C43 — a cycle on purpose (that module reads `unknownMask` below): both sides
 // use each other only inside functions, and importing it here is what registers
 // the stop into the plot lane for every pane the binder draws.
 import { runtimeErrorStopFor } from './runtimeErrorStop'
+import { semanticsOptsFor } from './definitionSemantics.js'
 import { foldBound } from './ast/bind'
 import { barOpenInstant } from '../indicators.js'
+import { registeredObjectRuntimeValues, inputsAtDefaults, registeredObjectComputeFor } from './objectRuntimeSeam.js'
 
 // ─── ⭐⭐ C18 — THE RUNTIME LANE, FOR THE VALUES ONLY AN IMPERATIVE RUN COMPUTES ──
 //
@@ -57,24 +67,9 @@ import { barOpenInstant } from '../indicators.js'
 // ⛔ UNTIL IT IS REGISTERED, every placeholder reads UNKNOWN (`runtime:not-loaded`)
 // — withheld, never guessed. A chart that opens a SAVED document before the member
 // door has loaded in that session draws those objects only once it has.
-let runtimeObjectValuesFn = null
-export function registerObjectRuntimeValues(fn) {
-  runtimeObjectValuesFn = typeof fn === 'function' ? fn : null
-}
-
-/** ⭐ C18 — did the member leave every input at the author's default, and edit no
- *  folded parameter? The runtime lane runs the script AS WRITTEN; a knob the
- *  member moved is in the drawing's trees and not in that run. */
-function inputsAtDefaults(definition, inputs) {
-  const manifest = definition && definition.compute && definition.compute.paramManifest
-  if (manifest && Object.keys(manifest).length) return false
-  for (const input of (definition && definition.inputs) || []) {
-    if (!input || typeof input.key !== 'string') continue
-    const v = inputs ? inputs[input.key] : undefined
-    if (v !== undefined && !Object.is(v, input.default)) return false
-  }
-  return true
-}
+// ⭐ W5-T2 — the slot itself lives in a leaf (`objectRuntimeSeam.js`), so the runtime
+// lane can fill it without importing this module (and, through it, the registry).
+export { registerObjectRuntimeValues } from './objectRuntimeSeam.js'
 
 // ─── ⚰️⚰️ C3B-CLOSE item 6 — THE OBJECT LANE WAS CALLING `interpret` WRONG ────
 //
@@ -160,6 +155,10 @@ export { PREFIX_PROBE, probeValuesOf }
  *  `interpret.js::structuralMaps` memoises on) makes the memo see them as one.
  *  Pure: a node is copied only when an argument was replaced, never mutated.
  *  ⛔ Its lifetime is ONE pass, like the memo it feeds. */
+/** ⭐⭐ engine 78 (#1858) — the Pine-compare key of an options object (`interpret.js::binaryFor`), or
+ *  nothing: every evaluation this module makes carries its document's comparison rule. */
+export const pineCompareOptsOf = (o) => (o && o.pineCompare === true ? { pineCompare: true } : {})
+
 export function makeInterner() {
   const byKey = new Map()
   const idOf = new Map()
@@ -423,11 +422,11 @@ const barIndexOpts = (opts) => (opts.barIndexAbsolute === true && opts.historyFr
 
 /** The ops a bar index reaches as a VALUE, held (`objectProgram.js::withBarIndexHeld`),
  *  and the reason added to the pass's named withholdings. */
-function holdBarIndexOps(program, indexClass, chartClock, tf) {
+function holdBarIndexOps(program, indexClass, chartClock, tf, opts) {
   if (!indexClass) return program
   const { program: next, held } = withBarIndexHeld(program, (node) => indexClass.get(node))
   if (held && !chartClock.has('bar-index:window')) {
-    chartClock.set('bar-index:window', CHART_CLOCK_WITHHELD['bar-index:window'](tf))
+    chartClock.set('bar-index:window', chartClockSentence('bar-index:window', tf, opts))
   }
   return next
 }
@@ -444,6 +443,31 @@ function holdBarIndexOps(program, indexClass, chartClock, tf) {
 const makeReadUnknown = (unknown, fromListing) => (node, bar) => {
   if (bar < 0) return !historyBeforeFirstKnown(fromListing)
   const m = unknown.get(node)
+  return !!m && m[bar] === 1
+}
+
+/** ⭐⭐ OZ r1 — WHICH UNKNOWN WITHHELD IT. A node whose `time(<timeframe>)` the chart
+ *  clock withholds (C36) is already said to the member by the clock note; a node
+ *  unknown for any OTHER reason (warm-up, a symbol, a lower timeframe, a failed tree)
+ *  is not. The full mask is unchanged; beside it, for a node the clock channel
+ *  reached (its own sink wrote a reason), the mask WITHOUT that channel is kept, so
+ *  `objectRuntime.js` can tell a family withheld only by the clock from one withheld
+ *  for a reason the clock note does not give. */
+function clockSplitMask(base, full, withoutClock, chartClock, otherUnknown, node) {
+  const sink = new Map()
+  const mask = full(sink)
+  if (sink.size) {
+    for (const [k, v] of sink) if (!chartClock.has(k)) chartClock.set(k, v)
+    const other = withoutClock()
+    otherUnknown.set(node, other || null)
+  }
+  return mask
+}
+
+/** `readUnknown` with the chart-clock channel taken out (`clockSplitMask`). */
+const makeReadUnknownOther = (readUnknown, otherUnknown) => (node, bar) => {
+  if (bar < 0 || !otherUnknown.has(node)) return readUnknown(node, bar)
+  const m = otherUnknown.get(node)
   return !!m && m[bar] === 1
 }
 
@@ -474,6 +498,8 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   // ⭐ C36 — why a tree's `time(<timeframe>)` is withheld on this chart (code →
   // sentence), written by `periodAnchorMask` as it decides; one Map per pass.
   const chartClock = new Map()
+  // ⭐ OZ r1 — per node withheld by the chart clock, its mask WITHOUT that channel.
+  const otherUnknown = new Map()
   // ⭐ C12r — one object per distinct subtree for the whole pass (`makeInterner`).
   const intern = makeInterner()
   // ⭐ C45 — the nodes that ARE a bar index (`'pos'`), for the per-property rule.
@@ -483,8 +509,19 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     let tree = null
     try {
       tree = intern(fold(nodeTree(graph, node)))
+      // ⭐⭐ ENGINE 55 — a tree that reads a ticker this binding refused is refused by
+      // name, with the bind's code (`otherSymbols.js::otherSymbolRefusalOfTree`).
+      const symWhy = otherSymbolRefusalOfTree(tree, opts.otherDecision)
+      if (symWhy) {
+        failed.push(node)
+        withholdFailed(unknown, node, Array.isArray(bars) ? bars.length : 0)
+        refusals.push({ node, guard: symWhy.guard, message: symWhy.message })
+        continue
+      }
       const iopts = { tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
+        ...pineCompareOptsOf(opts),
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(opts.listingStart === true && opts.historyFromListing !== true ? { listingStart: true } : {}),
         ...(opts.historyFromListing === true && opts.naConditionFalse === true ? { naConditionFalse: true } : {}),
         ...(bix || {}),
         ...(opts.symbols ? { symbols: opts.symbols } : {}),
@@ -494,7 +531,9 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
       columns.set(node, col)
       // ⭐ C19 — a probe reads the columns no probe value can move from THIS
       // pass's memo (`interpret.js::passView`) instead of recomputing them.
-      const mask = withLowerTfMask(withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, opts.inputs || {}, opts.budget, { ...iopts, chartClockSink: chartClock }), tree, bars, iopts)
+      const base = withSymMask(unknownMask(tree, col, bars, opts.inputs || {}, opts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts)
+      const mask = clockSplitMask(base, (sink) => withLowerTfMask(withPeriodAnchorMask(base, tree, bars, opts.inputs || {}, opts.budget, { ...iopts, chartClockSink: sink }), tree, bars, iopts),
+        () => withLowerTfMask(base, tree, bars, iopts), chartClock, otherUnknown, node)
       if (mask) unknown.set(node, mask)
     } catch (err) {
       failed.push(node)
@@ -515,8 +554,9 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
   // ⭐ C48 — a value read from a `var` its block fills on only some bars (above).
   withholdBlockRuns(program, { columns, failed, refusals, unknown, barCount: Array.isArray(bars) ? bars.length : 0 },
     (guard) => interpret(intern(fold(guard)), bars, opts.inputs || {}, opts.budget, undefined, {
-      tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null,
+      tf: opts.tf, newestBarIsForming: opts.newestBarIsForming ?? null, ...pineCompareOptsOf(opts),
       ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+      ...(opts.listingStart === true && opts.historyFromListing !== true ? { listingStart: true } : {}),
       ...(opts.historyFromListing === true && opts.naConditionFalse === true ? { naConditionFalse: true } : {}),
       ...(bix || {}),
       ...(opts.symbols ? { symbols: opts.symbols } : {}),
@@ -528,8 +568,8 @@ export function computeObjectColumns(graph, program, bars, opts = {}) {
     return v === undefined ? NaN : v
   }
   const readUnknown = makeReadUnknown(unknown, opts.historyFromListing === true)
-  const held = holdBarIndexOps(program, indexClass, chartClock, opts.tf)
-  return { readNode, readUnknown, unknown, columns, failed, refusals, wanted, chartClock: chartClockRows(chartClock),
+  const held = holdBarIndexOps(program, indexClass, chartClock, opts.tf, opts)
+  return { readNode, readUnknown, readUnknownOther: makeReadUnknownOther(readUnknown, otherUnknown), unknown, columns, failed, refusals, wanted, chartClock: chartClockRows(chartClock),
     program: held, indexClass }
 }
 
@@ -585,6 +625,9 @@ function chartClockRows(map) {
 export function objectReaderFor(definition, bars, opts = {}) {
   const stored = definition && definition.objects
   if (!stored || !Array.isArray(stored.ops) || !stored.ops.length) return null
+  // ⭐ SETTINGS PARITY (2c) — a setting only the run half reads has been moved: this program
+  // folded it at the author's default, so it draws nothing (`runHalfInputs.runHalfOnlySettingMoved`)
+  if (runHalfOnlySettingMoved(definition, opts.inputs)) return null
   // ⭐⭐ C29 — the plot lane's own rule (`periodReads.js`): a document folded at
   // another chart period draws NOTHING here rather than the other period's text.
   if (periodReadsObjectRefusal(definition, opts.tf)) return null
@@ -593,9 +636,13 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // is read here — the same decision the plot lane takes (`runtimeErrorStop.js`,
   // one evaluation for both).
   if (definition.meta && definition.meta.runtimeErrors) {
-    const stop = runtimeErrorStopFor(definition, bars, opts.inputs, {
+    // ⭐⭐ CBC-FMT — over the `calc_bars_count` window when the document has one: an error
+    // reached only on bars before the window is not reached on TradingView (it never computes
+    // them), so it must not stop the picture (`engine/calcBarsWindow.js`).
+    const win = calcBarsWindowOf(definition, bars)
+    const stop = runtimeErrorStopFor(definition, win ? win.rows : bars, opts.inputs, {
       tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
-      historyFromListing: opts.historyFromListing === true,
+      historyFromListing: win ? true : opts.historyFromListing === true,
     })
     if (stop && stop.reached) return null
   }
@@ -603,10 +650,12 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // stopped: the run is the authority there, and it is memoised per bars array.
   if (definition.compute && definition.compute.kind === 'runtime') {
     let cols = null
+    const computeFor = registeredObjectComputeFor()
     try {
-      cols = computeFor(definition, bars, opts.inputs, {
+      cols = computeFor && computeFor(definition, bars, opts.inputs, {
         tf: opts.tf, symbol: opts.symbol, newestBarIsForming: opts.newestBarIsForming ?? null,
         ...(opts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(opts.listingStart === true && opts.historyFromListing !== true ? { listingStart: true } : {}),
       })
     } catch { cols = null }
     const stop = runtimeErrorStopOf(cols)
@@ -651,6 +700,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const evalOpts = {
     inputs,
     budget: definition.compute && definition.compute.budget,
+    // ⭐⭐ engine 78 (#1858) — the document's comparison rule (`definitionSemantics.js::semanticsOptsFor`:
+    // a Pine document compares within TradingView's epsilon), read by every evaluation of this reader
+    ...pineCompareOptsOf(semanticsOptsFor(definition)),
     tf: opts.tf,
     newestBarIsForming: opts.newestBarIsForming ?? null,
     // ⭐ C12w — the listing exception, decided by the SAME gate the plot lane
@@ -659,17 +711,25 @@ export function objectReaderFor(definition, bars, opts = {}) {
     historyFromListing: historyFromListingFor(definition, opts),
     // ⭐⭐ F1 — and the `?:` rule that rides with it (`nativeRegistry.listingOptsFor`).
     naConditionFalse: listingOptsFor(definition, opts).naConditionFalse === true,
+    // ⭐⭐ (2026-11-20) the listing FACT where it is not served (W / M), for the notes' true sentence
+    listingStart: listingOptsFor(definition, opts).listingStart === true,
     // ⭐⭐ C45 — whether this document's `barindex` is Pine's `bar_index`, by the
     // SAME declaration the plot lane reads (`nativeRegistry.barIndexAbsoluteFor`).
     barIndexAbsolute: barIndexAbsoluteFor(definition, opts),
+    // ⭐⭐ 2026-11-09 — and whether its `var` state began on the symbol's first bar
+    // (`nativeRegistry.varOriginAbsoluteFor`), the same declaration the plot lane reads.
+    varOriginAbsolute: varOriginAbsoluteFor(definition),
     fold,
     // ⭐⭐ C26 — the other symbols this binding may read, decided by the SAME
     // function the plot lane asks (`nativeRegistry.otherSymbolsFor`), so an object
     // and the plot beside it can never be served two different instruments.
     symbols: undefined,
   }
-  const otherSymbols = otherSymbolsFor(definition, opts)
+  const otherSymbols = otherSymbolsFor(definition, withChartNewestDay(opts, bars))   // ⭐ RS RATING L11 PR 2
   if (otherSymbols) evalOpts.symbols = otherSymbols.symbols
+  // ⭐⭐ ENGINE 55 — and which it REFUSED: an object tree reading one is refused by name
+  // (`refusals`, with the bind's code), the plot lane's `columnErrors` rule.
+  evalOpts.otherDecision = otherSymbols || null
   // ⭐⭐ C41 — the lower-timeframe codes this binding may read, decided by the SAME
   // function the plot lane asks (`nativeRegistry.lowerTfFor`), so an object and the
   // plot beside it are handed the same intraday supply.
@@ -690,8 +750,8 @@ export function objectReaderFor(definition, bars, opts = {}) {
   }
   const graph = definition.compute && definition.compute.graph
   if (graph && Array.isArray(graph.nodes)) {
-    const { readNode, readUnknown, failed, refusals, chartClock, program: held } = computeObjectColumns(graph, program, bars, evalOpts)
-    return { program: held, readNode, readUnknown, readTime, failed, refusals, form: 'graph', otherSymbols, chartClock,
+    const { readNode, readUnknown, readUnknownOther, failed, refusals, chartClock, program: held } = computeObjectColumns(graph, program, bars, evalOpts)
+    return { program: held, readNode, readUnknown, readUnknownOther, readTime, failed, refusals, form: 'graph', otherSymbols, chartClock,
       historyFromListing: evalOpts.historyFromListing === true }
   }
   const trees = Array.isArray(program.trees) ? program.trees : null
@@ -699,6 +759,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // ⭐⭐ C18 — the placeholders' columns, from ONE runtime run (or withheld).
   let runtime = null
   if (program.runtime) {
+    const runtimeObjectValuesFn = registeredObjectRuntimeValues()
     runtime = runtimeObjectValuesFn
       ? runtimeObjectValuesFn(program.runtime, bars, {
         tf: evalOpts.tf,
@@ -724,6 +785,7 @@ export function objectReaderFor(definition, bars, opts = {}) {
   const unknown = new Map()
   const probeMemos = new Map()
   const chartClock = new Map()
+  const otherUnknown = new Map()
   const intern = makeInterner()
   const bix = barIndexOpts(evalOpts)
   const indexClass = bix ? new Map() : null
@@ -744,8 +806,18 @@ export function objectReaderFor(definition, bars, opts = {}) {
     let tree = null
     try {
       tree = intern(fold(trees[i]))
+      // ⭐⭐ ENGINE 55 — the same settled other-symbol refusal on the V1 form.
+      const symWhy = otherSymbolRefusalOfTree(tree, evalOpts.otherDecision)
+      if (symWhy) {
+        failed.push(i)
+        withholdFailed(unknown, i, barCount)
+        refusals.push({ node: i, guard: symWhy.guard, message: symWhy.message })
+        continue
+      }
       const iopts = { tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
+        ...pineCompareOptsOf(evalOpts),
         ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
+        ...(evalOpts.listingStart === true && evalOpts.historyFromListing !== true ? { listingStart: true } : {}),
         ...(evalOpts.naConditionFalse === true ? { naConditionFalse: true } : {}),
         ...(bix || {}),
         ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
@@ -753,7 +825,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
       if (indexClass && barIndexClass(tree) === 'pos') indexClass.set(i, 'pos')
       const col = interpret(tree, bars, evalOpts.inputs, evalOpts.budget, undefined, { ...iopts, crossMemo, switchedAgreement: false })
       columns.set(i, col)
-      const mask = withLowerTfMask(withPeriodAnchorMask(withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts), tree, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, chartClockSink: chartClock }), tree, bars, iopts)
+      const base = withSymMask(unknownMask(tree, col, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, probeBase: crossMemo }, probeMemos), tree, bars, iopts)
+      const mask = clockSplitMask(base, (sink) => withLowerTfMask(withPeriodAnchorMask(base, tree, bars, evalOpts.inputs, evalOpts.budget, { ...iopts, chartClockSink: sink }), tree, bars, iopts),
+        () => withLowerTfMask(base, tree, bars, iopts), chartClock, otherUnknown, i)
       if (mask) unknown.set(i, mask)
     } catch (err) {
       failed.push(i)
@@ -771,8 +845,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
   // (`withholdBlockRuns`), on the V1 form too.
   withholdBlockRuns(bound, { columns, failed, refusals, unknown, barCount },
     (guard) => interpret(intern(fold(guard)), bars, evalOpts.inputs, evalOpts.budget, undefined, {
-      tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming,
+      tf: evalOpts.tf, newestBarIsForming: evalOpts.newestBarIsForming, ...pineCompareOptsOf(evalOpts),
       ...(evalOpts.historyFromListing === true ? { historyFromListing: true } : {}),
+      ...(evalOpts.listingStart === true && evalOpts.historyFromListing !== true ? { listingStart: true } : {}),
       ...(evalOpts.naConditionFalse === true ? { naConditionFalse: true } : {}),
       ...(bix || {}),
       ...(evalOpts.symbols ? { symbols: evalOpts.symbols } : {}),
@@ -798,9 +873,9 @@ export function objectReaderFor(definition, bars, opts = {}) {
     return v === undefined ? NaN : v
   }
   const readUnknown = makeReadUnknown(unknown, evalOpts.historyFromListing === true)
-  const held = holdBarIndexOps(bound, indexClass, chartClock, evalOpts.tf)
+  const held = holdBarIndexOps(bound, indexClass, chartClock, evalOpts.tf, evalOpts)
   return {
-    program: held, readNode, readUnknown, readTime, failed, refusals, form: 'trees', otherSymbols,
+    program: held, readNode, readUnknown, readUnknownOther: makeReadUnknownOther(readUnknown, otherUnknown), readTime, failed, refusals, form: 'trees', otherSymbols,
     // ⭐ C45 — whether a read before the first bar is Pine's `na` (`objectRuntime.js::atCheck`).
     historyFromListing: evalOpts.historyFromListing === true,
     // ⭐ C36 — why every bar of a tree reading `time(<timeframe>)` is withheld on

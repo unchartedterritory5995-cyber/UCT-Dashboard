@@ -237,7 +237,7 @@ export function registerMarketDataCapabilities() {
   registered = true
   unregister = registerCapability({
     name: CAPABILITY,
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Answer what ONE to FIVE stocks are trading at — price, change vs the previous close, the market session '
       + '(regular, premarket, after hours, overnight, closed) and how fresh the price is — from UCT\'s market data. '

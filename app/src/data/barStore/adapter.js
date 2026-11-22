@@ -1,0 +1,380 @@
+// BarStore adapter — snapshot → chart series. P2 of the chart-data consolidation
+// program (BARSTORE-SPEC "adapter.js"). NOT WIRED into StockChart yet.
+//
+// ⭐ ONE OWNER PER CONCERN. This is the only place a BarStore snapshot (bars in UNIX
+// seconds for intraday) becomes chart time, and it reuses — never re-implements — the
+// helpers StockChart's memos use today, so the output is byte-identical to today's
+// `ohlcData` / `volData` / `closeData` shaping (golden-tested in adapter.golden.test.jsx):
+//   • chart time   — barTime.toChartTime, per bar, DST-correct (intraday); D/W/M keep
+//                    their business-day 'YYYY-MM-DD' strings as-is (StockChart's adjustTime)
+//   • off-grid     — chart/offGridBars.foldOffGridBars (intraday only)
+//   • RTH filter   — 09:30 ≤ ET minute < the day's close (half-day aware) when extended hours are off
+//   • replay       — replayIndex slice, then replayCutoff calendar-day filter
+//   • session      — chart/sessionPreview.applySessionCandle (D/W/M extended preview)
+//   • Heikin-Ashi  — the toHeikinAshi recurrence (indicators.js), continued onto the tail
+//
+// ⭐ BASE vs TAIL. A result splits into `base` (derived ONLY from sealed bars + the view;
+// memoized on (key, baseRev, viewTransformId)) and `tail` (0..2 points: the developing
+// bar and/or the session-preview candle, recomputed per call — cheap). The diff renderer
+// setData()s base+tail when the base identity changes and update()s only the tail
+// otherwise. A tail point's time is ≥ the last base time; equal means it REPLACES the
+// last base point (session preview extending yesterday's daily bar).
+//
+// Invalidation rule (the memo is a cache): ONE SLOT PER KEY AND VIEW (`${key}|${vtid}`; the
+// legacy copy `${key}|${tf}`), served only to the same baseRev AND the same bars array. The store
+// bumps baseRev on every change to sealed bars, so a stale entry can never be served, and a new
+// revision REPLACES its key's slot. ⛔ (2026-11-20) They were keyed `${key}|${baseRev}|…`: every
+// revision of a key on screen (local copy, REST answer, deep join, lake join) took a slot of its
+// own, so 32 slots filled with OLD revisions, each pinning a whole legacy copy plus the store's
+// old bars array behind it (`src`). An intraday key holds up to 50,000 lake bars: production
+// soak, 30 flips, 1.37M legacy bars in the memo (856k of them old revisions) and 856k old store
+// bars. Two bounds now: BASE_MEMO_MAX entries and MEMO_BAR_BUDGET bars (the newest entry always
+// stays, however large). Tested in adapter.test.js.
+
+import { toChartTime, isRthBar, etDateLabel } from '../../components/chart/barTime'
+import { foldOffGridBars } from '../../components/chart/offGridBars'
+import { applySessionCandle } from '../../components/chart/sessionPreview'
+import { unixToDateLabel } from './types'
+import { toHeikinAshi, heikinAshiNext } from '../../components/chart/indicators'
+import { neighborFramesOn } from '../../components/chart/neighborFrames'
+
+const INTRADAY = new Set(['1', '5', '15', '30', '60'])
+const DWM = new Set(['D', 'W', 'M'])
+
+export const BASE_MEMO_MAX = 32
+/** Bars the slots of one memo may hold together (each memo on its own). Two on-screen keys
+ *  (D ~8k, 60m up to ~56k with the lake) and a watchlist's prepared neighbours fit with room;
+ *  over it, least recently used slots go first. */
+export const MEMO_BAR_BUDGET = 600_000
+let _limits = { maxEntries: BASE_MEMO_MAX, maxBars: MEMO_BAR_BUDGET }
+
+/** The chart time of a legacy-shaped bar `t` — StockChart's `adjustTime`. */
+export function chartTimeOf(t) {
+  return typeof t === 'number' ? toChartTime(t) : t
+}
+
+/** Canonical id of every view input that changes the BASE series shape. Two views with
+ *  the same id produce identical base series for the same (key, baseRev). The session
+ *  candle's live inputs are tail-only and deliberately NOT part of it. */
+export function viewTransformId(view = {}) {
+  const tf = String(view.tf ?? '')
+  return [
+    tf,
+    view.showExtended ? 'eth' : 'rth',
+    view.heikinAshi ? 'ha' : 'std',
+    view.replayIndex == null ? 'r-' : `r${view.replayIndex}`,
+    view.replayCutoff ? `c${view.replayCutoff}` : 'c-',
+  ].join('|')
+}
+
+// ── legacy shape ──────────────────────────────────────────────────────────────
+// Today's downstream bar shape: {t,o,h,l,c,v}; intraday t = unix seconds; D/W/M t =
+// 'YYYY-MM-DD'. The store (P2a types.js TIME UNIT) holds a D/W/M t as UNIX SECONDS at
+// 00:00 UTC of the server's label date (D session date, W Friday, M the 1st), so the
+// label is the UTC date of t — NOT the ET date (00:00 UTC is the previous ET evening).
+// types.unixToDateLabel owns that rule (one owner). A date-string t passes through untouched.
+// (barTime.etWeekCloseLabel labels a raw TICK time; a store W t already IS the label date.)
+function legacyT(t, tf) {
+  if (typeof t !== 'number' || !DWM.has(tf)) return t
+  return unixToDateLabel(t)
+}
+function toLegacyBar(b, tf) {
+  const t = legacyT(b.t, tf)
+  if (t === b.t && !('rev' in b) && !('src' in b) && !('fin' in b)) return b
+  return { t, o: b.o, h: b.h, l: b.l, c: b.c, v: b.v }
+}
+function tfOfSnapshot(snapshot, view) {
+  if (view?.tf != null) return String(view.tf)
+  if (snapshot?.tf != null) return String(snapshot.tf)
+  const k = String(snapshot?.key ?? '')
+  const m = /_([^_@]+)(?:@|$)/.exec(k)
+  return m ? (m[1] === '60e' ? '60' : m[1]) : ''
+}
+
+/** A memo of one slot per key: `get` refreshes recency; `set` REPLACES the key's slot, then
+ *  evicts least recently used slots while over the entry cap or the bar budget (never the one
+ *  just set). `n` is the bars the slot holds. */
+function slotMemo() {
+  const map = new Map()   // k → { v, n }
+  let bars = 0
+  return {
+    get(k) {
+      const e = map.get(k)
+      if (!e) return undefined
+      map.delete(k); map.set(k, e)   // refresh recency
+      return e.v
+    },
+    set(k, v, n) {
+      const old = map.get(k)
+      if (old) { bars -= old.n; map.delete(k) }
+      map.set(k, { v, n })
+      bars += n
+      while (map.size > 1 && (map.size > _limits.maxEntries || bars > _limits.maxBars)) {
+        const [ok, oe] = map.entries().next().value
+        map.delete(ok)
+        bars -= oe.n
+      }
+      return v
+    },
+    clear() { map.clear(); bars = 0 },
+    stats() { return { slots: map.size, bars, keys: [...map.keys()] } },
+  }
+}
+
+const _legacyBaseMemo = slotMemo()   // `${key}|${tf}` → { baseRev, src (the store's bars), out (legacy sealed bars) }
+
+function legacySealed(snapshot, tf) {
+  const bars = snapshot?.bars || []
+  const k = `${snapshot?.key}|${tf}`
+  const hit = _legacyBaseMemo.get(k)
+  if (hit && hit.src === bars && hit.baseRev === snapshot?.baseRev) return hit.out
+  let out = bars
+  for (let i = 0; i < bars.length; i++) {
+    if (toLegacyBar(bars[i], tf) !== bars[i]) { out = bars.map(b => toLegacyBar(b, tf)); break }
+  }
+  _legacyBaseMemo.set(k, { baseRev: snapshot?.baseRev, src: bars, out }, out.length)
+  return out
+}
+
+function legacyDeveloping(snapshot, tf, sealed) {
+  const d = snapshot?.developing
+  if (!d) return null
+  const dev = toLegacyBar({ t: d.t, o: d.o, h: d.h, l: d.l, c: d.c, v: d.v }, tf)
+  // Store invariant S3: developing.t > last sealed t. A violating developing bar is not
+  // a distinct candle; dropping it here keeps the renderer's monotonic contract.
+  const last = sealed[sealed.length - 1]
+  if (!last) return dev
+  const newer = (typeof dev.t === 'number' && typeof last.t === 'number') ? dev.t > last.t : String(dev.t) > String(last.t)
+  return newer ? dev : null
+}
+
+/** The snapshot's developing bar in the legacy shape ({t,o,h,l,c,v}; D/W/M t = label), or
+ *  null — exactly the bar `legacyBars` appends. O(1): only the newest sealed bar decides it
+ *  (store invariant S3), so the dev channel's read (every tick) never builds or needs the whole
+ *  legacy copy, and never depends on the memo still holding it. */
+export function legacyDevelopingOf(snapshot, tf = tfOfSnapshot(snapshot, null)) {
+  if (!snapshot?.developing) return null
+  const bars = snapshot.bars || []
+  return legacyDeveloping(snapshot, tf, bars.length ? [toLegacyBar(bars[bars.length - 1], tf)] : [])
+}
+
+/** ⭐⭐ (2026-11-18) The route's `newest_bar_is_forming` for the snapshot's NEWEST row (the one `legacyBars` ends
+ *  with), or null (UNKNOWN) when no answer stated one or the last statement is about another bar (a newer
+ *  developing bar the live feed opened, an older answer). It is what the legacy source hands the chart
+ *  (`data.newest_bar_is_forming`): the tri-state rides with the bar it describes, never with the wall clock. */
+export function newestBarIsFormingOf(snapshot) {
+  const f = snapshot && snapshot.newestForming
+  if (!f || typeof f.forming !== 'boolean') return null
+  const bars = snapshot.bars || []
+  const newestT = legacyDevelopingOf(snapshot) ? snapshot.developing.t : (bars.length ? bars[bars.length - 1].t : null)
+  return newestT === f.t ? f.forming : null
+}
+
+const _legacyBarsMemo = new WeakMap()
+// ⭐⭐ NEIGHBOR FRAMES (2026-11-20, `uct.neighborframes`) — sealed array → `{tf, dev, out}`: the last
+// sealed + developing array built for it. A NEW SNAPSHOT OF THE SAME BARS (a status or meta change: a warm's
+// answer that moved nothing, a subscribe's mem hydrate) used to append the same developing bar to the same
+// sealed rows as a NEW array, so everything filed under the old one (a row's indicators, computed ahead)
+// missed. Same sealed rows + an equal developing bar = the same array. A WeakMap keyed by the sealed array:
+// an entry lives exactly as long as the store keeps those rows, never past an eviction.
+const _withDevMemo = new WeakMap()
+const sameLegacyBar = (a, b) => !!a && !!b && a.t === b.t && a.o === b.o && a.h === b.h && a.l === b.l
+  && a.c === b.c && a.v === b.v
+function withDeveloping(sealed, dev, tf) {
+  if (!neighborFramesOn()) return [...sealed, dev]
+  const hit = _withDevMemo.get(sealed)
+  if (hit && hit.tf === tf && sameLegacyBar(hit.dev, dev)) return hit.out
+  const out = [...sealed, dev]
+  _withDevMemo.set(sealed, { tf, dev, out })
+  return out
+}
+/** Today's downstream `bars` array for a snapshot: sealed + developing appended, legacy
+ *  shape. Memoized per (frozen, identity-stable) snapshot, so indicators / drawings /
+ *  engine keep receiving a stable array between store revisions. */
+export function legacyBars(snapshot, tf = tfOfSnapshot(snapshot, null)) {
+  if (!snapshot) return null
+  // Keyed per (snapshot, tf): the same snapshot read under another tf labels D/W/M
+  // differently. legacyBars depends on no view input, so the view is not part of the key.
+  let byTf = _legacyBarsMemo.get(snapshot)
+  if (!byTf) { byTf = new Map(); _legacyBarsMemo.set(snapshot, byTf) }
+  const hit = byTf.get(tf)
+  if (hit) return hit
+  const sealed = legacySealed(snapshot, tf)
+  const dev = legacyDeveloping(snapshot, tf, sealed)
+  const out = dev ? withDeveloping(sealed, dev, tf) : sealed
+  byTf.set(tf, out)
+  return out
+}
+
+// ── static snapshots (barsOverride consumers: Model Book, Setup Library, …) ──────
+let _staticRev = 0
+const _staticMemo = new WeakMap()
+/** A frozen, identity-stable snapshot around a caller-owned bar array (legacy shape).
+ *  Same array → same snapshot; a new array → a new baseRev (so the renderer repaints). */
+export function staticSnapshot(bars, { key = 'static', tf } = {}) {
+  const arr = Array.isArray(bars) ? bars : []
+  const id = tf ? `${key}_${tf}` : key
+  const memo = _staticMemo.get(arr)
+  if (memo && memo.key === id) return memo
+  const last = arr[arr.length - 1]
+  const snap = Object.freeze({
+    key: id,
+    bars: arr,
+    developing: null,
+    completeThrough: last ? last.t : null,
+    verifiedThrough: null,
+    seriesRev: null,
+    cacheKey: null,
+    grid: null,
+    status: 'current',
+    baseRev: ++_staticRev,
+    devRev: 0,
+    depth: arr.length,
+    static: true,
+  })
+  _staticMemo.set(arr, snap)
+  return snap
+}
+
+// ── points ───────────────────────────────────────────────────────────────────
+function candlePoint(b) { return { time: chartTimeOf(b.t), open: b.o, high: b.h, low: b.l, close: b.c } }
+function volumePoint(b) { return { time: chartTimeOf(b.t), value: b.v } }
+function closePoint(b) { return { time: chartTimeOf(b.t), value: b.c } }
+
+/** base points + tail points as ONE series array (a tail point at the last base time
+ *  replaces it). The only place the two halves are joined. */
+export function composePoints(base, tail) {
+  if (!tail?.length) return base
+  let cut = base.length
+  while (cut > 0 && base[cut - 1].time >= tail[0].time) cut--
+  return cut === base.length ? [...base, ...tail] : [...base.slice(0, cut), ...tail]
+}
+
+// Heikin-Ashi continued from a previous HA bar: indicators.heikinAshiNext, the one recurrence
+// toHeikinAshi itself steps with (no second implementation).
+function haContinue(bars, prev) {
+  const out = []
+  let p = prev || null
+  for (const bar of bars) { p = heikinAshiNext(p, bar); out.push(p) }
+  return out
+}
+
+// The regular-hours view: barTime.isRthBar — the one RTH test (half-day aware), the same one
+// StockChart's sessionBars filter uses.
+function rthKeep(b) {
+  return typeof b.t !== 'number' || isRthBar(b.t)
+}
+function cutoffKeep(cutoff) {
+  return (b) => (typeof b.t === 'number'
+    ? etDateLabel(b.t) <= cutoff
+    : String(b.t).slice(0, 10) <= cutoff)
+}
+
+const _baseMemo = slotMemo()   // `${key}|${vtid}` → the base series of the key's newest revision read
+function computeBase(snapshot, view, tf, vtid) {
+  const sealed = legacySealed(snapshot, tf)
+  const k = `${snapshot?.key}|${vtid}`
+  const hit = _baseMemo.get(k)
+  if (hit && hit.src === sealed && hit.baseRev === snapshot?.baseRev) return hit
+  const intraday = INTRADAY.has(tf)
+  let session = intraday ? foldOffGridBars(sealed, tf, { showExtended: !!view.showExtended }) : sealed
+  if (intraday && !view.showExtended) session = session.filter(rthKeep)
+  const sessionCount = session.length
+  let filtered = view.replayIndex != null ? session.slice(0, view.replayIndex + 1) : session
+  if (view.replayCutoff && filtered.length) filtered = filtered.filter(cutoffKeep(view.replayCutoff))
+  const display = view.heikinAshi && filtered.length ? toHeikinAshi(filtered) : filtered
+  const out = {
+    src: sealed, baseRev: snapshot?.baseRev, sessionCount, filtered, display,
+    candles: display.map(candlePoint),
+    volume: filtered.map(volumePoint),   // volume rides sessionAppliedBars (pre-HA) today
+    closes: display.map(closePoint),
+  }
+  return _baseMemo.set(k, out, filtered.length)
+}
+
+/**
+ * snapshot → series. `view`: { tf, showExtended, heikinAshi, replayIndex (null = off),
+ * replayCutoff ('YYYY-MM-DD' | null), sessionCandle ({curTime, extAgg, extPrice} | null —
+ * pass only when StockChart's sessionCandleActive && sessionExtReady hold) }.
+ */
+export function toSeries(snapshot, view = {}) {
+  const tf = tfOfSnapshot(snapshot, view)
+  const vtid = viewTransformId({ ...view, tf })
+  const base = computeBase(snapshot, view, tf, vtid)
+  const sealed = base.src
+  // ── tail: developing bar (+ session preview candle) ────────────────────────
+  let tailBars = []
+  let dev = legacyDeveloping(snapshot, tf, sealed)
+  if (dev && INTRADAY.has(tf)) {
+    // Developing is on-grid by store contract (off-grid folded once at ingest).
+    if (!view.showExtended && !rthKeep(dev)) dev = null
+  }
+  if (dev && view.replayIndex != null && view.replayIndex < base.sessionCount) dev = null
+  if (dev && view.replayCutoff && !cutoffKeep(view.replayCutoff)(dev)) dev = null
+  if (dev) tailBars = [dev]
+  let sessionApplied = false
+  if (view.sessionCandle && (dev || base.filtered.length)) {
+    const anchor = dev || base.filtered[base.filtered.length - 1]
+    const out = applySessionCandle([anchor], view.sessionCandle)
+    if (out.length !== 1 || out[0] !== anchor) {
+      sessionApplied = true
+      // With a developing bar the whole result is tail. Without one the anchor is the
+      // last BASE bar: a merged anchor replaces it (same time); an appended candle is
+      // the only tail point and the untouched anchor stays in base.
+      tailBars = dev ? out : (out.length === 2 ? [out[1]] : [out[0]])
+    }
+  }
+  let tailDisplay = tailBars
+  if (view.heikinAshi && tailBars.length) {
+    const d = base.display, f = base.filtered
+    // A tail point at the last base time replaces it → continue from the bar before.
+    const replaces = f.length && String(tailBars[0].t) === String(f[f.length - 1].t)
+    const prev = replaces ? d[d.length - 2] : d[d.length - 1]
+    tailDisplay = haContinue(tailBars, prev || null)
+  }
+  const tail = {
+    bars: tailBars,
+    candles: tailDisplay.map(candlePoint),
+    volume: tailBars.map(volumePoint),
+    closes: tailDisplay.map(closePoint),
+  }
+  return {
+    key: snapshot?.key ?? null,
+    baseRev: snapshot?.baseRev ?? null,
+    devRev: snapshot?.devRev ?? null,
+    vtid,
+    // Framing identity: a change here is a KEY CHANGE for framing K1 (symbol / tf / session).
+    frameId: `${snapshot?.key ?? ''}|${tf}|${view.showExtended ? 'eth' : 'rth'}`,
+    tf,
+    sessionApplied,
+    base: { filtered: base.filtered, display: base.display, candles: base.candles, volume: base.volume, closes: base.closes },
+    tail,
+    /** today's `filteredBars` (base + developing), legacy shape — O(n), call sparingly */
+    filteredBars: () => composeBars(base.filtered, dev ? [dev] : []),
+    /** today's `sessionAppliedBars` */
+    sessionAppliedBars: () => composeBars(base.filtered, tailBars),
+    /** today's `displayBars` */
+    displayBars: () => composeBars(base.display, tailDisplay),
+  }
+}
+
+function composeBars(base, tail) {
+  if (!tail?.length) return base
+  let cut = base.length
+  const t0 = tail[0].t
+  while (cut > 0 && (typeof t0 === 'number' ? base[cut - 1].t >= t0 : String(base[cut - 1].t) >= String(t0))) cut--
+  return [...base.slice(0, cut), ...tail]
+}
+
+/** Test-only: drop the memos (they are bounded caches; never needed for correctness) and
+ *  restore their bounds. */
+export function _resetAdapterMemos() {
+  _baseMemo.clear(); _legacyBaseMemo.clear()
+  _limits = { maxEntries: BASE_MEMO_MAX, maxBars: MEMO_BAR_BUDGET }
+}
+/** Test-only: what the memos hold — slots, bars, slot keys. */
+export function _adapterMemoStats() { return { legacy: _legacyBaseMemo.stats(), base: _baseMemo.stats() } }
+/** Test-only: smaller bounds, so a test can reach them with small series. */
+export function _setAdapterMemoLimits({ maxEntries = BASE_MEMO_MAX, maxBars = MEMO_BAR_BUDGET } = {}) {
+  _limits = { maxEntries, maxBars }
+}

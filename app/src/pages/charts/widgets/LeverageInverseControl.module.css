@@ -259,3 +259,46 @@
   background: var(--menu-accent, #dcbb5e);
   box-shadow: 0 0 4px color-mix(in srgb, var(--ut-gold) 60%, transparent);
 }
+
+/* ── variant 'tabs' (/charts chart widget symbol menu): no pill, text tabs, gold underline ── */
+.wrapTabs { margin-right: 0; }
+.wrapTabs .pill { border: none; border-radius: 0; overflow: visible; gap: 2px; background: none; }
+.wrapTabs .segBtn + .segBtn,
+.wrapTabs .segBtn + .caretBtn,
+.wrapTabs .caretBtn + .segBtn { border-left: none; }
+.wrapTabs .segBtn,
+.wrapTabs .caretBtn {
+  position: relative;
+  padding: 7px 7px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+  background: none;
+}
+.wrapTabs .segLev { min-width: 0; }
+.wrapTabs .segBtn:hover:not(:disabled),
+.wrapTabs .caretBtn:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: none; }
+.wrapTabs .segStockActive,
+.wrapTabs .segStockActive:hover:not(:disabled),
+.wrapTabs .segLongActive,
+.wrapTabs .segLongActive:hover:not(:disabled),
+.wrapTabs .segShortActive,
+.wrapTabs .segShortActive:hover:not(:disabled) {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 700;
+  background: none;
+}
+.wrapTabs .segStockActive::after,
+.wrapTabs .segLongActive::after,
+.wrapTabs .segShortActive::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}

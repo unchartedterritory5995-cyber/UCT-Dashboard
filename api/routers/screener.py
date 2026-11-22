@@ -180,16 +180,26 @@ def screener_grammar_parse(body: GrammarIn, _user=Depends(require_paid)):
 
 @router.get("/api/screener/meta")
 def screener_meta(user=Depends(require_paid)):
-    """Filter registry + result views + filter categories (frontend-ready)."""
-    return scr_filters.meta(user_id=user["id"])
+    """Filter registry + result views + filter categories (frontend-ready).
+    The user rides along for one answer: whether the RS screens' keys and views are
+    offered to them (RS_SCREENS_ENABLED at `admin` offers them to admins only)."""
+    return scr_filters.meta(user_id=user["id"], user=user)
 
 
 @router.get("/api/screener/fields")
 def screener_fields(options: int = 0, _user=Depends(require_paid)):
     """The filter registry alone (key/label/type/unit/category) — no measurement.
     For callers that need to know which fields exist, not draw the filter panel.
-    `?options=1` adds each value-list field's values and coverage (filters.field_options)."""
-    out = {"fields": scr_filters.field_catalog()}
+    `?options=1` adds each value-list field's values and coverage (filters.field_options).
+    `logic_enabled` says whether a `logic` tree would run here (SCREENER_LOGIC_ENABLED). `live_fields` are the keys the
+    live tier can overlay during the session, so a caller comparing two fields can say when they read different clocks."""
+    from api.services.screener import logic as scr_logic
+    # `logic_enabled`: a caller that composes screens (UCT Agent) can say a group is off before it asks, instead of
+    # finding out from a refusal. The scan route still refuses on its own.
+    # Not gated by RS_SCREENS_ENABLED, for anyone: the registry lists every key whatever
+    # that flag says (off included), so its owner-only value has nothing to hide here.
+    out = {"fields": scr_filters.field_catalog(), "logic_enabled": scr_logic.is_enabled(),
+           "live_fields": scr_filters.live_field_keys()}
     if options:
         out["options"] = scr_filters.field_options()
     return out
@@ -217,7 +227,7 @@ def screener_methodology(column: str = "", user=Depends(require_paid)):
             raise HTTPException(status_code=404,
                                 detail=f"no published method for {column!r}")
         return found
-    return methodology.all_methods()
+    return methodology.all_methods(user)
 
 
 @router.get("/api/screener/structures")
@@ -378,6 +388,103 @@ def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
         scr_ctrace.record(_ctrace_total_ms, scr_ctrace.pop_stages())
 
 
+#: What "Why isn't a stock here?" says of a ticker the Screener holds no row for.
+NO_SUCH_STOCK = "No such stock in the Screener."
+
+
+@router.get("/api/screener/row/{ticker}")
+def screener_row(ticker: str, columns: str = "", user=Depends(require_paid)):
+    """One stock's screener row, for the columns named: ``{ticker, row, stale}``.
+
+    RS screens unit U8: "Why isn't a stock here?" in the Focus screener asks for the
+    one row and checks the open screen's rules against it in the page. The scan's own
+    ticker scope (`{key: "tickers"}`) is dark behind FT-029 v2's flag, so it cannot
+    serve this (`query.rows_for` says why this is not a scan).
+
+    ⛔ PAID, like `/scan`: it returns the same stored numbers the scan returns, one
+    stock at a time. Declared on the handler, as on every route in this file.
+    ⛔ `columns` IS CHECKED AGAINST THE SCHEMA before any statement exists: a name the
+    snapshot does not declare is a 400 that names it, never a column read off the
+    request. The ticker is only ever a bound parameter.
+    ⛔ 404 WHILE `RS_SCREENS_ENABLED` IS OFF, before anything is read: the route is
+    part of the RS screens and does not exist without them.
+
+    `stale: true` means the scan leaves this row out of every screen because its own
+    bars stopped arriving (`query.stale_gate`); the page says so instead of calling
+    the stock a match. A ticker with no row is a 404 with the member-facing sentence.
+    """
+    if not scr_saved.rs_screens_served(user):
+        raise HTTPException(status_code=404, detail="Not Found")
+    syms = scr_query.row_tickers(ticker)[:1]
+    cols = [c.strip() for c in columns.split(",") if c.strip()]
+    try:
+        found = scr_query.rows_for(syms, cols, user=user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    hit = found.get(syms[0]) if syms else None
+    if hit is None:
+        raise HTTPException(status_code=404, detail=NO_SUCH_STOCK)
+    # A stored inf or NaN is a blank cell, never a 500 (the scan route's own rule).
+    from api.services.json_finite import scrub
+    return scrub({"ticker": syms[0], **hit})
+
+
+@router.get("/api/screener/rows")
+def screener_rows(tickers: str = "", columns: str = "", user=Depends(require_paid)):
+    """Several stocks' screener rows in ONE read: ``{rows: {TICKER: {row, stale}}, missing}``.
+
+    RS screens unit U12: the "N dropped" popover on an RS screen says, beside each name
+    that left the list, the first rule it now fails. The page judges the rules itself
+    (as "Why isn't a stock here?" does); this hands it every dropped stock's row at once
+    instead of one request a name.
+
+    The single-row route's semantics, batched (`query.rows_for` is the one reader of both):
+    ⛔ PAID, declared on the handler. ⛔ 404 FOR A USER THE RS SCREENS ARE NOT SHOWN TO
+    (`rs_screens_served`: off, or `admin` and not an admin), before anything is read. ⛔ `columns` IS CHECKED AGAINST THE SCHEMA before any statement
+    exists (an undeclared name is a 400 that names it); a ticker is only ever a bound
+    parameter, and a name that cannot be a ticker is dropped before it gets that far.
+    ⛔ AT MOST ``query.MAX_ROW_TICKERS`` (25) NAMES: one more is a 400, never a silent cut.
+
+    ``rows`` holds each named ticker that has a row, in the order asked; ``missing``
+    names the ones that have none (the page says the stock is no longer in the
+    Screener). ``stale`` is the single route's: the scan leaves that row out of every
+    screen because its own bars stopped arriving. No ticker named is two empty answers,
+    not an error.
+    """
+    if not scr_saved.rs_screens_served(user):
+        raise HTTPException(status_code=404, detail="Not Found")
+    syms = scr_query.row_tickers(tickers)
+    cols = [c.strip() for c in columns.split(",") if c.strip()]
+    try:
+        found = scr_query.rows_for(syms, cols, user=user)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    from api.services.json_finite import scrub
+    return scrub({"rows": {t: found[t] for t in syms if t in found},
+                  "missing": [t for t in syms if t not in found]})
+
+
+def _rs_history_block() -> dict:
+    """The UCT RS rating-history side table's state (engineering map unit 2a-04):
+    `rs_history.status()` -- `table`, `rows`, `sessions`, `latest_session`, `last_run`
+    (the newest receipt, `duration_ms` included) and `backfill` (the marker) -- plus
+    `enabled`, the per-call `RS_HISTORY_ENABLED` read the `rs_history_nightly` job
+    itself uses (ONE reader, `api.main.rs_history_enabled`, so this surface and the
+    job cannot disagree about the switch).
+
+    Read-only and best-effort: a failure answers `{"error": ...}` in THIS block and
+    never costs the freshness endpoint it rides on."""
+    out: dict = {"enabled": False}
+    try:
+        from api.main import rs_history_enabled
+        out["enabled"] = rs_history_enabled()
+        from api.services.screener import rs_history
+        out.update(rs_history.status())
+    except Exception as e:  # noqa: BLE001
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 @router.get("/api/screener/snapshot-status")
 def screener_snapshot_status(user=Depends(require_paid)):
     """Coverage + freshness of the precomputed snapshot.
@@ -417,13 +524,17 @@ def screener_snapshot_status(user=Depends(require_paid)):
     nightly WITH the reason rather than as silence. The whole block is built by
     `query.live_tier_state()` — read the block comment above it before changing
     any of these words.
+
+    `rs_history` is the UCT RS rating-history side table's state plus its flag
+    (`_rs_history_block` below): read-only, best-effort, an `error` key on failure.
     """
     # ⭐ The pre-market sweep's last receipt (spec 2026-10-16 §2), for a user the flag
     # reaches; None otherwise, so a member at `admin` reads the same "off" the scan
     # gives them.
     from api.services.screener import premarket as _pm
     return {**scr_db.status(), "live": scr_query.live_tier_state(),
-            "premarket": _pm.last_receipt() if _pm.served_to(user) else None}
+            "premarket": _pm.last_receipt() if _pm.served_to(user) else None,
+            "rs_history": _rs_history_block()}
 
 
 @router.get("/api/screener/volume-curve")
@@ -1064,7 +1175,30 @@ def screener_earnings_context_status(user=Depends(require_admin)):
 @router.get("/api/screener/saved-screens")
 def screener_saved_list(user=Depends(require_paid)):
     scr_saved.init()
-    return {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters(user)}
+    out = {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters(user)}
+    # RS screens unit U8: the market caution state the RS screens print above their
+    # lists, `{state, text, asof}` from the newest post-pass receipt, or null when no
+    # state can be claimed. It rides this payload so the page asks nothing new. The KEY
+    # exists only for a user the RS screens are shown to (unit U10: `rs_screens_served`):
+    # for everyone else the payload is the one it was.
+    if scr_saved.rs_screens_served(user):
+        from api.services.screener import rs_market_state, rs_post_pass
+        out["rs_market"] = rs_market_state.served()
+        # The first night: the lists have not been built yet (`rs_post_pass.pending`).
+        # `{text}` so the page says that instead of "No stocks match all 12 filters".
+        # The KEY exists only in that state, and only for a user the screens are shown to.
+        rs_pending = rs_post_pass.pending()
+        if rs_pending is not None:
+            out["rs_pending"] = rs_pending
+    # RS screens unit U13: "Tell me what joins and leaves". `{available, subscribed}`
+    # for the toggle in the list head, riding this payload for the same reason. The
+    # KEY exists only while RS_SCREEN_ALERTS_ENABLED is on and the RS screens are on
+    # for this member: otherwise the payload is the one it was.
+    from api.services.screener import rs_screen_alerts
+    rs_alerts = rs_screen_alerts.payload(user)
+    if rs_alerts is not None:
+        out["rs_alerts"] = rs_alerts
+    return out
 
 
 @router.post("/api/screener/saved-screens")

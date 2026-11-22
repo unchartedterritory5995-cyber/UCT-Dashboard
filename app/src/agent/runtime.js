@@ -63,6 +63,12 @@ async function compensate(host, landed) {
   return ok
 }
 
+// ⛔ ONE PHRASING for "a write was left that could not be taken back" (`e.unreverted` / `dirty`),
+// shared by a failed plan (`commitPlan.fail`) and a failed Undo (`runUndoEntry`) so they cannot
+// drift: the tail after a reason, and the sentence after a kind's own complete one.
+const NOT_REVERSED_TAIL = ' — and some changes could not be reversed'
+const NOT_REVERSED_SAY = ' Some earlier changes could not be reversed.'
+
 export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   const real = plan.plans.filter(p => p.changed && !p.virtual)
   const virt = plan.plans.filter(p => p.virtual)
@@ -89,11 +95,11 @@ export async function commitPlan(host, plan, { env = {}, ctx = null } = {}) {
   // said once, as-is; only a change that could not be reversed is added to it. `gate`: diagnostics only.
   const fail = async (label, reason, { dirty = false, note = null, say = null, gate = null } = {}) => {
     const restored = (await compensate(host, landed)) && !dirty
-    const tail = note ? ` — ${note}` : (restored ? ' — nothing was left changed' : ' — and some changes could not be reversed')
+    const tail = note ? ` — ${note}` : (restored ? ' — nothing was left changed' : NOT_REVERSED_TAIL)
     return {
       ok: false, lines: [], undo: null, compensated: restored && !note,
       failed: [{ label, reason: `${reason}${tail}`,
-        ...(say ? { say: restored ? say : `${say} Some earlier changes could not be reversed.` } : {}), ...(gate ? { gate } : {}) }],
+        ...(say ? { say: restored ? say : `${say}${NOT_REVERSED_SAY}` } : {}), ...(gate ? { gate } : {}) }],
     }
   }
 
@@ -204,7 +210,13 @@ export function undoEntryFor(host, { kind: kindName, ref, label, lines, undoData
     epoch: boardBound && typeof host.epoch === 'function' ? host.epoch() : null }
 }
 
+// The marks feed the panel header's working signal (agent/trace.js), in a finally so a throw can't strand it.
 export async function undoEntry(host, entry) {
+  mark('undo:start')
+  try { return await runUndoEntry(host, entry) } finally { mark('undo:end') }
+}
+
+async function runUndoEntry(host, entry) {
   if (!entry) return { ok: false, lines: [], reason: 'There is nothing of mine to undo.' }
   // Never across a board change: after a layout switch the same refs can name
   // widgets on a DIFFERENT board.
@@ -214,7 +226,12 @@ export async function undoEntry(host, entry) {
   for (const it of entry.items) {
     const kind = getTargetKind(it.kind)
     const cur = kind.read(host, it.ref)
-    if (!cur) return { ok: false, lines: [], reason: `${it.label} is no longer on the workspace, so I can't undo that.` }
+    if (!cur) {
+      // PACKAGE 3: a kind that knows what became of it says so (a SAVED indicator draft), else the generic sentence
+      let why = null
+      try { why = typeof kind.goneReason === 'function' ? kind.goneReason(host, it.ref) : null } catch { why = null }
+      return { ok: false, lines: [], reason: why || `${it.label} is no longer on the workspace, so I can't undo that.` }
+    }
     if (fpOf(kind, host, cur, it) !== it.afterFp) {
       return { ok: false, lines: [], reason: `${it.label} has changed since I made that change, so undoing it would overwrite your newer edits. Nothing was undone.` }
     }
@@ -222,16 +239,23 @@ export async function undoEntry(host, entry) {
   const restores = []
   for (const it of [...entry.items].reverse()) {
     const kind = getTargetKind(it.kind)
-    const patch = kind.undoPatch(it)
+    // a kind may scope its Undo to what the change touched, on the target as it is NOW (chart.js undoPatchNow): newer edits to
+    // anything else are kept, never overwritten
+    const patch = kind.undoPatchNow ? kind.undoPatchNow(it, kind.read(host, it.ref)) : kind.undoPatch(it)
     let res
     try {
       res = await kind.commit(host, it.ref, patch)
     } catch (e) {
       // Say exactly what was and was not restored — never reject silently.
       const done = restores.map(r => r.it.label)
+      // ⛔ A step that wrote before it failed (`e.unreverted`, e.g. a re-save it could not read back)
+      // gets the same words `commitPlan.fail` gives a dirty step, never "Nothing was undone."
+      const left = !!e?.unreverted
       return {
         ok: false, lines: [], partial: done.length > 0,
-        reason: `${it.label} could not be undone (${e?.message || 'error'}).${done.length ? ` Already restored: ${done.join(', ')}.` : ' Nothing was undone.'}`,
+        // PACKAGE 3: a kind's own complete sentence (it already says what happened) is said as it is
+        reason: e?.complete && e?.message && !done.length ? `${e.message}${left ? NOT_REVERSED_SAY : ''}`
+          : `${it.label} could not be undone (${e?.message || 'error'})${left ? NOT_REVERSED_TAIL : ''}.${done.length ? ` Already restored: ${done.join(', ')}.` : (left ? '' : ' Nothing was undone.')}`,
       }
     }
     restores.push({ it, kind, patch, lines: Array.isArray(res?.lines) ? res.lines : null })

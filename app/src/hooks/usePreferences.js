@@ -4,6 +4,7 @@ import { mergeSettingsOverride } from '../components/chart/instanceShape'
 import { noteWorkspaceDocResponse } from '../lib/workspaceDoc'
 import { emitWorkspaceConflict } from '../lib/workspaceConflict'
 import { onPrefsUserChange, prefsUser, beginPrefsOp } from '../lib/prefsSession'
+import { takeBootPreferences } from '../lib/bootFetch'
 
 export { onWorkspaceConflict } from '../lib/workspaceConflict'
 
@@ -142,7 +143,11 @@ const fetcher = url => {
   // untagged `{}` — SWR discards it anyway (the member change mutated the key after it started),
   // and if it ever did not, an untagged object can never be merged onto or posted.
   const op = beginPrefsOp()
-  const p = fetch(url).then(
+  // The first read takes the request main.jsx started as the page loaded (lib/bootFetch.js), and only
+  // when the boot sign-in check named THIS member; anything else, or a failed boot request, fetches.
+  const boot = url === PREFS_URL ? takeBootPreferences(prefsUser()) : null
+  // (A member change meanwhile: the next step drops whatever this hands it; no second request for it.)
+  const p = (boot ? boot.then(r => { if (op.stale()) return r; return r || fetch(url) }) : fetch(url)).then(
     r => {
       if (op.stale()) return {}
       noteWorkspaceDocResponse(r); noteRevision(r, false)

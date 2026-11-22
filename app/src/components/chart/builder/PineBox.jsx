@@ -41,7 +41,13 @@ import { foreignLanguage, foreignRefusal } from '../engine/ast/foreignLanguage'
 import { TS_CALL_SHAPES, TS_DOC_BLOCKED } from '../engine/ast/thinkscript'
 import { TABLE } from '../engine/ast/parse'
 import ImportGapNotice from '../supportLoop/ImportGapNotice'
+import PineEditorStatus, { usePineEditorStatus } from './PineEditorStatus'
+import { editorStatusEnabled } from './editorStatusGate'
+import { lineMarks as toLineMarks } from './editorStatus'
 import styles from './PineBox.module.css'
+// The CodeMirror chunk's own visually-hidden class for the value-carrier textarea —
+// the same arrangement `FormulaField` uses once its editor has mounted.
+import editorStyles from './editor/CodeEditor.module.css'
 
 /** The same 250 ms `FormulaField` settles on, and for the same reason: a paste is
  *  one event but an edit is a keystroke, and translating on every one runs a
@@ -239,19 +245,26 @@ const NATIVE_NAMES = new Set([
  *     in a paste using lower-case `and`/`or`, says so instead of only blaming TC2000.
  */
 export function inspectSource(source, dialect = 'auto', opts = undefined) {
+  // ⭐ EDITOR STATUS — the language the door had settled on when a throw came. The
+  // controlled report keeps its `formula` stamp (nothing that renders it changes);
+  // `faultDialect` says the text was read as Pine, so the Pine editor's status panel
+  // can show its engine-fault state for it (`PineEditorStatus.usePineEditorStatus`).
+  const routed = { dialect: dialect === 'auto' ? null : dialect }
   let report
   try {
-    report = routeAndInspect(source, dialect, opts)
+    report = routeAndInspect(source, dialect, opts, routed)
   } catch (e) {
-    return controlledErrorReport(source, e, dialect === 'auto' ? 'formula' : dialect)
+    const fault = controlledErrorReport(source, e, dialect === 'auto' ? 'formula' : dialect)
+    return routed.dialect === 'pine' && fault.dialect !== 'pine' ? { ...fault, faultDialect: 'pine' } : fault
   }
   return { ...report, outcome: importOutcome(report) }
 }
 
-function routeAndInspect(source, dialect, opts) {
+function routeAndInspect(source, dialect, opts, routed = {}) {
   const text = typeof source === 'string' ? source : ''
   if (dialect !== 'auto') return inspectSourceUnguarded(text, dialect, opts)
   const detected = detectDialect(text)
+  routed.dialect = detected
   if (detected !== 'pine') {
     const found = foreignLanguage(text)
     if (found) {
@@ -390,6 +403,10 @@ function inspectSourceUnguarded(source, dialect = 'auto', opts = undefined) {
       // levels box empty. That is the same failure this whole wave is about — a
       // carriage that stops one door short — committed inside the wave fixing it.
       presentation: t.presentation || null,
+      // ⭐ ENGINE 55 (review F1) — which other symbols the trees read and how each was spelled,
+      // so the import screen can say up front which plots a binding will refuse
+      // (`importOutcome` → `otherSymbols.staticOtherSymbolRefusalOf`), forwarded by name.
+      otherSymbols: Array.isArray(t.otherSymbols) ? t.otherSymbols : null,
       // ⭐ L1 — the imported libraries this translation linked, with their licence
       // and attribution, which the member is shown (forwarded by name: see above).
       libraries: t.libraries || [],
@@ -592,7 +609,7 @@ function loadEditor() {
  *  (already mounted and already the value carrier) stays the box. Never a reload. */
 const TEXTAREA_FALLBACK = null
 
-function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null }) {
+function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSourceChange, onImportTelemetry, sym = null, tf = null, savedRow = null, onStatusHeadline = null, lineJumpRef = null, engineChart = null }) {
   const inspect = useCallback(
     (s, opts) => (dialect === undefined ? inspectPine(s, opts) : inspectSource(s, dialect, opts)),
     [dialect],
@@ -632,6 +649,54 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
   const [showNotes, setShowNotes] = useState(false)
   const [Editor, setEditor] = useState(null)
   const areaRef = useRef(null)
+  // ⭐ EDITOR STATUS PANEL (VITE_PINE_EDITOR_STATUS, `docs/pine/EDITOR-STATUS-PANEL-SPEC.md`).
+  // `inspected` is the text `report` was computed on, set in the same breath as
+  // `report`, so the panel can say "checking" and the line marks can refuse to
+  // land on a newer buffer. Off, nothing reads either.
+  const statusOn = editorStatusEnabled()
+  const editorRef = useRef(null)
+  const [inspected, setInspected] = useState(initialSource)
+  // ⭐ `chart`: the chart the builder was opened over, as the engine sees it. The panel runs the script on
+  // it before it says "Runs" (`PineEditorStatus.useRunOnChart`).
+  const editorStatusNow = usePineEditorStatus({ enabled: statusOn, report, inspectedSource: inspected, savedRow, chart: engineChart })
+  const statusMarks = useMemo(
+    () => (editorStatusNow ? toLineMarks(editorStatusNow, inspected) : null), [editorStatusNow, inspected])
+  // ⭐ STUDIO R4 — the host is told the panel's sentence and the exact text it is about, so a save
+  // of THAT text can put it on record for people the script is shared with. Null while the panel
+  // is off, is still checking a newer buffer, or has no sentence: nothing is recorded then.
+  const headlineNow = editorStatusNow && text === inspected && typeof editorStatusNow.headline === 'string'
+    ? editorStatusNow.headline : null
+  useEffect(() => {
+    if (typeof onStatusHeadline !== 'function') return
+    onStatusHeadline(headlineNow ? { headline: headlineNow, source: inspected } : null)
+  }, [onStatusHeadline, headlineNow, inspected])
+  /** The panel's `Line N` button: caret to the start of that line, scrolled into
+   *  view. CodeMirror when it has loaded, the textarea otherwise. */
+  const goToLine = useCallback((n) => {
+    const view = editorRef.current && editorRef.current.view ? editorRef.current.view() : null
+    if (view) {
+      const doc = view.state.doc
+      if (!Number.isInteger(n) || n < 1 || n > doc.lines) return
+      const at = doc.line(n).from
+      view.dispatch({ selection: { anchor: at }, scrollIntoView: true })
+      view.focus()
+      return
+    }
+    const area = areaRef.current
+    if (!area || !Number.isInteger(n) || n < 1) return
+    const lines = String(area.value || '').split('\n')
+    if (n > lines.length) return
+    const at = lines.slice(0, n - 1).reduce((acc, l) => acc + l.length + 1, 0)
+    area.focus()
+    area.setSelectionRange(at, at)
+  }, [])
+  // ⭐ STUDIO R5 — the host may ask for the same jump (Inspect a bar's `line N`): it owns a ref
+  // and this box puts its own `goToLine` in it while mounted. One implementation, this one.
+  useEffect(() => {
+    if (!lineJumpRef) return undefined
+    lineJumpRef.current = goToLine
+    return () => { if (lineJumpRef.current === goToLine) lineJumpRef.current = null }
+  }, [lineJumpRef, goToLine])
 
   // ⭐⭐ THE MEMBER'S OWN VALUES. `translatePine`'s `inputValues` has shipped,
   // tested and green since the knob work — and until now its only caller was its
@@ -679,7 +744,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
   useEffect(() => {
     if (text.trim() === '') {
-      setReport(null); setChosen(null); setAuthorKnobs([]); return undefined
+      setReport(null); setInspected(''); setChosen(null); setAuthorKnobs([]); return undefined
     }
     const id = setTimeout(() => {
       const values = memberSettings(settings)
@@ -695,6 +760,7 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
       const isNewText = lastTextRef.current !== text
       lastTextRef.current = text
       setReport(next)
+      setInspected(text)
       // ⛔ A LENGTH CHANGE MUST NOT MOVE THE MEMBER'S PICK. Re-selecting
       // `next.selected` on every pass would snap a two-plot script back to the
       // first column each time a field is touched.
@@ -1071,7 +1137,13 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
 
       <textarea
         ref={areaRef}
-        className={styles.area}
+        // ⚰️ FIXED 2026-11-16 (Direction A): this kept `styles.area` after the editor
+        // mounted, so `aria-hidden` hid it from a screen reader and NOTHING hid it from
+        // the eye — an empty second box sat under the CodeMirror editor. Once `Editor`
+        // has loaded the textarea is only the value carrier, so it takes the editor's
+        // visually-hidden class instead — exactly `FormulaField`'s arrangement, and
+        // standalone (never combined with `styles.area`) for the reason that one gives.
+        className={Editor ? editorStyles.model : styles.area}
         // A phone keyboard that capitalises `Close` produces a name Pine does not
         // declare either — same reasoning as `FormulaField`.
         spellCheck={false}
@@ -1112,6 +1184,20 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
           // hidden textarea every existing rail already types into.
           ariaLabel={`${anyDialect ? 'Script or formula' : 'Pine script'} editor`}
           testId="pine-editor"
+          ref={statusOn ? editorRef : undefined}
+          lineMarks={statusMarks || undefined}
+        />
+      )}
+
+      {statusOn && editorStatusNow && (
+        <PineEditorStatus
+          status={editorStatusNow}
+          report={report}
+          inspectedSource={inspected}
+          currentText={text}
+          sym={sym}
+          tf={tf}
+          onGoToLine={goToLine}
         />
       )}
 
@@ -1560,7 +1646,8 @@ function PasteBox({ onPick, disabled = false, initialSource = '', dialect, onSou
  */
 export function ImportBox({
   onPick, disabled = false, initialSource = '', dialect = 'auto', onSourceChange = null,
-  onImportTelemetry = null, sym = null, tf = null,
+  onImportTelemetry = null, sym = null, tf = null, savedRow = null, onStatusHeadline = null,
+  lineJumpRef = null, engineChart = null,
 }) {
   return (
     <PasteBox
@@ -1568,10 +1655,14 @@ export function ImportBox({
       disabled={disabled}
       initialSource={initialSource}
       dialect={dialect}
+      onStatusHeadline={onStatusHeadline}
+      lineJumpRef={lineJumpRef}
       onSourceChange={onSourceChange}
       onImportTelemetry={onImportTelemetry}
       sym={sym}
       tf={tf}
+      savedRow={savedRow}
+      engineChart={engineChart}
     />
   )
 }

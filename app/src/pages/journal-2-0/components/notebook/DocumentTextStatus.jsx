@@ -85,6 +85,10 @@ export function documentTextNotice(doc) {
     return scanned ? { tone: 'muted', icon: 'document', name, text: `— ${scanned}` } : null
   }
   if (withText === 0) {
+    // A captured web source (`web:` passage, `x:` post) is not a file, so it cannot be a scan. An
+    // imported post that left X has no page row at all (tweet_capture_sync.remove_post) and its
+    // card already says so; "looks like a scan" would be a false statement about it.
+    if (doc.sourceKind === 'web') return null
     return { tone: 'muted', icon: 'document', name,
              text: 'looks like a scan — no readable text yet, so Search and Ask cannot use it.' }
   }
@@ -96,9 +100,42 @@ export function documentTextNotice(doc) {
   }
 }
 
-export default function DocumentTextStatus({ documents = [] }) {
+/** `/inline/<file>` -- the part of an image's URL that names it, whatever prefix or query rides
+ *  along. Images are always saved under `/inline/` (document_extraction.maybe_create_document). */
+const inlineKey = (url) => {
+  const m = /\/inline\/([^?#]+)/.exec(String(url || ''))
+  return m ? m[1] : null
+}
+export const isImageDocument = (doc) => inlineKey(doc?.attachmentUrl) !== null
+
+/** ⛔ Audit 2026-11-05, spec S5 (B4): what an IMAGE document may say. A note holding only widgets
+ *  showed four "Image — Text read from a scanned page" lines: every widget's archived snapshot PNG
+ *  goes through the image door (lib/embedArchive.js), becomes an OCR document, and OCR reads the
+ *  chart's axis. So an image is spoken of only when the note HOLDS it (an image node in the body),
+ *  and only while it is being read or has no text -- never the scan disclosure (a picture is not a
+ *  scanned page), and never "looks like a scan" for a plain screenshot. */
+export function imageTextNotice(doc) {
+  const name = doc?.name || 'Image'
+  if (doc?.status === 'pending' || (doc?.pagesAwaitingOcr || 0) > 0) {
+    return { tone: 'busy', icon: 'clock', name, text: 'is still being read…' }
+  }
+  if (doc?.status === 'no_text' || (Number.isFinite(doc?.pagesTotal) && (doc?.pagesWithText || 0) === 0 && !doc?.textComplete
+      && doc?.status !== 'processing_failed')) {
+    return { tone: 'muted', icon: 'document', name, text: 'has no readable text, so Search and Ask cannot use it.' }
+  }
+  return null
+}
+
+export default function DocumentTextStatus({ documents = [], imageUrls = null }) {
+  // `imageUrls` is what the body holds. Absent (an older caller), images are judged as before.
+  const held = imageUrls ? new Set([...imageUrls].map(inlineKey).filter(Boolean)) : null
   const notices = documents
-    .map((d) => ({ doc: d, notice: documentTextNotice(d) }))
+    .map((d) => {
+      if (held && isImageDocument(d)) {
+        return { doc: d, notice: held.has(inlineKey(d.attachmentUrl)) ? imageTextNotice(d) : null }
+      }
+      return { doc: d, notice: documentTextNotice(d) }
+    })
     .filter((x) => x.notice)
   if (!notices.length) return null
 

@@ -131,7 +131,7 @@ export default function RsLeadersPanel() {
       <p className={styles.muted} data-testid="terminal-rsl-method">
         The top {board.rows.length} of {formatNumber(board.total, { decimals: 0 })} names by RS rank. RS rank is a 1 to 99
         percentile of a weighted 3M, 6M, 1M and 1W return (3M weighs most) against the whole universe, recomputed about hourly
-        from daily closes. A sign (+/−) marks every return, so colour is never the only signal. Click a symbol to open its DES;
+        from daily closes. A sign (+/−) marks every return, so color is never the only signal. Click a symbol to open its DES;
         type a row number to load it into the linked panels.
         {read.receivedAt ? ` Read at ${formatTimeEt(read.receivedAt, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>

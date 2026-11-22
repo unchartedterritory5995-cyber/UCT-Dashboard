@@ -13,8 +13,15 @@ const step = (id, anchor, file) => Object.freeze({ id, anchor, file })
 const TAB = 'tabs/NotebookTab.jsx'
 const PICKER = 'components/notebook/TemplatePicker.jsx'
 
+//
+// Final fix (A1): on a phone the "+ New" group (and its ▾, the `templates` anchor) is not drawn, so step 1 never
+// showed and the tour could not open there. The phone door is ⋯ (More notebook actions, the `styles-button` anchor)
+// > "New from a template" (the `new-from-template-phone` anchor, a literal in NotebookTab.jsx): the two phone steps
+// stand in for step 1, and the later steps are the same at every width (the picker is the same sheet).
 export const STEPS = Object.freeze([
-  Object.freeze({ id: 'templates', anchor: 'templates', file: TAB, waitFor: 'template-gallery-door' }),
+  Object.freeze({ id: 'templates', anchor: 'templates', file: TAB, waitFor: 'template-gallery-door', tier: 'wide' }),
+  Object.freeze({ id: 'phone-open', anchor: 'styles-button', file: TAB, waitFor: 'new-from-template-phone', tier: 'phone' }),
+  Object.freeze({ id: 'phone-templates', anchor: 'new-from-template-phone', file: TAB, waitFor: 'template-gallery-door', tier: 'phone' }),
   step('door', 'template-gallery-door', PICKER),
   step('use', 'template-gallery-door', PICKER),
   step('share', 'template-gallery-door', PICKER),
@@ -23,15 +30,23 @@ export const STEPS = Object.freeze([
 export const COPY = Object.freeze({
   templates: {
     title: 'Start from a template',
-    body: 'Templates opens the picker: a blank page, UCT templates for plans and reviews, and your own.',
+    body: 'The ▾ beside New opens From a template: a blank page, UCT templates for plans and reviews, and your own.',
+  },
+  'phone-open': {
+    title: 'Start from a template',
+    body: 'More notebook actions (the three dots) has New from a template: a blank page, UCT templates for plans and reviews, and your own.',
+  },
+  'phone-templates': {
+    title: 'Start from a template',
+    body: 'New from a template opens a blank page, UCT templates for plans and reviews, and your own.',
   },
   door: {
-    title: 'The community gallery',
-    body: 'Browse the community gallery shows templates other members shared. UCT reviews each one before it is listed, and UCT picks come first.',
+    title: 'The Template library',
+    body: 'Browse the Template library shows templates other members shared. UCT reviews each one before it is listed, and UCT picks come first.',
   },
   use: {
-    title: 'Use template makes a copy',
-    body: 'In the gallery, Use template copies it into Your templates. Then Make a note from it, or change your copy first.',
+    title: 'Add to my templates makes a copy',
+    body: 'In the gallery, Add to my templates copies it into Your templates. Then Make a note from it, or change your copy first.',
   },
   share: {
     title: 'Share one of yours',

@@ -21,6 +21,7 @@ import {
 import { formatPercent, formatTimeEt } from '../../../lib/presentation/presentationPrimitives'
 import { DEFAULT_WINDOW, IMOV_WINDOWS, POLL_MS, THEMES_URL, imovCommand, normSym, ownerSyms, themeKey, themesOf } from './imovModel'
 import { canRetry, failureText, isWarmingBody } from './marketRead'
+import { groupDrillCommand } from './groupDrillModel'
 import useWarmingPoll from './warmingPoll'
 import WarmingState from './WarmingState'
 import styles from './marketPanels.module.css'
@@ -79,6 +80,12 @@ function BoardTable({ title, rows, period, testId }) {
               <td className={styles.wrapCell}>
                 <span className={styles.rowNum} aria-hidden="true">{i + 1}</span>
                 <PanelCommand cmd={imovCommand({ theme: r.theme, win: imovWin })} label={`Open IMOV for ${r.name}`}>{r.name}</PanelCommand>
+                {' '}
+                {/* the span carries the small muted type: the link itself inherits its font and color */}
+                <span className={styles.muted}>
+                  <PanelCommand cmd={groupDrillCommand({ kind: 'theme', name: r.name, range: period })}
+                    label={`Open the stocks of ${r.name}, ranked`}>stocks</PanelCommand>
+                </span>
               </td>
               <td className={styles.phoneHide}>{r.etf || ''}</td>
               <td className={styles.phoneHide}>{r.members}</td>
@@ -153,7 +160,7 @@ export default function ThemeBoardPanel({ win: winProp = null }) {
       {!board.leaders.length && !board.laggards.length ? (
         <PanelState kind="empty" compact testId="terminal-thms-empty" title={`No theme has a ${period} return yet.`}>Try another period.</PanelState>
       ) : (
-        <div className={styles.split}>
+        <div className={`${styles.split} ${styles.splitRoomy}`}>
           <BoardTable title={`Leading (${board.leaders.length})`} rows={board.leaders} period={period} testId="terminal-thms-leaders" />
           <BoardTable title={`Lagging (${board.laggards.length})`} rows={board.laggards} period={period} testId="terminal-thms-laggards" />
         </div>
@@ -167,7 +174,7 @@ export default function ThemeBoardPanel({ win: winProp = null }) {
       <p className={styles.muted} data-testid="terminal-thms-method">
         Each theme is UCT&apos;s own equal-weight basket of its curated names, the same figure the Theme Tracker shows. 1D is
         the live move; longer periods are the live price against each name&apos;s close at the start of the period. Click a
-        theme to open IMOV beside the board and see which names drive it.
+        theme to open IMOV beside the board and see which names drive it; "stocks" opens every stock of the theme, ranked.
         {asOf ? ` Prices as of ${formatTimeEt(asOf, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>
     </div>

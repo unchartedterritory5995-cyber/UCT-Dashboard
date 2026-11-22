@@ -134,12 +134,20 @@ const BASELINE_KEYS = {
   // Notebook P2a (trader blocks, 2026-10-12): Log Trade's pre-entry checklist opt-in. PortfolioSettingsModal
   // writes one of three strings ('off' / 'on' / 'on-warn'), so a scalar. Literal at the call site.
   notebook_log_trade_checklist: 'scalar',
+  // ⚰️ notebook_landing (the Today home's "Open the Notebook on", 2026-11-05) left with its only write site:
+  // Notebook simplify Task 5 (2026-11-11) made the Notebook open on the notes list, and the choice went.
   // ⭐ S5 CP2 sweep 2026-09-29 (fix/master-reds): notebook_sample/notebook_tour
   // were opaque setPref sites (SAMPLE_PREF/TOUR_PREF, ResearchHome.jsx /
   // NotebookTour.jsx) made literal at the call site rather than baselined —
   // neither key is genuinely dynamic. Both store a multi-field object.
-  notebook_sample: 'structured',
+  // ⚰️ notebook_sample left with its only client write site (Research home's strip "dismiss", ResearchHome.jsx):
+  // go-live wave 1 (2026-11-12) deleted Research home. The server still writes the key when the sample is added.
   notebook_tour: 'structured',
+  // ⭐ 2026-11-16 (fix/master-red-rails): the RS screens' first-visit note, dismissed once per account
+  // (FocusScreener.jsx). It was an opaque setPref(RS_NOTE_PREF, …) site added with the RS screens (#1272)
+  // and is now literal at the call site, as notebook_tour was: a constant key, not a computed one.
+  // Stores the string '1'.
+  screener_rs_note_seen: 'scalar',
   tag_labels: 'structured',
   // ⭐ TERMINAL-NEXT T2 (2026-10-03): the shell's versioned board layout and the named-board
   // library. Both were opaque (TERMINAL_LAYOUT_PREF / TERMINAL_BOARDS_PREF) and are now
@@ -194,7 +202,23 @@ const BASELINE_OPAQUE = {
   // identifier, so the site is baselined the way master baselined its own two
   // (f6b1e3d72, mirrored verbatim above and below so the merge sees one text).
   // The key behind it is `notebook_daily_template`.
-  'pages/journal-2-0/components/notebook/MemberTemplates.jsx': 1,
+  // ⭐ 1 -> 2 on 2026-11-16 (fix/master-red-rails): the template DELETE now clears that same
+  // preference with `setPref(DAILY_TEMPLATE_PREF, '', op)`, carrying an op begun before its await
+  // (usePreferences.asyncBoundaries flags a writer handed on bare after an await, so it cannot go
+  // through `writeDaily`). Same constant, same one spelling, same key.
+  'pages/journal-2-0/components/notebook/MemberTemplates.jsx': 2,
+  // ⭐ DECLARED AFTER THE FACT (2026-11-17). The scan board (#1571, dark behind
+  // screener_scan_board_enabled) writes its layout through `BOARD_PREF = 'screener_scan_board'`
+  // (pages/screener/focus/board/boardModel.js): the same constant its read and the board page's
+  // tests import, so the key has ONE spelling, the MemberTemplates shape above. Not computed: a
+  // literal one hop away, listed opaque by the server (api/routers/auth.py).
+  // ⭐ DECLARED AFTER THE FACT (2026-11-18). The tablet board (#1725, dark behind
+  // SCREENER_SCAN_BOARD_TABLET_ENABLED) writes its own layout through
+  // `BOARD_PREF_TABLET = 'screener_scan_board_tablet'` (same file, same one-spelling shape), chosen by
+  // `tablet ? BOARD_PREF_TABLET : BOARD_PREF`. Not computed either, and the server lists it opaque
+  // beside the desktop key. #1725 added the site without declaring it, which turned this rail red on
+  // master; 1 -> 2 records that second constant, nothing else.
+  'pages/screener/focus/board/useScanBoard.js': 2,
   // ⭐ DECLARED AFTER THE FACT (sweep, 2026-09-24). The screener redesign
   // (a7176a764, PR #157, 2026-09-20) added column presets written through the
   // exported constant `PRESETS_KEY = 'screener_column_presets'` — a NEW key, one

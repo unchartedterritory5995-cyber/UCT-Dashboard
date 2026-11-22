@@ -1,0 +1,67 @@
+//@version=6
+indicator("UCTPROBE_VW_IMP_FORIN_REORDER", overlay = false)
+
+// PROVENANCE: written 2026-11-16 for the Pine parity programme, capture queue row Q-IMP-R
+// (docs/pine/capture-queue-2026-11-16-imp.md). NEVER COMPILED ON TRADINGVIEW.
+// `vw-forin-collections-2` (G01-G07) settled the walked list changed by remove / pop / unshift / insert /
+// clear, a reassignment and a helper: the walk reads the LIVE list by index. This asks the four list
+// members that capture did not: the body REORDERS or GROWS the walked list on its first pass.
+// Read on the last bar (na before it). Two predictions per row: an index walk over the LIVE list, and
+// a walk of the list the loop started with (a copy):
+//   R01 reverse [1,2,3,4,5] on pass 0, sum of the elements read     live 1+4+3+2+1 = 11   copy 15
+//   R02 sort ascending [3,1,2,5,4] on pass 0, sum read              live 3+2+3+4+5 = 17   copy 15
+//   R03 fill 9 from index 2 over [1,2,3,4,5] on pass 0, sum read    live 1+2+9+9+9 = 30   copy 15
+//   R04 concat [10,20] onto [1,2,3] on pass 0, sum read             live 36               copy 6
+//   R05 passes of R04                                               live 5                copy 3
+// CHART: NYSE:RDDT 1D from the listing, inputs at defaults (none), after the close.
+
+float R01 = na
+float R02 = na
+float R03 = na
+float R04 = na
+float R05 = na
+if barstate.islast
+    a = array.from(1.0, 2.0, 3.0, 4.0, 5.0)
+    float s1 = 0.0
+    int p1 = 0
+    for x in a
+        if p1 == 0
+            array.reverse(a)
+        s1 += x
+        p1 += 1
+    R01 := s1
+    b = array.from(3.0, 1.0, 2.0, 5.0, 4.0)
+    float s2 = 0.0
+    int p2 = 0
+    for x in b
+        if p2 == 0
+            array.sort(b, order.ascending)
+        s2 += x
+        p2 += 1
+    R02 := s2
+    c = array.from(1.0, 2.0, 3.0, 4.0, 5.0)
+    float s3 = 0.0
+    int p3 = 0
+    for x in c
+        if p3 == 0
+            array.fill(c, 9.0, 2)
+        s3 += x
+        p3 += 1
+    R03 := s3
+    d = array.from(1.0, 2.0, 3.0)
+    float s4 = 0.0
+    int p4 = 0
+    for x in d
+        if p4 == 0
+            array.concat(d, array.from(10.0, 20.0))
+        s4 += x
+        p4 += 1
+    R04 := s4
+    R05 := p4
+
+plot(R01, "R01_forin_reverse_sum")
+plot(R02, "R02_forin_sort_sum")
+plot(R03, "R03_forin_fill_sum")
+plot(R04, "R04_forin_concat_sum")
+plot(R05, "R05_forin_concat_passes")
+plot(bar_index, "C00_bar_index_CONTROL")

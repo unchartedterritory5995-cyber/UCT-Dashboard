@@ -27,6 +27,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 
@@ -91,7 +92,7 @@ async function mount() {
     </AuthContext.Provider>,
   )
   await act(async () => { await Promise.resolve() })
-  fireEvent.click(screen.getByRole('tab', { name: /^import$/i }))
+  openSource('pine')
 }
 
 const settle = async () => {
@@ -105,7 +106,7 @@ describe('the sheet takes a pasted script\'s declared inputs', () => {
     await act(async () => { fireEvent.click(screen.getByTestId('fake-pine-use')) })
     await settle()
 
-    expect(screen.getByLabelText('Formula').value).toBe(PICKED.source)
+    expect(formulaBox().value).toBe(PICKED.source)
     expect(screen.getByLabelText('Input 1 name').value).toBe('overbought')
     expect(screen.getByLabelText('Input 2 name').value).toBe('mult')
     // ⭐ THE WIRE, MEASURED WHERE IT CAN BE SEEN. A read-back exists ONLY when
@@ -153,7 +154,7 @@ describe('the sheet takes a pasted script\'s declared inputs', () => {
     await mount()
     await act(async () => { fireEvent.click(screen.getByTestId('fake-pine-plain')) })
     await settle()
-    expect(screen.getByLabelText('Formula').value).toBe('close * 2')
+    expect(formulaBox().value).toBe('close * 2')
     expect(screen.getByTestId('no-inputs'), 'a string pick declares nothing').toBeTruthy()
   })
 
@@ -165,7 +166,7 @@ describe('the sheet takes a pasted script\'s declared inputs', () => {
     await settle()
     // ⭐ THE PICK LANDS THE MEMBER ON THE FORMULA TAB, so a second paste means
     // walking back through the Import tab — the same gesture a member makes.
-    fireEvent.click(screen.getByRole('tab', { name: /^import$/i }))
+    openSource('pine')
     await act(async () => { fireEvent.click(screen.getByTestId('fake-pine-use')) })
     await settle()
     expect(screen.getAllByLabelText(/^Input \d+ name$/).map((el) => el.value))

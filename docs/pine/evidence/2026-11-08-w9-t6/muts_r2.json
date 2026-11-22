@@ -1,0 +1,36 @@
+[
+ {
+  "mutant": "control-comment-r2",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "SURVIVED",
+  "failing": []
+ },
+ {
+  "mutant": "drop-B-FILLS-ask-r2",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x three extra executions on bar 3, each placing an order that fills later on the same bar 29ms",
+   "x a lone fill at the open still asks B-FILLS before its extra execution runs 14ms",
+   "x unpinned, the first fill stops the run naming B-FILLS and W9-P2 12ms"
+  ]
+ },
+ {
+  "mutant": "drop-B-POC-ask-r2",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x a market entry / close placed on bar t fills at t's close; the script reads it from t+1 22ms",
+   "x [B-POC-PYR] a close fill that adds to the position (pyramiding 2): sizes 1 then 2 7ms",
+   "x [B-POC-PRICE] a price order placed on the bar gets one attempt at its close, else lives from the next open 8ms"
+  ]
+ },
+ {
+  "mutant": "drop-B-POC-PRICE-ask-r2",
+  "file": "src/components/chart/engine/runtime/broker.js",
+  "verdict": "KILLED",
+  "failing": [
+   "x [B-POC-PRICE] a price order placed on the bar gets one attempt at its close, else lives from the next open 23ms"
+  ]
+ }
+]

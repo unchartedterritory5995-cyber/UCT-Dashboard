@@ -67,14 +67,18 @@ describe('⭐⭐ a window over an expression, inside a request', () => {
     expect(r.ok, why(r)).toBe(true)
   })
 
-  it('⛔ but inside a FUNCTION BODY the refusal still STANDS', () => {
+  // ⭐ HIST-S2 — a NESTED list inside the body no longer refuses: `ta.sma` is handed the expression in
+  // place (it keeps its own ring), so nothing is hoisted, into the root or the frame
+  it('inside a nested list of a FUNCTION BODY the expression is handed in place (HIST-S2), nothing hoisted', () => {
     // A frame's history is allocated per call site off `historyBase`; a slot
     // declared into the caller's root list would be shared by every site. That
     // is real work with its own measurement, and until it is done the wall keeps
     // its name rather than becoming a plausible number.
-    const r = build('f(v) =>\n    ta.sma(v + 1, 3)\nplot(f(close))\n')
-    expect(r.ok).toBe(false)
-    expect(r.refusal.guard).toBe('runtime:history-expression')
+    // W4-T7: a function body's own list now hoists into a frame-local slot
+    // (`w4FrameHoist.test.js`); a NESTED list inside the body keeps the wall.
+    const r = build('f(v) =>\n    r = 0.0\n    if v > 0\n        r := ta.sma(v + 1, 3)\n    r\nplot(f(close))\n')
+    expect(r.ok, JSON.stringify(r.refusal || {})).toBe(true)
+    expect(r.ir.history, 'nothing hoisted into the root').toHaveLength(0)
   })
 
   it('⭐⭐ the corpus shape: a helper whose window length is its PARAMETER', () => {

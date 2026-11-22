@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest'
+import { BARSTORE_MODES, loadWithBarStore } from '../testing/barStoreModes'
 import { render, cleanup, act } from '@testing-library/react'
 
 // Two first-visit chart fixes (2026-10-18), measured on production:
@@ -90,7 +91,12 @@ beforeEach(() => {
   for (const k of Object.keys(idb)) delete idb[k]
   vi.stubGlobal('fetch', vi.fn((url) => {
     const m = String(url).match(/\/api\/bars\/([^?]+)/)
-    const body = m ? { ticker: m[1], tf: 'D', bars: barsBy[m[1]] || days(300) } : {}
+    // /api/bars-history answers the way production does (sealed, the same bars): the BarStore's
+    // D/W/M split asks it after the tail, and an unsealed answer sends it to its full-depth
+    // /api/bars fallback, a second request this file would count.
+    const h = String(url).match(/\/api\/bars-history\/([^?]+)/)
+    const body = m ? { ticker: m[1], tf: 'D', bars: barsBy[m[1]] || days(300) }
+      : h ? { ticker: h[1], tf: 'D', sealed: true, bars: barsBy[h[1]] || days(300) } : {}
     const res = { ok: true, status: 200, headers: { get: () => null }, json: () => Promise.resolve(body) }
     res.clone = () => res
     return Promise.resolve(res)
@@ -99,55 +105,111 @@ beforeEach(() => {
 })
 afterEach(() => { vi.useRealTimers() })
 
-const mod = await import('./StockChart')
-const StockChart = mod.default
+let mod, StockChart, __barStore
 
-describe('first visit: a cache read stuck behind the pack ingest', () => {
-  // Make this browser "have a cache": one ticker resolves from IDB.
-  const primeCached = async () => {
-    idb.AAA = { bars: days(300), lastT: '2026-10-16', savedAt: Date.now() }
-    const r = render(<StockChart sym="AAA" tf="D" />)
-    await act(async () => { await vi.advanceTimersByTimeAsync(50) })
-    r.unmount()
-  }
-
-  it('while the pack is still ingesting, the server is asked after the short wait', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    await primeCached()
-    idb.BBB = 'hang'
-    render(<StockChart sym="BBB" tf="D" />)
-    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
-    expect(barsCalls().some(u => u.includes('/api/bars/BBB'))).toBe(true)
+// P3-S1: every case runs under BOTH bar sources (chart/barStoreSwitch.js, read once at module
+// load → the graph is re-imported per mode; testing/barStoreModes.js).
+describe.each(BARSTORE_MODES)('BARSTORE=%s', (barStoreOn) => {
+  beforeAll(async () => {
+    mod = await loadWithBarStore(barStoreOn, () => import('./StockChart'))
+    StockChart = mod.default; __barStore = mod.__barStore
+  })
+  it('the module graph under test holds this switch value (non-vacuity)', () => {
+    expect(__barStore).toBe(barStoreOn)
   })
 
-  it('CONTROL: once the pack has ingested, a stuck read is waited on (has data, just busy)', async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true })
-    localStorage.setItem('barspack.version', '2026-10-16')
-    await primeCached()
-    idb.CCC = 'hang'
-    render(<StockChart sym="CCC" tf="D" />)
-    await act(async () => { await vi.advanceTimersByTimeAsync(700) })
-    expect(barsCalls().some(u => u.includes('/api/bars/CCC'))).toBe(false)
-    await act(async () => { await vi.advanceTimersByTimeAsync(3500) })
-    expect(barsCalls().some(u => u.includes('/api/bars/CCC'))).toBe(true)
-  })
-})
+  describe('first visit: a cache read stuck behind the pack ingest', () => {
+    // Make this browser "have a cache": one ticker resolves from IDB.
+    const primeCached = async () => {
+      idb.AAA = { bars: days(300), lastT: '2026-10-16', savedAt: Date.now() }
+      const r = render(<StockChart sym="AAA" tf="D" />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(50) })
+      r.unmount()
+    }
 
-describe('a symbol switch restates its frame from the newest bar', () => {
-  it('scrollToPosition carries the frame as an offset from the NEW symbol\'s newest bar', async () => {
-    barsBy.LONG = days(600)
-    barsBy.SHORT = days(300)
-    const { rerender } = render(<StockChart sym="LONG" tf="D" />)
-    await act(async () => { await new Promise(r => setTimeout(r, 300)) })
-    H.scrolls.length = 0
-    rerender(<StockChart sym="SHORT" tf="D" />)
-    await act(async () => { await new Promise(r => setTimeout(r, 300)) })
-    expect(H.scrolls.length).toBeGreaterThan(0)
-    const pos = H.scrolls[H.scrolls.length - 1]
-    // The offset is measured from SHORT's newest bar (index 299), so it is a small right
-    // pad, never ~300 bars of the previous symbol's longer axis.
-    expect(pos).toBeGreaterThan(-1)
-    expect(pos).toBeLessThan(40)
-    expect(H.range.to - 299).toBeCloseTo(pos, 5)
+    it('while the pack is still ingesting, the server is asked after the short wait', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      await primeCached()
+      idb.BBB = 'hang'
+      render(<StockChart sym="BBB" tf="D" />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(700) })
+      expect(barsCalls().some(u => u.includes('/api/bars/BBB'))).toBe(true)
+    })
+
+    // ⭐ (2026-11-14) NO LONGER DIFFERS BY SOURCE. This was the one case whose expectation
+    // did (P3-S1): the legacy selector gated its request on the IDB read (patient 4 s once this
+    // browser has shown a cache) while the BarStore never waits on a cache. The legacy daily
+    // path full-fetched after the read anyway, so the wait bought nothing, and on production it
+    // was 217-484 ms of empty chart on 8 of 40 flips of a new list. The legacy selector now lets
+    // a D/W/M request go after `IDB_DWM_GRACE_MS` (chart/useLegacyChartBars.js): one request,
+    // not held by the read, under either source. StockChart.dailyCacheGrace.test.jsx holds what
+    // happens to the stores when the read lands late.
+    it(barStoreOn
+      ? 'BARSTORE: a stuck cache read never holds the request (hydrate runs beside it)'
+      : 'a stuck cache read does not hold a DAILY request past the grace, even once the pack has ingested', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      localStorage.setItem('barspack.version', '2026-10-16')
+      await primeCached()
+      idb.CCC = 'hang'
+      render(<StockChart sym="CCC" tf="D" />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(700) })
+      expect(barsCalls().filter(u => u.includes('/api/bars/CCC')).length).toBe(1)
+    })
+
+    // The legacy selector's own switch brings the old wait back (has data, just busy: 4 s).
+    if (!barStoreOn) it('CONTROL: with `uct.barsgrace.off` set, a stuck read is waited on once the pack has ingested', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      localStorage.setItem('barspack.version', '2026-10-16')
+      localStorage.setItem('uct.barsgrace.off', '1')
+      try {
+        await primeCached()
+        idb.DDD = 'hang'
+        render(<StockChart sym="DDD" tf="D" />)
+        await act(async () => { await vi.advanceTimersByTimeAsync(700) })
+        expect(barsCalls().some(u => u.includes('/api/bars/DDD'))).toBe(false)
+        await act(async () => { await vi.advanceTimersByTimeAsync(3500) })
+        expect(barsCalls().some(u => u.includes('/api/bars/DDD'))).toBe(true)
+      } finally {
+        localStorage.removeItem('uct.barsgrace.off')
+      }
+    })
+  })
+
+  // ⛔ THE CLOCK IS PINNED, AND IT HAS TO BE. The fixture's newest bar is 2026-10-16, and the
+  // daily chart appends whitespace RESERVE slots to the candle series for every session the
+  // wall clock says is missing (`_dailyReserveDates` -> `dailyMissingSessionsForPaint`, at most
+  // DAILY_RESERVE_MAX = 2). Those slots are points on SHORT's time axis. Unpinned, this case
+  // was a function of the date: green when it was written (Saturday 2026-10-18), red from the
+  // Monday open on (one slot, then two), and red on every CI run since. Each clock below states
+  // the reserve it produces, so the axis the offset is measured against is derived, not assumed.
+  const candleSeries = () => H.series.filter(s => s._data.some(p => p && p.open !== undefined)).at(-1)
+  const whitespaceTail = (d) => { let n = 0; for (let i = d.length - 1; i >= 0 && d[i].open === undefined && d[i].value === undefined; i--) n++; return n }
+  describe.each([
+    // Friday 2026-10-16 17:00 ET, after the close: the fixture IS the latest session, no reserve.
+    ['after the fixture session closed', '2026-10-16T21:00:00Z', 0],
+    // Tuesday 2026-10-20 11:00 ET, in RTH: 10-19 and 10-20 are missing, two reserve slots.
+    ['two sessions later, in RTH', '2026-10-20T15:00:00Z', 2],
+  ])('a symbol switch restates its frame from the newest bar (%s)', (_label, nowIso, reserve) => {
+    beforeEach(() => { vi.useFakeTimers({ now: new Date(nowIso), toFake: ['Date'], shouldAdvanceTime: true }) })
+    it('scrollToPosition carries the frame as an offset from the NEW symbol\'s newest bar', async () => {
+      barsBy.LONG = days(600)
+      barsBy.SHORT = days(300)
+      const { rerender } = render(<StockChart sym="LONG" tf="D" />)
+      await act(async () => { await new Promise(r => setTimeout(r, 300)) })
+      H.scrolls.length = 0
+      rerender(<StockChart sym="SHORT" tf="D" />)
+      await act(async () => { await new Promise(r => setTimeout(r, 300)) })
+      // The clock produced the reserve it names: SHORT's axis is its 300 bars plus that many slots.
+      const axis = candleSeries()._data
+      expect(whitespaceTail(axis)).toBe(reserve)
+      expect(axis.length).toBe(300 + reserve)
+      expect(H.scrolls.length).toBeGreaterThan(0)
+      const pos = H.scrolls[H.scrolls.length - 1]
+      // The offset is measured from the newest point of SHORT's axis (index 299 + reserve), so it
+      // is a small right pad, never ~300 bars of the previous symbol's longer axis.
+      expect(pos).toBeGreaterThan(-1)
+      expect(pos).toBeLessThan(40)
+      expect(H.range.to - (299 + reserve)).toBeCloseTo(pos, 5)
+    })
   })
 })

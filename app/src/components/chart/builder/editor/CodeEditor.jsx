@@ -44,7 +44,7 @@ import {
 import { lintGutter, setDiagnostics } from '@codemirror/lint'
 import { languageFor, highlightStyle, languageKey } from './languages'
 import { formulaCompletionSource } from './completions'
-import { toDiagnostics } from './diagnostics'
+import { toDiagnostics, lineMarksToDiagnostics } from './diagnostics'
 import styles from './CodeEditor.module.css'
 
 /**
@@ -78,6 +78,9 @@ const CodeEditor = forwardRef(function CodeEditor({
   dialect = 'formula',
   inputs = undefined,
   diagnostics = null,
+  // ⭐ The Pine editor status panel's per-line marks (`editorStatus.js::lineMarks`),
+  // passed only while VITE_PINE_EDITOR_STATUS is on. Absent, nothing below changes.
+  lineMarks = null,
   ariaLabel = 'Formula editor',
   testId = 'code-editor',
   onApply = null,
@@ -261,12 +264,15 @@ const CodeEditor = forwardRef(function CodeEditor({
       // knows, which is what `evaluateFormula` already does.
       diags = toDiagnostics(view.state.doc, diagnostics)
     }
+    // ⭐ Status-panel line marks ride the same gate: `lineMarksToDiagnostics`
+    // returns nothing unless `lineMarks.source` is this buffer.
+    if (lineMarks) diags = diags.concat(lineMarksToDiagnostics(view.state.doc, lineMarks))
     // Nothing to say and nothing said: no transaction. The alternative is one
     // lint transaction per keystroke for a document with no refusal on it.
     if (!diags.length && !markedRef.current) return
     markedRef.current = diags.length > 0
     view.dispatch(setDiagnostics(view.state, diags))
-  }, [diagnostics, value])
+  }, [diagnostics, lineMarks, value])
 
   // ── Escape belongs to an open completion popup; otherwise to the sheet ────
   useEffect(() => {

@@ -99,7 +99,7 @@ import UIcon from '../../../../components/ui/UIcon'
 import { useHasCoarsePointer } from '../../../../hooks/useBreakpoint'
 import styles from './TemplatePicker.module.css'
 
-// The community gallery (and the admin review panel it carries) is dark behind
+// The Template library (and the admin review panel it carries) is dark behind
 // notebook_template_gallery_enabled and reached by one button, so it loads when that button
 // is pressed, never with the picker: it was ~25 kB of source in every member's first open.
 const TemplateGallery = lazyChunk(() => import('./TemplateGallery'))
@@ -194,9 +194,11 @@ export default function TemplatePicker(props) {
 // Wave 6: `onPickMember` adds "Your templates" (the member's own, saved from
 // their notes) right after Blank — the templates a member made are the ones
 // they reach for first. Absent, the picker is exactly the built-in catalog.
+// `onManageTemplates(place)` (follow-up C): the host's door to the template manager, handed to "Your templates" for
+// its "Manage" and daily "Change" links. Absent, neither link is drawn.
 // `onLandNote(note)` (11.20 walk D1): the host's door for a note the Template library's Use already made -- the same
 // close-and-open a member template's pick ends in. Absent, the library's Use navigates to the note as before.
-function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, autoFocusSearch = false, kindSection, catalog, catalogFailed = false }) {
+function TemplatePickerBody({ onPick, onPickMember, onLandNote, onManageTemplates = null, busy = false, autoFocusSearch = false, kindSection, catalog, catalogFailed = false }) {
   const { FAMILIES, templatesByFamily, templatePreview } = catalog
   const navigate = useNavigate()
   // A picker can be on screen twice (the empty notebook and the New-note sheet),
@@ -364,10 +366,11 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
   if (galleryOn && community) {
     return (
       <div className={styles.wrap}>
-        <Suspense fallback={<p role="status">Loading the community gallery…</p>}>
+        <Suspense fallback={<p role="status">Loading the Template library…</p>}>
           <TemplateGallery
             onBack={() => { setCommunity(false); setBackToDoor(true) }}
             onUseNow={onPickMember}
+            landNote={onLandNote}
             busy={busy}
           />
         </Suspense>
@@ -467,7 +470,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
             data-tour="template-gallery-door"
           >
             <UIcon name="community" size={14} gold={false} />
-            <span>Browse the community gallery</span>
+            <span>Browse the Template library</span>
           </button>
         )}
       </div>
@@ -498,6 +501,7 @@ function TemplatePickerBody({ onPick, onPickMember, onLandNote, busy = false, au
           query={q}
           onPreview={(p) => setPreview(p)}
           onMatches={setMemberShown}
+          onManage={onManageTemplates}
         />
       )}
 

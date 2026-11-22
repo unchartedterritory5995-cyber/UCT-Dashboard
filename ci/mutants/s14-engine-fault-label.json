@@ -1,0 +1,51 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "about": "S14 (feat/pine-s14-engine-fault-label, engine 84): an exception during a runtime-lane build that is not a refusal is `runtime:lower`, never `runtime:statement`; a defect says so, an engine module's named error keeps its sentence, a refusal keeps its guard. Every rule, broken once, must turn its rail red.",
+ "mutants": [
+  {
+   "id": "F1",
+   "mutant": "an exception is labelled a statement shape again",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "  const guard = refusal ? e.guard : 'runtime:lower'",
+   "to": "  const guard = refusal ? e.guard : 'runtime:statement'",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/engineFaultLabel.test.js",
+   "expectRed": "runtime:lower"
+  },
+  {
+   "id": "F2",
+   "mutant": "a defect no longer says it is one",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "        : (isEngineDefect(e) ? `${ENGINE_DEFECT_SENTENCE} (${thrown})` : thrown),",
+   "to": "        : thrown,",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/engineFaultLabel.test.js",
+   "expectRed": "a defect"
+  },
+  {
+   "id": "F3",
+   "mutant": "a named error's own sentence is called an engine defect",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "export const isEngineDefect = (e) => !(e instanceof Error) || e.constructor === Error",
+   "to": "export const isEngineDefect = (e) => true || !(e instanceof Error) || e.constructor === Error",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/engineFaultLabel.test.js",
+   "expectRed": "named error"
+  },
+  {
+   "id": "F4",
+   "mutant": "an IR invariant the build broke is not a defect",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "  || e instanceof IrError || JS_ERROR_TYPES.some((T) => e instanceof T)",
+   "to": "  || JS_ERROR_TYPES.some((T) => e instanceof T)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/engineFaultLabel.test.js",
+   "expectRed": "uncalled helper"
+  },
+  {
+   "id": "F5",
+   "mutant": "a RuntimeRefusal is read as an exception",
+   "file": "app/src/components/chart/engine/ast/pineRuntimeFrontend.js",
+   "from": "  const refusal = e instanceof RuntimeRefusal || e instanceof PineRefusal || e instanceof TableRefusal",
+   "to": "  const refusal = e instanceof PineRefusal || e instanceof TableRefusal",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/engineFaultLabel.test.js",
+   "expectRed": "stays `runtime:statement`"
+  }
+ ]
+}

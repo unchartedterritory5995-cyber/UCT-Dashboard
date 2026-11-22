@@ -126,6 +126,38 @@ def test_legitimate_colours_save_and_reopen_unchanged(ok):
     assert svc.get(OWNER, def_id)["definition"]["inputs"][0]["default"] == ok
 
 
+# ── engine 58: the chart-theme reference ───────────────────────────────────────
+
+@pytest.mark.parametrize("theme", ["chart.fg_color", "chart.fg_color@85", "chart.bg_color@0"])
+def test_a_theme_reference_plot_passes_the_colour_check_and_an_upgraded_save_writes_back(theme):
+    """ASKED (engine 58 review item 1): a Pine plot coloured `color.new(chart.fg_color, 85)`
+    (and every whole-withheld colour, drawn in the chart's neutral ink) carries the theme
+    reference. DID: it was refused at save (422 `presentation:colour`), so an upgraded saved
+    script offered "Updated accuracy available" forever. Now the document passes the check
+    and the save writes it back unchanged -- both as a plot colour and as a colour setting."""
+    def_id = svc.new_def_id()
+    doc = _definition(def_id)
+    doc["plots"][0]["color"] = theme
+    assert ps.definition_colour_errors(doc) == []
+    svc.save(OWNER, def_id, doc)
+    assert svc.get(OWNER, def_id)["definition"]["plots"][0]["color"] == theme
+    # the upgrade path: the same definition saved again over the stored row
+    again = _definition(def_id, colour=theme, version=2)
+    again["plots"][0]["color"] = theme
+    svc.save(OWNER, def_id, again)
+    got = svc.get(OWNER, def_id)["definition"]
+    assert got["version"] == 2 and got["inputs"][0]["default"] == theme
+
+
+def test_a_malformed_theme_reference_is_still_refused():
+    def_id = svc.new_def_id()
+    doc = _definition(def_id)
+    doc["plots"][0]["color"] = "chart.fg_color@85;background:url(x)"
+    with pytest.raises(svc.SaveRefused) as exc:
+        svc.save(OWNER, def_id, doc)
+    assert exc.value.guard == "presentation:colour"
+
+
 # ── legacy rows, edits, copies ─────────────────────────────────────────────────
 
 def test_a_legacy_row_keeps_an_unchanged_unsafe_colour_but_an_edit_may_not_introduce_one():

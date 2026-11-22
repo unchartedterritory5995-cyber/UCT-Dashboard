@@ -25,6 +25,8 @@ import { ManageCollections, NoteEditor } from './TradeExchangeNewsCollections'
 import { explainable, fmtReceivedFull, fmtStamp, hitRanges, searchNeedles, tickerTitle, tokenize } from './tradeExchangeNewsModel'
 import news from './TradeExchangeNewsWidget.module.css'
 import styles from './TradeExchangeNewsSaved.module.css'
+import { useUctControlsSlot } from '../uctHeaderSlot'
+import ListPicker from './TradeExchangeNewsListPicker'
 
 const SEARCH_DEBOUNCE_MS = 200
 const PAGE = 60
@@ -129,6 +131,8 @@ const SavedRow = memo(function SavedRow({ item, collections, linkedSym, onSym, o
 export default function SavedHeadlines({ active, opts, patchOpts, linkedSym, onSym, menuVars, onRemove, onBack,
   explainId, onExplain, onCloseExplain, actionsId, onActions }) {
   const lib = useSyncExternalStore(library.subscribe, library.getSnapshot)
+  // UCT frame (owner 11-13): the board look for the Saved view — same controls, same handlers.
+  const onBoard = !!useUctControlsSlot()
   // Filters persist with the widget (the keys the Research Library widget used, so a
   // migrated one keeps them); search is per visit.
   const collection = typeof opts?.collection === 'string' ? opts.collection : ''
@@ -179,6 +183,17 @@ export default function SavedHeadlines({ active, opts, patchOpts, linkedSym, onS
   return (
     <>
       {manageOpen && <ManageCollections themeVars={menuVars} anchorRef={manageRef} onClose={() => setManageOpen(false)} />}
+      {onBoard ? (
+        <div className={styles.uHead}>
+          <button type="button" className={styles.uBack} onClick={onBack} title="Back to the live News feed">
+            <UIcon name="chevronLeft" size={12} gold={false} /> News feed
+          </button>
+          <span className={styles.uTitle}>Saved{!page.loading || page.items.length ? <span className={styles.uCount}>{count.toLocaleString()}</span> : null}</span>
+          <button ref={manageRef} type="button" className={`${styles.uManage}${manageOpen ? ' ' + styles.uManageOn : ''}`}
+            onClick={() => setManageOpen((o) => !o)} title="Manage collections" aria-label="Manage collections"
+            aria-expanded={manageOpen} aria-haspopup="dialog"><UIcon name="library" size={13} gold={false} /> Collections</button>
+        </div>
+      ) : (
       <div className={styles.savedHead}>
         <button type="button" className={styles.backBtn} onClick={onBack} title="Back to the live News feed">
           <UIcon name="chevronLeft" size={11} gold={false} /> News feed
@@ -188,16 +203,25 @@ export default function SavedHeadlines({ active, opts, patchOpts, linkedSym, onS
           onClick={() => setManageOpen((o) => !o)} title="Manage collections" aria-label="Manage collections"
           aria-expanded={manageOpen} aria-haspopup="dialog"><UIcon name="library" size={13} /></button>
       </div>
+      )}
       <div className={news.searchBar}>
         <span className={news.searchWrap}>
+          {onBoard && <span className={news.searchGlyph} aria-hidden="true"><UIcon name="search" size={13} gold={false} /></span>}
           <Input className={news.searchInput} value={queryRaw} onChange={(e) => setQueryRaw(e.target.value)}
-            placeholder="Search..." aria-label="Search saved headlines and notes" maxLength={120} />
+            placeholder={onBoard ? 'Search saved headlines and notes…' : 'Search...'} aria-label="Search saved headlines and notes" maxLength={120} />
           {queryRaw && <button type="button" className={news.searchClear} onClick={() => setQueryRaw('')} aria-label="Clear search" title="Clear">×</button>}
         </span>
         <Input className={`${news.searchInput} ${styles.tickerInput}`} value={ticker} maxLength={12} placeholder="Ticker" aria-label="Filter by ticker"
           onChange={(e) => patchOpts({ ticker: e.target.value.toUpperCase().replace(/[^A-Z0-9.$-]/g, '') || null })} />
-        <Select className={news.listSelect} value={activeCollection} aria-label="Filter by collection"
-          onChange={(e) => patchOpts({ collection: e.target.value || null })} options={colOptions} />
+        {onBoard ? (
+          <ListPicker value={activeCollection} options={colOptions} menuVars={menuVars}
+            onChange={(v) => patchOpts({ collection: v || null })}
+            allLabel={`All saved`} menuLabel="Show" ariaLabel="Filter by collection"
+            title="Only saved headlines in this collection" findLabel="Find a collection…" />
+        ) : (
+          <Select className={news.listSelect} value={activeCollection} aria-label="Filter by collection"
+            onChange={(e) => patchOpts({ collection: e.target.value || null })} options={colOptions} />
+        )}
       </div>
       <div className={news.list} aria-busy={page.loading || undefined} aria-label="Saved headlines">
         {lib.status === 'error' && (

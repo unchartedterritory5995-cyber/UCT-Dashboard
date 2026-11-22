@@ -59,7 +59,6 @@ PRE_EXISTING_BINDING_PROOFS = {
     "api/services/earnings_enrichment.py":      "tests/test_earnings_enrichment_spot_source.py",
     "api/services/research/estimates.py":       "tests/test_research_ratings.py",
     "api/services/research/financials.py":      "tests/test_research_financials.py",
-    "api/services/research/ownership.py":       "tests/test_research_ratings.py",
 }
 
 

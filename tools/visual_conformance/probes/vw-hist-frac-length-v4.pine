@@ -1,0 +1,38 @@
+//@version=4
+study("UCTPROBE_VW_HIST_FRAC_LENGTH_V4", overlay = false)
+
+// PROVENANCE: written 2026-11-16 for the Pine parity programme, coverage unit "runtime history"
+// (queue row HIST-F1). The v4 spelling of vw-hist-frac-length.pine; read that file for the question.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading.
+// Sample scripts waiting: hma-kahlman (p / 3 with p = 11), obv-macd (len / 2 with len = 9).
+// CAPTURE: AMEX:SPY 1D, then NYSE:RDDT 1D, inputs at defaults (len = 40, hlen = 9, tlen = 20).
+
+len  = input(40, type = input.integer, title = "len")
+hlen = input(9,  type = input.integer, title = "hlen")
+tlen = input(20, type = input.integer, title = "tlen")
+
+plot(bar_index, title = "A00_bar_index_CONTROL")
+plot(len / 3,  title = "A01_len_div3_value")
+plot(hlen / 2, title = "A02_hlen_div2_value")
+
+plot(wma(close, 13), title = "C01_wma_13")
+plot(wma(close, 14), title = "C02_wma_14")
+plot(wma(close, 6),  title = "C03_wma_6")
+plot(wma(close, 7),  title = "C04_wma_7")
+plot(wma(close, len / 3),  title = "R01_wma_len_div3")
+plot(wma(close, tlen / 3), title = "R02_wma_tlen_div3")
+
+plot(ema(close, 4), title = "C05_ema_4")
+plot(ema(close, 5), title = "C06_ema_5")
+plot(sma(close, 4), title = "C07_sma_4")
+plot(sma(close, 5), title = "C08_sma_5")
+plot(wma(close, 4), title = "C09_wma_4")
+plot(wma(close, 5), title = "C10_wma_5")
+plot(ema(close, hlen / 2), title = "R03_ema_hlen_div2")
+plot(sma(close, hlen / 2), title = "R04_sma_hlen_div2")
+plot(wma(close, hlen / 2), title = "R05_wma_hlen_div2")
+
+hma(x, n) => wma(2 * wma(x, n / 2) - wma(x, n), round(sqrt(n)))
+plot(hma(close, hlen), title = "R06_hma_hlen_9")
+plot(wma(2 * wma(close, 4) - wma(close, 9), 3), title = "C11_hma_truncate_4")
+plot(wma(2 * wma(close, 5) - wma(close, 9), 3), title = "C12_hma_round_5")

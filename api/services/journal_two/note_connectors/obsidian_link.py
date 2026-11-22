@@ -500,6 +500,7 @@ def revoke_devices(user_id: str) -> int:
     try:
         conn.execute("DELETE FROM j2_obsidian_staging WHERE user_id = ?", (user_id,))
         conn.execute("DELETE FROM j2_obsidian_manifest WHERE user_id = ?", (user_id,))
+        conn.execute("DELETE FROM j2_obsidian_renames WHERE user_id = ?", (user_id,))
         obsidian_attachments.delete_user_rows(conn, user_id)
         cur = conn.execute("DELETE FROM j2_obsidian_devices WHERE user_id = ?", (user_id,))
         conn.commit()

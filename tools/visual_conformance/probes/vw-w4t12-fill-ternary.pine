@@ -1,0 +1,16 @@
+//@version=6
+indicator("vw-w4t12-fill-ternary", overlay = true)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-03-w4-t12.md, W4-T12 P2-F1 (rows F01, F02). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: fill() with a plot id chosen by an input ?: (F01) and by a per-bar ?: (F02). A compile error on F02 is the answer: record it, delete that line, capture the rest.
+// CAPTURE: the doc names no chart (its row is NEEDS_CHART until one is named); inputs at defaults,
+// then again with "use A" = false.
+
+useA = input.bool(true, "use A")
+p1 = plot(close, "P1")
+p2 = plot(open, "P2")
+p3 = plot(high, "P3")
+fill(useA ? p1 : p2, p3, color.new(color.red, 80), "F01_input_choice")
+fill(close > open ? p1 : p2, p3, color.new(color.blue, 80), "F02_series_choice")

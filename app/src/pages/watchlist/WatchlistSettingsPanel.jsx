@@ -7,14 +7,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../components/chart/ColorPanel'
+import ChoiceMenu from '../../components/chart/ChoiceMenu'
+import { rowToggleClick } from '../charts/widgets/widgetMenuRowToggle'
 import useSavedColors from '../../hooks/useSavedColors'
 import UIcon from '../../components/ui/UIcon'
 import Switch from '../../components/ui/Switch'
 import WidgetThemeSection from '../charts/widgets/WidgetThemeSection'
 import { WATCHLIST_FONT_SIZES } from './watchlistSettings'
 import styles from './WatchlistSettingsPanel.module.css'
+import useWidgetMenuPlacement from '../charts/widgets/useWidgetMenuPlacement'
 import Input from '../../components/ui/Input'
-import Select from '../../components/ui/Select'
 
 const PANEL_W = 268
 
@@ -58,23 +60,7 @@ export default function WatchlistSettingsPanel({
 
   // Place the settings menu to the LEFT of the watchlist (flip to the right if there's
   // no room), portaled so the watchlist's overflow can't clip it.
-  useLayoutEffect(() => {
-    if (!hostEl) return
-    const place = () => {
-      const r = hostEl.getBoundingClientRect()
-      const gap = 8
-      let left = r.left - gap - PANEL_W
-      if (left < 8) left = Math.min(window.innerWidth - PANEL_W - 8, r.right + gap)  // no room left → right
-      left = Math.max(8, left)
-      let top = Math.max(8, r.top)
-      const panelH = Math.min(540, Math.round(window.innerHeight * 0.8))
-      if (top + panelH > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - panelH)
-      setPos({ left: Math.round(left), top: Math.round(top) })
-    }
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [hostEl])
+  useWidgetMenuPlacement({ hostEl, gearEl, panelW: PANEL_W, setPos, onClose })
 
   // Pop the ColorPanel out to the RIGHT of the settings menu (flip left if tight),
   // bottom-aligned to the menu — exactly like Chart Settings.
@@ -95,6 +81,7 @@ export default function WatchlistSettingsPanel({
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
       if (e.target.closest?.('[data-uct-theme-gallery]')) return
+      if (e.target.closest?.('[data-choice-menu]')) return  // a ChoiceMenu's list is portalled outside the panel
       // A click anywhere that isn't the Templates control closes its dropdown.
       if (!e.target.closest?.('[data-tpl-wrap]')) setTplMenuOpen(false)
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
@@ -147,15 +134,16 @@ export default function WatchlistSettingsPanel({
     <>
       <div
         ref={panelRef}
+        data-side={pos?.side}
         className={styles.panel}
-        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
+        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxHeight } : { visibility: 'hidden' }) }}
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>
-          <span className={styles.title}><UIcon name="gear" size={13} /> Watchlist Settings</span>
+          <span className={styles.title}>Watchlist settings</span>
           <div className={styles.headRight}>
-            <button className="btn btn-ghost btn-sm" onClick={onReset} title="Restore watchlist settings to defaults">↺ Reset</button>
-            <button className={styles.close} onClick={onClose} title="Close">✕</button>
+            <button className={styles.uReset} onClick={onReset} title="Restore watchlist settings to defaults">Reset</button>
+            <button className={styles.close} onClick={onClose} title="Close" aria-label="Close">✕</button>
           </div>
         </div>
 
@@ -170,11 +158,11 @@ export default function WatchlistSettingsPanel({
               aria-haspopup="listbox"
               aria-expanded={tplMenuOpen}
               title="Open a saved watchlist look"
-            >⌸ Templates{templates.length ? ` (${templates.length})` : ''} ▾</button>
+            >Templates{templates.length ? ` (${templates.length})` : ''}<svg className={styles.tplCaret} width="9" height="6" viewBox="0 0 9 6" aria-hidden="true"><path d="M1 1l3.5 3.5L8 1" fill="none" stroke="currentColor" strokeWidth="1.4" /></svg></button>
             {tplMenuOpen && (
               <div className={styles.tplMenu} role="listbox">
                 {templates.length === 0 && (
-                  <div className={styles.tplEmpty}>No saved looks yet. Style this watchlist, then “Save as Template”.</div>
+                  <div className={styles.tplEmpty}>No saved looks yet. Style this watchlist, then “Save as template”.</div>
                 )}
                 {templates.map(t => (
                   <div key={t.id} className={styles.tplRow}>
@@ -219,25 +207,20 @@ export default function WatchlistSettingsPanel({
               className={styles.tplBtn}
               onClick={() => { setSavingTpl(true); setTplMenuOpen(false) }}
               title="Save the current watchlist look as a reusable template"
-            >＋ Save as Template</button>
+            >+ Save as template</button>
           )}
         </div>
 
-        <div className={styles.body}>
+        <div className={styles.body} onClick={rowToggleClick(styles.row)}>
           <div className={styles.sectionLabel}>Theme</div>
           <Row label="UCT theme" hint="whole-widget look">
-            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass="btn btn-ghost btn-sm" />
+            <WidgetThemeSection widgetType={widgetType} currentSettings={s} onSettings={(next) => onChange(next)} themeVars={themeVars} buttonClass={styles.uBtn} buttonLabel="UCT themes" />
           </Row>
           {/* Canvas */}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">
-            <div className={styles.seg}>
-              {BG_MODES.map(m => (
-                <button key={m.key}
-                  className={`${styles.segBtn}${s.bgMode === m.key ? ' ' + styles.segBtnOn : ''}`}
-                  onClick={() => set({ bgMode: m.key })}>{m.label}</button>
-              ))}
-            </div>
+            <ChoiceMenu ariaLabel="Background" value={s.bgMode}
+              options={BG_MODES.map(m => ({ value: m.key, label: m.label }))} onChange={(v) => set({ bgMode: v })} />
           </Row>
           {s.bgMode === 'solid' && <Row label="Canvas color">{swatch('bg', 'Canvas')}</Row>}
           {s.bgMode === 'gradient' && (
@@ -253,25 +236,17 @@ export default function WatchlistSettingsPanel({
           {/* Text */}
           <div className={styles.sectionLabel}>Text</div>
           <Row label="Text size" hint="whole watchlist">
-            <Select
-              className={styles.sizeSelect}
-              value={Number(s.fontSize)}
-              onChange={e => set({ fontSize: Number(e.target.value) })}
-              title="Watchlist text size"
-            >
-              {WATCHLIST_FONT_SIZES.map(px => <option key={px} value={px}>{px}</option>)}
-            </Select>
+            <ChoiceMenu ariaLabel="Watchlist text size" title="Watchlist text size" value={Number(s.fontSize)}
+              options={WATCHLIST_FONT_SIZES.map(px => ({ value: px, label: String(px) }))}
+              onChange={(v) => set({ fontSize: Number(v) })} />
           </Row>
 
           {/* Text color — one color for all row text (symbol, price, volume + any
               other columns) EXCEPT the up/down % change, which has its own colors below. */}
           <div className={styles.sectionLabel}>Text color</div>
           <Row label="Text" hint="all columns except % change">{swatch('textColor', 'Text color')}</Row>
-
-          {/* % change */}
-          <div className={styles.sectionLabel}>% Change</div>
-          <Row label="Up">{swatch('upColor', 'Up')}</Row>
-          <Row label="Down">{swatch('downColor', 'Down')}</Row>
+          {/* Up / down pairs are ONE row, first swatch up, second down (owner 11-15, like Chart Settings) */}
+          <Row label="% change">{swatch('upColor', 'Up')}{swatch('downColor', 'Down')}</Row>
 
           {/* Gridlines */}
           <div className={styles.sectionLabel}>Gridlines</div>
@@ -280,15 +255,10 @@ export default function WatchlistSettingsPanel({
           {/* Tick flash */}
           <div className={styles.sectionLabel}>Tick flash</div>
           <Row label="Background tint" hint="pulse on each update">
+            {s.tintEnabled && <>{swatch('tintUp', 'Up tint')}{swatch('tintDown', 'Down tint')}</>}
             <Switch checked={s.tintEnabled} onClick={() => set({ tintEnabled: !s.tintEnabled })} title="Toggle tick tint"
               className={styles.toggle} checkedClassName={styles.toggleOn} knobClassName={styles.knob} />
           </Row>
-          {s.tintEnabled && (
-            <>
-              <Row label="Up tint">{swatch('tintUp', 'Up tint')}</Row>
-              <Row label="Down tint">{swatch('tintDown', 'Down tint')}</Row>
-            </>
-          )}
 
           {/* Symbol column */}
           <div className={styles.sectionLabel}>Symbol column</div>

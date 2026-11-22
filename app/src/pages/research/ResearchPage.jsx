@@ -127,7 +127,7 @@ import styles from './ResearchPage.module.css'
 // consensus got where it is), and "Filings feed" beside Filings (what SEC has
 // received, live, per ticker and market-wide). Each is DARK behind its own flag:
 // RESEARCH_PEOPLE_ENABLED, ESTIMATE_HISTORY_ENABLED, FILINGS_FEED_ENABLED.
-const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Seasonality', 'Financials', 'Estimates', 'Estimate history', 'Analyst Ratings', 'Ratings', 'Ownership', 'People', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Filings feed', 'Filing changes', 'Depth', 'Ask AI', 'My Research']
+const TABS = ['Overview', 'News', 'Catalysts', 'Technical', 'Flow', 'Options', 'Seasonality', 'Financials', 'Estimates', 'Estimate history', 'Analyst Ratings', 'Ratings', 'Ownership', 'People', 'Calls & Transcript', 'Model Book', 'Decision Record', 'History', 'Filings', 'Filings feed', 'Filing changes', 'Depth', 'UCT Agent', 'My Research']
 
 // P2: the earnings modal's rail LINK items deep-open /research/:sym?section=…
 // (spec §4.3). Seeding the initial tab from that param is the whole contract —
@@ -141,7 +141,7 @@ const SECTION_TO_TAB = {
   'decision-record': 'Decision Record',
   people: 'People', 'estimate-history': 'Estimate history', 'filings-feed': 'Filings feed',
   history: 'History',
-  filings: 'Filings', ai: 'Ask AI', research: 'My Research',
+  filings: 'Filings', ai: 'UCT Agent', research: 'My Research',
 }
 
 export default function ResearchPage() {
@@ -252,7 +252,7 @@ export default function ResearchPage() {
       {active === 'Estimate history' && <EstimateHistoryTab sym={sym} />}
       {active === 'Filings feed' && <FilingsFeedTab sym={sym} />}
       {active === 'Depth' && <DepthTab sym={sym} flags={researchDepth} focus={depthFocus} />}
-      {active === 'Ask AI' && <AskAiTab sym={sym} />}
+      {active === 'UCT Agent' && <AskAiTab sym={sym} />}
       {active === 'My Research' && (
         <TickerResearchWorkspace symbol={sym} showBackLink={false} onOpenNote={(note) => navigate(notePath(note.id))} />
       )}

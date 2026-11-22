@@ -46,12 +46,14 @@ export function markIntroSeenThisSession() {
   }
 }
 
-// Daily gate (owner decision 2026-10-08): the intro plays at most ONCE PER DAY PER BROWSER,
-// the day being the market's (Eastern Time) calendar date. The session gate above played it on
-// every new tab or browser restart, which a member opening the terminal several times a day saw
-// over and over. Storage that throws (private mode, blocked site data) falls back to the
-// session gate, so a blocked localStorage never means "the film on every page load".
-const DAY_KEY = 'uct_intro_last_et_day'
+// S12 (audit 2026-11-05, M9): the intro FILM plays in full ONCE A WEEK PER DEVICE; every other page load gets a
+// 0.6 s fade (IntroAnimation's `fading` phase). The week counts Eastern Time calendar days (the market's), from the
+// day the film last played in this browser. ⚰️ It was once per day (owner decision 2026-10-08, the `uct_intro_last_
+// et_day` key), which still put the ~9 s film in front of a daily member every morning. Storage that throws (private
+// mode, blocked site data) falls back to the session gate, so a blocked localStorage never means "the film on every
+// page load".
+const FULL_KEY = 'uct_intro_last_full_et_day'
+export const FULL_INTRO_EVERY_DAYS = 7
 const ET_DAY = new Intl.DateTimeFormat('en-CA', {
   timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
 })
@@ -62,17 +64,37 @@ export function etDay(now = new Date()) {
   return `${p.year}-${p.month}-${p.day}`
 }
 
-export function hasSeenIntroToday(now = new Date()) {
+const dayNumber = (ymd) => {
+  const [y, m, d] = ymd.split('-').map(Number)
+  return Date.UTC(y, m - 1, d) / 86400000
+}
+
+/** Is the full film due in this browser (never played, or played FULL_INTRO_EVERY_DAYS or more ET days ago)? */
+// Fix round 1 (review Minor 12): the daily gate's key. A member who saw the film under it has seen it on that day,
+// so it seeds the weekly key once (no 9 s film on the first load after the deploy because a key was renamed), and is
+// removed.
+const OLD_DAY_KEY = 'uct_intro_last_et_day'
+function migrateOldKey() {
+  const old = localStorage.getItem(OLD_DAY_KEY)
+  if (old == null) return
+  if (!localStorage.getItem(FULL_KEY) && /^\d{4}-\d{2}-\d{2}$/.test(old)) localStorage.setItem(FULL_KEY, old)
+  localStorage.removeItem(OLD_DAY_KEY)
+}
+
+export function fullIntroDue(now = new Date()) {
   try {
-    return localStorage.getItem(DAY_KEY) === etDay(now)
+    migrateOldKey()
+    const last = localStorage.getItem(FULL_KEY)
+    if (!last || !/^\d{4}-\d{2}-\d{2}$/.test(last)) return true
+    return dayNumber(etDay(now)) - dayNumber(last) >= FULL_INTRO_EVERY_DAYS
   } catch {
-    return hasSeenIntroThisSession()
+    return !hasSeenIntroThisSession()
   }
 }
 
-export function markIntroSeenToday(now = new Date()) {
+export function markFullIntroPlayed(now = new Date()) {
   try {
-    localStorage.setItem(DAY_KEY, etDay(now))
+    localStorage.setItem(FULL_KEY, etDay(now))
   } catch {
     /* noop: the session mark below still stops a replay in this tab */
   }

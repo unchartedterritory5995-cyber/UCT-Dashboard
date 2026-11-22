@@ -71,6 +71,24 @@ iframe stays muted, so there is no double audio.
 
 ---
 
+## `INTRADAY_SPLIT_HEAL_MODE` — intraday split heal (P4, #1144)
+
+Default `report` (unset = report). The background heal plans every series whose stored
+`adj_basis` is not the ticker's target and only LOGS what it would do; nothing is written.
+
+1. Deploy with the variable unset. Grep bars-api / web logs for
+   `[intraday-split-heal] WOULD-RESCALE` (ticker, tf, boundary ts, ratio, row count — no
+   prices) and `[intraday-split-cliff] ... NOT rewritten` (refusals with their reason:
+   step-not-unique, step-claimed-twice, daily-proof-unknown, too-deep, hidden-step).
+2. For a sample of WOULD-RESCALE lines, confirm on an independent chart that the ticker
+   really split on that date with that ratio and that the stored intraday rows before the
+   boundary are on the pre-split scale.
+3. Only then set `INTRADAY_SPLIT_HEAL_MODE=write` (bars-api and web). Watch for
+   `RESCALED ... held_ms=` (each series is one transaction, capped by
+   `INTRADAY_SPLIT_HEAL_MAX_ROWS`, default 300000) and `STAMP` lines.
+4. Rollback: unset (back to report: stops new writes; written rows stay healed) or
+   `INTRADAY_SPLIT_HEAL_ENABLED=0` (hard off: no checks at all).
+
 ## GEX crosshair — the check only Patrick can make
 
 The rig measured no GEX-specific lag: 60 fps headless over 5 runs, a positive control

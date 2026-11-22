@@ -750,15 +750,15 @@ _ROWS += [
     _vol("SKEW", "Cboe SKEW Index", "1990-01-02",
          synonyms=("TAIL RISK", "BLACK SWAN"), has_ohlc=False),
     # ⛔ VIX ITSELF IS DORMANT IN THIS REGISTRY ON PURPOSE. `/api/bars/VIX` is a LIVE
-    # path today (`api/index_bars.py`, yfinance, 5-year daily cap, unix-second `t`).
+    # path today (`api/index_bars.py`, FMP then yfinance, daily from 1990, unix-second `t`).
     # Registering it published would put two producers behind one symbol, which is the
     # "second authority over one value" defect this codebase keeps paying for. The swap
     # is a deliberate ramp with its own flag, not a side effect of adding a catalogue.
     _vol("VIX", "Cboe Volatility Index", "1990-01-02",
          synonyms=("FEAR INDEX", "VOLATILITY INDEX"),
          status=ST_DORMANT,
-         blocked_on="`VIX` is already served by `api/index_bars.py` (yfinance, 5-year "
-                    "daily cap, unix-second timestamps). Publishing it here would put a "
+         blocked_on="`VIX` is already served by `api/index_bars.py` (FMP then yfinance, "
+                    "daily from 1990, unix-second timestamps). Publishing it here would put a "
                     "second producer behind one symbol. The Cboe source reaches back to "
                     "1990-01-02 with real OHLC and correct ISO dates, so the swap is "
                     "worth doing — as an explicit, flagged migration of the existing "

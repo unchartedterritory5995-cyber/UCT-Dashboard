@@ -151,6 +151,10 @@ function serverBlocksDropped(prev, incoming) {
 const carriesWords = (incoming, prev) =>
   authoredText(incoming).includes(authoredText(prev)) && serverBlocksDropped(prev, incoming).length === 0
 
+/** ⭐ Follow-up D (Discard on the recovery banner): does the copy the member was OFFERED hold
+ *  `words`, exactly or by the same containment test? Only such words may be discarded. */
+export const offerCarries = (offered, words) => sameAuthoredContent(words, offered) || carriesWords(offered, words)
+
 /**
  * ⭐⭐ C-1 (2026-10-16) — WOULD THIS WRITE DROP A BLOCK THE 409 RECONCILE MERGED INTO
  * THE LIVE VIEW IT CAME FROM? ONE authority, asked by both editor-provenance

@@ -26,7 +26,7 @@
  "sentences": {
   "sample_banner": {
    "text": "These use sample trades. Link a broker or log a trade to see yours.",
-   "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/ExamplesGallery.jsx:57"
+   "source": "app/src/pages/journal-2-0/components/notebook/widgetBuilder/ExamplesGallery.jsx:58"
   },
   "sample_label": {
    "text": "Sample data",
@@ -35,27 +35,24 @@
   },
   "empty_widgets": {
    "text": "No widgets yet. Build one here, or type /build in a note.",
-   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:143"
+   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:137"
   },
   "empty_routines": {
    "text": "No routines yet. Make one here.",
-   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:126",
+   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:120",
    "fragment": "emptyActive: `No ${many} yet. Make one here.`",
    "note": "toolCopy('routine', 'routines') at myToolsLib.js:133"
   },
   "empty_trackers": {
    "text": "No trackers yet. Make one here.",
-   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:126",
+   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:120",
    "fragment": "emptyActive: `No ${many} yet. Make one here.`",
    "note": "toolCopy('tracker', 'trackers') at myToolsLib.js:133"
   },
-  "empty_templates": {
-   "text": "No templates yet. Save a note’s setup as a template, or use one from the Template library.",
-   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:64"
-  },
-  "templates_soon": {
-   "text": "Templates are coming soon.",
-   "source": "app/src/pages/journal-2-0/components/notebook/myTools/myToolsLib.js:52"
+  "templates_moved": {
+   "text": "Templates are managed in one place now.",
+   "source": "app/src/pages/journal-2-0/components/notebook/myTools/TemplatesTab.jsx:14",
+   "note": "TEMPLATES_MOVED; replaced the tab's empty-list and coming-soon sentences when My tools > Templates began pointing at Manage templates (fd6aa6bd57, 2026-11-13)"
   },
   "unavailable": {
    "text": "Not available right now.",
@@ -120,12 +117,14 @@
   },
   "library_title": {
    "text": "Template library",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:26",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/TemplateLibrarySection.jsx:32",
    "fragment": "SECTION_TITLE = 'Template library'"
   },
   "adopt_title": {
-   "text": "Make it yours",
-   "source": "app/src/pages/journal-2-0/components/notebook/library/AdoptSheet.jsx:28"
+   "text": "Customize",
+   "fragment": "TITLE = 'Customize'",
+   "source": "app/src/pages/journal-2-0/components/notebook/library/AdoptSheet.jsx:32",
+   "note": "S7 (one vocabulary) retired 'Make it yours'; the sheet is titled Customize"
   },
   "share_title": {
    "text": "Share to library",
@@ -155,16 +154,16 @@
   },
   "routine_not_yours": {
    "text": "This routine is not in your account.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/journal_styles.py:2026"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/journal_styles.py:2017"
   },
   "former_member": {
    "text": "Based on a former member's",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:603",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:565",
    "fragment": "CREDIT_FORMER_SENTENCE = \"Based on a former member's {title}\""
   },
   "anonymous_author": {
    "text": "A UCT member",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:153",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:143",
    "fragment": "ANONYMOUS_AUTHOR = \"A UCT member\""
   },
   "week_of": {
@@ -174,23 +173,23 @@
   },
   "key_in_flight": {
    "text": "That is already on its way. Try again in a moment.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4318"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4256"
   },
   "key_reused": {
    "text": "That was already sent for something else. Press it again to send this one.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4317"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:4255"
   },
   "listing_moved": {
    "text": "This template changed while it was being added. Nothing was made. Try again.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3273"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:3185"
   },
   "helpful_days": {
    "text": "You can mark this helpful after using it on 3 different days.",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5220"
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/template_gallery.py:5156"
   },
   "title_too_long": {
    "text": "title too long",
-   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/notes.py:1242",
+   "source": "origin/feat/notebook-widgets-p2:api/services/journal_two/notes.py:1332",
    "fragment": "S_TITLE_TOO_LONG = \"title too long\"",
    "note": "A3 (cbfe9db4b5): notes.validate_title is the one authority; the router answers str(e)"
   },
@@ -505,7 +504,7 @@
        "do": "my_tools_tab",
        "tab": "Templates",
        "expect": [
-        "empty_templates"
+        "templates_moved"
        ],
        "forbid": [
         "zeros"
@@ -4732,7 +4731,7 @@
        "do": "my_tools",
        "tab": "Templates",
        "expect": [
-        "templates_soon"
+        "templates_moved"
        ]
       },
       {
@@ -5132,7 +5131,7 @@
        "do": "my_tools_tab",
        "tab": "Templates",
        "expect": [
-        "empty_templates"
+        "templates_moved"
        ],
        "forbid": [
         "zeros"

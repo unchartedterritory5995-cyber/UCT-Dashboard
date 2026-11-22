@@ -28,6 +28,7 @@ import { TABLE, parseFormula, isPointwise, SESSION_LOOKBACK, SESSION_MAX_BARS } 
 // ⚠️ IMPORTED BY THE TEST, NEVER BY THE LINTER — see the agreement case below.
 import { maxLookback as interpretMaxLookback, ownLookback } from './interpret.js'
 import * as engineRegistry from '../nativeRegistry'
+import { measureTrailingPads, readGoldenFixtureDocs } from '../__tests__/goldenTrailingPads.js'
 
 /** The repo root, found by walking up. `import.meta.url` is an `http:` URL under
  *  this environment's vite transform and `process.cwd()` is `app/` for the
@@ -728,24 +729,15 @@ describe('there is no exemption surface, and the absence is proven over the lint
  *  neither of them typed. A hand-copied 26 would be a second declaration of one
  *  fact and it would rot the first time the pad moved. */
 function declaredForwardFactsFromGoldenFixtures() {
+  // ⭐ 2026-11-07 — THE MEASUREMENT IS SHARED, AND IT MEASURES PADS OF PLOTS.
+  // The loop that lived here counted the trailing null run of EVERY fixture
+  // column, and went red when the UCT RS fixtures added sparse event/dot columns
+  // (null wherever no event fired). The rule — a fact is a CONTINUOUS plot's
+  // column, addressed `<compute.fn>.<plotKey>` exactly as `lintDefinition` reads
+  // it — and its controls live in `../__tests__/goldenTrailingPads.js` and
+  // `perPlotRepaintBadge.test.jsx`, which read the same fact.
   const dir = path.join(ROOT, 'tests', 'fixtures', 'indicators')
-  const facts = {}
-  for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.json'))) {
-    const doc = JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8'))
-    const expected = doc && doc.expected
-    if (!expected || typeof expected !== 'object' || Array.isArray(expected)) continue
-    for (const [col, values] of Object.entries(expected)) {
-      if (!Array.isArray(values) || !values.length) continue
-      let trailing = 0
-      for (let i = values.length - 1; i >= 0 && values[i] === null; i--) trailing++
-      if (!trailing) continue
-      if (trailing === values.length) {
-        throw new Error(`${file}.${col} is entirely null — that is not a trailing pad, it is an empty column`)
-      }
-      facts[`${doc.kind}.${col}`] = trailing
-    }
-  }
-  return facts
+  return measureTrailingPads(readGoldenFixtureDocs(dir), engineRegistry.listDefinitions())
 }
 
 describe('the measurement over the shipped definitions — and it is allowed to disagree with us', () => {
@@ -1063,7 +1055,8 @@ describe('the clock, linted — the window comes from the MANIFEST, not from thi
     const windowed = Object.entries(TABLE.clock).filter(([, s]) => s.lookback > 0)
     // ⭐ (2026-09-28, C8) `weekfirst` / `monthfirst` are the same rule over a
     // week and a month (`timeframe.change("W"/"M")`), and declare the same window.
-    expect(windowed.map(([n]) => n)).toEqual(['sessionfirst', 'weekfirst', 'monthfirst'])
+    // ⭐ (2026-11-17) `regularfirst`: the first bar of a REGULAR session reads the bar before it too.
+    expect(windowed.map(([n]) => n)).toEqual(['sessionfirst', 'weekfirst', 'monthfirst', 'regularfirst'])
     for (const [n] of windowed) expect(lint.maxLookback({ type: 'series', name: n }), n).toBe(1)
     // …and it agrees with the function that reads exactly the same history.
     expect(lint.maxLookback(parseFormula('change(close)').ast))
@@ -1217,5 +1210,48 @@ describe('the copies this module is FORCED to keep are bound to their originals'
     // now serves (`lesson_an_identity_join_is_not_a_correctness_check`).
     expect(Object.keys(lint.TF_BASE_BARS).sort())
       .toEqual([...interp.TF_RESAMPLABLE].sort())
+  })
+})
+
+// ─── a condition read from an earlier bar is still a condition (2026-11-17) ──────────────────────
+//
+// Found on production: "a new 52-week high for the first time in at least 30 days" was refused
+// twice as `lint:repaint`. The natural spelling is "a new high now, and none on the 30 bars
+// before": `newHigh && barssince(newHigh[1], 30) >= 30`. It reads only earlier bars. This walk's
+// own copy of the yes/no rule (`argYieldsBool`) did not know an offset, called the call
+// unanalysable, and unanalysable is reported as "repaints" (Indicators backlog 63).
+describe('a condition read from an earlier bar is still a condition', () => {
+  const n = (value) => ({ type: 'num', value })
+  const s = (name) => ({ type: 'series', name })
+  const call = (name, ...args) => ({ type: 'call', name, args })
+  const op = (name, ...args) => ({ type: 'op', name, args })
+  const back = (node, bars) => ({ type: 'offset', value: bars, args: [node] })
+  const NEW_HIGH = op('>=', s('high'), call('highest', s('high'), n(252)))
+
+  it('"none on the 30 bars before" lints as reading only earlier bars', () => {
+    const firstIn30 = op('&&', NEW_HIGH, op('>=', call('barssince', back(NEW_HIGH, 1), n(30)), n(30)))
+    const got = lint.lintRepaint(firstIn30)
+    expect(got.mode, JSON.stringify(got)).toBe('non-repainting')
+    expect(got.forward).toBe(0)
+    expect(got.back).toBeGreaterThanOrEqual(252 + 30)
+    for (const tree of [call('valuewhen', back(NEW_HIGH, 1), s('close'), n(30)), call('barssince', back(back(NEW_HIGH, 1), 4), n(30))]) {
+      expect(lint.lintRepaint(tree).mode, JSON.stringify(tree)).toBe('non-repainting')
+    }
+    // the same call without the offset was always accepted: the offset is the only change
+    expect(lint.lintRepaint(call('barssince', NEW_HIGH, n(30))).mode).toBe('non-repainting')
+  })
+
+  it('CONTROL: a NUMBER read from an earlier bar is still not a condition', () => {
+    for (const arg of [back(s('close'), 1), back(call('sma', s('close'), n(20)), 3)]) {
+      const got = lint.lintRepaint(call('barssince', arg, n(30)))
+      expect(got.mode).toBe('repaints')
+      expect(got.reasons.join('; ')).toMatch(/is its condition/)
+    }
+  })
+
+  it('the interpreter accepts the same tree (two readers of one rule agree)', () => {
+    const tree = op('>=', call('barssince', back(NEW_HIGH, 1), n(30)), n(30))
+    expect(() => interpretMaxLookback(tree)).not.toThrow()
+    expect(() => interpretMaxLookback(call('barssince', back(s('close'), 1), n(30)))).toThrow()
   })
 })

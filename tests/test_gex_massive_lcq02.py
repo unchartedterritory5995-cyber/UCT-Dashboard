@@ -1,6 +1,6 @@
 """LCQ-02 (2026-10-02) — GEX from Massive's snapshot chain: the one formula against a hand-computed
 fixture, missing greeks/OI named per strike (never zero), the server-side cache + single-flight,
-and GEX_CHAIN_SOURCE=shadow (serve Schwab, log the per-strike diff).
+(The `shadow` mode and its per-strike diff against Schwab were removed with Schwab, 2026-11-17.)
 
 No network: the Massive walk runs against tests/fixtures/massive_gex/tst_snapshot_options.json
 through a stand-in httpx.AsyncClient (read that file's `_provenance` -- it is schema-shaped, not a
@@ -78,7 +78,7 @@ def _by_strike(res):
 
 def test_the_formula_on_the_massive_chain_matches_the_hand_computation(monkeypatch):
     _install_fixture_client(monkeypatch, [])
-    res = asyncio.run(g.get_gex_data("TST", "week", source="massive"))
+    res = asyncio.run(g.get_gex_data("TST", "week"))
     assert "error" not in res, res
     assert res["chainSource"] == "massive" and res["spot"] == 101.0
     s = _by_strike(res)
@@ -102,7 +102,7 @@ def test_the_formula_on_the_massive_chain_matches_the_hand_computation(monkeypat
 
 def test_a_contract_without_greeks_or_oi_is_named_per_strike_never_zero(monkeypatch):
     _install_fixture_client(monkeypatch, [])
-    res = asyncio.run(g.get_gex_data("TST", "week", source="massive"))
+    res = asyncio.run(g.get_gex_data("TST", "week"))
     s = _by_strike(res)
     # 110: its only contract came back with no greeks -> NOT a zero bar; named instead.
     assert 110.0 not in s
@@ -121,25 +121,25 @@ def test_a_chain_with_no_computable_contract_is_an_error_not_an_empty_zero(monke
         rows = [r for r in PAGE2["results"] if r["details"]["strike_price"] == 110]
         return g.to_schwab_shape(rows, 101.0, __import__("datetime").date.today()), None
     monkeypatch.setattr(g, "_fetch_chain_massive", all_missing)
-    res = asyncio.run(g.get_gex_data("TST", "week", source="massive"))
+    res = asyncio.run(g.get_gex_data("TST", "week"))
     assert "not computable" in res["error"] and "strikes" not in res
 
 
 def test_the_massive_chain_is_cached_and_an_error_is_not(monkeypatch):
     calls = []
     _install_fixture_client(monkeypatch, calls)
-    asyncio.run(g.get_gex_data("TST", "week", source="massive"))
+    asyncio.run(g.get_gex_data("TST", "week"))
     walked = len(calls)
     assert walked == 3                                 # spot probe + 2 pages
-    asyncio.run(g.get_gex_data("TST", "week", source="massive"))
-    asyncio.run(g.get_gex_data("TST", "week", adjusted=False, source="massive"))
+    asyncio.run(g.get_gex_data("TST", "week"))
+    asyncio.run(g.get_gex_data("TST", "week", adjusted=False))
     assert len(calls) == walked                        # served from the server-side cache
 
     gex_massive.clear_cache()
     bad = []
     _install_fixture_client(monkeypatch, bad, status=503)
-    r1 = asyncio.run(g.get_gex_data("TST", "week", source="massive"))
-    r2 = asyncio.run(g.get_gex_data("TST", "week", source="massive"))
+    r1 = asyncio.run(g.get_gex_data("TST", "week"))
+    r2 = asyncio.run(g.get_gex_data("TST", "week"))
     assert r1["error"] == r2["error"] == "Massive API error: 503"
     assert len(bad) == 2                               # the failure was retried, not cached
 
@@ -149,7 +149,7 @@ def test_concurrent_requests_share_one_walk(monkeypatch):
     _install_fixture_client(monkeypatch, calls, delay=0.01)
 
     async def both():
-        return await asyncio.gather(*(g.get_gex_data("TST", "week", source="massive") for _ in range(4)))
+        return await asyncio.gather(*(g.get_gex_data("TST", "week") for _ in range(4)))
 
     results = asyncio.run(both())
     assert len(calls) == 3                             # ONE walk for four callers
@@ -162,66 +162,24 @@ def test_an_unset_key_is_named_not_sent(monkeypatch):
     assert data is None and err == "MASSIVE_API_KEY not set"
 
 
-def test_shadow_is_a_declared_mode(monkeypatch):
-    assert g.GEX_CHAIN_MODE_FLAGS["GEX_CHAIN_SOURCE"] == ("schwab", ("schwab", "massive", "shadow"))
-    monkeypatch.setenv(g.GEX_SOURCE_ENV, "shadow")
-    assert g.chain_source() == "shadow"
-
-
-def _schwab_chain():
-    key = "2026-10-09:7"
-    return {"underlyingPrice": 101.0,
-            "callExpDateMap": {key: {"100.0": [{"openInterest": 500, "gamma": 0.05, "delta": 0.55}],
-                                     "105.0": [{"openInterest": 300, "gamma": 0.03, "delta": 0.30}],
-                                     "110.0": [{"openInterest": 1000, "gamma": 0.004, "delta": 0.05}]}},
-            "putExpDateMap": {key: {"95.0": [{"openInterest": 400, "gamma": 0.04, "delta": -0.40}],
-                                    "100.0": [{"openInterest": 200, "gamma": 0.05, "delta": -0.45}]}}}
-
-
-def test_shadow_serves_schwab_and_logs_the_per_strike_diff(monkeypatch, caplog):
-    monkeypatch.setenv(g.GEX_SOURCE_ENV, "shadow")
+def test_the_retired_variable_cannot_bring_back_schwab_or_shadow(monkeypatch):
+    """GEX_CHAIN_SOURCE was a mode (schwab / massive / shadow). It is retired: whatever value is
+    still set, the served result is Massive's and carries no shadow marker."""
     _install_fixture_client(monkeypatch, [])
+    base = asyncio.run(g.get_gex_data("TST", "week"))
+    assert base["chainSource"] == "massive" and "chainMode" not in base
+    for value in ("schwab", "shadow"):
+        monkeypatch.setenv("GEX_CHAIN_SOURCE", value)
+        gex_massive.clear_cache()
+        out = asyncio.run(g.get_gex_data("TST", "week"))
+        assert out == base, value
 
-    async def fake_schwab(t, f, to):
-        return _schwab_chain(), None
-    monkeypatch.setattr(g, "_fetch_chain_schwab", fake_schwab)
 
-    async def run():
-        served = await g.get_gex_data("TST", "week")
-        await asyncio.gather(*list(gex_massive._SHADOW_TASKS))   # let the off-path compare finish
-        return served
-
+def test_the_comparison_code_is_gone_and_nothing_logs_a_shadow_line(monkeypatch, caplog):
+    for name in ("strike_diff", "agreement", "shadow_record", "log_shadow", "spawn_shadow", "_SHADOW_TASKS"):
+        assert not hasattr(gex_massive, name), name
+    _install_fixture_client(monkeypatch, [])
+    monkeypatch.setenv("GEX_CHAIN_SOURCE", "shadow")
     with caplog.at_level(logging.INFO, logger="gex"):
-        served = asyncio.run(run())
-    plain = asyncio.run(g.get_gex_data("TST", "week", source="schwab"))
-    assert served["chainSource"] == "schwab" and served["chainMode"] == "shadow"
-    assert {k: v for k, v in served.items() if k != "chainMode"} == plain     # Schwab, exactly
-
-    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("[gex-shadow] ")]
-    assert len(lines) == 1
-    rec = json.loads(lines[0][len("[gex-shadow] "):])
-    assert rec["ticker"] == "TST" and rec["schwab_error"] is None and rec["massive_error"] is None
-    rows = {r[0]: r for r in rec["strikes"]}
-    assert rows[100.0][1] == pytest.approx(G_100C + G_100P) and rows[100.0][2] == pytest.approx(G_100C + G_100P)
-    assert rows[100.0][3] == "both"
-    # Schwab priced 110; Massive returned it without greeks -> the diff says WHY, not 0.
-    assert rows[110.0][2] is None and rows[110.0][3] == "massive_uncomputable"
-    assert rec["strikes_common"] == 3 and rec["sign_agreement"] == 1.0
-
-
-def test_shadow_never_waits_on_massive(monkeypatch):
-    monkeypatch.setenv(g.GEX_SOURCE_ENV, "shadow")
-    _install_fixture_client(monkeypatch, [], delay=5.0)   # a pathologically slow Massive
-
-    async def fake_schwab(t, f, to):
-        return _schwab_chain(), None
-    monkeypatch.setattr(g, "_fetch_chain_schwab", fake_schwab)
-
-    async def run():
-        served = await asyncio.wait_for(g.get_gex_data("TST", "week"), timeout=1.0)
-        for t in list(gex_massive._SHADOW_TASKS):
-            t.cancel()
-        return served
-
-    served = asyncio.run(run())
-    assert served["chainSource"] == "schwab" and "error" not in served
+        asyncio.run(g.get_gex_data("TST", "week"))
+    assert not [r for r in caplog.records if "gex-shadow" in r.getMessage()]

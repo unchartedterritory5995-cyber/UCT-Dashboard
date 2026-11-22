@@ -1,0 +1,188 @@
+[
+ [
+  "control:noop-comment",
+  "services/pine_runtime/protocol.mjs",
+  "/** The closed key sets of one result as the RUNNER",
+  "/** (control) The closed key sets of one result as the RUNNER"
+ ],
+ [
+  "seal:result-not-closed",
+  "services/pine_runtime/protocol.mjs",
+  "  closed(r, path, shape.required, shape.optional)\n",
+  "  void shape.optional\n"
+ ],
+ [
+  "seal:status-any-shape",
+  "services/pine_runtime/protocol.mjs",
+  "Object.hasOwn(RUNNER_RESULT_FIELDS, r.status) ? RUNNER_RESULT_FIELDS[r.status] : null",
+  "RUNNER_RESULT_FIELDS[r.status] || RUNNER_RESULT_FIELDS.ok"
+ ],
+ [
+  "seal:plain-check-off",
+  "services/pine_runtime/protocol.mjs",
+  "  if (!isPlain(r)) throw bad(path, 'must be an object')\n",
+  ""
+ ],
+ [
+  "seal:job-order-off",
+  "services/pine_runtime/protocol.mjs",
+  "  if (r.job !== job.job) throw bad(`${path}.job`, 'does not answer the job in its place')\n",
+  ""
+ ],
+ [
+  "seal:count-off",
+  "services/pine_runtime/protocol.mjs",
+  "if (!Array.isArray(results) || results.length !== jobs.length) throw",
+  "if (!Array.isArray(results)) throw"
+ ],
+ [
+  "seal:refusal-not-closed",
+  "services/pine_runtime/protocol.mjs",
+  "    closed(r, p, REFUSAL_FIELDS)\n",
+  "    if (!isPlain(r)) throw bad(p, 'must be an object')\n"
+ ],
+ [
+  "seal:refusal-key-empty-ok",
+  "services/pine_runtime/protocol.mjs",
+  "typeof r.key !== 'string' || r.key.length === 0",
+  "typeof r.key !== 'string'"
+ ],
+ [
+  "seal:refusal-guard-empty-ok",
+  "services/pine_runtime/protocol.mjs",
+  "typeof r.guard !== 'string' || r.guard.length === 0",
+  "typeof r.guard !== 'string'"
+ ],
+ [
+  "seal:sentence-unchecked",
+  "services/pine_runtime/protocol.mjs",
+  "    if (typeof r.sentence !== 'string') throw bad(`${p}.sentence`, 'must be a string')\n",
+  ""
+ ],
+ [
+  "seal:bar-negative-ok",
+  "services/pine_runtime/protocol.mjs",
+  "!Number.isSafeInteger(r.bar) || r.bar < 0 || r.bar > U32_MAX",
+  "!Number.isSafeInteger(r.bar) || r.bar > U32_MAX"
+ ],
+ [
+  "seal:withheld-no-reason-ok",
+  "services/pine_runtime/protocol.mjs",
+  "    if (!runWide) throw bad(`${path}.refusals`, \"a withheld job must name",
+  "    if (false) throw bad(`${path}.refusals`, \"a withheld job must name"
+ ],
+ [
+  "seal:ok-runwide-ok",
+  "services/pine_runtime/protocol.mjs",
+  "    if (runWide) throw bad(`${path}.refusals`, \"an ok job",
+  "    if (false) throw bad(`${path}.refusals`, \"an ok job"
+ ],
+ [
+  "seal:columns-plain-off",
+  "services/pine_runtime/protocol.mjs",
+  "    if (!isPlain(r.columns)) throw bad(`${path}.columns`, 'must be an object')\n",
+  ""
+ ],
+ [
+  "seal:served-and-refused-ok",
+  "services/pine_runtime/protocol.mjs",
+  "      if (refusals.some((x) => x.key === k)) throw",
+  "      if (false) throw"
+ ],
+ [
+  "seal:b64-lenient",
+  "services/pine_runtime/protocol.mjs",
+  "      const bytes = b64Bytes(text, `${path}.columns.${JSON.stringify(k)}`)",
+  "      const bytes = Buffer.from(String(text), 'base64')"
+ ],
+ [
+  "seal:length-unchecked",
+  "services/pine_runtime/protocol.mjs",
+  "bytes.byteOffset, bytes.byteLength), n)",
+  "bytes.byteOffset, bytes.byteLength))"
+ ],
+ [
+  "seal:warmup-not-closed",
+  "services/pine_runtime/protocol.mjs",
+  "    const w = closed(r.warmup, `${path}.warmup`, WARMUP_FIELDS)",
+  "    const w = r.warmup || {}"
+ ],
+ [
+  "seal:warmup-over-n-ok",
+  "services/pine_runtime/protocol.mjs",
+  " || w.withheldBars > n) {",
+  ") {"
+ ],
+ [
+  "seal:warmup-negative-ok",
+  "services/pine_runtime/protocol.mjs",
+  " || w.withheldBars < 0 ||",
+  " ||"
+ ],
+ [
+  "seal:warmup-nonint-ok",
+  "services/pine_runtime/protocol.mjs",
+  "!Number.isSafeInteger(w.withheldBars) ||",
+  "typeof w.withheldBars !== 'number' ||"
+ ],
+ [
+  "seal:digest-neutral-identity",
+  "services/pine_runtime/protocol.mjs",
+  "columnDigest({ engine: identity,",
+  "columnDigest({ engine: { ...identity, bundle_sha256: '0'.repeat(64) },"
+ ],
+ [
+  "seal:digest-no-refusals",
+  "services/pine_runtime/protocol.mjs",
+  "columns: decoded, refusals, rows",
+  "columns: decoded, refusals: [], rows"
+ ],
+ [
+  "seal:digest-no-columns",
+  "services/pine_runtime/protocol.mjs",
+  "columns: decoded, refusals,",
+  "columns: {}, refusals,"
+ ],
+ [
+  "seal:ms-unchecked",
+  "services/pine_runtime/protocol.mjs",
+  "out.ms = nonNegInt(r.ms, `${path}.ms`)",
+  "out.ms = r.ms"
+ ],
+ [
+  "server:seal-bypassed",
+  "services/pine_runtime/server.mjs",
+  "results: sealed.results })",
+  "results })"
+ ],
+ [
+  "server:seal-refusal-ignored",
+  "services/pine_runtime/server.mjs",
+  "    if (!sealed.ok) {",
+  "    if (false) {"
+ ],
+ [
+  "server:codec-check-off",
+  "services/pine_runtime/server.mjs",
+  "    if (typeof mod[k] !== 'function') throw new Error(`the bundle at ${path} exports no ${k}; the service refuses to start.`)\n  }\n  const codec",
+  "  }\n  const codec"
+ ],
+ [
+  "job:warmup-always-zero",
+  "services/pine_runtime/job.mjs",
+  "withheldBars: warm === null ? 0 : warm.withheldBars",
+  "withheldBars: 0"
+ ],
+ [
+  "job:warmup-null-unhandled",
+  "services/pine_runtime/job.mjs",
+  "withheldBars: warm === null ? 0 : warm.withheldBars",
+  "withheldBars: warm.withheldBars"
+ ],
+ [
+  "sandbox:warmup-export-unchecked",
+  "services/pine_runtime/sandbox.mjs",
+  ", 'resetRuntimeLedgers', 'runtimeWarmupOf']) {",
+  ", 'resetRuntimeLedgers']) {"
+ ]
+]

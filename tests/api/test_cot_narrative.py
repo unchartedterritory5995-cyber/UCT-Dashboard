@@ -70,6 +70,8 @@ def db(tmp_path, monkeypatch):
     monkeypatch.setenv("COT_DB_PATH", str(path))
     for var in (cn.ENABLED_ENV, cn.MODEL_ENV, cn.CAP_ENV):
         monkeypatch.delenv(var, raising=False)
+    from api.services import auth_db
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(tmp_path / "auth.db"))
     import api.services.cot_service as svc
     importlib.reload(svc)
     svc.init_db()
@@ -234,6 +236,59 @@ def test_daily_cap_stops_the_second_distinct_generation(db, fake_model, monkeypa
     # A cache hit is served even under the cap — the cache is checked first.
     again = cn.get_or_create(SYMBOL, NAME, REPORT_DATE, FACTS)
     assert again["status"] == "ok" and again["cached"] is True
+    assert len(fake.messages.calls) == 1
+
+
+def test_rejected_generations_count_toward_the_cap(db, fake_model, monkeypatch):
+    fake = fake_model(*([UNGROUNDED] * 10))
+    monkeypatch.setenv(cn.CAP_ENV, "4")
+    assert cn.get_or_create(SYMBOL, NAME, REPORT_DATE, FACTS)["reason"] == "ungrounded"
+    assert cn.get_or_create("SI", "Silver", REPORT_DATE, FACTS)["reason"] == "ungrounded"
+    out = cn.get_or_create("HG", "Copper", REPORT_DATE, FACTS)
+    assert out["status"] == "capped"
+    assert len(fake.messages.calls) == 4            # two attempts each, then nothing
+    assert _rows(db) == []
+
+
+def test_the_attempt_count_survives_a_restart(db, fake_model, monkeypatch):
+    fake = fake_model(*([UNGROUNDED] * 10))
+    monkeypatch.setenv(cn.CAP_ENV, "2")
+    cn.get_or_create(SYMBOL, NAME, REPORT_DATE, FACTS)
+    importlib.reload(cn)                            # a new process: nothing in memory
+    assert cn.get_or_create("SI", "Silver", REPORT_DATE, FACTS)["status"] == "capped"
+    assert len(fake.messages.calls) == 2
+
+
+def test_the_retry_of_a_rejected_reply_is_refused_at_the_cap(db, fake_model, monkeypatch):
+    fake = fake_model(UNGROUNDED, GROUNDED)
+    monkeypatch.setenv(cn.CAP_ENV, "1")
+    out = cn.get_or_create(SYMBOL, NAME, REPORT_DATE, FACTS)
+    assert out["status"] == "capped"
+    assert len(fake.messages.calls) == 1
+
+
+def test_a_failed_model_call_counts(db, fake_model, monkeypatch):
+    fake = fake_model(RuntimeError("timed out"), RuntimeError("timed out"))
+    monkeypatch.setenv(cn.CAP_ENV, "1")
+    assert cn.get_or_create(SYMBOL, NAME, REPORT_DATE, FACTS)["status"] == "error"
+    assert cn.get_or_create(SYMBOL, NAME, REPORT_DATE, FACTS)["status"] == "capped"
+    assert len(fake.messages.calls) == 1
+
+
+def test_the_cap_number_is_unchanged():
+    assert cn.DEFAULT_DAILY_CAP == 300
+
+
+def test_stored_rows_still_cap_when_the_counter_fails_open(db, fake_model, monkeypatch):
+    from api.services import daily_counters
+    fake = fake_model(GROUNDED, GROUNDED)
+    monkeypatch.setenv(cn.CAP_ENV, "1")
+
+    def boom():
+        raise OSError("database is locked")
+    monkeypatch.setattr(daily_counters, "_connect", boom)
+    assert cn.get_or_create(SYMBOL, NAME, REPORT_DATE, FACTS)["status"] == "ok"
+    assert cn.get_or_create("SI", "Silver", REPORT_DATE, FACTS)["status"] == "capped"
     assert len(fake.messages.calls) == 1
 
 

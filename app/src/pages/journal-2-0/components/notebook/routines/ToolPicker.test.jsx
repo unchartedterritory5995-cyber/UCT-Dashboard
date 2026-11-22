@@ -152,3 +152,42 @@ describe('the tool picker', () => {
   })
 })
 
+
+// Follow-up A fix round 1 (I4): the picker the slash menu's /routine and /track open inserts on its OWN press; that
+// insert counts as `block_inserted` under the door the slash press ran in, exactly once, through the real node plugin.
+describe('block_inserted through the picker', () => {
+  const inserted = (net) => net.calls.filter((c) => c.path === '/api/j2/telemetry' && c.body?.event === 'block_inserted')
+    .map((c) => c.body)
+
+  it('a tracker picked after /track counts {tracker, slash} once', async () => {
+    const net = installServer({ tools: { t1: tracker() } })
+    const ed = noteEditor()
+    await act(async () => { openToolPicker({ editor: ed, kind: 'tracker', via: 'slash' }) })
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Sleep' })) })
+    expect(embeds(ed)).toHaveLength(1)
+    expect(inserted(net)).toEqual([{ event: 'block_inserted', props: { kind: 'tracker', via: 'slash' } }])
+  })
+
+  it('a new routine saved from the picker counts {routine, slash} once', async () => {
+    const net = installServer({ tools: {} })
+    const ed = noteEditor({ id: 'n1', createdAt: '2026-10-28T03:30:00Z' })
+    await act(async () => { openToolPicker({ editor: ed, kind: 'routine', via: 'slash' }) })
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'New routine' })) })
+    await screen.findByRole('heading', { name: 'New routine' })
+    fireEvent.change(screen.getByRole('textbox', { name: 'Name' }), { target: { value: 'Evening review' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add an item' }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Item 1' }), { target: { value: 'Log every trade' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save' })) })
+    await waitFor(() => expect(embeds(ed)).toHaveLength(1))
+    expect(inserted(net)).toEqual([{ event: 'block_inserted', props: { kind: 'routine', via: 'slash' } }])
+  })
+
+  it('CONTROL: a picker opened with no door (the editor) counts nothing', async () => {
+    const net = installServer({ tools: { t1: tracker() } })
+    const ed = noteEditor()
+    await act(async () => { openToolPicker({ editor: ed, kind: 'tracker' }) })
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: 'Sleep' })) })
+    expect(embeds(ed)).toHaveLength(1)
+    expect(inserted(net)).toEqual([])
+  })
+})

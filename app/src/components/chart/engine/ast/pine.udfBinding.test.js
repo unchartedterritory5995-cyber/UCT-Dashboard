@@ -5,11 +5,11 @@
 // The second class behind C0's eight SAVE_BLOCKED scripts: a numeric input
 // threaded through a user-defined function, where the function's FORMAL survived
 // into the expression instead of the caller's argument —
-// `high_engagement__02-waddah-attar-explosion-lazybear`'s `mult`:
-//
-//     mult = input(2.0, "BB Stdev Multiplier")
-//     calc_BBUpper(source, length, mult) => … mult * stdev(source, length)
-//     e1 = calc_BBUpper(close, channelLength, mult) - calc_BBLower(…)
+// `high_engagement__02-waddah-attar-explosion-lazybear`'s `mult` (licence-held, so
+// described and not quoted: docs/pine/LICENSING.md §2d). A numeric input is passed
+// to a user function whose own formal has the SAME name, the formal scales a
+// standard deviation inside the body, and two such calls are subtracted at the
+// call site.
 //
 // ⛔ THE RISK IS NOT "DOES IT WORK ONCE" — IT IS CAPTURE. A door that resolved
 // formals by NAME would pass the single-call case and then quietly corrupt every

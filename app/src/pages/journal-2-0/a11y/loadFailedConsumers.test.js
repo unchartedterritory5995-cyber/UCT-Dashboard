@@ -34,7 +34,9 @@ const ROWS = [
   ['GET /api/j2/notes/connectors/status', 'components/connectors/NoteConnectorsTrustStrip.jsx', 'the sync status of your connected apps', 'hooks/useNoteConnectors.js', "'/api/j2/notes/connectors/status'"],
   ['GET /api/j2/saved-views', 'tabs/NotebookTab.jsx', 'your saved views', 'hooks/useJ2SavedViews.js', "'/api/j2/saved-views'"],
   ['GET /api/j2/property-defs', 'tabs/NotebookTab.jsx', 'your note properties', 'hooks/useJ2PropertyDefs.js', "'/api/j2/property-defs'"],
-  ['GET /api/j2/onboarding/sample-notebook', 'components/notebook/ResearchHome.jsx', "your sample notebook's status", 'components/notebook/onboarding/sampleNotebook.js', "'/api/j2/onboarding/sample-notebook'"],
+  // Go-live wave 1: Research home (its strip) was this read's consumer; the notes list's ⋯ "Remove the sample notebook" is now.
+  // Fix round 1 (first-open bytes): the route's one literal moved to sampleNotebookKeys.js (sampleNotebook.js re-exports it).
+  ['GET /api/j2/onboarding/sample-notebook', 'tabs/NotebookTab.jsx', "your sample notebook's status", 'components/notebook/onboarding/sampleNotebookKeys.js', "'/api/j2/onboarding/sample-notebook'"],
   ['GET /api/j2/notes/{id}/documents', 'components/notebook/NoteEditorPage.jsx', "this note's attachments", 'hooks/useNoteDocuments.js', '/documents`'],
   ['GET /api/j2/notes/{id}/excerpts', 'components/notebook/NoteEditorPage.jsx', "this note's saved passages", 'hooks/useNoteExcerpts.js', '/excerpts`'],
   ['GET /api/j2/notes/{id}/trade-ref/resolve', 'components/notebook/NoteEditorPage.jsx', "this note's linked trades", 'components/notebook/NoteEditorPage.jsx', '/trade-ref/resolve`'],
@@ -46,8 +48,8 @@ const ROWS = [
   ['GET /api/j2/notes/{id}/related-from', 'components/notebook/NoteBacklinksSection.jsx', 'the notes related to this one', 'hooks/useNoteRelatedFrom.js', '/related-from`'],
   ['GET /api/j2/notes/{id}/unlinked-mentions', 'components/notebook/UnlinkedMentions.jsx', 'the notes that mention this one', 'components/notebook/UnlinkedMentions.jsx', '/unlinked-mentions`'],
   ['GET /api/j2/notes/research/{sym}/summary', 'components/notebook/TickerResearchWorkspace.jsx', 'your research on', 'hooks/useTickerResearch.js', '/summary`'],
-  ['GET /api/j2/notes/{id}/share', 'components/notebook/NoteShareControls.jsx', "this note's share link", 'lib/noteShareLink.js', '/share'],
-  ['GET /api/j2/publish', 'components/notebook/NoteShareControls.jsx', "this note's published pages", 'lib/notePublishLink.js', "'/api/j2/publish'"],
+  ['GET /api/j2/notes/{id}/share', 'components/notebook/NoteSharePanel.jsx', "this note's share link", 'lib/noteShareLink.js', '/share'],
+  ['GET /api/j2/publish', 'components/notebook/NoteSharePanel.jsx', "this note's published pages", 'lib/notePublishLink.js', "'/api/j2/publish'"],
   ['GET /api/j2/personal/tokens', 'components/PersonalApiCard.jsx', 'your tokens', 'components/PersonalApiCard.jsx', "'/api/j2/personal/tokens'"],
   ['GET /api/j2/inbound-email/address', 'components/InboundEmailCard.jsx', 'your Notebook email address', 'components/InboundEmailCard.jsx', "'/api/j2/inbound-email/address'"],
   ['PATCH /api/j2/notes/{id}/tags', 'components/notebook/NoteEditorPage.jsx', "Couldn't add that tag.", 'hooks/useJ2Notes.js', '/tags`'],

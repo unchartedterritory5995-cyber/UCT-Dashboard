@@ -15,9 +15,9 @@
  },
  "counts": {
   "corpus": 266,
-  "doorAttached": 55,
-  "doorRefused": 211,
-  "alreadyCaptured": 53,
+  "doorAttached": 88,
+  "doorRefused": 178,
+  "alreadyCaptured": 86,
   "targets": 2
  },
  "alreadyCaptured": [
@@ -27,9 +27,19 @@
    "capture": "tests\\fixtures\\vendor\\harness\\artemis-oscillator-pro-rddt-1d-2026-09-28.json"
   },
   {
+   "file": "corpus/committed/atr-bands__ad60b125e6.pine",
+   "sha256": "42ef9b8a7ab4b836d692c3ca48a55ded9ff1734fa9980334b2121d5effb62bbc",
+   "capture": "tests\\fixtures\\vendor\\harness\\atr-bands-rddt-1d-2026-10-02.json"
+  },
+  {
    "file": "corpus/committed/atr-support-and-resistance__3e9ddb38c4.pine",
    "sha256": "9906a5be26b9a75439699e8143b6094742e6ec9dac170313d9db947788b4b797",
    "capture": "tests\\fixtures\\vendor\\harness\\atr-support-and-resistance-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/atr-trailing-stop-by-ceyhun__UMldb6tGLd.pine",
+   "sha256": "7ce4458ad42c3f1d3cec9462475e4f251c29c55f2192a23704d139ebb0e0be93",
+   "capture": "tests\\fixtures\\vendor\\harness\\atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02.json"
   },
   {
    "file": "corpus/committed/atr-trailing-stoploss__2JLLfrGRHg.pine",
@@ -37,9 +47,19 @@
    "capture": "tests\\fixtures\\vendor\\harness\\atr-trailing-stoploss-rddt-1d-2026-09-27.json"
   },
   {
+   "file": "corpus/committed/auto-trendline-dojiemoji__c21f83602c.pine",
+   "sha256": "9a27bc71b30b1d89a3a806932d75fde460ba28415c5b32ba3b0b0bf691faaac6",
+   "capture": "tests\\fixtures\\vendor\\harness\\auto-trendline-dojiemoji-rddt-1d-2026-10-02.json"
+  },
+  {
    "file": "corpus/committed/average-day-range-adr-pivots__38b8c996e9.pine",
    "sha256": "2e89665acd634797854c1c27c48d5365f5b8f522aeb975aa0ecde3e75ed4c5b0",
    "capture": "tests\\fixtures\\vendor\\harness\\average-day-range-adr-pivots-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/btc-charlie-trader-xo-macro-trend-scanner__1f1c092d6a.pine",
+   "sha256": "1da5b935b215b7149af9cf8119f34e3773434c8dfd60244a514e6831ddb3a410",
+   "capture": "tests\\fixtures\\vendor\\harness\\btc-charlie-trader-xo-macro-trend-scanner-rddt-1d-2026-09-30.json"
   },
   {
    "file": "corpus/committed/candlestick-patterns-identified-update-1-17-26__1082.pine",
@@ -47,9 +67,19 @@
    "capture": "tests\\fixtures\\vendor\\harness\\candlestick-patterns-identified-update-1-17-26-rddt-1d-2026-09-28.json"
   },
   {
+   "file": "corpus/committed/cdc-btc-rainbow-road__d880789793.pine",
+   "sha256": "2e7c78101de9578793a70b7bd599d8f5db218c575ccb70bf4c9d6a18e80a8d06",
+   "capture": "tests\\fixtures\\vendor\\harness\\cdc-btc-rainbow-road-spy-1d-2026-10-02.json"
+  },
+  {
    "file": "corpus/committed/contraction-box-doji-lines__1486658151.pine",
    "sha256": "e1800075f68502a1c26be72510646ffdb68967581c0aa2ada3b54c6d19155cf3",
    "capture": "tests\\fixtures\\vendor\\harness\\contraction-box-doji-lines-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/cpr-with-mas-super-trend-vwap-by-guruprasadmeduri__htrxxqBqNz.pine",
+   "sha256": "794c58389b22d92b4c5f31cdce9724c0a826e487b3a3070b529965cfc592d5fc",
+   "capture": "tests\\fixtures\\vendor\\harness\\cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02.json"
   },
   {
    "file": "corpus/committed/cumulative-volume-delta__K07lTKE3tP.pine",
@@ -87,6 +117,11 @@
    "capture": "tests\\fixtures\\vendor\\harness\\extrapolated-pivot-connector-rddt-1d-2026-09-28.json"
   },
   {
+   "file": "corpus/committed/fib-retracement__8XcLscnekw.pine",
+   "sha256": "48b1cdfed809a7d06737f52fc8682200233fa75ee441998fbb8ce044db37ebb6",
+   "capture": "tests\\fixtures\\vendor\\harness\\fib-retracement-extrafibs-rddt-1d-2026-10-02.json"
+  },
+  {
    "file": "corpus/committed/fibonacci-pivot-points-cc__p8DQ3RIR97.pine",
    "sha256": "e901bfe72a798163798ff304c9f792a9964fd9fcba3148f456248e8788716f21",
    "capture": "tests\\fixtures\\vendor\\harness\\fibonacci-pivot-points-cc-rddt-1d-2026-09-28.json"
@@ -122,9 +157,9 @@
    "capture": "tests\\fixtures\\vendor\\harness\\ict-killzones-pivots-tfo-rddt-1d-2026-09-28.json"
   },
   {
-   "file": "corpus/committed/inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat__832e485b9c.pine",
-   "sha256": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
-   "capture": "tests\\fixtures\\vendor\\harness\\inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28.json"
+   "file": "corpus/committed/implied-volatility-suite__CdN3hioOVl.pine",
+   "sha256": "2d4fcd7524b6b073991b1e70c54f9e2871a9b3d1e274661fdc0314c6b03e421f",
+   "capture": "tests\\fixtures\\vendor\\harness\\implied-volatility-suite-rddt-1d-2026-10-02.json"
   },
   {
    "file": "corpus/committed/institutional-smc-order-flow-matrix-pro__0b30cae0e6.pine",
@@ -135,6 +170,11 @@
    "file": "corpus/committed/k-clustering__8e82f5aa4b.pine",
    "sha256": "b6c7577c5998dc6f7844ccb11968b7c5c7d6b278ddb033f4bd812e7ef473088e",
    "capture": "tests\\fixtures\\vendor\\harness\\k-clustering-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/keltner-center-of-gravity-channel__e4a81d76f6.pine",
+   "sha256": "f3b2c178ef3a7099ca623a10baaf392e24ac7e0f00d4d206c791848e4c17dee2",
+   "capture": "tests\\fixtures\\vendor\\harness\\keltner-center-of-gravity-channel-rddt-1d-2026-09-30.json"
   },
   {
    "file": "corpus/committed/keltner-channels-bands__T5FsnX45Dn.pine",
@@ -167,6 +207,11 @@
    "capture": "tests\\fixtures\\vendor\\harness\\liquidity-pools-rddt-1d-2026-09-28.json"
   },
   {
+   "file": "corpus/committed/macd-shortlong-strategy-for-tradingview-input-optimizer__59bb295a99.pine",
+   "sha256": "bd5fb7b6870ca67060d77a47f70254c4f0ce52f0416b841745dea03ca8f73f00",
+   "capture": "tests\\fixtures\\vendor\\harness\\macd-shortlong-strategy-for-tradingview-input-optimizer-rddt-1d-2026-10-02.json"
+  },
+  {
    "file": "corpus/committed/madrid-moving-average-ribbon__1025.pine",
    "sha256": "c4ab9ee0c5b3cb46dc8eaefc7915af49a09e9e1607ae07d856b8ecd168968527",
    "capture": "tests\\fixtures\\vendor\\harness\\madrid-moving-average-ribbon-rddt-1d-2026-09-28.json"
@@ -197,9 +242,44 @@
    "capture": "tests\\fixtures\\vendor\\harness\\multi-timeframe-supply-demand-zones-rddt-1d-2026-09-28.json"
   },
   {
+   "file": "corpus/committed/multicator-table__486858895c.pine",
+   "sha256": "1d39ab50b74c2194ef276fadcdc1abef9ea4057f68bdeb4ec7349614533b2f18",
+   "capture": "tests\\fixtures\\vendor\\harness\\multicator-table-rddt-1d-2026-10-02.json"
+  },
+  {
+   "file": "corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine",
+   "sha256": "aca5bf3c04743738c8a95ce8cecce5bc34f6bec85e89a59e0de52e50f148b2fe",
+   "capture": "tests\\fixtures\\vendor\\harness\\opening-range-initial-balance-opening-price-rddt-1d-2026-10-02.json"
+  },
+  {
+   "file": "corpus/committed/optimized-keltner-channels-sltp-strategy-for-btc__48bc69cf84.pine",
+   "sha256": "2395e1caa875d21a825bfd49f48b7e4c12c3db28d005287ddbabbc5c2bd91fa2",
+   "capture": "tests\\fixtures\\vendor\\harness\\optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02.json"
+  },
+  {
    "file": "corpus/committed/options-max-pain-calculator-backquant__c904837c16.pine",
    "sha256": "3900bc6a857f368d54951cdd11f6bbf8998ceb4d4d7daa0d3a0185b3c9ed507f",
    "capture": "tests\\fixtures\\vendor\\harness\\options-max-pain-calculator-backquant-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/pa-zigzag-fibonacci-fan__2001.pine",
+   "sha256": "eac077d8667390748224f9d4f084d828cfc1455c8d451740b14cef22678bc04b",
+   "capture": "tests\\fixtures\\vendor\\harness\\pa-zigzag-fibonacci-fan-rddt-1d-2026-10-02.json"
+  },
+  {
+   "file": "corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine",
+   "sha256": "157699de27f04cd391d0def8bec9d1854fa3414c0477af4d8049d5133e70a223",
+   "capture": "tests\\fixtures\\vendor\\harness\\pivot-high-low-points-rddt-1d-2026-11-14.json"
+  },
+  {
+   "file": "corpus/committed/pivot-point-supertrend__HN4w1eNW3B.pine",
+   "sha256": "f823c5f340480d476ebaecb3afaf593018a8f2d4650f53c43ef4bcdd9fb1ddc6",
+   "capture": "tests\\fixtures\\vendor\\harness\\pivot-point-supertrend-rddt-1d-2026-09-27.json"
+  },
+  {
+   "file": "corpus/committed/pmax-explorer__jN9HBNhynF.pine",
+   "sha256": "4d19cd30686373aef6a3f501260b92f43a60fdb0bb255fe16f8bc1645d4c6a69",
+   "capture": "tests\\fixtures\\vendor\\harness\\pmax-explorer-rddt-1d-2026-10-02.json"
   },
   {
    "file": "corpus/committed/poor-man039s-volume-profile__ZnFTCYyvGJ.pine",
@@ -227,9 +307,24 @@
    "capture": "tests\\fixtures\\vendor\\harness\\pro-trading-art-double-top-bottom-with-alert-rddt-1d-2026-09-28.json"
   },
   {
+   "file": "corpus/committed/qqe-signals__EhBrwQPjZ1.pine",
+   "sha256": "4cc5374407052b75649054aa0ba2016a6e1542220713a01ad589ce65cb29769c",
+   "capture": "tests\\fixtures\\vendor\\harness\\qqe-signals-rddt-1d-2026-09-27.json"
+  },
+  {
+   "file": "corpus/committed/relative-volume__LnFmPEoFXQ.pine",
+   "sha256": "7e60ca18d4b065fa9ca5df9cb36c0899f95b37dd09cce3c8068a24008338f52c",
+   "capture": "tests\\fixtures\\vendor\\harness\\relative-volume-rddt-1d-2026-11-14.json"
+  },
+  {
    "file": "corpus/committed/reverse-stochastic-momentum-index-on-chart__lcAyAeNEsA.pine",
    "sha256": "fdb41f5145dca63c347276e0d802641648916824cc498e7497c4af1dfb172ccd",
    "capture": "tests\\fixtures\\vendor\\harness\\reverse-stochastic-momentum-index-on-chart-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/rsi-horizontal-resistance-levels__a3f8454f81.pine",
+   "sha256": "eabf8db5f2cd2f72b9266124f48a536e20be760b22a83639eb5d7a7dfb04791f",
+   "capture": "tests\\fixtures\\vendor\\harness\\rsi-horizontal-resistance-levels-rddt-1d-2026-10-02.json"
   },
   {
    "file": "corpus/committed/rsi-swing-indicator__CVZdVmg7ib.pine",
@@ -247,9 +342,64 @@
    "capture": "tests\\fixtures\\vendor\\harness\\sector-rotation-rddt-1d-2026-09-28.json"
   },
   {
+   "file": "corpus/committed/session-hilo__WM2g5GtC4h.pine",
+   "sha256": "40d6c9771dc9f638dc24bb4c723d48ba0c2d35af9423ef190313cc3f0549312b",
+   "capture": "tests\\fixtures\\vendor\\harness\\session-hilo-rddt-1d-2026-11-14.json"
+  },
+  {
+   "file": "corpus/committed/smart-money-interest-index-algoalpha__effdd7852c.pine",
+   "sha256": "571a7211764f620cb410daf75749a532fe84fdec5925bcf6994beec3905df250",
+   "capture": "tests\\fixtures\\vendor\\harness\\smart-money-interest-index-algoalpha-rddt-1d-2026-11-14.json"
+  },
+  {
+   "file": "corpus/committed/smart-money-volume-index-algoalpha__6663950b80.pine",
+   "sha256": "585e61e2d8c81156a4b716edba4415a5ae6d6b51d41aaf2a75aaff03673bcd83",
+   "capture": "tests\\fixtures\\vendor\\harness\\smart-money-volume-index-algoalpha-rddt-1d-2026-11-14.json"
+  },
+  {
    "file": "corpus/committed/smt-divergence-ict-01-tradingfinder-smart-money-technique__3f66e16b3c.pine",
    "sha256": "e19d3aeaf994f204b01f2b80f82ba3581472f7af6baf5e044e70bc86c10018c7",
    "capture": "tests\\fixtures\\vendor\\harness\\smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/sonarlab-order-blocks__0df0d45ee6.pine",
+   "sha256": "a9206097b4ef73a17a00cc49caba533209f337b5c3f30ff212835c36505b4fc5",
+   "capture": "tests\\fixtures\\vendor\\harness\\sonarlab-order-blocks-aapl-1d-2026-10-02.json"
+  },
+  {
+   "file": "corpus/committed/supertrend-strategy__rcRbtoBiKG.pine",
+   "sha256": "7e343cf8b46cb5aab4eb84ee28dcd76c1af2e2af8461dec02271b6a89133c00a",
+   "capture": "tests\\fixtures\\vendor\\harness\\supertrend-strategy-rddt-1d-2026-10-02.json"
+  },
+  {
+   "file": "corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine",
+   "sha256": "3d6a2d8e4e9c3d187b0217cc77fde75218d8aa706e544a87ff20b517fd004c6d",
+   "capture": "tests\\fixtures\\vendor\\harness\\support-and-resistance-multi-time-frame-rddt-1d-2026-10-02.json"
+  },
+  {
+   "file": "corpus/committed/support-and-resistance__1505.pine",
+   "sha256": "5f95e90f1714bc164b2982b9ce1eb447218c8b830dbcb5e0374ec3f4d0416a84",
+   "capture": "tests\\fixtures\\vendor\\harness\\support-and-resistance-5f95e90f-rddt-1d-2026-11-13.json"
+  },
+  {
+   "file": "corpus/committed/support-and-resistance__UgNPprOr8h.pine",
+   "sha256": "978b8a87e6c733509cf28754fd68eedf52c3394eff2e730b603277a76281d1ec",
+   "capture": "tests\\fixtures\\vendor\\harness\\support-and-resistance-rddt-1d-2026-10-02.json"
+  },
+  {
+   "file": "corpus/committed/swing-highlow-zigzag-chartprime__c53f5bc4e2.pine",
+   "sha256": "c8cda9379b7ff3fe413146ece400b0c3bff109490f67ccaa1b779236c33cd363",
+   "capture": "tests\\fixtures\\vendor\\harness\\swing-highlow-zigzag-chartprime-rddt-1d-2026-10-02.json"
+  },
+  {
+   "file": "corpus/committed/tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto__EqnpYOP7hy.pine",
+   "sha256": "555d1419e61005199bb2d5181a5f56fdff6ac37759b0f6420f7171c84eee4fe2",
+   "capture": "tests\\fixtures\\vendor\\harness\\tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02.json"
+  },
+  {
+   "file": "corpus/committed/tradingview-alerts-to-mt4-mt5-strategy-example__LclqojYSOA.pine",
+   "sha256": "11c64ced01d4a7b2503502094ed78c1e702d34ad32bc991baf4221f9a1a21c99",
+   "capture": "tests\\fixtures\\vendor\\harness\\tradingview-alerts-to-mt4-mt5-strategy-example-rddt-1d-2026-10-02.json"
   },
   {
    "file": "corpus/committed/trend-duration-forecast-chartprime__2c5c233f31.pine",
@@ -262,6 +412,16 @@
    "capture": "tests\\fixtures\\vendor\\harness\\trend-lines-supports-and-resistances-rddt-1d-2026-09-28.json"
   },
   {
+   "file": "corpus/committed/trendlines__43QQg9nDN0.pine",
+   "sha256": "286fe4d52b232727d70419a43494d9d0141908790ded73f6ca7247da35d78a3b",
+   "capture": "tests\\fixtures\\vendor\\harness\\trendlines-rddt-1d-2026-09-27.json"
+  },
+  {
+   "file": "corpus/committed/twin-range-filter__xF3L2PeXm7.pine",
+   "sha256": "66414b9d934f0c4171cdf20bcb960f11104cd51c7b2a7cbb583a8a6b16da7063",
+   "capture": "tests\\fixtures\\vendor\\harness\\twin-range-filter-rddt-1d-2026-10-02.json"
+  },
+  {
    "file": "corpus/committed/ultimate-pivot-points__vRWbsbkQGe.pine",
    "sha256": "b010cfc4a8e01a0d421915fa087d58ca8557ecf0dc408442d112671fb7f5e873",
    "capture": "tests\\fixtures\\vendor\\harness\\ultimate-pivot-points-rddt-1d-2026-09-28.json"
@@ -270,6 +430,11 @@
    "file": "corpus/committed/vdubus-pattern-gen-v2-restored-refined__66dc68412e.pine",
    "sha256": "821103a7605b915c3866c18e8b912bafd3bce39a35be7583b292bb78613dd343",
    "capture": "tests\\fixtures\\vendor\\harness\\vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28.json"
+  },
+  {
+   "file": "corpus/committed/visualizing-displacement-tfo__5b861441c2.pine",
+   "sha256": "3e21f7f6b7e7cb99139449d93a259127dcf6fc10b1f6ee52fab4a024f6919737",
+   "capture": "tests\\fixtures\\vendor\\harness\\visualizing-displacement-tfo-rddt-1d-2026-11-14.json"
   },
   {
    "file": "corpus/committed/vold-market-breadth__9c5cde9557.pine",
@@ -284,28 +449,28 @@
   {
    "file": "corpus/committed/zero-lag-ma-trend-levels-chartprime__0ded7d1e36.pine",
    "sha256": "11fe3b96e098f7bc83c159ba37a55109981deb02255332ee2aa318eeb923b26d",
-   "capture": "tests\\fixtures\\vendor\\harness\\zero-lag-ma-trend-levels-rddt-1d-2026-09-27.json"
+   "capture": "tests\\fixtures\\vendor\\harness\\zero-lag-ma-trend-levels-chartprime-spy-1d-2026-10-03.json"
   }
  ],
  "scripts": [
   {
-   "slug": "cdc-btc-rainbow-road",
-   "path": "corpus/committed/cdc-btc-rainbow-road__d880789793.pine",
-   "sha256": "2e7c78101de9578793a70b7bd599d8f5db218c575ccb70bf4c9d6a18e80a8d06",
-   "bytes": 2288,
-   "plots": 12,
+   "slug": "highlow-channel-swing",
+   "path": "corpus/committed/highlow-channel-swing__e3692e253c.pine",
+   "sha256": "06db2c976cef82125097ba3dc9736409750e6625e9cbce3c9631afdd42a29cc0",
+   "bytes": 2716,
+   "plots": 2,
    "drawsObjects": false,
-   "largestWindow": 730
+   "largestWindow": 12
   },
   {
-   "slug": "swing-highlow-zigzag-chartprime",
-   "path": "corpus/committed/swing-highlow-zigzag-chartprime__c53f5bc4e2.pine",
-   "sha256": "c8cda9379b7ff3fe413146ece400b0c3bff109490f67ccaa1b779236c33cd363",
-   "bytes": 6457,
-   "plots": 1,
-   "drawsObjects": true,
-   "largestWindow": 0
+   "slug": "supertrend-explorer",
+   "path": "corpus/committed/supertrend-explorer__V4MsmtCeKs.pine",
+   "sha256": "60da22900b14fe6bdfe90264ca159890e7c3fa16b69d401bd85bcb0608441ffd",
+   "bytes": 16437,
+   "plots": 8,
+   "drawsObjects": false,
+   "largestWindow": 513
   }
  ],
- "generatedAt": "2026-09-28T22:56:37+00:00"
+ "generatedAt": "2026-11-16T11:41:15+00:00"
 }

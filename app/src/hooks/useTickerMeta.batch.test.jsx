@@ -4,8 +4,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { waitFor } from '@testing-library/react'
 import { prefetchTickerMeta, _resetTickerMetaQueue } from './useTickerMeta'
 
-const META = { AAA: { name: 'Aaa Inc', sector: 'Tech', industry: 'Chips', theme: 'AI', exchange: 'NASDAQ' },
-  BBB: { name: 'Bbb Inc', sector: 'Energy', industry: 'Oil', theme: null, exchange: 'NYSE' } }
+// `security_type` carried through the batch too (RS Rating L3): one name with it, one without.
+const META = { AAA: { name: 'Aaa Inc', sector: 'Tech', industry: 'Chips', theme: 'AI', exchange: 'NASDAQ', security_type: 'Stock' },
+  BBB: { name: 'Bbb Inc', sector: 'Energy', industry: 'Oil', theme: null, exchange: 'NYSE', security_type: null } }
 let origFetch
 beforeEach(() => {
   origFetch = global.fetch

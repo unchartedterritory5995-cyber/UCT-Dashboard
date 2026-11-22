@@ -79,6 +79,7 @@ describe('symbolScope.json in the bundle — the data the runtime reads, and no 
     const snapshot = ({ bind, pine }) => ({
       tick: bind.SYMBOL_TICK_SIZE,
       confirmed: bind.SYMBOL_EXCHANGE_CONFIRMED,
+      classification: bind.SYMBOL_CLASSIFICATION,
       unserved: pine.BUILTIN_SYMBOL_UNSERVED,
       screen: pine.BUILTIN_SYMBOL_SCREEN_UNSERVED,
       pending: Object.fromEntries(Object.keys(FULL.pending_measurement || {})

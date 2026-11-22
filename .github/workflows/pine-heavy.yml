@@ -1,0 +1,675 @@
+# promotion-gate: no — ADVISORY, PR-only verification. It never runs on a master push and never decides promotion.
+# ─── THE HEAVY PINE VERIFICATION, IN PARALLEL ON GITHUB RUNNERS ──────────────────
+#
+# ⚰️ WHY (2026-11-15). The licence-free Pine verification (the engine and builder vitest roots, the
+# vendor harness over the committed captures in both lanes, the Python twins) ran on the one dev PC,
+# under the one heavy lock (uct-clips/tools/heavy_lock.py), one job at a time: every session's heavy
+# run queued behind every other's, for hours. None of it needs that machine. Here it runs as parallel
+# legs on standard runners (free since the repo went public, 2026-11-08), --maxWorkers=2 each on a
+# 4-vCPU runner, every leg under 30 minutes.
+#
+# ⛔⛔ COMMITTED FIXTURES ONLY. Licence-held material (docs/pine/LICENSING.md; the out-of-git capture
+# store tools/vendor_harness/licence_held.py reads) is NOT in CI and is never fetched. Two independent
+# guards: every store variable is pinned below to a directory the setup action creates EMPTY and
+# refuses if non-empty; and every test command runs under tools/ci_offline.sh, a network namespace
+# with loopback only, which proves on each job that egress is refused before any test runs. A rail
+# that needs a licence-held file therefore skips by name, exactly as on a machine without the store.
+#
+# ⛔ COVERAGE IS A RAIL, NOT A PROMISE. The legs split the roots by folder; the `union` job fails
+# unless the files the legs ran equal `vitest list` over the roots, each exactly once
+# (tools/ci_vitest_union.py). A folder added under engine/ and named by no leg is red there.
+#
+# ⚰️ DERIVED FILES AND COVERAGE (2026-11-16). The docs-only #1435 changed coverage-map.json, from which
+# docs/pine/vendor-harness/capture-queue.json is DERIVED; `evidence_engine.py queue --check` went red on
+# master and nothing noticed, because no job ran it and this workflow did not trigger on docs/pine/**.
+# So `derived-evidence` runs `queue --check` and `pins --check`, and the paths they read trigger it.
+# ⚰️ SAME DAY, THE OTHER HALF: the queue snapshot was COMMITTED, so every PR that touched a queue input
+# rewrote it, and it was the conflicting file in 5 of the 5 open Pine PRs GitHub could not merge (each one a
+# merge of master, a regenerate commit and a full re-run of this workflow). It is derived on demand now and
+# git ignores it; `queue --check` proves the docs derive a queue and fails if a snapshot is committed again.
+# And a script that transferred could stop transferring with every check green (the census ran on the
+# dev PC only): `coverage-ratchet` runs the member-door census over corpus/committed, one leg per lane,
+# and fails when a script in docs/pine/coverage-ratchet.json stops transferring
+# (tools/pine_coverage/coverage_ratchet.py; how to update the snapshot: docs/pine/COVERAGE-MAP.md).
+#
+# ⚰️ WHAT A RUN COSTS (measured 2026-11-16, 20:06-23:06Z, the 40-job account cap saturated throughout):
+# this workflow was 50% of all runner minutes (47 runs, ~100 runner-minutes each), and 20% of every job was
+# `actions/checkout` fetching the FULL history (1.35 GB of git data, ~62 s against ~28 s at depth 1) for a
+# need only two test helpers have. So only the legs that run those helpers fetch history (`history: full`;
+# tests/test_ci_pine_heavy.py derives which files read history and fails if a leg that runs one is shallow).
+# And a dispatch that only wants the mutant job can skip the legs its PR already ran (`skip_legs`).
+#
+# ⚰️ WHOLE-APP RAILS (2026-11-17). Some engine tests read files OUTSIDE the engine (memberPaneGate walks the
+# import graph from src/main.jsx; suiteCoverage lists the test folders under components/chart). Only this
+# workflow ran them and it does not trigger on app/src/**, so #1662 and #1670 merged green while breaking them.
+# They now also run on every PR touching what they read, in `whole-app engine rails` (whole-app-engine-rails.yml). Its list is
+# derived HERE: every engine leg records which files each test file reads (UCT_READ_CAPTURE_DIR,
+# app/src/test-read-capture.cjs), and `union` fails when a test reading outside this trigger's paths is missing
+# from tools/whole_app_engine_rails.txt (tools/ci_whole_app_rails.py).
+#
+# No secrets, no pull_request_target, read-only token. tests/test_ci_pine_heavy.py rails this file.
+name: pine heavy (PR, parallel)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/pine-heavy.yml'
+      - '.github/actions/pine-heavy-setup/**'
+      - 'app/src/components/chart/engine/**'
+      - 'api/services/ast_*.py'
+      - 'services/pine_runtime/**'
+      - 'tests/fixtures/vendor/**'
+      - 'tools/vendor_harness/**'
+      - 'tests/test_ast_*.py'
+      - 'tests/test_pine_*.py'
+      - 'tests/test_c45_withheld_doors.py'
+      - 'tests/test_ci_pine_heavy.py'
+      - 'tools/ci_offline.sh'
+      - 'tools/ci_vitest_union.py'
+      - 'tools/ci_mutant_runner.py'
+      # what `derived-evidence` (evidence_engine.py queue / pins) and `coverage-ratchet` read;
+      # tests/test_ci_pine_heavy.py derives the list from the tools' own path constants
+      - 'docs/pine/capture-queue-*.md'
+      - 'docs/pine/coverage-map.json'
+      - 'docs/pine/coverage-ratchet.json'
+      - 'docs/pine/vendor-harness/**'
+      - 'docs/pine/probes/**'
+      - 'tools/visual_conformance/probes/**'
+      - 'tools/pine_coverage/**'
+      - 'tools/pine_survey/corpus_licence.py'
+      - 'corpus/**'
+      - 'api/services/pine_capabilities.py'
+      # ⭐ (2026-11-20) the census legs (pine-consumers-N): every other test file importing the Pine engine. What they
+      # import triggers them: the engine (ast_* above, pine_*, the Pine routers, services/pine_runtime above), the scan,
+      # alert and definition families, and each module that imports the engine itself and a census file imports.
+      # tests/test_ci_pine_heavy.py DERIVES that set from the census files' imports and fails on a module it misses.
+      - 'api/services/pine_*.py'
+      - 'api/routers/*pine*.py'
+      - 'api/services/scan_*.py'
+      - 'api/services/screener/scan_*.py'
+      - 'api/services/alert_*.py'
+      - 'api/services/user_definition*.py'
+      - 'api/routers/user_definitions.py'
+      - 'api/routers/screener_backtest.py'
+      - 'api/services/concept_vocabulary.py'
+      - 'api/services/definition_*.py'
+      - 'api/services/indicator_compute.py'
+      - 'api/services/running_values.py'
+      - 'api/services/runtime_*.py'
+      - 'api/services/screener/backtest.py'
+      - 'api/services/script_conversation.py'
+      - 'api/services/setup_history_calc.py'
+      - 'api/services/starter_library.py'
+      - 'api/routers/bars.py'
+      - 'tools/pine_test_census.py'
+      - 'app/src/components/chart/builder/memberPane/**'
+      # ⭐ (2026-11-17) the Pine fixtures, tools outputs and docs the engine tests READ, measured by the read
+      # capture over every engine test file: a PR changing one of these now runs the tests that read it.
+      # `union` fails when an engine test reads a path neither this list nor whole-app-engine-rails.yml covers.
+      - 'tests/fixtures/ast/**'
+      - 'tests/fixtures/alerts/**'
+      - 'tests/fixtures/member/**'
+      - 'tests/fixtures/pine*/**'
+      - 'tests/fixtures/pine_*.json'
+      - 'tests/fixtures/thinkscript*/**'
+      - 'tests/fixtures/vendor-supply/**'
+      - 'tests/fixtures/indicators/**'
+      - 'tests/fixtures/oos2_parity/**'
+      - 'tests/fixtures/xmap/**'
+      - 'tests/fixtures/p0_pineack/**'
+      - 'tests/fixtures/p2x/**'
+      - 'tests/fixtures/c3b_live/**'
+      - 'tests/fixtures/door_stamps/**'
+      - 'tests/fixtures/door_stamp_cases.json'
+      - 'tests/fixtures/runtime_documents/**'
+      - 'tests/fixtures/runtime_repaint/**'
+      - 'tests/fixtures/runtime_objects_schema.json'
+      - 'tests/fixtures/enum_input_parity.json'
+      - 'tests/fixtures/line_width_cap.json'
+      - 'tests/fixtures/saved_document_upgrade_cases.json'
+      - 'tests/fixtures/stale_handle_cases.json'
+      - 'tools/c0_*_fixtures/**'
+      - 'tools/bind_fold_parity.json'
+      - 'tools/clock_parity.json'
+      - 'tools/conformance_log.json'
+      - 'tools/corpus_metric.json'
+      - 'tools/lookback_agreement.json'
+      - 'tools/multi_tree_parity.json'
+      - 'tools/scalars.json'
+      - 'tools/pine_runtime_host_parity.mjs'
+      - 'docs/pine/evidence/**'
+      - 'docs/pine/rs-rating/**'
+      - 'docs/pine/param-ids.json'
+      - 'docs/pine/pine-*.md'
+      - 'docs/pine/target-scripts.json'
+      - 'docs/formulas/GRAMMAR.md'
+      - 'api/data/pine_runtime_*.json'
+      # HISTORY_WINDOW_BARS, the Pine history window: the strategy lane and the corpus harness read it
+      - 'api/services/bars_window.py'
+      # the read capture and the whole-app list it keeps honest (`union` runs the check)
+      - 'app/src/test-read-capture*'
+      - 'tools/ci_whole_app_rails.py'
+      - 'tools/whole_app_engine_rails.txt'
+      - '.github/workflows/whole-app-engine-rails.yml'
+      - 'tests/test_ci_whole_app_rails.py'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch, tag or SHA to verify (empty = the ref this was dispatched on)'
+        required: false
+        default: ''
+      mutants_manifest:
+        description: 'Repo path (in that ref) of a uct.ci-mutants/v1 manifest; empty = no mutant job (tools/ci_mutant_runner.py)'
+        required: false
+        default: ''
+      skip_legs:
+        description: 'true = run ONLY the mutant job (needs mutants_manifest). For when a PR run already ran the legs on this commit: a dispatch that repeats them costs ~100 runner-minutes'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || format('{0}-{1}', github.sha, inputs.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # ⛔ the out-of-git stores, pinned to directories the setup action creates EMPTY (and refuses if not)
+  UCT_VENDOR_CAPTURE_STORE: /tmp/pine-heavy-empty-store/captures
+  UCT_HARNESS_SUPPLY_STORE: /tmp/pine-heavy-empty-store/supply
+  # the CI tooling (this file's own commit), checked out beside the ref under test
+  CI_TOOLS: .pine-heavy-ci
+  # the vitest roots the legs partition; the union rail lists exactly these
+  VITEST_ROOTS: src/components/chart/engine/ src/components/chart/builder/
+  NODE_OPTIONS: --max-old-space-size=6144
+
+jobs:
+  # ── 1 + 2a. vitest, sharded by folder (and the vendor harness, production lane) ─────────────
+  vitest:
+    name: vitest ${{ matrix.leg }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { leg: engine-ast-1,          filter: 'src/components/chart/engine/ast/',        shard: '1/2' }
+          - { leg: engine-ast-2,          filter: 'src/components/chart/engine/ast/',        shard: '2/2' }
+          - { leg: engine-runtime,        filter: 'src/components/chart/engine/runtime/',    shard: '1/1' }
+          # `history: full` = this leg runs a file that reads an OLDER commit (`git show <sha>:...StockChart.jsx`:
+          # legendProbe.js and enumerationSites.test.js, which THROW BY NAME when git cannot answer). Every other
+          # leg checks out depth 1. The rail that keeps this honest: tests/test_ci_pine_heavy.py.
+          - { leg: engine-tests-1,        filter: 'src/components/chart/engine/__tests__/',  shard: '1/2', exclude: 'src/components/chart/engine/__tests__/vendorHarness/**', history: full }
+          - { leg: engine-tests-2,        filter: 'src/components/chart/engine/__tests__/',  shard: '2/2', exclude: 'src/components/chart/engine/__tests__/vendorHarness/**', history: full }
+          - { leg: engine-top-and-truth,  filter: '@top',                                    shard: '1/1', history: full }
+          - { leg: builder-1,             filter: 'src/components/chart/builder/',           shard: '1/2' }
+          - { leg: builder-2,             filter: 'src/components/chart/builder/',           shard: '2/2' }
+          # the vendor harness folder, PRODUCTION lane, over tests/fixtures/vendor (VENDOR_HARNESS_DIR unset)
+          - { leg: harness-production-1,  filter: 'src/components/chart/engine/__tests__/vendorHarness/', shard: '1/2', lane: '0', out: production }
+          - { leg: harness-production-2,  filter: 'src/components/chart/engine/__tests__/vendorHarness/', shard: '2/2', lane: '0', out: production }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # full history ONLY for the legs marked `history: full` (readout / legendFromDefinitions /
+          # enumerationSites read StockChart.jsx at an older commit with `git show <sha>:...`, which a
+          # depth-1 checkout cannot answer); depth 1 for the rest (~62 s -> ~28 s of checkout per job).
+          # ⛔ WRITTEN AS `!= 'full' && 1 || 0`, NEVER `== 'full' && 0 || 1`: an expression's `&&`/`||` is not
+          # a ternary, 0 is falsy, so that second form is 1 for EVERY leg (run 43987501549: the three
+          # history legs checked out at depth 1 and their readers threw by name).
+          fetch-depth: ${{ matrix.history != 'full' && 1 || 0 }}
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - name: vitest ${{ matrix.leg }} (offline)
+        working-directory: app
+        env:
+          LEG: ${{ matrix.leg }}
+          LEG_FILTER: ${{ matrix.filter }}
+          LEG_SHARD: ${{ matrix.shard }}
+          LEG_EXCLUDE: ${{ matrix.exclude }}
+          VENDOR_HARNESS_RUNTIME_ON: ${{ matrix.lane }}
+          VENDOR_HARNESS_OUT: ${{ matrix.out && format('../harness-out/{0}', matrix.out) || '' }}
+          # which files each test file reads, for the whole-app list (`union`; header above)
+          UCT_READ_CAPTURE_DIR: ${{ github.workspace }}/read-capture/${{ matrix.leg }}
+        run: |
+          set -euo pipefail
+          if [ "$LEG_FILTER" = "@top" ]; then
+            # the engine's own top-level files (no subfolder) and __truth__/
+            args="$(find src/components/chart/engine -maxdepth 1 -type f -name '*.test.*' | sort | tr '\n' ' ') src/components/chart/engine/__truth__/"
+          else
+            args="$LEG_FILTER"
+          fi
+          excl=()
+          if [ -n "$LEG_EXCLUDE" ]; then excl=(--exclude "$LEG_EXCLUDE"); fi
+          mkdir -p ../reports
+          start=$(date +%s); rc=0
+          # shellcheck disable=SC2086
+          bash "../$CI_TOOLS/tools/ci_offline.sh" npx vitest run $args "${excl[@]}" --shard="$LEG_SHARD" --maxWorkers=2 \
+            --reporter=default --reporter=json --outputFile="../reports/$LEG.json" || rc=$?
+          echo "LEG $LEG wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-vitest-${{ matrix.leg }}
+          path: reports/${{ matrix.leg }}.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-reads-${{ matrix.leg }}
+          path: read-capture/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.out
+        with:
+          name: pine-heavy-harness-${{ matrix.leg }}
+          path: harness-out/
+          if-no-files-found: ignore    # only the shard holding the corpus test writes; `union` requires one
+
+  # ── 2b. the vendor harness, RUNTIME-ON lane ──────────────────────────────────────────────────
+  # The lane switch changes only the files that read it (HARNESS_RUNTIME_ENV from
+  # tools/pine_coverage/runtime_lane.mjs); every other harness file is lane-blind and already ran in
+  # the production legs. So this lane runs exactly the files that read the switch, derived here by
+  # name, never listed; the corpus test must be among them.
+  harness-runtime-on:
+    name: vendor harness, runtime-on lane
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # depth 1: nothing this job runs reads an older commit (the legs that do are `history: full`)
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - name: vitest, the lane-reading files, VENDOR_HARNESS_RUNTIME_ON=1 (offline)
+        working-directory: app
+        env:
+          VENDOR_HARNESS_RUNTIME_ON: '1'
+          VENDOR_HARNESS_OUT: ../harness-out/runtime-on
+          UCT_READ_CAPTURE_DIR: ${{ github.workspace }}/read-capture/harness-runtime-on
+        run: |
+          set -euo pipefail
+          files="$(grep -rl --include='*.test.*' 'HARNESS_RUNTIME_ENV' src/components/chart/engine | sort)"
+          echo "$files"
+          echo "$files" | grep -q 'vendorHarness/vendorHarness.corpus.test.js' || { echo "::error::the corpus test no longer reads the lane switch by name"; exit 1; }
+          mkdir -p ../reports
+          start=$(date +%s); rc=0
+          # shellcheck disable=SC2086
+          bash "../$CI_TOOLS/tools/ci_offline.sh" npx vitest run $files --maxWorkers=2 \
+            --reporter=default --reporter=json --outputFile=../reports/harness-runtime-on.json || rc=$?
+          echo "LEG harness-runtime-on wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-harness-runtime-on
+          path: harness-out/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-reads-harness-runtime-on
+          path: read-capture/
+          if-no-files-found: error
+
+  # ── 3. the Pine Python twins (the section-8 list is a subset; tests/test_ci_pine_heavy.py proves it)
+  pytest:
+    name: pytest ${{ matrix.leg }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { leg: ast-twins,  tests: 'tests/test_ast_*.py' }
+          # tests/test_w9_probes.py: the W9 queue doc's rows <-> the generated strategy probes (2026-11-17, #1554:
+          # W9-NB1 reached master red because no leg ran it)
+          # tests/test_c45_withheld_doors.py: the C45 doors ask ast_interpret's own whole-series decision (2026-11-20:
+          # red since engine 78 #1888 and engine 90 #2194 with every check green, because no leg ran it)
+          - { leg: pine-twins, tests: 'tests/test_pine_*.py tests/test_w9_probes.py tests/test_c45_withheld_doors.py' }
+          # ⭐ (2026-11-20) THE CENSUS LEGS: every OTHER tests/test_*.py that imports the Pine engine, 99 files of which
+          # 67 ran in no lane at all (five were red on master for days). tools/pine_test_census.py DERIVES the list from
+          # the files' own imports, minus what a `tests:` leg above names, and splits it by recorded time: a new file
+          # joins a leg the day it lands. tests/test_ci_pine_heavy.py fails when a Pine-importing file is in no leg.
+          - { leg: pine-consumers-1, census: '1/2' }
+          - { leg: pine-consumers-2, census: '2/2' }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # depth 1: nothing this job runs reads an older commit (the legs that do are `history: full`)
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: The production dependency set + pytest
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
+      - name: The Pine runtime server bundle (the section-8 rails import it)
+        working-directory: app
+        run: node scripts/build-pine-runtime.mjs
+      - name: pytest ${{ matrix.tests || format('the Pine census, shard {0}', matrix.census) }} (offline)
+        env:
+          TESTS: ${{ matrix.tests }}
+          CENSUS: ${{ matrix.census }}
+        run: |
+          set -euo pipefail
+          start=$(date +%s); rc=0
+          # a census leg's files are DERIVED from the ref under test (the CI tooling's copy of the tool, so a ref cut
+          # before the tool still runs); an empty census or shard exits 2 and fails the leg
+          if [ -n "$CENSUS" ]; then
+            TESTS="$(python "$CI_TOOLS/tools/pine_test_census.py" --root . --shard "$CENSUS")"
+            echo "census shard $CENSUS: $(echo $TESTS | wc -w) files" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          # --continue-on-collection-errors: one file that fails to IMPORT is reported and the leg still fails, but it no
+          # longer stops every other file in the leg (2026-11-20: a collection error in census shard 1 ran 0 of its 49)
+          # shellcheck disable=SC2086
+          bash "$CI_TOOLS/tools/ci_offline.sh" python -m pytest $TESTS -q -p no:cacheprovider -rfE --continue-on-collection-errors || rc=$?
+          echo "LEG pytest-${{ matrix.leg }} wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc
+
+  # ── the legs together ran every file, once; both harness lanes wrote their verdicts ─────────
+  union:
+    name: legs cover every engine + builder test file once (equivalence rail)
+    needs: [vitest, harness-runtime-on]
+    if: ${{ always() && !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # depth 1: nothing this job runs reads an older commit (the legs that do are `history: full`)
+          fetch-depth: 1
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pine-heavy-vitest-*
+          path: shards
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pine-heavy-harness-*
+          path: harness
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pine-heavy-reads-*
+          path: captures
+      - name: Expected file list
+        working-directory: app
+        run: npx vitest list $VITEST_ROOTS --filesOnly > ../expected-files.txt && wc -l ../expected-files.txt
+      - name: Union of executed files equals the expected list, each exactly once
+        run: |
+          python3 "$CI_TOOLS/tools/ci_vitest_union.py" --expected expected-files.txt --reports shards --root app \
+            --floor 1000 \
+            --must-include src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js \
+                           src/components/chart/engine/defSchema.test.js
+      # ⛔ the whole-app list (tools/whole_app_engine_rails.txt) is exactly the engine tests that read outside this
+      # workflow's trigger paths, and every such read triggers `whole-app engine rails`. The two controls are the
+      # rails whose miss started this (#1662, #1670): a capture that sees no reads cannot pass.
+      - name: The whole-app engine rails list is what the legs read (tools/ci_whole_app_rails.py)
+        run: |
+          python3 "$CI_TOOLS/tools/ci_whole_app_rails.py" --check --repo . --captures captures             --expected expected-files.txt --root app --report whole-app-out/reads.json             --must-include app/src/components/chart/engine/__tests__/memberPaneGate.test.js                            app/src/components/chart/engine/__tests__/suiteCoverage.test.js
+      - name: Both harness lanes wrote verdicts, each the lane it was asked for
+        run: |
+          python3 - <<'EOF'
+          import json, pathlib, sys
+          bad = []
+          for lane in ("production", "runtime-on"):
+              p = pathlib.Path("harness") / lane / "verdicts.json"
+              if not p.is_file():
+                  bad.append(f"{lane}: no verdicts.json"); continue
+              doc = json.loads(p.read_text(encoding="utf-8"))
+              if doc.get("lane") != lane:
+                  bad.append(f"{lane}: verdicts.json says lane {doc.get('lane')!r}")
+              n = len(doc.get("results") or [])
+              counts = {}
+              for r in doc.get("results") or []:
+                  counts[r.get("verdict")] = counts.get(r.get("verdict"), 0) + 1
+              print(f"{lane}: {n} graded, {len(doc.get('inventory') or [])} not comparable, verdicts {counts}")
+              if n == 0:
+                  bad.append(f"{lane}: graded nothing")
+          for b in bad:
+              print(f"::error::{b}")
+          sys.exit(1 if bad else 0)
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-verdicts
+          path: harness/
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-whole-app-reads
+          path: whole-app-out/
+          if-no-files-found: warn
+
+  # ── the rails that hold this file (cheap; they run whenever it changes) ─────────────────────
+  rails:
+    name: CI rails (cost, this workflow, the gate's Pine list)
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # depth 1: nothing this job runs reads an older commit (the legs that do are `history: full`)
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: The production dependency set + pytest
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
+      - name: pytest the CI rails
+        run: python -m pytest tests/test_ci_cost_rails.py tests/test_ci_pine_heavy.py tests/test_run_gate_pine_rails.py tests/test_ci_whole_app_rails.py -q -p no:cacheprovider
+
+  # ── the derived evidence is what its tool derives (capture queue, broker pins) ───────────────
+  # Both checks always run; the job fails when either does (each exit is kept, neither swallowed).
+  derived-evidence:
+    name: derived evidence is current (capture queue, broker pins)
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - name: evidence_engine.py queue --check and pins --check (offline)
+        env:
+          # ⭐ (2026-11-21) the PR's base: `queue --check --against` also fails when a row that asked for a capture
+          # there derives nothing here while still in the docs (a split table dropped 3 targets with this check green)
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          q=0; p=0; against=""
+          if [ -n "${BASE_SHA:-}" ]; then
+            if git fetch --no-tags --depth=1 origin "$BASE_SHA"; then against="--against $BASE_SHA"
+            else echo "::error::could not fetch the PR base $BASE_SHA that queue --check --against compares with"; q=1; fi
+          fi
+          if [ "$q" -eq 0 ]; then
+            bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py queue --check $against || q=$?
+          fi
+          bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/vendor_harness/evidence_engine.py pins --check || p=$?
+          echo "derived evidence: queue --check exit $q, pins --check exit $p" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$q" -ne 0 ]; then echo "::error::the capture queue does not derive from the docs, a row that asked for a capture at the PR's base derives nothing now (LOST lines above), or docs/pine/vendor-harness/capture-queue.json is committed again (a local view since 2026-11-16: 'git rm --cached' it, never commit it). The log above says which; run 'python tools/vendor_harness/evidence_engine.py queue --check --against origin/master'"; fi
+          if [ "$p" -ne 0 ]; then echo "::error::brokerPins.resolved.json is not the resolution of its sources: run 'python tools/vendor_harness/evidence_engine.py pins' and commit the file in this PR"; fi
+          [ "$q" -eq 0 ] && [ "$p" -eq 0 ]
+
+  # ── the coverage ratchet over the COMMITTED corpus, one leg per lane ─────────────────────────
+  # The member-door census (coverageMapDoorCensus.measure.test.js through run_census.drive, cap 1) over
+  # corpus/committed only, compared with docs/pine/coverage-ratchet.json. FAILS when a script there stops
+  # transferring; REPORTS newly transferring ones with the command that adds them. Its vitest run is a
+  # measurement, not a leg of the partition: its report is never uploaded as pine-heavy-vitest-*, so the
+  # union rail still sees each file once (from the engine-ast legs).
+  coverage-ratchet:
+    name: coverage ratchet, ${{ matrix.lane }} lane
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_legs) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [production, runtime-on]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - name: census over corpus/committed, compared with docs/pine/coverage-ratchet.json (offline)
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          set -euo pipefail
+          out="ratchet-out/$LANE"
+          start=$(date +%s); rc=0
+          bash "$CI_TOOLS/tools/ci_offline.sh" python3 tools/pine_coverage/coverage_ratchet.py --lane "$LANE" --out "$out" --summary "$GITHUB_STEP_SUMMARY" || rc=$?
+          echo "LEG coverage-ratchet-$LANE wall: $(( $(date +%s) - start )) s (exit $rc)" | tee -a "$GITHUB_STEP_SUMMARY"
+          # ⛔ the tool's exit is not taken on trust: an exit 0 must come with a result that measured
+          # every committed script (a wrapper or a refactor that exits 0 without measuring is red here)
+          python3 - "$out/ratchet-result.json" "$rc" <<'EOF'
+          import json, sys
+          path, rc = sys.argv[1], int(sys.argv[2])
+          try:
+              r = json.load(open(path, encoding="utf-8"))
+          except (OSError, ValueError) as e:
+              print(f"::error::no readable ratchet result at {path} ({e}): the ratchet never reached a verdict")
+              sys.exit(1)
+          whole = r.get("verdict") == "PASS" and (r.get("expected") or 0) > 0 and r.get("measured") == r.get("expected")
+          if rc == 0 and not whole:
+              print(f"::error::the ratchet exited 0 but its result says {r.get('verdict')} after measuring "
+                    f"{r.get('measured')} of {r.get('expected')} committed scripts")
+              sys.exit(1)
+          EOF
+          exit $rc
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          # the rows a builder downloads to update the snapshot (the command is in the step summary)
+          name: pine-coverage-ratchet-${{ matrix.lane }}
+          path: ratchet-out/${{ matrix.lane }}/
+          if-no-files-found: error
+
+  # ── 4. mutants, only when asked (workflow_dispatch with a manifest) ─────────────────────────
+  mutants:
+    name: mutants (${{ inputs.mutants_manifest }})
+    if: github.event_name == 'workflow_dispatch' && inputs.mutants_manifest != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # full history: a manifest may name ANY rail, including the ones that read StockChart.jsx
+          # at an older commit with `git show <sha>:...`, which a depth-1 checkout cannot answer
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          path: ${{ env.CI_TOOLS }}
+          sparse-checkout: |
+            .github/actions
+            tools
+      - uses: ./.pine-heavy-ci/.github/actions/pine-heavy-setup
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: The production dependency set + pytest
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet --upgrade pip
+          python -m pip install --quiet -r requirements.txt pytest httpx pyyaml
+      - name: Every mutant turns its rail red, and every file comes back byte-equal (offline)
+        env:
+          MANIFEST: ${{ inputs.mutants_manifest }}
+        run: bash "$CI_TOOLS/tools/ci_offline.sh" python "$CI_TOOLS/tools/ci_mutant_runner.py" --repo "$GITHUB_WORKSPACE" --manifest "$MANIFEST" --out mutants-result.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pine-heavy-mutants
+          path: mutants-result.json
+          if-no-files-found: warn
+
+  # one named result to watch
+  verdict:
+    name: pine heavy
+    needs: [vitest, harness-runtime-on, pytest, union, rails, derived-evidence, coverage-ratchet, mutants]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every leg passed (mutants may be skipped); or, with skip_legs, the mutant job alone ran and passed
+        env:
+          SKIP_LEGS: ${{ github.event_name == 'workflow_dispatch' && inputs.skip_legs }}
+          MUTANTS: ${{ needs.mutants.result }}
+        run: |
+          echo "skip_legs=$SKIP_LEGS vitest=${{ needs.vitest.result }} harness-runtime-on=${{ needs.harness-runtime-on.result }} pytest=${{ needs.pytest.result }} union=${{ needs.union.result }} rails=${{ needs.rails.result }} derived-evidence=${{ needs.derived-evidence.result }} coverage-ratchet=${{ needs.coverage-ratchet.result }} mutants=$MUTANTS"
+          # ⛔ skip_legs is never a way to a green run with nothing run: the legs must then read `skipped` (not
+          # `failure`, not `cancelled`) AND the mutant job must have run and passed. Without it, every leg passes.
+          want=success
+          if [ "$SKIP_LEGS" = "true" ]; then want=skipped; fi
+          for r in "${{ needs.vitest.result }}" "${{ needs.harness-runtime-on.result }}" "${{ needs.pytest.result }}" "${{ needs.union.result }}" "${{ needs.rails.result }}" "${{ needs.derived-evidence.result }}" "${{ needs.coverage-ratchet.result }}"; do
+            test "$r" = "$want" || exit 1
+          done
+          if [ "$SKIP_LEGS" = "true" ]; then
+            test "$MUTANTS" = success || { echo "::error::skip_legs ran no leg, so the mutant job must run and pass (it read '$MUTANTS'): pass mutants_manifest"; exit 1; }
+          else
+            case "$MUTANTS" in success|skipped) ;; *) exit 1 ;; esac
+          fi

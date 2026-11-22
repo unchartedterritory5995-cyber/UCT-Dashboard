@@ -173,8 +173,12 @@ def ledger(monkeypatch):
     # that when the door was rewired, which is the fixture doing its job.
     monkeypatch.setattr(cost_guard, "may_member_spend",
                         lambda d: (calls["checked"].append(d), True)[1])
-    monkeypatch.setattr(cost_guard, "record",
-                        lambda *a, **k: (calls["recorded"].append((a, k)), 0.0125)[1])
+    # The door reserves on the ledger and settles from the reply: the settle is the
+    # recorder here. Real SQLite coverage: tests/test_vision_spend_containment.py.
+    monkeypatch.setattr(cost_guard, "reserve_member_call", lambda *a, **k: {"id": 1})
+    monkeypatch.setattr(cost_guard, "settle_member_call",
+                        lambda *a, **k: (calls["recorded"].append((("day",) + a[1:], k)), 0.0125)[1])
+    monkeypatch.setattr(cost_guard, "release_member_call", lambda *a, **k: None)
     return calls
 
 

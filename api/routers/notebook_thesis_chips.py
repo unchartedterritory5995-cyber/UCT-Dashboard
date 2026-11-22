@@ -2,9 +2,7 @@
 
   POST /api/j2/thesis-chips    {symbols: [string]} -> {SYMBOL: chip}
 
-One router-level gate, the name the route census and the switch-rehearsal tool look
-for (`_require_enabled`): a flag off answers the single 404 before any session or plan
-check runs (the `notebook_research_capture.py` precedent).
+Always on: its flag, `NOTEBOOK_THESIS_CHIPS_ENABLED`, was retired 2026-11-04 (it was 1 on web).
 """
 from __future__ import annotations
 
@@ -15,20 +13,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import request_body_cap as body_cap
 from api.services.auth_db import get_connection
-from api.services.journal_two import public_note_payload as public
 from api.services.journal_two import thesis_chips as tcj
-
-
-def _require_enabled() -> None:
-    if not tcj.enabled():
-        raise public.not_found()
-_require_enabled.__qualname__ = "_require_enabled"
 
 
 router = APIRouter(
     prefix="/api/j2/thesis-chips",
     tags=["journal-2-0", "notebook-thesis-chips"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 

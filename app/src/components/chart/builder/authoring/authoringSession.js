@@ -17,20 +17,23 @@
 // the preview acknowledgement. The hook keeps its React state; the Agent keeps nothing
 // but the session the store already holds.
 
-import { newAuthoringState, applyTurn, undo as undoState, readback, isDirty } from './index'
+import { newAuthoringState, applyTurn, undo as undoState, undoTo as undoToState, readback, isDirty } from './index'
 import { openAuthoringState } from './authoringState'
-import { converseTurn, distinctNotUnderstood } from './converseClient'
+import { converseTurn, STOPPED_GATE, distinctNotUnderstood } from './converseClient'
 import { classifyTurn, OUTCOMES } from './turnOutcome'
+import { liveOffer, withoutOffer } from './builtInOffer'
+import { settleScript, checkScript as defaultCheckScript } from './scriptAnswer'
 import { preflight } from './preflight'
 import { readSession, clearSession } from './conversationSessions'
 import { storeConversation, attachConversation, armConversationAlerts } from '../conversationSave'
 import { stampSemantics } from '../../engine/definitionSemantics'
 import { OUTPUT_TYPES } from '../../engine/outputType'
 import { STUDIO_PREVIEW_DEF_ID } from '../studio/chartPreview'
-import { memberError, memberSaveError, memberRefusal } from './memberWords'
+import { memberError, memberSaveError, memberRefusal, chartRefusalWords } from './memberWords'
 import { logStudioAction, definitionKinds, clientFailureOf } from './studioTelemetry'
 import { outputNamer, slotWords } from './readback'
-import { soleCueName } from './derivedName'
+import { soleCueName, memberCueNames, derivedRowName } from './derivedName'
+import { settingPatch, settingRefusal } from './derivedSettings'
 import { renamePatch, withMemberName } from './memberNamePatch'
 import { validateUserDefinitions } from '../../engine/nativeRegistry'
 import { saveReceipt } from '../studio/saveOutcomeReceipt'
@@ -46,10 +49,11 @@ export const typeWord = (t) => TYPE_WORDS[t] || 'Output'
 function changeWords(c) {
   switch (c.kind) {
     case 'type-changed': return `${c.output} is now a ${typeWord(c.to).toLowerCase()} (was ${typeWord(c.from).toLowerCase()}).`
-    case 'refused-on-chart': return `${c.output} can't be drawn here: ${c.text}`
+    case 'refused-on-chart': return `${c.output} can't be drawn here: ${chartRefusalWords(c.guard, c.text) || c.text}`
     case 'requests-cleared': return `Requests on ${c.output} were cancelled with it.`
     case 'intent-cleared': return `The signal choice on ${c.output} was cleared with it.`
     case 'paint-removed': return c.text ? `${c.output}: ${c.text}` : null
+    case 'scan-moved': return `Running this over a list now reads ${c.output}: the line it read (${c.from}) was removed.`
     default: return null
   }
 }
@@ -77,7 +81,80 @@ export function replyLines(rb, state, changes = []) {
   return lines
 }
 
+/**
+ * ⭐ 2026-11-21 — THE NOTES AN ANSWER CARRIES, for the dock to show with it.
+ *
+ * THE GAP (found by reading a live round against the dock): `replyLines` prints what was assumed about a
+ * SETTING ("Using RSI period 14.") and the engine's defaults. An assumption written as a sentence was printed
+ * by `readback().lines` only, which the "Describe it" box shows and the dock does not. So the door's own
+ * notes about a build ("The count stops at 500 ...", "recomputed from 960 bars back ...") and the
+ * assistant's stated assumptions reached no member in the dock: only the assistant's paragraph did.
+ *
+ * Two lists, never mixed, because they are two voices: `uct` is what the system itself says about what it
+ * built (`by: 'uct'` on the wire), `assumed` is what the assistant says it took for granted. THIS turn's
+ * only, like `replyLines`: an entry is the record of its own turn. An output is named only when the
+ * indicator has more than one. ⛔ Data, not lines: `readback().lines` is what an Agent approval is sealed
+ * on, and these do not belong in it twice.
+ * @returns {{uct: string[], assumed: string[]} | null}  null when the turn carries neither
+ */
+export function notesOf(rb, state) {
+  const outputs = (rb && Array.isArray(rb.outputs)) ? rb.outputs : []
+  const on = (key) => {
+    if (!key || outputs.length < 2) return ''
+    const o = outputs.find((x) => x && x.key === key)
+    const name = o && (o.name || o.label)
+    return name ? ` (on ${name})` : ''
+  }
+  const uct = []
+  const assumed = []
+  for (const a of (state && state.assumptions) || []) {
+    if (!a || a.revision !== state.revision) continue
+    if (a.source === 'engine') continue                                // said by `replyLines`, in its own words
+    // ⭐ an assumption about a SETTING keeps its sentence too: `replyLines` says the value ("Using period
+    // 500."), and the sentence is what it MEANS ("The count stops at 500 ..."), which was shown nowhere
+    const text = typeof a.text === 'string' ? a.text.replace(/\s+/g, ' ').trim() : ''
+    if (!text) continue
+    ;(a.source === 'uct' ? uct : assumed).push(`${text}${on(a.output)}`)
+  }
+  return uct.length || assumed.length ? { uct, assumed } : null
+}
+
+/** The noun a first build is counted in: its own type word when every output shares one, else "output". */
+const BUILT_NOUNS = Object.freeze({ Line: ['line', 'lines'], Condition: ['condition', 'conditions'], Value: ['value', 'values'] })
+
+/**
+ * ⭐ 2026-11-20 (owner's choice, "names only") — THE FIRST ANSWER NAMES WHAT WAS BUILT AND POINTS AT THE CARD.
+ *
+ * THE GAP (seen in a live run's screenshots): on the first build the conversation and the summary card
+ * directly under it said the same engine sentences twice ("Williams %R (9) — a number on every bar: ..."),
+ * and on a laptop-height window that pushed the card's settings below the fold.
+ *
+ * The first answer now carries ONE line for the outputs: how many, and their names. The card keeps the
+ * engine's full description of each (it is the same read-back, of the same definition, one glance down).
+ * ⛔ ONLY THE DESCRIPTIONS MOVE. Everything else a reply carries stays in the conversation, in the order
+ * `replyLines` gives it: what the engine disclosed about this change (an output that cannot be drawn on
+ * this chart, a request that was cancelled) and what was assumed this turn.
+ * ⛔ A LATER CHANGE IS UNTOUCHED (P3S): it shows the engine's read-back of the result in full, because by
+ * then the conversation is the record of what each turn did.
+ * A build with nothing to name says what `replyLines` says: there is nothing to point at.
+ */
+export function createdLines(rb, state, changes = []) {
+  const read = rb && Array.isArray(rb.outputs) ? rb : { outputs: [] }
+  const outputs = read.outputs
+  const full = replyLines(read, state || {}, changes)
+  const names = outputs.map((o) => o && (o.name || o.label || o.key)).filter((n) => typeof n === 'string' && n.trim())
+  if (names.length === 0 || names.length !== outputs.length) return full
+  const described = new Set(outputs.map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean))
+  const rest = full.filter((line) => !described.has(line))
+  const words = new Set(outputs.map((o) => typeWord(o.type)))
+  const [one, many] = (words.size === 1 && BUILT_NOUNS[[...words][0]]) || ['output', 'outputs']
+  return [`Built ${names.length} ${names.length === 1 ? one : many}: ${names.join(', ')}. Details below.`, ...rest]
+}
+
 export const NOTHING_CHANGED = 'Nothing on the chart changed.'
+/** What the dock says after the member pressed Stop. The request left the browser, so the
+ *  server may still have worked on it: said plainly, because it can count toward the day. */
+export const STOPPED_LINE = 'Stopped. A request that was already sent can still count toward today\'s allowance.'
 
 /** ⭐ PHASE 4 — the first line of an opened definition's conversation. */
 export function openedEntry(open) {
@@ -124,7 +201,10 @@ export function initialConversationState(initial, open = null) {
 
 /** The transcript a conversation starts from. */
 export function initialTranscript(initial, open = null) {
-  return (initial && initial.transcript) || (open && open.def ? [openedEntry(open)] : [])
+  // ⭐ A RESTORED CONVERSATION OFFERS NOTHING: an offer was for the chart as it stood when the
+  // answer arrived (`builtInOffer.js`, rule 3). The words stay; the button does not come back.
+  if (initial && initial.transcript) return initial.transcript.map(withoutOffer)   // a script entry keeps its text: opening it re-checks it
+  return open && open.def ? [openedEntry(open)] : []
 }
 
 /** Is there anything to keep? A fresh, untouched conversation — or an opened, untouched
@@ -179,6 +259,117 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
 }
 
 /**
+ * ⭐ ONE SETTING CHANGED BY HAND (2026-11-17, `derivedSettings.js`) — a number of the working
+ * indicator set from its own field, with no model call. The ordinary `set_slot` op through the
+ * same engine door as a conversation turn: one revision, one Undo step, the name follows the
+ * maths, the preview redraws.
+ * @returns `{ok, state: next|null, changed, entries, stale?: true, errors?}` — `stale` when the
+ *   setting no longer matches the working indicator (the caller re-derives and shows the new list)
+ */
+export function settingTurn(before, setting, value, { gateCtx = {} } = {}) {
+  const refusal = settingRefusal(setting, value)
+  if (refusal) {
+    return { ok: false, state: null, changed: false, entries: [], message: refusal }
+  }
+  const patch = settingPatch(before, setting, value)
+  if (!patch) return { ok: false, state: null, changed: false, entries: [], stale: true }
+  const out = applyTurn(before, patch, { gateCtx })
+  if (out.result.status !== 'applied') {
+    const errors = out.result.errors || []
+    return { ok: false, state: null, changed: false, entries: [], errors,
+      // a `schema:` refusal's sentence is about the assistant's patch; this one was typed by hand
+      message: errors.length && !String(errors[0].code || '').startsWith('schema:')
+        ? errorWords(errors[0], before.working) : 'That value could not be applied.' }
+  }
+  return { ok: true, state: out.state, changed: true, changes: (out.result.changes || []).map((c) => ({ ...c })),
+    entries: [{ role: 'uct', kind: 'patched', revision: out.state.revision, updated: true, bySetting: true,
+      lines: [`Set ${setting.caption} ${setting.role} from ${setting.value} to ${value}.`] }] }
+}
+
+/** The longest description of its own work the dock shows from the assistant. */
+export const SAID_MAX = 400
+
+/** The assistant's description of a change, as plain bounded text; '' when there is none. */
+export function saidOf(reply) {
+  const t = typeof reply === 'string' ? reply.replace(/\s+/g, ' ').trim() : ''
+  return t.length > SAID_MAX ? `${t.slice(0, SAID_MAX - 1).trimEnd()}…` : t
+}
+
+/** PACKAGE 3: `envelope` with its `create` name kept as a custom name (see modelTurn), else the SAME envelope. */
+function withCreateName(envelope, words, accept) {
+  if (!envelope || !Array.isArray(envelope.ops)) return envelope
+  if (soleCueName(words) || memberCueNames(words).length) return envelope
+  if (envelope.ops.some((o) => o && o.op === 'rename_definition')) return envelope
+  const created = envelope.ops.find((o) => o && o.op === 'create')
+  const name = created && typeof created.name === 'string' ? created.name.replace(/\s+/g, ' ').trim() : ''
+  let ok = false
+  try { ok = !!name && accept(name) === true } catch { ok = false }
+  return ok ? { ...envelope, ops: [...envelope.ops, { op: 'rename_definition', name }] } : envelope
+}
+
+/** `envelope` with the assistant's label kept, as a CUSTOM label, for each line of its `create` that
+ *  `accept(label, key)` takes; else the SAME envelope. A line the patch already renames, or whose
+ *  label the member gave in their own words, is the engine's to settle (derivedName.js). */
+function withCreateLabels(envelope, words, accept) {
+  if (!envelope || !Array.isArray(envelope.ops)) return envelope
+  const created = envelope.ops.find((o) => o && o.op === 'create')
+  if (!created || !Array.isArray(created.outputs)) return envelope
+  const given = new Set(memberCueNames(words).map((t) => t.toLowerCase()))
+  const renamed = new Set(envelope.ops.filter((o) => o && o.op === 'rename_output').map((o) => o.output))
+  const extra = []
+  created.outputs.forEach((o, j) => {
+    const key = o && (o.key || (j === 0 ? 'value' : null))
+    const label = o && typeof o.label === 'string' ? o.label.replace(/\s+/g, ' ').trim().replace(/[.]+$/, '') : ''
+    if (!key || !label || renamed.has(key) || given.has(label.toLowerCase())) return
+    let ok = false
+    try { ok = accept(label, key) === true } catch { ok = false }
+    if (ok) extra.push({ op: 'rename_output', output: key, label })
+  })
+  return extra.length ? { ...envelope, ops: [...envelope.ops, ...extra] } : envelope
+}
+
+/**
+ * The envelope a NEW indicator is applied with, once the question "whose name?" is answered.
+ * `keep(name, { derivedName })` is asked with the name the engine WOULD derive (a dry run of the same
+ * patch against the same state; `applyTurn` writes nothing). Used by the dock (`modelTurn`) and by the
+ * New formula window's Describe box (`ConverseBox`), so the two cannot answer differently.
+ * ⛔ The caller decides WHETHER this turn creates the indicator; this only decides the name.
+ */
+export function nameFromAssistant(state, envelope, words, gateCtx, keep, keepLabel = null) {
+  // ⭐ 2026-11-17 — `keepLabel(label, { derivedLabel })` asks the same of each LINE's label, with
+  // the label the engine would derive for that line in the same dry run. A patch the engine would
+  // refuse derives nothing, and then no label is kept: the refusal is the turn's answer.
+  const wantsName = typeof keep === 'function'
+  const wantsLabels = typeof keepLabel === 'function'
+  if (!wantsName && !wantsLabels) return envelope
+  let ctx = { derivedName: null }
+  let derivedLabels = null
+  try {
+    const dry = applyTurn(state, envelope, { gateCtx, memberWords: words })
+    const w = dry && dry.state && dry.state.working
+    ctx = { derivedName: (w && w.meta && typeof w.meta.name === 'string') ? w.meta.name : null }
+    if (w && Array.isArray(w.plots)) {
+      derivedLabels = new Map(w.plots.map((p) => [p.key, typeof p.label === 'string' ? p.label : null]))
+      // ⚠️ THE FIRST LINE IS ASKED DIFFERENTLY. Its stored label is empty, which means "follow the
+      // indicator's name" (derivedName.js), so what the document shows for it is the NAME, not
+      // this line's own maths. Of ONE line that is right, and its label is left alone: the
+      // indicator's name is the line's name. Of SEVERAL, "Stochastic Oscillator" beside "%D" is
+      // the wrong pair, so the first line is asked against its own formula's label.
+      const first = w.plots[0]
+      if (first) {
+        const compute = w.compute || {}
+        const ast = (compute.trees && compute.trees[first.key]) || compute.ast || null   // one line stores `ast` alone
+        if (w.plots.length > 1 && ast) derivedLabels.set(first.key, derivedRowName({ key: first.key, ast }))
+        else derivedLabels.delete(first.key)
+      }
+    }
+  } catch { ctx = { derivedName: null }; derivedLabels = null }
+  const named = wantsName ? withCreateName(envelope, words, (n) => keep(n, ctx)) : envelope
+  if (!wantsLabels || !derivedLabels) return named
+  return withCreateLabels(named, words, (label, key) => derivedLabels.has(key) && keepLabel(label, { derivedLabel: derivedLabels.get(key) }))
+}
+
+/**
  * THE MODEL HALF OF A TURN — one `/converse` call; the server declares what the turn is
  * (`classifyTurn`). ANSWER / UNSUPPORTED / REFUSED are the assistant's words and nothing
  * else (the state is not touched); CLARIFY records its questions; only a CHANGE reaches
@@ -188,14 +379,43 @@ export function renameTurn(before, name, { gateCtx = {}, memberWords = null } = 
  * @returns `{ok, entries, state: next|null, changed}` — `changed`: a new revision of the
  *          definition (the preview acknowledgement resets, the "updated" cue fires).
  */
-export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn } = {}) {
-  const res = await converse({ message: words, state: before, gateCtx, snippets })
+export async function modelTurn(before, current, words, { snippets = [], gateCtx = {}, converse = converseTurn, keepCreateName = null, keepCreateLabel = null, signal = null, browserRefusal = null, checkScript = undefined, chartOf = undefined } = {}) {
+  const res = await converse({ message: words, state: before, gateCtx, snippets, signal, ...(browserRefusal ? { browserRefusal } : {}) })
+  // ⭐ STOP (2026-11-16) — the member stopped waiting. Whatever came back (or did not) is
+  // NOT read: no reply, no patch, no refusal. Checked on the signal as well as the gate,
+  // so an answer that landed in the same instant as the press is dropped too.
+  if ((signal && signal.aborted) || (res && res.gate === STOPPED_GATE)) {
+    return { ok: false, state: null, changed: false, outcome: 'stopped', stopped: true,
+      entries: [{ role: 'uct', kind: 'stopped', lines: [STOPPED_LINE, NOTHING_CHANGED] }] }
+  }
   const unclear = distinctNotUnderstood(res).map((n) => `I didn't understand "${n.clause || n.text || ''}"${n.reason ? ` — ${n.reason}` : ''}.`)
   const gaps = [...unclear, ...unavailableLines(res)]
   const turn = classifyTurn(res)
   const said = (ok, entry, extra = {}) => ({ ok, state: null, changed: false, entries: [entry], outcome: turn.outcome, ...extra })
+  if (turn.outcome === OUTCOMES.ANSWER && res && res.script) {
+    // ⭐ THE ANSWER IS A SCRIPT (`scriptAnswer.js`): this window's own engine judges it. While it
+    // does not run fully the engine's refusal goes back for a repair, a bounded number of times;
+    // the entry leads with the ENGINE's verdict, whatever it is. The working indicator is not
+    // touched: a script is opened in the script editor, never applied as a patch.
+    // ⭐ `chartOf()` is the chart's bars and compute context NOW (asked per check: a repair is checked
+    // on the bars of that moment), so the verdict is a real run on this chart (`scriptAnswer.checkScript`)
+    const onChart = typeof chartOf === 'function'
+      ? (pine, script) => (checkScript || defaultCheckScript)(pine, { chart: chartOf(), admission: script && script.admission })
+      : checkScript
+    const settled = await settleScript(res,
+      (refusal) => converse({ message: words, state: before, gateCtx, snippets, signal, scriptRefusal: refusal }),
+      { ...(onChart ? { check: onChart } : {}), cancelled: () => !!(signal && signal.aborted) })
+    if (signal && signal.aborted) {
+      return { ok: false, state: null, changed: false, outcome: 'stopped', stopped: true,
+        entries: [{ role: 'uct', kind: 'stopped', lines: [STOPPED_LINE, NOTHING_CHANGED] }] }
+    }
+    return said(settled.verdict.runs, { ...settled.entry, lines: [...settled.entry.lines, ...gaps] }, { script: true, rounds: settled.rounds })
+  }
   if (turn.outcome === OUTCOMES.ANSWER) {
-    return said(true, { role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps] })
+    // ⭐ an answer may OFFER one action (add one of UCT's own built-in indicators): kept on the
+    // entry only when it names a built-in this window shipped with
+    const offer = liveOffer(res && res.offer)
+    return said(true, { role: 'uct', kind: 'answer', reply: turn.reply, lines: [turn.reply, ...gaps], ...(offer ? { offer } : {}) })
   }
   if (turn.outcome === OUTCOMES.UNSUPPORTED) {
     return said(false, { role: 'uct', kind: 'unsupported', preflight: !!turn.preflight, gate: turn.gate || null,
@@ -205,17 +425,42 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
     const failure = clientFailureOf(turn.gate)
     if (failure) logStudioAction(before.lineage, 'turn_failed', { surface: 'studio', failure })
     return said(false, { role: 'uct', kind: 'refusal', gate: turn.gate,
-      lines: [memberRefusal(turn.gate, turn.reason), ...gaps, NOTHING_CHANGED] }, { gate: turn.gate, reason: turn.reason })
+      lines: [memberRefusal(turn.gate, turn.reason, { retryAfterS: res && res.retryAfterS }), ...gaps, NOTHING_CHANGED] }, { gate: turn.gate, reason: turn.reason })
   }
   // ⭐ BATCH 1 — a name the member gave in the same message rides in this envelope.
-  const envelope = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
+  const named = turn.outcome === OUTCOMES.CHANGE ? withMemberName(turn.envelope, words) : turn.envelope
+  // ⭐ PACKAGE 3 seam (Agent, 2026-11-04 — AGENT-M3-CONTRACT §17): a caller that asks for it (`keepCreateName`, a
+  // predicate — only UCT Agent passes one) keeps the model's `create` name as the definition's CUSTOM name, in the SAME
+  // patch (an appended `rename_definition`: one revision, one Undo step). Only for the turn that CREATES the definition,
+  // only when the member named nothing, and only for a name the predicate accepts. The dock never passes it: there,
+  // `create` still takes the derived name (derivedName.js).
+  // ⭐ 2026-11-16 — the predicate is also told the name the engine WOULD derive (a dry run of
+  // the same patch against the same state; `applyTurn` writes nothing), so a caller can keep
+  // the assistant's name only where the derived one is unreadable (`readableName.js`, the dock).
+  // ⭐ 2026-11-17 — `keepCreateLabel` is the same seam for each line's label (`readableName.js`).
+  const wantsName = (typeof keepCreateName === 'function' || typeof keepCreateLabel === 'function') && !before.working
+  const envelope = wantsName ? nameFromAssistant(current(), named, words, gateCtx, keepCreateName, keepCreateLabel) : named
   const now = current()
   const out = applyTurn(now, envelope, { gateCtx, memberWords: words })
   const { result } = out
   if (result.status === 'refused') {
-    return said(false, { role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
+    const refusal = said(false, { role: 'uct', kind: 'refusal', codes: (result.errors || []).map((e) => e.code),
       details: (result.errors || []).map((e) => memberError(e).detail),
       lines: [...(result.errors || []).map((e) => errorWords(e, now.working)), ...gaps, NOTHING_CHANGED] }, { errors: result.errors || [] })
+    // ⭐ 2026-11-17 — ONE REPAIR, WITH THIS ENGINE'S OWN WORDS. The door offered a change and this
+    // engine refused it: before the member reads "Nothing was changed" for a request the assistant
+    // built, the same turn goes back once with the refused patch and why (`converseClient.
+    // browserRefusalBlock`). Once: a turn that is already that repair is never repaired again, so a
+    // request costs at most one extra round trip. Whatever the repair turn says is what the member
+    // reads, except the door's own refusal of it (an allowance, the network): that says nothing
+    // about the request, so the member reads this engine's refusal instead.
+    const repairable = turn.outcome === OUTCOMES.CHANGE && !browserRefusal && !(signal && signal.aborted)
+      && turn.envelope && (result.errors || []).length > 0
+    if (!repairable) return refusal
+    const again = await modelTurn(before, current, words, { snippets, gateCtx, converse, keepCreateName, keepCreateLabel, signal,
+      browserRefusal: { envelope: turn.envelope, errors: (result.errors || []).map((e) => memberError(e).detail) } })
+    if (again.stopped) return again
+    return again.outcome === OUTCOMES.REFUSED ? refusal : { ...again, repairedAfterRefusal: true }
   }
   if (result.status === 'question') {
     return { ok: true, state: out.state, changed: false, outcome: turn.outcome,
@@ -226,7 +471,18 @@ export async function modelTurn(before, current, words, { snippets = [], gateCtx
   // ⛔ P3S: a CHANGE shows the deterministic readback of the RESULT and nothing the model wrote.
   return { ok: true, state: out.state, changed: true, outcome: turn.outcome, changes: result.changes || [],
     entries: [{ role: 'uct', kind: before.working ? 'patched' : 'created', revision: out.state.revision, updated: true,
-      lines: [...replyLines(out.readback, out.state, result.changes), ...unclear] }] }
+      // ⭐ 2026-11-20: the FIRST build names its outputs and points at the card (`createdLines`); a later
+      // change keeps the engine's full read-back of the result.
+      lines: [...(before.working ? replyLines : createdLines)(out.readback, out.state, result.changes), ...unclear],
+      // ⭐ 2026-11-16 (Studio plan, section 5) — WHAT THE ASSISTANT SAYS IT BUILT, kept apart from
+      // the engine's words above and labelled as the assistant's by the dock. The engine's lines
+      // stay the authority; this is the plain sentence a member checks their request against
+      // (a read-back like "1 when (the 10-bar exponential average ...) and 0 otherwise" is true
+      // and hard to read). ⛔ Its own field, NOT `reply`: `snippetOf` reads `reply`, and what is
+      // sent back to the model as context must not change.
+      ...(saidOf(turn.reply) ? { said: saidOf(turn.reply) } : {}),
+      // ⭐ 2026-11-21: the door's own notes and the assistant's stated assumptions, each under its own label
+      ...(notesOf(out.readback, out.state) ? { notes: notesOf(out.readback, out.state) } : {}) }] }
 }
 
 /**
@@ -263,6 +519,38 @@ export function undoTurn(cur, gateCtx = {}) {
     : ['Undid the last change. The chart preview is cleared.'] } }
 }
 
+/** One line per output, as the read-back says it. */
+const outputLinesOf = (rb) => (rb.outputs || [])
+  .map((o) => (o.phrase ? `${o.name || o.label} — ${o.phrase}` : o.sentence)).filter(Boolean)
+
+/**
+ * ⭐ V1 (2026-11-16) — THE EARLIER STEPS OF THIS DRAFT, oldest first: what the indicator
+ * WAS before each applied change, said by the same read-back the card uses (never model
+ * prose, never the member's words). `index` is the place in `state.history` that
+ * `goBackToTurn` takes. A step with no indicator yet (before the first build) is `empty`.
+ * @returns {{index: number, step: number, empty: boolean, name: string|null, lines: string[]}[]}
+ */
+export function historySteps(cur, gateCtx = {}) {
+  return ((cur && cur.history) || []).map((snap, index) => {
+    if (!snap.working) return { index, step: index + 1, empty: true, name: null, lines: [] }
+    const rb = readback(snap.working, snap, gateCtx)
+    return { index, step: index + 1, empty: false, name: rb.name || null, lines: outputLinesOf(rb) }
+  })
+}
+
+/** Go back to an earlier step. @returns null (no such step) | `{state, entry, steps}` where
+ *  `steps` is how many applied changes were taken back. */
+export function goBackToTurn(cur, index, gateCtx = {}) {
+  if (!cur || !Number.isInteger(index) || index < 0 || index >= cur.history.length) return null
+  const steps = cur.history.length - index
+  const next = undoToState(cur, index)
+  const after = readback(next.working, next, gateCtx)
+  const head = steps === 1 ? 'Undid the last change.' : `Went back ${steps} changes.`
+  return { state: next, steps, entry: { role: 'uct', kind: 'undo', lines: next.working
+    ? [head, ...outputLinesOf(after)]
+    : [`${head} The chart preview is cleared.`] } }
+}
+
 /**
  * Save through the EXISTING doors. `settings` must be the STORED blob (never the preview
  * read view), `onChange` the chart's own settings writer (or null: no chart is attached),
@@ -278,8 +566,12 @@ export async function saveConversation(cur, { acked = false, settings = null, on
     const m = memberSaveError(stored)
     return { ok: false, error: stored.error, stored, entry: { role: 'uct', kind: 'refusal', codes: [m.code], details: [m.detail], lines: ['Not saved.', m.text] } }
   }
+  // ⭐ L7: the stored definition's own id (its strict shape, never a name), so the owner report
+  // can ask a week later whether it is still kept
+  const savedId = stored.row && typeof stored.row.def_id === 'string' && /^u_[0-9a-f]{12}$/.test(stored.row.def_id)
+    ? stored.row.def_id : undefined
   logStudioAction(cur.lineage, 'saved', { surface: 'studio', created: !!stored.created, origin: 'native',
-    kinds: definitionKinds(stored.storedDoc, stored.requests) })
+    kinds: definitionKinds(stored.storedDoc, stored.requests), def_id: savedId })
   // ⛔ BATCH 1 — FROM HERE THE DEFINITION IS SAVED, WHATEVER FOLLOWS.
   if (typeof beforeAttach === 'function') { try { beforeAttach() } catch { /* the preview teardown */ } }
   let attached

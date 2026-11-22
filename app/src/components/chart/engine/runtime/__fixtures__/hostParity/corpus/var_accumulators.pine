@@ -1,0 +1,12 @@
+//@version=5
+indicator("hp var accumulators", overlay=false)
+var float cum = 0.0
+var int ups = 0
+var float hi = na
+cum += close - open
+if close > close[1]
+    ups += 1
+hi := na(hi) ? high : math.max(hi, high)
+plot(cum, "cum")
+plot(ups, "ups")
+plot(hi, "hi")

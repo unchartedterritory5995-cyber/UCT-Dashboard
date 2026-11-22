@@ -29,6 +29,7 @@ import {
   fmtAge, fmtEarnDate, fmtEps, fmtPct, fmtQuarter, fmtRevenue, fmtShares, fmtVol,
   pctCell, websiteDomain,
 } from '../../../utils/profileFormat'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 const jsonFetcher = (url) => fetch(url).then(r => (r.ok ? r.json() : null))
 
@@ -135,7 +136,7 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
     <div ref={rootRef} className={styles.root} style={rootStyle}>
       {settingsOpen && (
         <NewsSettingsPanel
-          title="Stock Profile Settings"
+          title="Stock profile settings"
           widgetType="profile"
           perfLabel="Performance"
           extraSections={[{
@@ -172,13 +173,13 @@ export default function ProfileWidget({ color, opts, onOptsChange }) {
           {sym && company && settings.headerShow === 'company' && <span className={styles.sym}>{company}</span>}
           {sym && !company && settings.headerShow === 'company' && <span className={styles.sym}>{sym}</span>}
         </span>
-        <button
+        <UctCtrlPortal><button
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Stock Profile settings"
-        ><UIcon name="gear" size={13} /></button>
+        ><UIcon name="gear" size={13} /></button></UctCtrlPortal>
       </div>
 
       {!sym && (

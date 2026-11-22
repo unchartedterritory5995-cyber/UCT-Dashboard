@@ -17,7 +17,7 @@
 /* ◀ / ▶ one-bar steppers — same feel as .tfBtn */
 .step {
   background: transparent;
-  color: var(--text-muted, #6b7280);
+  color: var(--widget-text, var(--text-muted, #6b7280));
   border: 1px solid transparent;
   border-radius: 3px;
   padding: 2px 4px;
@@ -32,8 +32,9 @@
 .field {
   width: 92px;
   background: transparent;
-  color: var(--text, #e5e7eb);
-  border: 1px solid var(--border, #1f2937);
+  /* the chart header's own text colours (owner 11-14): readable on light and dark canvases */
+  color: var(--widget-text-strong, var(--text, #e5e7eb));
+  border: 1px solid var(--widget-divider, var(--border, #1f2937));
   border-radius: 3px;
   padding: 2px 6px;
   margin: 0 1px;
@@ -46,9 +47,9 @@
   outline: none;
   transition: border-color 0.12s ease;
 }
-.field::placeholder { color: var(--text-muted, #6b7280); font-weight: 500; letter-spacing: 0.2px; }
-.field:hover { border-color: var(--text-muted, #6b7280); }
-.field:focus { border-color: var(--accent, #dcbb5e); color: var(--text-bright, #f3f4f6); }
+.field::placeholder { color: var(--widget-text, var(--text-muted, #6b7280)); font-weight: 500; letter-spacing: 0.2px; }
+.field:hover { border-color: var(--widget-text, var(--text-muted, #6b7280)); }
+.field:focus { border-color: var(--accent, #dcbb5e); color: var(--widget-text-strong, var(--text-bright, #f3f4f6)); }
 
 /* ▾ dropdown trigger — mirrors the TF ▾ chevron button */
 .caret {
@@ -56,97 +57,102 @@
   align-items: center;
   justify-content: center;
   background: transparent;
-  color: var(--text-muted, #6b7280);
+  color: var(--widget-text, var(--text-muted, #6b7280));
   border: 1px solid transparent;
   border-radius: 3px;
   padding: 3px 5px;
   cursor: pointer;
   flex-shrink: 0;
 }
-.caret:hover, .caret[aria-expanded='true'] { color: var(--accent, #dcbb5e); border-color: var(--border, #1f2937); }
+.caret:hover, .caret[aria-expanded='true'] { color: #ededed; background: rgba(248, 247, 243, 0.07); border-color: transparent; }
 
-/* ── Dropdown popover (portaled to body, positioned by anchor) ── */
+/* ── Dropdown popover (portaled to body, positioned by anchor) ──
+   UCT Signature style (owner 11-15, docs/uct-signature-style.md): the graphite menu panel, a
+   "Go to a date" field on top, sentence-case grey labels, the framed date / year lifted on the
+   selected shade (#2c2e33) in bold white. No gold. Always the dark board look. */
 .pop {
   position: fixed;
   z-index: 9200;
-  background: var(--menu-surface, var(--menu-bg, #0c0c0e));
-  border: 1px solid var(--menu-border, #26262a);
+  background: #111214;
+  border: 1px solid #383b41;
   border-radius: 10px;
-  box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.6));
-  font-family: 'Instrument Sans', system-ui, sans-serif;
-  color: var(--menu-text, #e6e6e8);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+  font-family: var(--font-sans, 'Instrument Sans', system-ui, sans-serif);
+  color: #ededed;
+  color-scheme: dark;
   overflow: hidden;
   animation: dnavIn 110ms ease-out;
 }
 @keyframes dnavIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
+/* Go to a date */
+.goRow { display: flex; gap: 6px; padding: 10px 10px 8px; border-bottom: 1px solid #26282c; margin: 0; }
+.goField {
+  flex: 1; min-width: 0; height: 30px; box-sizing: border-box; padding: 0 10px;
+  background: #0f1012; color: #ededed; border: 1px solid rgba(248, 247, 243, 0.08); border-radius: 7px;
+  font: 500 12.5px var(--font-sans, inherit); font-variant-numeric: tabular-nums;
+}
+.goField::placeholder { color: #6f6c66; }
+.goField:focus { outline: none; border-color: rgba(248, 247, 243, 0.3); }
+.goBtn {
+  height: 30px; padding: 0 14px; border: none; border-radius: 7px; cursor: pointer;
+  background: #f8f7f3; color: #111214; font: 700 12px var(--font-sans, inherit);
+}
+.goBtn:hover:not(:disabled) { background: #ffffff; }
+.goBtn:disabled { background: rgba(248, 247, 243, 0.06); color: #6f6c66; cursor: default; }
+
 .popBody { display: flex; }
 
 /* Calendar column */
 .cal { padding: 8px 8px 10px; flex: 1; min-width: 0; }
-.calHead {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 6px;
-}
-.calTitle { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; color: var(--menu-text, #e6e6e8); }
+.calHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.calTitle { font-size: 13px; font-weight: 700; color: #f8f7f3; }
 .calNav {
-  background: transparent; border: none; cursor: pointer;
-  color: var(--menu-text-faint, #6c6c70); font-size: 16px; line-height: 1; padding: 2px 8px; border-radius: var(--radius-md);
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  background: transparent; border: none; cursor: pointer; color: #a9a59b; padding: 0; border-radius: 6px;
 }
-.calNav:hover { color: var(--menu-accent, #dcbb5e); background: var(--menu-hover, #16161a); }
-.calDow {
-  display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
-  margin-bottom: 2px;
-}
-.calDow span {
-  text-align: center; font-size: 9px; font-weight: 700; letter-spacing: 0.04em;
-  color: var(--menu-text-faint, #6c6c70); padding: 2px 0;
-}
-.calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
-.calEmpty { height: 24px; }
+.calNav:hover { color: #f8f7f3; background: rgba(248, 247, 243, 0.07); }
+.calDow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px; }
+.calDow span { text-align: center; font-size: 10.5px; font-weight: 600; color: #93939a; padding: 2px 0; }
+.calGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.calEmpty { height: 28px; }
 .calDay {
-  height: 24px;
-  background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
-  color: var(--menu-text, #d4d4d6); font-size: 11px; font-variant-numeric: tabular-nums;
+  position: relative;
+  height: 28px; background: transparent; border: none; border-radius: 6px;
+  color: #ededed; font: 500 12.5px var(--font-sans, inherit); font-variant-numeric: tabular-nums;
   cursor: pointer; padding: 0;
 }
-.calDay:hover { background: var(--menu-hover, #16161a); border-color: var(--menu-border, #2b2b2d); color: var(--menu-accent, #dcbb5e); }
-.calDay:disabled { color: var(--menu-text-faint, #4a4a50); cursor: default; opacity: 0.4; }
-.calDay:disabled:hover { background: transparent; border-color: transparent; color: var(--menu-text-faint, #4a4a50); }
-/* The currently-framed date — gold TEXT only (no fill/outline). */
-.calDaySel { color: var(--menu-accent, #dcbb5e); font-weight: 700; }
+.calDay:hover { background: #1a1b1f; color: #f8f7f3; }
+.calDay:disabled { color: #93939a; cursor: default; opacity: 0.35; }
+.calDay:disabled:hover { background: transparent; color: #93939a; }
+.calDay:focus-visible, .yearBtn:focus-visible, .calNav:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.4); outline-offset: -2px; }
+/* The currently-framed date — the selected shade, bold white. */
+.calDaySel, .calDaySel:hover { background: #2c2e33; color: #f8f7f3; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.22); }
 
 /* Year list column */
-.years {
-  width: 74px;
-  border-left: 1px solid var(--menu-divider, #1c1c1f);
-  display: flex; flex-direction: column;
-  padding: 8px 8px 8px 8px;
-}
-.yearsLabel {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--menu-text, #e6e6e8); padding: 0 0 4px;
-  text-align: center;
-}
-/* Hide the year-list scrollbar chrome so the (centered) year buttons use the full
-   column width and line up perfectly under the centered YEAR label. Wheel/touch
-   scroll still works. */
-.yearsScroll {
-  overflow-y: auto; max-height: 216px; display: flex; flex-direction: column; gap: 1px;
-  scrollbar-width: none;
-}
+.years { width: 76px; border-left: 1px solid #26282c; display: flex; flex-direction: column; padding: 8px 6px; }
+.yearsLabel { font-size: 10.5px; font-weight: 600; color: #93939a; padding: 4px 0 6px; text-align: center; }
+/* No scrollbar chrome, so the centred years use the full column width (wheel/touch still scroll). */
+.yearsScroll { overflow-y: auto; max-height: 236px; display: flex; flex-direction: column; gap: 2px; scrollbar-width: none; }
 .yearsScroll::-webkit-scrollbar { width: 0; height: 0; }
-.yearsHint { font-size: 10px; color: var(--menu-text-faint, #6c6c70); padding: 4px 2px; text-align: center; }
+.yearsHint { font-size: 11px; color: #93939a; padding: 4px 2px; text-align: center; }
 .yearBtn {
-  background: transparent; border: 1px solid transparent; border-radius: var(--radius-md);
-  color: var(--menu-text, #d4d4d6); font-size: 12px; font-variant-numeric: tabular-nums;
-  text-align: center; padding: 4px 8px; cursor: pointer;
+  position: relative;
+  background: transparent; border: none; border-radius: 6px; color: #ededed;
+  font: 500 12.5px var(--font-sans, inherit); font-variant-numeric: tabular-nums;
+  text-align: center; padding: 5px 8px; cursor: pointer;
 }
-.yearBtn:hover { background: var(--menu-hover, #16161a); border-color: var(--menu-border, #2b2b2d); color: var(--menu-accent, #dcbb5e); }
-/* The year of the currently-framed date — gold TEXT only (no fill/outline). */
-.yearBtnSel { color: var(--menu-accent, #dcbb5e); font-weight: 700; }
+.yearBtn:hover { background: #1a1b1f; color: #f8f7f3; }
+/* The year of the currently-framed date — the selected shade, bold white. */
+.yearBtnSel, .yearBtnSel:hover { background: #2c2e33; color: #f8f7f3; font-weight: 700; }
 
 /* Sunrise (light) chart theme */
 :global([data-charts-theme='sunrise']) .step,
 :global([data-charts-theme='sunrise']) .caret { color: #45515f; }
 :global([data-charts-theme='sunrise']) .field { color: #12202c; border-color: rgba(28, 40, 54, 0.24); }
+/* UCT Signature gold "mix" (owner 11-15): gold marks only what is current or chosen — see docs/uct-signature-style.md §2b. */
+.calDaySel::after, .yearBtnSel::after {
+  content: ""; position: absolute; left: 32%; right: 32%; bottom: 3px; height: 2px; border-radius: 2px; background: var(--ut-gold);
+}
+/* The year's underline spans the whole year: four digits wide, centered (owner 11-19). */
+.yearBtnSel::after { left: 50%; right: auto; width: 4ch; transform: translateX(-50%); bottom: 2px; }

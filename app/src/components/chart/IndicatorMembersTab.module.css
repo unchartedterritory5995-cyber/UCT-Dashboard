@@ -1,0 +1,53 @@
+/* The Members list when it stands OUTSIDE the Indicators window (the library sheet, which is
+   the only indicators surface on a phone and a tablet). Inside the window the host passes its
+   own class map, so the two look like their surroundings.
+
+   The class names are the keys `IndicatorMembersTab` reads. Colours are the app's global
+   tokens, each with a fallback: an undefined variable is a silent no-op. Every pressable
+   thing is at least `--tap-min` tall, because this file exists for touch. */
+
+.insAddGroup { display: flex; flex-direction: column; gap: 8px; }
+/* the UCT set's heading when its matches stand under a search across every list (`IndicatorHouseTab` searchOnly) */
+.insSectionLabel { font-size: 11.5px; font-weight: 600; color: var(--text-muted, #a9a59b); padding: 10px 2px 2px; }
+.resRefusedLede { margin: 0; padding: 0 2px; font-size: 12px; line-height: 1.45; color: var(--text-muted, #a9a59b); }
+.resList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.resRow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-surface, #1a1b1f);
+  border: 1px solid var(--border, #2c2c30);
+  border-radius: var(--radius-md, 8px);
+}
+.resRefused { cursor: default; }
+.resMain { flex: 1 1 auto; min-width: 0; display: flex; }
+.resMainStacked { flex-direction: column; align-items: flex-start; gap: 3px; }
+.resTitleRow { display: flex; align-items: baseline; gap: 8px; min-width: 0; max-width: 100%; }
+.resName { font-size: 14px; font-weight: 600; color: var(--text-bright, #ededed); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.resShort { font-size: 11px; color: var(--text-muted, #a9a59b); white-space: nowrap; }
+.resSub { font-size: 12.5px; line-height: 1.4; color: var(--text, #cfcbc0); }
+.resMeta { font-size: 11.5px; color: var(--text-muted, #a9a59b); }
+.resRefusedWhy { font-size: 12px; line-height: 1.4; color: var(--text, #cfcbc0); }
+.resActions { flex: 0 0 auto; display: flex; }
+.resAction {
+  min-height: var(--tap-min, 44px);
+  padding: 0 14px;
+  border: 1px solid var(--border, #2c2c30);
+  border-radius: var(--radius-md, 8px);
+  background: var(--bg-elevated, #222327);
+  color: var(--text-bright, #ededed);
+  font: 600 12.5px var(--font-sans, inherit);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.resAction:disabled { opacity: 0.55; cursor: default; }
+.resAction:focus-visible { outline: 2px solid var(--ut-gold, #dcbb5e); outline-offset: 2px; }
+.indEmpty, .insSearching { padding: 18px 4px; font-size: 13px; color: var(--text, #cfcbc0); }
+.insUnavailable { padding: 14px 4px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.insUnavailableLede { font-size: 13px; font-weight: 600; color: var(--text-bright, #ededed); }
+.insUnavailableWhy { margin: 0; font-size: 12px; color: var(--text-muted, #a9a59b); }
+
+/* On a narrow sheet the action drops under the text instead of squeezing the name. */
+@media (max-width: 640px) {
+  .resRow { flex-direction: column; align-items: stretch; }
+  .resActions { justify-content: flex-start; }
+}

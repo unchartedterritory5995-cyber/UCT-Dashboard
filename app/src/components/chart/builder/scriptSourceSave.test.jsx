@@ -15,6 +15,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { memberPaneDefinition } from './memberPane/memberPaneDefinition'
@@ -76,7 +77,7 @@ afterEach(() => {
 describe('1. the script door sends its script', () => {
   it('attach POSTs `pine_source` = the pasted script, and the document carries today’s engine stamp', async () => {
     mount()
-    fireEvent.click(screen.getByRole('tab', { name: /^import$/i }))
+    openSource('pine')
     await paste(SCRIPT)
     fireEvent.click(screen.getByTestId('pine-member-pane-attach').querySelector('button'))
     await flush(); await flush()
@@ -103,10 +104,11 @@ describe('2. the Formula tab never claims to be the translator', () => {
     H.rows = [{ def_id: DEF_ID, version: 1, rev: 1, definition: def, has_pine_source: true }]
     mount()
     await flush()
+    toStart()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Edit My line' })) })
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
     await flush()
-    fireEvent.change(screen.getByLabelText('Formula'), { target: { value: 'sma(close, 5)' } })
+    fireEvent.change(formulaBox(), { target: { value: 'sma(close, 5)' } })
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
     await flush()
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: /^Sav/ })) })

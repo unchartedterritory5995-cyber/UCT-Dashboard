@@ -105,8 +105,12 @@ def _no_cached_query_vectors():
     """Ruling D-H6 caches query vectors per (member, provider, query) for ten
     minutes; each test starts and ends without any."""
     ns.clear_query_cache()
+    if hasattr(ns, "clear_pending_cache"):
+        ns.clear_pending_cache()
     yield
     ns.clear_query_cache()
+    if hasattr(ns, "clear_pending_cache"):
+        ns.clear_pending_cache()
 
 
 def P(t):
@@ -375,17 +379,42 @@ def _record_handler(monkeypatch, **params):
     return body, log
 
 
-def _record_direct(monkeypatch, q):
+def _record_lexical(monkeypatch, q):
+    """Lane I's lexical list alone: `notes.list_and_count_notes`, recorded. Returns (log, rows)."""
     from api.services.journal_two import notes
     from api.services.auth_db import get_connection as real
     log: list = []
     monkeypatch.setattr(notes, "get_connection", lambda: Recorder(real(), log))
-    notes.list_and_count_notes(U, folder_id=None, tag=None, ticker=None, q=q,
-                               embed_symbol=None, embed_widget=None, sort="updated",
-                               limit=100, offset=0, deleted=False, date_from=None,
-                               date_to=None, symbol_in=None, property_filter=None,
-                               property_sort=None, property_filter_strict=True)
+    rows, _total = notes.list_and_count_notes(U, folder_id=None, tag=None, ticker=None, q=q,
+                                              embed_symbol=None, embed_widget=None, sort="updated",
+                                              limit=100, offset=0, deleted=False, date_from=None,
+                                              date_to=None, symbol_in=None, property_filter=None,
+                                              property_sort=None, property_filter_strict=True)
+    return log, rows
+
+
+def _record_computed(rows):
+    """The list's own computed-values step (lane 11B, `note_computed.values_for_notes`) on a page of rows, recorded
+    through the same function the handler calls. ⚰️ It ran only behind NOTEBOOK_FORMULAS_ENABLED until 7b8dc5c3b0
+    (2026-11-04) retired that flag; from then every live page reads the member's property definitions once, and the
+    flag-off equality below went red on that read, which is the list's step and not the meaning search's."""
+    from api.services.journal_two import note_computed
+    from api.services.auth_db import get_connection as real
+    log: list = []
+    if rows:
+        conn = Recorder(real(), log)
+        try:
+            note_computed.values_for_notes(conn, U, [r["id"] for r in rows],
+                                           {r["id"]: r.get("propertiesJson") or {} for r in rows})
+        finally:
+            conn.close()
     return log
+
+
+def _record_direct(monkeypatch, q):
+    """What the handler runs with no meaning search: the lexical list, then the computed step on its page."""
+    log, rows = _record_lexical(monkeypatch, q)
+    return log + _record_computed(rows)
 
 
 @pytest.mark.parametrize("q", ["why did I cut my winners early", "NVDA", None])
@@ -406,9 +435,11 @@ def test_PLAN_RAIL_CONTROL_flag_on_a_natural_language_query_adds_only_bounded_re
     _note(U, "Winners diary", "why did I cut my winners early today")
     ns.index_member(U)
     body, handler = _record_handler(monkeypatch, q="why did I cut my winners early")
-    direct = _record_direct(monkeypatch, "why did I cut my winners early")
-    extra = handler[len(direct):]
-    assert [s for s, _ in handler[:len(direct)]] == [s for s, _ in direct]   # lexical first, unchanged
+    lexical, _ = _record_lexical(monkeypatch, "why did I cut my winners early")
+    computed = _record_computed(body["notes"])          # the list's own last step, on the page it returned
+    assert [s for s, _ in handler[:len(lexical)]] == [s for s, _ in lexical]   # lexical first, unchanged
+    assert [s for s, _ in handler[len(handler) - len(computed):]] == [s for s, _ in computed]   # computed last
+    extra = handler[len(lexical):len(handler) - len(computed)]
     assert any("j2_note_embeddings" in s for s, _ in extra)
     # ⛔ never a second whole-library pass: every extra read is the member's
     # vectors or a by-id fetch of the hits
@@ -486,7 +517,14 @@ def test_PLAN_RAIL_flag_on_a_TICKER_query_is_still_exactly_lexical(db_path, monk
     ns.index_member(U)
     _, handler = _record_handler(monkeypatch, q="why sell NVDA now")
     direct = _record_direct(monkeypatch, "why sell NVDA now")
-    assert [s for s, _ in handler] == [s for s, _ in direct]
+    # Fix round 1 (review finding 5): a search that found nothing by meaning also reads the
+    # bounded, cached waiting count -- whatever the query's shape. That read is the ONLY addition:
+    # no vector is read and nothing is embedded for a ticker query.
+    waiting = [s for s, _ in handler if "COUNT(*) FROM (SELECT 1 FROM j2_notes" in s
+               or s.lstrip().upper().startswith("CREATE")]
+    assert len([s for s in waiting if "COUNT(*)" in s]) == 1
+    assert [s for s, _ in handler if s not in waiting] == [s for s, _ in direct]
+    assert not any("vector" in s for s, _ in handler)
 
 
 # ── the account leaves, its vectors leave with it ────────────────────────────
@@ -508,3 +546,121 @@ def test_account_deletion_purges_the_members_vectors_and_only_theirs(db_path, on
     assert report["rows_deleted"].get("j2_note_embeddings", 0) >= 2
     assert _rows(U) == []
     assert _rows(OTHER), "another member's vectors were purged"
+
+
+# ── Audit 2026-11-05, spec S4 (B18): the meaning search says what it is still waiting for ──────
+#
+# "Meaning search returns nothing after 35 minutes" gave the member no status at all. The index
+# fills on a 15-minute sweep (api/main.py, `notebook_semantic_sweep`), so a new note is not in
+# it yet; the search now SAYS so, with the count of the member's notes still waiting.
+
+def test_pending_count_is_the_live_notes_not_yet_indexed(db_path, on_noop, monkeypatch):
+    from api.services.journal_two import notes
+    monkeypatch.setattr(ns, "PENDING_CACHE_TTL_S", 0)   # every read fresh in this rail
+    a = _note(U, "First", "one two three")
+    assert ns.pending_count(U) == 1
+    ns.index_member(U)
+    assert ns.pending_count(U) == 0
+    _note(U, "Second", "four five six")
+    gone = _note(U, "Third", "seven eight nine")
+    notes.delete_note(U, gone["id"])
+    assert ns.pending_count(U) == 1                     # a trashed note is not waiting
+    notes.update_note(U, a["id"], {"bodyJson": {"type": "doc", "content": [P("edited words")]}})
+    assert ns.pending_count(U) == 2                     # an edit waits for the next sweep
+    assert ns.pending_count("someone-else") == 0
+
+
+def test_pending_count_is_None_while_dark(db_path, monkeypatch):
+    monkeypatch.delenv(GATE, raising=False)
+    _note(U, "First", "one two three")
+    assert ns.pending_count(U) is None
+
+
+def test_a_meaning_search_with_no_meaning_hit_reports_what_is_waiting(db_path, on_noop, monkeypatch):
+    _note(U, "Tight flag", "price coiled under resistance for weeks")
+    body, _ = _record_handler(monkeypatch, q="consolidation pattern breakout setup")
+    assert not [r for r in body["notes"] if r.get("matchKind") == "meaning"]
+    assert body["meaningPending"] == 1
+
+
+def test_B18_the_audits_own_two_word_query_gets_the_waiting_count(db_path, on_noop, monkeypatch):
+    """Fix round 1 (review finding 5): "consolidation pattern" is two tokens, so `query_shape` says
+    LEXICAL and the first cut never counted -- the B18 report verbatim. The count does not depend on
+    the query's shape: it is sent whenever meaning search was asked for and found nothing."""
+    _note(U, "Tight flag", "price coiled under resistance for weeks")
+    body, _ = _record_handler(monkeypatch, q="consolidation pattern")
+    assert body["meaningPending"] == 1
+
+
+def test_a_one_word_query_gets_it_too(db_path, on_noop, monkeypatch):
+    _note(U, "Tight flag", "price coiled under resistance for weeks")
+    body, _ = _record_handler(monkeypatch, q="flag")
+    assert body["meaningPending"] == 1
+
+
+def test_no_query_no_waiting_count(db_path, on_noop, monkeypatch):
+    _note(U, "Tight flag", "price coiled under resistance for weeks")
+    body, _ = _record_handler(monkeypatch, q=None)
+    assert "meaningPending" not in body
+
+
+def test_pending_count_is_cached_per_member_and_bounded(db_path, on_noop, monkeypatch):
+    """Fix round 1 (review finding 18): one count per member a minute, never a library-wide query on
+    every debounced keystroke; and the count stops at PENDING_COUNT_CAP."""
+    ns.clear_pending_cache()
+    _note(U, "One", "words one")
+    assert ns.pending_count(U) == 1
+    _note(U, "Two", "words two")
+    assert ns.pending_count(U) == 1                     # cached
+    ns.clear_pending_cache()
+    assert ns.pending_count(U) == 2
+    monkeypatch.setattr(ns, "PENDING_COUNT_CAP", 1)
+    ns.clear_pending_cache()
+    assert ns.pending_count(U) == 1                     # capped
+
+
+def test_R2_2_a_zero_is_cached_briefly_and_a_count_for_the_full_minute(db_path, on_noop, monkeypatch):
+    """Fix round 3 (re-review 2, R2-2): a 0 is cached, but only for PENDING_ZERO_TTL_S (10 s) -- an
+    empty search does not re-count every keystroke, and a note written a moment later still shows up
+    within seconds (the B18 moment). A non-zero count keeps the full minute."""
+    clock = {"t": 1000.0}
+    monkeypatch.setattr(ns, "_now", lambda: clock["t"])
+    ns.clear_pending_cache()
+    _note(U, "One", "words one")
+    ns.index_member(U)
+    assert ns.pending_count(U) == 0
+    _note(U, "Two", "words two")                        # just written
+    clock["t"] += 5
+    assert ns.pending_count(U) == 0                     # the 0 is still cached at 5 s
+    clock["t"] += ns.PENDING_ZERO_TTL_S
+    assert ns.pending_count(U) == 1                     # past 10 s: counted again
+    _note(U, "Three", "words three")
+    clock["t"] += ns.PENDING_ZERO_TTL_S + 1
+    assert ns.pending_count(U) == 1                     # a non-zero count keeps its minute
+    clock["t"] += ns.PENDING_CACHE_TTL_S
+    assert ns.pending_count(U) == 2
+    assert ns.PENDING_ZERO_TTL_S == 10
+
+
+def test_N4_the_cap_is_said_as_a_floor(db_path, on_noop, monkeypatch):
+    """At the cap the panel must not claim an exact number: the router marks it."""
+    monkeypatch.setattr(ns, "PENDING_COUNT_CAP", 2)
+    ns.clear_pending_cache()
+    for i in range(3):
+        _note(U, f"N{i}", "words")
+    assert ns.pending_count(U) == 2
+    assert ns.pending_count_capped(2) is True
+    assert ns.pending_count_capped(1) is False
+    body, _ = _record_handler(monkeypatch, q="consolidation pattern")
+    assert body["meaningPending"] == 2 and body["meaningPendingCapped"] is True
+
+
+def test_N4_the_count_reads_no_grouped_scan_of_every_embedding(db_path, on_noop, monkeypatch):
+    """The LIMIT bounds the work: the read is a per-note existence probe, never a GROUP BY over all
+    of the member's embeddings."""
+    ns.clear_pending_cache()
+    _note(U, "One", "words one")
+    _, log = _record_handler(monkeypatch, q="consolidation pattern")
+    counts = [s for s, _ in log if "COUNT(*) FROM (SELECT 1 FROM j2_notes" in s]
+    assert len(counts) == 1
+    assert "GROUP BY" not in counts[0] and "NOT EXISTS" in counts[0]

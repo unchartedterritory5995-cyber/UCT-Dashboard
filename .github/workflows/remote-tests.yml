@@ -1,0 +1,282 @@
+# promotion-gate: no — an ON-DEMAND test lane for sessions (workflow_dispatch only): it never runs on a push and never decides promotion.
+#
+# ─── REMOTE TESTS: a session's focused tests on GitHub runners, not the one dev PC (2026-11-16) ─────────────
+#
+# WHY. Every session's heavy test run queued on ONE Windows box under uct-clips/tools/heavy_lock.py, one job at
+# a time, under hard RAM limits. The repo is public (standard runners are free) and the account is on GitHub
+# Pro (40 concurrent jobs), so a session sends its tests here and keeps working.
+#
+# HOW. Sessions do not dispatch this by hand: `python tools/remote_tests.py --pytest ... --vitest ...` pushes the
+# COMMITTED HEAD to refs/remote-tests/<id> (outside refs/heads: no push-triggered workflow fires, nothing deploys),
+# dispatches this workflow ON MASTER with that ref, waits, prints the failing test ids, then deletes the ref.
+# Because the dispatch ref is master, this file and the validator always come from master: a branch cannot change
+# how its own tests are run.
+#
+# SAFETY. Inputs reach shell ONLY through `env:` (never `${{ inputs.* }}` inside `run:`), and the `plan` job
+# refuses any ref, path or shard count that tools/remote_tests.py (master's copy, the one authority) refuses.
+# Read-only token, no secrets, credentials not persisted. tests/test_remote_tests_lane.py rails this file.
+name: remote tests
+run-name: "remote tests: ${{ inputs.label }} ${{ inputs.ref }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "refs/remote-tests/<id> (pushed by tools/remote_tests.py) or refs/heads/<branch>"
+        required: true
+        type: string
+      pytest:
+        description: "space-separated pytest paths / node ids under tests/ or api/"
+        required: false
+        default: ""
+        type: string
+      vitest:
+        description: "space-separated app-relative vitest paths under src/"
+        required: false
+        default: ""
+        type: string
+      vitest_shards:
+        description: "split the vitest files over N runners (1-6; at most 4 run at once)"
+        required: false
+        default: "1"
+        type: string
+      label:
+        description: "free text shown in the run name"
+        required: false
+        default: ""
+        type: string
+      env:
+        description: "space-separated KEY=VALUE measurement variables (allowlist in tools/remote_tests.py; never a secret)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: remote-tests-${{ inputs.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    name: validate the request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      has_pytest: ${{ steps.v.outputs.has_pytest }}
+      has_vitest: ${{ steps.v.outputs.has_vitest }}
+      shards: ${{ steps.v.outputs.shards }}
+      shard_count: ${{ steps.v.outputs.shard_count }}
+      env: ${{ steps.v.outputs.env }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tools/remote_tests.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - id: v
+        name: Validate with master's tools/remote_tests.py
+        env:
+          RT_REF: ${{ inputs.ref }}
+          RT_PYTEST: ${{ inputs.pytest }}
+          RT_VITEST: ${{ inputs.vitest }}
+          RT_SHARDS: ${{ inputs.vitest_shards }}
+          RT_ENV: ${{ inputs.env }}
+        run: python3 tools/remote_tests.py --validate-inputs
+
+  pytest:
+    name: pytest
+    needs: plan
+    if: needs.plan.outputs.has_pytest == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      # full history: some rails read git objects and refs; a shallow checkout fails them (full-suite F-CI-32)
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out the commit under test
+        env:
+          RT_REF: ${{ inputs.ref }}
+        run: |
+          # actions/checkout fetches only branches and tags, never refs/remote-tests/*; fetch the validated ref by
+          # name (anonymous: the repo is public, no credentials are kept) and test exactly that commit.
+          git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"
+          git checkout --quiet --detach refs/rt/under-test
+          git log -1 --format='testing %H %s'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      # several pytest suites drive a JS lane (node against the repo's own sources)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install
+        run: |
+          sudo mkdir -p /data && sudo chown "$(id -u):$(id -g)" /data
+          python -m pip install --quiet -r requirements.txt
+          # test-only packages the production image does not carry (brotli for the history-lake tool's suites). A ref
+          # cut before the file existed has none to install, and must still run.
+          if [ -f tests/ci-only-packages.txt ]; then python -m pip install --quiet -r tests/ci-only-packages.txt; fi
+          (cd app && npm ci --no-audit --no-fund)
+      # (2026-11-18, D1) the request's measurement variables, VALIDATED by master's tools/remote_tests.py in the plan
+      # job (allowlisted names, no shell-active characters, no newline). They arrive through env: and are written
+      # to $GITHUB_ENV one KEY=VALUE per line; globbing is off. Never interpolated into a run: line.
+      - name: Export the allowlisted measurement variables
+        env:
+          RT_ENV: ${{ needs.plan.outputs.env }}
+        run: |
+          set -f
+          if [ -n "$RT_ENV" ]; then printf '%s\n' $RT_ENV >> "$GITHUB_ENV"; fi
+      # A RED TEST RESULT IS DATA, NOT A FAILED RUN (2026-11-16): every failed run emails the owner, and sessions send
+      # in-progress work here on purpose. The test step may fail without failing the job; its outcome is written to a
+      # verdict file that tools/remote_tests.py reads (red tests -> exit 1). Only the lane itself (checkout, install,
+      # validation) can fail the run.
+      - name: pytest
+        id: t
+        continue-on-error: true
+        env:
+          RT_PYTEST: ${{ inputs.pytest }}
+        run: |
+          set -o pipefail
+          # --continue-on-collection-errors (2026-11-18): without it ONE file that cannot import interrupted the whole
+          # request -- a 372-file batch ran nothing because 6 history-lake files lacked a package. The collection
+          # error is still an ERROR by file in the junit, the totals line and the exit code; the other files run.
+          python -m pytest $RT_PYTEST -q -p no:cacheprovider --continue-on-collection-errors -o junit_family=xunit2 --junitxml=remote-pytest-junit.xml 2>&1 | tee remote-pytest.log
+      - name: Record the verdict
+        if: always()
+        env:
+          OUTCOME: ${{ steps.t.outcome }}
+        run: |
+          echo "$OUTCOME" > remote-pytest-verdict.txt
+          echo "### pytest: $OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: remote-pytest
+          path: |
+            remote-pytest-verdict.txt
+            remote-pytest-junit.xml
+            remote-pytest.log
+          if-no-files-found: ignore
+          retention-days: 7
+      # what the tests wrote under remote-out/ (an *_OUT variable must point there): `--download DIR` fetches it
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: remote-out-pytest
+          path: remote-out/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  vitest:
+    name: vitest (shard ${{ matrix.shard }}/${{ needs.plan.outputs.shard_count }})
+    needs: plan
+    if: needs.plan.outputs.has_vitest == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      # SHARE THE POOL (2026-11-16): the account runs 40 jobs at once and the master deploy gate needs 14 of them.
+      # Within an hour of launch, several sessions' remote runs plus PR CI queued two gates behind them. One remote
+      # run uses at most 4 vitest runners at a time (plus pytest), so a burst of session runs cannot starve deploys.
+      max-parallel: 4
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    steps:
+      # full history: some rails read git objects and refs; a shallow checkout fails them (full-suite F-CI-32)
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Check out the commit under test
+        env:
+          RT_REF: ${{ inputs.ref }}
+        run: |
+          # actions/checkout fetches only branches and tags, never refs/remote-tests/*; fetch the validated ref by
+          # name (anonymous: the repo is public, no credentials are kept) and test exactly that commit.
+          git fetch --no-tags --quiet origin "+$RT_REF:refs/rt/under-test"
+          git checkout --quiet --detach refs/rt/under-test
+          git log -1 --format='testing %H %s'
+      # ⚰️ 2026-11-17 — SEVEN NOTEBOOK BRIDGE RAILS WERE RED HERE AND NOWHERE ELSE. They spawn `python` to run
+      # the real exporter (tools/*_bridge.py, roundtrip_export_fixture.py), which imports the repo-root conftest
+      # (pytest) and anyio; this job installed no Python, so every one died on ModuleNotFoundError before its
+      # own assertions ran (run 44066213548). It now installs requirements.txt, exactly as the nightly's vitest
+      # job does for the same rails.
+      # ⚰️ NOT A "MINIMAL" LIST, AND THAT WAS MEASURED. A list of what the bridges import (pytest, anyio,
+      # sniffio, tzdata, read off an import-time probe) turned 5 of the 7 green and left 2 red on
+      # `No module named 'markdown_it'` (run 44085508213): notes_export_formats imports it INSIDE a function,
+      # so no import-time probe sees it, and the static closure of the bridges is the whole app (1,808 modules,
+      # ~50 distributions). requirements.txt is the only list that cannot drift from what they run. Cost,
+      # measured on this lane's pytest job with the pip cache: ~30 s, once per shard.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install the Python the bridge rails spawn
+        run: python -m pip install --quiet -r requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: npm ci
+        working-directory: app
+        run: npm ci --no-audit --no-fund
+      - name: Export the allowlisted measurement variables
+        env:
+          RT_ENV: ${{ needs.plan.outputs.env }}
+        run: |
+          set -f
+          if [ -n "$RT_ENV" ]; then printf '%s\n' $RT_ENV >> "$GITHUB_ENV"; fi
+      - name: vitest
+        id: t
+        continue-on-error: true
+        working-directory: app
+        env:
+          RT_VITEST: ${{ inputs.vitest }}
+          RT_SHARD: ${{ matrix.shard }}
+          RT_OF: ${{ needs.plan.outputs.shard_count }}
+        run: |
+          set -o pipefail
+          npx vitest list $RT_VITEST --filesOnly > ../rt-files.txt
+          total=$(grep -c . ../rt-files.txt || true)
+          # a path filter matching nothing must FAIL, never pass vacuously
+          if [ "$total" -eq 0 ]; then echo "::error::no vitest files match: $RT_VITEST"; exit 1; fi
+          of=$(( RT_OF < total ? RT_OF : total ))
+          if [ "$RT_SHARD" -gt "$of" ]; then echo "::notice::only $total file(s): shard $RT_SHARD has nothing to run"; exit 0; fi
+          python3 ../tools/agent_vitest_shards.py --files-list ../rt-files.txt --of "$of" --shard "$RT_SHARD" > ../rt-shard.files
+          test -s ../rt-shard.files || { echo "::error::shard $RT_SHARD has no files"; exit 1; }
+          echo "shard $RT_SHARD/$of: $(wc -l < ../rt-shard.files) of $total files"
+          npx vitest run $(cat ../rt-shard.files) --reporter=default --reporter=junit \
+            --outputFile.junit=../remote-vitest-junit-$RT_SHARD.xml 2>&1 | tee ../remote-vitest-$RT_SHARD.log
+      - name: Record the verdict
+        if: always()
+        env:
+          OUTCOME: ${{ steps.t.outcome }}
+          RT_SHARD: ${{ matrix.shard }}
+        run: |
+          echo "$OUTCOME" > "remote-vitest-verdict-$RT_SHARD.txt"
+          echo "### vitest shard $RT_SHARD: $OUTCOME" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: remote-vitest-${{ matrix.shard }}
+          path: |
+            remote-vitest-verdict-${{ matrix.shard }}.txt
+            remote-vitest-junit-${{ matrix.shard }}.xml
+            remote-vitest-${{ matrix.shard }}.log
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: remote-out-vitest-${{ matrix.shard }}
+          path: remote-out/
+          if-no-files-found: ignore
+          retention-days: 7

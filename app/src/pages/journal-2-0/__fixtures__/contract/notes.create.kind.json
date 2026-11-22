@@ -255,6 +255,7 @@
       "folderId": null,
       "heroImageUrl": null,
       "id": "c4bf54bf82b742efbb701a4947836755",
+      "importSource": null,
       "kindId": "trade_plan",
       "locked": false,
       "propertiesJson": {

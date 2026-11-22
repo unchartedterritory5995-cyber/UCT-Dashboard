@@ -320,7 +320,7 @@ describe('⭐⭐ the object lane, EXECUTED over the committed corpus', () => {
         detail.set(k, (detail.get(k) || 0) + 1)
       }
     }
-    const order = ['DREW', 'RAN-DREW-NOTHING', 'THREW', 'INCONCLUSIVE',
+    const order = ['DREW', 'DREW-NOTHING-KEPT', 'RAN-DREW-NOTHING', 'THREW', 'INCONCLUSIVE',
       'BUILD-THREW', 'BUILD-REFUSED']
     const pct = (n) => `${((n / SCRIPTS.length) * 100).toFixed(1)}%`
 

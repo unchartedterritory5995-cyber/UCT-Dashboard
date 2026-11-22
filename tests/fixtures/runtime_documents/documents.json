@@ -49,6 +49,10 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Not drawn by this pane",
+       "note": "This script also writes a horizontal line, which a script drawn bar by bar does not draw here yet. Those are not drawn here."
       }
      ],
      "requirementTags": []
@@ -217,7 +221,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -497,7 +502,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -815,63 +821,8 @@
         "style": {
          "v": "text",
          "node": {
-          "t": "if",
-          "cond": {
-           "v": "tree",
-           "tree": 5
-          },
-          "then": {
-           "t": "lit",
-           "s": "dotted"
-          },
-          "else": {
-           "t": "if",
-           "cond": {
-            "v": "tree",
-            "tree": 5
-           },
-           "then": {
-            "t": "lit",
-            "s": "dashed"
-           },
-           "else": {
-            "t": "if",
-            "cond": {
-             "v": "tree",
-             "tree": 5
-            },
-            "then": {
-             "t": "lit",
-             "s": "arrow_left"
-            },
-            "else": {
-             "t": "if",
-             "cond": {
-              "v": "tree",
-              "tree": 5
-             },
-             "then": {
-              "t": "lit",
-              "s": "arrow_right"
-             },
-             "else": {
-              "t": "if",
-              "cond": {
-               "v": "tree",
-               "tree": 5
-              },
-              "then": {
-               "t": "lit",
-               "s": "arrow_both"
-              },
-              "else": {
-               "t": "lit",
-               "s": "solid"
-              }
-             }
-            }
-           }
-          }
+          "t": "lit",
+          "s": "solid"
          }
         }
        }
@@ -892,7 +843,7 @@
         },
         "y1": {
          "v": "tree",
-         "tree": 6
+         "tree": 5
         },
         "x2": {
          "v": "tree",
@@ -900,7 +851,7 @@
         },
         "y2": {
          "v": "tree",
-         "tree": 6
+         "tree": 5
         },
         "color": {
          "v": "color",
@@ -916,63 +867,8 @@
         "style": {
          "v": "text",
          "node": {
-          "t": "if",
-          "cond": {
-           "v": "tree",
-           "tree": 5
-          },
-          "then": {
-           "t": "lit",
-           "s": "dotted"
-          },
-          "else": {
-           "t": "if",
-           "cond": {
-            "v": "tree",
-            "tree": 5
-           },
-           "then": {
-            "t": "lit",
-            "s": "dashed"
-           },
-           "else": {
-            "t": "if",
-            "cond": {
-             "v": "tree",
-             "tree": 5
-            },
-            "then": {
-             "t": "lit",
-             "s": "arrow_left"
-            },
-            "else": {
-             "t": "if",
-             "cond": {
-              "v": "tree",
-              "tree": 5
-             },
-             "then": {
-              "t": "lit",
-              "s": "arrow_right"
-             },
-             "else": {
-              "t": "if",
-              "cond": {
-               "v": "tree",
-               "tree": 5
-              },
-              "then": {
-               "t": "lit",
-               "s": "arrow_both"
-              },
-              "else": {
-               "t": "lit",
-               "s": "solid"
-              }
-             }
-            }
-           }
-          }
+          "t": "lit",
+          "s": "solid"
          }
         }
        }
@@ -1064,10 +960,6 @@
        "value": 2
       },
       {
-       "type": "num",
-       "value": 0
-      },
-      {
        "type": "offset",
        "value": 1,
        "args": [
@@ -1089,7 +981,8 @@
       "out2": 2,
       "out3": 0,
       "out4": 3
-     }
+     },
+     "objects": true
     },
     "meta": {
      "name": "inside-bar-range-mother-candle-breakoutb",
@@ -1103,6 +996,10 @@
      "repaint": "non-repainting",
      "freshness": "live",
      "lane": "runtime",
+     "recurrenceOrigin": "pine",
+     "pineVersion": 5,
+     "doorVersion": 1,
+     "naConditionFalse": true,
      "runtimeSourceHash": "e7a7781eacad676ec436c0a778f1e0223e7ad5ad47bac2c2b38569f81b5d2187",
      "runtimeLanguage": "pine",
      "runtimeFrontend": 1,
@@ -1121,14 +1018,15 @@
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
       },
       {
-       "name": "Settings",
-       "note": "Kept at the author's default: `lineColor` (its default is not a literal value)."
+       "name": "Drawings",
+       "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. Where the run holds back a kind of drawing that the script’s formula drawing program draws, this chart draws that program’s drawings instead, so nothing it showed is lost. That program is drawn at the author’s settings, so once a setting of the script is changed here it is not drawn, and a kind of drawing the run holds back is named on the chart instead."
       }
      ],
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -1196,6 +1094,12 @@
       "type": "bool",
       "default": false,
       "label": "Show Volume Threshold"
+     },
+     {
+      "key": "lineColor",
+      "type": "color",
+      "default": "#B2B5BE",
+      "label": "Line Color"
      },
      {
       "key": "styleOption",
@@ -11596,7 +11500,8 @@
       "out4": 4,
       "out5": 5,
       "out7": 3
-     }
+     },
+     "objects": true
     },
     "meta": {
      "name": "trend-targets-algoalpha",
@@ -11610,6 +11515,10 @@
      "repaint": "non-repainting",
      "freshness": "live",
      "lane": "runtime",
+     "recurrenceOrigin": "pine",
+     "pineVersion": 6,
+     "doorVersion": 1,
+     "naConditionFalse": true,
      "runtimeSourceHash": "08ed07e699888fe78aee08d3bba984d2e65e42d3518a4f9581fa790dbaf124cb",
      "runtimeHistory": "listing",
      "runtimeLanguage": "pine",
@@ -11639,12 +11548,17 @@
       {
        "name": "Drawn bar by bar",
        "note": "This script is drawn by running it bar by bar, the way TradingView does, because a single formula per line cannot hold it. Its settings can be changed like any indicator's; a value outside the script author's own bounds or options is refused by name, never stretched to fit."
+      },
+      {
+       "name": "Drawings",
+       "note": "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn. Where the run holds back a kind of drawing that the script’s formula drawing program draws, this chart draws that program’s drawings instead, so nothing it showed is lost. That program is drawn at the author’s settings, so once a setting of the script is changed here it is not drawn, and a kind of drawing the run holds back is named on the chart instead."
       }
      ],
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {
@@ -11681,7 +11595,7 @@
       "key": "out3Color",
       "type": "color",
       "label": "Baseline colour",
-      "default": "#c9a84c"
+      "default": "#00000000"
      },
      {
       "key": "out3Width",
@@ -11894,7 +11808,12 @@
       },
       "forward": 0,
       "colorMode": "column:out6",
-      "colorPacked": {}
+      "colorPacked": {},
+      "colorWithheld": {
+       "code": "pine:colour-unread",
+       "reason": "on a bar where its colour rule gives no colour, nothing is drawn",
+       "points": true
+      }
      },
      {
       "key": "out4",
@@ -12031,6 +11950,7 @@
       "colour",
       "colour"
      ],
+     "calcBarsCount": 1000,
      "disclosures": [
       {
        "name": "Drawn bar by bar",
@@ -12048,7 +11968,8 @@
      "requirementTags": []
     },
     "placement": {
-     "target": "price"
+     "target": "price",
+     "joinPriceScale": true
     },
     "inputs": [
      {

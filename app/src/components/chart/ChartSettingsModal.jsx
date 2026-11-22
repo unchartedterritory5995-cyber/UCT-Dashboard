@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
@@ -31,7 +31,12 @@ import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/use
 import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
-import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys, SIGN_POS, SIGN_NEG } from './headerFields'
+import { HEADER_FIELDS, SIGN_POS, SIGN_NEG } from './headerFields'
+import { headerStatKeys, statLabelsOf, withStatLabel, headerStatTogglePatch, movedHeaderStats, headerStatMetaOf, statStylesFor, withHeaderStatStyle } from './headerStatCatalog'
+import { STAT_SIZES, STAT_SIZE_LABELS, STAT_WEIGHTS, STAT_WEIGHT_LABELS, STAT_WEIGHT_VALUE, DEFAULT_BOX_COLOR, pickedBoxColor } from './headerStatStyle'
+import { customStatsOf, customStatKey, addCustomStatPatch, customStatAddRefusal } from './headerCustomStats'
+import { customStatLabel, customStatSigned, customStatOutputRefusal } from './engine/customStatCompute'
+import { HeaderStatList, HeaderStatPicker } from './HeaderStatPicker'
 import styles from './ChartSettingsModal.module.css'
 import useFocusTrap from '../mobile/useFocusTrap'
 import { inertBackground, MODAL_Z } from '../mobile/backgroundInert'
@@ -42,6 +47,18 @@ import { MAX_CHART_TEMPLATES } from './chartCeilings'
 import { chartTemplateSettings, chartTemplatesAfterSave, chartTemplatesAfterDelete } from './chartTemplateApply'
 import { keepIndicatorState } from './indicatorPreservation'
 import { recordIndicatorChange } from './indicatorHistoryStore'
+import TypeGlyph from './ChartTypeGlyph'
+import ChoiceMenu from './ChoiceMenu'
+import { APPEARANCE_SECTION_KEYS } from './chartAppearance'
+import Switch from '../ui/Switch'
+import { PANE_LOOK } from './pane/paneLook'
+import { headerColors } from './pane/headerDefaultColors'
+import {
+  candlePartsOf, priceLineOf, gridLinesOf, gridPatchFor, rightMarginOf, priceDecimalsOf, timeFormatOf, scaleTimePatch,
+  sessionBreaksOf, preMarketLevelsOf, nextEarningsMarkerOf, timeZoneOf, extendedHoursOf, priceAlertLinesOf,
+  myTradeMarkersOf,
+  PRICE_LINE_STYLES, GRID_LINES, TIME_FORMATS, TIME_ZONES, PRICE_DECIMALS, RIGHT_MARGIN_MIN, RIGHT_MARGIN_MAX,
+} from './chartViewOptions'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
 // available from every chart/tab/grid cell. Applying a template routes through
@@ -73,64 +90,6 @@ function joinHexA(rgb, a) {
 }
 
 // Compact type glyphs (24×24, currentColor) so each option reads at a glance.
-function TypeGlyph({ kind }) {
-  const s = { width: 26, height: 26, display: 'block' }
-  switch (kind) {
-    case 'candles':
-      return (
-        <svg viewBox="0 0 26 26" style={s} fill="none" stroke="currentColor" strokeWidth="1.4">
-          <line x1="8" y1="3" x2="8" y2="23" />
-          <rect x="5.5" y="8" width="5" height="9" fill="currentColor" stroke="none" />
-          <line x1="18" y1="4" x2="18" y2="22" />
-          <rect x="15.5" y="7" width="5" height="8" fill="currentColor" stroke="none" />
-        </svg>
-      )
-    case 'hollow':
-      return (
-        <svg viewBox="0 0 26 26" style={s} fill="none" stroke="currentColor" strokeWidth="1.4">
-          <line x1="8" y1="3" x2="8" y2="23" />
-          <rect x="5.5" y="8" width="5" height="9" />
-          <line x1="18" y1="4" x2="18" y2="22" />
-          <rect x="15.5" y="7" width="5" height="8" />
-        </svg>
-      )
-    case 'hlc':
-      return (
-        <svg viewBox="0 0 26 26" style={s} fill="none" stroke="currentColor" strokeWidth="1.4">
-          <line x1="8" y1="4" x2="8" y2="22" />
-          <line x1="8" y1="15" x2="12" y2="15" />
-          <line x1="18" y1="6" x2="18" y2="20" />
-          <line x1="18" y1="12" x2="22" y2="12" />
-        </svg>
-      )
-    case 'bars':
-      return (
-        <svg viewBox="0 0 26 26" style={s} fill="none" stroke="currentColor" strokeWidth="1.4">
-          <line x1="8" y1="4" x2="8" y2="22" />
-          <line x1="4" y1="9" x2="8" y2="9" />
-          <line x1="8" y1="15" x2="12" y2="15" />
-          <line x1="18" y1="6" x2="18" y2="20" />
-          <line x1="14" y1="10" x2="18" y2="10" />
-          <line x1="18" y1="12" x2="22" y2="12" />
-        </svg>
-      )
-    case 'line':
-      return (
-        <svg viewBox="0 0 26 26" style={s} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-          <polyline points="3,17 9,11 14,15 23,5" />
-        </svg>
-      )
-    case 'area':
-      return (
-        <svg viewBox="0 0 26 26" style={s} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-          <polyline points="3,17 9,11 14,15 23,5" />
-          <path d="M3 17 L9 11 L14 15 L23 5 L23 22 L3 22 Z" fill="currentColor" fillOpacity="0.18" stroke="none" />
-        </svg>
-      )
-    default:
-      return null
-  }
-}
 
 const CHART_TYPES = [
   { val: 'candles', label: 'Candles' },
@@ -260,6 +219,24 @@ function indTargetRow(scrollTo) {
   return rowId
 }
 
+// The five sections: id · the label the rail and the heading show · the rail icon.
+// ⚠️ The label is also what UCT Agent reads off the open tab (guide/explain.js) and the first step of every
+// descriptor `ui` path ("Chart Settings → Header & legend → …"), so a rename here is a rename there too.
+const SETTINGS_TABS = [
+  ['price', 'Price style', 'chart'],
+  ['canvas', 'Canvas', 'board'],
+  ['indicators', 'Indicators', 'wave'],
+  ['header', 'Header & legend', 'rows'],
+  ['markers', 'Markers', 'pin'],
+]
+const TAB_LABEL = Object.fromEntries(SETTINGS_TABS.map(([id, label]) => [id, label]))
+// "Reset this section" (owner 11-15): the settings keys each section's own controls write. A reset puts
+// ONLY these back to CHART_DEFAULTS. Indicators has no entry (its rows are the Indicators project's,
+// with their own undo) so it shows no reset button yet.
+// (11-16) ONE table with "Apply to all charts": chartAppearance.js owns it, so the keys a section resets and the keys
+// the look-copy carries can never disagree.
+const SECTION_RESET_KEYS = APPEARANCE_SECTION_KEYS
+
 const SETTINGS_TARGET_TAB = {
   candles: 'price',
   canvas: 'canvas',
@@ -270,6 +247,11 @@ const SETTINGS_TARGET_TAB = {
   // The chart header's "Add to Chart" control: Indicators, already in the add
   // surface (ChartSettingsIndicators `openAdd`).
   add: 'indicators',
+  // A chart-header stat's menu (owner 11-17): "Header settings…" opens Header & legend; "Add a stat…" opens its stat
+  // picker; "Add an indicator value…" opens the picker's custom-stat page.
+  header: 'header',
+  'header:add': 'header',
+  'header:custom': 'header',
 }
 // When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
 // `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
@@ -340,11 +322,22 @@ export default function ChartSettingsModal({
   onCreateFormula = null,
   // ⭐ P2 Track B — Create Indicator's door; passed through to the Indicators tab.
   onCreateIndicator = null,
+  // (door) => void: the builder's doors ('pine' | 'image' | 'formula'); passed to the Indicators tab.
+  onOpenBuilderDoor = null,
   // ⭐ PHASE 4 — the definition's own doors (modify / edit formula / custom copy).
   definitionDoors = null,
+  // ⭐ UCT RS Phase 4 (4-11) — the Indicators tab's FIRST add of a definition with a
+  // `meta.tour` (ChartSettingsIndicators `onFirstAdd`). The host holds it until
+  // this modal closes, then hands it to the chart's tour (ChartPane). Absent ⇒ none.
+  onIndicatorFirstAdd = null,
   // Optional `{ current: Element }` -- the control that opened this modal (the
   // gear). Focus returns there on close; without it, to whatever held focus at open.
   returnFocusRef = null,
+  // ⭐ "Apply to all charts" (owner 11-16, was Soon) — the Charts workspace's door, `{ count(), apply() }`:
+  // `count()` = how many OTHER charts the open layout holds, `apply()` copies this chart's look onto them
+  // (chartAppearance.js decides what "look" means) and returns how many changed. ABSENT PROP ⇒ ABSENT DOOR:
+  // a chart outside a workspace layout shows no such control.
+  applyToAllCharts = null,
 }) {
   const panelRef = useRef(null)
   const dialogRef = useRef(null)      // the `role="dialog"` layer (the backdrop) -- focus target + trap container
@@ -358,7 +351,10 @@ export default function ChartSettingsModal({
   const [pos, setPos] = useState(null) // dragged modal position {left, top}; null = centered
   const [confirmReset, setConfirmReset] = useState(false)
   const resetTimerRef = useRef(null)
+  const [confirmSectionReset, setConfirmSectionReset] = useState(null)  // the tab id awaiting its second click
+  const sectionResetTimerRef = useRef(null)
   const [themesOpen, setThemesOpen] = useState(false)
+  const soonDescId = useId()   // the one hidden "Coming soon" description every Soon control points at
 
   // Apply a UCT theme's visual layer. 'one' → this surface (via onChange, exactly
   // like a template); 'all' → every chart in the layout; 'allwidgets' → every
@@ -424,36 +420,13 @@ export default function ChartSettingsModal({
   const [tplName, setTplName] = useState('')
   const tplInputRef = useRef(null)
   useEffect(() => { if (savingTpl && tplInputRef.current) { tplInputRef.current.focus(); tplInputRef.current.select() } }, [savingTpl])
-  // Info Row field-picker menu (Header tab) — pops out to the RIGHT of the modal (like the
-  // color panel) so it never gets clipped by the modal's bottom.
-  const [fieldMenuOpen, setFieldMenuOpen] = useState(false)
-  const [fieldQuery, setFieldQuery] = useState('')
-  const [fieldMenuPos, setFieldMenuPos] = useState(null)
-  const fieldWrapRef = useRef(null)
-  const fieldMenuRef = useRef(null)
-  useEffect(() => {
-    if (!fieldMenuOpen) return
-    const onDown = (e) => {
-      const inWrap = fieldWrapRef.current && fieldWrapRef.current.contains(e.target)
-      const inMenu = fieldMenuRef.current && fieldMenuRef.current.contains(e.target)
-      if (!inWrap && !inMenu) setFieldMenuOpen(false)
-    }
-    document.addEventListener('mousedown', onDown, true)   // capture: beats the panel's stopPropagation
-    return () => document.removeEventListener('mousedown', onDown, true)
-  }, [fieldMenuOpen])
-  useLayoutEffect(() => {
-    if (!fieldMenuOpen || !panelRef.current) { setFieldMenuPos(null); return }
-    const r = panelRef.current.getBoundingClientRect()
-    // Top-align the field menu to the settings modal's top edge, and give it enough
-    // height that every field shows without scrolling (H tracks the full list); if it
-    // would spill past the viewport bottom, nudge it up.
-    const W = 240, gap = 12, H = Math.min(760, window.innerHeight - 24)
-    let left = r.right + gap
-    if (left + W > window.innerWidth - 8) left = Math.max(8, r.left - W - gap)  // flip left if tight
-    let top = r.top
-    if (top + H > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - H)
-    setFieldMenuPos({ left, top })
-  }, [fieldMenuOpen, pos])
+  // Info row stat picker (Header & legend, owner 11-16): an inline sub-page INSIDE the window (HeaderStatPicker.jsx),
+  // never a portal. Any other section, or closing the window, puts the section back on its main page.
+  const [statPickerOpen, setStatPickerOpen] = useState(false)
+  useEffect(() => { setStatPickerOpen(false) }, [activeTab, open])
+  // opened from a header stat's "Add a stat…" / "Add an indicator value…" (after the reset above, same commit)
+  const statPickerStart = open && (scrollTo === 'header:custom' ? 'custom' : scrollTo === 'header:add' ? 'list' : null)
+  useEffect(() => { if (statPickerStart && activeTab === 'header') setStatPickerOpen(true) }, [statPickerStart, activeTab])
 
   const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_CHART_TEMPLATES)))
   const commitSaveTemplate = () => {
@@ -478,7 +451,21 @@ export default function ChartSettingsModal({
   }
   const deleteTemplate = (id) => persistTemplates(chartTemplatesAfterDelete(templates, id))
 
-  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setTplMenuOpen(false); setSavingTpl(false); setTplName(''); setThemesOpen(false) } }, [open]) // re-center + reset transient UI on each open
+  // "Apply to all charts": null → the button; 'confirm' → the inline confirm; { done: n } → "Applied to n charts".
+  const [applyAll, setApplyAll] = useState(null)
+  const applyAllTimerRef = useRef(null)
+  const applyAllBtnRef = useRef(null)
+  const applyAllConfirmRef = useRef(null)
+  const applyAllPrevRef = useRef(null)
+  useEffect(() => () => { if (applyAllTimerRef.current) clearTimeout(applyAllTimerRef.current) }, [])
+  // Keyboard: the confirm takes focus when it opens; Cancel / Apply hands it back to the button it replaced.
+  useEffect(() => {
+    const prev = applyAllPrevRef.current
+    applyAllPrevRef.current = applyAll
+    if (applyAll === 'confirm') applyAllConfirmRef.current?.focus()
+    else if (prev === 'confirm') applyAllBtnRef.current?.focus()
+  }, [applyAll])
+  useEffect(() => { if (!open) { setPos(null); setConfirmReset(false); setConfirmSectionReset(null); setTplMenuOpen(false); setSavingTpl(false); setTplName(''); setThemesOpen(false); setApplyAll(null) } }, [open]) // re-center + reset transient UI on each open
 
   // Restore all chart settings to defaults. Two-click confirm (button shows
   // "Confirm?" for a moment) so an accidental tap can't wipe custom colors.
@@ -498,6 +485,40 @@ export default function ChartSettingsModal({
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current)
       resetTimerRef.current = setTimeout(() => setConfirmReset(false), 2600)
     }
+  }
+
+  // "Reset this section": the open tab's own keys go back to CHART_DEFAULTS; everything else on the chart
+  // (other sections, indicators, the timeframe favourites kept in `header`) is untouched. Two clicks, like
+  // Restore defaults, and undoable through the same history.
+  const handleSectionReset = (tab) => {
+    const keys = SECTION_RESET_KEYS[tab]
+    if (!keys) return
+    if (confirmSectionReset !== tab) {
+      setConfirmSectionReset(tab)
+      if (sectionResetTimerRef.current) clearTimeout(sectionResetTimerRef.current)
+      sectionResetTimerRef.current = setTimeout(() => setConfirmSectionReset(null), 2600)
+      return
+    }
+    if (sectionResetTimerRef.current) clearTimeout(sectionResetTimerRef.current)
+    setConfirmSectionReset(null)
+    const D = JSON.parse(JSON.stringify(CHART_DEFAULTS))
+    const next = { ...settings, preset: 'custom' }
+    for (const k of keys) { if (k in D) next[k] = D[k]; else delete next[k] }
+    if (tab === 'header') {
+      // the timeframe favourites live in `header` but belong to the timeframe menu
+      const h = settings?.header || {}
+      next.header = { ...D.header, ...(h.timeframes ? { timeframes: h.timeframes } : {}), ...(h.customTimeframes ? { customTimeframes: h.customTimeframes } : {}) }
+    }
+    if (tab === 'canvas' && settings?.crosshair?.magnet != null) {
+      // the magnet is the price scale's right-click setting, not this tab's
+      next.crosshair = { ...next.crosshair, magnet: settings.crosshair.magnet }
+    }
+    // the indicator-owned keys (incl. header.infoValues) stay exactly as they are — the same rule as Restore defaults
+    const out = keepIndicatorState(next, settings)
+    if (historyKey) {
+      try { recordIndicatorChange(historyKey, settings, out, { userId: historyUserId, label: `${TAB_LABEL[tab]} reset`, kind: 'reset' }) } catch { /* never blocks */ }
+    }
+    onChange?.(out)
   }
 
   // Drag the modal by its header (like a floating tool window). Stays open while
@@ -616,7 +637,7 @@ export default function ChartSettingsModal({
     if (ref) { try { ref.current?.scrollIntoView({ block: 'start', behavior: 'auto' }) } catch { /* noop */ } }
     didScrollRef.current = true
   }, [open, scrollTo, activeTab])
-  useEffect(() => { setActiveTarget(null) }, [activeTab])
+  useEffect(() => { setActiveTarget(null); setConfirmSectionReset(null) }, [activeTab])
 
   // Position the pop-out color panel to the RIGHT of the modal (flip left if tight).
   useLayoutEffect(() => {
@@ -635,6 +656,8 @@ export default function ChartSettingsModal({
     if (!activeTarget) return
     const onDown = (e) => {
       if (e.target.closest?.('[data-color-swatch]') || e.target.closest?.('[data-color-panel]')) return
+      // the panel's line dropdowns (ChoiceMenu) portal their list to <body>
+      if (e.target.closest?.('[data-choice-menu]')) return
       setActiveTarget(null)
     }
     window.addEventListener('mousedown', onDown, true)
@@ -731,6 +754,18 @@ export default function ChartSettingsModal({
       return
     }
     // Per-field Info Row colors: `hdrf:<colorKey>` → header.colors[colorKey].
+    // Per-stat looks (owner 11-17): `hdrs:<statKey>:label|box` → header.statStyle[statKey].labelColor|boxColor —
+    // the same keys the header stat's own menu writes (headerStatStyle.js).
+    if (target.startsWith('hdrs:')) {
+      const at = target.lastIndexOf(':')
+      const key = target.slice(5, at)
+      const field = target.slice(at + 1) === 'box' ? 'boxColor' : 'labelColor'
+      const h = settings?.header || {}
+      const prevBox = h.statStyle && h.statStyle[key] ? h.statStyle[key].boxColor : null
+      const val = field === 'boxColor' ? pickedBoxColor(prevBox, hex) : hex
+      onChange?.({ ...settings, header: { ...h, statStyle: withHeaderStatStyle(h, key, { [field]: val }) }, preset: 'custom' })
+      return
+    }
     if (target.startsWith('hdrf:')) {
       const key = target.slice(5)
       const h = settings?.header || {}
@@ -774,7 +809,9 @@ export default function ChartSettingsModal({
   // registry on every render of an open modal. What makes the list ARRIVE is the
   // `useInstalledUserDefinitions` subscription up top, not a memo key down here.
   const allLanes = { ...engineRegistry, listDefinitions: engineRegistry.listAllDefinitions }
-  const indRows = listAllIndicators(settings, allLanes, { volumePaneFixed })
+  // `volumePaneByDefault` (/charts): the Volume row's Separate pane toggle shows the
+  // member's Display in choice, defaulting ON — see `listIndicators`.
+  const indRows = listAllIndicators(settings, allLanes, { volumePaneFixed, volumePaneByDefault: volumeOpts?.volumePaneByDefault === true })
   const indRowById = (id) => indRows.find((r) => r.id === id)
   /** One writer for every row: `patchFor` for the hand-written ones, and
    *  `instanceControls` for the engine-owned ones — the same writer the toolbar
@@ -803,6 +840,11 @@ export default function ChartSettingsModal({
       const { rowId, field } = splitIndTarget(t)
       return indRowById(rowId)?.values?.[field] || '#c9a84c'
     }
+    if (t.startsWith('hdrs:')) {
+      const at = t.lastIndexOf(':')
+      const look = statStylesFor(settings?.header || {})[t.slice(5, at)] || {}
+      return t.slice(at + 1) === 'box' ? (look.boxColor || DEFAULT_BOX_COLOR) : (look.labelColor || '#cfcac0')
+    }
     if (t.startsWith('hdrf:')) {
       const key = t.slice(5)
       const ov = settings?.header?.colors?.[key]
@@ -830,9 +872,10 @@ export default function ChartSettingsModal({
       case 'watermark': return joinHexA(watermark.color || '#a8a290', (watermark.opacity == null || watermark.opacity === 0.07) ? 0.82 : watermark.opacity)
       // Header/legend colors: the stored value, else the item's built-in default so
       // the swatch reads as the current on-screen color before the user changes it.
-      case 'hdrDayUp': return hdrColors.dayChangeUp || '#1ae51a'
-      case 'hdrDayDown': return hdrColors.dayChangeDown || '#ff3b47'
-      case 'hdrTitle': return hdrColors.title || '#c9a84c'
+      // Title / day change: the header's own authority (white; the chart's candle up / down colours — owner 11-16).
+      case 'hdrDayUp': return headerColors(settings).dayChangeUp
+      case 'hdrDayDown': return headerColors(settings).dayChangeDown
+      case 'hdrTitle': return headerColors(settings).title
       case 'hdrMarketCap': return hdrColors.marketCap || '#c9a84c'
       case 'hdrNextEarnings': return hdrColors.nextEarnings || '#6ba3be'
       case 'hdrUctRating': return hdrColors.uctRating || '#1ae51a'  // price-candle up-green
@@ -854,7 +897,23 @@ export default function ChartSettingsModal({
   }
   const setSetting = (patch) => onChange?.({ ...settings, ...patch, preset: 'custom' })
   const setBgMode = (m) => { if (m !== bgMode) setSetting({ bgMode: m }) }
-  const setGridVisible = (v) => setSetting({ grid: { ...grid, visible: v } })
+  // ── The seven rows that were "Soon" (owner 11-15), now real. One reader each (chartViewOptions.js): an
+  // absent key reads as today's look, so the dialog shows exactly what the chart draws. ──
+  const parts = candlePartsOf(settings)
+  const setPart = (key, on) => setSetting({ candles: { ...candles, [key]: on } })
+  const priceLine = priceLineOf(settings, !PANE_LOOK.hidePriceLine)
+  const gridLines = gridLinesOf(settings)
+  const rightMargin = rightMarginOf(settings)
+  const priceDecimals = priceDecimalsOf(settings)
+  const timeFormat = timeFormatOf(settings)
+  const timeZone = timeZoneOf(settings)
+  const extendedHours = extendedHoursOf(settings)
+  const setScaleTime = (field, value) => setSetting(scaleTimePatch(settings, field, value))
+  // A live on/off: the shared Switch primitive (never a new hand-rolled `role="switch"` copy).
+  const liveSwitch = (label, on, onToggle) => (
+    <Switch aria-label={label} checked={on} className={styles.toggle} checkedClassName={styles.toggleOn}
+      knobClassName={styles.toggleKnob} onClick={onToggle} />
+  )
   const setWmVisible = (v) => setSetting({ watermark: { ...watermark, visible: v } })
   const setWmLine = (key, v) => setSetting({ watermark: { ...watermark, lines: { ...(watermark.lines || {}), [key]: v } } })
   const setWmAlign = (v) => setSetting({ watermark: { ...watermark, align: v } })
@@ -884,10 +943,47 @@ export default function ChartSettingsModal({
   const toggleBarField = (id) => setHeader({ barInfo: withBarInfoField(settings, id, !barInfo.includes(id)) })
   // Info Row — the picked fields (migrates a legacy show* blob); the picker menu state
   // lives up top with the other hooks (this code runs after the `!open` early return).
-  const infoFields = headerFieldKeys(header)
-  const toggleInfoField = (key) => setHeader({
-    fields: infoFields.includes(key) ? infoFields.filter((k) => k !== key) : [...infoFields, key],
-  })
+  // (owner 11-16) any library stat (headerStatCatalog.js), in the member's order, each with an optional short rename.
+  const infoFields = headerStatKeys(header)
+  const statLabels = statLabelsOf(header)
+  const toggleInfoField = (key) => setHeader(headerStatTogglePatch(header, key))
+  // Custom stats (owner 11-16, headerCustomStats.js): each one's live name / sign from its definition (the stored
+  // name when the definition is not installed), so the list, the picker and the swatches name it like the chart does.
+  const customMeta = {}
+  for (const c of customStatsOf(header)) {
+    const def = engineRegistry.getDefinition(c.defId)
+    if (!def) continue
+    let names = null
+    try { names = customStatLabel(def, c) } catch { names = null }
+    const why = customStatOutputRefusal(def, c.plotKey, engineRegistry)
+    customMeta[customStatKey(c.id)] = {
+      label: (names && names.label) || c.name, signed: customStatSigned(def),
+      desc: why ? `Custom stat · ${why}` : `Custom stat · ${(names && names.title) || c.name || 'an indicator'}, its value on the newest bar`,
+    }
+  }
+  const infoStatMeta = (key) => headerStatMetaOf(header, key, customMeta)
+  const statLooks = statStylesFor(header)
+  const addCustomInfoField = (entry) => {
+    const patch = addCustomStatPatch(header, entry, infoFields)
+    if (patch.customStats) setHeader(patch)
+  }
+  const customInfoRefusal = (entry) => customStatAddRefusal(header, entry)
+  const moveInfoField = (from, to) => setHeader({ fields: movedHeaderStats(header, from, to) })
+  const renameInfoField = (key, label) => {
+    const next = withStatLabel(header, key, label)
+    if (JSON.stringify(next) === JSON.stringify(statLabels)) return   // a blur with no change writes nothing
+    setHeader({ statLabels: next })
+  }
+  // "Reset to UCT default" in the picker: the stats go back to today's row (no `fields`, no renames).
+  const resetInfoFields = () => {
+    const { fields: _f, statLabels: _l, customStats: _c, statStyle: _s, ...rest } = header
+    if (!('fields' in header) && !('statLabels' in header) && !('customStats' in header) && !('statStyle' in header)) return
+    // a custom stat's color goes with it (its id can be reused by the next custom stat)
+    if (rest.colors && Object.keys(rest.colors).some((k) => k.startsWith('cx:'))) {
+      rest.colors = Object.fromEntries(Object.entries(rest.colors).filter(([k]) => !k.startsWith('cx:')))
+    }
+    setSetting({ header: rest })
+  }
   const hdrColors = header.colors || {}
   // Markers tab.
   const swing = settings?.swingLabels || {}
@@ -933,6 +1029,56 @@ export default function ChartSettingsModal({
     )
   }
 
+  // ── "Apply to all charts" (owner 11-16, was Soon) ─────────────────────────────────────────────
+  // One click asks, inline (never window.confirm): "Apply these settings to N other charts in this layout?" → Apply /
+  // Cancel. Apply hands the copy to the workspace (one layout write, saved like any manual change) and says
+  // "Applied to N charts" for a moment. With no other chart in the layout the button is disabled and says why.
+  const otherCharts = applyToAllCharts && typeof applyToAllCharts.count === 'function' ? applyToAllCharts.count() : null
+  const chartsWord = (n) => `${n} ${n === 1 ? 'chart' : 'charts'}`
+  const confirmApplyAll = () => {
+    if (applyAllTimerRef.current) clearTimeout(applyAllTimerRef.current)
+    let n = 0
+    try { n = Number(applyToAllCharts?.apply?.()) || 0 } catch { n = 0 }
+    setApplyAll({ done: n })
+    applyAllTimerRef.current = setTimeout(() => setApplyAll(null), 2600)
+  }
+  const applyAllHintId = `${soonDescId}-applyall`
+
+  // ── "Soon" rows (owner 11-15, the approved Chart Settings Lab) ──────────────────────────────
+  // Settings the owner approved that the chart cannot do yet, shown VISIBLE BUT DISABLED with a
+  // small "Soon" tag so the window matches the lab. ⛔ They write NOTHING: no handler, no settings
+  // key, no `data-guide` (so UCT Agent's control registry never sees them), no entry in
+  // SECTION_RESET_KEYS. ⛔ No `role="switch"` either: the soft square is a plain disabled button,
+  // so the whole-row click (which clicks a row's live switch) has nothing to flip, and the
+  // hand-rolled-switch ratchet (formControls.census) does not grow. Swatches are inert spans, never
+  // `data-color-swatch` buttons, so they cannot open the colour panel.
+  const SOON = 'Coming soon'
+  const soonTag = <span className={styles.soonTag}>Soon</span>
+  const soonAttrs = (label) => ({
+    disabled: true, 'aria-disabled': 'true', 'aria-label': `${label} (coming soon)`,
+    title: SOON, 'aria-describedby': soonDescId,
+  })
+  const soonToggle = (label, on) => (
+    <button type="button" {...soonAttrs(label)} data-soon-control=""
+      className={`${styles.toggle} ${on ? styles.toggleOn : ''} ${styles.soonCtl}`}
+    ><span className={styles.toggleKnob} /></button>
+  )
+  const soonSwatch = (bg, label) => (
+    <span key={label} className={`${styles.cSwatch} ${styles.soonSwatch}`} style={{ background: bg }} title={`${label} · ${SOON}`} aria-hidden="true" />
+  )
+  const soonLabel = (label, hint) => (
+    <span className={styles.fieldLabel}>{label}{soonTag}{hint && <span className={styles.fieldHint}>{hint}</span>}</span>
+  )
+  // A whole Soon row. `toggle` = [label, on] for an on/off soft square; `right` = other controls.
+  const soonRow = (label, { hint, toggle, right } = {}) => (
+    <div className={`${styles.field} ${styles.soonRow}`} data-soon="" title={SOON} key={label}>
+      {soonLabel(label, hint)}
+      {toggle && !right ? soonToggle(toggle[0], toggle[1]) : (
+        <div className={styles.hdrRowCtl}>{right}{toggle && soonToggle(toggle[0], toggle[1])}</div>
+      )}
+    </div>
+  )
+
   return (
     <>
       {/* ⭐ THE FORMULA SUBSCRIPTION, MOUNTED BY THE OPEN BRANCH AND ONLY BY IT.
@@ -965,37 +1111,76 @@ export default function ChartSettingsModal({
         onMouseDown={(e) => e.stopPropagation()}
         style={{ ...(themeVars || {}), ...(pos ? { position: 'fixed', left: pos.left, top: pos.top, margin: 0, animation: 'none' } : {}) }}
       >
-        <div className={styles.header} onPointerDown={startDrag} style={{ cursor: 'move' }}>
-          <span className={styles.title}>{title}</span>
-          <div className={styles.headerRight} onPointerDown={e => e.stopPropagation()}>
-            <button
-              type="button"
-              className={`${styles.resetBtn}${confirmReset ? ' ' + styles.resetBtnConfirm : ''}`}
-              onClick={handleReset}
-              title="Resets chart appearance. Your indicators stay."
-              style={{ cursor: 'pointer' }}
-            >{confirmReset ? 'Confirm?' : '↺ Restore Defaults'}</button>
-            <button type="button" data-modal-close className={styles.close} onClick={onClose} aria-label="Close" style={{ cursor: 'pointer' }}>✕</button>
+        {/* ⭐ S2 · sidebar sections (owner 11-15): the five tabs are a left rail with grey icons,
+            the open one brighter with a thin light bar; templates, themes and Restore defaults sit
+            at the rail's foot. Every tab, template action and handler is the same as before. */}
+        <div className={styles.shell}>
+        <span id={soonDescId} hidden>{SOON}</span>
+        <aside className={styles.side}>
+          <div className={styles.header} onPointerDown={startDrag} style={{ cursor: 'move' }}>
+            <span className={styles.title}>{title}</span>
           </div>
+          <div className={styles.tabs} role="tablist" aria-orientation="vertical">
+          {SETTINGS_TABS.map(([id, label, icon]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={activeTab === id}
+              data-guide={`chartSettings.tab.${id}`}
+              className={`${styles.tab} ${activeTab === id ? styles.tabActive : ''}`}
+              onClick={() => setActiveTab(id)}
+            ><UIcon name={icon} size={14} gold={false} aria-hidden="true" /><span>{label}</span></button>
+          ))}
         </div>
 
-        {/* Template bar: save the whole current look, or open a saved one. Applying
-            writes to THIS surface (the tab/widget you opened settings from) via
-            onChange — never the global blob. */}
-        <div className={styles.tplBar} onPointerDown={e => e.stopPropagation()}>
+          <div className={styles.sideFoot} onPointerDown={e => e.stopPropagation()}>
+          {/* Apply to all charts (owner 11-16, was Soon): this chart's look → every other chart in this layout.
+              Absent off the Charts workspace (no door). Confirm and result are inline, in the rail's foot. */}
+          {otherCharts != null && (
+            <div className={styles.applyAll} data-apply-all="">
+              {applyAll === 'confirm' ? (
+                <div className={styles.applyAllConfirm} role="group" aria-label="Apply to all charts">
+                  <span className={styles.applyAllText}>{`Apply these settings to ${otherCharts} other ${otherCharts === 1 ? 'chart' : 'charts'} in this layout?`}</span>
+                  <div className={styles.applyAllBtns}>
+                    <button type="button" ref={applyAllConfirmRef} className={styles.applyAllYes} onClick={confirmApplyAll}>Apply</button>
+                    <button type="button" className={styles.applyAllNo} onClick={() => setApplyAll(null)}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  ref={applyAllBtnRef}
+                  data-guide="chartSettings.applyAll"
+                  className={styles.tplBtn}
+                  disabled={otherCharts < 1}
+                  aria-describedby={otherCharts < 1 ? applyAllHintId : undefined}
+                  title={otherCharts < 1 ? 'There are no other charts in this layout' : 'Copy this chart’s look to every other chart in this layout. Symbols, timeframes, indicators and drawings stay as they are.'}
+                  onClick={() => { if (applyAllTimerRef.current) clearTimeout(applyAllTimerRef.current); setApplyAll('confirm') }}
+                ><UIcon name="copy" size={14} gold={false} aria-hidden="true" /><span>Apply to all charts</span></button>
+              )}
+              {otherCharts < 1 && applyAll !== 'confirm' && (
+                <span id={applyAllHintId} className={styles.applyAllHint}>No other charts in this layout</span>
+              )}
+              {applyAll && typeof applyAll === 'object' && (
+                <span className={styles.applyAllDone} role="status">{`Applied to ${chartsWord(applyAll.done)}`}</span>
+              )}
+            </div>
+          )}
           <div className={styles.tplMenuWrap}>
             <button
+              data-guide="chartSettings.templates"
               type="button"
               className={styles.tplBtn}
               onClick={() => setTplMenuOpen(o => !o)}
               aria-haspopup="listbox"
               aria-expanded={tplMenuOpen}
               title="Open a saved chart-settings template"
-            >⌸ Templates{templates.length ? ` (${templates.length})` : ''} ▾</button>
+            ><UIcon name="library" size={14} gold={false} aria-hidden="true" /><span>Chart templates{templates.length ? ` (${templates.length})` : ''}</span></button>
             {tplMenuOpen && (
               <div className={styles.tplMenu} role="listbox">
                 {templates.length === 0 && (
-                  <div className={styles.tplEmpty}>No saved templates yet. Set up a chart, then “Save as Template”.</div>
+                  <div className={styles.tplEmpty}>No chart templates yet. Set up a chart, then “Save as chart template”.</div>
                 )}
                 {templates.map(t => (
                   <div key={t.id} className={styles.tplRow}>
@@ -1036,11 +1221,12 @@ export default function ChartSettingsModal({
             </div>
           ) : (
             <button
+              data-guide="chartSettings.saveTemplate"
               type="button"
               className={styles.tplBtn}
               onClick={() => { setSavingTpl(true); setTplMenuOpen(false) }}
               title="Save the current chart settings as a reusable template"
-            >＋ Save as Template</button>
+            ><UIcon name="plus" size={14} gold={false} aria-hidden="true" /><span>Save as chart template</span></button>
           )}
           {/* Pushed to the far right of the template row; same visual style as the
               template buttons (not a special accent) per owner request. */}
@@ -1048,24 +1234,36 @@ export default function ChartSettingsModal({
             type="button"
             className={`${styles.tplBtn} ${styles.themesBarBtn}`}
             onClick={() => setThemesOpen(true)}
-            title="Browse UCT chart themes — one-click looks for this chart"
-          ><UIcon name="sun" size={13} gold={false} style={{ verticalAlign: '-2px', marginRight: 5 }} />UCT Chart Themes</button>
-        </div>
-
-        <div className={styles.tabs} role="tablist">
-          {[['price', 'Price Style'], ['canvas', 'Canvas'], ['indicators', 'Indicators'], ['header', 'Header'], ['markers', 'Markers']].map(([id, label]) => (
+            data-guide="chartSettings.themes"
+            title="Color themes: one-click color looks for this chart"
+          ><UIcon name="sun" size={14} gold={false} aria-hidden="true" /><span>Color themes</span></button>
             <button
-              key={id}
               type="button"
-              role="tab"
-              aria-selected={activeTab === id}
-              data-guide={`chartSettings.tab.${id}`}
-              className={`${styles.tab} ${activeTab === id ? styles.tabActive : ''}`}
-              onClick={() => setActiveTab(id)}
-            >{label}</button>
-          ))}
-        </div>
-
+              data-guide="chartSettings.reset"
+              className={`${styles.resetBtn}${confirmReset ? ' ' + styles.resetBtnConfirm : ''}`}
+              onClick={handleReset}
+              title="Resets chart appearance. Your indicators stay."
+              style={{ cursor: 'pointer' }}
+            ><UIcon name="refresh" size={14} gold={false} aria-hidden="true" /><span>{confirmReset ? 'Confirm?' : 'Restore defaults'}</span></button>
+          </div>
+        </aside>
+        <div className={styles.main}>
+          <div className={styles.mainHead} onPointerDown={startDrag}>
+            <h3 className={styles.mainTitle}>{TAB_LABEL[activeTab]}</h3>
+            {/* Reset this section (owner 11-15): a quiet icon right after the title. Indicators: not yet. */}
+            {SECTION_RESET_KEYS[activeTab] && (
+              <button
+                type="button"
+                data-guide="chartSettings.sectionReset"
+                onPointerDown={e => e.stopPropagation()}
+                className={`${styles.sectionReset} ${confirmSectionReset === activeTab ? styles.sectionResetConfirm : ''}`}
+                onClick={() => handleSectionReset(activeTab)}
+                aria-label={confirmSectionReset === activeTab ? `Confirm: reset ${TAB_LABEL[activeTab]} to UCT default` : `Reset ${TAB_LABEL[activeTab]} to UCT default`}
+                title={confirmSectionReset === activeTab ? 'Click again to reset' : `Reset ${TAB_LABEL[activeTab]} to UCT default`}
+              ><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 4v3.5h3.5" /><path d="M3.6 9.5A5 5 0 1 0 4.4 5L3 7.5" /></svg>{confirmSectionReset === activeTab && <span>Reset?</span>}</button>
+            )}
+            <button onPointerDown={e => e.stopPropagation()} type="button" data-modal-close className={styles.close} onClick={onClose} aria-label="Close" style={{ cursor: 'pointer' }}>✕</button>
+          </div>
         {/* ⭐ THE SHELL IS ONE WIDTH; THE CONTENT IS NOT OBLIGED TO FILL IT.
             Indicators IS the shell's width — the Inspector's two columns were
             designed to it. Price Style, Canvas, Header and Markers were laid out
@@ -1083,22 +1281,24 @@ export default function ChartSettingsModal({
             ⛔ THE 18px OF MODAL PADDING STAYS. That is the frame every tab, the
             title and the tab strip share, and this pass is about the gutter that
             has no frame to be. */}
-        <div className={`${styles.body} ${activeTab === 'indicators' ? styles.bodyFlush : ''}`}>
+        {/* Whole-row toggling (owner 11-15): a click anywhere on a row that carries an on/off
+            switch flips it — the switch itself, a swatch, a menu or any other control keep
+            their own clicks. */}
+        <div className={`${styles.body} ${activeTab === 'indicators' ? styles.bodyFlush : ''}`}
+          onClick={(e) => {
+            if (activeTab === 'indicators') return
+            const row = e.target.closest?.(`.${styles.field}`)
+            if (!row || row.hasAttribute('data-soon') || e.target.closest('button, input, select, a, [role="switch"], [role="option"]')) return
+            row.querySelector('[role="switch"]:not([disabled]):not([aria-disabled="true"])')?.click()
+          }}>
           {activeTab === 'canvas' && (<>
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Background</div>
             <div className={styles.card}>
-              <div className={styles.seg} role="tablist">
-                {[['solid', 'Solid'], ['gradient', 'Gradient']].map(([val, label]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    role="tab"
-                    aria-selected={bgMode === val}
-                    className={`${styles.segBtn} ${bgMode === val ? styles.segBtnActive : ''}`}
-                    onClick={() => setBgMode(val)}
-                  >{label}</button>
-                ))}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Style</span>
+                <ChoiceMenu ariaLabel="Background" value={bgMode} onChange={setBgMode}
+                  options={[{ value: 'solid', label: 'Solid' }, { value: 'gradient', label: 'Gradient' }]} />
               </div>
               {bgMode === 'solid' ? (
                 <div className={styles.field}>
@@ -1115,33 +1315,46 @@ export default function ChartSettingsModal({
                   {colorSwatch('bgBottom', 'Gradient Bottom')}
                 </div>
               </>)}
+              {/* Shade pre / post-market (owner 11-16, was Soon): the EXISTING per-chart `extendedHoursShading` — the
+                  toolbar's "Extended hours" / EXT-RTH toggle and this row are one switch, so they always agree. ON shows
+                  the pre/post-market bars with their shading on intraday charts; OFF = regular session only. Per chart
+                  (never copied by "Apply to all charts", never reset by "Reset this section"). */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Shade pre / post-market <span className={styles.fieldHint}>extended-hours bars + shading, intraday · same as the toolbar's Extended hours</span></span>
+                {liveSwitch('Shade pre / post-market', extendedHours, () => setSetting({ extendedHoursShading: !extendedHours }))}
+              </div>
             </div>
           </section>
 
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Grid</div>
             <div className={styles.card}>
+              {/* One control for the grid (owner 11-15): Off / Horizontal / Vertical / Both. `grid.visible` stays
+                  the on/off master (Off writes visible:false, so older blobs and UCT Agent's grid.visible read the
+                  same); `grid.lines` says which lines when it is on. */}
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Show grid lines</span>
-                <button aria-label="Show grid lines"
-                  type="button"
-                  role="switch"
-                  aria-checked={grid.visible !== false}
-                  className={`${styles.toggle} ${grid.visible !== false ? styles.toggleOn : ''}`}
-                  onClick={() => setGridVisible(grid.visible === false)}
-                ><span className={styles.toggleKnob} /></button>
+                <span className={styles.fieldLabel}>Lines</span>
+                <ChoiceMenu ariaLabel="Grid lines" value={gridLines}
+                  options={GRID_LINES.map(([v, l]) => ({ value: v, label: l }))}
+                  onChange={(v) => setSetting({ grid: gridPatchFor(grid, v) })} />
               </div>
-              {grid.visible !== false && (
+              {gridLines !== 'off' && (
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Line color</span>
                   {colorSwatch('grid', 'Grid')}
                 </div>
               )}
+              {/* Session breaks (owner 11-15, was Soon): `sessionBreaks`, absent = off. Drawn by sessionMarks.js on
+                  intraday charts only, in the grid's own colour. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Session breaks <span className={styles.fieldHint}>a line at each new trading day, intraday</span></span>
+                {liveSwitch('Session breaks', sessionBreaksOf(settings), () => setSetting({ sessionBreaks: !sessionBreaksOf(settings) }))}
+              </div>
             </div>
           </section>
 
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Crosshair &amp; Text</div>
+            <div className={styles.sectionLabel}>Crosshair &amp; scale</div>
             <div className={styles.card}>
               {/* Three-way control (Always / Hold / Off), mirroring Chart legend.
                   Writes ONLY `crosshair.mode`; the legacy `crosshair.enabled`
@@ -1149,17 +1362,9 @@ export default function ChartSettingsModal({
                   so nothing here toggles it. */}
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Crosshair</span>
-                <div className={styles.seg} role="tablist">
-                  {CROSSHAIR_MODES.map((val) => (
-                    <button
-                      key={val} type="button" role="tab"
-                      aria-selected={crosshairMode === val}
-                      title={CROSSHAIR_MODE_LABELS[val].hint}
-                      className={`${styles.segBtn} ${crosshairMode === val ? styles.segBtnActive : ''}`}
-                      onClick={() => setSetting({ crosshair: { ...crosshair, mode: val } })}
-                    >{CROSSHAIR_MODE_LABELS[val].label}</button>
-                  ))}
-                </div>
+                <ChoiceMenu ariaLabel="Crosshair" value={crosshairMode}
+                  options={CROSSHAIR_MODES.map((val) => ({ value: val, label: CROSSHAIR_MODE_LABELS[val].label, hint: CROSSHAIR_MODE_LABELS[val].hint }))}
+                  onChange={(val) => setSetting({ crosshair: { ...crosshair, mode: val } })} />
               </div>
               {crosshairMode !== 'off' && (
                 <div className={styles.field}>
@@ -1170,14 +1375,9 @@ export default function ChartSettingsModal({
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Scale text</span>
                 <div className={styles.fieldControls}>
-                  <select
-                    className={styles.sizeSelect}
-                    value={curTextSize}
-                    onChange={(e) => setSetting({ textSize: Number(e.target.value) })}
-                    aria-label="Scale text size"
-                  >
-                    {TEXT_SIZES.map((px) => <option key={px} value={px}>{px}</option>)}
-                  </select>
+                  <ChoiceMenu ariaLabel="Scale text size" value={curTextSize}
+                    options={TEXT_SIZES.map((px) => ({ value: px, label: `${px}px` }))}
+                    onChange={(v) => setSetting({ textSize: Number(v) })} />
                   {colorSwatch('text', 'Scale Text')}
                 </div>
               </div>
@@ -1185,7 +1385,55 @@ export default function ChartSettingsModal({
           </section>
 
           <section className={styles.section}>
-            <div className={styles.sectionLabel} ref={axisRef}>Axis Labels</div>
+            <div className={styles.sectionLabel}>Margins</div>
+            <div className={styles.card}>
+              {/* Right margin: Auto = the chart's own padding (6 bars on /charts); dragging sets bars. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Right margin <span className={styles.fieldHint}>space between the last candle and the price scale</span></span>
+                <div className={styles.hdrRowCtl}>
+                  <input type="range" min={RIGHT_MARGIN_MIN} max={RIGHT_MARGIN_MAX} step={1}
+                    value={rightMargin ?? PANE_LOOK.rightPadBars} aria-label="Right margin"
+                    aria-valuetext={rightMargin == null ? 'Auto' : `${rightMargin} bars`}
+                    className={styles.marginRange}
+                    onChange={(e) => setScaleTime('rightMargin', Number(e.target.value))} />
+                  <span className={styles.marginValue}>{rightMargin == null ? 'Auto' : `${rightMargin} bar${rightMargin === 1 ? '' : 's'}`}</span>
+                  {rightMargin != null && (
+                    <button type="button" className={styles.marginAuto} title="Back to the chart's own margin"
+                      onClick={() => setScaleTime('rightMargin', null)}>Auto</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Scale &amp; time</div>
+            <div className={styles.card}>
+              {/* Time zone (owner 11-16, was Soon): `scaleTime.timeZone`, absent = Exchange (New York). Display only —
+                  the intraday time-axis labels and the crosshair time; bars and every session rule stay New York. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Time zone <span className={styles.fieldHint}>intraday axis + crosshair times</span></span>
+                <ChoiceMenu ariaLabel="Time zone" value={timeZone}
+                  options={TIME_ZONES.map(([v, l]) => ({ value: v, label: l }))}
+                  onChange={(v) => setScaleTime('timeZone', v)} />
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Time format</span>
+                <ChoiceMenu ariaLabel="Time format" value={timeFormat}
+                  options={TIME_FORMATS.map(([v, l]) => ({ value: v, label: l }))}
+                  onChange={(v) => setScaleTime('timeFormat', v)} />
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Price decimals</span>
+                <ChoiceMenu ariaLabel="Price decimals" value={priceDecimals ?? 'auto'}
+                  options={PRICE_DECIMALS.map(([v, l]) => ({ value: v, label: l }))}
+                  onChange={(v) => setScaleTime('priceDecimals', v === 'auto' ? null : Number(v))} />
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel} ref={axisRef}>Price scale</div>
             <div className={styles.card}>
               <div className={styles.field}>
                 <span className={styles.fieldLabel}>Price labels</span>
@@ -1227,80 +1475,49 @@ export default function ChartSettingsModal({
               </div>
               {watermark.visible !== false && (<>
                 <div className={`${styles.field} ${styles.fieldCol}`}>
-                  <span className={styles.fieldLabel}>Fields</span>
-                  <div className={styles.chipRow}>
-                    {/* `logo` (default OFF) prefixes the ticker line with the company
-                        logo; `interval` (default ON) appends ", <timeframe>" to it,
-                        e.g. "ARM, 1D". The `true` 3rd element marks a default-OFF field. */}
+                  <span className={styles.fieldLabel}>Lines <span className={styles.fieldHint}>top to bottom</span></span>
+                  {/* A 2-column checklist of soft squares (owner 11-15), right in the card.
+                      `logo` (default OFF) prefixes the ticker line with the company
+                      logo; `interval` (default ON) appends ", <timeframe>" to it,
+                      e.g. "ARM, 1D". The `true` 3rd element marks a default-OFF field. */}
+                  <div className={`${styles.softGrid} ${styles.softGrid2}`} role="group" aria-label="Watermark lines">
                     {WM_LINES.map(([key, label, defOff]) => {
                       const on = defOff ? !!wmLines[key] : wmLines[key] !== false
                       return (
                         <button
                           key={key}
                           type="button"
-                          className={`${styles.chip} ${on ? styles.chipOn : ''}`}
+                          role="checkbox"
+                          aria-checked={on}
+                          className={styles.softItem}
                           onClick={() => setWmLine(key, defOff ? !wmLines[key] : wmLines[key] === false)}
-                          aria-pressed={on}
-                        >{label}</button>
+                        ><span className={`${styles.softBox} ${on ? styles.softBoxOn : ''}`} aria-hidden="true" />{label}</button>
                       )
                     })}
                   </div>
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Alignment</span>
-                  <div className={styles.seg} role="tablist">
-                    {[['left', 'Left'], ['center', 'Center'], ['right', 'Right']].map(([val, label]) => (
-                      <button
-                        key={val} type="button" role="tab"
-                        aria-selected={(watermark.align || 'center') === val}
-                        aria-label={label} title={label}
-                        className={`${styles.segBtn} ${(watermark.align || 'center') === val ? styles.segBtnActive : ''}`}
-                        onClick={() => setWmAlign(val)}
-                      >
-                        <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" style={{ display: 'block' }}>
-                          {val === 'left' && (<><line x1="2" y1="3" x2="14" y2="3" /><line x1="2" y1="6" x2="10" y2="6" /><line x1="2" y1="9" x2="12" y2="9" /></>)}
-                          {val === 'center' && (<><line x1="2" y1="3" x2="14" y2="3" /><line x1="4" y1="6" x2="12" y2="6" /><line x1="3" y1="9" x2="13" y2="9" /></>)}
-                          {val === 'right' && (<><line x1="2" y1="3" x2="14" y2="3" /><line x1="6" y1="6" x2="14" y2="6" /><line x1="4" y1="9" x2="14" y2="9" /></>)}
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
+                  <ChoiceMenu ariaLabel="Watermark alignment" value={watermark.align || 'center'} onChange={setWmAlign}
+                    options={[{ value: 'left', label: 'Left' }, { value: 'center', label: 'Center' }, { value: 'right', label: 'Right' }]} />
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Size</span>
-                  <select
-                    className={styles.sizeSelect}
-                    value={wmSize}
-                    onChange={(e) => setWmSize(Number(e.target.value))}
-                    aria-label="Watermark size"
-                  >
-                    {WM_SIZES.map((s) => <option key={s} value={s}>{Math.round(s * 100)}%</option>)}
-                  </select>
+                  <ChoiceMenu ariaLabel="Watermark size" value={wmSize} onChange={(v) => setWmSize(Number(v))}
+                    options={WM_SIZES.map((sz) => ({ value: sz, label: `${Math.round(sz * 100)}%` }))} />
                 </div>
                 {/* Width of the watermark's fixed layout box. The block occupies the
                     same rectangle on every symbol; a long company name wraps into
                     this width instead of stretching the mark sideways. */}
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Width</span>
-                  <select
-                    className={styles.sizeSelect}
-                    value={wmBoxW}
-                    onChange={(e) => setWmBoxW(Number(e.target.value))}
-                    aria-label="Watermark width"
-                  >
-                    {WM_BOX_WIDTHS.map(([w, label]) => <option key={w} value={w}>{label}</option>)}
-                  </select>
+                  <ChoiceMenu ariaLabel="Watermark width" value={wmBoxW} onChange={(v) => setWmBoxW(Number(v))}
+                    options={WM_BOX_WIDTHS.map(([w, label]) => ({ value: w, label }))} />
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Weight</span>
-                  <select
-                    className={styles.sizeSelect}
-                    value={wmWeight}
-                    onChange={(e) => setWmWeight(Number(e.target.value))}
-                    aria-label="Watermark font weight"
-                  >
-                    {WM_WEIGHTS.map(([w, label]) => <option key={w} value={w}>{label}</option>)}
-                  </select>
+                  <ChoiceMenu ariaLabel="Watermark font weight" value={wmWeight} onChange={(v) => setWmWeight(Number(v))}
+                    options={WM_WEIGHTS.map(([w, label]) => ({ value: w, label }))} />
                 </div>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Color &amp; opacity</span>
@@ -1350,6 +1567,7 @@ export default function ChartSettingsModal({
             volumeRef={volumeRef}
             onCreateFormula={onCreateFormula}
             onCreateIndicator={onCreateIndicator}
+            onOpenBuilderDoor={onOpenBuilderDoor}
             /* Subscribed up here, for the reason written beside the hooks: this
                component builds `indRows`, so it is the one that has to re-render
                when a member's formulas install. Handing the two results down is
@@ -1365,26 +1583,25 @@ export default function ChartSettingsModal({
             chartFeatures={chartFeatures}
             definitionDoors={definitionDoors}
             openAdd={scrollTo === 'add'}
+            onFirstAdd={onIndicatorFirstAdd}
           />
           )}
 
-          {activeTab === 'header' && (<>
+          {activeTab === 'header' && statPickerOpen && (
+            <HeaderStatPicker styles={styles} keys={infoFields} onToggle={toggleInfoField} onReset={resetInfoFields} onDone={() => setStatPickerOpen(false)}
+              metaOf={infoStatMeta} onAddCustom={addCustomInfoField} customAddRefusal={customInfoRefusal}
+              startBuilding={statPickerStart === 'custom'} />
+          )}
+          {activeTab === 'header' && !statPickerOpen && (<>
           {/* TITLE — the ticker/company label + its color + the day-change readout that
               sits right beside it (all "the title line", so they're grouped together). */}
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Title</div>
-            <div className={styles.modeRow}>
-              {TITLE_MODES.map(({ val, label }) => (
-                <button
-                  key={val}
-                  type="button"
-                  className={`${styles.modeCard} ${(header.titleMode || 'company') === val ? styles.modeCardActive : ''}`}
-                  onClick={() => setHeader({ titleMode: val })}
-                  aria-pressed={(header.titleMode || 'company') === val}
-                >
-                  <span className={styles.modeName}>{label}</span>
-                </button>
-              ))}
+            <div className={styles.card}>
+            <div className={styles.field}>
+              <span className={styles.fieldLabel}>Shows</span>
+              <ChoiceMenu ariaLabel="Title shows" value={header.titleMode || 'company'} onChange={(v) => setHeader({ titleMode: v })}
+                options={TITLE_MODES.map(({ val, label }) => ({ value: val, label }))} />
             </div>
             {/* Title color — same swatch/ColorPanel mechanism as the other header
                 items, so it supports opacity. Unset keeps the built-in gold. */}
@@ -1395,11 +1612,12 @@ export default function ChartSettingsModal({
             {/* Day change ($ / %) — reads beside the title, so it lives in this section. */}
             {renderShowRow('showChange', 'Day change ($ / %)',
               [['hdrDayUp', 'Up-day color'], ['hdrDayDown', 'Down-day color']])}
+            </div>
           </section>
 
           {/* CHART LEGEND — its own section (the on-chart OHLCV readout + its shape). */}
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Chart Legend</div>
+            <div className={styles.sectionLabel}>Legend</div>
             <div className={styles.card}>
               {/* ⚰️ A SHOW/HIDE TOGGLE STOOD HERE (`renderShowRow('showLegend', …)`)
                   and is replaced by a three-way control rather than joined by one.
@@ -1412,17 +1630,8 @@ export default function ChartSettingsModal({
                 <span className={styles.fieldLabel}>Chart legend</span>
                 <div className={styles.hdrRowCtl}>
                   {legendMode !== 'off' && colorSwatch('hdrLegend', 'Chart legend color')}
-                  <div className={styles.seg} role="tablist">
-                    {LEGEND_MODES.map((val) => (
-                      <button
-                        key={val} type="button" role="tab"
-                        aria-selected={legendMode === val}
-                        title={LEGEND_MODE_LABELS[val].hint}
-                        className={`${styles.segBtn} ${legendMode === val ? styles.segBtnActive : ''}`}
-                        onClick={() => setHeader({ legendMode: val })}
-                      >{LEGEND_MODE_LABELS[val].label}</button>
-                    ))}
-                  </div>
+                  <ChoiceMenu ariaLabel="Chart legend" value={legendMode} onChange={(val) => setHeader({ legendMode: val })}
+                    options={LEGEND_MODES.map((val) => ({ value: val, label: LEGEND_MODE_LABELS[val].label, hint: LEGEND_MODE_LABELS[val].hint }))} />
                 </div>
               </div>
               {/* ⭐⭐ BAR INFO — WHICH READINGS OF THE CANDLE THE STRIP PRINTS.
@@ -1444,14 +1653,16 @@ export default function ChartSettingsModal({
               {legendMode !== 'off' && (
                 <div className={`${styles.field} ${styles.fieldCol}`}>
                   <span className={styles.fieldLabel}>Bar info</span>
-                  <div className={styles.pillRow} role="group" aria-label="Bar info fields">
+                  {/* a 4-column grid of soft squares (owner 11-15) — same writer as the pills it replaced */}
+                  <div className={`${styles.softGrid} ${styles.softGrid4}`} role="group" aria-label="Bar info fields">
                     {BAR_INFO_FIELDS.map(({ id, label }) => (
                       <button
                         key={id} type="button"
-                        aria-pressed={barInfo.includes(id)}
-                        className={`${styles.pill} ${barInfo.includes(id) ? styles.pillOn : ''}`}
+                        role="checkbox"
+                        aria-checked={barInfo.includes(id)}
+                        className={styles.softItem}
                         onClick={() => toggleBarField(id)}
-                      >{label}</button>
+                      ><span className={`${styles.softBox} ${barInfo.includes(id) ? styles.softBoxOn : ''}`} aria-hidden="true" />{label}</button>
                     ))}
                   </div>
                 </div>
@@ -1459,71 +1670,124 @@ export default function ChartSettingsModal({
             </div>
           </section>
 
-          {/* INFO ROW — an "Add Field" button (beside the label) opens the searchable field
-              menu (pops out to the RIGHT of the modal). Every selected field then lists here
-              with a color swatch. */}
+          {/* INFO ROW (owner 11-16) — the chosen stats in header order: drag (or ↑ / ↓) to reorder, click a name to
+              rename it (≤16 characters, empty = the stat's own name), a colour swatch per stat (two for a signed one).
+              "Choose stats" opens the picker as a sub-page of this section (HeaderStatPicker.jsx). */}
           <section className={styles.section}>
             <div className={styles.infoRowHead}>
-              <span className={styles.sectionLabel} style={{ padding: 0 }}>Info Row</span>
+              <span className={styles.sectionLabel} style={{ padding: 0 }}>Stats beside the ticker <span className={styles.sectionHint}>{infoFields.length} shown</span></span>
               <button
                 type="button"
-                ref={fieldWrapRef}
                 className={styles.addFieldBtn}
-                onClick={() => setFieldMenuOpen((o) => !o)}
-                aria-expanded={fieldMenuOpen}
-              >＋ Add Field</button>
+                onClick={() => setStatPickerOpen(true)}
+              ><UIcon name="plus" size={12} gold={false} aria-hidden="true" />Choose stats</button>
             </div>
-            {infoFields.length > 0 && (
-              <div className={styles.card}>
-                {infoFields.map((k) => {
-                  const f = HEADER_FIELD_BY_KEY[k]
-                  if (!f) return null
-                  // Signed fields (% change, $ change, N-day…) get TWO swatches: the left
-                  // colors positive values, the right colors negative values.
-                  return (
-                    <div className={styles.field} key={k}>
-                      <span className={styles.fieldLabel}>{f.label} color</span>
-                      <div className={styles.hdrRowCtl}>
-                        {f.signed ? (<>
-                          {colorSwatch(`hdrf:${f.colorKey}:pos`, `${f.label} — positive`)}
-                          {colorSwatch(`hdrf:${f.colorKey}:neg`, `${f.label} — negative`)}
-                        </>) : colorSwatch(`hdrf:${f.colorKey}`, `${f.label} color`)}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
+            <HeaderStatList
+              styles={styles}
+              keys={infoFields}
+              labels={statLabels}
+              onRename={renameInfoField}
+              onMove={moveInfoField}
+              onRemove={toggleInfoField}
+              metaOf={infoStatMeta}
+              styledKeys={new Set(Object.keys(statLooks))}
+              renderStyle={(f) => {
+                const look = statLooks[f.key] || {}
+                const size = look.size || 'm'
+                const setLook = (patch) => setHeader({ statStyle: withHeaderStatStyle(header, f.key, patch) })
+                return (<>
+                  <span className={styles.statStyleItem}>Label color {colorSwatch(`hdrs:${f.key}:label`, `${f.label} label color`)}
+                    {look.labelColor && <button type="button" className={styles.statStyleReset} onClick={() => setLook({ labelColor: null })} aria-label={`${f.label} label color: back to default`}>Default</button>}
+                  </span>
+                  <span className={styles.statStyleItem}>Box {liveSwitch(`${f.label} shaded box`, !!look.box, () => setLook({ box: !look.box }))}
+                    {look.box && colorSwatch(`hdrs:${f.key}:box`, `${f.label} box color`)}
+                  </span>
+                  <span className={styles.statStyleItem}>Size
+                    <span className={styles.statSizes} role="group" aria-label={`${f.label} text size`}>
+                      {STAT_SIZES.map((z) => (
+                        <button key={z} type="button" aria-pressed={size === z} aria-label={`${f.label} size ${STAT_SIZE_LABELS[z]}`}
+                          className={`${styles.statSize} ${size === z ? styles.statSizeOn : ''}`}
+                          onClick={() => { if (z !== size) setLook({ size: z }) }}>{STAT_SIZE_LABELS[z]}</button>
+                      ))}
+                    </span>
+                  </span>
+                  <span className={styles.statStyleItem}>Thickness
+                    <span className={styles.statSizes} role="group" aria-label={`${f.label} text thickness`}>
+                      {(() => {
+                        // the same thinner / thicker stepper as the header menu (owner 11-17)
+                        const wt = look.weight || 'regular'
+                        const i = STAT_WEIGHTS.indexOf(wt)
+                        return (<>
+                          <button type="button" className={styles.statSize} aria-label={`${f.label} thinner`} disabled={i <= 0}
+                            onClick={() => setLook({ weight: STAT_WEIGHTS[i - 1] })}>−</button>
+                          <span className={styles.statWeightName} style={{ fontWeight: STAT_WEIGHT_VALUE[wt] }}>{STAT_WEIGHT_LABELS[wt]}</span>
+                          <button type="button" className={styles.statSize} aria-label={`${f.label} thicker`} disabled={i >= STAT_WEIGHTS.length - 1}
+                            onClick={() => setLook({ weight: STAT_WEIGHTS[i + 1] })}>+</button>
+                        </>)
+                      })()}
+                    </span>
+                  </span>
+                </>)
+              }}
+              renderColors={(f) => (f.signed ? (<>
+                {colorSwatch(`hdrf:${f.colorKey}:pos`, `${f.label} — positive`)}
+                {colorSwatch(`hdrf:${f.colorKey}:neg`, `${f.label} — negative`)}
+              </>) : colorSwatch(`hdrf:${f.colorKey}`, `${f.label} color`))}
+            />
           </section>
           {/* Timeframes/Favorites are managed on the chart's own timeframe menu (the
               ⌄ button) — star to favorite there; no separate settings section. */}
           </>)}
           {activeTab === 'markers' && (<>
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Swing labels</div>
+            <div className={styles.sectionLabel}>Events</div>
             <div className={styles.card}>
-              <div className={styles.field}>
-                <span className={styles.fieldLabel}>Swing prices</span>
-                <button
-                  type="button" role="switch" aria-checked={!!swing.enabled} aria-label="Swing prices"
-                  className={`${styles.toggle} ${swing.enabled ? styles.toggleOn : ''}`}
-                  onClick={() => setSwing({ enabled: !swing.enabled })}
-                ><span className={styles.toggleKnob} /></button>
-              </div>
-              {swing.enabled && (<>
-                <div className={styles.field}>
-                  <span className={styles.fieldLabel}>Sensitivity</span>
-                  <div className={styles.seg} role="tablist">
-                    {SWING_SENS.map(([val, label]) => (
-                      <button
-                        key={val} type="button" role="tab"
-                        aria-selected={(swing.sensitivity || 'medium') === val}
-                        className={`${styles.segBtn} ${(swing.sensitivity || 'medium') === val ? styles.segBtnActive : ''}`}
-                        onClick={() => setSwing({ sensitivity: val })}
-                      >{label}</button>
-                    ))}
+              {EVENT_MARKERS.map(([key, label]) => (
+                <div className={styles.field} key={key}>
+                  <span className={styles.fieldLabel}>{label}</span>
+                  <div className={styles.hdrRowCtl}>
+                    {/* Earnings badge is beat/miss-colored — expose both when it's on. */}
+                    {key === 'earnings' && evtMarkers.earnings && (<>
+                      {colorSwatch('earnBeat', 'Beat color')}
+                      {colorSwatch('earnMiss', 'Miss color')}
+                    </>)}
+                    <button
+                      type="button" role="switch" aria-checked={!!evtMarkers[key]} aria-label={label}
+                      className={`${styles.toggle} ${evtMarkers[key] ? styles.toggleOn : ''}`}
+                      onClick={() => setMarker(key, !evtMarkers[key])}
+                    ><span className={styles.toggleKnob} /></button>
                   </div>
                 </div>
+              ))}
+              {/* Next earnings date (owner 11-16, was Soon): `nextEarningsMarker`, absent = off. A muted grey "E" chip at the
+                  bottom of the price pane on the bar where the next report falls — ahead of the last bar (logical index from
+                  the trading calendar), every timeframe (nextEarningsMark.js). No date known → nothing. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Next earnings date <span className={styles.fieldHint}>a marker ahead of the last bar, so you see it coming</span></span>
+                {liveSwitch('Next earnings date', nextEarningsMarkerOf(settings), () => setSetting({ nextEarningsMarker: !nextEarningsMarkerOf(settings) }))}
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Swing labels</div>
+            <div className={styles.card}>
+              {/* Sensitivity sits IN the on/off row, on the right, while the labels are on (owner 11-15). */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Swing highs &amp; lows</span>
+                <div className={styles.hdrRowCtl}>
+                  {swing.enabled && (
+                    <ChoiceMenu ariaLabel="Swing sensitivity" value={swing.sensitivity || 'medium'} onChange={(v) => setSwing({ sensitivity: v })}
+                      options={SWING_SENS.map(([val, label]) => ({ value: val, label }))} />
+                  )}
+                  <button
+                    type="button" role="switch" aria-checked={!!swing.enabled} aria-label="Swing highs & lows"
+                    className={`${styles.toggle} ${swing.enabled ? styles.toggleOn : ''}`}
+                    onClick={() => setSwing({ enabled: !swing.enabled })}
+                  ><span className={styles.toggleKnob} /></button>
+                </div>
+              </div>
+              {swing.enabled && (<>
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Label color</span>
                   {colorSwatch('swingColor', 'Swing label color')}
@@ -1556,30 +1820,7 @@ export default function ChartSettingsModal({
           </section>
 
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Event markers</div>
-            <div className={styles.card}>
-              {EVENT_MARKERS.map(([key, label]) => (
-                <div className={styles.field} key={key}>
-                  <span className={styles.fieldLabel}>{label}</span>
-                  <div className={styles.hdrRowCtl}>
-                    {/* Earnings badge is beat/miss-colored — expose both when it's on. */}
-                    {key === 'earnings' && evtMarkers.earnings && (<>
-                      {colorSwatch('earnBeat', 'Beat color')}
-                      {colorSwatch('earnMiss', 'Miss color')}
-                    </>)}
-                    <button
-                      type="button" role="switch" aria-checked={!!evtMarkers[key]} aria-label={label}
-                      className={`${styles.toggle} ${evtMarkers[key] ? styles.toggleOn : ''}`}
-                      onClick={() => setMarker(key, !evtMarkers[key])}
-                    ><span className={styles.toggleKnob} /></button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className={styles.section}>
-            <div className={styles.sectionLabel}>Prev-day levels — intraday</div>
+            <div className={styles.sectionLabel}>Previous-day levels <span className={styles.sectionHint}>intraday charts only</span></div>
             <div className={styles.card}>
               {PDL_LINES.map(([key, label]) => {
                 const c = pdl[key] || {}
@@ -1588,22 +1829,10 @@ export default function ChartSettingsModal({
                     <span className={styles.fieldLabel}>{label}</span>
                     <div className={styles.hdrRowCtl}>
                       {c.enabled && (<>
-                        <select
-                          className={styles.sizeSelect}
-                          aria-label={`${label} line style`}
-                          value={c.style || 'dashed'}
-                          onChange={(e) => setPrevDay(key, { style: e.target.value })}
-                        >
-                          {LINE_STYLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                        </select>
-                        <select
-                          className={styles.sizeSelect}
-                          aria-label={`${label} line width`}
-                          value={c.width || 1}
-                          onChange={(e) => setPrevDay(key, { width: Number(e.target.value) })}
-                        >
-                          {PDL_WIDTHS.map((w) => <option key={w} value={w}>{w}px</option>)}
-                        </select>
+                        <ChoiceMenu ariaLabel={`${label} line style`} value={c.style || 'dashed'} onChange={(v) => setPrevDay(key, { style: v })}
+                          options={LINE_STYLES.map(([v, l]) => ({ value: v, label: l }))} />
+                        <ChoiceMenu ariaLabel={`${label} line width`} value={c.width || 1} onChange={(v) => setPrevDay(key, { width: Number(v) })}
+                          options={PDL_WIDTHS.map((w) => ({ value: w, label: `${w}px` }))} />
                         {colorSwatch(PDL_COLOR_TARGET[key], `${label} color`)}
                       </>)}
                       <button
@@ -1615,41 +1844,147 @@ export default function ChartSettingsModal({
                   </div>
                 )
               })}
+              {/* Pre-market high & low (owner 11-15, was Soon): `preMarketLevels`, absent = off. Two dashed lines at the
+                  latest session's 04:00–09:30 ET high and low, labelled "PM high" / "PM low" on the price scale, drawn
+                  only while extended-hours bars are loaded (sessionMarks.js). */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Pre-market high &amp; low <span className={styles.fieldHint}>today's pre-market range, on intraday charts with extended hours</span></span>
+                {liveSwitch('Pre-market high & low', preMarketLevelsOf(settings), () => setSetting({ preMarketLevels: !preMarketLevelsOf(settings) }))}
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Your activity</div>
+            <div className={styles.card}>
+              {/* My trades (owner 11-16, was Soon — the last Markers Soon row): `myTradeMarkers`, absent = off. A small
+                  up-arrow under each bar holding one of the member's Journal buys on this symbol and a down-arrow over
+                  each holding a sell, in the chart's own candle colours at reduced strength; hovering one reads
+                  "Bought 100 @ 12.34 · <date time>" (myTradeMarkers.js). Read-only; nothing is fetched while it is off. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>My trades <span className={styles.fieldHint}>your buys and sells from the Journal</span></span>
+                {liveSwitch('My trades', myTradeMarkersOf(settings), () => setSetting({ myTradeMarkers: !myTradeMarkersOf(settings) }))}
+              </div>
+              {/* Price alerts (owner 11-16, was Soon): `priceAlertLines`, absent = off. A muted dashed line labelled "Alert"
+                  on the price scale at each of the member's ACTIVE price alerts on this symbol, from the existing alerts
+                  list (priceAlertLines.js). Read-only: an alert that goes off or is deleted takes its line with it. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Price alerts <span className={styles.fieldHint}>a line at each of your alert prices</span></span>
+                {liveSwitch('Price alerts', priceAlertLinesOf(settings), () => setSetting({ priceAlertLines: !priceAlertLinesOf(settings) }))}
+              </div>
             </div>
           </section>
 
           {/* Dark Pool — brings the Dark Pool page's print-level bars onto this
               chart. Off by default; paid-gated at fetch (empty for free users).
-              Bar + label colors carry opacity via the color menu. */}
+              Bar + label colors carry opacity via the color menu; they sit in the
+              on/off row, on the right, while it is on (owner 11-15). */}
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Dark pool</div>
             <div className={styles.card}>
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Show dark pool bars</span>
-                <button
-                  type="button" role="switch" aria-checked={!!settings.darkPool?.enabled} aria-label="Show dark pool bars"
-                  className={`${styles.toggle} ${settings.darkPool?.enabled ? styles.toggleOn : ''}`}
-                  onClick={() => setSetting({ darkPool: { ...(settings.darkPool || {}), enabled: !settings.darkPool?.enabled } })}
-                ><span className={styles.toggleKnob} /></button>
+                <span className={styles.fieldLabel}>Dark pool prints</span>
+                <div className={styles.hdrRowCtl}>
+                  {settings.darkPool?.enabled && (<>
+                    {colorSwatch('dpBarColor', 'Dark pool bar color')}
+                    {colorSwatch('dpLabelColor', 'Dark pool label color')}
+                  </>)}
+                  <button
+                    type="button" role="switch" aria-checked={!!settings.darkPool?.enabled} aria-label="Dark pool prints"
+                    className={`${styles.toggle} ${settings.darkPool?.enabled ? styles.toggleOn : ''}`}
+                    onClick={() => setSetting({ darkPool: { ...(settings.darkPool || {}), enabled: !settings.darkPool?.enabled } })}
+                  ><span className={styles.toggleKnob} /></button>
+                </div>
               </div>
-              {settings.darkPool?.enabled && (<>
-                <div className={styles.field}>
-                  <span className={styles.fieldLabel}>Bar color</span>
-                  <div className={styles.hdrRowCtl}>{colorSwatch('dpBarColor', 'Bar color')}</div>
-                </div>
-                <div className={styles.field}>
-                  <span className={styles.fieldLabel}>Label color</span>
-                  <div className={styles.hdrRowCtl}>{colorSwatch('dpLabelColor', 'Label color')}</div>
-                </div>
-              </>)}
+            </div>
+          </section>
+          </>)}
+          {activeTab === 'price' && (<>
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Chart type</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Type</span>
+                <ChoiceMenu ariaLabel="Chart type" value={curType} onChange={setType}
+                  options={CHART_TYPES.map(({ val, label }) => ({ value: val, label, icon: <TypeGlyph kind={val} size={16} /> }))} />
+              </div>
             </div>
           </section>
 
+          {/* Colors (owner 11-15): "Color based on", then one row per part — Body / Borders / Wick
+              each with its up + down swatches on the right (or the single colour in One Color mode).
+              Thin bars — OHLC/HLC bars only. Lightweight Charts exposes exactly one boolean
+              (thinBars); CandlestickSeries has no width option, so the row is hidden for
+              candles/hollow rather than shown as a control that does nothing. */}
+          {showColorMode && (
+            <section className={styles.section}>
+              <div className={styles.sectionLabel}>Colors</div>
+              <div className={styles.card}>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Color based on</span>
+                  <ChoiceMenu ariaLabel="Color based on" value={curColorMode} onChange={setColorMode}
+                    options={COLOR_MODES.map(({ val, label }) => ({ value: val, label }))} />
+                </div>
+                {curColorMode === 'onecolor' ? (
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Color</span>
+                    <div className={styles.hdrRowCtl}>{colorSwatch('one', 'Color')}</div>
+                  </div>
+                ) : isCandleType ? (<>
+                  {/* Each part: its up + down swatches, then an on/off (absent = on, every part draws). */}
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Body</span>
+                    <div className={styles.hdrRowCtl}>{colorSwatch('bodyUp', 'Body Up')}{colorSwatch('bodyDown', 'Body Down')}{liveSwitch('Show body', parts.body, () => setPart('showBody', !parts.body))}</div>
+                  </div>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Borders</span>
+                    <div className={styles.hdrRowCtl}>{colorSwatch('borderUp', 'Border Up')}{colorSwatch('borderDown', 'Border Down')}{liveSwitch('Show borders', parts.borders, () => setPart('showBorders', !parts.borders))}</div>
+                  </div>
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Wick</span>
+                    <div className={styles.hdrRowCtl}>{colorSwatch('wickUp', 'Wick Up')}{colorSwatch('wickDown', 'Wick Down')}{liveSwitch('Show wick', parts.wick, () => setPart('showWick', !parts.wick))}</div>
+                  </div>
+                </>) : (
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>{(curType === 'bars' || curType === 'hlc') ? 'Bars' : 'Color'}</span>
+                    <div className={styles.hdrRowCtl}>{colorSwatch('bodyUp', 'Up')}{colorSwatch('bodyDown', 'Down')}</div>
+                  </div>
+                )}
+                {(curType === 'bars' || curType === 'hlc') && (
+                  <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Thin bars</span>
+                    <button
+                      type="button" role="switch" aria-checked={candles.thinBars !== false} aria-label="Thin bars"
+                      className={`${styles.toggle} ${candles.thinBars !== false ? styles.toggleOn : ''}`}
+                      onClick={() => setSetting({ candles: { ...candles, thinBars: candles.thinBars === false } })}
+                    ><span className={styles.toggleKnob} /></button>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Countdown</div>
+            <div className={styles.sectionLabel}>Price line</div>
             <div className={styles.card}>
               <div className={styles.field}>
-                <span className={styles.fieldLabel}>Countdown to bar close</span>
+                <span className={styles.fieldLabel}>Last price line <span className={styles.fieldHint}>across the chart at the latest price</span></span>
+                <div className={styles.hdrRowCtl}>
+                  {priceLine.visible && (
+                    <ChoiceMenu ariaLabel="Last price line style" value={priceLine.style}
+                      options={PRICE_LINE_STYLES.map(([v, l]) => ({ value: v, label: l }))}
+                      onChange={(v) => setSetting({ candles: { ...candles, priceLineStyle: v } })} />
+                  )}
+                  {liveSwitch('Last price line', priceLine.visible, () => setSetting({ candles: { ...candles, priceLine: !priceLine.visible } }))}
+                </div>
+              </div>
+              {/* The price series' last-value label IS `showPriceLabels` (also Canvas → Price scale → Price labels). */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Price label on the scale <span className={styles.fieldHint}>the latest price on the right-hand scale</span></span>
+                {liveSwitch('Price label on the scale', settings.showPriceLabels !== false, () => setSetting({ showPriceLabels: settings.showPriceLabels === false }))}
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Countdown to bar close <span className={styles.fieldHint}>under the price label</span></span>
                 <button
                   type="button" role="switch" aria-checked={!!settings.countdown} aria-label="Countdown to bar close"
                   className={`${styles.toggle} ${settings.countdown ? styles.toggleOn : ''}`}
@@ -1659,102 +1994,8 @@ export default function ChartSettingsModal({
             </div>
           </section>
           </>)}
-          {activeTab === 'price' && (<>
-          <section className={styles.section}>
-            <div className={styles.sectionLabel}>Type</div>
-            <div className={styles.typeGrid}>
-              {CHART_TYPES.map(({ val, label }) => (
-                <button
-                  key={val}
-                  type="button"
-                  className={`${styles.typeCard} ${curType === val ? styles.typeCardActive : ''}`}
-                  onClick={() => setType(val)}
-                  aria-pressed={curType === val}
-                >
-                  <span className={styles.typeGlyph}><TypeGlyph kind={val} /></span>
-                  <span className={styles.typeName}>{label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Bar thickness — OHLC/HLC bars only. Lightweight Charts exposes exactly one
-              boolean (thinBars); CandlestickSeries has no width option, so this section
-              is hidden for candles/hollow rather than shown as a control that does nothing. */}
-          {(curType === 'bars' || curType === 'hlc') && (
-            <section className={styles.section}>
-              <div className={styles.sectionLabel}>Bar thickness</div>
-              <div className={styles.modeRow}>
-                {[{ thin: true, label: 'Thin' }, { thin: false, label: 'Thick' }].map(({ thin, label }) => (
-                  <button
-                    key={label}
-                    type="button"
-                    className={`${styles.modeCard} ${(candles.thinBars !== false) === thin ? styles.modeCardActive : ''}`}
-                    onClick={() => setSetting({ candles: { ...candles, thinBars: thin } })}
-                    aria-pressed={(candles.thinBars !== false) === thin}
-                  >
-                    <span className={styles.modeName}>{label}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {showColorMode && (
-            <section className={styles.section}>
-              <div className={styles.sectionLabel}>Color based on</div>
-              <div className={styles.modeRow}>
-                {COLOR_MODES.map(({ val, label }) => (
-                  <button
-                    key={val}
-                    type="button"
-                    className={`${styles.modeCard} ${curColorMode === val ? styles.modeCardActive : ''}`}
-                    onClick={() => setColorMode(val)}
-                    aria-pressed={curColorMode === val}
-                  >
-                    <span className={styles.modeName}>{label}</span>
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {showColorMode && (
-            <section className={styles.section}>
-              <div className={styles.sectionLabel}>Colors</div>
-              {curColorMode === 'onecolor' ? (
-                <div className={styles.cGroupsSingle}>
-                  <div className={styles.cGroup}>
-                    <span className={styles.cGroupLabel}>Color</span>
-                    <div className={styles.cSwatches}>{colorSwatch('one', 'Color')}</div>
-                  </div>
-                </div>
-              ) : isCandleType ? (
-                <div className={styles.cGroups}>
-                  <div className={styles.cGroup}>
-                    <span className={styles.cGroupLabel}>Body</span>
-                    <div className={styles.cSwatches}>{colorSwatch('bodyUp', 'Body Up')}{colorSwatch('bodyDown', 'Body Down')}</div>
-                  </div>
-                  <div className={styles.cGroup}>
-                    <span className={styles.cGroupLabel}>Borders</span>
-                    <div className={styles.cSwatches}>{colorSwatch('borderUp', 'Border Up')}{colorSwatch('borderDown', 'Border Down')}</div>
-                  </div>
-                  <div className={styles.cGroup}>
-                    <span className={styles.cGroupLabel}>Wick</span>
-                    <div className={styles.cSwatches}>{colorSwatch('wickUp', 'Wick Up')}{colorSwatch('wickDown', 'Wick Down')}</div>
-                  </div>
-                </div>
-              ) : (
-                <div className={styles.cGroups}>
-                  <div className={styles.cGroup}>
-                    <span className={styles.cGroupLabel}>Color</span>
-                    <div className={styles.cSwatches}>{colorSwatch('bodyUp', 'Up')}{colorSwatch('bodyDown', 'Down')}</div>
-                  </div>
-                </div>
-              )}
-            </section>
-          )}
-          </>)}
+        </div>
+        </div>
         </div>
       </div>
         </div>,
@@ -1763,6 +2004,7 @@ export default function ChartSettingsModal({
       {activeTarget && panelPos && createPortal(
         <div
           data-color-panel
+          data-guide="chartSettings.colorPanel"
           style={{ position: 'fixed', left: panelPos.left, bottom: panelPos.bottom, zIndex: 9100 }}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -1781,39 +2023,6 @@ export default function ChartSettingsModal({
               onStyle: (s) => setSetting({ crosshair: { ...crosshair, style: s } }),
             } : null}
           />
-        </div>,
-        document.body,
-      )}
-      {/* Field picker — portaled to the RIGHT of the modal (like the color panel) so it
-          never gets clipped by the modal's bottom. */}
-      {fieldMenuOpen && fieldMenuPos && createPortal(
-        <div
-          ref={fieldMenuRef}
-          data-chart-settings-popout
-          className={styles.fieldMenu}
-          style={{ position: 'fixed', left: fieldMenuPos.left, top: fieldMenuPos.top, right: 'auto', zIndex: 9200 }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <input aria-label="Search fields"
-            className={styles.fieldSearch}
-            placeholder="Search fields…"
-            value={fieldQuery}
-            onChange={(e) => setFieldQuery(e.target.value)}
-            autoFocus
-          />
-          <div className={styles.fieldList}>
-            {HEADER_FIELDS
-              .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
-              .map((f) => {
-                const on = infoFields.includes(f.key)
-                return (
-                  <button key={f.key} type="button" className={styles.fieldItem} onClick={() => toggleInfoField(f.key)}>
-                    <span className={styles.fieldCheck}>{on ? <UIcon name="check" size={11} /> : null}</span>
-                    {f.label}
-                  </button>
-                )
-              })}
-          </div>
         </div>,
         document.body,
       )}

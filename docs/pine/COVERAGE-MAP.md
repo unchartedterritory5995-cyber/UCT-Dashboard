@@ -3,6 +3,22 @@
 Measured 2026-10-30 on `origin/master` @ `dadccbc98d`. Machine-readable twin:
 [`coverage-map.json`](coverage-map.json). Re-run: [How to re-run](#how-to-re-run).
 
+> **Newest measurement: [`COVERAGE-MAP-2026-11-17.md`](COVERAGE-MAP-2026-11-17.md)** on
+> `origin/master` @ `1df860c1e8`, engine 71.
+> - Member-facing: the runtime-on lane (production runs the runtime pane armed), 285 of 679
+>   (42.0%) at most, and 275 with the server's capability admission applied.
+> - Host-only baseline, kept for comparability: 220 (32.4%), or 221 under the 11-16 rule.
+>
+> `coverage-map.json` holds that measurement. Previous:
+> [`COVERAGE-MAP-2026-11-16.md`](COVERAGE-MAP-2026-11-16.md) (215, engine 60). The numbers on this
+> page below are the 2026-10-30 ones (185 of 679); the definitions and the re-run procedure here
+> still apply.
+
+> **The full population (2026-11-20): [`COVERAGE-MAP-FULL-2026-11-20.md`](COVERAGE-MAP-FULL-2026-11-20.md)**,
+> the same census over all 5,091 open-source scripts we fetched (engine 87, GitHub runners): members are
+> served 1,831 (36.0%) against 295 of 679 (43.4%) in the same run. It sits BESIDE this line:
+> `coverage-map.json` and `parity-roadmap.json` stay the 679-script comparable series.
+
 Owner goal: paste any open-source Pine script and get the same result as TradingView.
 This page measures the distance to that goal against the **whole** Pine v6 language,
 weights it by what real scripts use, and ranks the work.
@@ -22,10 +38,25 @@ weights it by what real scripts use, and ranks the work.
    state production runs (objects-only pane **armed**, runtime pane **dark**); and
 2. it **attaches and installs**, with **zero refusals** in its translation; and
 3. its drawing-object program is carried with **nothing dropped and nothing withheld**
-   (`assessObjectLoss` verdict `clean`), and no per-bar paint is withheld; and
+   (`assessObjectLoss` verdict `clean`), and no per-bar paint is withheld (from 2026-11-16 a
+   paint counts as withheld only when the document the member gets does not draw it,
+   `tools/pine_coverage/paint_predicate.mjs`; every count on this page was measured under the
+   earlier rule, which counted every paint the translation withheld, and a census row carries
+   both as `withheldPaints` / `withheldPaintsTranslated`); and
 4. it is **not a strategy that places orders** (`strategy.entry/order/exit/close/close_all`).
    The door draws a strategy's plots (ruling C50), but its trades, markers and tester
    report are its output and nothing simulates the broker, so it does not count.
+
+   ⭐ **A separate column, `wouldTransferIfArmed`** (per script, and `strategyOn.wouldTransferIfArmed`
+   / `armedWalls`; coordinator ruling 2026-11-16). The strategy broker exists and is dark
+   (`VITE_PINE_STRATEGY_BROKER_ENABLED`); arming it is the owner's act. The census measures, for
+   each order-placing strategy, what arming would serve: the same door with the objects-only
+   pane, the runtime pane and the broker stubbed on attaches it clean, its document runs the
+   broker, the run on the reference bars (NYSE:RDDT 1D from the listing, the window
+   `bars_window.HISTORY_WINDOW_BARS`) finishes with every broker rule it exercised pinned by
+   the committed ledger, and its trades are drawn or refused by name
+   (`runtime/__tests__/strategyArmed.js`). It never moves the headline above; a census row
+   written before the counterfactual reads `null` (unmeasured), never `false`.
 
 ⚠️ This is a **door verdict, not a parity verdict**. It says the whole script is accepted
 and drawn; it does not say every number equals TradingView's. Parity is graded only where a
@@ -508,8 +539,55 @@ A daily job diffs `headline`, `blockers`, `capabilities.greedyRoadmap` and per-i
 `status` in `coverage-map.json`. Per-script rows (`scripts[]`) carry each script's
 transfer verdict, first guards and walls, so any number walks back to a script.
 
+### The coverage ratchet (CI): a committed script that transfers keeps transferring
+
+`docs/pine/coverage-ratchet.json` lists, per lane, the **committed** corpus scripts
+(`corpus/committed/`, 266 on 2026-11-16) that transfer by this page's predicate (production:
+`transfers_fully`, the headline above; runtime-on: `runtime_on_transfers`; both in
+`coverage_map.py`, imported, never restated), by key and text sha only. The pine-heavy legs
+**coverage ratchet, production lane** and **coverage ratchet, runtime-on lane**
+(`tools/pine_coverage/coverage_ratchet.py`) run the same census (`run_census.drive`, cap 1,
+offline) over the committed corpus on every pine-heavy PR and compare. ⛔ Never the
+reference-only sample: it is not ours to publish and is not in CI.
+
+| what the leg finds | exit | what the builder does |
+|---|---|---|
+| a listed script no longer transfers | 1, red (named, with what stops it) | fix it; or, when the refusal is the honest answer, remove it with `--write` in the same PR and give the reason in the PR body |
+| a script newly transfers | 0, green, reported | add it with `--write` in the same PR |
+| refused: the snapshot is under the lane's floor, names a script not in the corpus or whose text changed, or the run measured fewer scripts than the corpus holds | 2, red | what the message says; never by hand-editing the snapshot |
+
+**Update the snapshot in the PR that moves it**, from that PR's own CI run (no local census; the
+leg's step summary prints these two lines with the run id filled in):
+
+```sh
+gh run download <run id> --repo unchartedterritory5995-cyber/UCT-Dashboard \
+  -n pine-coverage-ratchet-production -D $SCR/ratchet-production
+python tools/pine_coverage/coverage_ratchet.py --lane production \
+  --rows $SCR/ratchet-production/census.jsonl --write
+# then the same two lines with runtime-on
+```
+
+or measure on the dev PC (one lane at a time, under the lock):
+
+```sh
+python C:/Users/Patrick/uct-clips/tools/heavy_lock.py run --label ratchet-production -- \
+  python tools/pine_coverage/coverage_ratchet.py --lane production --write
+```
+
+`--write` prints every script it adds and removes; commit `docs/pine/coverage-ratchet.json` in
+the same PR. `--rows` refuses rows measured on other script texts (`inputs.json` beside them) or
+without the census's lane proof (`lane.jsonl`). A write under the lane's floor (`FLOORS` in
+`coverage_ratchet.py`) is refused: lowering a floor is a code change, by name, in the PR that needs
+it. The same legs' sibling, **derived evidence is current**, runs
+`python tools/vendor_harness/evidence_engine.py queue --check` and `pins --check`. Since 2026-11-16 the
+queue is derived on demand and `capture-queue.json` is NOT committed (git ignores it; `queue --check` fails
+if it is tracked again): a PR that changes `coverage-map.json` (or a queue doc, a probe, the corpus, a
+fixture) commits nothing for the queue. Committed, that file conflicted in 5 of the 5 open Pine PRs GitHub
+could not merge on 2026-11-16. A branch cut before the change resolves its one conflict with
+`git rm docs/pine/vendor-harness/capture-queue.json`.
+
 Files: `tools/pine_coverage/fetch_sample.py`, `tools/pine_coverage/run_census.py`,
-`tools/pine_coverage/coverage_map.py`,
+`tools/pine_coverage/coverage_map.py`, `tools/pine_coverage/coverage_ratchet.py`,
 `app/src/components/chart/engine/ast/coverageMapDoorCensus.measure.test.js` (opt-in; skipped
 unless `COVERAGE_INPUT`/`COVERAGE_OUT` or `COVERAGE_DOOR_OUT` is set; it lives under `app/`
 because vitest only serves files inside the app root).

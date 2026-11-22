@@ -239,6 +239,30 @@
       "why": "⛔ JavaScript's `Number` reads `0x10` as 16 and `''` as 0; Python's `float` reads `inf` and `1_000`. `tonumber` accepts ONE spelling in both lanes and stops the fold by name on anything else, so the two lanes cannot disagree on a malformed tick.",
       "tree": {"type": "textop", "name": "tonumber", "args": [{"type": "str", "value": "0x10"}]},
       "notFoldableOn": "\"0x10\" is not a number"
+    },
+    {
+      "id": "industry_with_NO_witnessed_row_folds_OUR_string_RS_Rating_L3",
+      "why": "⭐ RS Rating L3 (2026-11-15). `symbolScope.json::classification` serves no row until capture Q-RS4 lands, so a symbol our store classifies folds OUR string (tagged substituted by `classificationWith`; the tag is not part of the fold's number). Both lanes must agree on the text it answers.",
+      "tree": {"type": "textop", "name": "eq", "args": [{"type": "symtext", "name": "industry"}, {"type": "str", "value": "Semiconductors"}]},
+      "symbol": {"ticker": "NVDA", "exchange": "NASDAQ", "securityType": "Stock", "industry": "Semiconductors", "sector": "Technology"},
+      "foldScalarTo": 1,
+      "maxLookback": 0
+    },
+    {
+      "id": "an_ETF_sector_folds_to_the_witnessed_class_row_not_our_string",
+      "why": "⭐ RS Rating L3, Q-RS4 (2026-11-15): all eight ETF witnesses print sector 'Miscellaneous', so the `ETF` class row serves TradingView's string. Our store's 'Financial Services' is no longer what folds, in both lanes at once.",
+      "tree": {"type": "textop", "name": "eq", "args": [{"type": "symtext", "name": "sector"}, {"type": "str", "value": "Miscellaneous"}]},
+      "symbol": {"ticker": "SPY", "exchange": "NYSE Arca", "securityType": "ETF", "industry": "Asset Management", "sector": "Financial Services"},
+      "foldScalarTo": 1,
+      "maxLookback": 0
+    },
+    {
+      "id": "industry_with_NO_data_at_all_STOPS_and_names_itself",
+      "why": "⛔ RS Rating L3. A symbol our store does not classify settles nothing: the fold stops on `syminfo.industry` with the manifest's reason, never a default string.",
+      "tree": {"type": "textop", "name": "eq", "args": [{"type": "symtext", "name": "industry"}, {"type": "str", "value": "Investment Trusts/Mutual Funds"}]},
+      "symbol": {"ticker": "ZZZZ", "exchange": "NASDAQ"},
+      "notFoldableOn": "syminfo.industry",
+      "notFoldableSays": ["nothing is guessed"]
     }
-  ]
+]
 }

@@ -10,6 +10,7 @@ import CompassHealthPanel from '../components/admin/CompassHealthPanel'
 import AlertOpsPanel from '../components/admin/AlertOpsPanel'
 import DataPipelineHealthPanel from '../components/admin/DataPipelineHealthPanel'
 import ThemeEngineHealthPanel from '../components/admin/ThemeEngineHealthPanel'
+import NotebookReturnMetricsPanel from '../components/admin/NotebookReturnMetricsPanel'
 import { formatETDate } from '../utils/timeAgo'
 import Input from '../components/ui/Input'
 import Select from '../components/ui/Select'
@@ -2026,6 +2027,21 @@ export default function Admin() {
             </div>
           </div>
           <div className={styles.healthItem}>
+            <span className={styles.healthLabel}>AI Spend</span>
+            <div className={styles.healthSyncRow}>
+              <a
+                href="/admin/ai-spend"
+                className="btn btn-secondary btn-sm"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+              >
+                Open AI Spend
+              </a>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                Every Claude call by feature · model · day · cache hit
+              </span>
+            </div>
+          </div>
+          <div className={styles.healthItem}>
             <span className={styles.healthLabel}>Wisdom Loop</span>
             <div className={styles.healthSyncRow}>
               <a
@@ -2066,6 +2082,9 @@ export default function Admin() {
 
       {/* ── Section 6h: Theme Engine run ledger + day-cost (Packet Y CP3, signed 2026-09-23) ── */}
       <ThemeEngineHealthPanel />
+
+      {/* ── Section 6h-2: Notebook return metrics (audit 2026-11-05, S20) ── */}
+      <NotebookReturnMetricsPanel />
 
       {/* ── Section 6i: Alert Ops Monitor + channel health (AC-7, dark: renders nothing on 404) ── */}
       <AlertOpsPanel />

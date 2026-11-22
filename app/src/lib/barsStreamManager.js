@@ -1,7 +1,8 @@
 // Shared SSE connection pool for /api/stream/bars — the bars analog of
 // priceStreamManager, kept in a SEPARATE module so the always-on price path
 // (priceStreamManager.js) is byte-untouched (a bug here must never break live
-// prices). DARK until VITE_REALTIME_BARS='1' (the consumer gates on it).
+// prices). DARK until VITE_REALTIME_BARS='1' (every consumer gates on it through
+// lib/realtimeBarsGate.realtimeBarsEnabled — useRealtimeBars, data/barStore/liveFeed).
 //
 // Every useRealtimeBars() used to open its OWN EventSource per chart — the exact
 // connection-multiplication class the price stream was pooled to kill. This owns
@@ -26,9 +27,17 @@
 // moves `delivering` or the single developing-bar writer. The existing
 // onReconnect gap-backfill is unchanged.
 
-import { STREAM_RECONNECT_CAP_MS } from '../utils/streamStatus'
+import { registerRecoveryStream } from './recoveryRegistry'
+import { REBUILD_GATHER_MS } from './streamRebuildDelay'
+import { STREAM_RECONNECT_CAP_MS, LIVE_CANDLE_CADENCE_MS, liveCandleCadenceMs } from '../utils/streamStatus'
 
 export const MAX_BARS_PAIRS = 50   // mirror of api/routers/stream.py MAX_BARS_PAIRS
+// Stream protocol opt-in. v2 = the server may send a `final: true` correction whose `t`
+// is OLDER than the pair's developing bar (a late AM correction of the just-closed
+// bucket). Every consumer of this pool handles that: the chart's push writer replaces
+// the closed bar in place; the tf='1' price/legend consumers ignore older-t frames;
+// and the pool itself drops NON-final older-t frames (see the 'bar' handler).
+export const BARS_STREAM_PROTOCOL = '2'
 export const REBUILD_DEBOUNCE_MS = 400
 const INITIAL_RETRY_MS = 5000
 // No bar AND no heartbeat within this window ⇒ the connection is silently dead
@@ -53,14 +62,27 @@ let _buckets = []               // [{ key, pairs:Set<string>, es, connected, ret
 const _keyState = new Map()     // 'SYM:TF' -> { everDelivered:boolean, lastBarAt:number }
 let _lastResume = null          // the newest `event: resume` declaration, with its bucket key
 let _rebuildTimer = null
+let _lastActivityAt = -Infinity   // the last subscription change or reconnect (streamRebuildDelay.js)
+let _gathering = false            // the pending reconnect is a quiet pool's REBUILD_GATHER_MS wait
 let _watchdogTimer = null
+// ⭐ KEEP THE EDGE ENTITLEMENT FRESH WHILE A LIVE CHART IS OPEN (2026-11-17, stream-edge).
+// `/api/stream/bars` may be served by stream-edge, which admits a member by the signed
+// `uct_chart_edge` cookie (15-min TTL) that only `/api/auth/me` re-mints. The app calls /me at
+// boot and on tab focus, not on a timer, so a chart left in the foreground would reconnect with an
+// expired cookie and be quietly served by web instead. One tiny GET every 10 min while any stream
+// is open re-mints it (the response body is ignored; the Set-Cookie is the point).
+export const EDGE_REFRESH_MS = 10 * 60 * 1000
+let _edgeRefreshTimer = null
+function _edgeRefresh() {
+  try { fetch('/api/auth/me', { credentials: 'same-origin', cache: 'no-store' }).catch(() => {}) } catch { /* no fetch */ }
+}
 
-// Coalesce developing-bar dispatch to a ~2x/sec heartbeat (matches the price feed's
-// PUBLISH_THROTTLE_MS) so the candle + price label tick on the same calm cadence as
-// the quotes instead of repainting on every sub-second update — TC2000-style. A
-// bucket BOUNDARY (a new bar time for a key) flushes that key's prior-bucket final
-// bar IMMEDIATELY, so a bar's closing value is never coalesced away.
-const BAR_THROTTLE_MS = 500
+// Coalesce developing-bar dispatch to the live CANDLE cadence (LIVE_CANDLE_CADENCE_MS: 250 ms since
+// 2026-11-17, was 500), the same hold realtimeCandle uses, so the candle and its price label move
+// together instead of repainting on every sub-second update. A bucket BOUNDARY (a new bar time for a
+// key) flushes that key's prior-bucket final bar IMMEDIATELY, so a bar's closing value is never
+// coalesced away.
+const BAR_THROTTLE_MS = LIVE_CANDLE_CADENCE_MS
 const _pendingBar = new Map()   // key -> latest bar event awaiting the heartbeat flush
 let _barThrottleTimer = null
 
@@ -84,9 +106,21 @@ function _killed() {
   } catch { return false }
 }
 
-function _pairKey(sym, tf) {
-  return `${String(sym).toUpperCase()}:${String(tf)}`
+// Session (RTH / ETH) only changes 60m bucket alignment server-side (RTH = 9:30-aligned,
+// ETH = clock hours; 1-30m are identical), and the server takes it PER CONNECTION
+// (`?session=`). So a 60m ETH subscription is its own key ('SYM:60@eth') and rides a
+// separate ETH connection; everything else normalizes to RTH so pooling isn't fragmented.
+function _normSession(tf, session) {
+  return String(tf) === '60' && String(session || '').toLowerCase() === 'eth' ? 'eth' : 'rth'
 }
+
+function _pairKey(sym, tf, session = 'rth') {
+  const base = `${String(sym).toUpperCase()}:${String(tf)}`
+  return _normSession(tf, session) === 'eth' ? `${base}@eth` : base
+}
+
+function _keySession(key) { return key.endsWith('@eth') ? 'eth' : 'rth' }
+function _wirePair(key) { return key.endsWith('@eth') ? key.slice(0, -4) : key }
 
 // Notify a single subscriber's onStatus (best-effort).
 function _notifyStatus(sub) {
@@ -105,12 +139,13 @@ function _notifyAllStatus() {
  * Subscribe a chart to live bars for one (sym, tf).
  * @param {string} sym
  * @param {string} tf   one of '1','5','15','30','60'
- * @param {{onBar?:(data)=>void, onReconnect?:(lastBarT)=>void, onStatus?:()=>void}} cbs
+ * @param {{onBar?:(data)=>void, onReconnect?:(lastBarT)=>void, onStatus?:()=>void, session?:'rth'|'eth'}} cbs
+ *   session — the chart's session mode; only affects 60m (see _normSession)
  * @returns {() => void} unsubscribe
  */
-export function subscribe(sym, tf, { onBar, onReconnect, onStatus } = {}) {
+export function subscribe(sym, tf, { onBar, onReconnect, onStatus, session } = {}) {
   const id = _nextId++
-  _subscribers.set(id, { sym: String(sym).toUpperCase(), tf: String(tf), key: _pairKey(sym, tf), onBar, onReconnect, onStatus })
+  _subscribers.set(id, { sym: String(sym).toUpperCase(), tf: String(tf), key: _pairKey(sym, tf, session), onBar, onReconnect, onStatus })
   _scheduleRebuild()
   return () => {
     const wasKey = _subscribers.get(id)?.key
@@ -130,8 +165,8 @@ export function subscribe(sym, tf, { onBar, onReconnect, onStatus } = {}) {
  * - delivering: healthy AND at least one real bar for THIS key has arrived
  *   (so the consumer only suppresses the Finnhub writers once push is proven live)
  */
-export function getStatus(sym, tf) {
-  const key = _pairKey(sym, tf)
+export function getStatus(sym, tf, session) {
+  const key = _pairKey(sym, tf, session)
   if (_killed()) return { connected: false, healthy: false, delivering: false }
   const bucket = _buckets.find(b => b.pairs.has(key))
   const connected = !!(bucket && bucket.connected)
@@ -149,9 +184,12 @@ export function getStatus(sym, tf) {
   // would flip delivering false→push-off→Finnhub→true on the next tick, and each handoff is a
   // potential seam (the two feeds disagree on the developing close/volume). Hysteresis turns
   // that recurring thrash into a one-time fallback only when the feed is GENUINELY dead.
+  // VENDOR DOWN (2026-11-18): the server said the Massive socket behind this stream is down
+  // (`event: status` {live:false}, stream.py). No bar will come, so stop waiting out the
+  // hysteresis: not delivering NOW, and the Finnhub tick writers move the candle meanwhile.
   const recent = ks ? Date.now() - ks.lastBarAt : Infinity
   const wasDelivering = !!(ks && ks.delivering)
-  const delivering = connected && !!(ks && ks.everDelivered) &&
+  const delivering = connected && !bucket.vendorDown && !!(ks && ks.everDelivered) &&
     recent < (wasDelivering ? BARS_LIVE_DISENGAGE_MS : BARS_LIVE_STALE_MS)
   if (ks) ks.delivering = delivering   // persist for next call's hysteresis
   return { connected, healthy, delivering }
@@ -171,15 +209,24 @@ function _union() {
 }
 
 function _scheduleRebuild() {
+  const t = Date.now()
+  // gather while a gather is pending, or on a quiet pool; otherwise the full debounce from this change
+  _gathering = (!!_rebuildTimer && _gathering) || t - _lastActivityAt >= REBUILD_DEBOUNCE_MS
+  _lastActivityAt = t
   if (_rebuildTimer) clearTimeout(_rebuildTimer)
-  _rebuildTimer = setTimeout(_rebuild, REBUILD_DEBOUNCE_MS)
+  _rebuildTimer = setTimeout(_rebuild, _gathering ? REBUILD_GATHER_MS : REBUILD_DEBOUNCE_MS)
 }
 
 function _rebuild() {
   _rebuildTimer = null
+  _lastActivityAt = Date.now()
+  _gathering = false
   const union = _union()
   const chunks = []
-  for (let i = 0; i < union.length; i += MAX_BARS_PAIRS) chunks.push(union.slice(i, i + MAX_BARS_PAIRS))
+  for (const sess of ['rth', 'eth']) {
+    const part = union.filter(k => _keySession(k) === sess)
+    for (let i = 0; i < part.length; i += MAX_BARS_PAIRS) chunks.push(part.slice(i, i + MAX_BARS_PAIRS))
+  }
 
   const existingByKey = new Map(_buckets.map(b => [b.key, b]))
   const next = []
@@ -188,7 +235,8 @@ function _rebuild() {
     const existing = existingByKey.get(key)
     if (existing) { existingByKey.delete(key); next.push(existing); continue }
     const bucket = {
-      key, pairs: new Set(chunk), es: null, connected: false,
+      key, pairs: new Set(chunk), session: _keySession(chunk[0]), es: null, connected: false,
+      vendorDown: false,   // the server's `event: status` {live:false}; see getStatus
       retryDelay: INITIAL_RETRY_MS, reconnectTimer: null, lastMsg: Date.now(),
       lastEventId: null,   // a NEW subscription presents no id — it is not a resume
     }
@@ -203,6 +251,11 @@ function _rebuild() {
   } else if (_buckets.length === 0 && _watchdogTimer) {
     clearInterval(_watchdogTimer); _watchdogTimer = null
   }
+  if (_buckets.length > 0 && !_edgeRefreshTimer) {
+    _edgeRefreshTimer = setInterval(_edgeRefresh, EDGE_REFRESH_MS)
+  } else if (_buckets.length === 0 && _edgeRefreshTimer) {
+    clearInterval(_edgeRefreshTimer); _edgeRefreshTimer = null
+  }
   _notifyAllStatus()
 }
 
@@ -216,9 +269,12 @@ function _connectBucket(bucket) {
   if (typeof EventSource === 'undefined') return  // SSR / non-browser safety
   const resumeParam = bucket.lastEventId
     ? `&last_event_id=${encodeURIComponent(bucket.lastEventId)}` : ''
-  const es = new EventSource(`/api/stream/bars?bars=${bucket.key}${resumeParam}`)
+  const wire = [...bucket.pairs].map(_wirePair).join(',')
+  const sessionParam = bucket.session === 'eth' ? '&session=eth' : ''
+  const es = new EventSource(`/api/stream/bars?bars=${wire}&v=${BARS_STREAM_PROTOCOL}${sessionParam}${resumeParam}`)
   bucket.es = es
   bucket.lastMsg = Date.now()
+  bucket.vendorDown = false   // a new connection hears the server's word again at its start
 
   // Every frame is liveness; every frame's id is the newest this bucket has seen.
   const touch = (event) => {
@@ -254,13 +310,31 @@ function _connectBucket(bucket) {
     try {
       const data = JSON.parse(event.data)   // {sym, tf, bar:{t,o,h,l,c,v}}
       if (!data || !data.sym || data.tf == null) return
-      const key = _pairKey(data.sym, data.tf)
+      const key = _pairKey(data.sym, data.tf, bucket.session)
       // Per-key delivery state (drives `delivering`).
       const wasDelivering = !!_keyState.get(key)?.everDelivered
       const ks = _keyState.get(key) || {}
-      ks.everDelivered = true
+      // ⛔ ONLY A DEVELOPING (non-final) FRAME MAKES THE PUSH FEED "DELIVERING" (2026-11-17).
+      // On subscribe the server sends the last ~15 min of closed FINALS at once but may hold the
+      // current bucket back (a new symbol's partial bar waits for its first seed, up to 3 s). A
+      // final is a past bucket, not the live candle: counting it flipped `delivering` on, the
+      // tick fallback (barStore liveFeed, the legacy writers) went silent, and nothing opened the
+      // current minute until the held bar arrived. Measured in production: every 1m chart opened
+      // on the PREVIOUS minute for 2-6+ s after a ticker switch. Set below, AFTER the straggler
+      // drop: a discarded late frame is not a live candle either.
+      const _developingFrame = !(data.bar && data.bar.final === true)
       ks.lastBarAt = Date.now()
-      if (data.bar && data.bar.t != null) ks.lastBarT = data.bar.t
+      // Per-key t ordering: a NON-final frame older than the newest bar seen is a
+      // straggler (reordered delivery) — drop it so no consumer is moved backwards. An
+      // older-t FINAL frame is an authoritative correction and is dispatched.
+      const _t = data.bar && Number.isFinite(data.bar.t) ? data.bar.t : null
+      if (_t != null && Number.isFinite(ks.lastBarT) && _t < ks.lastBarT && data.bar.final !== true) {
+        _keyState.set(key, ks)
+        if (!wasDelivering) _notifyStatusForKey(key)
+        return
+      }
+      if (_t != null && !(Number.isFinite(ks.lastBarT) && ks.lastBarT > _t)) ks.lastBarT = _t
+      if (_developingFrame) ks.everDelivered = true
       _keyState.set(key, ks)
       // THROTTLED keyed dispatch (see _pendingBar): coalesce to ~2x/sec so the candle
       // ticks on the same calm heartbeat as the quotes — but flush the PRIOR bucket's
@@ -271,8 +345,17 @@ function _connectBucket(bucket) {
         _pendingBar.delete(key)
         _dispatchBar(key, _pend)
       }
+      // A server FINAL bar (optional `final: true`) is the closed bucket's truth — dispatch
+      // it at once instead of letting a following developing frame for the next bucket (or
+      // a straggler for the same one) coalesce it away inside the 500ms window.
+      if (data.bar && data.bar.final === true) {
+        _pendingBar.delete(key)
+        _dispatchBar(key, data)
+        if (!wasDelivering) _notifyStatusForKey(key)
+        return
+      }
       _pendingBar.set(key, data)
-      if (!_barThrottleTimer) _barThrottleTimer = setTimeout(_flushPendingBars, BAR_THROTTLE_MS)
+      if (!_barThrottleTimer) _barThrottleTimer = setTimeout(_flushPendingBars, liveCandleCadenceMs(BAR_THROTTLE_MS))
       if (!wasDelivering) _notifyStatusForKey(key)  // first bar → status flip
     } catch { /* malformed frame */ }
   })
@@ -280,6 +363,18 @@ function _connectBucket(bucket) {
   // Named heartbeat (see stream.py) — keeps lastMsg fresh during quiet periods so
   // the watchdog doesn't false-reconnect a healthy-but-idle connection.
   es.addEventListener('heartbeat', (event) => { if (bucket.es === es) touch(event) })
+
+  // The server's word on the vendor socket behind this stream (stream.py, `event: status`
+  // {live}), sent at the start and on every change. Only a change re-notifies.
+  es.addEventListener('status', (event) => {
+    if (bucket.es !== es) return
+    touch(event)
+    let down
+    try { down = JSON.parse(event.data)?.live === false } catch { return }
+    if (down === bucket.vendorDown) return
+    bucket.vendorDown = down
+    for (const sub of _subscribers.values()) if (bucket.pairs.has(sub.key)) _notifyStatus(sub)
+  })
 
   es.onerror = () => {
     if (bucket.es !== es) return  // a rebuild/watchdog already replaced this connection
@@ -327,11 +422,35 @@ if (typeof document !== 'undefined') {
   })
 }
 
+// ── recovery (lib/recovery.js) ──────────────────────────────────────────────
+// After a wake or a network return, recovery reconnects every bucket at once instead of waiting for
+// the silence watchdog or a backoff that may already be at its cap, and waits on isConnected().
+
+/** Tear down and reopen every connection now, with the backoff reset. */
+export function reconnectNow() {
+  for (const bucket of _buckets) {
+    _teardownBucket(bucket)
+    bucket.retryDelay = INITIAL_RETRY_MS
+    _connectBucket(bucket)
+  }
+  if (_buckets.length) _notifyAllStatus()
+}
+
+/** True when every open bucket is connected, or there is nothing to connect. */
+export function isConnected() {
+  return _buckets.every((b) => b.connected)
+}
+
+registerRecoveryStream({ name: 'bars', reconnectNow, isConnected })
+
 // ── test hooks ──────────────────────────────────────────────────────────────
 
 export function _resetForTests() {
   if (_rebuildTimer) { clearTimeout(_rebuildTimer); _rebuildTimer = null }
+  _lastActivityAt = -Infinity
+  _gathering = false
   if (_watchdogTimer) { clearInterval(_watchdogTimer); _watchdogTimer = null }
+  if (_edgeRefreshTimer) { clearInterval(_edgeRefreshTimer); _edgeRefreshTimer = null }
   if (_barThrottleTimer) { clearTimeout(_barThrottleTimer); _barThrottleTimer = null }
   _pendingBar.clear()
   for (const b of _buckets) _teardownBucket(b)

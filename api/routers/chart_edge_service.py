@@ -17,9 +17,11 @@ exactly how the wire lost all of its charts 2026-09-14..25 when the web pod's
 verifies (`X-Chart-Edge-Token`, `worker.js`), but only `render_house_chart`
 could reach it. This route is the same mint for a caller outside the pod.
 
-⛔⛔ PUSH_SECRET, NEVER CHART_RENDER_TOKEN. The render token is compiled into
-the PUBLIC frontend bundle (`app/src/lib/renderToken.js`), so accepting it here
-would hand a chart-data service capability to anyone who opens devtools.
+⛔⛔ PUSH_SECRET, NEVER CHART_RENDER_TOKEN. The render token is a shared value
+that travels in every render page address and is held by several senders (and,
+until 2026-11-19, a copy was compiled into the frontend bundle: the build no
+longer receives it), so accepting it here would hand a chart-data service
+capability to every holder of a render address.
 PUSH_SECRET is the canonical internal service credential and already buys
 `/api/bars` on this pod outright (`bars_auth.require_bars_access`), so a caller
 that holds it gains nothing it did not have -- only a way to present it at the

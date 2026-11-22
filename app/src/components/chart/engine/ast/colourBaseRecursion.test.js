@@ -93,7 +93,14 @@ describe('R33a — a NAME base resolves, exactly as a bare name already does', (
     const src = `${HEAD}c = close > open ? color.green : color.red\nplot(close, "A", color = color.new(c, 30))\n`
     const { p } = presOf(src)
     expect(p.color, 'a series-bound name was folded to a static colour').toBeUndefined()
-    expect(p.colorDynamic, 'and the loss is declared').toBe(true)
+    // ⭐ ENGINE 58 — `color.new(<a rule>, 30)` is now CARRIED as the rule it is, each
+    // leaf at transparency 30 (`pine.js::colourNewOverRule`), never folded flat.
+    expect(p.colorCondition, 'carried per bar').toBeTruthy()
+    expect(p.opacity).toBeCloseTo(0.7, 12)
+    // …and a transparency that moves bar by bar is still dynamic, with the reason
+    const fade = presOf(`${HEAD}plot(close, "A", color = color.new(color.red, close))\n`).p
+    expect(fade.color).toBeUndefined()
+    expect(fade.colorDynamic, 'and the loss is declared').toBe(true)
   })
 
   it('⛔⛔ CONTROL — a NAME base with a DYNAMIC alpha is still dynamic', () => {

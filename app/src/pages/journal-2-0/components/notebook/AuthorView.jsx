@@ -39,7 +39,7 @@ export default function AuthorView({ handle, onBack, onMessage, cardProps = {} }
       const out = await followAuthor(handle, !isFollowing)
       setFollowing(Boolean(out?.following))
       onMessage?.({ tone: 'ok', text: out?.following
-        ? `Following ${author.label}. Their new styles show under Following.`
+        ? `Following ${author.label}. Their new templates show under Following.`
         : `You no longer follow ${author.label}.` })
     } catch (err) {
       onMessage?.({ tone: 'error', text: refusalSentence(err, `Couldn't change whether you follow ${author.label}. Nothing was changed.`) })

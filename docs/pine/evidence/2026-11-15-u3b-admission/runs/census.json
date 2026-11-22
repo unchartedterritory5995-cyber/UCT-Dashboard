@@ -1,0 +1,199 @@
+{
+ "_readme": [
+  "U3b census before/after through the member door with capability admission ON (CAPADMIT_MODE=admission), over",
+  "the fresh run at 7a74a90f45: before = the registry #1347 merged, after = this PR. 'strict' counts RT5's provenance sentence as a",
+  "not-drawn note; 'disclosure' reads it as the disclosure it is."
+ ],
+ "strict": {
+  "populations": {
+   "committed": {
+    "scripts": 266,
+    "admittedBefore": 46,
+    "admittedAfter": 50,
+    "runtimeFullBefore": 8,
+    "runtimeFullAfter": 8,
+    "runtimeLaneBefore": 11,
+    "runtimeLaneAfter": 12
+   },
+   "reference": {
+    "scripts": 271,
+    "admittedBefore": 91,
+    "admittedAfter": 92,
+    "runtimeFullBefore": 4,
+    "runtimeFullAfter": 4,
+    "runtimeLaneBefore": 8,
+    "runtimeLaneAfter": 7
+   },
+   "builtin": {
+    "scripts": 142,
+    "admittedBefore": 63,
+    "admittedAfter": 63,
+    "runtimeFullBefore": 4,
+    "runtimeFullAfter": 4,
+    "runtimeLaneBefore": 5,
+    "runtimeLaneAfter": 4
+   },
+   "capture": {
+    "scripts": 683,
+    "admittedBefore": 258,
+    "admittedAfter": 269,
+    "runtimeFullBefore": 18,
+    "runtimeFullAfter": 20,
+    "runtimeLaneBefore": 21,
+    "runtimeLaneAfter": 28
+   }
+  },
+  "newlyFullRuntime": [],
+  "newlyPartialRuntime": [
+   {
+    "key": "committed:trendline-pivots-quantvue__3dc9be8b73",
+    "notDrawn": [
+     "Its lines, labels, boxes and tables are made by the same bar-by-bar run, the way TradingView makes them. A kind of drawing whose result is not known exactly is not drawn."
+    ]
+   }
+  ],
+  "lost": [],
+  "captures": [
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "verdict": "MATCH",
+    "objectsV2": "INCONCLUSIVE",
+    "full": false
+   },
+   {
+    "capture": "vw-array-na-rddt-1d-2026-11-15",
+    "verdict": "INCONCLUSIVE",
+    "objectsV2": "MATCH",
+    "full": true
+   },
+   {
+    "capture": "vw-array-na-spy-1d-2026-10-02",
+    "verdict": "INCONCLUSIVE",
+    "objectsV2": "MATCH",
+    "full": true
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "verdict": "MATCH",
+    "objectsV2": "INCONCLUSIVE",
+    "full": false
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "verdict": "MATCH",
+    "objectsV2": "INCONCLUSIVE",
+    "full": false
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "verdict": "MATCH",
+    "objectsV2": "MATCH",
+    "full": false
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "verdict": "MATCH",
+    "objectsV2": "INCONCLUSIVE",
+    "full": false
+   }
+  ]
+ },
+ "disclosure": {
+  "populations": {
+   "committed": {
+    "scripts": 266,
+    "admittedBefore": 46,
+    "admittedAfter": 50,
+    "runtimeFullBefore": 10,
+    "runtimeFullAfter": 11,
+    "runtimeLaneBefore": 11,
+    "runtimeLaneAfter": 12
+   },
+   "reference": {
+    "scripts": 271,
+    "admittedBefore": 91,
+    "admittedAfter": 92,
+    "runtimeFullBefore": 6,
+    "runtimeFullAfter": 5,
+    "runtimeLaneBefore": 8,
+    "runtimeLaneAfter": 7
+   },
+   "builtin": {
+    "scripts": 142,
+    "admittedBefore": 63,
+    "admittedAfter": 63,
+    "runtimeFullBefore": 5,
+    "runtimeFullAfter": 4,
+    "runtimeLaneBefore": 5,
+    "runtimeLaneAfter": 4
+   },
+   "capture": {
+    "scripts": 683,
+    "admittedBefore": 258,
+    "admittedAfter": 269,
+    "runtimeFullBefore": 21,
+    "runtimeFullAfter": 28,
+    "runtimeLaneBefore": 21,
+    "runtimeLaneAfter": 28
+   }
+  },
+  "newlyFullRuntime": [
+   {
+    "key": "committed:trendline-pivots-quantvue__3dc9be8b73",
+    "before": "refused",
+    "missingBefore": [
+     "udt"
+    ]
+   }
+  ],
+  "newlyPartialRuntime": [],
+  "lost": [
+   "builtin:linear-regression-channel__Linear_Regre",
+   "reference:best-sr-indicator-with-candlestick-patterns__4af8b3cc84"
+  ],
+  "captures": [
+   {
+    "capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14",
+    "verdict": "MATCH",
+    "objectsV2": "INCONCLUSIVE",
+    "full": true
+   },
+   {
+    "capture": "vw-array-na-rddt-1d-2026-11-15",
+    "verdict": "INCONCLUSIVE",
+    "objectsV2": "MATCH",
+    "full": true
+   },
+   {
+    "capture": "vw-array-na-spy-1d-2026-10-02",
+    "verdict": "INCONCLUSIVE",
+    "objectsV2": "MATCH",
+    "full": true
+   },
+   {
+    "capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15",
+    "verdict": "MATCH",
+    "objectsV2": "INCONCLUSIVE",
+    "full": true
+   },
+   {
+    "capture": "vw-int-array-avg-neg-spy-1d-2026-10-01",
+    "verdict": "MATCH",
+    "objectsV2": "INCONCLUSIVE",
+    "full": true
+   },
+   {
+    "capture": "vw-int-array-avg-rddt-1d-2026-11-15",
+    "verdict": "MATCH",
+    "objectsV2": "MATCH",
+    "full": true
+   },
+   {
+    "capture": "vw-int-array-avg-spy-1d-2026-09-30",
+    "verdict": "MATCH",
+    "objectsV2": "INCONCLUSIVE",
+    "full": true
+   }
+  ]
+ }
+}

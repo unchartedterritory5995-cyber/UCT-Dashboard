@@ -1,0 +1,36 @@
+//@version=6
+indicator("UCTPROBE_VW_W4_T15_LOOP_TAIL_VALUE", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row W4-T15-b
+// (docs/pine/capture-queue-2026-11-05-w4-t15-t17.md). NEVER COMPILED ON TRADINGVIEW.
+// The VALUE of a loop (a function's last statement) whose body ENDS in something other than a plain
+// value line; the runtime lane keeps these valueless. Each loop runs i = 0..3:
+//   F01  body ends in an `if` / `else` chain    (i odd -> i, even -> -i): last pass -> 3 ?
+//   F02  body ends in a call, math.max(i, 2)    last pass -> 3 ?
+//   F03  body ends in a tuple [i, i * 2]        read as [P, Q]: last pass -> 3, 6 ?
+// Every bar carries the same values; one bar settles it. If a row does not compile, the error
+// names its line: split that row out and capture the rest (the tuple tail is the likeliest).
+// CHART: the row names none (the queue marks it NEEDS_CHART). Inputs at defaults.
+
+fIfTail() =>
+    for i = 0 to 3
+        if i % 2 == 1
+            i
+        else
+            0 - i
+
+fCallTail() =>
+    for i = 0 to 3
+        math.max(i, 2)
+
+fTupleTail() =>
+    for i = 0 to 3
+        [i, i * 2]
+
+[p, q] = fTupleTail()
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(fIfTail(), "F01_if_chain_tail_value")
+plot(fCallTail(), "F02_call_tail_value")
+plot(p, "F03a_tuple_tail_first")
+plot(q, "F03b_tuple_tail_second")

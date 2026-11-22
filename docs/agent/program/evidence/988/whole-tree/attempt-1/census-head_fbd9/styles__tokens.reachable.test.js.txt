@@ -1,0 +1,4 @@
+rail src/styles/tokens.reachable.test.js
+## CSS custom properties resolve > no alias is used in a stylesheet that re-points an alias target
++   "/pages/study/RevealCard.module.css re-points a token AND uses --color-danger, --color-success",
++ Received

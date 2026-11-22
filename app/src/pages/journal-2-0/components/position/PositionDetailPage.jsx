@@ -248,7 +248,7 @@ export default function PositionDetailPage() {
           <UIcon name="book" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Full Research
         </button>
         <button type="button" className={styles.actionBtn} onClick={goToAskAi}>
-          <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI
+          <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask the UCT Agent
         </button>
         {!showCompare ? (
           <button type="button" className={styles.actionBtn} onClick={() => setShowCompare(true)}>

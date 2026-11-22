@@ -6,6 +6,7 @@ import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useWidgetDoor } from '../widgetDoors'
 import {
   buildFundamentalsCapture, fundamentalsCaptureSettings, effectiveFundamentalsView, companyFromSnapshot,
 } from './captures/fundamentalsCapture'
@@ -20,6 +21,7 @@ import FundamentalsSettingsPanel from './FundamentalsSettingsPanel'
 import { FUNDAMENTALS_SETTINGS_KEY, mergeFundamentalsSettings, fundamentalsStyleVars, fundamentalsDefaultsForTheme } from './fundamentalsSettings'
 import styles from './FundamentalsWidget.module.css'
 import { currencyPrefix, formatCompact, reportingCurrencyNote } from '../../../lib/presentation/presentationPrimitives'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // TERM-066: the K/M/B/T decision lives in lib/presentation (formatCompact), on the ladder
 // this widget already had. Exported for the frozen-oracle test (widgetFormatters.term066.test.js).
@@ -196,6 +198,17 @@ export default function FundamentalsWidget({
     onOptsChange?.({ ...(opts || {}), view: next })
   }, [opts, onOptsChange])
 
+  // Freeze exactly what the widget shows right now — shared by the one-click default send, the destination-picker and
+  // the Agent. ONE builder with the Notebook's /fundamentals insert (captures/fundamentalsCapture.js).
+  const fundamentalsCapture = () => buildFundamentalsCapture(
+    { symbol: sym, data, company }, { view: effectiveFundamentalsView(view, data), settings: fwSettings },
+  )
+  // above every early return: a hook, and what it offers follows the same test as the door below
+  useWidgetDoor(() => ({
+    capture: () => (journalDoor && !readOnly && sym && view !== 'analyst' && view !== 'ownership' && (data?.annual?.length || data?.quarterly?.length)
+      ? { kind: 'fundamentals', capture: fundamentalsCapture(), label: `${sym} fundamentals` } : null),
+  }))
+
   if (!sym) return (
     <div className={styles.pick}>
       <div className={styles.hint}>Pick a ticker — or match a chart's color to follow it.</div>
@@ -237,7 +250,7 @@ export default function FundamentalsWidget({
           {company && <span className={styles.companyName}>{company}</span>}
         </div>
         {!readOnly && (
-        <div className={styles.toggle} role="tablist" aria-label="Fundamentals view">
+        <div className={styles.toggle} role="tablist" aria-label="Fundamentals view" data-guide="fundamentals.view">
         <button
           type="button"
           role="tab"
@@ -286,12 +299,6 @@ export default function FundamentalsWidget({
             drifted mid-header — the door keeps the auto, the gear (below)
             drops to a 2px gap whenever the door renders. */}
         {journalDoor && !readOnly && !isPanelView && (hasAnnual || hasQ) && (() => {
-          // Freeze exactly what the widget shows right now — shared by the
-          // one-click default send AND the destination-picker.
-          // ONE builder with the Notebook's /fundamentals insert (captures/fundamentalsCapture.js).
-          const fundamentalsCapture = () => buildFundamentalsCapture(
-            { symbol: sym, data, company }, { view: effectiveView, settings: fwSettings },
-          )
           return (
             <>
               <button
@@ -328,15 +335,15 @@ export default function FundamentalsWidget({
         )}
         {/* ⚙ Fundamentals settings — writes the GLOBAL pref; never inside an embed. */}
         {!readOnly && (
-        <button
+        <UctCtrlPortal><button
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
           style={journalDoor && !isPanelView && (hasAnnual || hasQ) ? { marginLeft: 2 } : undefined}
           onClick={() => setSettingsOpen(o => !o)}
-          title="Fundamentals settings"
+          data-guide="widget.settings" title="Fundamentals settings"
           aria-label="Fundamentals settings"
-        ><UIcon name="gear" size={13} /></button>
+        ><UIcon name="gear" size={13} /></button></UctCtrlPortal>
         )}
       </div>
 

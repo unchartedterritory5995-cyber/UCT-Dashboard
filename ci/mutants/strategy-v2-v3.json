@@ -1,0 +1,47 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "V1",
+   "mutant": "the v2 / v3 order calls are not read again (signatureOf answers nothing below v4): both captures DIVERGE",
+   "file": "app/src/components/chart/engine/ast/strategyBroker.js",
+   "from": "  if (v === 2 || v === 3) return V3_SIGNATURES[fn] || null",
+   "to": "  if (v === 2 || v === 3) return null",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1a-size-v2\"",
+   "expectRed": "w9-q-s1a-size-v2"
+  },
+  {
+   "id": "V2",
+   "mutant": "the v2 / v3 read-back default size is 2 units instead of 1",
+   "file": "app/src/components/chart/engine/ast/strategyBroker.js",
+   "from": "  2: Object.freeze({ qtyType: 'fixed', qtyValue: 1, initialCapital: 100000, margin: null }),",
+   "to": "  2: Object.freeze({ qtyType: 'fixed', qtyValue: 2, initialCapital: 100000, margin: null }),",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js -t \"w9-q-s1a-size-v2\"",
+   "expectRed": "w9-q-s1a-size-v2"
+  },
+  {
+   "id": "V3",
+   "mutant": "a v2 / v3 run no longer asks B-V3 (served with no pin)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "  if (cfg.version === 2 || cfg.version === 3) rule('B-V3')",
+   "to": "  if (false) rule('B-V3')",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9V3.test.js"
+  },
+  {
+   "id": "V4",
+   "mutant": "a v2 / v3 position past the equity is served (the margin-free funds check removed)",
+   "file": "app/src/components/chart/engine/runtime/broker.js",
+   "from": "      if (equity - size * price * pointvalue < 0) {\n        throw new BrokerRefusal('this Pine v2 / v3 position is worth more than the equity",
+   "to": "      if (false) {\n        throw new BrokerRefusal('this Pine v2 / v3 position is worth more than the equity",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9V3.test.js"
+  },
+  {
+   "id": "V5",
+   "mutant": "any named argument is accepted on a v2 / v3 order call (not only `when`)",
+   "file": "app/src/components/chart/engine/ast/strategyBroker.js",
+   "from": "    if (a.name && !sig.includes(key) && !(key === 'when' && (Number(version) === 5 || v3))) {",
+   "to": "    if (a.name && !sig.includes(key) && !(v3 || (key === 'when' && Number(version) === 5))) {",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9V3.test.js"
+  }
+ ]
+}

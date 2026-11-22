@@ -1,0 +1,34 @@
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+date -u: 2026-11-11T02:56:53Z
+tree: /c/w/pl-auto-remeasure HEAD 644b6d7188019c6a6d2d0ad4708152ead1c53ebb (measured master 75421184a33c10f42201c43f6bd2d6391594f4c1)
+harness: 6f9abd8515 (6f9abd85155112a64a6bc7facf0e5fc2de31c911) - recount.mjs only; no harness file is in the run tree
+# cmd: vitest run src/agent/agentExecRound5.test.jsx --reporter=default --reporter=json
+[bn] free memory GB: 40.1
+
+[1m[46m RUN [49m[22m [36mv4.0.18 [39m[90mC:/w/pl-auto-remeasure/app[39m
+
+ [32m✓[39m src/agent/agentExecRound5.test.jsx [2m([22m[2m18 tests[22m[2m)[22m[33m 17905[2mms[22m[39m
+     [33m[2m✓[22m[39m go up one timeframe: the chart moves one rung; Undo puts it back [33m 1252[2mms[22m[39m
+     [33m[2m✓[22m[39m next timeframe: the chart moves one rung; Undo puts it back [33m 1137[2mms[22m[39m
+     [33m[2m✓[22m[39m previous timeframe: the chart moves one rung; Undo puts it back [33m 1134[2mms[22m[39m
+     [33m[2m✓[22m[39m step down a timeframe: the chart moves one rung; Undo puts it back [33m 1133[2mms[22m[39m
+     [33m[2m✓[22m[39m bump this chart up one timeframe: the chart moves one rung; Undo puts it back [33m 1156[2mms[22m[39m
+     [33m[2m✓[22m[39m drop down a timeframe: the chart moves one rung; Undo puts it back [33m 1153[2mms[22m[39m
+     [33m[2m✓[22m[39m next timeframe up please: the chart moves one rung; Undo puts it back [33m 1129[2mms[22m[39m
+     [33m[2m✓[22m[39m one timeframe lower on this chart: the chart moves one rung; Undo puts it back [33m 1135[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE at the end of the ladder, "go up one timeframe" on M: said, nothing changes [33m 997[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE at the end of the ladder, "previous timeframe" on 1: said, nothing changes [33m 983[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-216 "show the ownership tab on the company panel": the panel shows that tab; Undo goes back [33m 1130[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-217 "collapse the company panel": the panel is false; it stays added; Undo restores it [33m 1138[2mms[22m[39m
+     [33m[2m✓[22m[39m C3-217 "open the company info panel": the panel is true; it stays added; Undo restores it [33m 1151[2mms[22m[39m
+     [33m[2m✓[22m[39m NEGATIVE: a chart without the panel refuses (adding it is the Add to Chart menu’s), nothing changes [33m 994[2mms[22m[39m
+     [33m[2m✓[22m[39m "show my flagged names in the watchlist widget": the widget shows Flagged; Undo goes back [33m 1131[2mms[22m[39m
+     [33m[2m✓[22m[39m "switch the watchlist panel over to flagged": the widget shows Flagged; Undo goes back [33m 1151[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m18 passed[39m[22m[90m (18)[39m
+[2m   Start at [22m 21:56:56
+[2m   Duration [22m 26.48s[2m (transform 6.01s, setup 279ms, import 7.56s, tests 17.91s, environment 606ms)[22m
+
+JSON report written to C:/w/pl-auto-remeasure/docs/agent/program/evidence/remeasure-1016/attempt-2/packet/agentExecRound5.test.json
+# exit=0 end 02:57:22Z

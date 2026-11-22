@@ -35,13 +35,20 @@
 // decides no legality, so this file's rosters stay the only authority on which
 // members exist.
 import { methodFormCall, splitMethodName } from './ufcs.js'
+// ⭐ W6-T6 — the `for … in` walk rule, one table for both lanes.
+import {
+  FOR_IN_SNAPSHOT_SOURCES, FOR_IN_LIVE_WITNESSED, REASSIGN_OPS, COLLECTION_MUTATORS,
+  bodyMayWriteList as bodyMayWriteListRule, forInMutationRefusal,
+} from './forInRule.js'
 import { MAX_COLLECTION_CAP } from './objectProgram.js'
+import { setterPineParams } from '../objectSetterParams.js'
 import {
   MAX_INLINE_DEPTH, INLINE_SUFFIX, readFunctionDefs, objectCollections, drawingFunctions,
   historyReason, pureFunctions, chartSeriesFor, bodyNames, bindArgs, rewriteBody, splitArgs, definitionHeader, callsAny,
   callsMethodAny, bodyEffects, methodHead, isBuiltinMethodName, splitCommaStatements,
   barInvariantNames, guardIsBarInvariant, guardIsLastBarOnly, oneExecutionBody, callOwnedSeriesFor,
   oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, getterScalars, isBareGetterAt, literalInit, isMutator,
+  collectionFamilies, familyOfCollection, ELEMENT_METHODS,
 } from './objectFnInline.js'
 
 /** Pine's own positional argument order, per constructor. ⭐ MEASURED FROM THE
@@ -65,9 +72,18 @@ export const CREATE_POSITIONAL = Object.freeze({
 })
 
 /** `table.cell(table_id, column, row, text, …)` — the first three are the
- *  ADDRESS, not properties, so they are split out by the reader. */
+ *  ADDRESS, not properties, so they are split out by the reader.
+ *
+ *  ⛔⛔ ENGINE 51 — SLOTS 6-8 ARE `text_size, bgcolor, tooltip`, IN THAT ORDER
+ *  (Pine v4-v6 reference). Until engine 51 this list read `bgcolor, tooltip,
+ *  text_size`, so a positional cell with seven or more arguments after the
+ *  address read its size as a colour, its colour as a tooltip and its tooltip
+ *  as a size, while the same call written with names was read correctly. The
+ *  runtime lane's `objectStore.js` `table.cell` signature always had Pine's
+ *  order; `cellPositionalOrder.test.js` now derives one from the other, so the
+ *  two lanes cannot drift again. */
 export const CELL_POSITIONAL = Object.freeze(['text', 'width', 'height', 'text_color',
-  'text_halign', 'text_valign', 'bgcolor', 'tooltip', 'text_size',
+  'text_halign', 'text_valign', 'text_size', 'bgcolor', 'tooltip',
   // ⭐⭐ SLOTS 9 AND 10, FOR `text_formatting` — PINE'S FOURTEENTH ARGUMENT.
   // Master's, restored 2026-09-23: taking this file wholesale in the merge
   // dropped them, and a COMPUTED `text_formatting = cond ? bold : normal`
@@ -114,6 +130,83 @@ export const CELL_SETTER_PROPS = Object.freeze({
 
 export const CLEAR_POSITIONAL = Object.freeze(['start_column', 'start_row',
   'end_column', 'end_row'])
+
+/** ⭐⭐ ENGINE 51 — A STATEMENT'S ARGUMENTS IN PINE'S OWN ORDER, NAMED OR NOT.
+ *
+ *  ⚰️ The reader took the HANDLE as the first argument and a cell's address as
+ *  the next two, by position, whatever their names said. `table.cell(t, row=1,
+ *  column=0, …)` drew at column 1, row 0 (TradingView: column 0, row 1 —
+ *  `keltner-center-of-gravity-channel`, the vendor capture), and
+ *  `table.clear(table_id=t, …)` addressed nothing. Pine places a named argument
+ *  by its name; so does this, once, for every statement the reader splits.
+ *
+ *  The handle is `table_id` for a table op and `id` for the others (Pine
+ *  reference). After it, each op's parameters in Pine's order:
+ *    table.cell        column, row, then `CELL_POSITIONAL`
+ *    table.cell_set_*  column, row, then the one property (named as it is)
+ *    table.clear / merge_cells   `CLEAR_POSITIONAL`
+ *    <family>.delete   nothing
+ *    setters           the properties `SETTER_PROPS` names, a named value
+ *                      placed by PINE's parameter name only (`SETTER_PINE_PARAMS`,
+ *                      `../objectSetterParams.js`, shared with the runtime lane):
+ *                      `box.set_bgcolor(id, color)` writes `bgcolor`, and
+ *                      `label.set_text(lb, txt = "a")` is refused, as Pine does.
+ *  Returns `null` for an op this table does not describe (the caller keeps its
+ *  own path), `{refused}` for a call Pine would not compile or this reader cannot
+ *  place (a name the op does not take, a value given twice, a positional argument
+ *  after a named one, more arguments than it takes), else `{handle, slots}` —
+ *  `slots` keyed by parameter name. */
+export function objectCallParams(ns, method) {
+  if (ns === 'table' && method === 'cell') return ['column', 'row', ...CELL_POSITIONAL]
+  if (ns === 'table' && CELL_SETTER_PROPS[method]) return ['column', 'row', CELL_SETTER_PROPS[method]]
+  if (ns === 'table' && (method === 'clear' || method === 'merge_cells')) return [...CLEAR_POSITIONAL]
+  if (method === 'delete') return []
+  const props = (SETTER_PROPS[ns] || {})[method]
+  return props ? [...props] : null
+}
+export function placeObjectArgs(ns, method, handle, args) {
+  const params = objectCallParams(ns, method)
+  if (!params) return null
+  const handleName = ns === 'table' ? 'table_id' : 'id'
+  const order = handle ? params : [handleName, ...params]
+  const slots = {}
+  let h = handle || null
+  let pos = 0
+  let named = false
+  const isSetter = !!(SETTER_PROPS[ns] || {})[method]
+  // ⛔ Engine 51 (review of #1149, low 7) — a setter's value is named as Pine names it,
+  // never by the property it writes and never by any other word.
+  const pineNames = isSetter ? setterPineParams(ns, method) : null
+  for (const a of args || []) {
+    if (!a) continue
+    let key
+    if (a.name) {
+      named = true
+      const nm = String(a.name)
+      if (nm === handleName) key = handleName
+      else if (isSetter) {
+        const at = pineNames ? pineNames.indexOf(nm) : -1
+        if (at < 0) return { refused: `named argument \`${nm}\`` }
+        key = params[at]
+      } else if (params.includes(nm)) key = nm
+      else return { refused: `named argument \`${nm}\`` }
+    } else {
+      if (named) return { refused: 'a positional argument after a named one' }
+      if (pos >= order.length) return { refused: 'more arguments than it takes' }
+      key = order[pos]
+      pos += 1
+    }
+    if (key === handleName) {
+      if (h) return { refused: `\`${handleName}\` given twice` }
+      h = a
+      continue
+    }
+    if (Object.prototype.hasOwnProperty.call(slots, key)) return { refused: `\`${key}\` given twice` }
+    slots[key] = a
+  }
+  if (!h) return { refused: `no \`${handleName}\`` }
+  return { handle: h, slots }
+}
 
 /**
  * A Pine setter name → the canonical properties it writes, in the order its
@@ -293,12 +386,8 @@ export const OBJECT_NAMESPACES = Object.freeze(['line', 'label', 'box', 'table',
 export const OUT_OF_SCOPE_NAMESPACES = Object.freeze(['polyline'])
 
 const COLLECTION_CALLS = Object.freeze(new Set(['push', 'unshift', 'set', 'remove', 'clear', 'pop', 'shift']))
-/** ⭐ C11b — every operator that REASSIGNS an existing name (Pine reference). */
-const REASSIGN_OPS = Object.freeze(new Set([':=', '+=', '-=', '*=', '/=', '%=']))
-/** ⭐ C16 — every array method that CHANGES the array (Pine reference). One this
- *  pass does not carry leaves a drawing collection diverged. */
-const COLLECTION_MUTATORS = Object.freeze(new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
-  'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat']))
+// ⭐ C11b `REASSIGN_OPS` and C16 `COLLECTION_MUTATORS` (one this pass does not carry leaves a
+// drawing collection diverged) live in `forInRule.js` (W6-T6), the one table both lanes read.
 
 /**
  * Walk the statement tree and pull out every object operation, with the guard
@@ -380,12 +469,17 @@ export function collectObjectOps(stmts, h) {
    *  previous instances of. Collected over the WHOLE tree before the walk, since
    *  Pine lets a definition sit below its first use inside another function. */
   const defined = new Set()
+  // ⭐ r2 (IDX-DELETE r1 review): the names defined with the `method` KEYWORD —
+  // the only definitions dot syntax can reach. A plain function `cell(t, …) =>`
+  // never shadows `t.cell(…)`, so the shadow checks read THIS set.
+  const definedMethods = new Set()
   const scanDefs = (list) => {
     for (const s2 of list || []) {
       const ts = s2.header || []
       if (ts.length > 1) {
         if (ts[0].kind === 'ident' && ts[0].value === 'method' && ts[1].kind === 'ident') {
           defined.add(String(ts[1].value))
+          definedMethods.add(String(ts[1].value))
         } else if (ts[0].kind === 'ident' && h.isPunct(ts[1], '(')
             && h.findTop(ts, (x) => h.isPunct(x, '=>')) > 0) {
           const bare = splitMethodName(String(ts[0].value))
@@ -397,6 +491,7 @@ export function collectObjectOps(stmts, h) {
   }
   scanDefs(stmts)
   const isDefined = (name) => defined.has(name)
+  const isDefinedMethod = (name) => definedMethods.has(name)
 
   // ── ⭐⭐ USER FUNCTIONS THAT DRAW — inlined at each call site ──────────────
   // See `objectFnInline.js` for the measurement and the Pine semantics. A
@@ -404,7 +499,16 @@ export function collectObjectOps(stmts, h) {
   // it is CALLED, under the call's guards, with its own per-call-site locals.
   const fnDefs = readFunctionDefs(stmts, h)
   const objColls = objectCollections(stmts, h)
-  const drawing = drawingFunctions(fnDefs, objColls)
+  // ⭐ the family each named collection holds, top-level and `type` fields alike
+  const collFams = collectionFamilies(stmts, h)
+  // ⭐ the script's own `type` names (gap (c))
+  const userTypes = new Set()
+  for (const s0 of stmts || []) {
+    const ht = s0.header || []
+    const at = ht[0] && ht[0].value === 'export' ? 1 : 0
+    if (ht[at] && ht[at].kind === 'ident' && ht[at].value === 'type' && ht[at + 1] && ht[at + 1].kind === 'ident') userTypes.add(String(ht[at + 1].value))
+  }
+  const drawing = drawingFunctions(fnDefs, objColls, collFams)
   const drawFns = new Set([...drawing].filter((n) => !fnDefs.get(n).isMethod))
   const drawMethods = new Set([...drawing].filter((n) => fnDefs.get(n).isMethod))
   const userFns = new Set([...fnDefs.keys()].filter((n) => !fnDefs.get(n).isMethod))
@@ -519,7 +623,7 @@ export function collectObjectOps(stmts, h) {
   const refuseCall = (why, fn, st, detail) => {
     const def = fnDefs.get(fn)
     const effects = why === 'return-type' ? { kinds: {}, families: [], creates: [] }
-      : def ? bodyEffects(def, fnDefs, objColls)
+      : def ? bodyEffects(def, fnDefs, objColls, collFams)
         : { kinds: { delete: 1 }, families: [null], creates: [null] }
     diagnostics.refusedCalls.push({
       why, fn, line: st && st.header && st.header[0] ? st.header[0].line : null,
@@ -688,11 +792,11 @@ export function collectObjectOps(stmts, h) {
    * ⭐⭐ THE BLOCK-LOCAL SCOPE IS WHAT MAKES THE TABLE POPULATION REACHABLE.
    * The corpus idiom is:
    *
-   *     if barstate.islast and showDashboard
-   *         stateText = dir == 1 ? "CALL" : "WAIT"
-   *         table.cell(dash, 1, 0, stateText)
+   *     if barstate.islast and showPanel
+   *         word = trend > 0 ? "UP" : "DOWN"
+   *         table.cell(panel, 1, 0, word)
    *
-   * `stateText` exists only inside that block. The main value walk never binds
+   * `word` exists only inside that block. The main value walk never binds
    * it — `foldIfChain` refuses a block containing object statements — so a
    * resolver handed the top-level env sees an unknown name and the cell is lost.
    * Carrying the block's own bindings with each op is the difference between a
@@ -716,6 +820,96 @@ export function collectObjectOps(stmts, h) {
     if (rootPos >= 0) stampTop(ops.slice(rootMark), rootPos, rootTok)
     rootMark = ops.length
   }
+  // ─── ⭐⭐ ONCE-EMPTY LIST (coordinator ruling (B), 2026-11-19) — A TEST OF A LIST NOTHING HAS WRITTEN YET ───────────
+  //
+  // `var ps = array.new<P>()`, and every write to `ps` stands LATER in the script, inside an `if` that is provably
+  // `barstate.islast` (`guardIsLastBarOnly`, C42): on every bar the host lane runs, a test of `ps` standing BEFORE those
+  // writes (`if ps.size() > 0`, `if array.size(ps) > 0`, `for p in ps`), in no loop, meets an EMPTY list, so the block
+  // under it runs no step. It is not walked: nothing in it is carried or counted. ⚰️ Walked, the class guard counted
+  // the deletes in it (`htf-candle-footprint-cartel-console`: `l.delete()` / `b.delete()` over the profiles an EARLIER
+  // run drew, of which a loaded chart has none) and withheld a picture its captures grade MATCH (the three body boxes,
+  // TradingView's bars and prices, `vendorHarness.c31Loops` / `f4SpyDrawings`).
+  //
+  // ⛔ SOUND IN THE HOST LANE'S EXECUTION MODEL: a chart's drawings are ONE full recompute over the bars it holds
+  // (`hostObjects.js::hostObjectRun` over the whole array, `objectRuntime.js::evaluateObjects` from a fresh state), and
+  // the newest bar is its only `barstate.islast` bar (`lastBarOnly`) — C42's premise. TradingView re-runs a last-bar
+  // block on every new realtime bar with the list committed from the bar before; that is a chart left open, which no
+  // recompute here reproduces for any script (C42), and `hostOnceEmptyList.test.js` checks the htf shape against it.
+  // ⛔ PROVED FROM THE TOKENS OR NOT AT ALL: the list is a top-level `var` made by `array.new<…>()` with nothing between
+  // the brackets; the test stands in no loop; EVERY other token naming the list stands after the
+  // test's whole block and inside such an `if`. Anything else walks the block as before.
+  const onceEmpty = (() => {
+    const lists = new Map()
+    const lastIndex = (st) => {
+      let m = -1
+      for (const x of (st && st.header) || []) if (x && Number.isFinite(x.index) && x.index > m) m = x.index
+      for (const sub of (st && st.sub) || []) { const k = lastIndex(sub); if (k > m) m = k }
+      return m
+    }
+    for (const st of stmts || []) {
+      const t = st && st.header
+      if (!t || !t.length || !(t[0].kind === 'ident' && t[0].value === 'var')) continue
+      const eq = t.findIndex((x) => h.isPunct(x, '='))
+      const nameTok = eq > 1 ? t[eq - 1] : null
+      if (!nameTok || nameTok.kind !== 'ident') continue
+      const name = String(nameTok.value)
+      const r = t.slice(eq + 1)
+      const n = r.length
+      // `array.new<T>()` (the lexer carries `<T>` on the head as `typeArgs`, `stripTypeArguments`) or
+      // `array.new_<type>()`: the call and `()` with nothing between the brackets.
+      const empty = n === 3 && r[0].kind === 'ident' && /^array\.new(?:_\w+)?$/.test(String(r[0].value))
+        && h.isPunct(r[1], '(') && h.isPunct(r[2], ')')
+      lists.set(name, empty ? { lo: t[0].index, hi: lastIndex(st) } : null)
+    }
+    if (![...lists.values()].some(Boolean)) return null
+    const refs = new Map()
+    const blocks = new Map()
+    const visit = (list, once, loop) => {
+      for (const st of list || []) {
+        const t = st && st.header
+        if (!t || !t.length) continue
+        const w = t[0].kind === 'ident' ? t[0].value : null
+        if (Number.isFinite(t[0].index)) blocks.set(t[0].index, { loop, hi: lastIndex(st) })
+        for (const x of t) {
+          if (!x || x.kind !== 'ident') continue
+          const v = String(x.value)
+          const dot = v.indexOf('.')
+          const head = dot > 0 ? v.slice(0, dot) : v
+          if (!lists.get(head)) continue
+          if (!refs.has(head)) refs.set(head, [])
+          refs.get(head).push({ at: x.index, once })
+        }
+        visit(st.sub, once || (w === 'if' && guardIsLastBarOnly(t.slice(1))), loop + (w === 'for' || w === 'while' ? 1 : 0))
+      }
+    }
+    visit(stmts, false, 0)
+    return { lists, refs, blocks }
+  })()
+  /** Is the list `name` provably EMPTY wherever the test statement `st` runs? (see `onceEmpty` above) */
+  const listEmptyOnOnce = (name, st) => {
+    const decl = onceEmpty && name ? onceEmpty.lists.get(name) : null
+    const lo = st && st.header && st.header[0] ? st.header[0].index : null
+    const me = decl && Number.isFinite(lo) ? onceEmpty.blocks.get(lo) : null
+    if (!me || me.loop !== 0) return false
+    for (const r of onceEmpty.refs.get(name) || []) {
+      if ((r.at >= decl.lo && r.at <= decl.hi) || (r.at >= lo && r.at <= me.hi)) continue
+      if (!(r.at > me.hi) || !r.once) return false
+    }
+    return true
+  }
+  /** `ps.size() > 0` / `array.size(ps) > 0` → `ps`, else null. */
+  const sizeTestedList = (c) => {
+    const zero = (x) => !!x && x.kind === 'number' && Number(x.value) === 0
+    if (c && c.length === 5 && c[0].kind === 'ident' && /^[A-Za-z_]\w*\.size$/.test(String(c[0].value))
+      && h.isPunct(c[1], '(') && h.isPunct(c[2], ')') && h.isPunct(c[3], '>') && zero(c[4])) return String(c[0].value).slice(0, -'.size'.length)
+    if (c && c.length === 6 && c[0].kind === 'ident' && c[0].value === 'array.size' && h.isPunct(c[1], '(') && c[2].kind === 'ident'
+      && h.isPunct(c[3], ')') && h.isPunct(c[4], '>') && zero(c[5])) return String(c[2].value)
+    return null
+  }
+  /** `for p in ps` → `ps`, else null. */
+  const forInList = (t) => (t && t.length === 4 && t[1].kind === 'ident' && t[2].kind === 'ident' && t[2].value === 'in'
+    && t[3].kind === 'ident' ? String(t[3].value) : null)
+
   const walk = (list, guards, inLoop, scope) => {
     // ⭐⭐ C22 — EVERY earlier condition of the chain, not the last one: see `else`.
     let prevIfConds = []
@@ -737,6 +931,8 @@ export function collectObjectOps(stmts, h) {
     const getterAliases = new Map()
     // ⭐ `a, b, c` on one line is three statements — `splitCommaStatements`.
     const walkItems = splitCommaStatements(list, h)
+    // ⭐⭐ TWO-STEP REMOVAL — the delete statement a declaration above it was fused into (`twoStepRemovalFusion`).
+    let fusedNext = null
     for (let wi = 0; wi < walkItems.length; wi += 1) {
       const st = walkItems[wi]
       if (isRoot) {
@@ -771,6 +967,19 @@ export function collectObjectOps(stmts, h) {
       // change the object (see `getterAliasStep`). Only this `if`'s own condition
       // tokens are rewritten; `st` keeps its header.
       t = getterAliasStep(st, t, getterAliases)
+      // ⭐⭐ TWO-STEP REMOVAL (2026-11-19, coordinator ruling) — `old = array.shift(xs)` then `label.delete(old)` /
+      // `old.delete()` is ONE Pine program with `label.delete(array.shift(xs))`: the slot leaves the list and the object
+      // it held is deleted (array.shift: "Removes an array's first element and returns its value"). Fused, the pair walks
+      // the one-call lowering below (`emitMethodOn`, C16's `poppedFrom` branch), only where the two are ADJACENT in one
+      // statement list (same guards, nothing between them can read the list) and the name is read nowhere else. Every
+      // other declaration of a removal into a name loses its list by name (the assignment branch below), never silent.
+      // ⚰️ Before: the function form was refused (`delete:target`); the METHOD form emitted nothing and the declaration
+      // carried no removal, so the host lane drew every label the script deleted (a 3-label script showed 26).
+      if (fusedNext && fusedNext.at === wi) { t = fusedNext.toks; fusedNext = null }
+      else if (!inLoop) {
+        const fused = twoStepRemovalFusion(walkItems, wi, t)
+        if (fused) { fusedNext = { at: wi + 1, toks: fused }; continue }
+      }
       const first = t[0]
       const word = first.kind === 'ident' ? first.value : null
       // ⭐ C25 — a loop scalar (`loopScalars`) is written ONLY by `x := e` as a
@@ -937,7 +1146,10 @@ export function collectObjectOps(stmts, h) {
           const f = foldLocalChain(walkItems, wi, localScope)
           if (f) pendingFold = { ...f, st }
         }
-        walk(st.sub || [], [...guards, { toks: cond, negate: false, locals: localScope }], inLoop, localScope)
+        // ⭐⭐ ONCE-EMPTY LIST — `if ps.size() > 0` over a list nothing has written yet runs no step (`listEmptyOnOnce`).
+        if (!listEmptyOnOnce(sizeTestedList(cond), st)) {
+          walk(st.sub || [], [...guards, { toks: cond, negate: false, locals: localScope }], inLoop, localScope)
+        }
         // ⭐⭐ R2 STEP 3 — A NAME THE CHAIN REASSIGNS IS A NEW BINDING FOR EVERY
         // STATEMENT AFTER IT. `string atrMultText = ''` then `atrMultText := …`
         // inside an `if` leaves TWO bindings for one name, and the cell below the
@@ -1007,6 +1219,11 @@ export function collectObjectOps(stmts, h) {
         // an unrecorded reassignment both ways, which `scopeFor` refuses by name.
         const loopRe = [...reassignedIn(st.sub || [])].map((name) => ({ name, toks: t, st, reassign: true }))
         const bodyScope = loopRe.length ? [...localScope, ...loopRe] : localScope
+        // ⭐⭐ ONCE-EMPTY LIST — `for p in ps` over a list nothing has written yet runs no pass (`listEmptyOnOnce`).
+        if (word === 'for' && !head && listEmptyOnOnce(forInList(t), st)) {
+          if (loopRe.length) localScope = [...localScope, ...loopRe]
+          continue
+        }
         // ⭐⭐ C40 — A `for … in` OVER A LIST THIS LANE HOLDS, AND THE CAP `while`.
         // Both become loop ops the object runtime runs (`forInPlan`, `capWhileOf`);
         // every other shape falls through to the refusal below, unchanged.
@@ -1193,9 +1410,27 @@ export function collectObjectOps(stmts, h) {
       const assign = h.findTop(t, (x) => h.isPunct(x, ':=')) >= 0
         ? h.findTop(t, (x) => h.isPunct(x, ':='))
         : h.findTop(t, (x) => h.isPunct(x, '='))
+      // ⭐ gap (c): `p = P.new(box.new(…))` — a drawing created into a user type's
+      // SCALAR field. Its only handle is `p.b`, which this program holds no
+      // register for: named and counted (`refuseFieldCreates`), never silent.
+      // ⛔ It falls through afterwards: the statement still binds `p` for the
+      // statements after it (the block scope below), and no reader emits an op
+      // for a `<UserType>.new` right-hand side.
+      if (assign > 0 && t[assign + 1] && t[assign + 1].kind === 'ident'
+          && userTypes.has(String(nsOf(String(t[assign + 1].value)) || '')) && methodOf(String(t[assign + 1].value)) === 'new') {
+        refuseFieldCreates(t.slice(assign + 2), null)
+      }
       if (assign > 0 && t[assign - 1] && t[assign - 1].kind === 'ident') {
         const name = t[assign - 1].value
         const rhs = t.slice(assign + 1)
+        // ⭐⭐ TWO-STEP REMOVAL — a drawing list's `shift` / `pop` / `remove` whose element goes into a name and is NOT
+        // the fused pair above: the removal is a change of the list this program does not carry, so the list is LOST
+        // by name (what reads it after is withheld), never left at its old length.
+        const removedInto = removalIntoName(rhs)
+        if (removedInto) {
+          diagnostics.unsupported.push(`array.${removedInto.method}`)
+          loseColl(removedInto.coll, `coll:${removedInto.method}-into-name`, t[0])
+        }
         // ⭐⭐ C14 — `x := label.get_y(l)` / `x = l.get_x()` on a getter-fed
         // scalar: WRITTEN HERE, in op order, under this block's guards. Nothing
         // else about the statement changes (it still joins the block scope).
@@ -1403,6 +1638,12 @@ export function collectObjectOps(stmts, h) {
       if (!word && h.isPunct(t[0], '(') && emitPostfix(t, guards, inLoop, st, localScope)) {
         continue
       }
+      // ⭐ THE SAME STATEMENT ON A HISTORY RECEIVER: `l[1].delete()`. ⚰️ It opens
+      // with `l [`, so neither branch above nor the bare-call branch below read
+      // it — the removal vanished with no op and no count (STRAT-COLOR review).
+      if (word && h.isPunct(t[1], '[') && emitPostfix(t, guards, inLoop, st, localScope)) {
+        continue
+      }
 
       // ── a bare call statement ────────────────────────────────────────────
       if (word && h.isPunct(t[1], '(')) {
@@ -1419,7 +1660,11 @@ export function collectObjectOps(stmts, h) {
           if (COLLECTION_MUTATORS.has(method)) {
             const a = argsOf(t)
             const c = a && a[0] && a[0].value && a[0].value.type === 'name' ? a[0].value.name : null
-            if (c && decls.get(c) && decls.get(c).kind === 'coll') loseColl(c, `coll:${method}`, t[0])
+            // ⭐ gap (a): a create written INTO the change (`array.insert(a, i,
+            // box.new(…))`) is not carried with it — named and counted, never
+            // left to vanish with the list's divergence.
+            if (c && decls.get(c) && decls.get(c).kind === 'coll') { loseColl(c, `coll:${method}`, t[0]); refuseFieldCreates(t, c, true) }
+            else if (refuseFieldCreates(t, c)) continue
           }
         }
         if (ns && OUT_OF_SCOPE_NAMESPACES.includes(ns)) {
@@ -1609,53 +1854,17 @@ export function collectObjectOps(stmts, h) {
   // `clear`, a reassignment, a helper handed the list — no row), a bounded
   // numeric window changed by its body, and a loop variable that takes over a
   // name another statement declared.
-  const ALL_FAMILIES = Object.freeze({ 'line.all': 'line', 'box.all': 'box', 'label.all': 'label' })
-  /** ⭐ C48 — the ways a body may change the list it walks that a capture shows
-   *  (`vw-forin-collections`, F03 / F04 / F05). */
-  const FOR_IN_LIVE_WITNESSED = Object.freeze(new Set(['shift', 'push', 'set']))
+  // ⭐ W6-T6 — the snapshot sources and the witnessed mutations (`FOR_IN_LIVE_WITNESSED`) are
+  // ONE table, `forInRule.js`, read by this lane and the runtime lane alike.
+  const ALL_FAMILIES = FOR_IN_SNAPSHOT_SOURCES
   const refuseForIn = (why, t) => {
     diagnostics.forInRefused.push(`${why}@${t[0] && t[0].line !== undefined ? t[0].line : '?'}`)
     return null
   }
-  /** Does this statement list (at any depth, and through any user function it
-   *  calls) change the list `name` — a mutating member, a reassignment, or a
-   *  user function that is handed it or names it? ⭐ C48 — `allowed`: mutating
-   *  members that do not count (the question becomes "by anything ELSE?"). */
-  const bodyMayWriteList = (list, name, allowed = null) => {
-    const seenFns = new Set()
-    let scan = null
-    const scanToks = (toks) => {
-      for (let i = 0; i < toks.length; i += 1) {
-        const tk = toks[i]
-        if (!tk || tk.kind !== 'ident') continue
-        const v = String(tk.value)
-        const nx = toks[i + 1]
-        if (v === name && nx && nx.kind === 'punct' && (nx.value === '=' || REASSIGN_OPS.has(nx.value))) return true
-        if (v.startsWith('array.') && COLLECTION_MUTATORS.has(v.slice(6)) && h.isPunct(nx, '(')
-            && toks[i + 2] && toks[i + 2].kind === 'ident' && String(toks[i + 2].value) === name) {
-          if (allowed && allowed.has(v.slice(6))) continue
-          return true
-        }
-        const m = splitMethodName(v)
-        if (m && m.recv === name && COLLECTION_MUTATORS.has(m.method) && !isDefined(m.method)) {
-          if (allowed && allowed.has(m.method)) continue
-          return true
-        }
-        const fn = fnDefs.has(v) ? v : (m && fnDefs.has(m.method) ? m.method : null)
-        if (!fn || !h.isPunct(nx, '(')) continue
-        const close = closeOf(toks, i + 1)
-        const args = close > 0 ? toks.slice(i + 2, close) : toks.slice(i + 2)
-        if ((m && m.recv === name) || args.some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name)) return true
-        if (!seenFns.has(fn)) {
-          seenFns.add(fn)
-          if (scan(fnDefs.get(fn).body)) return true
-        }
-      }
-      return false
-    }
-    scan = (items) => (items || []).some((s2) => scanToks(s2.header || []) || scan(s2.sub))
-    return scan(list)
-  }
+  /** Does this statement list change the list `name`? (`forInRule.js::bodyMayWriteList`.) */
+  const bodyMayWriteList = (list, name, allowed = null) => bodyMayWriteListRule(list, name, {
+    allowed, isPunct: h.isPunct, isDefined, fnDefs,
+  })
   const mentionsName = (list, name) => (list || []).some((s2) => (s2.header || [])
     .some((x) => x.kind === 'ident' && String(x.value).split('.')[0] === name) || mentionsName(s2.sub, name))
   /** `for x in SRC` / `for [i, x] in SRC` → `{kind, idx, elem, src, family}` for
@@ -1708,7 +1917,7 @@ export function collectObjectOps(stmts, h) {
     const liveWalk = !ALL_FAMILIES[src] && bodyMayWriteList(st.sub, src)
     if (liveWalk && isWindow) return refuseForIn(`the body changes \`${src}\`, the list it walks`, t)
     if (liveWalk && bodyMayWriteList(st.sub, src, FOR_IN_LIVE_WITNESSED)) {
-      return refuseForIn(`the body changes \`${src}\`, the list it walks, by more than push / shift / set`, t)
+      return refuseForIn(forInMutationRefusal(src), t)
     }
     if (isWindow) return { kind: 'window', idx, elem, src, family: null }
     if (elemName !== elem) {
@@ -2026,6 +2235,43 @@ export function collectObjectOps(stmts, h) {
     return { coll, family: d.family, method, index }
   }
 
+  /** ⭐⭐ TWO-STEP REMOVAL — a right-hand side that IS a drawing list's `shift` / `pop` / `remove` (`poppedFrom`). */
+  function removalIntoName(rhsToks) {
+    if (!rhsToks || !rhsToks.length) return null
+    let v = null
+    try { v = h.parseWholeExpression(rhsToks) } catch { v = null }
+    return v ? poppedFrom(v) : null
+  }
+  /** Does this statement, or any block under it, name `name` (as itself, a field, a method receiver or `name[n]`)? */
+  const statementNames = (it, name) => !!it && (((it.header || []).some((x) => x && x.kind === 'ident'
+    && (String(x.value) === name || String(x.value).startsWith(`${name}.`))))
+    || (it.sub || []).some((s) => statementNames(s, name)))
+  /** ⭐⭐ TWO-STEP REMOVAL — `name = <list removal>` at `items[wi]` and, IMMEDIATELY after it, `<family>.delete(name)`
+   *  or `name.delete()` with no block of its own: the delete statement's tokens as the one-call form
+   *  `<family>.delete(<list removal>)`, or null. ⛔ Never `var` / `varip`, never `:=`, never a name this walker holds
+   *  (`decls`, `scalars`), never another family's delete, never a name any later statement of this list (or a block
+   *  under it) reads: each of those keeps the declaration unfused, and it then loses its list by name. */
+  function twoStepRemovalFusion(items, wi, t) {
+    if (!t || !t.length || (t[0].kind === 'ident' && (t[0].value === 'var' || t[0].value === 'varip'))) return null
+    const at = t[0] && t[0].kind === 'ident' && t[1] && t[1].kind === 'ident' && h.isPunct(t[2], '=') ? 1 : 0
+    if (!(t[at] && t[at].kind === 'ident' && h.isPunct(t[at + 1], '='))) return null
+    const name = String(t[at].value)
+    if (name.includes('.') || decls.has(name) || scalars.has(name)) return null
+    const rhs = t.slice(at + 2)
+    const popped = removalIntoName(rhs)
+    if (!popped) return null
+    const next = items[wi + 1]
+    if (!next || !next.header || (next.sub && next.sub.length)) return null
+    const n = next.header
+    const fnForm = n.length === 4 && n[0].kind === 'ident' && n[0].value === `${popped.family}.delete`
+      && h.isPunct(n[1], '(') && n[2].kind === 'ident' && n[2].value === name && h.isPunct(n[3], ')')
+    const methodForm = n.length === 3 && n[0].kind === 'ident' && n[0].value === `${name}.delete`
+      && h.isPunct(n[1], '(') && h.isPunct(n[2], ')') && !isDefinedMethod('delete')
+    if (!fnForm && !methodForm) return null
+    if (items.slice(wi + 2).some((it) => statementNames(it, name))) return null
+    return [{ ...n[0], value: `${popped.family}.delete` }, n[1], ...rhs, n[n.length - 1]]
+  }
+
   /** The `<family>.new` this token span NAMES anywhere, or null.
    *
    *  ⛔ IT IS A DIAGNOSTIC READER, NOT A PARSER. Its only job is to tell a
@@ -2182,7 +2428,9 @@ export function collectObjectOps(stmts, h) {
     }
     const args = argsOf(toks)
     if (!args || !args.length) { diagnostics.unsupported.push(`${ns}.${method}`); return }
-    emitMethodOn(ns, method, args[0], args.slice(1), toks[0], guards, st, scope)
+    // ⭐ Engine 51 — the handle is found by its NAME when it has one
+    // (`table.clear(table_id=t, …)`), so `emitMethodOn` is handed every argument.
+    emitMethodOn(ns, method, null, args, toks[0], guards, st, scope)
   }
 
   /** ⭐⭐ ONE PLACE TURNS A FAMILY, A METHOD, A TARGET AND THE REST INTO AN OP.
@@ -2195,7 +2443,38 @@ export function collectObjectOps(stmts, h) {
    *  setter writes, and the two would drift the first time `SETTER_PROPS` gains
    *  a row (`lesson_a_second_authority_over_one_value`). The only thing the
    *  postfix caller supplies differently is WHERE the target came from. */
-  function emitMethodOn(ns, method, target, rest, at, guards, st, scope) {
+  function emitMethodOn(ns, method, targetIn, restIn, at, guards, st, scope) {
+    // ⭐⭐ ENGINE 51 — every argument placed by Pine's rule (`placeObjectArgs`),
+    // then handed on in the shape each op below already reads: the handle as
+    // `target`, an address as `col`/`row`, a cell's properties and a rectangle by
+    // NAME (`namedOrPositional`), a setter's values and a cell patch's value by
+    // position. A call Pine places differently from where the old reader looked
+    // now lands where Pine puts it; one this reader cannot place is refused by
+    // name, never read by position.
+    const placed = placeObjectArgs(ns, method, targetIn, restIn)
+    if (placed && placed.refused) { diagnostics.unsupported.push(`${ns}.${method}(${placed.refused})`); return }
+    let target = targetIn
+    let rest = restIn
+    let address = null
+    if (placed) {
+      target = placed.handle
+      const s = placed.slots
+      const named = (names) => names.filter((n) => s[n]).map((n) => ({ ...s[n], name: n }))
+      if (ns === 'table' && (method === 'cell' || CELL_SETTER_PROPS[method])) {
+        if (!s.column || !s.row) { diagnostics.unsupported.push(`${ns}.${method}(no column/row)`); return }
+        address = { col: { ...s.column, name: null }, row: { ...s.row, name: null } }
+        rest = method === 'cell' ? named(CELL_POSITIONAL)
+          : (s[CELL_SETTER_PROPS[method]] ? [{ ...s[CELL_SETTER_PROPS[method]], name: null }] : [])
+      } else if (ns === 'table' && (method === 'clear' || method === 'merge_cells')) {
+        rest = named(CLEAR_POSITIONAL)
+      } else if (method === 'delete') {
+        rest = []
+      } else {
+        // a setter: its values by position, a missing one left as a hole (the
+        // converter drops the setter by name, `update:props`)
+        rest = objectCallParams(ns, method).map((n) => (s[n] ? { ...s[n], name: null } : undefined))
+      }
+    }
     if (method === 'delete') {
       // ⭐⭐ C16 — `box.delete(array.shift(bs))`: TWO Pine operations in one
       // statement — the slot leaves the array and the box it held is deleted.
@@ -2255,7 +2534,7 @@ export function collectObjectOps(stmts, h) {
     }
     if (ns === 'table' && method === 'cell') {
       ops.push({
-        k: 'cell', target, col: rest[0], row: rest[1], args: rest.slice(2),
+        k: 'cell', target, col: address.col, row: address.row, args: rest,
         guards, locals: scope, loopIds: [...loopIds], at, line: st.header[0].line,
       })
       return
@@ -2268,7 +2547,7 @@ export function collectObjectOps(stmts, h) {
     if (ns === 'table' && CELL_SETTER_PROPS[method]) {
       ops.push({
         k: 'cellpatch', prop: CELL_SETTER_PROPS[method],
-        target, col: rest[0], row: rest[1], args: rest.slice(2),
+        target, col: address.col, row: address.row, args: rest,
         // ⛔ THIS LANE'S OWN SHAPE, NOT MASTER'S VERBATIM. The sibling ops here
         // carry `at` (already resolved) and `loopIds`, which master's version has
         // no concept of — a ported op without them throws `toks is not defined`
@@ -2354,6 +2633,27 @@ export function collectObjectOps(stmts, h) {
     try { node = h.parseWholeExpression(toks) } catch { return false }
     if (!node || node.type !== 'method') return false
     const recv = node.recv
+    // ⭐⭐ A VALUE RECEIVER — `l[1].delete()`, `(up ? a : b).delete()`. See
+    // `emitOnValueReceiver`: the name form with the receiver moved back, or a
+    // refusal by name. ⚰️ Before it, both shapes produced no op and no count.
+    if (recv && (recv.type === 'offset' || recv.type === 'ternary')) {
+      return emitOnValueReceiver(node, toks, guards, inLoop, st, scope)
+    }
+    // ⭐⭐ FIELD REGISTER, STEP A (class sweep, 2026-11-19) — A DRAWING READ OUT OF A FIELD OF AN EXPRESSION:
+    // `zs.get(0).lb.delete()`, `array.get(zs, 0).lb.delete()`, `f().lb.delete()`, `(c ? a : b).lb.set_x(n)`. The
+    // handle lives in a field of an object this walker holds no register for (an array of a user type, a function's
+    // result), so the step cannot be EXECUTED, only named: a `delete` / `set_*` is `object.<method>` in `unsupported`
+    // (a removal that reaches / a lost setter, `classifyReaderName`), whatever a user method of that name might be (the
+    // tokens cannot say which one Pine calls, and both act on a drawing this program cannot address).
+    // ⚰️ Before: a `member` receiver answered false here, the bare-call branch read `zs.get` as a list method on an
+    // undeclared name and answered false too, and the statement vanished: the member door served every label the
+    // script deleted (probe: 26 where TradingView keeps 1), counting nothing.
+    if (recv && recv.type === 'member') {
+      const method = String(node.name || '')
+      if (method !== 'delete' && !method.startsWith('set_')) return false
+      diagnostics.unsupported.push(`object.${method}`)
+      return true
+    }
     // ⛔ THE ONE RECEIVER `targetRef` CAN ADDRESS. A `name` receiver never
     // reaches here — the parser folds `(b).delete()` back into the dotted name
     // `b.delete`, which is the bare-call branch's business — so this is the
@@ -2390,12 +2690,12 @@ export function collectObjectOps(stmts, h) {
     const asMethod = recv.name === 'array.get'
       ? recv
       : (methodFormCall(recv, receiverNs, isDefined) || {}).node
-    if (!asMethod || asMethod.name !== 'array.get') return false
+    if (!asMethod || asMethod.name !== 'array.get') return refuseChainedElement(node, recv)
     if (!Array.isArray(asMethod.args) || asMethod.args.length !== 2) return false
     const cn = asMethod.args[0] && asMethod.args[0].value
     const collName = cn && cn.type === 'name' ? cn.name : null
     const d = collName ? decls.get(collName) : null
-    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return false
+    if (!d || d.kind !== 'coll' || !OBJECT_NAMESPACES.includes(d.family)) return refuseChainedElement(node, recv)
     const method = node.name
     if (method.startsWith('get_')) { diagnostics.getters.push(`${d.family}.${method}`); return true }
     if (inLoop) { diagnostics.loopBlocked.push(`${d.family}.${method}`); return true }
@@ -2405,6 +2705,173 @@ export function collectObjectOps(stmts, h) {
     // target and the drawing would address nothing.
     emitMethodOn(d.family, method, { name: null, value: asMethod, tok: toks[0] },
       node.args || [], toks[0], guards, st, scope)
+    return true
+  }
+
+  /** ⭐⭐ A DRAWING CREATED STRAIGHT INTO A LIST THIS PROGRAM DOES NOT HOLD —
+   *  `k._box.unshift(box.new(…))`, `array.push(k._box, line.new(…))`,
+   *  `k._box.insert(0, …)` / `.set(i, …)` on a user type's FIELD (or any list
+   *  this pass never declared). ⚰️ Before this every such statement fell through
+   *  each reader with no op and no count: the boxes were simply missing, and the
+   *  member was told nothing.
+   *
+   *  ⛔ WITHHELD BY NAME, WITH A COUNT, NEVER SERVED AS A BARE CREATE. Pine draws
+   *  the object at `box.new`, but its only handle lives in a list this program
+   *  has no register for, so every later step on it (a setter, a `pop().delete()`,
+   *  a `box.delete(k._box.get(0))`) is unaddressable — serving the create would put
+   *  objects on screen that TradingView moves or removes. Coordinator ruling
+   *  2026-11-08: such creates are lost by name (`<family>.new` in `unsupported`,
+   *  one `content:lost` each in the converter, `fieldCreates`), the rest of the
+   *  script keeps serving. A create that ALSO lands in a register (`b = box.new(…)`
+   *  then `k._box.push(b)`) is served by its own statement and never reaches here.
+   *  @returns {boolean} true when the statement named a create and was refused. */
+  function refuseFieldCreates(toks, coll, force = false) {
+    if (!force && coll && decls.get(coll) && decls.get(coll).kind === 'coll') return false
+    const fams = []
+    for (const x of toks || []) {
+      if (!x || x.kind !== 'ident' || x.member) continue
+      const v = String(x.value)
+      const ns = nsOf(v)
+      if (ns && OBJECT_NAMESPACES.includes(ns) && methodOf(v) === 'new') fams.push(ns)
+    }
+    if (!fams.length) return false
+    if (!diagnostics.fieldCreates) diagnostics.fieldCreates = []
+    for (const f of fams) {
+      diagnostics.unsupported.push(`${f}.new`)
+      diagnostics.fieldCreates.push(f)
+    }
+    return true
+  }
+
+  /** ⭐⭐ A REMOVAL OR SETTER ON A CHAINED ELEMENT THIS PROGRAM DOES NOT HOLD —
+   *  `k._box.pop().delete()` on a `type` field, `x.shift().delete()` on a list it
+   *  never declared. Pine's reference states the semantics (`array.pop` "removes
+   *  the last element from an array and returns its value"; the `delete` method
+   *  is `box.delete(id)` on it), but the list lives where the object program has
+   *  no register (a user type's field), so it cannot be EXECUTED, only named.
+   *
+   *  ⛔ REFUSED BY NAME, WITH ITS FAMILY: `box.delete` in `unsupported`. The door
+   *  classifies it as a removal (`classifyReaderName`) that reaches only a chart
+   *  that draws that family — so the rest of the script (a table the capture
+   *  matches) is not refused for a box removal no box on screen could feel.
+   *  ⚰️ Before this, the statement fell through every branch with no op and no
+   *  count. A declared object list (`decls`) is never claimed here: its own
+   *  readers answer (`poppedFrom`, `emitMethodForm`'s `array.first`). */
+  function refuseChainedElement(node, recv) {
+    const method = String(node.name || '')
+    if (!(method === 'delete' || method.startsWith('set_'))) return false
+    const name = String((recv && recv.name) || '')
+    let coll = null
+    let m = null
+    if (name.startsWith('array.') || name.startsWith('map.')) {
+      m = name.slice(name.indexOf('.') + 1)
+      const a = recv.args && recv.args[0] && recv.args[0].value
+      if (a && a.type === 'name') coll = a.name
+    } else {
+      const sp = splitMethodName(name)
+      if (sp) { m = sp.method; coll = sp.recv }
+    }
+    if (!coll || !ELEMENT_METHODS.includes(m) || isDefinedMethod(m)) return false
+    const d = decls.get(coll)
+    if (d && d.kind === 'coll') return false
+    const fam = familyOfCollection(coll, collFams)
+    // ⛔ r2 (CHAINED-REMOVAL review, M6): a user `method delete(T)` is what Pine
+    // calls when the ELEMENT is the user's type (`TWA.pop().delete()` on an
+    // `array<TimeWindow>`), so an element of no drawing family is the user's.
+    // On a list the declaration names as drawings, Pine dispatches on the element
+    // type: the built-in — refused by name below, never dropped in silence.
+    if (!fam && isDefinedMethod(method)) return false
+    diagnostics.unsupported.push(`${fam || 'object'}.${method}`)
+    // ⭐ A NAMED family's removal is carried to the converter, which withholds
+    // that family's objects (`removalWithheldFamilies` in `pine.js`).
+    if (method === 'delete' && fam) {
+      if (!diagnostics.chainedRemovals) diagnostics.chainedRemovals = []
+      diagnostics.chainedRemovals.push(fam)
+    }
+    return true
+  }
+
+  /** The drawing family a VALUE receiver holds, read off the declarations —
+   *  `l[1]` → `l`'s family; a ternary → the one family every non-`na` arm names.
+   *  Null when the tokens cannot name exactly one family. */
+  function valueReceiverFamily(v) {
+    if (!v) return null
+    if (v.type === 'name') {
+      const d = decls.get(v.name)
+      return d && d.kind !== 'coll' && OBJECT_NAMESPACES.includes(d.family) ? d.family : null
+    }
+    if (v.type === 'offset') return v.arg && v.arg.type === 'name' ? valueReceiverFamily(v.arg) : null
+    if (v.type === 'ternary') {
+      const arms = [v.yes, v.no].filter((a) => !(a && a.type === 'name' && a.name === 'na'))
+      const fams = arms.map(valueReceiverFamily)
+      return fams.length && fams.every((f) => f && f === fams[0]) ? fams[0] : null
+    }
+    return null
+  }
+
+  /** ⭐⭐ `l[1].delete()` IS `line.delete(l[1])` — A METHOD ON A VALUE RECEIVER.
+   *
+   *  Pine's v6 reference lists the METHOD `delete` with `originalName`
+   *  `line.delete` (label/box/table/linefill/polyline alike) and `thisType`
+   *  `series line`: `id.delete()` IS `<ns>.delete(id)`. The history form is
+   *  witnessed by the reference's own examples (`input.string`, `input.time`):
+   *  `label.delete(l[1])` — `l[1]` is the id the variable held on the previous
+   *  bar. (⚰️ This said "the `line.delete` reference example is
+   *  `line.delete(l[1])`"; there is no such example — review IDX-DELETE.) So the method form is lowered to EXACTLY the name form's op —
+   *  same family (from the declaration, never the method name), same target node,
+   *  same emitter (`emitMethodOn`) — and from there it is served or refused
+   *  wherever the name form is: `l[n]` on a declared handle resolves to
+   *  `{r:'reg', back:n}`; a ternary target does not resolve and is dropped as
+   *  `<k>:target`, the name form's own named drop.
+   *
+   *  ⛔⛔ WHAT THE TOKENS CANNOT NAME A FAMILY FOR IS REFUSED BY NAME, NEVER
+   *  LEFT TO FALL THROUGH. ⚰️ Before this, `l[1].delete()` opened with `l [` and
+   *  no branch read it; `(c ? a : b).delete()` reached `emitPostfix` and was
+   *  answered false. Both emitted no op and no count — the removal vanished and a
+   *  member's chart kept every object the author deleted. A `delete` or `set_*`
+   *  whose family is unknown is `object.<method>` in `unsupported` (classified a
+   *  removal / a lost setter by name, `classifyReaderName`).
+   *
+   *  ⛔⛔ A USER METHOD OF THE SAME NAME IS REFUSED BY NAME (`shadowedDrawingMethod`):
+   *  on a receiver this pass KNOWS is a drawing, which of the two Pine calls is a
+   *  question the tokens cannot settle, so neither is guessed and nothing is
+   *  dropped in silence (ruling, IDX-DELETE review C). On any other receiver the
+   *  script's own method wins and the statement is the inliner's business. */
+  function emitOnValueReceiver(node, toks, guards, inLoop, st, scope) {
+    const method = String(node.name || '')
+    if (!method) return false
+    if (isDefinedMethod(method)) {
+      const sf = valueReceiverFamily(node.recv)
+      return sf ? shadowedDrawingMethod(method, sf) : false
+    }
+    const fam = valueReceiverFamily(node.recv)
+    if (!fam) {
+      if (method === 'delete' || method.startsWith('set_')) {
+        diagnostics.unsupported.push(`object.${method}`)
+        return true
+      }
+      return false
+    }
+    if (method.startsWith('get_')) { diagnostics.getters.push(`${fam}.${method}`); return true }
+    if (inLoop) { diagnostics.loopBlocked.push(`${fam}.${method}`); return true }
+    emitMethodOn(fam, method, { name: null, value: node.recv, tok: toks[0] },
+      node.args || [], toks[0], guards, st, scope)
+    return true
+  }
+
+  /** ⛔⛔ A USER `method <m>` SHADOWING A DRAWING METHOD, CALLED ON A DRAWING.
+   *  `method delete(T this) => …` beside `l.delete()` / `l[1].delete()` on a
+   *  declared `line`: Pine dispatches on the receiver's type, but whether a user
+   *  method may also take a built-in type's name is not something this pass can
+   *  settle from the tokens — so it is REFUSED BY NAME as `object.<m>` (a removal
+   *  that reaches, `classifyReaderName`), never dropped. ⚰️ Before this both forms
+   *  fell through every branch with no op and no count (IDX-DELETE review, C).
+   *  @returns {boolean} true when it owned (and refused) the statement. */
+  function shadowedDrawingMethod(method, family) {
+    if (!/^(delete|copy|clear|cell|merge_cells)$|^set_|^cell_set_/.test(method)) return false
+    // ⭐ r2: named with the receiver's family (`table.clear`, `line.delete`), so
+    // `classifyReaderName` rates it as what it is (a table clear removes cells).
+    diagnostics.unsupported.push(`${family || 'object'}.${method}`)
     return true
   }
 
@@ -2422,9 +2889,27 @@ export function collectObjectOps(stmts, h) {
     // is checked BEFORE the declaration lookup so that a shadowing definition
     // takes the statement back even when the receiver is a perfectly good
     // collection, which is exactly the case the corpus writes.
-    if (isDefined(method)) return false
+    if (isDefinedMethod(method)) {
+      const sd = decls.get(recv)
+      return !!sd && sd.kind !== 'coll' && OBJECT_NAMESPACES.includes(sd.family) && shadowedDrawingMethod(method, sd.family)
+    }
     const d = decls.get(recv)
-    if (!d) return false
+    // ⭐⭐ CLASS GUARD (2026-11-19, coordinator ruling) — A DRAWING DELETE OR SETTER ON A HANDLE THIS WALKER CANNOT
+    // TRACE to a declaration it carries is COUNTED, never nothing: the delete as `delete:target` (the drawing is
+    // withheld by name, as the function form `label.delete(old)` always was), the setter as `update:target` with the
+    // families its name reaches (`pine.js::lostSetterName`). ⚰️ It returned false and the statement vanished: an
+    // `old.delete()` deleted nothing on the host lane and the member saw every object the script removed.
+    if (!d && recv !== 'array' && !scalars.has(recv) && (method === 'delete' || /^set_/.test(method))) {
+      const target = { name: null, value: { type: 'name', name: recv, tok: toks[0] }, tok: toks[0] }
+      const where = { guards, locals: scope, loopIds: [...loopIds], at: toks[0], line: st.header[0].line }
+      if (method === 'delete') ops.push({ k: 'delete', family: null, target, ...where })
+      else ops.push({ k: 'update', family: null, target, props: [], args: [], untraced: method, ...where })
+      return true
+    }
+    // ⭐ gap (b): `m.put(k, label.new(…))` / `map.put(m, k, …)` — a map of drawings
+    // is a list this program does not hold either.
+    if (!d) return recv !== 'array' && (COLLECTION_CALLS.has(method) || COLLECTION_MUTATORS.has(method) || method === 'put')
+      && refuseFieldCreates(toks, recv)
     const ns = d.kind === 'coll' ? 'array' : d.family
     const args = argsOf(toks)
     // ⛔ THE SPAN GUARD'S ANSWER IS A COUNTED DROP, NOT SILENCE. `argsOf` returns
@@ -2436,6 +2921,7 @@ export function collectObjectOps(stmts, h) {
       if (!COLLECTION_CALLS.has(method)) {
         diagnostics.unsupported.push(`array.${method}`)
         if (COLLECTION_MUTATORS.has(method)) loseColl(recv, `coll:${method}`, toks[0])
+        refuseFieldCreates(toks, recv, true)                     // gap (a), method form
         return true
       }
       if (inLoop) { diagnostics.loopBlocked.push(`array.${method}`); loseColl(recv, `loop:array.${method}`, toks[0]); return true }
@@ -2454,7 +2940,7 @@ export function collectObjectOps(stmts, h) {
     if (!args || !args.length) return
     const collName = args[0] && args[0].value && args[0].value.type === 'name'
       ? args[0].value.name : null
-    if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') return
+    if (!collName || !decls.has(collName) || decls.get(collName).kind !== 'coll') { refuseFieldCreates(toks, collName); return }
     // ⛔⛔ AFTER THE RELEVANCE CHECK, NEVER BEFORE IT — MASTER'S TASK 1, AND THIS
     // MERGE PUT IT BACK THE WRONG WAY ROUND ONCE. `array` is Pine's one generic
     // namespace, so a scratch `array.new_float()` calls the same method spellings
@@ -2797,7 +3283,7 @@ export function collectObjectOps(stmts, h) {
    *  removal whose family the tokens cannot name is `object.delete`, which the
    *  door classifies as a removal (`classifyReaderName`), never as nothing. */
   function loopBodyEffects(def, fnName, st) {
-    const fx = bodyEffects(def, fnDefs, objColls)
+    const fx = bodyEffects(def, fnDefs, objColls, collFams)
     const kinds = { ...(fx.kinds || {}) }
     for (const fam of fx.families || []) {
       const clear = fam === 'table' && (kinds.clear || 0) > 0
@@ -3080,5 +3566,267 @@ export function collectObjectOps(stmts, h) {
   splitCommaStatements(stmts, h).forEach((s2, i) => noteWrites([s2], i))
   // ⭐ C16 — `definedNames` lets the converter's `bs.size()` yield to a script's
   // own `size` method, the rule `isDefined` applies to every method form here.
-  return { decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines }
+  // ─── ⭐⭐ FIELD REGISTER, STEP A (b) (coordinator ruling 2026-11-19) — A FIELD WRITTEN BEFORE IT IS READ ────────────
+  //
+  // The host program clears every local register at the start of a bar (`pine.js`, `locals`). For a field register
+  // (`z.lb`) that clear is only ever OBSERVED by a read that runs before the bar writes the field: Pine's field keeps
+  // last bar's value (or the constructor's) there, the register reads `na`. A field whose every read is DOMINATED by an
+  // unconditional write of that exact field, earlier in the same statement list or an enclosing one, never observes the
+  // clear, so it keeps its register exactly as before Step A (`dominatedFields`): `z.b := box.new(…)` then
+  // `box.set_bgcolor(z.b, …)` draws Pine's coloured box. Every other field register is untraced (Step A).
+  // ⛔ CONSERVATIVE BY CONSTRUCTION — nothing the tokens cannot prove is dominated: a read in a loop or a function body,
+  // or in the same statement as its write; a write in a nested block (an `if` arm) or in a loop; a call to a function
+  // or method of the script's own (it may write any field) or a reassignment of the owner (`z := …`) anywhere between
+  // the write and the read, nested blocks included; and an owner used as a VALUE anywhere (`a = z`, `f(z)`, `z.copy()`,
+  // a method of its own: an alias reads and writes its fields under another name), which leaves all its fields untraced.
+  const dominatedFields = (() => {
+    const fields = [...decls.entries()].filter(([n, dd]) => dd && dd.kind === 'local' && String(n).includes('.')).map(([n]) => String(n))
+    const out = new Set()
+    if (!fields.length) return out
+    const ownerOf = (f) => f.slice(0, f.indexOf('.'))
+    const owners = new Set(fields.map(ownerOf))
+    const undominated = new Set()
+    const ALL = '\u0000all'
+    const killOwner = (w, kills, o) => { for (const f of [...w]) if (ownerOf(f) === o) w.delete(f); kills.add(o) }
+    // Walks one statement list with the fields written so far; returns what it invalidated (owners, or ALL).
+    const visit = (list, written, opaque) => {
+      const w = new Set(written)
+      const kills = new Set()
+      for (const st of list || []) {
+        const t = st && st.header
+        if (!t || !t.length) continue
+        const word = t[0].kind === 'ident' ? String(t[0].value) : null
+        const isDef = !!definitionHeader(t, h)
+        const lhs = t.length > 1 && t[0].kind === 'ident' && h.isPunct(t[1], ':=') && fields.includes(String(t[0].value))
+          ? String(t[0].value) : null
+        for (let i = 0; i < t.length; i += 1) {
+          const x = t[i]
+          if (!x || x.kind !== 'ident' || x.member) continue
+          if (lhs && i === 0) continue
+          const v = String(x.value)
+          // a call to the script's own function or method: it may write any field
+          const dot = v.lastIndexOf('.')
+          const callee = dot > 0 ? v.slice(dot + 1) : v
+          if (h.isPunct(t[i + 1], '(') && (dot > 0 ? definedMethods.has(callee) : defined.has(v))) {
+            w.clear()
+            kills.add(ALL)
+          }
+          // the owner itself: a declaration or reassignment resets its fields; any other use is an alias
+          if (owners.has(v)) {
+            if (h.isPunct(t[i + 1], '=') || h.isPunct(t[i + 1], ':=')) killOwner(w, kills, v)
+            else for (const f of fields) if (ownerOf(f) === v) undominated.add(f)
+            continue
+          }
+          const head = dot > 0 ? v.slice(0, v.indexOf('.')) : null
+          let named = false
+          for (const f of fields) {
+            if (v === f || v.startsWith(`${f}.`)) {
+              named = true
+              if (opaque || isDef || !w.has(f)) undominated.add(f)
+            }
+          }
+          // `z.copy()`, `z.m()`: the owner used through a path that names none of its fields — an alias
+          if (!named && head && owners.has(head)) for (const f of fields) if (ownerOf(f) === head) undominated.add(f)
+        }
+        const sub = st.sub || []
+        if (sub.length) {
+          const loop = word === 'for' || word === 'while'
+          const inner = visit(sub, w, opaque || isDef || loop || !(word === 'if' || word === 'else'))
+          if (inner.has(ALL)) { w.clear(); kills.add(ALL) }
+          for (const o of inner) if (o !== ALL) killOwner(w, kills, o)
+        } else if (lhs && !opaque && !isDef) {
+          w.add(lhs)
+        }
+      }
+      return kills
+    }
+    visit(stmts, new Set(), false)
+    for (const f of fields) if (!undominated.has(f)) out.add(f)
+    return out
+  })()
+
+  // ─── ⭐⭐ FIELD REGISTER, STEP B (coordinator ruling 2026-11-19) — A FIELD TAKES ITS OWNER'S `var`-NESS ─────────────
+  //
+  // Pine's `var z = Z.new(na)` makes ONE object on the first bar and keeps it, so `z.lb` keeps last bar's label; a plain
+  // `z = Z.new(na)` makes a new object every bar, so `z.lb` starts every bar `na`. Under the conditions below `z.lb` is
+  // read and written only through that one name, so it is EXACTLY a handle of the owner's kind: a `var` owner's field a
+  // persistent register (a `var label lb = na`), a plain owner's field a register cleared every bar (`pine.js`, `locals`).
+  // ALL must hold, or the field stays untraced (Step A / (b)):
+  //  (i)   the owner is declared ONCE, in the script's literal top scope, as `var o = T.new(…)` or `o = T.new(…)` (the
+  //        typed spelling `var T o = …` is the same declaration), `T` a `type` of the script's own, read whole;
+  //        the field's constructor argument is `na` or absent (a nested `o.a.lb`: `a`'s is an `A.new(…)` itself);
+  //  (a)   the field's DECLARED default in its `type` is `na` or absent;
+  //  (b)   not `varip` (a `varip` owner is not read here at all);
+  //  (ii)  the owner is never written again (`o := …`), and (iii) never used as a value: the bare name appears nowhere
+  //        but its declaration, and every dotted use of it names a drawing field this program registers (a read, a
+  //        method call on that handle, or a write it carries: `:= T.new(…)`, `:= na`). `a = o`, `f(o)`, `o.copy()`,
+  //        `o.m()`, `o[1]`, `o.a` alone, `o.x` for any other field: the owner is left untraced, every field of it;
+  //  (iv)  no function or method of the script's own is called anywhere (one may write any field through any name);
+  //  (c)   no history-indexed read of the field (`o.f[1]`, `o.f[n]`).
+  const fieldOwnerVarness = (() => {
+    const varFields = new Set()
+    const plainFields = new Set()
+    const fields = [...decls.entries()].filter(([n, dd]) => dd && dd.kind === 'local' && String(n).includes('.')).map(([n]) => String(n))
+    if (!fields.length) return { varFields, plainFields }
+    const ownerOf = (f) => f.slice(0, f.indexOf('.'))
+    // every statement, nested ones and definition bodies included; and the literal top scope alone
+    const allStmts = []
+    const every = (list) => { for (const st of list || []) { if (st && st.header && st.header.length) allStmts.push(st); every(st.sub) } }
+    every(stmts)
+    const headers = allStmts.map((st) => st.header)
+    const topScope = (stmts || []).filter((st) => st && st.header && st.header.length)
+    // (iv) — any call of a function or method the script defines, anywhere (a definition's own name is not a call)
+    let callsOwn = false
+    for (const t of headers) {
+      const def = definitionHeader(t, h)
+      for (let i = 0; i < t.length; i += 1) {
+        const x = t[i]
+        if (!x || x.kind !== 'ident' || !h.isPunct(t[i + 1], '(') || (def && i === def.open - 1)) continue
+        const v = String(x.value)
+        const dot = v.lastIndexOf('.')
+        if (x.member ? definedMethods.has(v) : dot > 0 ? definedMethods.has(v.slice(dot + 1)) : defined.has(v)) callsOwn = true
+      }
+    }
+    if (callsOwn) return { varFields, plainFields }
+    const closeAt = (t, open) => {
+      let depth = 0
+      for (let i = open; i < t.length; i += 1) {
+        if (h.isPunct(t[i], '(') || h.isPunct(t[i], '[')) depth += 1
+        else if (h.isPunct(t[i], ')') || h.isPunct(t[i], ']')) { depth -= 1; if (depth === 0) return i }
+      }
+      return -1
+    }
+    const isNa = (toks) => toks.length === 1 && toks[0].kind === 'ident' && !toks[0].member && toks[0].value === 'na'
+    // the script's own types, each read WHOLE: every field line `<type> <name>` or `<type> <name> = <default>`.
+    // ⚠️ The statement splitter folds a type's indented field lines onto its `type` line (one header, no `sub`), so the
+    // fields are read one SOURCE LINE at a time (`tok.line`); a token with no line leaves the type unread.
+    const types = new Map()
+    for (const st of stmts || []) {
+      const ht = st.header || []
+      const at = ht[0] && ht[0].value === 'export' ? 1 : 0
+      if (!(ht.length >= at + 2 && ht[at].kind === 'ident' && ht[at].value === 'type' && ht[at + 1].kind === 'ident')) continue
+      const byLine = new Map()
+      let whole = !(st.sub && st.sub.length) && ht.every((k) => k && Number.isFinite(k.line))
+      for (const k of ht) {
+        if (!byLine.has(k.line)) byLine.set(k.line, [])
+        byLine.get(k.line).push(k)
+      }
+      const lines = [...byLine.values()]
+      if (!lines.length || lines[0].length !== at + 2) whole = false
+      const fl = []
+      for (const ft of lines.slice(1)) {
+        if (ft.length >= 2 && ft[0].kind === 'ident' && ft[1].kind === 'ident' && !ft[0].member && !ft[1].member
+            && !['var', 'varip', 'const', 'series', 'simple'].includes(String(ft[0].value))
+            && (ft.length === 2 || (ft.length > 3 && h.isPunct(ft[2], '=')))) {
+          fl.push({ name: String(ft[1].value), type: String(ft[0].value), def: ft.length === 2 ? null : ft.slice(3) })
+        } else whole = false
+      }
+      types.set(String(ht[at + 1].value), whole ? fl : null)
+    }
+    // `T.new(…)` spanning exactly `t[from..]` → its arguments by field name, or null
+    const ctorArgs = (t, from, T) => {
+      const fl = types.get(T)
+      if (!fl || !t[from] || t[from].kind !== 'ident' || t[from].member || String(t[from].value) !== `${T}.new`
+          || !h.isPunct(t[from + 1], '(') || closeAt(t, from + 1) !== t.length - 1) return null
+      const args = splitArgs(t, from + 1, h.isPunct)
+      if (!args) return null
+      const byName = new Map()
+      let pos = 0
+      for (const a of args) {
+        if (!a.toks.length) return null
+        const key = a.name !== null ? a.name : (fl[pos] ? fl[pos].name : null)
+        if (a.name === null) pos += 1
+        if (key === null || byName.has(key) || !fl.some((x) => x.name === key)) return null
+        byName.set(key, a.toks)
+      }
+      return byName
+    }
+    // (i) — the owners declared in the literal top scope (`var o = T.new(…)`, `o = T.new(…)`, `var T o = …`)
+    const owners = new Map()
+    for (const st of topScope) {
+      const t = st.header || []
+      if (!t.length || t[0].kind !== 'ident') continue
+      const isVar = t[0].value === 'var' || t[0].value === 'varip'
+      if (t[0].value === 'varip') continue
+      const i = isVar ? 1 : 0
+      const typed = t[i] && t[i + 1] && t[i + 2] && t[i].kind === 'ident' && t[i + 1].kind === 'ident' && h.isPunct(t[i + 2], '=')
+      const nameAt = typed ? i + 1 : i
+      const eq = nameAt + 1
+      if (!t[nameAt] || t[nameAt].kind !== 'ident' || t[nameAt].member || String(t[nameAt].value).includes('.') || !h.isPunct(t[eq], '=')) continue
+      const rhs = t[eq + 1]
+      const T = rhs && rhs.kind === 'ident' && String(rhs.value).endsWith('.new') ? String(rhs.value).slice(0, -4) : null
+      if (!T || !types.has(T) || (typed && String(t[i].value) !== T)) continue
+      const args = ctorArgs(t, eq + 1, T)
+      if (!args) continue
+      owners.set(String(t[nameAt].value), { isVar, T, args, tok: t[nameAt] })
+    }
+    // (ii)/(iii) — every use of each owner, and (c) every history read of a field
+    const bad = new Set()
+    const badField = new Set()
+    for (const t of headers) {
+      for (let i = 0; i < t.length; i += 1) {
+        const x = t[i]
+        if (!x || x.kind !== 'ident' || x.member) continue
+        const v = String(x.value)
+        const head = v.includes('.') ? v.slice(0, v.indexOf('.')) : v
+        const o = owners.get(head)
+        if (!o) continue
+        if (v === head) {
+          if (x === o.tok) continue                       // its one declaration
+          if (h.isPunct(t[i + 1], ':=')) bad.add(head)      // (ii) — the owner written again
+          else bad.add(head)                                // (iii) — the owner used as a value (`a = o`, `f(o)`, `o[1]`)
+          continue
+        }
+        // (iii) — a dotted use names a registered drawing field of this owner, or calls a method on that handle; any
+        // other path (`o.copy()`, `o.m()`, `o.a` alone, `o.x`) uses the owner, or an object on the path, as a value
+        const f = fields.find((g) => v === g || (v.startsWith(`${g}.`) && !v.slice(g.length + 1).includes('.') && h.isPunct(t[i + 1], '(')))
+        if (!f || ownerOf(f) !== head) { bad.add(head); continue }
+        if (v !== f) continue
+        if (h.isPunct(t[i + 1], '[')) badField.add(f)       // (c) — a history-indexed read of the field
+        if (h.isPunct(t[i + 1], ':=') || h.isPunct(t[i + 1], '=')) {
+          // a write this program carries: `:= <family>.new(…)` spanning the rest, `:= na`, `:= <family>(na)`
+          const rhs = t.slice(i + 2)
+          const fam = decls.get(f) && decls.get(f).family
+          const create = rhs[0] && rhs[0].kind === 'ident' && String(rhs[0].value) === `${fam}.new`
+            && h.isPunct(rhs[1], '(') && closeAt(rhs, 1) === rhs.length - 1
+          const reset = isNa(rhs) || (rhs.length === 4 && rhs[0].kind === 'ident' && String(rhs[0].value) === fam
+            && h.isPunct(rhs[1], '(') && isNa([rhs[2]]) && h.isPunct(rhs[3], ')'))
+          if (i !== 0 || !(create || reset)) badField.add(f)
+        }
+      }
+    }
+    for (const f of fields) {
+      const head = ownerOf(f)
+      const o = owners.get(head)
+      if (!o || bad.has(head) || badField.has(f)) continue
+      // (i)/(a) — walk the path: every object on it made by its own constructor, the drawing field `na` throughout
+      const path = f.slice(head.length + 1).split('.')
+      let T = o.T
+      let args = o.args
+      let ok = true
+      for (let k = 0; k < path.length && ok; k += 1) {
+        const fl = types.get(T)
+        const fd = fl && fl.find((x) => x.name === path[k])
+        const arg = args.get(path[k])
+        if (!fd) { ok = false; break }
+        if (k === path.length - 1) {
+          const sameFamily = fd.type === (decls.get(f) || {}).family
+          const defaultNa = fd.def === null || isNa(fd.def)      // (a) — the field's declared default
+          const argNa = !arg || isNa(arg)                        // (i) — the field's constructor argument
+          ok = sameFamily && defaultNa && argNa
+        } else {
+          const inner = arg && types.has(fd.type) ? ctorArgs(arg, 0, fd.type) : null
+          if (!inner) ok = false
+          else { T = fd.type; args = inner }
+        }
+      }
+      if (ok) (o.isVar ? varFields : plainFields).add(f)
+    }
+    return { varFields, plainFields }
+  })()
+
+  return {
+    decls, ops, diagnostics, scalars, loopScalars, varWrites, definedNames: defined, inlineBodies, onceLines, dominatedFields,
+    varFields: fieldOwnerVarness.varFields, plainFields: fieldOwnerVarness.plainFields,
+  }
 }

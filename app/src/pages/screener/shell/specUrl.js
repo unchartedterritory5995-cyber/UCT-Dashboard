@@ -11,8 +11,14 @@ const b64url = s => btoa(unescape(encodeURIComponent(s)))
 const unb64url = s => decodeURIComponent(escape(
   atob(s.replace(/-/g, '+').replace(/_/g, '/'))))
 
+// A sort may carry ONE secondary key, `then: {key, dir}` (RS screens contract, 2026-11-14:
+// "newest RS high first, then strongest rating"). It is part of the sort: it rides in the URL
+// with it, so a refresh keeps the order the screen was opened with.
+const thenOf = t => (t && typeof t === 'object' && typeof t.key === 'string' && t.key
+  ? { key: t.key, dir: t.dir === 'asc' ? 'asc' : 'desc' } : null)
+
 const isDefaultSort = sort =>
-  !sort || (sort.key === DEFAULT_SORT.key && sort.dir === DEFAULT_SORT.dir)
+  !sort || (sort.key === DEFAULT_SORT.key && sort.dir === DEFAULT_SORT.dir && !thenOf(sort.then))
 
 // A grouped-logic node (FT-026): {all|any|none: [node]} | {not: node} | a leaf
 // ({key, ...}). Shape-checked on DECODE so a hand-edited URL can never reach
@@ -55,7 +61,9 @@ export function decodeSpec(str) {
     if (!p || typeof p !== 'object' || Array.isArray(p)) return null
     return {
       filters: p.f && typeof p.f === 'object' && !Array.isArray(p.f) ? p.f : {},
-      sort: p.sort?.key ? { key: String(p.sort.key), dir: p.sort.dir === 'asc' ? 'asc' : 'desc' } : { ...DEFAULT_SORT },
+      sort: p.sort?.key
+        ? { key: String(p.sort.key), dir: p.sort.dir === 'asc' ? 'asc' : 'desc', ...(thenOf(p.sort.then) ? { then: thenOf(p.sort.then) } : {}) }
+        : { ...DEFAULT_SORT },
       view: typeof p.view === 'string' && p.view ? p.view : DEFAULT_VIEW,
       columns: Array.isArray(p.cols) && p.cols.every(c => typeof c === 'string') && p.cols.length ? p.cols : null,
       rank: p.rank && typeof p.rank === 'object' && !Array.isArray(p.rank) ? p.rank : null,

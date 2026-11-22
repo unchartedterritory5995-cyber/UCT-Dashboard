@@ -12,6 +12,7 @@ node/mark vocabulary declared by `tiptap.js::buildExtensions`:
     tableCell / codeBlock(language) / blockquote / horizontalRule /
     hardBreak / image(src) / attachmentChip(href,name,size) /
     text with marks bold / italic / strike / code / link(href) /
+    underline (the HTML walker's `<u>` only) /
     highlight (from an inline `<mark>`…`</mark>` pair only -- wave 5's
     NotebookHighlight; how an Obsidian `==x==` arrives, review N5)
 
@@ -330,8 +331,8 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
 # (`extension-image`'s `inline: false`; `attachmentChip.js`'s `group:
 # 'block'`), so neither can legally sit inside a paragraph's own `content`.
 # `attachmentChip` never appears here from the MARKDOWN walker directly (only
-# via the Dropbox connector's post-`md_to_tiptap` promotion pass — see
-# `providers/dropbox.py::_promote_md_attachments`); it's included here purely
+# via a connector's post-`md_to_tiptap` promotion pass — Obsidian's, through
+# `convert/placeholders.py`; Dropbox's, the first, was archived 2026-11-04); it's included here purely
 # so the HTML walker's `_html_inline_walk` (which CAN emit one directly, via
 # `ATTACHMENT_REF_PREFIX`) gets the same correct hoisting for free. Widening
 # this set is a strict no-op for existing markdown-walker output.
@@ -606,6 +607,13 @@ _DATA_URI_MIME_EXT = {
 
 def _is_image_mime(mime: str) -> bool:
     return bool(_IMAGE_MIME_RE.match(mime.strip()))
+
+
+def is_data_image_uri(src: str) -> bool:
+    """True for a `data:image/*` URI this walker uploads (`_data_uri_image_node`). Public so a
+    pre-pass (Plan E `enml.py`) asks the walker's own rule instead of keeping a copy."""
+    match = DATA_URI_RE.match(src)
+    return bool(match and _is_image_mime(match.group("mime")))
 
 
 def _data_uri_ext(mime: str) -> str:
@@ -1287,10 +1295,11 @@ def _inline_nodes(
 #     becomes a plain `listItem`) — no connector emits that shape. The ONE
 #     additive exception (task-5 brief, note-connectors) is
 #     `<li data-uct-task="0"|"1">`: a connector-supplied marker (OneNote's
-#     to-do pre-pass, `convert/onenote_html.py`, is the first and so-far-only
-#     producer) meaning "this `<li>` is a checkbox item; `1` = checked". See
-#     `_html_list_or_tasklist` below — INERT for every other caller (Dropbox's
-#     `.html` path and any generic HTML never emit this attribute, so their
+#     to-do pre-pass, `convert/onenote_html.py`, was its only producer; it was
+#     archived 2026-11-04, so today only fixture 07 feeds it) meaning "this
+#     `<li>` is a checkbox item; `1` = checked". See
+#     `_html_list_or_tasklist` below — INERT for every other caller (any
+#     generic HTML never emits this attribute, so its
 #     `_html_convert_list` output is byte-for-byte unchanged).
 
 
@@ -1300,7 +1309,9 @@ _HTML_KNOWN_TAGS = frozenset({
     "table", "tr", "td", "th",
     "pre", "code",
     "blockquote", "hr", "br", "img", "a",
-    "b", "strong", "i", "em", "s", "del", "strike", "u", "mark",
+    "b", "strong", "i", "em", "s", "del", "strike",
+    "u",  # Plan E Task 3 fix round 1 (m3): underline, a level-0 mark in notebook_schema
+    "mark",
     # D3 follow-up (difference 2): the client's callout and toggle (`convert.js::
     # mapCalloutsAndToggles`); `_html_aside_callout` / `_html_details_toggle` below.
     "aside", "details", "summary",
@@ -1849,12 +1860,12 @@ def _html_list_or_tasklist(
     node: "_HtmlNode", ctx: _Ctx, *, ordered: bool,
 ) -> list[dict[str, Any]]:
     """`<ul>`/`<ol>` -> one or more sibling list nodes. THE ONE ADDITIVE
-    BRANCH (task-5 brief, note-connectors): inert for ordinary HTML — no
-    caller other than `convert/onenote_html.py`'s to-do pre-pass ever emits
-    `data-uct-task`, so `_html_has_task_marker` is false and this falls
-    straight through to `_html_convert_list`'s original, UNCHANGED single-
-    node behavior (byte-for-byte identical output for Dropbox's `.html` path
-    and any generic HTML import).
+    BRANCH (task-5 brief, note-connectors): inert for ordinary HTML — its
+    only producer, `convert/onenote_html.py`'s to-do pre-pass, was archived
+    2026-11-04 (fixture 07 still feeds it directly), so for every live
+    caller `_html_has_task_marker` is false and this falls straight through
+    to `_html_convert_list`'s original, UNCHANGED single-node behavior
+    (byte-for-byte identical output for any generic HTML import).
 
     Only when at least one direct `<li>` child carries `data-uct-task="0"`/
     `"1"` does this split the list into RUNS of consecutive task/non-task
@@ -2049,6 +2060,42 @@ def _html_details_toggle(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
     ]}
 
 
+#: Plan E Task 3 round 2 (R1): the mark tags that may wrap block content, and the block tags
+#: that make them do so. `code` is not one: a code mark over a block has no editor meaning.
+#: Merge of D3 (#721): `mark` (D3's highlight) joins the marks, and D3's block elements join
+#: the blocks: a block wrapper is now a bare `div` (`_unwrap_unknown_html`) instead of being
+#: unwrapped, so without `div` here `<b><div><p>a</p><p>b</p></div></b>` joined into one
+#: paragraph `ab` again (R1's defect); `aside`/`details`/`summary` are blocks the same way.
+_HTML_BLOCK_MARK_TAGS = frozenset({"b", "strong", "i", "em", "u", "s", "strike", "del", "mark"})
+_HTML_BLOCK_TAGS = frozenset({"p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "table",
+                              "pre", "blockquote", "hr", "div", "aside", "details", "summary"})
+
+
+def _html_holds_blocks(node: "_HtmlNode") -> bool:
+    """True when a mark tag holds a block, directly or through other mark tags."""
+    for c in node.children:
+        if isinstance(c, str):
+            continue
+        if c.tag in _HTML_BLOCK_TAGS:
+            return True
+        if c.tag in _HTML_BLOCK_MARK_TAGS and _html_holds_blocks(c):
+            return True
+    return False
+
+
+def _html_mark_text(node: Any, mark_type: str) -> None:
+    """Adds `mark_type` to every text node under `node` that lacks it; code blocks untouched."""
+    if not isinstance(node, dict) or node.get("type") == "codeBlock":
+        return
+    if node.get("type") == "text":
+        marks = node.setdefault("marks", [])
+        if not any(m.get("type") == mark_type for m in marks):
+            marks.append({"type": mark_type})
+        return
+    for child in node.get("content") or []:
+        _html_mark_text(child, mark_type)
+
+
 def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
     """Block-context walk, mirroring `_blocks` above. Stray inline content
     encountered directly (text, or an inline-vocabulary tag with no `<p>`
@@ -2121,6 +2168,15 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
         elif tag == "hr":
             flush()
             out.append({"type": "horizontalRule"})
+        elif tag in _HTML_BLOCK_MARK_TAGS and _html_holds_blocks(n):
+            # Plan E Task 3 round 2 (R1): a mark tag around BLOCKS (`<b><p>a</p><p>b</p></b>`)
+            # keeps the blocks and marks their text, as the editor does. Walking it inline (the
+            # branch below) joined the blocks into one paragraph with no separator.
+            flush()
+            inner = _html_blocks_walk(n.children, ctx)
+            for block in inner:
+                _html_mark_text(block, _HTML_INLINE_MARK_TAGS[tag])
+            out.extend(inner)
         elif tag == "div":
             # D3 item 7: a block wrapper (`_unwrap_unknown_html`) closes the paragraph before
             # it and its own content is blocks; nothing of its own (an empty div is no
@@ -2162,8 +2218,9 @@ def txt_to_tiptap(text: str | None) -> dict[str, Any]:
     OneDrive connector needed the IDENTICAL `.txt` conversion and importing
     a sibling provider's private, underscore-prefixed name meant a
     Dropbox-internal refactor could silently break OneDrive with no
-    compiler/lint signal. Both `dropbox.py` and `onedrive.py` now import
-    THIS one function — a Dropbox-only fallback per the ORIGINAL task
+    compiler/lint signal. Both `dropbox.py` and `onedrive.py` imported
+    THIS one function (both archived 2026-11-04; it has no non-test caller
+    today) — a Dropbox-only fallback per the ORIGINAL task
     brief's own wording ("reuse the mddoc helper if one exists, else
     escape+paragraphs") is exactly what this move makes true: `mddoc.py`
     now HAS a ready-made text-literal helper, shared like `md_to_tiptap`/

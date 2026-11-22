@@ -24,6 +24,7 @@ import * as registry from '../../engine/nativeRegistry'
 import { memberPaneDefinition } from './memberPaneDefinition'
 import { computeRuntimeColumns } from '../../engine/runtime/runtimeColumns'
 import { registerPineLibrary, clearPineLibraries } from '../../engine/ast/pineLibraryStore'
+import { fixtureLibrary } from '../../engine/ast/__tests__/libraryFixture.js'
 
 const FLAG = 'VITE_PINE_RUNTIME_PANE_ENABLED'
 const DEF_ID = 'u_member-pane-rt3-lib'
@@ -63,7 +64,7 @@ const columnsOf = (built) => {
 
 describe('RT3 — a library import through the runtime fallback', () => {
   it('⭐ with the library registered, the runtime lane draws it, equal to the function pasted in', () => {
-    registerPineLibrary({ path: 'tester/rt3lib/1', source: LIB, licence: 'MPL-2.0', attribution: 'rt3lib (test fixture)' })
+    registerPineLibrary(fixtureLibrary({ path: 'tester/rt3lib/1', source: LIB, licence: 'MPL-2.0', attribution: 'rt3lib (test fixture)' }))
     vi.stubEnv(FLAG, '1')
     const imported = memberPaneDefinition({ source: IMPORTED, id: DEF_ID })
     expect(imported.ok, imported.reason).toBe(true)
@@ -78,7 +79,7 @@ describe('RT3 — a library import through the runtime fallback', () => {
   })
 
   it('⛔ control: the host lane refuses this script, so it is the runtime lane that drew it', () => {
-    registerPineLibrary({ path: 'tester/rt3lib/1', source: LIB, licence: 'MPL-2.0', attribution: 'rt3lib (test fixture)' })
+    registerPineLibrary(fixtureLibrary({ path: 'tester/rt3lib/1', source: LIB, licence: 'MPL-2.0', attribution: 'rt3lib (test fixture)' }))
     vi.stubEnv(FLAG, '')
     expect(memberPaneDefinition({ source: IMPORTED, id: DEF_ID }).ok).toBe(false)
   })

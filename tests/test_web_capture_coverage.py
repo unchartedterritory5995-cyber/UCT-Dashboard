@@ -12,8 +12,13 @@ from api.services.journal_two import web_capture_store as store
 
 
 def page_row(capture_type, page_number=1, name="Reuters: NVDA Q3", **kw):
+    # `text_origin` is a column every page row carries, and `from_document_page` DEMANDS it (Wave P3, 56112a8d10,
+    # 2026-09-08: a default would let a retrieval query forget to select it). These rows lacked it from that day, so
+    # every page case here raised KeyError. The value is what the stores write: a web capture's page says
+    # `web_passage` (web_capture_store), a document page `native`.
     row = {"document_id": "doc1", "user_id": "u1", "page_number": page_number,
-           "name": name, "capture_type": capture_type}
+           "name": name, "capture_type": capture_type,
+           "text_origin": ev.TEXT_ORIGIN_WEB if capture_type.startswith("web_") else ev.ORIGIN_NATIVE}
     row.update(kw)
     return row
 

@@ -1,0 +1,16 @@
+{
+ "captures": 369,
+ "before": {
+  "INCONCLUSIVE": 167,
+  "DIVERGE": 48,
+  "MATCH": 154
+ },
+ "after": {
+  "INCONCLUSIVE": 167,
+  "DIVERGE": 48,
+  "MATCH": 154
+ },
+ "plotVerdictDiffs": 0,
+ "plotDiffFiles": [],
+ "captureVerdictDiffs": []
+}

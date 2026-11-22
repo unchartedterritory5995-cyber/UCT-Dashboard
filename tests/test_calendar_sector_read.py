@@ -87,7 +87,10 @@ def test_generate_writes_line_and_records_cost(monkeypatch):
 
     client = mock.Mock()
     resp = mock.Mock()
-    resp.content = [mock.Mock(text='  "AAPL is the bellwether; watch services guidance."  ')]
+    # Real SDK blocks carry a `type`; the model thinks by default, so a thinking block
+    # (no `.text`) comes FIRST -- reading content[0].text raised after the call was billed.
+    resp.content = [mock.Mock(spec=["type", "thinking"], type="thinking", thinking=""),
+                    mock.Mock(type="text", text='  "AAPL is the bellwether; watch services guidance."  ')]
     resp.usage = mock.Mock(input_tokens=200, output_tokens=30)
     client.messages.create.return_value = resp
 
@@ -110,3 +113,20 @@ def test_fmt_cap():
     assert m._fmt_cap(0.5) == "$500M"
     assert m._fmt_cap(None) == ""
     assert m._fmt_cap(0) == ""
+
+
+def test_the_sentence_call_leaves_room_for_thinking(monkeypatch):
+    """120 tokens was the whole budget while Opus 5 thinks by default; the sentence never came."""
+    m = _fresh(monkeypatch)
+    guard = mock.Mock()
+    guard.may_synthesize.return_value = True
+    client = mock.Mock()
+    resp = mock.Mock()
+    resp.content = [mock.Mock(type="text", text="AAPL leads; watch guidance.")]
+    resp.usage = mock.Mock(input_tokens=1, output_tokens=1)
+    client.messages.create.return_value = resp
+    with mock.patch.object(m, "_cache", return_value=_FakeCache()),          mock.patch.object(m, "_cost_guard", return_value=guard),          mock.patch.object(m, "_anthropic_client", return_value=client):
+        m._generate("Technology", "2026-07-13", [{"sym": "AAPL", "name": "Apple", "mc_b": 3400}])
+    kw = client.messages.create.call_args.kwargs
+    assert kw["max_tokens"] >= 1000 and kw["output_config"] == {"effort": "low"}
+

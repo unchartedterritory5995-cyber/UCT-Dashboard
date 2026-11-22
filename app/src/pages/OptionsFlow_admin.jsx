@@ -497,7 +497,7 @@ function formatExp(expiry) {
   if (y === cy) return m+"/"+d;
   return m+"/"+d+"/"+String(y).slice(2);
 }
-// Convert display exp (e.g. "3/20" or "12/18/26") to YYYY-MM-DD for Schwab API
+// Convert display exp (e.g. "3/20" or "12/18/26") to YYYY-MM-DD for the quotes API
 function expToISO(expStr) {
   if (!expStr) return "";
   const parts = expStr.split("/");
@@ -3831,14 +3831,8 @@ export default function OptionsFlowDashboard() {
   const wlRef = useRef(null);
   const screenshotWatchlist = async () => {
     if (!wlRef.current) return;
-    let h2c = window.html2canvas;
-    if (!h2c) {
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-      document.head.appendChild(s);
-      await new Promise(r => { s.onload = r; s.onerror = () => r(); });
-      h2c = window.html2canvas;
-    }
+    let h2c;
+    try { ({ default: h2c } = await import("html2canvas")); } catch (e) { h2c = null; }
     if (!h2c) { alert("Could not load screenshot library"); return; }
     const canvas = await h2c(wlRef.current, { backgroundColor:P.bg, scale:2, useCORS:true });
     try {
@@ -5182,7 +5176,7 @@ export default function OptionsFlowDashboard() {
     const items = contracts || perf;
     if (!items || items.length === 0) { setStatus("No contracts to fetch."); return; }
     setFetchLoading(true);
-    setStatus("Fetching live prices from Schwab…");
+    setStatus("Fetching live prices…");
     const newCache = { ...priceCache };
     const updated = contracts ? null : [...perf];
     // Deduplicate
@@ -5195,7 +5189,7 @@ export default function OptionsFlowDashboard() {
     });
     setStatus(`Fetching ${unique.length} contracts across ${new Set(unique.map(c=>c.symbol)).size} tickers…`);
     try {
-      // Schwab batch quotes — dynamic batch size based on total contracts
+      // Batch quotes — dynamic batch size based on total contracts
       const BATCH_SIZE = unique.length > 50 ? 20 : unique.length > 20 ? 10 : 5;
       const BATCH_DELAY = unique.length > 50 ? 400 : 800;
       let successes = 0, failures = 0, expired = 0;
@@ -5259,7 +5253,7 @@ export default function OptionsFlowDashboard() {
   async function fetchContractHistory(sym, cp, strike, exp, force = false) {
     const k = `${sym}|${cp}|${parseFloat(strike)}|${exp}`;
 
-    // 1. Fetch history from Schwab backfill + tracker
+    // 1. Fetch history: backfill + tracker
     if ((contractHistory[k] == null || force) && !fetchingRef.current.has(k)) {
       fetchingRef.current.add(k);
       try {
@@ -5352,7 +5346,8 @@ export default function OptionsFlowDashboard() {
     // Fetch AI narrative
     setNarrativeLoading(true);
     try {
-      const resp = await fetch(API_BASE+"/api/schwab/market-narrative");
+      // Bounded, as in OptionsFlow.jsx: the loading dot pulses while this is pending.
+      const resp = await fetch(API_BASE+"/api/schwab/market-narrative", { signal: AbortSignal.timeout(15000) });
       if (resp.ok) {
         const data = await resp.json();
         setMarketNarrative(data.narrative || null);

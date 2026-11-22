@@ -23,6 +23,7 @@ import chrome from './NewHighsLowsWidget.module.css'
 import styles from './NhnlPulseWidget.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import { useThemeInk, CHROME_INK, withAlpha } from '../../../lib/theme'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which this
 // widget drew as an empty pulse reading "New Highs 0 / New Lows 0". Now SWR keeps the last good answer through a failed poll, and a
@@ -190,16 +191,16 @@ export default function NhnlPulseWidget({ opts, onOptsChange }) {
         </span>
         {data?.asof && <span className={chrome.asof}>{fmtClock(data.asof)} ET</span>}
         <span className={chrome.spacer} />
-        <button
+        <UctCtrlPortal><button
           ref={gearRef}
           type="button"
           className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="H/L Pulse settings"
           aria-label="H/L Pulse settings"
         >
           <UIcon name="gear" size={13} gold={false} />
-        </button>
+        </button></UctCtrlPortal>
       </div>
 
       {error && !data ? (

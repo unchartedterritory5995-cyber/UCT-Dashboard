@@ -8,6 +8,7 @@ import acornJsx from 'acorn-jsx'
 
 import { setCreateIndicatorFlag } from './studio/createIndicatorFlag'
 import BuilderSheet, { BuilderBoundary, buildDefinition, draftDefId } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import FormulaField, { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula, astHash } from '../engine/ast/parse'
@@ -103,7 +104,9 @@ function mount({ user = { id: 7 }, onClose = () => {}, onSaved = () => {} } = {}
   )
 }
 
-const field = () => screen.getByLabelText('Formula')
+// ⭐ DIRECTION A — a new formula opens on the start view; the formula box is in the
+// editor, reached the way a member reaches it ("Write the formula myself").
+const field = () => { writeMyself(); return formulaBox() }
 
 async function typeFormula(text) {
   fireEvent.change(field(), { target: { value: text } })
@@ -112,11 +115,12 @@ async function typeFormula(text) {
 }
 
 async function nameIt(text = 'My line') {
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: text } })
+  writeMyself()
+  fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: text } })
   await flush()
 }
 
-const saveBtn = () => screen.getByRole('button', { name: /^Sav/ })
+const saveBtn = () => { writeMyself(); return screen.getByRole('button', { name: /^Sav/ }) }
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -641,9 +645,12 @@ describe('focus is trapped inside the panel', () => {
   // ⚠️ AND `userEvent.tab()` IGNORES A TRAP'S `preventDefault` — a focus test
   // passed against a broken trap on this branch. `fireEvent` is what observes
   // the handler's own decision.
+  // ⭐ Direction A keeps the Inputs / Plots panels mounted but `hidden` off their tab;
+  // the trap (`useFocusTrap.isHiddenForFocus`) skips explicitly hidden nodes, and so does this ring.
   const ring = () => [...document.querySelector('[role="dialog"]')
     .querySelectorAll('button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
       + 'textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+    .filter((n) => !n.closest('[hidden],[aria-hidden="true"]'))
 
   it('⚰️ THE TRAP IS SHEET’S NOW, AND THIS FILE HOLDS NO COPY OF IT', () => {
     // This case has been wrong twice, in opposite directions, which is why it
@@ -953,6 +960,7 @@ describe('🔴 saving a formula puts it ON THE CHART', () => {
         </SWRConfig>
       </AuthContext.Provider>,
     )
+    writeMyself()
     return { ...utils, writes }
   }
 
@@ -1113,7 +1121,7 @@ describe('🔴 saving a formula puts it ON THE CHART', () => {
 // and stays on the CONDITIONS tab, where it drafts a SCREEN. The wiring claims
 // below are unchanged; they now drive the tab the box still lives on.
 describe('the AI door is reachable FROM the builder (Task 13)', () => {
-  const openConditions = () => fireEvent.click(screen.getByRole('tab', { name: /conditions/i }))
+  const openConditions = () => openSource('picker')
 
   // DERIVED: the tree, the read-back and the badge all come from the shipped
   // evaluator, so a renamed function or a reworded sentence can never leave this
@@ -1126,8 +1134,8 @@ describe('the AI door is reachable FROM the builder (Task 13)', () => {
    *  tree's read-back, which is the same claim one hop further out. */
   const LIE = 'a nine-bar momentum oscillator of the high'
 
-  const englishBox = () => screen.getByLabelText(/plain English/i)
-  const draftBtn = () => screen.getByRole('button', { name: /draft a formula/i })
+  const englishBox = () => screen.getByLabelText('Describe it')
+  const draftBtn = () => screen.getByRole('button', { name: /^write it$/i })
   const useBtn = () => screen.getByRole('button', { name: /use this formula/i })
 
   async function draft(prompt = 'the twenty bar average of the close') {
@@ -1161,24 +1169,27 @@ describe('the AI door is reachable FROM the builder (Task 13)', () => {
       await flush()
       expect(screen.getByTestId('converse')).toBeTruthy()
       expect(screen.queryByTestId('concierge-box')).toBeNull()
-      fireEvent.click(screen.getByRole('tab', { name: /formula/i }))
+      writeMyself()
       await flush()
       expect(screen.queryByTestId('concierge-box')).toBeNull()
-      expect(screen.queryByRole('button', { name: /draft a formula/i })).toBeNull()
+      expect(screen.queryByRole('button', { name: /^write it$/i })).toBeNull()
     } finally { setCreateIndicatorFlag(null) }
   })
 
-  it('⭐ the box is mounted INSIDE the sheet, above the typed field', async () => {
+  it('⭐ the box is mounted INSIDE the sheet — "Describe it" heads the start view, and the Conditions source keeps its own', async () => {
     mount()
-    await flush()
-    openConditions()
     await flush()
     const panel = document.querySelector('[role="dialog"]')
     const box = screen.getByTestId('concierge-box')
     // `panel.contains` is the whole claim: an importable component that nothing
     // renders satisfies every other assertion in this file.
     expect(panel.contains(box)).toBe(true)
-    expect(box.compareDocumentPosition(field()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    // Direction A: describing it comes FIRST, before the other ways to start.
+    expect(box.compareDocumentPosition(screen.getByTestId('start-pine')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    openConditions()
+    await flush()
+    expect(panel.contains(screen.getByTestId('concierge-box'))).toBe(true)
+    expect(screen.getByTestId('concierge-box').dataset.kind).toBe('scan')
   })
 
   it('⭐ drafting from the sheet issues the REAL propose request', async () => {
@@ -1304,7 +1315,9 @@ describe('🔴 closing with unsaved work asks first', () => {
     // single predicate that covers every one of plot 1's chrome fields at once.
     const onClose = vi.fn()
     mount({ onClose })
-    fireEvent.change(screen.getByLabelText('Plot 1 colour'), { target: { value: '#ff0000' } })
+    writeMyself()
+    fireEvent.click(screen.getByRole('tab', { name: /^Plots/ }))
+    fireEvent.change(screen.getByLabelText('Plot 1 color'), { target: { value: '#ff0000' } })
 
     fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
     await flush()

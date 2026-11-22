@@ -213,7 +213,9 @@ async function openTheBuilderFromCharts(user) {
   await user.click(await screen.findByTestId('add-enter'))
 
   // 4. 🔴 THE DOOR. Cut it and this line is what reds.
-  await user.click(await screen.findByTestId('settings-new-formula'))
+  //    ⭐ UCT Signature R2 (owner Option 1): the window's ONE "✦ Create indicator" button opens
+  //    the New formula window's start view (it replaced "Describe one" + "+ New formula").
+  await user.click(await screen.findByTestId('settings-create-indicator'))
 }
 
 /** Steps 2–3, shared by both viewports: the library is open — find the
@@ -275,8 +277,24 @@ describe('/charts — the criteria builder has a door', () => {
     visit(ast)
 
     expect(element, 'App.jsx declares no <Route path="/charts">').toBeTruthy()
-    // The name this file imports and renders, taken from the route itself.
-    expect(element).toMatch(/ChartsWorkspace/)
+    // The route element is the slot; ChartsDeskHost renders the workspace in its place so a popped
+    // board survives leaving /charts. Both halves come from the parsed source, not from this sentence.
+    expect(element).toMatch(/ChartsRouteSlot/)
+    const parse = (file) => Parser.extend(jsx()).parse(
+      fs.readFileSync(path.join(HERE, file), 'utf8'), { ecmaVersion: 'latest', sourceType: 'module' })
+    const found = (tree, test) => {
+      let hit = false
+      const walk = (node) => {
+        if (hit || !node || typeof node !== 'object') return
+        if (Array.isArray(node)) { node.forEach(walk); return }
+        if (test(node)) { hit = true; return }
+        Object.keys(node).forEach((k) => walk(node[k]))
+      }
+      walk(tree)
+      return hit
+    }
+    expect(found(parse('ChartsDeskHost.jsx'), (n) => n.type === 'JSXElement' && n.openingElement?.name?.name === 'ChartsWorkspace')).toBe(true)
+    expect(found(parse('chartsWorkspaceImporter.js'), (n) => n.type === 'ImportExpression' && n.source?.value === './ChartsWorkspace')).toBe(true)
   })
 
   it('DESKTOP: Indicators → New formula opens the builder', async () => {
@@ -284,13 +302,14 @@ describe('/charts — the criteria builder has a door', () => {
     render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
     await openTheBuilderFromCharts(user)
 
-    // 🔴 THE ASSERTION. `BuilderSheet`'s OWN mode row — the three doors onto one
-    // object (Library · Conditions · Formula). Nothing this file mocks renders a
-    // tablist, and nothing this file writes carries this label.
-    const modes = await screen.findByRole('tablist', { name: 'How to build this' }, { timeout: 8000 })
-    expect(modes).toBeInTheDocument()
-    for (const label of ['Library', 'Conditions', 'Formula']) {
-      expect(screen.getByRole('tab', { name: label })).toBeInTheDocument()
+    // 🔴 THE ASSERTION. `BuilderSheet`'s OWN start page (Direction A, 2026-11-16) —
+    // the doors onto one object: a script, a picture, conditions, a UCT setup, or
+    // the formula itself. Nothing this file mocks renders them, and nothing this
+    // file writes carries these names.
+    const sheet = await screen.findByRole('dialog', { name: 'Create indicator' }, { timeout: 8000 })
+    expect(sheet).toBeInTheDocument()
+    for (const label of [/Paste a script/, /From a picture/, /Build from conditions/, /A UCT setup/, /Write the formula myself/]) {
+      expect(within(sheet).getByRole('button', { name: label })).toBeInTheDocument()
     }
   })
 
@@ -304,21 +323,24 @@ describe('/charts — the criteria builder has a door', () => {
     expect(screen.queryByTestId('rgl-responsive')).toBeNull()
 
     await openTheBuilderFromPhoneCharts(user)
-    expect(await screen.findByRole('tablist', { name: 'How to build this' }, { timeout: 8000 })).toBeInTheDocument()
+    const sheet = await screen.findByRole('dialog', { name: 'Create indicator' }, { timeout: 8000 })
+    expect(within(sheet).getByRole('button', { name: /Build from conditions/ })).toBeInTheDocument()
   })
 
   it('the picker itself is reachable through that door — not merely the sheet', async () => {
     const user = userEvent.setup()
     render(<MemoryRouter><ChartsWorkspace /></MemoryRouter>)
     await openTheBuilderFromCharts(user)
-    await screen.findByRole('tablist', { name: 'How to build this' }, { timeout: 8000 })
+    await screen.findByRole('dialog', { name: 'Create indicator' }, { timeout: 8000 })
 
-    // `buildMode` defaults to 'library', so the criteria picker — E-4's 826-test
-    // subject — only mounts once its tab is clicked. Nine tasks of work sit
-    // behind this click; a door that reached the sheet but not the picker would
-    // still leave most of the phase unreachable.
+    // A new formula opens on the START page, so the criteria picker — E-4's
+    // 826-test subject — only mounts once "Build from conditions" is clicked. Nine
+    // tasks of work sit behind this click; a door that reached the sheet but not
+    // the picker would still leave most of the phase unreachable.
     expect(screen.queryByTestId('criteria-picker')).toBeNull()
-    await user.click(screen.getByRole('tab', { name: 'Conditions' }))
+    await user.click(screen.getByRole('button', { name: /Build from conditions/ }))
+    // …which opens the editor ON the Conditions tab.
+    expect(screen.getByRole('tab', { name: 'Conditions' })).toHaveAttribute('aria-selected', 'true')
 
     // 🔴 `CriteriaPicker`'s OWN root — `data-testid="criteria-picker"`, written
     // by that component and by nothing this file mocks. E-4's 826-test subject
@@ -346,13 +368,13 @@ describe('/charts — the criteria builder has a door', () => {
     expect(screen.queryByRole('button', { name: /^Indicators$/ })).toBeNull()
 
     // And the door under test is genuinely inside Chart Settings, not on the chart.
-    expect(screen.queryByTestId('settings-new-formula')).toBeNull()
+    expect(screen.queryByTestId('settings-create-indicator')).toBeNull()
     await user.click(gear)
     await user.click(await screen.findByRole('tab', { name: 'Indicators' }))
     // ⚰️ ＋ Add FIRST — see `openTheBuilderFromCharts` for why the door moved into
     // the Add surface. This case is about the LEGACY gear being suppressed, so
     // the extra step is incidental to its claim and deliberate for its subject.
     await user.click(await screen.findByTestId('add-enter'))
-    expect(await screen.findByTestId('settings-new-formula')).toBeInTheDocument()
+    expect(await screen.findByTestId('settings-create-indicator')).toBeInTheDocument()
   })
 })

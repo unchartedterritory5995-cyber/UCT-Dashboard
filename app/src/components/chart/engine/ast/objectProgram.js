@@ -59,7 +59,7 @@
 // what Pine's `var line l = na` says and why 24 of the reachable 27 need one.
 
 import { isObjectColourLiteral } from '../objectColour.js'
-import { MESSAGE_NUMBER_PATTERNS } from '../pineTextFormat.js'
+import { isMessageNumberFormat } from '../pineTextFormat.js'
 import { RUNTIME_AT_CALL } from './parse.js'
 import { wholeTransparency } from '../colorInt.js'
 import { isThemeColour, themeColourWithTransparency } from '../objectTheme.js'
@@ -164,6 +164,7 @@ export const OP_VALUE_FIELDS = Object.freeze([
   'step',                                      // …and its `by` step
   'cond',                                      // C16: a `latch`'s condition
   'withhold',                                  // C11c: unmeasured on this bar
+  'withholdRuns',                              // W-C22-DEL: the guard's measured conjuncts
   'propWithhold',                              // C22: a PROPERTY unmeasured on this bar
 ])
 
@@ -279,6 +280,20 @@ export const RUNTIME_VALUE_KINDS = Object.freeze(['text', 'colour'])
  *  from the loop's own position (`runtime.at[k].loop`). One authority: the object
  *  program's loop op and the reader's per-pass columns both ask this. */
 export const rtLoopId = (loop) => `rt_${Number(loop && loop.line)}_${Number(loop && loop.column)}`
+
+/** ⭐⭐ ENGINE 54 — THE SOURCE CALL A DRAWING WAS MADE AT, as both lanes name it:
+ *  `<line>:<column>` of the `<family>.new` (or `.copy`) call's own token in the lexed
+ *  script (`pine.js::lexPine`, the one lexer both lanes read). The host object pass
+ *  records it per create site (`buildObjectProgram`, `OBJECT_SITE_SOURCES`); the per-bar
+ *  run stamps it on every object it makes (`objectStore.js`, `site`). The run half's
+ *  object rail (`runHalfObjectRail.js`) pairs a host object and a run object only when
+ *  they were made at the same source call. A token without a position names no call:
+ *  null, and the object is never paired. */
+export const objectSiteKey = (tok) => (tok && Number.isInteger(tok.line) && Number.isInteger(tok.column)
+  ? `${tok.line}:${tok.column}` : null)
+
+/** The shape of an `objectSiteKey`. */
+export const OBJECT_SITE_KEY_RE = /^\d+:\d+$/
 
 /** ⭐⭐ C20 — A DRAWING COLOUR WITH ITS TRANSPARENCY SET, as the object lane
  *  writes it: `#RRGGBB` for an opaque colour, `#RRGGBBAA` otherwise, alpha
@@ -522,8 +537,10 @@ function assertTextNode(v, where, depth = 0, live = null) {
       // document is refused: the runtime has no rendering for any other.
       if (v.form !== undefined) {
         if (v.form !== 'message') throw new Error(`${where}: unknown number form ${JSON.stringify(v.form)}`)
-        if (v.fmt !== undefined && !Object.hasOwn(MESSAGE_NUMBER_PATTERNS, v.fmt)) {
-          throw new Error(`${where}: str.format pattern ${JSON.stringify(v.fmt)} is not one a capture pins`)
+        // ⭐ W3-S1 — `pineTextFormat.js::isMessageNumberFormat` is the one answer (a pinned
+        // pattern, or a keyword preset the published rule pins: `percent`).
+        if (v.fmt !== undefined && !isMessageNumberFormat(v.fmt)) {
+          throw new Error(`${where}: str.format pattern ${JSON.stringify(v.fmt)} is not one a capture or published rule pins`)
         }
       }
       return
@@ -1162,6 +1179,19 @@ export function assertObjectProgram(program) {
     // ⭐ C11c — a step's WITHHOLD is a plain graph value: true on a bar a window
     // reduction it reads is unmeasured (`pine.js` `Resolver.windowAmbiguity`).
     if (op.withhold !== undefined) assertValueRef(op.withhold, `${where}.withhold`)
+    // ⭐ W-C22-DEL — the guard's conjuncts that read no unmeasured reduction: false
+    // on a bar ⇒ Pine certainly did not run the step. Only beside a `withhold`.
+    if (op.withholdRuns !== undefined) {
+      if (op.withhold === undefined) throw new Error(`${where}: withholdRuns is legal only beside a withhold`)
+      // ⛔ A GRAPH COLUMN ONLY (`{v:'tree'}` unbound, `{v:'graph'}` bound): its one
+      // unknown is the curtain, which `objectRuntime.js::unknownAt` withholds. A
+      // value kind that can be TAINTED (a number, a latch, a getter, `unknown`)
+      // would be read as known there and turn a withhold into a skip.
+      if (!isObj(op.withholdRuns) || !['tree', 'graph'].includes(op.withholdRuns.v)) {
+        throw new Error(`${where}: withholdRuns must be a graph column, not ${JSON.stringify(isObj(op.withholdRuns) ? op.withholdRuns.v : op.withholdRuns)}`)
+      }
+      assertValueRef(op.withholdRuns, `${where}.withholdRuns`)
+    }
     // ⭐⭐ C22 — a PROPERTY's value that reads an unmeasured reduction, with the
     // property names it covers: the op RUNS (Pine ran it — ids stay Pine's) and
     // only those properties are marked unknown on that bar (C17's value rule).

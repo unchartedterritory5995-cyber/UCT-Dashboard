@@ -11,10 +11,10 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 
-import { renderTokenOk } from '../lib/renderToken'
+import { renderReadError } from '../lib/renderToken'
 const fmt = (v) => {
   if (!Number.isFinite(v) || v <= 0) return '—'
   return v >= 1000 ? v.toLocaleString('en-US', { maximumFractionDigits: 0 })
@@ -66,11 +66,11 @@ export default function BookRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
+    // The server checks ?token= on this read; a refused read (401/403) shows "unauthorized".
     fetch(`/api/r/book?token=${encodeURIComponent(token)}&part=${part}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => setRows(Array.isArray(d.rows) ? d.rows : []))
-      .catch(() => setErr('data unavailable'))
+      .catch((e) => setErr(renderReadError(e)))
   }, [token, part])
 
   useEffect(() => {

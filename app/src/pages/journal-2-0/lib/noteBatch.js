@@ -93,12 +93,9 @@ export const UNCHECKED_SENTENCE = "Can't check this device for unsent words."
 
 export { BLOCKED_TITLE }
 
-/** The RAW "words not yet on the server" answer from a `noteHasUnsentWork`
- *  verdict, whatever the door-guard mode: in DOOR_GUARD_UNKNOWN_ONLY a dirty or
- *  queued note answers `unsent: false` with `why: 'guard-unknown-only'`. */
-export function holdsUnsentWork(verdict) {
-  return Boolean(verdict?.unsent) || verdict?.why === 'guard-unknown-only'
-}
+// The RAW unsent-words answer lives in ./unsentWork.js (the editor reads it on first open); one copy, re-exported.
+import { holdsUnsentWork } from './unsentWork'
+export { holdsUnsentWork }
 
 /**
  * Which of `ids` still hold words the server does not have (`unsent`), and

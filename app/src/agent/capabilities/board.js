@@ -19,6 +19,10 @@
 //     declares (enum | boolean | number, never an identity key) — exactly as the widget's settings panel does
 //     (ChartsWorkspace.handleOptsChange: `{...w, opts}` + scheduleSave; the board writer's `set[id].opts` is
 //     that same write). Undo puts the previous opts object back, exactly.
+//     Family: EVERY control a person has on a widget is one registry row (widgets/registry.js widgetControls), not a
+//     capability. A control in `opts` goes through the board writer; a control the widget keeps itself, or one that is more
+//     than one key, goes through the widget's own writer (pages/charts/widgetDoors.js). widget.readOptions reads any of
+//     them back; widget.sendToJournal is the Journal door of any widget that offers one.
 // Before ANY write the resulting board must pass boardProblems (inside the grid, min sizes,
 // no overlap). Undo restores the exact widgets touched (a removed widget comes back with its
 // id, geometry, link colour, settings and tabs) and refuses if any of them changed since.
@@ -36,29 +40,41 @@ import { registerCapability, registerTargetKind, registerContextProvider } from 
 import { afterRender } from '../frames'
 import { lastCreatedList, resolveListByName } from './watchlist'
 import { namesAnotherKind } from '../nl/collisions'
-import { labelMap, WIDGET_REGISTRY, WORKSPACE_MENU_TYPES } from '../../widgets/registry'
+import { wordsSelect, namedBoardWidgets } from '../routing'
+import { ITEM_LISTS, AGENT_CONTROLS, allControls } from '../widgetNames'
+import { labelMap, WIDGET_REGISTRY, agentLabelsOf } from '../../widgets/registry'
+import { widgetControls as registryControls } from '../../widgets/widgetControls'
+// every control a widget offers: the registry's rows, then the Agent's own over the product's writers (widgetNames AGENT_CONTROLS)
+const widgetControls = allControls
+// a type is listed for the model only while one of its widgets can take a control (a chart without the panel offers none)
+const offers = (type, raw, doors) => registryControls(type).length > 0 || (AGENT_CONTROLS[type] || []).some(f => raw.some(w => w.type === type && !f.when?.(w.opts, doors?.[w.id])))
 import { boardProblems, fillGaps, tileWidgets, ARRANGE_PATTERNS } from '../../pages/charts/placement/arrange'
 import { BASE_GROUPS, EXTRA_GROUPS, NOT_LINKED, isExtraGroup, linkGroups } from '../../pages/charts/colorGroups'
 import { PRESET_SCANS } from '../../pages/charts/widgets/ScannerPicker'
 import { CHART_THEMES, CHART_THEME_BY_ID } from '../../components/chart/chartThemes'
 import { positionWord } from '../host'
+import { whichWidget, listSwitchable } from '../whichWidget'
+import { loadCatalog, matchListName } from '../watchlistCatalog'
+import { withoutDerivedOpts } from '../derivedOpts'
 import { mergeChartSettings } from '../../components/chart/chartDefaults'
 import { addChartTab, closeChartTab, setActiveChartTab, renameChartTab, patchChartTab, chartTabList, sanitizeChartTabs } from '../../pages/charts/chartTabs'
 import { CHART_TIMEFRAMES } from './chart'
 import { planChartGrid, GRID_PATTERNS, MAX_GRID_CHARTS } from '../chartGrid'
 import { unknownSymbols } from '../agentClient'
+import { dayOf } from './calendar'
+import { loadJournalCapture } from '../../components/journalCaptureLoader'
 import { widgetTabList, setActiveWidgetTab, renameWidgetTab, closeWidgetTab, sanitizeWidgetTabs, addWidgetTab, WIDGET_TAB_TYPES } from '../../pages/charts/widgetTabs'
 // a slot holds a handful of widgets as tabs — the Agent stops adding at this many (the header scrolls beyond)
 const MAX_WIDGET_TABS = 8
 
-const LABEL = labelMap('menu')
+const LABEL = labelMap('agent')
 const label = (t) => LABEL[t] || t
 // E-H exist only while the extra-groups flag is on (the colour dot's own rule, colorGroups.linkGroups):
 // always in the schema, refused by the check while the board says the flag is off.
 const LINKS = [...BASE_GROUPS, ...EXTRA_GROUPS, NOT_LINKED]
 const LINK_NAME = { A: 'gold', B: 'blue', C: 'green', D: 'purple', E: 'red', F: 'teal', G: 'orange', H: 'pink', N: 'not linked' }
 const extraOff = (env, color) => (isExtraGroup(color) && env?.target?.extraGroups !== true
-  ? `Link colours E–H aren't switched on in UCT for your account — use ${linkGroups(false).join(', ')}.` : null)
+  ? `Link colors E–H aren't switched on in UCT for your account — use ${linkGroups(false).join(', ')}.` : null)
 const SCAN_KEYS = PRESET_SCANS.map(s => s.key)
 const GEOM = ['x', 'y', 'w', 'h']
 const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab', 'mainTabName']
@@ -68,7 +84,7 @@ const FIELDS = ['x', 'y', 'w', 'h', 'color', 'opts', 'wtabs', 'activeWtab', 'mai
 // daily charts for …, each with RSI" → undo, undo, …: the board exactly as it was). A removed indicator's tombstone
 // draws nothing either. A chart the grid REUSED keeps the exact comparison (its Undo keeps the chart).
 function addedChartOpts(w) {
-  const o = w?.opts ?? null
+  const o = withoutDerivedOpts(w?.opts ?? null)
   if (!o || typeof o !== 'object' || w.type !== 'chart') return JSON.stringify(o)
   let cs = null
   try { cs = mergeChartSettings(o.settings == null ? null : (typeof o.settings === 'string' ? o.settings : JSON.stringify(o.settings))) } catch { return JSON.stringify(o) }
@@ -80,11 +96,12 @@ function addedChartOpts(w) {
 // bookkeeping in the stored settings, see docs/agent/PHASE3-INDICATORS-HANDOFF.md) is no edit the grid's Undo would
 // overwrite. Everything it DOES write is still compared exactly: a newer edit of any of those still refuses.
 function reusedChartOpts(w) {
-  const o = w?.opts ?? null
+  const o = withoutDerivedOpts(w?.opts ?? null)
   if (!o || typeof o !== 'object' || w.type !== 'chart') return JSON.stringify(o)
   const { settings, ...rest } = o                                       // eslint-disable-line no-unused-vars
   return JSON.stringify(rest)
 }
+const fieldFp = (w, f) => JSON.stringify((f === 'opts' ? withoutDerivedOpts(w[f]) : w[f]) ?? null)
 const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null)
 const clone = (o) => JSON.parse(JSON.stringify(o))
 const intOk = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi
@@ -100,8 +117,18 @@ function snapOf(host) {
   // (host `visible`) leaves them out. Nothing here may re-tile or edit one it cannot see.
   const onGrid = new Set((s.visible || s.raw).map(w => String(w.id)))
   const detached = s.raw.filter(w => !onGrid.has(String(w.id))).map(w => String(w.id))
-  return { ref: 'board', label: 'Board', raw: s.raw, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
+  const doorOf = (id) => { try { return host?.widgets?.door?.(id) || null } catch { return null } }
+  return { ref: 'board', label: 'Board', doorOf, doors: doorsOf(s.raw, doorOf), raw: s.raw, groupSyms: s.groupSyms, layoutTheme: s.layoutTheme, grid: s.grid, minOf: s.minOf, repack: s.repack, resize: s.resize, themeAll: s.themeAll, extraGroups: s.extraGroups === true, lists, detached, fitsWatchlist: s.fits?.watchlist === true,
     charts: chartsOf(host), maxWidgets: s.max }
+}
+// widget id → what its door reports for its `door` controls: the widget's own state, not stored anywhere
+function doorsOf(raw, doorOf) {
+  const out = {}
+  for (const w of raw) {
+    if (!widgetControls(w.type).some(f => f.door) && !ITEM_LISTS[w.type]) continue
+    try { const v = doorOf(w.id)?.read?.(); if (v) out[w.id] = v } catch { /* a door that cannot answer is not there */ }
+  }
+  return out
 }
 // widget id → { ref, symbol, tf } of each chart on the board (the chart a widget shows now: its own ref,
 // else its first tab's) — what chartGrid.set reuses. Read only.
@@ -116,6 +143,8 @@ function chartsOf(host) {
   }
   return m
 }
+const TF_WORDS = { D: 'Daily', W: 'Weekly', M: 'Monthly', 1: '1 minute', 5: '5 minutes', 15: '15 minutes', 30: '30 minutes', 60: '1 hour' }
+const tfWordOf = (tf) => TF_WORDS[tf] || (tf ? String(tf) : 'Daily')
 const nameOf = (w, all) => {
   const pos = positionWord(w, all)
   return `${label(w.type)}${pos ? ` (${pos})` : ''}`
@@ -125,14 +154,102 @@ const changedIds = (before, after) => {
   return after.filter(w => !b.has(w.id) || FIELDS.some(f => !same(w[f], b.get(w.id)[f]))).map(w => w.id)
 }
 
+// A widget's scalar paramsSchema fields that widget.setOption could offer: the one list the capability and its rail read
+// (settingsLiveness.test.js). Offered only once marked `live`, and never an unbounded number.
+const OPTION_TYPES = new Set(['enum', 'boolean', 'number'])
+const bounded = (f) => f.type !== 'number' || (Number.isFinite(f.min) && Number.isFinite(f.max) && f.min < f.max)
+// marketcontext: a notebook stamp's own keys; profile.statYear: a capture's frozen clock — neither is a widget control
+const NOT_OPTIONS = new Set(['fields', 'uncaptured', 'reason', 'statYear'])
+const optionCandidates = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).filter(f => OPTION_TYPES.has(f.type) && !f.required && !NOT_OPTIONS.has(f.key))
+export const widgetOptionFields = (type) => optionCandidates(type).filter(bounded)
+export const widgetUnboundedFields = (type) => optionCandidates(type).filter(f => !bounded(f))
+
+// ── A control's value: the same read for the context, the plan, the receipt and widget.readOptions ──
+const pathOf = (f) => String(f.path || f.key).split('.')
+const atPath = (opts, f) => pathOf(f).reduce((o, k) => (o == null ? undefined : o[k]), opts)
+const withPath = (opts, f, value) => {
+  const [head, ...rest] = pathOf(f)
+  if (!rest.length) return { ...(opts || {}), [head]: value }
+  return { ...(opts || {}), [head]: withPath(opts?.[head], { path: rest.join('.') }, value) }
+}
+const valueOf = (f, w, doors) => {
+  const v = f.door ? doors?.[w.id]?.[f.key] : atPath(w.opts, f)
+  return v === undefined ? (f.default ?? null) : v
+}
+/** A control's choices right now, as { value, label }: the registry's, or the mounted widget's own. */
+const choicesOf = (f, door) => {
+  const raw = f.from === 'door' ? door?.options?.()?.[f.key] : f.options
+  return (Array.isArray(raw) ? raw : []).map(o => (o && typeof o === 'object' ? o : { value: o, label: f.shown?.[o] ?? String(o) }))
+}
+const says = (f, v, choices) => {
+  if (Array.isArray(v)) return v.length ? v.join(', ') : (f.all ? 'all' : 'none')
+  const hit = choices?.find(c => same(c.value, v))
+  return String(hit ? hit.label : v == null || v === '' ? 'none' : typeof v === 'boolean' ? (v ? 'on' : 'off') : v)
+}
+const controlWord = (f) => {
+  const list = (f.options || []).join('|')
+  if (f.type === 'set') return `${f.key}(+/-${list ? ` ${list}` : ' member'})`
+  if (f.from === 'door') return `${f.key}(ask widget.readOptions)`
+  if (f.type === 'action') return `${f.key}(run: its own button)`
+  if (f.type === 'color') return `${f.key}(#rrggbb)`
+  return `${f.key}(${f.type === 'enum' ? list : f.type === 'boolean' ? 'on/off' : f.type === 'day' ? 'YYYY-MM-DD, today, tomorrow' : f.type === 'text' ? 'words, or empty to clear' : `${f.min}–${f.max}`})`
+}
+// ── The `widgetControls` context section: sent only on a turn that may need it ──
+// Each type once, with its choices, and what a widget is set to where that differs from how it starts. It is sent when the
+// turn's routing carries boardEdit (the action group's own refresh arms it, on a reroute too), whole; and when the message
+// names a widget on this board AND one of the choices it offers ("annual" and "fundamentals"), for that type alone: routing
+// v2 can carry the group on a turn whose refresh list does not. Those words are the registry's, so there is no phrase list
+// here, and either word alone ("any news on TSLA") is no reason to pay. Otherwise the hint points at widget.readOptions.
+const MIN_WORD = 4
+const wordsOf = (v) => String(v).toLowerCase().split(/[^a-z0-9&]+/).filter(x => x.length >= MIN_WORD)
+function namedHere(type, said) {
+  const labels = Object.values(agentLabelsOf(type)).flatMap(wordsOf)
+  const choices = widgetControls(type).flatMap(f => (f.options || []).flatMap(wordsOf)).filter(x => !labels.includes(x))
+  return labels.some(x => said.has(x)) && choices.some(x => said.has(x))
+}
+// round 3 (C3-174): a widget's own list of the member's items, renamed or deleted through its door (widget.setOption, below)
+const itemWords = (t, doors, ids) => (ITEM_LISTS[t] || []).map(l => {
+  const names = [...new Set(ids.flatMap(id => (doors?.[id]?.[l.key] || []).map(x => x.name)))]
+  return `${l.key}(${l.ops.map(o => (o === 'rename' ? 'rename:<name>=><new>' : o === 'create' ? (l.named ? 'create:<name>' : 'create') : `${o}:<name>`)).join('|')}${names.length ? `; yours: ${names.join(', ')}` : ''})`
+})
+function widgetControlSection(s, message, whole) {
+  const said = new Set(wordsOf(message))
+  const onBoard = [...new Set(s.raw.map(w => w.type))]
+  // a widget NAMED in the message (its registry label: routing brought the group for it) narrows the section to the
+  // widgets named — the others' controls are not what this request is about (bytes)
+  const named = namedBoardWidgets(message, onBoard)
+  const types = onBoard.filter(t => offers(t, s.raw, s.doors))
+    .filter(t => (whole && (!named.length || named.includes(t))) || namedHere(t, said))
+  if (!types.length) return undefined
+  const controls = Object.fromEntries(types.map(t => [t, [...widgetControls(t).map(controlWord), ...itemWords(t, s.doors, s.raw.filter(w => w.type === t).map(w => w.id))].join(', ')]))
+  const set = {}
+  for (const w of s.raw) {
+    if (!types.includes(w.type)) continue
+    for (const f of widgetControls(w.type)) {
+      const v = valueOf(f, w, s.doors)
+      if (v == null || v === '' || (Array.isArray(v) && !v.length) || same(v, f.default)) continue
+      set[w.id] = { ...set[w.id], [f.key]: v }
+    }
+  }
+  return [{ controls, ...(Object.keys(set).length ? { set } : {}) }]
+}
+
 export const boardKind = {
   name: 'board',
+  source: 'widgets',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "The chart board isn't available on this page — open the Charts board to arrange it.",
   list: (host) => { const s = snapOf(host); return s ? [s] : [] },
   read: (host, ref) => (ref === 'board' ? snapOf(host) : null),
-  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null }),
+  stateOf: (s) => ({ board: clone(s.raw), layoutTheme: s.layoutTheme ?? null, did: [], adds: [], grid: null, doors: clone(s.doors || {}), sends: [], outs: [], acts: [], itemOps: [] }),
   patch(before, after) {
     // chartGrid.set: its own write (charts added, cells, links and tickers together), alone
     if (after.grid) return after.grid.noop ? null : { grid: clone(after.grid) }
+    // widget.sendToJournal: nothing on the board changes
+    if ((after.sends || []).length) return { sends: clone(after.sends) }
+    // watchlist.exportList: nothing on the board changes either (the list menu's own Copy / Export)
+    if ((after.outs || []).length) return { outs: clone(after.outs) }
+    // a widget's own button (an `action` row: Refresh): nothing on the board changes either
+    if ((after.acts || []).length) return { acts: clone(after.acts) }
     const removed = before.board.filter(w => !after.board.some(x => x.id === w.id)).map(w => w.id)
     const set = {}
     for (const w of after.board) {
@@ -146,6 +263,17 @@ export const boardKind = {
     if (removed.length) p.remove = removed
     if (Object.keys(set).length) p.set = set
     if (!same(before.layoutTheme, after.layoutTheme)) p.layoutTheme = after.layoutTheme
+    // what only the widget's own writer can set
+    // ⛔ AUDIT S1-A: a widget's own LIST of the member's items (ITEM_LISTS) is never written whole: each change is ONE operation
+    // (delete id X / rename id X to N) through the widget's own control, so an item made since the plan is never touched
+    const opKeys = new Set((after.itemOps || []).map(o => `${o.widget}\u0000${o.key}`))
+    for (const [id, vals] of Object.entries(after.doors || {})) {
+      for (const [k, v] of Object.entries(vals)) {
+        if (opKeys.has(`${id}\u0000${k}`)) continue
+        if (!same(v, before.doors?.[id]?.[k])) { p.doors ||= {}; p.doors[id] = { ...p.doors[id], [k]: clone(v) } }
+      }
+    }
+    if ((after.itemOps || []).length) p.itemOps = clone(after.itemOps)
     // A NEW widget (watchlist.open with none on the board): added through handleAddWidget, alone.
     if ((after.adds || []).length) return { add: clone(after.adds) }
     return Object.keys(p).length ? p : null
@@ -172,11 +300,20 @@ export const boardKind = {
       }
       return { undoData: { added } }
     }
-    host.widgets.applyBoard(patch)
+    if (patch.sends) return sendToJournal(host, patch.sends)
+    if (patch.outs) return listOut(host, patch.outs)
+    if (patch.acts) return runActs(host, patch.acts)
+    const { doors, itemOps, ...rest } = patch
+    if (itemOps) await writeItemOps(host, itemOps)
+    if (doors) await writeDoors(host, doors)
+    if (Object.keys(rest).length) host.widgets.applyBoard(rest)
     return true
   },
   landed(snap, patch) {
     if (!snap) return false
+    if (patch.sends) return true                   // nothing on the board to read: commit threw if the Journal refused
+    if (patch.outs) return true                    // the same: commit threw unless the clipboard / download resolved
+    if (patch.acts) return true                    // the same: commit threw unless the widget's own button resolved
     if (patch.grid) return gridLanded(snap, patch.grid)
     if (patch.gridUndo) return gridUndone(snap, patch.gridUndo)
     if (patch.add) return patch.add.every(a => snap.raw.some(w => w.type === a.type && same(w.opts?.watchKey, a.opts?.watchKey)))
@@ -189,6 +326,8 @@ export const boardKind = {
       for (const [f, v] of Object.entries(d)) if (!same(w[f] ?? null, v)) return false
     }
     if ('layoutTheme' in patch && !same(snap.layoutTheme ?? null, patch.layoutTheme ?? null)) return false
+    for (const [id, vals] of Object.entries(patch.doors || {})) for (const [k, v] of Object.entries(vals)) if (!sameDoorValue(snap.doors?.[id]?.[k] ?? null, v ?? null)) return false
+    for (const o of patch.itemOps || []) if (!itemOpLanded(Array.isArray(snap.doors?.[o.widget]?.[o.key]) ? snap.doors[o.widget][o.key] : [], o)) return false
     return true
   },
   // Undo: the touched widgets exactly as they were — a removed one re-inserted whole.
@@ -197,9 +336,15 @@ export const boardKind = {
     const p = item.patch || {}
     // chartGrid.set: exactly what its commit recorded (the charts it added, the cells, links and tickers it changed)
     if (p.grid) return item.undoData?.grid ? { gridUndo: clone(item.undoData.grid) } : null
+    if (p.sends) return null                       // a capture stays until the member deletes it, as at the door
+    if (p.outs) return null                        // a copy or a download changes nothing in the workspace: nothing to undo
+    if (p.acts) return null                        // a Refresh keeps nothing: nothing to undo
     // A widget this change ADDED: Undo removes exactly it (the board writer's remove).
     if (p.add) return item.undoData?.added?.length ? { remove: [...item.undoData.added] } : null
+    // ⛔ AUDIT S1-C: an item delete (or create) offers NO Undo; a rename goes back by the inverse rename of that one item
+    if ((p.itemOps || []).some(o => o.op !== 'rename')) return null
     const out = {}
+    if ((p.itemOps || []).length) out.itemOps = [...p.itemOps].reverse().map(o => ({ ...o, name: o.was, was: o.name, label: o.name }))
     const restore = before.filter(w => (p.remove || []).includes(w.id))
     if (restore.length) out.restore = clone(restore)
     const set = {}
@@ -208,12 +353,27 @@ export const boardKind = {
       if (!o) continue
       set[id] = Object.fromEntries(Object.keys(p.set[id]).map(f => [f, o[f] === undefined ? null : clone(o[f])]))
     }
+    // A door write may touch several opts at once: they go back whole. Its own state goes back through its own writer.
+    for (const [id, vals] of Object.entries(p.doors || {})) {
+      const o = before.find(w => w.id === id)
+      if (!o) continue
+      set[id] = { ...set[id], opts: o.opts === undefined ? null : clone(o.opts) }
+      const ctrl = widgetControls(o.type)
+      for (const k of Object.keys(vals)) {
+        if (ctrl.find(f => f.key === k)?.inOpts) continue
+        out.doors ||= {}
+        out.doors[id] = { ...out.doors[id], [k]: clone(item.before?.doors?.[id]?.[k] ?? null) }
+      }
+    }
     if (Object.keys(set).length) out.set = set
     if ((p.restore || []).length) out.remove = p.restore.map(w => w.id)
     if ('layoutTheme' in p) out.layoutTheme = item.before?.layoutTheme ?? null
     return Object.keys(out).length ? out : null
   },
-  fingerprint: (s) => JSON.stringify(s.raw.map(w => [w.id, ...GEOM.map(k => w[k]), w.color, JSON.stringify(w.opts ?? null)])),
+  // AUDIT S1-A: the member's own item lists (ITEM_LISTS, read through the widgets' doors) are part of the board a plan was made
+  // on: an item made, renamed or deleted since the plan makes it stale, like any other change
+  fingerprint: (s) => JSON.stringify([s.raw.map(w => [w.id, ...GEOM.map(k => w[k]), w.color, fieldFp(w, 'opts')]),
+    s.raw.filter(w => ITEM_LISTS[w.type]).map(w => [w.id, ...ITEM_LISTS[w.type].map(l => s.doors?.[w.id]?.[l.key] ?? null)])]),
   // Undo is stale only if a widget THIS change touched has changed since (or a removed one is back).
   fingerprintFor(host, s, item) {
     const p = item.patch || {}
@@ -229,10 +389,11 @@ export const boardKind = {
         return w ? [id, ...FIELDS.map(f => (f !== 'opts' ? JSON.stringify(w[f] ?? null) : added ? addedChartOpts(w) : reusedChartOpts(w))), sym] : [id, 'gone']
       }))
     }
-    const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
+    const ids = [...new Set([...(p.remove || []), ...Object.keys(p.set || {}), ...Object.keys(p.doors || {}), ...(p.itemOps || []).map(o => o.widget), ...(p.restore || []).map(w => w.id), ...(p.add ? item.undoData?.added || [] : [])])]
     return JSON.stringify(ids.map(id => {
       const w = s.raw.find(x => x.id === id)
-      return w ? [id, ...FIELDS.map(f => JSON.stringify(w[f] ?? null))] : [id, 'gone']
+      const own = [...Object.keys(p.doors?.[id] || {}), ...(p.itemOps || []).filter(o => o.widget === id).map(o => o.key)].map(k => s.doors?.[id]?.[k] ?? null)
+      return w ? [id, ...FIELDS.map(f => fieldFp(w, f)), ...own] : [id, 'gone']
     }))
   },
 }
@@ -251,6 +412,87 @@ async function settle(pred, ms = 5000) {
   return pred()
 }
 const rawNow = (host) => host.widgets.snapshot().raw || []
+// The widget's own writer, one control at a time, each read back through its door before the next.
+// a door's list of the member's items ([{ id, name }]) is read back by its names: an item the change CREATED gets its id from the
+// server, so `{ id: null, name }` is landed once an item of that name is there
+const isItems = (v) => Array.isArray(v) && v.every(x => x && typeof x === 'object' && 'name' in x)
+const namesOf = (v) => v.map(x => String(x.name)).sort()
+function sameDoorValue(now, want) {
+  if (isItems(now) && isItems(want) && want.some(x => x.id == null)) return same(namesOf(now), namesOf(want))
+  return same(now, want)
+}
+async function writeDoors(host, doors) {
+  for (const [id, vals] of Object.entries(doors)) {
+    for (const [key, value] of Object.entries(vals)) {
+      const door = host.widgets.door?.(id)
+      if (!door?.write) throw new Error('that widget is no longer showing')
+      door.write(key, value)
+      if (!(await settle(() => sameDoorValue(host.widgets.door?.(id)?.read?.()?.[key] ?? null, value ?? null)))) throw new Error(`“${key}” did not change`)
+    }
+  }
+}
+// AUDIT S1-A: ONE operation on a widget's own item list, through its door ({ op, id, name }), read back by its effect only (the
+// item gone; the item renamed). Any other item, one the member made meanwhile included, is never touched nor required.
+const itemOpLanded = (list, o) => (o.op === 'delete' ? !list.some(x => x.id === o.id)
+  : o.op === 'create' ? list.some(x => x.id && !(o.ids || []).includes(x.id)) : list.some(x => x.id === o.id && x.name === o.name))
+async function writeItemOps(host, ops) {
+  for (const o of ops) {
+    const door = host.widgets.door?.(o.widget)
+    if (!door?.write) throw new Error('that widget is no longer showing')
+    door.write(o.key, { op: o.op, id: o.id, name: o.name ?? null })
+    const list = () => { const v = host.widgets.door?.(o.widget)?.read?.()?.[o.key]; return Array.isArray(v) ? v : [] }
+    if (!(await settle(() => itemOpLanded(list(), o)))) throw new Error(`the ${o.op} of “${o.label}” did not go through`)
+  }
+}
+// watchlist group D: the list menu's own Copy / Export, through the Watchlist widget's door (Watchlists.jsx listOut / copyList /
+// exportList — the menu's handlers). "Copied" only once the clipboard write RESOLVED; a refusal fails the change in words.
+const OUT_WORD = { clipboard: 'Copied', csv: 'Downloaded a CSV of', xlsx: 'Downloaded an Excel file of' }
+async function listOut(host, outs) {
+  const lines = []
+  for (const { id, format } of outs) {
+    const door = host.widgets.door?.(id)
+    const lo = door?.listOut?.()
+    if (!lo) throw new Error('That Watchlist widget has no list menu to copy or export from right now')
+    try {
+      const r = format === 'clipboard' ? door.copyList() : door.exportList(format)
+      if (r == null) throw new Error('not offered')
+      await r
+    } catch {
+      throw new Error(format === 'clipboard'
+        ? 'Your browser did not let me copy to the clipboard, so nothing was copied — use the list menu’s “Copy list to clipboard” (right-click the list title)'
+        : format === 'xlsx' ? 'The Excel export did not finish, so nothing was downloaded — try the list menu’s “Export Excel”'
+          : 'The CSV export did not run, so nothing was downloaded — use the list menu’s “Export CSV”')
+    }
+    lines.push(`${OUT_WORD[format]} “${lo.name || 'the list'}”${format === 'clipboard' ? ' to your clipboard' : ''}`)
+  }
+  return { lines }
+}
+// An `action` row (widgets/widgetControls.js): the widget's own button, through its door's act(key). Done only once that resolves;
+// a widget that is gone, or offers no such button right now, fails the change in words.
+async function runActs(host, acts) {
+  const lines = []
+  for (const { id, key, label: what } of acts) {
+    const r = host.widgets.door?.(id)?.act?.(key)
+    if (r == null) throw new Error(`${lines.length ? `${lines.join('; ')}, but the` : 'The'} ${what} can't ${key} right now`)
+    try { await r } catch { throw new Error(`${lines.length ? `${lines.join('; ')}, but the` : 'The'} ${what} did not ${key}: try its own ${key} button`) }
+    lines.push(`${key[0].toUpperCase()}${key.slice(1)}ed the ${what}`)
+  }
+  return { lines }
+}
+// The door's own capture and the Journal's one send path. The receipt is the Journal's own line; a refusal fails the change.
+const SENT = /\b(?:sent to|captured|started)\b/
+async function sendToJournal(host, sends) {
+  const { sendCaptureToJournal } = await loadJournalCapture()
+  const lines = []
+  for (const { id, where } of sends) {
+    const c = host.widgets.door?.(id)?.capture?.()
+    if (!c) throw new Error(`${lines.length ? `${lines.join('; ')}, but a` : 'A'} widget had nothing to send`)
+    const text = await sendCaptureToJournal(c.kind, c.capture, { ...(c.label ? { label: c.label } : {}), target: where })
+    if (!SENT.test(text)) throw new Error(lines.length ? `${lines.join('; ')}, then: ${text}` : text)
+    lines.push(text)
+  }
+  return { lines }
+}
 async function commitGrid(host, g) {
   const raw0 = rawNow(host)
   const geom = {}
@@ -569,6 +811,8 @@ function findTab(w, tab) {
     || (all.filter(t => t.label.toLowerCase() === q).length === 1 ? all.find(t => t.label.toLowerCase() === q) : null)
 }
 const MAX_CHART_TABS = 8
+// what a chart tab shows (production 11-05: "the AAPL tab" could not be told from the others): a tab follows its link colour
+const tabSymbol = (s, w, t, i) => { const syms = s.groupSyms || {}; return (t.color === 'N' ? syms[`N:${i === 0 ? w.id : `${w.id}~${t.key}`}`] : syms[t.color]) || null }
 
 let registered = false
 export function registerBoardCapabilities() {
@@ -592,9 +836,24 @@ export function registerBoardCapabilities() {
           ...(w.type === 'scanner' ? { shows: w.opts?.scanName || null } : {}),
           // a widget's own tabs (the WidgetHost tab strip, any widget type): main + extras
           ...(sanitizeWidgetTabs(w).tabs.length ? { widgetTabs: wtabsOf(w).map(t => ({ tab: t.key, label: t.label, type: label(t.type), ...(t.active ? { active: true } : {}) })) } : {}),
-          ...(w.type === 'chart' && sanitizeChartTabs(w.opts).tabs.length ? { chartTabs: tabsOf(w).map(t => ({ tab: t.key, label: t.label, ...(t.active ? { active: true } : {}), link: t.color })) } : {}),
+          ...(w.type === 'chart' && sanitizeChartTabs(w.opts).tabs.length ? { chartTabs: tabsOf(w).map((t, i) => { const symbol = tabSymbol(s, w, t, i); return { tab: t.key, label: t.label, ...(t.active ? { active: true } : {}), link: t.color, ...(symbol ? { symbol } : {}) } }) } : {}),
         })),
       }]
+    },
+  })
+
+  // armed by this turn's routing (refreshContext), spent by the next build
+  let routedHere = false
+  registerContextProvider({
+    key: 'widgetControls',
+    refreshGroup: 'boardEdit',
+    refresh: ({ groups } = {}) => { if (groups) routedHere = true },
+    compact: () => [{ left: 'ask widget.readOptions' }],
+    build: (host, refFor, { message = '', nl1 = false } = {}) => {
+      const whole = routedHere || nl1 || wordsSelect('boardEdit', message)
+      routedHere = false
+      const s = snapOf(host)
+      return s ? widgetControlSection(s, message, whole) : undefined
     },
   })
 
@@ -616,7 +875,7 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.remove',
-    summary: 'Remove a widget from the board (any type). Undo puts it back exactly — same place, size, link colour and settings. The space it leaves stays empty unless widget.arrange fills it.',
+    summary: 'Remove a widget from the board (any type). Undo puts it back exactly — same place, size, link color and settings. The space it leaves stays empty unless widget.arrange fills it.',
     hints: 'target = the ref of the board entry; widget = the id of the widget from the board entry\'s widgets. If several could be meant, clarify — never guess.',
     args: { type: 'object', properties: { widget: widgetArg }, required: ['widget'], additionalProperties: false },
     // Removing two or more widgets in one request is shown as a proposal first.
@@ -715,24 +974,25 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'chartGrid.set',
-    summary: 'Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts\' area is re-tiled as an even grid. Other widgets stay where they are; nothing is removed. One change, one Undo.',
+    summary: 'Show these tickers as that many charts, in equal cells: the charts already on the board are reused (top-left first), any still needed are ADDED, and the charts\' area is re-tiled as an even grid. Other widgets stay; nothing is removed unless replace is set. One change, one Undo.',
     hints: 'Use for "create/open/show N charts for A, B, C…", "put SPY, QQQ, NVDA and TSLA in a 2x2 grid", "show NVDA and AMD side by side" — whenever the member names the tickers for several charts. '
       + 'target = the ref of the board entry. symbols = the tickers in the member\'s order, uppercase. timeframe = the one timeframe they gave for all of them (1|5|15|30|60 minutes, D, W, M), else null. '
       + 'layout = "columns" for side by side, "rows" for stacked, "grid" for a grid, else null. '
       + 'new_charts = true only when they ask for NEW charts ("in new charts", "add four new charts") — the charts already there then keep their tickers; else null. '
-      + 'watchlist = true when they also ask for a watchlist beside the charts ("…, and a watchlist") and the board has no Watchlist widget: a column on the right is cleared of charts and a Watchlist widget is added there; else null. '
-      + 'replace = true only when the member chose to replace the current board with this workspace; else null. Never widget.add + chart.setSymbol for this.',
+      + 'watchlist = true when they also ask for a watchlist beside the charts ("…, and a watchlist") and the board has none: a Watchlist widget is added in a cleared right column; else null. '
+      + 'replace = true only when they chose to replace the board with this workspace, "charts" to replace only their charts, else null. Never widget.add + chart.setSymbol for this.',
     args: { type: 'object', properties: {
       symbols: { type: 'array', items: { type: 'string' } },
       timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] },
       layout: { type: ['string', 'null'], enum: [...GRID_PATTERNS, null] },
       new_charts: { type: ['boolean', 'null'] },
       watchlist: { type: ['boolean', 'null'] },
-      replace: { type: ['boolean', 'null'] },
+      replace: { type: ['boolean', 'string', 'null'], enum: [true, false, 'charts', null] },
     }, required: ['symbols', 'timeframe', 'layout', 'new_charts', 'watchlist', 'replace'], additionalProperties: false },
     // ⭐ PHASE 3 acceptance: replacing the board removes widgets the member did not name one by one — always shown as a
     // proposal first (the same rule as removing two or more widgets), never applied on a pick alone
-    confirmIf: (st, args) => args?.replace === true,
+    // removing widgets (the board, or just the extra charts) is always shown first — approval-gated
+    confirmIf: (st, args) => args?.replace === true || args?.replace === 'charts',
     async prepare(ops) {
       const syms = [...new Set(ops.flatMap(o => (Array.isArray(o.args?.symbols) ? o.args.symbols : [])).map(s => String(s || '').trim().toUpperCase()).filter(Boolean))]
       return syms.length ? { unknownSymbols: await unknownSymbols(syms) } : {}
@@ -746,14 +1006,28 @@ export function registerBoardCapabilities() {
       const unknown = symbols.map(x => String(x || '').trim().toUpperCase()).filter(x => env?.unknownSymbols?.has?.(x))
       if (unknown.length) return `UCT has no symbol ${andList(unknown.map(u => `“${u}”`))}, so I didn't change the charts.`
       if (st.grid) return 'One chart grid at a time.'
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false, keep: env?.keepTickers || null })
       return plan.ok ? null : plan.reason
     },
     apply(st, { symbols, timeframe, layout, new_charts: newCharts, watchlist, replace }, env) {
       const s = env.target
-      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true })
+      const plan = planChartGrid({ board: st.board, charts: s.charts || new Map(), symbols, timeframe, layout, newCharts: newCharts === true, cols: s.grid.cols, rows: s.grid.rows, minOf: s.minOf, maxWidgets: s.maxWidgets ?? 16, detached: s.detached, rail: railOf(watchlist), replace: replace === true ? true : replace === 'charts' ? 'charts' : false, keep: env?.keepTickers || null })
       if (!plan.ok) return st
-      if (plan.remove.length) plan.removedNames = st.board.filter(w => plan.remove.includes(String(w.id))).map(w => nameOf(w, st.board))
+      // review t4 M2: a chart to remove is named by its TICKER and timeframe (its position only when that still leaves two
+      // alike) — never two entries that read the same
+      if (plan.remove.length) {
+        const gone = st.board.filter(w => plan.remove.includes(String(w.id)))
+        const info = (w) => (w.type === 'chart' ? s.charts?.get?.(String(w.id)) || null : null)
+        const base = (w) => { const c = info(w); return c?.symbol ? `${c.symbol} chart (${tfWordOf(c.tf)})` : nameOf(w, st.board) }
+        const counts = new Map()
+        for (const w of gone) counts.set(base(w), (counts.get(base(w)) || 0) + 1)
+        plan.removedNames = gone.map(w => {
+          const b = base(w)
+          if (counts.get(b) === 1) return b
+          const pos = positionWord(w, st.board)
+          return pos ? b.replace(/\)$/, `, ${pos})`) : b
+        })
+      }
       const board = st.board.filter(w => !plan.remove.includes(String(w.id))).map(w => (plan.set[String(w.id)] ? { ...w, ...plan.set[String(w.id)] } : (plan.unlink.includes(String(w.id)) ? { ...w, color: 'N' } : w)))
       return { ...st, board, grid: plan }
     },
@@ -762,14 +1036,21 @@ export function registerBoardCapabilities() {
       if (!g || g.noop) return null
       const shape = g.tiled && g.shape && g.shape.rows > 1 && g.shape.cols > 1 && g.symbols.length === g.shape.rows * g.shape.cols ? ` in a ${g.shape.rows}×${g.shape.cols} grid`
         : g.tiled && g.shape?.rows === 1 && g.symbols.length > 1 ? ' side by side' : g.tiled && g.shape?.cols === 1 && g.symbols.length > 1 ? ' stacked' : ''
+      // a line of charts that wouldn't fit became the even grid (planChartGrid): said, never left for the member to discover
+      const tiledCount = g.symbols.length + (g.kept || 0)
+      const line = g.reflowed ? `, because ${NUM_WORD[tiledCount] || tiledCount} ${g.reflowed === 'rows' ? 'stacked would be too short' : 'side by side would be too narrow'}` : ''
       const rail = g.rail ? `, with a new ${label(g.rail)} on the right` : g.railMoved ? ', with your Watchlist on the right' : ''
       // ⭐ PHASE 3 acceptance: a replaced board says exactly what went (and that Undo brings it back)
-      const gone = g.remove?.length ? ` — replacing your board: removed ${andList((g.removedNames || []).map(x => `the ${x}`))} (Undo puts ${g.remove.length === 1 ? 'it' : 'them'} back)` : ''
-      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}, re-tiled evenly` : ''}${rail}`
+      const gone = g.remove?.length ? ` — replacing your ${(g.removedNames || []).every(x => /\bchart\b/i.test(String(x))) ? 'charts' : 'board'}: removed ${andList((g.removedNames || []).map(x => `the ${x}`))} (Undo puts ${g.remove.length === 1 ? 'it' : 'them'} back)` : ''
+      // KEEP ≠ RE-CREATE: tickers a chart already showed are said as kept, never as added
+      const kept = g.shown?.length ? ` (${andList(g.shown)} kept as ${g.shown.length === 1 ? 'it is' : 'they are'})` : ''
+      // #1275 (AUDIT): "evenly" only when every resulting cell is the same size (planChartGrid's equalCells); else a neutral word
+      if (g.newCharts && !g.symbols.length) return `${g.equalCells ? 'Arranged' : 'Re-arranged'} your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}${g.equalCells ? ' evenly' : ''}${kept} — every ticker you named is already on the board, so nothing new was added`
+      if (g.newCharts) return `Added ${gridPhrase(g, { fresh: true })}${g.kept ? ` beside your ${g.kept === 1 ? 'chart' : `${g.kept} charts`}${kept}, re-tiled${g.equalCells ? ' evenly' : ''}` : ''}${line}${rail}`
       const nNew = g.add.filter(a => !a.type || a.type === 'chart').length
       const parts = [g.reuse.length && nNew ? `${g.reuse.length} reused, ${nNew} new` : nNew ? `${nNew} new` : null,
         g.unlink.length ? `${g.unlink.length} unlinked so ${g.unlink.length === 1 ? 'it' : 'each'} can show its own ticker` : null].filter(Boolean)
-      return `Set up ${gridPhrase(g)}${shape}${parts.length ? ` (${parts.join('; ')})` : ''}${rail}${gone}`
+      return `Set up ${gridPhrase(g)}${shape}${line}${parts.length ? ` (${parts.join('; ')})` : ''}${rail}${gone}`
     },
     noop: () => 'Those charts already show those tickers',
   })
@@ -814,15 +1095,15 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'widget.setLink',
-    summary: 'Set a widget\'s link colour: widgets with the same colour follow the same symbol; N = not linked.',
-    hints: `target = the ref of the board entry; widget = its id; color = ${LINKS.map(c => `${c} (${LINK_NAME[c]})`).join(', ')} — E–H only when the board entry says extraLinkColors: true. "Link these two charts" = give both the same colour (use one already on one of them).`,
+    summary: 'Set a widget\'s link color: widgets with the same color follow the same symbol; N = not linked.',
+    hints: `target = the ref of the board entry; widget = its id; color = ${LINKS.map(c => `${c} (${LINK_NAME[c]})`).join(', ')} — E–H only when the board entry says extraLinkColors: true. "Link these two charts" = give both the same color (use one already on one of them).`,
     args: { type: 'object', properties: { widget: widgetArg, color: { type: 'string', enum: LINKS } }, required: ['widget', 'color'], additionalProperties: false },
     check(st, { widget, color }, env) {
       const t = widgetOf(st, widget)
       if (!t) return notOnBoard(widget)
-      if (!LINKS.includes(color)) return `Link colours are ${LINKS.join(', ')}.`
+      if (!LINKS.includes(color)) return `Link colors are ${LINKS.join(', ')}.`
       if (extraOff(env, color)) return extraOff(env, color)
-      if (Array.isArray(t.wtabs) && t.wtabs.length) return `The ${label(t.type)} has tabs — set the link colour on its tab with the colour dot.`
+      if (Array.isArray(t.wtabs) && t.wtabs.length) return `The ${label(t.type)} has tabs — set the link color on its tab with the color dot.`
       return null
     },
     apply: (st, { widget, color }) => {
@@ -834,7 +1115,7 @@ export function registerBoardCapabilities() {
       if (!o || !n || o.color === n.color) return null
       return n.color === NOT_LINKED ? `Unlinked the ${nameOf(o, b.board)}` : `Linked the ${nameOf(o, b.board)} to the ${LINK_NAME[n.color]} group (${n.color})`
     },
-    noop: () => 'It already has that link colour',
+    noop: () => 'It already has that link color',
   })
 
   reg({
@@ -864,28 +1145,71 @@ export function registerBoardCapabilities() {
     noop: () => 'It already shows that list',
   })
 
-  // ── widget.setOption (W1-B B-05): ONE option of ONE widget, validated against the registry's param schema ──
-  // The registry (widgets/registry.js paramsSchema) is the product's own description of each widget's options.
-  // Offered: the SCALAR ones (enum | boolean | number) that are not identity (`required`) keys and not capture-only
-  // bookkeeping (a notebook stamp's fields). A NUMBER only with a declared range (`min`/`max` on the schema entry — the
-  // product's own bound); an unbounded number is refused, never written. Everything else — lists, blobs, symbols, keys —
-  // has its own capability or none.
-  const OPTION_TYPES = new Set(['enum', 'boolean', 'number'])
-  const bounded = (f) => f.type !== 'number' || (Number.isFinite(f.min) && Number.isFinite(f.max) && f.min < f.max)
-  // marketcontext: a notebook stamp's own keys; profile.statYear: a capture's frozen clock — neither is a widget control
-  const NOT_OPTIONS = new Set(['fields', 'uncaptured', 'reason', 'statYear'])
-  const optionsOf = (type) => (WIDGET_REGISTRY[type]?.paramsSchema || []).filter(f => OPTION_TYPES.has(f.type) && !f.required && !NOT_OPTIONS.has(f.key) && bounded(f))
+  // ── widget.setOption (W1-B B-05): ONE control of ONE widget, validated against the widget registry ──
+  // widgetControls (widgets/registry.js) is the product's own description of what a person can set on each widget: the
+  // `live` paramsSchema fields, then its `controls`. A NUMBER only with a declared range; an unbounded number is refused,
+  // never written. Lists, blobs, symbols and keys that are no control have their own capability or none.
+  // ⛔ A RECEIPT FOLLOWS A REAL CHANGE. paramsSchema describes what a Notebook stamp FREEZES, which is not what a live
+  // widget reads back from opts. A row is offered only once it is in widgetControls — default-deny, so a new schema field is
+  // never settable by accident — and settingsLiveness.test.js fails a row its widget does not read. A declared field that
+  // is not a control refuses in words. A control the widget keeps itself is written by the widget's own door, and read back
+  // through that door before the receipt: with no door mounted there is nothing to write to, and it refuses.
+  const scalarsOf = widgetOptionFields
   const TRUE_WORDS = ['true', 'on', 'yes', 'show', 'enabled'], FALSE_WORDS = ['false', 'off', 'no', 'hide', 'disabled']
-  /** The value in the option's own type, or a refusal. */
-  const coerceOption = (f, raw) => {
+  const norm = (v) => String(v ?? '').trim().toLowerCase()
+  const listed = (choices) => `${choices.slice(0, 12).map(c => c.label).join(', ')}${choices.length > 12 ? ` and ${choices.length - 12} more` : ''}`
+  /** The choice a word names: its value or label, or the one label that contains it. A widget's own list (themes, universes)
+   *  is not in front of the model, so a short name has to work; two that fit is a refusal, never a guess. */
+  const pick = (f, choices, raw) => {
+    const hit = choices.find(c => norm(c.value) === norm(raw) || norm(c.label) === norm(raw))
+    if (hit || f.from !== 'door' || !norm(raw)) return hit
+    const near = choices.filter(c => norm(c.label).includes(norm(raw)))
+    return near.length === 1 ? near[0] : undefined
+  }
+  /** The value in the control's own type, or a refusal. A `set` answers with its whole next list. */
+  const coerceOption = (f, raw, choices, current) => {
+    if (f.type === 'set') {
+      const m = /^\s*([+-])\s*(.+)$/.exec(String(raw))
+      if (!m) return { why: `“${f.key}” takes +member or -member.` }
+      const hit = pick(f, choices, m[2])
+      if (!hit) return { why: `“${m[2]}” isn't one of ${f.key}: ${listed(choices)}.` }
+      const on = (m[1] === '+') !== (f.inverse === true)
+      const base = Array.isArray(current) ? current : []
+      const start = f.all && !base.length && m[1] === '-' ? choices.map(c => c.value) : base
+      const next = on ? (start.includes(hit.value) ? start : [...start, hit.value]) : start.filter(v => v !== hit.value)
+      if (f.door && !next.length) return { why: `The widget keeps at least one of ${f.key}.` }
+      const ordered = f.all ? choices.map(c => c.value).filter(v => next.includes(v)) : next
+      return { value: f.all && ordered.length === choices.length ? [] : ordered }
+    }
     if (f.type === 'enum') {
-      const hit = (f.options || []).find(o => String(o).toLowerCase() === String(raw).trim().toLowerCase())
-      return hit !== undefined ? { value: hit } : { why: `“${f.key}” can be ${(f.options || []).join(', ')} — not “${raw}”.` }
+      const hit = pick(f, choices, raw)
+      return hit ? { value: hit.value } : { why: `“${f.key}” can be ${listed(choices)} — not “${raw}”.` }
+    }
+    // a widget's own search box (type text): the words as typed, trimmed; empty clears it; never longer than the box takes
+    if (f.type === 'text') {
+      const t = String(raw ?? '').replace(/\s+/g, ' ').trim()
+      return t.length > (f.max || 80) ? { why: `“${f.key}” takes at most ${f.max || 80} characters.` } : { value: t }
+    }
+    // a colour, as the widget's own swatch stores it: #rrggbb (a #rgb is spelled out); a colour name is the planner's to convert
+    if (f.type === 'color') {
+      const m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(String(raw ?? '').trim())
+      if (!m) return { why: `“${f.key}” is a color as #rrggbb — not “${raw}”.` }
+      const h = m[1].toLowerCase()
+      return { value: `#${h.length === 3 ? [...h].map(c => c + c).join('') : h}` }
+    }
+    // an `action` row is the widget's own button: "run" (or true) presses it once; there is no off
+    if (f.type === 'action') {
+      const s = norm(raw)
+      return raw === true || ['run', 'true', 'yes', 'on', norm(f.key)].includes(s) ? { value: 'run' } : { why: `“${f.key}” is a button: the value is "run".` }
     }
     if (f.type === 'boolean') {
       if (typeof raw === 'boolean') return { value: raw }
-      const s = String(raw).trim().toLowerCase()
+      const s = norm(raw)
       return TRUE_WORDS.includes(s) ? { value: true } : FALSE_WORDS.includes(s) ? { value: false } : { why: `“${f.key}” is on or off.` }
+    }
+    if (f.type === 'day') {
+      const d = dayOf(raw)
+      return d ? { value: d } : { why: `I couldn't read “${raw}” as a day — say it as YYYY-MM-DD, or “tomorrow”.` }
     }
     const n = typeof raw === 'number' ? raw : Number(String(raw).trim())
     if (!Number.isFinite(n)) return { why: `“${f.key}” is a number from ${f.min} to ${f.max}.` }
@@ -893,34 +1217,202 @@ export function registerBoardCapabilities() {
     if (f.integer && !Number.isInteger(n)) return { why: `“${f.key}” is a whole number from ${f.min} to ${f.max}.` }
     return { value: n }
   }
-  const optionWord = (f) => `${f.key}${f.type === 'enum' ? ` (${(f.options || []).join('|')})` : f.type === 'boolean' ? ' (on/off)' : ` (${f.min}–${f.max})`}`
-  const OPTION_HINT = WORKSPACE_MENU_TYPES.map(t => [t, optionsOf(t)]).filter(([, os]) => os.length).map(([t, os]) => `${t}: ${os.map(optionWord).join(', ')}`).join('; ')
+  const controlFor = (t, key) => widgetControls(t.type).find(o => o.key === String(key)) || null
+  // ── round 3 (pl-exec, C3-174): a widget's own LIST of the member's items (a Theme Tracker's theme sets), renamed or deleted
+  // exactly as the widget's own menu does (its Rename / Delete controls, through its door), as ONE more control of
+  // widget.setOption (no new action: byte-neutral manifest). value = "rename:<name>=><new name>" | "delete:<name>". A rename is
+  // undone by renaming back; a delete is always shown first (confirmIf) and cannot be undone. ──
+  const listFor = (t, key) => (ITEM_LISTS[t.type] || []).find(l => l.key === String(key)) || null
+  const itemsNow = (st, t, l) => (Array.isArray(st.doors?.[t.id]?.[l.key]) ? st.doors[t.id][l.key] : [])
+  const pickItem = (items, raw) => {
+    const w = norm(raw)
+    const exact = items.filter(x => norm(x.name) === w || norm(x.id) === w)
+    const near = exact.length ? exact : items.filter(x => norm(x.name).includes(w))
+    return near.length === 1 ? { item: near[0] } : { why: near.length ? `“${raw}” could be ${near.map(x => `“${x.name}”`).join(' or ')}` : `there is no “${raw}”` }
+  }
+  const ITEM_OP = /^\s*(rename|delete|create)\s*(?::\s*(.+?))?(?:\s*=>\s*(.+?))?\s*$/i
+  /** "rename:Mine=>Growth" → { op, item, name } | null */
+  const itemOp = (value) => { const m = ITEM_OP.exec(String(value ?? '')); return m ? { op: m[1].toLowerCase(), item: m[2] ?? '', name: m[3] ?? null } : null }
+  function itemWhy(st, t, key, value, env) {
+    const io = itemOp(value)
+    const l = listFor(t, key)
+    if (!io) return `${l.noun[0].toUpperCase()}${l.noun.slice(1)}s take ${l.ops.map(o => (o === 'rename' ? '"rename:<name>=><new name>"' : o === 'create' ? '"create"' : `"${o}:<name>"`)).join(' or ')}.`
+    // round 6 (C3-202): CREATE through the widget's own New control: a new blank item, opened as the control opens it
+    if (io.op === 'create') {
+      if (!l.ops.includes('create')) return `The ${label(t.type)} can't create a ${l.noun} from here.`
+      // a NAMED item (a saved look): the name is the member's, said; one of the same name is replaced, as the widget's own Save does
+      if (l.named && !String(io.item || '').trim()) return `Say the name to save the ${l.noun} as.`
+      return doorFor(env, t) ? null : `The ${label(t.type)} isn't showing right now, so I can't reach its New control.`
+    }
+    const r = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
+    if (r.why) return r.why
+    if (io.op === 'rename') {
+      const name = String(io.name || '').trim()
+      if (!name) return `Say the new name for “${r.it.name}”.`
+      if (r.items.some(x => x.id !== r.it.id && norm(x.name) === norm(name))) return `You already have a ${l.noun} named “${name}”.`
+    }
+    return null
+  }
+  function itemApply(st, t, key, value, env) {
+    const io = itemOp(value)
+    if (io.op === 'create') {
+      // ONE operation, as the widget's own New control does it (AUDIT S1-A): read back by a new item appearing
+      const l = listFor(t, key)
+      const items = itemsNow(st, t, l)
+      const name = l.named ? String(io.item).trim() : (l.blank || 'Untitled')
+      const op = { widget: t.id, key: l.key, op: 'create', id: null, name, was: null, label: name, ids: items.map(x => x.id) }
+      return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: [...items.filter(x => !(l.named && norm(x.name) === norm(name))), { id: null, name }] } }, itemOps: [...(st.itemOps || []), op] }
+    }
+    const { l, items, it } = itemCheck(st, { widget: t.id, list: key, item: io.item }, env, io.op)
+    const name = io.op === 'rename' ? String(io.name).trim() : null
+    const next = io.op === 'delete' ? items.filter(x => x.id !== it.id) : items.map(x => (x.id === it.id ? { ...x, name } : x))
+    if (same(next, items)) return st
+    const op = { widget: t.id, key: l.key, op: io.op, id: it.id, name, was: it.name, label: it.name }
+    return { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [l.key]: next } }, itemOps: [...(st.itemOps || []), op] }
+  }
+  const itemCheck = (st, { widget, list, item }, env, op) => {
+    const t = widgetOf(st, widget)
+    if (!t) return { why: notOnBoard(widget) }
+    const l = listFor(t, list)
+    if (!l || !l.ops.includes(op)) return { why: `The ${label(t.type)} has no list “${list}” I can ${op} in.${(ITEM_LISTS[t.type] || []).length ? ` Its lists: ${ITEM_LISTS[t.type].map(x => x.key).join(', ')}.` : ''}` }
+    if (!doorFor(env, t)) return { why: `The ${label(t.type)} isn't showing right now, so I can't reach its ${l.noun}s.` }
+    const items = itemsNow(st, t, l)
+    if (!items.length) return { why: `You have no ${l.noun}s on the ${label(t.type)} yet.` }
+    const p = pickItem(items, item)
+    return p.why ? { why: `${p.why} among your ${l.noun}s (${items.map(x => x.name).join(', ')}).` } : { t, l, items, it: p.item }
+  }
+
+  const doorFor = (env, t) => env?.target?.doorOf?.(t.id) || null
+  const coerced = (st, t, f, value, env) => coerceOption(f, value, choicesOf(f, doorFor(env, t)), valueOf(f, { ...t }, st.doors))
   reg({
     ...common,
     name: 'widget.setOption',
-    summary: 'Change ONE option of a widget on the board — what its own settings control writes (a Theme Tracker period or sort, a Fundamentals view, a Breadth tile style, a News filter, an Options Flow lead / scope, the Terminal\'s star filter…). Undo puts the previous value back.',
-    hints: `target = the ref of the board entry; widget = the widget id; key = the option name from the widget type's own list below (never invented); value = one of its allowed values. Options by widget type — ${OPTION_HINT}. A widget type not listed has no options here.`,
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, how),
+    summary: 'Change ONE control of a widget on the board, exactly as the widget\'s own control does: a view, a filter, a period, the day shown, the open theme, a universe, an axis, a reading shown or hidden. Undo puts it back.',
+    hints: 'target = the board entry; widget = the widget id; key and value from the widgetControls section, by type (never invented): “ask widget.readOptions” = the widget\'s own list right now, and a name is enough. (+/-) takes "+member" or "-member". `set` is how a widget is set now. No entry for its type: use widget.readOptions, which lists them.',
     args: { type: 'object', properties: { widget: widgetArg, key: { type: 'string' }, value: { type: ['string', 'number', 'boolean'] } }, required: ['widget', 'key', 'value'], additionalProperties: false },
-    check(st, { widget, key, value }) {
+    // a delete of one of the member's items (a theme set) is shown first: it cannot be undone
+    confirmIf: (st, { widget, key, value } = {}) => { const t = widgetOf(st, widget); return !!(t && listFor(t, key) && ['delete', 'create'].includes(itemOp(value)?.op)) },
+    check(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
       if (!t) return notOnBoard(widget)
-      const opts = optionsOf(t.type)
+      if (listFor(t, key)) return itemWhy(st, t, key, value, env)
+      const opts = widgetControls(t.type)
+      const f = controlFor(t, key)
+      if (f?.when?.(t.opts, st.doors?.[t.id])) return f.when(t.opts, st.doors?.[t.id])
+      if (!f && scalarsOf(t.type).some(x => x.key === String(key))) return `I can't change “${key}” on the ${label(t.type)}: the widget doesn't read a saved value for it, so nothing would change. Use the control on the widget itself.`
       if (!opts.length) return `The ${label(t.type)} has no options I can change here.`
-      const f = opts.find(o => o.key === String(key))
       if (!f) return `The ${label(t.type)} has no option “${key}” — its options are ${opts.map(o => o.key).join(', ')}.`
-      return coerceOption(f, value).why || null
+      const door = doorFor(env, t)
+      if ((f.door || f.from === 'door' || f.type === 'action') && !door) return `The ${label(t.type)} isn't showing right now, so I can't reach its ${f.key}.`
+      if (f.type === 'action' && typeof door.act !== 'function') return `The ${label(t.type)} has no ${f.key} button right now.`
+      // AUDIT #1027: only a button that READS (re-reads, keeps nothing) is pressed; one that writes or destroys has no Undo here
+      if (f.type === 'action' && f.effect !== 'read') return `I can't press the ${label(t.type)}'s ${f.key} for you — use the button on the widget itself.`
+      // AUDIT #1027 (3): one press of a widget's button per request — a Refresh re-reads a server scan (cached server-side: 60 s for
+      // a preset scan, 300 s for a period ranking), so a request never asks the server for it more than once
+      if (f.type === 'action' && (st.acts || []).some(x => x.id === t.id && x.key === f.key)) return `The ${label(t.type)}'s ${f.key} is already being pressed once in this request.`
+      if (f.from === 'door' && !choicesOf(f, door).length) return `The ${label(t.type)} has nothing to choose for ${f.key} yet.`
+      const c = coerced(st, t, f, value, env)
+      if (c.why) return c.why
+      // ONE choice per single-select control in one request, as the widget's own chips allow ("calls and puts only" is refused
+      // with the control's own choices, never one of the two quietly winning)
+      const was = f.type === 'enum' ? st.chose?.[`${t.id}\u0000${f.key}`] : undefined
+      if (was !== undefined && !same(was, c.value)) {
+        const ch = choicesOf(f, door)
+        return `${f.key} on the ${label(t.type)} is one choice: ${listed(ch)} — not ${says(f, was, ch)} and ${says(f, c.value, ch)} together. Nothing changed.`
+      }
+      return null
     },
-    apply(st, { widget, key, value }) {
+    apply(st, { widget, key, value }, env) {
       const t = widgetOf(st, widget)
-      const f = optionsOf(t.type).find(o => o.key === String(key))
-      const opts = { ...(t.opts || {}), [f.key]: coerceOption(f, value).value }
-      return same(opts, t.opts) ? st : { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, opts } : w)) }
+      if (listFor(t, key)) return itemApply(st, t, key, value, env)
+      const f = controlFor(t, key)
+      const next = coerced(st, t, f, value, env).value
+      if (f.type === 'action') return { ...st, acts: [...(st.acts || []), { id: t.id, key: f.key, label: label(t.type) }] }
+      // what this request chose for a single-select control (check refuses a second, different one). Kept on the plan's own
+      // state object, so an op that changes nothing stays the same state (the executor's no-op test is identity)
+      if (f.type === 'enum') { st.chose ||= {}; st.chose[`${t.id}\u0000${f.key}`] = next }
+      if (f.door) return same(next, valueOf(f, t, st.doors)) ? st : { ...st, doors: { ...st.doors, [t.id]: { ...st.doors[t.id], [f.key]: next } } }
+      const opts = f.write ? f.write(t.opts, next) : withPath(t.opts, f, next)
+      if (same(next, atPath(t.opts, f)) || same(opts, t.opts)) return st
+      // what the widget's own control clears with it (`clears`: News's applied preset no longer describes the filters)
+      for (const k of f.clears || []) if (opts[k] != null) opts[k] = null
+      return { ...st, board: st.board.map(w => (w.id === t.id ? { ...w, opts } : w)) }
     },
-    describe(b, a, { widget, key }) {
+    describe(b, a, { widget, key, value }, env) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
-      return o && n && !same(o.opts, n.opts) ? `The ${nameOf(o, b.board)}: ${key} is now ${String(n.opts[key])}${o.opts && o.opts[key] !== undefined ? ` (was ${String(o.opts[key])})` : ''}` : null
+      if (!o || !n) return null
+      const l = listFor(o, key)
+      if (l) {
+        const io = itemOp(value)
+        if (same(b.doors?.[o.id]?.[key], a.doors?.[o.id]?.[key]) || !io) return null
+        if (io.op === 'create') return l.named ? `The ${nameOf(o, b.board)}: saved its current ${l.noun} as “${String(io.item).trim()}”` : `The ${nameOf(o, b.board)}: created a new blank ${l.noun} and opened it, as its New control does`
+        // ⛔ AUDIT S1-B: the item the words RESOLVED to ("mine" → "Mine growth"), as the card and the receipt must name it
+        const it = pickItem(itemsNow(b, o, l), io.item).item
+        const what = it ? it.name : io.item
+        return io.op === 'delete' ? `The ${nameOf(o, b.board)}: deleted the ${l.noun} “${what}” (there is no Undo)` : `The ${nameOf(o, b.board)}: renamed the ${l.noun} “${what}” to “${String(io.name).trim()}”`
+      }
+      const f = controlFor(o, key)
+      if (f?.type === 'action') return (a.acts || []).length > (b.acts || []).length ? `${f.key[0].toUpperCase()}${f.key.slice(1)} the ${nameOf(o, b.board)}, as its own ${f.key} button does` : null
+      const was = valueOf(f, o, b.doors), now = valueOf(f, n, a.doors)
+      if (same(was, now)) return null
+      const choices = choicesOf(f, doorFor(env, o))
+      const stated = f.door ? b.doors?.[o.id]?.[f.key] !== undefined : atPath(o.opts, f) !== undefined
+      return `The ${nameOf(o, b.board)}: ${key} is now ${says(f, now, choices)}${stated ? ` (was ${says(f, was, choices)})` : ''}`
     },
-    noop: (b, a, { key, value } = {}) => `${key} is already ${String(value)}`,
+    noop: (b, a, { key, value } = {}) => `${key} is already ${String(value).replace(/^[+-]\s*/, '')}`,
+  })
+
+  // ── widget.readOptions: how a widget is set right now, read the way a person reads it off the widget ──
+  registerCapability({
+    ...common,
+    name: 'widget.readOptions',
+    query: true,
+    summary: 'Say how a widget on the board is set right now: each control\'s value and its choices (the themes it can open, a map\'s axes, a Scanner\'s criteria…).',
+    hints: 'target = the board entry; widget = the widget id.',
+    args: { type: 'object', properties: { widget: widgetArg }, required: ['widget'], additionalProperties: false },
+    answer(s, { widget }) {
+      const w = s?.raw?.find(x => String(x.id) === String(widget))
+      if (!w) return notOnBoard(widget)
+      const door = s.doorOf?.(w.id) || null
+      const rows = widgetControls(w.type).filter(f => f.type !== 'action' && (door || !(f.door || f.from === 'door'))).map(f => ({ f, choices: choicesOf(f, door) }))
+      const now = rows.map(({ f, choices }) => `${f.key} ${says(f, valueOf(f, w, s.doors), choices)}`)
+      let about = null
+      try { about = door?.about?.() || null } catch { about = null }
+      if (about) now.push(about)
+      if (!now.length) return `The ${label(w.type)} has no settings I can read.`
+      // the first line is the answer; the panel folds what follows
+      const can = rows.filter(r => r.choices.length).map(({ f, choices }) => `${f.key}: ${listed(choices)}`)
+      return [`The ${label(w.type)}: ${now.join(', ')}.`, ...(can.length ? ['', 'Choices:', ...can] : [])].join('\n')
+    },
+  })
+
+  // ── widget.sendToJournal: the widget's own Send to Journal door. Offered when the door is (a widget that holds nothing,
+  // or a capture kind not released, has no door). The capture is the door's; the send is sendCaptureToJournal, the one path
+  // every door uses. The member approves it: it writes into their notes, and no door has a way back.
+  const SEND_WHERE = { note: 'your current note (or the Notebook inbox)', newNote: 'a new Notebook entry', inbox: 'your Notebook inbox' }
+  reg({
+    ...common,
+    name: 'widget.sendToJournal',
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, how),
+    risk: 'confirm', reversible: false, undo: 'none',
+    absentAsNull: ['where'],
+    summary: 'Send a frozen capture of what a widget on the board shows now to the member\'s Journal, exactly as the widget\'s Send to Journal door does: a chart, scan, list, breadth, a calendar day, themes… One op per widget. There is no Undo.',
+    hints: 'target = the board entry; widget = the widget id; where = note (their current note, else the inbox: the default), newNote or inbox.',
+    args: { type: 'object', properties: { widget: widgetArg, where: { type: ['string', 'null'], enum: ['note', 'newNote', 'inbox', null] } }, required: ['widget', 'where'], additionalProperties: false },
+    check(st, { widget }, env) {
+      const t = widgetOf(st, widget)
+      if (!t) return notOnBoard(widget)
+      if (st.sends.some(x => x.id === t.id)) return 'That widget is already going to your Journal in this request.'
+      let c = null
+      try { c = doorFor(env, t)?.capture?.() || null } catch { c = null }
+      return c ? null : `The ${label(t.type)} has nothing to send to your Journal right now.`
+    },
+    apply: (st, { widget, where }) => ({ ...st, sends: [...st.sends, { id: widgetOf(st, widget).id, where: where || 'note' }] }),
+    describe(b, a, { widget, where }) {
+      const o = b.board.find(w => w.id === String(widget))
+      return o ? `Send the ${nameOf(o, b.board)} to ${SEND_WHERE[where || 'note']}` : null
+    },
   })
 
   // ── watchlist.open: "open it in my workspace" (the product's ?openWatchlist= door) ──
@@ -964,7 +1456,7 @@ export function registerBoardCapabilities() {
     check(st, { list }, env) {
       if (!listName(list, env)) return 'That isn\'t one of your watchlists.'
       if (!switchable(st, env) && !env?.target?.fitsWatchlist) {
-        return 'There\'s no Watchlist widget on this board and no empty space for one — add a Watchlist widget (Widgets ▾) or make room, then ask me to open the list.'
+        return 'There\'s no Watchlist widget on this board and no empty space for one — add a Watchlist widget (+ Add widget) or make room, then ask me to open the list.'
       }
       return null
     },
@@ -981,6 +1473,135 @@ export function registerBoardCapabilities() {
     },
     describe: (b, a) => (a.opened && a.opened !== b.opened ? `Opened “${a.opened.name}” in ${a.opened.where}` : null),
     noop: (st, _a, { list }, env) => `“${listName(list, env) || 'That list'}” is already open in your Watchlist widget`,
+  })
+
+  // ── watchlist.showList (pl-exec, watchlist group A; Lead decisions 2026-11-09): what ONE Watchlist widget shows, written exactly
+  // as its own picker writes it (WatchlistWidget pick / exitPick: opts.watchKey, watchName, watchTab) — the member's own list,
+  // UCT's prebuilt directory, a community list, Flagged, or back to the picker. Only on an explicit request (the receipt names the
+  // list or the mode; Undo puts the previous watchKey back exactly). A colour-tag list has no door in the widget: refused. A name
+  // that matches nothing (or several) is said with the near names — never picked. Several widgets and none named: asked.
+  const SHOW_SOURCES = ['mine', 'prebuilt', 'community', 'flagged', 'picker', 'tag']
+  const TAG_ASK = /^(?:please\s+)?(?:(?:colou?r[-\s]?)?tag|mark|give)\s+\$?[a-z]{1,5}\s+(?:with\s+)?(?:an?\s+)?(?:red|blue|green|yellow|orange|purple|pink)(?:\s+tag)?[.!]?$/
+  const TAG_SAY = 'Color tags can\'t be set from the Charts watchlist widget — tickers are color-tagged in the Journal (its ticker tags). Nothing changed.'
+  const SOURCE_WORD = { mine: 'your list', prebuilt: 'UCT prebuilt list', community: 'community list' }
+  const showable = (st, env) => st.board.filter(w => w.type === 'watchlist' && !w.opts?.source && !w.opts?.listSub
+    && !(env?.target?.detached || []).includes(String(w.id)))
+  function showTarget(st, widget, env) {
+    const all = showable(st, env)
+    if (widget != null && String(widget) !== '') {
+      const t = widgetOf(st, widget)
+      if (!t) return { why: notOnBoard(widget) }
+      if (t.type !== 'watchlist') return { why: `The ${label(t.type)} isn't a Watchlist widget.` }
+      if (!all.includes(t)) return { why: 'That Watchlist widget shows a list UCT chose or one you follow, or it is floating; switch it from its own list menu.' }
+      return { w: t }
+    }
+    if (all.length === 1) return { w: all[0] }
+    if (!all.length) return { why: 'There is no Watchlist widget on this board I can switch — add one (+ Add widget), then ask again.' }
+    const lists = st.board.filter(w => w.type === 'watchlist')
+    return { why: `Which Watchlist widget — ${all.map(w => `the ${positionOf(w, lists) || nameOf(w, st.board)}`).join(' or ')}? Nothing changed yet.` }
+  }
+  const positionOf = (w, lists) => { try { return positionWord(w, lists) } catch { return '' } }
+  function showPick(st, { source, name }, env) {
+    if (source === 'picker') return { key: null, name: null }
+    if (source === 'flagged') return { key: 'flagged', name: 'Flagged', tab: 'mine' }
+    if (source === 'tag') return { why: 'Color-tag lists open on the Watchlists page — the Watchlist widget picks a saved, prebuilt, community or Flagged list from its own picker.' }
+    if (!String(name || '').trim()) return { why: 'Which list? Say its name.' }
+    if (source === 'mine') {
+      const rows = [...(env?.target?.lists || new Map()).entries()].map(([id, n]) => ({ id, name: n }))
+      const m = matchListName(rows, name)
+      if (m.hit) return { key: `user:${m.hit.id}`, name: m.hit.name, tab: 'mine' }
+      return { why: nearWhy(name, m.near, 'of your watchlists') }
+    }
+    const cat = env?.listCatalog
+    if (!cat) return { why: 'I couldn\'t read the prebuilt and community lists just now, so nothing changed — try again in a moment.' }
+    const m = matchListName(cat[source] || [], name)
+    if (m.hit) return { key: m.hit.key, name: m.hit.name, tab: source }
+    return { why: nearWhy(name, m.near, source === 'prebuilt' ? 'of UCT\'s prebuilt lists' : 'of the community lists') }
+  }
+  const nearWhy = (name, near, where) => (near.length
+    ? `“${name}” isn't one ${where} I can match exactly — did you mean ${near.map(n => `“${n}”`).join(' or ')}? Nothing changed yet.`
+    : `There's no “${name}” among ${where.replace(/^of /, '')}. Nothing changed yet.`)
+  reg({
+    ...common,
+    name: 'watchlist.showList',
+    // which Watchlist widget: the words decide (whichWidget.js); a widget bound to a source cannot switch lists, so it is no candidate
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, { ...how, type: 'watchlist', can: listSwitchable }),
+    // C3-090 (Lead 2026-11-09): a COLOUR TAG on a ticker is not available from the Charts watchlist widget — said in fixed words,
+    // naming where it exists (the Journal's ticker tags), never navigating and never changing anything
+    fastWhole: true,
+    fast: ({ lower }) => (TAG_ASK.test(String(lower || '').trim()) ? { __say: TAG_SAY } : null),
+    summary: 'Make ONE Watchlist widget show a list exactly as its picker does: one of the member\'s lists, a UCT prebuilt or community list, Flagged — or go back to its list picker. Undo puts back what it showed.',
+    hints: 'target = the board entry; widget = the Watchlist widget\'s id, or null when only one; source = mine | prebuilt | community | flagged | picker (tag = a color tag: refused); name = the list\'s name as said, null for flagged / picker.',
+    args: { type: 'object', properties: { widget: { type: ['string', 'null'] }, source: { type: 'string', enum: SHOW_SOURCES }, name: { type: ['string', 'null'] } }, required: ['widget', 'source', 'name'], additionalProperties: false },
+    async prepare(ops) {
+      if (!ops.some(o => ['prebuilt', 'community'].includes(o?.args?.source))) return {}
+      return { listCatalog: await loadCatalog() }
+    },
+    check(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      if (t.why) return t.why
+      return showPick(st, args, env).why || null
+    },
+    apply(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      const pick = showPick(st, args, env)
+      if (t.why || pick.why) return st
+      const cur = t.w.opts || {}
+      const opts = pick.key == null
+        ? { ...cur, watchKey: null, watchName: null }                                       // exitPick: watchTab kept (the picker reopens on it)
+        : { ...cur, watchKey: pick.key, watchName: pick.name, watchTab: pick.tab }
+      if ((cur.watchKey ?? null) === (opts.watchKey ?? null)) return st
+      return { ...st, board: st.board.map(w => (w.id === t.w.id ? { ...w, opts } : w)), shown: { id: t.w.id, name: pick.name, source: args.source } }
+    },
+    describe(b, a) {
+      const sh = a.shown && a.shown !== b.shown ? a.shown : null
+      if (!sh) return null
+      const w = b.board.find(x => x.id === sh.id)
+      const where = w ? `the ${nameOf(w, b.board)}` : 'your Watchlist widget'
+      if (sh.source === 'picker') return `${where[0].toUpperCase()}${where.slice(1)} is back on its list picker`
+      return `${where[0].toUpperCase()}${where.slice(1)} now shows “${sh.name}”${SOURCE_WORD[sh.source] ? ` (${SOURCE_WORD[sh.source]})` : ''}`
+    },
+    noop: (st, _a, { source, name } = {}) => (source === 'picker' ? 'That Watchlist widget is already on its list picker' : `It already shows “${name || 'Flagged'}”`),
+  })
+
+  // ── watchlist.exportList (pl-exec, watchlist group D; Lead decisions 2026-11-09): the list menu's own Copy list to clipboard /
+  // Export CSV / Export Excel on the list ONE Watchlist widget shows — the same handlers and conditions (Copy: any list it has a
+  // menu for; Export: the member's own lists; Excel: only with the export quota, and always proposed first: it spends one).
+  // Nothing in the workspace changes, so there is no Undo. "Copied" only once the write resolved.
+  const OUT_FORMATS = ['clipboard', 'csv', 'xlsx']
+  reg({
+    ...common,
+    name: 'watchlist.exportList',
+    resolveArgs: (args, host, member, how) => whichWidget(args, host, member, { ...how, type: 'watchlist', can: listSwitchable }),
+    undo: 'none',
+    undoNote: 'Copying or exporting a list changes nothing in your workspace, so there is nothing to undo.',
+    summary: 'Copy the list ONE Watchlist widget shows to the clipboard, or download it as CSV or Excel — the list menu\'s own Copy / Export. Excel uses an export from the member\'s quota.',
+    hints: 'target = the board entry; widget = the Watchlist widget\'s id, or null when only one; format = clipboard | csv | xlsx.',
+    args: { type: 'object', properties: { widget: { type: ['string', 'null'] }, format: { type: 'string', enum: OUT_FORMATS } }, required: ['widget', 'format'], additionalProperties: false },
+    confirmIf: (st, { format } = {}) => format === 'xlsx',                     // a quota is spent: shown first, never silently
+    check(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      if (t.why) return t.why
+      const lo = (() => { try { return doorFor(env, t.w)?.listOut?.() || null } catch { return null } })()
+      if (!lo) return 'That Watchlist widget has no list menu right now (a prebuilt, tag or scan list has none), so there is nothing I can copy or export from it.'
+      if (args.format !== 'clipboard' && !lo.own) return `Export works on your own lists only (as the list menu offers it) — “${lo.name || 'this list'}” isn't one. I can copy it to your clipboard instead.`
+      if (args.format === 'xlsx' && !lo.xlsx) return 'Excel export isn\'t available on your account right now (no export quota), so nothing was downloaded — CSV works without one.'
+      if (st.outs.some(o => o.id === t.w.id && o.format === args.format)) return 'That is already in this request.'
+      return null
+    },
+    apply(st, args, env) {
+      const t = showTarget(st, args.widget, env)
+      if (t.why) return st
+      return { ...st, outs: [...st.outs, { id: t.w.id, format: args.format }] }
+    },
+    describe(b, a, { format } = {}) {
+      const t = a.outs.at(-1)
+      const w = t ? b.board.find(x => x.id === t.id) : null
+      const where = w ? `the ${nameOf(w, b.board)}` : 'the Watchlist widget'
+      return format === 'clipboard' ? `Copy the list in ${where} to your clipboard`
+        : format === 'csv' ? `Download the list in ${where} as a CSV`
+          : `Download the list in ${where} as an Excel file (this uses one export from your quota)`
+    },
   })
 
   reg({
@@ -1210,8 +1831,8 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'chart.addTab',
-    summary: 'Add a new chart TAB to a chart widget (the tab strip\'s "+"), on the same link colour as the tab showing now, and switch to it.',
-    hints: `target = the ref of the board entry; widget = the chart widget's id; timeframe = ${CHART_TIMEFRAMES.join('|')} or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link colour is changed (chart.linkTab).`,
+    summary: 'Add a new chart TAB to a chart widget (the tab strip\'s "+"), on the same link color as the tab showing now, and switch to it.',
+    hints: `target = the ref of the board entry; widget = the chart widget's id; timeframe = ${CHART_TIMEFRAMES.join('|')} or null (daily); name = a label for the tab or null. The new tab follows the same symbol until its link color is changed (chart.linkTab). Only when the member asks for a TAB: several CHARTS ("on four charts", "N charts for …") are chartGrid.set or widget.addCharts, never tabs of one chart.`,
     args: { type: 'object', properties: { widget: widgetArg, timeframe: { type: ['string', 'null'], enum: [...CHART_TIMEFRAMES, null] }, name: { type: ['string', 'null'] } }, required: ['widget', 'timeframe', 'name'], additionalProperties: false },
     check(st, { widget }) {
       const { t, why } = chartWidget(st, widget)
@@ -1245,11 +1866,12 @@ export function registerBoardCapabilities() {
     },
     apply(st, { widget, tab }) {
       const { t } = chartWidget(st, widget)
-      return setOpts(st, t, setActiveChartTab(t.opts || {}, tabsOf(t).indexOf(tabsOf(t).find(x => x.key === findTab(t, tab).key))))
+      return setOpts(st, t, setActiveChartTab(t.opts || {}, tabsOf(t).findIndex(x => x.key === findTab(t, tab).key)))
     },
     describe(b, a, { widget, tab }) {
       const o = b.board.find(w => w.id === String(widget)), n = a.board.find(w => w.id === String(widget))
-      return o && n && !same(o.opts, n.opts) ? `Switched the ${nameOf(o, b.board)} to its “${findTab(n, tab)?.label || tab}” tab` : null
+      if (!o || !n || same(o.opts, n.opts)) return null
+      return `Switched the ${nameOf(o, b.board)} to its “${tabsOf(n)[n.opts?.activeChartTab ?? 0]?.label || tab}” tab`
     },
     noop: () => 'That tab is already showing',
   })
@@ -1280,6 +1902,8 @@ export function registerBoardCapabilities() {
     name: 'chart.renameTab',
     summary: 'Rename a chart widget\'s tab (double-click on the tab).',
     hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} name = the new label (24 characters at most).`,
+    // W1.1 R-03 (LT-9): "rename <a layout name> to …" was read as this op live
+    shape: 'only for a chart widget\'s TAB the member names as a tab ("rename the tab"). "rename <a layout name> to …" is layout.rename.',
     args: { type: 'object', properties: { widget: widgetArg, tab: tabArg, name: { type: 'string' } }, required: ['widget', 'tab', 'name'], additionalProperties: false },
     check(st, { widget, tab, name }) {
       const { t, why } = chartWidget(st, widget)
@@ -1300,14 +1924,14 @@ export function registerBoardCapabilities() {
   reg({
     ...common,
     name: 'chart.linkTab',
-    summary: 'Set the link colour of one chart TAB (the tab\'s colour dot): tabs and widgets with the same colour follow the same symbol.',
-    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} color = ${[...BASE_GROUPS, ...EXTRA_GROUPS].map(c => `${c} (${LINK_NAME[c]})`).join(', ')} (E–H only when the board entry says extraLinkColors: true) — a tab is always linked to a colour. "Two tabs with linked symbols" = give both the same colour.`,
+    summary: 'Set the link color of one chart TAB (the tab\'s color dot): tabs and widgets with the same color follow the same symbol.',
+    hints: `target = the ref of the board entry; widget = the chart widget's id; ${tabHint} color = ${[...BASE_GROUPS, ...EXTRA_GROUPS].map(c => `${c} (${LINK_NAME[c]})`).join(', ')} (E–H only when the board entry says extraLinkColors: true) — a tab is always linked to a color. "Two tabs with linked symbols" = give both the same color.`,
     args: { type: 'object', properties: { widget: widgetArg, tab: tabArg, color: { type: 'string', enum: [...BASE_GROUPS, ...EXTRA_GROUPS] } }, required: ['widget', 'tab', 'color'], additionalProperties: false },
     check(st, { widget, tab, color }, env) {
       const { t, why } = chartWidget(st, widget)
       if (why) return why
       if (!findTab(t, tab)) return `That chart has no tab “${tab}”.`
-      if (![...BASE_GROUPS, ...EXTRA_GROUPS].includes(color)) return `Tab colours are ${linkGroups(true).join(', ')}.`
+      if (![...BASE_GROUPS, ...EXTRA_GROUPS].includes(color)) return `Tab colors are ${linkGroups(true).join(', ')}.`
       return extraOff(env, color)
     },
     apply(st, { widget, tab, color }) {
@@ -1321,5 +1945,5 @@ export function registerBoardCapabilities() {
       if (!o || !n || (same(o.opts, n.opts) && o.color === n.color)) return null
       return `Linked the “${findTab(n, tab)?.label || tab}” tab to the ${LINK_NAME[color]} group (${color})`
     },
-    noop: () => 'That tab already has that link colour',
+    noop: () => 'That tab already has that link color',
   })}

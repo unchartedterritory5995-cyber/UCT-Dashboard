@@ -23,6 +23,7 @@ The dispatcher `score(item_type, answer, key)` picks the rule by item type:
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, NamedTuple, Optional
 
 RISK_CEILING_PCT = 2.0        # §4.11: 2% of the account is the hard ceiling
@@ -89,11 +90,19 @@ def _as_key(key: Any) -> dict:
 #: ⚰️ Only `answer` was unwrapped until 2026-10-21, so EVERY multiple-choice
 #: answer from the live app compared a dict's repr against the key and scored
 #: wrong (seen live: "Matching Low" chosen, "Not quite. The answer: Matching Low").
+#: ⚰️ And the unwrap ran only on a ONE-key dict until 2026-11-05: a challenge
+#: records what the member picked beside the choice (Spot the Kicker's
+#: `picked_bar` / `picked_kind`, Hard mode's `picked_setup`), so every such
+#: attempt compared the whole dict against the key and scored wrong on the pod
+#: (Spot the Kicker, live since 2026-11-04). The record keys are the brain-
+#: training material; the choice is the answer.
 _SINGLE_VALUE_KEYS = ("answer", "choice")
 
 
 def _as_answer_value(answer: Any) -> Any:
-    if isinstance(answer, dict) and len(answer) == 1:
+    """The value a choice answer carries: `{answer: v}` or `{choice: v}`,
+    whatever else rides beside it. Anything else is the answer as posted."""
+    if isinstance(answer, dict):
         for k in _SINGLE_VALUE_KEYS:
             if k in answer:
                 return answer[k]
@@ -113,7 +122,30 @@ def score_exact(answer: Any, key: Any) -> Verdict:
     accepted = [k.get("answer")] + list(k.get("accept") or [])
     got = _norm(a)
     ok = got != "" and any(got == _norm(x) for x in accepted if x is not None)
+    if not ok and got != "":
+        # a typed number is the same answer however it is written (".05", "0.050", "1,000" for 0.05 and 1000), but
+        # only when BOTH sides are plain numbers: a choice like "2.4% of the account" never parses, so never matches
+        typed = _plain_number(a)
+        ok = typed is not None and any(_plain_number(x) is not None and math.isclose(typed, _plain_number(x),
+                                                                                     rel_tol=1e-9, abs_tol=1e-12)
+                                       for x in accepted if x is not None)
     return Verdict(ok, 1.0 if ok else 0.0, {"expected": k.get("answer"), "got": a})
+
+
+_PLAIN_NUMBER = re.compile(r"[-+]?(\d+(\.\d*)?|\.\d+)")
+
+
+def _plain_number(v: Any) -> Optional[float]:
+    """A finite float when `v` is a number or a string that is ONLY a number (thousands commas allowed), else None."""
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, (int, float)):
+        return float(v) if math.isfinite(float(v)) else None
+    s = str(v).strip().replace(",", "")
+    if not _PLAIN_NUMBER.fullmatch(s):
+        return None
+    f = float(s)
+    return f if math.isfinite(f) else None
 
 
 def score_match(answer: Any, key: Any) -> Verdict:

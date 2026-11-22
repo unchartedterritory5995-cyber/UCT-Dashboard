@@ -29,6 +29,7 @@
 // two agree byte for byte.
 
 import { createHash } from 'node:crypto'
+import { isStrategyCapture, validateStrategyProvenance, STRATEGY_TOOL_VERSION } from './strategy_capture.mjs'
 
 export const SCHEMA_ID = 'uct.vendor-capture/v1'
 
@@ -208,6 +209,12 @@ export function validateCapture(c) {
       })
       if (offGrid) errors.push(`${offGrid} plotValues rows have a time that is not one of the bars — the two matrices were read off different series`)
     }
+  }
+
+  // ── W9-T3a: a strategy capture written by tv_capture.js v3+ must carry its settings. ──
+  // Gated on `tool.version` so the v2 strategy fixtures (2026-10-02/03) validate exactly as before.
+  if (isStrategyCapture(c) && c.tool && Number(c.tool.version) >= STRATEGY_TOOL_VERSION) {
+    errors.push(...validateStrategyProvenance(c))
   }
 
   // ── receipt ──

@@ -13,7 +13,8 @@ export const SENTINELS = [SENT_NUM, SENT_INT, SENT_STR]
 
 const NUMERIC = /^-?\d+(\.\d+)?$/
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const token = (s) => new RegExp(`(?<![0-9A-Za-z_.])${esc(s)}(?![0-9A-Za-z_]|\\.\\d)`)
+// no lookbehind (iOS 16 floor; this file is in src/noRegexLookbehind.test.js's scan): the character before is consumed (`.test` only)
+const token = (s) => new RegExp(`(?:^|[^0-9A-Za-z_.])${esc(s)}(?![0-9A-Za-z_]|\\.\\d)`)
 
 function walk(v, nums, strs) {
   if (v == null || typeof v === 'boolean') return

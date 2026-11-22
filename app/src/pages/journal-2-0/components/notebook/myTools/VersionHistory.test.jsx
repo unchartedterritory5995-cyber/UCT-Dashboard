@@ -1,6 +1,6 @@
 // Wave 8 (Task 8.17): a widget's version history in My tools. What the member sees (dates, names, the changed words,
 // the question) and what the server is sent (paths, If-Match, bodies).
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from 'vitest'
 import { render, screen, fireEvent, waitFor, within, cleanup, act } from '@testing-library/react'
 import { createRef } from 'react'
 import VersionHistory, { QUESTION_BACK } from './VersionHistory'
@@ -36,6 +36,21 @@ async function askRestore(rev) {
   fireEvent.click(within(revRow(rev)).getByRole('button', { name: /^Restore the version from/ }))
   fireEvent.click(within(revRow(rev)).getByRole('button', { name: 'Restore' }))
 }
+
+// 2026-11-17 (fix/master-nb-screener-reds): THE LABELS BELOW ARE A MEMBER'S OWN CLOCK, SO THIS FILE NAMES THE CLOCK.
+// `versionDate` (myToolsLib.js) formats in the viewer's local zone, on purpose: "11:05 AM" for 17:05Z is what a
+// Central-time member sees. These expectations were written on the dev PC (America/Chicago) and were never pinned,
+// so they held only on a Central-time machine; the GitHub runners the remote lane uses (2026-11-16) run in UTC and
+// read "5:05 PM" (red on master at 22cc0680b1). Pinned for this file and restored after it; forks pool, so the
+// pin is this process's alone (precedent: pages/calendar/weekAnchor.test.js).
+const ENV = globalThis.process.env
+const REAL_TZ = ENV.TZ
+beforeAll(() => {
+  ENV.TZ = 'America/Chicago'
+  // The pin took (else every date below would be a statement about the runner, not the product).
+  expect(new Date('2025-02-01T17:05:00Z').getHours()).toBe(11)
+})
+afterAll(() => { if (REAL_TZ === undefined) delete ENV.TZ; else ENV.TZ = REAL_TZ })
 
 beforeEach(() => { vi.spyOn(window, 'requestAnimationFrame').mockImplementation((fn) => { fn(0); return 0 }) })
 afterEach(() => { cleanup(); vi.restoreAllMocks(); vi.unstubAllGlobals() })

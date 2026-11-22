@@ -59,6 +59,15 @@ const liveInstances = (instances) => {
 }
 
 /**
+ * The member's explicit Display in choice for Volume — `'pane'`, `'price'`, or
+ * `null` when they never made one (the host's default applies).
+ */
+export function volumeDisplayChoice(cs) {
+  const v = cs && cs.volume && cs.volume.displayIn
+  return v === 'pane' || v === 'price' ? v : null
+}
+
+/**
  * Is anything drawn INSIDE the volume pane? Either mechanism counts.
  *
  * ⚠️ BOTH LISTS, DELIBERATELY. `cs.volumeOverlayIndicators` is the legacy
@@ -91,6 +100,11 @@ export function volumeHasOverlay(cs, instances) {
  * @param {boolean} [o.blankVolume]         reserve an EMPTY labelled pane
  *                                          (breadth symbols). Implies a pane.
  * @param {boolean} [o.volumeSeparatePane]  the caller's own override prop.
+ * @param {boolean} [o.volumePaneByDefault] the host DEFAULTS volume to its own
+ *                                          pane but lets the member choose (the
+ *                                          /charts pane, owner 11-16): the member's
+ *                                          `cs.volume.displayIn` ('pane' | 'price')
+ *                                          decides, and absent means 'pane'.
  * @returns {'pane'|'band'|'absent'}
  */
 export function resolveVolumePresentation(o) {
@@ -104,6 +118,14 @@ export function resolveVolumePresentation(o) {
   if (volumeHasOverlay(cs, o && o.instances)) return VOLUME_AS_PANE
   if (o && o.blankVolume === true) return VOLUME_AS_PANE
   if (o && o.volumeSeparatePane === true) return VOLUME_AS_PANE
+  // ⭐ A HOST THAT DEFAULTS TO A PANE BUT LETS THE MEMBER CHOOSE (/charts, owner
+  // 11-16). `separatePane` cannot carry that choice there: it was inert on /charts
+  // for years, so saved blobs say `false` without ever having meant "overlay".
+  // `displayIn` is written only by an explicit choice (`withVolumeDisplay`, the
+  // Volume editor's Separate pane toggle), so its absence is the honest default.
+  if (o && o.volumePaneByDefault === true) {
+    return volumeDisplayChoice(cs) === 'price' ? VOLUME_AS_BAND : VOLUME_AS_PANE
+  }
   if (cs.volume && cs.volume.separatePane === true) return VOLUME_AS_PANE
   return VOLUME_AS_BAND
 }

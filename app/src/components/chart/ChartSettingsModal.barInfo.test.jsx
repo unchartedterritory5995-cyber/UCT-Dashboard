@@ -13,14 +13,20 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import ChartSettingsModal from './ChartSettingsModal'
+// Chart Settings choices are a ChoiceMenu (owner 11-15): open the menu by its label, pick an option.
+const pickChoice = (label, option) => {
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${label}:`) }))
+  fireEvent.click(screen.getByRole('option', { name: option }))
+}
 import { mergeChartSettings } from './chartDefaults'
 import { BAR_INFO_FIELDS, DEFAULT_BAR_INFO_FIELDS, barInfoFieldsOf } from './barInfoFields'
 
 const base = (over) => mergeChartSettings(JSON.stringify(over || {}))
-const openHeaderTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Header' }))
+const openHeaderTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Header & legend' }))
 const lastCall = (spy) => spy.mock.calls[spy.mock.calls.length - 1][0]
 const group = () => screen.getByRole('group', { name: 'Bar info fields' })
-const pill = (label) => within(group()).getByRole('button', { name: label })
+// owner 11-15: the pills are soft-square checkboxes in a 4-column grid — same buttons, same writer
+const pill = (label) => within(group()).getByRole('checkbox', { name: label })
 
 describe('§10 — the field pills', () => {
   it('there is one pill per field, and no Volume pill', () => {
@@ -28,7 +34,7 @@ describe('§10 — the field pills', () => {
     // is managed from its own row in the study stack.
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     openHeaderTab()
-    const labels = within(group()).getAllByRole('button').map((b) => b.textContent)
+    const labels = within(group()).getAllByRole('checkbox').map((b) => b.textContent)
     expect(labels).toEqual(BAR_INFO_FIELDS.map((f) => f.label))
     expect(labels.some((l) => /vol/i.test(l))).toBe(false)
   })
@@ -37,7 +43,7 @@ describe('§10 — the field pills', () => {
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
     openHeaderTab()
     for (const f of BAR_INFO_FIELDS) {
-      expect(pill(f.label).getAttribute('aria-pressed'), f.label).toBe('true')
+      expect(pill(f.label).getAttribute('aria-checked'), f.label).toBe('true')
     }
   })
 
@@ -62,9 +68,9 @@ describe('§10 — the field pills', () => {
     const cs = base({ header: { barInfo: ['open', 'high', 'low', 'close', 'changePct'] } })
     render(<ChartSettingsModal open settings={cs} onChange={onChange} />)
     openHeaderTab()
-    expect(pill('Date').getAttribute('aria-pressed')).toBe('false')
-    expect(pill('Net Chg').getAttribute('aria-pressed')).toBe('false')
-    expect(pill('Close').getAttribute('aria-pressed')).toBe('true')
+    expect(pill('Date').getAttribute('aria-checked')).toBe('false')
+    expect(pill('Net Chg').getAttribute('aria-checked')).toBe('false')
+    expect(pill('Close').getAttribute('aria-checked')).toBe('true')
 
     fireEvent.click(pill('Date'))                  // back on
     expect(lastCall(onChange).header.barInfo)
@@ -114,7 +120,7 @@ describe('⚰ §9 — the retired layout selector', () => {
       const { unmount } = render(
         <ChartSettingsModal open settings={base({ header: { legendLayout: legacy } })} onChange={vi.fn()} />)
       openHeaderTab()
-      expect(within(group()).getAllByRole('button').filter((b) => b.getAttribute('aria-pressed') === 'true'))
+      expect(within(group()).getAllByRole('checkbox').filter((b) => b.getAttribute('aria-checked') === 'true'))
         .toHaveLength(DEFAULT_BAR_INFO_FIELDS.length)
       unmount()
     }
@@ -126,7 +132,7 @@ describe('⛔ §9 — `Always / Hold / Off` is untouched', () => {
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
     openHeaderTab()
-    fireEvent.click(screen.getByRole('tab', { name: 'Hold' }))
+    pickChoice('Chart legend', 'Hold')
     expect(lastCall(onChange).header.legendMode).toBe('hold')
     expect(lastCall(onChange).header).not.toHaveProperty('showLegend', false)
   })

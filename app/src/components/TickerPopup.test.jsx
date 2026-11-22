@@ -150,7 +150,7 @@ describe('Research / Ask AI deep-link actions (2026-09-04 slice)', () => {
     const user = userEvent.setup()
     renderWithProviders(<><TickerPopup sym="NVDA" /><RouteSpy /></>)
     await user.click(screen.getByTestId('ticker-NVDA'))
-    await user.click(screen.getByRole('button', { name: 'Ask AI about NVDA' }))
+    await user.click(screen.getByRole('button', { name: 'Ask the UCT Agent about NVDA' }))
     expect(screen.getByTestId('route-spy')).toHaveTextContent('/research/NVDA?section=ai')
   })
 

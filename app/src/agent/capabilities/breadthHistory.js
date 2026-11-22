@@ -182,7 +182,7 @@ export function registerBreadthHistoryCapability() {
   registered = true
   registerCapability({
     name: 'breadth.history',
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'breadth', query: true,
     localOnly: true,                    // ⛔ shown to the member; never replayed to a model
     summary: 'Search UCT\'s finalized daily MARKET BREADTH history (US, NYSE, Nasdaq) for when a condition held: the last/first time a measure was below/above a level, crossings, how many times, episodes and how long they lasted. '

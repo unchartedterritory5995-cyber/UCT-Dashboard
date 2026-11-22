@@ -21,7 +21,7 @@ vi.mock('../../hooks/useEvidenceCandidates', () => ({
   default: (noteId, opts) => useEvidenceCandidatesSpy(noteId, opts),
 }))
 
-import ThesisSection from './ThesisSection'
+import ThesisSection, { isThesisShaped } from './ThesisSection'
 
 function renderIt(note, extraProps = {}) {
   return render(
@@ -633,5 +633,65 @@ describe('⛔ Wave N §1 — an ATTACHED web capture is labelled truthfully in t
       expect(live).toBeTruthy()
       expect(live.getAttribute('aria-live')).toBe('polite')
     })
+  })
+})
+
+// ⛔ Audit 2026-11-05, spec S2: setting a ticker on a plain note grew "Not reviewed / Add evidence /
+// Review thesis / CHANGELOG", and so did the daily recap (B12). The cause: ANY changelog event made
+// a note thesis-shaped, and the changelog is computed for every note -- a Compass verdict matched
+// by the note's TICKER, a fact captured by a widget, any edit between two versions. Those are
+// ambient history, not a member treating the note as a thesis.
+describe('isThesisShaped: only a real thesis (S2)', () => {
+  const plain = { id: 'n1', tags: [], propertiesJson: {} }
+  const ambient = [
+    { type: 'compass_verdict', at: '2026-11-04T00:00:00Z', verdictId: 'v1', label: 'GO', symbol: 'NVDA' },
+    { type: 'fact_captured', at: '2026-11-04T00:00:00Z', factId: 'f1' },
+    { type: 'thesis_edited', at: '2026-11-04T00:00:00Z', fromVersionId: 'a', toVersionId: 'b' },
+    { type: 'position_linked', at: '2026-11-04T00:00:00Z' },
+    { type: 'restored', at: '2026-11-04T00:00:00Z' },
+  ]
+
+  it('a plain note with a ticker and only ambient history is NOT a thesis', () => {
+    expect(isThesisShaped({ ...plain, ticker: 'NVDA' }, [], ambient)).toBe(false)
+  })
+
+  it('a property change to a thesis property is thesis history', () => {
+    expect(isThesisShaped(plain, [], [{ type: 'property_changed', propertyId: 'builtin:thesis_status', at: 'x' }])).toBe(true)
+  })
+
+  it('Research Type set to an earnings play is not thesis history; to or from a thesis it is', () => {
+    expect(isThesisShaped(plain, [], [{ type: 'property_changed', propertyId: 'builtin:research_type', from: null, to: 'earnings_play', at: 'x' }])).toBe(false)
+    expect(isThesisShaped(plain, [], [{ type: 'property_changed', propertyId: 'builtin:research_type', from: 'long_thesis', to: null, at: 'x' }])).toBe(true)
+  })
+
+  it('evidence ever added (even if removed since) keeps the controls', () => {
+    expect(isThesisShaped(plain, [], [{ type: 'evidence_removed', at: 'x' }])).toBe(true)
+    expect(isThesisShaped(plain, [{ id: 'e1' }], [])).toBe(true)
+  })
+
+  it('kind Thesis, research type thesis, or the thesis tag each make a thesis', () => {
+    expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:note_kind': 'thesis' } }, [], [])).toBe(true)
+    expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:research_type': 'short_thesis' } }, [], [])).toBe(true)
+    expect(isThesisShaped({ ...plain, tags: ['thesis'] }, [], [])).toBe(true)
+  })
+
+  it('another kind (the daily recap is daily prep) is not a thesis', () => {
+    expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:note_kind': 'daily_prep' } }, [], ambient)).toBe(false)
+  })
+})
+
+// ⛔ Fix round 1 (review finding 6): a real thesis whose Thesis Status or Confidence was SET early (no
+// change event in the computed changelog: set before any checkpoint) lost its controls. A value in
+// either thesis property is itself the member treating the note as a thesis.
+describe('isThesisShaped: a thesis property with a value is a thesis (fix round 1)', () => {
+  const plain = { id: 'n1', tags: [], ticker: 'NVDA', propertiesJson: {} }
+  it('Thesis Status set, empty changelog: a thesis', () => {
+    expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:thesis_status': 'active' } }, [], [])).toBe(true)
+  })
+  it('Confidence set, empty changelog: a thesis', () => {
+    expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:confidence': 'high' } }, [], [])).toBe(true)
+  })
+  it('an empty value is not', () => {
+    expect(isThesisShaped({ ...plain, propertiesJson: { 'builtin:thesis_status': '', 'builtin:confidence': null } }, [], [])).toBe(false)
   })
 })

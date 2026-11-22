@@ -74,7 +74,25 @@ describe('F1 item 4 — `not` / `or` read an na operand as false, from the listi
 })
 
 describe('F1 item 2 — a `var` list of drawings off the listing is withheld by name', () => {
-  it.each(['spy', 'aapl', 'brk-a'])('sonarlab %s 1D: withheld by name, `objects:off-listing`', (s) => {
+  // ⭐ DIV-1 RE-PIN (2026-11-09): SPY left this list — the harness now replays SPY's proved
+  // history from the listing (as the member's daily chart computes it) and it MATCHES (below).
+  // AAPL and BRK.A have no proved prehistory, so they stay cold and stay withheld.
+  it('sonarlab spy 1D: MATCH once replayed from the listing (DIV-1)', () => {
+    const v = grade(load('sonarlab-order-blocks-spy-1d-2026-10-02'))
+    expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
+  })
+
+  // ⭐ RE-PIN (2026-11-15, capture session S13): BRK.A left this list too. The S13 capture
+  // `vw-deadband-ticks-brk-a-1d-2026-11-15` starts at TradingView's bar 0 for NYSE:BRK.A 1D
+  // (1979-07-03, a named exception: TradingView's data start, before the 1988 NYSE listing; its
+  // D00_bar_index_CONTROL reads 0..11368), so BRK.A now has a proved supplier and the drawing is
+  // replayed warm, as SPY's is. AAPL still has none and stays withheld.
+  it('sonarlab brk-a 1D: MATCH once replayed from TradingView\'s bar 0 (S13 supplier)', () => {
+    const v = grade(load('sonarlab-order-blocks-brk-a-1d-2026-10-02'))
+    expect(v.objects.verdict, v.objects.reason).toBe('MATCH')
+  })
+
+  it.each(['aapl'])('sonarlab %s 1D: withheld by name, `objects:off-listing`', (s) => {
     const v = grade(load(`sonarlab-order-blocks-${s}-1d-2026-10-02`))
     expect(v.objects.verdict).toBe('DIVERGE') // a withheld drawing is a gap (F3's rule)
     expect(v.objects.reason).toMatch(/withheld by name \(objects:off-listing\)/)

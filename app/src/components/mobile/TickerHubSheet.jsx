@@ -217,7 +217,7 @@ function TickerHubBody({ sym, onClose }) {
             <span className={styles.aicon} aria-hidden="true"><UIcon name="book" size={14} /></span>Research
           </button>
           <button type="button" className={styles.action} onClick={() => go(`/research/${sym}?section=ai`)}>
-            <span className={styles.aicon} aria-hidden="true"><UIcon name="sparkle" size={14} /></span>Ask AI
+            <span className={styles.aicon} aria-hidden="true"><UIcon name="sparkle" size={14} /></span>Ask the UCT Agent
           </button>
           <button
             type="button"

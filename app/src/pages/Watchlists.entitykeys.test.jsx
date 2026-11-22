@@ -5,11 +5,19 @@
 // "delisted". With the fields absent (flag off), or present but saying nothing changed, the widget
 // must render byte for byte what it rendered before this feature existed.
 //
-// GOLDEN_SHA is the sha256 of the widget's innerHTML for the fields-absent fixture, recorded
-// against the PRE-CHANGE Watchlists.jsx (origin/master 55b12fe1d, swapped in for one run of this
-// file). It is the pin that the flag-off render did not move.
+// The flag-off pin is RELATIVE: the fields-absent render is compared with the same widget, in the
+// same run, with the entity helper answering "nothing to say" for every row (`ent.bypass`), which
+// is the widget without this feature deciding anything.
+// ⚰️ (retired 2026-11-17) It was an ABSOLUTE pin: GOLDEN_SHA, the sha256 of the whole widget's
+// innerHTML, recorded once against the pre-feature Watchlists.jsx (55b12fe1d). That proved the
+// feature's own commit (99a8b57bc4) left the flag-off render alone, and it did. After that it
+// hashed every column, menu and class of the widget, so deliberate Watchlist work (first moved
+// by the 2026-11-08..10 changes, per the master red sweep of 2026-11-17) changed it while the
+// entity feature stood still: on the day it was retired, the flag-off render was byte-identical
+// to the widget with the feature taken out (the pin below). An absolute hash cannot tell a
+// feature regression from a redesign. What it meant to pin is pinned below against the current
+// widget, and the helper's own contract (fields absent => null) in watchlist/entityDisplay.test.js.
 import { render, screen, cleanup } from '@testing-library/react'
-import { createHash } from 'node:crypto'
 import { vi, beforeEach, afterEach, test, expect } from 'vitest'
 
 // ── Heavy leaves that never render in embedded mode but cost real import time ──
@@ -73,17 +81,23 @@ vi.mock('./charts/ChartsSymContext', () => ({
   useChartsSym: () => ({ sym: null, setSym: () => {} }),
 }))
 vi.mock('react-router-dom', () => ({ useNavigate: () => vi.fn() }))
+// The real helper, with a switch that takes the feature out: bypassed, every row is told there
+// is nothing to say about its entity, which is how the widget rendered before the feature.
+const ent = vi.hoisted(() => ({ bypass: false }))
+vi.mock('./watchlist/entityDisplay', async (importOriginal) => {
+  const real = await importOriginal()
+  return { ...real, entityDisplay: (item) => (ent.bypass ? null : real.entityDisplay(item)) }
+})
 
 const Watchlists = (await import('./Watchlists')).default
-
-const GOLDEN_SHA = '88504f4abcab594eccf89c6d0b3b24c12e138ed49d05113dce06f9f39ae862b0'
 
 beforeEach(() => {
   mutateMine.mockClear()
   localStorage.clear()
+  ent.bypass = false
   vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) })))
 })
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); ent.bypass = false })
 
 const PLAIN = [
   { id: 'i1', sym: 'FB', notes: '', sort_order: 0 },
@@ -101,13 +115,26 @@ function html(items) {
   cleanup()
   return out
 }
-const sha = (s) => createHash('sha256').update(s).digest('hex')
+const withoutTheFeature = (items) => {
+  ent.bypass = true
+  try { return html(items) } finally { ent.bypass = false }
+}
 
-test('fields absent (flag off): byte-identical to the pre-change render, and no marker', () => {
+test('fields absent (flag off): byte-identical to the widget without the feature, and no marker', () => {
+  const without = withoutTheFeature(PLAIN)
   const out = html(PLAIN)
   expect(out).toContain('TWTR')
   expect(out).not.toContain('wl-entity-marker')
-  expect(sha(out)).toBe(GOLDEN_SHA)
+  expect(out).toBe(without)
+})
+
+test('the comparison above can tell: taking the feature out changes a renamed row (the control)', () => {
+  // Without this, a bypass that bypassed nothing would make the pin above compare a render
+  // with itself and pass whatever the feature did to a flag-off row.
+  const renamed = [{ ...PLAIN[0], entity_id: 'e1', display_sym: 'META', entity_marker: 'renamed' }, PLAIN[1], PLAIN[2]]
+  const without = withoutTheFeature(renamed)
+  expect(without).not.toContain('wl-entity-marker')
+  expect(html(renamed)).not.toBe(without)
 })
 
 test('fields present but saying nothing changed: the same bytes as fields absent', () => {

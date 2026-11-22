@@ -264,6 +264,14 @@ function trackedModules() {
  *  and nothing else is'). */
 const TEST_INFRA = /(^|[\\/])(__tests__|__fixtures__|__mocks__|testing|test-stubs)[\\/]|(^|[\\/])test-[^\\/]*$|(^|[\\/])pages[\\/]journal-2-0[\\/]a11y[\\/]/
 
+/** The Study WORKBENCH, `src/lab/`: a dev-server-only Vite entry (app/lab.html, <script src="/src/lab/main.jsx">)
+ *  the owner scores design pieces on, never built (lab/labAbsent.test.js is the rail, the econHarness shape). A
+ *  walk from App.jsx can never see a second HTML entry, so its ~70 pieces would read as abandoned here while being
+ *  used daily. Named by its FULL path under src, so a `lab/` directory anywhere else is judged like any other
+ *  module. The product MAY import single lab modules (the challenges reuse the workbench's start card, bits and
+ *  stylesheet); those are then reachable like anything else and need no excuse. */
+const WORKBENCH = /^lab[\\/]/
+
 /**
  * Unreachable ON PURPOSE, each with the reason and the decision still owed.
  *
@@ -521,19 +529,6 @@ const AWAITING_A_DECISION = {
     'NOT dead — a hand-written DECLARATION of the shipped catalogue that imports '
     + 'nothing on purpose, so nine rails can disagree with it. Deriving it from '
     + 'the registry would make it true by construction and unable to fail.',
-  'app/src/components/chart/engine/ast/doorCoverage.js':
-    'MEASUREMENT INFRASTRUCTURE, same class as registrySizes.js above: its '
-    + 'consumer is a RAIL, not a route. It asks which declared engine functions '
-    + 'each importer can actually reach — the question that was being answered by '
-    + 'hand, one indicator at a time, and that no gate measured because the corpus '
-    + 'can only exercise the names 75 chosen scripts happen to use. '
-    + '⛔ DELIBERATELY NOT MOUNTED. Answering it runs three translators over every '
-    + 'declared function; that belongs in a test, not in a page load, and putting '
-    + 'it on the reference page would make a member wait for a number computed for '
-    + 'engineers. ⚠️ It is nonetheless a REAL candidate for a product surface — '
-    + '"which of your platforms can reach this" is a question a member evaluating '
-    + 'a switch would want answered — so this entry is a decision recorded, not a '
-    + 'file forgotten. Rail: doorCoverage.test.js.',
   'app/src/pages/EducationalVideos.jsx':
     'A 4-line re-export shim over the LIVE pages/desk/VideosSection. Its test is '
     + 'not test-only coverage: it renders the shim, i.e. VideosSection, and carries '
@@ -720,6 +715,152 @@ const AWAITING_A_DECISION = {
   // reached from App.jsx like any rendered module; the block, its expiry and
   // `panelSet.test.js`'s "nothing imports it" rail went in that commit, as the
   // block's own text said.)
+  // ── RS TEACHING EXPORT — A BUILD-TOOL ENTRY, NOT A SCREEN (2026-11-07) ──────
+  // UCT RS Phase 4. `content/rs/teaching.js` is the module the export tool runs; no
+  // screen imports it, ON PURPOSE, and the unit that checked (4-04) recorded why
+  // rather than wiring it somewhere it does not belong. Same shape as
+  // `cotFactsEntry.js` / `flowFactsEntry.js` above: a walk from App.jsx cannot see
+  // a build-script entry. ⏳ The decision owed by the expiry: either a Phase 4
+  // surface (4-05's chip menu) imports its readout CARDS, which makes it reachable
+  // and this entry goes in that commit, or this rail learns build-tool entries as
+  // roots the way `configEntryPoints()` reads the Vite ones (this file and the two
+  // facts entries together), and the block goes then.
+  'app/src/content/rs/teaching.js':
+    'NOT dead — the ENTRY POINT of the RS teaching export: tools/export_rs_teaching.mjs '
+    + 'bundles it with esbuild and writes api/data/rs_teaching.json (Compass explain_rs in '
+    + 'api/services/rs_read_tools.py reads that JSON, never app/src), and '
+    + 'content/rs/teaching.export.test.js diffs the export against the committed file. It reads '
+    + 'the readout cards off the registered rsLine definition, so importing it pulls in the chart '
+    + 'engine. That is why the app reads the words from content/rs/teachingData.js instead: the '
+    + 'public glossary page (RsGlossary.test.jsx pins that its import walk never reaches teaching.js) '
+    + 'and nativeRegistry.js (rsLine meta.tour; importing teaching.js there is an import cycle). '
+    + 'Do NOT mount it to green this rail.',
+  // ⚰️ W9-T13a STRATEGY REPORT METRICS stood here until 2026-11-08: `runtime/brokerReport.js` was
+  // parked waiting for its consumer. W9-T13b mounted it the same day: `pane/AttachedStrategyReports.jsx`
+  // (imported by `ChartPane.jsx`) renders `pane/StrategyReportPanel.jsx` from `strategyReportOf`. It is
+  // REACHABLE and still DARK: the mount returns null unless VITE_PINE_STRATEGY_BROKER_ENABLED === '1'
+  // (`strategyBrokerGate.js`, unset on every service), railed by `strategyReportPanel.test.jsx`
+  // ("gate off"). Reachable is not armed: arming is the owner's act, per W2 stage (D6).
+  // ── W5/W9 PINE + NLM-1 + SUPPORT LOOP — DRIVEN BY A TOOL OR A TEST, NOT A SCREEN (2026-11-08) ──
+  // Recorded 2026-11-08 when master was found red with these orphans
+  // (each landed 2026-10-30..11-07 while the rail was already red on the lapsed
+  // cockpit block, so nobody saw them arrive). No remote branch (60 most recent
+  // checked) imports any of them from non-test code. ⏳ The decision owed by the
+  // expiry, per entry: a consumer lands (entry goes in that commit), or the rail
+  // learns build-tool entries as roots (see the RS TEACHING block), or the owner
+  // deletes. ⛔ Not dead code: each one's job is named beside it.
+  'app/src/components/chart/engine/runtime/serverEntry.js':
+    'BUILD-TOOL ENTRY: app/scripts/build-pine-runtime.mjs bundles it into '
+    + 'dist-server/pine-runtime.mjs for the W5 server runtime (docs/pine/SERVER-RUNTIME-DESIGN.md '
+    + 'T1). A walk from App.jsx cannot see a build-script entry, same shape as content/rs/teaching.js.',
+  'app/src/components/chart/engine/runtime/columnDigest.js':
+    'Reached ONLY through serverEntry.js (the W5 T3 column codec, JS half; the Python half is '
+    + 'api/services/pine_runtime_codec.py). Leaves this register with serverEntry.js.',
+  // ⚰️ `engine/runtime/topLevelNames.js` stood here until 2026-11-17 (Studio R5): "Inspect a bar" imports it
+  // (`builder/inspect/inspectDoors.js`), so it is reachable from the app and needs no entry.
+  // ⚰️ `engine/headlessCompute.js` and `engine/referenceSeries.js` stood here until 2026-11-17 (Studio R6):
+  // the share page now imports both to time a formula on the viewer's own device
+  // (`pages/formulas/deviceDrawTime.js`), so they are reachable from the app and need no entry.
+  'app/src/components/chart/engine/runtime/brokerPinsLock.js':
+    'W9-T2 pin-ledger lock: a pure check its own header says is NOT imported by the bundle; '
+    + 'its consumer is the rail __tests__/brokerPinsLock.test.js (docs/pine/W9-STRATEGY-DESIGN.md).',
+  'app/src/components/chart/engine/ast/strategyScorecard.js':
+    'W9-T15 / ruling D7 scorecard wording for strategy backtests (docs/pine/W9-DECISIONS-2026-11-07.md). '
+    + 'Built dark: only strategiesAreRuled/productScorecard tests read it; no scorecard surface '
+    + 'renders it yet because strategy backtests are not served (D6).',
+  'app/src/components/chart/supportLoop/doorNameCoverage.js':
+    'Support loop Phase B (docs/pine/support-loop/PHASE-B.md): its test regenerates the committed '
+    + 'doorNameCoverage.json that the Python digest reads. A generator, not a screen.',
+  // ── THE ASSISTANT'S PINE REFERENCE, ITS GAPS AND ITS RECIPES (2026-11-19) ── three more generators of
+  // the same kind, beside the one above. Each is run by `assistantPineReference.test.js`, which writes the
+  // committed JSON the SERVER reads when it builds the script assistant's instructions
+  // (`api/services/pine_authoring.py`); the recipes module also hands the proofs their bars and their
+  // chart context. No screen imports them, by design: the product reads the JSON, never the generator.
+  'app/src/components/chart/supportLoop/assistantPineReference.js':
+    'The assistant-writes-Pine reference generator (docs/pine/assistant-writes-pine/GAPS.md): its test '
+    + 'regenerates assistantPineReference.json, which the server reads. A generator, not a screen.',
+  'app/src/components/chart/supportLoop/assistantGaps.js':
+    'The gap-probe generator of the same programme: its test regenerates assistantGaps.json, which '
+    + 'tools/assistant_gaps_build.py turns into GAPS.md. A generator, not a screen.',
+  'app/src/components/chart/supportLoop/assistantRecipes.js':
+    'The recipe generator and proof harness of the same programme: its test regenerates assistantRecipes.json '
+    + '(the server hands recipes to the script assistant from it) and the value proofs read its bars. '
+    + 'A generator, not a screen.',
+  'app/src/agent/nlm1/routers.js':
+    'NLM-1 D1 pluggable routers for the dev/held-out scorers (devMetrics, nlm1Routing tests), '
+    + 'behind the dark UCT_AGENT_ROUTING_V2 flag (default off). Measurement tooling, not a route.',
+  'app/src/agent/qa/chartsOutcome/outcomeHarness.jsx':
+    'Test harness for the eight *.outcome.test.jsx files beside it. Lives outside the TEST_INFRA '
+    + 'directories; the honest fix is moving it under a testing/ path, not widening TEST_INFRA.',
+  // ── STUDY UI KIT LEFTOVER — NO IMPORTER AT ALL, OWNER DECIDES (2026-11-08) ──
+  // Zero importers anywhere, tests included, on master and on the 60 most recent
+  // remote branches. Built in round 18 (4a82de5757) and orphaned by the same day's
+  // fix 27f0e7c614 ("the seal off the chart"). Reported as DEAD; kept only because
+  // deleting is the owner's call.
+  'app/src/pages/study/ui/MarkBubble.jsx':
+    'DEAD candidate: the Study kit mark+bubble, unused since the round 18 fix. Delete or re-mount.',
+  // ── BARSTORE P2 — BUILT OFF TO THE SIDE, WIRED IN P3 (2026-11-11) ──────────
+  // Chart-data consolidation program (ARCH-PLAN, BARSTORE-SPEC). Step 1 is owner-approved
+  // as NEW FILES ONLY with no live behavior change; StockChart starts consuming these in P3
+  // (S1 source switch, S3 diffRenderer + framing). types/reducer/status/registry land with
+  // P2a (PR #1105) — this PR (#1108) must merge with or after it.
+  // P3-S1 wired the store (types … prefetch) into StockChart behind the BARSTORE switch, so those
+  // entries left this register; the renderer + framing below wait for P3-S3.
+  'app/src/data/barStore/diffRenderer.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): the only future setData/update site.',
+  'app/src/data/barStore/framing.js':
+    'BarStore P2 — wired in P3 (ARCH-PLAN): framing contract.',
+  // ── SEVERED BY A UI REMOVAL, FILE AND TESTS LEFT BEHIND (2026-11-17) ──────
+  // Found when master was red with these on 2026-11-17 (012f5adf1d). Each lost its LAST product
+  // importer in a change that removed the surface on purpose and left the module and its tests in
+  // place. Nobody owes a re-mount by default: the decision owed is "delete it with its tests, or
+  // put it back", and it belongs to whoever removed the surface (the owner for three of the four).
+  'app/src/components/chart/AdjustmentLabel.jsx':
+    'TERM-055 split-adjusted label. ee19cf34aa (2026-11-13, "remove split-adjustment label + As '
+    + 'traded toggle from chart header") removed its mount. Still read by AdjustmentLabel.test.jsx, '
+    + 'symbolPace.readers.test.jsx and symbolResourceWarm.surfaces.test.jsx. Delete or re-mount.',
+  'app/src/components/instruments/WhatElseOpenPrompt.jsx':
+    'TERM-093 "what else was open" capture, DARK behind WHAT_ELSE_OPEN_CAPTURE_ENABLED. a23d2d4bbf '
+    + '(2026-11-09, breadth drill owner polish) removed its one mount in BreadthDrillModal.jsx. '
+    + 'Delete with the capture, or re-mount it in the drill.',
+  'app/src/pages/breadth/drill/scan/useDayFacts.js':
+    'Scan Deck day-facts hook. 19722888a6 (2026-11-08, Scan Deck v2 layout) dropped its importer; '
+    + 'only barStoreAdapterItems.test.jsx (BarStore P3-S1 memPeek readers) reads it now. Delete the '
+    + 'hook and that case together, or re-mount it.',
+  'app/src/agent/agentExecTune.js':
+    'Partner-owned (Blake Bracco, 111d9b0dad 2026-11-07). Never had a product importer: read only by '
+    + 'agentExecFamilies/agentExecReach tests and qa/firstCallRatchet.test.js. Its owner says whether '
+    + 'it is a table the router should read or test data that belongs under a testing/ path.',
+  // ── TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17) ─────────────────────
+  // Same shape as outcomeHarness.jsx above: their only importers are tests. The honest fix is moving
+  // each under a testing/ path in the owning session's next change, never widening TEST_INFRA.
+  'app/src/components/chart/rails/railScan.js':
+    'Source scanner for the chart-data P0 census rails (193c79dcb5); read only by '
+    + 'oneKey.census.test.js and writerCensus.census.test.js. Move under a testing/ path.',
+  'app/src/components/chart/rails/railSupport.js':
+    'Shared support for the chart-data P0 rails (193c79dcb5), read only by those rails and '
+    + 'railScan.js. Move under a testing/ path.',
+  'app/src/components/chart/builder/memberPane/costRouteParity.js':
+    'Route-by-cost parity checker (#1711, engine 73): compares a host document and its runtime '
+    + 'twin bar for bar; read only by routeByCost / costRoute tests. Move under a testing/ path.',
+  // ── PINE DATA CATALOG — S4-0, READ BY THE DATA SUPPLY (2026-11-19) ──────────
+  // Pine data unit S4-0 (coordinator rulings 2026-11-19): the chart's half of the Pine data families,
+  // built with its rails ahead of the request supply that reads it (S4-3 onward). The server half
+  // (api/services/pine_data_catalog.py) and the generated licence blocks are railed by
+  // tests/test_pine_data_catalog.py. The first S4 unit that imports it removes this entry.
+  'app/src/components/chart/engine/pineDataCatalog.js':
+    'Pine data families (S4-0): read by the S4 data supply when it lands; reached today only by '
+    + 'pineDataCatalog.test.js.',
+  // ── UNIVERSE MINUTE FRAMES — THE REFERENCE SINK (2026-11-20) ────────────────────────────────
+  // The consumer, decoder and rollup are WIRED (2026-11-21): the device store's leader worker imports
+  // the consumer STATICALLY (data/deviceStore/liveFeed.js: the app builds workers as IIFE, which cannot
+  // code-split, so no dynamic import() may sit in a worker's graph), and its own sink is
+  // data/deviceStore/live.js. Left: the reference sink (a contract for the rollup's tests) and the
+  // main-thread lazy loader, which nothing on the page needs while the feed lives in the worker.
+  'app/src/lib/minuteFrames/memorySink.js':
+    'Reference in-memory sink of the rollup contract; data/deviceStore/live.js is the sink the app runs.',
+  'app/src/lib/minuteFrames/index.js':
+    'Main-thread lazy loader of the consumer; the device store runs the consumer in its worker instead.',
   }
 
 /**
@@ -761,10 +902,24 @@ const PARKING_EXPIRES = {
   // (The WAVE 2 block's expiry, 2026-10-23, was deleted 2026-10-24 with the
   // block: it lapsed three times, and on the third its five modules were
   // deleted or moved to test infrastructure rather than renewed.)
-  'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-10-31',
+  // Cockpit renewed 2026-11-08 (lapsed 2026-10-31 unnoticed). Short on purpose: ten weeks
+  // live and nobody has asked for a preview back, so the tiles are deletion candidates
+  // and the decision is the owner's. doorCoverage.js left the block that day (now wired).
+  'THE DASHBOARD COCKPIT RETIREMENT (2026-08-30)': '2026-11-30',
+  'W5/W9 PINE + NLM-1 + SUPPORT LOOP — DRIVEN BY A TOOL OR A TEST, NOT A SCREEN (2026-11-08)': '2026-12-31',
+  'STUDY UI KIT LEFTOVER — NO IMPORTER AT ALL, OWNER DECIDES (2026-11-08)': '2026-11-30',
   'SEAM 18 / COMMUNITY SURFACE — RECORDED, NOT DELETED (2026-09-11)': '2026-11-30',
   'The Community surface itself: 15 files, one coherent feature': '2026-11-30',
+  'RS TEACHING EXPORT — A BUILD-TOOL ENTRY, NOT A SCREEN (2026-11-07)': '2026-12-31',
+  // (W9-T13a STRATEGY REPORT METRICS' expiry, 2026-12-31, was deleted 2026-11-08 with its block:
+  // W9-T13b mounted brokerReport.js, dark, behind the broker gate.)
   'S4 CP1 DIVERGENCE DETECTOR — RECORDED, NOT MOUNTED (2026-09-25, R-29)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
+  'BARSTORE P2 — BUILT OFF TO THE SIDE, WIRED IN P3 (2026-11-11)': '2026-12-31',
+  // Short on purpose: three of the four were removed by the owner, so the decision is one line each.
+  'SEVERED BY A UI REMOVAL, FILE AND TESTS LEFT BEHIND (2026-11-17)': '2026-11-30',
+  'TEST HELPERS OUTSIDE A TEST-INFRA PATH (2026-11-17)': '2026-12-31',
+  'PINE DATA CATALOG — S4-0, READ BY THE DATA SUPPLY (2026-11-19)': '2026-12-31',
+  'UNIVERSE MINUTE FRAMES — THE REFERENCE SINK (2026-11-20)': '2026-12-31',
   'FILTER BAND — ORPHANED BY #178, RECORDED NOT DELETED (2026-09-25)': '2026-11-30',   // landed on master 2026-09-24/25; expiry added when this line took master (renew or resolve, never lapse)
   // ⭐⭐ ADDED BY THE 2026-09-23 MERGE, AND NEITHER PARENT WAS WRONG.
   // `origin/master` carries this parking block and has NO S4 rail; this branch
@@ -920,6 +1075,16 @@ describe('🔴 every module under app/src is REACHABLE from an entry point', () 
       + 'committed — the tracked set is wrong, not the allow-list').toEqual([])
   })
 
+  it('the Study workbench directory is a dev-only entry, and a lab/ anywhere else is not', () => {
+    const rel = (...p) => path.join(...p)
+    expect(WORKBENCH.test(rel('lab', 'main.jsx'))).toBe(true)
+    expect(WORKBENCH.test(rel('lab', 'pieces', 'Piece58LogoLadder.jsx'))).toBe(true)
+    // the product's own modules, including the challenges that IMPORT lab modules, are judged like any other
+    expect(WORKBENCH.test(rel('pages', 'study', 'challenges', 'BlitzChallenge.jsx'))).toBe(false)
+    expect(WORKBENCH.test(rel('components', 'lab', 'Bench.jsx'))).toBe(false)
+    expect(WORKBENCH.test(rel('labels', 'x.js'))).toBe(false)
+  })
+
   it('the Notebook a11y rail directory is test infrastructure, and nothing else is', () => {
     const rel = (...p) => path.join(...p)
     expect(TEST_INFRA.test(rel('pages', 'journal-2-0', 'a11y', 'axeHarness.js'))).toBe(true)
@@ -934,7 +1099,7 @@ describe('🔴 every module under app/src is REACHABLE from an entry point', () 
     const orphans = modules
       .filter((f) => tracked.has(f))
       .filter((f) => !reachable.has(f))
-      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)))
+      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)) && !WORKBENCH.test(path.relative(SRC, f)))
       .map(key)
       .filter((k) => !(k in AWAITING_A_DECISION))
     expect(orphans,
@@ -1141,7 +1306,7 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
 
     const classify = (trackedSet) => [planted]
       .filter((f) => trackedSet.has(f))
-      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)))
+      .filter((f) => !TEST_INFRA.test(path.relative(SRC, f)) && !WORKBENCH.test(path.relative(SRC, f)))
       .map(key)
       .filter((k) => !(k in AWAITING_A_DECISION))
 

@@ -1,3 +1,6 @@
+// S7 fix round 2 (audit 2026-11-05, re-review R1-1): the copy these rails pin was renamed (style -> template).
+// S7 (audit 2026-11-05, one vocabulary): the copy these rails pin was renamed (styles -> templates, Adopt -> Use,
+// Community styles/gallery -> Template library, Active setups -> Setups); the rails follow the new words.
 // Notebook P1 lane C: the Styles manager, through the REAL client (lib/journalStyles.js) with only the
 // network faked, keyed by method and URL. Every server answer is a GENERATED contract fixture
 // (__fixtures__/contract, written by the server lane and kept current by tests/test_notebook_contract_fixtures.py),
@@ -76,7 +79,7 @@ const kindDeleted = (n) => ({ ...KIND_DELETED, purgedDeletedStyles: n })
 const IN_USE = contract('note-kinds.delete.in-use')
 const OFFER = contractBody('note-kinds.mapping-offer')
 const APPLIED = contractBody('note-kinds.mapping-offer.apply')
-const APPLIED_RE = new RegExp(`Set the kind on ${APPLIED.count} note`)
+const APPLIED_RE = new RegExp(`Set the note type on ${APPLIED.count} note`)
 const offerOf = (over) => ({ offer: { ...OFFER.offer, ...over } })
 const re = (path) => new RegExp(`^${path}$`)
 const MEMBER_URL = re(`/api/j2/journal-styles/${MEMBER.id}`)
@@ -84,7 +87,7 @@ const OWN_KIND_URL = re(`/api/j2/note-kinds/${OWN_KIND.id}`)
 const MEMBER_END = new RegExp(`${MEMBER.id}$`)
 const RESTORE_END = new RegExp(`${MEMBER.id}/restore$`)
 const OWN_KIND_END = new RegExp(`note-kinds/${OWN_KIND.id}$`)
-const OFFLINE = "You're offline. Changes to styles need a connection."
+const OFFLINE = "You're offline. Changes to templates need a connection."
 const SERVER_SIDE = 'Something went wrong on our side. Try again.'
 const NETWORK = Symbol('network failure')
 const CODE_BUG = Symbol('a bug in our own code')
@@ -138,7 +141,7 @@ beforeEach(() => {
     ['GET', /^\/api\/j2\/note-kinds\/mapping-offer$/, { offer: null }],
     ['GET', /^\/api\/j2\/property-defs$/, { propertyDefs: [
       { id: 'builtin:thesis_status', name: 'Thesis Status', type: 'select', source: 'user_set', options: [{ id: 'watching', label: 'Watching' }] },
-      { id: 'builtin:note_kind', name: 'Kind of note', type: 'select', source: 'user_set', options: [{ id: 'trade_plan', label: 'Trade plan' }] },
+      { id: 'builtin:note_kind', name: 'Note type', type: 'select', source: 'user_set', options: [{ id: 'trade_plan', label: 'Trade plan' }] },
       { id: 'builtin:ticker', name: 'Ticker', type: 'text', source: 'financial_derived' },
     ] }],
     ['GET', /^\/api\/j2\/note-templates$/, { templates: [] }],
@@ -157,14 +160,16 @@ const tree = ({ userId = 'u1', ...props } = {}) => (
 const open = (props) => render(tree(props))
 const edit = async (name = NAME) => {
   fireEvent.click(await screen.findByRole('button', { name: `Edit ${name}` }))
-  return screen.findByRole('form', { name: `Edit style ${name}` })
+  return screen.findByRole('form', { name: `Edit template ${name}` })
 }
+// Follow-up C: the Undo line names the template (and, with wave 11 on, says where it went).
+const DELETED_LINE = () => `Deleted “${NAME}”.`
 const alertText = async () => (await screen.findByRole('alert')).textContent
 
 describe('the Styles manager', () => {
   it('lists styles under their kind with the Default badge and the version', async () => {
     open()
-    await screen.findByRole('heading', { name: 'Journal styles' })
+    await screen.findByRole('heading', { name: 'Manage templates' })
     const trade = (await screen.findByRole('heading', { name: 'Trade plan', level: 3 })).closest('section')
     const row = within(trade).getByText(NAME).closest('li')
     expect(within(row).getByText('Default')).toBeInTheDocument()
@@ -190,19 +195,19 @@ describe('the Styles manager', () => {
 
   it('opening puts focus on the dialog\'s Close button, inside the dialog, so a screen reader names the dialog', async () => {
     open()
-    await screen.findByRole('heading', { name: 'Journal styles', level: 2 })
+    await screen.findByRole('heading', { name: 'Manage templates', level: 2 })
     await settleFocus()
-    const dialog = screen.getByRole('dialog', { name: 'Journal styles' })
+    const dialog = screen.getByRole('dialog', { name: 'Manage templates' })
     await waitFor(() => expect(document.activeElement).toBe(within(dialog).getAllByRole('button', { name: 'Close' })[0]))
     expect(document.activeElement).toBe(dialogTabbables(dialog)[0])                         // the trap's `first`
   })
 
   it('Shift+Tab as the FIRST key after opening wraps to the last control and stays in the dialog', async () => {
     open()
-    await screen.findByRole('heading', { name: 'Journal styles', level: 2 })
+    await screen.findByRole('heading', { name: 'Manage templates', level: 2 })
     await screen.findByRole('button', { name: `Edit ${NAME}` })                             // the list has loaded
     await settleFocus()
-    const dialog = screen.getByRole('dialog', { name: 'Journal styles' })
+    const dialog = screen.getByRole('dialog', { name: 'Manage templates' })
     const nodes = dialogTabbables(dialog)
     expect(nodes.length).toBeGreaterThan(1)
     fireEvent.keyDown(document.activeElement, { key: 'Tab', shiftKey: true })
@@ -212,14 +217,14 @@ describe('the Styles manager', () => {
 
   it('close then reopen puts focus on Close again', async () => {
     const { rerender } = open()
-    await screen.findByRole('heading', { name: 'Journal styles', level: 2 })
+    await screen.findByRole('heading', { name: 'Manage templates', level: 2 })
     await settleFocus()
     rerender(tree({ open: false }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Journal styles' })).toBeNull())
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Manage templates' })).toBeNull())
     rerender(tree({ open: true }))
-    await screen.findByRole('heading', { name: 'Journal styles', level: 2 })
+    await screen.findByRole('heading', { name: 'Manage templates', level: 2 })
     await settleFocus()
-    const dialog = screen.getByRole('dialog', { name: 'Journal styles' })
+    const dialog = screen.getByRole('dialog', { name: 'Manage templates' })
     await waitFor(() => expect(document.activeElement).toBe(within(dialog).getAllByRole('button', { name: 'Close' })[0]))
   })
 
@@ -233,7 +238,7 @@ describe('the Styles manager', () => {
     installFetch()
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete ${NAME}` }))
-    await screen.findByText('Style deleted.')
+    await screen.findByText(DELETED_LINE())
     await waitFor(() => expect(screen.queryByText(NAME)).toBeNull())
     expect(called('DELETE', MEMBER_END)).toHaveLength(1)
     // focus lands on Undo, the control the row's own button handed over to
@@ -241,20 +246,20 @@ describe('the Styles manager', () => {
     await waitFor(() => expect(document.activeElement).toBe(undo))
     fireEvent.click(undo)
     await waitFor(() => expect(called('POST', RESTORE_END)).toHaveLength(1))
-    await screen.findByText('Style restored.')
+    await screen.findByText('Template restored.')
     // the row is back, with its Default badge, and focus is on it (not on <body>)
     const row = (await screen.findByText(NAME)).closest('li')
     expect(within(row).getByText('Default')).toBeInTheDocument()
     await waitFor(() => expect(row.contains(document.activeElement)).toBe(true))
-    expect(screen.queryByText('Style deleted.')).toBeNull()
+    expect(screen.queryByText(DELETED_LINE())).toBeNull()
   })
 
   it('the Undo line ends at the next action', async () => {
     open()
     fireEvent.click(await screen.findByRole('button', { name: `Delete ${NAME}` }))
-    await screen.findByText('Style deleted.')
+    await screen.findByText(DELETED_LINE())
     fireEvent.click(await screen.findByRole('button', { name: 'Set Trade plan as default' }))
-    await waitFor(() => expect(screen.queryByText('Style deleted.')).toBeNull())
+    await waitFor(() => expect(screen.queryByText(DELETED_LINE())).toBeNull())
   })
 
   it("names a template's widget, routine and tracker blocks, says their day, and saves their settings verbatim", async () => {
@@ -268,7 +273,7 @@ describe('the Styles manager', () => {
     installFetch()
     open()
     await edit()
-    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const list = await screen.findByRole('list', { name: 'Blocks in this template' })
     const rows = within(list).getAllByRole('listitem')
     expect(rows.map((li) => li.textContent.replace(/\s+/g, ' ').trim())).toEqual([
       'Widget', 'Routine · For the next trading day', 'Tracker · For the trading week',
@@ -278,7 +283,7 @@ describe('the Styles manager', () => {
     fireEvent.click(within(rows[2]).getByRole('checkbox', { name: 'Use Tracker' }))
     fireEvent.click(screen.getByRole('button', { name: 'Move Widget down' }))
     expect(screen.getByText('Widget moved to position 2 of 3.')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     expect(put().blocks.map((b) => b.block)).toEqual(['routine_1', 'built_a', 'tracker_b'])
     expect(put().blocks.map((b) => b.settings)).toEqual([SLOTS[1].settings, SLOTS[0].settings, SLOTS[2].settings])
@@ -299,7 +304,7 @@ describe('the Styles manager', () => {
     installFetch()
     open()
     await edit()
-    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const list = await screen.findByRole('list', { name: 'Blocks in this template' })
     const names = (role) => within(list).getAllByRole(role).map((el) => el.getAttribute('aria-label'))
     const boxes = names('checkbox')
     expect(boxes).toEqual(['Use Widget 1', 'Use Widget 2', 'Use Routine 1', 'Use Routine 2', 'Use Tracker',
@@ -328,13 +333,13 @@ describe('the Styles manager', () => {
     installFetch()
     open()
     await edit()
-    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const list = await screen.findByRole('list', { name: 'Blocks in this template' })
     const boxes = within(list).getAllByRole('checkbox').map((el) => el.getAttribute('aria-label'))
     expect(boxes).toEqual(['Use Widget: Equity curve', 'Use Widget: Win rate', 'Use Routine: Morning routine 1',
       'Use Routine: Morning routine 2'])
     fireEvent.click(screen.getByRole('button', { name: 'Move Widget: Equity curve down' }))
     expect(screen.getByText('Widget: Equity curve moved to position 2 of 4.')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     expect(put().blocks.some((b) => 'displayName' in b)).toBe(false)
     expect(put().blocks.map((b) => b.block)).toEqual(['built_b', 'built_a', 'routine_1', 'routine_2'])
@@ -354,7 +359,7 @@ describe('the Styles manager', () => {
     installFetch()
     open()
     await edit()
-    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const list = await screen.findByRole('list', { name: 'Blocks in this template' })
     const boxes = within(list).getAllByRole('checkbox').map((el) => el.getAttribute('aria-label'))
     expect(boxes).toEqual(['Use Widget: Equity curve', 'Use Routine: Pre-market routine', 'Use Tracker'])
     expect(within(list).queryByText(/not in your account|isn.t available/i)).toBeNull()
@@ -365,7 +370,7 @@ describe('the Styles manager', () => {
     installFetch()
     open()
     await edit()
-    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const list = await screen.findByRole('list', { name: 'Blocks in this template' })
     // the newer-version block is shown, kept, and cannot be toggled
     const future = within(list).getByText('A block from a newer version').closest('li')
     expect(within(future).getByRole('checkbox', { name: 'Use A block from a newer version' })).toBeDisabled()
@@ -383,7 +388,7 @@ describe('the Styles manager', () => {
     expect(order()).toEqual(['future', 'chart'])
 
     // Save sends the order and keeps the unknown block verbatim
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     expect(put().blocks.map((b) => b.block)).toEqual([FUTURE.block, 'chart'])
     expect(put().blocks[0].settings).toEqual(FUTURE.settings)
@@ -395,7 +400,7 @@ describe('the Styles manager', () => {
       installFetch()
       open()
       await edit()
-      await screen.findByRole('list', { name: 'Blocks in this style' })
+      await screen.findByRole('list', { name: 'Blocks in this template' })
       fireEvent.change(screen.getByLabelText('Add a block'), { target: { value: 'chart' } })          // [future, chart]
     }
     const chartUp = () => screen.getByRole('button', { name: 'Move Chart of the note’s ticker up' })
@@ -430,7 +435,7 @@ describe('the Styles manager', () => {
       installFetch()
       open()
       await edit()
-      await screen.findByRole('list', { name: 'Blocks in this style' })
+      await screen.findByRole('list', { name: 'Blocks in this template' })
       fireEvent.change(screen.getByLabelText('Add a block'), { target: { value: 'chart' } })          // [a, b, chart]
       fireEvent.click(chartUp())                                                                       // [a, chart, b]
       expect(chartUp()).not.toBeDisabled()
@@ -443,7 +448,7 @@ describe('the Styles manager', () => {
     installFetch()
     open()
     await edit()
-    const list = await screen.findByRole('list', { name: 'Blocks in this style' })
+    const list = await screen.findByRole('list', { name: 'Blocks in this template' })
     const rows = within(list).getAllByRole('listitem')
     const handle = rows[0].querySelector('[draggable="true"]')
     expect(handle).not.toBeNull()
@@ -476,11 +481,11 @@ describe('the Styles manager', () => {
 
   it('makes a new style: the draft is saved with the chosen kind', async () => {
     open()
-    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /New template/ }))
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Swing plan' } })
-    fireEvent.change(screen.getByLabelText('Kind of note'), { target: { value: 'thesis' } })
+    fireEvent.change(screen.getByLabelText('Note type'), { target: { value: 'thesis' } })
     fireEvent.change(screen.getByLabelText('Add a block'), { target: { value: 'chart' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('POST', /journal-styles$/)).toHaveLength(1))
     const sent = called('POST', /journal-styles$/)[0].body
     expect(sent).toMatchObject({ name: 'Swing plan', kindId: 'thesis', outlineTemplateId: null, outlineBodyJson: null })
@@ -493,7 +498,7 @@ describe('the Styles manager', () => {
   it('P2 Tier 3 (R-T3-1): the mood check-in is offered in Add a block only while Tier 3 is on', async () => {
     const offered = () => [...screen.getByLabelText('Add a block').options].map((o) => o.textContent)
     open()
-    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /New template/ }))
     await screen.findByLabelText('Name')
     expect(offered()).toContain('Post-trade review')                          // control: the list is the catalog
     expect(offered()).not.toContain('Mood and focus check-in')
@@ -501,7 +506,7 @@ describe('the Styles manager', () => {
     __resetNotebookFlags()                                                    // a tab latches once
     latchNotebookFlags({ notebook_journal_styles_enabled: true, journal_tier3_enabled: true })
     open()
-    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /New template/ }))
     await screen.findByLabelText('Name')
     expect(offered()).toContain('Mood and focus check-in')
     fireEvent.change(screen.getByLabelText('Add a block'), { target: { value: 'moodCheckIn' } })
@@ -510,21 +515,21 @@ describe('the Styles manager', () => {
 
   it('an empty name is refused in words, and nothing is sent', async () => {
     open()
-    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /New template/ }))
     await screen.findByLabelText('Name')
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Give the style a name.')
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Give the template a name.')
     expect(called('POST', /journal-styles$/)).toHaveLength(0)
   })
 
-  it('property defaults: a select per user-set select property, Leave empty first, never Kind of note', async () => {
+  it('property defaults: a select per user-set select property, Leave empty first, never Note type', async () => {
     open()
     await edit()
     const sel = await screen.findByLabelText('Thesis Status')
     expect(within(sel).getAllByRole('option')[0]).toHaveTextContent('Leave empty')
     expect(screen.queryByLabelText('Ticker')).toBeNull()
     fireEvent.change(sel, { target: { value: 'watching' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     // the member's other captured default (the real style carries one) is kept, the chosen one is added
     expect(put().properties).toEqual({ ...MEMBER.properties, 'builtin:thesis_status': 'watching' })
@@ -536,7 +541,7 @@ describe('the Styles manager', () => {
     installFetch()
     open()
     await edit()
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     expect(put().properties).toEqual(props)
   })
@@ -546,7 +551,7 @@ describe('the Styles manager', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Duplicate Trade plan to edit' }))
     await waitFor(() => expect(called('POST', /journal-styles$/)).toHaveLength(1))
     expect(called('POST', /journal-styles$/)[0].body).toMatchObject({ name: 'Trade plan copy', kindId: 'trade_plan' })
-    await screen.findByRole('form', { name: 'Edit style Trade plan copy' })
+    await screen.findByRole('form', { name: 'Edit template Trade plan copy' })
     // P5 Task 6: a duplicate counts as style_created from 'duplicate', never from the editor it then opens.
     expect(called('POST', /^\/api\/j2\/telemetry$/).map((c) => c.body)).toEqual([{ event: 'style_created', props: { via: 'duplicate' } }])
   })
@@ -590,7 +595,7 @@ describe('the outline is never rewritten behind the member’s back (data loss)'
   it('renaming a style with a rich outline sends NO outline', async () => {
     rich(); open(); await edit()
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Renamed' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     expect(put().name).toBe('Renamed')
     noOutlineKeys(put())
@@ -599,7 +604,7 @@ describe('the outline is never rewritten behind the member’s back (data loss)'
   it('switching a block off on a rich outline sends NO outline', async () => {
     rich(); open(); await edit()
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Use Chart of the note’s ticker' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     expect(put().blocks[0].enabled).toBe(false)
     noOutlineKeys(put())
@@ -614,7 +619,7 @@ describe('the outline is never rewritten behind the member’s back (data loss)'
   it('choosing "No outline" on a rich outline is a deliberate change and clears it', async () => {
     rich(); open(); await edit()
     fireEvent.click(await screen.findByRole('radio', { name: 'No outline' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     expect(put()).toMatchObject({ outlineBodyJson: null, outlineTemplateId: null })
   })
@@ -626,7 +631,7 @@ describe('the outline is never rewritten behind the member’s back (data loss)'
     const box = await screen.findByLabelText('Outline text')
     expect(box.value).toBe('## Setup\n{{block:chart}}\nEntry:')
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     noOutlineKeys(put())
   })
@@ -636,7 +641,7 @@ describe('the outline is never rewritten behind the member’s back (data loss)'
     installFetch()
     open(); await edit()
     fireEvent.change(await screen.findByLabelText('Outline text'), { target: { value: '## Setup\nWhy now?\n## Risk' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     expect(put().outlineBodyJson.content.map((n) => n.type)).toEqual(['heading', 'paragraph', 'heading'])
   })
@@ -647,7 +652,7 @@ describe('the outline is never rewritten behind the member’s back (data loss)'
     fireEvent.change(screen.getByLabelText('Start from a built-in outline'), { target: { value: 'daily-prep' } })
     expect(screen.getByLabelText('Outline text').value).toMatch(/^## /m)
     fireEvent.change(screen.getByLabelText('Outline text'), { target: { value: '## Setup\n{{block:chart}}\n## ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     const doc = put().outlineBodyJson
     expect(doc.content.map((n) => n.type)).toEqual(['heading', 'paragraph'])          // the bare "## " line is dropped
@@ -657,7 +662,7 @@ describe('the outline is never rewritten behind the member’s back (data loss)'
   it('"One of my templates" with none chosen blocks Save with a sentence', async () => {
     open(); await edit()
     fireEvent.click(await screen.findByRole('radio', { name: 'One of my templates' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     expect(await alertText()).toBe('Choose one of your templates, or pick another outline option.')
     expect(called('PUT', MEMBER_END)).toHaveLength(0)
   })
@@ -668,7 +673,7 @@ describe('the outline is never rewritten behind the member’s back (data loss)'
     open(); await edit()
     expect(await screen.findByText('That template no longer exists.')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Renamed' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await waitFor(() => expect(called('PUT', MEMBER_END)).toHaveLength(1))
     noOutlineKeys(put())                                   // the dead id is not sent back to the server
   })
@@ -678,22 +683,22 @@ describe('where the member is looking (phone and keyboard)', () => {
   it('opening the editor moves focus to its heading and scrolls it into view', async () => {
     open()
     await edit()
-    const heading = screen.getByRole('heading', { name: 'Edit style', level: 3 })
+    const heading = screen.getByRole('heading', { name: 'Edit template', level: 3 })
     await waitFor(() => expect(document.activeElement).toBe(heading))
     expect(Element.prototype.scrollIntoView).toHaveBeenCalled()
   })
 
-  it('New style and Duplicate to edit do the same', async () => {
+  it('New template and Duplicate to edit do the same', async () => {
     open()
-    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
-    const heading = await screen.findByRole('heading', { name: 'New style', level: 3 })
+    fireEvent.click(await screen.findByRole('button', { name: /New template/ }))
+    const heading = await screen.findByRole('heading', { name: 'New template', level: 3 })
     await waitFor(() => expect(document.activeElement).toBe(heading))
   })
 
   it('after Save, focus returns to the button that opened the editor and the sentence is announced', async () => {
     open()
     await edit()
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await screen.findByText(`Saved ${NAME}.`)
     const opener = screen.getByRole('button', { name: `Edit ${NAME}` })
     await waitFor(() => expect(document.activeElement).toBe(opener))
@@ -713,10 +718,10 @@ describe('where the member is looking (phone and keyboard)', () => {
     await edit()
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    expect(await screen.findByText('Discard your unsaved changes to this style?')).toBeInTheDocument()
+    expect(await screen.findByText('Discard your unsaved changes to this template?')).toBeInTheDocument()
     expect(onClose).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
-    expect(screen.queryByText('Discard your unsaved changes to this style?')).toBeNull()
+    expect(screen.queryByText('Discard your unsaved changes to this template?')).toBeNull()
     expect(screen.getByLabelText('Name').value).toBe('Half done')
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
@@ -729,7 +734,7 @@ describe('where the member is looking (phone and keyboard)', () => {
     await edit()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalledTimes(1)
-    expect(screen.queryByText('Discard your unsaved changes to this style?')).toBeNull()
+    expect(screen.queryByText('Discard your unsaved changes to this template?')).toBeNull()
   })
 })
 
@@ -767,7 +772,7 @@ describe('when the connection or the server fails', () => {
     routes.unshift(['PUT', MEMBER_URL, [REFUSED._contract.status, REFUSED.body]])
     installFetch()
     open(); await edit()
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     expect(await alertText()).toBe(REFUSED.body.detail)
   })
 
@@ -792,14 +797,14 @@ describe('kinds of note', () => {
     routes.unshift(['POST', /^\/api\/j2\/note-kinds$/, (b) => ({ kind: { ...OWN_KIND, name: b.name, icon: b.icon } })])
     installFetch()
     open()
-    const name = await screen.findByLabelText('New kind name')
+    const name = await screen.findByLabelText('New note type name')
     expect(name).toHaveAttribute('maxlength', '40')
     fireEvent.change(name, { target: { value: 'Earnings plays' } })
     fireEvent.change(screen.getByLabelText('Icon'), { target: { value: 'bolt' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add kind' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add note type' }))
     await waitFor(() => expect(called('POST', /note-kinds$/)).toHaveLength(1))
     expect(called('POST', /note-kinds$/)[0].body).toEqual({ name: 'Earnings plays', icon: 'bolt' })
-    await screen.findByText('Kind added.')
+    await screen.findByText('Note type added.')
   })
 
   it('renames an own kind', async () => {
@@ -813,6 +818,8 @@ describe('kinds of note', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save name' }))
     await waitFor(() => expect(called('PUT', OWN_KIND_END)).toHaveLength(1))
     expect(called('PUT', OWN_KIND_END)[0].body).toEqual({ name: 'My setups' })
+    // Simplify pass 2 (A4): one name, "Note type", everywhere a member reads it.
+    await screen.findByText('Note type renamed.')
   })
 
   it('deleting a kind asks first, in the page, and says what goes with it; Keep changes nothing', async () => {
@@ -820,14 +827,14 @@ describe('kinds of note', () => {
     routes.unshift(['DELETE', OWN_KIND_URL, kindDeleted(0)])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    expect(await screen.findByText(`Delete the kind ${KIND_NAME}? Styles you deleted that used it are removed permanently.`)).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    expect(await screen.findByText(`Delete the note type ${KIND_NAME}? Templates you deleted that used it are removed permanently.`)).toBeInTheDocument()
     expect(called('DELETE', /note-kinds/)).toHaveLength(0)
-    fireEvent.click(screen.getByRole('button', { name: `Keep kind ${KIND_NAME}` }))
+    fireEvent.click(screen.getByRole('button', { name: `Keep note type ${KIND_NAME}` }))
     expect(called('DELETE', /note-kinds/)).toHaveLength(0)
     expect(screen.queryByText(/Styles you deleted that used it/)).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    fireEvent.click(screen.getByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
     await waitFor(() => expect(called('DELETE', OWN_KIND_END)).toHaveLength(1))
     expect(confirmSpy).not.toHaveBeenCalled()                    // never window.confirm
     confirmSpy.mockRestore()
@@ -838,8 +845,8 @@ describe('kinds of note', () => {
     routes.unshift(['DELETE', OWN_KIND_URL, [IN_USE._contract.status, IN_USE.body]])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
     expect(await alertText()).toBe(sentence)
   })
 
@@ -847,9 +854,9 @@ describe('kinds of note', () => {
     routes.unshift(['DELETE', OWN_KIND_URL, kindDeleted(2)])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText(/Kind deleted\. 2 styles you had deleted for it were removed for good\./)
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
+    await screen.findByText(/Note type deleted. 2 templates you had deleted for it were removed for good\./)
   })
 
   it('the server’s own answer with wave 11 dark (one deleted style went with the kind) is worded in the singular', async () => {
@@ -857,27 +864,27 @@ describe('kinds of note', () => {
     routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText('Kind deleted. 1 style you had deleted for it was removed for good.')
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
+    await screen.findByText('Note type deleted. 1 template you had deleted for it was removed for good.')
   })
 
-  it('the server’s own answer with wave 11 on (W11-R69 / W11-R10 KEEP the deleted styles: a count of 0) reads "Kind deleted." alone', async () => {
+  it('the server’s own answer with wave 11 on (W11-R69 / W11-R10 KEEP the deleted styles: a count of 0) reads "Note type deleted." alone', async () => {
     expect(KIND_DELETED_W11.purgedDeletedStyles).toBe(0)
     routes.unshift(['DELETE', OWN_KIND_URL, KIND_DELETED_W11])
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await screen.findByText('Kind deleted.')
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
+    await screen.findByText('Note type deleted.')
     expect(screen.queryByText(/removed for good/)).toBeNull()
   })
 
   it('built-in kinds have no Rename or Delete', async () => {
     open()
-    await screen.findByRole('heading', { name: 'Your kinds of note' })
+    await screen.findByRole('heading', { name: 'Your note types' })
     expect(screen.queryByRole('button', { name: 'Rename Trade plan' })).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Delete kind Trade plan' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Delete note type Trade plan' })).toBeNull()
   })
 })
 
@@ -894,28 +901,28 @@ describe('the Research Type mapping offer', () => {
   it('applies and passes the blocked note ids; locked notes are counted aloud', async () => {
     withOffer(applied())
     open({ blockedNoteIds: ['n-blocked'] })
-    await screen.findByText(`You have ${OFFER.offer.total} notes with a Research Type. Set their Kind of note to match?`)
-    fireEvent.click(screen.getByRole('button', { name: 'Set kinds' }))
+    await screen.findByText(`You have ${OFFER.offer.total} notes with a Research Type. Set their Note type to match?`)
+    fireEvent.click(screen.getByRole('button', { name: 'Set note types' }))
     await waitFor(() => expect(called('POST', /mapping-offer$/)).toHaveLength(1))
     expect(called('POST', /mapping-offer$/)[0].body).toEqual({ excludeNoteIds: ['n-blocked'] })
-    await screen.findByText(`Set the kind on ${APPLIED.count} note. ${APPLIED.skipped.length} locked note was left as it was.`)
+    await screen.findByText(`Set the note type on ${APPLIED.count} note. ${APPLIED.skipped.length} locked note was left as it was.`)
   })
 
   it('notes held back for unsent offline work are named too (3 asked, 1 set, 1 locked, 1 held back)', async () => {
     withOffer(applied(), offerOf({ total: OFFER.offer.total + 1 }))        // one more counted than the server answered for
     open({ blockedNoteIds: ['n-blocked'] })
-    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
     await screen.findByText(/1 note with unsent changes was left for later\./)
   })
 
   it('the offer is not asked again after it was applied, even though the server still counts the skipped notes', async () => {
     withOffer(applied())
     open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
     await screen.findByText(APPLIED_RE)
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
-    expect(screen.queryByText(/with a Research Type\. Set their Kind/)).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Set kinds' })).toBeNull()
+    expect(screen.queryByText(/with a Research Type\. Set their Note type/)).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set note types' })).toBeNull()
   })
 
   it('Not now writes the preference', async () => {
@@ -961,13 +968,13 @@ describe('round 3: the applied offer outlives the Notebook route', () => {
     await screen.findByRole('heading', { name: 'Trade plan', level: 3 })
     await waitFor(() => expect(called('GET', /mapping-offer$/).length).toBeGreaterThan(0))
     await act(async () => { await new Promise((r) => setTimeout(r, 50)) })
-    expect(screen.queryByRole('button', { name: 'Set kinds' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Set note types' })).toBeNull()
   }
 
   it('apply, leave (unmount), arrive again through Settings: the offer is not asked again', async () => {
     setup()
     const first = open()
-    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
     await screen.findByText(APPLIED_RE)
     first.unmount()
     open()
@@ -980,7 +987,7 @@ describe('round 3: the applied offer outlives the Notebook route', () => {
     try {
       setup()
       const first = open()
-      fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
       await screen.findByText(APPLIED_RE)
       first.unmount()
       open()
@@ -991,16 +998,16 @@ describe('round 3: the applied offer outlives the Notebook route', () => {
   it('it is kept per member: another member is still offered theirs', async () => {
     setup()
     const first = open({ userId: 'u1' })
-    fireEvent.click(await screen.findByRole('button', { name: 'Set kinds' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Set note types' }))
     await screen.findByText(APPLIED_RE)
     first.unmount()
     open({ userId: 'u2' })
-    expect(await screen.findByRole('button', { name: 'Set kinds' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Set note types' })).toBeInTheDocument()
   })
 })
 
 describe('round 3: unsaved editor changes', () => {
-  const PROMPT = 'Discard your unsaved changes to this style?'
+  const PROMPT = 'Discard your unsaved changes to this template?'
 
   it('Cancel clears a discard prompt that was waiting', async () => {
     open()
@@ -1018,7 +1025,7 @@ describe('round 3: unsaved editor changes', () => {
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
     await screen.findByText(PROMPT)
-    fireEvent.click(screen.getByRole('button', { name: 'Save style' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save template' }))
     await screen.findByText('Saved Half done.')
     expect(screen.queryByText(PROMPT)).toBeNull()
   })
@@ -1035,25 +1042,25 @@ describe('round 3: unsaved editor changes', () => {
     expect(called('POST', /journal-styles$/)).toHaveLength(0)
     fireEvent.click(screen.getByRole('button', { name: 'Duplicate Trade plan to edit' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
-    await screen.findByRole('form', { name: 'Edit style Trade plan copy' })
+    await screen.findByRole('form', { name: 'Edit template Trade plan copy' })
     expect(called('POST', /journal-styles$/)).toHaveLength(1)
   })
 
-  it('New style over a dirty editor asks too; Discard goes where the member asked', async () => {
+  it('New template over a dirty editor asks too; Discard goes where the member asked', async () => {
     open()
     await edit()
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
-    fireEvent.click(screen.getByRole('button', { name: /New style/ }))
+    fireEvent.click(screen.getByRole('button', { name: /New template/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
-    await screen.findByRole('form', { name: 'New style' })
+    await screen.findByRole('form', { name: 'New template' })
     expect(screen.getByLabelText('Name').value).toBe('')
   })
 
   it('with nothing changed, opening another style just opens it', async () => {
     open()
     await edit()
-    fireEvent.click(screen.getByRole('button', { name: /New style/ }))
-    await screen.findByRole('form', { name: 'New style' })
+    fireEvent.click(screen.getByRole('button', { name: /New template/ }))
+    await screen.findByRole('form', { name: 'New template' })
     expect(screen.queryByText(PROMPT)).toBeNull()
   })
 })
@@ -1087,11 +1094,11 @@ describe('round 3: the kind-delete confirm keeps focus', () => {
   it('opening the confirm focuses its first button; Keep returns focus to that kind’s Delete', async () => {
     kindRoutes(TWO)
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    const yes = await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` })
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    const yes = await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` })
     await waitFor(() => expect(document.activeElement).toBe(yes))
-    fireEvent.click(screen.getByRole('button', { name: `Keep kind ${KIND_NAME}` }))
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: `Delete kind ${KIND_NAME}` })))
+    fireEvent.click(screen.getByRole('button', { name: `Keep note type ${KIND_NAME}` }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: `Delete note type ${KIND_NAME}` })))
   })
 
   it('after a delete, focus goes to the next kind row (its first button)', async () => {
@@ -1102,8 +1109,8 @@ describe('round 3: the kind-delete confirm keeps focus', () => {
     )
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: `Rename ${OTHER_OWN_KIND.name}` })))
   })
 
@@ -1115,9 +1122,9 @@ describe('round 3: the kind-delete confirm keeps focus', () => {
     )
     installFetch()
     open()
-    fireEvent.click(await screen.findByRole('button', { name: `Delete kind ${KIND_NAME}` }))
-    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete kind ${KIND_NAME}` }))
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('New kind name')))
+    fireEvent.click(await screen.findByRole('button', { name: `Delete note type ${KIND_NAME}` }))
+    fireEvent.click(await screen.findByRole('button', { name: `Yes, delete note type ${KIND_NAME}` }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByLabelText('New note type name')))
   })
 })
 
@@ -1128,13 +1135,13 @@ describe('round 3: the status bar leaves no gap when it has nothing to say', () 
     const bar = screen.getByRole('status').parentElement
     expect(bar).toHaveAttribute('data-empty')
     fireEvent.click(screen.getByRole('button', { name: `Delete ${NAME}` }))
-    await screen.findByText('Style deleted.')
+    await screen.findByText(DELETED_LINE())
     expect(bar).not.toHaveAttribute('data-empty')
   })
 })
 
 describe('round 4: Discard really discards, even when the same editor is reopened', () => {
-  const PROMPT = 'Discard your unsaved changes to this style?'
+  const PROMPT = 'Discard your unsaved changes to this template?'
 
   it('Edit A over a dirty A: Discard shows the stored values, nothing is dirty, Close asks nothing', async () => {
     const onClose = vi.fn()
@@ -1149,11 +1156,11 @@ describe('round 4: Discard really discards, even when the same editor is reopene
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
-  it('New style over a dirty New style: Discard gives a blank form again', async () => {
+  it('New template over a dirty New style: Discard gives a blank form again', async () => {
     open()
-    fireEvent.click(await screen.findByRole('button', { name: /New style/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /New template/ }))
     fireEvent.change(await screen.findByLabelText('Name'), { target: { value: 'Half a draft' } })
-    fireEvent.click(screen.getByRole('button', { name: /New style/ }))
+    fireEvent.click(screen.getByRole('button', { name: /New template/ }))
     fireEvent.click(await screen.findByRole('button', { name: 'Discard changes' }))
     await waitFor(() => expect(screen.getByLabelText('Name').value).toBe(''))
   })
@@ -1165,11 +1172,11 @@ describe('round 4: deleting the open style', () => {
     await edit()
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Half done' } })
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    await screen.findByText('Discard your unsaved changes to this style?')
+    await screen.findByText('Discard your unsaved changes to this template?')
     fireEvent.click(screen.getByRole('button', { name: `Delete ${NAME}` }))
-    await screen.findByText('Style deleted.')
-    expect(screen.queryByText('Discard your unsaved changes to this style?')).toBeNull()
-    expect(screen.queryByRole('form', { name: /Edit style/ })).toBeNull()
+    await screen.findByText(DELETED_LINE())
+    expect(screen.queryByText('Discard your unsaved changes to this template?')).toBeNull()
+    expect(screen.queryByRole('form', { name: /Edit template/ })).toBeNull()
   })
 })
 

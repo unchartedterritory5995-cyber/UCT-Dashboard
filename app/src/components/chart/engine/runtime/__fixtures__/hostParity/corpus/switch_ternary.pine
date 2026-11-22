@@ -1,0 +1,11 @@
+//@version=5
+indicator("hp switch", overlay=false)
+mode = bar_index % 4
+v = switch mode
+    0 => close
+    1 => open
+    2 => (high + low) / 2
+    => hlc3
+t = close > open ? 1 : close < open ? -1 : 0
+plot(v, "v")
+plot(t, "t")

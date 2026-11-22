@@ -32,7 +32,7 @@ import { execute } from '../vm.js'
 import { RuntimeLimitError } from '../limits.js'
 import { translatePine } from '../../ast/pine.js'
 import { parseFormula } from '../../ast/parse.js'
-import { interpret, CARRIED, FINITE_WINDOW, BINARY } from '../../ast/interpret.js'
+import { interpret, CARRIED, FINITE_WINDOW, BINARY, carriedCellsOf, exactSum } from '../../ast/interpret.js'
 
 const N = 40
 // ⛔ A MOVING SOURCE. On a flat series an EMA, an RMA and the source itself all
@@ -112,8 +112,10 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
     // (`rt7Fixnan.test.js` holds the second to a hand replay).
     // ⭐ P3 WS-B — and a third, `rsiPine` (`runtimeRsiHma.test.js` holds it to
     // the shipped `computeRSI`).
+    // ⭐ W4 T10 — and three more: `cumPine`, `pivotHighPine`, `pivotLowPine`
+    // (`w4StateKernels.test.js` holds them to the columnar lane).
     expect(MEMBERS.length - MIRRORED.length, 'no member is runtime-only any more —'
-      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(3)
+      + ' if that is deliberate, delete MIRRORED rather than leaving it inert').toBe(6)
   })
 
   for (const fn of MIRRORED) {
@@ -123,7 +125,10 @@ describe('⭐⭐⭐ graph-vs-runtime differential — every declared member (§4
       // ⛔ THE WARM-UP IS PART OF THE COMPARISON. A recurrence's early bars are
       // where a seeding difference lives and the only place it is ever visible;
       // comparing from bar 20 is how this class of defect survives.
-      expect(want.slice(0, 5).every((v) => Number.isNaN(v)), 'the fixture must exercise a warm-up').toBe(true)
+      // ⭐ ENGINE 56 (probe 11) — `rising` / `falling` answer FALSE on their first `n` samples
+      // (witnessed, s17 v4 / v5): their warm-up is a definite 0, still compared below
+      if (fn === 'rising' || fn === 'falling') expect(want.slice(0, 5), 'the warm-up is false, never na').toEqual([0, 0, 0, 0, 0])
+      else expect(want.slice(0, 5).every((v) => Number.isNaN(v)), 'the fixture must exercise a warm-up').toBe(true)
       sameSeries(out, want, fn)
     })
   }
@@ -519,7 +524,7 @@ describe('⭐⭐⭐ VENDOR — what TradingView actually does (2026-09-08)', () 
       expect(h[at + 1].ena, 'and a number arrives on the VERY NEXT bar').not.toBeNull()
       for (const [fn, key, k] of [['ema', 'ena', 2 / 11], ['rma', 'rna', 1 / 10]]) {
         const spec = CARRIED[fn]
-        const st = new Float64Array(spec.cells)
+        const st = new Float64Array(carriedCellsOf(spec, 10))
         st[0] = h[at - 1][key]; st[1] = 10; st[2] = 0
         expect(Number.isNaN(spec.step(st, 0, NaN, 10, k)), `${fn}: the hole is na`).toBe(true)
         expect(spec.step(st, 0, h[at + 1].srcna, 10, k), `${fn} after the hole`)
@@ -561,40 +566,43 @@ plot(ta.sma(x, 10))
 })
 
 describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intentionally moved', () => {
+  /** ⭐ RMA-SEED (engine 92) — Wilder's seed is the EXACTLY ROUNDED sum of the first `n` values / `n`
+   *  (`exactSum`, SMA-EXACT's own rail `smaExactSum.test.js`); the exponential seed stays the running sum. */
+  const seedOf = (vals, n, wilder) => (wilder ? exactSum(vals, 0, n - 1) / n : vals.reduce((s, x) => s + x, 0) / n)
   /** The loop as it stood BEFORE 2F-2C, transcribed. ⛔ An independent longhand,
    *  not a call into the thing under test. It RESETS on a non-finite value, which
    *  is the behaviour the owner ruled wrong on 2026-09-08. */
-  function preCorrectionSmooth(series, n, k) {
+  function preCorrectionSmooth(series, n, k, wilder = false) {
     const out = new Float64Array(series.length).fill(NaN)
-    let prev = NaN; let count = 0; let sum = 0
+    let prev = NaN; let vals = []
     for (let i = 0; i < series.length; i += 1) {
       const v = series[i]
-      if (!Number.isFinite(v)) { prev = NaN; count = 0; sum = 0; continue }
+      if (!Number.isFinite(v)) { prev = NaN; vals = []; continue }
       if (Number.isNaN(prev)) {
-        sum += v; count += 1
-        if (count === n) { prev = sum / n; out[i] = prev }
-      } else { prev = prev * (1 - k) + v * k; out[i] = prev }
+        vals.push(v)
+        if (vals.length === n) { prev = seedOf(vals, n, wilder); out[i] = prev }
+      } else { prev = wilder ? (prev * (n - 1) + v) / n : prev * (1 - k) + v * k; out[i] = prev }
     }
     return out
   }
   /** The same loop with the ONE ruled change: a non-finite value HOLDS. */
-  function holdSmooth(series, n, k) {
+  function holdSmooth(series, n, k, wilder = false) {
     const out = new Float64Array(series.length).fill(NaN)
-    let prev = NaN; let count = 0; let sum = 0
+    let prev = NaN; const vals = []
     for (let i = 0; i < series.length; i += 1) {
       const v = series[i]
       if (!Number.isFinite(v)) continue
       if (Number.isNaN(prev)) {
-        sum += v; count += 1
-        if (count === n) { prev = sum / n; out[i] = prev }
-      } else { prev = prev * (1 - k) + v * k; out[i] = prev }
+        vals.push(v)
+        if (vals.length === n) { prev = seedOf(vals, n, wilder); out[i] = prev }
+      } else { prev = wilder ? (prev * (n - 1) + v) / n : prev * (1 - k) + v * k; out[i] = prev }
     }
     return out
   }
   /** The SHIPPED path, driven through the shared step. */
   function viaTable(series, n, fn) {
     const spec = CARRIED[fn]
-    const st = new Float64Array(spec.cells)
+    const st = new Float64Array(carriedCellsOf(spec, n))
     spec.init(st, 0)
     const k = spec.alpha(n)
     return Array.from(series, (v) => spec.step(st, 0, v, n, k))
@@ -627,7 +635,9 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
     for (const [label, data] of Object.entries(CLEAN)) {
       for (const n of [1, 4, 14]) {
         it(`⭐ ${fn} n=${n} — ${label}: UNCHANGED by the correction`, () => {
-          eq(viaTable(data, n, fn), preCorrectionSmooth(data, n, CARRIED[fn].alpha(n)), label)
+          // (landing train 1: `rma` steps in TradingView's own order, `(prev * (n - 1) + v) / n`; the hold
+          // correction this block records is about `na`, and is unchanged by that)
+          eq(viaTable(data, n, fn), preCorrectionSmooth(data, n, CARRIED[fn].alpha(n), fn === 'rma'), label)
         })
       }
     }
@@ -636,7 +646,7 @@ describe('⭐⭐ §49/§47 — the refactor, and the ONE semantic that intention
         it(`⚰️ ${fn} n=${n} — ${label}: MOVED, old → vendor-correct`, () => {
           // ⭐ THE SEMANTIC MIGRATION, AS AN EXECUTABLE RECORD (§47). The shipped
           // path must equal HOLD exactly...
-          eq(viaTable(data, n, fn), holdSmooth(data, n, CARRIED[fn].alpha(n)), `${label} hold`)
+          eq(viaTable(data, n, fn), holdSmooth(data, n, CARRIED[fn].alpha(n), fn === 'rma'), `${label} hold`)
         })
       }
     }
@@ -744,11 +754,16 @@ describe('⭐ `ta.change` — lowered into semantics that already ship (§42–�
     // an expression source INSIDE A BRANCH still has nowhere to put the series
     const branch = `${head}var x = 0.0\nx := close\nvar y = 0.0\nif close > 0\n    y := ta.change(x + 1)\nplot(y)\n`
     expect(refusalOf(branch).guard).toBe('runtime:history-expression')
-    // `ta.change(source, length)` is a CLOSED TABLE gap: the table's `change`
-    // declares one argument, so the two-argument Pine overload has no entry.
-    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x, 3))\n`)
+    // ⚰️ THIS ASSERTED `ta.change(x, 3)` REFUSED as "a closed-table gap". It stopped being one on
+    // 2026-10-29 (the host's `mom` expansion, `source - source[length]`), and since engine 82
+    // (U-STMT PR 1, `taChangeLength.test.js`) this lane serves it too, as the same number the
+    // columnar door writes. What stays refused, by name: a length that is not a whole number of bars
+    // fixed before bar 0.
+    const { out } = runPine(`${head}var x = 0.0\nx := close\nplot(ta.change(x, 3))\n`)
+    sameSeries(out, pureLane('ta.change(close, 3)'), 'two-argument change')
+    const r = refusalOf(`${head}var x = 0.0\nx := close\nplot(ta.change(x, bar_index % 3 + 1))\n`)
     expect(r.guard).toBe('runtime:statement')
-    expect(r.message).toMatch(/closed-table gap/)
+    expect(r.message).toMatch(/whole number of bars/)
   })
 
   it('⛔⛔ the cross family is NOT an operator lowering — the NaN reason still stands', () => {

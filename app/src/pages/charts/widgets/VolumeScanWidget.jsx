@@ -17,6 +17,7 @@
  * ~2s during market hours. Clicking a row routes the ticker into this widget's color
  * group so a paired chart follows. RVOL / move filters are debounced local state.
  */
+import { useWidgetDoor } from '../widgetDoors'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
@@ -33,6 +34,7 @@ import chrome from './NewHighsLowsWidget.module.css'
 import styles from './VolumeScanWidget.module.css'
 import { sectionFetcher } from '../../../components/research/sections/sectionFetch'
 import { formatCompact } from '../../../lib/presentation/presentationPrimitives'
+import UctCtrlPortal from '../UctCtrlPortal'  // owner 11-14: the ⚙ goes top-right on the board
 
 // TERM-033: a failed read THROWS (sectionFetcher). It used to resolve to `null`, which this
 // widget drew as "Warming up…", a scanner that never finished warming. Now SWR keeps the last good answer through a failed poll, and a
@@ -190,6 +192,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
     },
     [setPref, opts, onOptsChange])
   const listHelpers = useMemo(() => makeListHelpers(lists, activeListId, commitLists), [lists, activeListId, commitLists])
+  useWidgetDoor(() => ({ options: () => ({ list: [{ value: null, label: 'Top 1,000' }, ...lists.map(l => ({ value: l.id, label: l.name }))] }) }))
   // One-time migration: lists used to live per-widget in opts.volLists — move any still
   // there up to the account so a pre-existing list isn't lost on the next widget close.
   const migratedRef = useRef(false)
@@ -265,7 +268,7 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
           gearEl={gearRef.current}
           hostEl={rootRef.current}
           themeVars={panelThemeVars}
-          title="Volume Surge Settings"
+          title="Volume surge settings"
           showLogos={showLogos}
           onToggleLogos={toggleLogos}
           widgetType="volumescan"
@@ -282,16 +285,16 @@ export default function VolumeScanWidget({ color, opts, onOptsChange }) {
         <span className={chrome.spacer} />
         <ScopeControl lists={lists} activeId={activeListId} helpers={listHelpers} themeVars={panelThemeVars} />
         <span className={chrome.spacer} />
-        <button
+        <UctCtrlPortal><button
           ref={gearRef}
           type="button"
           className={`${chrome.gear} ${settingsOpen ? chrome.gearOn : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
+          data-guide="widget.settings" onClick={() => setSettingsOpen(o => !o)}
           title="Volume Surge settings"
           aria-label="Volume Surge settings"
         >
           <UIcon name="gear" size={13} gold={false} />
-        </button>
+        </button></UctCtrlPortal>
       </div>
 
       {!isActive ? (

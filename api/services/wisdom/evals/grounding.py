@@ -152,7 +152,7 @@ class AnthropicAnswerer:
 
             from api.services import llm_timeouts
 
-            self._client = anthropic.Anthropic(timeout=llm_timeouts.OFFLINE_JOB)
+            self._client = anthropic.Anthropic(timeout=llm_timeouts.OFFLINE_JOB, max_retries=0)
         return self._client
 
     def answer(self, question: str, segments: list) -> dict:

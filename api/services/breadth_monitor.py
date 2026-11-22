@@ -253,9 +253,16 @@ _SCORE_WEIGHTS = {
 _SCORE_LABELS = {
     "pct_above_50sma": "% above 50 SMA", "ratio_5day": "5-day up/down ratio",
     "magna": "13%/34d up share", "hi_ratio": "52w highs / universe",
-    "cboe_putcall": "CBOE put/call (contrarian)", "aaii_spread": "AAII spread (contrarian)",
+    "cboe_putcall": "CBOE equity put/call (contrarian)", "aaii_spread": "AAII spread (contrarian)",
     "vix": "VIX (inverted)", "stage2": "Stage 2 share", "adv_decline": "Advance/decline",
 }
+
+# ⭐ The put/call component's band (lo → 0 points, hi → full points). `cboe_putcall` is CBOE's
+# EQUITY ratio (owner 2026-11-19); the old (0.65, 0.85) band was set for the TOTAL ratio, which
+# runs higher. RETUNED TO KEEP ITS MEANING: lo / hi are the equity ratio's values at the SAME
+# percentiles that 0.65 / 0.85 held in the total series, over the sessions both exist
+# (2019-10-07 → 2026-11-18, tools/breadth/refill_equity_putcall.py's cache). Not hand-set.
+_PUTCALL_BAND = (0.37, 0.53)
 
 # Below this much available weight the remainder is not a market read, it is a
 # handful of inputs extrapolated to a 0-100 headline. Say nothing instead.
@@ -306,8 +313,8 @@ def _score_breakdown(row: dict) -> tuple[Optional[float], list[dict]]:
                                              and (mu + md) > 0) else None, 40, 70)
 
     take("hi_ratio", row.get("hi_ratio"), 0.5, 5.0)
-    # Contrarian: a higher put/call is more fearful, which is a better setup.
-    take("cboe_putcall", row.get("cboe_putcall"), 0.65, 0.85)
+    # Contrarian: a higher equity put/call is more fearful, which is a better setup.
+    take("cboe_putcall", row.get("cboe_putcall"), *_PUTCALL_BAND)
     # Contrarian: invert, so a -30 spread (very bearish) earns full points.
     spread = row.get("aaii_spread")
     take("aaii_spread", (-spread) if spread is not None else None, -30, 20)
@@ -1170,6 +1177,176 @@ def date_bounds() -> dict:
     return out
 
 
+# ── PER-UNIVERSE MONITOR (US / Nasdaq / NYSE) ───────────────────────────────
+#
+# ⭐ READS ONLY. Every per-universe column comes from the PRE-BUILT store
+# (`breadth_universe_monitor`, built in the background from the V2 / Exchange authorities);
+# the market-wide columns are copied from the UCT row of the SAME date; the sessions the
+# canonical producers have not finalised yet come from `breadth_live_universes` (in memory,
+# refreshed ~55 s in its own thread) and are marked `_provisional`. Nothing is derived here.
+#
+# ⛔ UCT NEVER COMES THROUGH HERE. `get_history` / `get_history_deep` are the UCT path, untouched,
+# with their cache keys byte-identical; a universe id that is not one of the three pre-built ones
+# raises rather than falling back to UCT rows.
+
+def _universe_live(universe: str) -> tuple:
+    """(rows after the canonical store's newest session, the payload's as-of token)."""
+    try:
+        from api.services import breadth_live_universes as blu
+        if not blu.serving():
+            return [], ""
+        p = blu.payload(cached_only=True) or {}
+        return blu.rows_for(universe), str(p.get("as_of") or "")
+    except Exception:
+        return [], ""
+
+
+def _universe_source_row(metrics: dict) -> dict:
+    """A live / provisional payload row reduced to the keys the store would hold."""
+    from api.services import breadth_universe_monitor as bum
+    keep = set(bum.SOURCE_METRICS)
+    out = {}
+    for k, v in (metrics or {}).items():
+        if k in keep and v is not None and not isinstance(v, bool):
+            try:
+                f = float(v)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(f):
+                out[k] = v
+    return out
+
+
+def universe_timeline(universe: str) -> dict:
+    """The universe's session index: stored sessions + the provisional completed ones, ASC,
+    plus today's provisional live row (or None) and the identity token for cache keys."""
+    from api.services import breadth_universe_monitor as bum
+    stored = bum.dates(universe)
+    last = stored[-1] if stored else ""
+    live, live_tok = _universe_live(universe)
+    prov: dict = {}
+    today = None
+    for r in live:
+        d = r.get("date") or ""
+        if not d or d <= last:
+            continue
+        row = _universe_source_row(r.get("metrics"))
+        if not row.get("universe_count"):
+            continue
+        if r.get("final"):
+            prov[d] = row
+        else:
+            today = dict(row, date=d)
+    # The A/D line continues from the newest stored level through the provisional sessions.
+    cum = None
+    if stored:
+        cum = (bum.rows_for_dates(universe, [last]).get(last) or {}).get("adv_decline_cum")
+    for d in sorted(prov):
+        if cum is not None and prov[d].get("adv_decline") is not None:
+            cum = cum + prov[d]["adv_decline"]
+            prov[d]["adv_decline_cum"] = cum
+        else:
+            cum = None
+    if today is not None and cum is not None and today.get("adv_decline") is not None:
+        today["adv_decline_cum"] = cum + today["adv_decline"]
+    asc = stored + sorted(prov)
+    token = bum.version(universe) + (f"|live:{live_tok}" if (prov or today) else "")
+    return {"dates": asc, "provisional": prov, "live": today, "token": token, "stored_last": last}
+
+
+def universe_cache_token(universe: str) -> str:
+    """The non-UCT cache-key suffix: the store version + the live payload identity."""
+    return universe_timeline(universe)["token"]
+
+
+def _finish_universe_row(row: dict, universe: str, uct_row: Optional[dict]) -> dict:
+    """Market-wide keys from the UCT row of the same date (or None); unavailable / hidden
+    columns explicitly None; the universe stamped on the row."""
+    from api.services import breadth_universe_monitor as bum
+    for k in bum.MARKET_WIDE + bum.MARKET_WIDE_SUPPORT:
+        row[k] = None
+    if uct_row:
+        for k in bum.market_wide_keys(uct_row):
+            row[k] = uct_row.get(k)
+    for k in bum.HIDDEN + bum.UNAVAILABLE:
+        row[k] = None
+    row["_universe"] = universe
+    return row
+
+
+def universe_live_row(universe: str) -> Optional[dict]:
+    """Today's provisional row for a universe (per-universe columns only; the client lays the
+    UCT live row's market-wide readings over it), or None."""
+    tl = universe_timeline(universe)
+    if not tl["live"]:
+        return None
+    row = _finish_universe_row(dict(tl["live"]), universe, None)
+    row.update(_live=True, _provisional=True)
+    return row
+
+
+def get_history_universe(universe: str, days: int = 90, end: Optional[str] = None,
+                         anchor: str = "le") -> list:
+    """The Monitor window for a pre-built universe, newest-first (no warm-up rows: every
+    rolling field was finished by the builder)."""
+    from api.services import breadth_universe_monitor as bum
+    from api.services.cache import cache
+    u = bum._check(universe)
+    tl = universe_timeline(u)
+    ck = f"breadth_history_deep_{days}_{end or 'latest'}_{anchor}_{u}|{tl['token']}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    all_dates = tl["dates"]
+    if not all_dates:
+        return []
+    anchor_date = _resolve_anchor_merged(all_dates, end, anchor) if end else all_dates[-1]
+    idx = bisect_right(all_dates, anchor_date) - 1
+    if idx < 0:
+        return []
+    window = all_dates[max(0, idx - days + 1):idx + 1]
+    prov = tl["provisional"]
+    stored = bum.rows_for_dates(u, [d for d in window if d not in prov])
+    # ⭐ MARKET-WIDE = the UCT row of the same date (its own cached path). The UCT row supplies
+    # ONLY the `MARKET_WIDE` keys — never a per-universe value.
+    uct: dict = {}
+    try:
+        b = date_bounds()
+        if b.get("min") and window[-1] >= b["min"]:
+            n = min(8000, len(window) + 40)
+            for r in get_history_deep(n, end=window[-1], anchor="le"):
+                if r.get("date"):
+                    uct[r["date"]] = r
+    except Exception as e:
+        print(f"[breadth_monitor] universe market-wide copy skipped: {type(e).__name__}: {e}")
+    out = []
+    for d in reversed(window):
+        src = prov.get(d) if d in prov else stored.get(d)
+        if src is None:
+            continue
+        row = dict(src)
+        row["date"] = d
+        _finish_universe_row(row, u, uct.get(d))
+        if d in prov:
+            row["_provisional"] = True
+        out.append(row)
+    cache.set(ck, out, ttl=300)
+    return out
+
+
+def universe_date_bounds(universe: str) -> dict:
+    ds = universe_timeline(universe)["dates"]
+    return {"min": ds[0] if ds else None, "max": ds[-1] if ds else None}
+
+
+def universe_next_trading_day(universe: str, date_str: Optional[str]) -> Optional[str]:
+    if not date_str:
+        return None
+    ds = universe_timeline(universe)["dates"]
+    i = bisect_right(ds, date_str)
+    return ds[i] if i < len(ds) else None
+
+
 def next_trading_day(date_str: Optional[str]) -> Optional[str]:
     """The merged session immediately AFTER `date_str` (newer), or None.
 
@@ -1502,6 +1679,18 @@ def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
     """Return a single *_list metric for a given date, or None if not found."""
     try:
         with _conn() as c:
+            if _is_list_key(metric_key):
+                # ⭐ ONE KEY, NOT THE BLOB (2026-11-20). Every snapshot carries `universe_list`
+                # (~2,900 rows); parsing the whole metrics JSON to hand back one list was the bulk
+                # of a drill open's server time. json_extract reads just this key (the context
+                # route's lookback already does). Same answers: no row / no key -> None.
+                row = c.execute(
+                    "SELECT json_extract(metrics, ?) AS v FROM breadth_snapshots WHERE date = ?",
+                    (f"$.{metric_key}", date_str),
+                ).fetchone()
+                if not row or row["v"] is None:
+                    return None
+                return json.loads(row["v"]) if isinstance(row["v"], str) else row["v"]
             row = c.execute(
                 "SELECT metrics FROM breadth_snapshots WHERE date = ?", (date_str,)
             ).fetchone()
@@ -1512,6 +1701,144 @@ def get_drill_list(date_str: str, metric_key: str) -> Optional[list]:
     except Exception as e:
         print(f"[breadth_monitor] get_drill_list error: {e}")
         return None
+
+
+#: (date, tickers-hash) -> {ticker: shares}. A recorded day's volumes never change.
+_DAY_VOL_CACHE: dict = {}
+_DAY_VOL_CACHE_MAX = 64
+
+
+def _day_volumes(date_str: str, tickers: list) -> dict:
+    """Each ticker's raw daily volume on `date_str`, read straight from bars.db.
+
+    ⛔ Not through breadth_live's pack frame: that cache holds ONE key, and a drill
+    read would evict the live breadth frame (a ~40 s reload). One indexed read per
+    chunk of 800 names on the (ticker, tf, ts) primary key is cheap.
+    """
+    try:
+        y, m, d = (int(x) for x in date_str.split("-"))
+    except Exception:
+        return {}
+    ts = y * 10000 + m * 100 + d
+    want = sorted({str(t).upper() for t in tickers if t})
+    if not want:
+        return {}
+    key = (ts, hash(tuple(want)))
+    hit = _DAY_VOL_CACHE.get(key)
+    if hit is not None:
+        return hit
+    from api.services import bars_sqlite
+    conn = bars_sqlite._conn()
+    out: dict = {}
+    for i in range(0, len(want), 800):
+        chunk = want[i:i + 800]
+        qm = ",".join("?" * len(chunk))
+        for tk, vol in conn.execute(
+            f"SELECT ticker, v FROM ohlcv WHERE tf='D' AND ts = ? AND ticker IN ({qm})",
+            [ts, *chunk],
+        ).fetchall():
+            if vol:
+                out[tk] = int(vol)
+    # Only a complete-enough answer is remembered: a cold bars.db after a restart
+    # must not pin a half-empty column for the life of the process.
+    if len(out) >= 0.9 * len(want):
+        if len(_DAY_VOL_CACHE) >= _DAY_VOL_CACHE_MAX:
+            _DAY_VOL_CACHE.pop(next(iter(_DAY_VOL_CACHE)))
+        _DAY_VOL_CACHE[key] = out
+    return out
+
+
+def fill_drill_volumes(date_str: str, items: list) -> list:
+    """Add raw session volume (`v`) to a recorded drill list's items that lack it.
+
+    The stored `*_list` rows carry RVOL (`vr`) but not the shares, so the drill's
+    Vol column showed only dashes on every past day. Never raises; a name with no
+    bar that day simply stays without `v`.
+    """
+    if not isinstance(items, list):
+        return items
+    need = [i.get("t") for i in items if isinstance(i, dict) and i.get("t") and not i.get("v")]
+    if not need:
+        return items
+    try:
+        vols = _day_volumes(date_str, need)
+    except Exception as e:
+        print(f"[breadth_monitor] drill volumes unavailable: {type(e).__name__}: {e}")
+        return items
+    if not vols:
+        return items
+    out = []
+    for it in items:
+        if isinstance(it, dict) and it.get("t") and not it.get("v"):
+            v = vols.get(str(it["t"]).upper())
+            if v:
+                it = {**it, "v": v}
+        out.append(it)
+    return out
+
+
+# Lists that say nothing about a ticker beyond "it exists" — overlap with them is noise.
+_CONTEXT_SKIP_LISTS = frozenset({"universe_list"})
+
+
+def _is_list_key(k) -> bool:
+    return isinstance(k, str) and k.endswith("_list") and k.replace("_", "").isalnum() and k == k.lower()
+
+
+def get_drill_context(date_str: str, metric_key: str, tickers: list, lookback: int = 5) -> dict:
+    """Per-ticker context for one drill list on one date, for the scan window's badges.
+
+      also    {ticker: [other *_list keys on the SAME snapshot that also hold it]}
+      repeat  {ticker: how many of the previous `lookback` snapshots held it in THIS list}
+      lookback_found  how many previous snapshots actually existed (a short history must
+                      not read as "first appearance")
+
+    Read-only. The previous snapshots are read with json_extract of the ONE key, so a
+    lookback never parses five whole metrics blobs (each carries the universe list).
+    Never raises: a missing date or a bad key returns empty maps, and the caller treats
+    context as optional.
+    """
+    out = {"also": {}, "repeat": {}, "lookback_found": 0}
+    if not _is_list_key(metric_key):
+        return out
+    want = {str(t).upper() for t in tickers if t}
+    if not want:
+        return out
+    try:
+        with _conn() as c:
+            row = c.execute("SELECT metrics FROM breadth_snapshots WHERE date = ?", (date_str,)).fetchone()
+            if row:
+                m = json.loads(row["metrics"])
+                also: dict = {}
+                for k, v in m.items():
+                    if k == metric_key or k in _CONTEXT_SKIP_LISTS or not _is_list_key(k) or not isinstance(v, list):
+                        continue
+                    for it in v:
+                        t = it.get("t") if isinstance(it, dict) else None
+                        if t and str(t).upper() in want:
+                            also.setdefault(str(t).upper(), []).append(k)
+                out["also"] = {t: sorted(ks) for t, ks in also.items()}
+            prev = c.execute(
+                "SELECT date, json_extract(metrics, ?) AS lst FROM breadth_snapshots "
+                "WHERE date < ? ORDER BY date DESC LIMIT ?",
+                (f"$.{metric_key}", date_str, int(max(0, min(lookback, 20)))),
+            ).fetchall()
+            repeat: dict = {}
+            found = 0
+            for p in prev:
+                found += 1
+                try:
+                    lst = json.loads(p["lst"]) if p["lst"] else []
+                except (TypeError, ValueError):
+                    lst = []
+                seen = {str(it.get("t")).upper() for it in lst if isinstance(it, dict) and it.get("t")}
+                for t in want & seen:
+                    repeat[t] = repeat.get(t, 0) + 1
+            out["repeat"] = repeat
+            out["lookback_found"] = found
+    except Exception as e:
+        print(f"[breadth_monitor] get_drill_context error: {e}")
+    return out
 
 
 def pit_export(since: str = "2026-01-01") -> dict:

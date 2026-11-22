@@ -447,6 +447,36 @@ def job_weekly_close_catchup() -> Optional[list]:
         return None
 
 
+def job_warm_hard_pool(delay_s: float = 60.0, pause_s: float = 0.004) -> Optional[dict]:
+    """Hard mode and Spot the Setup only play charts the setup detectors agree on (study_hard.item_eligible), and that
+    sweep is cached in memory, so after every deploy the FIRST member to open either challenge waited for the whole bank
+    to be swept (measured 2026-11-08 on the sandbox: 80 to 100 seconds of "Loading the bank"). This sweeps it once in
+    the background a minute after boot, paced so it never crowds the other boot warms; a challenge opened before it
+    finishes still works, it just shares the wait. Off with STUDY_ENABLED, read per call."""
+    import time as _time
+    if delay_s:
+        _time.sleep(delay_s)
+    if not study_enabled():
+        return None
+    try:
+        from api.services import study_hard, study_store
+        t0 = _time.time()
+        rows = [r for r in study_store.list_bank() if r.get("has_chart") and r.get("type") == "spot"
+                and r.get("skill_id") in study_hard.SETUP_RULES]
+        ok = 0
+        for r in rows:
+            if study_hard.item_eligible(r["id"]):
+                ok += 1
+            if pause_s:
+                _time.sleep(pause_s)
+        out = {"swept": len(rows), "eligible": ok, "seconds": round(_time.time() - t0, 1)}
+        print(f"[study] hard pool warmed: {out}")
+        return out
+    except Exception as e:  # noqa: BLE001
+        print(f"[study] hard pool warm error (non-fatal): {e}")
+        return None
+
+
 def job_gen_detections() -> Optional[dict]:
     if not study_enabled():
         return None

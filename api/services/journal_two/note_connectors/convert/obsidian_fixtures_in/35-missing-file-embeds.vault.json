@@ -1,0 +1,31 @@
+{
+  "_comment": "Live audit 2026-11-03 (F3): an embed of a FILE the vault does not hold is the live lane's not-found notice, `<name> wasn't found in the vault.`, on both lanes, named as the member wrote it (a width, an anchor and a folder off). The plugin sends each as a `missing` ref whose path is the name as written (Plan C Task 8 `classifyRef`). An embed of a missing NOTE keeps D2 item 8: the note's name as text (a pending link on the server, plain text on the client); the plugin sends no ref for a note.",
+  "vault_id": "vault-1",
+  "self_path": "a.md",
+  "vault_paths": [
+    "a.md"
+  ],
+  "attachments": [
+    {
+      "original": "![[ov-gone.png]]",
+      "embed": true,
+      "path": "ov-gone.png",
+      "size": 0,
+      "status": "missing"
+    },
+    {
+      "original": "![[gone deck.pdf|300]]",
+      "embed": true,
+      "path": "gone deck.pdf",
+      "size": 0,
+      "status": "missing"
+    },
+    {
+      "original": "![[sub/old chart.png#crop]]",
+      "embed": true,
+      "path": "sub/old chart.png",
+      "size": 0,
+      "status": "missing"
+    }
+  ]
+}

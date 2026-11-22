@@ -276,6 +276,7 @@ def _async_client():
         api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
         timeout=llm_timeouts.seconds("AI_SEARCH_LLM_TIMEOUT_SECS",
                                      llm_timeouts.REQUEST_PATH_LONG),
+        max_retries=0,
     )
 
 

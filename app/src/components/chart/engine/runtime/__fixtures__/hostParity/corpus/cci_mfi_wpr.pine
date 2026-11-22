@@ -1,0 +1,5 @@
+//@version=5
+indicator("hp cci mfi", overlay=false)
+plot(ta.cci(hlc3, 20), "cci")
+plot(ta.mfi(hlc3, 14), "mfi")
+plot(ta.wpr(14), "wpr")

@@ -7,6 +7,7 @@ import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/re
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from '../builder/BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { AuthContext } from '../../../context/AuthContext'
 import { _resetForTests } from './supportApi'
 
@@ -36,7 +37,7 @@ describe('the Builder’s Pine import shows the notice and carries the chart it 
         </SWRConfig>
       </AuthContext.Provider>,
     )
-    fireEvent.click(screen.getByRole('tab', { name: /^import$/i }))
+    openSource('pine')
     const area = screen.getByTestId('pine-box').querySelector('textarea')
     fireEvent.change(area, { target: { value: '//@version=5\nindicator("x")\nplot(ta.sma(close))\nplot(close)\n' } })
     const notice = await screen.findByTestId('import-gap-notice')

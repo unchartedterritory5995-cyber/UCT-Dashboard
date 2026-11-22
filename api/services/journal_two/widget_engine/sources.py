@@ -1695,7 +1695,7 @@ NOTE_FIELDS: dict[str, Field] = {f.key: f for f in [
     _f("ticker", "Ticker", "text", sql="n.ticker", split=True, ci=True, none_label="No ticker"),
     # W10-R60: the note's CURRENT kind (the `builtin:note_kind` property), never the creation-time
     # `kind_id`; a one-value filter narrows in SQL through `property_filter_sql` (`_kind_filters`)
-    _f("kind", "Note kind", "enum", split=True, label_from="kind_name", none_label="No kind",
+    _f("kind", "Note type", "enum", split=True, label_from="kind_name", none_label="No note type",
        public_kind="kind"),
     # filter only, and only with `prop`; its type is the named property's (the authority checks it)
     Field(PROPERTY_FIELD, "Property", None, PROPERTY_OPS, False, None, lambda r: None,

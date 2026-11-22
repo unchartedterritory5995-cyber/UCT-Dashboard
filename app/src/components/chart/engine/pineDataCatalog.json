@@ -1,0 +1,394 @@
+{
+  "_": "THE PINE DATA FAMILIES (data unit S4-0, 2026-11-19): every non-price series a member's Pine script may read, the licensing-table pair it rests on, and the sentence the door shows. Read by app/src/components/chart/engine/pineDataCatalog.js (the chart's half) and api/services/pine_data_catalog.py (the server's half). A family is SERVED only when its pair's class is A or LA and it carries no hold; anything else is refused BY NAME. The `licence` block of each family is GENERATED from api/services/provider_licensing_class.py (`python -m api.services.pine_data_catalog --write`), never typed: tests/test_pine_data_catalog.py fails when it disagrees with the table. Nothing here serves a value yet: the supply that will read it is S4-3 onward.",
+  "version": 1,
+  "rules": {
+    "servableClasses": [
+      "A",
+      "LA"
+    ],
+    "valuesLeaveProduct": false,
+    "valuesLeaveProductWhy": "Owner item O2, conservative default (coordinator 2026-11-19): a data family's value is never interpolated into an alert message, an export, a share or a model prompt. A condition may fire; the number stays in the member's chart."
+  },
+  "sentences": {
+    "licence": "Not served: `{names}`. The {label} data rests on licensing class {class} ({rowText}), and a member's script reads only data classed A or LA.",
+    "hold": "Not served yet: `{names}`. {reason}",
+    "field": "Not served: `{name}`. {reason}",
+    "unknown": "Not served: `{family}` is not a data family this build knows."
+  },
+  "vendorNames": [
+    "Massive",
+    "Polygon",
+    "Financial Modeling Prep",
+    "FMP",
+    "Finviz",
+    "Finnhub",
+    "Yahoo",
+    "yfinance",
+    "Schwab",
+    "Alpha Vantage",
+    "AlphaVantage",
+    "Perplexity",
+    "SEC",
+    "EDGAR",
+    "FINRA",
+    "CFTC",
+    "FactSet",
+    "CNN",
+    "Cboe",
+    "AAII",
+    "NAAIM",
+    "EarningsWhispers",
+    "Benzinga"
+  ],
+  "families": {
+    "earnings": {
+      "namespace": "tradingview",
+      "label": "earnings",
+      "pine": [
+        "request.earnings",
+        "earnings.actual",
+        "earnings.estimate"
+      ],
+      "refusedNames": {
+        "earnings.standardized": "No source we hold carries TradingView's standardized EPS.",
+        "earnings.future_eps": "The next report's values are not served.",
+        "earnings.future_revenue": "The next report's values are not served.",
+        "earnings.future_time": "The next report's time of day is not held.",
+        "earnings.future_period_end_time": "The next report's fiscal period end is not served."
+      },
+      "vendor": "fmp",
+      "dataClass": "earnings",
+      "licence": {
+        "class": "LA",
+        "registerRow": "T-35/T-36"
+      },
+      "disclosure": "Earnings figures are UCT earnings data, not TradingView's.",
+      "definition": "Reported and estimated EPS per report, placed on the bar TradingView places it (the placement is licensed only by the S4 probe captures).",
+      "history": "the vendor's full history per symbol (about since listing)",
+      "keyedBy": "(symbol, report date)"
+    },
+    "dividends": {
+      "namespace": "tradingview",
+      "label": "dividend",
+      "pine": [
+        "request.dividends",
+        "dividends.gross",
+        "dividends.net"
+      ],
+      "vendor": "massive",
+      "dataClass": "reference",
+      "licence": {
+        "class": "LA",
+        "registerRow": "T-07"
+      },
+      "disclosure": "Dividends are UCT corporate-actions data, not TradingView's.",
+      "definition": "Cash dividend per share on its ex-date, on the basis the S4 probe captures show.",
+      "history": "the vendor's dividend history per symbol",
+      "keyedBy": "(symbol, ex-date)"
+    },
+    "splits": {
+      "namespace": "tradingview",
+      "label": "split",
+      "pine": [
+        "request.splits",
+        "splits.numerator",
+        "splits.denominator"
+      ],
+      "vendor": "massive",
+      "dataClass": "reference",
+      "licence": {
+        "class": "LA",
+        "registerRow": "T-07"
+      },
+      "disclosure": "Splits are UCT corporate-actions data, not TradingView's.",
+      "definition": "Split ratio on its execution date, in the orientation the S4 probe captures show.",
+      "history": "about 45 years per symbol",
+      "keyedBy": "(symbol, execution date)"
+    },
+    "financial": {
+      "namespace": "tradingview",
+      "label": "financial",
+      "pine": [
+        "request.financial"
+      ],
+      "vendor": "sec_edgar",
+      "dataClass": "fundamentals",
+      "licence": {
+        "class": "A",
+        "registerRow": "T-83"
+      },
+      "disclosure": "Financial figures are UCT data from company filings (10-Q and 10-K), each dated when its filing became public (which can be days after the earnings release), not TradingView's.",
+      "definition": "A mapped financial id and period (`fields`) read from UCT's point-in-time fundamentals store: each value is known from the first session whose close is at or after the instant its filing became public (never its fiscal period end) and is never graded as TradingView's figure (TradingView may date a value at the earnings release). Any other id or period is refused by name.",
+      "history": "2009 (XBRL), per company from its first XBRL filing",
+      "keyedBy": "(company, series, filing public instant)",
+      "fields": {
+        "_": "THE MAP (track 4 F1, 2026-11-22): a `request.financial` id and period UCT serves, and the stored series of api/services/fundamentals_pit (catalog.py) it reads, each the same definition. Read by api/services/pine_financial.py (GET /api/pine/financial/{ticker}) and the chart's request.financial supply. `code` is the engine's two-letter name for the id (never renamed once served).",
+        "TOTAL_REVENUE": {
+          "code": "RV",
+          "unit": "usd",
+          "periods": {
+            "FQ": "revenue_q",
+            "TTM": "revenue_ttm"
+          }
+        },
+        "EARNINGS_PER_SHARE_DILUTED": {
+          "code": "ED",
+          "unit": "usd_per_share",
+          "periods": {
+            "FQ": "eps_diluted_q",
+            "TTM": "eps_diluted_ttm"
+          }
+        },
+        "TOTAL_EQUITY": {
+          "code": "EQ",
+          "unit": "usd",
+          "periods": {
+            "FQ": "equity"
+          }
+        },
+        "TOTAL_SHARES_OUTSTANDING": {
+          "code": "SO",
+          "unit": "shares",
+          "periods": {
+            "FQ": "shares_outstanding"
+          }
+        },
+        "FREE_CASH_FLOW": {
+          "code": "FC",
+          "unit": "usd",
+          "periods": {
+            "TTM": "fcf_ttm"
+          }
+        }
+      },
+      "fieldsRefused": {
+        "_": "Ids refused by their own name and reason (each a `code` the engine names it by). An id in neither list is refused as one UCT does not serve.",
+        "EARNINGS_PER_SHARE": {
+          "code": "EP",
+          "why": "UCT serves earnings per share as diluted GAAP EPS only (`EARNINGS_PER_SHARE_DILUTED`)"
+        },
+        "EARNINGS_PER_SHARE_BASIC": {
+          "code": "EB",
+          "why": "UCT serves earnings per share as diluted GAAP EPS only (`EARNINGS_PER_SHARE_DILUTED`)"
+        },
+        "GROSS_MARGIN": {
+          "code": "GM",
+          "why": "UCT holds gross margin over trailing twelve months only, which is not TradingView's per-period figure"
+        },
+        "TOTAL_DEBT": {
+          "code": "TD",
+          "why": "UCT does not hold total debt: filers tag debt too inconsistently for one definition"
+        },
+        "BOOK_VALUE_PER_SHARE": {
+          "code": "BV",
+          "why": "UCT does not hold book value per share"
+        },
+        "FLOAT_SHARES_OUTSTANDING": {
+          "code": "FL",
+          "why": "UCT does not hold float shares (it holds shares outstanding, `TOTAL_SHARES_OUTSTANDING`)"
+        },
+        "NET_INCOME": {
+          "code": "NI",
+          "why": "UCT holds net income from company filings, but its definition has not been matched to this id yet"
+        },
+        "TOTAL_ASSETS": {
+          "code": "TA",
+          "why": "UCT holds total assets from company filings, but its definition has not been matched to this id yet"
+        },
+        "TOTAL_LIABILITIES": {
+          "code": "TL",
+          "why": "UCT holds total liabilities from company filings, but its definition has not been matched to this id yet"
+        },
+        "ACCOUNTS_PAYABLE": {
+          "code": "AP",
+          "why": "UCT does not hold accounts payable"
+        },
+        "DPS_COMMON_STOCK_PRIM_ISSUE": {
+          "code": "DP",
+          "why": "UCT does not hold dividends per share from company filings (declared and paid figures are filed at different times)"
+        },
+        "EARNINGS_ESTIMATE": {
+          "code": "EE",
+          "why": "it is an analyst estimate, and company filings hold none"
+        },
+        "SALES_ESTIMATES": {
+          "code": "SE",
+          "why": "it is an analyst estimate, and company filings hold none"
+        },
+        "EARNINGS_DATE": {
+          "code": "DT",
+          "why": "UCT does not serve report dates through `request.financial`"
+        },
+        "FUND_FLOWS": {
+          "code": "FF",
+          "why": "it is a fund statistic, and company filings hold none"
+        },
+        "AUM": {
+          "code": "AU",
+          "why": "it is a fund statistic, and company filings hold none"
+        }
+      },
+      "periods": {
+        "_": "The `period` argument: a letter the engine names it by, and why a period UCT does not serve is refused.",
+        "FQ": {
+          "letter": "Q"
+        },
+        "TTM": {
+          "letter": "T"
+        },
+        "FY": {
+          "letter": "Y",
+          "why": "UCT's filings store holds no fiscal-year series yet"
+        },
+        "FH": {
+          "letter": "H",
+          "why": "UCT's filings store holds no fiscal half-year series"
+        },
+        "D": {
+          "letter": "D",
+          "why": "UCT's filings store holds no daily financial series"
+        }
+      }
+    },
+    "uct_rs_rating": {
+      "namespace": "uct",
+      "label": "UCT RS Rating",
+      "pine": [
+        "uct.rs_rating"
+      ],
+      "vendor": "massive",
+      "dataClass": "derived_analytics",
+      "licence": {
+        "class": "LA",
+        "registerRow": "T-11"
+      },
+      "disclosure": "UCT RS Rating is UCT's own calculation.",
+      "definition": "The IBD-style RS Rating (1 to 99) of the session, equal to UCT's stored rating history; daily only.",
+      "history": "the stored rating history (a one-year backfill, then nightly)",
+      "keyedBy": "(symbol, session)"
+    },
+    "uct_rs_line": {
+      "namespace": "uct",
+      "label": "UCT RS line",
+      "pine": [
+        "uct.rs_line"
+      ],
+      "vendor": "massive",
+      "dataClass": "derived_analytics",
+      "licence": {
+        "class": "LA",
+        "registerRow": "T-11"
+      },
+      "disclosure": "The UCT RS line is UCT's own calculation.",
+      "definition": "Close divided by the benchmark's close, equal to UCT's RS line reader.",
+      "history": "as deep as the bars",
+      "keyedBy": "(symbol, benchmark, bar)"
+    },
+    "uct_breadth": {
+      "namespace": "uct",
+      "label": "UCT breadth",
+      "pine": [
+        "UCT:"
+      ],
+      "vendor": "massive",
+      "dataClass": "derived_analytics",
+      "licence": {
+        "class": "LA",
+        "registerRow": "T-11"
+      },
+      "disclosure": "UCT breadth series are UCT's own calculations.",
+      "definition": "A UCT breadth symbol read with request.security(\"UCT:<symbol>\", ...), membership decided by the registry; daily values, the previous completed session on an intraday chart.",
+      "history": "the daily breadth history",
+      "keyedBy": "(symbol, date)"
+    },
+    "uct_cot": {
+      "namespace": "uct",
+      "label": "Commitments of Traders",
+      "pine": [
+        "UCT:COT:"
+      ],
+      "vendor": "cftc",
+      "dataClass": "cot",
+      "licence": {
+        "class": "U",
+        "registerRow": "n/a"
+      },
+      "disclosure": "Commitments of Traders series are UCT market data.",
+      "definition": "A Commitments of Traders series read as a UCT symbol.",
+      "history": "the stored weekly reports",
+      "keyedBy": "(symbol, report date)"
+    },
+    "uct_short_interest": {
+      "namespace": "uct",
+      "label": "short interest",
+      "pine": [
+        "uct.short_interest",
+        "uct.days_to_cover"
+      ],
+      "vendor": "massive",
+      "dataClass": "short_interest",
+      "licence": {
+        "class": "LA",
+        "registerRow": "T-93"
+      },
+      "hold": {
+        "code": "pine-data:owner-hold",
+        "item": "O7",
+        "reason": "The short interest feed has not yet been observed answering in production, and the origin's own terms have not been read (owner item O7)."
+      },
+      "disclosure": "Short interest is UCT market data.",
+      "definition": "Shares sold short and days to cover per report, as of the report's publication, never its settlement date.",
+      "history": "from 2017-12-29, twice a month",
+      "keyedBy": "(symbol, settlement date), served as of publication"
+    },
+    "uct_short_volume": {
+      "namespace": "uct",
+      "label": "daily short volume",
+      "pine": [
+        "uct.short_volume_ratio"
+      ],
+      "vendor": "massive",
+      "dataClass": "short_volume",
+      "licence": {
+        "class": "LA",
+        "registerRow": "T-94"
+      },
+      "hold": {
+        "code": "pine-data:owner-hold",
+        "item": "O7",
+        "reason": "The daily short volume feed has not yet been observed answering in production, and the origin's own terms have not been read (owner item O7)."
+      },
+      "disclosure": "Daily short volume is UCT market data.",
+      "definition": "The day's short share of off-exchange volume, from the next bar after its publication.",
+      "history": "from 2024-02-06",
+      "keyedBy": "(symbol, date)"
+    },
+    "uct_sentiment": {
+      "namespace": "uct",
+      "label": "sentiment",
+      "pine": [
+        "UCT:UCTFG",
+        "UCT:UCTPC",
+        "UCT:UCTAAII",
+        "UCT:NAAIM",
+        "UCT:AAII:",
+        "UCT:CBOE:"
+      ],
+      "vendor": "unregistered",
+      "dataClass": "sentiment",
+      "licence": {
+        "class": "U",
+        "registerRow": "n/a"
+      },
+      "hold": {
+        "code": "pine-data:owner-hold",
+        "item": "O4",
+        "reason": "The sentiment and volatility-index series have no licensing register row, so they stay excluded until the owner registers them (owner item O4)."
+      },
+      "disclosure": "Sentiment series are UCT market data.",
+      "definition": "Survey and index series charted as UCT symbols.",
+      "history": "per series",
+      "keyedBy": "(symbol, date)"
+    }
+  }
+}

@@ -62,3 +62,27 @@ def test_smoke_false_on_malformed_file(tmp_path, monkeypatch):
         f.write(b"\xff" * 128)
     monkeypatch.setattr(bs, "_DB_PATH", str(p))
     assert bs.integrity_smoke_ok() is False
+
+
+def test_smoke_ok_on_a_clustered_store(tmp_path, monkeypatch):
+    """A WITHOUT ROWID store has no rowid. The probe once ran `ORDER BY rowid` on it, read
+    "no such column" as corruption, and web's boot resync deleted a healthy 19.7 GB store
+    (2026-11-14)."""
+    p = tmp_path / "bars.db"
+    c = sqlite3.connect(str(p))
+    c.execute(bs.ohlcv_ddl())
+    c.execute("INSERT INTO ohlcv VALUES ('AAPL','D',20260101,1,2,0.5,1.5,100)")
+    c.commit(); c.close()
+    monkeypatch.setattr(bs, "_DB_PATH", str(p))
+    assert bs.integrity_smoke_ok() is True
+
+
+def test_smoke_false_on_a_malformed_clustered_store(tmp_path, monkeypatch):
+    p = tmp_path / "bars.db"
+    c = sqlite3.connect(str(p))
+    c.execute(bs.ohlcv_ddl())
+    c.commit(); c.close()
+    with open(p, "r+b") as f:
+        f.write(bytes([255]) * 128)
+    monkeypatch.setattr(bs, "_DB_PATH", str(p))
+    assert bs.integrity_smoke_ok() is False

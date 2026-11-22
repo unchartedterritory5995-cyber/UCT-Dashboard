@@ -31,6 +31,8 @@ function Item({ item, pinned, count, current, onApply, onTogglePin, reason = nul
         <span className={styles.smName}>{item.name}</span>
         {item.description && <span className={styles.smDesc}>{item.description}</span>}
       </button>
+      {/* the open screen carries the tick (UCT Signature: gold marks what is chosen) */}
+      {current && <span className={menuStyles.smTick} aria-hidden="true" data-testid="screen-current-tick">✓</span>}
       {none
         ? <span className={menuStyles.smNone} data-reason={reason?.kind}>{noneText}</span>
         : <span className={styles.smCount}>{count === undefined ? '' : count === null ? '—' : count.toLocaleString('en-US')}</span>}
@@ -40,10 +42,12 @@ function Item({ item, pinned, count, current, onApply, onTogglePin, reason = nul
 
 // `landing`: the page is still choosing which screen to land on, so the button shows a
 // placeholder instead of naming a "Custom screen" that is about to be replaced (B12).
-export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, pool = null, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef, meta = null }) {
+export default function ScreenMenu({ currentName, currentId, isEdited, count, countPending = false, landing = false, pool = null, starters = [], saved = [], pinned = [], onTogglePin, onApply, onSaveChanges, onSaveAsNew, onRename, onNewScreen, myScans = [], onUseScan, apiRef, meta = null, triggerLabel = null }) {
   const [open, setOpen] = useState(false)
   const [asSheet, setAsSheet] = useState(false)
   const [q, setQ] = useState('')
+  // The group open on the picker's rail; 'all' lists every group, as the picker always did.
+  const [group, setGroup] = useState('all')
   const openMenu = () => { setAsSheet(isPhoneNow()); setOpen(true) }
   const btn = useRef(null), box = useRef(null)
   const uid = useId()
@@ -69,17 +73,27 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
     ...starters.map(s => ({ ...s, kind: 'starter' })),
     ...saved.map(s => ({ ...s, id: s.id, kind: 'saved', description: s.description || '' })),
   ], [starters, saved])
-  const match = it => !q || norm(it.name).includes(norm(q)) || norm(it.description).includes(norm(q))
+  // A starter may carry `aliases` (saved_screens.py): names members already know a setup by
+  // ("RSNHBP", "blue dot"). They are searched and never shown. Anything but a list of strings
+  // is ignored, so a bad payload cannot match every query or throw.
+  const aliasesOf = it => (Array.isArray(it.aliases) ? it.aliases.filter(a => typeof a === 'string') : [])
+  const match = it => !q || norm(it.name).includes(norm(q)) || norm(it.description).includes(norm(q)) || aliasesOf(it).some(a => norm(a).includes(norm(q)))
   const pinnedIds = [...new Set(pinned.map(String))]
   const pinnedItems = pinnedIds.map(id => all.find(it => String(it.id) === String(id))).filter(Boolean).filter(match)
   // A pinned screen is listed ONCE, under Pinned, never again inside its group (P3).
   const notPinned = it => !pinnedIds.includes(String(it.id))
-  const groups = GROUPS.map(g => ({ ...g, items: starters.filter(s => groupOf(s) === g.key).map(s => ({ ...s, kind: 'starter' })).filter(notPinned).filter(match) }))
+  // A `hidden` starter (RS screens contract) is in no group and no search result. It still
+  // resolves by id, so a member who pinned it keeps it under Pinned, above.
+  const groups = GROUPS.map(g => ({ ...g, items: starters.filter(s => !s.hidden && groupOf(s) === g.key).map(s => ({ ...s, kind: 'starter' })).filter(notPinned).filter(match) }))
     .filter(g => g.items.length)
   const mine = saved.map(s => ({ ...s, kind: 'saved' })).filter(notPinned).filter(match)
 
   // Each screen is counted where it would run: in the member's universe/list when it names none.
-  const specs = useMemo(() => Object.fromEntries(all.map(it => [String(it.id), withPool(it.spec, pool)])), [all, pool])
+  // A hidden starter nobody pinned is never on the menu, so it is never counted.
+  // (Keyed on the pinned HIDDEN ids only, so pinning an ordinary screen rebuilds nothing, as before.)
+  const pinnedHidden = all.filter(it => it.hidden && pinnedIds.includes(String(it.id))).map(it => String(it.id)).join('|')
+  const specs = useMemo(() => Object.fromEntries(all.filter(it => !it.hidden || pinnedHidden.split('|').includes(String(it.id)))
+    .map(it => [String(it.id), withPool(it.spec, pool)])), [all, pool, pinnedHidden])
   const counts = useLazyCounts(specs, open)
   // Only the screens that came back 0 are asked why: one presence count per column they read.
   const zeroIds = all.map(it => String(it.id)).filter(id => capToTopN(counts[id], specs[id]) === 0)
@@ -91,16 +105,19 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
   const pinnedSet = pinnedIds
   const row = it => <Item key={`${it.kind}-${it.id}`} item={it} pinned={pinnedSet.includes(String(it.id))}
     count={capToTopN(counts[String(it.id)], specs[String(it.id)])} current={String(it.id) === String(currentId)} onApply={pick} onTogglePin={onTogglePin} reason={reasonOf(String(it.id))} />
-  const content = <MenuContent q={q} setQ={setQ} uid={uid} pinnedItems={pinnedItems} groups={groups} mine={mine} myScans={myScans} row={row}
+  const content = <MenuContent q={q} setQ={setQ} uid={uid} pinnedItems={pinnedItems} groups={groups} mine={mine} myScans={myScans} row={row} group={group} setGroup={setGroup}
     onUseScan={onUseScan} close={close} onSaveChanges={onSaveChanges} currentName={currentName} onSaveAsNew={onSaveAsNew} onRename={onRename} onNewScreen={onNewScreen} />
 
   return (
     <span className={styles.menuWrap} ref={box} onBlur={onBlur}>
-      <button ref={btn} type="button" className={styles.screenBtn} aria-haspopup="dialog" aria-expanded={open}
+      <button ref={btn} type="button" className={styles.screenBtn} data-guide="screener.screens" aria-haspopup="dialog" aria-expanded={open}
         aria-label={landing ? `${label} Change screen` : countPending ? `${label}, updating. Change screen` : Number.isFinite(count) ? `${label}, ${count} matches. Change screen` : `${label}. Change screen`} onClick={() => { if (open) setOpen(false); else openMenu() }}>
-        <UIcon name="screener" size={18} className={styles.screenIcon} />
-        <span className={landing ? menuStyles.landing : undefined}>{label}</span>
+        {/* `triggerLabel` (the scan board): the button reads "All screens" when the open screen is named by a tab. */}
+        {triggerLabel ? <span className={styles.screenNameLab}>{triggerLabel}</span> : <>
+        <UIcon name="screener" size={18} gold={false} className={styles.screenIcon} />
+        <span className={`${styles.screenName}${landing ? ` ${menuStyles.landing}` : ''}`}>{label}</span>
         <span className={styles.screenCount} data-testid="screen-count">{landing ? '' : countPending ? '…' : Number.isFinite(count) ? count.toLocaleString('en-US') : ''}</span>
+        </>}
         <svg className={styles.screenChevron} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
       </button>
       {open && !asSheet && (
@@ -116,25 +133,61 @@ export default function ScreenMenu({ currentName, currentId, isEdited, count, co
   )
 }
 
-function MenuContent({ q, setQ, uid, pinnedItems, groups, mine, myScans, row, onUseScan, close, onSaveChanges, currentName, onSaveAsNew, onRename, onNewScreen }) {
+// RS (relative strength) and RSI (an oscillator) are one letter apart. A member who types "rsi"
+// into a menu of RS screens is told which is which and where RSI lives, instead of being left
+// with a short or empty list and no reason. Only the exact word: "rsi 14" or "rsis" is a search.
+const RSI_HINT = 'RS here is relative strength: a stock against the market. RSI is a different tool, under Filters.'
+const isRsiQuery = q => norm(q).trim() === 'rsi'
+
+function MenuContent({ q, setQ, uid, pinnedItems, groups, mine, myScans, row, onUseScan, close, onSaveChanges, currentName, onSaveAsNew, onRename, onNewScreen, group = 'all', setGroup }) {
+  const scans = myScans.filter(s => !q || norm(s.name).includes(norm(q)))
+  // The rail: one entry per section that has something to show, each with its count. It only
+  // NARROWS what is listed: "All screens" is the picker as it always was, and a search still
+  // searches every screen inside the open group.
+  const sections = [
+    pinnedItems.length > 0 && { key: 'pinned', label: 'Pinned', n: pinnedItems.length },
+    ...groups.map(g => ({ key: g.key, label: g.label, n: g.items.length })),
+    mine.length > 0 && { key: 'mine', label: 'My screens', n: mine.length },
+    scans.length > 0 && { key: 'scans', label: 'My scans', n: scans.length },
+  ].filter(Boolean)
+  // A rail is worth its room only when there is more than one section to move between.
+  const railOn = typeof setGroup === 'function' && sections.length > 1
+  // A group that the search (or a pin) has just emptied falls back to everything.
+  const open = railOn && sections.some(x => x.key === group) ? group : 'all'
+  const show = key => open === 'all' || open === key
+  const total = sections.reduce((n, x) => n + x.n, 0)
   return (
     <>
           <div className={styles.smSearch}>
             <Input type="search" aria-label="Search screens" placeholder="Search screens…" value={q} autoFocus onChange={e => setQ(e.target.value)} className={styles.smInput} />
           </div>
+          <div className={styles.smLayout}>
+            {railOn && (
+              <nav className={menuStyles.smRail} aria-label="Screen groups" data-testid="screen-groups">
+                {[{ key: 'all', label: 'All screens', n: total }, ...sections].map(x => (
+                  <button key={x.key} type="button" className={menuStyles.smRailBtn} aria-pressed={open === x.key} aria-label={`Show ${x.label}, ${x.n}`} onClick={() => setGroup(x.key)}>
+                    <span>{x.label}</span><span className={menuStyles.smRailN} aria-hidden="true">{x.n}</span>
+                  </button>
+                ))}
+              </nav>
+            )}
           <div className={styles.smBody}>
-            {pinnedItems.length > 0 && <section aria-labelledby={`${uid}-pinned`}><h3 id={`${uid}-pinned`} className={styles.smHead}>Pinned</h3>{pinnedItems.map(row)}</section>}
-            {groups.map(g => <section key={g.key} aria-labelledby={`${uid}-${g.key}`}><h3 id={`${uid}-${g.key}`} className={styles.smHead}>{g.label}</h3>{g.items.map(it => row(it))}</section>)}
-            {mine.length > 0 && <section aria-labelledby={`${uid}-mine`}><h3 id={`${uid}-mine`} className={styles.smHead}>My screens</h3>{mine.map(it => row(it))}</section>}
-            {myScans.length > 0 && (
+            {/* A line of text above the results: not a screen, so no button, no pin and no count. */}
+            {isRsiQuery(q) && <p className={menuStyles.smHint} role="note">{RSI_HINT}</p>}
+            {show('pinned') && pinnedItems.length > 0 && <section aria-labelledby={`${uid}-pinned`}><h3 id={`${uid}-pinned`} className={styles.smHead}>Pinned</h3>{pinnedItems.map(row)}</section>}
+            {groups.filter(g => show(g.key)).map(g => <section key={g.key} aria-labelledby={`${uid}-${g.key}`}><h3 id={`${uid}-${g.key}`} className={styles.smHead}>{g.label}</h3>{g.items.map(it => row(it))}</section>)}
+            {show('mine') && mine.length > 0 && <section aria-labelledby={`${uid}-mine`}><h3 id={`${uid}-mine`} className={styles.smHead}>My screens</h3>{mine.map(it => row(it))}</section>}
+            {show('scans') && myScans.length > 0 && (
               <section aria-labelledby={`${uid}-scans`}><h3 id={`${uid}-scans`} className={styles.smHead}>My scans</h3>
-                {myScans.filter(s => !q || norm(s.name).includes(norm(q))).map(s => (
+                {scans.map(s => (
                   <div key={s.hash} className={styles.smItem}>
                     <button type="button" className={styles.smOpen} onClick={() => { onUseScan(s.hash, s.name); close() }}>
                       <span className={styles.smName}>{s.name}</span><span className={styles.smDesc}>Use as a filter</span>
                     </button>
                   </div>))}
               </section>)}
+            {q && total === 0 && !isRsiQuery(q) && <p className={menuStyles.smNoMatch} role="status">No screen matches &ldquo;{q}&rdquo;.</p>}
+          </div>
           </div>
           <div className={styles.smFoot}>
             {onSaveChanges && typeof currentName === 'string' && currentName && <button type="button" className={styles.btn} onClick={() => { onSaveChanges(); close() }}>Save changes to &ldquo;{currentName}&rdquo;</button>}

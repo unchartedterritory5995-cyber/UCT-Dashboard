@@ -121,25 +121,311 @@ def _dir_alert(**kw):
     return base
 
 
-def test_side_confirms_fresh_ask(monkeypatch):
+# Live-path thresholds (no timestamp on the alert => _side_confirms uses the live
+# consolidated NBBO). Fill-path thresholds carry a timestamp on the alert.
+FILL_THR = {"side_confirm_enabled": True, "side_confirm_use_fill_nbbo": True,
+            "side_confirm_fill_lookback_ms": 2500, "side_confirm_ask_tol": 0.005}
+
+
+def _fill_alert(**kw):
+    # directional candidate WITH a fill timestamp -> fill-time confirm path
+    base = {"ticker": "CBRS", "cp": "P", "strike": 100, "exp": "01-21-2028",
+            "averageFillPrice": 32.30, "_direction": "Bear", "_side": "AA",
+            "timestamp": 1_700_000_000.0}
+    base.update(kw)
+    return base
+
+
+# ── LIVE path (no fill timestamp): confirm is now at-or-through-ask, not above-mid
+def test_side_confirms_live_at_ask(monkeypatch):
     monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: (92.75, 93.5, 300.0))
-    assert lmr._side_confirms(_dir_alert(), CONF_THR) is True
+    assert lmr._side_confirms(_dir_alert(averageFillPrice=93.5), CONF_THR) is True
 
 
-def test_side_confirms_stale_abstains(monkeypatch):
+def test_side_confirms_live_inside_spread_abstains(monkeypatch):
+    # fresh quote, fill 93.25 inside 92.75/93.5 => ambiguous, no longer confirmed
+    monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: (92.75, 93.5, 300.0))
+    assert lmr._side_confirms(_dir_alert(averageFillPrice=93.25), CONF_THR) is False
+
+
+def test_side_confirms_live_stale_abstains(monkeypatch):
     monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: (92.75, 93.5, 5285.0))
-    assert lmr._side_confirms(_dir_alert(), CONF_THR) is False
-
-
-def test_side_confirms_contradicting_abstains(monkeypatch):
-    # fresh quote, but fill below mid => bid-side => our ask push isn't confirmed
-    monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: (93.3, 93.5, 100.0))
-    assert lmr._side_confirms(_dir_alert(), CONF_THR) is False
+    assert lmr._side_confirms(_dir_alert(averageFillPrice=93.5), CONF_THR) is False
 
 
 def test_side_confirms_no_quote_abstains(monkeypatch):
     monkeypatch.setattr(lmr, "_consolidated_nbbo", lambda occ: None)
     assert lmr._side_confirms(_dir_alert(), CONF_THR) is False
+
+
+# ── FILL-TIME path: the CBRS case and its siblings
+def test_side_confirms_fill_at_ask(monkeypatch):
+    # clean at-ask lift against a FRESH book (<2.5s) => CONFIRM
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 800.0))
+    assert lmr._side_confirms(_fill_alert(averageFillPrice=32.30), FILL_THR) is True
+
+
+def test_side_confirms_fill_inside_spread_suppresses(monkeypatch):
+    # the real CBRS print: $32.20 inside $31.10/$32.30 (10c under ask) => SUPPRESS
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 800.0))
+    assert lmr._side_confirms(_fill_alert(averageFillPrice=32.20), FILL_THR) is False
+
+
+def test_side_confirms_fill_stale_book_abstains(monkeypatch):
+    # DASH 2026-11-04: a clean at-ask fill that WOULD have confirmed under the old
+    # 30s window now abstains because the book is 6.8s stale (> 2.5s trust window).
+    # A stale book on a thin LEAP is unreliable even for a clean-looking print.
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 6800.0))
+    assert lmr._side_confirms(_fill_alert(averageFillPrice=32.30), FILL_THR) is False
+
+
+def test_side_confirms_fill_stale_below_bid_not_bear(monkeypatch):
+    # THE DASH regression: 500 @ 29.50 printed below a 29.70/30.00 book that was
+    # 25s stale. Under the old 30s window this confirmed a BEAR off a dead quote;
+    # with the 2.5s fresh guard it abstains (-> suppress), not a false bear card.
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (29.70, 30.00, 25000.0))
+    assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=29.50), FILL_THR) is False
+    # same below-bid print on a FRESH book still confirms bear (we only dropped the
+    # stale-quote guesses, not genuine at/through-bid sells)
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (29.70, 30.00, 400.0))
+    assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=29.50), FILL_THR) is True
+
+
+def test_side_confirms_fill_bid_side(monkeypatch):
+    # BB (sold into the bid): confirm only at/through the bid, on a FRESH book
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (31.10, 32.30, 100.0))
+    assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=31.08), FILL_THR) is True
+    assert lmr._side_confirms(_fill_alert(_side="BB", averageFillPrice=31.70), FILL_THR) is False
+
+
+# ── Dark-pool-paired BLOCK = hedge, not a directional bet (PINS 2026-11-04) ──
+DP_THR = {"block_darkpool_hedge_enabled": True, "block_dp_window_ms": 3000,
+          "block_dp_min_shares": 50000, "block_darkpool_hedge_suppress": False}
+
+
+def _block_alert(**kw):
+    # a PUT BLOCK with a fill timestamp -> dark-pool pairing path
+    base = {"ticker": "PINS", "cp": "P", "strike": 21, "exp": "02-19-2027",
+            "averageFillPrice": 2.11, "_direction": "Bear", "_side": "A",
+            "_type": "BLOCK", "timestamp": 1_700_000_000.0}
+    base.update(kw)
+    return base
+
+
+def test_darkpool_paired_block_true(monkeypatch):
+    # a 246k-share dark-pool (TRF exchange 9) print in the window => hedge
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 246000, "exchange": 9}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is True
+
+
+def test_darkpool_paired_block_small_print_false(monkeypatch):
+    # a dark-pool print, but below the share floor => not a block => no pairing
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 500, "exchange": 9}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is False
+
+
+def test_darkpool_paired_block_lit_only_false(monkeypatch):
+    # a large print but on a LIT exchange (not TRF 4/9, no trf_id) => not dark pool
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 246000, "exchange": 12}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is False
+
+
+def test_darkpool_paired_block_trf_id_true(monkeypatch):
+    # dark pool can also be marked by a trf_id rather than the exchange code
+    monkeypatch.setattr(lmr, "_massive_rest",
+                        lambda path, params, **kw: {"results": [{"size": 80000, "exchange": 11, "trf_id": 2}]})
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is True
+
+
+def test_darkpool_paired_block_rest_outage_fails_closed(monkeypatch):
+    # REST returns nothing (outage) => False, so the normal directional path runs
+    monkeypatch.setattr(lmr, "_massive_rest", lambda path, params, **kw: None)
+    assert lmr._darkpool_paired_block(_block_alert(), DP_THR) is False
+
+
+def test_relabel_dp_hedge_neutralizes():
+    out = lmr._relabel_dp_hedge(_block_alert())
+    assert out["_direction"] is None
+    assert out["_dpHedge"] is True
+    assert "Hedge Block" in out["alertName"]
+    # original untouched
+    assert _block_alert()["_direction"] == "Bear"
+
+
+def test_block_darkpool_hedge_defaults_and_allowlisted():
+    import inspect
+    d = lmr.DEFAULT_THRESHOLDS
+    assert d.get("block_darkpool_hedge_enabled") is True
+    assert d.get("block_dp_window_ms") == 3000
+    assert d.get("block_dp_min_shares") == 50000
+    assert d.get("block_darkpool_hedge_suppress") is False
+    src = inspect.getsource(lmr)
+    for k in ("block_darkpool_hedge_enabled", "block_dp_window_ms",
+              "block_dp_min_shares", "block_darkpool_hedge_suppress"):
+        assert src.count(f'"{k}"') >= 2, k
+
+
+def test_side_unconfirmed_suppress_default_on_and_allowlisted():
+    # Owner directive 2026-11-02: unconfirmable directional candidates are
+    # SUPPRESSED, not relabeled-and-pushed. The default must be True, and the key
+    # MUST be in BOTH DEFAULT_THRESHOLDS and the /thresholds allow-list or a save
+    # 400s the whole payload (CLAUDE.md gotcha).
+    import inspect
+    d = lmr.DEFAULT_THRESHOLDS
+    assert d.get("side_unconfirmed_suppress") is True
+    assert d.get("side_confirm_use_fill_nbbo") is True
+    assert d.get("side_confirm_fill_lookback_ms") == 2500
+    assert d.get("side_confirm_ask_tol") == 0.005
+    # each key present in BOTH defaults and the /thresholds allow-list (module literals)
+    src = inspect.getsource(lmr)
+    for k in ("side_unconfirmed_suppress", "side_confirm_use_fill_nbbo",
+              "side_confirm_fill_lookback_ms", "side_confirm_ask_tol"):
+        assert src.count(f'"{k}"') >= 2, k
+
+
+# ── REST side-recovery (2026-11-04) ──────────────────────────────────────────
+# A big print's Side is written BLANK at ingest and only filled by the worker's
+# NBBO re-pass once the Q-pool re-covers the contract — which can lag the 10-min
+# auto-push window, so a genuine directional print (MU 700C 11/4: a $73.7M ask
+# SWEEP) never fires. Resolve the side from the consolidated REST NBBO-at-fill
+# NOW instead of waiting. Vendor read monkeypatched; today's prints only.
+
+def _blank_row(**kw):
+    base = {"Symbol": "MU", "CallPut": "CALL", "Strike": "700",
+            "ExpirationDate": "1/15/2027", "Price": "143.95", "Side": "",
+            "Type": "SWEEP", "CreatedDate": lmr._today_mdyyyy(),
+            "CreatedTime": "3:29:29 PM", "Premium": "73684880"}
+    base.update(kw)
+    return base
+
+
+def _full_row(**kw):
+    base = {
+        "id": 1, "Symbol": "MU", "CallPut": "CALL", "Strike": "700",
+        "ExpirationDate": "1/15/2027", "Price": "143.95", "Side": "",
+        "Type": "SWEEP", "Color": "YELLOW", "Premium": "73684880",
+        "Volume": "5120", "OI": "4153", "Spot": "794.455", "Dte": "72",
+        "CreatedDate": lmr._today_mdyyyy(), "CreatedTime": "3:29:29 PM",
+        "Sector": "Technology", "MktCap": "250000000000", "Weekly": "0",
+        "ER": "", "Uoa": "", "source": "stocks",
+    }
+    base.update(kw)
+    return base
+
+
+def test_rest_side_recover_at_ask(monkeypatch):
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    assert lmr._rest_side_recover(_blank_row(), lmr.DEFAULT_THRESHOLDS) == "A"
+
+
+def test_rest_side_recover_at_bid(monkeypatch):
+    # a genuine at-bid sell (price <= bid) recovers as BB — a sold call is Bear,
+    # NOT neutral; recovery must not just presume ask.
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    assert lmr._rest_side_recover(_blank_row(Price="140.0"), lmr.DEFAULT_THRESHOLDS) == "BB"
+
+
+def test_rest_side_recover_inside_spread_none(monkeypatch):
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    assert lmr._rest_side_recover(_blank_row(Price="142.0"), lmr.DEFAULT_THRESHOLDS) is None
+
+
+def test_rest_side_recover_stale_none(monkeypatch):
+    # pre-fill quote older than rest_side_recover_max_age_ms (2500) -> abstain,
+    # same freshness principle as side-confirm (don't classify off a stale book).
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 6800.0))
+    assert lmr._rest_side_recover(_blank_row(), lmr.DEFAULT_THRESHOLDS) is None
+
+
+def test_rest_side_recover_no_quote_none(monkeypatch):
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: None)
+    assert lmr._rest_side_recover(_blank_row(), lmr.DEFAULT_THRESHOLDS) is None
+
+
+def test_rest_side_recover_memoized(monkeypatch):
+    lmr._RS_MEMO.clear()
+    calls = {"n": 0}
+
+    def _spy(occ, ts):
+        calls["n"] += 1
+        return (140.0, 143.95, 47.0)
+
+    monkeypatch.setattr(lmr, "_nbbo_at", _spy)
+    r = _blank_row()
+    assert lmr._rest_side_recover(r, lmr.DEFAULT_THRESHOLDS) == "A"
+    assert lmr._rest_side_recover(r, lmr.DEFAULT_THRESHOLDS) == "A"
+    assert calls["n"] == 1   # second call served from _RS_MEMO, no re-fetch
+
+
+def test_rest_side_recover_bad_row_none(monkeypatch):
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    assert lmr._rest_side_recover(_blank_row(ExpirationDate=""), lmr.DEFAULT_THRESHOLDS) is None
+    assert lmr._rest_side_recover(_blank_row(Price="0"), lmr.DEFAULT_THRESHOLDS) is None
+
+
+def test_rest_side_recover_defaults_and_allowlisted():
+    import inspect
+    d = lmr.DEFAULT_THRESHOLDS
+    assert d.get("rest_side_recover_enabled") is True
+    assert d.get("rest_side_recover_min_premium") == 1000000
+    assert d.get("rest_side_recover_max_age_ms") == 2500
+    src = inspect.getsource(lmr)
+    for k in ("rest_side_recover_enabled", "rest_side_recover_min_premium",
+              "rest_side_recover_max_age_ms"):
+        assert src.count(f'"{k}"') >= 2, k   # in DEFAULT_THRESHOLDS AND the allow-list
+
+
+def test_row_to_alert_recovers_blank_side_today(monkeypatch):
+    # end-to-end: a blank-Side, today, $73.7M ask SWEEP comes out directional Bull
+    # with _side='A' — so it counts in the net-flow split and tiers normally,
+    # in-window, instead of waiting for the re-pass.
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: dict(lmr.DEFAULT_THRESHOLDS))
+    monkeypatch.setattr(lmr, "_nbbo_at", lambda occ, ts: (140.0, 143.95, 47.0))
+    a = lmr._row_to_alert(_full_row())
+    assert a is not None
+    assert a["_side"] == "A"
+    assert a["_direction"] == "Bull"
+    assert a["_directionUnconfirmed"] is False
+
+
+def test_row_to_alert_recovery_gated_to_today(monkeypatch):
+    # a prior-day blank print must NOT trigger a REST call (no history storm).
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: dict(lmr.DEFAULT_THRESHOLDS))
+    calls = {"n": 0}
+
+    def _spy(occ, ts):
+        calls["n"] += 1
+        return (140.0, 143.95, 47.0)
+
+    monkeypatch.setattr(lmr, "_nbbo_at", _spy)
+    lmr._row_to_alert(_full_row(CreatedDate="1/2/2020"))
+    assert calls["n"] == 0
+
+
+def test_row_to_alert_recovery_gated_by_premium(monkeypatch):
+    # below rest_side_recover_min_premium, a blank print is NOT REST-resolved.
+    lmr._RS_MEMO.clear()
+    monkeypatch.setattr(lmr, "_load_thresholds", lambda: dict(lmr.DEFAULT_THRESHOLDS))
+    calls = {"n": 0}
+
+    def _spy(occ, ts):
+        calls["n"] += 1
+        return (140.0, 143.95, 47.0)
+
+    monkeypatch.setattr(lmr, "_nbbo_at", _spy)
+    lmr._row_to_alert(_full_row(Premium="50000", Volume="3"))
+    assert calls["n"] == 0
 
 
 def test_relabel_unverified_copies_and_neutralizes():

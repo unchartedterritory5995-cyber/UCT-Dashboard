@@ -49,7 +49,11 @@ describe('C37 — the object colour string and the packed integer are one conver
     for (const c of ['chart.fg_color', 'transparent', 'rgba(1, 2, 3, 0.5)', 'red', '', null, undefined, '#12345']) {
       expect(objectHexToPacked(c), String(c)).toBeNull()
     }
-    for (const n of [-1, 1.5, 2 ** 32, NaN, null, 'x']) expect(packedToObjectHex(n), String(n)).toBeNull()
+    // ⭐ CO-2 (engine 84): 2 ** 32 itself is now the runtime lane's carrier of `chart.fg_color`
+    // (`objectTheme.THEME_PACKED_BASE`), turned back into that reference, never into a hex; the first number
+    // past the carrier's range stays out of range
+    for (const n of [-1, 1.5, 2 ** 32 + 512, NaN, null, 'x']) expect(packedToObjectHex(n), String(n)).toBeNull()
+    expect(packedToObjectHex(2 ** 32)).toBe('chart.fg_color')
   })
 
   it('the transparent end of the vendor curve survives the round trip', () => {
@@ -179,22 +183,32 @@ describe('C37 — colours reached through a `var`, a helper, `na`', () => {
 
   it('⛔ a `var` the script REASSIGNS is not read as its seed', () => {
     const t = translatePine(src('var color C = color.red', 'if close > open', '    C := color.green', 'line.new(bar_index, low, bar_index + 1, low, color = C)'), {})
-    const c = firstCreate(t).props.color
+    // ⛔⛔ ENGINE 52 — an unreadable colour WITHHOLDS its drawing by name (`pine:prop-unreadable`);
+    // engine 51 dropped the prop and drew the renderer's default. Never the seed, never a default.
+    const op = t.objects ? firstCreate(t) : undefined
+    const c = op && op.props.color
     expect(c === undefined || !(c.node.c === 'lit' && c.node.hex === '#F23645')).toBe(true)
+    if (!op) expect(t.objectDiagnostics.dropReasons['prop:unreadable']).toBe(1)
   })
 
   it('⛔ …nor one reassigned BELOW the drawing: the name still holds the last write when the drawing reads it', () => {
     // At the drawing's own statement the binding still looks untouched (its
     // update is the name itself); only the script-wide reassigned set knows.
     const t = translatePine(src('var color C = color.red', 'line.new(bar_index, low, bar_index + 1, low, color = C)', 'if close > open', '    C := color.green'), {})
-    const c = firstCreate(t).props.color
+    // ⛔⛔ ENGINE 52 — an unreadable colour WITHHOLDS its drawing by name (`pine:prop-unreadable`);
+    // engine 51 dropped the prop and drew the renderer's default. Never the seed, never a default.
+    const op = t.objects ? firstCreate(t) : undefined
+    const c = op && op.props.color
     expect(c === undefined || !(c.node.c === 'lit' && c.node.hex === '#F23645')).toBe(true)
+    if (!op) expect(t.objectDiagnostics.dropReasons['prop:unreadable']).toBe(1)
   })
 
   it('⛔ a `var` whose seed reads the bar is frozen at bar 0 in Pine — not carried as a per-bar colour', () => {
     const t = translatePine(src('var color C = close > open ? color.red : color.green', 'line.new(bar_index, low, bar_index + 1, low, color = C)'), {})
-    expect(firstCreate(t).props.color).toBeUndefined()
-    expect(t.objectDiagnostics.droppedPropNames).toEqual(['line.color@4'])
+    // ⛔⛔ ENGINE 52 — an unreadable colour WITHHOLDS its drawing by name (`pine:prop-unreadable`);
+    // engine 51 dropped the prop and drew the renderer's default. Never the seed, never a default.
+    expect(t.objects ? firstCreate(t) : undefined).toBeUndefined()
+    expect(t.objectDiagnostics.withheldPropNames).toEqual(['line.color@4'])
   })
 
   it('⭐ a one-expression helper is its body with the call\'s arguments in place', () => {
@@ -216,7 +230,9 @@ describe('C37 — colours reached through a `var`, a helper, `na`', () => {
 
   it('🔴 CONTROL — a colour whose CHANNELS move bar to bar is still dropped, and counted', () => {
     const t = translatePine(src('label.new(bar_index, high, "x", color = color.rgb(close % 255, 0, 0))'), {})
-    expect(firstCreate(t).props.color).toBeUndefined()
-    expect(t.objectDiagnostics.droppedPropNames).toEqual(['label.color@3'])
+    // ⛔⛔ ENGINE 52 — an unreadable colour WITHHOLDS its drawing by name (`pine:prop-unreadable`);
+    // engine 51 dropped the prop and drew the renderer's default. Never the seed, never a default.
+    expect(t.objects ? firstCreate(t) : undefined).toBeUndefined()
+    expect(t.objectDiagnostics.withheldPropNames).toEqual(['label.color@3'])
   })
 })

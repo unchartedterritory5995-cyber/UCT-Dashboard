@@ -32,6 +32,7 @@ speaker-segmented shape, so it calls the raw fetch, not `get_transcript()`.
 """
 
 from __future__ import annotations
+from api.services import llm_models
 import json
 import logging
 import os
@@ -42,7 +43,7 @@ _logger = logging.getLogger(__name__)
 
 _TRANSCRIPT_CACHE_TTL_HIT  = 86_400   # 24h — transcripts don't change
 _TRANSCRIPT_CACHE_TTL_MISS = 3_600    # 1h — retry window
-_TRANSCRIPT_AI_MODEL       = "claude-sonnet-4-6"  # upgraded Haiku→Sonnet 2026-05-27 (richer transcript summaries)
+_TRANSCRIPT_AI_MODEL       = llm_models.SONNET  # upgraded Haiku→Sonnet 2026-05-27 (richer transcript summaries)
 _TRANSCRIPT_AI_MAX_TOKENS  = 800      # 5-7 detailed bullets from full call
 _MAX_TRANSCRIPT_CHARS      = 12_000   # truncation threshold
 _HEAD_CHARS                = 3_000    # CEO/CFO prepared remarks
@@ -188,6 +189,7 @@ def _analyze_transcript(symbol: str, text: str, quarter: int | None, year: int |
             api_key=api_key,
             timeout=llm_timeouts.seconds("TRANSCRIPT_LLM_TIMEOUT_SECS",
                                          llm_timeouts.REQUEST_PATH),
+            max_retries=0,
         )
 
         quarter_label = f"Q{quarter} {year}" if quarter and year else "recent quarter"
@@ -215,10 +217,11 @@ def _analyze_transcript(symbol: str, text: str, quarter: int | None, year: int |
         msg = client.messages.create(
             model=_TRANSCRIPT_AI_MODEL,
             max_tokens=_TRANSCRIPT_AI_MAX_TOKENS,
+            **llm_models.plain(_TRANSCRIPT_AI_MODEL),
             metadata={"user_id": "transcript_summary:global"},
             messages=[{"role": "user", "content": prompt}],
         )
-        raw = msg.content[0].text.strip()
+        raw = llm_models.text_of(msg).strip()
 
         # Strip markdown code fences
         if raw.startswith("```"):

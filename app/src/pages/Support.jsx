@@ -12,6 +12,11 @@ import { whatsNewTours } from './journal-2-0/components/notebook/onboarding/tour
 import { WHATS_NEW_COPY } from './journal-2-0/components/notebook/onboarding/tourOfferCopy'
 import FeatureStatusStrip from '../components/featureStatus/FeatureStatusStrip'
 import { SkipLinkPortal } from '../components/skipLinks'
+import { tourProgress, TOUR_PROGRESS } from './journal-2-0/components/notebook/onboarding/tourProgress'
+import { armedCapabilities, PREVIEW_COPY } from './journal-2-0/components/notebook/onboarding/capabilityList'
+import {
+  ANSWER_PREFIX, HELP_SEARCH_ID, NEW_TICKET_HREF, QUICK_ANSWERS_ID, WALKTHROUGHS_ID,
+} from '../components/helpAnchors'
 import styles from './Support.module.css'
 
 const CATEGORIES = [
@@ -333,7 +338,8 @@ function PublishSentence() {
  *  Replaying the base tour reuses `startState('notebook-basics')`, which resolves
  *  to the SAME `TOUR_START_STATE` the existing "Take the tour" link already uses
  *  (tourRegistry.js) -- zero behaviour change for the one tour that ships today. */
-export const WALKTHROUGHS_ID = 'walkthroughs'
+// The anchor is components/helpAnchors.js's (one authority: the Help menu links to it too).
+export { WALKTHROUGHS_ID }
 
 function WalkthroughsSection() {
   // W14-C1 ruling: this section is wave 14's (W14-0); with the wave-14 switch off Help renders
@@ -346,6 +352,9 @@ function WalkthroughsSection() {
   // mouse member sees nothing new (docs/notebook/wave14-keys.md).
   const location = useLocation()
   const headingRef = useRef(null)
+  // S14 (audit 2026-11-05, detail #68): "Replay" was on every tour, never-taken ones included. A tour the member
+  // has not taken says Start; one they have says Replay (tourProgress.js, the existing tour-seen state).
+  const { prefs } = usePreferences()
   const shown = live.length > 0
   useEffect(() => {
     if (shown && location.hash === `#${WALKTHROUGHS_ID}`) headingRef.current?.focus()
@@ -368,17 +377,44 @@ function WalkthroughsSection() {
         Walkthroughs
       </div>
       <ul className={styles.walkthroughList}>
-        {live.map((t) => (
-          <li key={t.id} className={styles.walkthroughRow}>
-            <span>{t.title}</span>
-            <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}
-              aria-label={`Replay the ${t.title} tour`}>
-              Replay
-            </Link>
+        {live.map((t) => {
+          const verb = tourProgress(t.id, prefs) === TOUR_PROGRESS.new ? 'Start' : 'Replay'
+          return (
+            <li key={t.id} className={styles.walkthroughRow}>
+              <span>{t.title}</span>
+              <Link to={startPath(t)} state={startState(t)} className={styles.walkthroughReplay}
+                aria-label={`${verb} the ${t.title} tour`} data-walkthrough-verb={verb}>
+                {verb}
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+/** Help > "What your Notebook can do" (go-live wave 1, A6). It was the first-run welcome's folded preview
+ *  (CapabilityPreview, retired with Research home); here it is a plain section beside the walkthroughs: one line per
+ *  capability ARMED for this member (capabilityList.js, each line on its own flag), no sample promotion, nothing to
+ *  press. It rides the same wave-14 switch as the walkthroughs above it, as the preview did. */
+export function NotebookCapabilitiesSection() {
+  const lines = checklistEnabled(notebookFlag) ? armedCapabilities() : []
+  if (!lines.length) return null
+  return (
+    <section className={styles.faqWrap} aria-labelledby="support-notebook-can-do">
+      <h2 id="support-notebook-can-do" className={`${styles.faqTitle} ${styles.whatsNewTitle}`}>
+        <UIcon name="book" size={13} />
+        {PREVIEW_COPY.heading}
+      </h2>
+      <ul className={styles.capabilityList}>
+        {lines.map((c) => (
+          <li key={c.id} className={styles.capabilityRow}>
+            <strong>{c.label}.</strong> {c.line}
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   )
 }
 
@@ -528,20 +564,23 @@ export const FAQS = [
     topic: 'notebook',
     q: 'How do I get started with the Notebook?',
     keywords: 'notebook start begin first note new note thesis research write notes getting started tour',
-    a: <>Open the <Link to="/journal/notebook">Notebook</Link> and choose <strong>+ New note</strong>,
-      or start from a thesis. What you write saves as you type. Folders and tags are on the left,
-      and the Notebook home shows what you were working on, your favorites and your active
-      theses.<TourLink /></>,
+    a: <>Open the <Link to="/journal/notebook">Notebook</Link>: it opens on your notes. Choose{' '}
+      <strong>+ New</strong> for a blank note, or the arrow beside it to start from a template such as
+      a thesis. What you write saves as you type. Folders and tags are on the left, and{' '}
+      <strong>Daily brief</strong>, under All notes, shows today&apos;s plan, the setups near your entry
+      and the notes that need a review. A checklist line you don&apos;t tick today, or a task due today,
+      shows there tomorrow, and what you write today comes back there next year.<TourLink /></>,
   },
   {
     id: 'notebook-templates-daily-note',
     topic: 'notebook',
     q: 'How do templates and the daily note work?',
     keywords: 'template templates daily note today journal save as template your templates thesis',
-    a: <>Choose <strong>Templates</strong> in the Notebook's toolbar to start a note from a
-      layout — a thesis, a daily note and more. <strong>Today</strong> opens today's daily note,
-      and creates it the first time you open it each day. To reuse a layout of your own, open a
-      note and choose <strong>Save as template</strong> from its menu; it then appears under
+    a: <>On the notes list, open the arrow beside <strong>+ New</strong> and choose{' '}
+      <strong>From a template</strong> to start a note from a template: a thesis, a daily note and more.{' '}
+      <strong>Today&apos;s note</strong> opens today&apos;s daily note, and creates it the first time you
+      open it each day. To make a template of your own, open a note and choose{' '}
+      <strong>Save as template</strong> from its menu; it then appears under
       <strong> Your templates</strong>.</>,
   },
   {
@@ -550,7 +589,7 @@ export const FAQS = [
     q: 'How do I link notes together?',
     keywords: 'link links linking backlinks unlinked mentions graph wiki brackets mention at date connect related',
     a: <>Type <code>[[</code> in a note and pick another note to link to it. Each note lists the
-      notes that link to it under <strong>Backlinks</strong>, and <strong>Unlinked mentions</strong>
+      notes that link to it under <strong>Backlinks</strong>, and <strong>Unlinked mentions</strong>{' '}
       shows notes that name it without linking to it yet. Type <code>@</code> and a day —
       <code> @today</code>, <code>@tomorrow</code>, <code>@monday</code> — to put a date in a note.
       The <strong>Graph view</strong> draws every link between your notes, and its list view gives
@@ -566,7 +605,7 @@ export const FAQS = [
       note (from its menu) to keep it out of your lists without deleting it, and
       <strong> Lock</strong> it to switch editing off until you unlock it. Select several notes to
       move, tag, archive or delete them together. Deleted notes go to Trash, where you can restore
-      them.</>,
+      them. Trash and Archived are under <strong>More</strong> in the folders panel.</>,
   },
   {
     id: 'notebook-search-quick-switcher',
@@ -593,7 +632,7 @@ export const FAQS = [
     keywords: 'capture clip clipper web browser save page article selection share sheet phone android',
     a: <>On a computer, connect browser capture in <Link to="/settings?section=connections">Settings →
       Connections</Link>, then save a page or a selection straight into your Notebook. On an Android
-      phone, add the site to your home screen; it then appears in your phone's <strong>Share</strong>
+      phone, add the site to your home screen; it then appears in your phone's <strong>Share</strong>{' '}
       menu, and whatever you share lands in the Notebook.</>,
   },
   {
@@ -621,8 +660,8 @@ export const FAQS = [
     topic: 'notebook',
     q: 'How do I export my notes, and what does each format keep?',
     keywords: 'export download backup markdown html web page json word docx pdf print zip formats leave',
-    a: <>Choose <strong>Export</strong> in the Notebook's toolbar to download every note as one zip,
-      in the format you pick:
+    a: <>Open the notes list's <strong>More</strong> menu and choose <strong>Export</strong> to download every
+      note as one zip, in the format you pick:
       <ul>
         <li><strong>Markdown</strong> — plain-text files with your folders, tags and attachments.
           Opens in Obsidian and any Markdown app, and imports back into UCT.</li>
@@ -633,8 +672,8 @@ export const FAQS = [
         <li><strong>Word (.docx)</strong> — headings, lists, tables and images as Word's own;
           anything Word has no match for becomes plain text.</li>
       </ul>
-      For one note, use the <strong>Export</strong> menu in the note's toolbar. For a PDF, choose
-      <strong> Print</strong>, then Save as PDF.</>,
+      For one note, open the note's <strong>More</strong> menu, then <strong>Export</strong>. For a
+      PDF, choose <strong>Print</strong> there, then Save as PDF.</>,
   },
   {
     id: 'notebook-offline-conflicted-copies',
@@ -662,14 +701,13 @@ export const FAQS = [
     when: onboardingOn,
     q: 'What is the sample notebook, and how do I remove it?',
     keywords: 'sample notebook example demo notes remove delete tour welcome practice',
-    a: <>When your Notebook is empty, its first screen offers <strong>Add a sample notebook</strong>:
-      five example notes in a folder called "Sample notebook" — a welcome note, a research note, a
-      thesis, a daily note and a checklist — to look around and practise on. It is only offered
-      while you have no notes. To remove it, choose <strong>Remove it</strong> on the strip at the top
-      of the Notebook home; the sample notes move to Trash, where you can still restore them. If you
-      hid that strip, open the "Sample notebook" folder, select its notes and choose{' '}
-      <strong>Move to Trash</strong>. Deleting the folder alone keeps its notes: they move to Unfiled.
-      <TourLink /></>,
+    a: <>When your Notebook is empty, the notes list offers <strong>Add a sample notebook</strong>:
+      five example notes in a folder called "Sample notebook" (a welcome note, a research note, a
+      thesis, a daily note and a checklist) to look around and practise on. It is only offered
+      while you have no notes. To remove it, open <strong>More notebook actions</strong> (the three
+      dots) on the notes list and choose <strong>Remove the sample notebook</strong>; the sample notes
+      move to Trash (under <strong>More</strong> in the folders panel), where you can still restore them. Deleting the folder alone keeps its notes: they
+      move to Unfiled.<TourLink /></>,
   },
   {
     id: 'notebook-sharing-publishing',
@@ -814,7 +852,7 @@ function orderFaqsByContext(faqs, sourceTopic) {
 // As the user types a ticket subject, surface the top 3 matching articles so
 // they can self-serve before submitting. Case-insensitive token AND: every
 // term the user typed must appear in the question OR the keywords string.
-function searchFaqs(query, faqs) {
+function searchFaqs(query, faqs, limit = 3) {
   const q = query.trim().toLowerCase()
   if (q.length < 3) return []
   const terms = q.split(/\s+/).filter(t => t.length >= 2)
@@ -825,7 +863,7 @@ function searchFaqs(query, faqs) {
     return { faq: f, score: hits }
   }).filter(r => r.score === terms.length)
   scored.sort((a, b) => b.score - a.score)
-  return scored.slice(0, 3).map(r => r.faq)
+  return scored.slice(0, limit).map(r => r.faq)
 }
 
 // ── Diagnostic capture ────────────────────────────────────────────────────
@@ -948,25 +986,77 @@ function VoteRow({ faqId, votes, onVote }) {
   )
 }
 
+/** S14 (audit 2026-11-05): the answer a Help address asks for -- `#answer-<faq id>` -- or null. */
+export function answerFromHash(hash, faqs) {
+  const h = String(hash || '')
+  if (!h.startsWith(`#${ANSWER_PREFIX}`)) return null
+  const id = decodeURIComponent(h.slice(1 + ANSWER_PREFIX.length))
+  return faqs.some((f) => f.id === id) ? id : null
+}
+
+/** Quick answers, with the Help menu's two landings (S14, audit 2026-11-05):
+ *   * `#quick-answers` focuses the heading; `#help-search` focuses the search box, which filters the answers with the
+ *     same matcher the new-ticket suggestions use (`searchFaqs`);
+ *   * `#answer-<id>` -- every in-feature "?" (HelpAnswerLink.jsx) -- opens THAT answer and focuses its question.
+ *  Every answer carries its own id, so a link to one is a link to its place on the page. */
 function QuickAnswers({ faqs, votes, onVote }) {
-  const [open, setOpen] = useState(null)
+  const location = useLocation()
+  const [openId, setOpenId] = useState(() => answerFromHash(location.hash, faqs))
+  const [query, setQuery] = useState('')
+  const headingRef = useRef(null)
+  const searchRef = useRef(null)
+  const questionRefs = useRef(new Map())
+  useEffect(() => {
+    const asked = answerFromHash(location.hash, faqs)
+    if (asked) {
+      setOpenId(asked)
+      setQuery('')
+      requestAnimationFrame(() => {
+        const q = questionRefs.current.get(asked)
+        q?.focus()
+        q?.scrollIntoView?.({ block: 'start' })
+      })
+    } else if (location.hash === `#${HELP_SEARCH_ID}`) searchRef.current?.focus()
+    else if (location.hash === `#${QUICK_ANSWERS_ID}`) headingRef.current?.focus()
+  }, [location.hash, location.key]) // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = query.trim().length >= 3 ? searchFaqs(query, faqs, Infinity) : faqs
   return (
     <div className={styles.faqWrap}>
-      <div className={styles.faqTitle}>
+      <div ref={headingRef} id={QUICK_ANSWERS_ID} tabIndex={-1} role="heading" aria-level={2} className={styles.faqTitle}>
         <UIcon name="sparkle" size={13} />
         Quick answers
       </div>
-      {faqs.map((f, i) => (
-        <div key={f.id} className={styles.faqItem}>
+      <div className={styles.searchWrap}>
+        <UIcon name="search" size={12} className={styles.searchIcon} />
+        <input
+          ref={searchRef}
+          id={HELP_SEARCH_ID}
+          className={styles.searchInput}
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search help..."
+          aria-label="Search help"
+        />
+      </div>
+      <p role="status" className={styles.helpSearchStatus}>
+        {/* Review Important 3: the sentence that says "open a ticket" is the door to one. */}
+        {query.trim().length >= 3 && shown.length === 0
+          ? <>No answer matches that. Try other words, or <Link to={NEW_TICKET_HREF}>open a ticket</Link>.</>
+          : ''}
+      </p>
+      {shown.map((f) => (
+        <div key={f.id} id={`${ANSWER_PREFIX}${f.id}`} className={styles.faqItem}>
           <button
+            ref={(el) => { if (el) questionRefs.current.set(f.id, el); else questionRefs.current.delete(f.id) }}
             className={styles.faqQ}
-            onClick={() => setOpen(open === i ? null : i)}
-            aria-expanded={open === i}
+            onClick={() => setOpenId(openId === f.id ? null : f.id)}
+            aria-expanded={openId === f.id}
           >
-            <UIcon name={open === i ? 'chevronDown' : 'chevronRight'} size={11} />
+            <UIcon name={openId === f.id ? 'chevronDown' : 'chevronRight'} size={11} />
             {f.q}
           </button>
-          {open === i && (
+          {openId === f.id && (
             <div className={styles.faqA}>
               {f.a}
               <VoteRow faqId={f.id} votes={votes} onVote={onVote} />
@@ -1418,6 +1508,7 @@ export default function Support() {
 
         {!loading && <WhatsNewSection />}
         {!loading && <WalkthroughsSection />}
+        {!loading && <NotebookCapabilitiesSection />}
         {!loading && <QuickAnswers faqs={orderedFaqs} votes={votes} onVote={handleVote} />}
         {/* TERM-039: what is here today and what is on early for this account. */}
         {!loading && <FeatureStatusStrip />}

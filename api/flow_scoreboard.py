@@ -1,5 +1,5 @@
 """
-flow_scoreboard.py — Public Flow Scoreboard: verified performance stats for
+flow_scoreboard.py — Flow Scoreboard (the Flow Record): verified performance stats for
 every Top Flow pick the tracker has ever flagged.
 
 GET /api/flow-scoreboard  (also /api/flow-scoreboard/)
@@ -7,14 +7,34 @@ GET /api/flow-scoreboard  (also /api/flow-scoreboard/)
       "honest tape" (last picks including losers), computed from
       api.top_flow_tracker's active + archived picks.
 
-Honesty rules (LOCKED — this is a public trust asset):
+Where the numbers come from (two sources, both named on the page):
+  * The picks and their entry prices come from UCT's options flow tape (saved by
+    the Options Flow page through POST /api/top-flow/save).
+  * Every gain, win rate and OI confirmation is computed from the daily option
+    price and open interest recorded each weekday after the close by
+    api.top_flow_tracker.snapshot_prices: from Massive
+    (api.massive_oi_snapshots._fetch_fields_all_async), and from nothing else
+    (owner, 2026-11-17: Schwab was retired from the product). Results recorded
+    before November 2026 came from Schwab and stay as recorded: each history
+    entry written since carries `src`, and an entry with `src` "schwab" or
+    with none is Schwab.
+
+Honesty rules (LOCKED — this is a trust asset):
   * Losers are NEVER excluded from aggregate stats.
   * Picks with fewer than 2 daily snapshots are "too new" — reported
     separately and excluded from rates (they have no outcome yet), never
     silently dropped.
   * All gains are CONTRACT-price gains (the option's price), not the
     underlying stock move.
-  * No auth on the GET — read-only, cacheable, public.
+  * Who can read it: this module declares no auth of its own, and it is no longer
+    public by design. api/main.py mounts the router with the open-reads gate
+    (`include_router(flow_scoreboard_router, dependencies=_OPEN_READS)`), and
+    api/open_reads_gate.py's GATED_READS classes both paths `paid`. The gate's
+    mode is the OPEN_READS_GATE variable, read per request: unset/off = answers
+    anyone (the code default), shadow = answers and logs a would-deny, enforce =
+    401 without a session, 402 for a session that is not paid. The flag ledger
+    (docs/feature_flags.json) records `enforce` on web since 2026-09-29.
+    (Corrected 2026-11-17: this line used to say the GET had no auth.)
 
 Caching: module-level 5-minute TTL on the computed payload (same idea as
 flow_router's _RESPONSE_CACHE, sized for exactly one entry since the
@@ -46,9 +66,11 @@ MIN_HISTORY_SNAPSHOTS = 2         # fewer than this = "too new"
 CACHE_TTL_SECONDS = 300           # 5 min
 
 METHODOLOGY = (
-    "Every Top Flow pick is saved the day it is flagged and tracked with daily "
-    "end-of-day snapshots of the option contract's price and open interest until "
-    "expiration. Entry = the contract's price when the pick was flagged. All gains "
+    "Every Top Flow pick is saved the day it is flagged on UCT's options flow tape "
+    "and tracked until expiration with the option contract's price and open interest, "
+    "recorded each weekday after the close from Massive. "
+    "Results recorded before November 2026 came from Schwab and stay as recorded. Entry = the contract's "
+    "price when the pick was flagged. All gains "
     "are contract-price gains (the option's price, not the underlying stock's move). "
     "Peak gain = the best daily closing price since the flag versus entry; current "
     "gain = the latest snapshot versus entry. A pick counts as OI-confirmed when its "
@@ -340,7 +362,7 @@ def _get_payload() -> dict:
     return payload
 
 
-# ── Routes (public, read-only) ───────────────────────────────────────────────
+# ── Routes (read-only; gated where mounted) ──────────────────────────────────
 
 def _served() -> dict:
     try:
@@ -352,7 +374,8 @@ def _served() -> dict:
 
 @router.get("")
 def get_scoreboard():
-    """Public Flow Scoreboard — no auth by design (read-only trust asset)."""
+    """Flow Scoreboard, read-only. No auth dependency HERE; the open-reads gate is attached
+    where api/main.py mounts this router (family `paid`). See the module docstring."""
     return _served()
 
 

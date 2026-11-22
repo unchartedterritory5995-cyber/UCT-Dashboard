@@ -148,7 +148,15 @@ describe('⛔ C22 — a marking op is not a step: pruning one is not counted as 
     ])
     const d = t.objectDiagnostics
     expect(d.collsDivergedWhy).toEqual(['lines: coll:insert@5'])
-    expect(d.dropReasons).toEqual({ 'update:props': 1 })
+    // ⚰️ This pinned `{ 'update:props': 1 }` alone. On master (b890da8199, measured
+    // 2026-11-08) the `line.new` inside `array.insert` produced NO op and NO count:
+    // the program was `null` and the note said "1 of 1". That was a silent drop,
+    // closed by `fix/pine-silent-create-gaps` (a): the lost create is now named
+    // (`line.new`) and counted once (`content:lost`). C22's principle is unchanged —
+    // the MARKING op is still not counted: every drop key here is a real step.
+    expect(d.dropReasons).toEqual({ 'content:lost': 1, 'update:props': 1 })
+    expect(d.unsupported).toEqual(['line.new'])
+    expect(Object.keys(d.dropReasons).some((k) => /geometry|mark/.test(k))).toBe(false)
     expect(d.droppedOps).toBeLessThanOrEqual(d.attemptedOps)
   })
 })

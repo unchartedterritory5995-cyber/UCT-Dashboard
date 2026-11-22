@@ -1,5 +1,5 @@
-/* Wave 13 lane 13C: Reporting soon on Research Home. Same section and row idiom as
-   ResearchHome.module.css; the action is a real button with the 44px floor on touch. */
+/* Wave 13 lane 13C: Reporting soon (Research Home's box, on the Daily brief since Notebook simplify Task 5). The
+   section and row idiom Research Home used; the action is a real button with the 44px floor on touch. */
 .section {
   display: flex;
   flex-direction: column;

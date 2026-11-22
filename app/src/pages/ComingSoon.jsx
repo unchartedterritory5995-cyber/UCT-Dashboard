@@ -9,14 +9,13 @@ import styles from './ComingSoon.module.css'
 // Scans — linking "today's Morning Wire" would send people somewhere it isn't.
 const SUBSTACK_URL = 'https://unchartedterritoryy.substack.com'
 
-// Launch target: Sat Nov 14 2026, 9am ET (owner's date — pushed back from
-// Oct 16, which was itself pushed back from Sep 19). Still deliberately NOT
-// labelled "opening bell": Nov 14 is a Saturday, so there is no session that
-// day, and the first Morning Wire members receive is Mon Nov 16.
-// EST on Nov 14 — DST ended Nov 1 — so the offset is -05:00 (it was -04:00
-// for the Oct 16 date).
+// Launch target: Sat Dec 5 2026, 9am ET (owner's date — pushed back three
+// weeks from Nov 14, which was itself pushed back from Oct 16 and Sep 19).
+// Still deliberately NOT labelled "opening bell": Dec 5 is a Saturday, so
+// there is no session that day, and the first Morning Wire members receive
+// is Mon Dec 7. EST (DST ended Nov 1), so the offset is -05:00.
 // Override without a code change via VITE_LAUNCH_DATE (ISO-8601 with offset).
-const FALLBACK_LAUNCH = '2026-11-14T09:00:00-05:00'
+const FALLBACK_LAUNCH = '2026-12-05T09:00:00-05:00'
 const LAUNCH_ISO = import.meta.env.VITE_LAUNCH_DATE || FALLBACK_LAUNCH
 
 function launchDate() {
@@ -24,7 +23,7 @@ function launchDate() {
   return Number.isNaN(d.getTime()) ? new Date(FALLBACK_LAUNCH) : d
 }
 
-// Short "NOV 14" label for the terminus annotation on the curve.
+// Short "DEC 5" label for the terminus annotation on the curve.
 function terminusLabel(d) {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/New_York', month: 'short', day: 'numeric',

@@ -1,0 +1,4451 @@
+{
+ "about": "PLANNER-V2-EVAL-PLAN.md §3/§6: the FROZEN expectations (S1-S4) scored by tools/agent_v2_eval.py. Frozen before any paid run; a change after the run starts invalidates it. The 52 held-out prompts are added here, with their expected plans and must_group labels, before the run (owner-approved author).",
+ "frozen_from": "app/src/agent/qa/capabilityRegression/baseline/corpus.json",
+ "must_group_rule": "changes that only work together in one plan (new widgets + the board re-tile that makes room for them)",
+ "rows": [
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "Put SPY, QQQ, NVDA, and TSLA on four charts, all the same size.",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "Show SPY, QQQ, NVDA and TSLA in four equal panels.",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "Give me four equally sized charts with those tickers.",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "Make a 2×2 chart layout with SPY, QQQ, NVDA and TSLA.",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "Create four charts for SPY, QQQ, NVDA and TSLA",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "put spy, qqq, nvda and tsla on four charts",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "Show 4 charts: SPY, QQQ, NVDA, TSLA",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "SPY, QQQ, NVDA and TSLA in a 2x2 grid",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "four charts, all the same size: SPY, QQQ, NVDA, TSLA",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named",
+   "board": "HALF",
+   "text": "split my screen into SPY, QQQ, NVDA and TSLA",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": null,
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named.daily",
+   "board": "HALF",
+   "text": "Create four charts in a 2×2 grid: SPY, QQQ, NVDA, and TSLA, all on the daily timeframe.",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": "D",
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named.daily",
+   "board": "HALF",
+   "text": "2x2 grid of SPY, QQQ, NVDA, TSLA on the daily",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": "D",
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named.daily",
+   "board": "HALF",
+   "text": "four daily charts: SPY, QQQ, NVDA and TSLA",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": "D",
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.named.daily",
+   "board": "HALF",
+   "text": "Put SPY, QQQ, NVDA and TSLA on four charts, all daily, all the same size.",
+   "expected_ops": [
+    {
+     "action": "chartGrid.set",
+     "args": {
+      "symbols": [
+       "SPY",
+       "QQQ",
+       "NVDA",
+       "TSLA"
+      ],
+      "timeframe": "D",
+      "layout": "grid",
+      "new_charts": null,
+      "watchlist": null,
+      "replace": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.unnamed",
+   "board": "HALF",
+   "text": "Put four charts on my screen.",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new1"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new2"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new3"
+     }
+    },
+    {
+     "action": "widget.arrange",
+     "args": {
+      "widgets": null,
+      "pattern": "grid"
+     }
+    }
+   ],
+   "must_group": true
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.unnamed",
+   "board": "HALF",
+   "text": "Create four charts.",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new1"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new2"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new3"
+     }
+    },
+    {
+     "action": "widget.arrange",
+     "args": {
+      "widgets": null,
+      "pattern": "grid"
+     }
+    }
+   ],
+   "must_group": true
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.unnamed",
+   "board": "HALF",
+   "text": "Make a 2×2 chart layout.",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new1"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new2"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new3"
+     }
+    },
+    {
+     "action": "widget.arrange",
+     "args": {
+      "widgets": null,
+      "pattern": "grid"
+     }
+    }
+   ],
+   "must_group": true
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.unnamed",
+   "board": "HALF",
+   "text": "give me a 2x2 grid of charts",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new1"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new2"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new3"
+     }
+    },
+    {
+     "action": "widget.arrange",
+     "args": {
+      "widgets": null,
+      "pattern": "grid"
+     }
+    }
+   ],
+   "must_group": true
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.unnamed",
+   "board": "HALF",
+   "text": "I want four equal charts on the board",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new1"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new2"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new3"
+     }
+    },
+    {
+     "action": "widget.arrange",
+     "args": {
+      "widgets": null,
+      "pattern": "grid"
+     }
+    }
+   ],
+   "must_group": true
+  },
+  {
+   "set": "corpus",
+   "intent": "grid.four.unnamed",
+   "board": "HALF",
+   "text": "four charts, same size, please",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new1"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new2"
+     }
+    },
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "chart",
+      "as": "new3"
+     }
+    },
+    {
+     "action": "widget.arrange",
+     "args": {
+      "widgets": null,
+      "pattern": "grid"
+     }
+    }
+   ],
+   "must_group": true
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "undo",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "undo that",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "Undo the last change you made to my charts.",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "revert that",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "take that back",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "put it back the way it was",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "roll back what you just did",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "can you undo that for me?",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "undo the timeframe change",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "never mind, undo it",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "scratch that",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.last",
+   "board": "ONE",
+   "text": "go back to how it was before",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "compound.change-then-undo",
+   "board": "ONE",
+   "text": "Change the NVDA chart to the weekly timeframe, then undo that change.",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    },
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "compound.change-then-undo",
+   "board": "ONE",
+   "text": "switch to weekly, then undo it",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    },
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "compound.change-then-undo",
+   "board": "ONE",
+   "text": "change NVDA to weekly then undo",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    },
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "compound.change-then-undo",
+   "board": "ONE",
+   "text": "make it weekly and then undo that",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    },
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "compound.change-then-undo",
+   "board": "ONE",
+   "text": "change nvda to weekly, then revert it",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    },
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.weekly",
+   "board": "ONE",
+   "text": "switch to weekly",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.weekly",
+   "board": "ONE",
+   "text": "make it weekly",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.weekly",
+   "board": "ONE",
+   "text": "weekly chart please",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.weekly",
+   "board": "ONE",
+   "text": "change the timeframe to weekly",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.weekly",
+   "board": "ONE",
+   "text": "show me the weekly",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.weekly",
+   "board": "ONE",
+   "text": "go to the weekly chart",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.weekly",
+   "board": "ONE",
+   "text": "Change the NVDA chart to the weekly timeframe.",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.weekly",
+   "board": "ONE",
+   "text": "put NVDA on the weekly",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.weekly",
+   "board": "ONE",
+   "text": "weekly",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "W"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.5m",
+   "board": "ONE",
+   "text": "5 minute chart",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "5"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.5m",
+   "board": "ONE",
+   "text": "switch to 5 min",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "5"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.5m",
+   "board": "ONE",
+   "text": "change to the 5-minute timeframe",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "5"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.5m",
+   "board": "ONE",
+   "text": "show me the 5m",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "5"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "timeframe.5m",
+   "board": "ONE",
+   "text": "go to five minute candles",
+   "expected_ops": [
+    {
+     "action": "chart.setTimeframe",
+     "args": {
+      "timeframe": "5"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.ema-9-20",
+   "board": "ONE",
+   "text": "add the 9 and 20 EMAs",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 9
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    },
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 20
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.ema-9-20",
+   "board": "ONE",
+   "text": "add the 9 and 20 ema",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 9
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    },
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 20
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.ema-9-20",
+   "board": "ONE",
+   "text": "put the 9 and 20 ema on",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 9
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    },
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 20
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.ema-9-20",
+   "board": "ONE",
+   "text": "throw the 9 and 20 ema on my chart",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 9
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    },
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 20
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.ema-9-20",
+   "board": "ONE",
+   "text": "add a 9 ema and a 20 ema",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 9
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    },
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 20
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.ema-9-20",
+   "board": "ONE",
+   "text": "9 and 20 EMA please",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 9
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    },
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 20
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.ema-9-20",
+   "board": "ONE",
+   "text": "add EMA 9 and EMA 20",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 9
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    },
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 20
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.ema-9-20",
+   "board": "ONE",
+   "text": "put the 9/20 emas on this chart",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 9
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    },
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "movingAverage",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 20
+       },
+       {
+        "key": "maType",
+        "value": "ema"
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.rsi",
+   "board": "ONE",
+   "text": "add rsi",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "rsi",
+      "inputs": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.rsi",
+   "board": "ONE",
+   "text": "put RSI on the chart",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "rsi",
+      "inputs": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.rsi",
+   "board": "ONE",
+   "text": "add the relative strength index",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "rsi",
+      "inputs": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.rsi",
+   "board": "ONE",
+   "text": "show me RSI on this chart",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "rsi",
+      "inputs": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.rsi",
+   "board": "ONE",
+   "text": "can you add an RSI",
+   "expected_ops": [
+    {
+     "action": "indicator.add",
+     "args": {
+      "defId": "rsi",
+      "inputs": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.price-above",
+   "board": "ONE",
+   "text": "alert me if nvda goes above 150",
+   "expected_ops": [
+    {
+     "action": "alert.create",
+     "args": {
+      "symbol": "NVDA",
+      "price": 150,
+      "direction": "above"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.price-above",
+   "board": "ONE",
+   "text": "set an alert on NVDA at 150 to the upside",
+   "expected_ops": [
+    {
+     "action": "alert.create",
+     "args": {
+      "symbol": "NVDA",
+      "price": 150,
+      "direction": "above"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.price-above",
+   "board": "ONE",
+   "text": "ping me when NVDA crosses above 150",
+   "expected_ops": [
+    {
+     "action": "alert.create",
+     "args": {
+      "symbol": "NVDA",
+      "price": 150,
+      "direction": "above"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.price-above",
+   "board": "ONE",
+   "text": "let me know if NVDA breaks above 150",
+   "expected_ops": [
+    {
+     "action": "alert.create",
+     "args": {
+      "symbol": "NVDA",
+      "price": 150,
+      "direction": "above"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.price-above",
+   "board": "ONE",
+   "text": "notify me when nvda rises to 150",
+   "expected_ops": [
+    {
+     "action": "alert.create",
+     "args": {
+      "symbol": "NVDA",
+      "price": 150,
+      "direction": "above"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.price-above",
+   "board": "ONE",
+   "text": "create a price alert for NVDA above $150",
+   "expected_ops": [
+    {
+     "action": "alert.create",
+     "args": {
+      "symbol": "NVDA",
+      "price": 150,
+      "direction": "above"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "describe.setup",
+   "board": "ONE",
+   "text": "describe the setup on nvda",
+   "expected_ops": [
+    {
+     "action": "chart.describeSetup",
+     "args": {
+      "symbol": null,
+      "timeframe": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "describe.setup",
+   "board": "ONE",
+   "text": "describe this setup",
+   "expected_ops": [
+    {
+     "action": "chart.describeSetup",
+     "args": {
+      "symbol": null,
+      "timeframe": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "describe.setup",
+   "board": "ONE",
+   "text": "what's the setup here",
+   "expected_ops": [
+    {
+     "action": "chart.describeSetup",
+     "args": {
+      "symbol": null,
+      "timeframe": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "describe.setup",
+   "board": "ONE",
+   "text": "walk me through the setup on NVDA",
+   "expected_ops": [
+    {
+     "action": "chart.describeSetup",
+     "args": {
+      "symbol": null,
+      "timeframe": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "describe.setup",
+   "board": "ONE",
+   "text": "summarize the NVDA setup",
+   "expected_ops": [
+    {
+     "action": "chart.describeSetup",
+     "args": {
+      "symbol": null,
+      "timeframe": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "describe.setup",
+   "board": "ONE",
+   "text": "describe the chart setup for NVDA",
+   "expected_ops": [
+    {
+     "action": "chart.describeSetup",
+     "args": {
+      "symbol": null,
+      "timeframe": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.now",
+   "board": "ONE",
+   "text": "what's the breadth like",
+   "expected_ops": [
+    {
+     "action": "breadth.show",
+     "args": {
+      "mode": "value",
+      "universe": "us",
+      "metrics": [],
+      "date": null,
+      "compare_date": null,
+      "start": null,
+      "end": null,
+      "basis": null,
+      "side": null,
+      "sessions": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.now",
+   "board": "ONE",
+   "text": "how's market breadth today",
+   "expected_ops": [
+    {
+     "action": "breadth.show",
+     "args": {
+      "mode": "value",
+      "universe": "us",
+      "metrics": [],
+      "date": null,
+      "compare_date": null,
+      "start": null,
+      "end": null,
+      "basis": null,
+      "side": null,
+      "sessions": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.now",
+   "board": "ONE",
+   "text": "show me breadth",
+   "expected_ops": [
+    {
+     "action": "breadth.show",
+     "args": {
+      "mode": "value",
+      "universe": "us",
+      "metrics": [],
+      "date": null,
+      "compare_date": null,
+      "start": null,
+      "end": null,
+      "basis": null,
+      "side": null,
+      "sessions": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.now",
+   "board": "ONE",
+   "text": "what does breadth look like right now",
+   "expected_ops": [
+    {
+     "action": "breadth.show",
+     "args": {
+      "mode": "value",
+      "universe": "us",
+      "metrics": [],
+      "date": null,
+      "compare_date": null,
+      "start": null,
+      "end": null,
+      "basis": null,
+      "side": null,
+      "sessions": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.now",
+   "board": "ONE",
+   "text": "how are the market internals",
+   "expected_ops": [
+    {
+     "action": "breadth.show",
+     "args": {
+      "mode": "value",
+      "universe": "us",
+      "metrics": [],
+      "date": null,
+      "compare_date": null,
+      "start": null,
+      "end": null,
+      "basis": null,
+      "side": null,
+      "sessions": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.now",
+   "board": "ONE",
+   "text": "hows breadth today",
+   "expected_ops": [
+    {
+     "action": "breadth.show",
+     "args": {
+      "mode": "value",
+      "universe": "us",
+      "metrics": [],
+      "date": null,
+      "compare_date": null,
+      "start": null,
+      "end": null,
+      "basis": null,
+      "side": null,
+      "sessions": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.now",
+   "board": "ONE",
+   "text": "whats the breadth like",
+   "expected_ops": [
+    {
+     "action": "breadth.show",
+     "args": {
+      "mode": "value",
+      "universe": "us",
+      "metrics": [],
+      "date": null,
+      "compare_date": null,
+      "start": null,
+      "end": null,
+      "basis": null,
+      "side": null,
+      "sessions": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "earnings.date",
+   "board": "ONE",
+   "text": "when does nvda report earnings",
+   "expected_ops": [
+    {
+     "action": "stock.earnings",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "earnings.date",
+   "board": "ONE",
+   "text": "nvda earnings date",
+   "expected_ops": [
+    {
+     "action": "stock.earnings",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "earnings.date",
+   "board": "ONE",
+   "text": "when is NVDA's next earnings",
+   "expected_ops": [
+    {
+     "action": "stock.earnings",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "earnings.date",
+   "board": "ONE",
+   "text": "when does nvda report",
+   "expected_ops": [
+    {
+     "action": "stock.earnings",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "earnings.date",
+   "board": "ONE",
+   "text": "NVDA earnings",
+   "expected_ops": [
+    {
+     "action": "stock.earnings",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "earnings.date",
+   "board": "ONE",
+   "text": "what did NVDA report last quarter",
+   "expected_ops": [
+    {
+     "action": "stock.earnings",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "screener.adr",
+   "board": "ONE",
+   "text": "find stocks with ADR above 5%",
+   "expected_ops": [
+    {
+     "action": "screener.run",
+     "args": {
+      "filters": [
+       {
+        "field": "adr_pct",
+        "op": "gt",
+        "value": 5,
+        "max": null,
+        "values": null
+       }
+      ],
+      "sort_field": null,
+      "sort_dir": null,
+      "mode": "new",
+      "show": null,
+      "as": null,
+      "within": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "screener.adr",
+   "board": "ONE",
+   "text": "screen for stocks with an ADR over 5%",
+   "expected_ops": [
+    {
+     "action": "screener.run",
+     "args": {
+      "filters": [
+       {
+        "field": "adr_pct",
+        "op": "gt",
+        "value": 5,
+        "max": null,
+        "values": null
+       }
+      ],
+      "sort_field": null,
+      "sort_dir": null,
+      "mode": "new",
+      "show": null,
+      "as": null,
+      "within": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "screener.adr",
+   "board": "ONE",
+   "text": "show me names with ADR greater than 5 percent",
+   "expected_ops": [
+    {
+     "action": "screener.run",
+     "args": {
+      "filters": [
+       {
+        "field": "adr_pct",
+        "op": "gt",
+        "value": 5,
+        "max": null,
+        "values": null
+       }
+      ],
+      "sort_field": null,
+      "sort_dir": null,
+      "mode": "new",
+      "show": null,
+      "as": null,
+      "within": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "screener.adr",
+   "board": "ONE",
+   "text": "scan for ADR > 5%",
+   "expected_ops": [
+    {
+     "action": "screener.run",
+     "args": {
+      "filters": [
+       {
+        "field": "adr_pct",
+        "op": "gt",
+        "value": 5,
+        "max": null,
+        "values": null
+       }
+      ],
+      "sort_field": null,
+      "sort_dir": null,
+      "mode": "new",
+      "show": null,
+      "as": null,
+      "within": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "screener.adr",
+   "board": "ONE",
+   "text": "which stocks have an ADR above 5%",
+   "expected_ops": [
+    {
+     "action": "screener.run",
+     "args": {
+      "filters": [
+       {
+        "field": "adr_pct",
+        "op": "gt",
+        "value": 5,
+        "max": null,
+        "values": null
+       }
+      ],
+      "sort_field": null,
+      "sort_dir": null,
+      "mode": "new",
+      "show": null,
+      "as": null,
+      "within": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "news.latest",
+   "board": "ONE",
+   "text": "any news on tsla",
+   "expected_ops": [
+    {
+     "action": "news.latest",
+     "args": {
+      "symbol": "TSLA",
+      "limit": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "news.latest",
+   "board": "ONE",
+   "text": "latest headlines for TSLA",
+   "expected_ops": [
+    {
+     "action": "news.latest",
+     "args": {
+      "symbol": "TSLA",
+      "limit": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "news.latest",
+   "board": "ONE",
+   "text": "what's the news on TSLA",
+   "expected_ops": [
+    {
+     "action": "news.latest",
+     "args": {
+      "symbol": "TSLA",
+      "limit": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "news.latest",
+   "board": "ONE",
+   "text": "show me TSLA news",
+   "expected_ops": [
+    {
+     "action": "news.latest",
+     "args": {
+      "symbol": "TSLA",
+      "limit": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "news.latest",
+   "board": "ONE",
+   "text": "TSLA headlines",
+   "expected_ops": [
+    {
+     "action": "news.latest",
+     "args": {
+      "symbol": "TSLA",
+      "limit": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "symbol.switch",
+   "board": "ONE",
+   "text": "switch to AMD",
+   "expected_ops": [
+    {
+     "action": "chart.setSymbol",
+     "args": {
+      "symbol": "AMD"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "symbol.switch",
+   "board": "ONE",
+   "text": "show me AMD",
+   "expected_ops": [
+    {
+     "action": "chart.setSymbol",
+     "args": {
+      "symbol": "AMD"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "symbol.switch",
+   "board": "ONE",
+   "text": "pull up AMD",
+   "expected_ops": [
+    {
+     "action": "chart.setSymbol",
+     "args": {
+      "symbol": "AMD"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "symbol.switch",
+   "board": "ONE",
+   "text": "chart AMD",
+   "expected_ops": [
+    {
+     "action": "chart.setSymbol",
+     "args": {
+      "symbol": "AMD"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "symbol.switch",
+   "board": "ONE",
+   "text": "put AMD on the chart",
+   "expected_ops": [
+    {
+     "action": "chart.setSymbol",
+     "args": {
+      "symbol": "AMD"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "symbol.switch",
+   "board": "ONE",
+   "text": "change the symbol to AMD",
+   "expected_ops": [
+    {
+     "action": "chart.setSymbol",
+     "args": {
+      "symbol": "AMD"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "charttype.line",
+   "board": "ONE",
+   "text": "make it a line chart",
+   "expected_ops": [
+    {
+     "action": "chart.setType",
+     "args": {
+      "type": "line"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "charttype.line",
+   "board": "ONE",
+   "text": "switch to line",
+   "expected_ops": [
+    {
+     "action": "chart.setType",
+     "args": {
+      "type": "line"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "charttype.line",
+   "board": "ONE",
+   "text": "line chart please",
+   "expected_ops": [
+    {
+     "action": "chart.setType",
+     "args": {
+      "type": "line"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "charttype.line",
+   "board": "ONE",
+   "text": "show it as a line",
+   "expected_ops": [
+    {
+     "action": "chart.setType",
+     "args": {
+      "type": "line"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "charttype.line",
+   "board": "ONE",
+   "text": "change the chart type to line",
+   "expected_ops": [
+    {
+     "action": "chart.setType",
+     "args": {
+      "type": "line"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.pullbacks",
+   "board": "ONE",
+   "text": "show me NVDA's recent pullbacks",
+   "expected_ops": [
+    {
+     "action": "stock.dailyBars",
+     "args": {
+      "symbol": "NVDA",
+      "measure": "pullbacks",
+      "sessions": null,
+      "date": null,
+      "from": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.pullbacks",
+   "board": "ONE",
+   "text": "nvda pullbacks",
+   "expected_ops": [
+    {
+     "action": "stock.dailyBars",
+     "args": {
+      "symbol": "NVDA",
+      "measure": "pullbacks",
+      "sessions": null,
+      "date": null,
+      "from": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.pullbacks",
+   "board": "ONE",
+   "text": "how far has NVDA pulled back",
+   "expected_ops": [
+    {
+     "action": "stock.dailyBars",
+     "args": {
+      "symbol": "NVDA",
+      "measure": "pullbacks",
+      "sessions": null,
+      "date": null,
+      "from": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.pullbacks",
+   "board": "ONE",
+   "text": "NVDA drawdowns this year",
+   "expected_ops": [
+    {
+     "action": "stock.dailyBars",
+     "args": {
+      "symbol": "NVDA",
+      "measure": "pullbacks",
+      "sessions": null,
+      "date": null,
+      "from": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.offHigh",
+   "board": "ONE",
+   "text": "how far off its high is NVDA",
+   "expected_ops": [
+    {
+     "action": "stock.dailyBars",
+     "args": {
+      "symbol": "NVDA",
+      "measure": "offHigh",
+      "sessions": null,
+      "date": null,
+      "from": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.offHigh",
+   "board": "ONE",
+   "text": "how far is NVDA off its high",
+   "expected_ops": [
+    {
+     "action": "stock.dailyBars",
+     "args": {
+      "symbol": "NVDA",
+      "measure": "offHigh",
+      "sessions": null,
+      "date": null,
+      "from": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.offHigh",
+   "board": "ONE",
+   "text": "NVDA distance from the 52-week high",
+   "expected_ops": [
+    {
+     "action": "stock.dailyBars",
+     "args": {
+      "symbol": "NVDA",
+      "measure": "offHigh",
+      "sessions": null,
+      "date": null,
+      "from": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.named-after-grid",
+   "board": "HALF",
+   "text": "undo the last change you made to my charts",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": "layout"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.named-after-grid",
+   "board": "HALF",
+   "text": "undo the change you made to my layout",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": "layout"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.named-after-grid",
+   "board": "HALF",
+   "text": "undo that",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": "layout"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "undo.named-after-grid",
+   "board": "HALF",
+   "text": "put my layout back",
+   "expected_ops": [
+    {
+     "action": "agent.undo",
+     "args": {
+      "scope": "last",
+      "about": "layout"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "scale.log",
+   "board": "ONE",
+   "text": "log scale",
+   "expected_ops": [
+    {
+     "action": "chart.setScale",
+     "args": {
+      "scale": "log"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "scale.log",
+   "board": "ONE",
+   "text": "switch to log scale",
+   "expected_ops": [
+    {
+     "action": "chart.setScale",
+     "args": {
+      "scale": "log"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "scale.log",
+   "board": "ONE",
+   "text": "use a logarithmic price scale",
+   "expected_ops": [
+    {
+     "action": "chart.setScale",
+     "args": {
+      "scale": "log"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "scale.log",
+   "board": "ONE",
+   "text": "make the chart log",
+   "expected_ops": [
+    {
+     "action": "chart.setScale",
+     "args": {
+      "scale": "log"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "scale.log",
+   "board": "ONE",
+   "text": "turn on log scale",
+   "expected_ops": [
+    {
+     "action": "chart.setScale",
+     "args": {
+      "scale": "log"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "session.extended",
+   "board": "ONE",
+   "text": "show extended hours",
+   "expected_ops": [
+    {
+     "action": "chart.setSession",
+     "args": {
+      "mode": "extended"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "session.extended",
+   "board": "ONE",
+   "text": "turn on extended hours",
+   "expected_ops": [
+    {
+     "action": "chart.setSession",
+     "args": {
+      "mode": "extended"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "session.extended",
+   "board": "ONE",
+   "text": "show pre-market and after hours",
+   "expected_ops": [
+    {
+     "action": "chart.setSession",
+     "args": {
+      "mode": "extended"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "session.extended",
+   "board": "ONE",
+   "text": "switch to the extended session",
+   "expected_ops": [
+    {
+     "action": "chart.setSession",
+     "args": {
+      "mode": "extended"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "compare.amd",
+   "board": "ONE",
+   "text": "compare with AMD",
+   "expected_ops": [
+    {
+     "action": "chart.compare",
+     "args": {
+      "add": [
+       "AMD"
+      ],
+      "remove": [],
+      "clear": false
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "compare.amd",
+   "board": "ONE",
+   "text": "overlay AMD on this chart",
+   "expected_ops": [
+    {
+     "action": "chart.compare",
+     "args": {
+      "add": [
+       "AMD"
+      ],
+      "remove": [],
+      "clear": false
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "compare.amd",
+   "board": "ONE",
+   "text": "compare NVDA to AMD",
+   "expected_ops": [
+    {
+     "action": "chart.compare",
+     "args": {
+      "add": [
+       "AMD"
+      ],
+      "remove": [],
+      "clear": false
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "compare.amd",
+   "board": "ONE",
+   "text": "add AMD as a comparison",
+   "expected_ops": [
+    {
+     "action": "chart.compare",
+     "args": {
+      "add": [
+       "AMD"
+      ],
+      "remove": [],
+      "clear": false
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.news",
+   "board": "HALF",
+   "text": "add a news widget",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "news",
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.news",
+   "board": "HALF",
+   "text": "put a news panel on the board",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "news",
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.news",
+   "board": "HALF",
+   "text": "open the news widget",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "news",
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.news",
+   "board": "HALF",
+   "text": "I want news on my board",
+   "expected_ops": [
+    {
+     "action": "widget.add",
+     "args": {
+      "type": "news",
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.remove-sma200",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "remove the 200 sma",
+   "expected_ops": [
+    {
+     "action": "indicator.remove",
+     "args": {
+      "instance": "ovl:3"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.remove-sma200",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "take off the 200 day moving average",
+   "expected_ops": [
+    {
+     "action": "indicator.remove",
+     "args": {
+      "instance": "ovl:3"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.remove-sma200",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "get rid of the 200",
+   "expected_ops": [
+    {
+     "action": "indicator.remove",
+     "args": {
+      "instance": "ovl:3"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.remove-sma200",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "delete the SMA 200 from this chart",
+   "expected_ops": [
+    {
+     "action": "indicator.remove",
+     "args": {
+      "instance": "ovl:3"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.remove-sma200",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "remove the 200 day",
+   "expected_ops": [
+    {
+     "action": "indicator.remove",
+     "args": {
+      "instance": "ovl:3"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.update-period",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "change the 9 ema to a 10",
+   "expected_ops": [
+    {
+     "action": "indicator.update",
+     "args": {
+      "instance": "ovl:0",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 10
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.update-period",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "make the 9 ema a 10 ema",
+   "expected_ops": [
+    {
+     "action": "indicator.update",
+     "args": {
+      "instance": "ovl:0",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 10
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.update-period",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "change the 9 ema's period to 10",
+   "expected_ops": [
+    {
+     "action": "indicator.update",
+     "args": {
+      "instance": "ovl:0",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 10
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.update-period",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "set the 9 ema to 10",
+   "expected_ops": [
+    {
+     "action": "indicator.update",
+     "args": {
+      "instance": "ovl:0",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 10
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.update-period",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "switch the 9 ema to a 10 period",
+   "expected_ops": [
+    {
+     "action": "indicator.update",
+     "args": {
+      "instance": "ovl:0",
+      "inputs": [
+       {
+        "key": "period",
+        "value": 10
+       }
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.hide",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "hide the 50 sma",
+   "expected_ops": [
+    {
+     "action": "indicator.hide",
+     "args": {
+      "instance": "ovl:2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.hide",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "hide the SMA 50",
+   "expected_ops": [
+    {
+     "action": "indicator.hide",
+     "args": {
+      "instance": "ovl:2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.hide",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "turn off the 50 day moving average",
+   "expected_ops": [
+    {
+     "action": "indicator.hide",
+     "args": {
+      "instance": "ovl:2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.hide",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "hide the 50 day",
+   "expected_ops": [
+    {
+     "action": "indicator.hide",
+     "args": {
+      "instance": "ovl:2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.show",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "show the 50 sma again",
+   "expected_ops": [
+    {
+     "action": "indicator.show",
+     "args": {
+      "instance": "ovl:2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.show",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "unhide the 50 sma",
+   "expected_ops": [
+    {
+     "action": "indicator.show",
+     "args": {
+      "instance": "ovl:2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.show",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "turn the 50 day back on",
+   "expected_ops": [
+    {
+     "action": "indicator.show",
+     "args": {
+      "instance": "ovl:2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicator.show",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "show the SMA 50",
+   "expected_ops": [
+    {
+     "action": "indicator.show",
+     "args": {
+      "instance": "ovl:2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicatorStyle.colour",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "make the 9 ema red",
+   "expected_ops": [
+    {
+     "action": "indicatorStyle.set",
+     "args": {
+      "instance": "ovl:0",
+      "property": "color",
+      "value": "#ef4444",
+      "output": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicatorStyle.colour",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "color the 9 ema red",
+   "expected_ops": [
+    {
+     "action": "indicatorStyle.set",
+     "args": {
+      "instance": "ovl:0",
+      "property": "color",
+      "value": "#ef4444",
+      "output": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicatorStyle.colour",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "change the 9 ema's colour to red",
+   "expected_ops": [
+    {
+     "action": "indicatorStyle.set",
+     "args": {
+      "instance": "ovl:0",
+      "property": "color",
+      "value": "#ef4444",
+      "output": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicatorStyle.colour",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "turn the 9 ema red",
+   "expected_ops": [
+    {
+     "action": "indicatorStyle.set",
+     "args": {
+      "instance": "ovl:0",
+      "property": "color",
+      "value": "#ef4444",
+      "output": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "indicatorStyle.colour",
+   "board": "ONE_TSLA_DEFAULT",
+   "text": "paint the 9 ema red",
+   "expected_ops": [
+    {
+     "action": "indicatorStyle.set",
+     "args": {
+      "instance": "ovl:0",
+      "property": "color",
+      "value": "#ef4444",
+      "output": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.list",
+   "board": "ONE",
+   "text": "show my alerts",
+   "expected_ops": [
+    {
+     "action": "alert.list",
+     "args": {
+      "symbol": null,
+      "status": null,
+      "triggered_today": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.list",
+   "board": "ONE",
+   "text": "what alerts do I have",
+   "expected_ops": [
+    {
+     "action": "alert.list",
+     "args": {
+      "symbol": null,
+      "status": null,
+      "triggered_today": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.list",
+   "board": "ONE",
+   "text": "list my price alerts",
+   "expected_ops": [
+    {
+     "action": "alert.list",
+     "args": {
+      "symbol": null,
+      "status": null,
+      "triggered_today": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.list",
+   "board": "ONE",
+   "text": "which alerts are set",
+   "expected_ops": [
+    {
+     "action": "alert.list",
+     "args": {
+      "symbol": null,
+      "status": null,
+      "triggered_today": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.list",
+   "board": "ONE",
+   "text": "show me all my alerts",
+   "expected_ops": [
+    {
+     "action": "alert.list",
+     "args": {
+      "symbol": null,
+      "status": null,
+      "triggered_today": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.delete",
+   "board": "ONE",
+   "text": "delete my NVDA alert",
+   "expected_ops": [
+    {
+     "action": "alert.delete",
+     "args": {}
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.delete",
+   "board": "ONE",
+   "text": "remove the NVDA alert",
+   "expected_ops": [
+    {
+     "action": "alert.delete",
+     "args": {}
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.delete",
+   "board": "ONE",
+   "text": "cancel my alert on NVDA",
+   "expected_ops": [
+    {
+     "action": "alert.delete",
+     "args": {}
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "alert.delete",
+   "board": "ONE",
+   "text": "get rid of the NVDA price alert",
+   "expected_ops": [
+    {
+     "action": "alert.delete",
+     "args": {}
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.quote",
+   "board": "ONE",
+   "text": "whats nvda at",
+   "expected_ops": [
+    {
+     "action": "stock.quote",
+     "args": {
+      "symbols": [
+       "NVDA"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.quote",
+   "board": "ONE",
+   "text": "what's NVDA trading at",
+   "expected_ops": [
+    {
+     "action": "stock.quote",
+     "args": {
+      "symbols": [
+       "NVDA"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.quote",
+   "board": "ONE",
+   "text": "NVDA price",
+   "expected_ops": [
+    {
+     "action": "stock.quote",
+     "args": {
+      "symbols": [
+       "NVDA"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.quote",
+   "board": "ONE",
+   "text": "how much is NVDA right now",
+   "expected_ops": [
+    {
+     "action": "stock.quote",
+     "args": {
+      "symbols": [
+       "NVDA"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.quote",
+   "board": "ONE",
+   "text": "quote NVDA",
+   "expected_ops": [
+    {
+     "action": "stock.quote",
+     "args": {
+      "symbols": [
+       "NVDA"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.profile",
+   "board": "ONE",
+   "text": "give me a quick profile on TSM",
+   "expected_ops": [
+    {
+     "action": "stock.profile",
+     "args": {
+      "symbol": "TSM"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.profile",
+   "board": "ONE",
+   "text": "what does TSM do",
+   "expected_ops": [
+    {
+     "action": "stock.profile",
+     "args": {
+      "symbol": "TSM"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.profile",
+   "board": "ONE",
+   "text": "TSM profile",
+   "expected_ops": [
+    {
+     "action": "stock.profile",
+     "args": {
+      "symbol": "TSM"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.profile",
+   "board": "ONE",
+   "text": "tell me about TSM the company",
+   "expected_ops": [
+    {
+     "action": "stock.profile",
+     "args": {
+      "symbol": "TSM"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.compare",
+   "board": "ONE",
+   "text": "compare NVDA and AMD fundamentals",
+   "expected_ops": [
+    {
+     "action": "stock.compare",
+     "args": {
+      "symbols": [
+       "NVDA",
+       "AMD"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.compare",
+   "board": "ONE",
+   "text": "how does NVDA stack up against AMD",
+   "expected_ops": [
+    {
+     "action": "stock.compare",
+     "args": {
+      "symbols": [
+       "NVDA",
+       "AMD"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.compare",
+   "board": "ONE",
+   "text": "NVDA vs AMD on valuation",
+   "expected_ops": [
+    {
+     "action": "stock.compare",
+     "args": {
+      "symbols": [
+       "NVDA",
+       "AMD"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "stock.compare",
+   "board": "ONE",
+   "text": "compare the fundamentals of NVDA versus AMD",
+   "expected_ops": [
+    {
+     "action": "stock.compare",
+     "args": {
+      "symbols": [
+       "NVDA",
+       "AMD"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "news.catalysts",
+   "board": "ONE",
+   "text": "what are the catalysts for NVDA",
+   "expected_ops": [
+    {
+     "action": "news.catalysts",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "news.catalysts",
+   "board": "ONE",
+   "text": "NVDA catalysts",
+   "expected_ops": [
+    {
+     "action": "news.catalysts",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "news.catalysts",
+   "board": "ONE",
+   "text": "any upcoming catalysts on NVDA",
+   "expected_ops": [
+    {
+     "action": "news.catalysts",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "news.catalysts",
+   "board": "ONE",
+   "text": "show me NVDA's catalysts",
+   "expected_ops": [
+    {
+     "action": "news.catalysts",
+     "args": {
+      "symbol": "NVDA"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.remove",
+   "board": "TWO",
+   "text": "close the right chart",
+   "expected_ops": [
+    {
+     "action": "widget.remove",
+     "args": {
+      "widget": "c2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.remove",
+   "board": "TWO",
+   "text": "remove the chart on the right",
+   "expected_ops": [
+    {
+     "action": "widget.remove",
+     "args": {
+      "widget": "c2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.remove",
+   "board": "TWO",
+   "text": "get rid of the AMD chart",
+   "expected_ops": [
+    {
+     "action": "widget.remove",
+     "args": {
+      "widget": "c2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.remove",
+   "board": "TWO",
+   "text": "close the AMD chart",
+   "expected_ops": [
+    {
+     "action": "widget.remove",
+     "args": {
+      "widget": "c2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.remove",
+   "board": "TWO",
+   "text": "delete the right-hand chart",
+   "expected_ops": [
+    {
+     "action": "widget.remove",
+     "args": {
+      "widget": "c2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "screener.runSaved",
+   "board": "ONE",
+   "text": "run my Momentum Screen",
+   "expected_ops": [
+    {
+     "action": "screener.runSaved",
+     "args": {
+      "screen": "7",
+      "show": null,
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "screener.runSaved",
+   "board": "ONE",
+   "text": "run the Momentum Screen",
+   "expected_ops": [
+    {
+     "action": "screener.runSaved",
+     "args": {
+      "screen": "7",
+      "show": null,
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "screener.runSaved",
+   "board": "ONE",
+   "text": "show me the results of my Momentum Screen",
+   "expected_ops": [
+    {
+     "action": "screener.runSaved",
+     "args": {
+      "screen": "7",
+      "show": null,
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "screener.runSaved",
+   "board": "ONE",
+   "text": "open my saved Momentum Screen and run it",
+   "expected_ops": [
+    {
+     "action": "screener.runSaved",
+     "args": {
+      "screen": "7",
+      "show": null,
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.history.nhnl",
+   "board": "ONE",
+   "text": "when did nh/nl last go negative",
+   "expected_ops": [
+    {
+     "action": "breadth.history",
+     "args": {
+      "universe": "us",
+      "metric": "net_new_high_low",
+      "op": "below",
+      "level": 0,
+      "find": "last",
+      "start": null,
+      "end": null,
+      "aggregation": "daily"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.history.nhnl",
+   "board": "ONE",
+   "text": "when was net new highs last below zero",
+   "expected_ops": [
+    {
+     "action": "breadth.history",
+     "args": {
+      "universe": "us",
+      "metric": "net_new_high_low",
+      "op": "below",
+      "level": 0,
+      "find": "last",
+      "start": null,
+      "end": null,
+      "aggregation": "daily"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.history.nhnl",
+   "board": "ONE",
+   "text": "last time new highs minus new lows went negative",
+   "expected_ops": [
+    {
+     "action": "breadth.history",
+     "args": {
+      "universe": "us",
+      "metric": "net_new_high_low",
+      "op": "below",
+      "level": 0,
+      "find": "last",
+      "start": null,
+      "end": null,
+      "aggregation": "daily"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "breadth.history.nhnl",
+   "board": "ONE",
+   "text": "when did net new highs last turn negative",
+   "expected_ops": [
+    {
+     "action": "breadth.history",
+     "args": {
+      "universe": "us",
+      "metric": "net_new_high_low",
+      "op": "below",
+      "level": 0,
+      "find": "last",
+      "start": null,
+      "end": null,
+      "aggregation": "daily"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "layout.open",
+   "board": "LAYOUTS",
+   "text": "open my Momentum layout",
+   "expected_ops": [
+    {
+     "action": "layout.open",
+     "args": {
+      "layout": "2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "layout.open",
+   "board": "LAYOUTS",
+   "text": "switch to the Momentum layout",
+   "expected_ops": [
+    {
+     "action": "layout.open",
+     "args": {
+      "layout": "2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "layout.open",
+   "board": "LAYOUTS",
+   "text": "load Momentum",
+   "expected_ops": [
+    {
+     "action": "layout.open",
+     "args": {
+      "layout": "2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "layout.open",
+   "board": "LAYOUTS",
+   "text": "go to my Momentum layout",
+   "expected_ops": [
+    {
+     "action": "layout.open",
+     "args": {
+      "layout": "2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "layout.open",
+   "board": "LAYOUTS",
+   "text": "pull up the Momentum layout",
+   "expected_ops": [
+    {
+     "action": "layout.open",
+     "args": {
+      "layout": "2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "layout.saveAs",
+   "board": "LAYOUTS",
+   "text": "save this layout as Swing 2",
+   "expected_ops": [
+    {
+     "action": "layout.saveAs",
+     "args": {
+      "name": "Swing 2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "layout.saveAs",
+   "board": "LAYOUTS",
+   "text": "save this as a new layout called Swing 2",
+   "expected_ops": [
+    {
+     "action": "layout.saveAs",
+     "args": {
+      "name": "Swing 2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "layout.saveAs",
+   "board": "LAYOUTS",
+   "text": "save the board as Swing 2",
+   "expected_ops": [
+    {
+     "action": "layout.saveAs",
+     "args": {
+      "name": "Swing 2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "layout.saveAs",
+   "board": "LAYOUTS",
+   "text": "save a copy of this layout named Swing 2",
+   "expected_ops": [
+    {
+     "action": "layout.saveAs",
+     "args": {
+      "name": "Swing 2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.add",
+   "board": "WATCH",
+   "text": "add AMD to my Momentum list",
+   "expected_ops": [
+    {
+     "action": "watchlist.add",
+     "args": {
+      "symbols": [
+       "AMD"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.add",
+   "board": "WATCH",
+   "text": "put AMD on the Momentum watchlist",
+   "expected_ops": [
+    {
+     "action": "watchlist.add",
+     "args": {
+      "symbols": [
+       "AMD"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.add",
+   "board": "WATCH",
+   "text": "add AMD to Momentum",
+   "expected_ops": [
+    {
+     "action": "watchlist.add",
+     "args": {
+      "symbols": [
+       "AMD"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.add",
+   "board": "WATCH",
+   "text": "throw AMD on my Momentum watchlist",
+   "expected_ops": [
+    {
+     "action": "watchlist.add",
+     "args": {
+      "symbols": [
+       "AMD"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.addCharts",
+   "board": "HALF",
+   "text": "open charts for AAPL and MSFT",
+   "expected_ops": [
+    {
+     "action": "widget.addCharts",
+     "args": {
+      "symbols": [
+       "AAPL",
+       "MSFT"
+      ],
+      "timeframe": null,
+      "chart_type": null,
+      "exact": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.addCharts",
+   "board": "HALF",
+   "text": "add charts for AAPL and MSFT",
+   "expected_ops": [
+    {
+     "action": "widget.addCharts",
+     "args": {
+      "symbols": [
+       "AAPL",
+       "MSFT"
+      ],
+      "timeframe": null,
+      "chart_type": null,
+      "exact": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.addCharts",
+   "board": "HALF",
+   "text": "open AAPL and MSFT in new charts",
+   "expected_ops": [
+    {
+     "action": "widget.addCharts",
+     "args": {
+      "symbols": [
+       "AAPL",
+       "MSFT"
+      ],
+      "timeframe": null,
+      "chart_type": null,
+      "exact": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "widget.addCharts",
+   "board": "HALF",
+   "text": "give me new charts for AAPL and MSFT",
+   "expected_ops": [
+    {
+     "action": "widget.addCharts",
+     "args": {
+      "symbols": [
+       "AAPL",
+       "MSFT"
+      ],
+      "timeframe": null,
+      "chart_type": null,
+      "exact": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "board.swap",
+   "board": "TWO",
+   "text": "swap the two charts",
+   "expected_ops": [
+    {
+     "action": "board.swap",
+     "args": {
+      "a": "c1",
+      "b": "c2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "board.swap",
+   "board": "TWO",
+   "text": "switch places between the NVDA and AMD charts",
+   "expected_ops": [
+    {
+     "action": "board.swap",
+     "args": {
+      "a": "c1",
+      "b": "c2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "board.swap",
+   "board": "TWO",
+   "text": "swap NVDA and AMD",
+   "expected_ops": [
+    {
+     "action": "board.swap",
+     "args": {
+      "a": "c1",
+      "b": "c2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "board.swap",
+   "board": "TWO",
+   "text": "trade places with the left and right charts",
+   "expected_ops": [
+    {
+     "action": "board.swap",
+     "args": {
+      "a": "c1",
+      "b": "c2"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "board.duplicateChart",
+   "board": "HALF",
+   "text": "duplicate this chart",
+   "expected_ops": [
+    {
+     "action": "board.duplicateChart",
+     "args": {
+      "widget": "c1"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "board.duplicateChart",
+   "board": "HALF",
+   "text": "make a copy of the NVDA chart",
+   "expected_ops": [
+    {
+     "action": "board.duplicateChart",
+     "args": {
+      "widget": "c1"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "board.duplicateChart",
+   "board": "HALF",
+   "text": "clone this chart",
+   "expected_ops": [
+    {
+     "action": "board.duplicateChart",
+     "args": {
+      "widget": "c1"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "board.duplicateChart",
+   "board": "HALF",
+   "text": "duplicate the NVDA chart",
+   "expected_ops": [
+    {
+     "action": "board.duplicateChart",
+     "args": {
+      "widget": "c1"
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.remove",
+   "board": "WATCH",
+   "text": "remove TSLA from my Momentum list",
+   "expected_ops": [
+    {
+     "action": "watchlist.remove",
+     "args": {
+      "symbols": [
+       "TSLA"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.remove",
+   "board": "WATCH",
+   "text": "take TSLA off the Momentum watchlist",
+   "expected_ops": [
+    {
+     "action": "watchlist.remove",
+     "args": {
+      "symbols": [
+       "TSLA"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.remove",
+   "board": "WATCH",
+   "text": "drop TSLA from Momentum",
+   "expected_ops": [
+    {
+     "action": "watchlist.remove",
+     "args": {
+      "symbols": [
+       "TSLA"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.remove",
+   "board": "WATCH",
+   "text": "delete TSLA from my Momentum list",
+   "expected_ops": [
+    {
+     "action": "watchlist.remove",
+     "args": {
+      "symbols": [
+       "TSLA"
+      ]
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.create",
+   "board": "WATCH",
+   "text": "create a new watchlist called Semis",
+   "expected_ops": [
+    {
+     "action": "watchlist.create",
+     "args": {
+      "name": "Semis",
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.create",
+   "board": "WATCH",
+   "text": "make a list named Semis",
+   "expected_ops": [
+    {
+     "action": "watchlist.create",
+     "args": {
+      "name": "Semis",
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.create",
+   "board": "WATCH",
+   "text": "start a new watchlist Semis",
+   "expected_ops": [
+    {
+     "action": "watchlist.create",
+     "args": {
+      "name": "Semis",
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "corpus",
+   "intent": "watchlist.create",
+   "board": "WATCH",
+   "text": "new watchlist: Semis",
+   "expected_ops": [
+    {
+     "action": "watchlist.create",
+     "args": {
+      "name": "Semis",
+      "as": null
+     }
+    }
+   ],
+   "must_group": false
+  },
+  {
+   "set": "refusal",
+   "intent": "refuse.undo-nothing",
+   "board": "ONE",
+   "text": "undo",
+   "expected_ops": [],
+   "must_group": false,
+   "expect": {
+    "unchanged": true,
+    "receipt": false,
+    "modelTurns": 0
+   }
+  },
+  {
+   "set": "refusal",
+   "intent": "refuse.rs-rank-hidden",
+   "board": "ONE",
+   "text": "show me my strongest stocks",
+   "expected_ops": [],
+   "must_group": false,
+   "expect": {
+    "unchanged": true,
+    "modelTurns": 0,
+    "noCalls": [
+     "^POST /api/screener/scan",
+     "screen\\.run"
+    ]
+   }
+  },
+  {
+   "set": "refusal",
+   "intent": "refuse.tab-standin",
+   "board": "ONE",
+   "text": "Put SPY and QQQ on two charts please, thank you kindly friend",
+   "expected_ops": [],
+   "must_group": false,
+   "expect": {
+    "unchanged": true,
+    "receipt": false
+   }
+  },
+  {
+   "set": "refusal",
+   "intent": "refuse.alert-needs-approval",
+   "board": "ONE",
+   "text": "alert me if nvda goes above 150",
+   "expected_ops": [],
+   "must_group": false,
+   "expect": {
+    "proposal": true,
+    "noCalls": [
+     "^POST /api/watchlist-alerts"
+    ]
+   }
+  }
+ ],
+ "held_out": []
+}

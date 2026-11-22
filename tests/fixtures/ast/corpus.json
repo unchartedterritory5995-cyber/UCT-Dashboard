@@ -849,6 +849,33 @@
       }
     },
     {
+      "id": "stoch_pine_last_finite_values_held_answer",
+      "source": "stochPine(high, low, close, 14)",
+      "why": "(2026-11-14, engine 57) Pine's `ta.stoch` -- the high and low windows are the last 14 FINITE values (fewer while fewer exist, from bar 13), and where `100 * (close - lo) / (hi - lo)` has no number (an `na` source, a flat window) the previous answer is kept. Over these bars it is `stoch_k`'s %K wherever the house column answers; it differs on a flat window (the house says 50) and over a source with holes. Pinned to the vendor separately by `engine57Builtins.test.js` and `tests/test_engine57_builtins.py` (S6 `stochastic-rsi`, S1 probe P2).",
+      "ast": {
+        "type": "call",
+        "name": "stochPine",
+        "args": [
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
+        ]
+      }
+    },
+    {
       "id": "cci_20",
       "source": "cci(high, low, close, 20)",
       "why": "the commodity channel index -- the one bound indicator whose maths runs on the TYPICAL price `(h + l + c) / 3` rather than on a single column, so it is the case that would notice a binding packing the three columns in the wrong order.",
@@ -2981,6 +3008,50 @@
       }
     },
     {
+      "id": "clock_regularhours",
+      "source": "regularhours",
+      "why": "(2026-11-17) 1 on a bar that opens inside the REGULAR session as the vendor calendar has it (09:30 New York to that day's close), 0 on every other bar. `sessionfirst` is the calendar day's and reads 04:00 on these extended-hours bars; this is the leaf the regular session's readers stand on. Three sessions, 78 regular five-minute bars each, and the 09:30 open moves by one UTC hour across the daylight-saving change.",
+      "ast": {"type": "series", "name": "regularhours"}
+    },
+    {
+      "id": "clock_regularfirst",
+      "source": "regularfirst",
+      "why": "(2026-11-17) 1 on the FIRST regular-hours bar of each New York day and 0 on every other bar: exactly three 1s here, each at 09:30, none at the 04:00 bar `sessionfirst` marks. It is blank only on an oldest bar that opens later in a regular session (a window cut mid-session), which this series, opening at 04:00, never does.",
+      "ast": {"type": "series", "name": "regularfirst"}
+    },
+    {
+      "id": "session_regular_open",
+      "source": "sessionOpen()",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `sessionOpen()` is the 09:30 bar's open, held.",
+      "ast": {"type": "call", "name": "sessionOpen", "args": []}
+    },
+    {
+      "id": "session_regular_high",
+      "source": "sessionHigh()",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `sessionHigh()` is the running high since the regular open: pre-market and after-hours highs never enter it.",
+      "ast": {"type": "call", "name": "sessionHigh", "args": []}
+    },
+    {
+      "id": "session_regular_low",
+      "source": "sessionLow()",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `sessionLow()` is the running low since the regular open.",
+      "ast": {"type": "call", "name": "sessionLow", "args": []}
+    },
+    {
+      "id": "opening_range_high_30",
+      "source": "openingRangeHigh(30)",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `openingRangeHigh(30)` is the same running high over the six bars that open before 10:00, frozen after. On a chart whose bars are longer than the range, or do not divide it, both lanes answer nothing and name why (`opening-range:bars-longer` / `opening-range:bars-do-not-divide`).",
+      "ast": {"type": "call", "name": "openingRangeHigh", "args": [{"type": "num", "value": 30}]},
+      "opts": {"tf": "5"}
+    },
+    {
+      "id": "opening_range_low_30",
+      "source": "openingRangeLow(30)",
+      "why": "(2026-11-17) THE REGULAR SESSION'S OWN VALUES, MEASURED ACROSS THE LANES. One forward pass in each (`indicators.js::computeSessionRegular`, `indicator_compute.compute_session_regular_raw`) over the clock's `regularfirst` / `regularhours` and nothing else. These 579 five-minute bars hold three extended-hours sessions (04:00 to 20:00 New York), a weekend and the end of daylight saving, so the digest carries what a bar outside regular hours reads (the last regular session's value), the blank before the first regular open, and a 09:30 that sits at a different UTC hour on the third day. `openingRangeLow(30)`: the first thirty minutes' low, frozen after.",
+      "ast": {"type": "call", "name": "openingRangeLow", "args": [{"type": "num", "value": 30}]},
+      "opts": {"tf": "5"}
+    },
+    {
       "id": "avwap_from_a_mid_series_instant",
       "source": "avwap(1762189200)",
       "why": "the same accumulator restarted at an INSTANT -- 2025-11-03 12:00 ET, the middle of this corpus's second ET session -- which is the only anchor a closed-table formula can spell, because the table has exactly two argument kinds and no string literal. ⛔ THE COLUMN IS BLANK BEFORE THE ANCHOR AND EXACT AFTER IT, never a partial accumulation of the bars that came first, so a lane that started its total at bar 0 disagrees on every bar of the first session rather than on none. ⚠️ The anchor is INSIDE the series on purpose: an anchor before the first bar is NOT COMPUTABLE by declaration, because 'the first bar at or after it' would be whichever bar the caller happened to fetch",
@@ -4248,6 +4319,58 @@
       }
     },
     {
+      "id": "tf_merge_close_weekly",
+      "source": "tf_merge(close, 'W')",
+      "why": "⭐⭐ ENGINE 55 — PINE'S LOOK-AHEAD-OFF REQUEST AS TRADINGVIEW MERGES IT (`tf_merge`). The bar that CLOSES a week (the next bar sits in another week) reads that week's own close; every other bar reads the last closed week; the NEWEST bar has no next bar and, with no forming state stated, is withheld in both lanes (`tfMergeMask` / `tf_merge_mask`). On these 5-minute bars a week closes on its last 5-minute bar, so the rule is exercised off a daily base too — the period end is read off the next bar, never a calendar. ⭐ REVIEW L2 (PR #1264): bound as a series FROM ITS LISTING (`opts.historyFromListing`) — these shared bars span two ISO weeks and do not start at a week's first session, so off the listing the first week's value would be withheld by name (`request:htf-first-period-partial`) and the case would answer nothing.",
+      "ast": {
+        "type": "tf_merge",
+        "value": "W",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      },
+      "opts": {
+        "historyFromListing": true
+      }
+    },
+    {
+      "id": "tf_merge_against_the_closed_week",
+      "source": "tf_merge(close, 'W') - tf(close, 'W')",
+      "why": "⭐ THE DIFFERENCE IS THE MEASUREMENT. `tf_merge` and formula `tf` over the same bars: zero on every bar of a week but the one that closes it, where the merge already reads the closing week. A lane that implemented one as the other would answer a flat zero (or a zero everywhere but the newest bar) that no other case could tell from a correct one (`lesson_a_fixture_that_cannot_distinguish_is_not_a_rail`). ⭐ REVIEW L2 (PR #1264): bound as a series FROM ITS LISTING (`opts.historyFromListing`) — these shared bars span two ISO weeks and do not start at a week's first session, so off the listing the first week's value would be withheld by name (`request:htf-first-period-partial`) and the case would answer nothing.",
+      "ast": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "tf_merge",
+            "value": "W",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          },
+          {
+            "type": "tf",
+            "value": "W",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      },
+      "opts": {
+        "historyFromListing": true
+      }
+    },
+    {
       "id": "ltf_close_sixty_is_not_computable_without_a_supply",
       "source": "ltf(close, '60')",
       "why": "⛔ THE READ BELOW THE CHART'S TIMEFRAME (C41), AND WHAT BOTH LANES MUST SAY WHEN NOBODY SUPPLIES IT. An `ltf` child runs on the chart symbol's INTRADAY bars, which only a chart's bind supplies (`engine/lowerTf.js::resolveLowerTf` -> `interpret`'s `opts.lowerTf`); this census supplies none, in either lane, and the Python lane never can -- a screen holds daily bars. The correct column is therefore NOT COMPUTABLE on every bar, never the bars in hand read under a lower timeframe's name: a lane that fell back to `close` would produce finite rows, which this case's `allNaN` flag turns into a named failure. The served reading is railed on TradingView's own bars in `vendorHarness.c41LowerTfServe.test.js`.",
@@ -5364,6 +5487,51 @@
       }
     },
     {
+      "id": "pine_asin_of_the_body_share_of_the_range",
+      "source": "asin((close - open) / (high - low))",
+      "why": "(2026-11-19, U-BUILTIN B3) Pine's `math.asin`, acos's twin. The argument is the candle body as a signed share of its range, which stays inside [-1, 1] and so exercises the real domain on every bar; a bar whose high equals its low divides by zero and is not computable in both lanes. Outside [-1, 1] TradingView answers `na` (the reference sentence), which Python's `math.asin` would RAISE on rather than return -- `_guarded_asin` spells the domain.",
+      "ast": {
+        "type": "call",
+        "name": "asin",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "series",
+                    "name": "open"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "high"
+                  },
+                  {
+                    "type": "series",
+                    "name": "low"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "id": "pine_alma_9_085_6",
       "source": "alma(close, 9, 0.85, 6)",
       "why": "(2026-10-30, Pine coverage Phase 1) Pine's `ta.alma` at its published defaults: TradingView's own `pine_alma` -- Gaussian weights centred at offset * (length - 1) with spread length / sigma, the OLDEST bar at weight index 0 -- written once per lane (`interpret.js::almaCol`, `ast_interpret._alma_col`). Pinned to the vendor separately by `pinePhase1Builtins.test.js` against `vw-alma-spy-1d-2026-09-27`.",
@@ -5419,6 +5587,86 @@
           {
             "type": "num",
             "value": 33
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_tie_newest_is_its_operand",
+      "source": "tieNewest(close * 2)",
+      "why": "(2026-11-14, engine 56 S1) the mark the Pine door writes on a v4 / v5 `ta.highestbars` / `ta.lowestbars` source, where TradingView names the NEWEST of a tie over any source (v4 = v5, witnessed): it is its OPERAND on every bar; what it changes is which tied bar a `highestbars` / `lowestbars` over it names (`interpret.js::isBarPriceTree`, `ast_interpret.is_bar_price_tree`).",
+      "ast": {
+        "type": "call",
+        "name": "tieNewest",
+        "args": [
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_bool_na_withheld_is_its_operand",
+      "source": "boolNaWithheld(close > sma(close, 20), na(sma(close, 20)))",
+      "why": "(2026-11-14, engine 56 A3) the marker the Pine door writes where a v1-v5 `bool` that is `na` meets an operator no capture has witnessed: it is its OPERAND on every bar, and the bars it withholds (where the flag is not 0) are the masks' business (`interpret.js::boolNaMask`, `ast_interpret.bool_na_mask`). The first 19 bars hold a `na` `sma`, so both lanes must withhold exactly those, and agree on every other bar.",
+      "ast": {
+        "type": "call",
+        "name": "boolNaWithheld",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "na",
+            "args": [
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
           }
         ]
       }

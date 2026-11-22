@@ -32,6 +32,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet, { buildDefinition } from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE } from './builderInputs'
 import { evaluateFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
@@ -132,9 +133,9 @@ function mount({ settings = null, onChange = null } = {}) {
   return { ...utils, writes }
 }
 
-const field = () => screen.getByLabelText('Formula')
+const field = () => formulaBox()
 const saveBtn = () => screen.getByRole('button', { name: /^Sav/ })
-const editBtn = (name = 'My line') => screen.getByRole('button', { name: `Edit ${name}` })
+const editBtn = (name = 'My line') => { toStart(); return screen.getByRole('button', { name: `Edit ${name}` }) }
 
 async function typeFormula(text) {
   fireEvent.change(field(), { target: { value: text } })
@@ -143,7 +144,7 @@ async function typeFormula(text) {
 }
 
 async function nameIt(text) {
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: text } })
+  fireEvent.change((writeMyself(), screen.getByLabelText('Name')), { target: { value: text } })
   await flush()
 }
 
@@ -225,12 +226,13 @@ describe('🔴 a saved formula can be OPENED', () => {
     await clickEdit()
     expect(field().value, 'the stored source did not come back into the box')
       .toBe('sma(close, 20)')
-    expect(screen.getByLabelText('Name').value).toBe('My line')
+    expect((writeMyself(), screen.getByLabelText('Name')).value).toBe('My line')
     // ⛔ `compute.source`, NOT A SENTENCE RE-DERIVED FROM THE TREE. The author
     // edits the text they wrote; a printed-from-AST string would put words they
     // never typed into the field they are about to change.
-    expect(screen.getByText('Edit formula')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Save changes' })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'Edit formula' })).toBeTruthy()
+    // Direction A: an edit's primary reads "Save" (a new formula's, "Save and add")
+    expect(screen.getByTestId('sheet-save').textContent).toBe('Save')
     expect(screen.getByTestId('readback').textContent).toBe('the 20-bar average of close')
   })
 
@@ -245,11 +247,12 @@ describe('🔴 a saved formula can be OPENED', () => {
     H.rows = [storedRow()]
     mount()
     await flush()
-    expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'true')
+    // Direction A: a NEW sheet opens on the start view (the starts, not a tab)
+    expect(screen.getByTestId('start-library')).toBeInTheDocument()
 
     await clickEdit()
     expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.queryByTestId('start-library')).toBeNull()
     expect(screen.queryByTestId('starter-library')).toBeNull()
     expect(field().value).toBe('sma(close, 20)')
   })
@@ -264,7 +267,7 @@ describe('🔴 a saved formula can be OPENED', () => {
     await clickEdit()
     expect(screen.getByTestId('store-error').textContent).toContain('cannot be edited here')
     expect(field().value, 'an empty box opened over a live definition').toBe('')
-    expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull()
+    expect(screen.queryByRole('dialog', { name: 'Edit formula' }), 'it did not become an edit').toBeNull()
   })
 
   it('"New formula" leaves edit mode and empties the form', async () => {
@@ -276,8 +279,9 @@ describe('🔴 a saved formula can be OPENED', () => {
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'New formula' })) })
     await flush()
     expect(field().value).toBe('')
-    expect(screen.getByLabelText('Name').value).toBe('')
-    expect(screen.queryByRole('button', { name: 'Save changes' })).toBeNull()
+    expect((writeMyself(), screen.getByLabelText('Name')).value).toBe('')
+    expect(screen.queryByRole('dialog', { name: 'Edit formula' })).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'New formula' })).toBeTruthy()
   })
 })
 
@@ -452,12 +456,12 @@ describe('🔴 an edit that FAILS A GATE is refused and the old version keeps wo
     await clickEdit()
     H.writeResponse = {
       ok: false, status: 400,
-      json: async () => ({ detail: 'definition exceeds 65536 bytes (70000)' }),
+      json: async () => ({ detail: 'this indicator is too large to keep: as saved it would be 70000 bytes, and a saved indicator may hold at most 65536. Nothing was saved.' }),
     }
     await typeFormula('sma(close, 5)')
     await clickSave()
 
-    expect(screen.getByTestId('store-error').textContent).toContain('definition exceeds')
+    expect(screen.getByTestId('store-error').textContent).toContain('too large to keep')
     expect(drawnValue(DEF_ID), 'a refused save re-installed the new maths anyway')
       .toBeCloseTo(OLD_VALUE, 6)
   })
@@ -571,7 +575,7 @@ describe('🔴 opening a saved formula marks a stale description', () => {
     mount()
     await flush(); await flush()
 
-    fireEvent.change(screen.getByRole('textbox', { name: /plain English/i }),
+    fireEvent.change(screen.getByLabelText('Describe it'),
       { target: { value: 'stocks above the 200 day average' } })
     await flush()
     expect(screen.queryByTestId('concierge-stale')).toBeNull()

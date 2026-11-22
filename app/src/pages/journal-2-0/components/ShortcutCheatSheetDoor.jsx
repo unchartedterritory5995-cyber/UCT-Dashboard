@@ -31,7 +31,7 @@ const loadSheet = () => importWithOneRetry(() => shortcutSheetLoaders.sheet(), R
 
 export const SHORTCUTS_UNAVAILABLE = 'The keyboard shortcuts couldn’t load. Try again, or reload the page.'
 
-export default function ShortcutCheatSheetDoor({ open, onClose }) {
+export default function ShortcutCheatSheetDoor({ open, onClose, page = null }) {
   const [Sheet, setSheet] = useState(null)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
@@ -62,7 +62,7 @@ export default function ShortcutCheatSheetDoor({ open, onClose }) {
           ) : null}
         </div>
       ) : null}
-      {Sheet ? <Sheet open={open} onClose={onClose} /> : null}
+      {Sheet ? <Sheet open={open} onClose={onClose} page={page} /> : null}
     </>
   )
 }

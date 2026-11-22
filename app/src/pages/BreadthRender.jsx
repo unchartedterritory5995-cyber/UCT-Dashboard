@@ -4,8 +4,8 @@
 // 8-tier heat coloring the dashboard uses (reuses COLS from Breadth.jsx, so it never
 // drifts). Screenshotted into the Morning Wire → Substack "Market Internals" section.
 //
-// Public route (no AuthGuard). ?token= checked vs VITE_CHART_RENDER_TOKEN, and the
-// SAME token is forwarded to the API.
+// Public route (no AuthGuard). ?token= is forwarded to the API, which checks it; a
+// refused read shows "unauthorized".
 //
 // ⛔ Data comes from /api/r/breadth-monitor, NOT /api/breadth-monitor. The plain
 // endpoint went behind `require_paid` in 9ff74f69 (2026-08-09) and this page renders
@@ -16,10 +16,10 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { COLS } from './Breadth'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
 
-import { renderTokenOk } from '../lib/renderToken'
+import { renderReadError } from '../lib/renderToken'
 // tier → cell background (matches Breadth.module.css .bgG3..bgR3)
 const TIER_BG = {
   g3: 'rgba(10,50,22,0.97)', g2: 'rgba(22,100,48,0.80)', g1: 'rgba(74,222,128,0.16)',
@@ -76,7 +76,7 @@ export default function BreadthRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
+    // The server checks ?token= on this read; a refused read (401/403) shows "unauthorized".
     fetch(`/api/r/breadth-monitor?days=${days + 4}&token=${encodeURIComponent(token)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => {
@@ -84,7 +84,7 @@ export default function BreadthRender() {
           .slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, days)
         setRows(rs)
       })
-      .catch(() => setErr('data unavailable'))
+      .catch((e) => setErr(renderReadError(e)))
   }, [token, days])
 
   useEffect(() => {

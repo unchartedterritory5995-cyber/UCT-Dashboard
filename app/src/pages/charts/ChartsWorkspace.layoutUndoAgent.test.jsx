@@ -128,7 +128,6 @@ test('L2 — member Dock open (toast), THEN an Agent open: the stale member toas
   mount(MAIN)
   await act(async () => { dockButton('Swing Board').click() })
   await waitFor(() => expect(activeId()).toBe(2))
-  expect((await screen.findByTestId('layout-undo-toast')).textContent).toMatch(/^Switched to “Swing Board”/)
   await say('open Macro Board')
   await waitFor(() => expect(activeId()).toBe(3), { timeout: 15000 })
   expect(await screen.findByText(/Opened “Macro Board” in place of “Swing Board”/, {}, { timeout: 15000 })).toBeTruthy()
@@ -144,14 +143,10 @@ test('L3 — Agent open, then member Dock open: Agent "undo" is refused (stale);
   await screen.findByText(/Opened “Swing Board” in place of “Main Trading”/, {}, { timeout: 15000 })
   await act(async () => { dockButton('Macro Board').click() })
   await waitFor(() => expect(activeId()).toBe(3))
-  expect((await screen.findByTestId('layout-undo-toast')).textContent).toMatch(/^Switched to “Macro Board”/)
   await say('undo')
   await settle(600)
   expect(activeId()).toBe(3)                                     // the Agent never undoes the member's switch
-  const t = toastEl()
-  expect(t).toBeTruthy()
-  await act(async () => { within(t).getByRole('button', { name: 'Undo' }).click() })
-  await waitFor(() => expect(activeId()).toBe(2))
+  expect(toastEl()).toBeNull()                                   // owner 11-16: no switch banner at all
   expect(modelCalls).toBe(0)
 }, 60000)
 

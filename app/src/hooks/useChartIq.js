@@ -4,6 +4,7 @@
 // viewer is allowed): otherwise the SWR key is null and nothing is fetched. The read changes once a session, so there is no
 // polling; the server caches it too.
 import useSWR from 'swr'
+import { CHART_IQ_TFS } from '../components/chart/chartIq/chartIqPlan'
 
 // A failed read carries the server's reason (`detail`) and status, so the panel can say WHY instead of a bare failure.
 const fetcher = (url) =>
@@ -20,7 +21,7 @@ const fetcher = (url) =>
   })
 
 export function chartIqKey(sym, tf, enabled) {
-  return enabled && sym && String(tf || '') === 'D' ? `/api/chart-iq/${encodeURIComponent(String(sym).toUpperCase())}` : null
+  return enabled && sym && CHART_IQ_TFS.includes(String(tf || '')) ? `/api/chart-iq/${encodeURIComponent(String(sym).toUpperCase())}` : null
 }
 
 export function chartIqRetry(error, _key, _config, revalidate, { retryCount }) {

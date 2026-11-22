@@ -79,12 +79,22 @@ describe('templateSlots', () => {
     expect(eager).toBe(server)
   })
 
+  // Simplify pass 2, Task 1 fix round 1 (spec A4): ONE deliberate difference. The member reads the note-kind slot as
+  // "Note type"; the server still says "Kind of note" (a server rename is a later job). Every other word is the
+  // server's, and the server's own word for this one is pinned too, so the rail reds the day either side moves.
+  const CLIENT_RENAMES = { note_kind: ['Kind of note', 'Note type'] }
+  const asClientReads = (server) => Object.fromEntries(Object.entries(server).map(([k, v]) => {
+    const r = CLIENT_RENAMES[k]
+    return [k, r && v === r[0] ? r[1] : v]
+  }))
   it('type_labels_are_the_servers_ten', () => {
     const src = serverSource('api/services/journal_two/widget_engine/share.py', /^TYPE_LABELS = /m)
     const server = serverTypeLabels(src)
     expect(server, 'share.TYPE_LABELS not found').toBeTruthy()
     expect(Object.keys(server)).toHaveLength(10)
-    expect(TYPE_LABELS).toEqual(server)
+    expect(server.note_kind).toBe('Kind of note')
+    expect(TYPE_LABELS.note_kind).toBe('Note type')
+    expect(TYPE_LABELS).toEqual(asClientReads(server))
   })
 
   it('the source readers see CRLF and LF alike, and still see a tampered source', () => {
@@ -98,7 +108,7 @@ describe('templateSlots', () => {
     for (const form of [lf, crlf]) {
       expect(serverSlotRe(form(styles))).toBe(SLOT_ID_RE.source)
       expect(eagerSlotRe(form(eagerSrc))).toBe(SLOT_ID_RE.source)
-      expect(serverTypeLabels(form(share))).toEqual(TYPE_LABELS)
+      expect(asClientReads(serverTypeLabels(form(share)))).toEqual(TYPE_LABELS)
       // Control: a tampered regex or word is still read, and so still disagrees.
       const tamper = (t) => t.replace('[a-z0-9]{1,2}$', '[a-z0-9]{1,3}$')
       // The reader must READ the tampered text (not return null), so assert the tampered value itself.

@@ -45,7 +45,18 @@ function colorOf(o) {
 
 const fx = (n) => (typeof n === 'number' && Number.isFinite(n) ? n : null)
 
-export function buildPlan(payload, barTimes, layers = defaultLayers()) {
+/** The timeframes Chart IQ reads. The engine reads DAILY bars; a weekly chart shows the same daily read (2026-11-03). */
+export const CHART_IQ_TFS = Object.freeze(['D', 'W'])
+
+/** A weekly chart gets the daily read's PRICE LEVELS only: support/resistance, zones, base lines, buy points, gaps, trigger and
+ * stop are prices, true on any timeframe. Sloped trendlines are projected bar by bar on DAILY bars and day markers name a single
+ * day, so on weekly bars both would be drawn in the wrong place: they stay on the daily chart. */
+export function levelsOnly(plan) {
+  if (!plan) return plan
+  return { ...plan, segments: (plan.segments || []).filter((g) => g.p1 === g.p2), markers: [] }
+}
+
+export function buildPlan(payload, barTimes, layers = defaultLayers(), { weekly = false } = {}) {
   const out = { segments: [], markers: [], hlines: [] }
   if (!payload || !Array.isArray(barTimes) || !barTimes.length) return out
   const first = barTimes[0]
@@ -56,6 +67,11 @@ export function buildPlan(payload, barTimes, layers = defaultLayers()) {
     if (d < first) return first
     if (d > last) return last
     if (idx.has(d)) return d
+    if (weekly) {                                         // a weekly bar carries its week's LAST day: the bar on or after d
+      let lo = 0, hi = barTimes.length - 1
+      while (lo < hi) { const mid = (lo + hi) >> 1; if (barTimes[mid] >= d) hi = mid; else lo = mid + 1 }
+      return barTimes[lo]
+    }
     let lo = 0, hi = barTimes.length - 1                  // the last bar on or before d (a holiday / missing bar)
     while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (barTimes[mid] <= d) lo = mid; else hi = mid - 1 }
     return barTimes[lo]

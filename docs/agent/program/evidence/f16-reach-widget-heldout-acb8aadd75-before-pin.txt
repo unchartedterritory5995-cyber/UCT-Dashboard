@@ -1,0 +1,40 @@
+# head acb8aadd75 2026-11-10T23:25:56Z dirty: 0 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentExecReach.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget-f16/app
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget held-out, routing v1
+[reach] widget held-out v1 {"model":"24/24","action":"21/24","list":"21/24"} misses: ["C3-170 flip the themes list so the worst ones are on top action+list","C3-151 show only 3 star economic events action+list","C3-152 expand the tbd earnings section action+list"]
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget held-out, routing v2
+[reach] widget held-out v2 {"model":"24/24","action":"21/24","list":"21/24"} misses: ["C3-170 flip the themes list so the worst ones are on top action+list","C3-151 show only 3 star economic events action+list","C3-152 expand the tbd earnings section action+list"]
+ ❯ src/agent/agentExecReach.test.jsx (5 tests | 2 failed) 48553ms
+     ✓ every case names a row, and no phrasing appears twice 1ms
+     ✓ every case names a row, and no phrasing appears twice 0ms
+     ✓ no phrasing appears twice 0ms
+     × widget held-out, routing v1 24281ms
+     × widget held-out, routing v2 24269ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentExecReach.test.jsx > reach of the first model call > widget held-out, routing v1
+ FAIL  src/agent/agentExecReach.test.jsx > reach of the first model call > widget held-out, routing v2
+AssertionError: expected { model: '24/24', …(2) } to deeply equal { model: '23/24', …(2) }
+- Expected
++ Received
+  {
+-   "action": "20/24",
+-   "list": "20/24",
+-   "model": "23/24",
++   "action": "21/24",
++   "list": "21/24",
++   "model": "24/24",
+  }
+ ❯ src/agent/agentExecReach.test.jsx:94:34
+     92|         // (widget) and 0/8, 0/8 (list). A drop is a regression; a ris…
+     93|         const pinned = PINNED[`${name} ${v2 ? 'v2' : 'v1'}`]
+     94|         if (pinned) expect(line).toEqual(pinned)
+       |                                  ^
+     95|       }, 240000)
+     96|     }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+ Test Files  1 failed (1)
+      Tests  2 failed | 3 passed (5)
+   Start at  18:26:02
+   Duration  58.85s (transform 6.86s, setup 384ms, import 8.55s, tests 48.55s, environment 860ms)

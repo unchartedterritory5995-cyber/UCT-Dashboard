@@ -162,8 +162,10 @@ describe('⛔ what is NOT read from the runtime lane keeps its refusal', () => {
       .replace('label.new(bar_index, s, "sum")', 'label.new(bar_index, s, "sum", size = sz)') + 'plot(close)\n'
     const d = door(src)
     const diag = d.translation.objectDiagnostics
-    expect((diag.droppedPropNames || []).some((n) => n.startsWith('label.size'))).toBe(true)
-    expect(diag.dropReasons['runtime:prop']).toBe(1)
+    // ⭐ Engine 51 — an enum slot this door cannot read withholds the drawing by
+    // name (`enum:unreadable`) before the runtime-prop rule is reached; dropped whole
+    // either way, never drawn at the default size.
+    expect(diag.dropReasons['enum:unreadable']).toBe(1)
     expect(labels(draw(d).live)).toEqual([])
   })
 

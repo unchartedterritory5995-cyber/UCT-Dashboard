@@ -14,9 +14,11 @@ S7's receipt store before any channel runs:
   1. `receipts.record_fire` writes ONE `alert_fires` row -- the durable member
      alert record (never `user_alerts`) -- under a DETERMINISTIC key per
      legacy row. `UNIQUE(predicate_id, fire_key)` is therefore a fire-once
-     guarantee that holds ACROSS PROCESSES, which the legacy lane never had:
-     `_trigger_alert`'s UPDATE is not a compare-and-set, so two checkers that
-     both selected the row before either deactivated it both delivered.
+     guarantee that holds ACROSS PROCESSES and survives a store that is not
+     shared. The legacy lane's `_trigger_alert` is now also a compare-and-set on
+     `is_active` (desktop Task 7), so two checkers in one database no longer both
+     deliver; before that, both selected the row before either deactivated it and
+     both did.
   2. `receipts.claim_delivery` takes the lease -- the same compare-and-set
      every other S7 fire is delivered under.
   3. The member is told by the UNCHANGED `_deliver_alert` -- same bell entry,

@@ -24,7 +24,7 @@ import useSWR from 'swr'
 import UIcon from '../../../components/ui/UIcon'
 import { AuthContext } from '../../../context/AuthContext'
 import { useAgentFlag } from '../../../agent/agentFlag'
-import compassMark from '../../../components/intro/assets/compass-mark.png'
+import compassMark from '../../../components/intro/assets/compass-mark.webp'
 import { formatNumber } from '../../../lib/presentation/presentationPrimitives'
 import Input from '../../../components/ui/Input'
 import { requestExplanation, cachedExplanation } from '../../../lib/tradeExchangeNewsExplain'
@@ -233,6 +233,7 @@ export const Row = memo(function Row({ item, linkedSym, onSym, colorMode, prices
               className={`${styles.rowBtn}${explainOpen ? ' ' + styles.rowBtnOn : ''}`}
               onClick={(e) => { e.stopPropagation(); onExplain(item, e.currentTarget) }}
               aria-label="Explain this headline"
+              data-guide="teNews.explain"
               aria-expanded={!!explainOpen}
               title="Explain"
             ><UIcon name="sparkle" size={11} gold={false} /></button>
@@ -556,7 +557,7 @@ function WatchlistPicker({ item, back }) {
 }
 
 export function FilterMenu({ anchorEl, hostEl, themeVars, onClose, categories, onCategories, presets, activeId,
-  onApply, onSave, onRename, onDelete, linked = false, linkedSym = null, onLinked }) {
+  onApply, onSave, onRename, onDelete, linked = false, linkedSym = null, onLinked, uct = false }) {
   const boxRef = useRef(null)
   const onKey = usePopover(boxRef, anchorEl, onClose)
   const selected = new Set(cleanCategories(categories))
@@ -570,6 +571,61 @@ export function FilterMenu({ anchorEl, hostEl, themeVars, onClose, categories, o
     onCategories(next.size === CATEGORY_FILTERS.length ? [] : CATEGORY_FILTERS.filter((x) => next.has(x)))
   }
   const width = 220
+  // UCT frame (owner 11-13): the board's menu look — sentence-case labels, check-mark rows,
+  // categories two across, presets with hover rename / delete. Same options, same handlers.
+  if (uct) {
+    const check = (on) => <span className={styles.uMenuCheck}>{on && <UIcon name="check" size={13} gold={false} />}</span>
+    const w = 264
+    return (
+      <div ref={boxRef} className={`${styles.uMenu} ${styles.uMenuInHost}`} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, w), width: w }}
+        role="dialog" aria-label="News filters" onKeyDown={onKey}>
+        {onLinked && (<>
+          <div className={styles.uMenuLabel}>Headlines</div>
+          <button type="button" role="menuitemradio" aria-checked={!linked} className={styles.uMenuItem} onClick={() => onLinked(false)}>
+            {check(!linked)}<span className={styles.uMenuText}>All headlines</span></button>
+          <button type="button" role="menuitemradio" aria-checked={linked} className={styles.uMenuItem} onClick={() => onLinked(true)}
+            title="Only headlines naming this widget's linked chart symbol">
+            {check(linked)}<span className={styles.uMenuText}>Linked to chart{linkedSym ? <span className={styles.uMenuDim}> · {linkedSym}</span> : null}</span></button>
+          <div className={styles.uMenuSep} />
+        </>)}
+        <div className={styles.uMenuLabel}>Categories</div>
+        <button type="button" role="menuitemcheckbox" aria-checked={all} className={styles.uMenuItem} onClick={() => onCategories([])}>
+          {check(all)}<span className={styles.uMenuText}>All categories</span></button>
+        <div className={styles.uMenuGrid}>
+          {CATEGORY_FILTERS.map((c) => (
+            <button key={c} type="button" role="menuitemcheckbox" aria-checked={selected.has(c)} className={styles.uMenuItem} onClick={() => toggle(c)}>
+              {check(selected.has(c))}<span className={styles.uMenuText}>{c}</span></button>
+          ))}
+        </div>
+        <div className={styles.uMenuSep} />
+        <div className={styles.uMenuLabel}>Presets</div>
+        {presets.map((p) => (
+          <div key={p.id} className={styles.uMenuRow}>
+            {renaming?.id === p.id ? (
+              <form className={styles.uMenuForm} onSubmit={(e) => { e.preventDefault(); if (renaming.name.trim()) onRename(p.id, renaming.name.trim()); setRenaming(null) }}>
+                <input className={styles.uMenuSearch} value={renaming.name} autoFocus maxLength={40} aria-label="Preset name"
+                  onChange={(e) => setRenaming({ id: p.id, name: e.target.value })} onBlur={() => setRenaming(null)} />
+              </form>
+            ) : (<>
+              <button type="button" role="menuitemradio" aria-checked={p.id === activeId} className={styles.uMenuItem} onClick={() => onApply(p)} title="Apply this preset">
+                {check(p.id === activeId)}<span className={styles.uMenuText}>{p.name}</span></button>
+              <button type="button" className={styles.uMenuIcon} onClick={() => setRenaming({ id: p.id, name: p.name })}
+                aria-label={`Rename preset ${p.name}`} title="Rename"><UIcon name="edit" size={12} gold={false} /></button>
+              <button type="button" className={`${styles.uMenuIcon} ${styles.uMenuIconDanger}`} onClick={() => onDelete(p.id)}
+                aria-label={`Delete preset ${p.name}`} title="Delete"><UIcon name="trash" size={12} gold={false} /></button>
+            </>)}
+          </div>
+        ))}
+        {presets.length < MAX_PRESETS && (
+          <form className={styles.uMenuForm} onSubmit={(e) => { e.preventDefault(); if (name.trim()) { onSave(name.trim()); setName('') } }}>
+            <input className={styles.uMenuSearch} value={name} onChange={(e) => setName(e.target.value)} maxLength={40}
+              placeholder="Save these filters as…" aria-label="New preset name" />
+            <button type="submit" className={styles.uMenuGo} disabled={!name.trim()}>Save</button>
+          </form>
+        )}
+      </div>
+    )
+  }
   return (
     <div ref={boxRef} className={styles.menuPop} style={{ ...(themeVars || {}), ...placeUnder(anchorEl, hostEl, width), width }}
       role="dialog" aria-label="News filters" onKeyDown={onKey}>
@@ -775,7 +831,7 @@ export function TimePopover({ at, anchorEl, hostEl, themeVars, onPick, onClose, 
 /** The footer: ‹ [calendar · date] › on the left, the clock (Jump to Time) on the right.
  *  "Today" for the current ET day; a compact date otherwise. Latest (back to today's live
  *  feed) is the first item of the clock's menu whenever a past day or time is shown. */
-export function DayBar({ day, onCalendar, onTime, calendarOpen, timeOpen, calRef, timeRef }) {
+export function DayBar({ day, onCalendar, onTime, calendarOpen, timeOpen, calRef, timeRef, count = null }) {
   const first = day.meta?.first_day
   const prevOff = !!first && day.dateKey <= first
   const all = !!day.allHistory
@@ -785,6 +841,7 @@ export function DayBar({ day, onCalendar, onTime, calendarOpen, timeOpen, calRef
   const atText = day.at ? `${day.atMatch === 'after' ? 'after' : 'from'} ${timeLabel(day.at)} ET` : null
   return (
     <nav className={styles.dayBar} aria-label="Date">
+      {count && <span className={styles.dayCount} aria-live="polite">{count}</span>}
       <span className={styles.dayNav}>
         <button type="button" className={styles.pageBtn} onClick={day.prevDay} disabled={prevOff || all}
           aria-label="Previous day" title={all ? 'Pick a day from the calendar to browse one day' : prevOff ? 'Earlier dates are not retained' : 'Previous day'}>

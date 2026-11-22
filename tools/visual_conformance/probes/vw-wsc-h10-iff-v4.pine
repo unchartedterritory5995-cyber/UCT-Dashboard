@@ -1,0 +1,18 @@
+//@version=4
+study("UCTPROBE_VW_WSC_H10_IFF_V4", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row H10
+// (docs/pine/capture-queue-2026-10-31-wsc-history.md section Q3). NEVER COMPILED ON TRADINGVIEW.
+// Does v4 `iff` evaluate its untaken argument (an every-bar `sma`), or not (per run, as `?:` does,
+// vw-arm-history T03)? The two forms side by side, with the every-bar `sma` as the reference:
+//   F01  iff(close > open, sma(close, 3), 0)
+//   F02  close > open ? sma(close, 3) : 0
+//   E01  sma(close, 3) on every bar
+// CHART: the row names none (the queue marks it NEEDS_CHART); vw-arm-history was read on
+// NYSE:RDDT 1D from the listing.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(close > open ? 1 : 0, "A01_up_CONTROL")
+plot(sma(close, 3), "E01_sma3_every_bar")
+plot(iff(close > open, sma(close, 3), 0), "F01_iff_sma3")
+plot(close > open ? sma(close, 3) : 0, "F02_ternary_sma3")

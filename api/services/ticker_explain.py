@@ -451,13 +451,23 @@ def _ratings_evidence(ratings: dict) -> list[dict]:
 
 
 def _financials_evidence(fin: dict) -> list[dict]:
-    """Reported quarterly figures + a balance/profitability snapshot. Each
-    quarter's label is explicitly flagged as CALENDAR, not fiscal -- the
-    already-documented cross-tab ambiguity (a September-fiscal-year company
-    can show 'Q3 2026' in FMP-fed panels and 'Q2 2026' here for the same
-    quarter) is disclosed in the evidence text itself, not silently
-    resolved, so the model can caveat/clarify rather than guess."""
+    """Reported quarterly figures + a balance/profitability snapshot.
+
+    The quarters carry the source that supplied them, read off the payload's
+    own `sources.statements` (never assumed): the FMP statements label
+    the company's own FISCAL quarters and are cited as FMP; the fallback
+    frames label CALENDAR quarters, and that ambiguity (a September-fiscal-
+    year company's 'Q3 2026' is the fallback's 'Q2 2026') is disclosed in the
+    evidence itself, not silently resolved, so the model can caveat/clarify
+    rather than guess. A payload that does not say is treated as the
+    fallback: the caveat is the safe side to err on."""
     out = []
+    from_fmp = ((fin.get("sources") or {}).get("statements") == "FMP")
+    quarter_source = "FMP, via UCT Financials" if from_fmp else "UCT Financials (yfinance)"
+    quarter_note = ("fiscal-quarter label -- this company's own fiscal-quarter numbering"
+                    if from_fmp else
+                    "calendar-quarter label -- may not match "
+                    "this company's own fiscal-quarter numbering")
     for row in (fin.get("quarterly") or [])[:_MAX_FIN_ROWS]:
         parts = []
         if row.get("revenue") is not None:
@@ -472,9 +482,8 @@ def _financials_evidence(fin: dict) -> list[dict]:
             continue
         out.append({
             "type": "financials_quarter",
-            "date": f"{row.get('period')} (calendar-quarter label -- may not match "
-                    "this company's own fiscal-quarter numbering)",
-            "source": "UCT Financials (yfinance)",
+            "date": f"{row.get('period')} ({quarter_note})",
+            "source": quarter_source,
             "text": f"Quarter {row.get('period')}: " + ", ".join(parts) + ".",
             "url": None,
         })
@@ -501,6 +510,8 @@ def _financials_evidence(fin: dict) -> list[dict]:
         out.append({
             "type": "financials_snapshot",
             "date": "current snapshot",
+            # The balance / metrics block is read by the fundamentals service
+            # whichever source supplied the quarters above.
             "source": "UCT Financials (yfinance)",
             "text": "Balance sheet / profitability snapshot: " + ", ".join(snap) + ".",
             "url": None,
@@ -573,26 +584,37 @@ def _estimates_evidence(est: dict) -> list[dict]:
 
 
 def _ownership_evidence(own: dict) -> list[dict]:
-    """Institutional/short snapshot (yfinance), float/shares-outstanding
-    (D1 where available), Form 13F (~45-day lag, disclosed explicitly), and
-    a bounded slice of insider activity (exact schema per `insider.py`:
+    """The institutional percent (the Form 13F summary's), short interest (the
+    newest FINRA report the short interest service holds, with its settlement
+    date -- absent when none is held, never a zero), float/shares-outstanding
+    (D1), Form 13F (~45-day lag, disclosed explicitly), and a bounded slice of
+    insider activity (exact schema per `insider.py`:
     name/title/type/shares/price/amount/date)."""
     out = []
     inst = own.get("institutional") or {}
     short = own.get("short") or {}
-    snap = []
     if inst.get("pct_held") is not None:
-        snap.append(f"institutional ownership {inst['pct_held']}%")
-    if short.get("short_pct_float") is not None:
-        snap.append(f"short interest {short['short_pct_float']}% of float")
-    if short.get("days_to_cover") is not None:
-        snap.append(f"{short['days_to_cover']} days to cover")
-    if snap:
+        quarter = inst.get("quarter")
         out.append({
             "type": "ownership_snapshot",
-            "date": "current snapshot",
-            "source": "UCT Ownership (yfinance)",
-            "text": "Ownership snapshot: " + ", ".join(snap) + ".",
+            "date": f"{quarter} (Form 13F quarter)" if quarter else "latest filed Form 13F quarter",
+            "source": "FMP, via UCT Ownership (Form 13F)",
+            "text": f"Ownership snapshot: institutional ownership {inst['pct_held']}% of shares "
+                    "outstanding, as held by Form 13F filers.",
+            "url": None,
+        })
+    if short.get("settlement_date") and short.get("shares_short") is not None:
+        snap = [f"{short['shares_short']:,.0f} shares short"]
+        if short.get("short_pct_float") is not None:
+            snap.append(f"{short['short_pct_float']}% of float")
+        if short.get("days_to_cover") is not None:
+            snap.append(f"{short['days_to_cover']} days to cover")
+        out.append({
+            "type": "ownership_short",
+            "date": f"{short['settlement_date']} (FINRA settlement date; published about two "
+                    "weeks later, so not today's position)",
+            "source": "FINRA short interest through Massive, via UCT Ownership",
+            "text": "Short interest: " + ", ".join(snap) + ".",
             "url": None,
         })
 
@@ -607,7 +629,7 @@ def _ownership_evidence(own: dict) -> list[dict]:
         out.append({
             "type": "ownership_float",
             "date": _fmt_date(meta.get("sourceObservedAt")) if meta else "current snapshot",
-            "source": "FMP, via UCT Ownership" if meta else "UCT Ownership (yfinance)",
+            "source": "FMP, via UCT Ownership",
             "text": "Share count: " + ", ".join(parts) + ".",
             "url": None,
         })
@@ -2035,14 +2057,19 @@ def _call_model(sym: str, question: str, evidence: list[dict], model: str, extra
     user = _user_message(sym, question, evidence, history)
     if extra_note:
         user += "\n\n" + extra_note
-    resp = _get_client().with_options(timeout=45).messages.create(
-        model=model,
-        max_tokens=_MAX_TOKENS,
-        system=_SYSTEM_PROMPT,
-        output_config={"format": {"type": "json_schema", "schema": EXPLAIN_SCHEMA},
-                       "effort": _EFFORT},
-        messages=[{"role": "user", "content": user}],
-    )
+    charged = dict(model=model, max_tokens=_MAX_TOKENS, system=_SYSTEM_PROMPT,
+                   output_config={"format": {"type": "json_schema", "schema": EXPLAIN_SCHEMA}, "effort": _EFFORT},
+                   messages=[{"role": "user", "content": user}])
+    # ⛔ The keywords stay on the call: the door rails read the schema from them.
+    with guard.charge_if_failed(_COST_SURFACE, charged):
+        resp = _get_client().with_options(timeout=45).messages.create(
+            model=model,
+            max_tokens=_MAX_TOKENS,
+            system=_SYSTEM_PROMPT,
+            output_config={"format": {"type": "json_schema", "schema": EXPLAIN_SCHEMA},
+                           "effort": _EFFORT},
+            messages=[{"role": "user", "content": user}],
+        )
     try:
         guard.record_from_response(_COST_SURFACE, model, resp)
     except Exception:
@@ -2205,7 +2232,7 @@ def explain_recent_activity(sym: str, question: str, history: Optional[list] = N
 
     if guard.over_budget(_COST_SURFACE, COST_CAP_ENV, DEFAULT_COST_CAP_USD):
         return _result(sym=sym, question=question, response_state="refuse",
-                       refusal_reason="The AI assistant has reached today's usage limit "
+                       refusal_reason="The UCT Agent has reached today's usage limit "
                                       "-- try again tomorrow.")
 
     try:
@@ -2234,7 +2261,7 @@ def explain_recent_activity(sym: str, question: str, history: Optional[list] = N
                         sym, attempt, exc)
             return _result(sym=sym, question=question, entity=entity, domains=domains,
                            response_state="refuse",
-                           refusal_reason="The AI assistant is temporarily unavailable.")
+                           refusal_reason="The UCT Agent is temporarily unavailable.")
         if getattr(resp, "stop_reason", None) == "refusal":
             return _result(sym=sym, question=question, entity=entity, domains=domains,
                            response_state="refuse",

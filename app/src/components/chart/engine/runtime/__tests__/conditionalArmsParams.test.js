@@ -7,11 +7,14 @@
 // SITE: only the bars on which the call ran) reached past it:
 //
 //   1. A `ta.*` in ONE ARM OF `?:` (or on the right of v6's `and` / `or`). Pine
-//      runs only the arm it takes; this lane evaluates both on every bar. The
+//      runs only the arm it takes; this lane evaluated both on every bar. The
 //      witness is `vw-arm-history-rddt-1d-2026-10-02`: T03 `up ? ta.sma(close,
 //      5) : close` and K03 `even ? ta.change(close) : na` count RUNS. Refused by
 //      name, unless the test reads nothing per-bar (an input, a literal, the
-//      chart's own timeframe or symbol text).
+//      chart's own timeframe or symbol text). ⭐ W4 T4: the witnessed Pine v6 half
+//      is now SERVED (`w4ArmHistory.test.js`, `vendorHarness.w4ArmHistory`); the
+//      same rows in Pine v5, whose lazy `?:` is documented but not captured
+//      (Q-PT1), keep the refusal and are what section 1 pins below.
 //   2. A `ta.*` whose HEAD rewrites to offsets over a chart series (`ta.mom`,
 //      `ta.roc`, `ta.swma`) in a block. `statefulTree` called them pure, so they
 //      were every-bar columns; Pine's `ta.change` there is the previous RUN's
@@ -22,7 +25,8 @@
 //   4. A branch on a PARAMETER (deadband-hysteresis's `getBaseTau(mode, …)`,
 //      `if mode == "ATR"`) is the CALL SITE's: a call passing a value fixed
 //      before bar 0 compiles its own copy (C35) where the branch runs on every
-//      call; a per-bar argument is refused by name, naming the parameter.
+//      call; a per-bar argument (A4) compiles a copy whose branch is CHECKED to run on every call, and
+//      the run stops by name at the first call it skips.
 import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -31,6 +35,7 @@ import { buildRuntimeIr } from '../../ast/pineRuntimeFrontend.js'
 import { runtimeClockOpts } from '../../ast/pineRuntimeClock'
 import { lowerIrProgram } from '../lowerIr.js'
 import { execute } from '../vm.js'
+import { runRefusalOf } from './condHistoryOutcome.js'
 
 const DIR = path.resolve(process.cwd(), '..', 'tests/fixtures/vendor/harness')
 const load = (f) => JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))
@@ -52,6 +57,8 @@ function run(src, extra) {
   return r.outputs.map((o) => Array.from(o))
 }
 const refusalOf = (src, extra) => { const b = buildRuntimeIr(src, opts(extra)); return b.ok ? null : b.refusal }
+// ⭐ HIST-S3 — the build's refusal, else the run's stop at the first skip (`callSiteRuns`), else null
+const notDrawnOf = (src, extra) => runRefusalOf(src, { bars: BARS, extra })
 const same = (a, b) => (Number.isNaN(a) && Number.isNaN(b)) || Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(b))
 const v6 = (body) => `//@version=6\nindicator("t")\n${body}`
 const UP = BARS.map((b) => b.c > b.o)
@@ -73,7 +80,10 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
     expect(diffT).toBeGreaterThan(150)
     expect(diffK).toBeGreaterThan(250)
   })
-  it('the probe\'s own rows are refused by name, on the column route and the slot route', () => {
+  // ⭐ HIST-S3 — refused at build, or (now) drawn only while the arm has run on every bar and STOPPED by
+  // name at the first skip: never the per-run number Q-PT1 has not witnessed, never the every-bar one
+  it('the probe\'s own rows in Pine v5 (not captured, Q-PT1) are never drawn per run: refused or stopped by name, on the column route and the slot route', () => {
+    const v5 = (body) => `//@version=5\nindicator("t")\n${body}`
     for (const body of [
       'plot(close > open ? ta.sma(close, 5) : close)\n',                       // T03, a column
       'y = close > open ? ta.sma(close, 5) : close\nplot(y)\n',                // through a binding
@@ -81,7 +91,7 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
       'var float s = 0.0\ns := s + 1\nplot(s > 3 ? ta.sma(close, 5) : close)\n', // the test reads a slot
       'var float s = 0.0\ns := close > open ? ta.ema(close, 5) : s\nplot(s)\n',  // the arm reads a slot
     ]) {
-      const r = refusalOf(v6(body))
+      const r = notDrawnOf(v5(body))
       expect(r && r.guard, body).toBe(R4)
       expect(r.message).toMatch(/one arm of `\?:`/)
     }
@@ -113,7 +123,7 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
     const [every] = run(v6('plot(ta.wma(close, 5))\n'))
     y.forEach((v, i) => expect(same(v, every[i]), `bar ${i}`).toBe(true))
     // ⛔ the same switch on a PER-BAR text stays refused
-    const r = refusalOf(v6('m = close > open ? "WMA" : "SMA"\nv = switch m\n    \'SMA\' => ta.sma(close, 5)\n    \'WMA\' => ta.wma(close, 5)\nplot(v)\n'))
+    const r = notDrawnOf(v6('m = close > open ? "WMA" : "SMA"\nv = switch m\n    \'SMA\' => ta.sma(close, 5)\n    \'WMA\' => ta.wma(close, 5)\nplot(v)\n'))
     expect(r && r.guard).toBe(R4)
   })
   it('SERVED: a NAME in an arm is its own line\'s value, and chart history in an arm is the chart\'s', () => {
@@ -123,9 +133,9 @@ describe('1 — a `ta.*` in one arm of `?:` keeps that arm\'s runs: refused by n
 })
 
 describe('2 — a `ta.*` head that rewrites to offsets is the call site\'s too', () => {
-  it('`ta.mom` / `ta.roc` / `ta.swma` in a block are refused by name (they were every-bar columns)', () => {
+  it('`ta.mom` / `ta.roc` / `ta.swma` in a block are never drawn per run: refused or stopped by name (they were every-bar columns)', () => {
     for (const c of ['ta.mom(close, 2)', 'ta.roc(close, 2)', 'ta.swma(close)']) {
-      const r = refusalOf(v6(`float y = na\nif close > open\n    y := ${c}\nplot(y)\n`))
+      const r = notDrawnOf(v6(`float y = na\nif close > open\n    y := ${c}\nplot(y)\n`))
       expect(r && r.guard, c).toBe(R4)
       expect(r.message).toContain(c.slice(0, c.indexOf('(')))
     }
@@ -174,22 +184,27 @@ describe('4 — a branch on a PARAMETER is the call site\'s', () => {
     y.forEach((v, i) => expect(same(v, every[i]), `bar ${i}`).toBe(true))
     expect(refusalOf(v6(`${fn}plot(f("Percent"))\n`))).toBeNull()
   })
-  it('a call passing a per-bar text is refused by name, naming the parameter', () => {
-    const r = refusalOf(v6(`${fn}plot(f(close > open ? "ATR" : "P"))\n`))
+  // ⭐⭐ A4 (feat/a4-param-branch-checked, engine 92) — ⚰️ WAS refused at the call, naming the parameter. No
+  // call site can fix a per-bar argument, so its copy CHECKS the branch to run on every call (HIST-S3,
+  // `a4ParamBranchChecked.test.js`): never drawn off every call, it stops by name at the first call the branch skips.
+  it('a call passing a per-bar text is never drawn off every call: stopped by name where the branch skips', () => {
+    const r = notDrawnOf(v6(`${fn}plot(f(close > open ? "ATR" : "P"))\n`))
     expect(r && r.guard).toBe(R4)
-    expect(r.message).toMatch(/`mode` decides a branch of `f`/)
   })
   it('a `?:` on a parameter (MLExtensions\' filter_volatility) is the call site\'s too', () => {
     const fv = 'fv(simple int a, bool on) =>\n    on ? ta.atr(a) : 0.0\n'
     const [y] = run(v6(`${fv}plot(fv(3, true))\n`))
     const [every] = run(v6('plot(ta.atr(3))\n'))
     y.forEach((v, i) => expect(same(v, every[i]), `bar ${i}`).toBe(true))
-    const r = refusalOf(v6(`${fv}plot(fv(3, close > open))\n`))
+    // ⭐ A4 — a per-bar `on`: the copy checks the arm, and the run stops by name at the first bar it skips
+    const r = notDrawnOf(v6(`${fv}plot(fv(3, close > open))\n`))
     expect(r && r.guard).toBe(R4)
-    expect(r.message).toMatch(/`on` decides a branch of `fv`/)
+    expect(r.at).toBe('run')
+    expect(r.message).toMatch(/skips bar \d+ and runs again on bar \d+/)
   })
-  it('a branch on a body LOCAL stays refused (no call site can fix it)', () => {
-    const r = refusalOf(v6('g(x) =>\n    float y = na\n    k = x > 0\n    if k\n        y := ta.atr(3)\n    y\nplot(g(close - open))\n'))
+  // ⭐ HIST-S3 — no call site can fix a body LOCAL, so the branch is checked at run: it stops by name
+  it('a branch on a body LOCAL is never drawn per run: stopped by name where it skips (no call site can fix it)', () => {
+    const r = notDrawnOf(v6('g(x) =>\n    float y = na\n    k = x > 0\n    if k\n        y := ta.atr(3)\n    y\nplot(g(close - open))\n'))
     expect(r && r.guard).toBe(R4)
   })
 })

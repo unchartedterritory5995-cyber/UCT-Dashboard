@@ -1,0 +1,29 @@
+{
+  "_about": "W3-3 fake j2 trade rows (the GET /api/j2/trades `trades` shape, newest first) and the descriptive stats BOTH review implementations must compute from them (api/services/uct_agent/coach/review.py, app/src/agent/coach/review.js). Prices here are invented test values, never market data.",
+  "rows": [
+    { "id": "t1", "symbol": "AAA", "side": "long", "shares": 10, "entryPrice": 10.0, "entryDate": "2026-10-28T14:30:00Z", "exitPrice": 12.0, "exitDate": "2026-10-30T20:00:00Z", "originalStop": 9.0, "setup": "Breakout", "pnlDollar": 20.0, "pnlPercent": 20.0, "rMultiple": 2.0, "holdDays": 2, "result": "Win", "mistakeTags": [], "emotionTags": ["calm"] },
+    { "id": "t2", "symbol": "BBB", "side": "long", "shares": 10, "entryPrice": 20.0, "entryDate": "2026-10-26T14:30:00Z", "exitPrice": 19.0, "exitDate": "2026-10-27T20:00:00Z", "originalStop": 19.0, "setup": "Breakout", "pnlDollar": -10.0, "pnlPercent": -5.0, "rMultiple": -1.0, "holdDays": 1, "result": "Loss", "mistakeTags": ["chased"], "emotionTags": ["fomo"] },
+    { "id": "t3", "symbol": "CCC", "side": "long", "shares": 10, "entryPrice": 30.0, "entryDate": "2026-10-22T14:30:00Z", "exitPrice": 33.0, "exitDate": "2026-10-29T20:00:00Z", "originalStop": 28.0, "setup": "Pullback", "pnlDollar": 30.0, "pnlPercent": 10.0, "rMultiple": 1.5, "holdDays": 7, "result": "Win", "mistakeTags": [], "emotionTags": [] },
+    { "id": "t4", "symbol": "DDD", "side": "long", "shares": 10, "entryPrice": 40.0, "entryDate": "2026-10-20T14:30:00Z", "exitPrice": 38.0, "exitDate": "2026-10-21T20:00:00Z", "originalStop": 38.0, "setup": "Breakout", "pnlDollar": -20.0, "pnlPercent": -5.0, "rMultiple": -1.0, "holdDays": 1, "result": "Loss", "mistakeTags": ["chased", "no stop plan"], "emotionTags": ["fomo"] },
+    { "id": "t5", "symbol": "EEE", "side": "long", "shares": 10, "entryPrice": 50.0, "entryDate": "2026-10-15T14:30:00Z", "exitPrice": 50.0, "exitDate": "2026-10-16T20:00:00Z", "originalStop": 48.0, "setup": "Pullback", "pnlDollar": 0.0, "pnlPercent": 0.0, "rMultiple": 0.0, "holdDays": 1, "result": "Breakeven", "mistakeTags": [], "emotionTags": [] },
+    { "id": "t6", "symbol": "FFF", "side": "long", "shares": 10, "entryPrice": 60.0, "entryDate": "2026-10-10T14:30:00Z", "exitPrice": 66.0, "exitDate": "2026-10-14T20:00:00Z", "originalStop": 57.0, "setup": "Breakout", "pnlDollar": 60.0, "pnlPercent": 10.0, "rMultiple": 2.0, "holdDays": 4, "result": "Win", "mistakeTags": [], "emotionTags": ["calm"] },
+    { "id": "t7", "symbol": "GGG", "side": "long", "shares": 10, "entryPrice": 70.0, "entryDate": "2026-10-06T14:30:00Z", "exitPrice": 66.5, "exitDate": "2026-10-08T20:00:00Z", "originalStop": 68.0, "setup": "Pullback", "pnlDollar": -35.0, "pnlPercent": -5.0, "rMultiple": -1.75, "holdDays": 2, "result": "Loss", "mistakeTags": ["held through stop"], "emotionTags": ["hope"] },
+    { "id": "t8", "symbol": "HHH", "side": "long", "shares": 10, "entryPrice": 80.0, "entryDate": "2026-10-01T14:30:00Z", "exitPrice": 88.0, "exitDate": "2026-10-09T20:00:00Z", "originalStop": 76.0, "setup": "Breakout", "pnlDollar": 80.0, "pnlPercent": 10.0, "rMultiple": 2.0, "holdDays": 8, "result": "Win", "mistakeTags": [], "emotionTags": [] },
+    { "id": "t9", "symbol": "III", "side": "long", "shares": 10, "entryPrice": 90.0, "entryDate": "2026-09-29T14:30:00Z", "exitPrice": null, "exitDate": null, "originalStop": 85.0, "setup": "Breakout", "pnlDollar": 0.0, "pnlPercent": 0.0, "rMultiple": null, "holdDays": 0, "result": "Open", "mistakeTags": [], "emotionTags": [] },
+    { "id": "t10", "symbol": "JJJ", "side": "long", "shares": 10, "entryPrice": 100.0, "entryDate": "2026-09-25T14:30:00Z", "exitPrice": 101.0, "exitDate": "2026-09-26T20:00:00Z", "originalStop": 0.0, "setup": "Pullback", "pnlDollar": 10.0, "pnlPercent": 1.0, "rMultiple": null, "holdDays": 1, "result": "Win", "mistakeTags": [], "emotionTags": [] },
+    { "id": "t11", "symbol": "KKK", "side": "long", "shares": 10, "entryPrice": 110.0, "entryDate": "2026-09-20T14:30:00Z", "exitPrice": 104.5, "exitDate": "2026-09-22T20:00:00Z", "originalStop": 106.0, "setup": "Breakout", "pnlDollar": -55.0, "pnlPercent": -5.0, "rMultiple": -1.38, "holdDays": 2, "result": "Loss", "mistakeTags": ["chased"], "emotionTags": [] }
+  ],
+  "expected_n10": {
+    "considered": 10, "closed": 9, "wins": 5, "losses": 3, "breakeven": 1, "winRatePct": 63,
+    "withR": 8, "avgR": 0.47, "avgHoldDays": 3.0,
+    "largestWinR": 2.0, "largestLossR": -1.75, "largestWinPct": null, "largestLossPct": null,
+    "mistakeTags": [{ "tag": "chased", "count": 2 }, { "tag": "held through stop", "count": 1 }, { "tag": "no stop plan", "count": 1 }],
+    "emotionTags": [{ "tag": "calm", "count": 2 }, { "tag": "fomo", "count": 2 }, { "tag": "hope", "count": 1 }]
+  },
+  "expected_n3": {
+    "considered": 3, "closed": 3, "wins": 2, "losses": 1, "breakeven": 0, "winRatePct": 67,
+    "withR": 3, "avgR": 0.83, "avgHoldDays": 3.3,
+    "largestWinR": 2.0, "largestLossR": -1.0, "largestWinPct": null, "largestLossPct": null,
+    "mistakeTags": [{ "tag": "chased", "count": 1 }], "emotionTags": [{ "tag": "calm", "count": 1 }, { "tag": "fomo", "count": 1 }]
+  }
+}

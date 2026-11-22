@@ -68,7 +68,8 @@ from pydantic import BaseModel, Field
 # starts `uvicorn app:app`, so siblings are top-level modules — and it copies
 # files INDIVIDUALLY, so a new module that is not added to the Dockerfile is an
 # ImportError on boot, not a missing feature.
-from edge_scope import EDGE_TOKEN_HEADER, edge_token_targets
+from edge_scope import (EDGE_TOKEN_HEADER, SIGNED_OUT_BODY, SIGNED_OUT_STATUS, answered_signed_out,
+                        edge_token_targets, signed_out_enabled)
 
 log = logging.getLogger("chart-renderer")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -356,6 +357,25 @@ async def _drive(ctx, req: RenderRequest, meta: dict) -> bytes:
             except Exception:  # noqa: BLE001 — a render must never die for this
                 await route.continue_()
         await page.route(lambda u: edge_token_targets(u, req.url), _attach_edge_token)
+
+    # ── member-only calls are answered here (edge_scope.answered_signed_out) ────────────
+    # The page is rendered signed out, so `web` would answer each of these 401. Giving that same
+    # answer in the browser keeps about 12,000 requests a session off the one `web` process.
+    # A page object without `route` (a test double, an older Playwright) just skips this.
+    if signed_out_enabled():
+        async def _answer_signed_out(route):
+            try:
+                if answered_signed_out(route.request.url, req.url, route.request.method):
+                    await route.fulfill(status=SIGNED_OUT_STATUS, content_type="application/json",
+                                        body=SIGNED_OUT_BODY, headers={"x-uct-renderer": "signed-out"})
+                else:
+                    await route.continue_()
+            except Exception:  # noqa: BLE001 - a render must never die for this
+                await route.continue_()
+        try:
+            await page.route(lambda u: answered_signed_out(u, req.url), _answer_signed_out)
+        except Exception:  # noqa: BLE001
+            pass
 
     await page.goto(req.url, wait_until="load")
     try:

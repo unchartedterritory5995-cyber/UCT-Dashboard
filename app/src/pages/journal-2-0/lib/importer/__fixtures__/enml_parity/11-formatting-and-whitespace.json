@@ -1,0 +1,66 @@
+{
+  "enml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE en-note SYSTEM \"http://xml.evernote.com/pub/enml2.dtd\"><en-note><b><div>bold line one</div><div>bold line two</div></b><div><span style=\"font-weight: bold;\">B</span> <span style=\"text-decoration: underline;\">U</span> <i>I</i> <s>S</s> <span style=\"color: red;\">red</span></div><div>first line</div><div> leading space on a later line</div><div><br/></div><div>  <a href=\"https://www.evernote.com/l/Ab\">  Spaced   title  </a>  </div><p> a real paragraph</p><div>x <b> bold after a space</b></div><ul><li><div> first in item</div><div> second in item</div></li></ul></en-note>",
+  "id": "11-formatting-and-whitespace",
+  "note": {
+    "created": "20260101T090000Z",
+    "guid": "11111111-0000-4000-8000-000000000011",
+    "notebook": "Trading",
+    "notes": {},
+    "resources": [],
+    "title": "Formatting note"
+  },
+  "server": {
+    "blocks": [
+      {
+        "text": "bold line one",
+        "type": "paragraph"
+      },
+      {
+        "text": "bold line two",
+        "type": "paragraph"
+      },
+      {
+        "text": "B U I S red",
+        "type": "paragraph"
+      },
+      {
+        "text": "first line",
+        "type": "paragraph"
+      },
+      {
+        "text": " leading space on a later line",
+        "type": "paragraph"
+      },
+      {
+        "text": " ",
+        "type": "paragraph"
+      },
+      {
+        "text": " Spaced title",
+        "type": "paragraph"
+      },
+      {
+        "text": "a real paragraph",
+        "type": "paragraph"
+      },
+      {
+        "text": "x bold after a space",
+        "type": "paragraph"
+      },
+      {
+        "text": "first in item  second in item",
+        "type": "bulletList"
+      }
+    ],
+    "chips": [],
+    "images": [],
+    "links": [
+      {
+        "target": "note:Spaced title",
+        "text": " Spaced title"
+      }
+    ],
+    "notices": [],
+    "task_checked": []
+  }
+}

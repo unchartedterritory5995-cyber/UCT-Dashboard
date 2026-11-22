@@ -36,6 +36,7 @@ def test_committed_fixtures_exist_and_are_non_empty():
     input_files = sorted(fixtures_gen.FIXTURES_IN_DIR.glob("*.md")) + sorted(
         fixtures_gen.FIXTURES_IN_DIR.glob("*.html")
     )
+    input_files += sorted(fixtures_gen.ENML_FIXTURES_IN_DIR.glob("*.enml"))  # Plan E Task 4
     assert len(json_files) == len(input_files)
     for path in json_files:
         assert path.stat().st_size > 0

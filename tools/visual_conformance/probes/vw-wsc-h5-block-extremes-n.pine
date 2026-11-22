@@ -1,0 +1,47 @@
+//@version=6
+indicator("UCTPROBE_VW_WSC_H5_BLOCK_EXTREMES_N", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row H5
+// (docs/pine/capture-queue-2026-10-31-wsc-history.md section Q3). NEVER COMPILED ON TRADINGVIEW.
+// `ta.highest` / `ta.lowest` in an `if` block: vw-cond-window-extremes showed neither "last N bars"
+// nor "last N runs" (X02: always 3 runs back; X03: never expires). This prints, as a `bar_index`,
+// WHICH BAR the oldest end of the window is, for N = 2..6, under a period-3 guard
+// (`bar_index % 3 == 0`):
+//   L0N  ta.lowest(bar_index, N)              last N bars -> bar_index - N + 1 ; last N runs -> bar_index - 3 * (N - 1)
+//   H0N  0 - ta.highest(0 - bar_index, N)     the same oldest end, read through `ta.highest`
+// CHART: the row names none (the queue marks it NEEDS_CHART); vw-cond-window-extremes was read on
+// NYSE:RDDT 1D from the listing and AMEX:SPY 1D.
+
+float l2 = na
+float l3 = na
+float l4 = na
+float l5 = na
+float l6 = na
+float h2 = na
+float h3 = na
+float h4 = na
+float h5 = na
+float h6 = na
+if bar_index % 3 == 0
+    l2 := ta.lowest(bar_index, 2)
+    l3 := ta.lowest(bar_index, 3)
+    l4 := ta.lowest(bar_index, 4)
+    l5 := ta.lowest(bar_index, 5)
+    l6 := ta.lowest(bar_index, 6)
+    h2 := 0 - ta.highest(0 - bar_index, 2)
+    h3 := 0 - ta.highest(0 - bar_index, 3)
+    h4 := 0 - ta.highest(0 - bar_index, 4)
+    h5 := 0 - ta.highest(0 - bar_index, 5)
+    h6 := 0 - ta.highest(0 - bar_index, 6)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(l2, "L02_lowest_bar_index_2")
+plot(l3, "L03_lowest_bar_index_3")
+plot(l4, "L04_lowest_bar_index_4")
+plot(l5, "L05_lowest_bar_index_5")
+plot(l6, "L06_lowest_bar_index_6")
+plot(h2, "H02_highest_neg_bar_index_2")
+plot(h3, "H03_highest_neg_bar_index_3")
+plot(h4, "H04_highest_neg_bar_index_4")
+plot(h5, "H05_highest_neg_bar_index_5")
+plot(h6, "H06_highest_neg_bar_index_6")

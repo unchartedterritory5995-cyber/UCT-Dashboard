@@ -31,7 +31,7 @@ export default function LayoutLibraryDoor({ open, onClose }) {
   return (
     <Sheet open onClose={onClose} title={LIBRARY_TITLE} labelledByTitle variant="auto" maxWidth={960}>
       <LoadBoundary>
-        <Suspense fallback={<p role="status">Loading the community library…</p>}>
+        <Suspense fallback={<p role="status">Loading the Template library…</p>}>
           <TemplateGallery initialType="page_layout" onBack={onClose} backLabel="Close the library" />
         </Suspense>
       </LoadBoundary>

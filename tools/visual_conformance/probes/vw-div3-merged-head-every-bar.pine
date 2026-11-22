@@ -1,0 +1,17 @@
+// DIV-3 r1 (2026-11-09) - probe Q-DIV3-2 for the capture lane. Queue: docs/pine/capture-queue-2026-11-09-div3-merged-head.md
+// Chart: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE. Read the table back from the chart model
+// (each cell's col, row, text, colspan, rowspan), not from pixels, AND the study's status line.
+// Not compiled on TradingView yet.
+//
+//   E01  a `var` table whose header is written by `table.cell` and merged by `table.merge_cells` on EVERY bar.
+//        The reference says "An attempt to merge a cell that has already been merged will result in an error",
+//        so the second bar either errors (record the error text and the bar it names: that is the reading)
+//        or the first bar's `table.cell` rewrite undid the merge. Kept in its own file: an error here stops
+//        the whole study and would hide Q-DIV3-1's tables.
+//@version=6
+indicator("vw-div3-merged-head-every-bar", overlay = true)
+var t = table.new(position.top_right, 2, 2, border_width = 1)
+table.cell(t, 0, 0, "head " + str.tostring(bar_index))
+table.merge_cells(t, 0, 0, 1, 0)
+table.cell(t, 0, 1, "E01")
+plot(bar_index, "P01_bar_index_CONTROL")

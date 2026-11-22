@@ -137,7 +137,7 @@ export function DocBody({ body, headingBase = 2 }) {
 // passes false and the sheet shows Close alone.
 export default function TemplatePreview({
   open, onClose, title, subtitle, body, onUse, busy = false, loading = false, loadError = null,
-  showUse = true, useLabel = 'Use this template',
+  showUse = true, useLabel = 'Use', // S7 (one vocabulary): "Use this template" is "Use"
 }) {
   return (
     <Sheet open={open} onClose={onClose} title={title || 'Preview'} labelledByTitle variant="auto" maxWidth={640}>

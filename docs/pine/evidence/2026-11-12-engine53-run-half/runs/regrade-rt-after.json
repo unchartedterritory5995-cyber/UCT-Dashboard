@@ -1,0 +1,235 @@
+{
+ "base": "f552c13d09",
+ "lane": "runtime-on (objects-only pane armed, runtime pane on, permitted, every script graded)",
+ "totals": {
+  "captures": 152,
+  "errors": 0,
+  "v1": {
+   "DIVERGE": 31,
+   "MATCH": 96,
+   "INCONCLUSIVE": 13
+  },
+  "v2": {
+   "DIVERGE": 35,
+   "MATCH": 92,
+   "INCONCLUSIVE": 13
+  }
+ },
+ "perFamily": {
+  "lines": {
+   "v1": {
+    "MATCH": 105,
+    "DIVERGE": 1
+   },
+   "v2": {
+    "MATCH": 105,
+    "DIVERGE": 1
+   }
+  },
+  "labels": {
+   "v1": {
+    "MATCH": 106,
+    "DIVERGE": 0
+   },
+   "v2": {
+    "MATCH": 104,
+    "DIVERGE": 2
+   }
+  },
+  "boxes": {
+   "v1": {
+    "MATCH": 108,
+    "DIVERGE": 2
+   },
+   "v2": {
+    "MATCH": 108,
+    "DIVERGE": 2
+   }
+  },
+  "tables": {
+   "v1": {
+    "MATCH": 112,
+    "DIVERGE": 0
+   },
+   "v2": {
+    "MATCH": 112,
+    "DIVERGE": 0
+   }
+  },
+  "tableCells": {
+   "v1": {
+    "MATCH": 99,
+    "DIVERGE": 13
+   },
+   "v2": {
+    "MATCH": 99,
+    "DIVERGE": 13
+   }
+  },
+  "linefills": {
+   "v1": {
+    "MATCH": 0,
+    "DIVERGE": 0
+   },
+   "v2": {
+    "MATCH": 7,
+    "DIVERGE": 2
+   }
+  }
+ },
+ "moved": [
+  {
+   "file": "tests/fixtures/vendor/harness/liquidity-pools-spy-1d-2026-10-03.json",
+   "first": {
+    "family": "linefills",
+    "field": "count",
+    "vendor": 504,
+    "ours": 252,
+    "where": "linefills held"
+   },
+   "orderOnly": false
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/price-action-as-in-book-fibonacci-supportresistant-trendline-spy-1d-2026-10-03.json",
+   "first": {
+    "family": "linefills",
+    "field": "count",
+    "vendor": 261,
+    "ours": 49,
+    "where": "linefills held"
+   },
+   "orderOnly": false
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-call-site-history-rddt-1d-2026-10-01.json",
+   "first": {
+    "family": "labels",
+    "field": "text",
+    "vendor": "A12 block local bx[1]|NaN",
+    "ours": "A11 ta.cum(volume)|3540778",
+    "vendorId": 12,
+    "ourId": 11,
+    "where": "label #11"
+   },
+   "orderOnly": true
+  },
+  {
+   "file": "tests/fixtures/vendor/harness/vw-call-site-history-spy-1d-2026-10-01.json",
+   "first": {
+    "family": "labels",
+    "field": "text",
+    "vendor": "A12 block local bx[1]|NaN",
+    "ours": "A11 ta.cum(volume)|42926998",
+    "vendorId": 12,
+    "ourId": 11,
+    "where": "label #11"
+   },
+   "orderOnly": true
+  }
+ ],
+ "runHalf": {
+  "door": {
+   "declined:runtime:call-windowed-state": 2,
+   "minted": 6,
+   "declined:runtime:object-op": 2,
+   "declined:runtime:statement": 2,
+   "declined:runtime:request": 8,
+   "declined:lower-tf:store-unmeasured": 2,
+   "declined:pine:function": 6,
+   "declined:runtime:conditional-history": 4,
+   "declined:runtime:block-value": 2,
+   "declined:pine:request": 2,
+   "declined:pine:builtin": 2,
+   "declined:runtime:colour": 2,
+   "declined:runtime:input-state": 2
+  },
+  "bind": {
+   "served": 2,
+   "refused": 4
+  },
+  "bindCodes": {
+   "runtime:limit": 4
+  },
+  "minted": [
+   {
+    "file": "tests/fixtures/vendor/harness/atr-support-and-resistance-rddt-1d-2026-09-28.json",
+    "bind": "served",
+    "bindCode": null,
+    "before": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    },
+    "after": {
+     "v1": "MATCH",
+     "v2": "MATCH"
+    }
+   },
+   {
+    "file": "tests/fixtures/vendor/harness/atr-support-and-resistance-spy-1d-2026-10-03.json",
+    "bind": "served",
+    "bindCode": null,
+    "before": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    },
+    "after": {
+     "v1": "MATCH",
+     "v2": "MATCH"
+    }
+   },
+   {
+    "file": "tests/fixtures/vendor/harness/dual-view-htf-candlestick-patterns-theultimator5-rddt-1d-2026-09-28.json",
+    "bind": "refused",
+    "bindCode": "runtime:limit",
+    "before": {
+     "v1": "DIVERGE",
+     "v2": "DIVERGE"
+    },
+    "after": {
+     "v1": "DIVERGE",
+     "v2": "DIVERGE"
+    }
+   },
+   {
+    "file": "tests/fixtures/vendor/harness/dual-view-htf-candlestick-patterns-theultimator5-spy-1d-2026-10-03.json",
+    "bind": "refused",
+    "bindCode": "runtime:limit",
+    "before": {
+     "v1": "DIVERGE",
+     "v2": "DIVERGE"
+    },
+    "after": {
+     "v1": "DIVERGE",
+     "v2": "DIVERGE"
+    }
+   },
+   {
+    "file": "tests/fixtures/vendor/harness/volume-profile-rddt-1d-2026-09-28.json",
+    "bind": "refused",
+    "bindCode": "runtime:limit",
+    "before": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    },
+    "after": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    }
+   },
+   {
+    "file": "tests/fixtures/vendor/harness/volume-profile-spy-1d-2026-10-03.json",
+    "bind": "refused",
+    "bindCode": "runtime:limit",
+    "before": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    },
+    "after": {
+     "v1": "INCONCLUSIVE",
+     "v2": "INCONCLUSIVE"
+    }
+   }
+  ],
+  "movedToDiverge": []
+ }
+}

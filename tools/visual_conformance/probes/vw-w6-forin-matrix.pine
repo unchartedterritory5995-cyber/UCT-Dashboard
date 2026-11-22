@@ -1,0 +1,28 @@
+//@version=6
+indicator("vw-w6-forin-matrix")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row W6-F1 of
+// docs/pine/capture-queue-2026-11-06-w6-t6.md, whose shapes are W6-BREAKDOWN.md section 6's W6-F1 row
+// (branch docs/pine-w6-breakdown): "over a matrix (rows)". One shape of W6-F1 per file. No licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: `for row in m` over a 2 x 3 matrix: one pass per row (M01), each `row` an array of the row's
+// 3 cells (M02, summed over passes), and which row a pass is handed (M03: the last pass's row sum,
+// row 1 = close + 1 + 1)? Our runtime lane refuses it by name: "a walk over a matrix / map ..." (W6-F1;
+// first refused at the matrix creation, `runtime:array`). A00 is the control.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+m = matrix.new<float>(2, 3, 1.0)
+matrix.set(m, 1, 0, close)
+
+int passes = 0
+int cells = 0
+float lastSum = na
+for row in m
+    passes += 1
+    cells += array.size(row)
+    lastSum := array.sum(row)
+
+plot(passes, "M01_passes_over_matrix")
+plot(cells, "M02_row_sizes_summed")
+plot(lastSum, "M03_last_pass_row_sum")

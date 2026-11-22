@@ -231,7 +231,8 @@ plot(a)
     // skipped-call semantics). What replaces it is the part of the family that is
     // still genuinely unbuilt: history over an ARBITRARY EXPRESSION inside a
     // frame, which needs its own committed series exactly as it does at top level.
-    ['history over an expression INSIDE a function', `${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`, 'runtime:history-expression'],
+    // W4-T7: a function body's own list hoists; the NESTED list inside it refuses.
+    ['history over an expression INSIDE a function nested list', `${head}f(v) =>\n    r = 0.0\n    if v > 0\n        r := (v + 1)[1]\n    r\nplot(f(close))\n`, 'runtime:history-expression'],
     // ⚰️ THIS ASSERTED `runtime:call-with-state` UNTIL 2E SPLIT IT. The measured
     // population under that one label was three capabilities — a POINTWISE
     // builtin applied to a value, a WINDOWED one that needs a growing series, and

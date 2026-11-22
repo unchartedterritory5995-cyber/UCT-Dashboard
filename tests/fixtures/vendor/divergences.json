@@ -221,7 +221,95 @@
         "na-in-a-source-window-vs-recurrence-spy-1d-2026-09-08",
         "finite-window-na-policy-by-member-spy-1d-2026-09-08"
       ],
-      "_owner_ruling_required": "✅ RULED 2026-09-08: fix it. Corrected for the six members whose rule is proven, in BOTH lanes and in the runtime. The row stays `confirmed` rather than `refuted` because FOUR members are still on the pre-existing policy with their true rule unknown — see gap register PART Z, Z7.2 and Z7.3. A family is not vendor-complete while a third of it is unmeasured."
+      "_owner_ruling_required": "✅ RULED 2026-09-08: fix it. Corrected for the six members whose rule is proven, in BOTH lanes and in the runtime. The row stays `confirmed` rather than `refuted` because FOUR members are still on the pre-existing policy with their true rule unknown — see gap register PART Z, Z7.2 and Z7.3. A family is not vendor-complete while a third of it is unmeasured.",
+      "_highest_lowest_refuted_2026_11_15": "The sentence above, \"highest/lowest RESTART (the window begins again after a hole)\", is REFUTED. See `highest-lowest-restart-after-a-hole` (status corrected): ⚰️⚰️ REFUTED 2026-11-15 (engine HL), FOR `highest` / `lowest`. The S10 capture session measured `ta.highest(x, 10)` / `ta.lowest(x, 10)` over `x = bar_index % 50 == 30 ? na : close` on NYSE:RDDT (666 bars) and AMEX:SPY (8,507 bars) 1D from the listing, under //@version=5 and =6, alone and beside a `ta.stoch` (committed: `tests/fixtures/vendor/harness/vw-cs2-holed-highest-*-2026-11-15.json`; probes `tools/visual_conformance/probes/vw-cs2-holed-highest-{v5,v6,stoch-v6}.pine`). All 12 columns are the last n FINITE values, reaching back past the hole, with an answer ON the hole bar (RDDT bar 30: 47.7 / 40.88), `na` before bar n-1: 0 mismatches. RESTART misses 70 / 68 bars on RDDT and 824 / 1,034 on SPY. This witness's numbers are not reproduced by any later capture; why the 2026-09-08 reading came out RESTART is NOT established (candidates, untested: the 400-bar study window with its 100-row pre-history offset that probe's provenance records, and the eight other window calls sharing its script). Engine 57's builder found the same on S1's `vw-cs1-stoch-p2` P04 column. The S10 captures govern (coordinator ruling, 2026-11-15). ⚰️ Its `highestbars` / `lowestbars` readings (RESTART, 0 on the `na` bar) come from the same probe; engine HL first withheld their holed case by name (`arg-extreme:holed-window`), then S17 measured them (`highestbars-lowestbars-restart-and-zero-on-the-na-bar`): the last n finite values too, the offset in bars."
+    },
+    {
+      "id": "highest-lowest-restart-after-a-hole",
+      "shape": "`ta.highest` / `ta.lowest` over a source with `na` holes read a window that BEGAN AGAIN after the hole (and blanked on it); TradingView reads the last n FINITE values, reaching back past it.",
+      "status": "corrected",
+      "confidence": "measured",
+      "ours": "Until engine HL: `FINITE_WINDOW.highest/lowest.na = RESTART` (`interpret.js`, `runtime/vm.js`, `ast_interpret.WINDOW_NA`): reduce over the contiguous finite run ending at this bar, capped at n; `na` on the hole bar; one bar after a hole `highest == lowest ==` the lone value.",
+      "theirs": "MEASURED 2026-11-15 (S10): the last n FINITE values, however many bars that spans, fewer while fewer exist; `na` before bar n-1; an answer on the `na` bar itself. 12 of 12 columns, 0 mismatches, over 666 RDDT and 8,507 SPY 1D bars from the listing, v5 and v6, alone and beside a `ta.stoch`.",
+      "why_it_matters": "Any `cond ? x : na` source, any pivot or `valuewhen` series fed to `ta.highest` / `ta.lowest` (and everything built on them): RESTART drew `na` on every hole bar and a too-short window for the n-1 bars after it, so 70 / 68 of 666 RDDT bars and 824 / 1,034 of 8,507 SPY bars were wrong numbers or wrong blanks. 124 of the 565 held capture sources and 169 of the repo's 865 `.pine` files call them.",
+      "code": "interpret.js::NA.FINITE / rollingFinite / FINITE_WINDOW.highest,lowest / windowHoleMask; runtime/vm.js (policy `finite`); api/services/ast_interpret.py::NA_FINITE / _rolling_finite / window_hole_mask",
+      "probe": {
+        "case": "`x = bar_index % 50 == 30 ? na : close; plot(ta.highest(x, 10)); plot(ta.lowest(x, 10))`, NYSE:RDDT and AMEX:SPY 1D from the listing",
+        "under_ours": "RESTART: `na` on bar 30; bar 31 reads `highest == lowest == close[31]`; the window grows back over bars 31..39.",
+        "under_theirs": "last n finite: bar 30 keeps 47.7 / 40.88 (the window of bars 21..29); bar 31 reads bars 22..29 and 31; no bar is `na` after bar 8.",
+        "discriminates": "The hole bar alone separates them (a value vs `na`); over a capture RESTART misses 70 / 68 RDDT bars and last-n-finite misses 0."
+      },
+      "observation_ids": [
+        "finite-window-na-policy-by-member-spy-1d-2026-09-08",
+        "recurrent-composites-and-window-closure-spy-1d-2026-09-08"
+      ],
+      "measured": {
+        "by": "S10 capture session (TradingView, 2026-11-15); run dir %LOCALAPPDATA%/uct-vendor-batch/runs/s10-2026-11-15; the six probe captures are committed",
+        "on": "2026-11-15",
+        "captures": [
+          "vw-cs2-holed-highest-v5-rddt-1d-2026-11-15",
+          "vw-cs2-holed-highest-v5-spy-1d-2026-11-15",
+          "vw-cs2-holed-highest-v6-rddt-1d-2026-11-15",
+          "vw-cs2-holed-highest-v6-spy-1d-2026-11-15",
+          "vw-cs2-holed-highest-stoch-v6-rddt-1d-2026-11-15",
+          "vw-cs2-holed-highest-stoch-v6-spy-1d-2026-11-15"
+        ],
+        "how": "Each captured column against both rules over the capture's own bars (`engineHlHoles.test.js`, `tests/test_engine_hl_holes.py`).",
+        "restart_misses": {
+          "rddt": {
+            "highest": 70,
+            "lowest": 68
+          },
+          "spy": {
+            "highest": 824,
+            "lowest": 1034
+          }
+        },
+        "last_n_finite_misses": 0
+      },
+      "retires": "⚰️⚰️ REFUTED 2026-11-15 (engine HL), FOR `highest` / `lowest`. The S10 capture session measured `ta.highest(x, 10)` / `ta.lowest(x, 10)` over `x = bar_index % 50 == 30 ? na : close` on NYSE:RDDT (666 bars) and AMEX:SPY (8,507 bars) 1D from the listing, under //@version=5 and =6, alone and beside a `ta.stoch` (committed: `tests/fixtures/vendor/harness/vw-cs2-holed-highest-*-2026-11-15.json`; probes `tools/visual_conformance/probes/vw-cs2-holed-highest-{v5,v6,stoch-v6}.pine`). All 12 columns are the last n FINITE values, reaching back past the hole, with an answer ON the hole bar (RDDT bar 30: 47.7 / 40.88), `na` before bar n-1: 0 mismatches. RESTART misses 70 / 68 bars on RDDT and 824 / 1,034 on SPY. This witness's numbers are not reproduced by any later capture; why the 2026-09-08 reading came out RESTART is NOT established (candidates, untested: the 400-bar study window with its 100-row pre-history offset that probe's provenance records, and the eight other window calls sharing its script). Engine 57's builder found the same on S1's `vw-cs1-stoch-p2` P04 column. The S10 captures govern (coordinator ruling, 2026-11-15). ⚰️ Its `highestbars` / `lowestbars` readings (RESTART, 0 on the `na` bar) come from the same probe; engine HL first withheld their holed case by name (`arg-extreme:holed-window`), then S17 measured them (`highestbars-lowestbars-restart-and-zero-on-the-na-bar`): the last n finite values too, the offset in bars.",
+      "decision": {
+        "ruled": "Coordinator ruling 2026-11-15 (owner-delegated): the S10 witness governs; never serve wrong numbers, exact where witnessed, otherwise withhold by name.",
+        "what_changed": "`highest` / `lowest` are `NA.FINITE` in both lanes and the runtime VM. Off the listing a window of fewer than n finite values is withheld by name (`window-extreme:left-edge`); `highestbars` / `lowestbars` followed after S17 (`highestbars-lowestbars-restart-and-zero-on-the-na-bar`).",
+        "what_would_reopen_it": "A capture of `ta.highest` / `ta.lowest` over a holed source that is not the last n finite values, or one that pins the short-window (warm-up) case off the listing. (`ta.highestbars` / `ta.lowestbars`: S17 settled them.)"
+      },
+      "correctedIn": "engine HL, branch `fix/pine-engine-highest-holes` (SCRIPT_ENGINE_VERSION master + 1 at merge)"
+    },
+    {
+      "id": "highestbars-lowestbars-restart-and-zero-on-the-na-bar",
+      "shape": "`ta.highestbars` / `ta.lowestbars` over a source with `na` holes read a window that BEGAN AGAIN after the hole and answered 0 on the hole bar; TradingView reads the last n FINITE values and counts the offset in BARS, so it answers on the hole bar with an offset that can reach past n - 1.",
+      "status": "corrected",
+      "confidence": "measured",
+      "ours": "Until this fix: `FINITE_WINDOW.highestbars/lowestbars.na = RESTART` with `naCurrent: 0` (`interpret.js`, `runtime/vm.js`, `ast_interpret.WINDOW_NA` / `WINDOW_NA_CURRENT`). Engine HL (#1332) then withheld every bar whose window held such a hole (`arg-extreme:holed-window`; 130 of 666 RDDT bars blank, the runtime declined), where master had drawn 0 on the hole bar and a restarted window after it.",
+      "theirs": "MEASURED 2026-11-15 (S17): the last n FINITE values, however many bars that spans, ties to the older bar, the offset counted in BARS (bar 30, the hole: highestbars -1, lowestbars -10; bar 37: lowestbars -10); `na` before bar n-1. 4 of 4 columns, 0 mismatches, over 666 RDDT 1D bars from the listing.",
+      "why_it_matters": "Any `cond ? x : na` source fed to `ta.highestbars` / `ta.lowestbars` (pivot, swing and channel scripts that index `high[-ta.highestbars(...)]`): master drew 0 on every hole bar and a too-near bar after it, engine HL withheld those bars; TradingView draws an offset on all of them.",
+      "code": "interpret.js::FINITE_WINDOW.highestbars,lowestbars (`na: NA.FINITE, arg: true`) / rollingFinite; runtime/vm.js (policy `finite`, the `arg` ring); api/services/ast_interpret.py::WINDOW_NA / WINDOW_ARG / _rolling_finite",
+      "probe": {
+        "case": "`x = bar_index % 50 == 30 ? na : close; plot(ta.highestbars(x, 10)); plot(ta.lowestbars(x, 10))`, NYSE:RDDT 1D from the listing (probe `tools/visual_conformance/probes/vw-cs2-holed-highestbars.pine`)",
+        "under_ours": "RESTART with 0 on the `na` bar: bar 30 reads 0 / 0; bar 31 reads 0 / 0 (a window of one bar); the window grows back over bars 31..39.",
+        "under_theirs": "last n finite, offset in bars: bar 30 reads -1 / -10 (bars 20..29); bar 31 reads 0 / -10 (bars 21..29 and 31).",
+        "discriminates": "The hole bar alone separates them (0 vs -1 / -10); over the capture the last-n-finite rule with bar offsets misses 0 of 4 x 666 values."
+      },
+      "observation_ids": [
+        "finite-window-na-policy-by-member-spy-1d-2026-09-08"
+      ],
+      "measured": {
+        "by": "S17 capture session (TradingView, 2026-11-15); run dir %LOCALAPPDATA%/uct-vendor-batch/runs/s17-2026-11-15; the probe capture is committed",
+        "on": "2026-11-15",
+        "captures": [
+          "vw-cs2-holed-highestbars-rddt-1d-2026-11-15"
+        ],
+        "how": "Each captured column against the rule over the capture's own bars, and each lane's column against the capture (`engineHlHoles.test.js`, `tests/test_engine_hl_holes.py`).",
+        "holed_window_bars": 130,
+        "last_n_finite_bar_offset_misses": 0
+      },
+      "retires": "⚰️⚰️ REFUTED 2026-11-15 (S17), FOR `highestbars` / `lowestbars`: the 2026-09-08 reading (RESTART, 0 on the `na` bar, 36 of 36) from the same probe S10 refuted for `highest` / `lowest`. Why that probe read 0 is NOT established (the same untested candidates as `highest-lowest-restart-after-a-hole`).",
+      "decision": {
+        "ruled": "Coordinator ruling 2026-11-15 (owner-delegated): the S17 witness governs; exact where witnessed.",
+        "what_changed": "`highestbars` / `lowestbars` are `NA.FINITE` with `arg: true` in both lanes and the runtime VM; `arg-extreme:holed-window` and the RESTART policy are gone (no member reads it). Off the listing a window of fewer than n finite values is withheld by name (`window-extreme:left-edge`), as for `highest` / `lowest`.",
+        "what_would_reopen_it": "A capture of `ta.highestbars` / `ta.lowestbars` over a holed source that is not the last n finite values with a bar-counted offset."
+      },
+      "correctedIn": "engine HL, branch `fix/pine-engine-highest-holes` (SCRIPT_ENGINE_VERSION master + 1 at merge)"
     },
     {
       "id": "recurrent-composites-book-a-zero-or-die-on-na",
@@ -265,9 +353,10 @@
     },
     {
       "id": "argextreme-ties-resolve-to-the-newest-bar",
-      "shape": "`ta.highestbars`/`ta.lowestbars` returned the most recent tied extreme; the vendor returns the oldest.",
-      "status": "confirmed",
+      "shape": "`ta.highestbars`/`ta.lowestbars` returned the most recent tied extreme; the vendor returns the oldest. ⚰️ REFUTED 2026-11-15: TradingView names the NEWEST tied bar, which is what this engine serves for every Pine source (engine 56).",
+      "status": "refuted",
       "confidence": "measured",
+      "refutedBy": "capture `vw-cs2-highestbars-computed-v6-rddt-1d-2026-11-15` (S10; probe `tools/visual_conformance/probes/vw-cs2-highestbars-computed-v6.pine`, NYSE:RDDT 1D from the listing, Pine v6): over `vt = bar_index % 3 == 0 ? 1.0 : 2.0` every 4-bar window holds a tie, and from bar 3 on TradingView reads `ta.highestbars(vt, 4)` -1, 0, 0 and `ta.lowestbars(vt, 4)` 0, -1, -2 by `bar_index % 3` — the NEWEST tied bar (oldest-wins would read -2, -3 for highestbars). The same at v4 / v5 (S1, `runs/objects-lane/S1-RULES-2026-11-14.md`) and over bar prices (the builtin Aroon, S5; `pivot-high-low-points`, v4). The 2026-09-08 reading below (380 ok / 0 bad for oldest) is not reproduced by any of these; its probe's offset convention is the unresolved suspect. Engine 56 serves the newest over every Pine source (`tieNewest`, `interpret.js::isBarPriceTree`), railed on these numbers in `engine56Values.test.js`.",
       "ours": "`windowArgExtreme` walked BACKWARD from the newest bar and returned the first match -- the smallest distance back. It also used PROPAGATE for `na` and therefore blanked on a hole.",
       "theirs": "Ties resolve to the OLDEST occurrence (380ok/0bad against 193ok/187bad for newest, 244 of the agreeing bars carrying no `na` at all). The `na` policy is RESTART, and the answer on an `na` bar is 0 rather than blank -- a restarted window has this bar as its only candidate, so the OFFSET is defined where the VALUE is not.",
       "why_it_matters": "⚠️ RE-MEASURED 2026-09-09 ON REAL SPY OHLCV (2,031 daily bars, the `ema-close20-2026-09-06` observation): the tie-break moves **0.4%** of `high` windows at n=5 and **0.6%** at n=14/20/25, and **0.3%** of `low` windows at every length. `aroon` moves with them — 0.6% of bars at both 14 and 25, median 7.1 points on a 0-100 scale, max 14.3. ⚰️⚰️ THIS SAID \"6-10% of bars\" AND IT WAS WRONG BY AN ORDER OF MAGNITUDE, at the very lengths it named. Repeated highs in a real price series are rarer than that paragraph assumed. ⛔ THE RARITY IS THE ARGUMENT FOR THE RULE, NOT AGAINST IT: it is exactly why two lanes agreed on the wrong convention for so long and why the committed corpus could not see it — a defect that shows on 1 bar in 200 is one nobody finds by looking. `aroon` is built on these two and moves with them.",
@@ -595,6 +684,32 @@
         "_where": "Full readings in `uncharted-volume-v2-agen-1d-hve-2026-09-12.json::volume_source_boundary`."
       },
       "_T6_is_unaffected": "⭐ T6's comparison is of FLOAT series over the last 300 bars and is not touched by this row. The float columns are computed from volume, so a volume delta reaches them — but at 1e-6 on recent bars, four orders of magnitude under anything T6 measures, and the ~8e-4 deltas here are on individual bars rather than on a 50-bar average. Said plainly so nobody blocks T6 on a provenance question that does not gate it."
+    },
+    {
+      "id": "transcendental-composition-differs-by-one-ulp",
+      "shape": "stateless",
+      "status": "confirmed",
+      "confidence": "measured",
+      "ours": "`math.sin` and `math.asin` EACH agree with TradingView to within one ulp on every bar (vw-bi-sin S1 `math.sin(z)` maxRel 2.21e-16, S3 `math.sin(math.asin(y * 0.999))` maxRel 3.90e-16, S7 `math.sin(y)` 2.29e-16; `math.asin` alone bit for bit, vw-bi-asin A1). Their COMPOSITION, read through a residual amplified by 1e18, lands ONE ulp (1.11e-16) away from TradingView's on 123 of 8,512 AMEX:SPY daily bars (1.4%), scattered.",
+      "theirs": "On those 123 bars TradingView's round trip `math.sin(math.asin(y * 0.999))` returns `y * 0.999` exactly, so the amplified residual reads 0 where ours reads -111.02230246251565 (one ulp x 1e18; -55.51 on a half-ulp case).",
+      "why_it_matters": "SCOPE: only a check that AMPLIFIES a last-bit residual (the S2 shape, `(f(g(x)) - x) * 1e18`) or compares such a composition for EXACT equality can see it. No plotted value, level, cross or alert moves by it: every un-amplified series agrees to within an ulp. Coordinator ruling 2026-11-22: NO ENGINE CHANGE (TradingView's libm is not worth chasing bit for bit). Recorded so that no future grade reads an S2-style amplified check as a regression, and so this row, not a fix, is what a delta of exactly k ulps x the amplifier on such a check points to.",
+      "code": "the engine evaluates `math.sin` / `math.asin` with the platform's IEEE-754 Math.sin / Math.asin (both lanes alike); the probe is tools/visual_conformance/probes/vw-bi-sin.pine",
+      "probe": {
+        "case": "`(math.sin(math.asin(y * 0.999)) - y * 0.999) * 1e18` with `y = math.sin(bar_index * 0.7319) * 1.0000001`, every bar of AMEX:SPY 1D (vw-bi-sin S2, Q-BI-SIN-a)",
+        "under_ours": "-111.02230246251565 (or -55.51) on 123 of 8,512 bars, 0 on the rest",
+        "under_theirs": "0 on every bar",
+        "discriminates": "the residual is exactly zero under an exact round trip and exactly k ulps x 1e18 under a one-ulp one, so the two answers are distinct numbers on the same bar; the un-amplified S3 (the round trip's own value) agrees within an ulp, which is what scopes the row to amplified checks"
+      },
+      "observation_ids": [],
+      "measured": {
+        "by": "capture vw-bi-sin-spy-1d-2026-11-21 (Q-BI-SIN-a, docs/pine/capture-queue-2026-11-21-sin.md), graded on the production lane 2026-11-22: 8 of 9 plots MATCH, S2 DIVERGE on 123 of 8,512 bars, first at bar 113 (t 742570200)",
+        "worst_abs_delta": 111.02230246251565,
+        "shared_bars_compared": 8512
+      },
+      "decision": {
+        "ruled": "2026-11-22 — KEEP OURS. No engine change and no withhold of `math.sin`: TradingView's libm is not chased bit for bit (Pine coordinator).",
+        "why": "sin and asin each match within an ulp; only the composition is one ulp off on 1.4% of bars, visible only because the check multiplies by 1e18; no member picture moves unless a script tests such values for exact equality"
+      }
     }
   ]
 }

@@ -17,7 +17,8 @@ What the two layers each own
   lowercase digit-free route word survives, anything else is `:id`, and the
   token position of the four share routes is `:id` whatever it looks like —
   share tokens ride in the PATH, `/share/n/<token>`), credential-shaped values
-  go, every digit in a text field becomes `#`, control characters go, every
+  go, every digit in a text field becomes `#` (except a frame's position in our own
+  built code, `_OWN_POSITION`), control characters go, every
   field is capped in UTF-8 BYTES, and the row carries a HASH of the rate key,
   never a raw IP.
   - Inside a TEXT field (message, stack), a URL's final segment is kept when it
@@ -340,8 +341,23 @@ _CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 _DIGITS = re.compile(r"\d+")
 
 
-def scrub_text(text: Any) -> str:
-    """The transport scrub for a free-text field. Every pattern here is linear."""
+# ⭐ THE ONE DIGIT EXCEPTION, STACK FIELDS ONLY (2026-11-11, desktop speed plan 9.7): a frame's position
+# in THIS SITE'S OWN built code, `https://uctintelligence.com/assets/<chunk>.js:<line>:<col>`, keeps its
+# digits. It names where the code is (a build artifact and an offset in it), never anything a member
+# wrote, and with it masked no report can be traced to a source line (`tools/resolve_client_error.mjs`
+# rebuilds that exact build with source maps). Only our own hosts, only a file directly under /assets/,
+# only in `stack` and `component_stack`: a message never gets it. The browser applies the same rule
+# (`ownAssetPosition` in app/src/lib/errorBeacon.js); this copy is the transport layer's, for a client
+# that skipped its own scrub.
+_OWN_POSITION = re.compile(
+    r"https://(?:www\.)?uctintelligence\.com/assets/[\w.-]{1,120}\.m?js:\d{1,7}:\d{1,7}(?![\w:.])",
+    re.ASCII,
+)
+
+
+def scrub_text(text: Any, *, keep_own_positions: bool = False) -> str:
+    """The transport scrub for a free-text field. Every pattern here is linear.
+    `keep_own_positions` (stack fields only): see `_OWN_POSITION`."""
     if not isinstance(text, str) or not text:
         return ""
     text = _CONTROL.sub("", text)
@@ -350,7 +366,19 @@ def scrub_text(text: Any) -> str:
     text = _ABS_PATH.sub(lambda m: m.group(1) + scrub_url(m.group(2).replace("\\", "/")), text)
     text = _QUERY_TAIL.sub("[removed]", text)
     text = _CREDENTIAL.sub(lambda m: m.group(1) + "=[removed]", text)
-    return _DIGITS.sub("#", text)
+    if not keep_own_positions:
+        return _DIGITS.sub("#", text)
+    # Hold each own position behind a NUL (never in the text: _CONTROL removed every one), mask the
+    # rest, put them back in order.
+    kept: list[str] = []
+
+    def _hold(m: "re.Match[str]") -> str:
+        kept.append(m.group(0))
+        return "\x00"
+
+    masked = _DIGITS.sub("#", _OWN_POSITION.sub(_hold, text))
+    it = iter(kept)
+    return re.sub("\x00", lambda _m: next(it, ""), masked)
 
 
 def scrub_page(page: Any) -> str:
@@ -478,8 +506,8 @@ def _scrubbed(b: dict[str, Any]) -> dict[str, Any]:
         "name": name if _NAME.fullmatch(name) else "Error",
         "message": message,
         "template": template,
-        "stack": _cap_bytes(scrub_text(b["stack"]), CAP_STACK),
-        "component_stack": _cap_bytes(scrub_text(b["component_stack"]), CAP_COMPONENT_STACK),
+        "stack": _cap_bytes(scrub_text(b["stack"], keep_own_positions=True), CAP_STACK),
+        "component_stack": _cap_bytes(scrub_text(b["component_stack"], keep_own_positions=True), CAP_COMPONENT_STACK),
         "page": _cap_bytes(scrub_page(b["page"]), CAP_PAGE),
         "client_ts": b["client_ts"],
     }

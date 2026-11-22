@@ -4,6 +4,7 @@ import useSWR, { mutate as globalMutate, useSWRConfig } from 'swr'
 import { invalidateNoteLinkTarget } from '../lib/noteLinkTargetsBatch'
 import { settleNoteWrite } from '../lib/offline/settleNoteWrite'
 import { notebookSchemaHeaders } from '../lib/notebookSchema'
+import { noteReadKey } from '../lib/noteReadKey'
 import {
   NOTE_TAGS_KEY, rememberBounded, stampListRead, tagReadServes, tagSignature,
 } from './useJ2NoteTags'
@@ -184,6 +185,10 @@ export default function useJ2Notes({
 
   return {
     notes,
+    // Audit 2026-11-05, spec S4 (B18): how many of the member's notes the meaning search has not
+    // reached yet -- sent only for an armed, meaning-shaped search that found nothing by meaning.
+    meaningPending: Number.isFinite(data?.meaningPending) ? data.meaningPending : null,
+    meaningPendingCapped: data?.meaningPendingCapped === true,
     // The true total behind this filter set — see the comment above.
     total,
     hasMore,
@@ -204,7 +209,7 @@ export default function useJ2Notes({
 }
 
 export function useJ2Note(noteId) {
-  const url = noteId ? `/api/j2/notes/${noteId}` : null
+  const url = noteReadKey(noteId)
   const { data, error, isLoading, mutate } = useSWR(url, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,

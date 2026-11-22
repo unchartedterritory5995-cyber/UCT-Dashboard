@@ -13,6 +13,7 @@ import { useLayoutEffect } from 'react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { AuthContext } from '../../../context/AuthContext'
 
 const DRAFT = '(close > sma(close, 50))'
@@ -50,7 +51,7 @@ describe('🔴 the first paint of a sheet mounted with a draft', () => {
     const seen = mountWith({ initialMode: 'picker', initialDraft: { source: DRAFT } })
     expect(seen).toEqual([DRAFT])
     // …and the settled sheet agrees: the open-reset wrote the same value, it did not replace it.
-    expect(screen.getByLabelText('Formula')).toHaveValue(DRAFT)
+    expect(formulaBox()).toHaveValue(DRAFT)
   })
 
   it('CONTROL: with no draft the first paint is the empty box, so the probe can tell the two apart', () => {

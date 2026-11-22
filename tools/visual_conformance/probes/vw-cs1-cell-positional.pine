@@ -1,0 +1,19 @@
+//@version=6
+indicator("UCTPROBE_VW_CS1_CELL_POSITIONAL", overlay = true)
+
+// PROVENANCE: written 2026-11-14 for the Pine parity programme, capture session S1
+// (objects-lane REMAINING-SCOPE-2026-11-14 section 4; plan row 15, Q-S1-cell).
+// table.cell written positionally (Pine order: text, width, height, text_color, text_halign, text_valign,
+// text_size, bgcolor, tooltip) at 10, 11 and 12 arguments, the method form, and the named control. Each
+// cell's held record names its size, background and tooltip, so the slot order is read off the capture.
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+var table t = table.new(position.top_right, 2, 4, border_width = 1)
+if barstate.islast
+    table.cell(t, 0, 0, "P10", 0, 0, color.white, text.align_left, text.align_top, size.large)
+    table.cell(t, 0, 1, "P11", 0, 0, color.white, text.align_left, text.align_top, size.large, color.purple)
+    table.cell(t, 0, 2, "P12", 0, 0, color.white, text.align_left, text.align_top, size.large, color.purple, "tip12")
+    table.cell(t, 0, 3, "N12", width = 0, height = 0, text_color = color.white, text_halign = text.align_left, text_valign = text.align_top, text_size = size.large, bgcolor = color.purple, tooltip = "tipN")
+    t.cell(1, 0, "M12", 0, 0, color.yellow, text.align_right, text.align_bottom, size.small, color.navy, "tipM")
+    table.cell(t, 1, 1, "P10s", 0, 0, color.black, text.align_center, text.align_center, size.tiny)
+plot(close, "A00_close_CONTROL")

@@ -32,6 +32,11 @@ import { OFFLINE_FLAG_KEY } from './offlineFlag'
 import { dbNameFor } from './notebookDb'
 import { drainOutbox } from './outboxDrain'
 import { NOTEBOOK_SCHEMA_HEADER } from '../notebookSchema'
+import { preloadLazyChunks, NOTE_EDITOR_CHUNKS } from '../../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTE_EDITOR_CHUNKS)
 
 vi.setConfig({ testTimeout: 60_000 })
 
@@ -204,6 +209,19 @@ describe.each([
 })
 
 // ── 3 ───────────────────────────────────────────────────────────────────────
+
+// Tier 2 fix round 1 (review (e)): Tier 1a made version history load on its FIRST OPEN (NoteEditorPage mounts the
+// panel only once `historyEverOpen`), so the rail's stand-in button exists only after History is opened -- through
+// the real door, More note actions > Version history, as a member does. Opened OUTSIDE act (state set inside an
+// async act is not rendered until it ends), then the restore is pressed inside it, as before.
+async function openHistoryRail() {
+  if (!screen.queryByRole('button', { name: 'rail: restore a version' })) {
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Version history' }))
+  }
+  return screen.findByRole('button', { name: 'rail: restore a version' })
+}
+
 describe('a reconcile merge, then a later swap, then an Undo back across both', () => {
   it('⭐⭐ merge W (online), version restore, Undo across the restore, Undo the merge ⇒ W is kept', async () => {
     await openTheNote()
@@ -218,7 +236,7 @@ describe('a reconcile merge, then a later swap, then an Undo back across both', 
     server.note.bodyJson = doc(para('a restored version'))
     server.note.updatedAt = RESTORED_AT
     versionGate.note = { ...server.note }
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'rail: restore a version' })); await settleIdb(6) })
+    { const rail = await openHistoryRail(); await act(async () => { fireEvent.click(rail); await settleIdb(6) }) }
     await waitFor(async () => expect(await onScreen()).toContain('a restored version'))
     await sit(3)
     await undo()                                         // across the restore: the merged page is back
@@ -308,7 +326,7 @@ describe('m4: a version restore over a DIRTY record never pins it', () => {
     server.note.bodyJson = doc(para('a restored version'))
     server.note.updatedAt = RESTORED_AT
     versionGate.note = { ...server.note }
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'rail: restore a version' })); await settleIdb(6) })
+    { const rail = await openHistoryRail(); await act(async () => { fireEvent.click(rail); await settleIdb(6) }) }
     await waitFor(async () => expect(await onScreen()).toContain('a restored version'))
     await sit(3)
     await edit((c) => c.focus('end').insertContent(' NEWER-WORDS'))

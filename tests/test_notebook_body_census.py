@@ -103,9 +103,10 @@ def test_the_census_is_not_vacuous(rows):
     assert upload.reads[0].how == "capped" and upload.reads[0].limit_bytes == 25 * 1024 * 1024
     email = by_key[("POST", "/api/j2/inbound-email")]
     assert email.reads[0].how == "stream-loop" and email.reads[0].limit_bytes == 36 * 1024 * 1024
-    gallery = by_key[("POST", "/api/j2/template-gallery")]
-    assert gallery.reads[0].call == "read_capped_body" and gallery.gate_position == 0
-    assert gallery.session_position is not None and gallery.reads[0].position > gallery.session_position
+    # a flag-gated capped door (the gallery was the example until its gate was retired as always on, 2026-11-04)
+    tokens = by_key[("POST", "/api/j2/personal/tokens")]
+    assert tokens.reads[0].call == "read_capped_body" and tokens.gate_position == 0
+    assert tokens.session_position is not None and tokens.reads[0].position > tokens.session_position
 
 
 def test_every_route_under_the_journal_prefix_is_in_the_family(real_app):

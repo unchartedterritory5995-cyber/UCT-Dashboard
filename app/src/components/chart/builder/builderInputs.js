@@ -23,6 +23,7 @@
 // whole of its life.
 
 import { declaredInputs } from '../engine/ast/lint'
+import { checkBudget, DEFAULT_BUDGET } from '../engine/ast/budget'
 import { LINE_WIDTH_HARD_MAX } from '../engine/defSchema'
 
 /** ⭐ THE WIDTH CONTROL'S CEILING: 10, or a script's own `linewidth` when larger.
@@ -392,6 +393,19 @@ function displacementRefusal(key, entry) {
     + 'TO CHANGE IT: change the value in the script and paste it again.' }
 }
 
+/** ⭐ Engine 66 (#1473) (bt) — the one sentence for "this knob would cost the script its install".
+ *  Its own sentence for the same reason `displacementRefusal` has one: the default is folded in
+ *  and the column is right, but the cause is the install budget, not a window or an offset. */
+function budgetRefusal(key, entry) {
+  return { budget: true, reason: `\`${key}\` is read by a column that, with its inputs live as knobs, `
+    + 'names more distinct series than the install budget holds (`budget:series`, cap '
+    + `${DEFAULT_BUDGET.maxSeriesRefs}: each live input counts as one, beside each price and clock column `
+    + 'it reads), and one column over the budget stops the WHOLE script installing. The default '
+    + `(\`${entry.folded}\`) is folded in, so the column is drawn as the author's defaults draw it; `
+    + 'it is the per-chart KNOB that is given back so the script installs. '
+    + 'TO CHANGE IT: change the value in the script and paste it again.' }
+}
+
 /** The Formula-tab's OWN pre-check message for the identical fact
  *  `windowRefusal` names — SAME detector (`formulaNameRoles`'s `literalOnly`
  *  set, read by the caller), DIFFERENT reader.
@@ -467,6 +481,11 @@ function positionVerdict(source, candidates) {
     // from the formula too, and only `pine.js` saw where it went.
     if (entry && entry.displacementBound) {
       return displacementRefusal(key, entry)
+    }
+    // ⭐ Engine 66 (#1473) (bt) — and a third: an input given back to the install budget
+    // (`memberInputTranslation`) is folded out of the formula by a LATER pass's choice.
+    if (entry && entry.budgetBound) {
+      return budgetRefusal(key, entry)
     }
     if (literalOnly.has(key)) {
       return windowRefusal(key, entry)
@@ -630,6 +649,7 @@ export function inputsFromFolded(folded, source) {
         ...d.entry,
         ...(why.window ? { windowBound: true } : {}),
         ...(why.displacement ? { displacementBound: true } : {}),
+        ...(why.budget ? { budgetBound: true } : {}),
         reason: why.reason,
       })
       continue
@@ -692,7 +712,7 @@ export function inputsFromFolded(folded, source) {
  * told their knob does nothing, instead of that a length cannot be a knob here
  * and why. Only pass 1 was in a position to find out.
  */
-function annotate(translation, windowBound, displacementBound = new Set()) {
+function annotate(translation, windowBound, displacementBound = new Set(), budgetBound = new Set()) {
   return (translation.outputs || []).map((o) => {
     // ⛔ H4 — a REFUSED row's handoffs too (`_offsetWritten`, `_authorHidden`):
     // the runtime document reads them, and the bare spread dropped both.
@@ -703,8 +723,10 @@ function annotate(translation, windowBound, displacementBound = new Set()) {
       if (!e.name) return e
       const w = windowBound.has(e.name)
       const d = displacementBound.has(e.name)
-      return (w || d)
-        ? { ...e, ...(w ? { windowBound: true } : {}), ...(d ? { displacementBound: true } : {}) }
+      const b = budgetBound.has(e.name)
+      return (w || d || b)
+        ? { ...e, ...(w ? { windowBound: true } : {}), ...(d ? { displacementBound: true } : {}),
+          ...(b ? { budgetBound: true } : {}) }
         : e
     })
     const { inputs, skipped } = inputsFromFolded(folded, o.formula)
@@ -816,11 +838,14 @@ export function memberInputTranslation(translate, source, opts = {}) {
   // round (an offender is only ever removed), so it cannot cycle; the cap is a
   // belt on top of that, and the fallback — declaring NOTHING — is the shipped
   // behaviour from before member inputs existed and is closed by construction.
+  // the inputs given back to the install budget below; read at each call, so every later
+  // translation (the colour and guard passes included) carries the flag on those entries
+  const budgetBound = new Set()
   const withDeclarations = (names, extra = null) => {
     const t = names.length
       ? translate(source, { ...opts, ...(extra || {}), declareInputs: names })
       : translate(source, opts)
-    return { ...t, outputs: annotate(t, windowBound, displacementBound), declaredNames: names }
+    return { ...t, outputs: annotate(t, windowBound, displacementBound, budgetBound), declaredNames: names }
   }
 
   let attempt = withDeclarations(declarable)
@@ -862,6 +887,44 @@ export function memberInputTranslation(translate, source, opts = {}) {
         }
         attempt = best
       }
+    }
+  }
+  // ⭐⭐ Engine 66 (#1473) (bt) — A KNOB MAY NEVER COST THE SCRIPT ITS INSTALL EITHER. A declared
+  // input is a `series` leaf named for the input (`pine.js`, `inputName`), and the install budget
+  // counts DISTINCT series names (`budget.js::seriesRefs`, cap `maxSeriesRefs`), so a column the
+  // author's defaults draw within the cap can measure over it once its knobs are live — and the
+  // registry then refuses the WHOLE definition (`nativeRegistry.js`, `compute.budget`).
+  // ⚰️ MEASURED on `corpus/committed/session-hilo__WM2g5GtC4h.pine`: once a wrapping session
+  // ("1800-1500") translated, its `s_useSess` / `s_incWE` / `s_lines` toggles went live, its two
+  // plots measured 9 distinct series against 8, and a script attached on master stopped
+  // installing on both lanes (the coverage ratchet named it LOST).
+  // So an output over the series budget gives back the knobs it reads, folded to the author's
+  // defaults (what TradingView draws until the member moves them; on master the same knobs were
+  // folded), and only when that brings fewer outputs over the cap; each is named in the row's
+  // skipped inputs (`budgetRefusal`). ⛔ ONLY `budget:series`: no other cap is a count a knob adds
+  // to. ⛔ A script no output of which is over the cap is untouched, so this can only turn a
+  // definition the registry refuses into one it installs.
+  {
+    const overSeries = (o) => {
+      if (!o || o.refusal || !o.ast) return false
+      let b = null
+      try { b = checkBudget(o.ast) } catch { return false }
+      return !!b && !b.ok && b.guard === 'budget:series'
+    }
+    for (let round = 0; round < 4; round += 1) {
+      const over = (attempt.outputs || []).filter(overSeries)
+      if (!over.length) break
+      const read = new Set(over.flatMap((o) => [...seriesNamesOf(o.ast)]))
+      const give = attempt.declaredNames.filter((n) => read.has(n))
+      if (!give.length) break
+      for (const n of give) budgetBound.add(n)
+      const trial = withDeclarations(attempt.declaredNames.filter((n) => !read.has(n)))
+      if ((trial.outputs || []).filter(overSeries).length >= over.length
+          || unbackedDeclaredInputs(trial.outputs, trial.declaredNames).size) {
+        for (const n of give) budgetBound.delete(n)
+        break
+      }
+      attempt = trial
     }
   }
   const final = attempt

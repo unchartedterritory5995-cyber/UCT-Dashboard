@@ -51,6 +51,33 @@ FRAMING_TERMS = frozenset((
 FAMILIES = ("Bases & Breakouts", "Momentum & Trend", "Gaps & Catalysts", "Reversals & Reclaims", "Intraday")
 WIRE_WORDS = ("Aggressive", "Constructive", "Neutral", "Caution", "Defensive")
 EM_DASH = "—"
+#: Drafting chatter that must never reach a member. A note to the reviewer
+#: belongs in owner_verdicts.jsonl or a generator docstring, never in a field a
+#: member reads: the bear-gap drafts of 2026-10-27 carried "(owner ruling
+#: pending; owner 2026-10-27: ...)" inside lesson_text (backlog, cleared
+#: 2026-11-05). A CITATION of a settled ruling, "(owner rulings 2026-10-23/24)",
+#: is the lessons' own style and stays allowed.
+DRAFTING_MARKERS = (
+    re.compile(r"ruling pending", re.I),
+    re.compile(r"rulings? to come", re.I),
+    re.compile(r"pending (?:the )?owner", re.I),
+    re.compile(r"owner['\u2019]s to rule", re.I),
+    re.compile(r"drafting note", re.I),
+    re.compile(r"\b(?:TODO|TBD|FIXME|XXX)\b"),
+)
+
+
+def drafting_notes(item: dict) -> list[str]:
+    """'field: marker' for every member-facing prose field (the question,
+    lesson_text, the reveal's prose keys, a walk-through's steps) that carries
+    a drafting marker. Empty = clean."""
+    out: list[str] = []
+    texts = [("prompt_json.q", study_import.question_text(item))] + study_import.lesson_texts(item)
+    for field, text in texts:
+        for rx in DRAFTING_MARKERS:
+            if text and rx.search(text):
+                out.append(f"{field}: {rx.pattern}")
+    return out
 
 
 def item_id(source_ref: str, question: str) -> str:
@@ -255,6 +282,8 @@ def validate(items: list[dict], *, allow_embed_kinds: tuple = ("fixture",)) -> l
                 problems.append(f"{iid}: voice ({field}): {v}")
         for tok in study_import.grounding_check(it):
             problems.append(f"{iid}: ungrounded number {tok}")
+        for v in drafting_notes(it):
+            problems.append(f"{iid}: drafting note in {v}")
         for v in study_import.walkthrough_check(it):
             problems.append(f"{iid}: {v}")
     # the near-duplicate diff within the segment (§6.2 step 3), so a

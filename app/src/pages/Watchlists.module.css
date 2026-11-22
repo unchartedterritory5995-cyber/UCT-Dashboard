@@ -122,6 +122,9 @@
   scrollbar-color: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent))) transparent;
 }
 .listBody::-webkit-scrollbar { width: 10px; height: 10px; }
+/* Hosts that size their columns to the pane (the breadth drill) reserve the
+   scrollbar's room always, so the columns fit whether or not the list scrolls. */
+.stableGutter { scrollbar-gutter: stable; }
 .listBody::-webkit-scrollbar-track { background: transparent; }
 .listBody::-webkit-scrollbar-thumb {
   background: var(--widget-divider-strong, var(--wl-divider-strong, var(--border-accent)));
@@ -690,11 +693,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+/* the title's own TEXT takes a right-click or a long-press (the list menu); the full-width label around it stays
+   pointer-events: none, so ‹ Lists and the buttons beside it keep their presses */
+.pickTitleHit { pointer-events: auto; }
 
 /* Single-list pick mode: the pick header already names the list, so hide the
    group's own accordion header (the redundant second row); drop the group indent
    so the star hugs the left edge; and don't box the items separately. */
 .pickMode .wlHeader { display: none; }
+/* Rename from the title's list menu: the list's own name field, shown only while it is being edited */
+.pickMode .wlHeader.wlHeaderRenaming { display: flex; }
 .pickMode .wlRow { padding-left: 8px; }   /* keep aligned with the header gridlines */
 .pickMode .wlItems { background: transparent; border-top: none; }
 
@@ -997,6 +1005,14 @@
   padding: 0;
 }
 .attnBadge:hover { opacity: 0.8; }
+/* RS Exit Warnings cell: a small dot (amber Quick Break, orange Quicksand, red Grateful Dead
+   Break) + the warning and its age. Static: nothing here animates. */
+.rsExitCell { gap: 5px; }
+.rsExitDot { flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; }
+.rsExit_quick { background: var(--warn); }
+.rsExit_sand { background: var(--ind-warn); }
+.rsExit_dead { background: var(--loss); }
+.rsExitText { overflow: hidden; text-overflow: ellipsis; }
 .attnPopover {
   position: fixed;
   background: var(--bg-elevated);
@@ -1685,3 +1701,490 @@
   }
   .listRow { min-height: var(--tap-min, 44px); }
 }
+
+/* A host-coloured left edge on a group member row (the breadth drill sections). */
+.accentRow { position: relative; }
+.accentRow::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--accent); pointer-events: none; }
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      an open list in the chart widget's style. Header: quiet "‹ Lists", the list name in the
+      header white beside it (not centred gold). Columns: quiet normal-case labels with no
+      grid lines; rows separated by a faint hairline only; the star stays quiet until used.
+      The /watchlists page keeps its own look. ── */
+:global(.uct-frame) .pickHeader { gap: 6px; padding: 0 6px; min-height: 36px; background: transparent; }
+:global(.uct-frame) .pickBackBtn {
+  border: none;
+  border-radius: 6px;
+  padding: 4px 7px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+:global(.uct-frame) .pickBackBtn:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); border-color: transparent; background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .pickTitle {
+  position: static;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 2px;
+  text-align: left;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+:global(.uct-frame) .wlActionBtn { border: none; border-radius: 6px; color: var(--widget-text, var(--text-muted, #cfcac0)); }
+:global(.uct-frame) .wlActionBtn:hover,
+:global(.uct-frame) .wlActionBtnActive { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .gridHead {
+  min-height: 30px;
+  background: var(--wl-bg-solid, var(--widget-canvas, var(--bg-elevated)));
+  border-bottom: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+}
+:global(.uct-frame) .gridHead > span {
+  border-right: none;
+  font-size: calc(11.5px * var(--wl-font-scale, 1));
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+:global(.uct-frame) .listRow {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 5%, transparent);
+}
+:global(.uct-frame) .rowSym { font-size: calc(12px * var(--wl-font-scale, 1)); font-weight: 700; letter-spacing: 0.2px; color: var(--widget-text-strong, var(--wl-sym, var(--text-bright))); }
+:global(.uct-frame) .starBtn { color: var(--widget-text, var(--text-muted)); opacity: 0.55; }
+:global(.uct-frame) .starBtn:hover,
+:global(.uct-frame) .starBtnActive { opacity: 1; color: var(--widget-accent, var(--ut-gold)); }
+:global(.uct-frame) .wlItems { background: transparent; border-top: none; }
+/* Row star: quiet grey until the symbol is flagged (then gold, as before). */
+:global(.uct-frame) .flagStar:not(.flagStarActive) { color: var(--widget-text, var(--text-muted)); opacity: 0.5; }
+:global(.uct-frame) .flagStar:not(.flagStarActive) svg,
+:global(.uct-frame) .flagStar:not(.flagStarActive) svg * { stroke: currentColor !important; filter: none !important; }
+:global(.uct-frame) .flagStar:not(.flagStarActive):hover { opacity: 1; color: var(--widget-text-strong, var(--text-bright)); }
+/* Option A (owner 11-13): the list switcher (▾ after the name) replaces "‹ Lists" — its
+   "All lists…" goes back to the picker. Numbers right-aligned under right-aligned labels;
+   text columns (Company, Sector, Industry, Theme) stay left. */
+:global(.uct-frame) .pickHeader:has([data-guide="watchlist.libraryToggle"]) .pickBackBtn { display: none; }
+:global(.uct-frame) .pickHeader:has([data-guide="watchlist.libraryToggle"]) .pickTitle { padding-left: 0; }
+:global(.uct-frame) .priceCell,
+:global(.uct-frame) .volCell,
+:global(.uct-frame) .changeCell,
+:global(.uct-frame) .metaCell { justify-content: flex-end; text-align: right; }
+:global(.uct-frame) .gridHead > .hCol { justify-content: flex-end; padding-right: 7px; }
+:global(.uct-frame) .gridHead > .hCol:is([data-col-key='name'], [data-col-key='sector'], [data-col-key='industry'], [data-col-key='theme']) { justify-content: flex-start; padding-left: 7px; }
+:global(.uct-frame) .gridHead > .hSym { justify-content: flex-start; padding-left: 7px; }
+/* Add-a-ticker row (owner 11-13): roomier, and its ✕ a quiet icon button. */
+:global(.uct-frame) .inlineAddRow { gap: 6px; padding: 8px 10px; }
+:global(.uct-frame) .inlineAddClose {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+}
+:global(.uct-frame) .inlineAddClose:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); border-color: transparent; }
+:global(.uct-frame) .inlineAddClose svg, :global(.uct-frame) .inlineAddClose svg * { stroke: currentColor !important; filter: none !important; }
+/* Header action buttons (+ add a ticker, ⋯ list menu): header grey, no gold. */
+:global(.uct-frame) .wlActionBtn { opacity: 0.9; width: 24px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+:global(.uct-frame) .wlActionBtnActive { border-color: transparent; }
+:global(.uct-frame) .wlActionBtn svg, :global(.uct-frame) .wlActionBtn svg * { stroke: currentColor !important; filter: none !important; }
+:global(.uct-frame) .inlineAddClose svg,
+:global(.uct-frame) .wlActionBtn svg { color: inherit !important; }
+:global(.uct-frame) .wlActionBtn { color: var(--widget-text, var(--text-muted, #a9a59b)); }
+:global(.uct-frame) .wlActionBtn:hover,
+:global(.uct-frame) .wlActionBtnActive { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+
+/* owner 11-13 round 3 ─ column dividers back on the header (they mark where to drag to
+   resize a column), quiet and short; stars white instead of gold (outline grey until
+   flagged, then solid white); the list name centred on the header line, no count (the
+   list's footer already says how many symbols it holds). */
+:global(.uct-frame) .gridHead > span:not(:last-of-type) { border-right: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 14%, transparent); }
+:global(.uct-frame) .gridHead > .hFlag { border-right: none; }
+:global(.uct-frame) .flagStar svg { color: inherit !important; }
+:global(.uct-frame) .flagStar:not(.flagStarActive) { color: var(--widget-text, var(--text-muted, #a9a59b)); opacity: 0.55; }
+:global(.uct-frame) .flagStarActive,
+:global(.uct-frame) .flagStar:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)) !important; opacity: 1; }
+:global(.uct-frame) .flagStarActive svg { fill: currentColor; }
+:global(.uct-frame) .starBtnActive,
+:global(.uct-frame) .starBtn:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .pickHeader [data-list-count] { display: none; }
+:global(.uct-frame) .pickTitle { display: inline-flex; align-items: center; line-height: 1; height: 100%; }
+:global(.uct-frame) .pickTitleHit { line-height: 1; text-box: trim-both cap alphabetic; }
+
+/* ── Footer (owner 11-13): the header's surface, hairline and type — the count in white on
+      the left, today's up / down split with a thin bar on the right. ── */
+.wlBreadth { display: none; }
+:global(.uct-frame) .wlCountFooter {
+  min-height: 34px;
+  gap: 12px;
+  padding: 0 12px;
+  font-size: calc(12px * var(--wl-font-scale, 1));
+  border-top: 1px solid var(--widget-divider, var(--border, #24262b));
+  background: transparent;
+}
+:global(.uct-frame) .wlCountText { font-weight: 600; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .wlBreadth {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+:global(.uct-frame) .wlBreadthUp { color: var(--success-ink, #3fd47a); }
+:global(.uct-frame) .wlBreadthDown { color: var(--danger-ink, #f0525a); }
+:global(.uct-frame) .wlBreadthBar {
+  display: inline-block;
+  width: 64px;
+  height: 4px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--loss, #f0525a) 60%, transparent);
+}
+:global(.uct-frame) .wlBreadthBar i { display: block; height: 100%; background: var(--gain, #3fd47a); }
+/* Footer list-options button + copy note (UCT frame only; hidden on the /watchlists page). */
+.wlFooterMenu, .wlCopied { display: none; }
+:global(.uct-frame) .wlCopied { display: inline; margin-left: auto; font-weight: 600; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .wlFooterMenu {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--widget-text, var(--text-muted, #a9a59b));
+  cursor: pointer;
+}
+:global(.uct-frame) .wlCountText ~ .wlFooterMenu:nth-child(2) { margin-left: auto; }
+:global(.uct-frame) .wlFooterMenu:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .wlFooterMenu:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+:global(.uct-frame) .wlFooterMenu svg { color: inherit !important; filter: none !important; }
+:global(.uct-frame) .wlFooterMenu svg * { stroke: currentColor !important; }
+/* The list's menu on the board: the site's rounded menu panel, normal text face (no mono). */
+:global(.uct-frame) .ctxMenu {
+  padding: 6px;
+  min-width: 210px;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+}
+:global(.uct-frame) .ctxItem {
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text, #e9e6de);
+}
+:global(.uct-frame) .ctxItem:hover,
+:global(.uct-frame) .ctxItem:focus-visible { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); color: var(--text-bright, #f8f7f3); outline: none; }
+:global(.uct-frame) .ctxItemDanger { color: var(--danger-ink, #f87171); }
+/* The ⋯ beside the list name is gone on the board (owner 11-13) — the footer's ⋯ opens the same
+   menu, and a right-click on the name still does. */
+:global(.uct-frame) .pickHeader [data-guide="watchlist.listMenu"] { display: none; }
+/* Add-a-ticker, round 4 (owner 11-13: "a giant search bar across the screen"): a compact
+   floating panel at the top-right of the list — a 280px field with its ✕, suggestions in a
+   short list under it — instead of a full-width row pushing the list down. */
+:global(.uct-frame) .wlItems { position: relative; }
+:global(.uct-frame) .inlineAddRow {
+  position: absolute;
+  top: 6px;
+  right: 10px;
+  z-index: 20;
+  width: min(290px, calc(100% - 20px));
+  padding: 6px;
+  gap: 4px;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+}
+/* (moved from an inline style — unchanged on the /watchlists page) */
+.colMenuTitle { padding: 4px 10px 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); }
+/* Column menu on the board (owner 11-13): the site's rounded menu panel, normal-case title,
+   white checks (no gold), and it scrolls rather than running off a short widget. */
+:global(.uct-frame) .colMenu {
+  min-width: 210px;
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 6px;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+}
+:global(.uct-frame) .colMenuTitle { padding: 6px 10px 6px; font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-muted, #a9a59b); }
+:global(.uct-frame) .colMenuItem { gap: 10px; padding: 7px 10px; border-radius: 6px; font-size: 13px; color: var(--text, #e9e6de); }
+:global(.uct-frame) .colMenuItem:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); color: var(--text-bright, #f8f7f3); }
+:global(.uct-frame) .colMenuCheck { width: 14px; color: var(--text-bright, #f8f7f3); display: inline-flex; }
+:global(.uct-frame) .colMenuCheck svg { color: inherit !important; filter: none !important; }
+:global(.uct-frame) .colMenuCheck svg * { stroke: currentColor !important; }
+:global(.uct-frame) .colMenuDivider { margin: 6px 4px; background: var(--border, #2a2c31); }
+/* Add-a-ticker, round 5 (owner 11-13): drops straight down from the list's header section at
+   its exact width (positioned by Watchlists.jsx). The row fills that floating box. */
+.addFloat { position: fixed; z-index: 6000; }
+.addFloat .inlineAddRow {
+  position: static;
+  width: 100%;
+  top: auto;
+  right: auto;
+  box-sizing: border-box;
+}
+.addFloat .inlineAddRow > :first-child { flex: 1 1 auto; min-width: 0; }
+
+/* ── Empty list (owner 11-13): a centred card with an icon, the list name, one line, and the
+      next step (white "Add tickers", quiet "Paste a list"). Board only. ── */
+.emptyCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin: 28px auto;
+  max-width: 300px;
+  padding: 22px 18px 20px;
+  font-family: var(--font-sans);
+}
+.emptyCardIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 2px;
+  border-radius: 12px;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+}
+.emptyCardIcon svg { color: inherit !important; filter: none !important; }
+.emptyCardIcon svg * { stroke: currentColor !important; }
+.emptyCardTitle { font-size: 14px; font-weight: 700; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.emptyCardText { font-size: 12.5px; line-height: 1.5; color: var(--widget-text, var(--text-muted, #a9a59b)); }
+.emptyCardText kbd {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 18%, transparent);
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+.emptyCardActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
+.emptyCardPrimary, .emptyCardSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.emptyCardPrimary { border: none; background: var(--widget-text-strong, var(--text-bright, #f8f7f3)); color: var(--bg, #101012); }
+.emptyCardPrimary:hover { filter: brightness(0.92); }
+.emptyCardPrimary svg { color: inherit !important; filter: none !important; }
+.emptyCardPrimary svg * { stroke: currentColor !important; }
+.emptyCardSecondary {
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 16%, transparent);
+  background: transparent;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  font-weight: 600;
+}
+.emptyCardSecondary:hover { background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+.emptyCardPrimary:focus-visible, .emptyCardSecondary:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 2px; }
+
+/* The paste-a-list (import) dialog on the board: the same rounded panel and type. */
+:global(.uct-frame) .modal {
+  border-radius: 12px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  font-family: var(--font-sans);
+}
+:global(.uct-frame) .modalTitle { font-family: var(--font-sans); font-size: 15px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--text-bright, #f8f7f3); }
+:global(.uct-frame) .formLabel { font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--text-muted, #a9a59b); }
+:global(.uct-frame) .importTextarea {
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  background: color-mix(in srgb, var(--text-bright, #f8f7f3) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-bright, #f8f7f3) 10%, transparent);
+  color: var(--text-bright, #f8f7f3);
+}
+:global(.uct-frame) .importTextarea:focus { border-color: color-mix(in srgb, var(--text-bright, #f8f7f3) 26%, transparent); outline: none; }
+
+/* ── Sorted column (owner 11-13): the heading stays white with a short gold bar under it and a
+      small up / down arrow for the direction, instead of the whole label turning gold.
+      The arrow is hidden off the board. ── */
+.hSortArrow { display: none; }
+:global(.uct-frame) .gridHead .hSortActive,
+:global(.uct-frame) .gridHead .hSortActive:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-weight: 700; }
+:global(.uct-frame) .gridHead .hSortActive::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+:global(.uct-frame) .hSortArrow {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.68em;
+  line-height: 1;
+  color: var(--widget-accent, var(--accent, #dcbb5e));
+}
+:global(.uct-frame) .gridHead > span { align-self: stretch; }
+
+/* ── Empty list, compact (owner 11-13): no icon, smaller, close to the top; no stray line. ── */
+:global(.uct-frame) .emptyCard { gap: 4px; margin: 18px auto 12px; padding: 0 16px; max-width: 280px; }
+:global(.uct-frame) .emptyCardTitle { font-size: 13px; }
+:global(.uct-frame) .emptyCardText { font-size: 12px; }
+:global(.uct-frame) .emptyCardActions { margin-top: 8px; gap: 6px; }
+:global(.uct-frame) .emptyCardPrimary,
+:global(.uct-frame) .emptyCardSecondary { height: 28px; padding: 0 11px; font-size: 12px; border-radius: 7px; }
+:global(.uct-frame) .wlGroup { border-bottom: none; }
+
+/* ── Sorted column, round 7 (owner 11-13): no gold underline — the heading in white bold with a
+      small white arrow for the direction (quieter, and it no longer reads as a selected tab). ── */
+:global(.uct-frame) .gridHead .hSortActive::after { content: none; }
+:global(.uct-frame) .hSortArrow { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-size: 0.62em; margin-left: 5px; }
+
+/* ── Ticker row menu (owner 11-13): one grey icon per item, all lined up. Off the board the three
+      added icons stay hidden, so the /watchlists page is unchanged. ── */
+.ctxIcon { vertical-align: -2px; margin-right: 5px; }
+.ctxIconExtra { display: none; }
+:global(.uct-frame) .ctxItem:has(> .ctxIcon) { display: flex; align-items: center; gap: 10px; }
+:global(.uct-frame) .ctxIcon { display: inline-block; margin: 0; flex-shrink: 0; color: var(--text-muted, #a9a59b) !important; filter: none !important; }
+:global(.uct-frame) .ctxIcon * { stroke: currentColor !important; }
+:global(.uct-frame) .ctxItemDanger .ctxIcon { color: var(--danger-ink, #f87171) !important; }
+:global(.uct-frame) .ctxItem:hover .ctxIcon { color: var(--text-bright, #f8f7f3) !important; }
+:global(.uct-frame) .ctxItemDanger:hover .ctxIcon { color: var(--danger-ink, #f87171) !important; }
+
+/* The last column keeps its line too (owner 11-13): a divider after every heading but the star. */
+:global(.uct-frame) .gridHead > span:not(.hFlag) { border-right: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 14%, transparent); }
+
+/* ── Table polish, step 1 (owner 11-13): hierarchy and breathing room. Ticker + % change lead
+      (bold); price normal weight in its own colour; volume and the secondary columns dimmed
+      (the widget's chosen colours, quieter); headings small and grey (the sorted one stays
+      white); taller rows, fainter lines, soft hover; stars appear on hover (a flagged one
+      stays). Horizontal padding is unchanged — the column resize handles sit against it. ── */
+:global(.uct-frame) .gridHead > span {
+  font-size: calc(11px * var(--wl-font-scale, 1));
+  font-weight: 500;
+  color: color-mix(in srgb, var(--widget-text, #a9a59b) 78%, transparent);
+}
+:global(.uct-frame) .gridHead > span:not(.hFlag) { border-right-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent); }
+:global(.uct-frame) .gridHead .hSortActive,
+:global(.uct-frame) .gridHead .hSortActive:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); font-weight: 700; }
+
+:global(.uct-frame) .listRow {
+  padding-top: 9px;
+  padding-bottom: 9px;
+  border-bottom-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 4%, transparent);
+}
+:global(.uct-frame) .listRow:hover { background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 4%, transparent); }
+
+:global(.uct-frame) .rowSym { font-size: calc(12.5px * var(--wl-font-scale, 1)); font-weight: 700; }
+:global(.uct-frame) .changeCell { font-weight: 700; }
+:global(.uct-frame) .priceCell { font-weight: 500; }
+:global(.uct-frame) .volCell,
+:global(.uct-frame) .metaCell { font-weight: 500; color: color-mix(in srgb, var(--wl-vol, var(--text-bright, #f8f7f3)) 62%, transparent); }
+:global(.uct-frame) .textCell { font-weight: 500; color: color-mix(in srgb, var(--wl-sym, var(--text-bright, #f8f7f3)) 58%, transparent); }
+
+/* Stars: shown on row hover (or keyboard focus); a flagged one always shows. */
+:global(.uct-frame) .listRow .flagStar:not(.flagStarActive) { opacity: 0; transition: opacity 0.12s ease; }
+:global(.uct-frame) .listRow:hover .flagStar:not(.flagStarActive),
+:global(.uct-frame) .listRow:focus-within .flagStar:not(.flagStarActive),
+:global(.uct-frame) .listRow .flagStar:not(.flagStarActive):focus-visible { opacity: 0.6; }
+:global(.uct-frame) .listRow .flagStar:not(.flagStarActive):hover { opacity: 1; }
+
+/* Step 1, round 2 (owner 11-13): rows a little shorter; everything in a row at full brightness
+   (each column in its own colour, no dimming). Headings stay the quieter grey. */
+:global(.uct-frame) .listRow { padding-top: 6px; padding-bottom: 6px; }
+:global(.uct-frame) .volCell { color: var(--wl-vol, var(--text-bright)); }
+:global(.uct-frame) .metaCell { color: var(--wl-price, var(--text-bright)); }
+:global(.uct-frame) .textCell { color: var(--wl-price, var(--text-bright)); }
+
+/* Inline flag star (owner 11-13, option 1): right after the ticker instead of a star column.
+   Hidden until the row is hovered or focused; a flagged ticker keeps a small solid white star. */
+.inlineFlag {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; margin-left: 2px; flex-shrink: 0; padding: 0;
+  border: none; border-radius: 5px; background: transparent; cursor: pointer;
+  color: var(--widget-text, var(--text-muted, #a9a59b)); opacity: 0;
+  transition: opacity 0.12s ease, background-color 0.12s ease;
+}
+.inlineFlag svg { color: inherit !important; filter: none !important; }
+.inlineFlag svg * { stroke: currentColor !important; }
+.listRow:hover .inlineFlag, .listRow:focus-within .inlineFlag, .inlineFlag:focus-visible { opacity: 0.7; }
+.inlineFlag:hover { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.08)); }
+.inlineFlag:focus-visible { outline: 2px solid var(--accent, #dcbb5e); outline-offset: 1px; }
+.inlineFlagOn, .listRow:hover .inlineFlagOn { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.inlineFlagOn svg * { fill: currentColor; }
+
+/* Flag badge on the logo (owner 11-13, option 1): a tiny round star on the logo's bottom-right
+   corner (logos line up, so the badges do). Faint on row hover to flag; solid white when flagged.
+   None on the Flagged list (every row there is flagged). */
+.rowLogoFlaggable { position: relative; overflow: visible; }
+.logoFlag {
+  position: absolute; right: -5px; bottom: -4px; z-index: 1;
+  width: 12px; height: 12px; margin: 0; border-radius: 50%;
+  background: var(--wl-bg-solid, var(--widget-canvas, var(--bg, #101012)));
+  box-shadow: 0 0 0 1.5px var(--wl-bg-solid, var(--widget-canvas, var(--bg, #101012)));
+}
+.logoFlag:hover { background: var(--wl-bg-solid, var(--widget-canvas, var(--bg, #101012))); }
+.logoFlag.inlineFlagOn { background: var(--widget-text-strong, var(--text-bright, #f8f7f3)); color: var(--wl-bg-solid, var(--bg, #101012)); }
+.logoFlag.inlineFlagOn svg * { fill: currentColor; stroke: currentColor !important; }
+
+/* Star on the left, round 3 (owner 11-13): a fixed 16px slot at the start of the symbol cell,
+   before the logo — stars line up in one column without a column of their own. Faint on row
+   hover to flag; solid white when flagged. */
+.leadFlag { width: 16px; height: 18px; margin: 0 2px 0 -4px; border-radius: 4px; }
+
+/* owner 11-13: a little more room between the star and the logo; the selected row a subtle
+   grey highlight (no gold tint, no gold bar). */
+:global(.uct-frame) .leadFlag { margin: 0 7px 0 -6px; }
+:global(.uct-frame) .listRowSelected {
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 7%, transparent) !important;
+  box-shadow: inset 2px 0 0 0 color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 30%, transparent);
+}
+:global(.uct-frame) .listRowSelected .rowSym { color: var(--widget-text-strong, var(--wl-sym, var(--text-bright, #f8f7f3))); }
+
+/* No gold focus ring on a list row (owner 11-13): clicking a row then arrowing left the ring
+   on the clicked row while the selection moved on. The selected-row highlight is the marker. */
+:global(.uct-frame) .listRow:focus-visible { outline: none; }
+
+/* ── owner 11-13: a notch smaller everywhere — it read as zoomed in. Rows near the original
+      density, text back to the original sizes (bold where it was bold). ── */
+:global(.uct-frame) .listRow { padding-top: 4px; padding-bottom: 4px; }
+:global(.uct-frame) .rowSym { font-size: calc(11.5px * var(--wl-font-scale, 1)); }
+:global(.uct-frame) .gridHead { min-height: 28px; }
+:global(.uct-frame) .gridHead > span { font-size: calc(10.5px * var(--wl-font-scale, 1)); }
+:global(.uct-frame) .wlCountFooter { min-height: 30px; font-size: calc(11px * var(--wl-font-scale, 1)); }
+
+/* RTH · EXT switch in the board widget's title row (owner 11-14) — the chart header's session
+   switch: quiet text buttons, the active one in white with a gold underline. */
+.sessSeg { display: inline-flex; align-items: center; gap: 2px; margin-right: 6px; padding-right: 6px; border-right: 1px solid var(--widget-divider, var(--border, #2a2c31)); }
+.sessBtn { position: relative; height: 22px; padding: 0 5px; border: none; border-radius: 5px; background: none; cursor: pointer; font: 700 11px var(--font-sans); letter-spacing: 0.02em; color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.8; }
+.sessBtn:hover { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.sessBtnOn { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+.sessBtnOn::after { content: ''; position: absolute; left: 5px; right: 5px; bottom: 1px; height: 2px; border-radius: 2px; background: var(--widget-accent, var(--accent, #dcbb5e)); }
+.sessBtnIdle:not(.sessBtnOn) { opacity: 0.45; }
+/* Column library: Day Range (owner 11-14) — a thin track with the price marked. */
+.rangeBar { display: inline-block; position: relative; width: 52px; height: 5px; border-radius: 3px; background: color-mix(in srgb, var(--wl-text, var(--text-bright, #f8f7f3)) 14%, transparent); vertical-align: middle; }
+.rangeBar i { position: absolute; top: -3px; width: 3px; height: 11px; border-radius: 2px; background: var(--wl-text, var(--text-bright, #f8f7f3)); }
+
+/* Column library + (owner 11-14): the last header cell, at the right end of the header row. */
+.hAddCol { justify-self: end; align-self: center; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 20px; padding: 0; margin-left: 4px; border: none; border-radius: 6px; background: none; cursor: pointer; color: var(--widget-text, var(--text-muted, #a9a59b)); opacity: 0.8; }
+.hAddCol svg, .hAddCol svg * { stroke: currentColor !important; filter: none !important; }
+.hAddCol:hover, .hAddColOn { opacity: 1; color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }

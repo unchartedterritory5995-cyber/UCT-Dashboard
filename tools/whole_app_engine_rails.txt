@@ -1,0 +1,105 @@
+# The engine's WHOLE-APP rails: tests under app/src/components/chart/engine/ that read files outside pine heavy's
+# trigger paths, so a PR that never touches the engine can break them. Run by
+# .github/workflows/whole-app-engine-rails.yml on every PR touching a path they read (its `paths:`), and on every
+# master push by the master deploy gate.
+#
+# ⛔ DERIVED, NOT CHOSEN. pine heavy's `union` job fails when this list is not exactly the engine tests its legs
+# saw reading outside its triggers (tools/ci_whole_app_rails.py --check, over every leg's read capture). To update
+# it, read the error, or download the `pine-heavy-whole-app-reads` artifact of the run. App-relative, one per line.
+# First derived 2026-11-17 from two read-capture runs over all 1,137 engine test files: 311 read outside the
+# engine; 240 only Pine fixtures/docs/tools outputs (now pine heavy triggers); 71 read the app. The first PR
+# run (#1690) then found the corpus harness reading api/services/bars_window.py (merged the same day); that file
+# (HISTORY_WINDOW_BARS, Pine's history window) became a pine heavy trigger, which leaves these 68.
+# 2026-11-18: + ast/namedIndicators.test.js, which reads api/data/named_indicators.json (the named-indicator
+# library): a PR that changes the library and never touches the engine must run it.
+# 2026-11-18: + pineCompareCensus.test.js, which walks app/src for every `interpret()` call site and its declared
+# comparison role (Pine's tolerant compare): a new call site anywhere in the app must run it.
+# 2026-11-19: + heldSpanFollowsChart.test.js, which reads app/src/components/StockChart.jsx (the held span it hands
+# useSecondarySources) and api/routers/bars.py (/api/bars's le=60000, the ladder's top rung): either can break it.
+# 2026-11-19 (engine 88 train, #2108's miss, coordinator ruling): + heldWithholds.savedCopies.test.js, which reads
+# tests/fixtures/held_withhold_keys.json (the held-withhold stamp keys the browser and the server both assert): a PR
+# that changes the key fixture and never touches the engine must run it.
+# 2026-11-20: + vendorHarness/historyClaim.test.js, which walks app/src and tools/vendor_harness for any grader that
+# reads `history.startsAtBar0` raw instead of through tools/vendor_harness/history_claim.mjs (one authority).
+# 2026-11-20: + binderSeriesDataSpread.rail.test.js, which reads app/src/components/StockChart.jsx (the chart opts the
+# binder into spreading a heavy pass's series data only where the candles are the indicators' bars, and applies the
+# queue before its live writer and its end labels): a PR that changes those sites and never touches the engine must run it.
+# 2026-11-20: + runtime/__tests__/strategyDeepStart.test.js, which reads app/src/components/StockChart.jsx (a daily chart
+# holding a strategy asks for its full daily history) and app/src/utils/barsBackfill.js (the daily depth pinned to the
+# strategy window): a PR that changes either and never touches the engine must run it.
+src/components/chart/engine/__tests__/bindSymbolFields.rail.test.js
+src/components/chart/engine/__tests__/binderSeriesDataSpread.rail.test.js
+src/components/chart/engine/__tests__/controlDoorCensus.test.js
+src/components/chart/engine/__tests__/dataSourcesRevalidate.test.jsx
+src/components/chart/engine/__tests__/displayTargetOneWriter.test.js
+src/components/chart/engine/__tests__/engineEnabledMigration.test.js
+src/components/chart/engine/__tests__/enumerationSites.test.js
+src/components/chart/engine/__tests__/flipB.test.jsx
+src/components/chart/engine/__tests__/flipCGeometry.test.jsx
+src/components/chart/engine/__tests__/flipCRecord.test.js
+src/components/chart/engine/__tests__/hostLaneWorker.rail.test.js
+src/components/chart/engine/__tests__/jsdocParams.test.js
+src/components/chart/engine/__tests__/legendFromDefinitions.test.jsx
+src/components/chart/engine/__tests__/listingDeepen.test.js
+src/components/chart/engine/__tests__/listingReference.test.js
+src/components/chart/engine/__tests__/markerHost.test.js
+src/components/chart/engine/__tests__/memberPaneGate.test.js
+src/components/chart/engine/__tests__/objectTableDom.test.js
+src/components/chart/engine/__tests__/parityGateBlindness.test.js
+src/components/chart/engine/__tests__/pineRuntimeFrontendGate.test.js
+src/components/chart/engine/__tests__/priceLineStyleSweep.test.js
+src/components/chart/engine/__tests__/primitiveGate.test.js
+src/components/chart/engine/__tests__/r1StoreWriterCensus.test.js
+src/components/chart/engine/__tests__/runtimeObjectsSchemaParity.test.js
+src/components/chart/engine/__tests__/runtimeSwitchOn.test.js
+src/components/chart/engine/__tests__/secondaryLiveTail.test.jsx
+src/components/chart/engine/__tests__/secondarySourcesRevalidate.test.jsx
+src/components/chart/engine/__tests__/settingsBlobMigration.test.js
+src/components/chart/engine/__tests__/singleWriterIndex.test.js
+src/components/chart/engine/__tests__/storeIntradayAgreement.test.js
+src/components/chart/engine/__tests__/suiteCoverage.test.js
+src/components/chart/engine/__tests__/vendorHarness/historyClaim.test.js
+src/components/chart/engine/__tests__/vendorHarness/vendorHarness.c45BarIndex.test.js
+src/components/chart/engine/__tests__/vendorHarness/vendorHarness.l8RecordedSupply.test.js
+src/components/chart/engine/__tests__/vendorHarness/vendorHarness.reqBareSecurityForced.test.js
+src/components/chart/engine/__tests__/volumeNumericPane.test.js
+src/components/chart/engine/__tests__/volumePaneResidency.test.js
+src/components/chart/engine/__tests__/vwapUtcBucketing.test.js
+src/components/chart/engine/__tests__/w9T11F1ChartWindow.test.jsx
+src/components/chart/engine/__truth__/p0.pineack.truth.test.js
+src/components/chart/engine/ast/budget.test.js
+src/components/chart/engine/ast/freshness.test.js
+src/components/chart/engine/ast/interpret.test.js
+src/components/chart/engine/ast/lint.test.js
+src/components/chart/engine/ast/manifestProse.test.js
+src/components/chart/engine/ast/namedIndicators.test.js
+src/components/chart/engine/ast/parse.test.js
+src/components/chart/engine/ast/pcf.test.js
+src/components/chart/engine/ast/productScorecard.test.js
+src/components/chart/engine/ast/sentence.test.js
+src/components/chart/engine/ast/strategiesAreRuled.test.js
+src/components/chart/engine/ast/symbolScope.test.js
+src/components/chart/engine/ast/symbolScopeProse.test.js
+src/components/chart/engine/ast/thinkscript.test.js
+src/components/chart/engine/defSchema.test.js
+src/components/chart/engine/heldSpanFollowsChart.test.js
+src/components/chart/engine/heldWithholds.savedCopies.test.js
+src/components/chart/engine/hostKnownDivergence.test.js
+src/components/chart/engine/nativeRegistry.test.js
+src/components/chart/engine/paneLayout.test.js
+src/components/chart/engine/pineCompareCensus.test.js
+src/components/chart/engine/runtime/__tests__/brokerPinsLock.test.js
+src/components/chart/engine/runtime/__tests__/hostNeutralClosure.rail.test.js
+src/components/chart/engine/runtime/__tests__/i6aN4BlockIndent.test.js
+src/components/chart/engine/runtime/__tests__/minContractLock.test.js
+src/components/chart/engine/runtime/__tests__/runtimeDoorBudget.rail.test.js
+src/components/chart/engine/runtime/__tests__/runtimeInputKinds.test.js
+src/components/chart/engine/runtime/__tests__/serverBundle.rail.test.js
+src/components/chart/engine/runtime/__tests__/strategyDeepStart.test.js
+src/components/chart/engine/runtime/__tests__/timeframeInputSetting.test.js
+src/components/chart/engine/runtime/__tests__/w9T11Record.test.js
+src/components/chart/engine/runtime/__tests__/w9T1Broker.test.js
+src/components/chart/engine/runtime/__tests__/w9T4Sizing.test.js
+src/components/chart/engine/runtimeListsBoot.test.jsx
+src/components/chart/engine/useLowerTfSources.test.jsx
+src/components/chart/engine/useServerColumns.test.jsx

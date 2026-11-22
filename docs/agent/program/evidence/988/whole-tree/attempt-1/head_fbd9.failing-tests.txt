@@ -1,0 +1,60 @@
+src/__tests__/sourcesAreText.test.js > every JS/JSX source under app/src is TEXT contains no NUL or other C0 control byte
+src/components/StockChart.firstVisitFraming.test.jsx > a symbol switch restates its frame from the newest bar scrollToPosition carries the frame as an offset from the NEW symbol's newest bar
+src/components/StockChart.focusWarmStep.test.jsx > a Focus walk draws every step from the cache 8 consecutive ArrowDowns after the bell: each pane is ready before any network answer could land
+src/components/chart/engine/ast/symbolFoldParity.test.js > R-K — the two lanes fold one symbol the same way ⭐ AGEN (a second witnessed exchange) — every member, string for string
+src/components/chart/engine/ast/symbolFoldParity.test.js > R-K — the two lanes fold one symbol the same way ⭐ BTC/USD (no witness, and the ratio test) — every member, string for string
+src/components/chart/engine/ast/symbolFoldParity.test.js > R-K — the two lanes fold one symbol the same way ⭐ SPY (a witnessed exchange) — every member, string for string
+src/components/chart/engine/ast/targetScriptReport.measure.test.js > ⭐⭐ the target list — what each script actually needs ⭐⭐ reports every target: both lanes, plus the look-ahead scan
+src/components/chart/engine/runtime/__tests__/hostParity.v8.rail.test.js > HP-1 on a V8 other than the recording V8 end to end: --check on this runner exits 0 and prints REPORTED only when this V8 is not the recording V8
+src/components/provenance/freshnessAge.test.js > the threshold constants live in exactly one place no other module under app/src declares a competing constant or a session duration
+src/components/provenance/panelAdoption.ratchet.test.js > TERM-047 — CoverageLine on every result surface every result surface renders CoverageLine or is exempt with a reason — FAILING BY NAME
+src/components/screener/reachable.test.js > 🔴 every module under app/src is REACHABLE from an entry point and nothing committed is connected to nothing
+src/components/ui/formControls.census.test.js > ⭐ HAND-ROLLED SWITCHES MAY NOT GROW no file gained a hand-rolled switch, and no new file appeared
+src/components/ui/formControls.census.test.js > ⭐ UNNAMED CONTROL SITES MAY ONLY SHRINK no new unnamed control site appeared anywhere in app/src
+src/components/ui/formControls.census.test.js > ⭐ UNNAMED CONTROL SITES MAY ONLY SHRINK the baseline is tight — a migration lowers UNNAMED_BASELINE in the same commit
+src/hub/writePathsTransitive.test.js > transitive write reachability from the hub's own call sites ⛔ hooks/useFlagged.js: only POST /api/watchlists/flagged/sync is reachable from `toggle`
+src/lib/context/symbolLinkChannels.test.js > S4 CP2 — the deep-link ruling has a derived rail behind it ⛔ no NEW surface reads a symbol/timeframe param by hand
+src/lib/persistence/persistenceManifest.test.js > the persistence census sees the tree before anything is compared classifies every storage-shaped call and resolves every key
+src/lib/persistence/persistenceManifest.test.js > the persistence census sees the tree before anything is compared finds known keys in every store, including ones only reachable through imports and wrappers
+src/lib/presentation/dataGrid/dataGridSeed.rail.test.js > TERM-065 — a new sortable grid uses the DataGrid seed no hand-rolled grid outside the baseline — each one named
+src/lib/presentation/handRolledFormatters.census.test.js > ⭐ HAND-ROLLED FORMATTERS MAY NOT GROW no file gained a site, and no new file appeared
+src/lib/swallowedFetch.census.test.js > TERM-033: `.catch(() => null)` is a shrink-only census no file gains a site, and no new file adopts the idiom
+src/pages/Watchlists.entitykeys.test.jsx > fields absent (flag off): byte-identical to the pre-change render, and no marker
+src/pages/charts/widgets/TradeExchangeNewsWidget.linked.test.jsx > Linked to chart = All history leaving Linked restores the feed's own date, and Linked starts on All history again
+src/pages/charts/widgets/TradeExchangeNewsWidget.linked.test.jsx > Linked to chart = All history switching Linked on shows every archived NVDA headline across days, newest first, labelled All history
+src/pages/charts/widgets/TradeExchangeNewsWidget.linked.test.jsx > search hits are marked in the feed: marks as you type (multiword as one phrase), keeps ticker links, clears with the search
+src/pages/charts/widgets/TradeExchangeNewsWidget.linked.test.jsx > the date and time on every headline, and All history in full-timestamp order every feed row carries its date as well as its time
+src/pages/command/keyListenerCensus.test.js > TERM-063 — the raw key-listener ratchet no file holds MORE raw key listeners than its baseline (new ones go through the registry)
+src/pages/command/keyListenerCensus.test.js > TERM-063 — the raw key-listener ratchet the baseline sits at or under the stated CEILING, and the CEILING is tight
+src/pages/command/shortcutRegistry.test.js > surface reasons name the pages that actually mount the binding DrillPlayer is mounted only from the Desk, and no drill reason says otherwise
+src/pages/journal-2-0/components/notebook/ChartEmbed.touchTargets.test.js > a Notebook chart block clears --tap-min on phone AND tablet (wave 14, item 3) every button an embed can show is pinned to the token, min-width AND min-height, at 390 and 820
+src/pages/journal-2-0/components/notebook/ImportRepairNotice.test.jsx > ImportRepairNotice on Research Home Import notes on Research Home opens the import wizard
+src/pages/journal-2-0/components/notebook/frozenWorkspace.test.jsx > frozenWorkspaceValue — full-surface completeness (derived from source) carries every member the REAL /charts provider supplies
+src/pages/journal-2-0/components/notebook/myTools/VersionHistory.test.jsx > Version history Name this version names it; Remove the name unnames it
+src/pages/journal-2-0/components/notebook/myTools/VersionHistory.test.jsx > Version history restore asks first, and Cancel sends nothing
+src/pages/journal-2-0/lib/calloutNode.variant.test.js > (file-level error: )
+src/pages/journal-2-0/lib/captureContext.test.js > ⛔⛔ a real door actually uses it ⛔ every door that opens capture is one we checked
+src/pages/journal-2-0/lib/dateMentionNode.test.js > (file-level error: )
+src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js > the list's SWR cache stays in memory App.jsx and the Focus chart pane are the only production <SWRConfig>s
+src/pages/journal-2-0/lib/formula/offlineNeverStoresComputed.test.js > the list's SWR cache stays in memory pages/screener/focus/ChartPane.jsx passes no provider, so the cache is a Map that dies with the tab
+src/pages/journal-2-0/lib/importer/evernoteLinks.test.js > the cross-import key matches the title the SERVER stores: strip()[:300], then _norm_title reads the cut from notes.MAX_TITLE_CHARS, never restates it
+src/pages/journal-2-0/lib/importer/exportFormats.roundtrip.test.js > (file-level error: format_export_bridge.py failed (exit 1): Traceback (most recent call last):)
+src/pages/journal-2-0/lib/importer/exportRoundtrip.test.js > (file-level error: the roundtrip_export_fixture.py driver failed (exit 1, no UCT-EXPORT-FIXTURE-VARIANTS line): Traceback (most recent call last):)
+src/pages/journal-2-0/lib/importer/fidelityCarryovers.roundtrip.test.js > (file-level error: format_export_bridge.py failed (exit 1): Traceback (most recent call last):)
+src/pages/journal-2-0/lib/iteratorGlobalFloor.test.js > no shipped chunk evaluates an UNSHIMMED global below the floor (iOS >= 16) every built asset is clear
+src/pages/journal-2-0/lib/noteBatch.jsonRoundtrip.test.js > (file-level error: selection_export_bridge.py failed (exit 1): Traceback (most recent call last):)
+src/pages/journal-2-0/lib/offline/noteCopy.test.js > fix round 4 — a refused copy shows its words and speaks for itself each of the server’s create refusals lands in its class (sentences parsed from notes.py)
+src/pages/journal-2-0/lib/selectionExport.roundtrip.test.js > (file-level error: )
+src/pages/journal-2-0/lib/templateLibrary.server.test.js > the Use and Adopt key is the server's the router reads that header and every keyed door passes it on as key=
+src/pages/journal-2-0/lib/widgetFormula/widgetFormula.lazy.test.js > the widget formula twin stays out of the first-open closure NON-VACUITY: the entries are real files and the walk reaches a large eager closure
+src/pages/journal-2-0/rawErrorSurface.test.js > raw-error class — member-facing surfaces never render a raw exception no native alert(), and no caught exception rendered into member-facing text
+src/pages/terminal/a11y/terminalA11yStatic.test.js > mounted surfaces — every table the terminal reaches by import every mounted table is named, every header cell scoped, every sorting header says which way
+src/pages/terminal/a11y/terminalReachableContrast.test.js > terminal-reachable stylesheets — text contrast in every theme every other failing text rule is in the shrink-only baseline, file by file
+src/pages/terminal/a11y/terminalReachableContrast.test.js > terminal-reachable stylesheets — text contrast in every theme no inline color/fill var(--loss)/var(--gain) in reachable JS beyond the declared non-text uses
+src/pages/terminal/a11y/terminalReachableContrast.test.js > terminal-reachable stylesheets — text contrast in every theme no var(--loss)/var(--gain) as text colour in any reachable stylesheet
+src/pages/terminal/formControls.terminal.test.js > terminal-mounted surfaces use the ui form-control kit no native <input> remains — the two range sliders use ui/Slider
+src/pages/terminal/formControls.terminal.test.js > terminal-mounted surfaces use the ui form-control kit no native <select> remains
+src/pages/terminal/themeColours.rail.test.js > terminal theme rail — hardcoded colours ⛔ no terminal-mounted file gains a hardcoded colour (fix it with a token, not the ledger)
+src/styles/tokens.reachable.test.js > CSS custom properties resolve no alias is used in a stylesheet that re-points an alias target
+src/surfaces/manifest.test.js > S1 CP1 — the surface manifest is derived, not typed every Layout-hosted route has a declaration
+src/utils/jsonFetcher.test.js > no shipped surface parses a response it never checked NO NEW SURFACE joins the list — and a healed one must leave it

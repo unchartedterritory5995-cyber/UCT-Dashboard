@@ -31,6 +31,7 @@ vi.mock('./onboarding/tourRegistry', async (importOriginal) => {
 })
 
 import GettingStartedChecklist, { makeChecklistGate } from './GettingStartedChecklist'
+import GettingStartedList from './GettingStartedList'
 import { __resetNotebookFlags, latchNotebookFlags } from '../../lib/offline/notebookFlags'
 import { TOUR_OPEN_EVENT, __resetTourControl } from './onboarding/tourControl'
 import { REGISTRY_TOUR_OPEN_EVENT, __resetRegistryTourControl } from './onboarding/tourRegistryControl'
@@ -71,10 +72,13 @@ const settle = (ms = 20) => act(async () => { await new Promise((r) => setTimeou
 function renderList(props = {}) {
   const onCreateNote = props.onCreateNote ?? vi.fn()
   const onAddSample = 'onAddSample' in props ? props.onAddSample : vi.fn(async () => {})
+  // Notebook simplify (task 1): the GATE renders nothing once a member has a note, so a case that drives the list's own
+  // tick and close rules with `hasAnyNotes: true` mounts the list directly (those rules are unchanged).
+  const Subject = props.hasAnyNotes ? GettingStartedList : GettingStartedChecklist
   const utils = render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
       <MemoryRouter>
-        <GettingStartedChecklist hasAnyNotes={props.hasAnyNotes ?? false}
+        <Subject hasAnyNotes={props.hasAnyNotes ?? false}
           onCreateNote={onCreateNote} onAddSample={onAddSample} />
       </MemoryRouter>
     </SWRConfig>,
@@ -101,10 +105,14 @@ describe('when it shows', () => {
   it('first run: the title, the progress line and one action per step', async () => {
     renderList()
     expect(await screen.findByRole('heading', { name: 'Get started' })).toBeInTheDocument()
-    expect(screen.getByText('0 of 4 done')).toBeInTheDocument()
+    expect(screen.getByText('0 of 3 done')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Write your first note' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Start a note from a template' })).toHaveAttribute('href', '/journal/notebook?view=all')
+    // Final fix (C2): the template step opens the New note sheet (`#templates`), never the bare list it is drawn on.
+    expect(screen.getByRole('link', { name: 'Start a note from a template' })).toHaveAttribute('href', '/journal/notebook?view=all#templates')
     expect(screen.getByRole('button', { name: 'Open the sample notebook' })).toBeInTheDocument()
+    // Final fix (A4): four steps over "0 of 3 done": the uncounted one says it is optional, and only that one.
+    expect(screen.getByRole('button', { name: 'Open the sample notebook' }).closest('li')).toHaveTextContent('Optional')
+    expect(screen.getAllByText('Optional')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Take the Notebook basics tour' })).toBeInTheDocument()
     // The dark capability's tour is not offered.
     expect(screen.queryByText(/Formulas/)).toBeNull()
@@ -152,7 +160,7 @@ describe('when it shows', () => {
     latchNotebookFlags({ notebook_task_reminders_enabled: false, notebook_onboarding_enabled: true, notebook_getting_started_enabled: true, notebook_formulas_enabled: true })
     renderList()
     expect(await screen.findByRole('heading', { name: 'Get started' })).toBeInTheDocument()
-    expect(screen.getByText('0 of 4 done')).toBeInTheDocument()
+    expect(screen.getByText('0 of 3 done')).toBeInTheDocument()
     expect(screen.queryByText(/Formulas/)).toBeNull()
     // the one tour step is the base tour, and it opens through the base tour's own door
     const opened = vi.fn()
@@ -167,13 +175,40 @@ describe('when it shows', () => {
   })
 })
 
+// Notebook simplify (task 1): the list is for a member with zero notes only.
+describe('only while the member has zero notes', () => {
+  it('with one note it renders nothing and never fetches the list', async () => {
+    const load = vi.fn(async () => ({ default: () => <p>list</p> }))
+    const Gate = makeChecklistGate(load, 0)
+    const { container } = render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MemoryRouter><Gate hasAnyNotes onCreateNote={vi.fn()} onAddSample={null} /></MemoryRouter>
+      </SWRConfig>,
+    )
+    await settle(40)
+    expect(container).toBeEmptyDOMElement()
+    expect(load).not.toHaveBeenCalled()
+  })
+
+  it('CONTROL: the same gate with zero notes shows the list', async () => {
+    const load = vi.fn(async () => ({ default: () => <p>list</p> }))
+    const Gate = makeChecklistGate(load, 0)
+    render(
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <MemoryRouter><Gate hasAnyNotes={false} onCreateNote={vi.fn()} onAddSample={null} /></MemoryRouter>
+      </SWRConfig>,
+    )
+    expect(await screen.findByText('list')).toBeInTheDocument()
+  })
+})
+
 describe('a click opens the door; only the real action ticks the step', () => {
   it('"Write your first note" calls the Notebook\'s own create, and ticks nothing', async () => {
     const { onCreateNote } = renderList()
     fireEvent.click(await screen.findByRole('button', { name: 'Write your first note' }))
     expect(onCreateNote).toHaveBeenCalledTimes(1)
     await settle()
-    expect(screen.getByText('0 of 4 done')).toBeInTheDocument()
+    expect(screen.getByText('0 of 3 done')).toBeInTheDocument()
     expect(prefWrites()).toEqual([])
   })
 
@@ -202,7 +237,7 @@ describe('a click opens the door; only the real action ticks the step', () => {
   it('a finished base tour (its own seen-state) ticks the step', async () => {
     server.prefs = { notebook_tour: JSON.stringify({ v: 1, state: 'done', step: 'export' }) }
     renderList()
-    expect(await screen.findByText('1 of 4 done')).toBeInTheDocument()
+    expect(await screen.findByText('1 of 3 done')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Take the Notebook basics tour' })).toBeNull()
     const done = screen.getByText('Take the Notebook basics tour')
     expect(done.closest('li')).toHaveTextContent('Done')
@@ -235,7 +270,7 @@ describe('a step never unticks', () => {
     }
     server.home = { ...EMPTY_HOME, continueWorking: [{ id: 's1', title: 'Sample', bodyPlain: '' }] }
     renderList({ hasAnyNotes: true, onAddSample: null })
-    expect(await screen.findByText('3 of 4 done')).toBeInTheDocument()
+    expect(await screen.findByText('2 of 3 done')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Write your first note' })).toBeNull()
     expect(screen.queryByRole('link', { name: 'Start a note from a template' })).toBeNull()
   })
@@ -278,12 +313,12 @@ describe('closing it -- ONE preference key, and D4', () => {
   it('every step done: the list closes as `done`, keeping its done-set, with a bounded number of writes', async () => {
     server.prefs = { notebook_tour: JSON.stringify({ v: 1, state: 'done', step: 'export' }) }
     server.home = { ...EMPTY_HOME, continueWorking: [{ id: 'n1', title: 'T', bodyPlain: WALKTHROUGH_TITLE }] }
-    const { container, rerender } = renderList({ hasAnyNotes: true, onAddSample: null })
+    const { rerender } = renderList({ hasAnyNotes: true, onAddSample: null })
     await waitFor(() => expect(JSON.parse(server.prefs.notebook_getting_started || '{}').state).toBe('done'))
     const stored = JSON.parse(server.prefs.notebook_getting_started)
     expect(stored).toMatchObject({ v: 1, state: 'done' })
     expect([...stored.done].sort()).toEqual(['note', 'template', 'tour:notebook-basics'])
-    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByRole('heading', { name: 'Get started' })).toBeNull()
     // At most one write per step as it ticks, plus the close: three steps here.
     const n = prefWrites('notebook_getting_started').length
     expect(n).toBeLessThanOrEqual(4)

@@ -1,0 +1,11 @@
+//@version=6
+indicator("vw-w19r2b-empty-leftmost", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit, split out of tools/visual_conformance/probes/vw-w19r2-collections.pine after capture queue
+// run cq1-2026-11-16 (PR #1472) read that file as one runtime error ("Index {index} is out of bounds") whose text names no line or value. One question
+// per file, so an error here IS this file's reading: record its text and the bar it names. No licence-held text.
+// QUESTION: `array.binary_search_leftmost` of 1 over an EMPTY array: 0, -1, or an error? (the reference names no element to return)
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults, AFTER THE CLOSE. A00 is the control (it must plot on every bar).
+plot(bar_index, "A00_bar_index_CONTROL")
+e = array.new_float()
+plot(array.binary_search_leftmost(e, 1), "E02_leftmost_empty")

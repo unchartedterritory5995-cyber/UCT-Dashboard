@@ -9,9 +9,8 @@ The services are `api/services/journal_two/setups_board.py` (the board: levels r
 `j2_similar_matches`, and the reads below). Pages: `components/notebook/SetupsBoard.jsx`,
 `BoardCard.jsx`, `SimilarNames.jsx`.
 
-  * TWO ROUTERS, TWO GATES, EACH A ROUTER DEPENDENCY: `NOTEBOOK_SETUPS_BOARD_ENABLED` off answers
-    the one 404 for the board, and `NOTEBOOK_FIND_SIMILAR_ENABLED` off answers it for the
-    similar routes, before any session, plan or parameter is read.
+  * TWO ROUTERS, always on (`NOTEBOOK_SETUPS_BOARD_ENABLED` and `NOTEBOOK_FIND_SIMILAR_ENABLED`
+    were retired 2026-11-04).
   * THE BOARD IS A MEMBER ROUTE (the member's own notes and the last price). FIND SIMILAR IS
     PAID, like the fingerprint it ranks on (the Screener's columns and the pattern engine's
     confirmed verdicts are paid surfaces; `notebook_fingerprint.require_paid`).
@@ -38,23 +37,8 @@ log = logging.getLogger(__name__)
 UNREADABLE_SENTENCE = "Your setups could not be read just now. Try again in a minute."
 
 
-def _gate(enabled):
-    """One router-level gate per flag, each named `_require_enabled` like every Notebook
-    router's (the route census finds a gate by that name and exercises it with its env var).
-    An off gate reads no session and answers the one not-found."""
-    def _require_enabled() -> None:
-        if not enabled():
-            raise public.not_found()
-    # The census reads a dependency's qualified name; a closure's would be
-    # `_gate.<locals>._require_enabled`, which no census row expects.
-    _require_enabled.__qualname__ = "_require_enabled"
-    return _require_enabled
-
-
-router = APIRouter(prefix="/api/j2/setups-board", tags=["journal-2-0", "notebook-setups-board"],
-                   dependencies=[Depends(_gate(setups_board.enabled))])
-similar_router = APIRouter(prefix="/api/j2/similar-names", tags=["journal-2-0", "notebook-find-similar"],
-                           dependencies=[Depends(_gate(similar_matches.enabled))])
+router = APIRouter(prefix="/api/j2/setups-board", tags=["journal-2-0", "notebook-setups-board"])
+similar_router = APIRouter(prefix="/api/j2/similar-names", tags=["journal-2-0", "notebook-find-similar"])
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:

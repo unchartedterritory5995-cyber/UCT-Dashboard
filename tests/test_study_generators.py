@@ -24,12 +24,47 @@ from scripts.study._common import EM_DASH, dedash
 REPO = pathlib.Path(__file__).resolve().parent.parent
 ID_RE = re.compile(r"^si_[0-9a-f]{12}$")
 
+# ⚰️ 2026-11-17 — 22 OF THIS FILE'S TESTS WERE RED ON EVERY MACHINE BUT ONE (nightly 43726736793: 21
+# setup errors + 1 failure, all FileNotFoundError). The O'Neil rules ("the methodology bible") are read
+# from the PRIVATE uct-intelligence repo, and gen_recall named that file by one developer's absolute
+# path, so the module fixture died on CI and on the owner's own box alike. gen_recall now resolves it
+# (`BIBLE_ROOTS`: $UCT_INTEL_PATH, the submodule, the dev-box checkouts) and REFUSES by name without it.
+# ⛔ WHERE THE PRIVATE FILE IS ABSENT (every CI runner: this repo is public, the sibling is not, and
+# its text is never vendored here) the 23 rules come from the committed bank's OWN quotes
+# (docs/study/bank/recall.bible.json, `reveal_json.quote`), so every generator assertion below still
+# runs over the bible segment. The ONE claim that needs the private file -- the committed quotes ARE
+# its rules, rule for rule -- is `test_the_committed_bible_quotes_are_the_private_sources_rules`. It
+# SKIPS there with NO_BIBLE as its reason, and runs wherever the checkout is (the owner's dev box).
+BIBLE_SOURCE = gen_recall.bible_path()
+COMMITTED_BIBLE = REPO / "docs" / "study" / "bank" / "recall.bible.json"
+NO_BIBLE = ("needs the PRIVATE uct-intelligence checkout (prompts/01_methodology_bible.txt), which is not on "
+            f"this box: looked under {list(gen_recall.BIBLE_ROOTS)}. Point UCT_INTEL_PATH at a checkout to run "
+            "it; it runs on the owner's dev box (C:\\Users\\Patrick\\uct-intelligence). Every other bible "
+            "assertion in this file still ran, on the committed bank's own quotes.")
+
+
+def _committed_bible_rules() -> list[tuple[int, str]]:
+    by_rule: dict[int, set] = {}
+    for it in json.loads(COMMITTED_BIBLE.read_text(encoding="utf-8")):
+        by_rule.setdefault(it["reveal_json"]["rule"], set()).add(it["reveal_json"]["quote"])
+    assert all(len(q) == 1 for q in by_rule.values()), "one rule is quoted two ways in the committed bank"
+    return [(n, next(iter(by_rule[n]))) for n in sorted(by_rule)]
+
+
+#: The 23 rules every bible assertion reads: the private source where it is on this box, else the
+#: committed bank's quotes (see above; never a typed copy).
+BIBLE_RULES = gen_recall.read_bible_rules() if BIBLE_SOURCE else _committed_bible_rules()
+
+
+def _generate(mod) -> dict:
+    return mod.generate(bible_rules=BIBLE_RULES) if mod is gen_recall else mod.generate()
+
 
 @pytest.fixture(scope="module")
 def segments() -> dict:
     out: dict = {}
     for mod in (gen_recall, gen_size, gen_fixtures, gen_candles, gen_walkthroughs, gen_terms):
-        out.update(mod.generate())
+        out.update(_generate(mod))
     js = gen_regime.BOTTOMS.read_text(encoding="utf-8")
     out["regime.bottoms"] = gen_regime.bottom_items(gen_regime.read_bottoms(js), gen_regime.read_signposts(js))
     return out
@@ -58,7 +93,7 @@ def test_every_item_is_a_draft_with_a_citation_and_a_valid_id(segments):
 def test_ids_are_deterministic_across_runs(segments):
     again: dict = {}
     for mod in (gen_recall, gen_size, gen_candles, gen_walkthroughs):
-        again.update(mod.generate())
+        again.update(_generate(mod))
     for name in ("recall.glossary", "size.house_rule", "candles.catalog", "walk.method"):
         assert [i["id"] for i in segments[name]] == [i["id"] for i in again[name]], name
     assert _common.item_id("ref", "q") == _common.item_id("ref", "q") != _common.item_id("ref", "q2")
@@ -103,7 +138,7 @@ def test_recall_keys_are_verbatim_substrings_of_their_source(segments):
         a = it["answer_json"]["answer"]
         assert a in glossary or a in glossary.values(), it["id"]
         assert EM_DASH not in a
-    rules = dict(gen_recall.read_bible_rules())
+    rules = dict(BIBLE_RULES)
     for it in segments["recall.bible"]:
         a = it["answer_json"]["answer"]
         assert any(a.lower() in dedash(r).lower() for r in rules.values()), it["id"]
@@ -119,10 +154,45 @@ def test_recall_keys_are_verbatim_substrings_of_their_source(segments):
 
 
 def test_bible_numbers_are_only_the_ones_the_rule_states():
-    rules = dict(gen_recall.read_bible_rules())
+    rules = dict(BIBLE_RULES)
     assert len(rules) == 23
     for n, (_q, key, _accept) in gen_recall.BIBLE_NUMBERS.items():
         assert key.lower() in rules[n].lower(), (n, key)
+
+
+@pytest.mark.skipif(BIBLE_SOURCE is None, reason=NO_BIBLE)
+def test_the_committed_bible_quotes_are_the_private_sources_rules():
+    """The one link only the private file can prove: the bank's quotes, which every CI run of this file
+    stands on, are the source's 23 rules verbatim and in order."""
+    assert _committed_bible_rules() == gen_recall.read_bible_rules()
+
+
+def test_the_bible_parser_reads_the_sources_shape():
+    """CI never parses the private file, so the parser is driven on its shape: a header line naming the
+    23 rules, numbered lines, a blank line ending the block, and numbered lines after it ignored."""
+    body = "\n".join(f"{n}. {rule}" for n, rule in BIBLE_RULES)
+    text = f"PREAMBLE\n1. not a rule\n\nO'NEIL 23 RULES (condensed)\n{body}\n\nNEXT SECTION\n24. not a rule\n"
+    assert gen_recall.read_bible_rules(text) == BIBLE_RULES
+    assert len(BIBLE_RULES) == 23
+
+
+def test_without_the_private_source_the_generator_refuses_by_name(monkeypatch, tmp_path):
+    """A box without the checkout gets a FileNotFoundError naming where it looked, never a bank
+    regenerated with the bible segment silently missing or empty."""
+    monkeypatch.setattr(gen_recall, "BIBLE_ROOTS", (str(tmp_path / "nowhere"),))
+    assert gen_recall.bible_path() is None
+    with pytest.raises(FileNotFoundError, match="PRIVATE uct-intelligence"):
+        gen_recall.generate()
+
+
+def test_the_private_source_is_found_under_any_listed_root(monkeypatch, tmp_path):
+    """The resolution the skip above depends on: the first root that holds the file wins."""
+    src = tmp_path / "second" / "prompts" / "01_methodology_bible.txt"
+    src.parent.mkdir(parents=True)
+    src.write_text("O'NEIL 23 RULES\n1. x\n\n", encoding="utf-8")
+    monkeypatch.setattr(gen_recall, "BIBLE_ROOTS", (str(tmp_path / "first"), str(tmp_path / "second")))
+    assert gen_recall.bible_path() == src
+    assert gen_recall.read_bible_rules() == [(1, "x")]
 
 
 def test_playbook_parse_finds_thirteen_playbooks_with_mistakes_and_stops():
@@ -164,7 +234,12 @@ def test_size_answers_match_the_house_formula_and_never_exceed_the_ceiling(segme
             assert key["shares"] == cap_shares == f["capped_shares"], it["id"]
             assert key["shares"] * (p["entry"] - p["stop"]) / p["account"] * 100 <= RISK_CEILING_PCT + 1e-9
         else:
-            assert key == {"shares": res["shares"], "dollars": res["dollars"]}, it["id"]
+            assert key == {"shares": res["shares"], "answer": gen_size._choice_shares(res["shares"])}, it["id"]
+        # owner 2026-11-12: share-count items are multiple choice, and the key's label is one of the four
+        if p.get("format") == "size":
+            assert len(set(p["choices"])) == 4 and key["answer"] in p["choices"], it["id"]
+        if it["skill_id"] == "size.formula":
+            assert f["stop_pct"] <= gen_size.MAX_STOP_PCT, it["id"]          # D-005: past 5% is not a question
         assert it["lesson_origin"] == "template" and si.grounding_check(it) == []
 
 
@@ -180,13 +255,14 @@ def test_size_rulings_2026_10_19_wide_stop_over_cap_tight_batch_and_plural(segme
     """docs/study/corrections/size.house_rule.jsonl: the three segment rulings."""
     items = segments["size.house_rule"]
     forward = [i for i in items if "#3-forward" in i["source_ref"]]
-    tight = [i for i in forward if "forward-tight" in i["source_ref"]]
+    tight = [i for i in forward if "forward-tight" in i["source_ref"] or "forward-refill" in i["source_ref"]]
     assert len(tight) >= 12
-    assert all(i["reveal_json"]["facts"]["stop_pct"] <= 8 for i in tight)
-    assert sum(1 for i in tight if i["reveal_json"]["facts"]["stop_pct"] <= 6) >= len(tight) * 0.75
-    # the original forward items keep their ids: the owner's verdicts still land
+    # owner 2026-11-12 (D-005): no share-count stop past 5%; the wide ones were replaced on their own stream
+    assert all(i["reveal_json"]["facts"]["stop_pct"] <= gen_size.MAX_STOP_PCT for i in forward)
+    # the surviving original forward items keep their ids: the owner's verdicts still land
     ids = {i["id"] for i in items}
-    assert {"si_a811f438b0f5", "si_50d28d98a52a", "si_7417247555f3"} <= ids
+    assert {"si_a811f438b0f5", "si_7417247555f3"} <= ids
+    assert "si_9d442ebbc314" not in ids and "si_50d28d98a52a" not in ids          # 15% stops, retired 2026-11-12
     for it in forward:
         f = it["reveal_json"]["facts"]
         wide = "far wider than the desk would ever use" in it["lesson_text"]
@@ -532,3 +608,86 @@ def test_corrections_overlay_sets_the_accept_list_and_names_who_wrote_a_lesson()
 
 def test_run_all_lists_every_generator():
     assert set(run_all.GENERATORS) == {gen_recall, gen_size, gen_fixtures, gen_regime, gen_candles, gen_walkthroughs, gen_terms}
+
+
+# ── a template never prints a missing number ─────────────────────────────────
+
+def test_the_committed_bank_never_prints_a_missing_number():
+    """A lesson template that read a fact the scan had not stored printed
+    'None%' (seen live 2026-11-04 on three Gap Support items). The grounding
+    check cannot catch it (None is not a number), so this reads every
+    committed segment: the bars decide the number or the clause is left out.
+    The English "None of it" (the course units' own words, 2026-11-09) is not a missing value, so it passes; a bare
+    None anywhere else still fails."""
+    leak = re.compile(r"\bNone\b(?!\s+of\b)")
+    assert leak.search("The gap held None% of the range.") and leak.search("Volume was None.")
+    assert not leak.search("None of it stops every loss.")
+    bad = []
+    for path in sorted((REPO / "docs" / "study" / "bank").glob("*.json")):
+        for it in json.loads(path.read_text(encoding="utf-8")):
+            for field, text in si.lesson_texts(it):
+                if leak.search(text):
+                    bad.append(f"{path.stem}:{it.get('id')}:{field}")
+    assert not bad, bad[:12]
+
+
+def test_no_drafting_note_reaches_a_member_facing_field():
+    """The bear-gap drafts of 2026-10-27 carried "(owner ruling pending; owner
+    2026-10-27: ...)" inside lesson_text, a note to the reviewer printed where
+    a member would read it (backlog, cleared 2026-11-05). The rail reads every
+    committed segment, and validate() refuses a new one; a citation of a
+    settled ruling, the lessons' own style, stays allowed."""
+    bad = []
+    for path in sorted((REPO / "docs" / "study" / "bank").glob("*.json")):
+        for it in json.loads(path.read_text(encoding="utf-8")):
+            for v in _common.drafting_notes(it):
+                bad.append(f"{path.stem}:{it.get('id')}:{v}")
+    assert not bad, bad[:12]
+    cited = {"prompt_json": {"q": "Is the last bar a bear gap?"},
+             "lesson_text": "A gap against a downtrend is a different setup (owner rulings 2026-10-23/24)."}
+    assert _common.drafting_notes(cited) == []
+    clean = _common.make_item(
+        type="spot", skill_id="setup.family3.bear_gap", q="Is the last bar a bear gap off the highs?",
+        answer="yes", choices=["Yes", "No"], source_kind="setups", source_ref="t#bear#1", lesson_origin="session",
+        lesson_text="Bear Gap off the Highs: the first true gap down since a recent top, marked on the gap day itself.")
+    assert _common.validate([clean]) == []
+    for text in ('Bear Gap (owner ruling pending; owner 2026-10-27: "later"): the first gap down.',
+                 "What this lesson teaches is the owner's to rule on the charts.",
+                 "TODO: the stop goes under the low."):
+        noted = dict(clean, lesson_text=text)
+        assert any("drafting note in lesson_text" in p for p in _common.validate([noted])), text
+    asked = dict(clean, prompt_json={"q": "Is this a bear gap (ruling pending)?", "choices": ["Yes", "No"]})
+    assert any("drafting note in prompt_json.q" in p for p in _common.validate([asked]))
+
+
+def test_setup_fact_lines_leave_a_clause_out_rather_than_print_none():
+    from scripts.study import gen_setup_examples as gse
+    thin_gap = {"gap_pct": 4.49, "bars_since_gap": 7, "first_test": True, "levels_touched": ["top", "mid"]}
+    line = gse.fact_line("Gap Support", {"facts": thin_gap})
+    assert "None" not in line and line.startswith("Here the gap was 4.49% 7 sessions earlier.")
+    thin_go = {"dcr": 0.98, "red_to_green": True, "swept": ["prior_low"]}
+    line = gse.fact_line("Go Signal", {"facts": thin_go})
+    assert "None" not in line and line.startswith("Here the session opened weak, swept the prior day's low")
+    # the full Gap Support line reads the geometry against the GAP-UP DAY'S LOW
+    # (owner rulings 2026-10-26/27), never a verdict word
+    full = dict(thin_gap, test_low_vs_gap_low_pct=-3.2, close_vs_gap_low_pct=-0.7, close_vs_gap_top_pct=1.3,
+                reclaim_sessions=1, dcr_pct=54)
+    line = gse.fact_line("Gap Support", {"facts": full})
+    assert line == ("Here the gap was 4.49% 7 sessions earlier. The test day undercut the gap-up day's low by 3.2% "
+                    "and closed 0.7% under it, 1.3% above the gap top, so the gap stayed open; the close was back "
+                    "above the gap-up low the next session. It was the first test of the gap, and the day closed "
+                    "at 54% of its range.")
+    for word in ("failed", "held the gap", "breach"):
+        assert word not in gse.fact_line("Gap Support", {"facts": dict(full, reclaim_sessions=None)})
+    held = dict(full, test_low_vs_gap_low_pct=-0.2, close_vs_gap_low_pct=3.7, close_vs_gap_top_pct=4.4)
+    assert "held the gap-up day's low to within 0.2% and closed 3.7% above it" in gse.fact_line("Gap Support", {"facts": held})
+    # the Slingshot trigger gap: the finder stores it as gap_pct (the curation of pass 2 copied it to
+    # trigger_gap_pct); the line reads either, and leaves the clause out when there is neither
+    sling = {"earnings_like_gap": {"gap_pct": 8.6, "bars_ago": 14}, "pullback_sessions": 3, "pullback_depth_abs_pct": 6.7,
+             "day_pct": 3.79, "close_pos_pct": 94, "gap_pct": -0.03}
+    line = gse.fact_line("Slingshot", {"facts": sling})
+    assert line.endswith("closed up 3.79% at 94% of its range, gapping -0.03%.") and "None" not in line
+    assert gse.fact_line("Slingshot", {"facts": dict(sling, trigger_gap_pct=0.4)}).endswith("gapping 0.4%.")
+    no_gap = {k: v for k, v in sling.items() if k != "gap_pct"}
+    assert gse.fact_line("Slingshot", {"facts": no_gap}).endswith("closed up 3.79% at 94% of its range.")
+    assert gse.fact_line("Slingshot", {"facts": {"rally": {"rally_pct": 30.7, "bars_ago": 9}}}) == "Here the drive was a 30.7% rally that peaked 9 sessions earlier."

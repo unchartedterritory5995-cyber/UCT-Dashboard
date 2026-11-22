@@ -34,6 +34,8 @@ export function legacyRegistrations(regs) {
  * infer it), a service worker, the Push API and the Notification API.
  */
 export function pushSupport(win = globalThis) {
+  // The desktop shell delivers notifications through the page; Web Push does not apply.
+  if (win && win.uctDesktop) return { ok: false, reason: 'desktop-shell' }
   if (!win || win.isSecureContext !== true) return { ok: false, reason: 'insecure' }
   const nav = win.navigator
   if (!nav || !('serviceWorker' in nav)) return { ok: false, reason: 'no-service-worker' }

@@ -1,0 +1,9 @@
+{
+  "_": [
+    "U15 PHASE B CROSS-VERSION ADMISSION TABLE (coordinator ruling 2026-11-16). A Pine v5 library is linked into a v6 script ONLY for a version named here. Every other v5 version imported by a v6 script is refused by name (`pine:library-version`), whatever a library store holds, so Phase B never widens the reach of a version nobody graded in a v6 script.",
+    "ONE file, read by the browser and server bundles (app/src/components/chart/engine/ast/pineLibraryVersion.js). If it cannot be read as a list of rows that each name a path, NOTHING is admitted (fail closed).",
+    "A row is added only when the version is a `promote` row of tools/pine_library/promotion_allowlist.json AND every capture of every v6 script in the sample that newly attaches with it grades MATCH host-only (`v6Importers`, capture id -> verdict). tests/test_pine_library_pinning.py holds the file to that rule.",
+    "Admission is not the whole gate: the reached code must also hold no construct the v6 migration guide changed (pineLibraryVersion.js::crossVersionDifference)."
+  ],
+  "admit": []
+}

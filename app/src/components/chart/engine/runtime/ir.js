@@ -113,6 +113,9 @@ export const EXPR = Object.freeze({
   // ── declared, not yet lowerable ──
   ARRAY_OP: 'arrayOp',
   OBJECT_OP: 'objectOp',
+  // ⭐⭐ S1 — an operation of the strategy BROKER (`runtime/broker.js`): an order
+  // command (void) or a `strategy.*` value. `args` positional, `null` = not passed.
+  BROKER: 'broker',
 })
 
 /** Where a resolved variable lives.
@@ -148,6 +151,7 @@ export function makeIrProgram({
   functions = [], callSites = [], history = [], windows = [], carried = [],
   carried2 = [],
   requests = [], objectTreeOutputs = [], iterOutputs = [], objectCaps = {},
+  broker = null,
 }) {
   if (!Array.isArray(statements)) throw new IrError('statements must be an array')
   if (!Array.isArray(slots)) throw new IrError('slots must be an array')
@@ -183,6 +187,9 @@ export function makeIrProgram({
     iterOutputs: iterOutputs || [],
     // ⭐ RT5 — the script's declared `max_*_count`s (the run's object store).
     objectCaps: objectCaps || {},
+    // ⭐⭐ S1 — the strategy declaration the broker runs with (`runtime/broker.js`),
+    // or null for every program that runs no broker.
+    broker: broker || null,
     // ⭐⭐ WHERE A HISTORY-BEARING VARIABLE LIVES IS DERIVED HERE, FROM THE SLOT
     // TABLE THAT JUST DECIDED IT. The front end says WHICH variable bears history
     // and HOW DEEP; the frame index and the lifetime are `normaliseSlots`'s
@@ -244,6 +251,19 @@ export function validateIr(p) {
    *  program), so a frame-relative history index is checked against that
    *  function's own per-site entries rather than the main program's. */
   let walkingFn = null
+  // ⭐⭐ ENGINE 84 (S14 fix 1) — A FUNCTION BODY'S STATE SITES ARE NUMBERED IN ITS OWN FRAME.
+  // A carried built-in, a two-input carried built-in and a variable's history ring each live, per call site,
+  // at that site's base plus the body's own index (`carriedBase`, `carried2Base`, `historyBase`). So in a body
+  // the index is checked against the FUNCTION's count (`carriedCount`, `carried2Count`, `historyCount`), and
+  // each call site's block against the table (the `callSites` loop below). ⚰️ It was checked against the WHOLE
+  // table, which holds no instance for a function nothing calls: an uncalled helper with `ta.barssince` or an
+  // `x[1]` failed the whole program ("carried site 0 outside 0", "history over a variable must name the HISTORY
+  // slot"), and six scripts of the coverage sample were refused for a body that never runs. A function record
+  // that states no count (a hand-built program) keeps the whole-table check.
+  const frameBound = (countKey, table) => {
+    const fn = walkingFn === null ? null : p.functions[walkingFn]
+    return fn && Number.isInteger(fn[countKey]) ? fn[countKey] : (table || []).length
+  }
   const walkExpr = (e, where) => {
     if (!isObj(e) || typeof e.kind !== 'string') throw new IrError(`${where}: not an expression node — ${JSON.stringify(e)}`)
     switch (e.kind) {
@@ -374,17 +394,28 @@ export function validateIr(p) {
         // node because they are the same Pine construct, and they are told apart
         // at lowering by what `of` is.
         if (e.of && e.of.kind === EXPR.READ) {
-          if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= (p.history || []).length) {
+          if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= frameBound('historyCount', p.history)) {
             throw new IrError(
               `${where}: history over a variable must name the HISTORY slot the front end `
               + `allocated for it; got ${JSON.stringify(e.slot)} against ${(p.history || []).length} `
               + 'history slots. Without it the lowering would have to re-derive which values '
               + 'are history-bearing, and a second answer to that question is a ring nobody fills.')
           }
-          if (e.back > p.history[e.slot].depth) {
-            throw new IrError(
-              `${where}: reads \`${p.history[e.slot].name}\`[${e.back}] but its ring was planned `
-              + `for depth ${p.history[e.slot].depth}`)
+          // ⛔ IN A FUNCTION BODY `slot` IS FRAME-RELATIVE (the HIST_SLOT_DYN case below says so too):
+          // every call site's block holds that function's ring at `historyBase + slot`. ⚰️ This read
+          // `p.history[slot]` — the MAIN table's entry of that index — so two functions with a history
+          // local at the same frame slot and different depths refused with the other one's name
+          // ("`fb` reads `fa.x`[4] but its ring was planned for depth 2"), found by B3.
+          const entries = walkingFn === null
+            ? [p.history[e.slot]]
+            : (p.callSites || []).filter((cs) => cs.fn === walkingFn && Number.isInteger(cs.historyBase))
+              .map((cs) => p.history[cs.historyBase + e.slot])
+          for (const h of entries) {
+            if (!h || e.back > h.depth) {
+              throw new IrError(
+                `${where}: reads \`${h ? h.name : '?'}\`[${e.back}] but its ring was planned `
+                + `for depth ${h ? h.depth : 'none'}`)
+            }
           }
         }
         walkExpr(e.of, `${where}.of`)
@@ -418,7 +449,7 @@ export function validateIr(p) {
         if (!Number.isInteger(e.depth) || e.depth < 1) {
           throw new IrError(`${where}: a bounded dynamic offset carries the depth its bound proved, got ${JSON.stringify(e.depth)}`)
         }
-        if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= (p.history || []).length) {
+        if (!Number.isInteger(e.slot) || e.slot < 0 || e.slot >= frameBound('historyCount', p.history)) {
           throw new IrError(`${where}: a bounded dynamic offset must name the HISTORY slot the front end `
             + `allocated, got ${JSON.stringify(e.slot)} against ${(p.history || []).length} history slots`)
         }
@@ -472,25 +503,43 @@ export function validateIr(p) {
         return
       }
       case EXPR.CARRIED: {
-        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.carried || []).length) {
-          throw new IrError(`${where}: carried site ${JSON.stringify(e.site)} outside ${(p.carried || []).length}`)
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= frameBound('carriedCount', p.carried)) {
+          throw new IrError(`${where}: carried site ${JSON.stringify(e.site)} outside ${frameBound('carriedCount', p.carried)}`)
         }
         walkExpr(e.source, `${where}.source`)
         return
       }
       case EXPR.CARRIED2: {
-        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.carried2 || []).length) {
-          throw new IrError(`${where}: carried2 site ${JSON.stringify(e.site)} outside ${(p.carried2 || []).length}`)
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= frameBound('carried2Count', p.carried2)) {
+          throw new IrError(`${where}: carried2 site ${JSON.stringify(e.site)} outside ${frameBound('carried2Count', p.carried2)}`)
         }
         walkExpr(e.cond, `${where}.cond`)
         walkExpr(e.source, `${where}.source`)
+        if (e.third !== undefined) walkExpr(e.third, `${where}.third`)
         return
       }
       case EXPR.WINDOW: {
-        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= (p.windows || []).length) {
-          throw new IrError(`${where}: window site ${JSON.stringify(e.site)} outside ${(p.windows || []).length}`)
+        // ⭐ S14 fix 1 — frame-relative in a body (`windowBase`), as the carried and history sites are
+        if (!Number.isInteger(e.site) || e.site < 0 || e.site >= frameBound('windowCount', p.windows)) {
+          throw new IrError(`${where}: window site ${JSON.stringify(e.site)} outside ${frameBound('windowCount', p.windows)}`)
         }
         walkExpr(e.source, `${where}.source`)
+        // ⭐⭐ W4-T8 — A WINDOW PLANNED `dynamic` READS ITS LENGTH EACH BAR, AND ONLY THAT ONE DOES.
+        // The plan entry and the node must agree, or the opcode would pop a length nobody pushed
+        // (a corrupted stack) or leave one behind (a stack that grows once per bar).
+        // (a body's site is FRAME-RELATIVE: it is read off the first call site's `windowBase`)
+        let planned
+        if (walkingFn === null) planned = (p.windows || [])[e.site]
+        else {
+          const cs = (p.callSites || []).find((c) => c.fn === walkingFn)
+          if (cs) planned = (p.windows || [])[(cs.windowBase || 0) + e.site]
+        }
+        const dyn = !!(planned && planned.dynamic === true)
+        if (planned && dyn !== (e.length !== undefined)) {
+          throw new IrError(`${where}: window site ${e.site} is ${dyn ? '' : 'not '}planned with a per-bar length `
+            + `but the call ${e.length !== undefined ? 'passes' : 'passes no'} one`)
+        }
+        if (e.length !== undefined) walkExpr(e.length, `${where}.length`)
         return
       }
       case EXPR.BUILTIN: {
@@ -507,6 +556,15 @@ export function validateIr(p) {
       // `args` is POSITIONAL on the op's canonical parameter list, with `null`
       // where the script passed nothing (the default applies) — a different fact
       // from an `na` it passed, which arrives as an expression.
+      case EXPR.BROKER:
+        if (typeof e.fn !== 'string' || !e.fn) throw new IrError(`${where}: a broker op carries a name`)
+        if (!Array.isArray(e.args)) throw new IrError(`${where}: a broker op carries an args array`)
+        // W9-T7-F1: 'string', a trade's order id / comment (`broker.js::BROKER_OPS`)
+        if (!['void', 'number', 'string'].includes(e.returns)) {
+          throw new IrError(`${where}: \`${e.fn}\` declares what it returns`)
+        }
+        e.args.forEach((x, i) => { if (x !== null) walkExpr(x, `${where}.${e.fn}[${i}]`) })
+        return
       case EXPR.OBJECT_OP:
         if (typeof e.fn !== 'string' || !e.fn) throw new IrError(`${where}: a drawing op carries a name`)
         if (!Array.isArray(e.args)) throw new IrError(`${where}: a drawing op carries an args array`)
@@ -579,6 +637,9 @@ export function validateIr(p) {
             if (!Number.isInteger(s[k]) || s[k] < 0 || s[k] >= nSlots) {
               throw new IrError(`${at}: for.${k} ${s[k]} outside ${nSlots} slots`)
             }
+          }
+          if (s.live !== undefined && s.live !== true) {
+            throw new IrError(`${at}: for.live is either absent or true`)
           }
           walkExpr(s.from, `${at}.from`)
           walkExpr(s.to, `${at}.to`)
@@ -656,6 +717,14 @@ export function validateIr(p) {
       throw new IrError(`${at}: persistBase must be an index`)
     }
     const fn = p.functions[cs.fn]
+    // ⭐ S14 fix 1 — each call site's block of a body's frame-relative state lies inside its table
+    for (const [base, countKey, table] of [['carriedBase', 'carriedCount', p.carried],
+      ['carried2Base', 'carried2Count', p.carried2], ['historyBase', 'historyCount', p.history],
+      ['windowBase', 'windowCount', p.windows]]) {
+      if (Number.isInteger(cs[base]) && Number.isInteger(fn[countKey]) && cs[base] + fn[countKey] > (table || []).length) {
+        throw new IrError(`${at}: ${base} ${cs[base]} + ${fn[countKey]} lies outside ${(table || []).length}`)
+      }
+    }
     if (fn.persistCount > 0) {
       const prior = seenBase.get(cs.persistBase)
       if (prior !== undefined) {
@@ -796,9 +865,15 @@ export const arrayCall = (fn, args, typeArg = null) => (
 /** ⭐⭐ RT5 — a drawing operation the run executes (`objectStore.js`): `fn` is
  *  the store's canonical name (or `any.<method>`, dispatched on the receiver's
  *  family at run time), `args` positional with `null` for an argument the
- *  script did not pass, `returns` what it leaves on the stack. */
-export const objectCall = (fn, args, returns) => (
-  { kind: EXPR.OBJECT_OP, fn, args, returns })
+ *  script did not pass, `returns` what it leaves on the stack.
+ *  ⭐⭐ ENGINE 54 — `site`, on a call that makes a drawing: its source call
+ *  (`objectProgram.js::objectSiteKey`), stamped on every object it makes. */
+export const objectCall = (fn, args, returns, site = null) => (
+  site ? { kind: EXPR.OBJECT_OP, fn, args, returns, site } : { kind: EXPR.OBJECT_OP, fn, args, returns })
+/** ⭐⭐ S1 — a broker operation (`runtime/broker.js::BROKER_OPS`): `args` positional
+ *  with `null` for a parameter the script did not pass. */
+export const brokerCall = (fn, args, returns) => (
+  { kind: EXPR.BROKER, fn, args, returns })
 /** `Foo.new(…)` — one instance of a user-defined type.
  *
  *  ⛔ `fields` IS IN DECLARATION ORDER AND `args` MATCHES IT POSITION FOR
@@ -843,7 +918,9 @@ export const builtin = (fn, args) => ({ kind: EXPR.BUILTIN, fn, args })
 /** ⭐ A finite-window builtin over a runtime series. `site` indexes the program's
  *  window table; `source` is the expression producing the CURRENT bar's value, and
  *  the committed bars come from that series' own history ring. */
-export const windowCall = (site, source) => ({ kind: EXPR.WINDOW, site, source })
+// ⭐ W4-T8 — `length` (an expression) is present ONLY for a `dynamic` plan entry: the v6 `series int` length.
+export const windowCall = (site, source, length) =>
+  (length === undefined ? { kind: EXPR.WINDOW, site, source } : { kind: EXPR.WINDOW, site, source, length })
 
 /** ⭐ A carried-state builtin over a runtime series. `site` is FRAME-RELATIVE:
  *  the VM adds the invocation's `carriedBase`, so one compiled body serves every
@@ -854,8 +931,11 @@ export const carriedCall = (site, source) => ({ kind: EXPR.CARRIED, site, source
 /** ⭐ A TWO-INPUT carried-state builtin — Pine's `ta.valuewhen(cond, src, n)`.
  *  `site` is FRAME-RELATIVE exactly as `carriedCall`'s is, so one compiled body
  *  serves every invocation and two call sites keep two rings. */
-export const carried2Call = (site, cond, source) => (
-  { kind: EXPR.CARRIED2, site, cond, source })
+export const carried2Call = (site, cond, source, third) => (
+  third === undefined
+    ? { kind: EXPR.CARRIED2, site, cond, source }
+    // ⭐ W4 T10 — a THREE-INPUT member (`ta.stoch`, `ta.vwap`): `third` is pushed last.
+    : { kind: EXPR.CARRIED2, site, cond, source, third })
 
 export const declare = (slot, value) => ({ kind: STMT.DECLARE, slot, value })
 export const assign = (slot, value) => ({ kind: STMT.ASSIGN, slot, value })
@@ -893,9 +973,14 @@ export const fieldSet = (of, name, value) => (
  *  ⛔ `from`, `to` AND `step` ARE EXPRESSIONS EVALUATED ONCE, at loop entry.
  *  Pine does not re-read them per iteration, and a runtime that did would
  *  make a body that grows the array it walks into a loop that never ends.
- *  `toSlot` and `stepSlot` are where those once-evaluated values live. */
-export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body }) => (
-  { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body })
+ *  `toSlot` and `stepSlot` are where those once-evaluated values live.
+ *
+ *  ⭐⭐ W6-T6 — `live: true` is a `for … in` walk (`forInRule.js`): `from` is 0, `step` is 1,
+ *  and `to` is the walked list's LENGTH, an EXCLUSIVE bound RE-READ before every pass (C48,
+ *  `vw-forin-collections` F03 / F04: a body that shifts or pushes changes the pass count). It
+ *  never counts down: an empty list runs no pass. */
+export const forStmt = ({ slot, toSlot, stepSlot, from, to, step, body, live = false }) => (
+  { kind: STMT.FOR, slot, toSlot, stepSlot, from, to, step, body, ...(live ? { live: true } : {}) })
 /** `while test` — C18.
  *
  *  ⭐⭐ THE TEST IS RE-EVALUATED BEFORE EVERY PASS, and that is the whole

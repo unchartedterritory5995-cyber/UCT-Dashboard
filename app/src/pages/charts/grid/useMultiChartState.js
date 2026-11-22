@@ -59,6 +59,9 @@ export default function useMultiChartState(deviceClass = 'desktop') {
   // The grid's ONE shared ChartSettingsModal — opened from the Multi Charts
   // dropdown or any cell's right-click menu; rendered by MultiChartGrid.
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // The ONE maximized cell (its id), or null. Never persisted: a maximize is a view of this tab. Lifted here from
+  // MultiChartGrid so its maximize button and the UCT Agent (useGridAgentControl) share one writer.
+  const [maxId, setMaxId] = useState(null)
 
   // Pick up prefs that arrive after initial render (async fetch), once.
   const loadedRef = useRef(false)
@@ -103,6 +106,21 @@ export default function useMultiChartState(deviceClass = 'desktop') {
         setPref('multichart_state', JSON.stringify(stateRef.current))
       }
     }
+  }, [setPref])
+
+  // ⭐ UCT Agent: write the board NOW and say whether the server took it. A receipt never claims a change was saved on the
+  // strength of the debounce above. Same member guard and same writer as the debounced save.
+  const flushSave = useCallback(async () => {
+    await Promise.resolve()   // apply() schedules on a microtask; let it land first
+    if (!hydratedRef.current) return { ok: false, reason: 'not-saved' }
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null }
+    const op = beginPrefsOp()
+    saveOpRef.current = op
+    if (op.stale()) return { ok: false, reason: 'not-saved' }
+    try {
+      const ok = await setPref('multichart_state', JSON.stringify(stateRef.current))
+      return ok === false ? { ok: false, reason: 'not-saved' } : { ok: true }
+    } catch { return { ok: false, reason: 'not-saved' } }
   }, [setPref])
 
   const apply = useCallback((updater) => {
@@ -203,6 +221,17 @@ export default function useMultiChartState(deviceClass = 'desktop') {
     })
   }, [apply, deviceClass])
 
+  // ⭐ UCT Agent Undo: the board EXACTLY as persisted (device scoping included), and a verbatim restore of it. Only ever
+  // handed a string this hook produced; anything unreadable is ignored.
+  const snapshot = useCallback(() => JSON.stringify(stateRef.current), [])
+  const restoreSnapshot = useCallback((raw) => {
+    let next = null
+    try { next = JSON.parse(raw) } catch { next = null }
+    if (!next || typeof next !== 'object') return false
+    apply(() => next)
+    return true
+  }, [apply])
+
   const setGroup = useCallback((group) => {
     apply(prev => ({ ...prev, group: group || null }))
   }, [apply])
@@ -242,8 +271,8 @@ export default function useMultiChartState(deviceClass = 'desktop') {
 
   return {
     state, hydrated,
-    settingsOpen, setSettingsOpen,
+    settingsOpen, setSettingsOpen, maxId, setMaxId,
     enterGrid, exitGrid, applyCustomLayout, updateCellAt, setSyncCrosshair, setSyncTimeRange, setGroupsMode, applyGridTemplate,
-    fillCells, restoreCells, setGroup, clearGroup,
+    fillCells, restoreCells, setGroup, clearGroup, flushSave, snapshot, restoreSnapshot,
   }
 }

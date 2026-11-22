@@ -127,14 +127,44 @@ def buyout_excludes() -> frozenset[str]:
     return deal_status.screener_excludes()
 
 
+def second_spelling_of(ticker: str, names) -> str | None:
+    """The name in ``names`` that ``ticker`` is a SECOND SPELLING of, or ``None``.
+
+    A class share has two spellings: the data vendor's reference list writes a DOT
+    (``BRK.B``) and this app, its curated universe, its caches and its other feeds
+    write a HYPHEN (``BRK-B``; `massive.to_polygon_symbol` maps one to the other at
+    the vendor's door). `build_and_save` unions the two sources, so the same listing
+    entered the universe twice: on 2026-11-15 the live Screener carried eleven such
+    pairs (BRK.B beside BRK-B, BF.A, BF.B, HEI.A, PBR.A, MOG.A, UHAL.B, AKO.A, AKO.B,
+    CRD.A, CRD.B), each a second row with the same price that took its own place in
+    every ranking.
+
+    ⛔ ONLY A PAIR IS TOUCHED. A dot name whose hyphen form is NOT in ``names`` (LEN.B,
+    GEF.B) is the only spelling this universe holds of that listing and stays as it is:
+    renaming it would orphan its stored bars and its rating history."""
+    t = str(ticker or "").upper()
+    if "." not in t:
+        return None
+    twin = t.replace(".", "-")
+    return twin if twin in names else None
+
+
+def drop_second_spellings(names) -> list[str]:
+    """``names`` sorted, without any dot spelling whose hyphen spelling is also there
+    (`second_spelling_of`). Upper-cases nothing: hand it upper-cased names."""
+    have = set(names)
+    return sorted(t for t in have if second_spelling_of(t, have) is None)
+
+
 def symbols() -> list[str]:
     """The screener universe, best available source. Falls back to the cap
     universe so the screener never loses its universe just because the wider file
-    has not been generated yet."""
+    has not been generated yet. One spelling per listing (`drop_second_spellings`),
+    so a universe file written before 2026-11-15 reads clean without a rebuild."""
     for p in _load_paths():
         got = _read_list(p)
         if got:
-            return sorted(set(got))
+            return drop_second_spellings(got)
     # Last resort: the app-wide cap universe (== the pre-2026-09-21 behaviour).
     try:
         from api.services import cap_universe
@@ -269,7 +299,9 @@ def build_and_save(min_shares: float | None = None, sessions: int = 5,
     keep |= core
     keep |= core_etfs
     keep -= excl
-    final = sorted(keep)
+    # One spelling per listing: the reference list's BRK.B beside the curated BRK-B is
+    # the same stock twice (`second_spelling_of`).
+    final = drop_second_spellings(keep)
     # ⛔ An unknown type is OMITTED, never written as a value: `types()` reads
     # the file back with `str(v)`, so a JSON null would round-trip as the
     # four-character bucket "None".

@@ -184,7 +184,146 @@ _KNOWN_EMPTY_IN_PROD = {
         " from implied move — `earnings_context._latest_grades` — so do not"
         " conflate the two when one of them fills."
     ),
+    # ── UCT Relative Strength rating family (Phase 2a, unit 2a-08) ──
+    # ⚰️ EIGHT ENTRIES STOOD HERE UNTIL 2026-11-14: `rs_rating_ibd`,
+    # `rs_rating_chg_5`, `rs_rating_chg_20` and `rs_rating_1m/3m/6m/9m/12m`,
+    # banned on 2026-11-06 as "non-null on 0 prod rows by construction" while
+    # the job that writes `rs_rating_history` (`rs_history_nightly`, 04:15 ET)
+    # was dark behind `RS_HISTORY_ENABLED`. Their own note said to delete them
+    # after the first clean fill. The flag was armed on 2026-11-07 and the
+    # ratings have been live on production since; measured 2026-11-13: 2,390 of
+    # 2,404 liquid stocks carry a rating. Deleted, as the rule above asks: a
+    # stale ban blocks a working criterion. `_PROD_EMPTY_CENSUS` below holds
+    # the list to what is still measured empty.
 }
+
+#: The ban list, counted. An entry leaves with a dated measurement that its
+#: column fills (the rating family, above) and joins with one that it is
+#: empty; either way this census moves in the same change, on purpose.
+_PROD_EMPTY_CENSUS = frozenset({"implied_move_pct", "earnings_setup_grade"})
+
+
+# ── UCT RELATIVE STRENGTH starters (Phase 2a, unit 2a-08) ───────────────────
+# ⛔ DERIVED FROM THE TWO WRITERS: the bar-derived set is `rs_columns.COLUMNS`
+# (written by the nightly build's `bars_rs` step) and the rating set is
+# `snapshot_builder._RS_HISTORY_COLUMNS` (read from `rs_rating_history`, live
+# since 2026-11-07). Both fill on production, so a starter may filter either.
+# ⚰️ This said a starter "must not filter the second until it fills"; it filled.
+
+def _rs_sets():
+    from api.services.screener import rs_columns, snapshot_builder
+    # The five RS Exit Warning columns share the ten's writer and fill on the same first build.
+    return (frozenset(rs_columns.COLUMNS) | frozenset(rs_columns.EXIT_COLUMNS),
+            frozenset(snapshot_builder._RS_HISTORY_COLUMNS))
+
+
+def _rs_starters(ss):
+    # 2026-11-07 (review finding #12, unit U6): the RS starters ship only while
+    # `registry_defs.RS_V2_ENABLED` is on (the `bars_rs` step's gate), so the
+    # rails below read them with the flag armed via `_rs_v2_on(monkeypatch)`;
+    # the dark half is railed in tests/test_rs_fix_u6_screener_surfaces.py.
+    return [s for s in ss.starters() if s.get("group") == ss.RS_STARTER_GROUP]
+
+
+def _rs_v2_on(monkeypatch):
+    from api.services.signature import registry_defs
+    monkeypatch.setattr(registry_defs, "RS_V2_ENABLED", True)
+
+
+def test_the_ban_list_holds_what_is_measured_empty_and_no_rs_column(tmp_path, monkeypatch):
+    """⛔ THE BAN LIST IS A CENSUS, AND THE RS FAMILY IS NAMED BY ITS WRITERS.
+
+    Until 2026-11-14 this test asserted the opposite for the rating half: every
+    rating column had to be banned, because the job that fills them was dark.
+    The ratings went live on 2026-11-07 (measured 2026-11-13: 2,390 of 2,404
+    liquid stocks carry one), so a ban on one now blocks a working criterion.
+
+    What still has to hold: the columns that really are empty on production
+    stay banned (a starter on `implied_move_pct` returned nothing forever); no
+    RS column, bar-derived or rating, is banned; and a starter that filters a
+    rating column passes the empty-column rail's own decision function, so the
+    lift is real and not only a shorter dict.
+    """
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
+    from api.services.screener import filters as scr_filters
+    bars, ratings = _rs_sets()
+    assert bars and ratings and not (bars & ratings)
+    banned = set(_KNOWN_EMPTY_IN_PROD)
+    assert banned == _PROD_EMPTY_CENSUS, sorted(banned ^ _PROD_EMPTY_CENSUS)
+    assert not (bars & banned), "a bar-derived RS column is banned, and it fills every night"
+    assert not (ratings & banned), (
+        "a rating column is banned, and the ratings have been live on production "
+        f"since 2026-11-07: {sorted(ratings & banned)}")
+    # every rating column is a real filter, and a starter on it is not flagged
+    for col in sorted(ratings):
+        keys = [k for k, f in scr_filters.FILTERS.items() if f.get("column") == col]
+        assert keys, (col, "a rating column no filter reads")
+        fake = [{"id": "starter_control_rating", "name": "Control",
+                 "spec": {"filters": [{"key": keys[0], "op": "gte", "min": 90}],
+                          "view": "relative_strength"}}]
+        assert _starters_filtering_an_empty_column(fake, scr_filters.FILTERS) == [], col
+    starters = _rs_starters(ss)
+    assert len(starters) >= 5, [s["id"] for s in starters]
+    touched = set()
+    for s in starters:
+        assert s["id"].startswith("starter_rs_"), s["id"]
+        assert s["spec"]["view"] == "relative_strength", s["id"]
+        for f in s["spec"]["filters"]:
+            col = scr_filters.FILTERS[f["key"]]["column"]
+            if col in bars | ratings:
+                touched.add(col)
+        # an RS starter orders by a number the RS family itself writes
+        sort = s["spec"]["sort"]["key"]
+        assert sort in bars | ratings or sort == "rs_rank", (s["id"], sort)
+    # the starters reach a real share of the family, not one column seven times
+    assert len(touched) >= 6, sorted(touched)
+
+
+def test_the_rs_starter_rules_are_the_ones_the_unit_was_built_to(tmp_path, monkeypatch):
+    """The four rules the unit names, pinned BY RULING: a flag at 1 is the
+    definition; 3+ of 20 and "within one month = 21 sessions, and above zero
+    now" are the thresholds shipped on 2026-11-06, editorial and awaiting the
+    owner's approval (map §5 q5) — move them deliberately, not by drift."""
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
+    by_id = {s["id"]: s for s in _rs_starters(ss)}
+
+    def clauses(sid):
+        return {(f["key"], f["op"], f.get("value", f.get("min")), f.get("max"))
+                for f in by_id[sid]["spec"]["filters"]
+                if f["key"] not in ("dollar_vol_30d", "price", "security_type")}
+
+    assert clauses("starter_rs_nh_before_price") == {("rs_nh_before_price", "eq", 1, None)}
+    assert clauses("starter_rs_nh_red_day") == {("rs_nh_red_day", "eq", 1, None)}
+    assert clauses("starter_rs_new_high") == {("rs_new_high", "eq", 1, None)}
+    assert clauses("starter_rs_green_on_red") == {("green_on_red_20", "gte", 3, None)}
+    assert clauses("starter_rs_mansfield_positive") == {
+        ("mansfield_cross_bars_ago", "lte", None, 21), ("mansfield", "gt", 0, None)}
+    assert clauses("starter_rs_cross_up_21ema") == {
+        ("rs_cross_up_bars_ago", "between", 0, 5), ("rs_line_above_ma", "eq", 1, None)}
+    assert clauses("starter_rs_leaders_equal_weight") == {
+        ("rs_rank", "gte", 80, None), ("rs_benchmark_agree", "eq", 1, None),
+        ("rs_line_above_ma", "eq", 1, None)}
+    # every RS starter carries the two published floors and the stocks-only clause
+    for s in by_id.values():
+        keys = {f["key"] for f in s["spec"]["filters"]}
+        assert {"dollar_vol_30d", "price", ss.STOCKS_ONLY["key"]} <= keys, s["id"]
+
+
+def test_rs_starters_say_what_they_select_and_never_say_weekly(tmp_path, monkeypatch):
+    """A screen whose name disagrees with its filters teaches the member the
+    wrong thing. Mansfield here is on 200 DAILY bars (`rs_columns`), so no name
+    or description may say "weekly"; every one names its own liquidity floor."""
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)   # 2026-11-07 (U6)
+    for s in _rs_starters(ss):
+        text = f"{s['name']} {s['description']}".lower()
+        assert "weekly" not in text, s["id"]
+        assert "$10m" in text and "$5" in text, s["id"]
+        assert s["description"].rstrip()[-1] not in ".!", s["id"]   # the house style: no trailing stop, never an exclamation
+    mans = next(s for s in _rs_starters(ss) if s["id"] == "starter_rs_mansfield_positive")
+    assert "200-day" in mans["description"]
 
 
 def _starters_filtering_an_empty_column(starters, registry):
@@ -273,3 +412,61 @@ def test_every_valid_op_declares_its_operands():
     for op, operands in scr_filters.OP_OPERANDS.items():
         assert isinstance(operands, tuple) and all(isinstance(o, str) for o in operands), \
             (op, operands)
+
+
+# ── SEARCH ALIASES (2026-11-14) ─────────────────────────────────────────────
+# A starter may carry `aliases`: extra words the screen picker's search matches
+# (ScreenMenu.jsx `match`) and never shows. Members type the names they already
+# know a setup by ("RSNHBP", "blue dot"), and the picker read only the name and
+# the description.
+
+RSNHBP_ALIASES = ["RSNHBP", "RS new high before price", "blue dot"]
+
+
+def test_starter_aliases_survive_starters_and_are_plain_search_words(tmp_path, monkeypatch):
+    """`starters()` rebuilds every starter through `_stocks_only`; the aliases
+    must come out the other side on the screen they were written for. Derived
+    from `starters()` itself for the rest: every list that exists is a list of
+    non-empty words, and a search word belongs to ONE screen (an alias two
+    screens share finds neither on its own)."""
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)
+    starters = ss.starters()
+    by_id = {s["id"]: s for s in starters}
+    assert by_id["starter_rs_nh_before_price"]["aliases"] == RSNHBP_ALIASES
+    assert by_id["starter_rs_nh_before_price"]["spec"]["filters"][-1]["key"] == ss.STOCKS_ONLY["key"]
+    owner = {}
+    for s in starters:
+        if "aliases" not in s:
+            continue
+        words = s["aliases"]
+        assert isinstance(words, list) and words, s["id"]
+        assert all(isinstance(w, str) and w.strip() == w and w for w in words), (s["id"], words)
+        for w in words:
+            assert owner.setdefault(w.lower(), s["id"]) == s["id"], (w, owner[w.lower()], s["id"])
+        assert len({w.lower() for w in words}) == len(words), (s["id"], words)
+    # optional: a starter with no search words has no key at all (never an empty
+    # list or a null the client would have to guard)
+    assert any("aliases" not in s for s in starters)
+
+
+def test_starter_aliases_reach_the_client_through_the_saved_screens_route(tmp_path, monkeypatch):
+    """The picker gets its starters from GET /api/screener/saved-screens; the
+    aliases have to be in that answer or the client clause matches nothing."""
+    ss = _svc(tmp_path, monkeypatch)
+    _rs_v2_on(monkeypatch)
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
+    from api.routers import screener as screener_mod
+    monkeypatch.setattr(screener_mod, "scr_saved", ss)
+    paid = {"id": "u1", "role": "member", "plan": "pro"}
+    app = FastAPI()
+    app.include_router(screener_mod.router)
+    app.dependency_overrides[get_current_user] = lambda: dict(paid)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(paid)
+    r = TestClient(app).get("/api/screener/saved-screens")
+    assert r.status_code == 200, r.text[:200]
+    by_id = {s["id"]: s for s in r.json()["starters"]}
+    assert by_id["starter_rs_nh_before_price"]["aliases"] == RSNHBP_ALIASES
+    assert any("aliases" not in s for s in by_id.values())

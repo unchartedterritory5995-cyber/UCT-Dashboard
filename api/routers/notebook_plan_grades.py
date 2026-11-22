@@ -10,10 +10,8 @@ client is `app/src/pages/journal-2-0/hooks/usePlanGrade.js`.
   member  GET   /api/j2/plan-grades/discipline?accountId=      session  the last 20 and 60 closed trades
 
 The rules (the gallery router's, `notebook_template_gallery.py`):
-  * THE GATE IS A ROUTER DEPENDENCY: `NOTEBOOK_PLAN_GRADING_ENABLED` off answers the one 404 for
-    every route before the session or the body is read.
-  * THE BODY IS READ INSIDE THE DEPENDENCY CHAIN (gate, then member, then body), never as a
-    FastAPI body parameter, so a malformed body can never answer 422 ahead of the gate.
+  * THE BODY IS READ INSIDE THE DEPENDENCY CHAIN (member, then body), never as a FastAPI body
+    parameter, so a malformed body can never answer 422 ahead of the session check.
   * MEMBER-SCOPED: every read and write is keyed on the session member's id; another member's
     trade id answers 404.
   * No route here writes a trade or a note. A GET may FREEZE a plan (the first match, R4) --
@@ -46,16 +44,9 @@ MAX_BODY_BYTES = 16_000
 TOO_LARGE_SENTENCE = "Request too large"
 
 
-def _require_enabled() -> None:
-    """Router-level: an off gate reads no session and parses no body."""
-    if not plan_grading.enabled():
-        raise HTTPException(status_code=404, detail="Not Found")
-
-
 router = APIRouter(
     prefix="/api/j2/plan-grades",
     tags=["journal-2-0", "notebook-plan-grades"],
-    dependencies=[Depends(_require_enabled)],
 )
 
 

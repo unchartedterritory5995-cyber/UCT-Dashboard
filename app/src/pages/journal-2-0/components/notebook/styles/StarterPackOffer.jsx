@@ -23,13 +23,22 @@ import { STYLES_URL } from '../../../lib/journalStyles'
 import { starterPacksEnabled } from '../../../lib/starterPacksFlag'
 import { PACKS, STARTER_PACK_PREF, installStarterPack, readStarterPackState, writeStarterPackState } from '../../../lib/starterPacks'
 import { logIfUnexpected } from './styleErrors'
+import { FIRST_RUN_MARKS, useFirstRunShowing } from '../../../lib/firstRun'
 import styles from './StarterPackOffer.module.css'
 
+/** Whether the account has seen the 60-second first run (its `first-run` mark in `notebook_tips`). Parsed here, with
+ *  no hook helper: this module is read by suites that stub the preferences hook. */
+export function firstRunSeenIn(raw) {
+  let v = raw
+  if (typeof v === 'string') { try { v = JSON.parse(v) } catch { return false } }
+  return Boolean(v && Array.isArray(v.seen) && v.seen.includes(FIRST_RUN_MARKS.shown))
+}
+
 export const OFFER_TITLE = 'How do you trade?'
-export const OFFER_LINE = 'Pick one and we will add three styles you can change.'
+export const OFFER_LINE = 'Pick one and we will add three templates you can change.'
 // A lost answer (a 200 the connection dropped) also lands here; a retry is safe, the server says alreadyHad.
 export const OFFER_FAILED = "Couldn't confirm that pack. Try again; nothing is added twice."
-export const OFFER_EMPTY = 'Nothing was added. This pack has no styles to add right now.'
+export const OFFER_EMPTY = 'Nothing was added. This pack has no templates to add right now.'
 export const OFFER_NOT_SAVED = "Couldn't save your answer, so this card may ask again."
 
 // The page's ONE decision. `mode`: null undecided, 'open', 'closed'. `hosts`: the surfaces showing now, in the
@@ -70,7 +79,14 @@ export function useStarterPackOffer(data, active = true) {
   const member = useSyncExternalStore(onPrefsUserChange, prefsUser, prefsUser)
   const owed = useSyncExternalStore(subscribe, () => owesAnswer(member), () => owesAnswer(member))
   const ready = Boolean(data) && !loading
-  const eligible = on && ready && !readFailed && !owed
+  // Audit 2026-11-05, S16: the 60-second first run asks "How do you trade?" itself; while it is on screen no card
+  // asks it again (one ask per page). A Skip closes it, and the card may then ask here, inline (S17).
+  const firstRunShowing = useFirstRunShowing()
+  // Tier 3a fix round 1 (review I3): once the member has SEEN the first run, it (or Home's inline ask after a Skip)
+  // is the ONE place that asks. This card no longer opens by itself for them; Manage templates' own "Starter packs"
+  // link still opens it on request.
+  const firstRunSeen = firstRunSeenIn(prefs?.notebook_tips)
+  const eligible = on && ready && !readFailed && !owed && !firstRunShowing && !firstRunSeen
     && readStarterPackState(prefs) === null
     && !(data.styles || []).some((s) => !s.builtin)
   // The answer an install made for THIS member could not write (see unwrittenAnswers), written now that they are
@@ -122,7 +138,7 @@ export function resultLines(out) {
   const added = (out?.installed || []).map((i) => i?.title).filter(Boolean)
   const had = (out?.alreadyHad || []).filter(Boolean)
   const skipped = (out?.skipped || []).map((s) => (typeof s === 'string' ? { title: s } : s)).filter((s) => s?.title)
-  if (added.length) lines.push(`Added: ${join(added)}. They are in your Styles.`)
+  if (added.length) lines.push(`Added: ${join(added)}. They are in your templates.`)
   if (had.length) lines.push(`Already had: ${join(had)}.`)
   // Rows refused for the same reason share one line (a member at the style limit has all three refused).
   const byReason = new Map()

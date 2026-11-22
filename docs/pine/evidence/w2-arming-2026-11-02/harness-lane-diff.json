@@ -1,0 +1,2211 @@
+{
+ "generatedBy": "W2 arming audit, vendorHarness.corpus.test.js run twice on origin/master 6272ed7fa3",
+ "commands": [
+  "cd app && VENDOR_HARNESS_DIR=../tests/fixtures/vendor/harness VENDOR_HARNESS_OUT=<dir> VENDOR_HARNESS_RUNTIME_ON=1 node node_modules/vitest/vitest.mjs run src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js --maxWorkers=2",
+  "same with VENDOR_HARNESS_RUNTIME_ON=0"
+ ],
+ "totals": {
+  "production": {
+   "INCONCLUSIVE": 140,
+   "DIVERGE": 103,
+   "MATCH": 93
+  },
+  "runtimeOn": {
+   "MATCH": 111,
+   "INCONCLUSIVE": 118,
+   "DIVERGE": 107
+  }
+ },
+ "laneEvidence": {
+  "production": {
+   "requested": "production",
+   "objectsOnlyPane": true,
+   "gateOpen": false,
+   "declined": 0,
+   "gated": 0,
+   "runtimeDrawn": 0,
+   "hostRefused": 112,
+   "reachedRuntime": 0,
+   "declines": {}
+  },
+  "runtimeOn": {
+   "requested": "runtime-on",
+   "objectsOnlyPane": true,
+   "gateOpen": true,
+   "declined": 57,
+   "gated": 0,
+   "runtimeDrawn": 55,
+   "hostRefused": 112,
+   "reachedRuntime": 112,
+   "declines": {
+    "pine:function": 14,
+    "pine:builtin": 13,
+    "lower-tf:store-unmeasured": 5,
+    "runtime:library": 5,
+    "runtime:conditional-history": 3,
+    "runtime:request": 3,
+    "lower-tf:unwitnessed": 2,
+    "pine:arity": 2,
+    "pine:collection": 2,
+    "pine:colour-value": 2,
+    "runtime:loop": 2,
+    "pine:drawing": 1,
+    "runtime:call-undeclared-builtin-state": 1,
+    "runtime:colour": 1,
+    "runtime:history-expression": 1
+   }
+  }
+ },
+ "changed": [
+  {
+   "file": "adx-and-di-for-v4-rddt-1d-2026-09-27.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "adx-and-di-for-v4-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "fibonacci-dolphintradebot-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "fibonacci-dolphintradebot-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "h3-alma-v4-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 9 items agree"
+  },
+  {
+   "file": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 4 compared items diverge"
+  },
+  {
+   "file": "kalman-price-filter-backquant-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "parabolic-sar-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "r1-strategy-draws-indicator-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 6 items agree"
+  },
+  {
+   "file": "r1-strategy-draws-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "4 of 6 compared items diverge"
+  },
+  {
+   "file": "renko-candles-overlay-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "trend-targets-algoalpha-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 7 compared items diverge"
+  },
+  {
+   "file": "vw-clock-close-tfchange-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 19 items agree"
+  },
+  {
+   "file": "vw-deadband-ticks-brk-a-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 7 compared items diverge"
+  },
+  {
+   "file": "vw-h4-loops-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "vw-h4-loops-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "vw-var-seed-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 8 items agree"
+  },
+  {
+   "file": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 10 items agree"
+  },
+  {
+   "file": "wyckoff-accumulation-distribution-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 10 items agree"
+  }
+ ],
+ "all": [
+  {
+   "file": "adx-and-di-for-v4-rddt-1d-2026-09-27.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "adx-and-di-for-v4-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "all-chart-patterns-theeccentrictrader-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees \u2014 the library `theEccentricTrader/PubLibSwing/"
+  },
+  {
+   "file": "artemis-oscillator-pro-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 14 compared items diverge"
+  },
+  {
+   "file": "artemis-oscillator-pro-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "5 of 14 compared items diverge"
+  },
+  {
+   "file": "atr-bands-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "atr-bands-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 5 compared items diverge"
+  },
+  {
+   "file": "atr-stepped-pdf-ma-loxx-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "2 of 5 items could not be compared"
+  },
+  {
+   "file": "atr-support-and-resistance-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 11 compared items diverge"
+  },
+  {
+   "file": "atr-support-and-resistance-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "3 of 11 compared items diverge"
+  },
+  {
+   "file": "atr-trailing-stop-by-ceyhun-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 6 compared items diverge"
+  },
+  {
+   "file": "atr-trailing-stop-by-ceyhun-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "4 of 6 compared items diverge"
+  },
+  {
+   "file": "atr-trailing-stoploss-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "atr-trailing-stoploss-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 5 compared items diverge"
+  },
+  {
+   "file": "auto-trendline-dojiemoji-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 7 compared items diverge"
+  },
+  {
+   "file": "auto-trendline-dojiemoji-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 7 compared items diverge"
+  },
+  {
+   "file": "average-day-range-adr-pivots-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 8 items agree"
+  },
+  {
+   "file": "average-day-range-adr-pivots-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 8 items agree"
+  },
+  {
+   "file": "black-scholes-option-pricing-model-w-greeks-loxx-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees \u2014 the library `loxx/loxxexpandedsourcetypes/4`"
+  },
+  {
+   "file": "btc-charlie-trader-xo-macro-trend-scanner-rddt-1d-2026-09-30.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 7 items agree"
+  },
+  {
+   "file": "btc-charlie-trader-xo-macro-trend-scanner-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 7 compared items diverge"
+  },
+  {
+   "file": "candlestick-patterns-identified-update-1-17-26-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 16 items agree"
+  },
+  {
+   "file": "candlestick-patterns-identified-update-1-17-26-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 16 items agree"
+  },
+  {
+   "file": "cc-yata-rddt-1d-2026-09-27.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "10 of 55 items could not be compared"
+  },
+  {
+   "file": "cdc-btc-rainbow-road-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 14 items agree"
+  },
+  {
+   "file": "contraction-box-doji-lines-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "contraction-box-doji-lines-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 30 items agree"
+  },
+  {
+   "file": "cpr-with-mas-super-trend-vwap-by-guruprasadmeduri-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 30 compared items diverge"
+  },
+  {
+   "file": "cumulative-volume-delta-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "cumulative-volume-delta-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "4 of 5 compared items diverge"
+  },
+  {
+   "file": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "delta-rsi-oscillator-strategy-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "4 of 5 items could not be compared"
+  },
+  {
+   "file": "donchian-channels-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 14 items agree"
+  },
+  {
+   "file": "donchian-channels-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 14 items agree"
+  },
+  {
+   "file": "dual-view-htf-candlestick-patterns-theultimator5-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 2 compared items diverge"
+  },
+  {
+   "file": "dual-view-htf-candlestick-patterns-theultimator5-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 2 compared items diverge"
+  },
+  {
+   "file": "elliott-wave-3-finder-v2-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "elliott-wave-3-finder-v2-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 3 compared items diverge"
+  },
+  {
+   "file": "ema-ribbon-trend-filter-strixedge-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 15 compared items diverge"
+  },
+  {
+   "file": "ema-ribbon-trend-filter-strixedge-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "7 of 15 compared items diverge"
+  },
+  {
+   "file": "engulfingcandle-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "engulfingcandle-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "extrapolated-pivot-connector-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "extrapolated-pivot-connector-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "fib-retracement-extrafibs-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "the vendor study ran with non-default inputs (Show 0.886 and 1.113 Fibs=true vs default false); v1 compares at default inputs only \u2014 re-capture at defaults"
+  },
+  {
+   "file": "fib-retracement-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "fib-retracement-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "fibonacci-dolphintradebot-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "fibonacci-dolphintradebot-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "fibonacci-pivot-points-cc-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 9 items agree"
+  },
+  {
+   "file": "fibonacci-pivot-points-cc-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 9 items agree"
+  },
+  {
+   "file": "fvg-trend-rddt-1d-2026-09-27.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 4 items could not be compared"
+  },
+  {
+   "file": "h3-alma-v4-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 9 items agree"
+  },
+  {
+   "file": "h3-alma-v4-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "8 of 9 items could not be compared"
+  },
+  {
+   "file": "h3-vwap-source-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:arity) [runtime declined: pine:arity]: the engine grammar declares a different signature for that name \u2014 `ta.vwap` was given a source this table cannot w"
+  },
+  {
+   "file": "h3-vwap-source-spy-5-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:arity) [runtime declined: pine:arity]: the engine grammar declares a different signature for that name \u2014 `ta.vwap` was given a source this table cannot w"
+  },
+  {
+   "file": "heat-map-seasons-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 3 compared items diverge"
+  },
+  {
+   "file": "heat-map-seasons-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 3 compared items diverge"
+  },
+  {
+   "file": "high-low-open-mid-ranges-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 8 items agree"
+  },
+  {
+   "file": "high-low-open-mid-ranges-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 8 compared items diverge"
+  },
+  {
+   "file": "htf-candle-footprint-cartel-console-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "htf-candle-footprint-cartel-console-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "htf-liquidity-dashboard-tfo-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "htf-liquidity-dashboard-tfo-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "ict-ipda-look-back-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "ict-ipda-look-back-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "ict-killzones-pivots-tfo-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 8 items agree"
+  },
+  {
+   "file": "ict-killzones-pivots-tfo-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 8 items agree"
+  },
+  {
+   "file": "implied-volatility-suite-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "implied-volatility-suite-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 4 compared items diverge"
+  },
+  {
+   "file": "institutional-smc-order-flow-matrix-pro-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "institutional-smc-order-flow-matrix-pro-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "k-clustering-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "k-clustering-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "kalman-price-filter-backquant-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "keltner-center-of-gravity-channel-rddt-1d-2026-09-30.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 19 items agree"
+  },
+  {
+   "file": "keltner-center-of-gravity-channel-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 19 compared items diverge"
+  },
+  {
+   "file": "keltner-channels-bands-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 8 items agree"
+  },
+  {
+   "file": "keltner-channels-bands-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "7 of 8 compared items diverge"
+  },
+  {
+   "file": "linear-regression-channel-tradingfinder-existing-trend-lines-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "linear-regression-channel-tradingfinder-existing-trend-lines-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "liquidation-levels-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 12 items agree"
+  },
+  {
+   "file": "liquidation-levels-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 12 items agree"
+  },
+  {
+   "file": "liquidity-engulfing-candles-upslidedown-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "liquidity-engulfing-candles-upslidedown-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "liquidity-heatmap-nephew-sam-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "liquidity-heatmap-nephew-sam-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "liquidity-pools-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "liquidity-pools-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 3 compared items diverge"
+  },
+  {
+   "file": "macd-shortlong-strategy-for-tradingview-input-optimizer-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 7 items agree"
+  },
+  {
+   "file": "macd-shortlong-strategy-for-tradingview-input-optimizer-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "6 of 7 compared items diverge"
+  },
+  {
+   "file": "madrid-moving-average-ribbon-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 19 items agree"
+  },
+  {
+   "file": "madrid-moving-average-ribbon-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "18 of 19 compared items diverge"
+  },
+  {
+   "file": "makuchaku039s-trade-tools-fair-value-gaps-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "makuchaku039s-trade-tools-fair-value-gaps-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "market-structure-by-leviathan-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "market-structure-by-leviathan-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "mcclellan-indicators-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 15 compared items diverge"
+  },
+  {
+   "file": "mcclellan-indicators-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 15 compared items diverge"
+  },
+  {
+   "file": "momentum-volatility-scanner-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 12 items agree"
+  },
+  {
+   "file": "momentum-volatility-scanner-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "3 of 12 compared items diverge"
+  },
+  {
+   "file": "multi-timeframe-supply-demand-zones-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "multi-timeframe-supply-demand-zones-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "multicator-table-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 29 compared items diverge"
+  },
+  {
+   "file": "multicator-table-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 29 compared items diverge"
+  },
+  {
+   "file": "nadaraya-watson-rational-quadratic-kernel-non-repainting-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 3 items could not be compared"
+  },
+  {
+   "file": "opening-range-initial-balance-opening-price-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "11 of 15 items could not be compared"
+  },
+  {
+   "file": "opening-range-initial-balance-opening-price-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "11 of 15 items could not be compared"
+  },
+  {
+   "file": "optimized-keltner-channels-sltp-strategy-for-btc-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 6 compared items diverge"
+  },
+  {
+   "file": "optimized-keltner-channels-sltp-strategy-for-btc-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "3 of 6 compared items diverge"
+  },
+  {
+   "file": "options-max-pain-calculator-backquant-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "options-max-pain-calculator-backquant-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "pa-zigzag-fibonacci-fan-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 10 items agree"
+  },
+  {
+   "file": "pa-zigzag-fibonacci-fan-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "8 of 10 compared items diverge"
+  },
+  {
+   "file": "parabolic-sar-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "pivot-point-supertrend-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 9 items agree"
+  },
+  {
+   "file": "pivot-point-supertrend-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 9 items agree"
+  },
+  {
+   "file": "pmax-explorer-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 8 compared items diverge"
+  },
+  {
+   "file": "pmax-explorer-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "3 of 8 compared items diverge"
+  },
+  {
+   "file": "poor-man039s-volume-profile-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "poor-man039s-volume-profile-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "position-size-calc-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "position-size-calc-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "position-size-calculator-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "position-size-calculator-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "price-action-as-in-book-fibonacci-supportresistant-trendline-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "price-action-as-in-book-fibonacci-supportresistant-trendline-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 3 compared items diverge"
+  },
+  {
+   "file": "pro-trading-art-double-top-bottom-with-alert-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "pro-trading-art-double-top-bottom-with-alert-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "probe-default-colour-v3-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "probe-default-colour-v4-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "probe-default-colour-v6-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "probe-sparse-rows-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "qqe-signals-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "qqe-signals-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "r1-strategy-draws-indicator-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 6 items agree"
+  },
+  {
+   "file": "r1-strategy-draws-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "4 of 6 compared items diverge"
+  },
+  {
+   "file": "renko-candles-overlay-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "renko-candles-overlay-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 2 items could not be compared"
+  },
+  {
+   "file": "request-realtime-alignment-spy-5-2026-10-01.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "4 of 9 compared items diverge"
+  },
+  {
+   "file": "request-realtime-alignment-spy-5-b-2026-10-01.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "6 of 9 compared items diverge"
+  },
+  {
+   "file": "reverse-stochastic-momentum-index-on-chart-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 8 items agree"
+  },
+  {
+   "file": "reverse-stochastic-momentum-index-on-chart-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "7 of 8 compared items diverge"
+  },
+  {
+   "file": "rolling-vwap-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees \u2014 the library `PineCoders/ConditionalAverages/"
+  },
+  {
+   "file": "rolling-vwap-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees \u2014 the library `PineCoders/ConditionalAverages/"
+  },
+  {
+   "file": "rsi-horizontal-resistance-levels-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "rsi-horizontal-resistance-levels-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "rsi-swing-indicator-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "rsi-swing-indicator-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "rt1-na-test-v4-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 7 items could not be compared"
+  },
+  {
+   "file": "rt1-na-test-v5-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 7 items could not be compared"
+  },
+  {
+   "file": "rt1-na-test-v6-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 6 items agree"
+  },
+  {
+   "file": "rt3-na-logic-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "4 of 12 items could not be compared"
+  },
+  {
+   "file": "rt3-na-logic-v4-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "4 of 12 items could not be compared"
+  },
+  {
+   "file": "rvol-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "rvol-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "sector-rotation-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 2 compared items diverge"
+  },
+  {
+   "file": "sector-rotation-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 2 compared items diverge"
+  },
+  {
+   "file": "smt-divergence-ict-01-tradingfinder-smart-money-technique-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "smt-divergence-ict-01-tradingfinder-smart-money-technique-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "sonarlab-order-blocks-aapl-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "sonarlab-order-blocks-brk-a-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "sonarlab-order-blocks-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "sonarlab-order-blocks-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "supertrend-kivancozbilgic-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 8 items could not be compared"
+  },
+  {
+   "file": "supertrend-strategy-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 9 compared items diverge"
+  },
+  {
+   "file": "supertrend-strategy-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 9 compared items diverge"
+  },
+  {
+   "file": "support-and-resistance-multi-time-frame-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 7 compared items diverge"
+  },
+  {
+   "file": "support-and-resistance-multi-time-frame-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "6 of 7 compared items diverge"
+  },
+  {
+   "file": "support-and-resistance-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "support-and-resistance-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 3 compared items diverge"
+  },
+  {
+   "file": "swing-highlow-zigzag-chartprime-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "swing-highlow-zigzag-chartprime-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 2 compared items diverge"
+  },
+  {
+   "file": "syminfo-roster-aapl-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`"
+  },
+  {
+   "file": "syminfo-roster-bitstamp-btcusd-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`"
+  },
+  {
+   "file": "syminfo-roster-brk-b-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`"
+  },
+  {
+   "file": "syminfo-roster-f-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`"
+  },
+  {
+   "file": "syminfo-roster-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: `syminfo.type` is a Pine built-in this engine holds no VALUE for, though it holds its sibling `syminfo.ticker`"
+  },
+  {
+   "file": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "tradingview-alerts-to-mt4-mt5-forex-indices-commodities-stocks-crypto-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "tradingview-alerts-to-mt4-mt5-strategy-example-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "tradingview-alerts-to-mt4-mt5-strategy-example-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "trend-duration-forecast-chartprime-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "trend-duration-forecast-chartprime-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 2 compared items diverge"
+  },
+  {
+   "file": "trend-lines-supports-and-resistances-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 3 compared items diverge"
+  },
+  {
+   "file": "trend-lines-supports-and-resistances-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 3 compared items diverge"
+  },
+  {
+   "file": "trend-targets-algoalpha-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 7 compared items diverge"
+  },
+  {
+   "file": "trend-targets-algoalpha-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "6 of 7 items could not be compared"
+  },
+  {
+   "file": "trendlines-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 9 items agree"
+  },
+  {
+   "file": "trendlines-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "3 of 9 compared items diverge"
+  },
+  {
+   "file": "twin-range-filter-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 3 compared items diverge"
+  },
+  {
+   "file": "twin-range-filter-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "ultimate-pivot-points-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "ultimate-pivot-points-spy-1d-2026-10-03.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "vdubus-pattern-gen-v2-restored-refined-rddt-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 1 items agree"
+  },
+  {
+   "file": "vdubus-pattern-gen-v2-restored-refined-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "vold-market-breadth-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "vold-market-breadth-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "volume-profile-rddt-1d-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "volume-profile-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 1 compared items diverge"
+  },
+  {
+   "file": "vw-arm-history-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:roundtrip) [runtime declined: runtime:conditional-history]: the translator wrote formula text it could not read back, so it emitted none"
+  },
+  {
+   "file": "vw-arm-history-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:roundtrip) [runtime declined: runtime:conditional-history]: the translator wrote formula text it could not read back, so it emitted none"
+  },
+  {
+   "file": "vw-array-na-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "13 of 14 items could not be compared"
+  },
+  {
+   "file": "vw-bar-counters-rddt-15-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 9 items could not be compared"
+  },
+  {
+   "file": "vw-bar-counters-rddt-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 9 items could not be compared"
+  },
+  {
+   "file": "vw-bar-counters-rddt-240-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 9 items could not be compared"
+  },
+  {
+   "file": "vw-bar-counters-rddt-5-2026-09-30.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "6 of 9 compared items diverge"
+  },
+  {
+   "file": "vw-bar-counters-rddt-60-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 9 items could not be compared"
+  },
+  {
+   "file": "vw-bar-counters-spy-1-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "5 of 9 compared items diverge"
+  },
+  {
+   "file": "vw-bar-counters-spy-30-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "5 of 9 compared items diverge"
+  },
+  {
+   "file": "vw-bar-origin-rddt-5-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "4 of 12 compared items diverge"
+  },
+  {
+   "file": "vw-bar-origin-rddt-60-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 12 compared items diverge"
+  },
+  {
+   "file": "vw-bar-origin-spy-1d-300-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "5 of 12 compared items diverge"
+  },
+  {
+   "file": "vw-bar-origin-spy-1m-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 12 compared items diverge"
+  },
+  {
+   "file": "vw-bar-origin-spy-1w-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 12 compared items diverge"
+  },
+  {
+   "file": "vw-bgcolor-barcolor-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 3 compared items diverge"
+  },
+  {
+   "file": "vw-bgcolor-v4-default-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 3 items agree"
+  },
+  {
+   "file": "vw-bool-cast-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 11 items agree"
+  },
+  {
+   "file": "vw-bool-cast-spy-60-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 11 items agree"
+  },
+  {
+   "file": "vw-bool-cast-v4-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 12 items agree"
+  },
+  {
+   "file": "vw-bool-cast-v4-spy-60-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 12 items agree"
+  },
+  {
+   "file": "vw-call-site-history-rddt-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "13 of 22 items could not be compared"
+  },
+  {
+   "file": "vw-call-site-history-spy-1d-2026-10-01.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "2 of 22 compared items diverge"
+  },
+  {
+   "file": "vw-clock-close-tfchange-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 19 items agree"
+  },
+  {
+   "file": "vw-clock-close-tfchange-spy-1w-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-clock-vwap-spy-5-ext-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "5 of 16 items could not be compared"
+  },
+  {
+   "file": "vw-colour-components-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:colour-value) [runtime declined: runtime:colour]: a colour cannot be a value in a screened column \u2014 `color.r`: its components are served for a fixed colo"
+  },
+  {
+   "file": "vw-cond-window-extremes-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "7 of 18 items could not be compared"
+  },
+  {
+   "file": "vw-cond-window-extremes-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "12 of 18 items could not be compared"
+  },
+  {
+   "file": "vw-deadband-ticks-aapl-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 7 items could not be compared"
+  },
+  {
+   "file": "vw-deadband-ticks-brk-a-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 7 compared items diverge"
+  },
+  {
+   "file": "vw-deadband-ticks-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 7 items could not be compared"
+  },
+  {
+   "file": "vw-default-param-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "1 of 17 items could not be compared"
+  },
+  {
+   "file": "vw-fn-series-history-rddt-1d-2026-09-30.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "vw-forin-collections-2-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:loop]: a name that is reassigned later cannot be folded into one expression \u2014 `G01` \u2014 and the fold stopped before it"
+  },
+  {
+   "file": "vw-forin-collections-rddt-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:reassign) [runtime declined: runtime:loop]: a name that is reassigned later cannot be folded into one expression \u2014 `F01` \u2014 and the fold stopped before it"
+  },
+  {
+   "file": "vw-getter-history-2-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:drawing) [runtime declined: runtime:conditional-history]: a drawing object paints on a chart and answers with no number \u2014 `line.get_y1`"
+  },
+  {
+   "file": "vw-getter-history-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:drawing) [runtime declined: runtime:history-expression]: a drawing object paints on a chart and answers with no number \u2014 `line.get_y1`"
+  },
+  {
+   "file": "vw-gradient-edges-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:colour-value) [runtime declined: pine:colour-value]: a colour cannot be a value in a screened column \u2014 `color.from_gradient`"
+  },
+  {
+   "file": "vw-gradient-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "23 of 24 items could not be compared"
+  },
+  {
+   "file": "vw-h4-loops-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "vw-h4-loops-spy-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "vw-input-tf-text-v5-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "19 of 20 items could not be compared"
+  },
+  {
+   "file": "vw-input-tf-text-v6-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "19 of 20 items could not be compared"
+  },
+  {
+   "file": "vw-int-array-avg-neg-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "6 of 6 items could not be compared"
+  },
+  {
+   "file": "vw-int-array-avg-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 18 items could not be compared"
+  },
+  {
+   "file": "vw-int-div-assign-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "4 of 7 items could not be compared"
+  },
+  {
+   "file": "vw-library-import-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:module) [runtime declined: runtime:library]: importing another script pulls in code this engine never sees \u2014 the library `TradingView/ta/7` is not in thi"
+  },
+  {
+   "file": "vw-loop-in-block-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "10 of 10 items could not be compared"
+  },
+  {
+   "file": "vw-lower-tf-1-30-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: lower-tf:unwitnessed]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another "
+  },
+  {
+   "file": "vw-lower-tf-1-30-spy-1m-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: lower-tf:unwitnessed]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another "
+  },
+  {
+   "file": "vw-lower-tf-cava-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads ano"
+  },
+  {
+   "file": "vw-lower-tf-rddt-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads ano"
+  },
+  {
+   "file": "vw-lower-tf-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads ano"
+  },
+  {
+   "file": "vw-lower-tf-spy-1m-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads ano"
+  },
+  {
+   "file": "vw-lower-tf-spy-1w-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: lower-tf:store-unmeasured]: this request could not be resolved to one symbol and one servable timeframe. The engine reads ano"
+  },
+  {
+   "file": "vw-mbb-auto-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "4 of 5 items could not be compared"
+  },
+  {
+   "file": "vw-mintick-arkk-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold \u2014 `syminfo.pricescale`"
+  },
+  {
+   "file": "vw-mintick-bac-pl-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold \u2014 `syminfo.pricescale`"
+  },
+  {
+   "file": "vw-mintick-dfliw-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold \u2014 `syminfo.pricescale`"
+  },
+  {
+   "file": "vw-mintick-grrrw-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold \u2014 `syminfo.pricescale`"
+  },
+  {
+   "file": "vw-mintick-imo-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold \u2014 `syminfo.pricescale`"
+  },
+  {
+   "file": "vw-mintick-qqq-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold \u2014 `syminfo.pricescale`"
+  },
+  {
+   "file": "vw-mintick-xlk-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold \u2014 `syminfo.pricescale`"
+  },
+  {
+   "file": "vw-mintick-yhnau-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:builtin) [runtime declined: pine:builtin]: this Pine built-in names something the engine grammar does not hold \u2014 `syminfo.pricescale`"
+  },
+  {
+   "file": "vw-ne-na-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "10 of 13 items could not be compared"
+  },
+  {
+   "file": "vw-object-gc-a-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "vw-object-gc-a-spy-1w-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 5 compared items diverge"
+  },
+  {
+   "file": "vw-object-gc-b-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 4 items agree"
+  },
+  {
+   "file": "vw-object-gc-b-spy-1w-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 4 compared items diverge"
+  },
+  {
+   "file": "vw-object-gc-c-spy-1d-2026-09-28.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  },
+  {
+   "file": "vw-object-gc-c-spy-1w-2026-09-28.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 5 compared items diverge"
+  },
+  {
+   "file": "vw-object-gc-d-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:collection) [runtime declined: pine:collection]: an array, a matrix or a map is outside the expression grammar this engine runs \u2014 `label.all` is read as "
+  },
+  {
+   "file": "vw-object-gc-d-spy-1w-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:collection) [runtime declined: pine:collection]: an array, a matrix or a map is outside the expression grammar this engine runs \u2014 `label.all` is read as "
+  },
+  {
+   "file": "vw-offset-na-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "5 of 7 items could not be compared"
+  },
+  {
+   "file": "vw-once-ta-helper-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "vw-once-ta-helper-spy-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "vw-other-symbol-rddt-1d-2026-09-30.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "3 of 9 compared items diverge"
+  },
+  {
+   "file": "vw-ratchet-stops-rddt-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 9 compared items diverge"
+  },
+  {
+   "file": "vw-ratchet-stops-spy-1d-2026-10-02.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 9 compared items diverge"
+  },
+  {
+   "file": "vw-request-htf-alignment-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbo"
+  },
+  {
+   "file": "vw-request-htf-alignment-spy-5-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbo"
+  },
+  {
+   "file": "vw-request-htf-alignment-spy-60-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:request) [runtime declined: runtime:request]: this request could not be resolved to one symbol and one servable timeframe. The engine reads another symbo"
+  },
+  {
+   "file": "vw-rt5-arm-draw-block-history-rddt-1d-2026-10-03.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:drawing) [runtime declined: pine:drawing]: a drawing object paints on a chart and answers with no number \u2014 `label.new`"
+  },
+  {
+   "file": "vw-rt6-runtime-colour-rddt-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "6 of 9 compared items diverge"
+  },
+  {
+   "file": "vw-rt6-runtime-colour-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "6 of 9 compared items diverge"
+  },
+  {
+   "file": "vw-rt7-empty-reduce-fixnan-spy-1d-2026-10-04.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 12 items agree"
+  },
+  {
+   "file": "vw-runtime-error-spy-1d-2026-09-30.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "1 of 3 compared items diverge"
+  },
+  {
+   "file": "vw-ternary-draw-helper-rddt-1d-2026-10-02.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 2 items agree"
+  },
+  {
+   "file": "vw-tf-period-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "9 of 13 items could not be compared"
+  },
+  {
+   "file": "vw-tf-period-spy-1m-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "10 of 13 items could not be compared"
+  },
+  {
+   "file": "vw-tf-period-spy-1w-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "10 of 13 items could not be compared"
+  },
+  {
+   "file": "vw-theme-colours-spy-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:colour-value) [runtime declined: pine:colour-value]: a colour cannot be a value in a screened column \u2014 `color.r`: its components are served for a fixed c"
+  },
+  {
+   "file": "vw-time-close-tf-bitstamp-btcusd-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-eurusd-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-fx-eurusd-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-spy-15-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-spy-1d-full-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-spy-1d-full-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-spy-1m-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-spy-1m-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-spy-1w-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-close-tf-spy-1w-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time_close(\"3M\")`: it is measured (vendor "
+  },
+  {
+   "file": "vw-time-session-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time(<timeframe>, <session>)`: `\"2000-0000"
+  },
+  {
+   "file": "vw-time-session-spy-60-ext-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time(<timeframe>, <session>)`: `\"2000-0000"
+  },
+  {
+   "file": "vw-time-session-spy-60-rth-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:function) [runtime declined: pine:function]: this Pine function maps to nothing the engine grammar declares \u2014 `time(<timeframe>, <session>)`: `\"2000-0000"
+  },
+  {
+   "file": "vw-time-tf-bitstamp-btcusd-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-eurusd-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-fx-eurusd-1d-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "6 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-1-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-15-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-1d-full-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "6 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-1d-full-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "6 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-1m-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "6 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-1m-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "6 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-1w-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "6 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-1w-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "6 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-240-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-30-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-5-2026-10-01.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-5-ext-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-time-tf-spy-60-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "18 of 19 items could not be compared"
+  },
+  {
+   "file": "vw-type-word-names-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "refused on our side: member door refused (pine:type) [runtime declined: runtime:call-undeclared-builtin-state]: a user-defined type is outside the node shapes this engine stores \u2014 `color.r`"
+  },
+  {
+   "file": "vw-var-seed-spy-1d-2026-09-28.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 8 items agree"
+  },
+  {
+   "file": "w4-cross-round-spy-1d-2026-09-30.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "INCONCLUSIVE",
+   "reasonRuntimeOn": "10 of 17 items could not be compared"
+  },
+  {
+   "file": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 10 items agree"
+  },
+  {
+   "file": "wyckoff-accumulation-distribution-spy-1d-2026-10-02.json",
+   "production": "INCONCLUSIVE",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 10 items agree"
+  },
+  {
+   "file": "zero-lag-ma-trend-levels-chartprime-spy-1d-2026-10-03.json",
+   "production": "DIVERGE",
+   "runtimeOn": "DIVERGE",
+   "reasonRuntimeOn": "5 of 5 compared items diverge"
+  },
+  {
+   "file": "zero-lag-ma-trend-levels-rddt-1d-2026-09-27.json",
+   "production": "MATCH",
+   "runtimeOn": "MATCH",
+   "reasonRuntimeOn": "all 5 items agree"
+  }
+ ]
+}

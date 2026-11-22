@@ -89,6 +89,58 @@ function stockChartButtonClasses() {
   return [...out].sort()
 }
 
+/** The top-level `function Name(` of StockChart.jsx that encloses source offset `at`. */
+function enclosingFunction(at) {
+  let name = null
+  for (const m of STOCK_JSX.matchAll(/^(?:export default )?function ([A-Za-z_$][A-Za-z0-9_$]*)\(/gm)) {
+    if (m.index > at) break
+    name = m[1]
+  }
+  return name
+}
+
+/** For each `styles.x` / `chipStyles.x` on a <button>, the top-level functions that render one. */
+function buttonSitesByClass() {
+  const out = new Map()
+  for (const m of STOCK_JSX.matchAll(/<button\s/g)) {
+    const at = STOCK_JSX.indexOf('className={', m.index)
+    const close = STOCK_JSX.indexOf('</button>', m.index)
+    if (at < 0 || (close >= 0 && at > close)) continue
+    let depth = 0
+    let i = at + 'className='.length
+    for (; i < STOCK_JSX.length; i += 1) {
+      if (STOCK_JSX[i] === '{') depth += 1
+      else if (STOCK_JSX[i] === '}') { depth -= 1; if (depth === 0) break }
+    }
+    const fn = enclosingFunction(m.index)
+    for (const c of STOCK_JSX.slice(at, i + 1).matchAll(/\b(styles|chipStyles)\.([A-Za-z][A-Za-z0-9_]*)/g)) {
+      const ref = `${c[1]}.${c[2]}`
+      if (!out.has(ref)) out.set(ref, new Set())
+      out.get(ref).add(fn)
+    }
+  }
+  return out
+}
+
+// 2026-11-17 (fix/master-nb-screener-reds) -- THE LEGEND POPOVER'S PAGES. From a07cb67208
+// (2026-11-06, "2a-10 readout surfaces: menu rows, About card with back row") through
+// 5df9ac9ce4, 954a25ec79 and ab880fa1b1 (the RS tour), StockChart.jsx gained nine buttons
+// (`legMenuRowBtn`, `legCardBack`, `legCardNumBtn`, `legPresetRow`, `legRowAction`,
+// `legRowActionCard`, `legTourSkip`, `legTourBack`, `legTourNext`) and this rail went red on
+// all 36 (class x prop x width) cells. They are NOT embed chrome: each is rendered only by one of
+// these top-level components, and those components render only inside the `{chipMenu && ...}`
+// popover, whose every door (`chipHandlers`, `legendRowHandlers`, the ChartToolbar's first-add
+// tour) exists only under `showDrawingTools`, which ChartEmbed passes `false`. (The popover is
+// also portalled to <body>, outside the embed's figure, so a figure-scoped floor could not reach
+// it anyway.) Classified by DERIVATION, not by name: a button whose every site sits in one of
+// these components is excluded; the same class rendered anywhere else is a target again.
+const POPOVER_PAGES = ['LegendMenuHeader', 'LegendMenuCard', 'LegendTourPage', 'LegendPresetPage', 'ReadoutActionButton']
+const SITES = buttonSitesByClass()
+const popoverOnly = (ref) => {
+  const fns = SITES.get(ref)
+  return !!fns && fns.size > 0 && [...fns].every((fn) => POPOVER_PAGES.includes(fn))
+}
+
 const cssFor = (ref) => (ref.startsWith('chipStyles.') ? CHIP_CSS : STOCK_CSS)
 const classOf = (ref) => ref.split('.')[1]
 // Active-state modifiers are not separate targets: `.scaleToggleActive` rides `.scaleToggleBtn`.
@@ -101,11 +153,39 @@ const NOT_IN_EMBED = {
 }
 
 describe('a Notebook chart block clears --tap-min on phone AND tablet (wave 14, item 3)', () => {
-  const targets = stockChartButtonClasses().filter((r) => !MODIFIER.test(r) && !NOT_IN_EMBED[r])
+  const targets = stockChartButtonClasses().filter((r) => !MODIFIER.test(r) && !NOT_IN_EMBED[r] && !popoverOnly(r))
 
   it('⛔ NON-VACUITY -- the derivation finds StockChart\'s buttons, including the four this fixes', () => {
     expect(targets).toEqual(expect.arrayContaining(['styles.scaleToggleBtn', 'chipStyles.chipMore', 'styles.studyMore', 'styles.toPresentBtn']))
     for (const ref of Object.keys(NOT_IN_EMBED)) expect(stockChartButtonClasses()).toContain(ref)   // exclusions are real
+  })
+
+  it('⛔ the popover-page exclusion is real: those buttons exist, and every door to their popover needs showDrawingTools', () => {
+    const excluded = stockChartButtonClasses().filter((r) => !MODIFIER.test(r) && popoverOnly(r))
+    expect(excluded).toEqual(expect.arrayContaining(['styles.legMenuRowBtn', 'styles.legCardBack', 'styles.legTourNext']))
+    // The embed keeps the tools off -- the one prop every door below hangs on.
+    expect(EMBED_JSX).toMatch(/showDrawingTools:\s*false/)
+    expect(STOCK_JSX).toMatch(/const chipHandlers = useMemo\(\(\) => \(showDrawingTools \?/)
+    expect(STOCK_JSX).toMatch(/const legendRowHandlers = useMemo\(\(\) => \(showDrawingTools \?/)
+    // The pages render only inside the chip popover block (`{chipMenu && (() => { ... })()}`),
+    // and the only other `ReadoutActionButton` sites are inside two of those pages.
+    const open = STOCK_JSX.indexOf('{chipMenu && (() => {')
+    const shut = STOCK_JSX.indexOf('})()}', open)
+    expect(open).toBeGreaterThan(0)
+    // ⛔ The function that HOLDS the popover block is DERIVED, never named. This read
+    // `host === 'StockChart'`, and #2278 (7297f69f3f, 2026-11-20) moved the chart's body into
+    // `StockChartBody` behind a `StockChart` shell: every page site then read as "outside" and
+    // this went red. #2278 was reverted (104db22eb5) to be landed again; either shape answers here.
+    const POPOVER_HOST = enclosingFunction(open)
+    expect(POPOVER_HOST, 'the popover block sits inside a top-level function').toBeTruthy()
+    expect(POPOVER_PAGES).not.toContain(POPOVER_HOST)
+    for (const name of POPOVER_PAGES) {
+      for (const m of STOCK_JSX.matchAll(new RegExp(`<${name}\\b`, 'g'))) {
+        const host = enclosingFunction(m.index)
+        const inPopover = host === POPOVER_HOST ? (m.index > open && m.index < shut) : POPOVER_PAGES.includes(host)
+        expect(inPopover, `<${name}> rendered by ${host} at offset ${m.index}, outside the chip popover`).toBe(true)
+      }
+    }
   })
 
   it('the embed actually carries the scoping attribute (the wire, not just the stylesheet)', () => {

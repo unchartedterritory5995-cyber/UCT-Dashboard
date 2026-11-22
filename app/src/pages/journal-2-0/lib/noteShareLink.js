@@ -26,6 +26,12 @@ export function noteShareEndpoint(noteId) {
   return `/api/j2/notes/${encodeURIComponent(String(noteId ?? ''))}/share`
 }
 
+/** Audit 2026-11-05, S19: what a reader of a link would see, before the link exists (owner only, nothing written).
+ *  `hidePnl` mirrors the "Hide my P&L and position size" switch. */
+export function noteSharePreviewEndpoint(noteId, hidePnl = true) {
+  return `${noteShareEndpoint(noteId)}/preview?hidePnl=${hidePnl === false ? 'false' : 'true'}`
+}
+
 /** The owner's list of their own share links (Settings → Sharing & publishing). */
 export const SHARE_LINKS_ENDPOINT = '/api/j2/share/links'
 

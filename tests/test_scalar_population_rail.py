@@ -298,6 +298,28 @@ ARTIFACT_EMPTY.update({
     "debt_to_equity": "2026-08-09 collector landed (fundamentals_bulk); clears next build",
     "current_ratio":  "2026-08-09 collector landed (fundamentals_bulk); clears next build",
     "beta":           "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    # ⭐ THE TEN BAR-DERIVED RS COLUMNS (UCT RS Phase 2a: declared by unit 2a-07,
+    # written by unit 2a-05). A collector exists -- `screener/rs_columns.py`'s
+    # `_blank()` dict and `collect_one`'s subscript writes are what §1's census
+    # reads -- so they are OFF `NO_COLLECTOR`. They are listed HERE for the
+    # Group-A reason: the rows on any snapshot built before `bars_rs` joined
+    # `build_row` carry NULL in these columns (the schema is ALTER-added on init
+    # and only the nightly `INSERT OR REPLACE` fills it), and §2 measures rows,
+    # not code. They clear on the first nightly build that runs the collector,
+    # at which point `test_no_allowance_outlives_its_gap` strikes all ten.
+    # (The seven `rs_rating_*` columns are NOT here: they are EXCLUDED from the
+    # manifest under R8 until RS_HISTORY_ENABLED is armed, and this list may
+    # name only declared scalars.)
+    "rs_new_high":              "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
+    "rs_nh_before_price":       "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
+    "rs_nh_red_day":            "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
+    "rs_nh_bars_ago":           "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
+    "green_on_red_20":          "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
+    "rs_line_above_ma":         "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
+    "rs_cross_up_bars_ago":     "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
+    "mansfield":                "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
+    "mansfield_cross_bars_ago": "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
+    "rs_benchmark_agree":       "2026-11-06 collector landed (rs_columns, unit 2a-05); rows built before it are NULL; clears on the first nightly build after merge",
 })
 
 

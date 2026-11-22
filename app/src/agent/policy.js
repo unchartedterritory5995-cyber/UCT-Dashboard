@@ -7,6 +7,7 @@
 //               charts included), one new resource or several ("add two charts", "four charts for …").
 //               Asking them to click Apply again would only repeat them.
 //               (Owner decisions 2026-10-12 and 2026-10-28 — AUTO-APPLY for reversible workspace changes.)
+//   nothing  -> a plan that changes nothing is never proposed: the runtime says so ("Nothing to change — …")
 //   propose  -> anything that needed interpretation or taste (the model's `propose`), and anything
 //               a capability declares `risk: 'confirm'` or `reversible: false`, or flags for THIS
 //               state (`confirmIf`): shown as a plan, executed only when the member approves it
@@ -32,6 +33,9 @@ import { planShape } from './executor'
 // executor.MAX_OPS.
 
 export function decideMode(suggested, plan) {
+  // A plan that changes nothing has nothing to approve, whoever suggested what and however risky its capability: an Apply
+  // card here would be empty, and Apply could only report "Nothing to change", which is what the member is told instead.
+  if (plan.changed === false) return 'apply'
   if (suggested === 'propose') return 'propose'
   const s = planShape(plan)
   if (s.confirm || s.irreversible) return 'propose'

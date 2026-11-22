@@ -85,13 +85,13 @@ describe('capabilityList -- the list', () => {
     const s = CAPABILITY_PREVIEW.find((c) => c.id === 'journal-styles')
     expect(s, 'journal-styles must be in the list').toBeTruthy()
     expect(s.flag).toBe('notebook_journal_styles_enabled')
-    expect(s.label).toBe('Journal styles')
-    expect(s.line).toBe('Pick a kind of note and a style, and every new note of that kind starts with your outline and blocks.')
+    expect(s.label).toBe('Templates')
+    expect(s.line).toBe('Pick a note type and a template, and every new note of that type starts with your outline and blocks.')
     const l = CAPABILITY_PREVIEW.find((c) => c.id === 'style-library')
     expect(l, 'style-library must be in the list').toBeTruthy()
     expect(l.flag).toBe('notebook_style_library_enabled')
-    expect(l.label).toBe('Community library')
-    expect(l.line).toBe('Browse styles other traders share, adopt a copy of your own, and ask to be told when the author improves it.')
+    expect(l.label).toBe('Template library')
+    expect(l.line).toBe('Browse templates other traders share, use one or keep a copy, and hear when its author improves it.')   // S7 fix round 1
   })
 
   it('the compass gate has a client fallback that is OFF (an unarmed tab never names it)', () => {

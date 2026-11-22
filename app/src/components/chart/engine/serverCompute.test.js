@@ -16,6 +16,7 @@ import {
   serverInputsParam,
   columnsFromWire,
   alignColumns,
+  BAR_ROWS_KEPT,
   barTimeKey,
   cachedColumns,
   ensureColumns,
@@ -120,6 +121,78 @@ describe('the join is BY TIME, never by index', () => {
   it('yields {} for a non-positional envelope', () => {
     expect(alignColumns({ times: [], columns: { levels: new Float64Array([1]) } }, bars([1]))).toEqual({})
     expect(alignColumns({ times: [1], columns: {} }, bars([1]))).toEqual({})
+  })
+
+  // ⚡ 2026-11-13. The join parsed every bar's date once PER COLUMN: the RS line carries 24
+  // columns, so a 4,374-bar chart parsed 105,000 dates to place them, on every paint (measured:
+  // 13 of the lane's 24 ms for a five-definition RS suite). Each bar is placed once now.
+  it('⭐ each bar\'s time is read ONCE, however many columns the envelope carries', () => {
+    const days = ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18']
+    let reads = 0
+    const counted = days.map((d) => ({ get t() { reads += 1; return d } }))
+    const wide = { times: [20260914, 20260916, 20260918], columns: {} }
+    for (let k = 0; k < 24; k++) wide.columns[`c${k}`] = new Float64Array([k + 0.1, k + 0.3, k + 0.5])
+    const out = alignColumns(wide, counted)
+    expect(reads, 'five bars, twenty-four columns: five reads').toBe(days.length)
+    // and every column is the same join it always was: its own values on the bars that have them
+    for (let k = 0; k < 24; k++) {
+      expect([...out[`c${k}`]].map((v) => (Number.isNaN(v) ? 'NaN' : v))).toEqual([k + 0.1, 'NaN', k + 0.3, 'NaN', k + 0.5])
+    }
+  })
+
+  // ⚡ 2026-11-20. A chart's five RS definitions are aligned to the SAME bars on every switch, and each parsed every
+  // bar's date again (12,000 parses each on a daily chart). The bar keys are read once per bars array now, and the
+  // row map is reused by an envelope whose times are the same values.
+  const show = (col) => [...col].map((v) => (Number.isNaN(v) ? 'NaN' : v))
+  it('⭐ …and once per BARS ARRAY: five envelopes over one bars array read each bar once (the first and last again)', () => {
+    const days = ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17', '2026-09-18']
+    let reads = 0
+    const counted = days.map((d) => ({ get t() { reads += 1; return d } }))
+    const envs = Array.from({ length: 5 }, (_, e) => ({
+      times: [20260914, 20260916, 20260918], columns: { v: new Float64Array([e + 0.1, e + 0.3, e + 0.5]) },
+    }))
+    const outs = envs.map((env) => alignColumns(env, counted))
+    expect(reads, 'each envelope after the first re-read only the first and last bar').toBe(days.length + 2 * (envs.length - 1))
+    outs.forEach((o, e) => expect(show(o.v), `envelope ${e}`).toEqual([e + 0.1, 'NaN', e + 0.3, 'NaN', e + 0.5]))
+  })
+  it('an envelope with OTHER times over the same bars joins on its own times', () => {
+    const b = bars([10, 20, 30, 40])
+    alignColumns({ times: [10, 20, 40], columns: { v: new Float64Array([1, 2, 4]) } }, b)
+    expect(show(alignColumns({ times: [20, 30], columns: { v: new Float64Array([7, 8]) } }, b).v)).toEqual(['NaN', 7, 8, 'NaN'])
+  })
+  it('a bar appended to the same array, or its last bar replaced in place, is read again', () => {
+    const env = { times: [10, 20, 30, 40], columns: { v: new Float64Array([1, 2, 3, 4]) } }
+    const grown = bars([10, 20, 30])
+    alignColumns(env, grown)
+    grown.push({ t: 40 })
+    expect(show(alignColumns(env, grown).v)).toEqual([1, 2, 3, 4])
+    const replaced = bars([10, 20, 30])
+    alignColumns(env, replaced)
+    replaced[2] = { t: 40 }
+    expect(show(alignColumns(env, replaced).v)).toEqual([1, 2, 4])
+  })
+  it(`only the ${BAR_ROWS_KEPT} most recently aligned bars arrays are remembered`, () => {
+    const env = { times: [10, 20, 30, 40], columns: { v: new Float64Array([1, 2, 3, 4]) } }
+    let reads = 0
+    const counted = () => [10, 20, 30, 40].map((t) => ({ get t() { reads += 1; return t } }))
+    const readsAfter = (others) => {
+      const first = counted()
+      alignColumns(env, first)
+      for (let i = 0; i < others; i++) alignColumns(env, counted())
+      reads = 0
+      alignColumns(env, first)
+      return reads
+    }
+    expect(readsAfter(BAR_ROWS_KEPT - 1), 'still remembered: the first and last bar only').toBe(2)
+    expect(readsAfter(BAR_ROWS_KEPT), 'the oldest array was forgotten, so it is read whole again').toBe(4)
+  })
+
+  it('a column shorter than its times, a repeated time, and a missing bar still land as before', () => {
+    const odd = { times: [10, 20, 20, 40], columns: { full: new Float64Array([1, 2, 99, 4]), short: [7, 8] } }
+    const out = alignColumns(odd, [{ t: 10 }, { t: 20 }, undefined, { t: 40 }, { t: 50 }])
+    const show = (col) => [...col].map((v) => (Number.isNaN(v) ? 'NaN' : v))
+    expect(show(out.full), 'the FIRST row of a repeated time wins').toEqual([1, 2, 'NaN', 4, 'NaN'])
+    expect(show(out.short), 'a cell the column does not hold is NaN, never a neighbour\'s').toEqual([7, 8, 'NaN', 'NaN', 'NaN'])
   })
 })
 
@@ -400,5 +473,103 @@ describe('⭐ the lane is GENERIC — a fourth tenant needs no code in it', () =
     for (const word of ['isPaid', 'require_paid', 'paid', 'plan', '402']) {
       expect(code.includes(word), `serverCompute.js decides entitlement (${word})`).toBe(false)
     }
+  })
+
+  it('⭐ 2a-09 — and neither does the READOUT resolver: `readoutSchema.js` names no tenant', () => {
+    // The scalars a tenant sends beside its columns are turned into rows by
+    // `engine/readoutSchema.js` from the definition's own `readout[]`. A format
+    // or a row keyed on a definition id there would be the fourth tenant's
+    // code in the lane by another door, so the same scan reads that file.
+    const schemaSrc = readFileSync(
+      resolve(process.cwd(), 'src/components/chart/engine/readoutSchema.js'), 'utf8')
+    const code = schemaSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+    expect(code.length, 'the resolver is empty — the scan is vacuous').toBeGreaterThan(500)
+    for (const id of listDefinitions().map(d => d.id)) {
+      expect(code.includes(`'${id}'`), `readoutSchema.js hardcodes the definition id ${id}`).toBe(false)
+      expect(code.includes(`"${id}"`), `readoutSchema.js hardcodes the definition id ${id}`).toBe(false)
+    }
+    // …nor a tenant's PAYLOAD KEYS: a resolver that knew `benchmark` or
+    // `lastRsHigh` by name would print one tenant's rows and nobody else's.
+    for (const key of ['benchmark', 'lastRsHigh', 'pctFromMa', 'rsLine']) {
+      expect(code.includes(key), `readoutSchema.js knows the payload key ${key}`).toBe(false)
+    }
+  })
+})
+
+// ─── UCT Relative Strength v2: the envelope's scalars, the server-only key, rev gating ─
+// Plan: docs/superpowers/specs/2026-11-05-uct-relative-strength-indicator-design.md §8.3.
+import { pickServerInputs, revMismatch, scalarsFor } from './serverCompute'
+
+describe('⭐ the envelope\'s scalars ride beside the columns (plan §8.3)', () => {
+  beforeEach(() => clearServerColumns())
+
+  it('keeps `payload` and `rev` when the wire carries them, and NOTHING else when it does not', () => {
+    const bare = columnsFromWire({ columns: { a: [1] }, times: [1] })
+    expect(Object.keys(bare).sort()).toEqual(['columns', 'times'])
+    const rich = columnsFromWire({ columns: { a: [1] }, times: [1], rev: 2, payload: { legend: { above: true } }, asOf: 5 })
+    expect(rich.rev).toBe(2)
+    expect(rich.payload).toEqual({ legend: { above: true } })
+    expect(rich.asOf).toBeUndefined()
+    // a payload that is not a plain object is not a payload
+    expect(columnsFromWire({ columns: {}, times: [], payload: [1, 2] }).payload).toBeUndefined()
+  })
+
+  it('`pickServerInputs` sends only the keys the definition names, else everything', () => {
+    const def = { meta: { serverInputs: ['benchmark', 'lookback'] } }
+    expect(pickServerInputs(def, { benchmark: 'SPY', lookback: 252, lineColor: '#fff', lineWidth: 2 }))
+      .toEqual({ benchmark: 'SPY', lookback: 252 })
+    expect(pickServerInputs({ meta: {} }, { a: 1, b: 2 })).toEqual({ a: 1, b: 2 })
+  })
+
+  it('a colour change does NOT re-key the fetch for a definition that names its server inputs', async () => {
+    const def = getDefinition('rsLine')
+    expect(def.meta.serverInputs).toContain('benchmark')
+    expect(def.meta.serverInputs).not.toContain('lineColor')
+    const calls = []
+    const fetcher = (url) => { calls.push(url); return Promise.resolve({ columns: { rsLine: [1] }, times: [20260105], rev: 2 }) }
+    const bars = [{ t: '2026-01-05', c: 1 }]
+    const base = { benchmark: 'SPY', lookback: 252, lineColor: '#111111' }
+    serverColumnsFor(def, bars, base, { sym: 'NVDA', tf: 'D', fetcher })
+    await Promise.resolve(); await Promise.resolve()
+    serverColumnsFor(def, bars, { ...base, lineColor: '#222222' }, { sym: 'NVDA', tf: 'D', fetcher })
+    expect(calls.length, 'one fetch for two colours').toBe(1)
+    expect(calls[0]).not.toContain('lineColor')
+  })
+
+  it('⛔ A DIFFERENT SERVER REV IS DRAWN, NOT RE-ASKED — the flag-off (v1) envelope renders the line and never loops', async () => {
+    const def = getDefinition('rsLine')
+    expect(def.compute.rev).toBe(5)   // v2 at Phase 1; v3 since 2a-14 (the Mansfield columns); v4 since 3-08; v5 since Deepvue round 2
+    const inputs = { benchmark: 'SPY' }
+    const ctx = { sym: 'NVDA', tf: 'D' }
+    // the dark default: the server row is v1 (one column, rev 1) while the client definition is v3
+    const calls = []
+    const fetcher = (url) => { calls.push(url); return Promise.resolve({ columns: { rsLine: [0.5] }, times: [20260105], rev: 1 }) }
+    const bars = [{ t: '2026-01-05', c: 1 }]
+    expect(serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })).toEqual({})     // nothing landed yet
+    await new Promise((r) => setTimeout(r, 0))
+    expect(calls.length).toBe(1)
+    for (let i = 0; i < 5; i++) {
+      const drawn = serverColumnsFor(def, bars, inputs, { ...ctx, fetcher })
+      expect(Array.from(drawn.rsLine), 'the v1 answer is drawn').toEqual([0.5])
+      expect(drawn.rsMa, 'and the columns the v1 server does not send are simply absent').toBeUndefined()
+    }
+    await new Promise((r) => setTimeout(r, 0))
+    expect(calls.length, 'no re-ask: five renders, one fetch').toBe(1)
+    // the mismatch is still visible as a signal
+    expect(revMismatch(cachedColumns('rsLine', 'NVDA', 'D', inputs), def)).toBe(true)
+  })
+
+  it('`scalarsFor` reads the landed payload and never asks', () => {
+    const def = getDefinition('rsLine')
+    const inputs = { benchmark: 'SPY', lineColor: '#abc' }
+    const ctx = { sym: 'NVDA', tf: 'D' }
+    expect(scalarsFor(def, inputs, ctx)).toBeNull()
+    primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs),
+      { columns: { rsLine: [0.5] }, times: [20260105], rev: 2, payload: { benchmark: { resolved: 'SPY' } } })
+    expect(scalarsFor(def, inputs, ctx)).toEqual({ benchmark: { resolved: 'SPY' } })
+    // a v1 server sends no payload, so the readout simply has none
+    primeServerColumns('rsLine', 'NVDA', 'D', pickServerInputs(def, inputs),
+      { columns: { rsLine: [0.5] }, times: [20260105], rev: 1 })
+    expect(scalarsFor(def, inputs, ctx)).toBeNull()
   })
 })

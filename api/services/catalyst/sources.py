@@ -26,6 +26,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 from api.services.a8_taxonomy import CASHTAG_RE
+from api.services.log_redaction import safe_exc as _safe_exc
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ def _safe(fn, default=None, name="?"):
     try:
         return fn()
     except Exception as e:
-        logger.warning("[catalyst-sources] %s failed: %s", name, e)
+        logger.warning("[catalyst-sources] %s failed: %s", name, _safe_exc(e))
         return default if default is not None else {}
 
 
@@ -125,8 +126,9 @@ def _pull_movers() -> dict[str, dict]:
 def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
     """Get price, vol_x, sector, market_cap for the union of candidate tickers.
 
-    Combines Massive rich snapshot (price, today's volume) with yfinance-backed
-    ticker_metadata (sector, market_cap, avg_volume_30d) to compute vol_x.
+    Combines Massive rich snapshot (price, today's volume) with ticker_metadata
+    (market_cap from the FMP profile first; sector and avg_volume_30d from the
+    yfinance read) to compute vol_x.
     """
     if not tickers:
         return {}
@@ -140,7 +142,7 @@ def _enrich_with_snapshot(tickers: list[str]) -> dict[str, dict]:
         logger.warning("[catalyst-sources] batch snapshot failed: %s", e)
         snaps = {}
 
-    # yfinance-backed metadata — sector, market_cap, avg_volume_30d (cached 24h)
+    # Cached 24h: market_cap (FMP profile first), sector and avg_volume_30d (yfinance)
     from api.services.catalyst.ticker_metadata import get_metadata_batch
     try:
         meta = get_metadata_batch(tickers)
@@ -678,7 +680,7 @@ def _pull_fmp_analyst() -> dict[str, dict]:
         r.raise_for_status()
         rows = r.json()
     except Exception as e:
-        logger.warning("[catalyst-sources] FMP analyst pull failed: %s", e)
+        logger.warning("[catalyst-sources] FMP analyst pull failed: %s", _safe_exc(e))
         return {}
     if not isinstance(rows, list):
         return {}
@@ -733,7 +735,7 @@ def _pull_finviz_news() -> dict[str, list[dict]]:
         r.raise_for_status()
         rows = list(csv.DictReader(io.StringIO(r.text)))
     except Exception as e:
-        logger.warning("[catalyst-sources] Finviz news pull failed: %s", e)
+        logger.warning("[catalyst-sources] Finviz news pull failed: %s", _safe_exc(e))
         return {}
     # A headline tagged to more than this many tickers is macro/thematic noise,
     # not a company catalyst — drop it (env-tunable).

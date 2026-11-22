@@ -201,15 +201,17 @@ def run(interpreter: str) -> dict:
         bucket = nl["nl" if q.get("nl") else "plain"]
         bucket[0] += ok
         bucket[1] += 1
+    refusing = {q["id"] for q in corpus["questions"] if q.get("expect_refusal") or q["category"] == "refusal"}
     return {"corpus_version": corpus.get("version"), "interpreter": interpreter, "total": len(qs),
             "passed": sum(v["pass"] for v in qs.values()),
             "by_category": {c: {"passed": p, "of": n} for c, (p, n) in sorted(cats.items())},
             "nl": {k: {"passed": p, "of": n} for k, (p, n) in nl.items()},
-            # refusals are reported apart: an interpreter that refuses everything gets every refusal "right"
-            "answerable": {"passed": sum(v["pass"] for v in qs.values() if v["category"] != "refusal"),
-                           "of": sum(1 for v in qs.values() if v["category"] != "refusal")},
-            "refusals": {"passed": sum(v["pass"] for v in qs.values() if v["category"] == "refusal"),
-                         "of": sum(1 for v in qs.values() if v["category"] == "refusal")},
+            # refusals are reported apart: an interpreter that refuses everything gets every refusal "right".
+            # W1.1 review: split by expect_refusal (d02 "RS rank above 90" is a refusal outside the refusal category)
+            "answerable": {"passed": sum(v["pass"] for k, v in qs.items() if k not in refusing),
+                           "of": sum(1 for k in qs if k not in refusing)},
+            "refusals": {"passed": sum(v["pass"] for k, v in qs.items() if k in refusing),
+                         "of": sum(1 for k in qs if k in refusing)},
             "questions": qs}
 
 

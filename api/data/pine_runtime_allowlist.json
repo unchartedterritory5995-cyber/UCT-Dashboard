@@ -22,7 +22,111 @@
     "A committed script that fails either is WITHHELD (served as not graded, never deleted) and",
     "tests/test_pine_runtime_switch_on.py goes red BY NAME, so an ungraded line cannot be",
     "committed by accident. A capability marked `divergent` withholds every script that uses it:",
-    "`conditional-ta` (R4) is that row until WS-C lands per-call-site history."
+    "`conditional-ta` (R4) was that row until WS-C landed per-call-site history; COND-TA (engine 58) made it conformant.",
+    "",
+    "WS-I PART 2 (2026-11-13): ADMISSION BY CAPABILITY. With PINE_RUNTIME_CAPABILITY_ADMISSION=on the",
+    "browser pane ALSO serves a script whose EVERY capability (api/services/pine_capabilities.py::",
+    "capabilities_of: one detector, over-declaring, closed world, `core` declared by every script) is",
+    "ADMITTED below: `admitted: true`, `status: conformant`, and evidence naming at least 2 captures of",
+    "2 DISTINCT scripts (a probe and its variants are one script), at least one a COMMUNITY script, each",
+    "{capture, script, community, verdict: MATCH, runtimePane: on} and drawn by the RUN; an `obj:*`",
+    "family also needs objectsV2: MATCH, objectsLane: runtime and objectsPaired > 0 (records paired, never",
+    "pairedNothing) on each, and NO entry whose x grade (objectsX, U13) is DIVERGE (U1, 2026-11-15). A capability",
+    "absent from this registry withholds every script that uses it. api/services/rollout_gate.py::",
+    "pine_capability_admission reads it; tests/test_pine_capability_admission.py holds every evidence id",
+    "to a real capture graded MATCH in docs/pine/vendor-harness/runtime-on/verdicts.json (A8). The",
+    "server lanes (alerts, scans) never admit by capability: they stay per-script (`scripts` above).",
+    "",
+    "L7 (2026-11-14, owner ruling option (a)): THE SUBSTITUTED PATH. A script the member door serves with",
+    "UCT data in place of a vendor-only fact (syminfo.industry, a seed with no public mirror) can never",
+    "grade MATCH; its harness grade is MATCH_SUBSTITUTED. Such a record is admitted ONLY when it says",
+    "`admission: \"substituted\"` and `substituted: [<Pine name>...]`, and names a capture graded",
+    "MATCH_SUBSTITUTED with the runtime pane on whose own `substituted` names are exactly the record's",
+    "(rollout_gate.pine_runtime_admission). A MATCH_SUBSTITUTED capture never admits a record without",
+    "`admission`. The served row carries the names, and /api/user-definitions/runtime-kill serves them as",
+    "`substituted` {sha256: [names]} for the member door to disclose. No such record exists yet.",
+    "",
+    "RS RATING L8 (2026-11-15): RUN-HALF OBJECT EVIDENCE, FROM THESE SAME RECORDS. A host document whose",
+    "run half draws what the host draws none of (run-half:no-comparable-objects) is drawn only on recorded",
+    "evidence: a capture entry may carry `objectsV2: \"MATCH\"` (or the grade it got), the objects-v2 grade",
+    "of the RUN's drawings in docs/pine/vendor-harness/runtime-on/verdicts.json (tests/",
+    "test_pine_run_half_evidence.py holds every such claim to that file). For each SERVED record those",
+    "entries are served by /api/user-definitions/runtime-kill as `run_half_evidence` (absent when none)",
+    "and the browser admits the run half on at least 2 distinct captures each MATCH, objectsV2 MATCH, pane",
+    "on (engine/runHalfRailSeam.js). No record carries one yet.",
+    "",
+    "G6 (2026-11-15, coordinator ruling): `realtime-state` admits ONLY with scope `closed-bar-history`. A script",
+    "admitted by capability that uses it is drawn bar by bar only while the chart's newest bar is known to be",
+    "closed; on a forming or untold bar it is refused by name (runtimeKill.js::runtimeFormingRefusalOf).",
+    "",
+    "obj:box IS ADMITTED (DRAW-1, coordinator ruling 2026-11-16) WITH A CARVE-OUT, objects:count-at-cap. It was withheld",
+    "on inside-bar-boxes-rddt-1d-2026-11-14 (runtime-drawn, objects v2 DIVERGE on the count of boxes held: vendor 52, ours",
+    "50). Measured: both sides made 158 boxes (TradingView's newest id 158, ours 158) and the 50 boxes both hold agree on",
+    "every graded field; TradingView keeps two more of the oldest after the batch collector (objectPool.js C7) ran, and",
+    "the reference calls max_boxes_count approximate (\"The count is approximate; more drawings than the specified count",
+    "may be displayed.\"), while sonarlab-order-blocks holds what C7 predicts. So on the runtime lane a BOX family whose collector",
+    "ran is withheld by name (runtime/objectStore.js collect, objectPool.js COUNT_AT_CAP_FAMILIES), and inside-bar-boxes' boxes",
+    "are withheld, never drawn at the wrong count. Labels and lines are not: every committed capture whose label or line",
+    "DRAW-1 GC (2026-11-17, coordinator ruling after the engine-66 regression): the carve-out is NARROWED to the shape no capture",
+    "witnesses: a box family is withheld only when its collector runs AND the script reads a past value of a variable holding a",
+    "box (objectPool.js historyHeldOf; inside-bar-boxes, vw-draw-count-at-cap). Every other box family keeps C7, the newest kept",
+    "(rs-arm-label-last-bar-spy 503 / 503 at cap 500, sonarlab-order-blocks 24 / 24).",
+    "collector ran agrees with C7 (parabolic-sar-rddt-1d-2026-11-15: 52 labels, every one paired, runtime-on MATCH).",
+    "Capture queue Q-DRAW-CAP-1/2 (tools/visual_conformance/probes/vw-draw-count-at-cap.pine) measures the rule there.",
+    "",
+    "U15 LIBRARIES (coordinator ruling 2026-11-15): ONE ROW PER LIBRARY VERSION, named `library:Author/Library/N`",
+    "(each version is different code; pine_capabilities.capabilities_of names one per import line). A row pins",
+    "the version by `sha256` (the sha256 of the library source its evidence graded) and admits on the family",
+    "rule: >= 2 distinct IMPORTING scripts graded MATCH with the runtime pane on, >= 1 of them community, each",
+    "evidence entry naming `library: {path, sha256}` equal to the row's. An entry graded against other code under",
+    "the version, or against a fixture library (`libraryFixture: true`), never counts. A TradingView-authored",
+    "library is fine: the importing scripts are what must be community. The generic `import` capability is never",
+    "a row of its own: it is met only when EVERY library version the script imports is admitted",
+    "(runtime_definitions.capability_admitted). No library row is admitted yet.",
+    "",
+    "U3b (2026-11-15): since U13 (#1335) objects v2 grades x, and the U1 evidence taken before the x table",
+    "grades INCONCLUSIVE; every obj:* row is re-derived from x-graded re-captures (objectsX = the capture's own",
+    "x verdict). obj:linefill is WITHDRAWN: no x-graded linefill capture yet (its three old captures grade",
+    "INCONCLUSIVE). calc-bars is HELD (not a row): its 2 / 2 evidence passes the count, but only",
+    "wyckoff-accumulation-distribution-spy-1d-2026-10-02 runs on more bars than its calc_bars_count; Sweep",
+    "Reversal Map declares calc_bars_count = 10000 on charts of 666 and 8507 bars, so ignoring the argument",
+    "draws the same picture and the capture witnesses nothing about it.",
+    "",
+    "S28 (2026-11-15): every obj:* row is re-derived with the S28 x re-captures. A script with ANY capture whose x",
+    "DIVERGES, or on the committed kill list (pine_runtime_killlist.json), is evidence for no object family:",
+    "trend-targets-algoalpha (x DIVERGES on RDDT, killed) and parabolic-sar (a label one decimal short on SPY, killed).",
+    "obj:linefill stays withdrawn (FVG Finder alone once AlgoAlpha is vetoed: one script).",
+    "",
+    "PR #1374 (2026-11-15): the trend-targets-algoalpha kill is LIFTED. The engine fix (the runtime document's host",
+    "object program now carries the Pine tree stamps) re-grades trend-targets-algoalpha-{rddt,spy}-1d-2026-11-15 to",
+    "MATCH runtime-on, objects v2 MATCH with x graded (15 of 15 on each). No capture of it has an x that DIVERGES any",
+    "more and it is on no kill list, so the S28 veto no longer names it. It is still evidence for NO object family, and",
+    "no obj:* row changes: the run draws its plots, but its lines, labels and linefills are drawn from the HOST's object",
+    "program carried in the runtime document (str.tostring(..., format.mintick) on a mutable value keeps them out of the",
+    "run), so objectsLane is not runtime for it. obj:linefill therefore stays withdrawn (FVG Finder alone). The script",
+    "itself stays un-admitted by capability (conditional-ta and obj:linefill are not admitted).",
+    "",
+    "2026-11-16: the parabolic-sar kill is LIFTED. `math.round_to_mintick` now counts ticks as x * (1 / mintick)",
+    "(ast/tickRound.js): parabolic-sar-spy-1d-2026-11-15 prints \"654.41\" for 654.405 and grades MATCH runtime-on",
+    "(objects v2 MATCH, x 50 of 50), as -rddt-1d-2026-11-15 already did (x 52 of 52). It is on no kill list and no",
+    "capture of it has an x that DIVERGES, so the S28 veto no longer names it. No obj:* row changes here: naming it as",
+    "evidence for an object family is its own admission step. Every capability it uses is admitted, so the script",
+    "itself is admitted by capability from this change on (the REACH run says so).",
+    "",
+    "DRAW-1 (2026-11-16, coordinator approval): obj:table is ADMITTED on Signal Ledger (rddt, spy) and RCT Mann-Kendall",
+    "(rddt, spy), both drawn by the runtime lane, objects v2 MATCH with their tables and cells paired and none differing.",
+    "Mann-Kendall's move from DIVERGE (U3b) to MATCH was a PAINT grade (968066d775, landed in engine 59), not its table:",
+    "see the row's note. obj:linefill stays withdrawn (re-checked: AlgoAlpha's linefills are still the host program's).",
+    "obj:box is admitted with the count-at-cap carve-out (see above).",
+    "",
+    "PARITY UNIT LF (2026-11-18, coordinator order): obj:linefill is ADMITTED. Step 1 (runtimeObjectsDoor.js hostFallback)",
+    "makes a runtime document's drawings its RUN's where the run builds them and its host program is clean; that program rides",
+    "beside the run and is drawn only where the run holds a family back (and never once a script setting is moved), so no",
+    "member loses a drawing. Step 2 withholds the linefill family by name once the run's line collector deletes a filled line",
+    "(the count-at-cap carve-out, LINEFILL_COUNT_AT_CAP_REASON). Step 3: the runtime-on snapshot regenerated at that tree, and",
+    "the row admitted on FVG Finder (rddt 2026-11-15) and AlgoAlpha Trend Targets (rddt 2026-11-15, 2026-11-17), each drawn by",
+    "the run (vendorHarness.objLinefillEvidence.test.js). AlgoAlpha's SPY captures are not evidence: on AMEX:SPY its run holds",
+    "its drawings back by name (format:tick-unsettled) and the host program draws them."
   ],
   "scripts": [
     {
@@ -37,23 +141,639 @@
         {"id": "adx-and-di-for-v4-spy-1d-2026-10-03", "verdict": "MATCH", "runtimePane": "on",
          "graded": "docs/pine/PHASE3-RUNTIME-PLAN.md section 2.4 (runtime-on harness run @ b09a6bcee6)"}
       ]
+    },
+    {
+      "slug": "rs-rating-fred6724",
+      "sha256": "caa94fe31a8788c0f52ca571dbb1b3f8a7499dae913ed5e710720fc8662c5af0",
+      "source": "docs/pine/rs-rating/rs-rating-fred6724__pziQwiT2.pine",
+      "evidence": "MATCH_SUBSTITUTED on three captures re-taken 2026-11-16 (Q-RS8: RDDT, ALAB, CRWV 1D from the listing, with the capture tool that records the object x table): every value plot equals TradingView's on every bar, and the two labels agree on objects v2 with their x witnessed (exact bar), with the vendor's own syminfo.industry fed; the member's chart answers syminfo.industry from UCT data, disclosed by name. The three 2026-11-15 captures (no x table, objects v2 INCONCLUSIVE) stay in the repo as history and admit nothing (docs/pine/RS-RATING-TRANSFER.md)",
+      "admission": "substituted",
+      "substituted": ["syminfo.industry"],
+      "capabilities": ["conditional-ta", "fn-multi", "fn-single", "for", "if-block", "max_bars_back", "reassign", "switch", "ternary", "typed-array", "var"],
+      "captures": [
+        {"id": "rs-rating-fred6724-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "graded": "master b7cd7a0e63 (engine 60), master's own corpus harness, runtime-on, 2026-11-16, a run of exactly the Q-RS8 re-takes: capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED with x witnessed (18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing, exact bar)"},
+        {"id": "rs-rating-fred6724-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "graded": "master b7cd7a0e63 (engine 60), master's own corpus harness, runtime-on, 2026-11-16, a run of exactly the Q-RS8 re-takes: capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED with x witnessed (18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing, exact bar)"},
+        {"id": "rs-rating-fred6724-crwv-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "graded": "master b7cd7a0e63 (engine 60), master's own corpus harness, runtime-on, 2026-11-16, a run of exactly the Q-RS8 re-takes: capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED with x witnessed (18 graded fields agree; x: 2 graded, 2 agreeing, 0 differing, exact bar)"},
+        {"id": "rs-rating-fred6724-seta-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"ratingOnly": true, "offset": 60, "rsNewHigh": "Historical RS New Highs", "lookback": 100, "sizeLabHigh": "Small", "plotNewLow": true, "rsNewLow": "RS New Lows", "lookback2": 120, "sizeLabLow": "Normal", "boolMa": true, "lenMa": 30, "typMa": "SMA", "boolMa2": true, "allowReplay": true, "first2": 190, "scnd2": 110, "thrd2": 95.5, "frth2": 88, "ffth2": 75, "sxth2": 50, "svth2": 20},
+         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (318 graded fields agree; x: 45 graded, 0 differing, exact bar); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-seta-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"ratingOnly": true, "offset": 60, "rsNewHigh": "Historical RS New Highs", "lookback": 100, "sizeLabHigh": "Small", "plotNewLow": true, "rsNewLow": "RS New Lows", "lookback2": 120, "sizeLabLow": "Normal", "boolMa": true, "lenMa": 30, "typMa": "SMA", "boolMa2": true, "allowReplay": true, "first2": 190, "scnd2": 110, "thrd2": 95.5, "frth2": 88, "ffth2": 75, "sxth2": 50, "svth2": 20},
+         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (353 graded fields agree; x: 50 graded, 0 differing, exact bar); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setb-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"hideRSRat": true, "SpxValue": 5000, "plotNewHigh": false, "plotNewLow": true, "rsNewLow": "Historical RS New Lows  Before Price", "lookback2": 200, "sizeLabLow": "Large", "boolMa": true, "fillMa": true, "lenMa2": 40},
+         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (42 graded fields agree; x: 6 graded, 0 differing, exact bar); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setb-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"hideRSRat": true, "SpxValue": 5000, "plotNewHigh": false, "plotNewLow": true, "rsNewLow": "Historical RS New Lows  Before Price", "lookback2": 200, "sizeLabLow": "Large", "boolMa": true, "fillMa": true, "lenMa2": 40},
+         "graded": "settings branch feat/pine-param-settings 1e18dc7f8c (settings parity 2c), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (both sides hold the same objects; no field of a paired record graded); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setc-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"colorRS": "rgba(255,0,0,1)", "boolMa": true, "colMa": "#00BCD4"},
+         "graded": "colours branch feat/pine-param-colours fd1435beb2 (settings parity 2c, colours), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js, the line colour reaching the run as colorRS through hostColourLinks): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar and on colour), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (18 graded fields agree; x: 2 graded, 0 differing, exact bar; the rating label's text colour agrees on 4 paired slots); the capture's live palette holds every moved plot colour (inputs set one per call, run rssetc6); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setc-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"colorRS": "rgba(255,0,0,1)", "boolMa": true, "colMa": "#00BCD4"},
+         "graded": "colours branch feat/pine-param-colours fd1435beb2 (settings parity 2c, colours), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js, the line colour reaching the run as colorRS through hostColourLinks): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar and on colour), objects v1 MATCH, objects v2 MATCH_SUBSTITUTED (18 graded fields agree; x: 2 graded, 0 differing, exact bar; the rating label's text colour agrees on 4 paired slots); the capture's live palette holds every moved plot colour (inputs set one per call, run rssetc6); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setd-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"lineTicker": "AMEX:SPY"},
+         "graded": "symbol branch feat/pine-param-symbol 4662735abd (settings parity, the comparison symbol), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js: lineTicker = AMEX:SPY; the plots read SPY through symbolInputs.specializeSymbols, the run reads it as its input's default node): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v2 MATCH_SUBSTITUTED (18 graded fields agree; x: 2 graded, 0 differing, exact bar); SPY's bars: the committed capture rs-spx-daily-pm-spy-1d-2026-11-16 and every earlier SPY 1D capture (run rssetd); SPX and the seed: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-setd-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"lineTicker": "AMEX:SPY"},
+         "graded": "symbol branch feat/pine-param-symbol 4662735abd (settings parity, the comparison symbol), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js: lineTicker = AMEX:SPY; the plots read SPY through symbolInputs.specializeSymbols, the run reads it as its input's default node): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v2 MATCH_SUBSTITUTED (18 graded fields agree; x: 2 graded, 0 differing, exact bar); SPY's bars: the committed capture rs-spx-daily-pm-spy-1d-2026-11-16 and every earlier SPY 1D capture (run rssetd); SPX and the seed: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-sete2-rddt-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"rsNewHigh": "Historical RS New Highs", "plotNewLow": true, "blueDotCol": "rgba(255,152,0,0.5)", "redDotCol": "rgba(156,39,176,0.6)"},
+         "graded": "see-through colours branch feat/pine-see-through-colours cdf43cae7f (settings parity, see-through colour defaults read as #RRGGBBAA), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js carries a moved colour's opacity): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v2 MATCH_SUBSTITUTED (RDDT 116 / ALAB 179 graded fields agree; x 16 / 25 graded, 0 differing, exact bar; the dots' see-through colours agree on 18 / 27 paired slots); inputs set one per call (run rssete2, packet b39b37c7fce5); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"},
+        {"id": "rs-rating-fred6724-sete2-alab-1d-2026-11-16", "verdict": "MATCH_SUBSTITUTED", "runtimePane": "on",
+         "substituted": ["syminfo.industry"], "objectsV2": "MATCH_SUBSTITUTED",
+         "objectsV2Substituted": ["syminfo.industry"],
+         "inputs": {"rsNewHigh": "Historical RS New Highs", "plotNewLow": true, "blueDotCol": "rgba(255,152,0,0.5)", "redDotCol": "rgba(156,39,176,0.6)"},
+         "graded": "see-through colours branch feat/pine-see-through-colours cdf43cae7f (settings parity, see-through colour defaults read as #RRGGBBAA), the corpus harness runtime-on, 2026-11-16, the capture graded at its own moved settings (captureInputs.js carries a moved colour's opacity): capture MATCH_SUBSTITUTED (the 4 value plots agree on every bar), objects v2 MATCH_SUBSTITUTED (RDDT 116 / ALAB 179 graded fields agree; x 16 / 25 graded, 0 differing, exact bar; the dots' see-through colours agree on 18 / 27 paired slots); inputs set one per call (run rssete2, packet b39b37c7fce5); supply: the owner's FMP ^GSPC record 2026-11-16T23:13:34Z and the seed replay 2026-11-16T22:57:15Z"}
+      ]
     }
   ],
   "capabilities": {
+    "core": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "eee9e1490a3a5f00255b926aacf7beba5f2e611e3953068751770fdb81122e3f"},
+      "evidence": [
+        {"capture": "adx-and-di-for-v4-rddt-1d-2026-09-27", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "adx-and-di-for-v4-spy-1d-2026-10-03", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-rddt-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-spy-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "parabolic-sar-rddt-1d-2026-10-03", "script": "SAR", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02", "script": "UCTPROBE_R1_STRATEGY", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-neg-spy-1d-2026-10-01", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-loop-in-block-spy-1d-2026-10-02", "script": "UCTPROBE_VW_LOOP_IN_BLOCK", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-var-seed-spy-1d-2026-09-28", "script": "UCTPROBE_VW_VAR_SEED", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "every readable script declares it (series expressions, built-in calls, plots); admitted on every runtime-on MATCH capture the RUN drew (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
     "reassign": {
       "status": "conformant",
-      "evidence": ["adx-and-di-for-v4-rddt-1d-2026-09-27", "adx-and-di-for-v4-spy-1d-2026-10-03"],
-      "note": ":= reassignment of a series variable across bars, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4)."
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "bb36ef1ac5d70b83cdd990014eba50463752a558f675dff42dffaec0a0e28cd3"},
+      "evidence": [
+        {"capture": "adx-and-di-for-v4-rddt-1d-2026-09-27", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "adx-and-di-for-v4-spy-1d-2026-10-03", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-rddt-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-spy-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "parabolic-sar-rddt-1d-2026-10-03", "script": "SAR", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02", "script": "UCTPROBE_R1_STRATEGY", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-loop-in-block-spy-1d-2026-10-02", "script": "UCTPROBE_VW_LOOP_IN_BLOCK", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-var-seed-spy-1d-2026-09-28", "script": "UCTPROBE_VW_VAR_SEED", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": ":= reassignment of a series variable across bars, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4; WS-I Part 2 re-derived). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
     },
     "ternary": {
       "status": "conformant",
-      "evidence": ["adx-and-di-for-v4-rddt-1d-2026-09-27", "adx-and-di-for-v4-spy-1d-2026-10-03"],
-      "note": "?: on series values, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4)."
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "9dcccf326fbc5664057a90b99f33a4c17ba2bd8278c9e3a3657538c3a0f82881"},
+      "evidence": [
+        {"capture": "adx-and-di-for-v4-rddt-1d-2026-09-27", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "adx-and-di-for-v4-spy-1d-2026-10-03", "script": "ADX and DI for v4", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-rddt-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-spy-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "parabolic-sar-rddt-1d-2026-10-03", "script": "SAR", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-var-seed-spy-1d-2026-09-28", "script": "UCTPROBE_VW_VAR_SEED", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "?: on series values, graded MATCH with the runtime pane on (PHASE3-RUNTIME-PLAN 2.4; WS-I Part 2 re-derived). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "if-block": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "17c1dd41191a001fbad93435bb09c73eee755a28c953de872d3b9f103eab0f42"},
+      "evidence": [
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "parabolic-sar-rddt-1d-2026-10-03", "script": "SAR", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02", "script": "UCTPROBE_R1_STRATEGY", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-neg-spy-1d-2026-10-01", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-loop-in-block-spy-1d-2026-10-02", "script": "UCTPROBE_VW_LOOP_IN_BLOCK", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "if statements and blocks, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "var": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "2f3f07f8ff7700fcba10d3affeb0dd5152b12692832feb838a4ff14f8df78269"},
+      "evidence": [
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02", "script": "UCTPROBE_R1_STRATEGY", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-var-seed-spy-1d-2026-09-28", "script": "UCTPROBE_VW_VAR_SEED", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "var declarations (state kept across bars), drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "fn-single": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "2a7fd8c686734ca4c18cd4df5e09217d15cc371b6052d4075f61154b961e929b"},
+      "evidence": [
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-rddt-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-spy-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-neg-spy-1d-2026-10-01", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "user functions with a one-line body, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "fn-multi": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "2a7fd8c686734ca4c18cd4df5e09217d15cc371b6052d4075f61154b961e929b"},
+      "evidence": [
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-rddt-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-spy-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-09-28", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-10-03", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-neg-spy-1d-2026-10-01", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "user functions with a block body, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "for": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "fa642df1179c4dce0284c7e13449348fe23fa7fbf533e91fa13b106676ac83b1"},
+      "evidence": [
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-rddt-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "h3-alma-v4-spy-1d-2026-10-02", "script": "UCTPROBE_H3_ALMA", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-loop-in-block-spy-1d-2026-10-02", "script": "UCTPROBE_VW_LOOP_IN_BLOCK", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "for loops, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "compound-assign": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "643eb44d34d9fd76d4eecfefbbf9823f4fd98fc38c71bb62a50cdda89200045d"},
+      "evidence": [
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "r1-strategy-draws-indicator-rddt-1d-2026-10-02", "script": "UCTPROBE_R1_STRATEGY", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "+= -= *= /= %=, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "history-expr": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "98d739517b7d88d36108d679f4aef0fc508225e6fc35a02027ba0ea1e1a82758"},
+      "evidence": [
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "(expr)[n] history on an expression, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "tuple-destructure": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "d2a9745e9afdf208c633673468969e11bd04d08db1512a26cfd6e7ca619e9b43"},
+      "evidence": [
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "[a, b] = tuple destructuring, drawn by the run and graded MATCH (WS-I Part 2). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "while": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "82adfc4a956d1a74c583ee34da2a5ba123d5e126e0fe2bd1110608249d78109e"},
+      "evidence": [
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-loop-in-block-spy-1d-2026-10-02", "script": "UCTPROBE_VW_LOOP_IN_BLOCK", "community": false, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "while loops, drawn by the run and graded MATCH (WS-I Part 2; admitted by coordinator ruling 2026-11-13: the one evidence rule, no exceptions). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "typed-array": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "c1f37a1abdf10da2ec2053ce2e6a09c3edc509c793e113a26f9f484226d0b468"},
+      "evidence": [
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "float[] style array types, drawn by the run and graded MATCH (WS-I Part 2; admitted by coordinator ruling 2026-11-13). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "method-call": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "7531ca783db5d609ef6985d79c44e33403f43bca6672672753fda204127f9a71"},
+      "evidence": [
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-neg-spy-1d-2026-10-01", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "x.f(...) method-call syntax on a value, drawn by the run and graded MATCH (WS-I Part 2; admitted by coordinator ruling 2026-11-13). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "collections:array": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "cb22d05ab58c8bfd47870e9ec8c9460ad7dd6e85131c9c43571c2ff243df7ce0"},
+      "evidence": [
+        {"capture": "delta-rsi-oscillator-strategy-rddt-1d-2026-10-02", "script": "D-RSI", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "kalman-price-filter-backquant-rddt-1d-2026-10-03", "script": "Kalman Price Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-rddt-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-h4-loops-spy-1d-2026-10-03", "script": "vw-h4-loops", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-neg-spy-1d-2026-10-01", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-rddt-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "wyckoff-accumulation-distribution-spy-1d-2026-10-02", "script": "Wyckoff Accumulation Distribution", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "the array namespace (array.*, array<T>, x[] types, built-ins that return an array), drawn by the run and graded MATCH (WS-I Part 2 review C1). Evidence: the runtime-on harness verdicts of 2026-11-13 at 5885720335 (VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes)."
+    },
+    "switch": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "aef7076402390817a2fba0570952031463074a10c1e8c0e2f8fbe4ff137cff86"},
+      "evidence": [
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-14", "script": "FVG Finder", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "switch statements and switch values (U3, 2026-11-15; S1 supplied the second script). Evidence: the runtime-on harness over tests/fixtures/vendor at master 5819d9363e (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u1-u3-admission."
+    },
+    "for-in": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "733808679a6dc47ab56b4f0c8c9087c2dc72d19fac51be6cd1b51e1519834a79"},
+      "evidence": [
+        {"capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14", "script": "Trendline Pivots [QuantVue]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "for x in array / for [i, x] in array (U3, 2026-11-15; S1 supplied the community script). Evidence: the runtime-on harness over tests/fixtures/vendor at master 5819d9363e (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u1-u3-admission."
+    },
+    "max_bars_back": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "c7efa6dd4511d10432a3c10141b02851df8df655dbf2914996c8f29a7d1fcd15"},
+      "evidence": [
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "max_bars_back(...) / the indicator() argument (U3, 2026-11-15; coordinator ruling (a): it meets the rule and was held only by ruling). Evidence: the runtime-on harness over tests/fixtures/vendor at master 5819d9363e (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u1-u3-admission."
+    },
+    "realtime-state": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "68e3c3058f22d31e268128b0946d5f627e2c227b3e2b6747c95c99c4becddc5c"},
+      "scope": "closed-bar-history",
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-14", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-forin-collections-rddt-1d-2026-10-01", "script": "UCTPROBE_VW_FORIN_COLLECTIONS", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-neg-spy-1d-2026-10-01", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-14", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "barstate.* / timenow and the other reads past the run's own bar (U3, 2026-11-15; coordinator ruling (b), under G6): admitted for CLOSED-BAR HISTORY ONLY (scope closed-bar-history). No capture grades a forming bar, so a script admitted by capability that uses it is refused BY NAME while the chart's newest bar is forming or not known to be closed (runtime_definitions.runtime_admission historyOnly; runtimeKill.js runtimeFormingRefusalOf, guard pane:forming-ungraded). Evidence: the runtime-on harness over tests/fixtures/vendor at master 5819d9363e (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u1-u3-admission."
+    },
+    "udt": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "e2da2a6b4715d3dbf4324ddd996a6d557d85c35ad492625a9a5d1b19342e1ec2"},
+      "evidence": [
+        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trendline-pivots-quantvue-rddt-1d-2026-11-14", "script": "Trendline Pivots [QuantVue]", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "type declarations, their fields and methods (U3b, 2026-11-15; S20 supplied the second community script). Evidence: the runtime-on harness over tests/fixtures/vendor at master 7a74a90f45 (2026-11-15, x graded since U13 #1335; VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u3b-admission."
+    },
+    "generics": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "0abcfda5a4fd6529bb0ab35a928b912ca99071e7cb06c0c1d42e53494b3d8d32"},
+      "evidence": [
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-neg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-neg-spy-1d-2026-10-01", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "vw-int-array-avg-spy-1d-2026-09-30", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "generic type arguments (array<T>, map<K, V>, ...) (U3b, 2026-11-15; S20 supplied the community scripts). Evidence: the runtime-on harness over tests/fixtures/vendor at master 7a74a90f45 (2026-11-15, x graded since U13 #1335; VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-u3b-admission."
+    },
+    "obj:line": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "3e936c785abe62159eb1a672f8eff87754f0441e0fe0d99411469d46c935fd5d"},
+      "evidence": [
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
+        {"capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15", "script": "FVG Finder", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 44, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 11, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 80, "objectsX": "MATCH"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 6, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 8, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 8, "objectsX": "MATCH"}
+      ],
+      "note": "line.* drawings (U1; re-derived S28 2026-11-15): objectsPaired is the capture's paired LINE records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+    },
+    "obj:label": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "f6151f9218100cbd14b3b050ba798ef25a2672f11133a12cbd1f1bfcdb94ca0e"},
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 21, "objectsX": "MATCH"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
+        {"capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15", "script": "FVG Finder", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 22, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 11, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 80, "objectsX": "MATCH"},
+        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 25, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 7, "objectsX": "MATCH"}
+      ],
+      "note": "label.* drawings (U1; re-derived S28 2026-11-15): objectsPaired is the capture's paired LABEL records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+    },
+    "obj:delete": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "8118830d010139010ab572dd85faa785d4ea3a102b9db09d64fa6c7e86040e77"},
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-11-15", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 14, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 33, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 240, "objectsX": "MATCH"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-rddt-1d-2026-11-15", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "inside-bar-range-mother-candle-breakoutbreakdown-with-volume-confirmat-spy-1d-2026-11-15", "script": "IBRBVC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 25, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"}
+      ],
+      "note": "x.delete() on a drawing (U1; re-derived S28 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+    },
+    "obj:collection": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "a7b792732076bb522a9ad48f3ce8baba94c25d5dc3bee2b2795562c6b3b57181"},
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 33, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 240, "objectsX": "MATCH"},
+        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 25, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-rddt-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"},
+        {"capture": "zigzag-multi-time-frame-with-fibonacci-retracement-spy-1d-2026-11-15", "script": "ZZMTF", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 15, "objectsX": "MATCH"}
+      ],
+      "note": "drawings held in arrays or read through *.all (U1; re-derived S28 2026-11-15): objectsPaired is every paired record. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+    },
+    "obj:getter": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "ce6de562709d12101b07928275b9a84aca5db262fc5f5c9c93a2c33c4f8b637c"},
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 42, "objectsX": "MATCH"},
+        {"capture": "vw-int-array-avg-rddt-1d-2026-11-15", "script": "UCTPROBE_VW_INT_ARRAY_AVG", "community": false, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 31, "objectsX": "MATCH"}
+      ],
+      "note": "x.get_*() reads on a drawing (U3; re-derived S28 2026-11-15): objectsPaired is every paired record of the capture. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. A script with ANY capture whose x DIVERGES, or on the kill list, is evidence for no object family (trend-targets-algoalpha from S28 until PR #1374 re-graded it to MATCH and lifted its kill; see the readme). Evidence: the runtime-on harness over tests/fixtures/vendor at master bbc9b92351 plus the S28 x re-captures (2026-11-15, VENDOR_HARNESS_RUNTIME_ON=1; docs/pine/vendor-harness/runtime-on/verdicts.json is that run), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes); docs/pine/evidence/2026-11-15-s28-x-recaptures."
+    },
+    "obj:table": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "8d83f504f6899f657a586a78fbf8d254f59f149b43cb5eec19a808108a754078"},
+      "evidence": [
+        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 1, "objectsX": "MATCH"},
+        {"capture": "long_tail__09-signal-follow-through-ledger-spy-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 1, "objectsX": "MATCH"},
+        {"capture": "mid_engagement__20-mann-kendall-trend-significance-rddt-1d-2026-11-15", "script": "RCT Mann-Kendall", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": null},
+        {"capture": "mid_engagement__20-mann-kendall-trend-significance-spy-1d-2026-11-15", "script": "RCT Mann-Kendall", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": null}
+      ],
+      "note": "table.* drawings (DRAW-1, 2026-11-16, coordinator approval): objectsPaired is the capture's paired TABLE records (a table has no x; Mann-Kendall's objects carry none, so its objectsX is null, the verdict's own x answer). Each entry: objects v2 MATCH with the run drawing (Signal Ledger 1 table + 16 cells, Mann-Kendall 2 tables x 8 graded fields + 19 cells x 142 graded fields, 0 differing). Mann-Kendall was runtime-on DIVERGE at U3b (7a74a90f45) on a PAINT only (bgcolor plot_4, `force_overlay`, withheld by us where TradingView paints no bar at the defaults); the grader change 968066d775 (engine 58 review, S11: a withheld paint TradingView does not paint is undrawn, not differing) landed in landing train 1 (engine 59, c3ffdbb465) and moved it to MATCH. Its table grade was objects v2 MATCH at both commits. Evidence: the committed runtime-on snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes, and the vendor harness's own objects lane, on feat/pine-coverage-drawings); docs/pine/evidence/2026-11-16-draw1-drawing-objects."
+    },
+    "obj:box": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "8e9da41f1841c19f54caaff985563108add82ce77174d8c9feaa2f6dbea0bdb5"},
+      "evidence": [
+        {"capture": "fair-value-gap-rddt-1d-2026-11-15", "script": "Fair Value Gap SpaceManBTC", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 21, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-rddt-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 11, "objectsX": "MATCH"},
+        {"capture": "high_engagement__23-sweep-reversal-map-plus-herman-spy-1d-2026-11-15", "script": "Sweep Reversal Map [Herman]", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 80, "objectsX": "MATCH"},
+        {"capture": "long_tail__09-signal-follow-through-ledger-rddt-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 8, "objectsX": "MATCH"},
+        {"capture": "long_tail__09-signal-follow-through-ledger-spy-1d-2026-11-15", "script": "MQLSoftware - Signal Follow-Through Ledger", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 20, "objectsX": "MATCH"}
+      ],
+      "note": "box.* drawings (DRAW-1, 2026-11-16, coordinator ruling): objectsPaired is the capture's paired BOX records. Each entry: objects v2 MATCH (x graded) with the run drawing, objectsPaired records paired and objectsX the capture's own x verdict. Carve-out: on the runtime lane a box family whose collector ran in a script that reads a past value of a variable holding a box is withheld by name (objects:count-at-cap; see the readme). Evidence: the committed runtime-on snapshot (docs/pine/vendor-harness/runtime-on/verdicts.json), each capture drawn by the runtime lane (capabilityAdmission.measure.test.js CAPADMIT_MODE=lanes, and the harness's own objects lane, on feat/pine-coverage-drawings); docs/pine/evidence/2026-11-16-draw1-drawing-objects."
+    },
+    "obj:linefill": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 84, "rowSha256": "1391f03e3aea479bc4cb517557b787fd9c218f3878cad148847b1d1b060cd612"},
+      "evidence": [
+        {"capture": "fvg-detector-tradingfinder-fair-value-gap-imbalance-mitigated-rddt-1d-2026-11-15", "script": "FVG Finder", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 22, "objectsX": "MATCH"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-11-15", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-11-17", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on", "objectsV2": "MATCH", "objectsLane": "runtime", "objectsPaired": 2, "objectsX": "MATCH"}
+      ],
+      "note": "linefill.* drawings (PARITY UNIT LF step 3, 2026-11-18, coordinator order): objectsPaired is the capture's paired LINEFILL records. Each entry: runtime-on MATCH, objects v2 MATCH (x graded, 0 differing) with the RUN drawing its linefills on that chart (vendorHarness.objLinefillEvidence.test.js asks the member door and the binder's own predicate, runtimeObjects.js::drawsRunObjectsOn, capture by capture). AlgoAlpha's drawings became its run's in LF step 1 (runtimeObjectsDoor.js hostFallback: a clean host program rides beside the run and is drawn only where the run holds a family back); FVG Finder's run drew them before. Not evidence: trend-targets-algoalpha-spy-1d-2026-11-15 (the run holds its drawings back by name there, format:tick-unsettled, so the HOST program draws them; the rail's control), the 2026-10-02 captures and fvg-detector RDDT 2026-11-14 (objects v2 INCONCLUSIVE: taken before the x table). Carve-out (LF step 2, runtime/objectStore.js LINEFILL_COUNT_AT_CAP_REASON): once the run's line collector deletes a line a fill spans, the linefill family is withheld by name, as obj:box's count-at-cap (FVG Finder AMEX:SPY 1D 2026-11-18, licence-held: TradingView 289 linefills at the 500-line cap, ours 250). Evidence: the runtime-on snapshot regenerated at this tree (docs/pine/vendor-harness/runtime-on/verdicts.json); docs/pine/evidence/2026-11-18-admit-obj-linefill/EVIDENCE.md section 7."
     },
     "conditional-ta": {
-      "status": "divergent",
-      "evidence": [],
-      "note": "R4 (2026-10-31): a pure ta.* called inside if, a loop or a UDF is computed from EVERY bar on the plot lane (pineRuntimeFrontend.js:1518-1563), not per call site. Withholds every script that names it until WS-C lands per-call-site history; the by-name refusal in the front end is WS-C's first task."
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "90b22e4e03732a4db0323e2afc730a013ce9196297936858972d2b555b2c31fb"},
+      "evidence": [
+        {"capture": "deadband-hysteresis-filter-backquant-rddt-1d-2026-10-03", "script": "Deadband Hysteresis Filter [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-rddt-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "fibonacci-dolphintradebot-spy-1d-2026-10-02", "script": "Fibonacci Retracement", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-rddt-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "renko-candles-overlay-spy-1d-2026-10-03", "script": "Renko Candles Overlay", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-rddt-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "trend-targets-algoalpha-spy-1d-2026-10-02", "script": "AlgoAlpha - Trend Targets", "community": true, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "COND-TA (U2, engine 58, 2026-11-15): conformant. The runtime lane is TradingView-exact on every conditional ta.* it serves and refuses the rest by name (runtime:conditional-history): ta.sma / ta.ema / ta.rma in a root if / switch block (v4 bare spellings included; v1-v3 refused), and in a v6 root ?: arm with one-argument ta.change, as per-call-site state stepped only on the runs (pineRuntimeFrontend.js servedCondCall / W4 T4); witnessed by vw-call-site-history C03 / C04 / D02 and vw-arm-history T03 / T04 / T05 / K02 / K03 (rails runtime/__tests__/conditionalCallSite.test.js, ast/condTaLanes.test.js: 0 wrong bars). The R4 note this replaces ('computed from EVERY bar on the plot lane') described the lane before WS-C (#557). Evidence: the runtime-on harness verdicts of 2026-11-13 (docs/pine/vendor-harness/runtime-on/verdicts.json), each capture drawn by the runtime lane (plan-1114 capadmit2-evidence.json, CAPADMIT_MODE=lanes); their conditional calls are input-decided or every-bar, so the per-run machinery itself is witnessed by the probe rails above. vw-deadband-ticks-brk-a's DIVERGE is not this capability: docs/pine/evidence/2026-11-15-cond-ta/EVIDENCE.md."
+    },
+    "strategy-decl": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 78, "rowSha256": "16ba99d618b504cfdfbd148b2772d5748c17b37932817a78c5b0ad860efbcb35"},
+      "evidence": [
+        {"capture": "supertrend-strategy-rddt-1d-2026-11-17", "script": "SuperTrend STRATEGY", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "supertrend-strategy-alab-1d-2026-11-17", "script": "SuperTrend STRATEGY", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "w9-q-s1p-when-rddt-1d-2026-11-15", "script": "W9_Q_S1P_WHEN", "community": false, "verdict": "MATCH", "runtimePane": "on"}
+      ],
+      "note": "strategy() declarations, the strategy run by the simulated broker (simulated fills, never an order): admitted on the one evidence rule (owner ruling 2026-11-17: Strategy Tester reports served through the broker emulator only where TradingView captures witness them). Evidence: supertrend-strategy (corpus/committed, MPL-2.0, community) on NYSE:RDDT 1D (Q-SD1, 11 trades) and NASDAQ:ALAB 1D (Q-SD2, 13 trades), and our probe W9-Q-S1p (B-WHEN) on NYSE:RDDT 1D: each MATCH in the runtime-on harness at engine 73 (PREP) with the strategy broker gate ON, drawn by the runtime lane (its broker document; laneEvidence brokerRuns), the fold of the indicator grade (every plot, the barcolor paint, objects) and the strategy grade (every trade and fill, every stated report slot, every value series): rows replaced in docs/pine/vendor-harness/runtime-on/verdicts.json. Admission is a door, not a pin: a strategy's backtest is still served only where every broker rule it rests on is pinned (brokerPins.resolved.json), and refused by name otherwise (strategyServeCensus.test.js, tests/test_strategy_serve_arming.py)."
+    },
+    "request-other": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 84, "rowSha256": "961d7a6c56b6a6d6b282c23694519233f6dc84602eb096b4d76f137e2d55e2af"},
+      "scope": "closed-bar-history",
+      "evidence": [
+        {"capture": "pa-zigzag-fibonacci-fan-altw-rddt-1d-2026-11-17", "script": "F", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "pa-zigzag-fibonacci-fan-altw-spy-1d-2026-11-17", "script": "F", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "pa-zigzag-fibonacci-fan-altm-rddt-1d-2026-11-17", "script": "F", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "pa-zigzag-fibonacci-fan-altm-spy-1d-2026-11-17", "script": "F", "community": true, "verdict": "MATCH", "runtimePane": "on"},
+        {"capture": "support-and-resistance-multi-time-frame-rddt-1d-2026-10-02", "script": "SNR", "community": true, "verdict": "MATCH", "runtimePane": "on", "runtimeLane": "forced"},
+        {"capture": "support-and-resistance-multi-time-frame-spy-1d-2026-10-02", "script": "SNR", "community": true, "verdict": "MATCH", "runtimePane": "on", "runtimeLane": "forced"}
+      ],
+      "note": "request.security for another timeframe (and the v3 / v4 bare `security`, #1985), every request the runtime lane serves: admitted for CLOSED-BAR HISTORY only (scope closed-bar-history, rollout_gate.PINE_CAPABILITY_FORMING_UNGRADED, coordinator ruling 2026-11-19): every capture that admits it holds a finished newest bar, and on a forming one a look-ahead-on weekly / monthly read is withheld by name while the look-ahead-off developing value is witnessed only by an uncommitted probe (Q-HTF-FORM). Evidence, graded at engine 84 in the runtime-on harness (this row's stamp): PA ZigZag Fibonacci FAN (corpus/committed, MPL-2.0, community) with Alt Timeframe 1W and 1M on NYSE:RDDT and AMEX:SPY 1D from the listing (run rozz-2026-11-18, promoted 2026-11-19): MATCH 10 / 10 each, drawn by the runtime lane, through #1958's region series (engine 82) and the harness's moved-timeframe seam; and Support and Resistance Multi Time frame (SR-MTF, //@version=4, community) on RDDT and SPY 1D 2026-10-02, whose member door draws the HOST lane: its runtime-lane witness is the harness's forced lane (runtimeLane: forced; #1985's REQ-B1, all six plots MATCH; capabilityEvidenceLane.test.js grades each forced). Every source this row newly admits with a committed capture grading DIVERGE on either lane is on the kill list (11 sources, DRAW-1 rule) except rs-rating-fred6724, served through its own sha allowlist entry (tests/test_pine_capability_admission.py SERVED_BY_OWN_SHA names its four differences). docs/pine/evidence/2026-11-19-admit-request-other/EVIDENCE.md."
+    },
+    "library:TradingView/ta/7": {
+      "status": "conformant",
+      "admitted": true,
+      "admission": {"scriptEngineVersion": 85, "rowSha256": "5f0f967c27407fc0c407d6e7e10b06a9cb7f8a069c1494a95facaac48136c12e"},
+      "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876",
+      "evidence": [
+        {"capture": "kalman-psar-backquant-rddt-1d-2026-11-15", "script": "KPSaR [BackQuant]", "community": true, "verdict": "MATCH", "runtimePane": "on", "library": {"path": "TradingView/ta/7", "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"}},
+        {"capture": "vw-library-import-rddt-1d-2026-10-02", "script": "UCTPROBE L1 library import", "community": false, "verdict": "MATCH", "runtimePane": "on", "library": {"path": "TradingView/ta/7", "sha256": "c6888dbdf18c0c19fe5ba915d0df0cb2361f4f2f26f1e67953ac35a8f0d60876"}}
+      ],
+      "note": "THE FIRST LIBRARY ROW (U15: one row per library version, pinned by the sha256 of the code its evidence graded; rollout_gate counts an entry only when its `library` names this path at this sha). TradingView/ta/7 (MPL-2.0), promoted runtime-only (#2046): no importer draws on the host lane. Evidence, graded at engine 85 with production's store: KPSaR [BackQuant] (community) and our probe vw-library-import, both MATCH with the runtime pane on and drawn by the runtime lane; each snapshot row is store-held at this sha (A8). The ta/7 importers this does not serve stay walled by their own guards: machine-learning-rsi-bullvision (runtime:conditional-history), smart-money-concept-tradingfinder (its five TFlab libraries), relative-volume-at-time (v6 on a v5 library, pine:library-version). Libraries chain, 2026-11-19."
     }
   }
 }

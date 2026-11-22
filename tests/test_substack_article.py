@@ -11,6 +11,8 @@ author already knew to put in it.
 from __future__ import annotations
 
 import gzip
+import html as html_module
+import json
 import os
 import re
 
@@ -342,3 +344,162 @@ def test_mis_nested_tags_do_not_leak_unclosed_elements():
 def test_unclosed_document_is_closed_off():
     out = sa.convert("<p>dangling")
     assert out.html.endswith("</p>")
+
+
+# -- native video ----------------------------------------------------------------
+# Captured verbatim from the 2026-11-08 Sunday Scans body (API and RSS agree).
+# Substack ships NO <video> here: the placeholder is an empty div holding only an
+# upload id, and its own page builds the player client-side.
+_VIDEO_ID = "8c7b74f6-a344-4bd1-85f2-c8676f9fe804"
+_VIDEO_BLOCK = (
+    '<div class="native-video-embed" data-component-name="VideoPlaceholder" '
+    'data-attrs="{&quot;mediaUploadId&quot;:&quot;' + _VIDEO_ID +
+    '&quot;,&quot;duration&quot;:null}"></div>'
+)
+
+
+def test_native_video_survives_in_the_authors_position():
+    html = sa.convert(f"<p>before</p>{_VIDEO_BLOCK}<p>after</p>").html
+    assert html.index("before") < html.index("<video") < html.index("after")
+
+
+def test_native_video_points_at_the_stable_source_url():
+    """/src mints a fresh 24h Mux token per request, so the stored markup must
+    hold /src itself. A resolved stream.mux.com URL would die a day later."""
+    html = sa.convert(_VIDEO_BLOCK).html
+    assert f'src="https://substack.com/api/v1/video/upload/{_VIDEO_ID}/src"' in html
+    assert "controls" in html and "stream.mux.com" not in html
+
+
+def test_native_video_does_not_preload_the_whole_file():
+    assert 'preload="metadata"' in sa.convert(_VIDEO_BLOCK).html
+
+
+@pytest.mark.parametrize("media_id", [
+    '../../evil',
+    'x" onerror="alert(1)',
+    'https://evil.test/a.mp4',
+    '',
+    None,
+    123,
+])
+def test_a_bad_upload_id_emits_no_player(media_id):
+    """data-attrs is author-controlled text bound for dangerouslySetInnerHTML."""
+    attrs = html_module.escape(json.dumps({"mediaUploadId": media_id}), quote=True)
+    block = f'<div class="native-video-embed" data-attrs="{attrs}"></div><p>ok</p>'
+    out = sa.convert(block).html
+    assert "<video" not in out and "evil" not in out and "onerror" not in out
+    assert "ok" in out
+
+
+def test_unparseable_data_attrs_emit_no_player():
+    out = sa.convert('<div class="native-video-embed" data-attrs="{not json"></div><p>ok</p>').html
+    assert "<video" not in out and "ok" in out
+
+
+def test_an_upload_id_on_any_other_div_emits_no_player():
+    attrs = html_module.escape(json.dumps({"mediaUploadId": _VIDEO_ID}), quote=True)
+    assert "<video" not in sa.convert(f'<div data-attrs="{attrs}"></div>').html
+
+
+def test_a_raw_video_tag_is_still_dropped():
+    """Only the converter's own player may exist; authored tags stay banned."""
+    out = sa.convert('<video src="https://evil.test/a.mp4" autoplay></video><p>ok</p>').html
+    assert "<video" not in out and "evil.test" not in out
+
+
+def test_the_video_change_reconverts_stored_articles():
+    assert sa.CONVERTER_VERSION >= 8
+
+
+# -- YouTube ---------------------------------------------------------------------
+# Captured verbatim from the 2026-03-01 Sunday Scans body.
+_YT_ID = "2Io79GrWA6E"
+_YT_BLOCK = (
+    f'<div id="youtube2-{_YT_ID}" class="youtube-wrap" data-attrs="{{&quot;videoId&quot;:'
+    f'&quot;{_YT_ID}&quot;,&quot;startTime&quot;:null,&quot;endTime&quot;:null}}" '
+    'data-component-name="Youtube2ToDOM"><div class="youtube-inner">'
+    f'<iframe src="https://www.youtube-nocookie.com/embed/{_YT_ID}?rel=0&amp;autoplay=0'
+    '&amp;showinfo=0&amp;enablejsapi=0" frameborder="0" loading="lazy" gesture="media" '
+    'allow="autoplay; fullscreen" allowautoplay="true" allowfullscreen="true" '
+    'width="728" height="409"></iframe></div></div>'
+)
+
+
+def _yt_block(payload) -> str:
+    attrs = html_module.escape(json.dumps(payload), quote=True)
+    return f'<div class="youtube-wrap" data-attrs="{attrs}"></div>'
+
+
+def test_youtube_embed_survives_in_the_authors_position():
+    html = sa.convert(f"<p>before</p>{_YT_BLOCK}<p>after</p>").html
+    assert html.index("before") < html.index("<iframe") < html.index("after")
+
+
+def test_youtube_embed_is_rebuilt_from_the_id_alone():
+    html = sa.convert(_YT_BLOCK).html
+    assert html.count("<iframe") == 1
+    assert f'src="https://www.youtube-nocookie.com/embed/{_YT_ID}?rel=0"' in html
+    assert "enablejsapi" not in html and "gesture" not in html
+
+
+def test_youtube_embed_can_go_fullscreen_and_lazy_loads():
+    html = sa.convert(_YT_BLOCK).html
+    assert "allowfullscreen" in html and 'loading="lazy"' in html
+    assert 'title="' in html
+
+
+def test_youtube_embed_sends_the_referrer_youtube_requires():
+    """A missing referrer is YouTube's Error 153 on an embed."""
+    assert 'referrerpolicy="strict-origin-when-cross-origin"' in sa.convert(_YT_BLOCK).html
+
+
+def test_youtube_keeps_the_authors_start_and_end():
+    html = sa.convert(_yt_block({"videoId": _YT_ID, "startTime": 90, "endTime": 120})).html
+    assert f"/embed/{_YT_ID}?rel=0&amp;start=90&amp;end=120" in html
+
+
+@pytest.mark.parametrize("start", ["90&autoplay=1", '"><script>', -5, 1.5, True])
+def test_a_bad_youtube_start_time_is_ignored(start):
+    html = sa.convert(_yt_block({"videoId": _YT_ID, "startTime": start})).html
+    assert f'/embed/{_YT_ID}?rel=0"' in html
+    assert "autoplay=" not in html and "<script" not in html
+
+
+@pytest.mark.parametrize("video_id", [
+    '../../evil',
+    'x" onload="1',
+    'short',
+    'https://evil.test/embed',
+    'abcdefghijkl',
+    '',
+    None,
+    123,
+])
+def test_a_bad_youtube_id_emits_no_iframe(video_id):
+    out = sa.convert(_yt_block({"videoId": video_id}) + "<p>ok</p>").html
+    assert "<iframe" not in out and "evil" not in out and "onload" not in out
+    assert "ok" in out
+
+
+def test_youtube_id_on_any_other_div_emits_no_iframe():
+    attrs = html_module.escape(json.dumps({"videoId": _YT_ID}), quote=True)
+    assert "<iframe" not in sa.convert(f'<div data-attrs="{attrs}"></div>').html
+
+
+def test_an_authored_iframe_inside_a_youtube_wrap_never_survives():
+    block = (f'<div class="youtube-wrap" data-attrs="{{&quot;videoId&quot;:&quot;{_YT_ID}&quot;}}">'
+             '<iframe src="https://evil.test"></iframe></div>')
+    html = sa.convert(block).html
+    assert "evil.test" not in html and html.count("<iframe") == 1
+
+
+def test_nothing_else_inside_a_youtube_block_survives():
+    block = (f'<div class="youtube-wrap" data-attrs="{{&quot;videoId&quot;:&quot;{_YT_ID}&quot;}}">'
+             '<p>smuggled</p></div><p>after</p>')
+    html = sa.convert(block).html
+    assert "smuggled" not in html and "after" in html
+
+
+def test_the_youtube_change_reconverts_stored_articles():
+    assert sa.CONVERTER_VERSION >= 9

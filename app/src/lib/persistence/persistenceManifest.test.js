@@ -54,7 +54,10 @@ describe('the persistence census sees the tree before anything is compared', () 
     // plain literal · module constant · imported constant through a JSX prop · IndexedDB · server pref
     expect(findEntry('localStorage', 'uct.watchlist.cols')?.files).toContain('app/src/pages/Watchlists.jsx')
     expect(findEntry('localStorage', 'uct-chart-drawings')).toBeTruthy()
-    expect(findEntry('localStorage', 'uct.watchlist.cols.breadthDrill')).toBeTruthy()
+    // (the drill-down list's columns were ONE key, `uct.watchlist.cols.breadthDrill`, until the
+    // breadth drill gave each of its two views its own; the census finds both through the prop)
+    expect(findEntry('localStorage', 'uct.watchlist.cols.breadthDrill.table')).toBeTruthy()
+    expect(findEntry('localStorage', 'uct.watchlist.cols.breadthDrill.focus7')).toBeTruthy()
     expect(findEntry('sessionStorage', 'uct.review.session')).toBeTruthy()
     expect(findEntry('indexedDB', 'uct_notebook_*/outbox')).toBeTruthy()
     expect(findEntry('server-preference', 'chart_settings')).toBeTruthy()

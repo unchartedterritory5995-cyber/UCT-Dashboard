@@ -53,6 +53,7 @@
         "text": "Dr.Smith"
       }
     ],
+    "notices": [],
     "pending": [
       {
         "key": "name:obsidian:vault-1/ghost.name|notes",

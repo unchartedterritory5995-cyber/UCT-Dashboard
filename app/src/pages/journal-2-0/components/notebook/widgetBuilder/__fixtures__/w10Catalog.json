@@ -2539,7 +2539,7 @@
         {
           "filter": true,
           "key": "kind",
-          "label": "Note kind",
+          "label": "Note type",
           "ops": [
             "in",
             "not_in"

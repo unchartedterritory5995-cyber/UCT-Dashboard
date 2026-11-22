@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import styles from './BreadthDateNav.module.css'
+import chartNav from '../charts/widgets/ChartDateNav.module.css'
 import Input from '../../components/ui/Input'
-import UIcon from '../../components/ui/UIcon'
+import { CalendarPopover as ChartCalendar } from '../charts/widgets/ChartDateNav'
 
 // Breadth Time Navigator — the Monitor header's date box (the same MarketSmith-
 // style control the /charts widget uses, adapted to the breadth sheet). Type a
@@ -62,7 +63,8 @@ const maskMDY = (raw) => {
 
 const isoOf = (y, m, day) => `${y}-${pad2(m + 1)}-${pad2(day)}` // m is 0-based
 
-function CalendarPopover({ anchor, seedIso, minIso, maxIso, years, onPickDate, onPickYear, onClose }) {
+// Exported for the breadth drill window's joined date control (drill/JoinedDateNav).
+export function CalendarPopover({ anchor, seedIso, minIso, maxIso, years, onPickDate, onPickYear, onClose }) {
   const ref = useRef(null)
   const seed = /^(\d{4})-(\d{2})-(\d{2})$/.exec(seedIso || '')
   const [viewY, setViewY] = useState(seed ? +seed[1] : new Date().getUTCFullYear())
@@ -153,6 +155,21 @@ function CalendarPopover({ anchor, seedIso, minIso, maxIso, years, onPickDate, o
   )
 }
 
+// ISO 'YYYY-MM-DD' <-> UTC-midnight ms, for the chart widget's calendar (ms-based).
+const isoToMs = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '')
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null
+}
+const msToIso = (ms) => {
+  const d = new Date(ms)
+  return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`
+}
+
+// ⭐ OWNER 2026-11-17: the Monitor's date control IS the /charts widget's one —
+// same "◀ 11/17/2026 ▶ ⌄" chrome (ChartDateNav.module.css) and the same calendar
+// (ChartDateNav's CalendarPopover, with its "Go to a date" field and year list).
+// Only the wiring is Breadth's: ◀/▶ step one trading day, a typed or picked date
+// moves the sheet's top row, a year jumps to that year's start.
 export default function BreadthDateNav({
   topDate, minDate, maxDate, canForward,
   onStep, onPickDate, onPickYear,
@@ -186,16 +203,16 @@ export default function BreadthDateNav({
   }
 
   return (
-    <div className={styles.nav}>
+    <div className={`${chartNav.nav} ${styles.host}`}>
       <button
         type="button"
-        className={styles.step}
+        className={`${chartNav.step} ${styles.hostStep}`}
         title="Step back one trading day"
         aria-label="Step back one trading day"
         onClick={() => onStep(-1)}
-      ><UIcon name="chevronRight" size={12} gold={false} aria-hidden="true" style={{ transform: 'rotate(180deg)' }} /></button>
+      >◀</button>
       <Input
-        className={styles.field}
+        className={chartNav.field}
         value={shown}
         placeholder="M/D/YYYY"
         spellCheck={false}
@@ -210,16 +227,16 @@ export default function BreadthDateNav({
       />
       <button
         type="button"
-        className={styles.step}
+        className={`${chartNav.step} ${styles.hostStep}`}
         title="Step forward one trading day"
         aria-label="Step forward one trading day"
         disabled={!canForward}
         onClick={() => canForward && onStep(1)}
-      ><UIcon name="chevronRight" size={12} gold={false} aria-hidden="true" /></button>
+      >▶</button>
       <button
         ref={caretRef}
         type="button"
-        className={styles.caret}
+        className={chartNav.caret}
         title="Pick a date or year"
         aria-label="Pick a date or year"
         aria-expanded={open}
@@ -230,13 +247,14 @@ export default function BreadthDateNav({
         </svg>
       </button>
       {open && (
-        <CalendarPopover
+        <ChartCalendar
           anchor={anchor}
-          seedIso={topDate}
-          minIso={minDate}
-          maxIso={maxDate}
+          seedMs={isoToMs(topDate)}
+          minMs={isoToMs(minDate)}
+          maxMs={isoToMs(maxDate)}
           years={years}
-          onPickDate={(iso) => { onPickDate(iso); setOpen(false) }}
+          loadingYears={false}
+          onPickDate={(ms) => { onPickDate(msToIso(ms)); setOpen(false) }}
           onPickYear={(y) => { onPickYear(y); setOpen(false) }}
           onClose={() => setOpen(false)}
         />

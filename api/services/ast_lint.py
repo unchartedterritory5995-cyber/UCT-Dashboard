@@ -384,7 +384,20 @@ def _arg_yields_bool(node: Any, table: Mapping[str, Any]) -> bool:
     if kind == "call":
         functions = table.get("functions") or {}
         return functions.get(node.get("name"), {}).get("yields") == "bool"
-    if kind in ("sym", "ltf", "tf_live", "tf"):
+    # ⭐ 2026-11-17 -- AN OFFSET CHANGES *WHEN*, NEVER *WHAT* (`scan_definition.is_boolean_tree`'s own
+    # words for the same node). `(high >= highest(high, 252))[1]` is the yes/no it was a bar ago.
+    # ⚰️ This arm did not list `offset`, so "a new 52-week high for the first time in at least 30
+    # days" -- spelled the natural way, `barssince(newHigh[1], 30) >= 30` -- was called
+    # UNANALYSABLE here and therefore "repaints", while the interpreter's resolver accepted the
+    # same tree. The door refused it twice as `lint:repaint` and a member read "the formula would
+    # repaint" about a formula that reads only earlier bars (Indicators backlog 63).
+    # Engine 74 (#1740, the engine 74 train) -- THE SERVED SET GROWS. A formula or a pasted
+    # script that passes a shifted condition to a condition-role function
+    # (`ta.valuewhen(cond[1], x, 0)`) measured `repaints` and the store's `repaint` gate refused
+    # the save ("a formula whose past values can change after the fact is not saved"); it now
+    # measures `non-repainting` and is saved and served. No STORED document changes its answer:
+    # none of this shape could be stored.
+    if kind in ("sym", "ltf", "tf_live", "tf_merge", "tf", "offset"):
         args = node.get("args") or []
         return len(args) == 1 and _arg_yields_bool(args[0], table)
     return False
@@ -559,8 +572,14 @@ def _own_window(spec: Any, arg_nodes: List[Any]) -> Tuple[Reach, Reach]:
 
     if lookback == UNKNOWN or declared_forward == UNKNOWN:
         return UNKNOWN, UNKNOWN
-    if lookback == UNBOUNDED or declared_forward == UNBOUNDED:
+    if lookback == UNBOUNDED:
         return UNKNOWN, UNBOUNDED
+    # Engine 66 (#1473) (bt) -- an unbounded FORWARD reach says nothing about how far BACK: the
+    # twin of `lint.js::ownWindow`. `lastbaryear` (lookback 0, forward "unbounded") reads no
+    # earlier bar; answering UNKNOWN made this reader disagree with `max_lookback` in
+    # `ast_interpret`, which reads the lookback alone. The repaint verdict is untouched.
+    if declared_forward == UNBOUNDED:
+        return (lookback if lookback >= 0 else 0), UNBOUNDED
 
     back = lookback if lookback >= 0 else 0
     from_sign = 0 if lookback >= 0 else -lookback
@@ -612,7 +631,7 @@ def _add_reach(a: Reach, b: Reach) -> Reach:
 #: read UNKNOWN — fail-closed, nothing red in this module, and the badge
 #: hedging about a formula the engine prices exactly.
 _CANONICAL_TYPES = ("num", "series", "op", "call", "offset", "tf", "sym", "tf_live",
-                    "str", "symtext", "textop", "ltf")
+                    "str", "symtext", "textop", "ltf", "tf_merge")
 
 #: ⛔ THE SPANS, DUPLICATED FOR THE SAME FORCED REASON AS THE VOCABULARY ABOVE,
 #: and bound to ``ast_interpret.TF_BASE_BARS`` by a test rather than by an import.
@@ -866,6 +885,23 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
                 cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
                 back = cb if cb in (UNKNOWN, UNBOUNDED) else (int(cb) + 1) * span
                 forward = cf if cf in (UNKNOWN, UNBOUNDED) or cf == 0 else int(cf) * span
+                reach_of[id(node)] = (back, forward)
+        elif kind == "tf_merge":
+            # ⭐⭐ ENGINE 55 — the port of ``lint.js``'s ``tf_merge`` arm. Back: ``tf``'s
+            # window. Forward: AT LEAST ONE BAR — whether bar ``i`` shows the period's
+            # value is decided by bar ``i + 1``'s date, so a forming newest bar's value
+            # moves once that bar closes mid-period: ``preview-repaints``.
+            code = str(node.get("value"))
+            span = _TF_BASE_BARS.get(code)
+            if len(args) != 1 or span is None:
+                reach_of[id(node)] = unknown(
+                    "a higher-timeframe node carries one child and a timeframe this "
+                    "engine resamples (%s), got %r over %d"
+                    % (", ".join(sorted(_TF_BASE_BARS)), node.get("value"), len(args)))
+            else:
+                cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
+                back = cb if cb in (UNKNOWN, UNBOUNDED) else (int(cb) + 1) * span
+                forward = cf if cf in (UNKNOWN, UNBOUNDED) else max(1, int(cf) * span)
                 reach_of[id(node)] = (back, forward)
         elif kind == "tf_live":
             # ⛔⛔ THIS ARM IS THE BADGE. `tf_live` reads the bucket the base bar is

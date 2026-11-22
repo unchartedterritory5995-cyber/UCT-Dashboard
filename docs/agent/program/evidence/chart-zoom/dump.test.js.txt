@@ -1,0 +1,57 @@
+// TEMP (not committed): routeManifest (v1) + routeManifestV2 first calls over the 3650-request evidence sets; run in each tree
+import fs from 'node:fs'
+import path from 'node:path'
+import { it } from 'vitest'
+import { manifestFor, MANIFEST_CONTRACT } from './capabilities'
+import { routingNames } from './routing'
+import { correctTypos, lexiconFor } from './nl/lexicon'
+import { routeManifestV2 } from './nlm1/routingV2'
+import { routeManifest } from './routing'
+import dev from './nlm1/dev/paraphrases.json'
+import { WIDGET_HELD_OUT, LIST_HELD_OUT } from './agentExecHeldOut.test.js'
+import { WIDGET_TUNE, LIST_TUNE, WIDGET_TUNE2, JOURNAL_TUNE } from './agentExecTune.js'
+import { NAME_HELD_OUT, DOOR_HELD_OUT, JOURNAL_HELD_OUT } from './agentExecHeldOut2.test.js'
+import { SEARCH_HELD_OUT, SEARCH_CLEAR_HELD_OUT } from './agentExecHeldOut7.test.js'
+
+import { registerCatalog } from './qa/capabilityRegression/testing/registry'
+await registerCatalog()
+const DIR = path.join(__dirname, '__fixtures__', 'nlIntent')
+it('dump', () => {
+  const full = manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const opts = (k) => ({ enabled: true, recentActions: k.recentActions || [], pendingActions: [], limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold,
+    names: routingNames(null), correct: (t) => (correctTypos(t, lexiconFor(null)) || []).map(v => v.text), ...(k.after ? { after: k.after } : {}) })
+  const rows = []
+  const lb = JSON.parse(fs.readFileSync(path.join(__dirname, '__fixtures__', 'noLookbehind', 'baseline.json'), 'utf8')).corpus.routing
+  lb.forEach((t, i) => rows.push({ id: `lb.routing[${i}]`, set: 'lb.routing', held: false, text: t, plans: null }))
+  dev.cases.forEach((c, i) => rows.push({ id: `nlm1-dev[${i}]`, set: 'nlm1 dev paraphrases', held: false, text: c.text, recentActions: c.recentActions, after: c.after, plans: [c.needs] }))
+  for (const f of ['corpus.json', 'dev-nl1.json', 'heldout-v1.json', 'heldout-v2.json']) {
+    const data = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))
+    const held = f.startsWith('heldout')
+    for (const c of data.cases) {
+      const turns = Array.isArray(c.turns) ? c.turns : [c]
+      turns.forEach((t, i) => {
+        const e = t.expect || {}
+        const plans = [e.ops, ...(e.alt || [])].filter(p => Array.isArray(p) && p.length).map(p => p.map(o => o.a))
+        rows.push({ id: `${f}:${c.id}${turns.length > 1 ? '#' + i : ''}`, set: f + (held ? ' (held-out)' : ''), held, text: t.text ?? t.say ?? t.message, plans: plans.length ? plans : null })
+      })
+    }
+  }
+  const ex = (name, cases, action, held) => cases.forEach((c, i) => rows.push({ id: `${name}:${c.row || i}`, set: name + (held ? ' (held-out)' : ''), held, text: c.text, plans: [[action]] }))
+  ex('agentExec widget held-out', WIDGET_HELD_OUT, 'widget.setOption', true)
+  ex('agentExec widget tune', WIDGET_TUNE, 'widget.setOption', false)
+  ex('agentExec widget tune2', WIDGET_TUNE2, 'widget.setOption', false)
+  ex('agentExec list held-out', LIST_HELD_OUT, 'chart.setSetting', true)
+  ex('agentExec list tune', LIST_TUNE, 'chart.setSetting', false)
+  ex('agentExec name held-out2', NAME_HELD_OUT, 'widget.setOption', true)
+  ex('agentExec door held-out2', DOOR_HELD_OUT, 'widget.setOption', true)
+  ex('agentExec journal held-out2', JOURNAL_HELD_OUT, 'widget.sendToJournal', true)
+  ex('agentExec journal tune2', JOURNAL_TUNE, 'widget.sendToJournal', false)
+  ex('agentExec search held-out7', [...SEARCH_HELD_OUT, ...SEARCH_CLEAR_HELD_OUT], 'widget.setOption', true)
+  const sel = (x) => (x.routing ? x.routing.selected : ['FULL'])
+  const names = (x) => [...new Set(x.manifest.map(c => c.name))]
+  const out = rows.filter(r => typeof r.text === 'string').map(r => {
+    const v1 = routeManifest(full, r.text, opts(r)), v2 = routeManifestV2(full, r.text, opts(r))
+    return { id: r.id, set: r.set, held: r.held, plans: r.plans, v1: sel(v1), v2: sel(v2), v1n: names(v1), v2n: names(v2), text: r.held ? undefined : r.text }
+  })
+  fs.writeFileSync(process.env.DUMP_OUT, JSON.stringify({ n: out.length, skipped: rows.length - out.length, rows: out }))
+})

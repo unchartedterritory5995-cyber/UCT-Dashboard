@@ -20,7 +20,6 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 vi.mock('../lib/offline/useBlockedNotes', () => ({ useBlockedNotes: () => ({ blocked: new Set() }) }))
 vi.mock('../lib/noteCreation', async (importOriginal) => ({
   ...(await importOriginal()),
@@ -99,7 +98,7 @@ describe('the earnings follow-up card in the Notebook (Tier 2 part B)', () => {
   it('the follow-up switch off: no card, and the card\'s chunk is never requested', async () => {
     latchNotebookFlags({ notebook_journal_styles_enabled: true })
     renderTab(ORCL)
-    await screen.findByTestId('research-home', {}, T)
+    await screen.findByRole('toolbar', { name: 'Notes list tools' }, T)   // Task 5: the link's bare address is the list
     expect(screen.queryByRole('region', REGION)).toBeNull()
     expect(loadSpy).not.toHaveBeenCalled()
     expect(createNoteViaApi).not.toHaveBeenCalled()
@@ -108,7 +107,7 @@ describe('the earnings follow-up card in the Notebook (Tier 2 part B)', () => {
   it('Journal styles off (the follow-up switch on): no card, and no chunk request either', async () => {
     latchNotebookFlags({ notebook_earnings_followup_enabled: true })
     renderTab(ORCL)
-    await screen.findByTestId('research-home', {}, T)
+    await screen.findByRole('toolbar', { name: 'Notes list tools' }, T)   // Task 5: the link's bare address is the list
     expect(screen.queryByRole('region', REGION)).toBeNull()
     expect(loadSpy).not.toHaveBeenCalled()
   })
@@ -200,7 +199,7 @@ describe('the earnings follow-up card in the Notebook (Tier 2 part B)', () => {
     loadSpy.mockImplementation(() => Promise.reject(new TypeError('Failed to fetch dynamically imported module')))
     const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
     renderTab(ORCL)
-    await screen.findByTestId('research-home', {}, T)
+    await screen.findByRole('toolbar', { name: 'Notes list tools' }, T)   // Task 5: the link's bare address is the list
     // the retry ran: the first load, ~400 ms, then the second -- and then the card is given up on
     await waitFor(() => expect(loadSpy).toHaveBeenCalledTimes(2), T)
     await waitFor(() => expect(quiet).toHaveBeenCalled(), T)   // React reports the thrown load error to the boundary

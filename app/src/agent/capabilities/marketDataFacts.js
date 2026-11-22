@@ -136,6 +136,11 @@ const NO_FUNDAMENTALS = {
  * 2026-11-02: the profile is never degraded — the legacy snapshot fields stay, the gateway's statements are added with
  * MD-1 wording on the gateway part only). Pure; exported for tests. → { lines, items, source }
  */
+/** The `fundamentals` envelope's `source` → the name the member reads. The gateway names the source that answered
+ *  (FMP first; Yahoo Finance only for a ticker FMP has no statements for), so the sentence follows it and never
+ *  names one by default. */
+const STATEMENT_SOURCES = { fmp: 'FMP', 'yahoo-finance': 'Yahoo Finance' }
+
 export function fundamentalsFacts(env, symbol) {
   const sym = String(symbol || '').toUpperCase()
   if (!usable(env)) return { lines: [`Financial statements: ${NO_FUNDAMENTALS[env?.status] || NO_FUNDAMENTALS.unavailable}; no statement figure is stated.`], items: [], source: null }
@@ -161,7 +166,7 @@ export function fundamentalsFacts(env, symbol) {
   if (missing.length) lines.push(`No ${missing.join(' or ')} data is carried for ${sym}.`)
   const age = env.as_of && env.fetched_at ? daysBetween(env.as_of, env.fetched_at) : null
   lines.push(`Periodic disclosures${d.currency && d.currency !== 'USD' ? ` in ${d.currency}` : ''}: the statement figures describe the reporting period ending ${newest || 'the period named above'}, not today.${env.stale && age != null ? ` Note: that period ended ${age} days ago, so a newer quarter may have been reported.` : ''}`)
-  return { lines, items, source: 'statements from Yahoo Finance through the UCT data gateway' }
+  return { lines, items, source: `statements from ${STATEMENT_SOURCES[env.source] || 'UCT\'s statements source'} through the UCT data gateway` }
 }
 
 /** stock.profile's gateway facts: ONE `fundamentals` read for the open turn → fundamentalsFacts, or null when the kind
@@ -182,6 +187,8 @@ const NO_EARNINGS = {
   unavailable: "its reported earnings are not available from UCT's market data",
 }
 const eps = (v) => (num(v) == null ? null : `$${v.toFixed(2)}`)
+/** the next report's own status word from the kind (`kind`: scheduled today; confirmed / estimated only if the gateway says so) */
+const nextStatus = (n) => (['confirmed', 'estimated'].includes(String(n?.kind || '').toLowerCase()) ? String(n.kind).toLowerCase() : 'scheduled')
 
 /** An `earnings` envelope → the member's answer (pure; exported for tests). */
 export function answerFromEarnings(env, symbol) {
@@ -190,7 +197,13 @@ export function answerFromEarnings(env, symbol) {
   const d = env.data
   const reported = Array.isArray(d.reported) ? d.reported.filter(r => r && r.quarter) : []
   const q = reported[reported.length - 1]
-  const lines = [`${sym} earnings (reported figures)`]
+  const n = d.next_report
+  // W1.1 R-06 (live LT-12): "when does nvda report" showed the reported-figures card with the next date buried under
+  // Details. The LEAD line (present.js shows lines[0] as the card's summary) carries the next report date whenever the
+  // kind serves one: "<date> (<quarter>, scheduled)" — the kind's own `kind` word (scheduled; confirmed / estimated if
+  // the gateway ever says so), never a status it does not carry.
+  const nextLead = n && n.report_date ? `next report: ${dayOf(n.report_date)} (${[n.quarter, nextStatus(n)].filter(Boolean).join(', ')})` : null
+  const lines = [nextLead ? `${sym} earnings — ${nextLead}` : `${sym} earnings (reported figures)`]
   if (!q) lines.push(`No reported quarter is available for ${sym}.`)
   else {
     lines.push(`Latest reported quarter: ${q.quarter}`)
@@ -199,7 +212,6 @@ export function answerFromEarnings(env, symbol) {
     const e = eps(q.eps_actual); const eEst = eps(q.eps_estimate)
     lines.push(`• EPS ${e || 'not available'}${eEst ? ` vs ${eEst} estimated${num(q.eps_surprise_pct) != null ? ` (${signedPct(q.eps_surprise_pct)} surprise)` : ''}` : ' (no comparable estimate)'}`)
   }
-  const n = d.next_report
   if (n && n.report_date) {
     const est = [eps(n.eps_estimate) ? `EPS est. ${eps(n.eps_estimate)}` : null, big(n.rev_estimate) ? `revenue est. ${big(n.rev_estimate)}` : null].filter(Boolean)
     lines.push(`Next report: scheduled for ${dayOf(n.report_date)}${n.quarter ? ` (${n.quarter})` : ''}${est.length ? ` · ${est.join(', ')}` : ''} — a scheduled event, not a result.`)
@@ -309,7 +321,7 @@ export function registerMarketFactsCapabilities() {
   registered = true
   unregister = registerCapability({
     name: THEMES_CAPABILITY,
-    surfaces: ['charts'],
+    surfaces: ['*'],
     target: 'market', query: true,
     summary: 'Show which of UCT\'s curated themes are leading or lagging over a period (1d, 1w, 1m, 3m, 1y, ytd): equal-weight theme returns '
       + 'from UCT\'s Theme Tracker. Use this (disposition apply, research null) for "which themes are leading this week?", "worst themes this month".',

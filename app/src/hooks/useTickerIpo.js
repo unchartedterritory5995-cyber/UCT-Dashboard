@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import useSWR, { preload } from 'swr'
+import { tickerIpoKey } from './tickerIpoKey'
 
 // Per-symbol IPO / first-listing date for the chart's first-bar "IPO" badge.
 // The listing date is immutable, so we persist it to localStorage and seed SWR's
@@ -7,6 +8,11 @@ import useSWR, { preload } from 'swr'
 // for any previously-seen ticker instead of waiting on the network.
 
 const NULL_IPO = Object.freeze({ list_date: null })
+// ⭐⭐ (coordinator ruling 2026-11-20) THE ANSWER NOT IN YET: the same no-date shape (every reader of `list_date` sees
+// null, as before), marked `pending` while the first request for THIS symbol is in flight with nothing cached. A chart
+// run whose first bars rest on the listing waits on it instead of refusing (`requestSupply.js::aboveChartRead`).
+// ⛔ An answer that failed is NULL_IPO, never pending: a wait must end.
+export const PENDING_IPO = Object.freeze({ list_date: null, pending: true })
 const LS_PREFIX = 'tipo:'
 const LS_TTL = 30 * 24 * 60 * 60 * 1000 // 30 days (list_date never changes)
 // ⛔ Must EXCEED the hook's `dedupingInterval` (60 s below): SWR 2.x runs an interval
@@ -77,10 +83,12 @@ export function prefetchTickerIpo(sym) {
   })
 }
 
-export default function useTickerIpo(sym) {
+export default function useTickerIpo(sym, isPaused) {
   const fallbackData = useMemo(() => (sym ? lsGet(sym) : undefined), [sym])
-  const { data } = useSWR(
-    sym ? `/api/ticker-ipo/${encodeURIComponent(sym)}` : null,
+  // `isPaused` (optional): a chart passes its rest gate, so a symbol the member is racing past is not
+  // asked for (components/chart/restedReaders.js). Without it this is an ordinary read.
+  const { data, isLoading } = useSWR(
+    tickerIpoKey(sym),
     fetcher,
     {
       fallbackData,
@@ -93,7 +101,8 @@ export default function useTickerIpo(sym) {
       // While the server is still resolving the first-trade date, ask again so the
       // chart picks up the final answer in-session; a final answer stops polling.
       refreshInterval: (d) => (d && d.first_trade_final === false ? NON_FINAL_POLL_MS : 0),
+      ...(isPaused && { isPaused }),
     },
   )
-  return data || NULL_IPO
+  return data || (sym && isLoading ? PENDING_IPO : NULL_IPO)
 }

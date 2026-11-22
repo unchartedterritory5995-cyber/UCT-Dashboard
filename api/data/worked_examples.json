@@ -1,0 +1,2354 @@
+{
+ "version": 1,
+ "examples": [
+  {
+   "id": "distribution_day_count",
+   "request": "Count distribution days on this chart: a day that closes down at least 0.2 percent on higher volume than the day before. Show a running count over the last 25 sessions in a lower pane, and mark each distribution day with a small red dot above the bar.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Distribution Day Count",
+     "placement": "pane",
+     "primary": "ddCount",
+     "outputs": [
+      {
+       "key": "ddCount",
+       "label": "Distribution Days (25)",
+       "tree": {
+        "type": "call",
+        "name": "sum",
+        "args": [
+         {
+          "type": "op",
+          "name": "?:",
+          "args": [
+           {
+            "type": "op",
+            "name": "&&",
+            "args": [
+             {
+              "type": "op",
+              "name": "<=",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "op",
+                "name": "*",
+                "args": [
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 },
+                 {
+                  "type": "num",
+                  "value": 0.998
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "op",
+              "name": ">",
+              "args": [
+               {
+                "type": "series",
+                "name": "volume"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "volume"
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 1
+           },
+           {
+            "type": "num",
+            "value": 0
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 25
+         }
+        ]
+       }
+      },
+      {
+       "key": "isDD",
+       "label": "Distribution Day",
+       "tree": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0.998
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "volume"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_marker",
+     "output": "isDD",
+     "shape": "circle",
+     "position": "aboveBar",
+     "size": 0.5,
+     "color": "#F23645"
+    }
+   ]
+  },
+  {
+   "id": "relative_strength_vs_spy",
+   "request": "Plot the relative strength line against SPY (close divided by SPY's close) in a lower pane, with its 21-bar exponential average.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Relative Strength vs SPY",
+     "placement": "pane",
+     "primary": "rs",
+     "outputs": [
+      {
+       "key": "rs",
+       "label": "RS vs SPY",
+       "tree": {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "sym",
+          "value": "SPY",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       }
+      },
+      {
+       "key": "rsEma",
+       "label": "RS 21 EMA",
+       "tree": {
+        "type": "call",
+        "name": "ema",
+        "args": [
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "sym",
+            "value": "SPY",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 21
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "rs_new_high_vs_spy",
+   "request": "Put a marker on the price chart when the relative strength line versus SPY makes a new 52 week high while price is still below its own 52 week high.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "RS New High vs SPY",
+     "placement": "price",
+     "primary": "rs",
+     "outputs": [
+      {
+       "key": "rs",
+       "label": "RS vs SPY",
+       "tree": {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "series",
+          "name": "close"
+         },
+         {
+          "type": "sym",
+          "value": "SPY",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           }
+          ]
+         }
+        ]
+       },
+       "hidden": true
+      },
+      {
+       "key": "sig",
+       "label": "RS new high, price below high",
+       "tree": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "op",
+            "name": "/",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "sym",
+              "value": "SPY",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "highest",
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "sym",
+                "value": "SPY",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 252
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "<",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "call",
+            "name": "highest",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "num",
+              "value": 252
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_marker",
+     "output": "sig",
+     "shape": "arrowUp",
+     "position": "belowBar",
+     "color": "#089981",
+     "text": "RS high"
+    }
+   ]
+  },
+  {
+   "id": "atr_extension",
+   "request": "Show how extended price is above its 50 day simple moving average, measured in multiples of the 14 day ATR, and colour the line red above 7 and orange above 4.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "ATR Extension",
+     "placement": "pane",
+     "primary": "ext",
+     "outputs": [
+      {
+       "key": "ext",
+       "label": "ATR Extension",
+       "tree": {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "op",
+          "name": "-",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "call",
+            "name": "sma",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "atr",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "num",
+            "value": 14
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_color_states",
+     "output": "ext",
+     "states": [
+      {
+       "color": "#F23645",
+       "when": {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "num",
+                "value": 50
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "atr",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 14
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 7
+         }
+        ]
+       }
+      },
+      {
+       "color": "#FF9800",
+       "when": {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "num",
+                "value": 50
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "atr",
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             },
+             {
+              "type": "series",
+              "name": "low"
+             },
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "num",
+              "value": 14
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 4
+         }
+        ]
+       }
+      }
+     ],
+     "otherwise": "#2962FF"
+    },
+    {
+     "op": "set_levels",
+     "values": [
+      0,
+      4,
+      7
+     ]
+    }
+   ]
+  },
+  {
+   "id": "percent_distance_from_10_week_ma",
+   "request": "Plot the percent distance of the close from the 10 week simple moving average and draw reference lines at plus 20 percent and minus 8 percent.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Percent Distance from 10 Week MA",
+     "placement": "pane",
+     "primary": "pctDist",
+     "outputs": [
+      {
+       "key": "pctDist",
+       "label": "% from 10W MA",
+       "tree": {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "tf",
+              "value": "W",
+              "args": [
+               {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "num",
+                  "value": 10
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "tf",
+            "value": "W",
+            "args": [
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "num",
+                "value": 10
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 100
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_levels",
+     "values": [
+      20,
+      -8
+     ]
+    }
+   ]
+  },
+  {
+   "id": "volume_with_50_average",
+   "request": "Volume bars with a 50 day average line; colour a bar blue when it is an up day on volume more than 40 percent above average, and pink when it is a down day on volume more than 40 percent above average.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Volume with 50 Average",
+     "placement": "pane",
+     "primary": "vol",
+     "outputs": [
+      {
+       "key": "vol",
+       "label": "Volume",
+       "tree": {
+        "type": "series",
+        "name": "volume"
+       }
+      },
+      {
+       "key": "avg",
+       "label": "50-bar Average Volume",
+       "tree": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+         {
+          "type": "series",
+          "name": "volume"
+         },
+         {
+          "type": "num",
+          "value": 50
+         }
+        ]
+       }
+      },
+      {
+       "key": "upSurge",
+       "label": "Up Day on High Volume",
+       "hidden": true,
+       "tree": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "volume"
+               },
+               {
+                "type": "num",
+                "value": 50
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1.4
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      },
+      {
+       "key": "downSurge",
+       "label": "Down Day on High Volume",
+       "hidden": true,
+       "tree": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "<",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "volume"
+               },
+               {
+                "type": "num",
+                "value": 50
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1.4
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_style",
+     "output": "vol",
+     "style": "histogram",
+     "color": "#787B86"
+    },
+    {
+     "op": "set_style",
+     "output": "avg",
+     "style": "line",
+     "width": 2,
+     "color": "#FF9800"
+    },
+    {
+     "op": "set_color_states",
+     "output": "vol",
+     "states": [
+      {
+       "color": "#2962FF",
+       "when": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "volume"
+               },
+               {
+                "type": "num",
+                "value": 50
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1.4
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      },
+      {
+       "color": "#E91E63",
+       "when": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "<",
+          "args": [
+           {
+            "type": "series",
+            "name": "close"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "call",
+              "name": "sma",
+              "args": [
+               {
+                "type": "series",
+                "name": "volume"
+               },
+               {
+                "type": "num",
+                "value": 50
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1.4
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ],
+     "otherwise": "#787B86"
+    }
+   ]
+  },
+  {
+   "id": "tight_weekly_closes",
+   "request": "Highlight tight weekly closes: shade the background when the last three weekly closes are all within 1.5 percent of each other.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Tight Weekly Closes",
+     "placement": "price",
+     "primary": "tight",
+     "outputs": [
+      {
+       "key": "tight",
+       "label": "Tight weekly closes",
+       "tree": {
+        "type": "op",
+        "name": "<=",
+        "args": [
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "call",
+              "name": "max",
+              "args": [
+               {
+                "type": "tf",
+                "value": "W",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               },
+               {
+                "type": "call",
+                "name": "max",
+                "args": [
+                 {
+                  "type": "tf",
+                  "value": "W",
+                  "args": [
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "type": "tf",
+                  "value": "W",
+                  "args": [
+                   {
+                    "type": "offset",
+                    "value": 2,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "min",
+              "args": [
+               {
+                "type": "tf",
+                "value": "W",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               },
+               {
+                "type": "call",
+                "name": "min",
+                "args": [
+                 {
+                  "type": "tf",
+                  "value": "W",
+                  "args": [
+                   {
+                    "type": "offset",
+                    "value": 1,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 },
+                 {
+                  "type": "tf",
+                  "value": "W",
+                  "args": [
+                   {
+                    "type": "offset",
+                    "value": 2,
+                    "args": [
+                     {
+                      "type": "series",
+                      "name": "close"
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "min",
+            "args": [
+             {
+              "type": "tf",
+              "value": "W",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "call",
+              "name": "min",
+              "args": [
+               {
+                "type": "tf",
+                "value": "W",
+                "args": [
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "tf",
+                "value": "W",
+                "args": [
+                 {
+                  "type": "offset",
+                  "value": 2,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 0.015
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_paint",
+     "output": "tight",
+     "channel": "bgcolor",
+     "color": "#FFEB3B"
+    }
+   ]
+  },
+  {
+   "id": "gap_up_on_volume",
+   "request": "Mark a gap up of 4% or more on above-average volume (volume above its 50-day average) with an arrow under the bar.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Gap Up on Volume",
+     "placement": "price",
+     "primary": "gapUpVol",
+     "outputs": [
+      {
+       "key": "gapUpVol",
+       "label": "Gap Up 4% + Volume",
+       "tree": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "open"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 100
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 4
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "volume"
+           },
+           {
+            "type": "call",
+            "name": "sma",
+            "args": [
+             {
+              "type": "series",
+              "name": "volume"
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_intent",
+     "output": "gapUpVol",
+     "intent": "signal"
+    },
+    {
+     "op": "set_marker",
+     "output": "gapUpVol",
+     "shape": "arrowUp",
+     "position": "belowBar",
+     "color": "#089981"
+    }
+   ]
+  },
+  {
+   "id": "inside_outside_bars",
+   "request": "Paint inside bars grey and outside bars purple, and leave every other bar its normal colour.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Inside / Outside Bars",
+     "placement": "price",
+     "primary": "insideBar",
+     "outputs": [
+      {
+       "key": "insideBar",
+       "label": "Inside bar",
+       "hidden": true,
+       "tree": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      },
+      {
+       "key": "outsideBar",
+       "label": "Outside bar",
+       "hidden": true,
+       "tree": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "<",
+          "args": [
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_color_states",
+     "channel": "barcolor",
+     "states": [
+      {
+       "color": "#787B86",
+       "when": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "<=",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      },
+      {
+       "color": "#9C27B0",
+       "when": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": ">",
+          "args": [
+           {
+            "type": "series",
+            "name": "high"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "high"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "<",
+          "args": [
+           {
+            "type": "series",
+            "name": "low"
+           },
+           {
+            "type": "offset",
+            "value": 1,
+            "args": [
+             {
+              "type": "series",
+              "name": "low"
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "average_daily_range",
+   "request": "Average daily range percent over 20 days, where each day's range is its high divided by its low minus one, shown as a number in a small table in the top right together with today's range as a percent of that average.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Average Daily Range %",
+     "placement": "pane",
+     "primary": "adr",
+     "outputs": [
+      {
+       "key": "adr",
+       "label": "ADR % (20)",
+       "hidden": true,
+       "tree": {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "call",
+          "name": "sma",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "series",
+                "name": "high"
+               },
+               {
+                "type": "series",
+                "name": "low"
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 20
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 100
+         }
+        ]
+       }
+      },
+      {
+       "key": "todayPct",
+       "label": "Today vs ADR %",
+       "hidden": true,
+       "tree": {
+        "type": "op",
+        "name": "*",
+        "args": [
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "op",
+            "name": "-",
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "series",
+                "name": "high"
+               },
+               {
+                "type": "series",
+                "name": "low"
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "sma",
+            "args": [
+             {
+              "type": "op",
+              "name": "-",
+              "args": [
+               {
+                "type": "op",
+                "name": "/",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "high"
+                 },
+                 {
+                  "type": "series",
+                  "name": "low"
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 1
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 20
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 100
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_table",
+     "position": "top_right",
+     "cells": [
+      {
+       "row": 0,
+       "col": 0,
+       "text": "ADR % (20)",
+       "size": "small"
+      },
+      {
+       "row": 0,
+       "col": 1,
+       "output": "adr",
+       "format": "decimal2",
+       "suffix": "%",
+       "size": "small"
+      },
+      {
+       "row": 1,
+       "col": 0,
+       "text": "Today vs ADR",
+       "size": "small"
+      },
+      {
+       "row": 1,
+       "col": 1,
+       "output": "todayPct",
+       "format": "decimal1",
+       "suffix": "%",
+       "size": "small"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "previous_week_high_low",
+   "request": "Draw the previous week's high and low as lines across this week's bars, and label each with its price.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Previous Week High/Low",
+     "placement": "price",
+     "primary": "pwh",
+     "outputs": [
+      {
+       "key": "pwh",
+       "label": "Prev Week High",
+       "tree": {
+        "type": "tf",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         }
+        ]
+       }
+      },
+      {
+       "key": "pwl",
+       "label": "Prev Week Low",
+       "tree": {
+        "type": "tf",
+        "value": "W",
+        "args": [
+         {
+          "type": "series",
+          "name": "low"
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_style",
+     "output": "pwh",
+     "style": "stepline",
+     "color": "#F23645",
+     "width": 2
+    },
+    {
+     "op": "set_style",
+     "output": "pwl",
+     "style": "stepline",
+     "color": "#089981",
+     "width": 2
+    },
+    {
+     "op": "set_table",
+     "position": "top_right",
+     "cells": [
+      {
+       "row": 0,
+       "col": 0,
+       "text": "Prev Week",
+       "span": 2,
+       "bold": true
+      },
+      {
+       "row": 1,
+       "col": 0,
+       "text": "High"
+      },
+      {
+       "row": 1,
+       "col": 1,
+       "output": "pwh",
+       "format": "decimal2"
+      },
+      {
+       "row": 2,
+       "col": 0,
+       "text": "Low"
+      },
+      {
+       "row": 2,
+       "col": 1,
+       "output": "pwl",
+       "format": "decimal2"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "flat_base",
+   "request": "Shade a flat base in the background: the highest high and the lowest low of the last 25 sessions are within 15% of each other, the close is within 15% of the 52-week high, and the close 25 sessions ago was at least 20% above the close 125 sessions ago.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Flat Base",
+     "placement": "price",
+     "primary": "flatBase",
+     "outputs": [
+      {
+       "key": "flatBase",
+       "label": "Flat Base",
+       "tree": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "&&",
+          "args": [
+           {
+            "type": "op",
+            "name": "<=",
+            "args": [
+             {
+              "type": "call",
+              "name": "highest",
+              "args": [
+               {
+                "type": "series",
+                "name": "high"
+               },
+               {
+                "type": "num",
+                "value": 25
+               }
+              ]
+             },
+             {
+              "type": "op",
+              "name": "*",
+              "args": [
+               {
+                "type": "call",
+                "name": "lowest",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "low"
+                 },
+                 {
+                  "type": "num",
+                  "value": 25
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 1.15
+               }
+              ]
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": ">=",
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             },
+             {
+              "type": "op",
+              "name": "*",
+              "args": [
+               {
+                "type": "call",
+                "name": "highest",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "high"
+                 },
+                 {
+                  "type": "num",
+                  "value": 252
+                 }
+                ]
+               },
+               {
+                "type": "num",
+                "value": 0.85
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": ">=",
+          "args": [
+           {
+            "type": "offset",
+            "value": 25,
+            "args": [
+             {
+              "type": "series",
+              "name": "close"
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "*",
+            "args": [
+             {
+              "type": "offset",
+              "value": 125,
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 1.2
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_paint",
+     "output": "flatBase",
+     "channel": "bgcolor",
+     "color": "#2962FF"
+    }
+   ]
+  },
+  {
+   "id": "up_down_volume_ratio_50",
+   "request": "Up/down volume ratio over 50 days in a lower pane, with a line at 1.0 and green shading while it is above 1.2.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Up/Down Volume Ratio (50)",
+     "placement": "pane",
+     "primary": "udr",
+     "outputs": [
+      {
+       "key": "udr",
+       "label": "Up/Down Volume Ratio",
+       "tree": {
+        "type": "op",
+        "name": "/",
+        "args": [
+         {
+          "type": "call",
+          "name": "sum",
+          "args": [
+           {
+            "type": "op",
+            "name": "?:",
+            "args": [
+             {
+              "type": "op",
+              "name": ">",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "series",
+              "name": "volume"
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 50
+           }
+          ]
+         },
+         {
+          "type": "call",
+          "name": "sum",
+          "args": [
+           {
+            "type": "op",
+            "name": "?:",
+            "args": [
+             {
+              "type": "op",
+              "name": "<",
+              "args": [
+               {
+                "type": "series",
+                "name": "close"
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "series",
+              "name": "volume"
+             },
+             {
+              "type": "num",
+              "value": 0
+             }
+            ]
+           },
+           {
+            "type": "num",
+            "value": 50
+           }
+          ]
+         }
+        ]
+       }
+      },
+      {
+       "key": "strong",
+       "label": "Above 1.2",
+       "hidden": true,
+       "tree": {
+        "type": "op",
+        "name": ">",
+        "args": [
+         {
+          "type": "op",
+          "name": "/",
+          "args": [
+           {
+            "type": "call",
+            "name": "sum",
+            "args": [
+             {
+              "type": "op",
+              "name": "?:",
+              "args": [
+               {
+                "type": "op",
+                "name": ">",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "series",
+                "name": "volume"
+               },
+               {
+                "type": "num",
+                "value": 0
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           },
+           {
+            "type": "call",
+            "name": "sum",
+            "args": [
+             {
+              "type": "op",
+              "name": "?:",
+              "args": [
+               {
+                "type": "op",
+                "name": "<",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "series",
+                "name": "volume"
+               },
+               {
+                "type": "num",
+                "value": 0
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 50
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "num",
+          "value": 1.2
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_levels",
+     "values": [
+      1
+     ]
+    },
+    {
+     "op": "set_paint",
+     "output": "strong",
+     "channel": "bgcolor",
+     "color": "#089981"
+    }
+   ]
+  },
+  {
+   "id": "follow_through_day",
+   "request": "Mark a follow-through day: a close up 1.7% or more on higher volume than the day before, but only from day 4 through day 12 after the lowest low of the last 50 sessions.",
+   "ops": [
+    {
+     "op": "create",
+     "name": "Follow-Through Day",
+     "placement": "price",
+     "primary": "ftd",
+     "outputs": [
+      {
+       "key": "ftd",
+       "label": "Follow-Through Day",
+       "tree": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+         {
+          "type": "op",
+          "name": "&&",
+          "args": [
+           {
+            "type": "op",
+            "name": ">=",
+            "args": [
+             {
+              "type": "op",
+              "name": "/",
+              "args": [
+               {
+                "type": "op",
+                "name": "-",
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 },
+                 {
+                  "type": "offset",
+                  "value": 1,
+                  "args": [
+                   {
+                    "type": "series",
+                    "name": "close"
+                   }
+                  ]
+                 }
+                ]
+               },
+               {
+                "type": "offset",
+                "value": 1,
+                "args": [
+                 {
+                  "type": "series",
+                  "name": "close"
+                 }
+                ]
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 0.017
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": ">",
+            "args": [
+             {
+              "type": "series",
+              "name": "volume"
+             },
+             {
+              "type": "offset",
+              "value": 1,
+              "args": [
+               {
+                "type": "series",
+                "name": "volume"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "type": "op",
+          "name": "&&",
+          "args": [
+           {
+            "type": "op",
+            "name": ">=",
+            "args": [
+             {
+              "type": "call",
+              "name": "lowestbars",
+              "args": [
+               {
+                "type": "series",
+                "name": "low"
+               },
+               {
+                "type": "num",
+                "value": 50
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 4
+             }
+            ]
+           },
+           {
+            "type": "op",
+            "name": "<=",
+            "args": [
+             {
+              "type": "call",
+              "name": "lowestbars",
+              "args": [
+               {
+                "type": "series",
+                "name": "low"
+               },
+               {
+                "type": "num",
+                "value": 50
+               }
+              ]
+             },
+             {
+              "type": "num",
+              "value": 12
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "set_marker",
+     "output": "ftd",
+     "shape": "arrowUp",
+     "position": "belowBar",
+     "color": "#089981",
+     "text": "FTD"
+    }
+   ]
+  }
+ ]
+}

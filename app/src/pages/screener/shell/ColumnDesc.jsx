@@ -226,7 +226,9 @@ export default function ColumnDesc({ colKey, name, tapTarget = false, desc: give
         aria-label={`What ${name} means`}
         data-coldesc={colKey}
         onClick={() => setOpen(o => o ? null : place(btnRef.current?.getBoundingClientRect()))}>
-        <UIcon name="info" size={12} />
+        {/* gold={false}: the ring takes the trigger's CSS colour (muted at rest, gold on
+            hover / focus, B6), not UIcon's default gold emboss. */}
+        <UIcon name="info" size={12} gold={false} />
       </button>
       {open && createPortal(
         <div ref={panelRef} id={panelId} role="note" tabIndex={-1}

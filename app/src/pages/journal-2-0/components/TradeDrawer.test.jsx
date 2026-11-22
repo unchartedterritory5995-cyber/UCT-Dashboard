@@ -100,7 +100,7 @@ describe('TradeDrawer — Research trigger (Full Research / Ask AI / Compare)', 
     render(<TradeDrawer trade={TRADE} accountId="a1" onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Research actions' }))
     expect(screen.getByRole('button', { name: 'Full Research' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /ask ai about nvda/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /ask the uct agent about nvda/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /compare nvda with/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /save to notebook/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Close drawer' })).toBeInTheDocument()
@@ -117,7 +117,7 @@ describe('TradeDrawer — Research trigger (Full Research / Ask AI / Compare)', 
   it('Ask AI navigates to the same route with ?section=ai, tagged with a return-context marker (Seam 12)', () => {
     render(<TradeDrawer trade={TRADE} accountId="a1" onClose={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Research actions' }))
-    fireEvent.click(screen.getByRole('button', { name: /ask ai about nvda/i }))
+    fireEvent.click(screen.getByRole('button', { name: /ask the uct agent about nvda/i }))
     expect(navigateMock).toHaveBeenCalledWith('/research/NVDA?section=ai&from=trade%3Astrat_7')
   })
 

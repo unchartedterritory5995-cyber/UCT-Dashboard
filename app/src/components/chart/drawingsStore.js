@@ -26,8 +26,10 @@
 
 import { uid } from '../../utils/uid'
 import { normalizeDrawing, normalizeDrawings } from './drawingSchema'
+import { DRAWINGS_STORAGE_KEY, registerLiveDrawingsPeek } from './drawingsPeek'
 
-const STORAGE_KEY = 'uct-chart-drawings'
+// The key lives in drawingsPeek.js (the Notebook reads drawings through it without loading this store).
+const STORAGE_KEY = DRAWINGS_STORAGE_KEY
 const MAX_HISTORY = 100   // undo/redo depth per symbol (mirrors the legacy hook)
 
 export const EMPTY_SNAPSHOT = Object.freeze({
@@ -69,6 +71,12 @@ function _writeSym(sym, updated) {
 
 // ── Registry internals ──────────────────────────────────────────────────────
 function _buildSnapshot(e) {
+  // ⭐ (switch render cuts, 2026-11-20) NOTHING DRAWN, NO HISTORY → THE SAME FROZEN SNAPSHOT a symbol with no
+  // entry reads. A chart switching to a symbol renders that symbol's snapshot BEFORE its subscription creates
+  // the entry (the lazy load lives in `subscribe`, never in `getSnapshot`), so `useSyncExternalStore` compares
+  // `EMPTY_SNAPSHOT` with the new entry's snapshot right after the switch commits. A fresh-but-equal object
+  // there re-rendered the whole StockChart, before the switch could paint, on every symbol with no drawings.
+  if (!e.drawings.length && !e.past.length && !e.future.length) return EMPTY_SNAPSHOT
   return { drawings: e.drawings, canUndo: e.past.length > 0, canRedo: e.future.length > 0 }
 }
 
@@ -190,6 +198,8 @@ export function peekDrawings(sym) {
     return []
   }
 }
+// The Notebook's peek (drawingsPeek.js) answers from this live store once it has loaded.
+registerLiveDrawingsPeek(peekDrawings)
 
 // ── Mutations (all keyed by sym; falsy sym = no-op, mirroring the legacy guard) ─
 export function addDrawing(sym, d) {
@@ -209,6 +219,16 @@ export function addDrawing(sym, d) {
   const e = _ensure(sym)
   _commit(sym, e, [...e.drawings, normalizeDrawing({ ...d, id })])
   return id
+}
+
+// Put back a drawing that was removed, exactly as it was and under its OWN id (the Agent's Undo): an earlier
+// change to that drawing is addressed by this id, so a new one would strand it. An id already in use mints a new one.
+export function restoreDrawing(sym, d) {
+  if (!sym || !d?.id) return addDrawing(sym, d)
+  const e = _ensure(sym)
+  if (e.drawings.some(x => x.id === d.id)) { const { id: _taken, ...body } = d; return addDrawing(sym, body) }
+  _commit(sym, e, [...e.drawings, normalizeDrawing(d)])
+  return d.id
 }
 
 export function removeDrawing(sym, id) {

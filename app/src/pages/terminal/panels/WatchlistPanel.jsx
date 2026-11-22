@@ -36,6 +36,25 @@ export const PERF_URL = '/api/watchlist-performance'
 /** The performance route reads at most 100 names (api/routers/watchlists.py caps it). */
 export const PERF_CAP = 100
 const stamped = (url) => jsonFetcher(url).then((d) => ({ body: d, receivedAt: new Date().toISOString() }))
+/** The panel's OWN key for the lists route: used only to confirm a bare `[]` found under the
+ *  shared key (see `sharedLists`). Nothing else reads it, so its answer is always the panel's. */
+const OWN_LISTS_KEY = [LISTS_URL, 'mon']
+const stampedOwn = ([url]) => stamped(url)
+
+/** Pure: what sits under the shared lists key, as `{ body, receivedAt, unsure }` (null = nothing yet).
+ *  LISTS_URL is ALSO the app shell's key (hooks/useUserTickerSet: LogoPrewarm at the app root and
+ *  the Terminal's watch marks), SWR keeps one entry per key, and the two sides store different
+ *  shapes: this panel's fetcher stores `{ body, receivedAt }`, the shell's stores the route's
+ *  BARE ARRAY. On a cold open the shell asks first and the panel's own read is deduped behind it,
+ *  so the panel is handed the bare array. Reading `.body` off it said "You have no watchlists yet"
+ *  to a member who has lists.
+ *  `unsure`: the shell's fetcher answers `[]` for a REFUSED read too (signed out, 402, an outage),
+ *  so a bare empty array is not yet "no lists"; the panel asks the route itself before saying so. */
+function sharedLists(data) {
+  if (Array.isArray(data)) return { body: data, receivedAt: null, unsure: data.length === 0 }
+  if (data && typeof data === 'object') return { body: data.body, receivedAt: data.receivedAt || null, unsure: false }
+  return null
+}
 const perfFetcher = ([url, key]) => jsonFetcher(url, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tickers: key.split(',') }),
 })
@@ -113,7 +132,17 @@ export default function WatchlistPanel({ list: pick = null, onRun, onRows }) {
   const session = sessionOf(market)
   const copy = SESSION_COPY[session]
 
-  const lists = useSWR(LISTS_URL, stamped, { refreshInterval: 60000, keepPreviousData: true })
+  const sharedRead = useSWR(LISTS_URL, stamped, { refreshInterval: 60000, keepPreviousData: true })
+  const shared = useMemo(() => sharedLists(sharedRead.data), [sharedRead.data])
+  const unsure = !!shared?.unsure
+  // No timer of its own: the shared key above is asked again every minute (by this panel and by
+  // the shell), and that answer is what ends, or renews, the doubt this read settles.
+  const ownRead = useSWR(unsure ? OWN_LISTS_KEY : null, stampedOwn, { keepPreviousData: true })
+  // `lists` is what the rest of the panel reads: the shared entry in either shape, or the panel's
+  // own honest read while the shared entry is a bare `[]` (which may be the shell's refused read).
+  const lists = unsure
+    ? { data: ownRead.data, error: ownRead.error, mutate: () => { ownRead.mutate(); sharedRead.mutate() } }
+    : { data: shared, error: sharedRead.error, mutate: sharedRead.mutate }
   const flagged = useSWR(FLAGGED_URL, stamped, { refreshInterval: 60000, keepPreviousData: true })
   const all = useMemo(() => memberLists(lists.data?.body, flagged.data?.body), [lists.data, flagged.data])
 
@@ -265,7 +294,7 @@ export default function WatchlistPanel({ list: pick = null, onRun, onRows }) {
 
       <p className={styles.muted} data-testid="terminal-watchlist-method">
         {current.flagged ? 'Your flagged names' : `Your list ${current.name}`}: {syms.length} name{syms.length === 1 ? '' : 's'}.
-        Prices from the live feed; 1W and 1M from daily closes. A sign (+/−) marks every change, so the colour is never the
+        Prices from the live feed; 1W and 1M from daily closes. A sign (+/−) marks every change, so the color is never the
         only signal. Click a row, or type its number, to load it into the linked panels.
         {asOf ? ` Lists as of ${formatTimeEt(asOf, { zoneSuffix: 'ET', absent: '' })}.` : ''}
       </p>

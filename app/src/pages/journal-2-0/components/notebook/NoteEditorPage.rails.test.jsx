@@ -100,9 +100,13 @@ describe('NoteEditorPage editor toolbar row', () => {
     expect(q.queryByTitle('Download this note as a PNG image')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
     const more = within(screen.getByRole('group', { name: 'More note actions' }))
-    expect(more.getByTitle('Download this note as a PNG image')).toBeInTheDocument()
-    expect(more.getByTitle('Print — or Save as PDF from the print dialog')).toBeInTheDocument()
-    expect(more.getByRole('button', { name: /^Export/ })).toBeInTheDocument()
+    // Notebook simplify, Task 4: PNG and Print are the first two items of the Export menu, above the file formats,
+    // so More shows ONE Export entry.
+    fireEvent.click(more.getByRole('button', { name: /^Export/ }))
+    // Simplify pass 2: the formats are the panel's second view, drawn from a chunk fetched on idle (or at the press).
+    const exportMenu = within(await more.findByRole('menu', { name: 'Export this note as' }))
+    expect(exportMenu.getByRole('menuitem', { name: 'PNG' })).toBeInTheDocument()
+    expect(exportMenu.getByRole('menuitem', { name: 'Print' })).toBeInTheDocument()
   })
 
   /**
@@ -130,12 +134,17 @@ describe('NoteEditorPage editor toolbar row', () => {
    * History, right beside where this button now lives, has always had one.
    * Competitive audit finding UX #5, 2026-09-22.
    */
+  // S10 (audit 2026-11-05, M4): Find left the header for the first row of "More note actions"; it is still a
+  // labelled, visible button one press away (the door this rail exists for), never Ctrl+F alone.
   it('a visible Find button opens NoteFindBar, the same as Ctrl+F', async () => {
     const NoteEditorPage = (await import('./NoteEditorPage')).default
     render(<MemoryRouter><NoteEditorPage noteId="n1" onBack={() => {}} /></MemoryRouter>)
     expect(screen.queryByRole('search', { name: 'Find in note' })).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'More note actions' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Find in note' }))
-    expect(screen.getByRole('search', { name: 'Find in note' })).toBeInTheDocument()
+    // Go-live wave 1, fix round 1: the find bar is a lazy chunk (warmed when idle), so its first open can land a tick
+    // after the click, like the palette below.
+    expect(await screen.findByRole('search', { name: 'Find in note' })).toBeInTheDocument()
   })
 })
 
@@ -147,9 +156,13 @@ describe('NoteEditorPage widget palette', () => {
     const row = await screen.findByRole('toolbar', { name: 'Editor toolbar' })
     expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()
     fireEvent.click(within(row).getByRole('button', { name: 'Insert widget' }))
-    // F3 (R45 fallback): the palette is a lazy chunk, so its first open lands a tick after the click.
-    const panel = await screen.findByRole('dialog', { name: 'Insert widget' })
-    expect(within(panel).getByText('Chart')).toBeInTheDocument()
+    // F3 (R45 fallback): the palette is its own chunk. Follow-up B fix round 1: held (EditorToolSlots.jsx); on a cold
+    // press a frame of the same name holds focus until the palette lands, so wait for the palette's own content.
+    const panel = await waitFor(() => {
+      const p = screen.getByRole('dialog', { name: 'Insert widget' })
+      expect(within(p).getByText('Chart')).toBeInTheDocument()
+      return p
+    })
     fireEvent.click(within(panel).getByLabelText('Close insert panel'))
     expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()
   })

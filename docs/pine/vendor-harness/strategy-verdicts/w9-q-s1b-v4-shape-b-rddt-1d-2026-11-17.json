@@ -1,0 +1,198 @@
+{
+ "schema": "uct.strategy-verdict/v1",
+ "captureId": "w9-q-s1b-v4-shape-b-rddt-1d-2026-11-17",
+ "captureSha256": "189c4070b01818e144e544e4e8456736b7e50457f7a21fb3e12db7cec70d2a1d",
+ "receipt": 4118209798,
+ "sourceSha256": "8d562154ad4400e42185affea8f420d16e6fefa14cd1acc53a49573bb7074926",
+ "queueTargetId": "Q-S1b",
+ "symbol": "NYSE:RDDT",
+ "timeframe": "1D",
+ "gradeMethod": "a",
+ "verdict": "MATCH",
+ "step": 7,
+ "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar",
+ "first": null,
+ "graded": {
+  "trades": true,
+  "fills": true,
+  "slots": 4,
+  "values": 10,
+  "texts": 0
+ },
+ "referenceTrades": 40,
+ "rulesExercised": [
+  "B-COMM-CONTRACT",
+  "B-DEFAULTS",
+  "B-DIR",
+  "B-ENTRY-ORDER",
+  "B-FILL",
+  "B-MARGIN",
+  "B-MARGIN-ZERO",
+  "B-MARKET",
+  "B-PYR",
+  "B-QTY",
+  "B-REVERSE",
+  "B-ROUND",
+  "B-SIG",
+  "B-V4-MARGIN0",
+  "B-VAL"
+ ],
+ "ungradedSlots": [
+  {
+   "slot": "netProfit",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "grossProfit",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "grossLoss",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxDrawdown",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "maxRunup",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "buyAndHoldReturn",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "percentProfitable",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "profitFactor",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestWinningTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "largestLosingTrade",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "avgBarsInTrades",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sharpeRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "sortinoRatio",
+   "why": "ours runtime:strategy-report-unstated"
+  },
+  {
+   "slot": "commissionPaid",
+   "why": "ours runtime:strategy-report-unstated"
+  }
+ ],
+ "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
+ "newestBarNotRun": 1794925800,
+ "provenance": {
+  "strategySettings": {
+   "properties": [
+    {
+     "name": "Commission Type",
+     "value": "cash_per_contract"
+    },
+    {
+     "name": "Commission Value",
+     "value": 0.00003
+    },
+    {
+     "name": "Default entry/order Qty Value",
+     "value": 20000
+    },
+    {
+     "name": "Initial Capital",
+     "value": 1000
+    },
+    {
+     "name": "pyramiding",
+     "value": 1
+    },
+    {
+     "name": "Calculate Strategy on Order's Fill(s)",
+     "value": false
+    },
+    {
+     "name": "Calculate Strategy on every Tick(s)",
+     "value": false
+    },
+    {
+     "name": "Backtesting Limit Order(s) fill assumption",
+     "value": 0
+    },
+    {
+     "name": "Default entry/order Qty Type",
+     "value": "fixed"
+    },
+    {
+     "name": "Base Currency",
+     "value": "NONE"
+    },
+    {
+     "name": "Backtesting slippage for market orders",
+     "value": 0
+    },
+    {
+     "name": "Process orders on bar Close",
+     "value": false
+    },
+    {
+     "name": "Close entries rule",
+     "value": "FIFO"
+    },
+    {
+     "name": "Run mode: 'backtest', 'alert' or something else",
+     "value": "BACKTEST"
+    },
+    {
+     "name": "Alert message template for run mode 'alert'",
+     "value": ""
+    },
+    {
+     "name": "Alert type for run mode 'alert'",
+     "value": "order_fills"
+    },
+    {
+     "name": "Margin Long",
+     "value": 0
+    },
+    {
+     "name": "Margin Short",
+     "value": 0
+    },
+    {
+     "name": "calc_range",
+     "value": ""
+    }
+   ]
+  }
+ }
+}

@@ -31,7 +31,9 @@ vi.mock('../../../hooks/useJournalRules', () => ({ default: () => ({ rules: [] }
 import TradeReviewBlock from './TradeReviewBlock'
 
 const REVIEW = () => contractBody('trader-blocks.review')                  // unplanned, VCP, ticked s1
-const NO_GRADING = () => contractBody('trader-blocks.review.no-grading')   // planGrade { needs }
+// The answer from before plan grading's switch was retired as always on (2026-11-04); an older server, or
+// a snapshot frozen then, can still carry it.
+const NO_GRADING = () => ({ ...REVIEW(), planGrade: { needs: 'plan grading' } })   // planGrade { needs }
 const GONE = 'This trade is no longer in your journal.'
 const ANOTHER_ACCOUNT = 'This trade is in another account. Switch to that account to see its checklist.'
 const CHANGED = "This setup's checklist has changed since this trade."

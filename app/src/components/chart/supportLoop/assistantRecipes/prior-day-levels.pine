@@ -1,0 +1,10 @@
+//@version=5
+indicator("Prior Day Levels", overlay=true)
+pdh = request.security(syminfo.tickerid, "D", high[1])
+pdl = request.security(syminfo.tickerid, "D", low[1])
+pdc = request.security(syminfo.tickerid, "D", close[1])
+plot(pdh, "Prior day high", color=color.green, style=plot.style_stepline)
+plot(pdl, "Prior day low", color=color.red, style=plot.style_stepline)
+plot(pdc, "Prior day close", color=color.gray, style=plot.style_stepline)
+alertcondition(ta.crossover(close, pdh), "Above prior day high", "Price crossed above the prior day's high")
+alertcondition(ta.crossunder(close, pdl), "Below prior day low", "Price crossed below the prior day's low")

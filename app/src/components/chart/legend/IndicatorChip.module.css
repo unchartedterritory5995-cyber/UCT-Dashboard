@@ -55,7 +55,8 @@
      here: every caller passes it through `opaqueColor`, and a colour that is
      still unreadable is one the LINE is unreadable in. This declaration is what
      an uncoloured chip falls back to. */
-  color: var(--chart-panel-text-strong-low, #e2dfd6);
+  /* ⭐ OWNER 11-16 — the name takes the legend's shared label ink (the value wears the line colour). */
+  color: var(--legend-ink-pair, var(--chart-panel-text-strong-low, #e2dfd6));
 }
 
 /* ⚰️ `.chipRail` STOOD HERE — a 2×9px bar of the plot colour before every name.
@@ -73,8 +74,11 @@
    ⛔ IT HOLDS DIGITS ONLY — never the label — so it cannot match a
    label-anchored text predicate and cannot be double-counted. */
 .chipVal {
-  color: var(--chart-panel-text-strong, #f8f7f3);
-  font-weight: 600;
+  /* ⭐ OWNER 11-16 — the line's colour (clamped to the label's lightness band below); no colour → the
+     label's own ink, so label and value read at one brightness. */
+  color: var(--chip-color, var(--legend-ink-pair, var(--chart-panel-text-strong, #f8f7f3)));
+  /* Owner 11-16 (experiment): the value takes the LABEL's weight — label/value differ only by position + series colour. */
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
@@ -120,10 +124,9 @@
    background, no underline, no border, no movement — the row's rect and every
    value's right edge are identical hovered and at rest, and the CANVAS is
    byte-identical, which is the permanent invariant. */
-.chipGridRow.rowLive:hover .chipGridLabel,
-.chipGridRow.rowLive:hover .chipGridVal,
-.chipGridRow.rowLive:focus-visible .chipGridLabel,
-.chipGridRow.rowLive:focus-visible .chipGridVal { filter: brightness(1.16); }
+/* ⚰ THE BRIGHTNESS FILTER IS RETIRED WITH THE COLOURED NAME (UCT Signature, 2026-11-15).
+   The grid row's hover is the soft card + control strip from `LegendRow.module.css`
+   (`.rowActs`), shared so both kinds of row look and behave alike. */
 .rowLive:focus { outline: none; }
 .rowLive:focus-visible {
   outline: 1px solid rgba(220, 187, 94, 0.9);
@@ -369,6 +372,82 @@
   .chipRepaint { display: none; }
 }
 
+/* ── PHASE 2a (A5a) + C4 · THE TEXT CHIP ───────────────────────────────────
+ *
+ * A chip drawn OUTSIDE the price pane (RSI, MACD, ATR, UCT RS in its own pane)
+ * stays TEXT on the phone — `RSI(14) 54.3`, `UCT RS · SPY 0.4187` — because the
+ * phone hides pane labels and a dot cannot name a pane it does not touch
+ * (decision C4, 2026-11-07, generalising A5a from the readout definition to
+ * every pane by PLACEMENT). A readout definition stays text wherever it is drawn.
+ * Opt-in through the component's `textChip` prop, which the legend sets from the
+ * chip's display target; a price-pane chip still collapses to a dot.
+ *
+ * ⛔ ONE ROW (decision B8): the text chips follow the dots, and the `+N` that
+ * folds the dots, on the same line (`order: 2` puts them after every order-0
+ * item), and wrap only when the line is genuinely full. A5a's forced line break
+ * (`.chipBreak`) is gone. Never folded into `+N` — the legend keeps them out of
+ * the fold count.
+ *
+ * ⛔ THE NAME TRUNCATES IN THE MIDDLE, NEVER THE VALUE: the stem ellipsizes, the
+ * ` · SPY` tail and the number keep their width. Max width 168 px. The 44 px
+ * tap target stays (the `.chip` phone rule's height and min-width). */
+.chipValStale { color: var(--legend-ink-muted, var(--text-muted)); font-weight: 500; }
+@media (max-width: 640px) {
+  .chip.chipText {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    max-width: 168px;
+    text-indent: 0;
+    padding: 0 4px;
+    order: 2;
+    font: 600 11px 'Instrument Sans', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  .chip.chipText::before {
+    position: static;
+    flex: none;
+    width: 6px;
+    height: 6px;
+    margin: 0;
+  }
+  .chipTextName { display: inline-flex; min-width: 0; overflow: hidden; }
+  .chipTextHead { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .chipTextTail { flex: none; white-space: nowrap; }
+  .chip.chipText .chipVal { flex: none; white-space: nowrap; }
+  .chip.chipText.chipHidden { opacity: 1; color: var(--legend-ink-muted, var(--text-muted)); }
+}
+
+/* ── B8 · THE PHONE LEGEND'S HEIGHT FOLLOWS ITS CONTENT ─────────────────────
+ *
+ * ⚰️ Every chip on the phone is a 44 px box (the tap floor), so the dot row and
+ * the text-chip row each made the legend panel 44 px taller than the 18 px line
+ * of text they sit in: about 270 device px for four dots and one text chip.
+ *
+ * ⭐ THE TAP BOX KEEPS ITS 44 px; ITS LAYOUT FOOTPRINT DOES NOT. A negative block
+ * margin of half the difference lets the 44 px box overhang the line above and
+ * below (the legend is `pointer-events: none`, so the overhang only ever
+ * receives a touch that would otherwise have fallen through to the chart), and
+ * the flex line is as tall as its text. 18 px is the shell legend's line
+ * (11.5 px type at line-height 1.5, StockChart.module.css). Horizontal margins
+ * stay 0: neighbouring targets never overlap.
+ *
+ * Scoped to the phone chart shell, the one surface whose legend is a
+ * crosshair panel over the candles. */
+@media (max-width: 640px) {
+  :global(html[data-mobile-chart-shell]) .chip {
+    margin-block: calc((18px - var(--tap-min)) / 2);
+  }
+  /* ⛔ …BUT ONLY ON ONE LINE (review, 2026-11-07). Once the chips wrap, an
+     overhanging box on line two covers the chips of line one, and a tap lands on
+     the wrong indicator. StockChart marks a wrapped legend; its lines then take
+     the full tap floor, so no two targets overlap. */
+  :global(html[data-mobile-chart-shell] [data-chips-wrapped]) .chip {
+    margin-block: 0;
+  }
+}
+
 /* TOUCH TIER (<=1024px) -- generated ------------------------------------------
    These selectors are declared finger targets by the PHONE block(s)
    in this file and nowhere else, so the TABLET tier (641-1024) -- which
@@ -411,6 +490,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font: inherit;
+  /* UCT Signature: the name is grey (the 3×13 bar carries the series colour); owner 11-16: 500 under the value's 600. */
   font-weight: 500;
   vertical-align: baseline;
   white-space: nowrap;
@@ -422,13 +502,16 @@
   /* ⭐ The same two-level rule `LegendRow`'s `.vLabel` states — series colour on
      the label (inline, from the plot), muted neutral when there is none. Declared
      twice because these are deliberately two components (see `LegendRow.jsx`). */
-  color: var(--legend-ink-muted, var(--text-muted));
+  color: var(--legend-ink-pair, var(--text-muted));
 }
 .chipGridVal {
-  font-weight: 600;
+  /* Owner 11-16 (experiment): the value takes the LABEL's weight — label/value differ only by position + series colour. */
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: var(--legend-ink-bright, var(--text-bright));
+  /* EXPERIMENT (owner 11-16): the VALUE wears its line's colour; the name stays neutral. A row with no
+     colour of its own (or a hidden one, below) keeps the bright ink. */
+  color: var(--chip-color, var(--legend-ink-pair, var(--text-muted)));
 }
 /* ⚰️ THE GUTTER CELL HELD A CONTROL AND NOW HOLDS NOTHING. It is still EMITTED
    — `.legendVertical` is ONE grid for the whole legend and fills by ORDER, so a
@@ -441,6 +524,18 @@
    the value column too and a grouped indicator's numbers would stop lining up
    with everyone else's. */
 .chipGridSub .chipGridLabel { padding-left: 7px; }
+/* ⭐ UCT SIGNATURE — A HIDDEN INDICATOR STAYS LISTED, struck through in #6f6c66, its eye
+   showing (`.rowActsHidden`), its bar dimmed. The row itself is no longer faded, so the
+   eye stays at full strength. */
+.chipGridRow.chipHidden { opacity: 1; }
+.chipGridRow.chipHidden .chipGridLabel { opacity: 1; }
+.chipGridRow.chipHidden .chipGridLabel,
+.chipGridRow.chipHidden .chipGridVal {
+  color: #6f6c66;
+  text-decoration: line-through;
+  text-decoration-color: rgba(147, 147, 154, 0.5);
+}
+.chipGridRow.chipHidden .rail { opacity: 0.45; }
 /* ⚰️ A PARAGRAPH HERE ARGUED THAT THE GRID'S STRIP COULD NOT BE
    COLLAPSED-BUT-PRESENT the way the inline chip's was, because three zero-width
    buttons on every row would still give the shared third track a permanent width.
@@ -470,6 +565,29 @@
   align-items: baseline;
   gap: 6px;
   pointer-events: auto;
+  /* The hit strip below is painted behind the row's text, inside the row's own stacking context. */
+  isolation: isolate;
+}
+/* ⭐ THE ROW'S HIT AREA REACHES HALFWAY INTO THE GAP ON EACH SIDE — the twin of
+   `LegendRow.module.css`'s `.vRow::after`; read that one for the measured flicker it
+   ends. A hit area only: transparent, out of flow, behind the text. The stack sets the
+   reach (`--row-hit-pad`); anywhere else it is 0. */
+.chipGridRow::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(-1 * var(--row-hit-top, var(--row-hit-pad, 0px)));
+  bottom: calc(-1 * var(--row-hit-pad, 0px));
+  z-index: -1;
+}
+/* ⭐ ONE ROW PER NAME — the `+N` after a row's last printed value: how many more of the
+   indicator's plots have a value on this bar. Muted, so it never reads as a value. */
+.chipValsOver {
+  color: var(--legend-ink-muted, var(--text-muted));
+  font-weight: 500;
+  white-space: nowrap;
+  opacity: 0.8;
 }
 
 /* ⭐⭐ THE MICRO-RAIL. A hairline rule of the series' colour at the head of the
@@ -486,9 +604,10 @@
  * width, which is what keeps `Vol`'s label on the same x as `EMA 9`'s. */
 .rail {
   flex: none;
-  width: 2px;
-  height: 10px;
-  border-radius: 1px;
+  /* ⭐ UCT SIGNATURE: 3×13, radius 2 — the twin of `LegendRow`'s rail. */
+  width: 3px;
+  height: 13px;
+  border-radius: 2px;
   /* ⚰️⚰️ IT WAS BASELINE-ALIGNED, AND A 0.5px NUDGE CANNOT FIX THAT. The row
      is `align-items: baseline`, and an EMPTY element's baseline is its own bottom
      margin edge — so the rail's foot was planted on the text's baseline and all
@@ -503,4 +622,24 @@
      is one declaration, it needs no number, and it cannot drift with the font
      size, the line-height or the label the way a pixel offset does. */
   align-self: center;
+}
+
+/* Owner 11-16 — the contrast floor for a coloured value: clamp the series colour's OKLCH lightness into the band
+   StockChart publishes for its canvas (--legend-val-lmin/-lmax), keeping chroma and hue. Browsers without
+   relative-colour syntax keep the plain series colour above. */
+/* ⭐ OWNER 11-16 — the band is the label ink's lightness ±0.03 (legendInk.js legendValueBand), chroma capped at
+   0.14 so a saturated hue does not out-shine its grey label. Same rule as LegendRow.module.css. */
+/* ⭐ 2026-11-17 — A VALUE THAT CARRIES ITS OWN COLOUR IS CLAMPED TOO, whatever its row carries. A script's
+   second line prints on its first line's row with its own `--chip-color` (`data-more-value`). When the FIRST
+   line draws nothing (fully transparent, so the row has no colour) the row-keyed selectors did not match, and
+   the second value kept its raw colour, alpha included: Uncharted Clouds' slow average is white at 95%
+   transparency, and its value printed at 5% opacity (measured on production, invisible). The clamp ends in
+   `/ 1`, so a value it reaches is always opaque. */
+@supports (color: oklch(from red l c h)) {
+  .chipGridRow[style*="--chip-color"]:not(.chipHidden) .chipGridVal,
+  .chipGridRow:not(.chipHidden) .chipGridVal[style*="--chip-color"],
+  .chip[style*="--chip-color"]:not(.chipHidden) .chipVal:not(.chipValStale),
+  .chip:not(.chipHidden) .chipVal[style*="--chip-color"]:not(.chipValStale) {
+    color: oklch(from var(--chip-color) clamp(var(--legend-val-lmin, 0), l, var(--legend-val-lmax, 1)) min(c, 0.14) h / 1);
+  }
 }

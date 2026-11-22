@@ -10,11 +10,12 @@ import io
 import json
 import re
 import sqlite3
-from typing import Optional
+from typing import Literal, Optional
+import uuid
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, UploadFile
 from api.services import request_body_cap as body_cap
 from fastapi.responses import StreamingResponse, FileResponse
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, StrictBool
 
 from api import chart_edge_token
 from api.limiter import limiter
@@ -32,6 +33,7 @@ from api.services import rollout_gate
 # while WORKSPACE_DOC_STORE_ENABLED is unset.
 from api.services import workspace_doc_store
 from api.services import board_bound
+from api.services import save_timing
 from api.services.request_ip import client_ip
 from api.services.auth_service import (
     create_user,
@@ -163,123 +165,44 @@ NOTEBOOK_FLAGS = {
     # Wave 11 lane 11A: voice and meeting notes. The route gate
     # (journal_two/voice_notes.enabled) reads the same variable through flag_on.
     "NOTEBOOK_VOICE_NOTES_ENABLED": False,   # enablement  — unset means OFF (voice notes, lane 11A)
+    # Import a tweet: X posts into a note. Payload key DERIVED as
+    # `notebook_tweet_import_enabled`; every tweet route (journal_two/tweet_capture.enabled)
+    # reads the same variable per request through `flag_on` and answers 404 while off.
+    "NOTEBOOK_TWEET_IMPORT_ENABLED": False,  # enablement  — unset means OFF (import a tweet)
     # Wave 11 lane 11C: "Ask Notebook to do something" (journal_two/ai_actions.py).
     # Payload key `notebook_ai_actions_enabled`; the router's gate reads the same
     # variable per request through `flag_on`.
     "NOTEBOOK_AI_ACTIONS_ENABLED": False,    # enablement  — unset means OFF (AI changes across notes, lane 11C)
-    # Wave 11 lane 11B: formula and rollup properties. The route side reads the same
-    # variable through `note_computed.formulas_enabled()` -> `flag_on`, per request.
-    "NOTEBOOK_FORMULAS_ENABLED": False,      # enablement  — unset means OFF (formulas + rollups, lane 11B)
-    # Wave 11 lane 11D: the trade-plan canvas. Client-only (no route of its own:
-    # a canvas is a note, written through the note's own door); the payload key is
-    # `notebook_trade_canvas_enabled` and every create door + the board's editing
-    # controls read it (lib/tradeCanvas.js `tradeCanvasEnabled`).
-    "NOTEBOOK_TRADE_CANVAS_ENABLED": False,  # enablement  — unset means OFF (trade-plan canvas, lane 11D)
-    # Wave 12 lane 12A: the community template gallery. The router's gate
-    # (journal_two/template_gallery.enabled) reads the same variable through
-    # flag_on, per request; the payload key is `notebook_template_gallery_enabled`.
-    "NOTEBOOK_TEMPLATE_GALLERY_ENABLED": False,  # enablement — unset means OFF (community gallery, lane 12A)
-    # Wave 13 lane 13I-1: the technical fingerprint and the chart-block index. The router's
-    # gate (journal_two/tech_fingerprint.enabled) reads the same variable through flag_on,
-    # per request; the payload key is `notebook_ta_fingerprint_enabled`.
-    "NOTEBOOK_TA_FINGERPRINT_ENABLED": False,  # enablement — unset means OFF (fingerprint, lane 13I-1)
-    # Wave 13 lane 13C: earnings prep (Reporting soon + a one-click prep note). The router's
-    # gate (journal_two/earnings_prep.enabled) reads the same variable through flag_on, per
-    # request; the payload key is `notebook_earnings_prep_enabled`.
-    "NOTEBOOK_EARNINGS_PREP_ENABLED": False,  # enablement — unset means OFF (earnings prep, lane 13C)
-    # Wave 13 lane 13H-1: the chart plan (sizing from drawn levels, alerts at drawn levels). The
-    # router's gate (journal_two/chart_plan.enabled) reads the same variable through flag_on, per
-    # request; the payload key is `notebook_chart_plan_enabled`. The `ta` schema attr is NOT gated.
-    "NOTEBOOK_CHART_PLAN_ENABLED": False,  # enablement — unset means OFF (chart plan, lane 13H-1)
-    # Wave 13 lane 13A: plan vs execution grading. The router's gate
-    # (journal_two/plan_grading.enabled) reads the same variable through flag_on, per
-    # request; the payload key is `notebook_plan_grading_enabled`.
-    "NOTEBOOK_PLAN_GRADING_ENABLED": False,  # enablement — unset means OFF (plan grading, lane 13A)
-    # Wave 13 lane 13E-1: the market context frozen at the fill. The router's gate
-    # (journal_two/entry_context.enabled) reads the same variable through flag_on, per
-    # request, and so do the capture hooks; the payload key is `notebook_entry_context_enabled`.
-    "NOTEBOOK_ENTRY_CONTEXT_ENABLED": False,  # enablement — unset means OFF (entry context, lane 13E-1)
-    # Wave 13 lane 13G-1: research capture. Two gates, one per router in
-    # api/routers/notebook_research_capture.py (journal_two/transcript_capture.enabled and
-    # journal_two/passed_setups.enabled read these through flag_on, per request); the payload keys
-    # are `notebook_transcript_capture_enabled` and `notebook_passed_setups_enabled`.
-    "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED": False,  # enablement — unset means OFF (transcript passage -> excerpt, lane 13G-1)
-    "NOTEBOOK_PASSED_SETUPS_ENABLED": False,  # enablement — unset means OFF (passed-setups journal, lane 13G-1)
-    # Wave 13 lane 13G-2: thesis chips on Positions/Holdings/Watchlist rows (status + distance to
-    # invalidation, from 13D's j2_note_levels projection). The router's gate
-    # (journal_two/thesis_chips.enabled) reads the same variable through flag_on, per request; the
-    # payload key is `notebook_thesis_chips_enabled`.
-    "NOTEBOOK_THESIS_CHIPS_ENABLED": False,  # enablement — unset means OFF (thesis chips, lane 13G-2)
-    # Wave 13 lane 13I-2: the visual playbook grid, the setup-tag suggestion at insert and the
-    # trade page's before/after. The router's gate (journal_two/visual_playbook.enabled) reads
-    # the same variable through flag_on, per request; the payload key is
-    # `notebook_visual_playbook_enabled`. The fingerprint panel rides 13I-1's flag.
-    "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED": False,  # enablement — unset means OFF (visual playbook, lane 13I-2)
     # Wave 13 lane 13D: resurfacing (Awareness Engine R7-R9 bring a note back in-app when its
     # ticker reaches a level it named, moves 8%+, or reaches its date). The scan's gate
     # (journal_two/note_levels.enabled, read by awareness/engine.py per cycle) reads the same
     # variable through flag_on; the payload key `awareness_note_resurface_enabled` gates the
     # note door's "what you wrote then" sheet. AWARENESS_ENGINE_ENABLED must also be on.
     "AWARENESS_NOTE_RESURFACE_ENABLED": False,  # enablement — unset means OFF (resurfacing, lane 13D)
-    # Wave 13 lane 13J: the active setups board, and find more like this. Each router's gate
-    # (journal_two/setups_board.enabled, journal_two/similar_matches.enabled) reads its variable
-    # through flag_on, per request, and so does the nightly matches job; the payload keys are
-    # `notebook_setups_board_enabled` and `notebook_find_similar_enabled`.
-    "NOTEBOOK_SETUPS_BOARD_ENABLED": False,  # enablement — unset means OFF (setups board, lane 13J)
-    "NOTEBOOK_FIND_SIMILAR_ENABLED": False,  # enablement — unset means OFF (find similar, lane 13J)
-    # Wave 13 lane 13B: My Playbook. The router's gate (routers/notebook_playbook.enabled)
-    # reads the same variable through flag_on, per request; the payload key is
-    # `notebook_playbook_enabled`.
-    "NOTEBOOK_PLAYBOOK_ENABLED": False,  # enablement — unset means OFF (My Playbook, lane 13B)
-    # Wave 13 lane 13F: reviews that write themselves, with the leak finder. The service's gate
-    # (journal_two/review_drafts.enabled) reads the same variable through flag_on, per request;
-    # the payload key is `notebook_review_drafts_enabled`.
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED": False,  # enablement — unset means OFF (review drafts, lane 13F)
-    # Wave 14 lane W14-D: the "get started" checklist on Research Home. Client-only (no route
-    # of its own: it reads the member's preferences and Research Home's own read); the payload
-    # key is `notebook_getting_started_enabled`, and the checklist shows only while BOTH it and
-    # `notebook_onboarding_enabled` are on (GettingStartedChecklist.jsx).
-    "NOTEBOOK_GETTING_STARTED_ENABLED": False,  # enablement — unset means OFF (get started checklist, lane W14-D)
-    # Wave 14 lane W14-C1: three capabilities whose gate lived ONLY on the server, so their
+    # Wave 14 lane W14-C1: capabilities whose gate lived ONLY on the server, so their
     # walkthroughs (onboarding/tours/b1Core.js) could never open. Each row mirrors the
     # capability's OWN read -- same variable, same polarity -- and `flag_on`'s parse agrees
     # with each own parse on every spelling (tests/test_notebook_flags.py proves it). The
     # payload key only lets the client see the state; the capability's own server read is
     # unchanged and remains the authority over what the capability does.
-    #   image/docx documents: document_extraction.image_docx_documents_enabled (on: 1/true/yes/on)
-    "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED": False,  # enablement — unset means OFF (image/docx documents, wave 7 G)
+    #   (image/docx documents was the third; retired as always on 2026-11-04)
     #   task reminders: note_tasks.reminders_enabled, a KILL SWITCH (off: 0/false/no/off); on in prod
     "NOTEBOOK_TASK_REMINDERS_ENABLED": True,  # kill switch — unset means ON (daily task reminder, wave 6 F)
     #   meaning search: note_semantic.semantic_enabled (on: 1/true/yes/on)
     "NOTEBOOK_SEMANTIC_SEARCH_ENABLED": False,  # enablement — unset means OFF (search by meaning, wave 7 H3)
-    # TERM-056 (lane N, 2026-10-10): a terminal command pasted into a note becomes a link that
-    # opens the terminal at it. Client-only; payload key `notebook_terminal_links_enabled`.
-    "NOTEBOOK_TERMINAL_LINKS_ENABLED": False,  # enablement — unset means OFF (terminal command links)
     # Task 14b (ruling R16, 2026-10-11): Compass's text-chat tool `search_my_notes` (wave 7 lane H)
     # had a server gate only, so the Notebook could not say it exists. The payload key
     # `compass_notes_tool_enabled` lets the client name it ONLY while it is on. The tool's own gate
     # (coach_chat_tools.notes_tool_enabled) reads through `flag_on` too: one variable, one parse.
     "COMPASS_NOTES_TOOL_ENABLED": False,  # enablement — unset means OFF (Compass reads notes, text chat)
-    # Notebook P1 (journal styles): kinds of note, journal styles, the manager, /style and the
-    # update-layout action. The router's gate (journal_styles.enabled) reads it through flag_on per
-    # request; the payload key is `notebook_journal_styles_enabled`. Gates CREATING, never rendering.
-    "NOTEBOOK_JOURNAL_STYLES_ENABLED": False,  # enablement — unset means OFF (journal styles, P1)
-    "NOTEBOOK_SMART_CHIPS_ENABLED": False,  # enablement (Tier 2 part A: alert + screenshot chips)
-    "NOTEBOOK_EARNINGS_FOLLOWUP_ENABLED": False,  # enablement (Tier 2 part B: earnings follow-up notice + card)
     # P4a (page layouts): the Customize button on Today and the trade page, and reading a saved
     # layout. The payload key is `journal_page_layouts_enabled`. ⛔ The JOURNAL_ prefix is kept on
     # purpose: no rail requires NOTEBOOK_ (J2_SHARE_LINKS_ENABLED above is prefixless too).
     "JOURNAL_PAGE_LAYOUTS_ENABLED": False,  # enablement — unset means OFF (page layouts, P4a)
-    "NOTEBOOK_STYLE_LIBRARY_ENABLED": False,  # enablement, unset means OFF (P3a: community style library)
     # P2 Tier 3: the mood check-in block, the By check-in view, Checklist from my winners and the
     # Your trading year door. Gates CREATING, never rendering. No NOTEBOOK_ prefix on purpose
     # (J2_SHARE_LINKS_ENABLED above is the precedent); the payload key is `journal_tier3_enabled`.
     "JOURNAL_TIER3_ENABLED": False,  # enablement — unset means OFF (Tier 3: check-in, winners checklist, year)
-    # P5 (starter packs): the How do you trade? offer and the starter-pack install endpoint (both need
-    # NOTEBOOK_JOURNAL_STYLES_ENABLED), and the firm style rows in the gallery, which list only while
-    # NOTEBOOK_STYLE_LIBRARY_ENABLED is on too (P5-AUD-1, template_gallery._hidden_styles). Payload key
-    # `notebook_starter_packs_enabled`.
-    "NOTEBOOK_STARTER_PACKS_ENABLED": False,  # enablement — unset means OFF (starter packs, P5)
     # Notebook widgets (plan docs/superpowers/plans/2026-10-20-notebook-widgets.md): one gate per wave. A flag gates
     # menu entries and server reads only; a stored widget always renders. Payload keys `notebook_widgets_w<n>_enabled`.
     "NOTEBOOK_WIDGETS_W1_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 1)
@@ -293,6 +216,42 @@ NOTEBOOK_FLAGS = {
     "NOTEBOOK_WIDGETS_W10_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 10)
     "NOTEBOOK_WIDGETS_W11_ENABLED": False,  # enablement — unset means OFF (notebook widgets, wave 11)
 }
+
+# ⭐ RETIRED 2026-11-04 (notebook simplification). Each of these capabilities had its flag set
+# to 1 on web, so it is now ALWAYS ON: the code no longer reads the variable, and a value left
+# on Railway is inert. The payload key STAYS, hard-coded True, so every client reader keeps its
+# "on" branch with no client change (and old bundles still read True). The ledger records each
+# one under `retired` in docs/feature_flags.json, where its member_facing label still reaches
+# the Support page strip (feature_status reads that section as always on).
+NOTEBOOK_ALWAYS_ON_KEYS: tuple[str, ...] = (
+    "notebook_chart_plan_enabled",
+    "notebook_earnings_followup_enabled",
+    "notebook_earnings_prep_enabled",
+    "notebook_entry_context_enabled",
+    # Server-only until 2026-11-04 (P3b had no payload key), so the Support strip said "not measured";
+    # hard-coded True like the rest, it now says what is true: always on.
+    "notebook_example_notes_enabled",
+    "notebook_find_similar_enabled",
+    "notebook_formulas_enabled",
+    "notebook_getting_started_enabled",
+    "notebook_image_docx_documents_enabled",
+    "notebook_journal_styles_enabled",
+    "notebook_passed_setups_enabled",
+    "notebook_plan_grading_enabled",
+    "notebook_playbook_enabled",
+    "notebook_review_drafts_enabled",
+    "notebook_setups_board_enabled",
+    "notebook_smart_chips_enabled",
+    "notebook_starter_packs_enabled",
+    "notebook_style_library_enabled",
+    "notebook_ta_fingerprint_enabled",
+    "notebook_template_gallery_enabled",
+    "notebook_terminal_links_enabled",
+    "notebook_thesis_chips_enabled",
+    "notebook_trade_canvas_enabled",
+    "notebook_transcript_capture_enabled",
+    "notebook_visual_playbook_enabled",
+)
 
 # ⛔⛔ A MODE, NOT A SWITCH — so it gets its OWN table rather than a boolean with
 # a confusing name. Q1 fix 6 makes the append route safe at the WRITER; the door
@@ -621,6 +580,8 @@ def _notebook_flags() -> dict:
         # and the route cannot disagree about one variable
         # (tests/test_notebook_flag_parse.py).
         out[_notebook_flag_key(env_name)] = flag_on(env_name, default_on)
+    # The retired capabilities: always on, no variable read (see NOTEBOOK_ALWAYS_ON_KEYS).
+    out.update(dict.fromkeys(NOTEBOOK_ALWAYS_ON_KEYS, True))
     # ⛔ THE MODE KEYS RIDE THE SAME PAYLOAD AND THE SAME DERIVATION. A second
     # helper for the second name would be the drift `_notebook_flag_key` exists
     # to prevent; only the PARSE differs, because the value is not a boolean.
@@ -723,6 +684,9 @@ SCREENER_FLAGS = {
     "SCREENER_NEW_TODAY_ENABLED": False,      # enablement: "New today" markers (spec 2026-10-16 s1)
     "SCREENER_PREMARKET_ENABLED": False,      # enablement: pre-market sweep + columns + starters
     "SCREENER_FOCUS_PHONE_ENABLED": False,    # enablement: Focus layout on phones (spec 2026-10-16 s3)
+    "SCREENER_SCAN_BOARD_ENABLED": False,     # enablement: the Screener as a customizable widget board (desktop)
+    "SCREENER_LAYOUT_GALLERY_ENABLED": False,  # enablement: sharing scan-board layouts with the community
+    "SCREENER_SCAN_BOARD_TABLET_ENABLED": False,  # enablement: the scan board on tablets (needs the board flag too)
 }
 
 
@@ -734,6 +698,32 @@ def _screener_flags(is_admin: bool = False) -> dict:
     for env_name, default_on in SCREENER_FLAGS.items():
         scope = _breadth_dc_scope(env_name, default_on)
         out[env_name.lower()] = scope == _SCOPE_ALL or (scope == _ADMIN_ONLY and bool(is_admin))
+    return out
+
+
+#: The Terminal's new shell (boards in tabs, 2026-11-19). The same three-value grammar as the
+#: Screener flags above, through the same parse: unset/0 = off, 1 = every member who has the
+#: Terminal, admin = admins only. Read PER REQUEST.
+#: A `*_FLAGS` table like SCREENER_FLAGS, so the flag ledger's derivation
+#: (`feature_flag_index._table_gates`) sees the gate by name.
+TERMINAL_SHELL_FLAGS = {
+    "TERMINAL_BOARD_TABS_ENABLED": False,     # enablement: the Terminal's new shell (boards in tabs)
+}
+
+
+def _terminal_board_tabs_flag(is_admin: bool = False) -> dict:
+    """`terminal_board_tabs_enabled: True` while the new Terminal shell is on for THIS viewer.
+
+    ⛔ THE KEY IS PRESENT ONLY WHEN ON (the TERM-077 form): unset, off, or a value the parse does
+    not know => `{}`, so the payload is byte-identical to before and the client (`=== true`)
+    draws today's shell. `is_admin` defaults False so a caller that forgets the role fails
+    CLOSED. Parsed by `_breadth_dc_scope`, so `admin` and a typo mean here what they mean for
+    every other three-value flag."""
+    out = {}
+    for env_name, default_on in TERMINAL_SHELL_FLAGS.items():
+        scope = _breadth_dc_scope(env_name, default_on)
+        if scope == _SCOPE_ALL or (scope == _ADMIN_ONLY and bool(is_admin)):
+            out[env_name.lower()] = True
     return out
 
 
@@ -878,6 +868,10 @@ def _access_payload(user: dict, plan: str) -> dict:
         "study_enabled": os.environ.get(
             "STUDY_ENABLED", "1"
         ).strip().lower() not in ("0", "false", "no", "off"),
+        # ── Chart SPEED kill switch (2026-11-20): the readout. The browser does not read this
+        # key; it reads the `uct_chart_speed` cookie every auth response sets beside it
+        # (_set_chart_speed_cookie, same reader), so the kill costs first open nothing.
+        "chart_speed_enabled": _chart_speed_enabled(),
         # ── Research "Technical" tab (Chart/Technical Intelligence Convergence) ──
         # Same request-time mechanism as the hub flag above: read HERE, per
         # request, never captured at module import. That is what lets the flag be
@@ -965,6 +959,7 @@ def _access_payload(user: dict, plan: str) -> dict:
         # rest.
         **_breadth_dc_flags(is_admin=is_admin),
         **_screener_flags(is_admin=is_admin),
+        **_terminal_board_tabs_flag(is_admin=is_admin),
         # ── TERM-077 — watchlist "copy or link, chosen at import" ──────────
         # Same request-time read and ENABLEMENT polarity as the gates above.
         # ⛔ THE KEY IS PRESENT ONLY WHEN ON. Its ticket's own rail is "flag
@@ -1139,6 +1134,15 @@ def signup(request: Request, req: SignupRequest, response: Response):
     except Exception as e:
         print(f"[signup] Failed to add terminal cohort: {e}")
 
+    # Create Indicator is open to every account (owner decision 2026-11-15): a new
+    # signup joins its cohort. The kill switch still decides what is shown. Never
+    # fails signup.
+    try:
+        from api.services import rollout_gate
+        rollout_gate.enroll_in_create_indicator(user["id"])
+    except Exception as e:
+        print(f"[signup] Failed to add create-indicator cohort: {e}")
+
     # Send verification email (non-blocking — don't fail signup if email fails)
     try:
         ver_token = create_email_verification(user["id"])
@@ -1166,6 +1170,7 @@ def signup(request: Request, req: SignupRequest, response: Response):
     token = create_session(user["id"], user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     _set_chart_edge_cookie(response, user, "free")
+    _set_chart_speed_cookie(response)
     user["email_verified"] = False
     return {"user": user, "plan": "free", **_access_payload(user, "free")}
 
@@ -1202,6 +1207,7 @@ def login(request: Request, req: LoginRequest, response: Response):
     _set_session_cookie(response, token)
     plan = get_user_plan(user["id"])
     _set_chart_edge_cookie(response, user, plan)
+    _set_chart_speed_cookie(response)
     return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
@@ -1237,6 +1243,7 @@ def login_totp_verify(request: Request, req: TotpLoginRequest, response: Respons
     token = create_session(uid, user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     plan = get_user_plan(uid)
+    _set_chart_speed_cookie(response)
     return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
@@ -1245,15 +1252,21 @@ def logout(response: Response, token: str = Depends(get_session_token)):
     if token:
         delete_session(token)
     response.delete_cookie("uct_session", path="/")
+    # The chart edge entitlement dies with the session: a logged-out browser (a shared
+    # computer) must not keep reading /api/bars, /api/hist or the live stream until expiry.
+    for path in chart_edge_token.COOKIE_PATHS:
+        response.delete_cookie(chart_edge_token.COOKIE_NAME, path=path)
     return {"ok": True}
 
 
 @router.get("/me")
 def me(response: Response, user: dict = Depends(get_current_user)):
     plan = get_user_plan(user["id"])
-    # ⭐ THE REFRESH POINT. The app polls this, so the chart edge token is
-    # re-minted (or revoked) here on the cadence the client already runs.
+    # ⭐ THE REFRESH POINT. The app calls this at boot, on tab focus, on a cross-tab ping,
+    # and (lib/barsStreamManager) every EDGE_REFRESH_MS while a live chart stream is open,
+    # so the chart edge token is re-minted (or revoked) before it expires.
     _set_chart_edge_cookie(response, user, plan)
+    _set_chart_speed_cookie(response)
     sub = get_subscription(user["id"])
     return {
         "user": user,
@@ -1659,6 +1672,7 @@ def smoke_login(request: Request, req: SmokeLoginRequest, response: Response):
     token = create_session(user_id, user_agent=ua, ip_address=client_ip(request))
     _set_session_cookie(response, token)
     plan = get_user_plan(user_id)
+    _set_chart_speed_cookie(response)
     return {"user": user, "plan": plan, **_access_payload(user, plan)}
 
 
@@ -1910,6 +1924,62 @@ def track_page_view(req: dict, user: dict = Depends(get_current_user)):
     if not page:
         return {"ok": True}
     log_page_view(user["id"], page)
+    return {"ok": True}
+
+
+class DeskUsageReport(BaseModel):
+    """Desktop-plan Stage 1 (Task 9): the ONLY fields a desk-usage report may carry.
+
+    Every field is an enum or a bool and unknown fields are refused, so no URL, ticker,
+    widget text or user-agent string can reach the store through this route.
+    """
+    model_config = {"extra": "forbid"}
+    multi_monitor: Literal["yes", "no", "unknown"]
+    popout_opened: StrictBool
+    standalone: StrictBool
+    os: Literal["windows", "mac", "linux", "chromeos", "android", "ios", "other"]
+
+
+DESK_USAGE_ACTION = "desk_usage"
+
+
+@router.post("/desk-usage")
+def record_desk_usage(req: DeskUsageReport, user: dict = Depends(get_current_user)):
+    """One row per member per ET calendar day in ``activity_log`` (action ``desk_usage``).
+
+    A later report the same day may only upgrade ``popout_opened`` false -> true; every
+    other field keeps the first report's value. Fire-and-forget: a storage failure is
+    logged and answers ok, so this can never disturb the caller.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from api.services.auth_db import get_connection
+    try:
+        day = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+        details = {"date": day, **req.model_dump()}
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                "SELECT id, details FROM activity_log WHERE user_id = ? AND action = ? "
+                "AND details LIKE ?",
+                (user["id"], DESK_USAGE_ACTION, '{"date": "%s"%%' % day),
+            ).fetchall()
+            if not rows:
+                conn.execute(
+                    "INSERT INTO activity_log (id, user_id, action, details) VALUES (?, ?, ?, ?)",
+                    (str(uuid.uuid4()), user["id"], DESK_USAGE_ACTION, json.dumps(details)),
+                )
+            elif details["popout_opened"]:
+                kept = json.loads(rows[0]["details"])
+                if kept.get("popout_opened") is False:
+                    kept["popout_opened"] = True
+                    conn.execute("UPDATE activity_log SET details = ? WHERE id = ?",
+                                 (json.dumps(kept), rows[0]["id"]))
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as e:  # noqa: BLE001 - telemetry must never raise
+        print(f"[desk-usage] not stored: {e}")
     return {"ok": True}
 
 
@@ -2981,8 +3051,14 @@ _PREFERENCE_KEYS = {
     # same commit as its writer, because an unlisted key answers 400 and the list would
     # reopen on every visit (the wave-8 `notebook_tour` defect recorded just below).
     "notebook_getting_started": _PREF_OPAQUE,
+    # S13 (audit 2026-11-05): the one-time Notebook tips a member has seen, {v, seen: [ids]} (lib/notebookTips.js).
+    # Tier 2 fix round 1 (review minors 5 and 7): a real schema (known ids only, bounded), MERGED on write.
+    "notebook_tips": "notebook_tips",
     # Notebook P1: the Research Type -> Kind of note offer's answer ("dismissed").
     "notebook_kind_mapping": _PREF_OPAQUE,
+    # Audit 2026-11-05, S15: where the Notebook opens for a member who CHOSE ('today', 'home' or 'all'), written by
+    # the Today home's "Open the Notebook on" choice (lib/todayHome.js LANDING_PREF). Unset means the Today home.
+    "notebook_landing": _PREF_OPAQUE,
     # Notebook P2a: Log Trade's pre-entry checklist opt-in ('off' / 'on' / 'on-warn'), written by
     # PortfolioSettingsModal. Added in the same commit as its writer.
     "notebook_log_trade_checklist": _PREF_OPAQUE,
@@ -3004,6 +3080,7 @@ _PREFERENCE_KEYS = {
     # the W14-D lane before any tour shipped; the 9/26 `notebook_daily_template`
     # class). The base tour keeps its own `notebook_tour` row above.
     "notebook_tours": _PREF_OPAQUE,
+    "indicator_tours_seen": _PREF_OPAQUE,  # first-run indicator tours seen, defId -> ISO date (UCT RS unit 4-03)
     "notebook_widget_settings": _PREF_OPAQUE,
     "options_flow_widget_settings": _PREF_OPAQUE,
     "profile_widget_settings": _PREF_OPAQUE,
@@ -3020,6 +3097,20 @@ _PREFERENCE_KEYS = {
     "screener_column_presets": _PREF_OPAQUE,
     "screener_favorite_screens": _PREF_OPAQUE,
     "screener_preset_chips": _PREF_OPAQUE,
+    # RS screens (unit U5, 2026-11-14): a member's quick-control choices per RS screen,
+    # {starterId: {controlId: optionId}} (`focus/rsScreens.js` RS_CONTROLS_PREF, written
+    # read-modify-write through `setPrefMerged`). Ids only, at most three controls on five
+    # screens. Added in the same commit as its writer, so a choice never answers 400.
+    "screener_rs_controls": _PREF_OPAQUE,
+    # RS screens (unit U5): "1" once the member dismissed the first-visit line above an RS
+    # screen's list (`focus/rsScreens.js` RS_NOTE_PREF). Added in the same commit as its writer.
+    "screener_rs_note_seen": _PREF_OPAQUE,
+    # The scan board (2026-11-17, SCREENER_SCAN_BOARD_ENABLED): the member's board, its saved layouts
+    # and its switches, one JSON document (`focus/board/boardModel.js` BOARD_PREF, written by
+    # `useScanBoard`). Widget ids and grid boxes only; the client cleans it on every read. Added in
+    # the same change as its writer, so a saved layout never answers 400.
+    "screener_scan_board": _PREF_OPAQUE,
+    "screener_scan_board_tablet": _PREF_OPAQUE,
     # Written server-side by `ticker_tag_service.set_shared_tag_colors`, not
     # through this endpoint — listed so a client that ever writes it directly
     # is not refused for a key the product already owns.
@@ -3036,6 +3127,13 @@ _PREFERENCE_KEYS = {
     # per-ticker presets, favourite functions and the keep-the-classic-calendar choice.
     # Versioned with `terminal_layout` as the TERM-021 `terminal` board.
     "terminal_boards": _PREF_OPAQUE,
+    # Boards in tabs (2026-11-19, TERMINAL_BOARD_TABS_ENABLED): the member's open board tabs and
+    # the parked working copy of each tab that is not on screen, one JSON document, at most 8 tabs
+    # (`app/src/pages/terminal/boardTabs.js`, written only through `setPrefMerged`). A NEW key:
+    # `terminal_layout` still holds the board on screen and is written exactly as before. NOT a
+    # board key: it is not in the TERM-021 `terminal` document. Added in the same change as its
+    # writer, so a tab switch never answers 400.
+    "terminal_board_tabs": _PREF_OPAQUE,
     # Daily-use leftover #1 (2026-10-06): the terminal command line's ↑ history, per member, a
     # JSON array of command lines newest first, capped at 100 (`app/src/pages/terminal/
     # commandHistory.js`). Written only through `setPrefMerged` (read-modify-write, since this
@@ -3375,6 +3473,57 @@ def _validate_starter_pack(raw) -> None:
         refuse()
 
 
+# S13 + Tier 2 fix round 1: the one-time Notebook tips' seen state. Exactly {"v": 1, "seen": [ids]}, every id one of
+# the tips the client knows (`TIP_IDS` in app/src/pages/journal-2-0/lib/notebookTips.js; railed against it by
+# tests/test_notebook_tips_pref.py), no repeats, at most 512 bytes. Anything else is the one 400.
+NOTEBOOK_TIP_IDS = ("ticker", "chart",
+                    # Tier 3a (S16, S20): the first run's marks and the once-per-account first-live-widget mark.
+                    "first-run", "first-run-skipped", "first-run-built", "first-run-inline", "first-live-widget")
+_NOTEBOOK_TIPS_MAX_BYTES = 512
+_NOTEBOOK_TIPS_REFUSAL = "That tip could not be saved. Try again."
+
+
+def _parse_notebook_tips(raw) -> list[str]:
+    """The seen ids of a valid value; raises HTTPException(400) on anything else."""
+    def refuse():
+        raise HTTPException(status_code=400, detail=_NOTEBOOK_TIPS_REFUSAL)
+
+    def no_constant(name):
+        raise ValueError(name)
+
+    if not isinstance(raw, str):
+        refuse()
+    try:
+        if len(raw.encode("utf-8")) > _NOTEBOOK_TIPS_MAX_BYTES:
+            refuse()
+        blob = json.loads(raw, parse_constant=no_constant)
+    except (UnicodeEncodeError, ValueError, TypeError, RecursionError):
+        refuse()
+    if not isinstance(blob, dict) or set(blob) != {"v", "seen"}:
+        refuse()
+    if isinstance(blob["v"], bool) or blob["v"] != 1:
+        refuse()
+    seen = blob["seen"]
+    if not isinstance(seen, list) or len(seen) > len(NOTEBOOK_TIP_IDS) or len(set(map(str, seen))) != len(seen):
+        refuse()
+    if any(not isinstance(t, str) or t not in NOTEBOOK_TIP_IDS for t in seen):
+        refuse()
+    return seen
+
+
+def merge_notebook_tips(stored, incoming: str) -> str:
+    """A write of `notebook_tips` is the UNION with what is stored (review minor 7): two tabs, each recording a
+    different tip onto its own stale copy, never erase each other's. An unreadable stored value counts as none.
+    Ids keep the order they were first seen in."""
+    new = _parse_notebook_tips(incoming)
+    try:
+        old = _parse_notebook_tips(stored) if stored else []
+    except HTTPException:
+        old = []
+    seen = list(old) + [t for t in new if t not in old]
+    return json.dumps({"v": 1, "seen": seen}, separators=(",", ":"))
+
+
 def _validate_preference(key: str, value: str) -> None:
     """Allow-list the key, then run that key's schema. Raises 400, or returns."""
     schema = _PREFERENCE_KEYS.get(key)
@@ -3391,6 +3540,8 @@ def _validate_preference(key: str, value: str) -> None:
         _validate_page_layout(value)
     elif schema == "notebook_starter_pack":
         _validate_starter_pack(value)
+    elif schema == "notebook_tips":
+        _parse_notebook_tips(value)
     elif schema in _CLOSED_VALUES:
         _validate_closed_value(key, value)
 
@@ -3438,8 +3589,20 @@ _WORKSPACE_DOC_HEADERS = {
 
 @router.post("/preferences")
 def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_current_user)):
+    # Speed follow-up 2026-11-16: a save slower than save_timing.SLOW_S logs its steps (wall and
+    # this thread's CPU per step; the key and the value's size, nothing about the member).
+    ph = save_timing.Phases()
+    try:
+        return _upsert_preference(req, user, ph)
+    finally:
+        ph.report(req.key, len(req.value or ""))
+
+
+def _upsert_preference(req: SetPreferenceRequest, user: dict, ph: "save_timing.Phases"):
     _validate_preference(req.key, req.value)
+    ph.mark("validate")
     enforce_board_bound(user["id"], req.key, req.value)
+    ph.mark("bound")
     # ⛔ REVISION SAFETY (Charts board keys, while the document store is armed). A stale copy of a
     # board key — an older tab, another device — must never overwrite newer work:
     #   * a write naming its base version commits only if the key is unchanged since then
@@ -3453,13 +3616,16 @@ def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_curren
             try:
                 res = workspace_doc_store.write_pref_checked(
                     user["id"], req.key, req.value, base_version=req.base_version, prefs_reader=get_user_preferences)
+                ph.mark("doc_checked")
             except workspace_doc_store.VersionConflict as exc:
                 raise HTTPException(status_code=409, detail={
                     "code": "workspace_conflict", "key": req.key, "head_version": exc.head_version,
                     "message": "Your workspace was changed in another window or device. This change was not saved."})
             if res["appended"]:
                 set_user_preference(user["id"], req.key, req.value)
+                ph.mark("write")
                 workspace_doc_store.mark_writeback_done(user["id"], res["board"], [res["version"]])
+                ph.mark("doc_done")
             return {"ok": True, "version": res["version"]}
         if workspace_doc_store.key_is_guarded(user["id"], req.key):
             raise HTTPException(status_code=409, detail={
@@ -3469,9 +3635,17 @@ def upsert_preference(req: SetPreferenceRequest, user: dict = Depends(get_curren
     # BEFORE this write, so the value it replaces (a corrupt blob about to be overwritten by a
     # default board, STATE-2) survives as the version before it. Both calls return without any
     # I/O while the flag is off, and neither can raise into this write.
+    if req.key == "notebook_tips":
+        # merged with the stored value, never replacing it (merge_notebook_tips)
+        merged = merge_notebook_tips(get_user_preferences(user["id"]).get(req.key), req.value)
+        set_user_preference(user["id"], req.key, merged)
+        return {"ok": True, "value": merged}
     ticket = workspace_doc_store.begin_pref_write(user["id"], req.key, get_user_preferences)
+    ph.mark("doc_begin")
     set_user_preference(user["id"], req.key, req.value)
+    ph.mark("write")
     workspace_doc_store.finish_pref_write(ticket, req.value)
+    ph.mark("doc_finish")
     return {"ok": True}
 
 
@@ -3519,17 +3693,72 @@ def _set_chart_edge_cookie(response: Response, user: dict, plan: str):
         # sign-in.
         token = None
 
+    # One cookie per Worker route that enforces the entitlement (/api/bars, /api/hist): the same
+    # token under each path, and the revocation clears every one of them (chart_edge_token.COOKIE_PATHS).
     if not token:
-        response.delete_cookie(chart_edge_token.COOKIE_NAME,
-                               path=chart_edge_token.COOKIE_PATH)
+        for path in chart_edge_token.COOKIE_PATHS:
+            response.delete_cookie(chart_edge_token.COOKIE_NAME, path=path)
         return
 
-    response.set_cookie(
-        key=chart_edge_token.COOKIE_NAME,
-        value=token,
-        httponly=True,          # the edge reads it; page scripts never do
-        secure=COOKIE_SECURE,
-        samesite="lax",         # same-site XHR from the app; matches the session cookie
-        path=chart_edge_token.COOKIE_PATH,   # /api/bars only — see the module docstring
-        max_age=chart_edge_token.ttl_seconds(),
-    )
+    for path in chart_edge_token.COOKIE_PATHS:
+        response.set_cookie(
+            key=chart_edge_token.COOKIE_NAME,
+            value=token,
+            httponly=True,          # the edge reads it; page scripts never do
+            secure=COOKIE_SECURE,
+            samesite="lax",         # same-site XHR from the app; matches the session cookie
+            path=path,              # one Worker route each, nothing wider — see the module docstring
+            max_age=chart_edge_token.ttl_seconds(),
+        )
+
+
+# ── THE CHART SPEED KILL SWITCH (2026-11-20) ────────────────────────────────────────────────────
+# One server setting that turns BOTH chart speed switches off for every browser
+# (`uct.neighborframes`, default ON since #2202, and `uct.deviceStore`), over a member's own
+# local '1', from the next page load, with no code deploy: CHART_SPEED_ENABLED on web, KILL
+# polarity, read per request (the hub flag's shape: unset or any other value = not killed; only
+# 0/false/no/off kills). Flip and verify: docs/feature_flags.json CHART_SPEED_ENABLED.
+#
+# ⭐ THE BROWSER'S COPY IS A COOKIE THIS SERVER WRITES, NOT A VALUE THE CLIENT STORES. The
+# switches are read once per page load, possibly before that load's /me answers, so the last kill
+# seen has to persist in the browser. A client-side writer would sit in AuthContext, on the
+# Notebook's first-open closure: measured 135 B against a 97 B headroom. A cookie costs first open
+# nothing (only the lazy chart and device-store code reads it, app/src/lib/chartSpeed.js) and keeps
+# exactly the semantics asked for:
+#   • present before the next load's /me answers (it is in the jar);
+#   • FAIL OPEN: a failed /me (5xx, network, a pod down) or a 401 sends no Set-Cookie, so it
+#     cannot turn speed off by itself, and a kill once seen stays until an auth response says
+#     otherwise (CHART_SPEED_COOKIE_MAX_AGE is the outer bound: 400 days, the browsers' own cap);
+#   • set beside every auth payload (/me, login, the TOTP second factor, signup, smoke-login):
+#     tests/test_chart_speed_kill.py derives that list from this file's AST.
+# Not HttpOnly on purpose (page scripts must read it) and it carries no secret: "0" or absent.
+CHART_SPEED_COOKIE = "uct_chart_speed"
+CHART_SPEED_COOKIE_MAX_AGE = 400 * 86400
+
+
+def _chart_speed_enabled() -> bool:
+    """CHART_SPEED_ENABLED, read PER REQUEST. KILL polarity: only 0/false/no/off kills."""
+    return os.environ.get(
+        "CHART_SPEED_ENABLED", "1"
+    ).strip().lower() not in ("0", "false", "no", "off")
+
+
+def _set_chart_speed_cookie(response: Response) -> None:
+    """Write the browser's copy of the kill: `uct_chart_speed=0` while killed, cleared otherwise.
+
+    ⛔ NEVER RAISES: it rides every sign-in, and a kill switch must never cost a login."""
+    try:
+        if _chart_speed_enabled():
+            response.delete_cookie(CHART_SPEED_COOKIE, path="/")
+            return
+        response.set_cookie(
+            key=CHART_SPEED_COOKIE,
+            value="0",
+            httponly=False,         # app/src/lib/chartSpeed.js reads it from document.cookie
+            secure=COOKIE_SECURE,
+            samesite="lax",
+            path="/",               # every page: the chart code runs under many routes
+            max_age=CHART_SPEED_COOKIE_MAX_AGE,
+        )
+    except Exception:  # noqa: BLE001 -- the universal auth path must not fail on a kill switch
+        pass

@@ -1,0 +1,16 @@
+//@version=6
+indicator("UCTPROBE_VW_CS2_HIGHESTBARS_COMPUTED_V6", overlay = false)
+
+// PROVENANCE: written 2026-11-15 (session S10, PROBES-NEXT item 5; the S4-2 residual).
+// NEVER COMPILED ON TRADINGVIEW before this session.
+// Ties under //@version=6 over a COMPUTED source: vt repeats 1,2,2 so every 4-bar window holds a
+// tie for the highest. Which offset does ta.highestbars report (the newest or the oldest tie)?
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+vt = bar_index % 3 == 0 ? 1.0 : 2.0
+plot(ta.highestbars(vt, 4), "B01_highestbars_vt_4")
+plot(ta.lowestbars(vt, 4), "B02_lowestbars_vt_4")
+plot(ta.highest(vt, 4), "B03_highest_vt_4")
+// NON-VACUITY CONTROLS
+plot(vt, "C01_vt")
+plot(bar_index, "C00_bar_index_CONTROL")

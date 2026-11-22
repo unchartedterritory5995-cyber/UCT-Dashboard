@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './ScannerShell.module.css'
 import Input from '../../../components/ui/Input'
 import Checkbox from '../../../components/ui/Checkbox'
+import { usePhonePanel } from './phonePanel'
 
 export default function ColumnPicker({ open, onClose, allColumns, visible, onChange, onReset, onSavePreset,
   presets = [], onApplyPreset, onDeletePreset, layouts = [], onApplyLayout }) {
@@ -20,6 +21,12 @@ export default function ColumnPicker({ open, onClose, allColumns, visible, onCha
       ? allColumns.filter(c => c.label.toLowerCase().includes(needle) || c.key.includes(needle))
       : allColumns
   }, [allColumns, q])
+  // Phone (<= 640 px): a viewport-pinned panel 8 px from each edge, under the
+  // Columns button (spec A7). The anchor is this popover's parent, the toolbar's
+  // `.pickerAnchor` wrapper around the trigger. `undefined` on desktop and tablet.
+  const popRef = useRef(null)
+  const anchorRef = useMemo(() => ({ get current() { return popRef.current?.parentElement || null } }), [])
+  const phonePanel = usePhonePanel(open, anchorRef)
   if (!open) return null
 
   const isOn = key => visible.includes(key)
@@ -38,7 +45,8 @@ export default function ColumnPicker({ open, onClose, allColumns, visible, onCha
   }
 
   return (
-    <div className={styles.pickerPop} role="dialog" aria-label="Choose columns">
+    <div ref={popRef} className={styles.pickerPop} role="dialog" aria-label="Choose columns"
+      style={phonePanel} data-phone-panel={phonePanel ? '' : undefined}>
       <div className={styles.pickerHead}>
         <Input className={styles.railSearch} placeholder="Find a column…" value={q}
           aria-label="Find a column" onChange={e => setQ(e.target.value)} />

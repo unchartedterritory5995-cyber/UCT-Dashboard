@@ -142,6 +142,78 @@ def _ref_max_vol(ticker: str) -> int | None:
     return max(vols)
 
 
+# ⚡ THE ALL-TIME REFERENCE IS REMEMBERED, NOT RE-READ (2026-11-12). `days=None` asked bars.db for
+# every ticker's max daily volume since inception: every one of ~20M daily rows, with a table read
+# per row (the by-date index carries no volume). 185 s on a 3.3 GB local store, re-run on the web
+# pod every ET day AND after every deploy (boot probe: `volscan-ref-ever`). An all-time max only
+# rises as days are added, so the map is persisted with the day it covers up to, and each later
+# build folds in just the days since. A full rebuild every `_EVER_FULL_EVERY_DAYS` (and on any
+# missing/unreadable file) catches history rewritten in place (split re-adjusts, heals).
+_EVER_PATH = os.environ.get("SCAN_VOLUME_EVER_PATH",
+                            os.path.join(os.environ.get("DATA_DIR", "/data"), "scan_volume_ever.json"))
+_EVER_FULL_EVERY_DAYS = 7
+
+
+def _ymd_date(ymd: int):
+    return datetime(ymd // 10000, (ymd // 100) % 100, ymd % 100).date()
+
+
+_EVER_TAIL_DAYS = 5   # the newest days are always re-read: late volume corrections land there
+
+
+def _ever_load() -> dict | None:
+    try:
+        with open(_EVER_PATH) as f:
+            d = json.load(f)
+        if int(d["base_ymd"]) and int(d["full_ymd"]) and isinstance(d["stats"], dict):
+            return d
+    except Exception:
+        pass
+    return None
+
+
+def _ever_save(d: dict) -> None:
+    tmp = f"{_EVER_PATH}.tmp"
+    try:
+        with open(tmp, "w") as f:
+            json.dump(d, f)
+        os.replace(tmp, _EVER_PATH)
+    except Exception:
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
+
+
+def _fold(stats: dict, more: dict) -> None:
+    for t, (mv, n) in more.items():
+        old = stats.get(t)
+        stats[t] = [max(mv, old[0]), old[1] + n] if old else [mv, n]
+
+
+def _ever_reference(to_ymd: int) -> dict:
+    """{TICKER: all-time max daily volume} over completed sessions before `to_ymd`, for tickers with
+    >= _MIN_PRIOR sessions. The remembered part covers ts < base_ymd (at least _EVER_TAIL_DAYS back);
+    the tail [base_ymd, to_ymd) is read fresh every build and never saved, so a day corrected after
+    the close is never frozen in. Missing/unreadable file, a base older than _EVER_FULL_EVERY_DAYS
+    since its full build, or a base AHEAD of the tail start: full rebuild."""
+    tail_start = int((_ymd_date(to_ymd) - timedelta(days=_EVER_TAIL_DAYS)).strftime("%Y%m%d"))
+    d = _ever_load()
+    fresh = (d is not None and int(d["base_ymd"]) <= tail_start
+             and (_ymd_date(to_ymd) - _ymd_date(int(d["full_ymd"]))).days < _EVER_FULL_EVERY_DAYS)
+    if not fresh:
+        stats = {t: [mv, n] for t, (mv, n) in _sqlite.daily_volume_stats_in_range(0, tail_start).items()}
+        d = {"base_ymd": tail_start, "full_ymd": to_ymd, "stats": stats}
+        _ever_save(d)
+    elif int(d["base_ymd"]) < tail_start:
+        _fold(d["stats"], _sqlite.daily_volume_stats_in_range(int(d["base_ymd"]), tail_start))
+        d["base_ymd"] = tail_start
+        _ever_save(d)
+    stats = {t: list(v) for t, v in d["stats"].items()}
+    _fold(stats, _sqlite.daily_volume_stats_in_range(int(d["base_ymd"]), to_ymd))
+    return {t: int(v[0]) for t, v in stats.items() if v[1] >= _MIN_PRIOR and v[0] > 0}
+
+
 def _build_reference(days: int | None, exclude_set: set | None = None) -> dict:
     """{TICKER: max daily volume over the lookback} for the WHOLE bars.db universe.
 
@@ -155,7 +227,10 @@ def _build_reference(days: int | None, exclude_set: set | None = None) -> dict:
     to_ymd = int(now.strftime("%Y%m%d"))                       # exclude today's partial
     from_ymd = 0 if days is None else int((now - timedelta(days=days)).strftime("%Y%m%d"))
     try:
-        m = _sqlite.max_daily_volume_in_range(from_ymd, to_ymd, _MIN_PRIOR)
+        if days is None:
+            m = _ever_reference(to_ymd)
+        else:
+            m = _sqlite.max_daily_volume_in_range(from_ymd, to_ymd, _MIN_PRIOR)
     except Exception:
         return {}
     if exclude_set:

@@ -288,7 +288,7 @@ export default function TickerActionsMenu({ menu, onClose, lists, mutateLists })
           className={styles.item}
           onClick={() => { navigate(`/research/${sym}?section=ai`); onClose() }}
         >
-          <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask AI about {sym}
+          <UIcon name="sparkle" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Ask the UCT Agent about {sym}
         </button>
 
         {/* Flag */}

@@ -567,3 +567,23 @@ def test_list_walkthroughs_orders_by_prompt_order_then_id_and_serves_only_approv
     assert [r["id"] for r in out] == ["si_000000000010", "si_000000000012", "si_000000000011", "si_000000000013"]
     assert out[0] == {"id": "si_000000000010", "order": 1}
     assert store.list_walkthroughs("other.skill") == []
+
+
+def test_list_bank_filters_a_skill_before_the_row_cap(tmp_path, monkeypatch):
+    """2026-11-09: the session route filtered a skill AFTER list_bank's row cap, so once the approved bank passed the
+    cap a random share of every skill's items stopped being drawn. The skill filter is now in the query."""
+    from api.services import study_store as ss
+    monkeypatch.setattr(ss, "_DB_PATH", str(tmp_path / "study.db"))
+    ss.init_db()
+    items = [{"id": f"si_{k:012x}", "type": "recall", "skill_id": "basics.spread" if k % 2 else "other.skill",
+              "difficulty": 1, "prompt_json": {"q": f"q{k}"}, "answer_json": {"answer": "a"}, "reveal_json": {},
+              "source_kind": "course", "source_ref": f"r{k}", "lesson_text": "L"} for k in range(40)]
+    ss.upsert_items(items)
+    for it in items:
+        ss.approve(it["id"], "owner")
+    capped = ss.list_bank(limit=10)
+    assert len(capped) == 10
+    mine = ss.list_bank(limit=10, skill_id="basics.spread")
+    assert len(mine) == 10 and all(r["skill_id"] == "basics.spread" for r in mine)
+    assert len(ss.list_bank(skill_id="basics.spread")) == 20
+    assert ss.get_skill_band("u1", "basics.spread") == "learning"

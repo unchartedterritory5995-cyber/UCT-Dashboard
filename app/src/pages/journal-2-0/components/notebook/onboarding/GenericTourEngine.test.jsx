@@ -23,6 +23,10 @@ vi.mock('./sampleNotebook', async (importOriginal) => ({
   addSampleNotebook: (...a) => sampleMock(...a),
 }))
 
+// Go-live wave 1, fix round 1: the real NEEDS_NOTES is empty (the voice tour left it: its steps are drawn with zero
+// notes). The "make a note first" card is railed with a probe id listed for this file only.
+vi.mock('./tourRegistry', async (importOriginal) => ({ ...(await importOriginal()), NEEDS_NOTES: Object.freeze(['needs-a-note-probe']) }))
+
 let server
 function installFetch() {
   global.fetch = vi.fn(async (url, init = {}) => {
@@ -165,7 +169,8 @@ describe('how it walks (same contract as the base engine)', () => {
   it('a missing anchor skips its step, after the bounded wait', async () => {
     render(<Page entry={TOUR_A} anchors={['anchor-a1']} stepWaitMs={150} />)
     await dialog()
-    expect(screen.getByText('Step 1 of 2')).toBeInTheDocument()
+    // S5 (B6): counted over the steps on screen when the tour opened.
+    expect(screen.getByText('Step 1 of 1')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(screen.getByText('Looking for the next step…')).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
@@ -405,7 +410,7 @@ describe('the unreachable card: a chart tour with no chart in any note', () => {
   // anchor and fail with "start it again"; now it shows ONE card and a way to the Notebook.
   describe('a tour that needs a note, started by a member with none', () => {
     const VOICE = {
-      id: 'voice-notes',
+      id: 'needs-a-note-probe',
       title: 'Voice notes',
       start: '/journal/notebook',
       load: async () => ({

@@ -64,7 +64,6 @@ def _fresh_limiter():
 
 @pytest.fixture
 def app(db, monkeypatch):
-    monkeypatch.setenv("NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "1")
     from api.routers import notebook_journal_styles, notebook_routines, notebook_template_gallery
     from api.routers import notebook_widget_definitions
     fa = FastAPI()
@@ -170,14 +169,8 @@ def test_every_new_route_404_when_w11_off(app, client, monkeypatch):
         r = client.get(f"{STYLES}?view=live")                      # the one wave 11 door on a shared route (m-1)
         assert r.status_code == 404 and _no_store(r), (plan, r.status_code)
     as_user(app, MEMBER)
-    # wave 11 on, the library switch off: every gallery door is still the 404 (journal styles do not need it)
+    # control: wave 11 on (the library switch it also needed was retired as always on), the gate lets a door through
     waves(monkeypatch, *ALL_WAVES)
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "0")
-    for method, path, is_gallery, _pre in found:
-        if is_gallery:
-            assert _send(client, method, _concrete(path), huge).status_code == 404, (method, path)
-    # control: both on, the gate lets a door through
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
     assert client.get(f"{GALLERY}/library").status_code == 200
 
 

@@ -1,6 +1,6 @@
 /** slingshotOverlay rails: the E4H line every Slingshot chart carries (owner ruling 2026-10-25). */
 import { describe, it, expect } from 'vitest'
-import { E4H_INSTANCE_ID, E4H_PERIOD, SLINGSHOT_SKILL_ID, isSlingshotItem, slingshotInstances } from './slingshotOverlay'
+import { E4H_INSTANCE_ID, E4H_PERIOD, SLINGSHOT_COURSE_SKILL_ID, SLINGSHOT_SKILL_ID, isSlingshotItem, slingshotInstances } from './slingshotOverlay'
 import { validateInstance } from '../../components/chart/engine/instances'
 
 describe('isSlingshotItem', () => {
@@ -10,6 +10,15 @@ describe('isSlingshotItem', () => {
     expect(isSlingshotItem({ skill_id: 'setup.vcp', reveal_json: { facts: { setup: 'VCP' } } })).toBe(false)
     expect(isSlingshotItem({ skill_id: 'setup.family3.hve' })).toBe(false)
     expect(isSlingshotItem(null)).toBe(false)
+  })
+
+  it('a Slingshot course question carries the line too: its words name the 4-day line', () => {
+    expect(SLINGSHOT_COURSE_SKILL_ID).toBe('setup.slingshot')
+    const item = { skill_id: 'setup.slingshot', source_kind: 'course', prompt_json: { chart: { window_bars: 120, tf: 'D', forward_bars: 20 } } }
+    expect(isSlingshotItem(item)).toBe(true)
+    expect(slingshotInstances(item).map((i) => i.instanceId)).toEqual([E4H_INSTANCE_ID])
+    // another setup's course question does not
+    expect(isSlingshotItem({ skill_id: 'setup.launchpad', source_kind: 'course' })).toBe(false)
   })
 })
 

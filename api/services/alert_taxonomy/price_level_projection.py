@@ -86,6 +86,10 @@ PROJECTED_PREFIX = "legacy:"
 # refcount this arm's interest under — distinct from "bars" (the chart feed)
 # and "nhnl" so releasing this arm's interest can never touch either.
 _D3_OWNER = "s7_price_level_dark"
+# The bar_stream channels this owner holds, declared here and nowhere else. D3
+# reads the developing-bar last price, which T drives tick by tick, so it keeps
+# every channel it had before owner scoping (STREAM_SCOPED_CHANNELS).
+_D3_CHANNELS = frozenset({"AM", "A", "T"})
 
 # SHOULD-BUILD (§2, §6): closes GATE-D3-REALTIME-STREAMING §7 gap 2 —
 # `add_interest` has no length check of its own, and this is its first caller
@@ -146,7 +150,7 @@ def _d3_prices_for(symbols: list[str]) -> tuple[dict[str, float], list[str]]:
     if added:
         try:
             from api.services import bar_stream as _bar_stream
-            _bar_stream.subscribe_symbols(added, owner=_D3_OWNER)
+            _bar_stream.subscribe_symbols(added, owner=_D3_OWNER, channels=_D3_CHANNELS)
         except Exception:
             pass   # bounded: a subscribe failure costs this tick's D3 price, never the sweep
         try:

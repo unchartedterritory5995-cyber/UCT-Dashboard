@@ -167,14 +167,18 @@ export function gapNoticeText({ gaps = [], named = [], unnamed = 0 } = {}) {
   return `${head}: ${named.join(', ')}${tail}.`
 }
 
-/** What the gap log (A2) sends: allowlisted names with their kind, and a COUNT of
- *  the unnamed ones. Nothing else from the report goes anywhere. */
+/** What the gap log (A2) sends: allowlisted names with their kind, a COUNT of
+ *  the unnamed ones, and (U4) the distinct refusal GUARD CODES the gaps carry —
+ *  engine codes like `pine:builtin`, never a token the member wrote (the server
+ *  keeps only codes on its closed list). Nothing else from the report goes anywhere. */
 export function gapLogPayload({ gaps = [] } = {}) {
   const named = []
   let unlisted = 0
+  const guards = new Set()
   for (const g of gaps) {
     if (g && isPineBuiltin(g.name)) named.push({ name: g.name, kind: g.kind === GAP_KIND.NAME_UNKNOWN ? GAP_KIND.NAME_UNKNOWN : GAP_KIND.CALL_UNMAPPED })
     else unlisted += 1
+    if (g && typeof g.guard === 'string' && g.guard) guards.add(g.guard)
   }
-  return { gaps: named, unlisted }
+  return { gaps: named, unlisted, guards: [...guards].sort() }
 }

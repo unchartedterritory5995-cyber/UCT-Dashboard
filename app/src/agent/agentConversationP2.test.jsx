@@ -141,10 +141,72 @@ describe('S · "my other charts", "the same", "match this one"', () => {
     await say('add the 9 and 20 ema to the top left chart')
     await say('now put those on my other charts')
     await say('make the 20 ema on the top left chart red')
+    // ⛔ AUDIT #1247 (D19 rule ii): "the other charts" = every chart but the one just changed; on each, the EMA 20 with the same
+    // definition and settings — acted on, by exact id; Undo puts each back exactly
+    const was = ['c1', 'c2', 'c3'].map(id => colorOf(board, id, 'EMA 20'))
     await say('do the same on the other charts')
     for (const id of ['c0', 'c1', 'c2', 'c3']) expect(colorOf(board, id, 'EMA 20'), id).toBe(RED)
     expect(p.turns()).toBe(0)
+    await say('undo')
+    await waitFor(() => expect(['c1', 'c2', 'c3'].map(id => colorOf(board, id, 'EMA 20'))).toEqual(was))
+    expect(colorOf(board, 'c0', 'EMA 20')).toBe(RED)
   }, 60000)
+
+  // ⛔ AUDIT #1247 (D19): a chart with TWO matching EMA 20s is asked about ALONE (its two as the choices); the others are acted on
+  it('S2c "do the same on the other charts" where one chart has two EMA 20s: the others act, that chart is asked (choices), then the pick', async () => {
+    const { board, say, click } = p.mount(...FOUR())
+    await say('add the 9 and 20 ema to the top left chart')
+    await say('now put those on my other charts')
+    await say('add another 20 ema to the bottom left chart')
+    await say('make the 20 ema on the top left chart red')
+    const out = await say('do the same on the other charts')
+    const reds = (id) => (board.state.widgets.find(w => w.id === id).opts.settings.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && i.inputs?.period === 20 && i.inputs?.color === RED).length
+    const twentyCount = (id) => (board.state.widgets.find(w => w.id === id).opts.settings.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && i.inputs?.period === 20 && !i.deleted).length
+    const two = ['c1', 'c2', 'c3'].find(id => twentyCount(id) === 2)
+    expect(two, 'one chart holds two EMA 20s').toBeTruthy()
+    for (const id of ['c1', 'c2', 'c3'].filter(x => x !== two)) expect(reds(id), id).toBe(1)
+    expect(reds(two)).toBe(0)
+    expect(out).toMatch(/has more than one EMA 20 — which one\?/)
+    await click('EMA 20 (the first in the legend)')
+    await waitFor(() => expect(reds(two)).toBe(1))
+  }, 60000)
+
+  // ⛔ AUDIT #1247 (D19): a chart with NO matching EMA 20 is NAMED in the receipt, not asked about
+  it('S2d "do the same on the other charts" where some charts have no EMA 20: the one that has it acts; the others are named', async () => {
+    const { board, say } = p.mount(...FOUR())
+    await say('add the 20 ema to the top left chart')
+    await say('add the 20 ema to the top right chart')
+    await say('make the 20 ema on the top left chart red')
+    const out = await say('do the same on the other charts')
+    const reds = (id) => (board.state.widgets.find(w => w.id === id).opts.settings?.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && i.inputs?.period === 20 && i.inputs?.color === RED).length
+    expect(reds('c1')).toBe(1)
+    expect(out).toContain('it has no EMA 20')
+    expect(out).toContain('Not on Chart (')
+  }, 60000)
+
+  // ⛔ AUDIT #1247 (D19): a SETTINGS change repeated — matched against what the changed one WAS (an EMA 20), the same delta applied
+  it('S2e "change the 20 ema on the top left chart to 50" → "do the same on the other charts": each other EMA 20 becomes 50 (none → named, two → asked); exact Undo', async () => {
+    const { board, say, click } = p.mount(...FOUR())
+    await say('add the 20 ema to the top left chart')
+    await say('add the 20 ema to the top right chart')
+    await say('add the 20 ema to the bottom left chart')
+    await say('add another 20 ema to the bottom left chart')
+    const ma = (id, n) => (board.state.widgets.find(w => w.id === id).opts.settings?.indicatorInstances || []).filter(i => i.defId === 'movingAverage' && !i.deleted && i.inputs?.period === n)
+    await say('change the 20 ema on the top left chart to 50')
+    expect(ma('c0', 50)).toHaveLength(1)
+    const out = await say('do the same on the other charts')
+    expect(ma('c1', 50), 'top right: its EMA 20 became 50').toHaveLength(1)
+    expect(ma('c1', 20)).toHaveLength(0)
+    expect(ma('c2', 50), 'bottom left (two EMA 20s): asked, not acted on').toHaveLength(0)
+    expect(out).toContain('has more than one EMA 20')
+    expect(out).toContain('it has no EMA 20')
+    await click('EMA 20 (the first in the legend)')
+    await waitFor(() => expect(ma('c2', 50)).toHaveLength(1))
+    expect(ma('c2', 20)).toHaveLength(1)
+    await say('undo')
+    await waitFor(() => expect(ma('c2', 50)).toHaveLength(0))
+    expect(ma('c2', 20)).toHaveLength(2)
+  }, 90000)
 
   it('S3 "make the top left chart weekly" → "make all my charts match this one" — ONE proposal for the three others (a look copy is approved first); nothing changed yet', async () => {
     const { h, say } = p.mount(...FOUR())
@@ -247,13 +309,13 @@ describe('M · several steps in one message', () => {
     expect(p.instancesOn(board, 'c')).toHaveLength(0)
   }, 40000)
 
-  it('M6 each step has its own Undo: "undo" takes back only the newest step', async () => {
+  it('M6 (owner ruling W2 11-04): a plain "undo" takes back the WHOLE request — every step, newest first', async () => {
     const { board, say } = p.mount(...ONE())
     await say('Put RSI under price and make it a little taller')
     const sized = rsiOn(board, 'c')[0]
     expect(sized).toBeTruthy()
     await say('undo')
-    expect(rsiOn(board, 'c')).toHaveLength(1)                          // the RSI stays; only its height came back
+    expect(rsiOn(board, 'c')).toHaveLength(0)                          // the height AND the RSI itself
   }, 40000)
 })
 
@@ -290,9 +352,12 @@ describe('G · never stale, never invented', () => {
     const { board, say } = p.mount(...ONE())
     await say('ad teh 20 ema')
     expect(p.brief(board, 'c')).toEqual(['movingAverage(20 ema)'])
-    await say('mak it grean')
-    expect(colorOf(board, 'c', 'EMA 20')).toBe(GREEN)
-    expect(p.turns()).toBe(0)
+    // ⛔ AUDIT #1247 (owner D16): "mak" is no command — the state rail ASKS, nothing written, no card
+    const was = colorOf(board, 'c', 'EMA 20')
+    const out = await say('mak it grean')
+    expect(out).toMatch(/didn’t change anything/)
+    expect(colorOf(board, 'c', 'EMA 20')).toBe(was)
+    expect(p.proposals()).toHaveLength(0)
   }, 40000)
 
   it('G5 "Put the 9 above the 20" — both on the price chart: said plainly what UCT cannot do (no fake change)', async () => {

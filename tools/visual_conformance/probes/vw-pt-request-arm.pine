@@ -1,0 +1,65 @@
+//@version=6
+indicator("UCTPROBE_VW_PT_REQUEST_ARM", overlay = false, max_bars_back = 5000)
+
+// --- 2026-11-07 prod-ternary - A `request.security` IN A `?:` ARM, AND A `?:` INSIDE ONE ---
+//
+// docs/pine/capture-queue-2026-10-31-prod-ternary.md, "Shapes this branch does
+// NOT stamp", row 1, and "Known gaps", row L2:
+//
+//   R01  `up ? request.security(sym, tf, ta.sma(close, 5)) : x` - the arm reader
+//        does not enter `request.*` (the requested expression runs in the
+//        requested context), so the plot lane draws it off the every-bar
+//        request. Read against E02 (the same arm fed by the every-bar request).
+//   R02  the same request in an `if` block: C48's block mark (`taCallIn`,
+//        token-level) DOES gate it. The two rules disagree; R01 / R02 against
+//        E02 says which one is TradingView's.
+//   R03  L2: a `?:` whose arm calls `ta.*` written INSIDE the requested
+//        expression. Ours evaluates its guard on the CHART's bars. Read against
+//        E03 (the arm with the call hoisted: every requested bar) and P03 (the
+//        per-run window over the requested bars where the test is true; `na`
+//        until five runs).
+//
+// sym = the chart's own ticker (no other-symbol wall); tf = "W" on a 1D chart,
+// a timeframe where an every-bar and a per-run sma(5) of the requested bars
+// differ wherever the test varies.
+//
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+// NEVER COMPILED ON TRADINGVIEW: a row that does not compile names its line;
+// split it out and capture the rest. A compile error is itself a reading.
+
+up = close > open
+
+armEveryBar() =>
+    s = ta.sma(close, 5)
+    close > open ? s : close
+
+armPerRun() =>
+    var array<float> runs = array.new<float>()
+    float out = close
+    if close > open
+        runs.push(close)
+        if runs.size() > 5
+            runs.shift()
+        out := runs.size() == 5 ? runs.avg() : na
+    out
+
+w_sma = request.security(syminfo.tickerid, "W", ta.sma(close, 5))
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(up ? 1 : 0, "A01_test_CONTROL")
+plot(w_sma, "E01_weekly_sma5_every_bar")
+
+// R01: the request in a ternary arm
+plot(up ? request.security(syminfo.tickerid, "W", ta.sma(close, 5)) : close, "R01_request_sma_in_true_arm")
+plot(up ? w_sma : close, "E02_arm_fed_by_every_bar_request")
+
+// R02: the same request in an `if` block
+float r_if = close
+if up
+    r_if := request.security(syminfo.tickerid, "W", ta.sma(close, 5))
+plot(r_if, "R02_request_sma_in_if_block")
+
+// R03: a `?:` arm INSIDE the requested expression (gap L2)
+plot(request.security(syminfo.tickerid, "W", close > open ? ta.sma(close, 5) : close), "R03_arm_inside_request")
+plot(request.security(syminfo.tickerid, "W", armEveryBar()), "E03_arm_inside_request_every_bar")
+plot(request.security(syminfo.tickerid, "W", armPerRun()), "P03_arm_inside_request_per_run_reference")

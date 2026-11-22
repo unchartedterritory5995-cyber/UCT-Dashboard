@@ -1,0 +1,103 @@
+{
+ "_about": "A real W5-T7b response (git e13d282eae: server.mjs + pool.mjs + job.mjs over test/fixtures/fakeBundle.mjs '{SOURCE}'), captured by docs/pine/evidence/2026-11-04-w5-t11/t7b_capture.py. Fixture secret; no licence-held content.",
+ "ref": "e13d282eae",
+ "identity": {
+  "script_engine": 5,
+  "runtime_language": "pine",
+  "runtime_frontend": 1,
+  "runtime_ir": 1,
+  "bundle_sha256": "abababababababababababababababababababababababababababababababab"
+ },
+ "bars": [
+  {
+   "t": 1700000000,
+   "o": 100.0,
+   "h": 102.0,
+   "l": 99.0,
+   "c": 100.5,
+   "v": 1000.0
+  },
+  {
+   "t": 1700086400,
+   "o": 101.0,
+   "h": 103.0,
+   "l": 100.0,
+   "c": 101.75,
+   "v": 1001.0
+  },
+  {
+   "t": 1700172800,
+   "o": 102.0,
+   "h": 104.0,
+   "l": 101.0,
+   "c": 103.0,
+   "v": 1002.0
+  },
+  {
+   "t": 1700259200,
+   "o": 103.0,
+   "h": 105.0,
+   "l": 102.0,
+   "c": 104.25,
+   "v": 1003.0
+  },
+  {
+   "t": 1700345600,
+   "o": 104.0,
+   "h": 106.0,
+   "l": 103.0,
+   "c": 105.5,
+   "v": 1004.0
+  },
+  {
+   "t": 1700432000,
+   "o": 105.0,
+   "h": 107.0,
+   "l": 104.0,
+   "c": 106.75,
+   "v": 1005.0
+  },
+  {
+   "t": 1700518400,
+   "o": 106.0,
+   "h": 108.0,
+   "l": 105.0,
+   "c": 108.0,
+   "v": 1006.0
+  },
+  {
+   "t": 1700604800,
+   "o": 107.0,
+   "h": 109.0,
+   "l": 106.0,
+   "c": 109.25,
+   "v": 1007.0
+  }
+ ],
+ "doc": {
+  "id": "u_0123456789ab",
+  "meta": {},
+  "compute": {
+   "kind": "runtime",
+   "source": "echo",
+   "outputs": [
+    "value"
+   ]
+  }
+ },
+ "jobs": [
+  {
+   "job": "AAPL|D",
+   "ticker": "AAPL",
+   "exchange": "NASDAQ"
+  },
+  {
+   "job": "MSFT|D",
+   "ticker": "MSFT",
+   "exchange": "NASDAQ"
+  }
+ ],
+ "request_sha256": "1f01326eb62aa406cc8d4c690c9e19ff4a0752ecb659972192ec22443d51d9b2",
+ "status": 200,
+ "response": "{\"protocol\":1,\"engine\":{\"script_engine\":5,\"runtime_language\":\"pine\",\"runtime_frontend\":1,\"runtime_ir\":1,\"bundle_sha256\":\"abababababababababababababababababababababababababababababababab\"},\"results\":[{\"job\":\"AAPL|D\",\"status\":\"ok\",\"columns\":{\"value\":\"AAAAAAAgWUAAAAAAAHBZQAAAAAAAwFlAAAAAAAAQWkAAAAAAAGBaQAAAAAAAsFpAAAAAAAAAW0AAAAAAAFBbQA==\"},\"refusals\":[],\"warmup\":{\"withheldBars\":0},\"digest\":\"8dfbd4b5adf7f0c8e82cc1b6b43306070ca2943583732b1c843bada172501aeb\",\"ms\":1},{\"job\":\"MSFT|D\",\"status\":\"ok\",\"columns\":{\"value\":\"AAAAAAAgWUAAAAAAAHBZQAAAAAAAwFlAAAAAAAAQWkAAAAAAAGBaQAAAAAAAsFpAAAAAAAAAW0AAAAAAAFBbQA==\"},\"refusals\":[],\"warmup\":{\"withheldBars\":0},\"digest\":\"8dfbd4b5adf7f0c8e82cc1b6b43306070ca2943583732b1c843bada172501aeb\",\"ms\":0}]}"
+}

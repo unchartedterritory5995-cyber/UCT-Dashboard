@@ -29,7 +29,6 @@ def db_path(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     from api.services import auth_db
     importlib.reload(auth_db)
     auth_db.init_db()
@@ -129,13 +128,6 @@ def test_a_body_that_is_not_an_object_is_422(db_path):
 
 
 # ── the gate, the session, the plan (the router's neighbours' order) ──────────────────────
-
-def test_gate_off_is_the_one_404_before_anything(db_path, monkeypatch):
-    _position()
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "0")
-    got = _app().put(PUT.format("p1"), json={"checkedRuleIds": [], "totalRules": 0})
-    assert (got.status_code, got.json()) == (404, {"detail": "Not found"})
-
 
 def test_signed_out_is_401(db_path):
     from api.routers import notebook_journal_styles as r

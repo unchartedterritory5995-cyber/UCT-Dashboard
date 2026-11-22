@@ -5,7 +5,8 @@
 // 2026-10-28) and is DARK with the archive itself: the tab exists only while the
 // auth payload's `wisdom_archive_enabled` is on, the same reader as the archive
 // routes' own 404 gate.
-import { lazy, Suspense, useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
+import { lazyDeferrable as lazy } from '../../utils/lazyWithRetry'
 import { preload } from 'swr'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import { useSearchParams } from 'react-router-dom'

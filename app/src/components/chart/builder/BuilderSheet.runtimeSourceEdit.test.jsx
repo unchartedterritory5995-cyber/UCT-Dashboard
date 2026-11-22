@@ -13,6 +13,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent, act, within } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { AuthContext } from '../../../context/AuthContext'
 import * as registry from '../engine/nativeRegistry'
 import { runtimeSourceHash } from '../engine/runtimeKill'
@@ -69,7 +70,7 @@ function mount() {
     </AuthContext.Provider>,
   )
 }
-const listRowOf = (name) => within(screen.getByText('Your formulas').closest('section')).getByText(name).closest('li')
+const listRowOf = (name) => { toStart(); return within(screen.getByText('Your indicators').closest('section')).getByText(name).closest('li') }
 const pineArea = () => screen.getByTestId('pine-box').querySelector('textarea')
 async function openEdit() {
   stubFetch([RUNTIME_ROW])

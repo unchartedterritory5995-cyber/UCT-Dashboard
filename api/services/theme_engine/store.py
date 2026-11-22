@@ -112,6 +112,20 @@ def log_cost(run_id: str, model: str, input_tokens: int, output_tokens: int) -> 
                 (run_id, model, input_tokens, output_tokens, cost))
     return cost
 
+@contextlib.contextmanager
+def charge_if_failed(run_id: str, request: dict):
+    """Around one model call: a failure with no usage is charged its worst case, so a run of timeouts
+    still reaches the daily cap. Only an HTTP error response is free."""
+    try:
+        yield
+    except Exception as exc:
+        from api.services.uct_agent import budget
+        if not budget._is_provider_error_response(exc):
+            log_cost(run_id, request["model"], budget.request_bytes(request) + budget.FRAMING_TOKENS,
+                     int(request["max_tokens"]))
+        raise
+
+
 def day_cost_usd() -> float:
     """Today's engine spend, with 'today' = the ET calendar day (house convention;
     review Important #2 — a UTC boundary would refresh the daily cap mid-evening

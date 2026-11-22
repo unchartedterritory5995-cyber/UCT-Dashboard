@@ -8,13 +8,15 @@ import { render, screen, waitFor } from '@testing-library/react'
 
 import { usePineLibraries } from './usePineLibraries'
 import { clearPineLibraries, pineLibraryEntry } from '../engine/ast/pineLibraryStore'
+import { fixtureLibrary } from '../engine/ast/__tests__/libraryFixture.js'
 
-const LIB = {
+// U15: the store serves an entry only with the sha256 of its own source
+const LIB = fixtureLibrary({
   path: 'tester/fixturelib/1',
   source: '//@version=5\nlibrary("fixturelib")\nexport one() => 1\n',
   licence: 'MPL-2.0',
   attribution: 'fixturelib (test fixture)',
-}
+})
 
 function Probe({ source }) {
   const revision = usePineLibraries(source)

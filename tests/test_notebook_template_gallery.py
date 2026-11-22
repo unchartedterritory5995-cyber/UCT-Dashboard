@@ -2,8 +2,7 @@
 (`api/services/journal_two/template_gallery.py`, `api/routers/notebook_template_gallery.py`).
 
 What each section proves:
-  * THE GATE: every route answers the one 404 while `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` is
-    off, signed out or not -- the gate runs before the session is read.
+  * ALWAYS ON: `NOTEBOOK_TEMPLATE_GALLERY_ENABLED` was retired as always on (2026-11-04).
   * WHAT LEAVES: a fixture that CAN tell the right reducer from a wrong one -- private and
     public things side by side, so "drop everything" fails as surely as "drop nothing".
   * REVIEW BEFORE PUBLISHING: a submission is pending and invisible until approved; an edit
@@ -29,7 +28,6 @@ from api.middleware import auth_middleware as authmw
 
 ROOT = Path(__file__).resolve().parents[1]
 CLIENT_LIB = ROOT / "app" / "src" / "pages" / "journal-2-0" / "lib" / "templateGallery.js"
-FLAG = "NOTEBOOK_TEMPLATE_GALLERY_ENABLED"
 
 A, B, C, ADMIN = "user-gal-author-a", "user-gal-member-b", "user-gal-member-c", "user-gal-admin"
 SECRET_NOTE = "note-SECRET-ID-777"
@@ -73,7 +71,7 @@ def _fresh_limiter():
 
 @pytest.fixture
 def gate_on(monkeypatch):
-    monkeypatch.setenv(FLAG, "1")
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 @pytest.fixture
@@ -203,26 +201,9 @@ ROUTES = [
 ]
 
 
-@pytest.mark.parametrize("method,path", ROUTES)
-def test_every_route_is_the_one_404_while_the_flag_is_off_even_signed_out(app, client, monkeypatch, method, path):
-    monkeypatch.delenv(FLAG, raising=False)
-    signed_out(app)
-    r = client.request(method, path, content=b"{not json")
-    assert r.status_code == 404, (method, path, r.status_code, r.text)
-    assert r.json() == {"detail": "Not found"}
-
-
 def test_CONTROL_with_the_flag_on_a_signed_out_caller_reaches_the_session_check(app, client, gate_on):
     signed_out(app)
     assert client.get("/api/j2/template-gallery").status_code == 401
-
-
-def test_the_flag_parse_is_the_one_notebook_parse(monkeypatch, svc):
-    for v, want in (("1", True), ("true", True), (" ON ", True), ("0", False), ("flase", False)):
-        monkeypatch.setenv(FLAG, v)
-        assert svc.enabled() is want, v
-    monkeypatch.delenv(FLAG, raising=False)
-    assert svc.enabled() is False
 
 
 # ── what leaves the author's account ────────────────────────────────────────────────────
@@ -485,7 +466,9 @@ def test_unpublish_is_the_authors_own_and_always_possible(svc):
 # ── firm picks ──────────────────────────────────────────────────────────────────────────
 
 def test_the_firm_picks_are_seeded_once_and_an_admin_choice_survives_a_reboot(svc):
-    picks = svc.list_gallery(B, section="picks")
+    # the outline picks (the firm STYLE picks are always listed too since the library and starter-pack switches
+    # were retired, 2026-11-04; tests/test_firm_style_seed.py holds those)
+    picks = [x for x in svc.list_gallery(B, section="picks") if x["itemType"] == "outline"]
     seeds = svc.load_seed()
     assert 4 <= len(seeds) <= 6
     assert sorted(x["title"] for x in picks) == sorted(s["title"] for s in seeds)

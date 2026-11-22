@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "title": "UCT Relative Strength walkthrough",
+  "symbol": "NVDA",
+  "timeframe": "D",
+  "target_seconds": 90,
+  "viewports": {
+    "desktop": {"width": 1920, "height": 1080, "is_mobile": false, "device_scale_factor": 1, "caption_font_size": 16},
+    "phone": {"width": 390, "height": 844, "is_mobile": true, "device_scale_factor": 2, "caption_font_size": 8}
+  },
+  "steps": [
+    {
+      "id": "open_chart",
+      "viewports": ["desktop", "phone"],
+      "optional": false,
+      "caption": "This is NVDA on a daily chart. We will add UCT Relative Strength and read what it tells us.",
+      "hold_ms": 6000,
+      "actions": [
+        {"do": "goto", "path": "/charts?sym={symbol}&tf={timeframe}"},
+        {"do": "wait", "timeout_ms": 45000, "targets": [{"by": "css", "value": "[data-guide=\"chart.chip\"]"}, {"by": "css", "value": "[data-testid=\"mobile-chart-toolbar\"]"}, {"by": "css", "value": "canvas"}]}
+      ]
+    },
+    {
+      "id": "add_rs",
+      "viewports": ["desktop"],
+      "optional": false,
+      "caption": "Open the indicator library and search for UCT RS. It sits in the Relative Strength group.",
+      "hold_ms": 3000,
+      "actions": [
+        {"do": "click", "targets": [{"by": "css", "value": "[data-testid=\"add-to-chart\"]"}, {"by": "role", "role": "button", "name": "Add to Chart", "exact": true}]},
+        {"do": "fill", "value": "UCT RS", "targets": [{"by": "role", "role": "searchbox", "name": "Search indicators", "exact": true}, {"by": "label", "value": "Search indicators"}, {"by": "placeholder", "value": "Search indicators"}]},
+        {"do": "click", "settle_ms": 800, "unless": [{"by": "css", "value": "[data-def-id=\"rsLine\"] button[data-result-primary][aria-pressed=\"true\"]"}], "targets": [{"by": "css", "value": "[data-def-id=\"rsLine\"] button[data-result-primary]"}, {"by": "role", "role": "button", "name_regex": "^UCT Relative Strength"}]},
+        {"do": "press", "key": "Escape"},
+        {"do": "wait", "timeout_ms": 45000, "targets": [{"by": "css", "value": "[data-guide=\"chart.chip\"][aria-label^=\"UCT Relative Strength\"]"}, {"by": "role", "role": "button", "name_regex": "^UCT (RS|Relative Strength)"}]}
+      ]
+    },
+    {
+      "id": "add_rs",
+      "viewports": ["phone"],
+      "optional": false,
+      "caption": "Open the indicator library and search for UCT RS. It sits in the Relative Strength group.",
+      "hold_ms": 3000,
+      "actions": [
+        {"do": "click", "targets": [{"by": "css", "value": "[data-testid=\"mobile-chart-toolbar\"] button[aria-label=\"Indicators\"]"}, {"by": "role", "role": "button", "name": "Indicators", "exact": true}]},
+        {"do": "click", "targets": [{"by": "role", "role": "button", "name_regex": "^Browse indicator library"}, {"by": "text", "value": "Browse indicator library"}]},
+        {"do": "fill", "value": "UCT RS", "targets": [{"by": "role", "role": "searchbox", "name": "Search indicators", "exact": true}, {"by": "label", "value": "Search indicators"}, {"by": "placeholder", "value": "Search indicators"}]},
+        {"do": "click", "settle_ms": 800, "unless": [{"by": "css", "value": "[data-def-id=\"rsLine\"] button[data-result-primary][aria-pressed=\"true\"]"}], "targets": [{"by": "css", "value": "[data-def-id=\"rsLine\"] button[data-result-primary]"}, {"by": "role", "role": "button", "name_regex": "^UCT Relative Strength"}]},
+        {"do": "wait", "timeout_ms": 45000, "targets": [{"by": "css", "value": "[data-tour-card]"}, {"by": "css", "value": "[data-instance-id][aria-label^=\"UCT RS\"]"}]}
+      ]
+    },
+    {
+      "id": "tour",
+      "viewports": ["desktop", "phone"],
+      "optional": true,
+      "caption": "The first time you add it, a short tour points out each part of the RS pane.",
+      "hold_ms": 1500,
+      "actions": [
+        {"do": "tour", "timeout_ms": 6000, "max_clicks": 12, "targets": [{"by": "css", "value": "[data-tour-card]"}], "next": [{"by": "role", "role": "button", "name": "Next", "exact": true}], "done": [{"by": "role", "role": "button", "name": "Done", "exact": true}, {"by": "role", "role": "button", "name": "Got it", "exact": true}]}
+      ]
+    },
+    {
+      "id": "chip_readout",
+      "viewports": ["desktop"],
+      "optional": false,
+      "caption": "Click the UCT RS label. The readout puts the line into words: the rating, the market regime and the four checks.",
+      "hold_ms": 8000,
+      "actions": [
+        {"do": "click", "targets": [{"by": "css", "value": "[data-guide=\"chart.chip\"][aria-label^=\"UCT Relative Strength\"]"}, {"by": "role", "role": "button", "name_regex": "^UCT (RS|Relative Strength)"}]},
+        {"do": "wait", "timeout_ms": 15000, "targets": [{"by": "css", "value": "[data-legend-head=\"readout\"] [data-readout-rows]"}, {"by": "css", "value": "[data-legend-head=\"readout\"]"}]}
+      ]
+    },
+    {
+      "id": "chip_readout",
+      "viewports": ["phone"],
+      "optional": true,
+      "caption": "Press and hold the UCT RS label. The readout puts the line into words: the rating, the market regime and the four checks.",
+      "hold_ms": 8000,
+      "actions": [
+        {"do": "click", "timeout_ms": 3000, "targets": [{"by": "css", "value": ".tv-lightweight-charts"}]},
+        {"do": "long_press", "press_ms": 600, "timeout_ms": 5000, "targets": [{"by": "css", "value": "[data-guide=\"chart.chip\"][aria-label^=\"UCT R\"]"}, {"by": "css", "value": "[data-instance-id][aria-label^=\"UCT RS\"]"}, {"by": "role", "role": "button", "name_regex": "^UCT (RS|Relative Strength)"}]},
+        {"do": "wait", "timeout_ms": 5000, "targets": [{"by": "css", "value": "[data-readout-rows]"}, {"by": "css", "value": "[data-legend-head=\"readout\"]"}]}
+      ]
+    },
+    {
+      "id": "benchmark_sector",
+      "viewports": ["desktop"],
+      "optional": false,
+      "caption": "Switch the benchmark to the sector. Now the line asks whether NVDA is beating its own group, not only the market.",
+      "hold_ms": 7000,
+      "actions": [
+        {"do": "click", "unless": [{"by": "css", "value": "[data-field=\"benchmark\"] select"}], "targets": [{"by": "role", "role": "menuitem", "name_regex": "^Edit in Indicators"}, {"by": "text", "value": "Edit in Indicators"}]},
+        {"do": "select", "value": "SECTOR", "timeout_ms": 15000, "settle_ms": 1500, "targets": [{"by": "css", "value": "[data-field=\"benchmark\"] select"}, {"by": "role", "role": "combobox", "name": "Benchmark", "exact": true}]}
+      ]
+    },
+    {
+      "id": "benchmark_sector",
+      "viewports": ["phone"],
+      "optional": false,
+      "caption": "Switch the benchmark to the sector. Now the line asks whether NVDA is beating its own group, not only the market.",
+      "hold_ms": 7000,
+      "actions": [
+        {"do": "click", "unless": [{"by": "css", "value": "select[aria-labelledby$=\"-benchmark-lbl\"]"}, {"by": "css", "value": "[data-testid=\"preset-row\"]"}], "targets": [{"by": "css", "value": "[data-testid=\"mobile-chart-toolbar\"] button[aria-label=\"Indicators\"]"}]},
+        {"do": "click", "unless": [{"by": "css", "value": "select[aria-labelledby$=\"-benchmark-lbl\"]"}, {"by": "css", "value": "[data-testid=\"preset-row\"]"}], "targets": [{"by": "role", "role": "button", "name_regex": "^Edit UCT Relative Strength"}]},
+        {"do": "select", "value": "SECTOR", "timeout_ms": 15000, "settle_ms": 1500, "targets": [{"by": "css", "value": "[data-input-key=\"benchmark\"] button:has-text(\"Sector ETF\")", "do": "click"}, {"by": "css", "value": "select[aria-labelledby$=\"-benchmark-lbl\"]"}, {"by": "role", "role": "combobox", "name": "Benchmark", "exact": true}, {"by": "role", "role": "button", "name": "Sector ETF (auto)", "exact": true, "do": "click"}]}
+      ]
+    },
+    {
+      "id": "preset_stress",
+      "viewports": ["desktop"],
+      "optional": false,
+      "caption": "The Stress test preset marks RS new highs made on red market days in gold: strength while the market was falling.",
+      "hold_ms": 7000,
+      "actions": [
+        {"do": "select", "value": "stress", "timeout_ms": 10000, "settle_ms": 1500, "targets": [{"by": "css", "value": "[data-field=\"__preset__\"] select"}, {"by": "role", "role": "combobox", "name_regex": "preset$"}]}
+      ]
+    },
+    {
+      "id": "preset_stress",
+      "viewports": ["phone"],
+      "optional": false,
+      "caption": "The Stress test preset marks RS new highs made on red market days in gold: strength while the market was falling.",
+      "hold_ms": 7000,
+      "actions": [
+        {"do": "click", "timeout_ms": 10000, "settle_ms": 1500, "targets": [{"by": "css", "value": "[data-testid=\"preset-row\"] button[data-preset-id=\"stress\"]"}, {"by": "role", "role": "button", "name": "Stress test (UCT)", "exact": true}]}
+      ]
+    },
+    {
+      "id": "rotation_view",
+      "viewports": ["desktop", "phone"],
+      "optional": true,
+      "caption": "The Rotation view shows whether the stock's relative strength is gaining momentum or losing it.",
+      "hold_ms": 5000,
+      "actions": [
+        {"do": "select", "value": "rotation", "timeout_ms": 5000, "settle_ms": 1500, "targets": [{"by": "css", "value": "[data-field=\"view\"] select"}, {"by": "css", "value": "[data-input-key=\"view\"] button:has-text(\"Rotation\")", "do": "click"}, {"by": "css", "value": "select[aria-labelledby$=\"-view-lbl\"]"}, {"by": "css", "value": "[data-field=\"view\"] [role=\"radio\"]:has-text(\"otation\")", "do": "click"}, {"by": "role", "role": "radio", "name_regex": "^[Rr]otation$", "do": "click"}]}
+      ]
+    },
+    {
+      "id": "compare_rotation",
+      "viewports": ["desktop"],
+      "optional": false,
+      "caption": "In Compare, the Rotation tab puts several names on one graph, so you can see which are leading and which are fading.",
+      "hold_ms": 8000,
+      "actions": [
+        {"do": "press", "key": "Escape"},
+        {"do": "click", "targets": [{"by": "css", "value": "[data-guide=\"workspace.tools\"]"}, {"by": "role", "role": "button", "name_regex": "^Tools"}]},
+        {"do": "click", "targets": [{"by": "css", "value": "[data-guide=\"workspace.tools.compare\"]"}, {"by": "role", "role": "button", "name_regex": "Compare Symbols$"}]},
+        {"do": "fill", "value": "AAPL", "submit": true, "timeout_ms": 8000, "settle_ms": 300, "targets": [{"by": "label", "value": "Add symbol", "exact": true}, {"by": "placeholder", "value": "Add symbol"}]},
+        {"do": "fill", "value": "MSFT", "submit": true, "timeout_ms": 8000, "settle_ms": 300, "targets": [{"by": "label", "value": "Add symbol", "exact": true}, {"by": "placeholder", "value": "Add symbol"}]},
+        {"do": "fill", "value": "AMD", "submit": true, "timeout_ms": 8000, "settle_ms": 300, "targets": [{"by": "label", "value": "Add symbol", "exact": true}, {"by": "placeholder", "value": "Add symbol"}]},
+        {"do": "fill", "value": "META", "submit": true, "timeout_ms": 8000, "settle_ms": 300, "targets": [{"by": "label", "value": "Add symbol", "exact": true}, {"by": "placeholder", "value": "Add symbol"}]},
+        {"do": "fill", "value": "GOOGL", "submit": true, "timeout_ms": 8000, "settle_ms": 300, "targets": [{"by": "label", "value": "Add symbol", "exact": true}, {"by": "placeholder", "value": "Add symbol"}]},
+        {"do": "fill", "value": "AMZN", "submit": true, "timeout_ms": 8000, "settle_ms": 300, "targets": [{"by": "label", "value": "Add symbol", "exact": true}, {"by": "placeholder", "value": "Add symbol"}]},
+        {"do": "click", "targets": [{"by": "css", "value": "#compare-tab-rotation"}, {"by": "role", "role": "tab", "name": "Rotation", "exact": true}]},
+        {"do": "click", "timeout_ms": 8000, "settle_ms": 500, "targets": [{"by": "css", "value": "[role=\"dialog\"][aria-label=\"Compare Symbols\"] button:has-text(\"Daily\")"}, {"by": "role", "role": "button", "name": "Daily", "exact": true}]},
+        {"do": "wait", "timeout_ms": 90000, "settle_ms": 1500, "targets": [{"by": "testid", "value": "compare-rotation-graph"}, {"by": "testid", "value": "compare-rotation-table"}]}
+      ]
+    },
+    {
+      "id": "anchor_date",
+      "viewports": ["desktop"],
+      "optional": true,
+      "caption": "Pick an anchor date to measure relative strength from a point you choose, such as a recent market low.",
+      "hold_ms": 5000,
+      "actions": [
+        {"do": "press", "key": "Escape"},
+        {"do": "click", "unless": [{"by": "css", "value": "[data-field=\"anchorDate\"] input"}, {"by": "css", "value": "input[aria-labelledby$=\"-anchorDate-lbl\"]"}], "targets": [{"by": "css", "value": "[data-guide=\"chart.chip\"][aria-label^=\"UCT Relative Strength\"]"}, {"by": "css", "value": "[data-instance-id]:has-text(\"UCT RS\")"}]},
+        {"do": "click", "unless": [{"by": "css", "value": "[data-field=\"anchorDate\"] input"}, {"by": "css", "value": "input[aria-labelledby$=\"-anchorDate-lbl\"]"}], "timeout_ms": 3000, "targets": [{"by": "role", "role": "menuitem", "name_regex": "^Edit in Indicators"}]},
+        {"do": "click", "unless": [{"by": "css", "value": "[data-field=\"anchorDate\"] input"}, {"by": "css", "value": "input[aria-labelledby$=\"-anchorDate-lbl\"]"}], "timeout_ms": 5000, "targets": [{"by": "css", "value": "[role=\"dialog\"] button[aria-expanded=\"false\"]:has-text(\"Checks\")"}]},
+        {"do": "fill", "value": "2026-04-08", "submit": true, "timeout_ms": 5000, "settle_ms": 1500, "targets": [{"by": "css", "value": "[data-field=\"anchorDate\"] input"}, {"by": "css", "value": "input[aria-labelledby$=\"-anchorDate-lbl\"]"}, {"by": "label", "value": "Anchor date"}]}
+      ]
+    },
+    {
+      "id": "anchor_date",
+      "viewports": ["phone"],
+      "optional": true,
+      "caption": "Pick an anchor date to measure relative strength from a point you choose, such as a recent market low.",
+      "hold_ms": 5000,
+      "actions": [
+        {"do": "click", "timeout_ms": 5000, "unless": [{"by": "css", "value": "[data-input-key=\"anchorDate\"] input"}], "targets": [{"by": "css", "value": "[role=\"dialog\"] button[aria-expanded=\"false\"]:has-text(\"Checks\")"}]},
+        {"do": "fill", "value": "2026-04-08", "submit": true, "timeout_ms": 5000, "settle_ms": 1500, "targets": [{"by": "css", "value": "[data-input-key=\"anchorDate\"] input"}, {"by": "css", "value": "input[aria-labelledby$=\"-anchorDate-lbl\"]"}, {"by": "label", "value": "Anchor date"}]}
+      ]
+    },
+    {
+      "id": "outro",
+      "viewports": ["desktop", "phone"],
+      "optional": false,
+      "caption": "UCT RS is a tool for reading leadership. It shows how a stock is acting against its benchmark; the decisions stay yours.",
+      "hold_ms": 6000,
+      "actions": [
+        {"do": "press", "key": "Escape"},
+        {"do": "press", "key": "Escape"}
+      ]
+    }
+  ]
+}

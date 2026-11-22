@@ -123,6 +123,7 @@ def make_client():
     return anthropic.Anthropic(
         api_key=key,
         timeout=llm_timeouts.seconds("WISDOM_EXTRACT_LLM_TIMEOUT_SECS", llm_timeouts.OFFLINE_JOB),
+        max_retries=0,
     )
 
 
@@ -961,6 +962,12 @@ def handle_result(req: dict, item, batch_row: dict) -> str:
         if rtype == "succeeded":
             message = result.message
             cost = budget.cost_from_usage(model, getattr(message, "usage", None), batch=True)
+            try:  # the one AI-spend ledger (llm_usage); batch results bypass the SDK hook
+                from api.services import llm_usage
+                llm_usage.record_message(message, door="api/services/wisdom/extract/batch.py",
+                                         func="handle_result", kind="batch")
+            except Exception:  # noqa: BLE001 -- metering never changes a result
+                pass
             usage = budget.usage_dict(getattr(message, "usage", None))
             conn.execute("UPDATE wisdom_batches SET cost_usd_actual = COALESCE(cost_usd_actual, 0) + ? "
                          "WHERE batch_id = ?", (cost, batch_row["batch_id"]))

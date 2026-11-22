@@ -14,6 +14,10 @@ runs it ONCE (module fixture, a few seconds), then:
 
 The DOM half is `app/src/pages/journal-2-0/lib/connectorCorpora.dom.test.js`.
 
+Plan E Task 9 added a third corpus, `evernote_live_messy` (`gen.CORPORA`): the byte rail and the
+corpus-wide guards here cover it; its construct tests are
+`api/services/journal_two/test_note_connectors_evernote_engine.py`.
+
 The corpora exposed two REAL defects (Task 14), recorded as strict xfails and fixed by Task 15:
 the member-edited note's edit time (D1) and the Obsidian unsafe-link markdown source (D2). Both
 are now ordinary assertions. A future strict xfail here must pin `raises=` so it can only pass

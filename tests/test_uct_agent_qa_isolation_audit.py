@@ -37,7 +37,7 @@ def leaks(obj) -> list[str]:
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    for k in (gw.DATA_ENV, gw.SCAN_ENV, gw.ISOLATED_ENV, KINDS_ENV):
+    for k in (gw.DATA_ENV, gw.SCAN_ENV, gw.ISOLATED_ENV, gw.ISOLATED_KINDS_ENV, KINDS_ENV):
         monkeypatch.delenv(k, raising=False)
     gw._reset_for_test(None)
     yield
@@ -74,6 +74,7 @@ def test_L1_a_validator_that_RAISES_with_a_value_never_puts_it_in_the_envelope_o
     """PROVEN BLOCKED: the gateway keeps only the exception TYPE (log) and a fixed refusal note."""
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, name)
     monkeypatch.setenv(KINDS_ENV, name)                  # #621: a kind must be listed to be read at all
 
     def bad(params):
@@ -90,6 +91,7 @@ def test_L1_a_validator_that_RAISES_with_a_value_never_puts_it_in_the_envelope_o
 def test_L1_an_adapter_that_RAISES_with_a_value_never_puts_it_in_the_envelope_or_the_log(monkeypatch, caplog, name):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, name)
     monkeypatch.setenv(KINDS_ENV, name)                  # #621: a kind must be listed to be read at all
 
     def boom(params, ctx):
@@ -105,6 +107,7 @@ def test_L1_an_adapter_that_RAISES_with_a_value_never_puts_it_in_the_envelope_or
 def test_L1_a_contract_BREAKING_envelope_carrying_values_is_replaced_and_its_values_never_logged(monkeypatch, caplog, name):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, name)
     monkeypatch.setenv(KINDS_ENV, name)                  # #621: a kind must be listed to be read at all
 
     def broken(params, ctx):
@@ -171,6 +174,7 @@ def test_L1_ALLOWLIST_with_DATA_on_and_KINDS_quote_every_other_kind_is_refused_s
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.SCAN_ENV, "1")
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")              # even ACTIVATED, a non-listed isolated kind is refused
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, ",".join(gw.registry().names()))  # ...and armed per kind too
     monkeypatch.setenv(KINDS_ENV, "quote")
     r, ran, names = _all_spied()
     gw._reset_for_test(r)

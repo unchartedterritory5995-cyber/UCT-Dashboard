@@ -1,0 +1,20 @@
+//@version=4
+study("vw-w4-series-length-v4", max_bars_back = 1000)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the probe text in
+// docs/pine/capture-queue-2026-11-06-w34-i6c.md, row W4-S1-v4. The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: v4 reads a per-bar length (last `len` bars), the value on bar 0, the SIGN of v4 bare
+// highestbars/lowestbars under a per-bar length (non-positive?), and na / nz handling. `len` is the control.
+// CAPTURE: AMEX:SPY 1D, then NYSE:RDDT 1D, inputs at defaults.
+
+len = bar_index % 7 + 1
+plot(sma(close, len), "sma")
+plot(highest(high, len), "highest")
+plot(stdev(close, len), "stdev")
+plot(highestbars(high, len), "highestbars")
+plot(lowestbars(low, len), "lowestbars")
+zz = bar_index - valuewhen(bar_index % 5 == 0, bar_index, 1) + 1
+plot(highestbars(high, nz(zz, 1)), "zz_highestbars")
+plot(lowestbars(low, nz(zz, 1)), "zz_lowestbars")
+plot(len, "len")

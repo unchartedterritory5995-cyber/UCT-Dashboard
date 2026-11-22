@@ -113,6 +113,33 @@ describe('what the member sees instead', () => {
     expect(screen.getByText(/Open the note it lives in/i)).toBeInTheDocument()
   })
 
+  describe('an imported post', () => {
+    const POST = {
+      ...WEB, id: 'ex-post', documentName: '@alderstreetdesk on X',
+      sourceUrl: 'https://x.com/alderstreetdesk/status/991',
+      capturedText: 'My thesis in one line.',
+      tweet: { tweetId: '991', removed: false },
+    }
+
+    it('a post that has left X says so, with no quotation and no "passage you kept"', () => {
+      renderIt({ ...POST, capturedText: '', tweet: { tweetId: '991', removed: true } })
+      expect(screen.getByText('This post is no longer on X.')).toBeInTheDocument()
+      expect(document.querySelector('blockquote')).toBeNull()
+      expect(document.body.textContent).not.toMatch(/passage you kept/i)
+    })
+
+    it('keeps the member note on a post that has left X', () => {
+      renderIt({ ...POST, capturedText: '', tweet: { tweetId: '991', removed: true } })
+      expect(screen.getByText(/too optimistic/)).toBeInTheDocument()
+    })
+
+    it('CONTROL: a post still on X keeps its quotation', () => {
+      renderIt(POST)
+      expect(document.querySelector('blockquote').textContent).toContain('My thesis in one line.')
+      expect(screen.queryByText('This post is no longer on X.')).toBeNull()
+    })
+  })
+
   it('renders nothing at all without an excerpt', () => {
     const { container } = render(
       <CapturedSourceSheet open excerpt={null} onClose={() => {}} />)

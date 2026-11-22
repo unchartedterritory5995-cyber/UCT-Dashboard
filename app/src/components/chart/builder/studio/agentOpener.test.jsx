@@ -116,7 +116,7 @@ describe('the route UCT Agent reaches it by (source rails)', () => {
   it('StockChart forwards openCreateIndicatorFor; ChartPane exposes it (closing settings first) and canCreateIndicator', () => {
     expect(STOCKCHART_SRC).toMatch(/openCreateIndicatorFor: \(opts = null\) => \{[\s\S]{0,200}toolbarRef\.current\?\.openCreateIndicatorFor\?\.\(opts\)/)
     // ⭐ the opener is called FIRST; Chart Settings closes only when it actually opened
-    expect(PANE_SRC).toMatch(/openCreateIndicatorFor: \(opts = null\) => \{[\s\S]{0,260}res = paneToolbarApi\.current\?\.openCreateIndicatorFor\?\.\(opts\)[\s\S]{0,300}if \(res && res\.ok\) setSettingsOpen\(false\)/)
+    expect(PANE_SRC).toMatch(/openCreateIndicatorFor: \(opts = null\) => \{[\s\S]{0,260}res = paneToolbarApi\.current\?\.openCreateIndicatorFor\?\.\(agentOpenOpts\(opts\)\)[\s\S]{0,300}if \(res && res\.ok\) setSettingsOpen\(false\)/)
     expect(PANE_SRC).not.toMatch(/openCreateIndicatorFor: \(opts = null\) => \{\s*setSettingsOpen\(false\)/)
     expect(PANE_SRC).toMatch(/canCreateIndicator: \(\) => \{ try \{ return !!paneToolbarApi\.current\?\.canModifyWithIntelligence\?\.\(\)/)
   })

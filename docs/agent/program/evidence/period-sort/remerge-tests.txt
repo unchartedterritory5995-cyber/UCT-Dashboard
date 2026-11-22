@@ -1,0 +1,42 @@
+# #1082 re-merge onto 1208aa0085: test summary (LOCAL, vitest + pytest; counts only, no request text)
+
+## Run A (25 files, final routing tree)
+ Test Files  25 passed (25)
+      Tests  2514 passed (2514)
+[side] phrasings 668; changed 0; manifest bytes added 0 (avg 0/affected turn); by type {}
+[reach] widget held-out v1 {"model":"24/24","action":"21/24","list":"21/24"}
+[reach] widget held-out v2 {"model":"24/24","action":"21/24","list":"21/24"}
+[reach] widget tune v1 {"model":"24/24","action":"20/24","list":"21/24"}
+[reach] widget tune v2 {"model":"24/24","action":"21/24","list":"21/24"}
+[reach] list held-out v1 {"model":"8/8","action":"7/8"}
+[reach] list held-out v2 {"model":"8/8","action":"8/8"}
+[reach] list tune v1 {"model":"5/5","action":"5/5"}
+[reach] list tune v2 {"model":"5/5","action":"5/5"}
+[reach] name held-out2 v1 {"model":"6/6","action":"5/6","list":"5/6"}
+[reach] name held-out2 v2 {"model":"6/6","action":"5/6","list":"5/6"}
+[reach] door held-out2 v1 {"model":"4/4","action":"4/4","list":"4/4"}
+[reach] door held-out2 v2 {"model":"4/4","action":"4/4","list":"4/4"}
+[reach] journal held-out2 v1 {"model":"4/4","action":"4/4"}
+[reach] journal held-out2 v2 {"model":"4/4","action":"4/4"}
+[reach] widget tune2 v1 {"model":"5/5","action":"5/5","list":"5/5"}
+[reach] widget tune2 v2 {"model":"5/5","action":"5/5","list":"5/5"}
+[reach] journal tune2 v1 {"model":"4/4","action":"4/4"}
+[reach] journal tune2 v2 {"model":"4/4","action":"4/4"}
+[reach] search held-out7 v1 {"model":"3/3","action":"3/3","list":"3/3"}
+[reach] search held-out7 v2 {"model":"3/3","action":"3/3","list":"3/3"}
+[route reachability] v2 budget cut on 107/1110 distinct phrasings (9.6%); groups cut: chartSetup 43, lists 21, charts 17, indicators 16, workspace 9, screener 7, data 6, boardEdit 5, indicatorAlerts 4, layouts 4, drawingTools 4, indicatorSetup 4, drawings 2, definitions 1, alerts 1, settings 1, guide 1
+
+## Run B (19 files, final tree)
+ Test Files  19 passed (19)
+      Tests  1639 passed (1639)
+
+## Earlier run (before the namedGroups line; 20 files): agentScanSat1Requests red until SAT-1 regenerated
+ Test Files  1 failed | 19 passed (20)
+      Tests  2473 passed (2473)
+
+## pytest tests/test_uct_agent*.py (full)
+FAILED tests/test_uct_agent_nl1_selection.py::test_a_routed_nl1_request_is_three_cache_blocks_core_first
+1 failed, 4126 passed, 23 warnings in 260.11s (0:04:20)
+
+## pytest golden/parity/section_b readers outside the glob
+tests/test_agent_eval_proxy.py tests/test_agent_eval_run.py tests/test_desk_session_recap.py: 29 passed

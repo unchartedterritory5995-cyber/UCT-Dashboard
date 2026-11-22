@@ -362,14 +362,7 @@ W10_CATALOG_FIXTURE = SERVER_CATALOG_FIXTURE.with_name("w10Catalog.json")
 def _catalog_fixture_text(tools: bool = False, w10: bool = False) -> str:
     if not w10:
         return json.dumps(wdr._static_vocabulary(tools), indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-    from api.services.journal_two import journal_styles
-    saved = journal_styles.enabled
-    journal_styles.enabled = lambda: True
-    try:
-        return json.dumps(wdr._static_vocabulary(tools, w10), indent=2, ensure_ascii=False,
-                          sort_keys=True) + "\n"
-    finally:
-        journal_styles.enabled = saved
+    return json.dumps(wdr._static_vocabulary(tools, w10), indent=2, ensure_ascii=False, sort_keys=True) + "\n"
 
 
 def write_vocabulary_fixture() -> None:

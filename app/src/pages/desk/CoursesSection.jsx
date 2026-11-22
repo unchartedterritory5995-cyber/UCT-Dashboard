@@ -37,6 +37,8 @@ import StudyLanding from '../study/StudyLanding'
 import SkillTrail from '../study/SkillTrail'
 import DrillPlayer from '../study/DrillPlayer'
 import PractiseSheet from '../study/PractiseSheet'
+import ChallengeSheet from '../study/challenges/ChallengeSheet'
+import { CHALLENGE_KINDS } from '../study/challenges/registry'
 import ScreenFeedback from '../study/ScreenFeedback'
 import { useStudyMap, useStudyProfile, useStudyToday } from '../study/useStudy'
 import { SESSIONS_URL, studyFetch } from '../study/useStudySession'
@@ -52,7 +54,7 @@ import cs from './CoursesSection.module.css'
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
 
-const STUDY_KEYS = ['study', 'curriculum', 'unit', 'session']
+const STUDY_KEYS = ['study', 'curriculum', 'unit', 'session', 'challenge']
 
 export default function CoursesSection() {
   const { user, studyEnabled } = useAuth()
@@ -172,6 +174,7 @@ export default function CoursesSection() {
   const closeStudy = useCallback(() => setStudy({}), [setStudy])
   const startToday = useCallback((sessionId) => setStudy({ study: 'today', session: sessionId }), [setStudy])
   const practise = useCallback(() => setStudy({ study: 'practise' }), [setStudy])
+  const openChallenge = useCallback((kind) => setStudy({ study: 'challenge', challenge: kind }), [setStudy])
 
   const studyParam = searchParams.get('study')
   const curriculumParam = searchParams.get('curriculum')
@@ -187,6 +190,8 @@ export default function CoursesSection() {
   const { data: studyToday, mutate: mutateToday } = useStudyToday(studyOn)
   const drillOpen = studyOn && studyParam === 'today'
   const practiseOpen = studyOn && studyParam === 'practise'
+  const challengeParam = searchParams.get('challenge')
+  const challengeOpen = studyOn && studyParam === 'challenge' && CHALLENGE_KINDS.has(challengeParam)
   const profileRow = studyProfile?.profile || studyProfile || null
   const dots = useMemo(
     () => weekDots(studyToday?.day_et, profileRow?.last_done_day, profileRow?.streak),
@@ -212,7 +217,7 @@ export default function CoursesSection() {
       const hit = locateUnit(curricula, unitId)
       const skillId = hit?.unit?.skills?.[0] || null
       try {
-        const payload = await studyFetch(SESSIONS_URL, { method: 'POST', body: { kind, skill_id: skillId } })
+        const payload = await studyFetch(SESSIONS_URL, { method: 'POST', body: { kind, skill_id: skillId, lesson: true } })
         openSet(payload)
       } catch {
         /* the trail stays open; the member can retry */
@@ -340,6 +345,9 @@ export default function CoursesSection() {
           onKeepPractising={practise}
         />
       )}
+      {challengeOpen && (
+        <ChallengeSheet key={challengeParam} kind={challengeParam} open profile={profileRow} onClose={closeStudy} />
+      )}
       {practiseOpen && (
         <PractiseSheet
           open
@@ -436,8 +444,12 @@ export default function CoursesSection() {
               curricula={curricula}
               byId={skillRows}
               badges={Array.isArray(studyProfile?.badges) ? studyProfile.badges : []}
+              profile={profileRow}
+              today={studyToday}
+              onStartToday={() => (studyToday?.finished_at ? practise() : startToday(studyToday?.session_id))}
               onOpenUnit={openUnit}
               onOpenTrail={openTrail}
+              onOpenChallenge={openChallenge}
             />
           )}
           {studyOn ? (
@@ -446,7 +458,7 @@ export default function CoursesSection() {
                 {/* ?study=today|practise: the panel's buttons write the URL; the
                     integrator mounts the drill (a fullscreen Sheet) off those two
                     values beside this panel. */}
-                <StudyPanel onStart={startToday} onPractise={practise} onOpenUnit={openUnit} />
+                <StudyPanel onStart={startToday} onPractise={practise} onOpenUnit={openUnit} hidePrimary />
               </div>
               <div className={cs.studyMain}>{grid}</div>
             </div>

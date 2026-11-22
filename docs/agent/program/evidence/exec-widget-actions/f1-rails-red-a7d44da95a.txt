@@ -1,0 +1,105 @@
+# head a7d44da95a 2026-11-10T22:53:44Z dirty: 0 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentWhichWidget.rail.test.jsx src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget-pre2/app
+ ❯ src/agent/agentWhichWidget.rail.test.jsx (6 tests | 4 failed) 6339ms
+     × "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed 1189ms
+     × "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed 1070ms
+     × u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question 1009ms
+     × u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question 995ms
+     ✓ "refresh the IPOs scanner" with two Scanners: that one only  1035ms
+     ✓ "refresh the scanner" with ONE Scanner (and a Period Sort): it acts  1040ms
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx (3 tests | 2 failed) 11125ms
+     × the plan picked the left one: a question, and neither widget's look changed 8915ms
+     × the plan picked Momentum's view: a question, and no saved column layout 1110ms
+     ✓ control: "move the volume column after the symbol in Momentum" names it: moved, no question  1098ms
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (a) u18-refresh-10: two Scanners and no name: asked, nothing refreshed > "refresh the scanner" (the plan picked the top one): asked which, and neither door is pressed
+AssertionError: UCT Agent5:53 PMRefreshed the Scanner: expected [ 'refresh' ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "refresh",
++ ]
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:49:43
+     47|     p.st.envelopes.push(plan(refresh('sa')))
+     48|     const out = await say('refresh the scanner')
+     49|     expect([...a.calls, ...b.calls], out).toEqual([])
+       |                                           ^
+     50|     expect(out).toMatch(/which/i)
+     51|     expect(out).not.toMatch(/Refreshed/)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > (d) u18-refresh-06: an EXCLUDED widget is never acted on > "don't touch the period sort, just reload the scanner", planned on the Period Sort: the Period Sort gets NO refetch, nothing is claimed
+AssertionError: UCT Agent5:53 PMRefreshed the Period Sort: expected [ 'refresh' ] to deeply equal []
+- Expected
++ Received
+- []
++ [
++   "refresh",
++ ]
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:61:27
+     59|     p.st.envelopes.push(plan(refresh('ps')))
+     60|     const out = await say("don't touch the period sort, just reload th…
+     61|     expect(ps.calls, out).toEqual([])                                 …
+       |                           ^
+     62|     expect(out).not.toMatch(/Refreshed/)
+     63|     expect(s.calls).toEqual([])                                       …
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > over-asks (AUDIT 3): a widget named by the list it shows acts with no question > u18-show-05 "put Long Term on the Swing watchlist widget": the Swing widget shows Long Term; the other is untouched; no question
+AssertionError: UCT Agent5:53 PMYou have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet.: expected 'user:s1' to be 'user:l1' // Object.is equality
+Expected: "user:l1"
+Received: "user:s1"
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:73:47
+     71|     p.st.envelopes.push(plan(['watchlist.showList', { widget: 'wb', so…
+     72|     const out = await say('put Long Term on the Swing watchlist widget…
+     73|     expect(optsOf(board, 'wb').watchKey, out).toBe('user:l1')
+       |                                               ^
+     74|     expect(JSON.stringify(optsOf(board, 'wa'))).toBe(before)
+     75|     expect(out).not.toMatch(/which one/i)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+ FAIL  src/agent/agentWhichWidget.rail.test.jsx > over-asks (AUDIT 3): a widget named by the list it shows acts with no question > u18-export-04 "export the Swing watchlist as a csv file": the Swing widget's own Export CSV, no question
+AssertionError: UCT Agent5:53 PMYou have 2 Watchlist widgets — which one: the top one or the bottom one? Nothing changed yet.Not done: I can’t export to Excel or other files from UCT Agent.: expected [] to deeply equal [ [ 'export', 'csv' ] ]
+- Expected
++ Received
+- [
+-   [
+-     "export",
+-     "csv",
+-   ],
+- ]
++ []
+ ❯ src/agent/agentWhichWidget.rail.test.jsx:82:26
+     80|     p.st.envelopes.push(plan(['watchlist.exportList', { widget: 'wb', …
+     81|     const out = await say('export the Swing watchlist as a csv file')
+     82|     expect(b.calls, out).toEqual([['export', 'csv']])
+       |                          ^
+     83|     expect(a.calls).toEqual([])
+     84|     expect(out).not.toMatch(/which one/i)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+ FAIL  src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (b) u18-look-07: two Watchlists, "make the watchlist background black": asked, nothing written > the plan picked the left one: a question, and neither widget's look changed
+AssertionError: UCT Agent5:00 PMSome of that didn't take effect: Board failed (“canvasColor” did not change) — nothing was left changed.: expected false to be true // Object.is equality
+- Expected
++ Received
+- true
++ false
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx:168:29
+    166|     const before = boardJson(m)
+    167|     const out = await m.say('make the watchlist background black', (c)…
+    168|     expect(asked(out), out).toBe(true)
+       |                             ^
+    169|     expect(boardJson(m)).toBe(before)
+    170|     expect(JSON.stringify(m.board.state.widgets)).not.toMatch(/#000000…
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+ FAIL  src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx > F1 (c) u18-cols-07: two Watchlists, "move the volume column after the symbol": asked, no column moved > the plan picked Momentum's view: a question, and no saved column layout
+AssertionError: UCT Agent5:00 PMOn “Momentum”: moved Volume after Symbol: expected false to be true // Object.is equality
+- Expected
++ Received
+- true
++ false
+ ❯ src/agent/qa/chartsOutcome/whichWatchlist.outcome.test.jsx:179:29
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+ Test Files  2 failed (2)
+      Tests  6 failed | 3 passed (9)
+   Start at  17:53:47
+   Duration  19.35s (transform 10.39s, setup 592ms, import 13.85s, tests 17.46s, environment 1.15s)

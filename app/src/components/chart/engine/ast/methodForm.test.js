@@ -449,11 +449,11 @@ describe('⭐⭐ E — one Pine operation, one verdict, whichever spelling', () 
     // Not `runtime:expression-statement` — "an expression evaluated for effect"
     // is true of the line and says nothing. The member needs the name of the
     // collection operation this runtime has no answer for.
-    const r = buildRuntimeIr(`${H6}a = array.new_float(0)\na.reverse()\nplot(array.size(a))`,
+    const r = buildRuntimeIr(`${H6}a = array.new_float(0)\na.mode()\nplot(array.size(a))`,
       { bars: BARS, inputs: {} })
     expect(r.ok).toBe(false)
     expect(r.refusal.guard).toBe('runtime:array')
-    expect(r.refusal.message).toContain('array.reverse')
+    expect(r.refusal.message).toContain('array.mode') // W6-T5 serves `array.reverse`; `array.mode` (ties, W6-A1) is not held
   })
 })
 

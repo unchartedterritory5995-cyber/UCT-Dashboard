@@ -247,6 +247,8 @@ function stageNoteWithIntent(notes, outbox, noteRecord, outboxEntry) {
  *                  { record, intent }  written exactly as `putNoteWithIntent`
  *                                      writes them; `record: null` accepts with
  *                                      nothing to write
+ *                  { clear: [ids] }    follow-up D: removes those outbox entries,
+ *                                      decided against what `queued` holds NOW
  *                ⛔ Synchronous and pure: it runs inside the transaction.
  * @returns true when accepted, false when refused
  */
@@ -268,6 +270,7 @@ export async function putNoteWithIntentIf(db, noteId, decide) {
       if (!plan) return
       accepted = true
       if (plan.record) stageNoteWithIntent(notes, outbox, plan.record, plan.intent || null)
+      for (const id of plan.clear || []) outbox.delete(id)
     }
   }
   await committed

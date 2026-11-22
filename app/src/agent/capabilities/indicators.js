@@ -39,6 +39,9 @@ const snapOf = (host, c) => ({
 
 export const indicatorsKind = {
   name: 'indicators',
+  source: 'charts',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Indicators aren't available on this page — open Charts to change a chart's indicators.",
+  empty: "There are no charts on this board yet.",
   undoable: false,                 // opening a panel is not a change Undo can take back
   selfDescribing: true,
   list: (host) => (host?.charts ? host.charts.list().map(c => snapOf(host, c)) : []),

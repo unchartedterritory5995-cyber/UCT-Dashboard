@@ -1,0 +1,37 @@
+//@version=6
+indicator("UCTPROBE_VW_WSC_H8_TA_IN_LOOP", overlay = false, max_bars_back = 5000)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row H8
+// (docs/pine/capture-queue-2026-10-31-wsc-history.md section Q3). NEVER COMPILED ON TRADINGVIEW.
+// A `ta.*` call in a `for` / `while` body runs several steps a bar. Whose history does its window
+// hold: the chart's bars, or every step (three per bar here)? Each loop runs 3 passes and keeps the
+// LAST pass's value:
+//   F01  ta.sma(close, 3) in a `for`        per bar -> E01 ; per step -> close (three equal steps)
+//   F02  ta.change(close) in a `for`        per bar -> E02 ; per step -> 0 on the last pass
+//   F03  ta.sma(i, 3) over the counter      per step -> 1 (mean of 0, 1, 2) ; per bar -> 2
+//   W01  ta.sma(close, 3) in a `while`      as F01
+// A warning that a call "should be called on each calculation" is fine; an error names its line:
+// split that row out and capture the rest.
+// CHART: the row names none (the queue marks it NEEDS_CHART). Every bar reads alike.
+
+float f_sma = na
+float f_chg = na
+float f_cnt = na
+for i = 0 to 2
+    f_sma := ta.sma(close, 3)
+    f_chg := ta.change(close)
+    f_cnt := ta.sma(float(i), 3)
+
+float w_sma = na
+int j = 0
+while j < 3
+    w_sma := ta.sma(close, 3)
+    j += 1
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(ta.sma(close, 3), "E01_sma3_every_bar")
+plot(ta.change(close), "E02_change_every_bar")
+plot(f_sma, "F01_sma3_in_for")
+plot(f_chg, "F02_change_in_for")
+plot(f_cnt, "F03_sma3_of_counter_in_for")
+plot(w_sma, "W01_sma3_in_while")

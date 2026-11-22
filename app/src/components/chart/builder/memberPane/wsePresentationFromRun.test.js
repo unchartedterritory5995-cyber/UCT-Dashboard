@@ -227,19 +227,29 @@ describe('WS-E 2 — the run draws what the host object program lost', () => {
     expect(toRenderState(payload.live, { bars: BARS, tf: 'D' }).lines).toHaveLength(1)
   })
 
+  // ⭐ RS RATING L8 (4c) — this control asked `c ? label.new(…) : na`, the THEN-arm label that
+  // L4c (`cc8e627354`) now SERVES on its witnesses (Q-RT5a T01/T02, Q-O1a; L4d's
+  // `DRAW_ARM_WITNESSED`), so it went red on this branch by design and stays green on master
+  // (which has no L4c). The guard it exists for is unchanged: a getter in an arm licenses no
+  // drawing an arm may NOT make, so it asks an UNWITNESSED pair (a line in the ELSE arm).
   it('⛔ CONTROL — a getter in an arm is not a licence to MAKE a drawing there', () => {
     flags()
-    const d = door(`${H}${ACC}${HOST_LABELS}x = acc > 20000 ? label.new(bar_index, close, "y") : na\n`)
+    const d = door(`${H}${ACC}${HOST_LABELS}x = acc > 20000 ? na : line.new(bar_index - 1, close, bar_index, close)\n`)
     expect(d.ok).toBe(false)
     expect(d.runtimeDeclined.why).toMatch(/one arm of `\?:`/)
   })
 
-  it('⛔ CONTROL — a host object program that is CLEAN keeps drawing; the run does not take it', () => {
+  // ⭐⭐ PARITY UNIT LF step 1 (coordinator ruling 2026-11-18): this control said "a host object program
+  // that is CLEAN keeps drawing; the run does not take it". The contract it pinned was reversed on
+  // purpose: the run's drawings are the document's and the clean program rides beside them as the
+  // fallback (`runtimeObjectsDoor.js`, `runtimeObjects.js::drawsRunObjectsOn`). What it still guards:
+  // the clean program is never dropped from the document.
+  it('⛔ CONTROL — a host object program that is CLEAN is carried beside the run\'s drawings, never dropped', () => {
     flags()
     const d = door(`${H}${ACC}${HOST_LABELS}`)
     expect(d.ok, d.reason).toBe(true)
     expect(d.lane).toBe('runtime')
-    expect(d.definition.compute.objects).toBeUndefined()
+    expect(d.definition.compute.objects).toBe(true)
     expect(d.definition.objects).toBeTruthy()
   })
 })
@@ -317,14 +327,14 @@ describe('WS-E 4 — a run-owned drawing the chart cannot place reaches the draw
     const m = mount(SRC('time + 3 * 86400000 + 9000000'))
     const drawn = m.layers.filter(Boolean).pop()
     expect(drawn && drawn.labels.map((l) => l.text)).toEqual([String(Math.round(rddtAcc()))])
-    expect(objectRenderDropsFor(m.id)).toEqual({ dropped: 1, held: 2 })
+    expect(objectRenderDropsFor(m.id)).toEqual({ dropped: 1, held: 2, servedByRun: true })   // a run's serve is recorded (servedByRun, 2026-11-17)
     m.binder.teardown()
   })
 
   it('⛔ CONTROL — both labels placeable ⇒ nothing counted', () => {
     const m = mount(SRC('time'))
     expect(m.layers.filter(Boolean).pop().labels).toHaveLength(2)
-    expect(objectRenderDropsFor(m.id)).toBe(null)
+    expect(objectRenderDropsFor(m.id)).toEqual({ dropped: 0, held: 2, servedByRun: true })   // a run's serve is recorded (servedByRun, 2026-11-17); nothing is counted
     m.binder.teardown()
   })
 })

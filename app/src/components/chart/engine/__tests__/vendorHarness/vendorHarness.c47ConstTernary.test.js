@@ -150,7 +150,7 @@ describe('⛔ C47 — what a constant test does NOT fold', () => {
 })
 
 describe('C47 — volume-profile: past the dead arm, onto its next wall (by name)', () => {
-  it('the runtime lane no longer stops at `chart.left_visible_bar_time`@146; it stops at `ta.highest(lookback_bars)`@154', () => {
+  it('the runtime lane no longer stops at `chart.left_visible_bar_time`@146, nor (W4-T2) at `ta.highest(lookback_bars)`@154', () => {
     const cap = capture(VP)
     const built = buildRuntimeIr(cap.source.text, {
       bars: toProductBars(cap), inputs: {}, pane: true, basePeriod: 'D', tf: 'D', ...runtimeClockOpts(false, { tf: 'D' }),
@@ -160,8 +160,12 @@ describe('C47 — volume-profile: past the dead arm, onto its next wall (by name
     // length, given 1". The one-argument form now fills `high` (`PINE_SHORT_FORM`, the
     // columnar lane's measured default) and gets the explicit spelling's answer: the
     // length is a `var`, so the ring cannot be sized before bar 0. Same line, true wall.
-    expect(built.refusal.guard).toBe('runtime:history-dynamic-offset')
-    expect(built.refusal.line).toBe(154)
+    // ⭐ W4-T2 (2026-11-03): that `var` is never reassigned and its initialiser folds
+    // (the dead arm gone, C47), so it is `simple` and sizes the window
+    // (`w4SimpleFolding.test.js`). This build passes no drawing owner, so it now stops
+    // at the first `line.new`, by name.
+    expect(built.refusal.guard).toBe('runtime:object-op')
+    expect(built.refusal.line).toBe(236)
   }, 60000)
 
   it('⛔ with the member\'s knob ON it is `pine:builtin`@146 again — the arm they asked for', () => {
@@ -175,7 +179,9 @@ describe('C47 — volume-profile: past the dead arm, onto its next wall (by name
     expect(built.refusal.line).toBe(146)
   }, 60000)
 
-  it('⛔ graded: lines 203 / 0 (the 200 held lines withheld), DIVERGE, the run not started', () => {
+  // ⭐ OZ RE-PIN (2026-11-09): with nothing of the family drawn, the lines are withheld BY
+  // NAME (`objects:not-carried`): INCONCLUSIVE, where a bare 203 / 0 read as a DIVERGE.
+  it('⛔ graded: lines 203 / withheld by name (the 200 held lines withheld), INCONCLUSIVE, the run not started', () => {
     vi.stubEnv('VITE_PINE_OBJECTS_ONLY_PANE_ENABLED', '1')
     const cap = capture(VP)
     const { verdict, integrity } = gradeCapture(cap)
@@ -183,8 +189,10 @@ describe('C47 — volume-profile: past the dead arm, onto its next wall (by name
     const counts = Object.fromEntries(verdict.objects.counts.map((c) => [c.family, [c.vendor, c.ours]]))
     // wave 12 (C45, integrator ruling): the 200 lines were HELD at their creation point (bar 0,
     // first close) with every later move lost - a position-unknown object. They are withheld now.
-    expect(counts.lines).toEqual([203, 0])
-    expect(verdict.objects.verdict).toBe('DIVERGE')
+    expect(counts.lines).toEqual([203, null])
+    expect(verdict.objects.counts.find((c) => c.family === 'lines').withheld).toBe(true)
+    expect(verdict.objects.verdict).toBe('INCONCLUSIVE')
+    expect(verdict.objects.withheld).toBe('objects:not-carried')
     const d = memberPaneDefinition({ source: cap.source.text, id: 'u_c47_vp', name: 'c47' })
     expect(d.ok, d.reason).toBe(true)
     expect(d.translation.objectDiagnostics.runtimeRefused).toBe('runtime:history-dynamic-offset')

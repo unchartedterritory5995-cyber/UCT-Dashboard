@@ -103,8 +103,9 @@ const DRAWN = new Map()
 function drawnUncached(source, bars, symbol) {
   const built = paneDef(source)
   const reader = objectReaderFor(built.definition, bars, { inputs: undefined, tf: 'D', symbol })
+  // ⭐ Engine 52 (review M6): `readUnknown` as production passes it (`binder.js`)
   const run = evaluateObjects(reader.program, {
-    barCount: bars.length, readNode: reader.readNode, readTime: (i) => bars[i].t,
+    barCount: bars.length, readNode: reader.readNode, readUnknown: reader.readUnknown, readTime: (i) => bars[i].t,
   })
   const state = toRenderState(run.live, { bars })
   const root = doc.createElement('div')
@@ -161,10 +162,20 @@ describe.each([SPY, AGEN])('⭐⭐ $label — every drawn cell against the captu
     expect(reader.failed, 'an object tree refused — the cells below would be NaN').toEqual([])
   })
 
-  it('⭐⭐ FOUR CELLS DRAWN, exactly the count the vendor drew', () => {
-    expect(stats).toEqual({ tables: 2, cells: 4, skipped: 0 })
-    expect(volume.cells).toHaveLength(vVolume.length)
-    expect(range.cells).toHaveLength(vRange.length)
+  it('⭐⭐ THREE CELLS DRAWN — the Range table\'s three; the Volume table is WITHHELD by name', () => {
+    // ⛔⛔ ENGINE 51 — THE VOLUME TABLE IS WITHHELD BY NAME. Its position is
+    // `f_getTablePos(hasRecentHV ? 'Top Center' : volTablePosition)`, chosen per bar
+    // off a condition this door cannot fold, so it used to be DROPPED and drawn at
+    // the renderer's `top_right` — right only while no HV event is recent, which
+    // is what both captures happen to show. An enum slot this door cannot read now
+    // withholds its drawing (`enum:unreadable`, `table@490`), never a default corner.
+    // ⛔⛔ ENGINE 52 — STOP ITEM (reported, coordinator to rule): the ATRx cell's `text_color` is `atrMultColor`, a default reassigned in an `if` from a choice on a block local (`absMult <= 7 ? color.white : …`), which no reader follows; under "never drawn at the default" the cell is WITHHELD by name (`pine:prop-unreadable`). Its TEXT was byte-identical to TradingView (the capture records text, not colour), so this moves the capture's drawn cells 3 -> 2.
+    expect(stats).toEqual({ tables: 1, cells: 2, skipped: 0 })
+    expect(volume).toBeUndefined()
+    expect(vVolume).toHaveLength(1)
+    expect(range.cells).toHaveLength(vRange.length - 1)
+    expect(built.translation.objectDiagnostics.withheldPropNames).toContain('cell.text_color@576')
+    expect(built.translation.objectDiagnostics.createDropWhy.some((w) => w.startsWith('create table@490 position: pine:enum-unreadable'))).toBe(true)
   })
 
   it('⛔⛔ THE TWO TOGGLED-OFF CELLS ARE ABSENT FROM THE DOM, not present-and-empty', () => {
@@ -173,7 +184,7 @@ describe.each([SPY, AGEN])('⭐⭐ $label — every drawn cell against the captu
     // cell RUNS and its text folds to `''`, and an empty cell is not drawn.
     // ⛔ Stated as an absence over the whole layer, which is the assertion the
     // ruling asked for: a blank `<td>` would satisfy a count and lie on the pane.
-    const all = [...range.cells, ...volume.cells]
+    const all = [...range.cells]
     expect(all.some((c) => c === '')).toBe(false)
     expect(all.some((c) => c.includes('DCR'))).toBe(false)
     expect(all.some((c) => c.includes('AVol'))).toBe(false)
@@ -183,14 +194,16 @@ describe.each([SPY, AGEN])('⭐⭐ $label — every drawn cell against the captu
     // The literals, the separators, the `$`, the `%`, the `x`, the unit suffix,
     // the parentheses — and the number of decimal places each float was
     // formatted to. Everything except the digits themselves.
-    expect(range.cells.map(shapeOf)).toEqual(vRange.map(shapeOf))
-    expect(volume.cells.map(shapeOf)).toEqual(vVolume.map(shapeOf))
+    // (engine 52 STOP item: the ATRx cell is withheld, see the count case above)
+    expect(range.cells.map(shapeOf)).toEqual(vRange.slice(0, 2).map(shapeOf))
+    // (the Volume table is withheld by name — engine 51, see the count case above)
+    expect(volume).toBeUndefined()
   })
 
-  it('⭐⭐ THE TRAILING SPACE ON THE VOL CELL SURVIVES — the one a screenshot loses', () => {
+  it('⭐ the vendor\'s VOL cell has its trailing space; ours is withheld whole (engine 51), never a cell without one', () => {
     const vendorCell = CASE.vendor.tables.volume_table.cells[0]
     expect(vendorCell.trailing_space).toBe(true)
-    expect(volume.cells[0].endsWith(' ')).toBe(true)
+    expect(volume).toBeUndefined()
     // ⛔ AND NOTHING ELSE PICKED ONE UP. Only the cell the author put it on.
     expect(range.cells.some((c) => c.endsWith(' '))).toBe(false)
     expect(vRange.every((c) => !c.endsWith(' '))).toBe(true)
@@ -199,14 +212,14 @@ describe.each([SPY, AGEN])('⭐⭐ $label — every drawn cell against the captu
   it('⭐ the tables are in the corners the capture records', () => {
     const want = (s) => s.toLowerCase().replace(/\s+/g, '_')
     expect(range.position).toBe(want(CASE.vendor.tables.range_table.position_input))
-    // ⚠️ The Volume table's position is a RUNTIME choice this door cannot fold
-    // (`hasRecentHV ? 'Top Center' : volTablePosition`), so it falls back to
-    // Pine's `top_right` — which is where the vendor draws it. Named in step 6's
-    // `droppedPropNames` as `table.position@490`; asserted here as the fallback
-    // it is, not as a resolution it is not.
-    expect(volume.position).toBe('top_right')
-    expect(built.translation.objectDiagnostics.droppedPropNames)
-      .toContain('table.position@490')
+    // ⛔⛔ ENGINE 51 — THE VOLUME TABLE IS WITHHELD BY NAME. Its position is
+    // `f_getTablePos(hasRecentHV ? 'Top Center' : volTablePosition)`, chosen per bar
+    // off a condition this door cannot fold, so it used to be DROPPED and drawn at
+    // the renderer's `top_right` — right only while no HV event is recent, which
+    // is what both captures happen to show. An enum slot this door cannot read now
+    // withholds its drawing (`enum:unreadable`, `table@490`), never a default corner.
+    expect(volume).toBeUndefined()
+    expect(built.translation.objectDiagnostics.createDropWhy.some((w) => w.startsWith('create table@490 position: pine:enum-unreadable'))).toBe(true)
   })
 })
 
@@ -227,13 +240,20 @@ describe('⭐⭐ SPY — the numbers, each one named', () => {
   it('⭐⭐ THE THREE RANGE CELLS ARE BYTE-IDENTICAL TO TRADINGVIEW', () => {
     // ATR(14), the day's range as a percentage of it, and the extension from the
     // 50 SMA in ATRs. All three are windowed, so 1,400 bars and 8,458 bars agree.
-    expect(range.cells).toEqual(vRange)
+    // ⛔⛔ ENGINE 52 — STOP ITEM (reported, coordinator to rule): the ATRx cell's `text_color` is `atrMultColor`, a default reassigned in an `if` from a choice on a block local (`absMult <= 7 ? color.white : …`), which no reader follows; under "never drawn at the default" the cell is WITHHELD by name (`pine:prop-unreadable`). Its TEXT was byte-identical to TradingView (the capture records text, not colour), so this moves the capture's drawn cells 3 -> 2.
+    expect(range.cells).toEqual(vRange.slice(0, 2))
+    expect(vRange[2]).toBe('| ATRx: 0.92')
     expect(range.cells).toEqual([
-      'ATR : $6.21 (0.81%)', '| Range: 137.58%', '| ATRx: 0.92',
+      'ATR : $6.21 (0.81%)', '| Range: 137.58%',
     ])
   })
 
-  it('⚠️ the VOL cell agrees on the multiplier and DISAGREES on the volume, by 0.07%', () => {
+  it('⚠️ the vendor\'s VOL cell is pinned; ours is withheld by name (engine 51)', () => {
+    expect(volume).toBeUndefined()
+    expect(vVolume[0]).toBe('Vol : 45.51M (1.05x) ')
+  })
+
+  it.skip('⚠️ [engine 51: the Volume table is withheld] the VOL cell agrees on the multiplier and DISAGREES on the volume, by 0.07%', () => {
     // ⛔ THE FIELDS ARE SPLIT BECAUSE THE CAUSES ARE DIFFERENT. `1.05x` is a
     // ratio of two of our own numbers and matches exactly, which is our side's
     // arithmetic agreeing. `45.48M` against `45.51M` is a disagreement about the
@@ -261,7 +281,12 @@ describe('⭐ AGEN — the second symbol, the same four shapes', () => {
   const range = tables.find((t) => t.cells.some((c) => c.includes('ATR') || c.includes('ADR')))
   const volume = tables.find((t) => t.cells.some((c) => c.includes('Vol :')))
 
-  it('⭐ the unit suffix follows the MAGNITUDE, which is the tuple helper working', () => {
+  it('⭐ the vendor reads a K suffix on AGEN; ours withholds the Volume table by name (engine 51)', () => {
+    expect(volume).toBeUndefined()
+    expect(vendorCells(AGEN.vendor, 'volume_table')[0]).toMatch(/K \(/)
+  })
+
+  it.skip('⭐ [engine 51: the Volume table is withheld] the unit suffix follows the MAGNITUDE, which is the tuple helper working', () => {
     // ⭐ SPY's volume is in the hundred-millions and AGEN's in the hundred-
     // thousands, so `f_getVolumeUnit`'s four-arm chain has to answer differently
     // for the two — which is what makes the second symbol worth driving rather
@@ -272,10 +297,10 @@ describe('⭐ AGEN — the second symbol, the same four shapes', () => {
   })
 
   it('⭐ and the Range table still reads three cells in the ATR vocabulary', () => {
-    expect(range.cells).toHaveLength(3)
+    // (engine 52 STOP item: the ATRx cell is withheld by name)
+    expect(range.cells).toHaveLength(2)
     expect(range.cells[0]).toMatch(/^ATR : \$\d/)
     expect(range.cells[1]).toMatch(/^\| Range: /)
-    expect(range.cells[2]).toMatch(/^\| ATRx: /)
   })
 })
 
@@ -309,27 +334,29 @@ describe('⭐⭐ toggles ON — the same script draws SIX cells', () => {
     expect(moved).toHaveLength(2)
   })
 
-  it('⭐⭐ and it draws SIX cells — the two the defaults suppressed, now present', { timeout: 120_000 }, () => {
+  it('⭐⭐ and it draws the DCR cell the default suppressed; the AVol cell goes with its withheld table (engine 51)', { timeout: 120_000 }, () => {
     const { stats, tables } = drawn(ON, forTables(SPY.bars), SPY.symbol)
-    expect(stats).toEqual({ tables: 2, cells: 6, skipped: 0 })
+    // engine 51: the Volume table (and its AVol cell) is withheld by name, so the
+    // Range table draws its four (the DCR cell now present) and nothing else
+    // (engine 52 STOP item: the ATRx cell is withheld by name; the DCR cell's colour is now read)
+    expect(stats).toEqual({ tables: 1, cells: 3, skipped: 0 })
     const all = tables.flatMap((t) => t.cells)
     const avol = all.find((c) => c.startsWith('| AVol : '))
     const dcr = all.find((c) => c.startsWith('| DCR: '))
-    expect(avol).toBeTruthy()
+    expect(avol).toBeUndefined()
     expect(dcr).toBeTruthy()
     // ⭐⭐ THE TWO CELLS NOBODY HAD EVER SEEN DRAWN, AND EACH CARRIES ITS OWN
     // FORMAT. `AVol` is `str.tostring(…, '0.00')` plus a unit and a TRAILING
     // SPACE of its own — the same convention as the Vol cell beside it, and the
     // same one the `#` family would have trimmed. `DCR` is `'#.##'`.
     // Measured in the browser on SPY 1W: `| AVol : 327.70M ` and `| DCR: 0.59`.
-    expect(avol).toMatch(/^\| AVol : \d+\.\d\d[BMK]? $/)
-    expect(avol.endsWith(' ')).toBe(true)
     expect(dcr).toMatch(/^\| DCR: \d+(\.\d{1,2})?$/)
     // ⛔ AND THE FOUR THAT WERE ALREADY THERE ARE UNCHANGED — a toggle that also
     // moved a number would be a different bug wearing this one's clothes.
     const range = tables.find((t) => t.cells.some((c) => c.includes('ATR')))
-    expect(range.cells.slice(0, 3)).toEqual([
-      'ATR : $6.21 (0.81%)', '| Range: 137.58%', '| ATRx: 0.92',
+    // (engine 52 STOP item: the ATRx cell is withheld by name)
+    expect(range.cells.slice(0, 2)).toEqual([
+      'ATR : $6.21 (0.81%)', '| Range: 137.58%',
     ])
   })
 

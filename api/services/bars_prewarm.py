@@ -12,6 +12,31 @@ import time as _time
 
 _log = logging.getLogger(__name__)
 
+# ── Always-warmed priority tickers ───────────────────────────────────────────
+# The head of every warm list (D/W/M, 60/30/15, 5m, 1m): the broad-market ETFs
+# and the mega-caps users open first. Module-level so a test can read it
+# without running the loop.
+#
+# ⭐ UCT RELATIVE STRENGTH BENCHMARKS RIDE ALONG (plan §4 row "cap_universe.json"
+# and §17 item 7: "RSP added to the bars prewarm priority set"). The RS lane
+# (`api/routers/signature.py::_fetch_bars_for_tf`) reads benchmark bars from
+# bars.db ONLY — no on-demand fetch — so a benchmark the warm never touched
+# draws nothing. cap_universe.json is an equity screen: RSP and four of the
+# eleven SPDR sector ETFs (XLY, XLP, XLU, XLB) are absent from it, measured
+# 2026-11-05. DERIVED from `rs_benchmarks`, never re-typed, so the resolver
+# and the warm cannot drift apart.
+from api.services import rs_benchmarks as _rs_benchmarks
+
+RS_BENCHMARK_TICKERS: tuple = tuple(dict.fromkeys(
+    [t.upper() for t in _rs_benchmarks.LITERAL_BENCHMARKS]
+    + [t.upper() for t in _rs_benchmarks.SECTOR_ETF.values()]))
+
+_CORE_PRIORITY = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
+                  'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
+                  'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER']
+PRIORITY_TICKERS: list = _CORE_PRIORITY + [
+    t for t in RS_BENCHMARK_TICKERS if t not in set(_CORE_PRIORITY)]
+
 
 # ── Prewarmer liveness heartbeat ─────────────────────────────────────────────
 # The prewarmer is the sole thing keeping the worker's bars.db warm. It ran for
@@ -43,6 +68,23 @@ _PREWARM_FRESH_STATE = {
     "last_error": None,
 }
 _PREWARM_STATE = dict(_PREWARM_FRESH_STATE)
+
+
+#: The ACTIVE intraday set the newest prewarm pass computed (priority + breadth drill lists +
+#: watchlists/tags/UCT20/candidates/themes): the symbols whose 1m the prewarm keeps current. None
+#: until a pass has computed it. Read by the first-frame seed's long-tail 1m retention
+#: (`ffseed_onemin.retention`), which never trims these and trims NOTHING while this is None.
+_ACTIVE_INTRADAY: "frozenset | None" = None
+
+
+def _publish_active_intraday(symbols) -> None:
+    global _ACTIVE_INTRADAY
+    _ACTIVE_INTRADAY = frozenset(str(s).upper() for s in symbols if s)
+
+
+def active_intraday_set() -> "frozenset | None":
+    """The active intraday set of the newest prewarm pass, or None before the first one."""
+    return _ACTIVE_INTRADAY
 
 
 def _reset_prewarm_state() -> None:
@@ -670,9 +712,7 @@ def run_prewarmer_forever():
         except Exception:
             pass
     tickers = set()
-    tickers.update(['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
-                    'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
-                    'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER'])
+    tickers.update(PRIORITY_TICKERS)   # same list as `_PRIORITY` below (incl. RS benchmarks)
     try:
         from api.services.cache import cache
         wd = cache.get("wire_data")
@@ -775,9 +815,9 @@ def run_prewarmer_forever():
     except Exception:
         pass
     tickers.discard('')
-    _PRIORITY = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
-                  'AMZN', 'META', 'GOOGL', 'AMD', 'AVGO', 'SMCI', 'PLTR', 'ARM',
-                  'COIN', 'MSTR', 'HOOD', 'ANET', 'NFLX', 'CRM', 'ORCL', 'UBER']
+    # Module-level so tests can pin it; carries the UCT RS benchmarks (RSP + the
+    # SPDR sector ETFs) per plan §4 / §17.7 — see `PRIORITY_TICKERS` above.
+    _PRIORITY = list(PRIORITY_TICKERS)
     priority_set = set(_PRIORITY)
     _FAST_PATH: list[str] = []
     try:
@@ -844,12 +884,14 @@ def run_prewarmer_forever():
         _PRIORITY + _FAST_PATH
         + sorted(_active - priority_set - fast_path_set)
     )
+    _publish_active_intraday(_active_intraday)
     print(f"[prewarm] Order: {len(_PRIORITY)} priority + {len(_FAST_PATH)} breadth-list + {len(rest)} long-tail = {len(ticker_list)} tickers")
     print(f"[prewarm] Active intraday set: {len(_active_intraday)} tickers "
           f"(scoped to breadth/watchlist/UCT20/candidates/themes; "
           f"cap_universe long tail = on-demand intraday only)")
     from concurrent.futures import ThreadPoolExecutor as _PrewarmTPE
     from api.routers.bars import _get_bars_inner, _needs_fresh
+    from api.services.bars_fetch import set_background_caller as _set_background_caller
     from api.services import bars_sqlite as _sqlite
     # Prewarmer runs on the DEDICATED worker (USE_REMOTE_BARS=1 gates it
     # off on web). Proactive 5-TF intraday warming is scoped to the
@@ -939,6 +981,9 @@ def run_prewarmer_forever():
         _PREWARM_WORKERS = 2
     def _warm_one(args):
         sym, tf, bar_count = args
+        # Background caller: the D/W/M delta pool counts it against the warm share,
+        # so the prewarm can never hold the slots a member's click needs (N1).
+        _set_background_caller(True)
         try:
             last_ts = _sqlite.get_last_ts(sym.upper(), tf)
             # Settled D/W/M outside the data window: provably nothing to fetch.
@@ -950,6 +995,8 @@ def run_prewarmer_forever():
             return ('warmed', sym, tf)
         except Exception:
             pass
+        finally:
+            _set_background_caller(False)
         return ('failed', sym, tf)
     jobs = []
     for sym in ticker_list: jobs.append((sym, 'D', 5000))

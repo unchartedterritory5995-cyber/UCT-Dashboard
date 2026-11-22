@@ -28,7 +28,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { render, screen, cleanup, within, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, afterEach, beforeAll } from 'vitest'
 
 import FormulaReference from './FormulaReference'
 
@@ -51,6 +51,67 @@ describe('🔴 the page is wired into the app', () => {
     // Without this the regex above could be satisfied by any string in the file,
     // and a typo'd path would read as "wired".
     expect(APP_SRC).not.toMatch(/<Route\s+path="\/formulas\/not-a-reference"/)
+  })
+})
+
+// ⛔ THE SECTION'S MODULE IS LOADED BEFORE ANY TEST WAITS FOR IT (2026-11-20). The page loads it lazily
+// (`FormulaReference.jsx`: `lazy(() => import('./PineNamesSection'))`), and that first load is the engine's
+// refusal families and everything they import: 9.1 s measured on the dev PC, and more than this file's old
+// 45 s wait on a saturated CI runner (red on #2107, #2108 and a third PR the same night). A wait that races a
+// module load measures the runner, not the page. Loaded here once, with its own allowance; the waits below then
+// measure the section rendering and nothing else, at the suite's ordinary 4 s.
+const SECTION_MODULE = './PineNamesSection'
+const PAGE_SRC = fs.readFileSync(path.resolve(process.cwd(), 'src/pages/formulas/FormulaReference.jsx'), 'utf8')
+
+describe('TradingView (Pine) names on the reference page', () => {
+  beforeAll(async () => { await import('./PineNamesSection') }, 300_000)
+  const open = () => render(
+    <MemoryRouter><FormulaReference /></MemoryRouter>)
+
+  it('the module loaded ahead of the tests is the one the page loads lazily', () => {
+    // (so a section moved to another file fails HERE, by name, instead of bringing the race back)
+    expect(PAGE_SRC).toContain(`lazy(() => import('${SECTION_MODULE}'))`)
+  })
+
+  it('the section is there and closed until asked for, so the page loads nothing extra', () => {
+    open()
+    expect(screen.getByRole('heading', { name: 'TradingView names' })).toBeInTheDocument()
+    expect(screen.getByTestId('pine-open')).toHaveTextContent('Show TradingView names')
+    expect(screen.queryByTestId('pine-names')).toBeNull()
+  })
+
+  it('opened, a Pine author finds ta.rsi and reads that it runs, and how', async () => {
+    open()
+    fireEvent.click(screen.getByTestId('pine-open'))
+    const section = await screen.findByTestId('pine-names')
+    expect(within(section).getByTestId('pine-count')).toHaveTextContent(/^\d+ of \d+ TradingView names run$/)
+    const row = section.querySelector('[data-pine="ta.rsi"]')
+    expect(row).not.toBeNull()
+    expect(row).toHaveAttribute('data-status', 'reachable')
+    expect(row).toHaveTextContent(/Runs as ta\.rsi\(/)
+  })
+
+  it('request.security says not yet and why, in plain words, never a guard id', async () => {
+    open()
+    fireEvent.click(screen.getByTestId('pine-open'))
+    const section = await screen.findByTestId('pine-names')
+    const row = section.querySelector('[data-pine="request.security"]')
+    expect(row).toHaveTextContent(/^request\.securityNot yet: data from another symbol or timeframe$/)
+    expect(section.textContent).not.toMatch(/pine:[a-z-]+|runtime:[a-z-]+/)
+    expect(section.textContent).not.toMatch(/\b(Valid|Supported|Verified|Converted)\b/)
+  })
+
+  it("the page's one search box filters the section, and the button says what it will look for", async () => {
+    open()
+    fireEvent.change(screen.getByTestId('reference-search'), { target: { value: 'request.' } })
+    expect(screen.getByTestId('pine-open')).toHaveTextContent('Look for “request.” in TradingView names')
+    fireEvent.click(screen.getByTestId('pine-open'))
+    const section = await screen.findByTestId('pine-names')
+    const rows = [...section.querySelectorAll('[data-pine]')].map((el) => el.getAttribute('data-pine'))
+    expect(rows.length).toBeGreaterThan(0)
+    expect(rows.every((n) => n.includes('request.'))).toBe(true)
+    fireEvent.change(screen.getByTestId('reference-search'), { target: { value: 'zzzz-no-such' } })
+    await waitFor(() => expect(within(section).getByTestId('pine-empty')).toBeInTheDocument())
   })
 })
 
@@ -88,7 +149,9 @@ describe('what the page may never tell a member', () => {
     await waitFor(() => {
       const gone = document.querySelector('[data-excluded="obv"]')
       expect(gone).toBeTruthy()
-      expect(gone.textContent).toMatch(/CUMULATIVE/)
+      // the reason in a member's words (`memberReason.js`), never the engine's own note
+      expect(gone.textContent).toMatch(/running total from the first bar of history/)
+      expect(gone.textContent).not.toMatch(/CUMULATIVE|ABSOLUTE SEED/)
     })
     // ⭐ AND THE BOUNDED FORM WE DO HAVE IS IN THE SAME ANSWER, so the member
     // leaves with something to write rather than only with a refusal.

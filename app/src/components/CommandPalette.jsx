@@ -25,7 +25,10 @@ import {
   NOTEBOOK_DOORS, NOTEBOOK_LIST_TO, NOTEBOOK_PREP_FLAG, NOTEBOOK_PREP_TO, NOTEBOOK_TEMPLATES_TO,
   noteOpenAt, openNotebookDoor,
 } from '../pages/journal-2-0/lib/notebookDoors'
+import { NOTEBOOK_TODAY_TO } from '../pages/journal-2-0/lib/dailyBriefLink'
 import { SETUPS_BOARD_PATH, setupsBoardEnabled } from '../pages/journal-2-0/lib/setupsBoardLink'
+import { CHARTS_PATH, INDICATOR_DOORS, requestIndicatorDoor } from './indicatorKit/indicatorDoors'
+import { useCreateIndicatorAccess } from './chart/builder/studio/createIndicatorFlag'
 import styles from './CommandPalette.module.css'
 
 const TICKER_LIKE = /^[A-Z0-9.\-]{1,10}$/
@@ -51,10 +54,8 @@ const phraseStart = (...phrases) => (q) => q.length >= KEYS3_MIN_CHARS && phrase
 const NOTEBOOK_COMMANDS = [
   { id: 'nb-new', kind: 'command', label: 'New Note', icon: 'document',
     to: '/journal/notebook?new=blank', keywords: ['note', 'notebook', 'new', 'create'] },
-  // Wave H checkpoint decision 28: bare `/journal/notebook` now renders
-  // Research Home (checkpoint decision 33) -- this command already IS
-  // "Open Research Home" by construction, so it gets Home's own keywords
-  // rather than a second, redundant command pointing at the identical route.
+  // Bare `/journal/notebook` opens the notes list (Notebook simplify, Task 5; Research Home, which it used to open,
+  // was deleted in go-live wave 1), so this command is "open the notes list" by construction.
   { id: 'nb-open', kind: 'command', label: 'Open Notebook', icon: 'library',
     to: '/journal/notebook', keywords: ['notebook', 'note', 'research', 'open', 'home'] },
   // Lane KEYS: this used to open the Notebook and stop, search panel closed. The hash is the
@@ -99,24 +100,69 @@ const NOTEBOOK_COMMANDS = [
     action: 'door', door: NOTEBOOK_DOORS.ASK, keywords: [],
     match: phraseStart('ask about this note', 'ask this note', 'ask note'),
     when: ({ location }) => noteOpenAt(location) },
-  // Q2: the New note sheet (the template picker), which Research Home has no door to.
+  // Q2: the New note sheet (the template picker), straight from the palette.
   { id: 'nb-templates', kind: 'command', label: 'New note from a template', icon: 'document',
     to: NOTEBOOK_TEMPLATES_TO, keywords: [],
     match: phraseStart('new note from a template', 'note from a template', 'from a template', 'templates') },
-  // Q11: the notes list ("Open Notebook" above is Research Home). Focus lands on its heading.
+  // Q11: the notes list with every filter cleared (`view=all`; "Open Notebook" above opens the list as it was left).
+  // Focus lands on its heading.
   { id: 'nb-all-notes', kind: 'command', label: 'All notes', icon: 'library',
     to: NOTEBOOK_LIST_TO, keywords: [],
     match: phraseStart('all notes', 'notes list') },
-  // Q15: "Reporting soon" on Research Home, focus on the first name's prep button.
+  // Follow-up B, item 1b: the Daily brief itself (`?view=today`), from anywhere. Before this its only doors were the
+  // Notebook's folders panel (three presses on a phone) and the prep entry below. Six characters, like its neighbours.
+  { id: 'nb-daily-brief', kind: 'command', label: 'Daily brief', icon: 'calendar',
+    to: NOTEBOOK_TODAY_TO, keywords: [],
+    match: phraseStart('daily brief', "today's brief", 'today brief') },
+  // Q15: "Reporting soon" on the Daily brief (`?view=today#prep` unfolds it), focus on the first name's prep button.
   { id: 'nb-earnings-prep', kind: 'command', label: 'Earnings prep: reporting soon', icon: 'document',
     to: NOTEBOOK_PREP_TO, keywords: [],
     match: phraseStart('earnings prep', 'reporting soon', 'prep note'),
     when: () => notebookFlag(NOTEBOOK_PREP_FLAG) === true },
   // Q23: the active setups board, a plain route. Its link on Research Home is 9 Tab stops in.
-  { id: 'nb-active-setups', kind: 'command', label: 'Active setups', icon: 'library',
+  { id: 'nb-active-setups', kind: 'command', label: 'Setups', icon: 'library',
     to: SETUPS_BOARD_PATH, keywords: [],
     match: phraseStart('active setups', 'setups board', 'setups'),
     when: () => setupsBoardEnabled() },
+]
+// ⭐ INDICATORS (plan docs/pine/studio/STUDIO-TRACK-PLAN.md section 6, lane P1). Every job a
+// member does with an indicator, by its member name, from anywhere. Each row opens a door
+// that ALREADY exists: a chart door through `indicatorDoors.js` (the charts page opens it on
+// the chart the member is on), or a route. Same six-character rule as the Notebook commands,
+// so none of them can sit above a ticker and take its Enter.
+export const INDICATOR_COMMANDS = [
+  { id: 'ind-add', kind: 'command', label: 'Add an indicator', icon: 'library',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.LIBRARY, keywords: [],
+    match: phraseStart('add an indicator', 'add indicator', 'indicators', 'indicator', 'my indicators') },
+  { id: 'ind-describe', kind: 'command', label: 'Describe an indicator', icon: 'sparkle',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.DESCRIBE, keywords: [],
+    match: phraseStart('describe an indicator', 'describe indicator', 'create an indicator', 'create indicator',
+      'new indicator', 'build an indicator', 'build indicator'),
+    // Offered only where the door would open: the same rule the chart's own button uses.
+    when: ({ createIndicatorOn }) => createIndicatorOn === true },
+  { id: 'ind-paste', kind: 'command', label: 'Paste a TradingView script', icon: 'document',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.PASTE, keywords: [],
+    match: phraseStart('paste a tradingview script', 'paste a script', 'paste script', 'tradingview script',
+      'tradingview', 'pine script', 'import a script', 'import script', 'import an indicator') },
+  { id: 'ind-formula', kind: 'command', label: 'Write a formula', icon: 'document',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.FORMULA, keywords: [],
+    match: phraseStart('write a formula', 'new formula', 'formula') },
+  { id: 'ind-picture', kind: 'command', label: 'Start an indicator from a picture', icon: 'document',
+    action: 'indicatorDoor', door: INDICATOR_DOORS.PICTURE, keywords: [],
+    match: phraseStart('start an indicator from a picture', 'indicator from a picture', 'from a picture',
+      'from a screenshot', 'screenshot') },
+  { id: 'ind-reference', kind: 'command', label: 'Look up a function', icon: 'search',
+    to: '/formulas/reference', keywords: [],
+    match: phraseStart('look up a function', 'lookup a function', 'function reference', 'formula reference',
+      'reference') },
+  { id: 'ind-library', kind: 'command', label: "Browse members' indicators", icon: 'library',
+    to: '/formulas/library', keywords: [],
+    match: phraseStart("browse members' indicators", 'browse members indicators', 'browse indicators',
+      "members' indicators", 'members indicators', 'indicator library', 'community indicators') },
+  { id: 'ind-run', kind: 'command', label: 'Run an indicator over a list', icon: 'search',
+    to: '/screener', keywords: [],
+    match: phraseStart('run an indicator over a list', 'run an indicator', 'run over a list', 'over a list',
+      'scan a list') },
 ]
 // Natural-terminology matching (§14): a 2-character floor avoids a bare
 // letter matching half the keyword list, and `.includes()` (not an exact
@@ -149,7 +195,7 @@ function rowAriaLabel(r) {
     const found = r.inText ? `, found in note text` : ''
     return `Note: ${r.title}${found}${where}${badge}. Enter to open.`
   }
-  return `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask AI.`
+  return `${r.ticker}${r.name ? ` — ${r.name}` : ''}. Enter for Research, Ctrl or Cmd Enter for Ask the UCT Agent.`
 }
 
 /**
@@ -199,6 +245,8 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
   // Notes are left to the quick switcher above, which already searches titles.
   // useContext, not useAuth(): the palette must render (flag off) outside a provider.
   const addressSpaceEnabled = useContext(AuthContext)?.addressSpaceEnabled === true
+  // The chart's own rule for who may open Create Indicator (admin review, or the server's cohort).
+  const createIndicatorOn = useCreateIndicatorAccess(useContext(AuthContext))
   const [savedRows, setSavedRows] = useState([])
   const [savedFor, setSavedFor] = useState(null)
   const [savedError, setSavedError] = useState(false)
@@ -450,9 +498,10 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
 
   const notebookCommandRows = useMemo(() => {
     if (isHelp || !qLower) return []
-    return NOTEBOOK_COMMANDS.filter((cmd) => commandMatches(cmd, qLower, { location }))
+    const ctx = { location, createIndicatorOn }
+    return [...NOTEBOOK_COMMANDS, ...INDICATOR_COMMANDS].filter((cmd) => commandMatches(cmd, qLower, ctx))
       .map((cmd) => ({ kind: 'command', ...cmd }))
-  }, [isHelp, qLower, location])
+  }, [isHelp, qLower, location, createIndicatorOn])
 
   const notebookNoteRows = useMemo(() => {
     if (isHelp || !wantsNoteRows) return []
@@ -555,6 +604,27 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         openCapture(destination ? { source: 'palette', destination }
                                 : { source: 'palette' })
         close()
+        return
+      }
+      if (row.action === 'indicatorDoor') {
+        // The chart opens its own door. The request is PARKED, so a chart that mounts after a
+        // navigation still takes it.
+        const door = row.door
+        const onCharts = String(location?.pathname || '').startsWith(CHARTS_PATH)
+        if (!onCharts) {
+          // From another page: park the request, then navigate IN THIS TICK, exactly as a route
+          // command does. ⚰️ It was deferred with the request, and from the Screener that left
+          // the address at `/screener?s=...` with Charts on screen (measured on production,
+          // 2026-11-16): the page being left wrote its own address after a late navigation.
+          requestIndicatorDoor(door)
+          close()
+          navigate(CHARTS_PATH)
+          return
+        }
+        // Already on the charts page: asked after the palette has closed, so focus returns to the
+        // chart's surface and not to this input.
+        close()
+        setTimeout(() => requestIndicatorDoor(door), 0)
         return
       }
       if (row.action === 'door') {
@@ -732,7 +802,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
               <ul>
                 <li><kbd>↑</kbd><kbd>↓</kbd> navigate results</li>
                 <li><kbd>↵</kbd> open the selected note, or the selected or typed symbol&apos;s research page</li>
-                <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI about the selected or typed symbol</li>
+                <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask the UCT Agent about the selected or typed symbol</li>
                 <li><kbd>Esc</kbd> close</li>
                 <li><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>K</kbd> reopen this from anywhere in the Terminal</li>
                 {terminalOpen && <li>Terminal commands work here too: <kbd>NVDA GP</kbd>, <kbd>@B AAPL</kbd>, <kbd>ASK why is SMH down</kbd>. <kbd>`</kbd> jumps to the Terminal command line.</li>}
@@ -831,7 +901,7 @@ const CommandPalette = forwardRef(function CommandPalette(_props, ref) {
         <div className={styles.dialogFoot}>
           <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
           <span><kbd>↵</kbd> open</span>
-          <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask AI</span>
+          <span><kbd>Ctrl</kbd>/<kbd>⌘</kbd><kbd>↵</kbd> ask the UCT Agent</span>
           <span><kbd>Esc</kbd> close</span>
         </div>
       </div>

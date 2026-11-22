@@ -86,7 +86,11 @@ def _read_series(ticker: str, tf: str) -> list[dict]:
     a row under a different primary key than the one it read.
     """
     from api.services import bars_sqlite
-    rows = bars_sqlite.get_bars(ticker.upper(), tf, _MAX_ROWS) or []
+    from api.services import bars_corrections as _cor
+    # ⛔ RAW: this read is rescaled and WRITTEN BACK; through the read door it would bake published corrections into
+    # the rows, where no later ledger version could take them back (bars_corrections.raw_reads).
+    with _cor.raw_reads():
+        rows = bars_sqlite.get_bars(ticker.upper(), tf, _MAX_ROWS) or []
     out: list[dict] = []
     for r in rows:
         out.append({"t": r[0], "o": r[1], "h": r[2], "l": r[3], "c": r[4], "v": r[5]})

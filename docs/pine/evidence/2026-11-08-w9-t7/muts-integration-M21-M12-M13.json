@@ -1,0 +1,20 @@
+{
+ "control": "Tests  91 passed (91)",
+ "results": [
+  {
+   "mutant": "M12 strategy.order routed as an entry",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M13 order overshoot refusal dropped",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  },
+  {
+   "mutant": "M21 B-ORDER never asked at placement",
+   "status": "KILLED",
+   "rail": "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 3 \u23af\u23af\u23af\u23af\u23af\u23af\u23af"
+  }
+ ]
+}

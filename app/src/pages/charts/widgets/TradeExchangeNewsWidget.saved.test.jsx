@@ -111,9 +111,18 @@ describe('the toolbar bookmark switches views inside the same widget', () => {
   it('keeps the feed exactly as left — the same list, its scroll, search and filters — and live under Saved', async () => {
     const { container, out } = mount({ linked: true })
     const list = feedList(container)
-    list.scrollTop = 140
     const search = screen.getByRole('textbox', { name: 'Search headlines' })
     fireEvent.change(search, { target: { value: 'AMD' } })
+    // ⛔ SEARCH, LET IT LAND, THEN SCROLL. The search is debounced (140 ms of real time) and a new
+    // filter starts the list at its top (scrollTop = 0) -- the product's rule. This test used to
+    // scroll FIRST and type second, so it passed only while the rest of it ran inside those 140 ms:
+    // on a busy runner (a 488-file shard, 2026-11-17 runs 44095884634 and 44103326923) the debounce
+    // landed mid-test, put the list back at its top, and the check below read 0. The place the
+    // reader is meant to come back to is the one taken AFTER the filter applied.
+    // the debounced query is in force: its hit is marked in the headline (Linked to NVDA already
+    // hides the rows AMD would drop, so a row disappearing could not show it)
+    await waitFor(() => expect(rowEl(container, 3)?.querySelector('mark')?.textContent).toBe('AMD'))
+    list.scrollTop = 140
     fireEvent.click(toggle())
     await screen.findByLabelText('Saved headlines')
     expect(feedList(container)).toBe(list)                                // hidden, never unmounted

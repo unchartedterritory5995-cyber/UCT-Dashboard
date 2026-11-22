@@ -2,64 +2,347 @@
 // Extracted from StockChart so other consumers (Journal 2.0 markers,
 // overlays, etc.) can produce bar-aligned times without duplicating the
 // logic.
+//
+// ─── CHART TIME (intraday) ──────────────────────────────────────────────────
+// Lightweight Charts labels a numeric time as UTC. Intraday bars are therefore
+// fed as "ET wall clock read as if it were UTC": chartTime = unix + ET offset
+// AT THAT INSTANT (-14400 in EDT, -18000 in EST).
+//
+// ⛔ THE OFFSET IS PER TIMESTAMP, NEVER ONE CONSTANT. Until 2026-11-10 it was
+// captured once at module load, so after the Nov 1 DST change every pre-Nov-1
+// bar was labelled an hour early (and every drawing / marker / replay cutoff
+// rode the same wrong shift). `toChartTime` / `fromChartTime` are the ONLY
+// conversions; every forward shift must have its matching inverse.
+//
+// Monotonic: chart time is strictly increasing in unix time everywhere except
+// the repeated 01:00-02:00 wall hour on the fall-back Sunday, when no US
+// equity session (incl. 04:00-20:00 extended hours) trades. Spring-forward
+// only opens a 1h gap. `barTime.dst.test.js` proves both 2026 transitions.
 
-function computeETOffset() {
-  const now = new Date()
-  const etStr = now.toLocaleString('en-US', { timeZone: 'America/New_York' })
-  const utcStr = now.toLocaleString('en-US', { timeZone: 'UTC' })
-  return (new Date(etStr) - new Date(utcStr)) / 1000
+import { earlyCloseOn } from '../../lib/marketClock/nyseCalendar.js'
+
+const _ET_PARTS = typeof Intl !== 'undefined'
+  ? new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  })
+  : null
+
+// ⭐ ONE ET-DATE FORMATTER (2026-11-19, measured live). `toLocaleDateString('en-CA', { timeZone })`
+// builds a fresh Intl formatter on EVERY call; the per-bar date tests (IDB gap scans, the replay
+// cutoff, the D bucket) paid that thousands of times on a deep 1h ticker switch. Same output:
+// a DateTimeFormat with no component options formats the same numeric date as toLocaleDateString.
+const _ET_DATE_FMT = typeof Intl !== 'undefined'
+  ? new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
+  : null
+
+/** 'YYYY-MM-DD' of unix second `unixSec` in New York — exactly
+ *  `new Date(unixSec * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })`. */
+export function etDateLabel(unixSec) {
+  const d = new Date(unixSec * 1000)
+  return _ET_DATE_FMT ? _ET_DATE_FMT.format(d) : d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
 }
 
-export const ET_OFFSET = computeETOffset()
+// The slow, authoritative read (one Intl call). Whole seconds.
+function _rawEtOffsetSec(sec) {
+  const p = {}
+  for (const x of _ET_PARTS.formatToParts(new Date(sec * 1000))) {
+    if (x.type !== 'literal') p[x.type] = Number(x.value)
+  }
+  const hour = p.hour === 24 ? 0 : p.hour
+  return Date.UTC(p.year, p.month - 1, p.day, hour, p.minute, p.second) / 1000 - sec
+}
+
+// UTC day -> offset (a number) or, on a transition day, {a, b, at}: offset `a`
+// before second `at`, `b` from it on. Two Intl calls per new day (+~17 on the
+// two transition days a year), then a Map hit per bar.
+const _OFFSET_DAY_CACHE_MAX = 20000
+const _offsetByDay = new Map()
+
+// The last day asked about, in front of the map: a series walks its bars in time order, so the
+// 7-16 bars of one day ask for the same day in a row and pay one map lookup between them, not one
+// each (an hourly chart's view filter runs over 45,000 bars on every symbol flip). The answer for a
+// day never changes, so the memo needs no invalidation when the map is cleared.
+let _lastOffsetDay = NaN
+let _lastOffset
+/** ET's offset from UTC, in SECONDS, at unix second `unixSec` (-14400 | -18000). */
+export function etOffsetSec(unixSec) {
+  const sec = Math.floor(unixSec)
+  const day = Math.floor(sec / 86400)
+  let e = day === _lastOffsetDay ? _lastOffset : _offsetByDay.get(day)
+  if (e === undefined) {
+    const start = day * 86400
+    const a = _rawEtOffsetSec(start)
+    const b = _rawEtOffsetSec(start + 86399)
+    if (a === b) {
+      e = a
+    } else {
+      let lo = start, hi = start + 86399   // offset(lo) === a, offset(hi) === b
+      while (hi - lo > 1) {
+        const mid = Math.floor((lo + hi) / 2)
+        if (_rawEtOffsetSec(mid) === a) lo = mid
+        else hi = mid
+      }
+      e = { a, b, at: hi }
+    }
+    if (_offsetByDay.size >= _OFFSET_DAY_CACHE_MAX) _offsetByDay.clear()
+    _offsetByDay.set(day, e)
+  }
+  _lastOffsetDay = day
+  _lastOffset = e
+  return typeof e === 'number' ? e : (sec >= e.at ? e.b : e.a)
+}
+
+/** unix seconds -> intraday chart time (ET wall clock as UTC seconds). */
+export function toChartTime(unixSec) {
+  return unixSec + etOffsetSec(unixSec)
+}
+
+/** Intraday chart time -> unix seconds. Exact inverse of `toChartTime` for
+ *  every instant a US equity bar can have. In the repeated fall-back hour the
+ *  EARLIER instant wins; inside the spring-forward gap (a wall time that never
+ *  existed) the EST reading is returned. */
+export function fromChartTime(chartSec) {
+  if (typeof chartSec !== 'number' || !Number.isFinite(chartSec)) return NaN
+  // America/New_York is UTC-4 or UTC-5, so the instant is one of these two.
+  const edt = chartSec + 14400
+  if (etOffsetSec(edt) === -14400) return edt
+  return chartSec + 18000
+}
+
+/** ET minute-of-day (0..1439) of a unix second. */
+export function etMinuteOfDay(unixSec) {
+  const c = Math.floor(toChartTime(unixSec))
+  return Math.floor((((c % 86400) + 86400) % 86400) / 60)
+}
+
+/** ET calendar date 'YYYY-MM-DD' of a unix second. */
+export function etDateOf(unixSec) {
+  return new Date(Math.floor(toChartTime(unixSec)) * 1000).toISOString().slice(0, 10)
+}
+
+// ─── SESSION + BUCKET POLICY ────────────────────────────────────────────────
+export const RTH_OPEN_MIN = 570    // 09:30 ET
+export const RTH_CLOSE_MIN = 960   // 16:00 ET
+
+// Keyed by ET DAY NUMBER (floor(chartTime / 86400)) so the per-bar hot paths (RTH view
+// filters, session shading) pay a Map hit, not a Date allocation; the ISO date is built
+// only on a miss.
+// ⛔ SIZED FOR DEEP HISTORY (2026-11-19, measured live): at 4,000 a 1h chart back to 2005
+// (~5,300 trading days) emptied the map on every pass, so every bar paid a Date, an ISO string and
+// a calendar search again. 20,000 days (~55 years) matches the offset cache above.
+const _CLOSE_DAY_CACHE_MAX = 20000
+const _closeByEtDay = new Map()
+// Same one-entry memo as the offset's: consecutive bars of one day ask for the same close.
+let _lastCloseDay = NaN
+let _lastClose
+function _rthCloseOfEtDay(etDay) {
+  if (etDay === _lastCloseDay) return _lastClose
+  let m = _closeByEtDay.get(etDay)
+  if (m === undefined) {
+    let ec = null
+    try { ec = earlyCloseOn(new Date(etDay * 86400000).toISOString().slice(0, 10)) } catch { ec = null }
+    m = ec ? ec.closeHour * 60 + ec.closeMinute : RTH_CLOSE_MIN
+    if (_closeByEtDay.size >= _CLOSE_DAY_CACHE_MAX) _closeByEtDay.clear()
+    _closeByEtDay.set(etDay, m)
+  }
+  _lastCloseDay = etDay
+  _lastClose = m
+  return m
+}
+
+/** Regular-session close (ET minute-of-day) for the ET date containing
+ *  `unixSec`: 960, or the NYSE early close (13:00 -> 780) on a half-day. */
+export function rthCloseMinuteOf(unixSec) {
+  return _rthCloseOfEtDay(Math.floor(Math.floor(toChartTime(unixSec)) / 86400))
+}
+
+/** The regular-session close (ET minute-of-day) of the ET day of CHART time `chartSec`. */
+export function rthCloseMinuteOfChartTime(chartSec) {
+  return _rthCloseOfEtDay(Math.floor(Math.floor(chartSec) / 86400))
+}
+
+// ─── THE RTH VIEW TEST — ONE OWNER ──────────────────────────────────────────
+// "Is this bar part of the regular session?" for every RTH filter/classifier on the
+// client (StockChart's regular-hours view + its live writers, the engine's RTH frame,
+// marketSession.viewTailT, session shading, the BarStore adapter): 09:30 ≤ ET minute <
+// the day's close — 16:00, or the NYSE early close (13:00) on a half-day, from the same
+// calendar the server's session grid uses (tests/fixtures/bar_bucket_grid_2026.json is
+// the parity rail, barTime.rthHalfDay.test.js). ⛔ Never re-inline `m >= 570 && m < 960`:
+// on a half-day that shows the 13:00-16:00 post-market bars as regular session.
+
+/** True when intraday CHART time `chartSec` (ET wall clock as UTC seconds) is regular
+ *  session. */
+export function isRthChartTime(chartSec) {
+  if (typeof chartSec !== 'number' || !Number.isFinite(chartSec)) return false
+  const c = Math.floor(chartSec)
+  const m = Math.floor((((c % 86400) + 86400) % 86400) / 60)
+  return m >= RTH_OPEN_MIN && m < _rthCloseOfEtDay(Math.floor(c / 86400))
+}
+
+/** True when unix second `unixSec` is regular session (half-day aware). */
+export function isRthBar(unixSec) {
+  if (typeof unixSec !== 'number' || !Number.isFinite(unixSec)) return false
+  return isRthChartTime(toChartTime(unixSec))
+}
+
+/** The regular-session view of a bar series: every bar whose `t` is a regular-session unix second,
+ *  plus any bar whose `t` is not a number (a D/W/M date string). The SAME array when every bar
+ *  qualifies, as an `rth` answer from the server does: an hourly flip then pays one pass over its
+ *  45,000 bars and no copy of them. */
+export function keepRthBars(bars) {
+  const n = bars.length
+  let i = 0
+  for (; i < n; i++) {
+    const t = bars[i].t
+    if (typeof t === 'number' && !isRthBar(t)) break
+  }
+  if (i === n) return bars
+  const out = bars.slice(0, i)
+  for (let j = i + 1; j < n; j++) {
+    const b = bars[j]
+    if (typeof b.t !== 'number' || isRthBar(b.t)) out.push(b)
+  }
+  return out
+}
+
+/**
+ * ⭐ THE 60-MINUTE GRID POLICY — the one place it is decided (server twin:
+ * `bars_fetch.SIXTY_MIN_GRID` / `bucket_60_et_unix_seconds`).
+ *
+ * TradingView computes intraday bars from the SESSION START (captured in
+ * tests/fixtures/vendor/harness/vw-time-session-spy-60-{rth,ext}-2026-09-28.json):
+ *   'session' — RTH hours anchor at the 09:30 open: 09:30, 10:30 ... 15:30
+ *               (a 30-min last bar; 12:30 on a 13:00 half-day). Pre-market is
+ *               clock hours, its 09:00 bar truncated at 09:30; post-market is
+ *               clock hours from the close. RTH-only view == TradingView RTH.
+ *   'clock'   — plain ET clock hours 04:00 ... 19:00 (the 09:00 bar spans the
+ *               open) == TradingView's extended-hours (04:00-20:00) chart.
+ *
+ * ⭐ (2026-11-10) The extended view is 'clock': `/api/bars?tf=60&session=eth`
+ * serves that grid (derived from 15m server-side), the client caches it under
+ * its own key (`seriesCacheTf` → '60e'), and the live stream is asked for 'eth'
+ * buckets. A request WITHOUT `session=eth` still gets the stored 'session' grid
+ * (`DEFAULT_SIXTY_MIN_GRID`), which is also what every caller that names no
+ * grid/session reads.
+ * 5/15/30m are identical on both grids (09:30 is on the half hour).
+ */
+export const SIXTY_MIN_GRID_BY_SESSION = Object.freeze({ rth: 'session', extended: 'clock' })
+/** The grid `/api/bars?tf=60` serves when no `session=eth` is asked for. */
+export const DEFAULT_SIXTY_MIN_GRID = 'session'
+
+export function sixtyMinGridFor(session = 'extended', policy = SIXTY_MIN_GRID_BY_SESSION) {
+  return policy[session === 'rth' ? 'rth' : 'extended']
+}
+
+/** The `/api/bars` `session` a chart view asks for: 'eth' with extended hours on,
+ *  else 'rth'. (The server judges the tail against this session on every intraday
+ *  tf, and serves the clock grid for tf=60 & 'eth'.) */
+export function barsSessionFor(showExtended) {
+  return showExtended ? 'eth' : 'rth'
+}
+
+/** The CACHE identity of a chart's series (IDB / mem cache / load keys). Only 60m
+ *  differs between the views, so only 60m on the clock grid gets its own key
+ *  ('60e'); every other tf shares one key across sessions (no halved hit rate). */
+export function seriesCacheTf(tf, showExtended, policy = SIXTY_MIN_GRID_BY_SESSION) {
+  const t = String(tf)
+  if (t === '60' && sixtyMinGridFor(showExtended ? 'extended' : 'rth', policy) === 'clock') return '60e'
+  return t
+}
+
+/** The tf a cache key ('60e') stands for — what bucket/session logic must read. */
+export function logicTfOf(cacheTf) {
+  return cacheTf === '60e' ? '60' : cacheTf
+}
+
+const _NATIVE_INTRADAY = new Set(['1', '5', '15', '30', '60'])
+/** `&session=…` for an `/api/bars` URL of `tf` in this view ('' for D/W/M). */
+export function barsSessionQuery(tf, showExtended) {
+  return _NATIVE_INTRADAY.has(String(tf)) ? `&session=${barsSessionFor(showExtended)}` : ''
+}
+
+/** `&session=eth` ONLY where the bars themselves differ (60m on the clock grid) —
+ *  for secondary series (compare overlays) that must sit on the main series' grid
+ *  but have no tail judgment of their own. */
+export function barsGridQuery(tf, showExtended) {
+  return seriesCacheTf(tf, showExtended) === '60e' ? '&session=eth' : ''
+}
+
+/** True when `unixSec` is a 60m bucket start on the grid this chart view uses
+ *  (half-day aware) — the push opt-in's "is the fetched series on the stream's
+ *  grid" test. */
+export function isOnSixtyMinGrid(unixSec, showExtended, policy = SIXTY_MIN_GRID_BY_SESSION) {
+  const grid = sixtyMinGridFor(showExtended ? 'extended' : 'rth', policy)
+  return bucketStartUnix(unixSec, 60, { grid }) === Math.floor(unixSec)
+}
+
+/**
+ * Unix second at which the `tfMin`-minute bucket containing `unixSec` starts.
+ * Non-60 TFs floor to their period (ET offsets are whole hours, so the UTC
+ * floor IS the ET floor). 60 follows `grid` (see SIXTY_MIN_GRID_BY_SESSION).
+ */
+export function bucketStartUnix(unixSec, tfMin, { grid } = {}) {
+  const sec = Math.floor(unixSec)
+  const tf = Number(tfMin)
+  if (tf !== 60) {
+    const p = (tf > 0 ? tf : 5) * 60
+    return Math.floor(sec / p) * p
+  }
+  if (_GRID_ALIAS[grid || DEFAULT_SIXTY_MIN_GRID] === 'clock') return Math.floor(sec / 3600) * 3600
+  const m = etMinuteOfDay(sec)
+  const close = rthCloseMinuteOf(sec)
+  let anchor
+  if (m >= RTH_OPEN_MIN && m < close) anchor = RTH_OPEN_MIN + Math.floor((m - RTH_OPEN_MIN) / 60) * 60
+  else if (m >= close) anchor = close + Math.floor((m - close) / 60) * 60
+  else anchor = Math.floor(m / 60) * 60   // pre-market; 09:00-09:29 ends at the open
+  return sec - (((sec % 60) + 60) % 60) - (m - anchor) * 60
+}
+
+// Grid names: this file's 'session'/'clock' == bar_rollup.tv_bucket_bounds'
+// (and the stream wire's) 'rth'/'eth'.
+export const _GRID_ALIAS = { session: 'session', clock: 'clock', rth: 'session', eth: 'clock' }
+
 
 export const PERIOD_SECONDS = { '1': 60, '5': 300, '15': 900, '30': 1800, '60': 3600 }
+
+/** 'YYYY-MM-DD' of the Friday (the week's CLOSE, matching the backend resample) of the ET
+ *  week containing `unixSec` — Monday..Sunday weeks, browser-time-zone independent. */
+export function etWeekCloseLabel(unixSec) {
+  const [y, m, d] = etDateOf(unixSec).split('-').map(Number)
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay()          // 0 = Sunday
+  const toFriday = (day === 0 ? -6 : 1 - day) + 4
+  return new Date(Date.UTC(y, m - 1, d + toFriday)).toISOString().slice(0, 10)
+}
 
 /**
  * Given a timeframe code and a UTC-seconds timestamp, return the value
  * that LW Charts uses as the bar's `time`:
- *   - Intraday (1/5/15/30/60): number — period-floor in UTC, +ET_OFFSET
+ *   - Intraday (1/5/15/30/60): number — bucket start as chart time (toChartTime)
  *   - Daily ('D'): "YYYY-MM-DD" string in ET
  *   - Weekly ('W'): "YYYY-MM-DD" of the Friday (close) of the ET week
  *   - Monthly ('M'): "YYYY-MM-01" of the ET month
  */
-export function computeBarTime(tf, tickTimeSec) {
+export function computeBarTime(tf, tickTimeSec, opts = {}) {
   if (tf === 'D') {
-    return new Date(tickTimeSec * 1000).toLocaleDateString('en-CA', {
-      timeZone: 'America/New_York',
-    })
+    return etDateLabel(tickTimeSec)
   }
-  if (tf === 'W') {
-    // Date the weekly bar by the week's CLOSE (Friday), matching the backend
-    // resample. Walk to Monday first, then +4 days = Friday. Stable per-week
-    // key so live ticks update the same candle instead of creating a new one.
-    const d = new Date(tickTimeSec * 1000)
-    const et = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-    const day = et.getDay()
-    et.setDate(et.getDate() - day + (day === 0 ? -6 : 1) + 4)
-    return et.toISOString().split('T')[0]
-  }
-  if (tf === 'M') {
-    const d = new Date(tickTimeSec * 1000)
-    const et = new Date(d.toLocaleString('en-US', { timeZone: 'America/New_York' }))
-    return `${et.getFullYear()}-${String(et.getMonth() + 1).padStart(2, '0')}-01`
-  }
-  // 60-min: match the backend's ET-anchored hourly bucketing (bucket_60_et_unix_seconds):
-  // the 9:30–9:59 ET session-open bar anchors at 9:30; every other hour floors to the
-  // clock hour. Without this the frontend keyed the first hour at 9:00, so the live tick
-  // planted a fresh FLAT bar instead of updating the fetched 9:30 partial (open lost).
+  // ⛔ W/M are pure ET-calendar math on the ET date (etDateOf → UTC date arithmetic). They
+  // used to re-parse an ET wall-clock STRING in the BROWSER's zone and read it back with
+  // toISOString (UTC), so east of UTC (Sydney, Auckland) a morning-ET tick labelled the
+  // weekly bar with Thursday. Nothing here may depend on the browser's time zone.
+  if (tf === 'W') return etWeekCloseLabel(tickTimeSec)
+  if (tf === 'M') return `${etDateOf(tickTimeSec).slice(0, 7)}-01`
+  // Intraday: the bucket start on the shared grid (60m per the session policy),
+  // shifted by the ET offset AT THAT BAR -- never a page-load constant.
   if (tf === '60') {
-    const clockHour = Math.floor(tickTimeSec / 3600) * 3600 + ET_OFFSET
-    try {
-      const parts = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'America/New_York', hour: '2-digit', minute: '2-digit', hour12: false,
-      }).formatToParts(new Date(tickTimeSec * 1000))
-      const etHour = +parts.find(p => p.type === 'hour').value
-      const etMin = +parts.find(p => p.type === 'minute').value
-      if (etHour === 9 && etMin >= 30) return clockHour + 1800   // the "clean open" 9:30 bar
-    } catch { /* fall through to the clock-hour bucket */ }
-    return clockHour
+    // No session named → the grid /api/bars serves by default (never the policy's
+    // extended view, which only a caller that knows its view may ask for).
+    const grid = opts.session == null ? DEFAULT_SIXTY_MIN_GRID
+      : opts.session === 'eth' ? 'clock' : opts.session === 'rth' ? 'session' : sixtyMinGridFor(opts.session)
+    return toChartTime(bucketStartUnix(tickTimeSec, 60, { grid }))
   }
-  // Intraday: floor to period boundary in UTC, offset to ET for display
   const period = PERIOD_SECONDS[tf] || 300
-  return Math.floor(tickTimeSec / period) * period + ET_OFFSET
+  return toChartTime(Math.floor(tickTimeSec / period) * period)
 }

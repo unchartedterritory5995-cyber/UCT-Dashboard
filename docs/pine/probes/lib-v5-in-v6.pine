@@ -1,0 +1,23 @@
+//@version=6
+// UCT probe lib-v5-in-v6 (U15 Phase B, 2026-11-16): does a Pine v5 LIBRARY keep v5 rules when a v6
+// SCRIPT imports it? TradingView's reference, its Libraries page and its v6 migration guide do not
+// say. Each plot reads a value that one construct of the guide makes different between v5 and v6,
+// computed INSIDE a published v5 library (both MPL-2.0, imported, never copied):
+//   BarefootJoey/AstroLib/1  `PlanetColor` returns `color.red` / `color.yellow` (changed values in v6)
+//                            `riset` divides `-34 / 60` (two const ints: v5 truncates to 0, v6 does not)
+//   boitoki/Utilities/11     `auto_htf` compares `timeframe.period == 'D'` ("D" in v5, "1D" in v6)
+// Read on a 1D chart (the auto_htf reading needs a daily chart). Every plot is one constant line.
+// Expected if the library keeps v5 rules:  255, 235, riset per v5 (DegSin(0)), 2.
+// Expected if it is read under v6 rules:   242, 216, riset per v6 (DegSin(-0.5667)), 3.
+indicator("UCT probe: v5 library in a v6 script", overlay = false)
+import BarefootJoey/AstroLib/1 as astro
+import boitoki/Utilities/11 as util
+
+// color.red is #FF5252 in v5 and #F23645 in v6: its red channel
+plot(color.r(astro.PlanetColor(4)), "v5 color.red, r")
+// color.yellow is #FFEB3B in v5 and #FDD835 in v6: its green channel
+plot(color.g(astro.PlanetColor(10)), "v5 color.yellow, g")
+// a const int division inside the library: tau starts from DegSin(-34 / 60)
+plot(astro.riset(0.0, 0.0, 0.0, 0.0, 0.0, 3), "v5 const int division (riset)")
+// timeframe.period inside the library: "6M" (length 2) when it reads "D", "12M" (length 3) when it reads "1D"
+plot(str.length(util.auto_htf()), "v5 timeframe.period (auto_htf length)")

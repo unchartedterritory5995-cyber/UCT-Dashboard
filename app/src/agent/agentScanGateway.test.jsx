@@ -94,6 +94,24 @@ describe('SC-1 gateway path for the screener capability', () => {
     expect(a.text).toMatch(/^2 stocks match/)
   })
 
+  it('COMPOSITION: a comparison and a rank go through the gateway, and rows the rank dropped are said', async () => {
+    nextScan = (kind, params) => envelope(kind, params, { data: { spec: params.spec, rows: [{ symbol: 'AAA', price: 1, chg_pct_3m: 5 }], total_matches: 1, origin: { source: 'spec' }, rank: { excluded_incomplete: 3 } } })
+    const a = await run({ ...ARGS, sort_field: null, sort_dir: null, filters: [{ field: 'chg_pct_3m', op: 'gt_col', other: 'price' }], rank: [{ field: 'chg_pct_3m', weight: 2, lower_better: false }] })
+    const [, body] = dataCalls()[0]
+    expect(body.params.spec.filters).toEqual([{ key: 'chg_pct_3m', op: 'gt_col', other: 'price' }])
+    expect(body.params.spec.rank).toEqual({ criteria: [{ key: 'chg_pct_3m', weight: 2 }] })
+    expect(a.text).toContain('3M % > Price')
+    expect(a.text).toContain('by your weighted rank (3M % 100%)')
+    expect(a.text).toContain('3 more matched but are missing a ranked value')
+  })
+
+  it('COMPOSITION: an older server with groups off refuses a tree, and the sentence is the answer', async () => {
+    nextScan = (kind, params) => refused(kind, params, 'Grouped criteria (any of / none of) are not switched on yet, so this screen was not run.')
+    const a = await run({ ...ARGS, filters: [], logic: JSON.stringify({ any: [{ field: 'price', op: 'gt', value: 1 }, { field: 'chg_pct_3m', op: 'gt', value: 1 }] }) })
+    expect(dataCalls()[0][1].params.spec.logic.any).toHaveLength(2)
+    expect(a).toBe("I didn't run it: Grouped criteria (any of / none of) are not switched on yet, so this screen was not run.")
+  })
+
   it('MALFORMED CRITERIA: the gateway\'s refusal sentence is shown and nothing is presented as results', async () => {
     nextScan = (kind, params) => refused(kind, params, "the Screener has no field 'nope'")
     const a = await run()

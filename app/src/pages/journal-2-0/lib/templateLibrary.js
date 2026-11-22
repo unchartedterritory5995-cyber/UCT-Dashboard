@@ -122,9 +122,9 @@ const sendKeyed = keyedSender({ confirmed: answerSettled })
  * The member: the server scopes every key to the session's member (`_key_lookup ... WHERE user_id = ?`), so a key
  * still held when another member signs in on this page is, for them, an unused key and a plain first request.
  */
-function keyedPost(door, galleryId, raw) {
+function keyedPost(door, galleryId, raw, scope = '') {
   if (bodyOf(raw) === null) return Promise.resolve(fail('network'))
-  return sendKeyed(`${door}:${String(galleryId)}`, null,
+  return sendKeyed(`${door}:${String(galleryId)}${scope ? `:${scope}` : ''}`, null,
     (key) => post(`${GALLERY}/${enc(galleryId)}/${door}`, raw, { 'Idempotency-Key': key }))
 }
 
@@ -233,6 +233,15 @@ function pinnedFamily(seedKey) {
   return null
 }
 
+/** Follow-up A fix round 1 (M3): the ONE family chip a library row belongs to (its override's, else its group's), or
+ *  null. The same two parts `familyKeeps` reads, so the count and the chip can never disagree. */
+export function familyOf(row) {
+  const pinned = pinnedFamily(row?.seedKey)
+  if (pinned) return pinned
+  for (const [family, groups] of Object.entries(FAMILY_GROUPS)) if (groups.includes(row?.group)) return family
+  return null
+}
+
 /** Does a library row pass a family chip (a FAMILIES key)? Its override's chip, else its library group's. */
 export function familyKeeps(family, row) {
   const pinned = pinnedFamily(row?.seedKey)
@@ -256,7 +265,20 @@ export function adoptTool(galleryId, body = {}) {
 /** Use a listed template to make a note: `body` is `{answers?, choices?, ticker?, title?}`. */
 export function useTemplate(galleryId, body = {}) {
   if (!isId(galleryId)) return Promise.resolve(fail('unavailable'))
-  return keyedPost('use-template', galleryId, body)
+  // Audit 2026-11-05 S9, fix round 1 (review finding 9): a Use that leaves a routine or tracker OUT ("not now",
+  // `skip`) is its own press. A lost unticked Use followed by a ticked one must not replay the first note and silently
+  // drop the routine the member just asked for. Every other change of body still resends the held key (W11-R44): a
+  // lost Use that MADE the routine, reopened as "Use your <routine>" or asking nothing, still replays its note.
+  const choices = isRecord(body) && isRecord(body.choices) ? Object.values(body.choices) : []
+  const leavesOut = choices.some((c) => isRecord(c) && c.skip === true)
+  const sent = keyedPost('use-template', galleryId, body, leavesOut ? 'not-now' : '')
+  if (leavesOut) return sent
+  // Fix round 2 (re-review R1-4): once a Use that puts the routine IN has a settled answer, the held "not now" press for
+  // this item is moot: forget it, so a later unticked Use is a new note, never a replay of an older one.
+  return sent.then((got) => {
+    if (sendKeyed.settled(got)) sendKeyed.forget(`use-template:${String(galleryId)}:not-now`)
+    return got
+  })
 }
 
 /** Adopt a listed template as one of the member's own: `body` is `{notify?, answers?, choices?}`. */
@@ -294,11 +316,6 @@ export const STYLES = '/api/j2/journal-styles'
 /** The Templates tab's three lists, keyed by the router's `?view=`. */
 export const TEMPLATE_VIEWS = Object.freeze(['live', 'archived', 'deleted'])
 
-function put(url, raw) {
-  const body = bodyOf(raw)
-  if (body === null) return Promise.resolve(fail('network'))
-  return call(() => fetch(url, { method: 'PUT', credentials: 'include', headers: JSON_HEADERS, body }))
-}
 const styleUrl = (id, tail = '') => `${STYLES}/${enc(id)}${tail}`
 
 /** One of the three lists: `{kinds, styles}` (each style with `usedIn`, `credit`, `fromLibrary`, Task 11.13). */
@@ -307,22 +324,8 @@ export function listTemplates(view) {
   return call(() => fetch(`${STYLES}?view=${view}`, { method: 'GET', credentials: 'include' }))
 }
 
-/** One template, whole (its outline too): `{style}`. */
-export function getTemplate(id) {
-  if (!isId(id)) return Promise.resolve(fail('unavailable'))
-  return call(() => fetch(styleUrl(id), { method: 'GET', credentials: 'include' }))
-}
-
-/** Rename: the name only (`PUT /journal-styles/{id}` is a patch). */
-export function renameTemplate(id, name) {
-  if (!isId(id) || typeof name !== 'string' || !name.trim()) return Promise.resolve(fail('unavailable'))
-  return put(styleUrl(id), { name: name.trim() })
-}
-
-export function duplicateTemplate(id) {
-  if (!isId(id)) return Promise.resolve(fail('unavailable'))
-  return post(styleUrl(id, '/duplicate'), {})
-}
+// Final fix M6: `getTemplate`, `renameTemplate` and `duplicateTemplate` (and the `put` helper only rename used) went
+// with My tools' old Templates list, their only caller; the manager's Edit, Rename and Duplicate use lib/journalStyles.
 
 export function archiveTemplate(id) {
   if (!isId(id)) return Promise.resolve(fail('unavailable'))

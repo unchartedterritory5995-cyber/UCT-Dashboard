@@ -4,6 +4,13 @@ Owner-approved 2026-09-11. Replaces the blanket RTH freeze and the "push anytime
 This is the single authority on push timing. `CLAUDE.md` points here and states no
 rule of its own.
 
+
+## ⛔⛔ flow-worker no longer auto-deploys (2026-11-12)
+
+Railway auto deploy is DISABLED for `flow-worker`. The watch-pattern tables below now describe what
+WOULD trigger it; nothing does on push. Deploy it by hand outside market hours, per
+`docs/runbooks/flow-worker-deploys-and-flow-db.md` (why: deploys corrupted flow.db on 2026-11-11/12).
+
 ## ⛔⛔ THE CUTOVER HAPPENED — `web` DEPLOYS FROM `production`, NOT `master` (2026-09-16)
 
 Railway's `web` service watches **`production`**, which only the promotion workflow
@@ -69,6 +76,8 @@ architecture change, not a config change. **The only lever actually available is
 deploy FREQUENCY** — fewer merges per day pays this floor fewer times, which is the
 whole argument for batching Tier-1 pushes rather than the "push whenever" reading of
 this rule.
+
+**`pine-runtime` service (W5, not yet created) is Tier 1** and is not on flow-worker's watch list: stateless, no volume, so a deploy overlaps with no 502 window. A push touching `app/src/components/chart/engine/**` restarts both `web` and `pine-runtime`; for minutes runtime evaluations read `runtime:server-unavailable` or `runtime:server-engine-mismatch` and are withheld by name. Runbook and gate: `docs/runbooks/pine-runtime-service.md`.
 
 ### Tier 2 — after-hours or weekend only
 Any file on **flow-worker's watch list**.
@@ -264,6 +273,14 @@ the hour.**
 ---
 
 ## Current state — LITERAL watch patterns, read from Railway 2026-09-12 03:4x UTC
+
+> ⚰️ **The `web` row below is out of date, and so is "no filter".** `web`'s watch list has come
+> from `railway.web.json` since that file gained one, and on 2026-11-14 Railway's STORED list for
+> `web` was written to match the file (eight patterns), because Railway stops reading config files
+> on 2026-12-01. `worker`'s stored list is empty today and does not matter while its auto deploy is
+> off. Read the live values, do not trust this table:
+> `python tools/railway_watch_patterns.py`, and for every setting a config file supplies,
+> `python tools/railway_stored_settings.py`. Runbook: `docs/runbooks/railway-config-cutoff.md`.
 
 These are the **literal patterns Railway returns**, not inferences. Re-read any time
 with `python tools/railway_watch_patterns.py` — it authenticates from the railway

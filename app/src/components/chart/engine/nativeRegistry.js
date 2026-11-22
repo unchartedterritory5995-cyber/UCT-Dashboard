@@ -90,9 +90,9 @@ import {
 // which is a fact `__tests__/enumerationSites.test.js` asserts by walking
 // IMPORTS rather than by grepping for a name (a plain substring search for these
 // on this branch returned ten matches and every one was prose in a comment).
-import { migrateMemberDocument } from './memberDocumentMigration.js'
-import { interpret } from './ast/interpret'
-import { ENGINE_ERROR, isRefusal } from './ast/parse'
+// ⭐ SETTINGS PARITY (2a / 2c): the migration, then the load-time settings (`memberDocumentProjection.js`)
+import { projectMemberDocument } from './memberDocumentProjection.js'
+import { ENGINE_ERROR } from './ast/parse'
 // ⭐⭐ THE BIND STAGE, WIRED HERE FOR THE SAME REASON THE NOTE ABOVE GIVES:
 // `bind.js` had ZERO live importers — the whole module, not just `foldBound` —
 // so a timeframe-conditional length refused at the door and nothing ever folded
@@ -102,20 +102,16 @@ import { ENGINE_ERROR, isRefusal } from './ast/parse'
 // into a shared definition — and `foldBound`'s header names the cost: the next
 // symbol folds it differently, so the second symbol of a sweep would inherit the
 // first's lengths. That shows as a WRONG NUMBER, not an error.
-import { foldBound, bindConstsFor } from './ast/bind'
-import { isPineOriginDoc, otherSymbolPending } from './otherSymbols'
-import { resolveLowerTf } from './lowerTf'
-import { blockRunsRefusal, BLOCK_RUNS_GUARD } from './blockRuns'
+import { bindConstsFor } from './ast/bind'
+import { isPineOriginDoc, otherSymbolPending, staticOtherSymbolMessage } from './otherSymbols'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
 // are the SHARED EVALUABILITY GATE's (`evaluability.js`); this module applies them.
-import {
-  chartStaticRefusals, otherSymbolsDecision, FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE,
-} from './evaluability'
+import { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE } from './evaluability'
 // ⭐⭐ P0G — the document's definition semantics (owner decisions A + C), read
 // off the store's own stamp (`meta.semantics`) and spread into every `interpret`
 // this registry runs for it. `{}` for every document saved before P0G and every
 // Pine translation, so their evaluation is the one it always was.
-import { semanticsOptsFor, semanticsOf } from './definitionSemantics'
+import { semanticsOf } from './definitionSemantics'
 import { runtimeErrorWords } from './runtimeErrorText'
 // ⭐⭐ RE-EXPORTED, NOT REDEFINED. `objectColumns` has imported `bindConstsFor`
 // from here since step 6 and the IR lane now needs it too; the assembly itself
@@ -160,10 +156,56 @@ import {
   computeATRBands,
   AVWAP_ANCHORS,
 } from '../indicators'
-import { serverColumnsFor, notifyColumnsLanded } from './serverCompute'
-import { runtimeKillOf } from './runtimeKill'
-import { runtimePaneEnabled, runtimePanePermitted } from './runtimePaneGate'
-import { runtimeWarmupOf } from './runtime/runtimeObjects'
+import { serverColumnsFor, notifyColumnsLanded, scalarsFor } from './serverCompute'
+// ⭐ U2b — the live forming-bar tail of a server definition (`plots[].liveTail`):
+// `computeSignature` carries the benchmark tail's version into the binder's memo.
+import { definitionHasLiveTail, liveTailSignature } from './liveTail'
+import { runtimeKillOf, runtimeNotGradedOf, runtimeSourceHash, runtimeFormingRefusalOf, RUNTIME_FORMING_GUARD, runtimeFormingIdsOf } from './runtimeKill'
+import { formingReasonOf } from './formingReason.js'
+import { HOST_KNOWN_DIVERGENCE_STAMP } from './hostKnownDivergence'
+import { HELD_DIVERGENCE_STAMP } from './heldWithholds'
+// ⭐⭐ ENGINE 54 — the run half's program binding, object rail (registered) and refusal telemetry
+import { runHalfProgramBound, runHalfProgramStamped } from './runHalfProgram.js'
+import { registeredRunHalfObjectRail, runHalfSettingsAdmitted } from './runHalfRailSeam.js'
+// ⭐ SETTINGS PARITY (2c): the run half is handed the chart's own values (`runHalfInputs.js`)
+import { runHalfRunInputs, runHalfOnlySettingMoved } from './runHalfInputs.js'
+import { runtimeInputSpecsOf } from './runtime/runtimeInputs.js'
+import { noteRunHalfAnswer } from './runHalfTelemetry.js'
+import { runtimePaneEnabled, runtimePaneBuilt, runtimePanePermitted } from './runtimePaneGate'
+// ⭐ W5-T2 — the lower-timeframe gate is registered at this door (`lowerTfServing.js`),
+// never imported by the compute closure.
+import './lowerTfGate.js'
+import { runtimeWarmupOf, RUNTIME_OBJECTS_KEY, withRunHalfState, carriesRunHalf, runHalfOf } from './runtime/runtimeObjects'
+import { LIMIT_NAMES } from './runtime/limits'
+import { registeredObjectRuntimeValues, inputsAtDefaults, registerObjectComputeFor } from './objectRuntimeSeam.js'
+import { manifestAtDefaults } from './paramLiteral.js'
+import { originalDocumentOf } from './symbolInputs.js'
+import { noteRuntimeLoadFailed } from './runtimeRunTelemetry.js'
+// ⭐⭐ HEADLESS (R6) — THE HOST LANE'S VALUES LIVE IN `astColumns.js`, moved there unchanged so the
+// server bundle computes them without this registry (`tools/pine_runtime_closure.mjs` forbids it).
+// Every name this module exported from that code is re-exported below, so no importer moved.
+import {
+  astLaneColumns, astPlotKey, astTrees, withColumnErrors, withRuntimeErrorStop, colourReaderPaintNotices,
+  columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
+  otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
+  historyFromListingFor, listingOptsFor, listingSeedUnpinnedFor, varOriginAbsoluteFor, barIndexAbsoluteFor,
+  resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD,
+} from './astColumns.js'
+// ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
+import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
+// ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
+import { hostLaneColumns } from './hostLaneAsync.js'
+export {
+  columnErrors, registerRuntimeErrorStop, RUNTIME_ERROR_GUARD, runtimeErrorStopOf, lowerTfFor, lowerTfReport,
+  otherSymbolsFor, otherSymbolReport, withheldBarsReport, chartClockReport, PINE_RECURRENCE_ORIGIN,
+  historyFromListingFor, listingOptsFor, listingSeedUnpinnedFor, varOriginAbsoluteFor, barIndexAbsoluteFor,
+  resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD,
+}
+// ⭐ UCT RS's tour cards (unit 4-04). ⛔ FROM `teachingData.js`, NEVER `teaching.js`:
+// `teaching.js` reads the readout cards off this registry, so importing it here
+// is an import cycle. `teachingData.js` imports nothing.
+import { TOUR as RS_TOUR } from '../../../content/rs/teachingData.js'
+import { rsSplitEnabled } from '../../../lib/rsSplitFlag.js'
 
 // ─── shared fragments ────────────────────────────────────────────────────────
 
@@ -959,10 +1001,11 @@ const RAW_DEFS = [
     [
       periodInput('period', 'Period', 14, 2, 200),
       // ⭐ `multiplier` IS AN INPUT THE COMPUTE READS, AND IT HAD TO BE.
-      // `$<inputKey>` substitution is legal in `color`, `width`, `levels` and
-      // `lineStyle` — `SUBSTITUTABLE_PLOT_FIELDS`, locked by spec §3.1 — and a
-      // band's WIDTH IN PRICE is none of those. Written as a plot literal it
-      // would render one multiplier for every user while the settings form
+      // `$<inputKey>` substitution is legal in `color`, `width`, `levels`,
+      // `lineStyle`, `colorUp` and `colorDown` — `SUBSTITUTABLE_PLOT_FIELDS`,
+      // locked by spec §3.1 — and a band's WIDTH IN PRICE is none of those.
+      // Written as a plot literal it would render one multiplier for every user
+      // while the settings form
       // offered a control that changed nothing, and `atr_bands_14_2.json`
       // (multiplier 2) would stay green the whole time.
       { key: 'multiplier', type: 'float', label: 'Multiplier', default: 2, min: 0.1, max: 10, step: 0.1 },
@@ -1450,7 +1493,7 @@ const RAW_DEFS = [
 
   nativeDef('awesome', 'awesome',
     { name: 'Awesome Oscillator', shortName: 'AO', category: CAT.MOMENTUM, quickMenu: false, legendParams: ['fastPeriod', 'slowPeriod'],
-      description: 'A fast minus a slow average of the bar midpoint, coloured by whether it is rising.',
+      description: 'A fast minus a slow average of the bar midpoint, colored by whether it is rising.',
       tags: ['awesome oscillator', 'ao', 'bill williams', 'momentum'] },
     autoPane(0.15),
     [periodInput('fastPeriod', 'Fast', 5, 1, 100), periodInput('slowPeriod', 'Slow', 34, 1, 300)],
@@ -1708,7 +1751,10 @@ const RAW_DEFS = [
   nativeDef('percentFromMa', 'percentFromMa',
     // ⭐ `% From MA`, NOT "% From Moving Average": the library offers exactly ONE
     // row named Moving Average (owner §34), and this is a different study.
-    { name: '% From MA', shortName: '% From MA', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ A price-LEVEL study, not relative strength (review finding U7, 2026-11-06):
+    // it reads one series against its own average. The Relative Strength heading
+    // holds the one row that compares against a benchmark.
+    { name: '% From MA', shortName: '% From MA', category: CAT.LEVELS, quickMenu: false,
       legendParams: ['period'],
       description: 'How far the value is above or below its moving average, in percent.',
       tags: ['% from ma', 'percent from moving average', 'distance from ma', 'extension', 'extended'] },
@@ -1725,7 +1771,9 @@ const RAW_DEFS = [
     ]),
 
   nativeDef('fiftyTwoWeek', 'fiftyTwoWeek',
-    { name: '52-Week High/Low', shortName: '52W', category: CAT.RELATIVE_STRENGTH, quickMenu: false,
+    // ⭐ Likewise a price-LEVEL study (review finding U7): distance from the
+    // close's own 52-week high and low, no benchmark anywhere.
+    { name: '52-Week High/Low', shortName: '52W', category: CAT.LEVELS, quickMenu: false,
       description: 'How far the close is below its 52-week high and above its 52-week low, in percent.',
       tags: ['52 week', '52-week', '52w', '52 week high', '52 week low', 'off high', 'yearly high'],
       // ⛔ A CALENDAR WINDOW. It needs a full 52 weeks of loaded bars before it
@@ -2170,98 +2218,8 @@ function maskMacdHead(columns) {
  */
 const COLUMN_HOLDS = MACD_HEAD_MASK ? { macd: maskMacdHead } : {}
 
-/**
- * The ONE data-bearing plot key an `ast` definition declares.
- *
- * ⛔ READ OFF `def.plots`, NOT `columnKeys(def)`, AND THE DIFFERENCE IS LOAD-
- * BEARING. `columnKeys` is the union of plots and EVENTS. If this read that
- * union, an `ast` definition that declared an event would compute its event key
- * instead of its plot — a column with the wrong name, full of the right numbers.
- * Reading the plots means an `ast` definition's events simply never come back,
- * and `validateEventColumns` — which already refuses a definition whose event
- * names no returned column — refuses it BY NAME at registration. One guard, at
- * the door it was built for, rather than a second one bolted on here.
- */
-function astPlotKey(def) {
-  const plots = Array.isArray(def?.plots) ? def.plots : []
-  const keys = plots
-    .filter(p => p && p.style !== 'hlines' && typeof p.key === 'string')
-    .map(p => p.key)
-  return keys
-}
-
-/**
- * The definition's tree MAP, or `null` for the single-tree (pre-W1b) shape.
- *
- * ⛔ ONE PREDICATE, TWO CALLERS, ON PURPOSE. `astColumnsFor` and
- * `validateAstLane` both branch on "does this document carry trees", and they
- * must branch identically or a document could validate down one shape and
- * compute down the other — the second-authority-over-one-value defect this repo
- * names most often. Anything that is not a plain object is `null` here and takes
- * the single-tree path in BOTH; `defSchema.validateTrees` is what refuses the
- * malformed map by name, and it runs first.
- */
-function astTrees(def) {
-  const trees = def && def.compute && def.compute.trees
-  return (trees && typeof trees === 'object' && !Array.isArray(trees)) ? trees : null
-}
-
-/**
- * Compute an `ast` definition: ONE TREE, ONE COLUMN — as many of each as the
- * document declares.
- *
- * `interpret` returns a single `Float64Array` of `bars.length` — the columnar
- * contract already, with no adaptation to do — so the only question this
- * function answers is WHICH KEY each one goes under.
- *
- * ⭐ TWO SHAPES, ONE RULE (W1b). A document carrying `compute.trees` names a
- * tree PER PLOT and gets a column per plot. A document without one carries a
- * single tree in `compute.ast` and must declare exactly one data plot —
- * `validateUserDefinitions` refuses a second, and the throw below is the
- * backstop for a definition that reached `computeFor` without passing through
- * that door. The second shape is every definition saved before W1b, and it
- * computes byte-identically to the way it did then.
- *
- * ⛔ IT DOES NOT CATCH. `interpret` throws `TableRefusal` for anything the table
- * refuses and a plain `RangeError` for a tree that overflows; relabelling either
- * as "computed nothing" is the wrong-door defect this phase has now found four
- * times. A refusal must reach the caller as the refusal it is.
- */
-/** The key every partial-compute result carries its reasons under.
- *  ⛔ NON-ENUMERABLE, AND THAT IS THE WHOLE DESIGN. Every consumer of a column
- *  map walks it with `Object.keys` (the binder's `for (const plotKey of
- *  Object.keys(cols))` is the one that matters), and a visible extra key would
- *  become a phantom plot on every chart. */
-const COLUMN_ERRORS = '__columnErrors'
-
-/** Attach the per-column reasons to a column map without widening its key set. */
-function withColumnErrors(out, errors) {
-  if (errors && Object.keys(errors).length) {
-    Object.defineProperty(out, COLUMN_ERRORS, { value: Object.freeze(errors), enumerable: false })
-  }
-  return out
-}
-
-/**
- * ⭐⭐ WHY A COLUMN IS MISSING — the structured state C2A.8 asks be preserved.
- *
- * A column map returned by `computeFor` holds only the columns that COMPUTED.
- * This is how a caller learns that a key is absent because it exceeded a limit
- * rather than because the definition never declared it — which are different
- * facts and, without this, indistinguishable.
- *
- * ⛔ IT IS NOT UX. No surface renders it yet, deliberately (C2A.8: "do not build
- * broad new UX in this wave"). It exists so that the day one does, the product
- * can say WHICH output and WHICH limit instead of re-deriving a guess — and so
- * that "the indicator drew nothing" and "one of its seven columns is too
- * expensive" stop being the same observation.
- *
- * @returns {Record<string, {guard: string, message: string}>} possibly empty
- */
-export function columnErrors(columns) {
-  const e = columns && columns[COLUMN_ERRORS]
-  return e || {}
-}
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `astPlotKey`, `astTrees`, `withColumnErrors`, `columnErrors` (re-exported above).
 
 // ─── ⭐⭐ RT4 — A RUNTIME DOCUMENT'S DRAWINGS GO WITH ITS RUN ─────────────────────
 //
@@ -2340,6 +2298,8 @@ export function runtimeObjectsWithheld(def, cols) {
  */
 export function runtimeRunStopOf(def, cols) {
   if (!def || !def.compute || def.compute.kind !== 'runtime' || !cols) return null
+  // ⭐ (e85) a wait is not a stop (`runtimeRunWaitingOf` says it)
+  if (cols[RUNTIME_WAITING_KEY]) return null
   const keys = Object.keys(def.compute.outputs || {})
   if (keys.some((k) => cols[k] && typeof cols[k].length === 'number')) return null
   if (runtimeErrorStopOf(cols)) return null
@@ -2352,284 +2312,35 @@ export function runtimeRunStopOf(def, cols) {
   }
 }
 
-// ─── ⭐⭐ C43 — A REACHED `runtime.error` LEAVES NO COLUMN ────────────────────────
-//
-// TradingView's study holds NOTHING once the script's own `runtime.error` is
-// reached on any bar (measured — see `runtimeErrorStop.js`). The evaluator is
-// REGISTERED here by that module rather than imported: it reads the object
-// lane's warm-up probe, and this module must not pull the object lane into its
-// chunk. Unregistered (a caller that computes columns without the object lane
-// loaded), every document computes as it always did.
-let runtimeErrorStopFn = null
-export function registerRuntimeErrorStop(fn) {
-  runtimeErrorStopFn = typeof fn === 'function' ? fn : null
-}
+/** ⭐ (engine 86) — WHAT THE STRIP SAYS WHILE A RUNTIME RUN IS STILL IN THE WORKER, in the house voice of the
+ *  worker's own sentences (`runtimeAsync.js`, `hostLaneAsync.js`: what is happening, what settles it), so an
+ *  empty pane on a first load or a symbol switch reads as work, not as broken. Never a guard id, never a
+ *  refusal: the binder shows it only where the pane has no picture yet (`binder.js`, `noteRuntimeErrorStop`). */
+export const RUNTIME_COMPUTING_SENTENCE = 'the background worker is still computing this script bar by bar on this chart; '
+  + 'it is drawn when that finishes'
+export const RUNTIME_DRAWINGS_COMPUTING_SENTENCE = "the background worker is still computing this script's drawings bar by "
+  + 'bar on this chart; they are drawn when that finishes'
 
-/** The guard a column refused by the script's own error carries. */
-export const RUNTIME_ERROR_GUARD = 'pine:runtime.error'
-
-/** The key a column map carries the stop decision under — non-enumerable for the
- *  reason `__columnErrors` is (a visible key is a phantom plot). */
-const RUNTIME_ERROR_STOP = '__runtimeErrorStop'
-
-/** What the script's `runtime.error` calls did on the bars a column map was
- *  computed over: `{reached, bar, sentence, unknown, unread, …}`, or null for a
- *  document that carries none. `unknown` names each call this binding could not
- *  evaluate — the columns are then the unstopped ones, as before C43. */
-export function runtimeErrorStopOf(columns) {
-  return (columns && columns[RUNTIME_ERROR_STOP]) || null
-}
-
-function withRuntimeErrorStop(out, stop) {
-  if (stop) Object.defineProperty(out, RUNTIME_ERROR_STOP, { value: stop, enumerable: false })
-  return out
-}
-
-function astColumnsFor(def, bars, inputs, ctx) {
-  const stop = runtimeErrorStopFn && def && def.meta && def.meta.runtimeErrors
-    ? runtimeErrorStopFn(def, bars, inputs, ctx)
-    : null
-  if (stop && stop.reached) {
-    // ⛔ EVERY COLUMN, AND BY NAME: an absent column with no reason reads as "the
-    // definition never declared it" (`columnErrors`).
-    const errors = {}
-    for (const key of astPlotKey(def)) errors[key] = { guard: RUNTIME_ERROR_GUARD, message: stop.sentence }
-    return withRuntimeErrorStop(withColumnErrors({}, errors), stop)
+/** Is a run of this document still computing for these columns: a RUNTIME document whose answer is the
+ *  in-flight `{}` (`runtimeColumnsFor`; nothing refused, nothing reached), or a host document whose run half
+ *  is pending? `{what, sentence}`, or null. */
+export function runtimeRunPendingOf(def, cols) {
+  if (!def || !def.compute || !cols) return null
+  if (def.compute.kind === 'runtime') {
+    if (Object.keys(cols).length !== 0 || runtimeErrorStopOf(cols)) return null
+    if (Object.keys(columnErrors(cols) || {}).length) return null
+    return { what: 'values', sentence: RUNTIME_COMPUTING_SENTENCE }
   }
-  const out = astColumnsUnstopped(def, bars, inputs, ctx)
-  return stop ? withRuntimeErrorStop(out, stop) : out
+  const half = runHalfOf(cols)
+  if (half && half.state === 'pending') return { what: 'drawings', sentence: RUNTIME_DRAWINGS_COMPUTING_SENTENCE }
+  return null
 }
 
-function astColumnsUnstopped(def, bars, inputs, ctx) {
-  const keys = astPlotKey(def)
-  const trees = astTrees(def)
-  // ⭐⭐ C29 — a document folded at another chart period does not answer here
-  // (`periodReads.js`): every column is refused by name, none drawn off the
-  // other period's constants.
-  // ⭐⭐ P0 — A READ BELOW THE CHART (`ltf`) IN A DOCUMENT THAT IS NOT A PINE
-  // TRANSLATION IS REFUSED BY NAME, per plot. Its supply (`lowerTfFor`) is built
-  // from the member door's stamp and its admission rules (`lower-tf:expression`,
-  // `lowerTf.js`) are checked by the Pine translator — neither exists for a
-  // typed formula, so it was accepted and starved: all-NaN, no report.
-  // ⭐ P0 0F — a plot that reads a current-only scalar is refused by name
-  // (`chartScalars.js`), never drawn as the 0 a comparison makes of its hole.
-  // ⭐⭐ P1 — ALL THREE ARE DECIDED BY THE SHARED GATE (`evaluability.js::
-  // chartStaticRefusals`), so `evaluability(def, key, 'chart', ctx)` and this
-  // compute can never disagree about a pre-compute refusal. `whole` = the
-  // document computes nothing here; `staticWhy` = per plot (period > ltf > scalar).
-  const { whole, perKey: staticWhy } = chartStaticRefusals(def, ctx)
-  if (whole) return withColumnErrors({}, whole)
-  // ⭐⭐ THE BIND STAGE. One symbolic definition, folded per (symbol, timeframe)
-  // into the integers THIS binding needs. `Uncharted Volume` line 233's
-  // `timeframe.isweekly ? 5 : 20` becomes 5 on a weekly binding and 20 on a
-  // daily one — measured against the vendor on 2026-09-10 (job B: `fold==sma20`
-  // on 400/400 daily bars, `fold==sma5` on 400/400 weekly).
-  // ⛔ COMPUTE-SCOPED AND DISCARDED. `foldBound` returns a NEW tree and mutates
-  // nothing, and `bound` is a local — the SAVED definition stays symbolic, which
-  // is the only thing that keeps the next binding free to fold it differently.
-  // ⛔ AN UNFOLDABLE LENGTH IS LEFT EXACTLY AS IT WAS, never guessed: the window
-  // check downstream then refuses the member's own expression, naming the field
-  // that stopped it. An unknown timeframe folds NOTHING — `timeframeFlags`
-  // returns null rather than a default, because a guessed `isdaily` is a
-  // confident wrong length.
-  const bindConsts = bindConstsFor({ tf: ctx && ctx.tf, inputs, symbol: ctx && ctx.symbol })
-  const bound = (tree) => foldBound(tree, bindConsts)
-  // ⭐⭐ C26 — which other symbols this binding may read, decided ONCE for every
-  // tree of the document (`otherSymbolsFor`).
-  const other = otherSymbolsFor(def, ctx)
-  // ⭐⭐ C41 — which lower-timeframe codes this binding may read, decided ONCE for
-  // every tree of the document (`lowerTfFor`). Null for a document that reads none.
-  const lower = lowerTfFor(def, ctx)
-  // ⭐⭐ W1b — MANY TREES, ONE COLUMN EACH. `interpret` runs once PER PLOT and the
-  // result is keyed by the plot, which is the whole of the multi-plot lane: the
-  // MACD's three lines are three trees, not one column reshaped. The single-tree
-  // path below is untouched, so a document saved before today computes the same
-  // bytes through the same call.
-  //
-  // ⛔ A PLOT WITH NO TREE IS REFUSED BY THE PLOT'S NAME, NOT LEFT TO
-  // `interpret`. `defSchema.validateTreesAgainstPlots` already refuses the
-  // key-set disagreement in both directions, so a definition that walked through
-  // `validateUserDefinitions` cannot arrive here short a tree — but `computeFor`
-  // takes a definition object from ANY caller (which is the reason the
-  // "computes ONE column" throw below has always existed), and handing
-  // `interpret` an `undefined` tree would surface as a parse-shaped error about
-  // a node, blaming the formula for a document defect.
-  if (trees) {
-    const out = {}
-    const errors = {}
-    // ⭐⭐ C2C.11 — ONE MEMO FOR THE WHOLE DOCUMENT'S COLUMNS, CREATED HERE AND
-    // DROPPED HERE. A multi-plot import computes one consensus expression and
-    // plots several views of it (C2A: 77-84% of a real document's counted nodes
-    // are repeated subtrees), and until now every view paid for the whole thing
-    // again because `interpret`'s own memo is scoped to one tree.
-    //
-    // ⛔ ITS LIFETIME IS THIS CALL. The columns it holds were computed against
-    // THESE bars and THESE inputs; a memo that outlived the pass would serve
-    // stale numbers with nothing red anywhere. It is a local, never a module
-    // cache, and it is not keyed — so there is nothing to invalidate and no way
-    // to forget to.
-    //
-    // ⚠️ IT ONLY PAYS WHEN THE TREES ACTUALLY SHARE NODES, which is what a
-    // document stored as a shared graph gives (its expansion materialises each
-    // distinct node once). On an inlined document every lookup misses and the
-    // cost is one Map probe per self-free node.
-    const crossMemo = new Map()
-    // ⭐ C36 — why a plot's `time(<timeframe>)` is withheld on this chart, per plot.
-    const clock = {}
-    for (const key of keys) {
-      if (!Object.prototype.hasOwnProperty.call(trees, key)) {
-        throw new Error(
-          `computeFor: plot ${JSON.stringify(key)} of ${JSON.stringify(def?.id)} has no tree in ` +
-          `compute.trees (${Object.keys(trees).join(', ') || 'none'}) — a plot with no tree is a key ` +
-          `nothing ever fills.`,
-        )
-      }
-      // ⚠️ SAME ARGUMENTS AS THE SINGLE-TREE CALL BELOW, INCLUDING `ctx.tf` AND
-      // THE `undefined` SCALARS — see that call's comments. One budget covers
-      // every tree because the budget is the DOCUMENT's (`compute.budget`), and
-      // a map over `interpret` that dropped it would run every plot uncapped.
-      //
-      // ⛔⛔ ONE COLUMN'S FAILURE IS ONE COLUMN'S FAILURE (C2A).
-      //
-      // ⚰️ MEASURED ON A REAL SCRIPT. `mid_engagement__14-master-line-lite`
-      // declares 7 columns. Three of them — Consensus and the two bands —
-      // compute cleanly at the 5,000 bars a chart loads (4,945 finite values
-      // each, 6-20 ms). The other four are `accum` recurrences whose
-      // `bars × warmup` exceeds `MAX_RECURRENCE_STEPS`, and they refuse.
-      //
-      // This loop had no `try`. The fourth tree threw, the loop unwound,
-      // `computeFor` threw, and the binder's `attempt(...)` caught it and
-      // `continue`d PAST THE WHOLE INSTANCE — so all seven plots drew nothing.
-      // Measured through this very function: OK at 1, 2 and 3 columns; throws
-      // from the 4th on. Three good columns were erased by a fourth.
-      //
-      // ⛔ THE BUDGET WAS NEVER SHARED. Each `interpret` call is capped on its
-      // own tree; nothing accumulates across siblings. The loss was CONTAINMENT,
-      // and the two are worth telling apart: a shared budget would mean the
-      // document is too big, and it is not — one column of it is.
-      //
-      // ⛔ A FAILED COLUMN IS ABSENT, NOT ALL-NaN. `hasAnyFinite` already reads
-      // an absent key as "no data" and gives the plot no series, so absence
-      // needs no new handling anywhere; a 5,000-long NaN array per failed column
-      // would allocate for nothing and read as a column that computed.
-      // The REASON is preserved instead — see `columnErrors`.
-      // ⭐ C29 — only the plots that folded the other period's value are refused.
-      // ⭐ P1 — the period / ltf / scalar refusal of THIS plot (`chartStaticRefusals`).
-      if (staticWhy.has(key)) {
-        errors[key] = staticWhy.get(key)
-        continue
-      }
-      try {
-        out[key] = interpret(bound(trees[key]), bars, inputs, def.compute.budget,
-          // ⛔ `newestBarIsForming` IS READ THE SAME WAY `tf` IS, and fails closed
-          // the same way. `ctx` absent -> `null` -> UNKNOWN -> the four
-          // CLOCK_REALTIME columns blank. `false` would assert SETTLED.
-          undefined, { tf: ctx && ctx.tf,
-            newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-            ...listingOptsFor(def, ctx),
-            ...semanticsOptsFor(def),
-            ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
-            ...(other ? { symbols: other.symbols } : {}),
-            ...(lower ? { lowerTf: lower.supply } : {}), crossMemo,
-            chartClockSink: (clock[key] = new Map()) })
-      } catch (err) {
-        // ⛔ A CRASH IS NOT A REFUSAL. `|| 'compute:error'` gave EVERY
-        // exception a guard name, so a TypeError inside a walker was
-        // indistinguishable from the table declining to compute a column.
-        errors[key] = isRefusal(err)
-          ? { guard: err.guard, message: String(err.message) }
-          : { status: ENGINE_ERROR, engineError: (err && err.name) || 'Error',
-            message: String((err && err.message) || err) }
-        continue
-      }
-      // ⭐⭐ C48 — a plot that reads a call in a block that may not run on every
-      // bar (`blockRuns.js`): its guard is computed over THESE bars, and where
-      // the block runs after a bar it skipped the plot is refused by name —
-      // never drawn off the every-bar number. Same budget, same options, same
-      // memo as the plot's own tree (the guard is a subtree of it).
-      // ⛔ AFTER the plot's own tree, never before it: a plot that cannot be
-      // computed at all keeps ITS reason (`interpret:bind-time-text` on a chart
-      // whose symbol is not resolved, `symbolThread.test.js`) — the guard is a
-      // subtree of that tree, and asked first it failed the same way and the
-      // member was told about blocks instead of about the symbol.
-      const runsWhy = blockRunsRefusal(def, key, (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
-        undefined, { tf: ctx && ctx.tf,
-          newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-          ...listingOptsFor(def, ctx),
-          ...semanticsOptsFor(def),
-          ...(other ? { symbols: other.symbols } : {}), crossMemo,
-          chartClockSink: new Map() }))
-      if (runsWhy) {
-        delete out[key]
-        delete clock[key]
-        errors[key] = { guard: BLOCK_RUNS_GUARD, message: runsWhy }
-      }
-    }
-    return withLowerTf(withChartClock(withOtherSymbols(withColumnErrors(out, errors), other), clock), lower)
-  }
-  if (keys.length !== 1) {
-    throw new Error(
-      `computeFor: an "ast" definition computes ONE column and definition ` +
-      `${JSON.stringify(def?.id)} declares ${keys.length} data-bearing plots ` +
-      `(${keys.join(', ') || 'none'}). One formula is one series; a second plot would be a ` +
-      `key nothing ever fills.`,
-    )
-  }
-  // ⭐ `ctx.tf` IS THREADED (closed table v2). `computeFor` has had the timeframe
-  // all along and dropped it here, which was harmless while the table held
-  // nothing that needed one. It now holds four: `isintraday`, `isdaily`,
-  // `isweekly` and `ismonthly` are answerable ONLY from what the caller knows,
-  // and `interpret` fails them CLOSED (not-computable) when nobody says. So the
-  // cost of not passing it is not a crash — it is a member's session filter that
-  // silently never fires, which is the quietest failure this lane has.
-  //
-  // ⚠️ `undefined` FOR BUDGET'S NEIGHBOURS, NOT `{}`. `scalars` is genuinely
-  // absent on the chart lane (a chart draws one symbol's bars; the scalar map is
-  // the scan lane's), and spelling it `{}` would turn "no scalars were offered"
-  // into "an empty scalar map was", which seeds every declared scalar NaN by a
-  // different route and reads identically at the call site.
-  // ⭐ P0 0F — see the per-plot branch above (`chartScalars.js`).
-  if (staticWhy.has(keys[0])) return withColumnErrors({}, { [keys[0]]: staticWhy.get(keys[0]) })
-  const clock = { [keys[0]]: new Map() }
-  const sole = interpret(bound(def.compute.ast), bars, inputs, def.compute.budget,
-    undefined, { tf: ctx && ctx.tf,
-      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-      ...listingOptsFor(def, ctx),
-      ...semanticsOptsFor(def),
-      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
-      ...(other ? { symbols: other.symbols } : {}),
-      ...(lower ? { lowerTf: lower.supply } : {}),
-      chartClockSink: clock[keys[0]] })
-  // ⭐ C48 — the single-tree document's own block-run check (`blockRuns.js`),
-  // AFTER its tree computed (a tree that cannot keeps its own reason, above).
-  const soleRunsWhy = blockRunsRefusal(def, keys[0], (tree) => interpret(bound(tree), bars, inputs, def.compute.budget,
-    undefined, { tf: ctx && ctx.tf,
-      newestBarIsForming: (ctx && ctx.newestBarIsForming) ?? null,
-      ...listingOptsFor(def, ctx),
-      ...semanticsOptsFor(def),
-      ...(barIndexAbsoluteFor(def, ctx) ? { barIndexAbsolute: true } : {}),
-      ...(other ? { symbols: other.symbols } : {}),
-      ...(lower ? { lowerTf: lower.supply } : {}),
-      chartClockSink: new Map() }))
-  if (soleRunsWhy) return withColumnErrors({}, { [keys[0]]: { guard: BLOCK_RUNS_GUARD, message: soleRunsWhy } })
-  return withLowerTf(withChartClock(withOtherSymbols({ [keys[0]]: sole }, other), clock), lower)
-}
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   the C43 `runtime.error` seam, `astColumnsFor` and `astColumnsUnstopped` (re-exported above where public).
 
-/** ⭐⭐ C41 — the lower-timeframe codes THIS binding may read
- *  (`engine/lowerTf.js::resolveLowerTf`), or null when the document reads none.
- *  Only the member door's Pine documents write an `ltf` node; the codes are its
- *  stamp (`meta.lowerTf`), so a document that reads none costs one property read.
- *  `ctx.lowerTf` is the chart's OWN symbol at each store timeframe
- *  (`useLowerTfSources`); `ctx.tf` the chart's — or the frame's — timeframe. */
-export function lowerTfFor(def, ctx) {
-  if (!def || !def.meta || def.meta.recurrenceOrigin !== PINE_RECURRENCE_ORIGIN) return null
-  if (!Array.isArray(def.meta.lowerTf) || !def.meta.lowerTf.length) return null
-  return resolveLowerTf(def, {
-    tf: ctx && ctx.tf,
-    lowerTf: ctx && ctx.lowerTf,
-    framed: !!(ctx && ctx.framed),
-  })
-}
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `lowerTfFor` (re-exported above).
 
 /** ⭐⭐ P0 — the guard a formula document's `ltf` plot is refused under
  *  (owned by `evaluability.js` since P1; re-exported for its readers). */
@@ -2644,8 +2355,24 @@ export { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE }
  *  `ltf` is never a silent blank line. ⛔ A Pine translation's own refusals are
  *  left exactly as they were (its disclosures ride on `meta.disclosures`). */
 export function externalReadNotices(def, columns) {
-  if (!def || isPineOriginDoc(def) || !columns) return []
+  if (!def || !columns) return []
   const out = []
+  // ⭐⭐ ENGINE 55 — A PINE TRANSLATION'S OTHER-SYMBOL REFUSALS ARE PUBLISHED TOO. Its
+  // translate-time disclosures ride `meta.disclosures`, but a ticker the BIND refuses
+  // (`ADVQ` held nowhere, an unwitnessed venue) is decided per chart and was said
+  // nowhere: the plot drew an all-`na` line. It is now refused by name in
+  // `columnErrors` and named here, on the same strip.
+  if (isPineOriginDoc(def)) {
+    const other = otherSymbolReport(columns)
+    for (const r of (other && other.refused) || []) {
+      if (otherSymbolPending(r)) continue
+      out.push({ code: r.code, reason: r.static === true ? staticOtherSymbolMessage(r.ticker, r)
+        : `This indicator reads \`${r.ticker}\`: ${r.reason}` })
+    }
+    // ⭐ review F1 — and every paint whose colour that refusal leaves undrawn, by its own name
+    out.push(...colourReaderPaintNotices(def, columns))
+    return out
+  }
   const other = otherSymbolReport(columns)
   for (const r of (other && other.refused) || []) {
     if (otherSymbolPending(r)) continue
@@ -2658,220 +2385,11 @@ export function externalReadNotices(def, columns) {
   return out
 }
 
-/** The key a column map carries its lower-timeframe decision under —
- *  non-enumerable, like `__otherSymbols`. */
-const LOWER_TF = '__lowerTf'
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   the lower-timeframe / other-symbol / withheld-bar / chart-clock records and their readers (re-exported above).
 
-function withLowerTf(out, lower) {
-  if (lower) {
-    Object.defineProperty(out, LOWER_TF, {
-      value: Object.freeze({ served: lower.served, refused: lower.refused }), enumerable: false,
-    })
-  }
-  return out
-}
-
-/** ⭐ C41 — which lower-timeframe codes a computed column map was served, and
- *  which were refused and why: `{served, refused: [{code, refusal, reason}]}`, or null. */
-export function lowerTfReport(columns) {
-  return (columns && columns[LOWER_TF]) || null
-}
-
-/** ⭐⭐ C26 — the other symbols THIS binding may read (`engine/otherSymbols.js`),
- *  or null when the document reads none.
- *
- *  ⭐⭐ P0 — EVERY DOCUMENT THAT READS ONE IS DECIDED HERE. A Pine translation by
- *  its recorded spellings (`resolveOtherSymbols`); any other document — a formula
- *  a member typed — by our store's ticker (`resolveFormulaSymbols`): served when
- *  its bars are in hand, refused by name otherwise.
- *  ⚰️ Until P0 a non-Pine `sym` "kept the unsupplied answer it always had":
- *  all-NaN, no report, never fetched — a definition accepted and starved. */
-export function otherSymbolsFor(def, ctx) {
-  // ⭐ P1 — the gate's decision, verbatim (`evaluability.js::otherSymbolsDecision`).
-  return otherSymbolsDecision(def, ctx)
-}
-
-/** The key a column map carries its other-symbol decision under — non-enumerable
- *  for the same reason `__columnErrors` is (a visible key is a phantom plot). */
-const OTHER_SYMBOLS = '__otherSymbols'
-
-function withOtherSymbols(out, other) {
-  if (other) {
-    Object.defineProperty(out, OTHER_SYMBOLS, {
-      value: Object.freeze({ served: other.served, refused: other.refused }), enumerable: false,
-    })
-  }
-  return out
-}
-
-/** ⭐ C26 — which other symbols a computed column map was served, and which were
- *  refused and why: `{served, refused: [{ticker, code, reason}]}`, or null. */
-export function otherSymbolReport(columns) {
-  return (columns && columns[OTHER_SYMBOLS]) || null
-}
-
-/** The key a column map carries its `time(<timeframe>)` withholdings under —
- *  non-enumerable for the reason `__columnErrors` is. */
-const CHART_CLOCK = '__chartClock'
-
-/** `byKey`: plot key → Map(code → sentence), filled by `interpret` through
- *  `opts.chartClockSink` (`interpret.js::periodAnchorMask` is the ONE place the
- *  decision is made). Folded to one row per code, naming the plots it covers. */
-function withChartClock(out, byKey) {
-  const rows = new Map()
-  for (const [key, reasons] of Object.entries(byKey || {})) {
-    for (const [code, reason] of reasons) {
-      if (!rows.has(code)) rows.set(code, { code, reason, plots: [] })
-      rows.get(code).plots.push(key)
-    }
-  }
-  if (rows.size) {
-    Object.defineProperty(out, CHART_CLOCK, {
-      value: Object.freeze({ withheld: Object.freeze([...rows.values()]) }), enumerable: false,
-    })
-  }
-  return out
-}
-
-/** ⭐⭐ C36 — WHY EVERY BAR OF A PLOT THAT READS `time(<timeframe>)` IS WITHHELD
- *  ON THIS CHART: `{withheld: [{code, reason, plots}]}`, or null when nothing is.
- *  The codes and sentences are `interpret.js::CHART_CLOCK_WITHHELD`'s — a chart
- *  that is not daily, daily bars that include a weekend, a chart timeframe no
- *  capture measured. The binder publishes it to the member's disclosure strip
- *  (`chartClockNotice.js`); the vendor harness prints it as a note. Modelled on
- *  `otherSymbolReport`: the decision rides on the columns it was made for. */
-export function chartClockReport(columns) {
-  return (columns && columns[CHART_CLOCK]) || null
-}
-
-/** ⭐⭐ C12w — THE DECLARATION A DOCUMENT MAKES ABOUT ITS RECURRENCES. The Pine
- *  member door (`memberPaneDefinition`) stamps it; nothing else does. */
-export const PINE_RECURRENCE_ORIGIN = 'pine'
-
-/** Whether the listing exception (ruling R-W) applies to THIS document on THIS
- *  bar series: `interpret`'s `historyFromListing`.
- *
- *  Two facts, both required, and neither inferred:
- *   - the CALLER states the series starts at the symbol's first-ever bar
- *     (`ctx.historyFromListing === true` — `StockChart` derives it from the
- *     listing date, the vendor harness from the capture's `startsAtBar0`);
- *   - the DOCUMENT declares its `accum` recurrences are Pine translations
- *     (`meta.recurrenceOrigin === 'pine'`).
- *
- *  ⛔ WHY THE SECOND ONE EXISTS. `accum` is shared by three translators and only
- *  one of them means "carried since the first bar". TC2000's `CountTrue(b, x)`
- *  (`pcf.js`) IS a window of `x` bars — run from bar 0 it would count the whole
- *  history, a different indicator. A document that says nothing is left exactly
- *  as it was.
- *  ⛔ Absent, `false`, or anything but `true` on either side means NO. */
-export function historyFromListingFor(def, ctx) {
-  return !!(ctx && ctx.historyFromListing === true
-    && def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
-}
-
-/** ⭐⭐ F1 — the listing facts `interpret` reads, as ONE spread: the listing
- *  (`historyFromListingFor`) and, with it, whether this document's Pine version
- *  reads an `na` `?:` test as false (`meta.naConditionFalse`, written by the
- *  member door from `interpret.js::naConditionIsFalse`; `interpret.js::
- *  pineTernaryFor`). Off the listing, or for a document that does not declare
- *  it, nothing changes. */
-export function listingOptsFor(def, ctx) {
-  if (!historyFromListingFor(def, ctx)) return {}
-  return { historyFromListing: true,
-    ...(def.meta.naConditionFalse === true ? { naConditionFalse: true } : {}) }
-}
-
-/** ⭐⭐ C45 — DOES THIS DOCUMENT'S `barindex` MEAN PINE'S `bar_index`?
- *
- *  Pine's `bar_index` counts from the first bar of the symbol's history; the
- *  engine's `barindex` leaf counts from the first bar it is handed. A document
- *  the Pine member door built claims TradingView's number, so off the listing a
- *  value that depends on the count is withheld (`interpret.js::barIndexMask`).
- *  A formula a member typed in the formula language reads `barindex` by ITS
- *  declared sentence ("the bar's position in the series") and is not touched.
- *
- *  ⛔ The same declaration `historyFromListingFor` reads, and for the same
- *  reason: the tree cannot say which translator wrote it. A document that says
- *  nothing (saved before C12w, or from another translator) is left as it was.
- *
- *  ⭐ ONE OTHER FACT ANSWERS IT, AND ONLY A CALLER CAN STATE IT:
- *  `ctx.barIndexFromFirstBar === true` — the series' first bar IS the bar
- *  TradingView counts as 0. The listing implies it on a daily chart
- *  (`historyFromListing`, which `interpret` asks itself); nothing else a member
- *  surface holds does — on an intraday chart TradingView's bar 0 is the first bar
- *  ITS plan loaded, which this product cannot know. So no member surface states
- *  it (`StockChart` does not, railed). The vendor harness does, for a capture
- *  whose OWN `bar_index` control row reads 0..n-1 on its bars: there the fact is
- *  the vendor's own print, and the count is graded instead of withheld.
- *  ⛔ It says nothing about the listing: no seed is lifted, no history read is
- *  served by it. Absent, `false`, or anything but `true` means NO. */
-export function barIndexAbsoluteFor(def, ctx) {
-  return !!(def && def.meta && def.meta.recurrenceOrigin === PINE_RECURRENCE_ORIGIN)
-    && !(ctx && ctx.barIndexFromFirstBar === true)
-}
-
-/** Merge a caller's inputs over the definition's declared defaults. */
-// ⭐⭐ EXPORTED FOR THE OBJECT LANE (C3B-CLOSE item 6), NOT COPIED INTO IT.
-// `objectColumns.objectReaderFor` needs exactly this merge — declared defaults
-// under the instance's overrides — to evaluate an object's coordinate the way
-// the plot beside it is evaluated. A second copy there would be a second
-// authority over one value, and the two would disagree the first time a default
-// rule moved (`lesson_a_second_authority_over_one_value`).
-export function resolveInputs(def, inputs) {
-  const out = {}
-  for (const input of def?.inputs || []) {
-    if (input && typeof input.key === 'string') out[input.key] = input.default
-  }
-  if (inputs) {
-    for (const [k, v] of Object.entries(inputs)) {
-      if (v !== undefined) out[k] = v
-    }
-  }
-  return out
-}
-
-/**
- * ⭐⭐ THE SCALARS A TREE READS: `resolveInputs`, with every TEXT enum handed over
- * as its option's INDEX.
- *
- * A tree has no strings (`pine.js::enumCompare` writes `kind == 1` for Pine's
- * `kind == "SMA"`), so an `enum` input whose options are text reaches it as the
- * position of the member's pick. The INSTANCE keeps the text — what the dropdown
- * shows and what `defSchema` validates — and only the evaluation scope sees the
- * number.
- *
- * ⭐⭐ ONE RULE, SHARED WITH THE SERVER (`api/services/alert_user_series._inputs_for`),
- * pinned by ONE fixture both suites read (`tests/fixtures/enum_input_parity.json`):
- *   • a value that IS one of the options → that option's index;
- *   • anything else — unknown text, a number, null, a boolean — → the DEFAULT's index;
- *   • a default that is not among the options → index 0. (Pine refuses to compile
- *     such a script, so the door never mints one; this guards a hand-made document.)
- * ⚰️ An unknown value used to pass through as text, the tree compared text with a
- * number, and EVERY `kind == i` was false — the script's else arm, which the server
- * did not agree with (it took the default).
- * ⛔ Only for the TREE lanes: a native's enum (`lineStyle: 'dashed'`) is text its
- * compute reads as text, and `resolveInputs` stays exactly what it was.
- */
-export function enumIndexOf(input, value) {
-  const opts = Array.isArray(input && input.options) ? input.options.map((o) => (Array.isArray(o) ? o[0] : o)) : []
-  if (!opts.length || !opts.every((o) => typeof o === 'string')) return null
-  const at = typeof value === 'string' ? opts.indexOf(value) : -1
-  if (at >= 0) return at
-  const def = opts.indexOf(input.default)
-  return def >= 0 ? def : 0
-}
-
-export function treeScalars(def, scalars) {
-  let out = scalars
-  for (const input of def?.inputs || []) {
-    if (!input || input.type !== 'enum' || typeof input.key !== 'string') continue
-    const i = enumIndexOf(input, scalars[input.key])
-    if (i === null) continue
-    if (out === scalars) out = { ...scalars }
-    out[input.key] = i
-  }
-  return out
-}
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `PINE_RECURRENCE_ORIGIN` .. `treeScalars` (re-exported above).
 
 // ─── public surface ──────────────────────────────────────────────────────────
 
@@ -2996,6 +2514,7 @@ function loadRuntimeLane() {
     .catch((err) => {
       _runtimeLoading = null
       _runtimeLoadFailed = String((err && err.message) || err || 'the load failed')
+      noteRuntimeLoadFailed()   // ⭐ U4 — one stop in this tab's run count
       notifyColumnsLanded('runtime:lane')
     })
   return true
@@ -3035,6 +2554,15 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
       return reasonFor(RUNTIME_KILLED_GUARD, `${killed}. The saved definition is kept; it comes `
         + 'back when it is taken off the list.')
     }
+    // ⭐⭐ G6 (2026-11-15) — a script admitted for CLOSED-BAR HISTORY only is refused BY NAME on a
+    // chart whose newest bar is forming or not known to be closed (`runtimeFormingRefusalOf`).
+    const forming = runtimeFormingRefusalOf({
+      source: def.compute && def.compute.source, newestBarIsForming: ctx ? ctx.newestBarIsForming : null,
+    })
+    if (forming) {
+      return reasonFor(RUNTIME_FORMING_GUARD, `${forming}. The chart is unaffected and the saved `
+        + 'definition is kept; it is drawn again once the bar has finished.')
+    }
   }
   if (!_runtimeLane) {
     if (_runtimeLoadFailed !== null && runtimePaneEnabled()) {
@@ -3067,29 +2595,564 @@ function runtimeColumnsOrReasons(def, bars, inputs, ctx) {
     }
     // ⛔ A FAILED BUILD IS EVERY COLUMN'S FAILURE, reported, never a throw on the
     // paint path — the binder would otherwise skip the whole instance silently.
-    return reasonFor((err && err.guard) || ENGINE_ERROR,
+    const out = reasonFor((err && err.guard) || ENGINE_ERROR,
       String((err && err.message) || err))
+    // ⭐ (e85) a run WAITING for other series' newest bars is a wait, said as one (`runtimeRunWaitingOf`), never as a stop
+    if (err && err.pending === true && typeof err.waitingFor === 'string' && err.waitingFor) {
+      Object.defineProperty(out, RUNTIME_WAITING_KEY, { value: Object.freeze({ waitingFor: err.waitingFor }), enumerable: false })
+    }
+    return out
   }
 }
 
+// ─── ⭐⭐ (the e85 live capture, 2026-11-19) — A RUN WAITING FOR ANOTHER SERIES' NEWEST BARS SAYS SO ──────────────
+// A live-tail lag (`runtime/requestSupply.js`: another series' newest bars behind the chart's, within the bound) is a
+// WAIT: the run is asked again when the series updates, and the pane keeps the picture it last served for the run half
+// (`binder.js`). The strip says what it waits for, in the house voice of the worker's own sentences (what is happening,
+// what settles it), never a guard id. ⛔ A wait past the bound is a refusal (`runtime:request-lag`) and says so there.
+/** Where a runtime document's answer records the series its run waits for (non-enumerable): `{waitingFor}`. */
+export const RUNTIME_WAITING_KEY = '__runtimeWaiting'
+const waitingNames = (waitingFor) => String(waitingFor || '').split(',').filter(Boolean).map((s) => `\`${s}\``)
+const waitedFor = (names) => (names.length > 1
+  ? { what: `the newest bars of ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}, which have not arrived yet`,
+    when: 'when they do' }
+  : { what: `${names[0]}'s newest bar, which has not arrived yet`, when: 'when it does' })
+/** The strip's status for a runtime document whose run waits. */
+export function runtimeWaitingSentence(waitingFor) {
+  const w = waitedFor(waitingNames(waitingFor))
+  return `waiting for ${w.what}; this script is drawn bar by bar ${w.when}`
+}
+/** The strip's status for a host document whose run half waits (its plots are drawn; the drawings this pane last
+ *  served stay, `binder.js`). ⛔ It never claims a picture is kept: a first load that waits has none. */
+export function runtimeDrawingsWaitingSentence(waitingFor) {
+  const w = waitedFor(waitingNames(waitingFor))
+  return `waiting for ${w.what}; this script's drawings are drawn ${w.when}`
+}
+/** Is this document's run waiting for other series' newest bars on this chart? `{waitingFor, what, sentence}`, or null. */
+export function runtimeRunWaitingOf(def, cols) {
+  if (!def || !def.compute || !cols) return null
+  if (def.compute.kind === 'runtime') {
+    const w = cols[RUNTIME_WAITING_KEY]
+    return w && w.waitingFor ? { waitingFor: w.waitingFor, what: 'values', sentence: runtimeWaitingSentence(w.waitingFor) } : null
+  }
+  const half = runHalfOf(cols)
+  if (!half || half.state !== 'pending' || !half.waitingFor) return null
+  return { waitingFor: half.waitingFor, what: 'drawings', sentence: runtimeDrawingsWaitingSentence(half.waitingFor) }
+}
+
+/**
+ * ⭐ U2b — WHAT A COMPUTE READS BEYOND BARS AND INPUTS that can change under an
+ * unchanged (def, bars, inputs) key. The binder memoises `computeFor` on that
+ * key; a server definition with a `plots[].liveTail` also reads the benchmark's
+ * forming bar (`liveTail.benchmarkTailFor`), which lands AFTER the compute that
+ * asked for it. This string joins the memo key, so a landed tail is a miss and
+ * the repaint `useServerColumns` triggers recomputes the forming bar instead of
+ * drawing the stale one again. `''` for every other definition: their key is
+ * unchanged byte for byte.
+ */
+export function computeSignature(def, inputs, ctx) {
+  // ⭐ ENGINE 53 — a run half's gates (`runHalfGateSignature`).
+  if (carriesRunHalf(def)) return runHalfGateSignature(def)
+  if (def?.compute?.kind !== 'server' || !definitionHasLiveTail(def)) return ''
+  const resolved = resolveInputs(def, inputs)
+  return liveTailSignature(def, scalarsFor(def, resolved, ctx), resolved, ctx && ctx.sym, ctx && ctx.tf)
+}
+
+/** ⭐ DIV-4 — the run computes the script AS WRITTEN, so its colour is the member's
+ *  only while every declared input is at its default (`inputsAtDefaults`, the C18
+ *  rule) AND every folded parameter still reads its author's default at each of its
+ *  locators (`paramLiteral.manifestAtDefaults`). (C18's own rule treats any manifest
+ *  as moved; a member pane document carries one whenever a parameter was folded,
+ *  edited or not, so that rule would never serve one.) */
+function runtimeColoursAtDefaults(def, inputs) {
+  const compute = (def && def.compute) || {}
+  return inputsAtDefaults({ ...def, compute: { ...compute, paramManifest: null } }, inputs)
+    && manifestAtDefaults(def)
+}
+
+/** ⭐⭐ DIV-4 r2 — WHAT A MEMBER READS when a run-read bar colour is not drawn on
+ *  THIS chart: a plain sentence saying what is true here, never a guard token. The
+ *  token rides beside it (`columnErrors[key].code`) for diagnostics. Most members'
+ *  charts do not start at the listing, so that first sentence is the one usually
+ *  read: it says so calmly and that the candles simply keep their own colours. */
+const RUNTIME_COLOUR_WHY = Object.freeze({
+  'runtime:not-from-listing': "this chart's bars don't start at the symbol's first trading day, and the colours "
+    + 'are only worked out bar by bar from there, so the candles keep their own colours',
+  'runtime:member-inputs': "a setting has been changed from the script's default, and the colours are only "
+    + "worked out at the script's own settings, so the candles keep their own colours",
+  'pane:not-built': "running scripts bar by bar isn't part of this version of the app, so the candles keep their own colours",
+  'pane:not-permitted': 'running scripts bar by bar is switched off for your account right now, so the candles keep their own colours',
+  'pane:killed': 'this script is switched off for running bar by bar, so the candles keep their own colours',
+  'pane:not-graded': "this script hasn't been checked against TradingView for running bar by bar yet, so the candles keep their own colours",
+  // ⭐ G6 — `runtimeKill.js::RUNTIME_FORMING_GUARD` is NOT here: its reason is the server's, per script
+  // (`runtimeColourFormingWhy`, from `formingReason.js`), never a fixed sentence
+  'runtime:runtime.error': "the script stops itself with its own error message on this chart, so it draws no colours, as on TradingView",
+  'runtime:not-loaded': 'the part of the app that runs scripts bar by bar is still loading, so the colours appear once it has',
+  'runtime:unknown-bar': "on some bars the colour can't be worked out exactly, so none are drawn and the candles keep their own colours",
+  'runtime:request': 'the script reads another symbol or timeframe, which this chart cannot hand it, so the candles keep their own colours',
+  // ⭐ (e85) `requestSupply.js::REQUEST_LAG_GUARD`
+  'runtime:request-lag': "the newest bars of another symbol the script reads haven't arrived on this chart, so the candles keep their own colours",
+  'runtime:clock-zone': "this symbol's exchange time zone isn't known here, and the script reads the clock, so the candles keep their own colours",
+})
+const RUNTIME_COLOUR_WHY_LIMIT = 'running the script bar by bar needed more work than a chart is allowed, so the candles keep their own colours'
+const RUNTIME_COLOUR_WHY_OTHER = "part of the script can't be run bar by bar here, so the candles keep their own colours"
+/** Why a run colour is held back on a forming bar, with the reason the server named for THIS script
+ *  (`formingIds`: `runtimeKill.js::runtimeFormingIdsOf`). No ids says "uses a part of Pine" (fail closed). */
+export function runtimeColourFormingWhy(formingIds) {
+  return `this script ${formingReasonOf(formingIds)}, which has only been checked against TradingView on finished bars, `
+    + "so while this chart's newest bar is not known to be finished the candles keep their own colours"
+}
+/** The member's sentence for one refusal code (a gate, or the run's own reason; `formingIds` the server's ids
+ *  when the code is the forming guard). */
+export function runtimeColourWhy(code, { formingIds } = {}) {
+  const c = String(code || '')
+  if (c === RUNTIME_FORMING_GUARD) return runtimeColourFormingWhy(formingIds)
+  if (Object.hasOwn(RUNTIME_COLOUR_WHY, c)) return RUNTIME_COLOUR_WHY[c]
+  if (RUNTIME_LIMIT_CODES.has(c)) return RUNTIME_COLOUR_WHY_LIMIT
+  return RUNTIME_COLOUR_WHY_OTHER
+}
+/** `runtimeColumns.js::RUNTIME_LIMIT_GUARD` (the run's own limit token), restated
+ *  here only as a value to compare against: this module must not import the lane. */
+const RUNTIME_LIMIT_GUARD_CODE = 'runtime:limit'
+/** ⭐ r3 — every limit stop the run can report: `runtime:${err.limit}`, one per name the
+ *  VM declares (`runtime/limits.js::LIMIT_NAMES`, a leaf), derived from that list, plus
+ *  the source-size refusal. */
+const RUNTIME_LIMIT_CODES = new Set([RUNTIME_LIMIT_GUARD_CODE, ...LIMIT_NAMES.map((n) => `runtime:${n}`)])
+
+/** ⭐ r1 (review N5) — ONE run spec per `compute.runtimeColours` object, so the run's
+ *  own memo (`runtimeObjectValues`, keyed by the spec's identity per bars array) hits
+ *  on the next paint instead of growing by one entry a call. */
+const _runSpecs = new WeakMap()
+function runSpecOf(rc, def) {
+  let rt = _runSpecs.get(rc)
+  if (!rt) {
+    // ⭐⭐ U15 — the document's library pins ride with the run (`pine:library-changed`)
+    const pins = def && def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length ? def.meta.libraries : null
+    rt = Object.freeze({ source: rc.source, at: rc.at, lane: 'pane', ...(pins ? { libraryPins: pins } : {}) })
+    _runSpecs.set(rc, rt)
+  }
+  return rt
+}
+
+/** ⭐⭐ r1 (review N4) — WHY A PAINT'S RUN-READ COLOUR IS NOT DRAWN ON THIS CHART, as
+ *  the sentence the runtime strip shows (`binder.noteRuntimeErrorStop`, the route a
+ *  runtime document's own stop takes), or null. Read off the columns' errors
+ *  (`withRuntimeColours`), one clause per paint, so the member who expects the colour
+ *  reads why it is missing: off the listing, settings moved, the run switched off or
+ *  killed, a `runtime.error`, a bar the run cannot settle, the lane not loaded. */
+export function runtimeColourStopOf(def, cols) {
+  const rc = def && def.compute && def.compute.runtimeColours
+  if (!rc || !Array.isArray(rc.keys) || !cols) return null
+  const errs = columnErrors(cols)
+  const lineOf = new Map((Array.isArray(def.paints) ? def.paints : [])
+    .filter((p) => p && typeof p.colorMode === 'string')
+    .map((p) => [p.colorMode.slice('column:'.length), p]))
+  const parts = []
+  for (const key of rc.keys) {
+    const e = errs[key]
+    if (!e || e.guard !== RUNTIME_COLOUR_GUARD) continue
+    const p = lineOf.get(key)
+    const name = p ? `\`${p.kind}\`${Number.isInteger(p.line) ? ` (line ${p.line})` : ''}` : 'a bar colour'
+    parts.push(`The colours from ${name} aren't shown on this chart: ${String(e.message || '').trim()}.`)
+  }
+  return parts.length ? { guard: RUNTIME_COLOUR_GUARD, sentence: parts.join(' ') } : null
+}
+
+/** ⭐⭐ DIV-4 — THE GUARD a runtime-read colour column carries when it is not served. */
+export const RUNTIME_COLOUR_GUARD = 'runtime:colour-not-served'
+
+/** ⭐⭐ DIV-4 — A HOST DOCUMENT'S COLOURS READ FROM THE PER-BAR RUN.
+ *
+ *  `compute.runtimeColours = { source, at, keys }` (written by the member door,
+ *  `memberPaneDefinition::runtimeReadPaints`): each `at[k]` is a colour asked for at
+ *  its own statement (`objectTreesAt`, kind `colour`), and its column lands under
+ *  `keys[k]` — a packed colour per bar (`pool.packedPointColour`), which a paint's
+ *  `colorMode: column:<key>` reads. ONE evaluator: the C18 object runtime
+ *  (`runtimeColumns.js::runtimeObjectValues`, registered through the leaf seam),
+ *  with ITS exactness rules — the bars start at the listing (ruling R-W, as this
+ *  document declares it, `historyFromListingFor`), the member left every input at
+ *  its default, the run completes, the two probe runs agree.
+ *  ⛔ ALL OR NOTHING PER COLUMN: a column with ANY bar the probes disagree on is
+ *  not served at all (a bar left unpainted would read as Pine's `na` colour).
+ *  Every column not served is absent and says why (`columnErrors`). */
+function withRuntimeColours(def, out, bars, inputs, ctx) {
+  const rc = def.compute.runtimeColours
+  const keys = (rc && Array.isArray(rc.keys)) ? rc.keys.filter((k) => typeof k === 'string' && k) : []
+  if (!keys.length) return out
+  const fn = registeredObjectRuntimeValues()
+  const errors = { ...columnErrors(out) }
+  // a fresh map: the host one may already carry its own (non-configurable) error record
+  const res = withRuntimeErrorStop({ ...out }, runtimeErrorStopOf(out))
+  const refuse = (code) => {
+    // ⭐ G6 — a forming-bar refusal says the reason the server named for THIS script (`formingReason.js`)
+    const said = runtimeColourWhy(code, { formingIds: runtimeFormingIdsOf({ source: rc && rc.source }) })
+    for (const k of keys) errors[k] = { guard: RUNTIME_COLOUR_GUARD, message: said, code }
+  }
+  const stop = runtimeErrorStopOf(out)
+  // ⭐ the pane lane answers to the runtime pane's per-member permission and the kill
+  // list on every run, exactly as a runtime document does (`runtimeColumnsOrReasons`)
+  const killed = runtimeKillOf({ defId: def.id, source: rc && rc.source })
+  // ⛔ r1 (review N3) — and the BUILD flag and the starter allowlist, on every run: a
+  // stored or hand-posted document carrying `runtimeColours` on a build whose runtime
+  // pane is off, or a script later taken off the allowlist, never draws the run colour.
+  // (A runtime DOCUMENT is reached only after the door asked both; this one is an
+  // ordinary `ast` document and is not.)
+  const notGraded = runtimeNotGradedOf({ source: rc && rc.source })
+  // ⭐ ENGINE 53 — and the server's stamps on the row it served (`runtime_definitions.stamp_served`,
+  // extended to an `ast` row carrying a run-read value): a kill or an ungraded script reaches a
+  // saved document before this tab's own read of the lists does.
+  const stamp = servedRunStamp(def)
+  if (!runtimePaneBuilt()) {
+    refuse('pane:not-built')
+  } else if (!runtimePanePermitted()) {
+    refuse('pane:not-permitted')
+  } else if (killed || stamp === 'killed') {
+    refuse('pane:killed')
+  } else if (notGraded || stamp === 'not-graded') {
+    refuse('pane:not-graded')
+  } else if (runtimeFormingRefusalOf({ source: rc && rc.source, newestBarIsForming: ctx ? ctx.newestBarIsForming : null })) {
+    refuse(RUNTIME_FORMING_GUARD)
+  } else if (stop && stop.reached) {
+    // ⛔ the script's own `runtime.error` was reached: TradingView holds nothing, and no colour is drawn either
+    for (const k of keys) {
+      errors[k] = { guard: RUNTIME_COLOUR_GUARD, message: runtimeColourWhy('runtime:runtime.error'), code: RUNTIME_ERROR_GUARD }
+    }
+  } else if (!fn) {
+    refuse('runtime:not-loaded')
+  } else {
+    const v = fn(runSpecOf(rc, def), bars, {
+      tf: ctx && ctx.tf,
+      symbol: ctx && ctx.symbol,
+      newestBarIsForming: ctx && ctx.newestBarIsForming,
+      fromListing: historyFromListingFor(def, ctx),
+      atDefaults: runtimeColoursAtDefaults(def, inputs),
+    })
+    if (!v || !v.served) {
+      refuse((v && v.reason) || 'runtime:error')
+    } else {
+      keys.forEach((key, k) => {
+        const col = v.cols[k]
+        const unk = v.unknown[k]
+        if (!(col instanceof Float64Array) || col.length !== bars.length) {
+          errors[key] = { guard: RUNTIME_COLOUR_GUARD, message: runtimeColourWhy('runtime:no-column'), code: 'runtime:no-column' }
+        } else if (unk && unk.some((x) => x)) {
+          errors[key] = { guard: RUNTIME_COLOUR_GUARD, message: runtimeColourWhy('runtime:unknown-bar'), code: 'runtime:unknown-bar' }
+        } else {
+          res[key] = col
+        }
+      })
+    }
+  }
+  return withColumnErrors(res, errors)
+}
+
+/** ⭐ ENGINE 53 — the server's stamp on a served `ast` row carrying a run-read value
+ *  (`runtime_definitions.stamp_served`): `'killed'`, `'not-graded'`, or null. */
+function servedRunStamp(def) {
+  const meta = (def && def.meta) || {}
+  if (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled) return 'killed'
+  if (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded) return 'not-graded'
+  return null
+}
+
+/** ⭐⭐ ENGINE 53 — THE CODE a run half is refused with when the run's columns do not equal
+ *  the host's on this chart: the run is not proved to be the same computation, so its
+ *  drawings are not drawn and the host picture stays. */
+export const RUN_HALF_COLUMN_RAIL = 'run-half:column-rail'
+
+/** ⭐⭐ ENGINE 54 — the document's trees and object program are not the ones its door stamped
+ *  (`runHalfProgram.js`): the run half is not drawn beside a program it was not minted for. */
+export const RUN_HALF_PROGRAM_UNBOUND = 'run-half:program-unbound'
+/** ⭐⭐ ENGINE 54 (review) — the run half carries no program stamp at all: it was minted by an
+ *  older engine, before the program binding (not "changed"; its own sentence). */
+export const RUN_HALF_PROGRAM_UNSTAMPED = 'run-half:program-unstamped'
+/** ⭐⭐ ENGINE 54 — the object rail (`runHalfObjectRail.js`) is not registered in this bundle:
+ *  a rail that cannot run is a refusal, never a pass. */
+export const RUN_HALF_RAIL_NOT_LOADED = 'run-half:rail-not-loaded'
+/** ⭐⭐ ENGINE 54 — the object rail's own default code (its others ride its answer). */
+export const RUN_HALF_OBJECT_RAIL = 'run-half:object-rail'
+
+/** Two column values agree: both `na`, or equal to 1e-9 of their size (the runtime lane's
+ *  own rule, `runtimeColumns.js::sameValue`, restated as a value comparison: this module
+ *  must not import the lane). */
+export function sameColumnValue(x, y) {
+  if (x === y) return true
+  const xn = typeof x !== 'number' || Number.isNaN(x)
+  const yn = typeof y !== 'number' || Number.isNaN(y)
+  if (xn || yn) return xn && yn
+  return Math.abs(x - y) <= 1e-9 * Math.max(Math.abs(x), Math.abs(y), 1e-300)
+}
+
+/** The drawing families a host object program creates (loop bodies included). */
+function hostObjectFamilies(program) {
+  const out = new Set()
+  const walk = (ops) => {
+    for (const op of ops || []) {
+      if (!op) continue
+      if (op.k === 'create' && typeof op.family === 'string') out.add(op.family)
+      if (Array.isArray(op.body)) walk(op.body)
+    }
+  }
+  walk(program && program.ops)
+  return out
+}
+
+/** ⭐ ENGINE 53 — the meta key a run-half document names its own script by (the value
+ *  `memberPaneDefinition::RUN_HALF_SOURCE_STAMP` writes; restated here only as a key to read:
+ *  this module must not import the builder). */
+const RUN_HALF_SOURCE_STAMP_KEY = 'pineSourceSha256'
+const _runHalfHashes = new WeakMap()
+/** sha256 of the run half's source, once per `compute.runtimeObjects` object. */
+function runHalfSourceHashOf(ro) {
+  let h = _runHalfHashes.get(ro)
+  if (h === undefined) { h = runtimeSourceHash(ro.source); _runHalfHashes.set(ro, h) }
+  return h
+}
+
+/** ⭐ ENGINE 53 — ONE frozen runtime document per `compute.runtimeObjects` object, so the
+ *  run's own memo (`runtimeColumnsFor`, keyed by the document's identity and content per
+ *  bars array) hits on the next paint. It is the runtime lane's own shape (`kind: 'runtime'`,
+ *  `objects: true`), built from the run half and nothing else: the host's trees never reach it. */
+const _runHalfDefs = new WeakMap()
+function runHalfDefOf(def, ro) {
+  let rt = _runHalfDefs.get(ro)
+  if (!rt) {
+    const meta = { runtimeHistory: 'listing' }
+    for (const k of ['runtimeLanguage', 'runtimeFrontend', 'runtimeIr', 'runtimeOutputSignature']) {
+      if (ro[k] !== undefined) meta[k] = ro[k]
+    }
+    // ⭐⭐ U15 — the run half re-links its source's libraries: the document's pins go with it
+    if (def.meta && Array.isArray(def.meta.libraries) && def.meta.libraries.length) meta.libraries = def.meta.libraries
+    rt = Object.freeze({
+      id: `${def.id}~run`,
+      ...(Number.isInteger(def.version) ? { version: def.version } : {}),
+      compute: Object.freeze({
+        kind: 'runtime', fn: `runtime:${def.id}~run`, rev: 1,
+        source: ro.source, outputs: Object.freeze({ ...(ro.outputs || {}) }), objects: true,
+      }),
+      // ⭐ SETTINGS PARITY (2c) — the script's own literal settings, keyed by Pine name (the runtime
+      // pane's reader), so `runtimeColumnsFor` hands the run the values it is given: at every default
+      // it is handed nothing and builds the author's program, exactly as before
+      inputs: Object.freeze(runtimeInputSpecsOf(ro.source).specs.map((x) => Object.freeze({ ...x }))),
+      meta: Object.freeze(meta),
+    })
+    _runHalfDefs.set(ro, rt)
+  }
+  return rt
+}
+
+/** A column record copied with every property it carries, enumerable or not (the error
+ *  record, a reached stop, the chart-clock / lower-timeframe / other-symbol reports), so a
+ *  run half's records are attached without touching a map another caller may hold. */
+function copyColumns(out) {
+  const res = {}
+  for (const k of Reflect.ownKeys(out || {})) {
+    Object.defineProperty(res, k, Object.getOwnPropertyDescriptor(out, k))
+  }
+  return res
+}
+
+/** ⭐⭐ ENGINE 53 — A HOST DOCUMENT'S DRAWINGS FROM THE PER-BAR RUN (`compute.runtimeObjects`).
+ *
+ *  `compute.runtimeObjects = { source, outputs, ...runtimeVersionStamp }` (minted by the
+ *  member door, `memberPaneDefinition::hostPartialRunHalf`, for a script whose host object
+ *  program lost drawings): `outputs` maps each visible host plot key to the run output that
+ *  computes the same plot. The run is asked for its DRAWINGS only; the plots stay the host's.
+ *
+ *  ⛔ EVERY GATE, ON EVERY RUN (a stored or hand-posted document answers to all of them):
+ *  the build flag, the per-member permission (the latch), the kill list and the starter
+ *  allowlist (this tab's lists AND the server's stamp on the row it served), the script's
+ *  own `runtime.error`, the member's settings at the script's defaults (the run computes
+ *  the script as written), and the run itself: built, completed, its drawings neither
+ *  withheld nor stopped, no family withheld that the host program draws.
+ *  ⛔⛔ THE COLUMN RAIL: every mapped run column equals the host's column on every bar the
+ *  run serves (`na` with `na`, a number to 1e-9 of its size). That is what proves the run's
+ *  drawings belong to the plots beside them on THIS chart; one bar off and the host picture
+ *  stays.
+ *  ⛔⛔ ENGINE 54 — and before the run is asked, the document must still digest to the program
+ *  stamp its door wrote (`runHalfProgram.js`, `run-half:program-unbound`); after the column rail,
+ *  THE OBJECT RAIL (`runHalfObjectRail.js`, registered through `runHalfRailSeam.js`): at every
+ *  create site the host draws, the run's objects made at the same source call must be the host's
+ *  (`run-half:object-rail`, `run-half:host-object-withheld`), and a run half with nothing
+ *  comparable is refused (`run-half:no-comparable-objects`) unless recorded evidence admits its
+ *  script. A drawing-only script (no plot mapped) is therefore never served on its gates alone.
+ *  ⭐⭐ PARITY UNIT 1 (`objects`, 2026-11-18) — when the host document DRAWS an object program, a
+ *  drawing the run makes at a call that program lost (or in a family the host withholds whole on these
+ *  bars) is the run's to draw, on the gates above (`runHalfObjectRail.js`, the lost-drawings rule);
+ *  every site the host draws is still held to the host's, and the plots stay the host's columns.
+ *  Every answer is noted for the refusal telemetry (`runHalfTelemetry.js`).
+ *  The answer rides non-enumerable (`runtimeObjects.js::RUN_HALF_KEY`): `served` with the
+ *  run's drawings beside it (`RUNTIME_OBJECTS_KEY`, the RT5 shape the binder already draws),
+ *  `pending` while the run is in flight, `refused` with its code. `ctx` absent (a probe that
+ *  is not a chart, `validateEventColumns`) asks nothing of the run. */
+/** The run half's state code while its run waits for another symbol's bars (not a refusal). */
+export const RUN_HALF_REQUEST_PENDING = 'runtime:request-pending'
+
+function withRunHalf(def, out, bars, inputs, ctx) {
+  if (!ctx) return out
+  const ro = def.compute.runtimeObjects
+  const res = copyColumns(out)
+  // ⭐⭐ ENGINE 54 — every answer is noted for the refusal telemetry (`runHalfTelemetry.js`:
+  // a code per document session, a hash-prefixed beacon; never the source)
+  const src = ro && typeof ro.source === 'string' ? ro.source : null
+  const refused = (code) => { noteRunHalfAnswer(def, src, code); return withRunHalfState(res, { state: 'refused', code }) }
+  // ⭐ (e85) a run WAITING for other series' newest bars names them (`waitingFor`, `runtimeColumns.js::requestWait`)
+  const answered = (state, code, waitingFor = null) => {
+    noteRunHalfAnswer(def, src, null)
+    return withRunHalfState(res, { state, code, ...(typeof waitingFor === 'string' && waitingFor ? { waitingFor } : {}) })
+  }
+  if (!ro || typeof ro.source !== 'string' || !ro.source || !ro.outputs || typeof ro.outputs !== 'object') {
+    return refused('run-half:malformed')
+  }
+  // ⛔⛔ THE RUN HALF RUNS THE DOCUMENT'S OWN SCRIPT, OR NOTHING. The member door stamps the
+  // script it translated (`meta.pineSourceSha256`, `memberPaneDefinition::RUN_HALF_SOURCE_STAMP`)
+  // and the store saves a run half only when that stamp, `runtimeObjects.source` and the row's
+  // own script are one script (`runtime_definitions.run_half_source_refusal`). A document whose
+  // run half names another script would have that script's (empty or foreign) drawings replace
+  // this one's host picture.
+  const own = def.meta && typeof def.meta[RUN_HALF_SOURCE_STAMP_KEY] === 'string'
+    ? def.meta[RUN_HALF_SOURCE_STAMP_KEY].toLowerCase() : null
+  if (!own || runHalfSourceHashOf(ro) !== own) return refused('run-half:source-unbound')
+  // ⛔⛔ ENGINE 54 — AND BESIDE THE PROGRAM IT WAS MINTED FOR: the door's digest of the trees, the
+  // object program, the output map and the site map, re-derived from this document
+  // (`runHalfProgram.js`). An edited tree or object program, kept under the old stamp, is refused.
+  // ⭐ SETTINGS PARITY (2a) — the stamp digests the STORED trees: a copy specialised to a member's
+  // length (`paramInputs.specializeParams`) is checked as the document it was specialised from
+  const stamped = originalDocumentOf(def)
+  if (!runHalfProgramStamped(stamped)) return refused(RUN_HALF_PROGRAM_UNSTAMPED)
+  if (!runHalfProgramBound(stamped)) return refused(RUN_HALF_PROGRAM_UNBOUND)
+  const stamp = servedRunStamp(def)
+  if (!runtimePaneBuilt()) return refused('pane:not-built')
+  if (!runtimePanePermitted()) return refused('pane:not-permitted')
+  if (stamp === 'killed' || runtimeKillOf({ defId: def.id, source: ro.source })) return refused('pane:killed')
+  if (stamp === 'not-graded' || runtimeNotGradedOf({ source: ro.source })) return refused('pane:not-graded')
+  if (runtimeFormingRefusalOf({ source: ro.source, newestBarIsForming: ctx.newestBarIsForming })) {
+    return refused(RUNTIME_FORMING_GUARD)
+  }
+  const stop = runtimeErrorStopOf(out)
+  if (stop && stop.reached) return refused('runtime:runtime.error')
+  // ⭐⭐ SETTINGS PARITY (2c) — THE RUN HALF AT THE CHART'S OWN SETTINGS. It was refused the moment
+  // any setting moved (the run built the author's program, `inputs: {}`). Now the run is handed
+  // the instance's values in its own names (`runHalfRunInputs`: a host input by its Pine name, a
+  // folded length by its `sourceName`, a drawing-only setting by its key), and the column rail
+  // below still holds every mapped run column to the host's at those same settings. A moved
+  // setting is served only on recorded evidence (`runHalfSettingsAdmitted`: two captures that
+  // count, taken with that setting moved, graded against TradingView); a moved setting the run
+  // cannot be handed (a plot colour) or one without evidence is refused by name, as before.
+  const runIn = runHalfRunInputs(def, inputs)
+  if (!runIn.ok) return refused('runtime:member-inputs')
+  // only a moved setting a DRAWING can read needs evidence of its own (`drawingReadNames`): one no
+  // drawing reads (an average's length) leaves the drawings the defaults' evidence already graded
+  if (runIn.needsEvidence.length && !runHalfSettingsAdmitted(runHalfSourceHashOf(ro), runIn.needsEvidence).ok) {
+    return refused('runtime:member-inputs')
+  }
+  if (!_runtimeLane) {
+    if (_runtimeLoadFailed !== null) return refused(RUNTIME_LOAD_FAILED_GUARD)
+    if (loadRuntimeLane()) return answered('pending', 'runtime:not-loaded')
+    return refused('runtime:not-loaded')
+  }
+  let cols
+  try {
+    cols = _runtimeLane(runHalfDefOf(def, ro), bars, runIn.values, ctx)
+  } catch (err) {
+    // ONE WITHHOLDING, ONE REASON (2026-11-16). A run waiting for another symbol's bars is a
+    // run in flight, not a refusal: seen on production, the note under a chart read "the script
+    // reads another symbol or timeframe, which this chart cannot hand that run" for the seconds
+    // the bars took to load, and a different reason once they had. Held, with nothing said about
+    // a cause, until the run can answer.
+    if (err && err.pending === true) return answered('pending', RUN_HALF_REQUEST_PENDING, err.waitingFor)
+    return refused(err && err.name === 'runtime.error' ? 'runtime:runtime.error' : ((err && err.guard) || 'runtime:error'))
+  }
+  const payload = cols && typeof cols === 'object' ? cols[RUNTIME_OBJECTS_KEY] : null
+  // ⛔ A run that owns its drawings always attaches them when it finishes
+  // (`runtimeColumns.js`): nothing attached is a run still in flight.
+  if (!payload || typeof payload !== 'object') return answered('pending', 'runtime:in-flight')
+  // ⭐ (e85) a drawing run that waits while its plain run drew (`computeRuntimeColumnsAll`): the drawings wait too
+  if (payload.status === 'WITHHELD' && payload.pending === true) {
+    return answered('pending', RUN_HALF_REQUEST_PENDING, payload.waitingFor)
+  }
+  if (payload.status === 'WITHHELD') return refused(payload.guard || 'runtime:objects')
+  if (payload.status !== 'ok' || !Array.isArray(payload.live)) return refused('runtime:objects-stopped')
+  const hostFams = hostObjectFamilies(def.objects)
+  if (Object.keys(payload.withheld || {}).some((f) => hostFams.has(f))) return refused('run-half:family-withheld')
+  // ⛔⛔ THE COLUMN RAIL.
+  const n = bars.length
+  const warm = runtimeWarmupOf(cols)
+  const from = warm && Number.isInteger(warm.withheldBars) && warm.withheldBars > 0 ? warm.withheldBars : 0
+  for (const key of Object.keys(ro.outputs)) {
+    const host = out[key]
+    const run = cols[key]
+    if (!host || !run || typeof host.length !== 'number' || host.length !== n || run.length !== n) {
+      return refused(RUN_HALF_COLUMN_RAIL)
+    }
+    for (let i = from; i < n; i += 1) {
+      if (!sameColumnValue(host[i], run[i])) return refused(RUN_HALF_COLUMN_RAIL)
+    }
+  }
+  // ⛔⛔ ENGINE 54 — THE OBJECT RAIL (`runHalfObjectRail.js`): the run's drawings at every
+  // create site the host draws must BE the host's, object for object, on these bars. With no
+  // plot mapped the column rail above compared nothing; this one never compares nothing (no
+  // comparable object is its own refusal, `run-half:no-comparable-objects`).
+  // ⭐ SETTINGS PARITY (2c) — A SETTING ONLY THE DRAWINGS READ HAS BEEN MOVED: the host object program
+  // folded it at the author's default, so it is no picture of this chart (`objectReaderFor` reads
+  // nothing) and nothing here can be compared with it. The drawings are served on the evidence the
+  // gate above required for every such setting a drawing reads (captures of THIS run at it moved,
+  // graded against TradingView), beside the column rail, which still held.
+  if (runHalfOnlySettingMoved(def, inputs)) {
+    Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+    return answered('served', null)
+  }
+  const rail = registeredRunHalfObjectRail()
+  if (!rail) return refused(RUN_HALF_RAIL_NOT_LOADED)
+  let verdict
+  try {
+    verdict = rail({ def, bars, inputs, ctx, payload, from })
+  } catch {
+    verdict = null
+  }
+  if (!verdict || verdict.ok !== true) return refused((verdict && verdict.code) || RUN_HALF_OBJECT_RAIL)
+  Object.defineProperty(res, RUNTIME_OBJECTS_KEY, { value: payload, enumerable: false, configurable: true })
+  return answered('served', null)
+}
+
+/** ⭐ ENGINE 53 — what a run half's gates read that can change under an unchanged
+ *  (def, bars, inputs) key: the per-member permission and this tab's lists. Joined to the
+ *  binder's memo key (`computeSignature`), so a revoked latch or a kill reaches an open
+ *  chart on its next paint instead of keeping the run's drawings. */
+function runHalfGateSignature(def) {
+  const ro = def.compute.runtimeObjects
+  const source = ro && ro.source
+  return `rh:${runtimePaneBuilt() ? 1 : 0}${runtimePanePermitted() ? 1 : 0}`
+    + `${runtimeKillOf({ defId: def.id, source }) ? 'k' : ''}${runtimeNotGradedOf({ source }) ? 'g' : ''}`
+}
+
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `PARAM_SETTING_GUARD`, `SYMBOL_SETTING_GUARD` (re-exported above).
+
 export function computeFor(def, bars, inputs, ctx) {
-  if (def?.compute?.kind === 'runtime') {
+  // ⭐⭐ HEADLESS (R6) — THE LANE IS DECIDED BY ONE ROUTER (`computeLane.js::computeLaneOf`), the
+  // function the headless export (`headlessCompute.js`) asks too, so a definition is never computed
+  // down one lane on the chart and another one headless.
+  const lane = computeLaneOf(def)
+  if (lane === COMPUTE_LANE.RUNTIME) {
     return runtimeColumnsOrReasons(def, Array.isArray(bars) ? bars : [], inputs, ctx)
   }
-  if (def?.compute?.kind === 'server') {
+  if (lane === COMPUTE_LANE.SERVER) {
     return serverColumnsFor(def, Array.isArray(bars) ? bars : [], resolveInputs(def, inputs), ctx)
   }
-  // ⭐ THE AST LANE (Phase D Task 8), DISPATCHED ON THE KIND AND **BEFORE** THE
-  // `NATIVE_COMPUTE` LOOKUP — exactly where Task 13 put the server lane, and for
-  // the same reason one level sharper. An `ast` definition's `compute.fn` is its
-  // `astHash`: a 71-character `sha256:…` string that has no entry in
-  // `NATIVE_COMPUTE` and never will. Placed AFTER the lookup, the throw below
-  // fires first and an `ast` definition can never draw — a lane that registers,
-  // validates, budgets and lints, and then renders nothing. The throw is right
-  // for a native that lost its function and wrong for a definition that never
-  // had one.
-  if (def?.compute?.kind === 'ast') {
-    return astColumnsFor(def, Array.isArray(bars) ? bars : [], treeScalars(def, resolveInputs(def, inputs)), ctx)
+  // ⭐ THE AST LANE (Phase D Task 8), dispatched BEFORE the `NATIVE_COMPUTE` lookup (its
+  // `compute.fn` is an `astHash` no native table holds). Its VALUES are `astColumns.js::
+  // astLaneColumns` (moved there unchanged, with the full note); the run-read colours and the run
+  // half stay here (`astRunExtras`): they answer to this tab's gates.
+  if (lane === COMPUTE_LANE.AST) {
+    // ⭐⭐ HOST WORKER — a CHART's request (`ctx.hostPane`) is answered by ONE door
+    // (`hostLaneAsync.hostLaneColumns`): the values memoised for these bars, computed on this thread
+    // when the tab has measured them cheap here, in the worker otherwise (the same values, a pending
+    // answer with the pane's last picture until they land). Every request that is not a chart's is
+    // answered here exactly as before.
+    const pane = hostLaneColumns(def, bars, inputs, ctx, astRunExtras)
+    if (pane) return pane
+    return astLaneColumns(def, bars, inputs, ctx, astRunExtras)
   }
   const fn = NATIVE_COMPUTE[def?.compute?.fn]
   if (!fn) {
@@ -3116,6 +3179,22 @@ export function computeFor(def, bars, inputs, ctx) {
   const hold = COLUMN_HOLDS[def.compute.fn]
   return hold ? hold(columns) : columns
 }
+
+// ⭐ HOST WORKER — the object reader's one runtime-document read goes through its seam
+// (`objectRuntimeSeam.js`), so the reader's closure holds no registry; written here, on import.
+registerObjectComputeFor(computeFor)
+
+/** ⭐⭐ ENGINE 53 / DIV-4 — what an `ast` document adds to its values on THIS chart: the run-read
+ *  colours (`withRuntimeColours`) and the run half (`withRunHalf`), each answering to this tab's
+ *  gates. Handed to `astColumns.js::astLaneColumns`, which applies it inside a calc_bars window too. */
+function astRunExtras(def, out, rows, inputs, ctx) {
+  const coloured = def.compute.runtimeColours ? withRuntimeColours(def, out, rows, inputs, ctx) : out
+  // ⭐⭐ ENGINE 53 — and its drawings, when it carries a run half (`withRunHalf`).
+  return def.compute.runtimeObjects ? withRunHalf(def, coloured, rows, inputs, ctx) : coloured
+}
+
+// ⭐ HEADLESS (R6) — moved, unchanged, to `astColumns.js` (the host lane's values, host-neutral):
+//   `windowedAstColumns`, `calcBarsRequests`.
 
 /**
  * The canned series every event-declaring definition is computed over at
@@ -3617,6 +3696,16 @@ export function validateAstLane(def) {
   return errors
 }
 
+/** ⭐⭐ HELD WITHHOLDS (`engine/heldWithholds.js`) — a served row stamped `meta.heldDivergence` is refused with the
+ *  server's sentence and kept (killedIds: the installed copy leaves this tab, the stored row is untouched). */
+function heldDivergenceRefused(def, errors, killedIds) {
+  const why = def.meta && def.meta[HELD_DIVERGENCE_STAMP]
+  if (typeof why !== 'string' || !why) return false
+  errors.push(`${def.id}: ${why} — the saved definition is kept, unchanged.`)
+  killedIds.push(def.id)
+  return true
+}
+
 /**
  * VALIDATE definitions THIS CLIENT DID NOT AUTHOR — the `supportedKinds` door.
  *
@@ -3660,7 +3749,7 @@ export function validateUserDefinitions(rawDefs) {
   // idempotent (`memberDocumentMigration.js`): a condition column its parameter
   // manifest never placed, and a handle an old parameter edit left stale. Never a
   // server-side write: the stored row is untouched; only what this tab installs moves.
-  const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(migrateMemberDocument) : rawDefs)
+  const base = registerDefinitions(Array.isArray(rawDefs) ? rawDefs.map(projectMemberDocument) : rawDefs)
   const errors = [...base.errors]
   const defs = []
   // ⭐ RF — the ids refused because the server lists them (`runtimeKilled` or
@@ -3680,6 +3769,10 @@ export function validateUserDefinitions(rawDefs) {
       // `meta.runtimeKilled`, or latched from the auth payload) is not drawn —
       // refused with the reason, and left in the store untouched.
       const meta = def.meta || {}
+      // ⭐⭐ HELD WITHHOLDS (coordinator ruling 2026-11-19) — a saved copy minted before its script's narrow
+      // withholds is served stamped `meta.heldDivergence` (`runtime_definitions.stamp_served`): not drawn, refused
+      // with the server's sentence, by name, and kept in the store untouched.
+      if (heldDivergenceRefused(def, errors, killedIds)) continue // a runtime copy
       // ⭐ GT (D6) — a stored row whose script is not on the server's starter
       // allowlist is served stamped `meta.runtimeNotGraded` and refused the same
       // way: kept in the store, drawn again once the script is listed. The server
@@ -3688,8 +3781,15 @@ export function validateUserDefinitions(rawDefs) {
       const killed = (typeof meta.runtimeKilled === 'string' && meta.runtimeKilled)
         || (typeof meta.runtimeNotGraded === 'string' && meta.runtimeNotGraded)
         || runtimeKillOf({ defId: def.id, source: def.compute && def.compute.source })
+      // ⭐ WS-I Part 2 (final verify of #1204) — a row the server is STILL CHECKING (capability
+      // admission on, its set not computed yet: `meta.runtimePending`) is refused like any other
+      // ungraded row, but it is not "on a list": it will draw once the check completes.
+      const pending = !meta.runtimeKilled && meta.runtimePending === true
+        && typeof meta.runtimeNotGraded === 'string' && killed === meta.runtimeNotGraded
       if (killed) {
-        errors.push(`${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
+        errors.push(pending
+          ? `${def.id}: ${killed} — the saved definition is kept; it is being checked, and it will draw once the check completes.`
+          : `${def.id}: ${killed} — the saved definition is kept; it comes back when it is taken off the list.`)
         killedIds.push(def.id)
         continue
       }
@@ -3706,6 +3806,18 @@ export function validateUserDefinitions(rawDefs) {
       continue
     }
     if (kind === 'ast') {
+      // ⭐⭐ HOST KNOWN-DIVERGENCE (owner decision 2026-11-17) — A SAVED HOST DOCUMENT WHOSE SCRIPT IS ON
+      // THE HOST LIST is served stamped `meta.hostKnownDivergence` (`runtime_definitions.stamp_served`,
+      // the server's authority: a stored document does not carry its script). It is not drawn —
+      // refused with the server's sentence, by name — and it stays in the store, untouched.
+      const hk = def.meta && def.meta[HOST_KNOWN_DIVERGENCE_STAMP]
+      if (typeof hk === 'string' && hk) {
+        errors.push(`${def.id}: ${hk} — the saved definition is kept; it comes back when it is taken off the list.`)
+        killedIds.push(def.id)
+        continue
+      }
+      // ⭐⭐ HELD WITHHOLDS — a saved host copy minted before its script's narrow withholds, the same way
+      if (heldDivergenceRefused(def, errors, killedIds)) continue // a host copy
       const laneErrors = validateAstLane(def)
       if (laneErrors.length) {
         errors.push(...laneErrors.map(e => `${def.id}: ${e}`))
@@ -3762,36 +3874,2004 @@ export const NATIVE_DEFS = Object.freeze(_registered.defs)
  * in `IndicatorLibraryDialog` and gates nothing by itself; the gate is the
  * handler, and this is the declaration matching it.
  */
-const RS_LINE_RAW = {
+// ─── UCT Relative Strength (v4) ──────────────────────────────────────────────
+//
+// Plan: docs/superpowers/specs/2026-11-05-uct-relative-strength-indicator-design.md
+// (§5–§8); Phase 2a engineering map docs/superpowers/plans/2026-11-06-uct-rs-
+// phase2-engineering-map.md (§2.3, §2.7, §2.8, row 2a-14). Same id as the v1
+// "Relative Strength Line" so a saved layout keeps working: every new input has
+// a default, and an instance stored as `{benchmark: 'QQQ'}` renders Classic
+// against QQQ (`__tests__/rsSavedLayout.test.js` walks that path).
+//
+// ⛔ THE SERVER OWNS THE COLUMNS. `compute.kind: 'server'` because an RS line
+// needs a SECOND symbol and the compute contract carries one `bars`
+// (`compute_rs_line_raw`'s docstring). `api/services/relative_strength.py`
+// computes every column below; `registry_defs._rs_line_row(v2=True)` declares the
+// same compute inputs with the same ranges, and `wire_columns` requires the two
+// column lists to be EQUAL. The benchmark enum is diffed against the Python list
+// by `test_the_rs_line_benchmarks_are_ONE_list_across_BOTH_LANES`.
+//
+// ⭐ v3 (Phase 2a, unit 2a-14; `compute.rev` 3 in both lanes and in
+// `alert_rev_migration.ADDRESS_REVS`): the Mansfield line and its zero-cross
+// dot join the plots; the red-day and new-low dots the server has sent since
+// Phase 1 gain their toggles and their markers; `readout[]` turns the server's
+// `payload` into the Leadership rows (rating, regime, sensitivity, the four
+// checks, theme — plan §6.6) with a three-line card each; `meta.learn` names
+// the six Desk lessons; Trend and Stress join the presets with the non-input
+// fields unit 2a-12 taught `applyPresetInputs` (visibility, dot size).
+//
+// ⭐⭐ v4 (Phase 3, unit 3-08; `compute.rev` 4 in both lanes and in
+// `alert_rev_migration.ADDRESS_REVS`; engineering map 2026-11-08 §2 "3-08",
+// decisions D1-D8). ONE "Reading" (`view`, decision D2) picks what the pane
+// draws: the RS line (ratio), Weinstein's Mansfield line, Rotation (RS-Ratio and
+// RS-Momentum around 100, the Terminal's RRG formula, D1), Quality (Clenow's
+// score, daily only) or Volatility-adjusted (VARS). The server keeps the view's
+// own columns and blanks every other family (`rs_provider._RS_VIEW_FAMILIES`).
+// A member's own benchmark (`CUSTOM` + `customBenchmark`, D4) and a picked Checks
+// anchor (`anchorDate`, D6) join the inputs. Everything Phase 3 adds is
+// `requiresServer` (unit 3-01): hidden until the live row (`RS_V3_ENABLED`)
+// declares it, so this definition reaches members at merge and draws nothing it
+// cannot answer. `showMansfield` is `legacy` (never rendered, still valid, so a
+// saved Trend layout validates) and `mapsTo` the Mansfield Reading: a stored
+// `true` with no stored `view` reads as `view: 'mansfield'` on every surface
+// (unit 3-08b, `legacyInputs.inputsAsRead`), and the server row declares the
+// same mapping (`registry_defs.resolve_inputs`). `placement.ownScale` (unit 3-07) lets "On price" draw
+// in the lowest third on its own invisible scale; the default stays the pane
+// (D3), so no saved instance moves.
+//
+// ⭐⭐ REV 5 (Deepvue round 2, 2026-11-08; `compute.rev` 5 and `version` 5 in
+// both lanes and in `alert_rev_migration.ADDRESS_REVS`). One Reading more, the
+// RS Rating (`view: 'rating'`): the stock's nightly IBD-style rating, 1 to 99,
+// stored once a session in `rs_rating_history`, drawn as a line with its
+// 21-session average and guides at 80 and 90, daily charts only. The server
+// sends it as `ratingLine` / `ratingMa` (null where no row is stored) and
+// `payload.ratingHistory`; the option is `requiresServer`, so it is listed only
+// once the live row's `view` enum names it. And the rating block carries the
+// 9-month component (`rating.m9`), so the ranks strip's 9M column is a required
+// column now. RS alerts are untouched: they read `relative_strength`'s Phase 1
+// and Mansfield functions, which rev 5 does not change.
+//
+// ⭐ DOTS RIDE THE LINE. A marker plot's glyph sits at the plotted value when
+// `position: 'inBar'` (binder: "THE MARKERS RIDE THE PLOT'S OWN SERIES"), and
+// the marker builder draws wherever the column is finite and > 0. So each RS
+// dot column carries the RS VALUE on event bars and NaN elsewhere — a dot exactly
+// on the line, exactly where the event fired. The 0/1 event columns stay beside
+// them as `events` for the screener and the alert grammar. The Mansfield cross
+// dot carries the MANSFIELD value, which is at or below zero on a cross DOWN —
+// so it is a plain point-marker plot (drawn at any finite value), never a glyph
+// (`markerPrimitive.marks` is `> 0`, which would drop every cross down).
+//
+// ⭐ TOGGLES ARE COMPUTE INPUTS. The engine has no per-plot visibility an input
+// can drive (audit A3), so "show RS new highs" — and now "Mansfield line" — is a
+// server input that blanks the column when off. Colours and width are the Style
+// tab's and never reach the server (`resolve_inputs` drops undeclared keys).
+//
+// ⭐ TWO COLOURS ON THE LINE (Phase 1, unit 5). `rsLine` is `colorMode:
+// 'column:rsAbove'` with `colorUp: '$lineUpColor'` / `colorDown: '$lineDownColor'`
+// — both substitutable since unit 5 added them to `SUBSTITUTABLE_PLOT_FIELDS` and
+// `pool.resolvePlotForInstance` (spec §3.1 carries the same sentence). Classic
+// defaults BOTH to the informational blue IBD draws the line in, so it still
+// draws ONE hue and the platform's ≤2 hues + 1 neutral budget holds (plan §3,
+// decision 9); the Phase preset sets `bull` above / `bear` below, the plan's
+// documented three-hue exception. `rsAbove` is the server's 0/1/null column
+// declared as a HIDDEN plot, field for field as the Awesome Oscillator declares
+// `rising`, because `colorMode: 'column:<key>'` needs a declared column and
+// `events[]` cannot be declared on this lane (see the note at the end). The line
+// keeps `color: '$lineUpColor'` too: the legend chip is one swatch
+// (`readout.resolvePlotColor` reads `color`), and it is the series colour under
+// any point the condition column did not reach.
+//
+// ⭐ THE HUE BUDGET PER PRESET (platform §7; `__tests__/markerPixels.test.js`
+// counts it over the plots a preset DRAWS). Classic: info blue + the one gold
+// dot (before price). Phase: bull, bear and gold (the documented exception).
+// Trend (Mansfield view, visual round A2): the Mansfield line, its cross-up dots
+// and the zero line ALONE — info blue plus the neutral, no gold; the server
+// blanks the ratio, its average and every RS-line dot. Stress (A3): info blue on
+// the line and the plain dots, and the red-day high is the preset's ONE gold mark
+// (a large circle, no text — platform §7 keeps text off the canvas); before-price
+// highs draw as ordinary blue highs there. The red-day dot defaults to the info
+// blue, so Classic with red-day highs switched on reads large gold for before
+// price and large blue for red day. Red stays reserved for losses and errors
+// (plan §3): an RS high on a red day is strength. The new-low dot is neutral.
+// ⭐ v4, PER READING (the server blanks every other family, so each view draws
+// its own plots alone): Rotation — RS-Ratio in info blue, RS-Momentum (dashed) and
+// the 100 guide in the neutral, NO gold (map 3-08 risk note). Quality — the score in info
+// blue, the gap-session dot and nothing else in the neutral, no gold. VARS — the
+// line in info blue, its dashed average and the zero guide in the neutral, no
+// gold. One hue and the neutral each; the gold stays the ratio view's one mark.
+// RS Rating (rev 5) — the rating in info blue, its dashed 21-session average and
+// the 80 / 90 guides in the neutral, no gold.
+const RS_NEUTRAL = '#8a8574'
+const RS_INFO = '#6ba3be'
+const RS_GOLD = '#c9a84c'
+// ⭐ THE THEME'S BULL AND BEAR (`designTokens.IND_TOKENS.classic.bull/bear`, the
+// app's --gain and --loss), the two hues the Phase preset already draws the line
+// in. The shaded band between the line and its average uses them at low opacity
+// (design round, 2026-11-08: green while the line is above, red while below).
+const RS_BULL = '#3cb868'
+const RS_BEAR = '#e74c3c'
+// ⭐ 2026-11-13 — THE SECOND AVERAGE'S VIOLET: a hue no other RS mark wears (not
+// the line's blue, the neutral, the gold, the bull or the bear), measured at WCAG
+// >= 3:1 against EVERY chart theme's canvas, dark and light (3.31:1 on Warm sand,
+// the worst; the first average's neutral is 3.29:1 there). Pinned by
+// `rsSecondAverage.test.js` over `CHART_THEMES`.
+const RS_MA2 = '#9b6fd6'
+/** The band's opacity: a tint under the line, never a second line. */
+const RS_SHADE_OPACITY = 0.12
+/** The toggles every preset states explicitly, so `detectPreset` (first match
+ *  wins, in declaration order) never reads a Trend or Stress instance as Classic:
+ *  a preset that stays silent on `showMansfield` would match an instance that
+ *  turned it on. Classic can therefore stay FIRST — the member's default leads
+ *  the picker — and the more specific presets still win on their own key.
+ *  ⭐ v4: `view: 'ratio'` too, so a Rotation, Quality or VARS instance never reads
+ *  as Classic, and Classic after any of them is Classic. It is `view`'s default,
+ *  so the preset stays listed against a server that does not declare `view` yet
+ *  (`indicatorRegistry.visiblePresets`). */
+const RS_CLASSIC_TOGGLES = Object.freeze({ view: 'ratio', showMansfield: false, showRedDay: false, showNewLow: false,
+  // ⭐ A3: Stress switches before-price highs OFF and gives the red-day dot the
+  // gold, so the Classic family states both back. Classic after Stress is Classic.
+  showNewHighBeforePrice: true, dotRedColor: RS_INFO })
+// ⭐ DESIGN ROUND (2026-11-08, owner decision): NO preset states `shadeVsAverage` or
+// `showCrossMarkers`. They are the member's own switches (default off), so
+// `detectPreset` ignores them: a chart saved before the round keeps its preset name,
+// and turning the band or the markers on by hand never turns Phase into Custom.
+/** ⭐ THE HONESTY SENTENCE (Phase 2b, unit 2b-09) — the static evidence line of
+ *  every card whose signal the nightly backtest measures, printed until the
+ *  measured sentence replaces it through `card.evidenceSource`. ⛔ ONE FACT IN
+ *  TWO FILES: `api/services/rs_evidence_pull.HONESTY_SENTENCE` is the
+ *  provider's copy (what `payload.evidence.sentence.<key>` carries while no
+ *  artifact has landed), and `tests/test_rs_columns_provider.py` pins the two
+ *  equal, so a rewording of one flags the other. */
+const RS_HONESTY_SENTENCE = 'No published hit rate exists for this signal and UCT has not measured one yet.'
+/** The input states the Reading selects between (visual round A2; v4, unit
+ *  3-08): the controls that only shape one view dim under every other view
+ *  (a dimmed control never disappears). Named once so every row says the same
+ *  condition, in the inputs' `activeWhen` grammar. */
+// ⭐ v4: the condition is the Reading (`view`), one value per view.
+const RS_RATIO_VIEW = Object.freeze({ key: 'view', equals: 'ratio' })
+const RS_MANSFIELD_VIEW = Object.freeze({ key: 'view', equals: 'mansfield' })
+const RS_ROTATION_VIEW = Object.freeze({ key: 'view', equals: 'rotation' })
+const RS_QUALITY_VIEW = Object.freeze({ key: 'view', equals: 'quality' })
+const RS_VARS_VIEW = Object.freeze({ key: 'view', equals: 'vars' })
+/** Rev 5 — the RS Rating Reading (the rating over time). */
+const RS_RATING_VIEW = Object.freeze({ key: 'view', equals: 'rating' })
+/** 3-08 — the member's own ticker box wakes only under "Your symbol". */
+const RS_CUSTOM_BENCHMARK = Object.freeze({ key: 'benchmark', equals: 'CUSTOM' })
+/** 2026-11-12 — the sector list wakes only under "Pick a sector", the theme
+ *  chooser only under "Pick a theme". */
+const RS_SECTOR_PICK_BENCHMARK = Object.freeze({ key: 'benchmark', equals: 'SECTOR_PICK' })
+const RS_THEME_PICK_BENCHMARK = Object.freeze({ key: 'benchmark', equals: 'THEME_PICK' })
+
+/**
+ * ⭐⭐ THE RS BENCHMARK INPUTS — ONE DECLARATION FOR EVERY RS INDICATOR THAT
+ * TAKES A BENCHMARK (2026-11-12, owner: "benchmark to sector, theme etc").
+ *
+ * The UCT RS Line (both shapes), RS Phases, RS vs 21 EMA and RS Exit Warnings
+ * all spread this, so one saved benchmark choice means the same thing on every
+ * one of them and a menu change lands everywhere at once. The server twin is
+ * `registry_defs.RS_LINE_BENCHMARKS_V4` + `rs_benchmark_choice_inputs()`;
+ * `test_the_rs_line_benchmarks_are_ONE_list_across_BOTH_LANES` diffs the menu
+ * and the row rails diff every field. Fresh objects per call: a definition's
+ * inputs are its own.
+ *
+ * The menu: the four indexes, then the groups from widest to narrowest, then
+ * the member's own ticker. Option KEYS never change (saved charts and bound
+ * alerts carry them); `Sector ETF (auto)` reads `Sector (auto)` now. Every
+ * option added after Phase 2 is `requiresServer`, listed only once the live row
+ * names it. Each "pick" option has a companion that wakes under it and stands
+ * in for it wherever the benchmark is printed as identity (`identityFor`): the
+ * typed ticker, the picked sector ETF, the picked theme's name.
+ *
+ * ⚠️ The name says "split" for history (the split rows used it first); the
+ * python rails parse it by this name.
+ */
+const rsSplitBenchmarkInputs = () => ([
+  {
+    key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY', group: 'Simple',
+    tooltip: 'What the RS line compares the stock against: an index, its sector, its industry group, a UCT theme or a symbol you choose.',
+    options: [['SPY', 'S&P 500 (SPY)'], ['RSP', 'Equal-weight S&P 500 (RSP)'], ['QQQ', 'Nasdaq 100 (QQQ)'],
+      ['IWM', 'Russell 2000 (IWM)'], ['SECTOR', 'Sector (auto)'],
+      ['SECTOR_PICK', 'Pick a sector', { requiresServer: true }], ['INDUSTRY', 'Industry group (auto)'],
+      ['THEME', 'Theme (auto)', { requiresServer: true }], ['THEME_PICK', 'Pick a theme', { requiresServer: true }],
+      ['CUSTOM', 'Your symbol', { requiresServer: true }]],
+  },
+  { key: 'customBenchmark', type: 'string', label: 'Your symbol', default: '', group: 'Simple',
+    requiresServer: true, activeWhen: RS_CUSTOM_BENCHMARK, identityFor: 'benchmark',
+    pattern: '^[A-Z][A-Z.\\-]{0,9}$', maxLength: 10, case: 'upper',
+    placeholder: 'SMH', hint: 'Letters, dots and dashes, up to 10',
+    tooltip: 'Any listed ticker to compare against, such as SMH for semiconductors or a single stock. Index symbols such as $SPX are not accepted. A symbol we hold no bars for yet usually loads within a minute.' },
+  { key: 'sectorBenchmark', type: 'enum', label: 'Sector', default: 'XLK', group: 'Simple',
+    requiresServer: true, activeWhen: RS_SECTOR_PICK_BENCHMARK, identityFor: 'benchmark',
+    options: [['XLK', 'Technology (XLK)'], ['XLV', 'Health Care (XLV)'], ['XLF', 'Financials (XLF)'],
+      ['XLY', 'Consumer Discretionary (XLY)'], ['XLP', 'Consumer Staples (XLP)'], ['XLE', 'Energy (XLE)'],
+      ['XLI', 'Industrials (XLI)'], ['XLB', 'Materials (XLB)'], ['XLU', 'Utilities (XLU)'],
+      ['XLRE', 'Real Estate (XLRE)'], ['XLC', 'Communication Services (XLC)']],
+    tooltip: 'The sector to compare against, as its SPDR sector fund.' },
+  { key: 'themeBenchmark', type: 'string', label: 'Theme', default: '', group: 'Simple',
+    requiresServer: true, activeWhen: RS_THEME_PICK_BENCHMARK, identityFor: 'benchmark',
+    optionsSource: 'rsThemes', pattern: '^[a-z0-9][a-z0-9_\\-]{0,63}$', maxLength: 64,
+    placeholder: 'Search themes', hint: 'Pick a theme from the list',
+    tooltip: 'A UCT theme to compare against: an equal-weight average of the theme\'s stocks, leaving this stock out.' },
+])
+/** VA2 — the Rating group's controls dim while the rating is switched off. */
+const RS_RATING_ON = Object.freeze({ key: 'showRating', equals: true })
+/** VA2 — the band gate every rating row shares: the member's Rating colours switch. */
+const RS_BAND_WHEN = 'input:ratingBands'
+/** ⭐ UCT RS split, U7 — the slim RS Line's one switch for the average and its
+ *  shade (`showAverage`), in the inputs' condition grammar: the `rsMa` plot, its
+ *  band and the Average group's colour read it. */
+const RS_AVERAGE_ON = Object.freeze({ key: 'showAverage', equals: true })
+/** 2026-11-13 — the slim line's switch for its SECOND average (`showAverage2`). */
+const RS_AVERAGE2_ON = Object.freeze({ key: 'showAverage2', equals: true })
+/** 2026-11-13 — the second average's type choices, shared with the v5 legacy
+ *  declaration so a stored value survives a rollback (the first's vocabulary). */
+const RS_MA_TYPE_OPTIONS = [['EMA', 'Exponential'], ['SMA', 'Simple']]
+/** 2026-11-12 — the slim line's "Scale to rating" choices (`rescale`), shared with
+ *  the v5 definition's legacy declaration so a stored value survives a rollback. */
+const RS_SCALE_OPTIONS = [['off', 'Off'], ['ibd', 'RS Rating'], ['m1', '1M rank'], ['m3', '3M rank'],
+  ['m6', '6M rank'], ['m9', '9M rank'], ['m12', '12M rank']]
+/**
+ * ⭐ THE CLASSIC LOOK AS INPUT VALUES (UCT RS split, U7 / U8). The v5 Classic
+ * preset's inputs, and what the Study drill overlay (`pages/study/studyRsOverlay.js`)
+ * stamps on its primed `rsLine` instances: the 21 EMA, the one-year lookback, the
+ * info blue on the line and the plain dot, every other reading off. Exported so
+ * the overlay reads ONE object whether the registered definition still declares
+ * presets (the v5 one) or not (the slim one).
+ */
+export const RS_CLASSIC_INPUTS = Object.freeze({ maLength: 21, maType: 'EMA', lookback: 252, color: RS_INFO,
+  lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES })
+
+/**
+ * ⭐⭐ UCT RS SPLIT, U7 — `VITE_RS_SPLIT_ENABLED` (engineering map §(a) U7, §(e)
+ * flag 2). Two `rsLine` definitions live in this file and ONE registers:
+ *   · off (unset, empty, '0', 'true'): `RS_LINE_V5_RAW`, today's UCT Relative
+ *     Strength, unchanged but for the U7a legacy declaration of `showAverage`;
+ *   · '1': `RS_LINE_SLIM_RAW`, the UCT RS Line (MarketSurge look) below.
+ * Read at module load, because the registration is: a test that wants the other
+ * definition registers the raw it needs (`registerDefinitions([RS_LINE_SLIM_RAW])`)
+ * or re-imports this module under the stubbed env. Same convention as every other
+ * build flag (`memberPaneGate.js`): default OFF means `=== '1'`, fail closed.
+ * ⭐ U9: the read itself is `lib/rsSplitFlag.js` (engine-free, so the public
+ * glossary page can branch on it without loading this module); re-exported here
+ * so every engine caller keeps its import.
+ */
+export { rsSplitEnabled }
+
+// ⛔ THE PYTHON RAILS PARSE THIS DEFINITION BY NAME. `tests/test_rs_columns_provider.py`
+// and `tests/test_rs_telemetry_door.py` split the source text at
+// `const RS_LINE_V5_RAW = {` (and at the file's FIRST server-inputs list, which
+// is this one's: the literal key with its colon must not appear in a comment
+// above it) to diff the inputs, the server list, the readout scalars and the
+// ranks table against the live row. Keep it first, keep its name, or move the
+// anchors with it. (U10, rev 6, retires it and repoints them at the slim one.)
+const RS_LINE_V5_RAW = {
   schemaVersion: SCHEMA_VERSION,
   id: 'rsLine',
-  version: 1,
-  compute: { kind: 'server', fn: 'rsLine', rev: 1 },
+  version: 5,
+  compute: { kind: 'server', fn: 'rsLine', rev: 5 },
   meta: {
-    name: 'Relative Strength Line', shortName: 'RS', category: CAT.RELATIVE_STRENGTH,
-    description: 'This symbol\'s close divided by a benchmark\'s — is it leading or lagging the market?',
-    tags: ['comparative', 'momentum'], tier: 'premium', repaint: 'non-repainting',
+    name: 'UCT Relative Strength', shortName: 'UCT RS', category: CAT.RELATIVE_STRENGTH,
+    // ⛔ THE DESCRIPTION PROMISES ONLY WHAT SHIPS (review finding). v4 (unit
+    // 3-08) names the Phase 3 readings and the member's own benchmark because
+    // this definition carries them; it names no rating pane and no list, which
+    // are not built, and no tour (unit 4-04's cards below introduce themselves).
+    description: 'Is this stock beating the market, or just riding it? The RS line against a benchmark or a symbol you choose, its moving average, dots where the line makes a new high (the gold dot marks a high before price in Classic and a high on a red market day in the Stress test), and six readings to pick from: the RS line, Weinstein\'s Mansfield line with its zero crosses, Rotation (RS-Ratio and RS-Momentum around 100, the Terminal\'s RRG formula), Clenow\'s Quality score, a volatility-adjusted RS and the RS Rating itself over time on daily charts. A readout in words: the nightly IBD-style rating, the market regime, how the reading holds against SPY, the equal-weight index and the sector, and the four UCT checks, with an anchor date you can pick on the chart. Once the nightly backtest reports, each card\'s evidence line carries our own measured number with its sample size and dates.',
+    tags: ['comparative', 'momentum', 'rs', 'relative strength', 'rs line', 'blue dot',
+      'leader', 'leadership', 'price relative', 'benchmark', 'mansfield', 'weinstein',
+      'rs rating', 'stress test', 'red day', 'regime', 'rrg', 'rotation', 'rs-ratio',
+      'rs-momentum', 'clenow', 'quality', 'vars', 'volatility adjusted', 'custom benchmark',
+      'rating history', 'rating line'],
+    tier: 'premium', repaint: 'non-repainting',
     legendParams: ['benchmark'],
-  },
-  placement: { target: 'pane', pane: { height: 0.15 } },
-  inputs: [
-    // ⭐ AN `enum` OF A FIXED LIST, NOT A `symbol` (decision A3). `symbol` is in
-    // `RESERVED_INPUT_TYPES` and `defSchema` refuses it with a distinct message;
-    // three benchmarks cover the question this indicator answers and need no new
-    // input type, no symbol picker and no second data-entitlement question.
-    {
-      key: 'benchmark', type: 'enum', label: 'Benchmark', default: 'SPY',
-      options: [['SPY', 'S&P 500 (SPY)'], ['QQQ', 'Nasdaq 100 (QQQ)'], ['IWM', 'Russell 2000 (IWM)']],
+    // ⭐ Every Reading but the ratio blanks the RS line, so the pane label names
+    // what the view draws, live (v4: one entry per view, on the equals gate):
+    // the Mansfield percent, the quadrant, the Quality score, the VARS value.
+    // Under the ratio view, or when the view's value is missing, the dated last
+    // RS value, muted (A8).
+    legendFallback: [
+      { source: 'scalar:mansfield.value', format: 'pct', when: 'input:view=mansfield' },
+      { source: 'scalar:rotation.quadrant', format: 'text', when: 'input:view=rotation' },
+      { source: 'scalar:quality.score', format: 'ratio', when: 'input:view=quality' },
+      { source: 'scalar:vars.value', format: 'ratio', when: 'input:view=vars' },
+      // rev 5: the RS Rating Reading's own summary (the pane has no axis tag, A4):
+      // `82, up 2 in 20 sessions`, the last stored value first. Real-screen check
+      // 2026-11-08: the bare value printed `· 82  82` beside the chip's rating, and on a
+      // weekly chart the label fell through to the RS ratio's number over an empty
+      // pane; the server's reason ("daily charts only") now prints there, muted.
+      { source: 'scalar:ratingHistory.summary', format: 'text', when: 'input:view=rating',
+        muted: 'scalar:ratingHistory.reason' },
+    ],
+    // ⭐ THE INPUTS THE SERVER DECLARES — and therefore the only ones that key the
+    // fetch (`serverCompute.pickServerInputs`). Colours and width stay on the
+    // client. `test_rs_columns_provider.py` diffs this list against the Python
+    // row's input keys, the same way the benchmark enum is diffed.
+    // ⭐ v4 (unit 3-08): the nine Phase 3 keys of `_rs_line_row(True, True)`. A
+    // v3 server drops the nine (`resolve_inputs` drops undeclared keys).
+    serverInputs: ['benchmark', 'maLength', 'maType', 'lookback', 'priceTolerance',
+      'redDayThreshold', 'showNewHigh', 'showNewHighBeforePrice', 'shortHistoryDots',
+      'mansfieldLength', 'showMansfield', 'showRedDay', 'showNewLow',
+      'view', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'rrgRatioLength', 'rrgMomentumLength', 'clenowWindow',
+      'clenowGapPct', 'atrLength', 'varsLookback', 'anchorDate'],
+    // Read by the settings dialog, the Chart Settings inspector and the phone
+    // sheet (plan §6.3): these groups open collapsed so the Simple group is what
+    // a member sees first.
+    // ⭐ VA2 (2026-11-07): the plan's five folded groups. Phase 1 kept the
+    // Mansfield and stress controls inside Line and New highs because the phone
+    // sheet had no groups yet; it has had them since unit 2a-11, so each reading
+    // now has its own group: Rating (the rating's presentation), Stress test (the
+    // red-day dot) and Method (Weinstein's Mansfield view and its length).
+    // v4: Checks (the picked anchor date) folds too.
+    groupsCollapsed: ['Line', 'New highs', 'Rating', 'Stress test', 'Method', 'Checks'],
+    // ⭐ THE SIX DESK LESSONS (engineering map §2.8; `lib/deskVideoHref.RS_LEARN_VIDEOS`
+    // resolves each key to a `/desk?section=videos&v=…` link, and the About page
+    // lists them under every card). The labels are the Learn map's own words.
+    learn: [
+      { key: 'rsLine', label: 'Manrav on the RS line: Relative Strength Workshop' },
+      { key: 'phase', label: 'Manrav on the RS line and its 21 EMA' },
+      { key: 'newHigh', label: 'Chartmaster on tracking relative strength' },
+      { key: 'beforePrice', label: 'Chartmaster: RS shows before price confirms' },
+      { key: 'redDay', label: 'Chartmaster: RS highs on red market days' },
+      { key: 'fourChecks', label: 'Chartmaster: the four RS checks' },
+    ],
+    // ⭐ THE FIVE TOUR CARDS (unit 4-04, D12): shown once, on the member's first
+    // add of UCT RS. The copy is authored in `content/rs/teachingData.js` and
+    // exported to `api/data/rs_teaching.json`; `rsTeaching.test.js` pins this
+    // equal to both, with the tagline once, on card 5.
+    tour: RS_TOUR,
+    // ⭐ THE GLOSSARY (unit 4-05, D15): the public page every RS term is defined on
+    // (`pages/RsGlossary.jsx`), linked from the About page beside the lessons.
+    glossaryHref: '/methodology/relative-strength',
+    // ⭐ THE RSI SIGNPOST (unit 4-04, D13): a member whose WHOLE search is "rsi" or
+    // "relative strength index" may be looking for strength versus the market, so
+    // the library prints this line with an Add button. Exact match only, never a
+    // substring ("rsi divergence" is a search for RSI). ⛔ `tags` stays free of
+    // "rsi": a tag would put UCT RS in every RSI search with no ordering (F45).
+    searchHint: {
+      queries: ['rsi', 'relative strength index'],
+      line: 'Looking for strength versus the market? That is UCT Relative Strength.',
     },
-    colorInput('color', 'Color', '#4ECDC4'),
-    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
+    // ⭐⭐ THE RANKS TABLE (design round, 2026-11-08; `engine/paneTable.js`, drawn by
+    // StockChart in the pane's top-right corner). Deepvue's RS Line pane prints its
+    // 1M 3M 6M 9M 12M ranks there; ours prints the four component ranks the
+    // nightly row holds (`rating.m1/m3/m6/m12`, the Components row's numbers) and
+    // the IBD-style rating. Daily charts only (the ratings are daily). Shown while
+    // the RS Rating switch and the Ranks table switch are both on and the server
+    // holds a row (`rating.asof` is set only then). A missing rank prints a muted
+    // dash, never a number. ⭐ The 9M column (round 2, rev 5): the server sends
+    // `rating.m9` on every v4 envelope, so it is a REQUIRED column now; a row
+    // stored before the 9M rank existed prints its muted dash there until the
+    // backfill's `--fill-column m9` fills it. The numbers take the site's rating
+    // bands only while Rating colours is on.
+    paneTable: {
+      label: 'RS ranks',
+      when: ['input:showRating', 'input:showRanksTable', 'scalar:rating.asof'],
+      timeframes: ['D'],
+      columns: [
+        { key: 'm1', label: '1M', source: 'scalar:rating.m1' },
+        { key: 'm3', label: '3M', source: 'scalar:rating.m3' },
+        { key: 'm6', label: '6M', source: 'scalar:rating.m6' },
+        { key: 'm9', label: '9M', source: 'scalar:rating.m9' },
+        { key: 'm12', label: '12M', source: 'scalar:rating.m12' },
+        { key: 'rating', label: 'RS', source: 'scalar:rating.ibd', emphasis: true },
+      ],
+      band: { when: 'input:ratingBands' },
+    },
+    // Read by the preset picker (plan §5, §6.8): a named set of input values,
+    // applied to the CURRENT instance through `setInstanceInput`, plus (2a-12)
+    // the optional `visibility` / `dotSize` fields `applyPresetInputs` chains
+    // through the same writers the Inspector uses.
+    // ⭐ A PRESET SETS ONLY WHAT IT IS ABOUT (review finding, 2026-11-06): the
+    // reading — the average, the lookback, the line's colouring, which readings
+    // are drawn — never the benchmark, so choosing Phase keeps the member's
+    // benchmark and changing the benchmark does not flip the picker to Custom.
+    // The weekly variants exist to set 52 bars on a weekly chart.
+    // ⭐ CLASSIC, CLASSIC WEEKLY AND PHASE DECLARE THE FIELDS THEY RESET (review
+    // finding #26, 2026-11-07). Trend and Stress write visibility "daily and up"
+    // and dot sizes. A preset that declared inputs alone left both as Trend or
+    // Stress wrote them, and `presetFieldsMatch` (inputs alone when no field is
+    // declared) still read the instance back as Classic: the pane stayed hidden
+    // intraday and the gold dot drew Large under a picker that said Classic.
+    // `visibility: 'all'` drops the key, and the default word `medium` clears the
+    // instance-level size and every per-dot size (`setInstanceDotSize` deletes it).
+    presets: [
+      { id: 'classic', label: 'Classic (O\'Neil)', origin: 'IBD, MarketSurge',
+        inputs: { ...RS_CLASSIC_INPUTS },
+        dotSize: 'medium', visibility: 'all' },
+      { id: 'classicWeekly', label: 'Classic, weekly chart', origin: 'IBD, MarketSurge; 52 bars is one year of weekly bars',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 52, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO, ...RS_CLASSIC_TOGGLES },
+        dotSize: 'medium', visibility: 'all' },
+      { id: 'phase', label: 'Phase (21 EMA)', origin: 'Manrav video 59; TraderLion RS Phase; Deepvue Webby RS',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, color: RS_BULL, lineDownColor: RS_BEAR, dotColor: RS_NEUTRAL, ...RS_CLASSIC_TOGGLES },
+        dotSize: 'medium', visibility: 'all' },
+      // ⭐ TREND (Weinstein's Mansfield, plan §5 / §7 item 13; visual round A2).
+      // Mansfield view: the pane draws the Mansfield line ALONE around its zero
+      // line, with a medium dot on each cross UP — the server blanks the ratio,
+      // its average and every RS-line dot, so nothing else shares the scale and
+      // the ratio can no longer lie flat where zero would be. Info blue plus the
+      // neutral; no gold. Daily and up: the 200-bar average of the ratio means
+      // nothing intraday. The RS line's own colours are not this preset's to set.
+      // ⭐ v4 (unit 3-08): the Reading is `mansfield`, and the legacy
+      // `showMansfield: true` stays beside it: a v3 server reads the old key, a
+      // v4 server the new one, so Trend draws the same either way and stays in
+      // the picker before `RS_V3_ENABLED` is armed (`visiblePresets`).
+      { id: 'trend', label: 'Trend (Mansfield)', origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; 200 daily bars',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, view: 'mansfield', showMansfield: true, mansfieldLength: 200,
+          mansfieldColor: RS_INFO, dotCrossColor: RS_INFO, showRedDay: false, showNewLow: false },
+        dotSize: { dotMansfieldCross: 'medium' }, visibility: { preset: 'dailyUp' } },
+      { id: 'trendWeekly', label: 'Trend, weekly chart', origin: 'Weinstein; 52 weekly bars is his published length',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 52, view: 'mansfield', showMansfield: true, mansfieldLength: 52,
+          mansfieldColor: RS_INFO, dotCrossColor: RS_INFO, showRedDay: false, showNewLow: false },
+        dotSize: { dotMansfieldCross: 'medium' }, visibility: { preset: 'dailyUp' } },
+      // ⭐ STRESS TEST (UCT, plan §5 / §6.7; visual round A3). The RS high on a
+      // red market day is the reading, so it is the preset's ONE gold mark, a
+      // large circle with no text; before-price highs stop being highlighted and
+      // draw as ordinary blue highs. The line and the plain dots stay info blue.
+      { id: 'stress', label: 'Stress test (UCT)', origin: 'UCT workshops; Kell; TraderLion down days',
+        inputs: { maLength: 21, maType: 'EMA', lookback: 252, showRedDay: true, showNewHighBeforePrice: false,
+          dotRedColor: RS_GOLD, color: RS_INFO, lineDownColor: RS_INFO, dotColor: RS_INFO,
+          view: 'ratio', showMansfield: false, showNewLow: false },
+        dotSize: { dotNHred: 'large' }, visibility: { preset: 'dailyUp' } },
+      // ⭐⭐ THE PHASE 3 READINGS (plan §5; unit 3-08). Each is `requiresServer`
+      // (listed only once the live row declares every key it sets) and each sets
+      // the Reading and its own lengths, never the benchmark (the 2026-11-06
+      // rule). Rotation is the Terminal's RRG formula, 10 and 5 bars on either
+      // chart (D1, one formula everywhere); the weekly variant sets the 52-bar
+      // new-high lookback the weekly Classic and Trend use, so the Last RS high
+      // row means a year on a weekly chart too.
+      { id: 'rotation', label: 'Rotation (RRG-style)', requiresServer: true,
+        origin: 'de Kempenaer\'s Relative Rotation Graphs; the UCT Terminal\'s RRG formula, 10 and 5 bars',
+        inputs: { view: 'rotation', rrgRatioLength: 10, rrgMomentumLength: 5, lookback: 252 } },
+      { id: 'rotationWeekly', label: 'Rotation, weekly chart', requiresServer: true,
+        origin: 'de Kempenaer; the Terminal\'s RRG reads weekly bars by default; 52 bars is one year of weekly bars',
+        inputs: { view: 'rotation', rrgRatioLength: 10, rrgMomentumLength: 5, lookback: 52 } },
+      { id: 'quality', label: 'Quality (Clenow)', requiresServer: true,
+        origin: 'Clenow, Stocks on the Move; commonly implemented with 90 trading days. Daily charts only',
+        inputs: { view: 'quality', clenowWindow: 90, clenowGapPct: 15 } },
+      { id: 'volAdjusted', label: 'Volatility-adjusted', requiresServer: true,
+        origin: 'OANDA\'s volatility-adjusted relative strength (VARS); 20-bar ATR, 60-bar sum',
+        inputs: { view: 'vars', atrLength: 20, varsLookback: 60 } },
+    ],
+  },
+  // ⭐ A4 (owner decision D6): no price axis beside the RS pane — no ticks, no
+  // last-value tag. The ratio's level means nothing on its own, a ~97 px pane
+  // fits three ticks, and the value is read in the pane label.
+  // ⭐ 0.20 of the candle frame, not 0.18 (owner-delegated decision L2,
+  // 2026-11-07): at 0.18 (87 px on a 900 px chart) the legend half-hid the
+  // newest dot.
+  // ⭐ v4 (units 3-07 / 3-08, decision D3): `ownScale`. "On price" draws the
+  // reading on its own invisible scale in the lowest third under the bars (the
+  // IBD look) instead of on the candles' dollar axis. The default target stays
+  // the pane, so no saved instance moves (F30).
+  placement: { target: 'pane', pane: { height: 0.20, minPx: 64 }, axis: 'hidden', ownScale: true },
+  inputs: [
+    // ⭐ STILL AN `enum`, NOT A `symbol` (decision A3 and platform C-A3 stand).
+    // SECTOR, INDUSTRY and THEME are enum values the SERVER resolves; the pick
+    // options carry their second value in a companion input. ⭐ 2026-11-12: the
+    // whole benchmark family (menu, custom ticker, picked sector, picked theme)
+    // is ONE declaration shared by every RS indicator (`rsSplitBenchmarkInputs`).
+    ...rsSplitBenchmarkInputs(),
+    // ⭐ THE READING (decision D2): one choice, one pane. The server keeps the
+    // chosen view's columns and blanks the rest, so two readings never share a
+    // scale. Every option is a v4 server value (`registry_defs.RS_VIEWS`).
+    // ⭐ REV 5: 'RS Rating' is `requiresServer` on its own option (the CUSTOM
+    // benchmark precedent), so it is listed only once the live row's enum names it.
+    { key: 'view', type: 'enum', label: 'Reading', default: 'ratio', group: 'Simple', requiresServer: true,
+      options: [['ratio', 'RS line'], ['mansfield', 'Mansfield'], ['rotation', 'Rotation'],
+        ['quality', 'Quality (Clenow)'], ['vars', 'Volatility-adjusted'],
+        ['rating', 'RS Rating', { requiresServer: true }]],
+      tooltip: 'What the pane draws. RS line: the stock against the benchmark. Mansfield: that line as a percent above or below its own long average. Rotation: RS-Ratio and RS-Momentum around 100. Quality: how fast and how steadily the price has climbed. Volatility-adjusted: the lead measured in each symbol\'s own typical daily move. RS Rating: the 1 to 99 rating itself, session by session, on daily charts.' },
+    { key: 'maLength', type: 'int', label: 'Average (bars)', default: 21, min: 2, max: 200, step: 1, group: 'Simple',
+      tooltip: 'Average length in bars: the moving average on the RS line. 21 is the curriculum default; 50 is a slower read.' },
+    { key: 'showNewHigh', type: 'bool', label: 'RS new highs', default: true, group: 'Simple',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Small dot when the RS line is at its highest level of the lookback. Daily and weekly charts only.' },
+    { key: 'showNewHighBeforePrice', type: 'bool', label: 'High before price', default: true, group: 'Simple',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'RS high before price: large gold dot when the RS line makes a new high while price is still more than the tolerance below its own high. IBD calls this more bullish, and not a precondition.' },
+    // ⭐ VA2 — THE RATING GROUP'S INPUTS (plan §6.3). Presentation only: none is a
+    // server input (`meta.serverInputs` is unchanged, so the fetch key and
+    // `compute.rev` do not move). They gate and shape the readout rows below
+    // (`when`, `chipWhen`, `band` in `readoutSchema`).
+    { key: 'showRating', type: 'bool', label: 'RS Rating', default: true, group: 'Simple',
+      tooltip: 'The 1 to 99 RS Rating in the pane label and the readout. 90 means the stock beat 90% of the names rated.' },
+    { key: 'maType', type: 'enum', label: 'Average type', default: 'EMA', group: 'Line',
+      options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
+      tooltip: 'Exponential reacts faster; simple is what Mansfield and StockCharts use.' },
+    // ⭐ TWO colour inputs for ONE line, both defaulting to the same blue so
+    // Classic draws one hue (plan §3 palette budget, decision 9). The Phase
+    // preset sets them apart; `rsLine` reads them through `colorUp`/`colorDown`.
+    // ⭐ The pair carries its own instructions (review finding V3): two identical
+    // swatches for one line say why, and the second says what it colours.
+    { ...colorInput('color', 'Line above avg', RS_INFO), group: 'Line', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Line color above its average. Classic uses one color; keep both swatches the same for a single-color line' },
+    { ...colorInput('lineDownColor', 'Line below avg', RS_INFO), group: 'Line', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Line color below its average; the Phase preset sets red here' },
+    { ...colorInput('maColor', 'Average color', RS_NEUTRAL), group: 'Line', activeWhen: RS_RATIO_VIEW },
+    // ⭐ DESIGN ROUND (2026-11-08) — two presentation switches, OFF by default so
+    // every chart draws exactly as before, and set by NO preset (owner decision:
+    // a saved chart keeps its preset name whatever these say). Neither is
+    // a server input (`meta.serverInputs` is unchanged, so the fetch key and
+    // `compute.rev` do not move): the band is a declared fill gated on its switch
+    // (a `fill` with an `activeWhen`), the markers a client-derived column
+    // (`plots[].derive`).
+    { key: 'shadeVsAverage', type: 'bool', label: 'Shade vs avg', default: false, group: 'Line', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Shade the gap between the RS line and its average: green while the line is above the average, red while it is below.' },
+    { key: 'showCrossMarkers', type: 'bool', label: 'Cross markers', default: false, group: 'Line', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'A small arrow where the RS line crosses its average: pointing up where it crosses above, down where it crosses below. The arrows take the line\'s two colors.' },
+    // ⭐ UCT RS split, U7a (map §(b), the rollback rule): `showAverage` is the slim
+    // UCT RS Line's switch for the average and its shade (`RS_LINE_SLIM_RAW`).
+    // Declared here LEGACY so an instance that stored it under the slim definition
+    // still validates if the build flag is rolled back (F20 drops an undeclared
+    // key). Never rendered, never sent, nothing reads it on this definition.
+    { key: 'showAverage', type: 'bool', label: 'Show average', default: false, group: 'Line', legacy: true },
+    // The same rule for the slim line's `scaleToRating` (2026-11-12): declared here
+    // legacy with the slim options exactly, so a stored choice survives a rollback.
+    { key: 'scaleToRating', type: 'enum', label: 'Scale to rating', default: 'off', group: 'Line', legacy: true,
+      options: RS_SCALE_OPTIONS },
+    // And for the slim line's second average (2026-11-13): its switch, length, type
+    // and colour, legacy here with the slim types, ranges and options exactly.
+    { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Line', legacy: true },
+    { key: 'maLength2', type: 'int', label: 'Average 2 (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Line', legacy: true },
+    { key: 'maType2', type: 'enum', label: 'Average 2 type', default: 'SMA', group: 'Line', legacy: true,
+      options: RS_MA_TYPE_OPTIONS },
+    { ...colorInput('ma2Color', 'Average 2 color', RS_MA2), group: 'Line', legacy: true },
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
+    { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
+      tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
+    { key: 'priceTolerance', type: 'float', label: 'Tolerance (%)', default: 2, min: 0, max: 10, step: 0.5, group: 'New highs',
+      tooltip: 'Price-high tolerance: price counts as not at its high when it is more than this far below its lookback high.' },
+    { key: 'shortHistoryDots', type: 'bool', label: 'Short history', default: true, group: 'New highs',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Mark RS highs over all available history when the stock has fewer bars than the lookback. Drawn in a muted color.' },
+    { ...colorInput('dotColor', 'New-high dot', RS_INFO), group: 'New highs', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Color of the small RS new-high dot' },
+    { ...colorInput('dotBeforePriceColor', 'Before-price dot', RS_GOLD), group: 'New highs', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Color of the large RS-high-before-price dot; gold by default, the one gold element on the chart' },
+    { ...colorInput('dotPartialColor', 'Short-history dot', RS_NEUTRAL), group: 'New highs', activeWhen: RS_RATIO_VIEW },
+    { key: 'showNewLow', type: 'bool', label: 'RS new lows', default: false, group: 'New highs',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'RS new lows: small dot when the RS line is at its lowest level of the lookback. Relative weakness. Daily and weekly charts only.' },
+    { ...colorInput('dotLowColor', 'New-low dot', RS_NEUTRAL), group: 'New highs', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Color of the small RS new-low dot' },
+    // ⭐ VA2 — THE RATING GROUP (plan §6.3, collapsed). Every control dims while
+    // the rating is switched off. `showRatingHistory` (the rating pane) is NOT
+    // declared: there is no rating pane, and a switch with nothing behind it is
+    // not shipped.
+    //
+    // ⭐ THE HEADLINE DEFAULTS TO IBD-STYLE (2026-11-07, owner call): the pane
+    // label stays exactly the Phase 2a one (`UCT RS · XLK · 94`) and the phone
+    // legend stays one tight row. `both` is the member's choice, not the default
+    // (plan §6.3 said both; this supersedes it).
+    { key: 'headlineRating', type: 'enum', label: 'Headline rating', default: 'ibd', group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      options: [['ibd', 'IBD-style'], ['fast', 'UCT fast'], ['both', 'Both']],
+      tooltip: 'Which rating the pane label shows beside the benchmark. IBD-style is the nightly rank of the 3, 6, 9 and 12-month return; UCT fast is the site\'s quicker rank. The readout always shows both.' },
+    // ⭐ THE COMPONENTS ROW'S SWITCH (2026-11-07): the provider sends the four
+    // component ranks (`payload.rating.m1` / `m3` / `m6` / `m12`, read from
+    // `rs_history`) and their one-line text (`rating.components`). Presentation
+    // only, like the other rating inputs: not a server input.
+    { key: 'showComponents', type: 'bool', label: 'Components', default: false, group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      tooltip: 'Add the parts of the rating to the Rating card: how the 1, 3, 6, 9 and 12-month returns each rank, 1 to 99, against the same names.' },
+    // ⭐ DESIGN ROUND (2026-11-08) — the ranks table's switch (`meta.paneTable`).
+    // Presentation only, like every rating input: not a server input.
+    { key: 'showRanksTable', type: 'bool', label: 'Ranks table', default: true, group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      tooltip: 'A small table in the corner of the pane on daily charts: how the 1, 3, 6, 9 and 12-month returns each rank, 1 to 99, and the RS Rating. On a narrow screen it steps aside and the Rating card shows the same numbers.' },
+    { key: 'ratingBands', type: 'bool', label: 'Rating colors', default: true, group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      tooltip: 'Color the rating in the readout by the site\'s bands: 80 and above, 60 to 79, 40 to 59, and below 40. The bands are rules of thumb, not tested cut-offs.' },
+    // ⭐ THE STRESS TEST GROUP (VA2; plan §6.3, collapsed).
+    // ⭐ THE STRESS-TEST DOT (plan §6.7; UCT workshops, Kell; visual round A3). An
+    // RS new high on a day the benchmark closed down by the red-day threshold —
+    // strength while the market sold off. Off by default; the Stress preset turns
+    // it on and makes it the gold mark. Its DEFAULT colour is the info blue, so a
+    // member who turns it on in Classic tells it from the gold before-price dot.
+    { key: 'showRedDay', type: 'bool', label: 'Red-day highs', default: false, group: 'Stress test',
+      activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Red-day highs: large dot when the RS line makes a new high on a day the benchmark closed down at least 0.5%. Strength on a weak day; the UCT stress test, where it is the gold dot. Daily and weekly charts only.' },
+    { ...colorInput('dotRedColor', 'Red-day dot', RS_INFO), group: 'Stress test', activeWhen: RS_RATIO_VIEW,
+      tooltip: 'Color of the red-day RS-high dot; the Stress test preset makes it gold' },
+    // ⭐ THE METHOD GROUP (VA2; plan §6.3, collapsed): each reading's lengths, each
+    // dimmed unless its Reading is chosen.
+    // ⭐ MANSFIELD VIEW, NOW LEGACY (v4, decision D2). It was the pane's reading
+    // switch in v3; the Reading enum replaced it. It stays DECLARED so a stored
+    // instance carrying it still validates (F20: an undeclared key is refused),
+    // and `legacy: true` means no surface renders it. The Trend presets set it
+    // beside `view: 'mansfield'` so a v3 server draws Trend too.
+    // ⭐ 3-08b — `mapsTo`: a v3 Trend instance stored `showMansfield: true` and
+    // no `view`. It reads as `view: 'mansfield'` (zero guide, Mansfield glance
+    // row, the Trend preset, the fetch) ONLY while `view` is not stored; a member
+    // who picks "RS line" stores `view: 'ratio'`, which wins. Read-time only:
+    // the stored instance is never rewritten.
+    { key: 'showMansfield', type: 'bool', label: 'Mansfield view', default: false, group: 'Method', legacy: true,
+      mapsTo: { when: true, key: 'view', value: 'mansfield' },
+      tooltip: 'Draw Weinstein\'s Mansfield line around zero in place of the RS line and its dots.' },
+    { key: 'mansfieldLength', type: 'int', label: 'Mansfield (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Method',
+      activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Mansfield length in bars: the average the ratio is measured against. 200 on a daily chart; Weinstein\'s 52 weeks on a weekly chart (the weekly Trend preset sets it).' },
+    { ...colorInput('mansfieldColor', 'Mansfield color', RS_INFO), group: 'Method', activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Color of the Mansfield line under Mansfield view; the Trend preset gives it the blue' },
+    { ...colorInput('dotCrossColor', 'Zero-cross dot', RS_NEUTRAL), group: 'Method', activeWhen: RS_MANSFIELD_VIEW,
+      tooltip: 'Color of the dot where the Mansfield line crosses up through zero; the Trend preset gives it the blue' },
+    // ⭐ v4 — THE PHASE 3 METHOD INPUTS (unit 3-08). Ranges and defaults are the
+    // server row's (`registry_defs._RS_PHASE3_RANGES`, `relative_strength`'s
+    // defaults), railed field by field by `test_rs_columns_provider.py`. Each is
+    // `requiresServer` and dims unless its Reading is chosen.
+    { key: 'rrgRatioLength', type: 'int', label: 'RS-Ratio (bars)', default: 10, min: 3, max: 60, step: 1, group: 'Method',
+      requiresServer: true, activeWhen: RS_ROTATION_VIEW,
+      tooltip: 'Rotation: bars in the average the RS line is compared with for RS-Ratio. 10 is the Terminal\'s RRG setting.' },
+    // ⭐ 3-14: 'Momentum (bars)' wrapped to two lines in the inspector's label
+    // column; 'Momentum bars' is shorter than 'Momentum style', which fits there.
+    { key: 'rrgMomentumLength', type: 'int', label: 'Momentum bars', default: 5, min: 2, max: 30, step: 1, group: 'Method',
+      requiresServer: true, activeWhen: RS_ROTATION_VIEW,
+      tooltip: 'Rotation: bars in the average RS-Ratio is compared with for RS-Momentum. 5 is the Terminal\'s RRG setting.' },
+    { key: 'clenowWindow', type: 'int', label: 'Window (bars)', default: 90, min: 20, max: 252, step: 1, group: 'Method',
+      requiresServer: true, activeWhen: RS_QUALITY_VIEW,
+      tooltip: 'Quality: the sessions the trend line is fitted over. Commonly implemented with 90 trading days. Daily charts only.' },
+    { key: 'clenowGapPct', type: 'float', label: 'Gap (%)', default: 15, min: 1, max: 50, step: 1, group: 'Method',
+      requiresServer: true, activeWhen: RS_QUALITY_VIEW,
+      tooltip: 'Quality: a single session that moved more than this percent inside the window is flagged as a gap, and marked with a dot on the score line.' },
+    { key: 'atrLength', type: 'int', label: 'ATR (bars)', default: 20, min: 5, max: 100, step: 1, group: 'Method',
+      requiresServer: true, activeWhen: RS_VARS_VIEW,
+      tooltip: 'Volatility-adjusted: bars in each symbol\'s average true range, its typical daily move, which every move is measured in.' },
+    { key: 'varsLookback', type: 'int', label: 'VARS sum (bars)', default: 60, min: 10, max: 252, step: 1, group: 'Method',
+      requiresServer: true, activeWhen: RS_VARS_VIEW,
+      tooltip: 'Volatility-adjusted: how many bars of the adjusted lead are added up.' },
+    // ⭐ v4 — THE CHECKS GROUP (collapsed; decision D6). The anchor the "Since the
+    // anchor" check measures from. Blank is the benchmark's lowest close of the
+    // last 20 sessions (the 2a default); a date picks the first daily session on
+    // or after it. The readout's Checks card offers "Pick a date on the chart"
+    // and a reset (`readout[].action`, rendered by StockChart, unit 3-09).
+    { key: 'anchorDate', type: 'string', label: 'Anchor date', default: '', group: 'Checks', requiresServer: true,
+      pattern: '^\\d{4}-\\d{2}-\\d{2}$', placeholder: 'YYYY-MM-DD', hint: 'A date such as 2026-10-15, or blank',
+      tooltip: 'Blank uses the benchmark\'s lowest close of the last 20 sessions' },
   ],
   plots: [
-    { key: 'rsLine', label: 'RS', style: 'line', color: '$color', width: '$lineWidth', role: 'primary', legend: { decimals: 4 } },
+    // ⭐ DESIGN ROUND (2026-11-08) — THE BAND TO ITS AVERAGE (`fill`, the engine's
+    // plot-to-plot band, `fillPrimitive.js`): bull while the line is above the
+    // average and bear while below, read off the same `rsAbove` column the line's
+    // two colours read, at a 12% tint. Drawn only while the member's "Shade vs
+    // avg" switch is on (`fill.activeWhen`), which no preset sets. Under
+    // every other Reading the server blanks the line and its average, so the band
+    // has no area there by construction.
+    { key: 'rsLine', label: 'RS line', style: 'line', colorMode: 'column:rsAbove',
+      color: '$color', colorUp: '$color', colorDown: '$lineDownColor', width: '$lineWidth',
+      fill: { with: 'rsMa', colorMode: 'column:rsAbove', colorUp: RS_BULL, colorDown: RS_BEAR,
+        activeWhen: { key: 'shadeVsAverage', equals: true } },
+      fillOpacity: RS_SHADE_OPACITY,
+      // ⭐ `precision: 4` keeps the axis tag and the legend saying the same number
+      // (visual review D1: the tag rounded to 0.25 while the legend read 0.2477).
+      // It takes `pool`'s matching `minMove: 0.0001` (decision B1) to do so: LWC
+      // rounds to `minMove`, so precision alone printed 0.2500.
+      precision: 4, role: 'primary', legend: { decimals: 4 },
+      // ⭐ UCT RS split, U2 — THE LINE-END TAG (`engine/endLabel.js`): MarketSurge
+      // prints the RS Rating at the right end of its RS line, so ours reads `RS 96`
+      // at the last point, on the price pane and in the RS pane alike. The same
+      // nightly rating the pane label and the ranks strip print, gated on the
+      // member's RS Rating switch; no row on the server, no tag.
+      endLabel: { source: 'scalar:rating.ibd', prefix: 'RS ', when: ['input:showRating'] },
+      // ⭐ U2b (RS split, 2026-11-09): the forming bar's cell is `close / benchmark
+      // close` on the chart's own last bar (`liveTail.js`); the cached history and
+      // every dot, the rating and the readout stay the session's server values.
+      liveTail: { kind: 'ratio', benchmark: 'scalar:benchmark.resolved' } },
+    // ⭐ The condition column, HIDDEN: computed by the server (`rsAbove[t] =
+    // rs[t] ≥ rsMA[t]`, 0/1/null — `relative_strength.py`), drawn by nobody, read
+    // by the line's colour rule. The Awesome Oscillator's `rising` is the
+    // precedent, field for field.
+    { key: 'rsAbove', label: 'Above average', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
+    { key: 'rsMa', label: 'Average', style: 'line', color: '$maColor', width: 1, lineStyle: 'largeDashed', precision: 4, role: 'context', legend: { hide: true },
+      // ⭐ U2b: the average's last point continues one exact step from the live ratio.
+      liveTail: { kind: 'ma', of: 'rsLine', length: 'input:maLength', type: 'input:maType' } },
+    // ⭐ THE MANSFIELD LINE, on the RS pane's own scale. It is a PERCENT distance
+    // from the ratio's average (−20…+20 on most names), so it never shares the
+    // scale with the ratio (near 0.25): under Mansfield view the server blanks the
+    // ratio, its average and every RS-line dot, and this line draws alone at the
+    // instance's line width (visual round A2). Blank unless the Mansfield reading.
+    { key: 'mansfield', label: 'Mansfield', style: 'line', color: '$mansfieldColor', width: '$lineWidth',
+      precision: 2, role: 'context', legend: { hide: true } },
+    // ⭐ THE ZERO LINE (visual round A2): solid, 1 px, the neutral, the only
+    // horizontal guide in the pane, and drawn ONLY under Mansfield view
+    // (`plots[].activeWhen`, the inputs' condition grammar). A guide is static, so
+    // whether it draws is the definition's to say; the line it sits under is the
+    // server's to blank.
+    { key: 'mansfieldZero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context', activeWhen: RS_MANSFIELD_VIEW },
+    // ⭐⭐ v4 — THE PHASE 3 READINGS (unit 3-08). Each family is the server's to
+    // blank outside its Reading (`rs_provider._RS_VIEW_FAMILIES`), so each draws
+    // alone on the pane's own scale. One hue and the neutral per view, no gold.
+    //
+    // ROTATION (D1, the Terminal's RRG formula): RS-Ratio in info blue and
+    // RS-Momentum in the neutral, both around 100, with the 100 guide drawn only
+    // under the Rotation reading. Intraday-blank like the dots (the server's rule).
+    // ⭐ 3-14 — `requiresServer` on each Phase 3 line: a v3 server never sends the
+    // column, so the inspector offers no Plot style for it there (`isPlotHidden`).
+    { key: 'rsRatio', label: 'RS-Ratio', style: 'line', color: RS_INFO, width: '$lineWidth',
+      precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
+    // ⭐ a11y gate §12.2 (owner decision, 2026-11-08): RS-Momentum draws DASHED,
+    // the same `largeDashed` the RS line's average uses. Both lines are thin and
+    // the info blue vs the neutral collapses under colour blindness, so the dash
+    // is what tells them apart. Colours unchanged.
+    { key: 'rsMomentum', label: 'Momentum', style: 'line', color: RS_NEUTRAL, width: '$lineWidth', lineStyle: 'largeDashed',
+      precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
+    { key: 'rotationCentre', label: '100', style: 'hlines', levels: [100], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context', activeWhen: RS_ROTATION_VIEW },
+    // QUALITY (Clenow): the score in info blue. Daily charts only (the server
+    // sends nothing on weekly or intraday bars and the readout says why).
+    { key: 'clenowScore', label: 'Quality', style: 'line', color: RS_INFO, width: '$lineWidth',
+      precision: 4, role: 'context', legend: { hide: true }, requiresServer: true },
+    // VOLATILITY-ADJUSTED (VARS): the line in info blue, its 50-bar average dashed
+    // in the neutral, and the zero guide only under the VARS reading.
+    { key: 'vars', label: 'VARS', style: 'line', color: RS_INFO, width: '$lineWidth',
+      precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
+    { key: 'varsMa', label: 'VARS avg', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
+      precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
+    { key: 'varsZero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context', activeWhen: RS_VARS_VIEW },
+    // ⭐⭐ REV 5 — THE RS RATING READING (Deepvue round 2). The nightly rating at
+    // each bar's session in info blue (whole numbers, `precision: 0`), its
+    // 21-session average dashed in the neutral (the RS line's average style), and
+    // two neutral guides at 80 and 90, solid 1 px like every guide in this pane
+    // (the horizontal shape tells them from the line), drawn only under this Reading. The
+    // server blanks both columns under every other view and on every timeframe but
+    // daily; a session with no stored rating is a gap, never a guess.
+    // ⭐ `autoscaleInclude` (real-screen check 2026-11-08): the pane fitted the line
+    // alone, so a rating in the 60s-80s never showed the 90 guide. Spanning 80-90
+    // put the 90 guide at the very top, through the pane label's row (second pass,
+    // run2). So the scale always reaches the rating's ceiling, 99: 80 and 90 stay in
+    // view below the label band, and a line peak can only meet the ranks strip at
+    // 99. Blank under every other Reading, it reframes nothing there.
+    { key: 'ratingLine', label: 'RS Rating', style: 'line', color: RS_INFO, width: '$lineWidth',
+      precision: 0, role: 'context', legend: { hide: true }, requiresServer: true,
+      autoscaleInclude: { min: 80, max: 99 } },
+    { key: 'ratingMa', label: 'Rating avg', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
+      precision: 2, role: 'context', legend: { hide: true }, requiresServer: true },
+    { key: 'ratingGuides', label: '80 and 90', style: 'hlines', levels: [80, 90], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context', activeWhen: RS_RATING_VIEW },
+    // ⭐⭐ TWO RENDERERS FOR THE DOTS, AND WHY (review finding V1, 2026-11-06).
+    // lightweight-charts 5.2.0 clamps a series-marker GLYPH to a 12..30 px floor
+    // twice (`calculateShapeHeight` on the bar spacing, `shapeSize` on the
+    // multiplied size), so the "small" 0.6 and "large" 1.2 circles both drew 9 px
+    // at every normal zoom — a size channel that did not render. So:
+    //   · the SMALL dots are plain `markers` plots with NO `marker` block: the
+    //     binder draws them as the series' own POINT MARKERS (`pool`:
+    //     `pointMarkersVisible`, radius = `width`, no floor — SAR's shape), at the
+    //     plotted value by construction, honouring the member's Dot size;
+    //   · the two LARGE dots (before price, red day) keep the glyph at size 1.6,
+    //     which the floor can only make LARGER (13 px at the floor, 17 px at bar
+    //     spacing 15, 23 px from 20) and which paints ABOVE every series.
+    //     ⭐ 1.6, not 2.0 (owner-delegated decision L1, 2026-11-07): 15 px read
+    //     as chunky on a phone and crowded the line; 13 px is still the largest
+    //     mark on the pane, so it stays the one look-here mark. The red-day glyph
+    //     moves with it: it is the gold mark under Stress (C1), and a larger red
+    //     ring would otherwise frame the gold dot on a bar where both fire.
+    //     Neither carries text
+    //     (visual round A3; platform §7: text on chips, never raw over the canvas).
+    //     The red-day plot is declared BEFORE the before-price plot, so on a bar
+    //     where both fire (Classic with red-day highs on) the gold before-price
+    //     glyph paints on top.
+    // ⭐ `restyle: false` on every dot (A6): a sparse dot column restyled as a line
+    // draws nothing, so the inspector offers no Plot style for them.
+    // `__tests__/markerPixels.test.js` mirrors LWC's arithmetic and pins small < large
+    // at every bar spacing. ⛔ `width` here is the dot RADIUS, never the RS line's.
+    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+    // ⭐ DESIGN ROUND (2026-11-08) — THE CROSS MARKERS. The server sends the crosses
+    // as 0/1 events (`crossUp`, `crossDown`, never blanked); a glyph drawn `inBar`
+    // sits AT its column's value, so each is a client-derived column (`derive`,
+    // `engine/derivedColumns.js`): the RS value on the cross bar, NaN elsewhere. A
+    // small arrow ON the line (lightweight-charts' arrowUp / arrowDown; it draws no bare triangle),
+    // in the line's own colour for that side (Classic:
+    // one blue, the direction told by the shape; Phase: bull up, bear down), so
+    // the markers add no hue to any view. Absent while "Cross markers" is off.
+    // Declared before the large glyphs so the gold before-price dot paints on top.
+    { key: 'dotCrossUp', label: 'RS crossed above average', style: 'markers', color: '$color', width: 1, role: 'context',
+      marker: { shape: 'arrowUp', position: 'inBar', size: 0.6 }, restyle: false, legend: { hide: true },
+      derive: { from: 'rsLine', where: 'crossUp', activeWhen: { key: 'showCrossMarkers', equals: true } } },
+    { key: 'dotCrossDown', label: 'RS crossed below average', style: 'markers', color: '$lineDownColor', width: 1, role: 'context',
+      marker: { shape: 'arrowDown', position: 'inBar', size: 0.6 }, restyle: false, legend: { hide: true },
+      derive: { from: 'rsLine', where: 'crossDown', activeWhen: { key: 'showCrossMarkers', equals: true } } },
+    { key: 'dotNHred', label: 'RS high on a red day', style: 'markers', color: '$dotRedColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.6 }, restyle: false, legend: { hide: true } },
+    { key: 'dotNHbeforePx', label: 'RS high before price', style: 'markers', color: '$dotBeforePriceColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.6 }, restyle: false, legend: { hide: true } },
+    { key: 'dotNHpartial', label: 'RS high (short history)', style: 'markers', color: '$dotPartialColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+    { key: 'dotNL', label: 'RS new low', style: 'markers', color: '$dotLowColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+    { key: 'dotMansfieldCross', label: 'Mansfield zero cross', style: 'markers', color: '$dotCrossColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+    // ⭐ v4 — THE GAP SESSION (Quality): a plain neutral point on the score line on
+    // the session that moved more than the gap threshold (the server's
+    // `dotClenowGap`, the score's value on that bar, NaN elsewhere). A point
+    // marker, never a glyph: the score can sit at or below zero.
+    { key: 'dotClenowGap', label: 'Gap session', style: 'markers', color: RS_NEUTRAL, width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+  ],
+  // ⭐⭐ THE LEADERSHIP READOUT (plan §6.6; engine `readoutSchema.js`, unit 2a-09;
+  // surfaces unit 2a-10). Each row reads ONE scalar of the server's `payload`
+  // (`scalar:<path>`) or one input, prints it in the declared format, and is
+  // OMITTED when the path resolves to nothing — the only stand-in is a declared
+  // `fallback`, shown muted. The two `chip` rows ride the pane label:
+  // `UCT Relative Strength · XLK · 94`. A `card` is the three-line explanation
+  // (what / origin / evidence) the About page opens, in operator voice: no
+  // verdicts, no "buy", numbers carry their source. `card.learn` is a key of
+  // `meta.learn` above. `tests/test_rs_columns_provider.py` resolves every
+  // `scalar:` path here against a real provider payload, so a row can never
+  // name a scalar the server does not send.
+  //
+  // ⭐ THE EVIDENCE LINES (unit 2b-09; research base 03-evidence.md §b). A card
+  // whose signal the nightly backtest measures (2b-01 → `rs/evidence.json` →
+  // 2b-03 `payload.evidence.sentence.<key>`) declares `evidenceSource`; the
+  // surface prints that sentence VERBATIM, as `rs_evidence_pull.sentence_for`
+  // writes it — "1,284 RS new highs before price on 240 sessions, 2025-11-05 to
+  // 2026-11-04, daily bars: 58.3% (likely between 52.0% and 64.4%) beat SPY from
+  // the next session's open to the close 63 sessions later (about 3 months;
+  // median +2.1%), against 50.2% for all bars. Stock splits not yet checked for
+  // 3 names. Universe as held, survivorship not yet corrected." The base is the
+  // next open (owner decision N6, 2026-11-07); the likely range is a 95% Wilson
+  // interval over the effective n, and the split note prints only when the
+  // artifact counts names the split guard could not judge (unit VA3). Below the
+  // display floor the server sends what was measured and what a number needs
+  // instead; the static `evidence` (the honesty sentence) prints only when no
+  // envelope has landed. A
+  // sourced card's literature sentences (Bulkowski on Before price) lead the
+  // server sentence, which replaces only the closing honesty sentence
+  // (`readoutSchema.cardEvidenceText`, review finding #22, 2026-11-07). The
+  // cards with no signal in the artifact carry the defensible literature
+  // statements, each with its source, never a win rate, a threshold or a
+  // forecast (the must-not-claim list, 03-evidence.md §b).
+  //
+  // ⭐⭐ THE GLANCE LIST AND THE CARDS (Phase 2a visual round, item A1). The chip
+  // menu lists the GLANCE rows only — every entry without `detailOf`, in this
+  // order: Benchmark, Rating, RS line, the Reading's own row (Mansfield, Rotation,
+  // Quality, Vol-adjusted or RS Rating, each only under its view; v4/rev 5), Last RS
+  // high, Agreement, Regime, Checks, and History when the series is short. Every
+  // other row is a DETAIL row: `detailOf` names the glance row whose card it sits
+  // in, as the "numbers" block above the three card lines. The composed glance
+  // values are the server's summary strings (`rating.summary`, `legend.summary`,
+  // `mansfield.summary`, `lastRsHigh.summary`, `sensitivity.summary`,
+  // `checks.summary`), so each row stays one source; the checks' detail rows read
+  // each check's own `line`. A summary the server has not sent omits its row,
+  // exactly as any other missing scalar does.
+  //
+  // ⛔ THE TWO CHIP ROWS ARE DETAIL ROWS AND KEEP THEIR KEYS. `benchmark` (the
+  // resolved ticker) and `rating` (the IBD-style number) feed the pane suffix
+  // (`UCT Relative Strength · XLK · 94`), and `readout.stampReadout` replaces the
+  // `benchmark` legend param with the row keyed `benchmark`. Their glance rows are
+  // `benchmarkName` and `ratingSummary`, which print the composed read.
+  readout: [
+    // ⭐ `note`: the muted second line (visual spec row 1 and A8), the server's
+    // sentence for a fallback (`Sector ETF not available for an ETF; using SPY`)
+    // or a benchmark gap (`No SPY bar for Nov 5 yet`).
+    { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
+      note: 'scalar:benchmark.note',
+      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices.',
+        origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
+        evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer; the Agreement row reads the same line against SPY, the equal-weight index and the sector.',
+        learn: 'rsLine' } },
+    // What the member picked, as the option reads (`Sector ETF (auto)`), then what
+    // the server resolved it to.
+    { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
+    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.name', format: 'text', chip: true,
+      detailOf: 'benchmarkName' },
+    // The card repeats the menu's second line as a sentence (the raw fallback code,
+    // `no sector`, is the server's vocabulary, not the member's).
+    { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
+      when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
+    // ⭐ VA2 — every rating row is gated on the member's RS Rating switch (`when`),
+    // and coloured by the site's bands while Rating colours is on (`band`). The
+    // glance row's band reads the IBD-style number, the rating the 90-means-90%
+    // sentence describes.
+    { key: 'ratingSummary', label: 'Rating', source: 'scalar:rating.summary', format: 'text', fallback: 'not yet rated',
+      when: 'input:showRating', band: { source: 'scalar:rating.ibd', when: RS_BAND_WHEN },
+      card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated.',
+        origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.',
+        evidence: 'The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014), with the crash risk the Regime row describes.' } },
+    // ⭐ VA2 — HEADLINE RATING: which of the two rides the pane label (`chipWhen`).
+    // Both stay rows in the card whatever the headline says. The fast number is
+    // labelled in the pane label (`fast 91`) so two numbers never read as one.
+    { key: 'rating', label: 'IBD-style', source: 'scalar:rating.ibd', format: 'int', chip: true, detailOf: 'ratingSummary',
+      when: 'input:showRating', chipWhen: { key: 'headlineRating', in: ['ibd', 'both'] },
+      band: { source: 'scalar:rating.ibd', when: RS_BAND_WHEN } },
+    { key: 'fastRating', label: 'Fast', source: 'scalar:rating.fast', format: 'int', detailOf: 'ratingSummary',
+      when: 'input:showRating', chip: true, chipWhen: { key: 'headlineRating', in: ['fast', 'both'] }, chipPrefix: 'fast',
+      band: { source: 'scalar:rating.fast', when: RS_BAND_WHEN },
+      card: { what: 'UCT fast rating, 1 to 99, as captured by the nightly job (the screener\'s hourly RS Rank): 3-month, 6-month, 1-month and 1-week returns over about 138 sessions.',
+        origin: 'The site\'s existing RS rank (rs_ranking), read once a night beside the IBD-style rating; the Rated as of row dates both. A different formula from the IBD-style rating, so the two can differ widely.' } },
+    { key: 'ratingAsOf', label: 'Rated as of', source: 'scalar:rating.asof', format: 'text', detailOf: 'ratingSummary',
+      when: 'input:showRating' },
+    // ⭐ THE COMPONENTS ROW (plan §6.6: `1M 91 · 3M 97 · 6M 95 · 12M 96`), the
+    // server's `rating.components`: each part's 1 to 99 rank, the ones the nightly
+    // row holds, in order. A detail row of the Rating card, so it prints only
+    // while the Rating row does (the RS Rating switch), and only while the member
+    // turns Components on. Omitted when the row holds no component.
+    { key: 'ratingComponents', label: 'Components', source: 'scalar:rating.components', format: 'text',
+      detailOf: 'ratingSummary', when: 'input:showComponents' },
+    { key: 'phase', label: 'RS line', source: 'scalar:legend.summary', format: 'text',
+      card: { what: 'Whether the RS line closed above or below its moving average on the last bar. Above is the bullish phase; the cross is the event the screener and alerts read.',
+        origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.phase',
+        learn: 'phase' } },
+    { key: 'fromMa', label: 'From average', source: 'scalar:legend.pctFromMa', format: 'pct', detailOf: 'phase' },
+    // ⭐ ROW 4 ONLY UNDER ITS READING (A2; v4 on the equals gate): the reading the
+    // pane draws then.
+    { key: 'mansfield', label: 'Mansfield', source: 'scalar:mansfield.summary', format: 'text',
+      when: 'input:view=mansfield',
+      card: { what: 'Mansfield Relative Strength: the RS ratio as a percent above or below its own moving average, measured over the Mansfield length set on this chart, in this chart\'s bars; the Length row prints it. 200 is the default; 52 on a weekly chart is Weinstein\'s published length, which the weekly Trend preset sets. Above zero, the stock is outperforming its own trend against the benchmark.',
+        origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.mansfield' } },
+    { key: 'mansfieldValue', label: 'Value', source: 'scalar:mansfield.value', format: 'pct', detailOf: 'mansfield' },
+    // The last cross in EITHER direction (`up, 57 bars ago`): the pane draws only
+    // the crosses up, so the direction is the half the chart does not show.
+    { key: 'mansfieldCross', label: 'Last zero cross', source: 'scalar:mansfield.lastCross', format: 'text', detailOf: 'mansfield' },
+    // ⭐ THE LENGTH ACTUALLY USED (review finding #9, 2026-11-07). The default is
+    // 200 on every timeframe, so a weekly chart reads a 200-week average unless
+    // the weekly Trend preset set 52. The row prints what the server computed.
+    { key: 'mansfieldLength', label: 'Length', source: 'scalar:mansfield.lengthText', format: 'text', detailOf: 'mansfield' },
+    // ⭐⭐ v4 — THE THREE PHASE 3 READINGS (unit 3-08), each row 4 under its own
+    // view. The glance value is the server's summary (`Leading, 6 weeks`, `Score
+    // 0.62, 91% a year, R² 0.68, no gap over 15%`, `Strong, rising: +3.4 against
+    // SPY, above its 50-session average`). When the server could not make the
+    // reading its block carries a `reason` and the summary IS that reason, so the
+    // row prints it in the muted ink (`muted` as a gate) and it never reaches the
+    // pane label. The cards' evidence lines are [V] statements of the research
+    // base only (03-evidence.md, decision D8), each ending with the honesty
+    // sentence: no hit rate is published or measured for any of the three.
+    { key: 'rotation', label: 'Rotation', source: 'scalar:rotation.summary', format: 'text',
+      when: 'input:view=rotation', muted: 'scalar:rotation.reason', action: { kind: 'openRotation' },
+      card: { what: 'Two lines around 100 against the benchmark. RS-Ratio is the RS line against its own recent average: above 100, the stock has been beating the benchmark lately. RS-Momentum is RS-Ratio against its own recent average: above 100, that lead is growing. Together they place the stock in one of four quadrants: Leading (both above 100), Weakening (RS-Ratio above, RS-Momentum below), Lagging (both below) and Improving (RS-Ratio below, RS-Momentum above). The row counts how many bars in a row it has held its quadrant. It is a map of where the stock stands, not a trading system.',
+        origin: 'Julius de Kempenaer\'s Relative Rotation Graphs. His formula is proprietary, so this is UCT\'s published approximation, the one the Terminal\'s RRG prints under its graph: RS-Ratio is 100 times the RS line over its 10-bar average, and RS-Momentum is 100 times RS-Ratio over its 5-bar average. Labelled RRG-style for that reason.',
+        evidence: RS_HONESTY_SENTENCE } },
+    { key: 'rotationQuadrant', label: 'Quadrant', source: 'scalar:rotation.quadrant', format: 'text', detailOf: 'rotation' },
+    { key: 'rotationRatio', label: 'RS-Ratio', source: 'scalar:rotation.ratio', format: 'ratio', detailOf: 'rotation' },
+    { key: 'rotationMomentum', label: 'RS-Momentum', source: 'scalar:rotation.momentum', format: 'ratio', detailOf: 'rotation' },
+    { key: 'rotationBars', label: 'Bars in quadrant', source: 'scalar:rotation.inQuadrantBars', format: 'int', detailOf: 'rotation' },
+    { key: 'quality', label: 'Quality', source: 'scalar:quality.summary', format: 'text',
+      when: 'input:view=quality', muted: 'scalar:quality.reason',
+      card: { what: 'Clenow\'s momentum quality: how fast and how steadily the price has climbed over the window, 90 sessions by default. A straight line is fitted through the closes on a log scale; its slope becomes a yearly pace, which is multiplied by R², how closely the closes hug that line (0 to 1). A fast, smooth climb scores high, and a jumpy one scores lower at the same pace. It reads the stock\'s own price, not the benchmark. The gap flag says whether one session in the window moved more than the gap threshold, 15% by default, and the dot on the line marks that session. Daily charts only.',
+        origin: 'Andreas Clenow, Stocks on the Move (2015): the yearly pace of a regression on the log of price, times its R². Commonly implemented with 90 trading days.',
+        evidence: 'An independent point-in-time re-test of Clenow\'s whole strategy (Quanterlab), simulated for a full portfolio rule set and not a forecast for this score on one stock, found it beat SPY from 2006 to 2014 (12.0% a year against 7.7%) and trailed it from 2015 to 2025 (7.5% against 13.4%). ' + RS_HONESTY_SENTENCE } },
+    { key: 'qualityScore', label: 'Score', source: 'scalar:quality.score', format: 'ratio', detailOf: 'quality' },
+    { key: 'qualityPace', label: 'Yearly pace', source: 'scalar:quality.annualPct', format: 'pct', detailOf: 'quality' },
+    { key: 'qualityFit', label: 'Fit (R²)', source: 'scalar:quality.r2', format: 'ratio', detailOf: 'quality' },
+    { key: 'qualityGap', label: 'Gap in window', source: 'scalar:quality.gap', format: 'bool', words: ['yes', 'no'], detailOf: 'quality' },
+    { key: 'qualityWindow', label: 'Sessions', source: 'scalar:quality.window', format: 'int', detailOf: 'quality' },
+    { key: 'vars', label: 'Vol-adjusted', source: 'scalar:vars.summary', format: 'text',
+      when: 'input:view=vars', muted: 'scalar:vars.reason',
+      card: { what: 'Volatility-adjusted relative strength. Every session, the stock\'s move and the benchmark\'s move are each divided by that symbol\'s own typical daily move (its average true range, 20 bars by default), and the difference is added up over the lookback, 60 bars by default. Above zero, the stock has gained more than the benchmark once each is measured in its own usual move, so a quiet stock and a wild one read on one scale. The dashed line is its 50-bar average. Strong or Weak says which side of zero it is on; rising, fading, improving or falling says which side of its average.',
+        origin: 'OANDA\'s volatility-adjusted relative strength (VARS).',
+        evidence: RS_HONESTY_SENTENCE } },
+    { key: 'varsValue', label: 'Value', source: 'scalar:vars.value', format: 'ratio', detailOf: 'vars' },
+    { key: 'varsAverage', label: 'Average', source: 'scalar:vars.ma', format: 'ratio', detailOf: 'vars' },
+    { key: 'varsState', label: 'State', source: 'scalar:vars.stateWord', format: 'text', detailOf: 'vars' },
+    { key: 'varsLookback', label: 'Sum (bars)', source: 'scalar:vars.lookback', format: 'int', detailOf: 'vars' },
+    { key: 'varsAtr', label: 'ATR (bars)', source: 'scalar:vars.atrLength', format: 'int', detailOf: 'vars' },
+    // ⭐⭐ REV 5 — THE RS RATING READING'S ROW (Deepvue round 2). The server's
+    // summary (`82, up 6 in 20 sessions`; `· as of Nov 6` when the newest stored
+    // session is older than the newest bar), muted when the block carries a reason
+    // (`daily charts only`, `not yet rated`). Coloured by the site's rating bands
+    // like every rating row. No measured statement exists for a rating's change
+    // over time, so the evidence line is the honesty sentence.
+    { key: 'ratingView', label: 'RS Rating', source: 'scalar:ratingHistory.summary', format: 'text',
+      when: 'input:view=rating', muted: 'scalar:ratingHistory.reason',
+      band: { source: 'scalar:ratingHistory.value', when: RS_BAND_WHEN },
+      card: { what: 'The RS Rating itself over time: the nightly IBD-style rating, 1 to 99, at each session on the chart, with its 21-session average dashed and guides at 80 and 90. A rising line means the stock has been climbing past the other names rated; a flat line near the top means it has held its place there. The row prints the latest rating and how many points it moved over the last 20 stored sessions. Daily charts only: the rating is stored once a session, and a session with no stored rating is left blank.',
+        origin: 'Deepvue and MarketSurge draw the RS Rating as a line under the chart. This one plots the rating UCT\'s nightly job stored for each session: IBD\'s published term weights, ranked across every stock we hold a recent price for, on our own bars.',
+        evidence: RS_HONESTY_SENTENCE } },
+    { key: 'ratingViewValue', label: 'Rating', source: 'scalar:ratingHistory.value', format: 'int', detailOf: 'ratingView' },
+    { key: 'ratingViewAverage', label: '21-session avg', source: 'scalar:ratingHistory.average', format: 'ratio',
+      detailOf: 'ratingView' },
+    { key: 'ratingViewChange', label: '20-session change', source: 'scalar:ratingHistory.change20', format: 'int',
+      detailOf: 'ratingView' },
+    { key: 'ratingViewSessions', label: 'Sessions drawn', source: 'scalar:ratingHistory.sessions', format: 'int',
+      detailOf: 'ratingView' },
+    { key: 'ratingViewAsOf', label: 'Rated as of', source: 'scalar:ratingHistory.asof', format: 'text',
+      detailOf: 'ratingView' },
+    { key: 'rsHigh', label: 'Last RS high', source: 'scalar:lastRsHigh.summary', format: 'text',
+      card: { what: 'How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count).',
+        origin: 'IBD\'s RS line new high; the blue dot MarketSurge draws.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.rsHigh',
+        learn: 'newHigh' } },
+    { key: 'rsHighAge', label: 'Bars ago', source: 'scalar:lastRsHigh.barsAgo', format: 'int', detailOf: 'rsHigh' },
+    // ⭐ THE TWO QUALIFIERS ARE DETAIL ROWS WITH CARDS OF THEIR OWN: the Last RS
+    // high card's `Before price  yes` and `On a red day  yes` open them.
+    { key: 'beforePrice', label: 'Before price', source: 'scalar:lastRsHigh.beforePrice', format: 'bool',
+      words: ['yes', 'no'], detailOf: 'rsHigh',
+      card: { what: 'That RS high came while price was still more than the tolerance below its own lookback high: relative strength led, price had not confirmed.',
+        origin: 'IBD: more bullish, and not a precondition. Deepvue, ChillLax.',
+        evidence: 'Bulkowski measured 15,763 chart patterns: the direction of RS before a breakout barely changed the result, while RS rising after the breakout did (an average gain of 41% against 22%). ' + RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.beforePrice',
+        learn: 'beforePrice' } },
+    { key: 'redDay', label: 'On a red day', source: 'scalar:lastRsHigh.redDay', format: 'bool',
+      words: ['yes', 'no'], detailOf: 'rsHigh',
+      card: { what: 'That RS high came on a day the benchmark closed down by at least the red-day threshold: strength while the market sold off.',
+        origin: 'UCT workshops; Kell; TraderLion on down days. Taught widely, never measured publicly.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.redDay',
+        learn: 'redDay' } },
+    { key: 'history', label: 'Bars held', source: 'scalar:history.bars', format: 'int', when: 'scalar:history.short',
+      detailOf: 'rsHigh' },
+    { key: 'sensitivity', label: 'Agreement', source: 'scalar:sensitivity.summary', format: 'text',
+      card: { what: 'Whether the last 20 bars of relative strength point the same way against SPY, the equal-weight index (RSP) and the sector ETF. Agree means all three slopes share a sign.',
+        origin: 'UCT: a leader against the cap-weighted index alone may only be riding the giants that carry it.',
+        evidence: 'In 2023 and 2024, 78% of S&P 500 stocks underperformed the cap-weighted index (Lyrical, 2024), so a line falling against SPY while rising against the equal-weight index or the sector separates stock-specific strength from a few giants carrying the index. The nightly test will print the rank correlation of RS across the three benchmarks here.' } },
+    { key: 'agreeSpy', label: 'SPY', source: 'scalar:sensitivity.spy.word', format: 'text', detailOf: 'sensitivity' },
+    { key: 'agreeRsp', label: 'RSP', source: 'scalar:sensitivity.rsp.word', format: 'text', detailOf: 'sensitivity' },
+    { key: 'agreeSector', label: 'Sector', source: 'scalar:sensitivity.sector.word', format: 'text', detailOf: 'sensitivity' },
+    { key: 'theme', label: 'Theme', source: 'scalar:theme.label', format: 'text', detailOf: 'sensitivity' },
+    { key: 'regime', label: 'Regime', source: 'scalar:regime.label', format: 'text', fallback: 'needs more history',
+      card: { what: 'The market state the reading lives in, from the benchmark alone: above or below its 200-day average, the sign of its two-year return, and where its six-month realised volatility sits in its own three-year range. Persistence: above the 200-day with a positive two-year trend. Rebound-risk: a negative two-year trend in the high-volatility third. Mixed: anything else.',
+        origin: 'Daniel and Moskowitz, Momentum Crashes: leaders keep leading in persistence regimes and reverse hardest in rebounds after bear markets.',
+        evidence: 'Relative strength is a tendency, not a guarantee: in backtests it loses roughly one year in five and reverses hardest at bear-market bottoms. The fifteen worst momentum months since 1927 all came after a negative two-year market return, fourteen of them in months the market rose (1932, 2001, 2009), and in 2003 and 2009 the laggards beat the leaders by 35 to 50 points (Daniel and Moskowitz 2016; Dorsey Wright 2016).' } },
+    { key: 'regimePct200', label: 'vs 200-day', source: 'scalar:regime.pctFrom200', format: 'pct', detailOf: 'regime' },
+    { key: 'regimeReturn2y', label: '2-year return', source: 'scalar:regime.return2y', format: 'pct', detailOf: 'regime' },
+    { key: 'regimeVol', label: 'Volatility third', source: 'scalar:regime.volTercile', format: 'text', detailOf: 'regime' },
+    { key: 'regimeNote', label: 'Note', source: 'scalar:regime.reason', format: 'text', when: 'scalar:regime.reason',
+      detailOf: 'regime' },
+    { key: 'checks', label: 'Checks', source: 'scalar:checks.summary', format: 'text', fallback: 'needs more history',
+      card: { what: 'The four UCT checks, each a yes or no with its numbers: distance from the 200-day average against the benchmark\'s; return since the benchmark\'s 20-session low against the benchmark\'s; how many of the last ten red days closed in the top third of their range; how many of the last twenty sessions closed up on a red day.',
+        origin: 'UCT workshops (Chartmaster, the four RS checks).',
+        evidence: 'Counts, not signals: the green-on-red check passes at 6 of the last 20 sessions, which is UCT\'s own threshold, and the screener\'s up-on-down-days scan is looser at 3. No published hit rate exists for these checks and UCT has not measured them yet.',
+        learn: 'fourChecks' } },
+    { key: 'checkMa', label: 'Averages', source: 'scalar:checks.ma.line', format: 'text', detailOf: 'checks' },
+    // ⭐ v4 (D6): the anchor row offers "Pick a date on the chart" (`pickDate`,
+    // StockChart unit 3-09 renders it and writes `anchorDate`), and a picked date
+    // prints its own row with a Reset (`resetInput` writes the blank default back,
+    // the benchmark's 20-session low). The provider's line names the date it used.
+    { key: 'checkAnchor', label: 'Since anchor', source: 'scalar:checks.anchor.line', format: 'text', detailOf: 'checks',
+      action: { kind: 'pickDate', input: 'anchorDate' } },
+    { key: 'checkAnchorPicked', label: 'Picked date', source: 'input:anchorDate', format: 'text', detailOf: 'checks',
+      when: 'input:anchorDate', action: { kind: 'resetInput', input: 'anchorDate' } },
+    { key: 'checkPivot', label: 'Pivot speed', source: 'scalar:checks.pivotSpeed.line', format: 'text', detailOf: 'checks' },
+    { key: 'checkGreenOnRed', label: 'Green on red', source: 'scalar:checks.greenOnRed.line', format: 'text', detailOf: 'checks' },
+    { key: 'pullback', label: 'From 8-day EMA', source: 'scalar:checks.pullbackEma8', format: 'pct', detailOf: 'checks' },
+    // ⭐ ROW 9, ONLY ON A SHORT SERIES, WITH NO CARD: the note is the whole read.
+    { key: 'shortHistory', label: 'History', source: 'scalar:history.summary', format: 'text', when: 'scalar:history.short',
+      muted: true },
+  ],
+  // ⛔ NO `events[]` ON THIS LANE, AND WHY. `registerDefinitions` proves every
+  // declared event by running the definition's compute at registration and
+  // checking the column exists; a server definition computes nothing until a
+  // symbol is fetched, so every event would read "returned no column" and the
+  // definition would be refused. The 0/1 event columns (`rsNH`, `rsNHbeforePx`,
+  // `rsNHred`, `rsNL`, `gor`, `rog`, `crossUp`, `crossDown`, `rsAbove`, `pxNH`,
+  // `rsNHpartial`, `mansfieldCrossUp`, `mansfieldCrossDown`) still arrive from
+  // the server for every bar — the binder draws the declared plots and ignores
+  // the rest — and the screener and the alert lane read them from
+  // `api/services/relative_strength.py` directly (plan §10). Declaring them here
+  // is a Phase 2b task once the server lane has an event-probe path of its own.
+}
+
+// ─── ⭐⭐ UCT RS SPLIT, U7 — THE SLIM `rsLine`: "UCT RS Line", the MarketSurge look ──
+//
+// Registered in place of `RS_LINE_V5_RAW` while `VITE_RS_SPLIT_ENABLED=1`
+// (`rsSplitEnabled` above; map §(a) U7, §(e) flag 2). Same id, same `compute.rev`
+// 5, the same server row and payload: this unit takes nothing from the server.
+// What changes is what the member sees — the RS line on the PRICE pane in its
+// lowest band (`placement.target: 'price'`, the own invisible scale), info blue, a
+// blue circle on each RS new high, a larger gold one where the line led price,
+// the RS Rating tag at the line's end (`endLabel`, U2) and the ranks strip on
+// daily charts (`paneTable`, both hosts since U2) — and what the settings offer:
+// about a dozen controls, no presets, no Reading. The Rating, Mansfield,
+// Rotation, Quality and VARS readings are their own definitions now (U6:
+// `rsRating`, `rsPhases`, `rsVsEma`; 2026-11-18: the Mansfield Reading's own
+// columns are `rsMansfield`, UCT Mansfield RS); the Agreement and Regime rows are gone.
+//
+// ⛔⛔ NO SAVED INSTANCE IS DROPPED (map §(b); F20 refuses an undeclared key or an
+// illegal enum value). Every input the v5 definition rendered that this one does
+// not stays DECLARED, `legacy: true`, with its full type, range and options
+// (`view` with all six), so every stored shape still validates; the rails are
+// `__tests__/rsSplitMigration.test.js`. A legacy input carries no
+// `requiresServer` (`defSchema.validateServerGates`) and `showMansfield` loses its
+// `mapsTo` (a legacy input may not map onto a legacy input,
+// `validateLegacyMaps`).
+//
+// ⛔ WHAT LEAVES `meta.serverInputs`, AND WHY: `view`, `showMansfield` and every
+// Phase 3 / method / checks key. A stored `view: 'mansfield'` or
+// `showMansfield: true` that still reached the server would BLANK the line
+// (`rs_provider` keeps only the chosen view's family; the row's own legacy map
+// turns `showMansfield` back into the Mansfield view), so each is read and then
+// not sent, and the server computes its default ratio view. `anchorDate` goes
+// with them: the Checks card reads the server's default anchor (the benchmark's
+// 20-session low) and offers no date picker. `priceTolerance`, `shortHistoryDots`
+// and `showNewLow` shape dots this definition no longer draws, so they are not
+// sent either and the server's 2% tolerance applies. `lookback` STAYS, rendered: a
+// weekly chart needs 52 (the server's 252 would read five years), and the Last RS
+// high row means what the member set. `mansfieldLength` stays in the list,
+// legacy, for ONE reader: the Study overlay keys its second line on it
+// (`studyRsOverlay.slotInputs`; it shapes a column nothing draws, so it is
+// harmless). `redDayThreshold` has no control, as before.
+//
+// ⭐ `rsMa` DRAWS ONLY WHILE `showAverage` HOLDS (`plots[].activeWhen` on a data
+// plot: `defSchema.validatePlotActiveWhen` admits it on a server definition for a
+// presentation key the server never hears of — the `fill.activeWhen` rule), and
+// the shade is gated on the same switch, so the two can never disagree. The
+// declared default is OFF (what a saved instance without the key means); a NEW
+// instance is born ON through `meta.createInputs` (see the note there).
+const RS_LINE_SLIM_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsLine',
+  version: 5,
+  compute: { kind: 'server', fn: 'rsLine', rev: 5 },
+  meta: {
+    name: 'UCT RS Line', shortName: 'UCT RS', category: CAT.RELATIVE_STRENGTH,
+    // ⛔ ONE SENTENCE, AND ONLY WHAT SHIPS (map §(a) U7).
+    description: 'The stock against a benchmark, drawn under the price bars: blue dots on RS new highs, gold when the RS line leads price, and the RS Rating at the line\'s end.',
+    tags: ['comparative', 'momentum', 'rs', 'relative strength', 'rs line', 'blue dot',
+      'leader', 'leadership', 'price relative', 'benchmark', 'rs rating', 'red day', 'custom benchmark'],
+    tier: 'premium', repaint: 'non-repainting',
+    legendParams: ['benchmark'],
+    // ⭐ A NEW UCT RS LINE ARRIVES WITH THE AVERAGE AND ITS SHADE ON (Deepvue ships its
+    // 21 EMA with the green/red shade on, and our own plan said so).
+    // ⛔ The DECLARED default stays false on purpose: it is also what a SAVED instance
+    // without the key means (`resolveInputs` fills an absent key from it), and every
+    // instance saved before this change (v1 shape, migrated, v5 era) lacks
+    // `showAverage`, so flipping the default would turn the average on across every
+    // saved chart. `createInputs` is the door for exactly this split
+    // (`instanceControls.createInputsOf`): written onto a NEW instance by `addInstance`
+    // and `ensureLegacyInstance` only. Pinned by `rsSplitSlim.test.js`.
+    createInputs: { showAverage: true },
+    // No `legendFallback`: with the live value missing the pane label prints the
+    // server's dated last RS value, muted (`readout.readoutFallbackValue`, A8).
+    // ⭐ THE INPUTS THE SERVER DECLARES, trimmed (the header above says why each
+    // key stays or goes). `test_rs_columns_provider.py` diffs the v5 list, not
+    // this one, until U10 trims the row to match (map §(a) U10).
+    serverInputs: ['benchmark', 'maLength', 'maType', 'lookback', 'redDayThreshold',
+      'showNewHigh', 'showNewHighBeforePrice', 'mansfieldLength', 'showRedDay', 'customBenchmark',
+      'sectorBenchmark', 'themeBenchmark'],
+    // Simple opens; the four folded groups hold the average, the line's look, the
+    // dots' look and the rating's presentation.
+    groupsCollapsed: ['Average', 'Line', 'New highs', 'Rating'],
+    // The six Desk lessons stay: every card below names one of them, and `phase` is
+    // Manrav's 21 EMA on the RS line (not Mansfield).
+    learn: [
+      { key: 'rsLine', label: 'Manrav on the RS line: Relative Strength Workshop' },
+      { key: 'phase', label: 'Manrav on the RS line and its 21 EMA' },
+      { key: 'newHigh', label: 'Chartmaster on tracking relative strength' },
+      { key: 'beforePrice', label: 'Chartmaster: RS shows before price confirms' },
+      { key: 'redDay', label: 'Chartmaster: RS highs on red market days' },
+      { key: 'fourChecks', label: 'Chartmaster: the four RS checks' },
+    ],
+    // The five tour cards (D12) describe the line, its slope, RS new highs, strength
+    // on a weak day and where to look: all still what ships. Authored in
+    // `content/rs/teachingData.js`, pinned equal to `api/data/rs_teaching.json`.
+    tour: RS_TOUR,
+    glossaryHref: '/methodology/relative-strength',
+    // The RSI signpost (D13) stays, verbatim: a member who typed "rsi" may be
+    // looking for strength versus the market, whatever the family is called.
+    searchHint: {
+      queries: ['rsi', 'relative strength index'],
+      line: 'Looking for strength versus the market? That is UCT Relative Strength.',
+    },
+    // The ranks strip (design round 2026-11-08; U2 made the price-pane host).
+    paneTable: {
+      label: 'RS ranks',
+      when: ['input:showRating', 'input:showRanksTable', 'scalar:rating.asof'],
+      timeframes: ['D'],
+      columns: [
+        { key: 'm1', label: '1M', source: 'scalar:rating.m1' },
+        { key: 'm3', label: '3M', source: 'scalar:rating.m3' },
+        { key: 'm6', label: '6M', source: 'scalar:rating.m6' },
+        { key: 'm9', label: '9M', source: 'scalar:rating.m9' },
+        { key: 'm12', label: '12M', source: 'scalar:rating.m12' },
+        { key: 'rating', label: 'RS', source: 'scalar:rating.ibd', emphasis: true },
+      ],
+      band: { when: 'input:ratingBands' },
+    },
+  },
+  // ⭐ ON THE PRICE PANE BY DEFAULT (owner answer, map §(g) Q1: move everyone): the
+  // own invisible scale in the lowest band under the bars (`placement.js`), no
+  // axis, no last-value tag. "Display in" moves it to its own pane, 0.20 of the
+  // candle frame and never under 64 px (U3). A member who already moved it keeps
+  // the stored target (`displayTarget.resolveDisplayTarget`).
+  // ⭐ 2026-11-12 — WITH "Scale to rating" ON, ITS OWN PANE AND A VISIBLE AXIS
+  // (`axisWhen`): the point of the scale is to read the numbers, and the price
+  // pane's own scale is an invisible overlay that can show no axis. Automatic, so
+  // a member who moves it with "Display in" keeps the choice; off, back under the bars.
+  placement: { target: 'price', ownScale: true, pane: { height: 0.20, minPx: 64 }, axis: 'hidden',
+    axisWhen: { key: 'scaleToRating', notEquals: 'off' } },
+  // ⭐ 2026-11-12 — THE RATING SCALE (`engine/rescale.js`): every column drawn in
+  // RS units multiplied by k = rating / (the RS line on the LAST COMPLETED bar),
+  // so the closed line ends exactly on the rating, as Deepvue draws it (2026-11-13:
+  // anchoring on `rating.asof` left AMD's line at 101.99 beside "RS 96" after a
+  // +5.9% day). While a bar is forming, k is read off the bar before it and the
+  // live last point moves with price on that k. Intraday, no rating, or no line
+  // value on a closed bar: the raw line, and the Scale row says why. `at` names
+  // the rating's date for the readout. `rsAbove` is a 0/1 condition column and is
+  // not in the list.
+  rescale: {
+    input: 'scaleToRating', off: 'off',
+    to: { ibd: 'scalar:rating.ibd', m1: 'scalar:rating.m1', m3: 'scalar:rating.m3', m6: 'scalar:rating.m6',
+      m9: 'scalar:rating.m9', m12: 'scalar:rating.m12' },
+    anchor: 'rsLine', at: 'scalar:rating.asof',
+    plots: ['rsLine', 'rsMa', 'dotNH', 'dotNHred', 'dotNHbeforePx'],
+    timeframes: ['D', 'W'],
+    // the axis while a rating is chosen: 79.25, not the ratio's four decimals
+    precision: 2,
+  },
+  inputs: [
+    // ── rendered: Simple ──
+    // The benchmark family, shared by every RS indicator (2026-11-12).
+    ...rsSplitBenchmarkInputs(),
+    { key: 'showAverage', type: 'bool', label: 'Show average', default: false, group: 'Simple',
+      tooltip: 'Draw the RS line\'s moving average, dashed, with a green tint while the line is above it and a red tint while it is below. On when you add the indicator (like Deepvue\'s 21 EMA); turn it off for the line alone.' },
+    { key: 'showNewHigh', type: 'bool', label: 'RS new highs', default: true, group: 'Simple',
+      tooltip: 'A blue dot where the RS line is at its highest level of the lookback. Daily and weekly charts only.' },
+    { key: 'showNewHighBeforePrice', type: 'bool', label: 'High before price', default: true, group: 'Simple',
+      tooltip: 'RS high before price: large gold dot when the RS line makes a new high while price is still more than 2% below its own high. IBD calls this more bullish, and not a precondition.' },
+    { key: 'showRedDay', type: 'bool', label: 'Red-day highs', default: false, group: 'Simple',
+      tooltip: 'Red-day highs: large dot when the RS line makes a new high on a day the benchmark closed down at least 0.5%. Strength on a weak day. Daily and weekly charts only.' },
+    { key: 'showRating', type: 'bool', label: 'RS Rating', default: true, group: 'Simple',
+      tooltip: 'The 1 to 99 RS Rating at the end of the line, in the pane label and the readout. 90 means the stock beat 90% of the names rated.' },
+    // ⭐ 2026-11-12 — Deepvue's "Rating Period": the line rescaled so it reads like
+    // a rating (`rescale` below, `engine/rescale.js`). Presentation only: never a
+    // server input, so it keys no fetch and no alert reads it. Declared 'off' so
+    // every saved chart draws exactly as before; choosing a rating moves the line
+    // to its own pane with an axis (`placement.axisWhen`).
+    { key: 'scaleToRating', type: 'enum', label: 'Scale to rating', default: 'off', group: 'Simple',
+      options: RS_SCALE_OPTIONS,
+      tooltip: 'Rescale the line so it ends on the chosen rating at the last close, in its own pane with a 1 to 99 style axis and the same shape (daily and weekly charts); while the market is open the live end moves a little with price.' },
+    // ── rendered: Average (folded) ──
+    { key: 'maLength', type: 'int', label: 'Average (bars)', default: 21, min: 2, max: 200, step: 1, group: 'Average',
+      tooltip: 'Average length in bars: the moving average on the RS line, drawn while Show average is on and read by the RS line row either way. 21 is the curriculum default; 50 is a slower read.' },
+    { key: 'maType', type: 'enum', label: 'Average type', default: 'EMA', group: 'Average',
+      options: [['EMA', 'Exponential'], ['SMA', 'Simple']],
+      tooltip: 'Exponential reacts faster; simple is what StockCharts uses.' },
+    { ...colorInput('maColor', 'Average color', RS_NEUTRAL), group: 'Average', activeWhen: RS_AVERAGE_ON },
+    // ⭐ 2026-11-13 — THE SECOND AVERAGE (Deepvue's MA2, a 50 SMA off by default;
+    // Webster reads the 21 and the 50 on the RS line). Presentation only: none of
+    // the four is a server input, so it keys no fetch, moves no `compute.rev` and
+    // no alert reads it; the column is derived on the client (`rsMa2` below).
+    // Declared OFF, so every saved chart draws exactly as before.
+    { key: 'showAverage2', type: 'bool', label: 'Second average', default: false, group: 'Average',
+      tooltip: 'Draw a second moving average on the RS line, dotted, with no shading (a 50-day simple average by default, the slower read beside the 21). Off by default.' },
+    { key: 'maLength2', type: 'int', label: 'Average 2 (bars)', default: 50, min: 2, max: 200, step: 1, group: 'Average',
+      activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Second average length in bars. 50 is the slower read many traders pair with the 21.' },
+    { key: 'maType2', type: 'enum', label: 'Average 2 type', default: 'SMA', group: 'Average',
+      options: RS_MA_TYPE_OPTIONS, activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Simple by default (Deepvue draws its second RS average as a 50 SMA); exponential reacts faster.' },
+    { ...colorInput('ma2Color', 'Average 2 color', RS_MA2), group: 'Average', activeWhen: RS_AVERAGE2_ON,
+      tooltip: 'Color of the second average on the RS line.' },
+    // ── rendered: Line (folded) ──
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Line', tooltip: 'Color of the RS line' },
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Line' },
+    // ── rendered: New highs (folded) ──
+    { key: 'lookback', type: 'int', label: 'Lookback (bars)', default: 252, min: 20, max: 500, step: 1, group: 'New highs',
+      tooltip: 'New-high lookback: bars for a new high. 252 bars is one trading year on a daily chart; on a weekly chart use 52. Shorter reacts faster and fires more often.' },
+    { ...colorInput('dotColor', 'New-high dot', RS_INFO), group: 'New highs',
+      tooltip: 'Color of the RS new-high dot' },
+    { ...colorInput('dotBeforePriceColor', 'Before-price dot', RS_GOLD), group: 'New highs',
+      tooltip: 'Color of the large RS-high-before-price dot; gold by default, the one gold element on the chart' },
+    { ...colorInput('dotRedColor', 'Red-day dot', RS_INFO), group: 'New highs', activeWhen: { key: 'showRedDay', equals: true },
+      tooltip: 'Color of the red-day RS-high dot' },
+    // ── rendered: Rating (folded) ──
+    { key: 'showRanksTable', type: 'bool', label: 'Ranks table', default: true, group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      tooltip: 'A small table beside the chart label on daily charts: how the 1, 3, 6, 9 and 12-month returns each rank, 1 to 99, and the RS Rating. On a narrow screen it steps aside and the Rating card shows the same numbers.' },
+    { key: 'ratingBands', type: 'bool', label: 'Rating colors', default: true, group: 'Rating',
+      activeWhen: RS_RATING_ON,
+      tooltip: 'Color the rating in the readout by the site\'s bands: 80 and above, 60 to 79, 40 to 59, and below 40. The bands are rules of thumb, not tested cut-offs.' },
+    // ── legacy: declared, never rendered, never sent (the header above) ──
+    // Each keeps the v5 type, range and option vocabulary EXACTLY, so every value
+    // a v5 build could have stored is still a legal value here.
+    { key: 'view', type: 'enum', label: 'Reading', default: 'ratio', group: 'Simple', legacy: true,
+      options: [['ratio', 'RS line'], ['mansfield', 'Mansfield'], ['rotation', 'Rotation'],
+        ['quality', 'Quality (Clenow)'], ['vars', 'Volatility-adjusted'], ['rating', 'RS Rating']] },
+    { ...colorInput('lineDownColor', 'Line below avg', RS_INFO), group: 'Line', legacy: true },
+    { key: 'shadeVsAverage', type: 'bool', label: 'Shade vs avg', default: false, group: 'Line', legacy: true },
+    { key: 'showCrossMarkers', type: 'bool', label: 'Cross markers', default: false, group: 'Line', legacy: true },
+    { key: 'priceTolerance', type: 'float', label: 'Tolerance (%)', default: 2, min: 0, max: 10, step: 0.5, group: 'New highs', legacy: true },
+    { key: 'shortHistoryDots', type: 'bool', label: 'Short history', default: true, group: 'New highs', legacy: true },
+    { ...colorInput('dotPartialColor', 'Short-history dot', RS_NEUTRAL), group: 'New highs', legacy: true },
+    { key: 'showNewLow', type: 'bool', label: 'RS new lows', default: false, group: 'New highs', legacy: true },
+    { ...colorInput('dotLowColor', 'New-low dot', RS_NEUTRAL), group: 'New highs', legacy: true },
+    { key: 'headlineRating', type: 'enum', label: 'Headline rating', default: 'ibd', group: 'Rating', legacy: true,
+      options: [['ibd', 'IBD-style'], ['fast', 'UCT fast'], ['both', 'Both']] },
+    { key: 'showComponents', type: 'bool', label: 'Components', default: false, group: 'Rating', legacy: true },
+    { key: 'showMansfield', type: 'bool', label: 'Mansfield view', default: false, group: 'Method', legacy: true },
+    { key: 'mansfieldLength', type: 'int', label: 'Mansfield (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Method', legacy: true },
+    { ...colorInput('mansfieldColor', 'Mansfield color', RS_INFO), group: 'Method', legacy: true },
+    { ...colorInput('dotCrossColor', 'Zero-cross dot', RS_NEUTRAL), group: 'Method', legacy: true },
+    { key: 'rrgRatioLength', type: 'int', label: 'RS-Ratio (bars)', default: 10, min: 3, max: 60, step: 1, group: 'Method', legacy: true },
+    { key: 'rrgMomentumLength', type: 'int', label: 'Momentum bars', default: 5, min: 2, max: 30, step: 1, group: 'Method', legacy: true },
+    { key: 'clenowWindow', type: 'int', label: 'Window (bars)', default: 90, min: 20, max: 252, step: 1, group: 'Method', legacy: true },
+    { key: 'clenowGapPct', type: 'float', label: 'Gap (%)', default: 15, min: 1, max: 50, step: 1, group: 'Method', legacy: true },
+    { key: 'atrLength', type: 'int', label: 'ATR (bars)', default: 20, min: 5, max: 100, step: 1, group: 'Method', legacy: true },
+    { key: 'varsLookback', type: 'int', label: 'VARS sum (bars)', default: 60, min: 10, max: 252, step: 1, group: 'Method', legacy: true },
+    { key: 'anchorDate', type: 'string', label: 'Anchor date', default: '', group: 'Checks', legacy: true,
+      pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+  ],
+  plots: [
+    // The line, one colour (info blue by default), its band to the average switched
+    // with the average (`fill.activeWhen`). The line-end tag (U2) and the live
+    // tail (U2b) ride it as on v5.
+    // ⭐ `legend.showValue: false` (F3, real screen 2026-11-10): the pane label read
+    // `UCT RS · SPY · 82  0.4378`, and the ratio means nothing to a member; the
+    // rating beside it is the number. The chip stays (the name, the chip rows, the
+    // tag, the readout menu); only the value is withheld, on the price pane and in
+    // an own pane alike (`readout.chipValueText`). V5 is unchanged: its Readings
+    // print their own numbers. `precision: 4` still formats the popover's rows.
+    { key: 'rsLine', label: 'RS line', style: 'line', color: '$color', width: '$lineWidth',
+      fill: { with: 'rsMa', colorMode: 'column:rsAbove', colorUp: RS_BULL, colorDown: RS_BEAR, activeWhen: RS_AVERAGE_ON },
+      fillOpacity: RS_SHADE_OPACITY,
+      precision: 4, role: 'primary', legend: { decimals: 4, showValue: false },
+      endLabel: { source: 'scalar:rating.ibd', prefix: 'RS ', when: ['input:showRating'] },
+      liveTail: { kind: 'ratio', benchmark: 'scalar:benchmark.resolved' } },
+    // The condition column, hidden: the band's colour rule reads it.
+    { key: 'rsAbove', label: 'Above average', style: 'line', hidden: true, color: '#7f8ea3', width: 1, role: 'context', legend: { hide: true } },
+    { key: 'rsMa', label: 'Average', style: 'line', color: '$maColor', width: 1, lineStyle: 'largeDashed', precision: 4, role: 'context', legend: { hide: true },
+      activeWhen: RS_AVERAGE_ON,
+      liveTail: { kind: 'ma', of: 'rsLine', length: 'input:maLength', type: 'input:maType' } },
+    // ⭐ 2026-11-13 — THE SECOND AVERAGE, derived on the CLIENT from the line as
+    // drawn (`derivedColumns.derivedAverage`, the server's own arithmetic): it runs
+    // after the live tail and the rating scale, so the forming bar is in it and,
+    // scaled, it is k times the raw average, exactly like `rsMa`. Not in
+    // `rescale.plots` (it would be scaled twice). Dotted and violet against the
+    // first's large dashes; no band (the 21's shade stays the one shade). Hidden
+    // from the pane label like the first; its reading is the readout's `phase2` row.
+    { key: 'rsMa2', label: 'Second average', style: 'line', color: '$ma2Color', width: 1, lineStyle: 'dotted', precision: 4,
+      role: 'context', legend: { hide: true }, activeWhen: RS_AVERAGE2_ON,
+      derive: { kind: 'ma', of: 'rsLine', length: 'input:maLength2', type: 'input:maType2', activeWhen: RS_AVERAGE2_ON,
+        scalar: 'average2' } },
+    // ⭐ THE DOTS ARE GLYPHS, ALL THREE (map §(a) U7: MarketSurge's blue circle, not
+    // a 4 px point). lightweight-charts clamps a glyph's height to 12..30 px of bar
+    // spacing BEFORE the multiplier (`__tests__/markerPixels.test.js` mirrors the
+    // arithmetic; `rsSplitSlim.test.js` pins the table): the blue dot at 0.8 draws
+    // an 8 px disc at every ordinary zoom and 16 px at the widest, the gold at 1.6
+    // (L1) 12 px at the floor and 22 px at the widest, so the gold before-price
+    // mark is the largest thing on the line at EVERY spacing. ⛔ 0.8, not 1: at the
+    // 30 px cap a size-1 disc equals the gold one (22 px) and the one look-here
+    // mark stops standing out. The member's Dot size scales both. Declared blue
+    // first, red-day next, gold last, so on a bar where two fire the gold paints
+    // on top. No text on the canvas (platform §7); `restyle: false` on every dot (A6).
+    { key: 'dotNH', label: 'RS new high', style: 'markers', color: '$dotColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 0.8 }, restyle: false, legend: { hide: true } },
+    { key: 'dotNHred', label: 'RS high on a red day', style: 'markers', color: '$dotRedColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.6 }, restyle: false, legend: { hide: true } },
+    { key: 'dotNHbeforePx', label: 'RS high before price', style: 'markers', color: '$dotBeforePriceColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.6 }, restyle: false, legend: { hide: true } },
+    // ⛔ Nothing else: `dotNL`, `dotNHpartial`, the cross arrows, the Mansfield,
+    // Rotation, Quality, VARS and rating-history plots are gone. The server still
+    // sends their columns on the rev 5 row; the binder draws declared plots only
+    // and ignores the rest (`rsSplitMigration.test.js` pins that).
+  ],
+  // ⭐ THE READOUT, TRIMMED (map §(a) U7): Benchmark, Rating (IBD-style only, the
+  // 1M–12M ranks in its card), RS line, Last RS high, Checks, History when short.
+  // Same grammar, same scalars as v5 (`readoutSchema.js`); the glance list is every
+  // row without `detailOf`, the two `chip` rows ride the pane label.
+  readout: [
+    { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
+      note: 'scalar:benchmark.note',
+      card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices.',
+        origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
+        evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer.',
+        learn: 'rsLine' } },
+    { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
+    { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.name', format: 'text', chip: true,
+      detailOf: 'benchmarkName' },
+    { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
+      when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
+    // ⭐ ONE RATING (map: cut the fast rating and the headline choice): the
+    // IBD-style number is the chip, and the card prints the five ranks it is built
+    // from, each coloured by the site's bands while Rating colours is on.
+    { key: 'ratingSummary', label: 'Rating', source: 'scalar:rating.summary', format: 'text', fallback: 'not yet rated',
+      when: 'input:showRating', band: { source: 'scalar:rating.ibd', when: RS_BAND_WHEN },
+      card: { what: 'IBD-style RS Rating, 1 to 99: where this symbol\'s weighted 3, 6, 9 and 12-month return ranks across the universe, computed nightly from our own bars. 90 means it beat 90% of the names rated. In the 1M to 12M rows, 1M ranks the plain return, 3M an equal-weighted average of the 1-, 2- and 3-month returns, and 6M, 9M and 12M a blend that counts the newest quarter double.',
+        origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights (40% on the latest quarter). Labelled IBD-style because the universe and the bars are ours; ETFs are rated against the stock distribution, not inside it.',
+        evidence: 'The rating is a rank of past return, not a forecast. The nearest evidence is the academic momentum literature (a 12-month return with the last month skipped): past 6 to 12-month winners kept outperforming for the next 3 to 12 months across many markets and decades, about 8% a year long-short and positive in roughly four years of five (Jegadeesh and Titman 1993; Asness, Frazzini, Israel and Moskowitz 2014). It loses roughly one year in five and reverses hardest at bear-market bottoms (Daniel and Moskowitz 2016).' } },
+    { key: 'rating', label: 'IBD-style', source: 'scalar:rating.ibd', format: 'int', chip: true, detailOf: 'ratingSummary',
+      when: 'input:showRating', band: { source: 'scalar:rating.ibd', when: RS_BAND_WHEN } },
+    { key: 'ratingAsOf', label: 'Rated as of', source: 'scalar:rating.asof', format: 'text', detailOf: 'ratingSummary',
+      when: 'input:showRating' },
+    { key: 'rank1m', label: '1M rank', source: 'scalar:rating.m1', format: 'int', detailOf: 'ratingSummary',
+      when: 'input:showRating', band: { source: 'scalar:rating.m1', when: RS_BAND_WHEN } },
+    { key: 'rank3m', label: '3M rank', source: 'scalar:rating.m3', format: 'int', detailOf: 'ratingSummary',
+      when: 'input:showRating', band: { source: 'scalar:rating.m3', when: RS_BAND_WHEN } },
+    { key: 'rank6m', label: '6M rank', source: 'scalar:rating.m6', format: 'int', detailOf: 'ratingSummary',
+      when: 'input:showRating', band: { source: 'scalar:rating.m6', when: RS_BAND_WHEN } },
+    { key: 'rank9m', label: '9M rank', source: 'scalar:rating.m9', format: 'int', detailOf: 'ratingSummary',
+      when: 'input:showRating', band: { source: 'scalar:rating.m9', when: RS_BAND_WHEN } },
+    { key: 'rank12m', label: '12M rank', source: 'scalar:rating.m12', format: 'int', detailOf: 'ratingSummary',
+      when: 'input:showRating', band: { source: 'scalar:rating.m12', when: RS_BAND_WHEN } },
+    // ⭐ 2026-11-12 — the rating scale's state, only while Scale to rating is on:
+    // what the line is scaled to and on which day, or why it is drawn unscaled
+    // (`rescale.rescaleScalars`; the client adds `rescale` beside the payload).
+    // No card: the sentence is the whole statement, and the cards are exported to
+    // `api/data/rs_teaching.json` for the agent, which has no scale to explain.
+    { key: 'scale', label: 'Scale', source: 'scalar:rescale.summary', format: 'text', when: 'scalar:rescale.summary',
+      muted: 'scalar:rescale.unscaled' },
+    { key: 'phase', label: 'RS line', source: 'scalar:legend.summary', format: 'text',
+      card: { what: 'Whether the RS line closed above or below its moving average on the last bar, and by how much. Above is the bullish phase; the cross is the event the screener and alerts read. The average is drawn while Show average is on and read here either way.',
+        origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS. A trend read that lags turns by design.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.phase',
+        learn: 'phase' } },
+    { key: 'fromMa', label: 'From average', source: 'scalar:legend.pctFromMa', format: 'pct', detailOf: 'phase' },
+    // ⭐ 2026-11-13 — the second average's reading, the RS line row's words
+    // ("above its 50 SMA by 2.1%"), only while it is drawn. The CLIENT writes
+    // `average2` beside the payload (`derivedColumns.withDerivedScalars`); no card,
+    // like Scale: the sentence is the statement, and the cards export to the agent,
+    // which has no second average.
+    { key: 'phase2', label: '2nd average', source: 'scalar:average2.summary', format: 'text', when: 'input:showAverage2' },
+    { key: 'rsHigh', label: 'Last RS high', source: 'scalar:lastRsHigh.summary', format: 'text',
+      card: { what: 'How many bars since the RS line last closed at its highest level of the lookback (252 bars on a daily chart, ties count).',
+        origin: 'IBD\'s RS line new high; the blue dot MarketSurge draws.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.rsHigh',
+        learn: 'newHigh' } },
+    { key: 'rsHighAge', label: 'Bars ago', source: 'scalar:lastRsHigh.barsAgo', format: 'int', detailOf: 'rsHigh' },
+    { key: 'beforePrice', label: 'Before price', source: 'scalar:lastRsHigh.beforePrice', format: 'bool',
+      words: ['yes', 'no'], detailOf: 'rsHigh',
+      card: { what: 'That RS high came while price was still more than 2% below its own lookback high: relative strength led, price had not confirmed. The gold dot.',
+        origin: 'IBD: more bullish, and not a precondition. Deepvue, ChillLax.',
+        evidence: 'Bulkowski measured 15,763 chart patterns: the direction of RS before a breakout barely changed the result, while RS rising after the breakout did (an average gain of 41% against 22%). ' + RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.beforePrice',
+        learn: 'beforePrice' } },
+    { key: 'redDay', label: 'On a red day', source: 'scalar:lastRsHigh.redDay', format: 'bool',
+      words: ['yes', 'no'], detailOf: 'rsHigh',
+      card: { what: 'That RS high came on a day the benchmark closed down by at least 0.5%: strength while the market sold off. Drawn as its own dot while Red-day highs is on.',
+        origin: 'UCT workshops; Kell; TraderLion on down days. Taught widely, never measured publicly.',
+        evidence: RS_HONESTY_SENTENCE,
+        evidenceSource: 'scalar:evidence.sentence.redDay',
+        learn: 'redDay' } },
+    { key: 'history', label: 'Bars held', source: 'scalar:history.bars', format: 'int', when: 'scalar:history.short',
+      detailOf: 'rsHigh' },
+    { key: 'checks', label: 'Checks', source: 'scalar:checks.summary', format: 'text', fallback: 'needs more history',
+      card: { what: 'The four UCT checks, each a yes or no with its numbers: distance from the 200-day average against the benchmark\'s; return since the benchmark\'s lowest close of the last 20 sessions against the benchmark\'s; how many of the last ten red days closed in the top third of their range; how many of the last twenty sessions closed up on a red day.',
+        origin: 'UCT workshops (Chartmaster, the four RS checks).',
+        evidence: 'Counts, not signals: the green-on-red check passes at 6 of the last 20 sessions, which is UCT\'s own threshold, and the screener\'s up-on-down-days scan is looser at 3. No published hit rate exists for these checks and UCT has not measured them yet.',
+        learn: 'fourChecks' } },
+    { key: 'checkMa', label: 'Averages', source: 'scalar:checks.ma.line', format: 'text', detailOf: 'checks' },
+    // The anchor is the server's default (the benchmark's 20-session low); the
+    // provider's line names the date it used. No picker on this definition.
+    { key: 'checkAnchor', label: 'Since anchor', source: 'scalar:checks.anchor.line', format: 'text', detailOf: 'checks' },
+    { key: 'checkPivot', label: 'Pivot speed', source: 'scalar:checks.pivotSpeed.line', format: 'text', detailOf: 'checks' },
+    { key: 'checkGreenOnRed', label: 'Green on red', source: 'scalar:checks.greenOnRed.line', format: 'text', detailOf: 'checks' },
+    { key: 'pullback', label: 'From 8-day EMA', source: 'scalar:checks.pullbackEma8', format: 'pct', detailOf: 'checks' },
+    { key: 'shortHistory', label: 'History', source: 'scalar:history.summary', format: 'text', when: 'scalar:history.short',
+      muted: true },
+  ],
+  // No `events[]` on this lane (the v5 note above says why).
+}
+
+/** The `rsLine` this build registers: the slim UCT RS Line under
+ *  `VITE_RS_SPLIT_ENABLED=1`, today's UCT Relative Strength otherwise. The two
+ *  raws are exported for the rails that pin each shape whatever the build says. */
+const RS_LINE_RAW = rsSplitEnabled() ? RS_LINE_SLIM_RAW : RS_LINE_V5_RAW
+export { RS_LINE_V5_RAW, RS_LINE_SLIM_RAW }
+
+
+// ─── UCT RS split (2026-11-09, unit U6): three indicators cut out of rsLine ───
+//
+// ⭐⭐ ONE READING PER INDICATOR. The engineering map
+// (projects/rs-split-handoff-2026-11-09/engineering-map.md §(a) U6, §(d)) splits
+// the RS Rating Reading, the RS phases and the 21 EMA distance out of `rsLine`
+// into definitions of their own, each with the server row unit U4 built
+// (`registry_defs.RS_SPLIT_DEFS`, served only under `RS_SPLIT_ENABLED`). Every
+// `scalar:` path below is one `tests/test_rs_split_rows.py::RS_SPLIT_CONTRACT`
+// proves present in a real envelope, and `tests/test_rs_split_js_rows.py` diffs
+// `meta.serverInputs` and the input ranges here against the Python rows.
+//
+// ⛔ `meta.requiresServer: true` ON ALL THREE (unit U1). The rows exist only once
+// the flag is armed on the web pod, so no offer surface lists these until
+// `/api/signature/definitions` names them (`serverCompute.isDefinitionOffered`);
+// a stored instance still validates and draws when the server answers.
+// ⛔ FAIL CLOSED: the server blanks every column on any state but `ok`
+// (same symbol, no benchmark bars, daily-only), the binder draws nothing, and
+// the pane label prints the server's own reason (`legendFallback`). No guess.
+// ⭐ NO PRESETS, NO READING SWITCH: one indicator is one reading (owner
+// decision, 2026-11-09). Member copy stays plain English; every label is at
+// most 18 characters with the long form in the tooltip (the inspector's label
+// column, 3-14).
+// ⭐ COLOURS ARE THE RS TOKENS ABOVE: info blue for the RS hue, the neutral for
+// averages and guides, red only for a loss-shaped reading, no gold.
+
+// The benchmark family (`rsSplitBenchmarkInputs`) is declared once, above the
+// RS line, and shared by every RS indicator that takes a benchmark.
+
+/** The Benchmark card and its chip row, the RS line's own copy (`rsLine`'s
+ *  `benchmarkName` family): the resolved ticker rides the pane label
+ *  (`UCT RS Phases · SPY`), the server's note (a sector fallback, a missing bar)
+ *  is the muted second line. */
+const rsSplitBenchmarkRows = () => ([
+  { key: 'benchmarkName', label: 'Benchmark', source: 'scalar:benchmark.label', format: 'text',
+    note: 'scalar:benchmark.note',
+    card: { what: 'What the RS line is measured against: this symbol\'s close divided by the benchmark\'s close, bar by bar. The benchmark actually used is printed: a ticker, an industry group or a UCT theme, worked out on the server for the auto choices.',
+      origin: 'IBD and MarketSurge draw RS against the S&P 500. The equal-weight index or the sector ETF isolates the stock from the few giants that carry a cap-weighted index.',
+      evidence: 'A rising RS line means the stock is beating this benchmark over the window, nothing more: it can rise while the stock is falling if the benchmark falls faster (IBD). Which benchmark you compare against changes the answer.',
+      learn: 'rsLine' } },
+  { key: 'benchmarkRequested', label: 'Requested', source: 'input:benchmark', format: 'text', detailOf: 'benchmarkName' },
+  { key: 'benchmark', label: 'Resolved', source: 'scalar:benchmark.name', format: 'text', chip: true,
+    detailOf: 'benchmarkName' },
+  { key: 'benchmarkNote', label: 'Note', source: 'scalar:benchmark.note', format: 'text',
+    when: 'scalar:benchmark.note', detailOf: 'benchmarkName' },
+])
+
+/** The short-series note, muted, with no card: `history.bars` while
+ *  `history.short` (the split rows send no `history.summary`). */
+const rsSplitHistoryRow = () => (
+  { key: 'history', label: 'Bars held', source: 'scalar:history.bars', format: 'int', when: 'scalar:history.short',
+    muted: true }
+)
+
+/** The split rows' pane: 0.20 of the candle frame (rsLine's L2 number) with the
+ *  64 px floor unit U3 added so a stored member share can never crush it. */
+const rsSplitPane = () => ({ height: 0.20, minPx: 64 })
+
+// ⭐⭐ UCT RS RATING (`rsRating`): the nightly 1-99 rating itself, session by
+// session, on DAILY charts only. The `ratingLine` / `ratingMa` / `ratingGuides`
+// plots and the ranks table are rsLine rev 5's Rating Reading, moved across
+// field for field (unit U7 slims rsLine). No benchmark: the row reads
+// `rs_history`, not a ratio, so `meta.serverInputs` is empty and the fetch is
+// keyed on the symbol alone.
+// ⭐ `meta.timeframes: ['D']` (the VWAP precedent, `eligibility.js`): on a weekly
+// or intraday chart the instance is hidden, not dropped, and comes back on a
+// daily chart. On a daily chart with no stored rating the pane label prints the
+// server's reason, muted (`legendFallback`, the rev 5 real-screen rule).
+// ⭐ THE AXIS SHOWS (unlike the ratio panes): 80 and 90 are levels members read.
+const RS_RATING_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsRating',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsRating', rev: 1 },
+  meta: {
+    name: 'UCT RS Rating', shortName: 'UCT RS Rating', category: CAT.RELATIVE_STRENGTH,
+    description: 'The stock\'s RS Rating, 1 to 99, session by session on daily charts, with its 21-session average, guides at 80 and 90, and the 1, 3, 6, 9 and 12-month ranks in the corner.',
+    tags: ['rs', 'relative strength', 'rs rating', 'rating', 'rating history', 'rating line',
+      'leader', 'leadership', 'ibd', 'percentile', 'rank'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    timeframes: ['D'],
+    // The pane has no last-value tag for a blank series: the server's summary
+    // (`82, up 6 in 20 sessions · as of Nov 6`) or, muted, its reason (`the
+    // rating history is not switched on`). The summary LEADS with the rating, so
+    // the readout declares no chip number (F3, real screen 2026-11-10: the label
+    // read `UCT RS Rating · 82  82, up 2 in 20 sessions`): live it reads
+    // `UCT RS Rating  82`, beside `UCT RS Phases · SPY  1.70`.
+    legendFallback: [
+      { source: 'scalar:ratingHistory.summary', format: 'text', muted: 'scalar:ratingHistory.reason' },
+    ],
+    // ⭐ EMPTY ON PURPOSE: the row declares no input (`registry_defs._rs_rating_row`).
+    serverInputs: [],
+    glossaryHref: '/methodology/relative-strength',
+    // The ranks table (design round, 2026-11-08), rsLine's own: the five component
+    // ranks and the rating, daily charts only, while the server holds a row
+    // (`rating.asof`). A missing rank prints a muted dash. Banded by the site's
+    // rating colours always (this indicator has no Rating colours switch).
+    paneTable: {
+      label: 'RS ranks',
+      when: ['scalar:rating.asof'],
+      timeframes: ['D'],
+      columns: [
+        { key: 'm1', label: '1M', source: 'scalar:rating.m1' },
+        { key: 'm3', label: '3M', source: 'scalar:rating.m3' },
+        { key: 'm6', label: '6M', source: 'scalar:rating.m6' },
+        { key: 'm9', label: '9M', source: 'scalar:rating.m9' },
+        { key: 'm12', label: '12M', source: 'scalar:rating.m12' },
+        { key: 'rating', label: 'RS', source: 'scalar:rating.ibd', emphasis: true },
+      ],
+      band: {},
+    },
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'visible' },
+  inputs: [
+    // Style only: the server computes everything else from the stored history.
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Style',
+      tooltip: 'Color of the rating line; its 21-session average stays in the neutral' },
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Style' },
+  ],
+  plots: [
+    // The rating in whole numbers, its 21-session average dashed in the neutral
+    // (the RS line's average style), and the 80 / 90 guides solid 1 px.
+    // ⭐ `autoscaleInclude` (rsLine rev 5, real-screen check 2026-11-08): the scale
+    // always reaches the rating's ceiling, 99, so 80 and 90 stay in view below the
+    // pane label's row whatever the line's own range is.
+    { key: 'ratingLine', label: 'RS Rating', style: 'line', color: '$color', width: '$lineWidth',
+      precision: 0, role: 'primary', legend: { decimals: 0 },
+      autoscaleInclude: { min: 80, max: 99 } },
+    { key: 'ratingMa', label: 'Rating avg', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
+      precision: 2, role: 'context', legend: { hide: true } },
+    { key: 'ratingGuides', label: '80 and 90', style: 'hlines', levels: [80, 90], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context' },
+  ],
+  // The readout: the server's summary as the glance row (muted when it is the
+  // reason), the numbers block beneath it. ⛔ NO CHIP ROW (F3): the pane label's
+  // value IS the rating (the line's own number live, the summary's leading number
+  // as the fallback), so a chip number printed it twice. The Rating row says so
+  // with `chip: false` — named and not a chip — because a readout that names no
+  // chip row at all would put its first rows into the suffix instead
+  // (`readoutSchema.readoutChipRows`). Every row is banded by the site's rating
+  // colours.
+  readout: [
+    { key: 'ratingView', label: 'RS Rating', source: 'scalar:ratingHistory.summary', format: 'text',
+      muted: 'scalar:ratingHistory.reason',
+      band: { source: 'scalar:ratingHistory.value' },
+      card: { what: 'The RS Rating over time: the nightly IBD-style rating, 1 to 99, at each session on the chart, with its 21-session average dashed and guides at 80 and 90. A rising line means the stock has been climbing past the other names rated; a flat line near the top means it has held its place there. The row prints the latest rating and how many points it moved over the last 20 stored sessions. Daily charts only: the rating is stored once a session, and a session with no stored rating is left blank.',
+        origin: 'IBD\'s Relative Strength Rating, with IBD\'s published term weights, ranked across every stock we hold a recent price for, on our own bars. Deepvue and MarketSurge draw the rating as a line under the chart.',
+        evidence: 'The rating is a rank of past return, not a forecast. ' + RS_HONESTY_SENTENCE } },
+    { key: 'rating', label: 'Rating', source: 'scalar:ratingHistory.value', format: 'int', chip: false,
+      detailOf: 'ratingView', band: { source: 'scalar:ratingHistory.value' } },
+    { key: 'ratingAverage', label: '21-session avg', source: 'scalar:ratingHistory.average', format: 'ratio',
+      detailOf: 'ratingView' },
+    { key: 'ratingChange', label: '20-session change', source: 'scalar:ratingHistory.change20', format: 'int',
+      detailOf: 'ratingView' },
+    { key: 'ratingSessions', label: 'Sessions drawn', source: 'scalar:ratingHistory.sessions', format: 'int',
+      detailOf: 'ratingView' },
+    { key: 'ratingAsOf', label: 'Rated as of', source: 'scalar:ratingHistory.asof', format: 'text',
+      detailOf: 'ratingView' },
+    // The parts of the rating (`1M 50 · 3M 60 · 6M 70 · 9M 80 · 12M 90`), the
+    // ranks table's numbers for a screen too narrow to show the table.
+    { key: 'ratingComponents', label: 'Components', source: 'scalar:rating.components', format: 'text',
+      detailOf: 'ratingView' },
+    rsSplitHistoryRow(),
   ],
 }
 
-const _serverRegistered = registerDefinitions([RS_LINE_RAW])
+// ⭐⭐ UCT RS PHASES (`rsPhases`): where the RS line and the market pull apart
+// (map §(d)). The server sends two columns: `phase` (1 = RS trending up while
+// the benchmark trends down, 0 = the reverse, null = neither) and `divergence`
+// (the z-score of the spread of the two trends, clamped to ±3). The phase is a
+// HIDDEN plot that drives a background paint; the divergence is the histogram.
+// ⭐ THE PALETTE: index 0 (phase 0, RS down while the market is up) is the bear
+// red; index 1 (phase 1, RS up while the market is down) is the INFO BLUE, not
+// the bull green. The map, the server row and Deepvue all call the up phase
+// blue, and this file reserves green/red for the line-vs-average band (money
+// direction); blue is the RS hue everywhere else on these panes. A null phase
+// leaves the bar unpainted (`pool.js` palette reader).
+// ⭐ THE HISTOGRAM IS NEUTRAL GREY (Deepvue's look): it is a "how unusual" measure,
+// not a direction, so it takes no up/down colour.
+const RS_PHASES_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsPhases',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsPhases', rev: 1 },
+  meta: {
+    name: 'UCT RS Phases', shortName: 'UCT RS Phases', category: CAT.RELATIVE_STRENGTH,
+    description: 'Shades the bars where the RS line and the market pull apart, blue while RS rises as the market falls and red for the reverse, with a histogram of how unusual the split is for this stock.',
+    tags: ['rs', 'relative strength', 'rs phases', 'phase', 'divergence', 'market', 'benchmark',
+      'leader', 'leadership', 'custom benchmark', 'shading'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    legendParams: ['benchmark'],
+    // The pane label's value while the histogram is blank: the server's words
+    // (`RS up while the market is down · divergence +1.2`, or the reason).
+    legendFallback: [{ source: 'scalar:legend.summary', format: 'text' }],
+    // ⭐ THE ROW'S FOUR KEYS (`registry_defs._rs_phases_row`), diffed by
+    // `tests/test_rs_split_js_rows.py`.
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'shortEma', 'longEma'],
+    learn: [{ key: 'rsLine', label: 'Manrav on the RS line: Relative Strength Workshop' }],
+    glossaryHref: '/methodology/relative-strength',
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'hidden' },
+  inputs: [
+    ...rsSplitBenchmarkInputs(),
+    // The two lengths are the row's (`relative_strength.PHASES_SHORT_RANGE` /
+    // `PHASES_LONG_RANGE`, defaults 3 and 10: Deepvue's two published inputs).
+    { key: 'shortEma', type: 'int', label: 'Short avg (bars)', default: 3, min: 2, max: 20, step: 1, group: 'Simple',
+      tooltip: 'Short average in bars: the quick average of the RS line and of the benchmark. Each trend is the short average against the long one. 3 is Deepvue\'s setting.' },
+    { key: 'longEma', type: 'int', label: 'Long avg (bars)', default: 10, min: 3, max: 60, step: 1, group: 'Simple',
+      tooltip: 'Long average in bars: the slow average the short one is measured against. 10 is Deepvue\'s setting. The long average must be longer than the short one to mean anything.' },
+    { ...colorInput('color', 'Histogram color', RS_NEUTRAL), group: 'Style',
+      tooltip: 'Color of the divergence histogram; the shading keeps the blue and red phase colors' },
+  ],
+  plots: [
+    // ⭐ THE CONDITION COLUMN, HIDDEN: 1 / 0 / null from the server, drawn by
+    // nobody, read by the background paint below (rsLine's `rsAbove` precedent).
+    { key: 'phase', label: 'Phase', style: 'line', hidden: true, color: RS_NEUTRAL, width: 1, role: 'context',
+      legend: { hide: true } },
+    { key: 'divergence', label: 'Divergence', style: 'histogram', color: '$color',
+      precision: 2, role: 'primary', legend: { decimals: 2 } },
+    { key: 'zero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context' },
+  ],
+  // The bar's background behind the pane's series (`binder.js` paints,
+  // `defSchema.validatePaints`): the phase column is the palette index.
+  paints: [
+    { kind: 'bgcolor', colorMode: 'column:phase', colorPalette: [RS_BEAR, RS_INFO], opacity: 0.18 },
+  ],
+  readout: [
+    ...rsSplitBenchmarkRows(),
+    // The glance row is the server's sentence; its numbers follow. The two trends
+    // are plain ratios (the short average over the long one, minus one), printed
+    // as ratios because the payload carries fractions, not percents.
+    { key: 'phases', label: 'Phase', source: 'scalar:legend.summary', format: 'text',
+      card: { what: 'Two trends, read the same way: the short average of the RS line against its long average, and the short average of the benchmark against its long average. Blue shading marks bars where the RS line is trending up while the market is trending down; red shading marks the reverse. Bars where both point the same way are left plain. The histogram is the gap between the two trends measured against its own last quarter, so one wild day cannot own the pane.',
+        origin: 'Deepvue\'s RS Phases, which shades these two cases from the same two averages. The histogram is UCT\'s: a z-score over 63 sessions, capped at 3.',
+        evidence: RS_HONESTY_SENTENCE } },
+    { key: 'phaseLabel', label: 'Phase', source: 'scalar:legend.phaseLabel', format: 'text', detailOf: 'phases' },
+    { key: 'divergence', label: 'Divergence', source: 'scalar:legend.divergence', format: 'ratio', detailOf: 'phases' },
+    { key: 'rsTrend', label: 'RS trend', source: 'scalar:legend.rsTrend', format: 'ratio', detailOf: 'phases' },
+    { key: 'benchTrend', label: 'Market trend', source: 'scalar:legend.benchTrend', format: 'ratio', detailOf: 'phases' },
+    rsSplitHistoryRow(),
+  ],
+}
+
+// ⭐⭐ UCT RS vs 21 EMA (`rsVsEma`): how far the RS line sits above or below its
+// own 21 EMA, in percent, as a histogram (blue at or above zero, red below),
+// with a 3 EMA and a 13 EMA of that distance (Deepvue's "Webby RS Line"). The
+// `dist` column IS the number the RS line readout prints as "above its 21 EMA
+// by X%" (`legend.pctFromMa`; `tests/test_rs_vs_ema_math.py` holds them equal),
+// so the two can never disagree. The length is fixed at 21: no input.
+// ⭐ THE TWO AVERAGES ARE BOTH NEUTRAL, the fast one solid and the slow one
+// dashed (the a11y rule the RS line's RS-Momentum follows): a blue line over
+// blue bars would vanish, and two thin lines in the same hue need the dash to
+// tell them apart.
+const RS_VS_EMA_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsVsEma',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsVsEma', rev: 1 },
+  meta: {
+    name: 'UCT RS vs 21 EMA', shortName: 'UCT RS vs 21 EMA', category: CAT.RELATIVE_STRENGTH,
+    description: 'How far the RS line sits above or below its 21 EMA, in percent, bar by bar, with a 3 and a 13 EMA of that distance.',
+    tags: ['rs', 'relative strength', 'rs line', '21 ema', 'ema', 'distance', 'webby', 'phase',
+      'benchmark', 'leader', 'leadership', 'custom benchmark'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    legendParams: ['benchmark'],
+    // The pane label's value while the histogram is blank: the RS line's own
+    // sentence (`above its 21 EMA by 6.8%`, or the reason).
+    legendFallback: [{ source: 'scalar:legend.summary', format: 'text' }],
+    // ⭐ THE ROW'S TWO KEYS (`registry_defs._rs_vs_ema_row`), diffed by
+    // `tests/test_rs_split_js_rows.py`.
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark'],
+    learn: [
+      { key: 'phase', label: 'Manrav on the RS line and its 21 EMA' },
+      { key: 'rsLine', label: 'Manrav on the RS line: Relative Strength Workshop' },
+    ],
+    glossaryHref: '/methodology/relative-strength',
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'hidden' },
+  inputs: rsSplitBenchmarkInputs(),
+  plots: [
+    // `colorMode: 'sign'` colours each bar by its sign (the MACD histogram's
+    // grammar): the info blue at or above zero, the bear red below.
+    { key: 'dist', label: 'From 21 EMA', style: 'histogram', colorMode: 'sign', colorUp: RS_INFO, colorDown: RS_BEAR,
+      precision: 2, role: 'primary', legend: { decimals: 2 } },
+    { key: 'fast', label: 'Fast (3 EMA)', style: 'line', color: RS_NEUTRAL, width: 1,
+      precision: 2, role: 'context', legend: { hide: true } },
+    { key: 'slow', label: 'Slow (13 EMA)', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
+      precision: 2, role: 'context', legend: { hide: true } },
+    { key: 'zero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context' },
+  ],
+  readout: [
+    ...rsSplitBenchmarkRows(),
+    // The glance row is the RS line's own sentence; the numbers are percents.
+    { key: 'phase', label: 'RS vs 21 EMA', source: 'scalar:legend.summary', format: 'text',
+      card: { what: 'The RS line against its own 21-bar exponential average, as a percent: positive bars sit above the average, negative bars below. The two lines are a 3 EMA and a 13 EMA of that percent, so a turn shows as the fast line crossing the slow one. Above is the bullish phase; the cross is the event the screener and alerts read.',
+        origin: 'Manrav video 59 (the 21 EMA on the RS line); TraderLion RS Phase; Deepvue Webby RS Line, which draws the 3 and 13 EMA. A trend read that lags turns by design.',
+        evidence: RS_HONESTY_SENTENCE,
+        learn: 'phase' } },
+    { key: 'fromMa', label: 'From 21 EMA', source: 'scalar:legend.pctFromMa', format: 'pct', detailOf: 'phase' },
+    { key: 'fast', label: 'Fast (3 EMA)', source: 'scalar:legend.fast', format: 'pct', detailOf: 'phase' },
+    { key: 'slow', label: 'Slow (13 EMA)', source: 'scalar:legend.slow', format: 'pct', detailOf: 'phase' },
+    rsSplitHistoryRow(),
+  ],
+}
+
+// ⭐⭐ UCT RS EXIT WARNINGS (`rsExit`, 2026-11-12): Mike Webster's three warnings on
+// the RS line. A QUICK BREAK is the RS line dropping below its fast average;
+// QUICKSAND is the line then falling lower than it was at that break; a GRATEFUL
+// DEAD BREAK is the line dropping below its slow average. The averages are SIMPLE
+// averages OF THE RS LINE (not of price): daily 21 and 50, weekly 8 and 21, both
+// inputs (0 is auto). The server computes it (`relative_strength.rs_exit_events`
+// states the rules, and says plainly that they are OUR reading of a published
+// idea: the names and one-line meanings are public, the mechanics are not).
+// ⭐ THE DOTS RIDE THE LINE: the server sends the RS value on the bar a warning
+// fired and nothing elsewhere, so each glyph sits exactly on the line. Declared
+// quick, quicksand, dead, so on a bar where two fire the worse paints on top.
+// ⭐ THE TOGGLES ARE PRESENTATION KEYS: `plots[].activeWhen` (the `rsMa` rule) draws a
+// dot only while its switch holds, and the server never hears of them.
+// ⭐ DAILY AND WEEKLY ONLY (`meta.timeframes`, the VWAP and rsRating precedent): on any
+// other timeframe the instance is hidden, not dropped, and comes back on D or W.
+// ⭐ COLOURS: the line is the RS info blue, the two averages the neutral (the fast one
+// solid, the slow one dashed), and the three dots climb the caution ramp the brand
+// already draws: gold (`--warn`) for the first warning, an orange between gold and
+// red for the second, the bear red for the third. The ramp is one warm family, so
+// the pane stays at one blue and one warm hue plus the neutral. No emoji, no text on
+// the canvas (platform §7).
+const RS_CAUTION_ORANGE = '#dd8a3a'
+const RS_QUICK_ON = Object.freeze({ key: 'showQuick', equals: true })
+const RS_QUICKSAND_ON = Object.freeze({ key: 'showQuicksand', equals: true })
+const RS_DEAD_ON = Object.freeze({ key: 'showDead', equals: true })
+const RS_EXIT_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsExit',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsExit', rev: 1 },
+  meta: {
+    name: 'UCT RS Exit Warnings', shortName: 'UCT RS Exit', category: CAT.RELATIVE_STRENGTH,
+    description: 'Three warnings on the RS line, from Mike Webster\'s method: a Quick Break below its fast average, Quicksand when it falls lower than at that break, and a Grateful Dead Break below its slow average. Daily and weekly charts.',
+    tags: ['rs', 'relative strength', 'rs line', 'exit', 'exit warnings', 'warning', 'sell', 'trim', 'webster',
+      'mike webster', 'quick break', 'quick', 'quicksand', 'grateful dead', 'dead break', 'moving average',
+      'benchmark', 'leader', 'leadership', 'custom benchmark'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    timeframes: ['D', 'W'],
+    legendParams: ['benchmark'],
+    // The pane label's value ONLY while there is nothing to draw: the server's reason
+    // (`daily and weekly charts only`, `benchmark is the symbol`, `not enough bars yet`) is
+    // `legend.blankReason`, null on a live answer, so the last warning is printed once (the chip
+    // row), never twice.
+    legendFallback: [{ source: 'scalar:legend.blankReason', format: 'text' }],
+    // ⭐ THE ROW'S FOUR KEYS (`registry_defs._rs_exit_row`), diffed by
+    // `tests/test_rs_split_js_rows.py`.
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'fastLength', 'slowLength'],
+    groupsCollapsed: ['Averages', 'Style'],
+    glossaryHref: '/methodology/relative-strength',
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'hidden' },
+  inputs: [
+    ...rsSplitBenchmarkInputs(),
+    { key: 'showQuick', type: 'bool', label: 'Quick Break', default: true, group: 'Simple',
+      tooltip: 'A dot where the RS line drops below its fast average: the first warning. It fires once, until the line is back above the average.' },
+    { key: 'showQuicksand', type: 'bool', label: 'Quicksand', default: true, group: 'Simple',
+      tooltip: 'A dot where, after a Quick Break, the RS line falls lower than it was at that break: the second warning. It fires once per Quick Break.' },
+    { key: 'showDead', type: 'bool', label: 'Dead Break', default: true, group: 'Simple',
+      tooltip: 'Grateful Dead Break: a dot where the RS line drops below its slow average. The third warning, and the largest dot.' },
+    // The two lengths are the row's (`relative_strength.EXIT_LENGTH_RANGE`): 0 is auto.
+    { key: 'fastLength', type: 'int', label: 'Fast avg (bars)', default: 0, min: 0, max: 400, step: 1, group: 'Averages',
+      tooltip: 'Fast average of the RS line, in bars. 0 is automatic: 21 on a daily chart, 8 on a weekly one. A Quick Break is the RS line dropping below it. These lengths come from a community summary of Mike Webster\'s teaching, not a published rule: test what suits you.' },
+    { key: 'slowLength', type: 'int', label: 'Slow avg (bars)', default: 0, min: 0, max: 400, step: 1, group: 'Averages',
+      tooltip: 'Slow average of the RS line, in bars. 0 is automatic: 50 on a daily chart, 21 on a weekly one. A Grateful Dead Break is the RS line dropping below it. It is kept longer than the fast average.' },
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Style', tooltip: 'Color of the RS line; the two averages stay in the neutral' },
+    { ...colorInput('quickColor', 'Quick Break dot', RS_GOLD), group: 'Style', activeWhen: RS_QUICK_ON,
+      tooltip: 'Color of the Quick Break dot; gold, the caution color' },
+    { ...colorInput('quicksandColor', 'Quicksand dot', RS_CAUTION_ORANGE), group: 'Style', activeWhen: RS_QUICKSAND_ON,
+      tooltip: 'Color of the Quicksand dot; between the caution gold and the loss red' },
+    { ...colorInput('deadColor', 'Dead Break dot', RS_BEAR), group: 'Style', activeWhen: RS_DEAD_ON,
+      tooltip: 'Color of the Grateful Dead Break dot; the loss red' },
+  ],
+  plots: [
+    // ⭐ `legend.showValue: false`: the RS ratio means nothing to a member (the slim RS
+    // line's F3 ruling), so the pane label reads the name, the benchmark and the last
+    // warning (the two chip rows below), not 0.4378.
+    { key: 'rsLine', label: 'RS line', style: 'line', color: '$color', width: 1,
+      precision: 4, role: 'primary', legend: { decimals: 4, showValue: false } },
+    { key: 'fast', label: 'Fast average', style: 'line', color: RS_NEUTRAL, width: 1,
+      precision: 4, role: 'context', legend: { hide: true } },
+    { key: 'slow', label: 'Slow average', style: 'line', color: RS_NEUTRAL, width: 1, lineStyle: 'largeDashed',
+      precision: 4, role: 'context', legend: { hide: true } },
+    // Glyph sizes: small, middle, largest, so the severity reads at a glance. The member's
+    // Dot size scales all three (`restyle: false`: a sparse dot column restyled as a line
+    // draws nothing).
+    { key: 'dotQuick', label: 'Quick Break', style: 'markers', color: '$quickColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 0.8 }, restyle: false, legend: { hide: true },
+      activeWhen: RS_QUICK_ON },
+    { key: 'dotQuicksand', label: 'Quicksand', style: 'markers', color: '$quicksandColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.1 }, restyle: false, legend: { hide: true },
+      activeWhen: RS_QUICKSAND_ON },
+    { key: 'dotDead', label: 'Dead Break', style: 'markers', color: '$deadColor', width: 1, role: 'context',
+      marker: { shape: 'circle', position: 'inBar', size: 1.5 }, restyle: false, legend: { hide: true },
+      activeWhen: RS_DEAD_ON },
+  ],
+  readout: [
+    ...rsSplitBenchmarkRows(),
+    // The glance row is the server's sentence; its numbers follow. The short form rides the
+    // pane label (`UCT RS Exit · SPY · Quicksand · 6 bars ago`).
+    { key: 'lastWarning', label: 'Last warning', source: 'scalar:legend.summary', format: 'text',
+      card: { what: 'The newest of three warnings on the RS line, and how many bars ago it fired. Quick Break: the RS line drops below its fast average. Quicksand: after a Quick Break, the RS line falls lower than it was at that break. Grateful Dead Break: the RS line drops below its slow average. They are judged on closed bars. The averages are simple averages of the RS line: 21 and 50 bars on a daily chart, 8 and 21 on a weekly one.',
+        origin: 'Mike Webster\'s method for holding a leader and noticing when it weakens, as summarised by a community write-up of his teaching and the open-source TradingView script Webby\'s Quick & Grateful Dead RS. The names and one-line meanings are public; the exact rules here are UCT\'s reading of them.',
+        evidence: 'A warning to review the position, not an instruction to act on it. ' + RS_HONESTY_SENTENCE } },
+    { key: 'lastWarningChip', label: 'Last warning', source: 'scalar:legend.chipText', format: 'text', chip: true,
+      detailOf: 'lastWarning' },
+    { key: 'status', label: 'RS vs averages', source: 'scalar:legend.statusLabel', format: 'text',
+      card: { what: 'Where the RS line sits against its two averages on the newest bar it can be judged on: above both, below its fast average, below its slow average, or below both. The numbers are the two averages and the lengths in use.',
+        origin: 'The same two simple averages the Quick Break and the Grateful Dead Break are measured against.',
+        evidence: 'A reading of where the line sits now, not a forecast. ' + RS_HONESTY_SENTENCE } },
+    { key: 'barsAgo', label: 'Bars ago', source: 'scalar:legend.barsAgo', format: 'int', detailOf: 'lastWarning' },
+    { key: 'fastAvg', label: 'Fast average', source: 'scalar:legend.fast', format: 'ratio', detailOf: 'status' },
+    { key: 'slowAvg', label: 'Slow average', source: 'scalar:legend.slow', format: 'ratio', detailOf: 'status' },
+    { key: 'fastLen', label: 'Fast length (bars)', source: 'scalar:legend.fastLength', format: 'int', detailOf: 'status' },
+    { key: 'slowLen', label: 'Slow length (bars)', source: 'scalar:legend.slowLength', format: 'int', detailOf: 'status' },
+    rsSplitHistoryRow(),
+  ],
+}
+
+// ⭐⭐ UCT MANSFIELD RS (`rsMansfield`, 2026-11-18): Weinstein's Mansfield Relative
+// Strength on a pane of its own. Under the RS split the slim UCT RS Line has no Reading
+// switch, so the Mansfield line the server computes under rsLine's `view: 'mansfield'`
+// had no chart to draw it; this definition is that Reading, cut out like the four above.
+// ⭐ NO NEW MATHS: the server row (`registry_defs._rs_mansfield_row`) serves the rsLine
+// row's own Mansfield columns (`RS_MANSFIELD_WIRE_COLUMNS`, the list that Reading keeps),
+// byte for byte (`tests/test_rs_mansfield_rows.py`, against the rsLine envelope and
+// `rs_mansfield.json`). Its readout rows are rsLine's Mansfield rows, moved across.
+// ⭐ THE PLOTS ARE rsLine's MANSFIELD PLOTS: the line in the info blue, the solid zero guide
+// in the neutral, and one dot at zero on each bar the line crosses UP through it (the server
+// builds it; crosses down are not drawn, the readout names the last cross either way).
+// Intraday the line draws and the dot is blank (the server's rule).
+const RS_MANSFIELD_RAW = {
+  schemaVersion: SCHEMA_VERSION,
+  id: 'rsMansfield',
+  version: 1,
+  compute: { kind: 'server', fn: 'rsMansfield', rev: 1 },
+  meta: {
+    name: 'UCT Mansfield RS', shortName: 'UCT Mansfield RS', category: CAT.RELATIVE_STRENGTH,
+    description: 'Weinstein\'s Mansfield Relative Strength: the RS line as a percent above or below its own long average, around a zero line, with a dot where it crosses up through zero.',
+    tags: ['rs', 'relative strength', 'mansfield', 'mansfield rs', 'mansfield relative strength',
+      'relative performance', 'weinstein', 'stage analysis', 'zero line', 'zero cross',
+      'benchmark', 'leader', 'leadership', 'custom benchmark'],
+    tier: 'premium', repaint: 'non-repainting',
+    requiresServer: true,
+    // Browsed and added in the library (once offered), never a right-click quick toggle:
+    // the Technical library's own `quickMenu: false` rule.
+    quickMenu: false,
+    legendParams: ['benchmark'],
+    // The pane label's value ONLY while there is nothing to draw: the server's reason
+    // (`benchmark is the symbol`, `not enough bars yet`) is `legend.blankReason`, null on a
+    // live answer, so the label prints the line's own number once.
+    legendFallback: [{ source: 'scalar:legend.blankReason', format: 'text' }],
+    // ⭐ THE ROW'S FIVE KEYS (`registry_defs._rs_mansfield_row`), diffed by
+    // `tests/test_rs_split_js_rows.py`.
+    serverInputs: ['benchmark', 'customBenchmark', 'sectorBenchmark', 'themeBenchmark', 'mansfieldLength'],
+    glossaryHref: '/methodology/relative-strength',
+  },
+  placement: { target: 'pane', pane: rsSplitPane(), axis: 'hidden' },
+  inputs: [
+    ...rsSplitBenchmarkInputs(),
+    // The row's (`relative_strength.MANSFIELD_LENGTH_RANGE`, default 200): rsLine's own.
+    { key: 'mansfieldLength', type: 'int', label: 'Length (bars)', default: 200, min: 2, max: 500, step: 1, group: 'Simple',
+      tooltip: 'Mansfield length in bars: the simple average the RS line is measured against. 200 on a daily chart; Weinstein used 52 weeks on a weekly chart.' },
+    { ...colorInput('color', 'Line color', RS_INFO), group: 'Style', tooltip: 'Color of the Mansfield line; the zero line stays in the neutral' },
+    { ...colorInput('dotColor', 'Zero-cross dot', RS_INFO), group: 'Style',
+      tooltip: 'Color of the dot where the Mansfield line crosses up through zero' },
+    { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1, group: 'Style' },
+  ],
+  plots: [
+    // A PERCENT distance from the RS line's own average (−20…+20 on most names).
+    { key: 'mansfield', label: 'Mansfield RS', style: 'line', color: '$color', width: '$lineWidth',
+      precision: 2, role: 'primary', legend: { decimals: 2 } },
+    { key: 'zero', label: 'Zero', style: 'hlines', levels: [0], color: RS_NEUTRAL, width: 1,
+      lineStyle: 'solid', role: 'context' },
+    // The server's cross-up dot, value 0 on the cross bar and null elsewhere, drawn as the
+    // series' own point marker (`restyle: false`: a sparse dot column restyled as a line
+    // draws nothing).
+    { key: 'dotMansfieldCross', label: 'Zero cross', style: 'markers', color: '$dotColor', width: 2, role: 'context',
+      restyle: false, legend: { hide: true } },
+  ],
+  readout: [
+    ...rsSplitBenchmarkRows(),
+    // rsLine's Mansfield rows, moved across: the glance row is the server's sentence
+    // (`+4.1%, above zero, rising`), its numbers follow.
+    { key: 'mansfield', label: 'Mansfield RS', source: 'scalar:mansfield.summary', format: 'text',
+      card: { what: 'Mansfield Relative Strength: the RS line as a percent above or below its own simple moving average, measured over the length set on this chart, in this chart\'s bars; the Length row prints it. 200 is the default; 52 on a weekly chart is Weinstein\'s published length. Above zero, the stock is outperforming its own trend against the benchmark; below zero, it is lagging it. The dot marks a cross up through zero.',
+        origin: 'Weinstein, Secrets for Profiting in Bull and Bear Markets; the Mansfield RS line on his charts.',
+        evidence: RS_HONESTY_SENTENCE,
+        // ⭐ (2026-11-18) the MEASURED sentence, as rsLine's Mansfield card reads it: the same column, so the same
+        // `mansfield_cross_up` evidence (the row carries rsLine's `payload.evidence` block)
+        evidenceSource: 'scalar:evidence.sentence.mansfield' } },
+    { key: 'mansfieldValue', label: 'Value', source: 'scalar:mansfield.value', format: 'pct', detailOf: 'mansfield' },
+    // The last cross in EITHER direction (`up, 57 bars ago`): the pane draws only the
+    // crosses up, so the direction is the half the chart does not show.
+    { key: 'mansfieldCross', label: 'Last zero cross', source: 'scalar:mansfield.lastCross', format: 'text', detailOf: 'mansfield' },
+    { key: 'mansfieldLength', label: 'Length', source: 'scalar:mansfield.lengthText', format: 'text', detailOf: 'mansfield' },
+    rsSplitHistoryRow(),
+  ],
+}
+
+// Registered in this order; `registrySizes.SHIPPED_DEF_IDS.server` lists the
+// same six ids in the same order (RS Exit Warnings, 2026-11-12, is the fifth;
+// UCT Mansfield RS, 2026-11-18, the sixth).
+const _serverRegistered = registerDefinitions([RS_LINE_RAW, RS_RATING_RAW, RS_PHASES_RAW, RS_VS_EMA_RAW, RS_EXIT_RAW,
+  RS_MANSFIELD_RAW])
 if (_serverRegistered.errors.length) {
   throw new Error(`nativeRegistry: invalid server definitions:\n  ${_serverRegistered.errors.join('\n  ')}`)
 }
@@ -4019,6 +6099,21 @@ export function uninstallUserDefinition(defId) {
 /** @returns {object[]} the user definitions installed in THIS session. */
 export function listUserDefinitions() {
   return [..._userById.values()]
+}
+
+/** ⚡ PRELOAD (perf/pine-runtime-chunk-preload) — does a definition run (in whole or in part) on the
+ *  per-bar lane: a runtime document, a host document's run half (`compute.runtimeObjects`), or its
+ *  run-read paint colours (`compute.runtimeColours`)? The chart warms the lane's worker after its
+ *  first paint only when one of the member's installed definitions does (`runtimeLaneWarm.js`). */
+export function definitionUsesRuntimeLane(def) {
+  const c = def && def.compute
+  return !!(c && (c.kind === 'runtime' || c.runtimeObjects || c.runtimeColours))
+}
+
+/** ⚡ Is any user definition installed in this session on the per-bar lane? */
+export function anyInstalledRuntimeDefinition() {
+  for (const d of _userById.values()) if (definitionUsesRuntimeLane(d)) return true
+  return false
 }
 
 /**

@@ -37,6 +37,7 @@ import * as registry from '../../nativeRegistry'
 import { memberPaneDefinition } from '../../../builder/memberPane/memberPaneDefinition'
 import {
   computeRuntimeColumns, probeRuntimeProgram, RUNTIME_PANE_TIME_BUDGET_MS, RUNTIME_TIME_BUDGET_GUARD,
+  RUNTIME_LIMIT_GUARD,
 } from '../../runtime/runtimeColumns'
 import { runtimeRepaintOf } from '../../runtime/runtimeRepaint'
 import { enterMemberDoor, HARNESS_DEF_ID } from './ourSide'
@@ -206,11 +207,8 @@ describe.skipIf(!RUN)('RF — runtime-only panes: door, run, heap and budget at 
       })
       defs.push({ slug, def: JSON.parse(JSON.stringify(def)) })
     }
-    expect(out.length).toBeGreaterThan(0) // non-vacuity
-    for (const r of out) {
-      expect(r.runs.length).toBe(lengths.length)
-      for (const b of r.budget) if (b.stopped !== null) expect(b.stopped, r.slug).toBe(RUNTIME_TIME_BUDGET_GUARD)
-    }
+    // ⭐ R-RAW (W2, 2026-11-02): the measurement is on disk BEFORE any assertion reads it. The first W2
+    // run lost five minutes of timings to an assertion that fired after the loop and before the write.
     fs.mkdirSync(path.dirname(path.resolve(OUT)), { recursive: true })
     fs.writeFileSync(OUT, `${JSON.stringify({
       generatedBy: 'app/src/components/chart/engine/__tests__/vendorHarness/runtimePaneReadiness.measure.test.js',
@@ -230,5 +228,16 @@ describe.skipIf(!RUN)('RF — runtime-only panes: door, run, heap and budget at 
       + `(runtime off ${r.doorRuntimeOffMedianMs}, probe ${r.runtimeProbeMedianMs}); `
       + r.runs.map((x) => `${x.length} ${x.medianMs}ms ${x.peakHeapMB}MB${x.error ? ` [${x.error.guard || x.error.name}]` : ''}`).join('; ')
       + `; intraday in product: ${r.productIntraday}; budget: ${JSON.stringify(r.budget)}`).join('\n'))
+    // The assertions, after the write. A budget stop is BY NAME (the file header's contract and the
+    // plan's B3: "a named stop is acceptable; a hang is not"): the NAME is whichever declared guard
+    // fires first, the time budget or a VM limit (`runtime:limit`) reached before it. Never a bare
+    // engine error, never a freeze. (This asserted the time budget alone until 2026-11-02, when
+    // `fair-value-gap` stopped on `runtime:limit` after more than 80% of the budget.)
+    const NAMED_BUDGET_STOPS = [RUNTIME_TIME_BUDGET_GUARD, RUNTIME_LIMIT_GUARD]
+    expect(out.length).toBeGreaterThan(0) // non-vacuity
+    for (const r of out) {
+      expect(r.runs.length).toBe(lengths.length)
+      for (const b of r.budget) if (b.stopped !== null) expect(NAMED_BUDGET_STOPS, r.slug).toContain(b.stopped)
+    }
   }, 1800000)
 })

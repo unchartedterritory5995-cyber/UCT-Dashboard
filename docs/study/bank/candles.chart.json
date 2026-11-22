@@ -29033,7 +29033,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#MU#2026-06-11",
    "system": "the firm's candle catalog",
    "trend_required": null,
@@ -29106,7 +29106,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#MU#2025-11-11",
    "system": "the firm's candle catalog",
    "trend_required": null,
@@ -29179,7 +29179,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#LRCX#2026-04-27",
    "system": "the firm's candle catalog",
    "trend_required": null,
@@ -29252,7 +29252,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#LRCX#2025-07-22",
    "system": "the firm's candle catalog",
    "trend_required": null,
@@ -29325,7 +29325,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#KLAC#2025-12-12",
    "system": "the firm's candle catalog",
    "trend_required": null,
@@ -29398,7 +29398,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#ASML#2026-07-01",
    "system": "the firm's candle catalog",
    "trend_required": null,
@@ -29471,7 +29471,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#TSM#2026-06-11",
    "system": "the firm's candle catalog",
    "trend_required": null,
@@ -29544,7 +29544,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#TSM#2025-08-22",
    "system": "the firm's candle catalog",
    "trend_required": null,
@@ -29617,7 +29617,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#BABA#2026-06-17",
    "system": "the firm's candle catalog",
    "trend_required": null,
@@ -29690,7 +29690,7 @@
     "story": "The second session restarted from where the first one began, as if the first day had not happened. In an uptrend that means a red day was erased at the next open. In a downtrend it means a green day was.",
     "where": "Inside a trend, in either direction. It is a continuation shape: the market shrugs off one day against the trend."
    },
-   "quote": "Two opposite-coloured bars opening at the same price — the second session restarted from where the first began.",
+   "quote": "Two opposite-colored bars opening at the same price — the second session restarted from where the first began.",
    "source": "api/services/screener/candle_catalog.py#separating-lines#BABA#2026-01-16",
    "system": "the firm's candle catalog",
    "trend_required": null,

@@ -442,9 +442,13 @@ TRANSCRIPT
 
 def _client():
     import anthropic
+    from api.services import llm_timeouts
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise RuntimeError("ANTHROPIC_API_KEY not set")
-    return anthropic.Anthropic()
+    # A scheduler / warm thread, nobody on the socket. One attempt per call: an SDK retry
+    # after a timeout is a billed attempt the $10 ledger would never see.
+    return anthropic.Anthropic(timeout=llm_timeouts.seconds("CALL_RECAP_LLM_TIMEOUT_SECS", llm_timeouts.OFFLINE_JOB),
+                               max_retries=0)
 
 
 def build_params(sym: str, transcript: dict) -> Optional[dict[str, Any]]:
@@ -548,8 +552,37 @@ def synthesize(sym: str, transcript: dict) -> Optional[dict[str, Any]]:
     if params is None:
         return None
     try:
-        resp = _client().messages.create(**params)
+        client = _client()
+    except Exception as exc:
+        _log.warning("[call_recap] no client for %s: %s", sym, exc)
+        return None
+    try:
+        resp = client.messages.create(**params)
     except Exception as exc:
         _log.warning("[call_recap] grounded synthesis failed for %s: %s", sym, exc)
+        _charge_failed_call(sym, params, exc=exc)
         return None
-    return finish_from_message(sym, transcript, resp)
+    recap = finish_from_message(sym, transcript, resp)
+    if recap is None:
+        _charge_failed_call(sym, params, resp=resp)
+    return recap
+
+
+def _charge_failed_call(sym: str, params: dict, *, resp: Any = None, exc: BaseException | None = None) -> None:
+    """⛔ A CALL THAT PRODUCED NO RECAP IS STILL SPEND. Only a stored recap used to reach the $10 ledger, so an
+    unusable reply or a timeout left `may_spend()` open, and warm-on-miss fires again each time the panel re-asks:
+    a paid loop that never reached its cap. The reply's usage when it has one, else the worst case. An HTTP error
+    response generated nothing and is free. Never raises."""
+    try:
+        from api.services import call_recap_store as store
+        from api.services.uct_agent import budget
+        if exc is not None and budget._is_provider_error_response(exc):
+            return
+        usage = getattr(resp, "usage", None)
+        tokens = ({"input_tokens": getattr(usage, "input_tokens", 0), "output_tokens": getattr(usage, "output_tokens", 0)}
+                  if usage is not None else
+                  {"input_tokens": budget.request_bytes(params) + budget.FRAMING_TOKENS,
+                   "output_tokens": params.get("max_tokens")})
+        store.record_spend(sym, {**tokens, "model": _MODEL})
+    except Exception as e:  # noqa: BLE001
+        _log.warning("[call_recap] could not ledger a failed call for %s: %s", sym, e)

@@ -137,6 +137,15 @@ function reducer(state, action) {
       }
       return next
     }
+    // the rest of a chart's forward strip after the reveal's first bars (POST /attempts/{id}/step): appended to the
+    // chart AND to the reveal's own strip, so the player's count of bars after the decision stays the chart's split
+    case 'more-forward': {
+      const r = state.results[action.id]
+      if (!r?.reveal || !action.bars?.length) return state
+      const reveal = { ...r.reveal, forward_bars: [...(r.reveal.forward_bars || []), ...action.bars] }
+      return { ...state, results: { ...state.results, [action.id]: { ...r, reveal } },
+        barsById: { ...state.barsById, [action.id]: appendForwardBars(state.barsById[action.id] || [], action.bars) } }
+    }
     case 'post-failed': {
       const keep = isUnscoredItem(state.items.find((it) => it.id === action.id))
       return { ...state, results: { ...state.results, [action.id]: { pending: true, failed: true, answer: action.answer, error: action.error } }, combo: keep ? state.combo : 0 }
@@ -282,6 +291,7 @@ export default function useStudySession({ initial = null, sessionId = null, fetc
     getState: useCallback((id) => s.states[id] ?? null, [s.states]),
     setState: useCallback((id, value) => dispatch({ type: 'state', id, value }), []),
     barsFor: useCallback((id) => s.barsById[id] || null, [s.barsById]),
+    moreForward: useCallback((id, bars) => dispatch({ type: 'more-forward', id, bars }), []),
     ensureBars,
     startedAt,
   }

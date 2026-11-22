@@ -1,3 +1,6 @@
+import { useRef, useState } from 'react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 // Widget palette — the point-and-click twin of the slash commands (owner ask:
 // "click Charts → What ticker? What time frame? Boom — click, click, click").
 // It must ride the SAME grammar (parseChartSlashArgs & friends) and the SAME
@@ -9,6 +12,7 @@ import { Editor } from '@tiptap/core'
 import WidgetPalette from './WidgetPalette'
 import { buildExtensions } from '../../lib/tiptap'
 import { latchNotebookFlags, __resetNotebookFlags } from '../../lib/offline/notebookFlags'
+import { featureCalls, telemetryBodies } from '../../lib/testing/telemetryFetch'
 // jsdom has no Range layout; an editor focus() scrolls the caret into view on the next frame.
 if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => []
 if (!Range.prototype.getBoundingClientRect) {
@@ -183,6 +187,64 @@ describe('WidgetPalette keyboard escape (UX #13)', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  // VIS-5 (audit 2026-11-05, issue 25): "Insert's Esc sends focus to the top of the page". Escape and ✕
+  // hand focus back to the button that opened the panel.
+  function Host({ editor }) {
+    const [open, setOpen] = useState(false)
+    return (
+      <div>
+        <button type="button" onClick={() => setOpen(true)}>Insert widget</button>
+        {open && <WidgetPalette editor={editor} onClose={() => setOpen(false)} />}
+      </div>
+    )
+  }
+  it.each([['Escape', () => fireEvent.keyDown(document, { key: 'Escape' })],
+    ['the ✕ button', () => fireEvent.click(screen.getByRole('button', { name: 'Close insert panel' }))]])(
+    '%s returns focus to the Insert button that opened it', (_n, close) => {
+      const { editor } = makeEditor()
+      render(<Host editor={editor} />)
+      const opener = screen.getByRole('button', { name: 'Insert widget' })
+      opener.focus()
+      fireEvent.click(opener)
+      expect(document.activeElement).not.toBe(opener)   // focus moved into the panel
+      close()
+      expect(screen.queryByRole('dialog', { name: 'Insert widget' })).toBeNull()
+      expect(document.activeElement).toBe(opener)
+    },
+  )
+
+  // Fix round 1 (review Minor 13): the opener is NAMED, not guessed from whatever held focus at the first render -- a
+  // toolbar button that keeps the editor's selection on a press (mousedown prevented) never takes focus itself.
+  it('with returnFocusTo, Escape returns to THAT button even when focus was elsewhere at open', () => {
+    const { editor } = makeEditor()
+    function Named() {
+      const [open, setOpen] = useState(false)
+      const ref = useRef(null)
+      return (
+        <div>
+          <input aria-label="Elsewhere" />
+          <button ref={ref} type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen(true)}>Insert widget</button>
+          {open && <WidgetPalette editor={editor} onClose={() => setOpen(false)} returnFocusTo={ref} />}
+        </div>
+      )
+    }
+    render(<Named />)
+    screen.getByLabelText('Elsewhere').focus()
+    fireEvent.click(screen.getByRole('button', { name: 'Insert widget' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Insert widget' }))
+  })
+
+  it('the type cards take the full column width, and the panel stops 16 px above the bottom of the screen', () => {
+    const css = readFileSync(join(process.cwd(), 'src', 'pages', 'journal-2-0', 'components', 'notebook', 'WidgetPalette.module.css'), 'utf8')
+    const rule = (sel) => css.slice(css.indexOf(`${sel} {`), css.indexOf('}', css.indexOf(`${sel} {`)))
+    expect(rule('.typeBtn')).toMatch(/width: 100%/)
+    expect(rule('.panel')).toMatch(/max-height: calc\(100vh - var\(--palette-top, 160px\) - 16px\)/)
+    const { editor } = makeEditor()
+    render(<WidgetPalette editor={editor} onClose={vi.fn()} />)
+    expect(screen.getByRole('dialog', { name: 'Insert widget' }).style.getPropertyValue('--palette-top')).toMatch(/^\d+px$/)
+  })
+
   it('Tab from the last focusable element wraps to the first (focus trap)', () => {
     const { editor } = makeEditor()
     render(<WidgetPalette editor={editor} onClose={vi.fn()} />)
@@ -305,11 +367,12 @@ describe('WidgetPalette snapshot widgets (Task 8)', () => {
   it('R58 I-12: with wave 4 on the footnote names what still comes from its own page; off, the old sentence stays', () => {
     const { unmount } = render(<WidgetPalette editor={mount()} />)
     expect(screen.getByText(/Widgets with live data \(news, breadth, calendar…\) come in from their own page/)).toBeInTheDocument()
-    expect(screen.queryByText(/A few \(Screener, COT, Model Book\)/)).toBeNull()
+    expect(screen.queryByText(/A Screener result still comes in/)).toBeNull()
     unmount()
     latchNotebookFlags({ notebook_widgets_w4_enabled: true })
     render(<WidgetPalette editor={mount()} />)
-    expect(screen.getByText("Most widgets fill in from your own data when you insert them. A few (Screener, COT, Model Book) still come in from their own page, with the journal button beside the widget's gear.")).toBeInTheDocument()
+    // S13.6 remainder (Tier 4): COT and Model Book are inserted here now; only the Screener is still its page's.
+    expect(screen.getByText('Most widgets fill in from your own data when you insert them. A Screener result still comes in from the Screener page, with its Save to Notebook button.')).toBeInTheDocument()
     expect(screen.queryByText(/Widgets with live data/)).toBeNull()
   })
 
@@ -333,8 +396,12 @@ describe('WidgetPalette snapshot widgets (Task 8)', () => {
     fireEvent.click(screen.getByText('My watchlist today'))
     answer(ok({ listLabel: 'Watchlist', rows: [], truncated: 0 }))
     expect(await screen.findByText('My watchlist today inserted')).toBeInTheDocument()
-    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(featureCalls(global.fetch)).toHaveLength(1)
     expect(embeds()).toHaveLength(1)
+    // Follow-up A fix round 1 (I4): the widget lands after its fetch and counts once, under the palette's door.
+    expect(telemetryBodies(global.fetch)).toEqual([
+      { event: 'block_inserted', props: { kind: 'myWatchlistToday', via: 'palette' } },
+    ])
   })
 
   it('a failed fetch inserts nothing and says nothing was inserted', async () => {
@@ -362,5 +429,63 @@ describe('WidgetPalette snapshot widgets (Task 8)', () => {
     expect(await screen.findByText('Ticker card — AMD inserted')).toBeInTheDocument()
     expect(global.fetch).toHaveBeenCalledWith('/api/j2/notebook-widgets/tickerCard?symbol=AMD', expect.anything())
     expect(embeds().map((n) => n.attrs.params.symbol)).toEqual(['AMD'])
+  })
+})
+
+// ⛔ Audit 2026-11-05, spec S3 (detail #36): the chart picker stayed open after Insert, over the
+// chart it had just made. It closes now, and the inserted chart takes focus (selected, so its
+// header and its type-to-search answer at once).
+describe('S3: Insert closes the picker and lands on the chart', () => {
+  it('a real editor: Insert chart closes the panel and selects the new chart', () => {
+    const ed = new Editor({ extensions: buildExtensions(), content: { type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Before' }] }] } })
+    const onClose = vi.fn()
+    render(<WidgetPalette editor={ed} onClose={onClose} />)
+    fireEvent.click(screen.getByText('Chart'))
+    fireEvent.change(screen.getByLabelText('Ticker'), { target: { value: 'AMD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Insert chart' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    const sel = ed.state.selection
+    expect(sel.node?.type.name).toBe('widgetEmbed')
+    expect(sel.node.attrs.params.symbol).toBe('AMD')
+    ed.destroy()
+  })
+})
+
+// Simplify pass 2 (C4): the "More" group (the market snapshots, wave 4) is folded behind "Show all" at the foot of the
+// list; once opened it stays open for that palette. The slash menu is unchanged (it never reads this state).
+describe('WidgetPalette: the More group waits behind Show all (C4)', () => {
+  beforeEach(() => { latchNotebookFlags({ notebook_widgets_w1_enabled: true, notebook_widgets_w4_enabled: true }) })
+  afterEach(() => { __resetNotebookFlags() })
+  const dialog = () => screen.getByRole('dialog', { name: 'Insert widget' })
+
+  it('draws the other groups, not More; "Show all" sits at the foot, named "Show all widgets"', () => {
+    render(<WidgetPalette editor={makeEditor().editor} />)
+    expect(within(dialog()).queryByRole('group', { name: 'More' })).toBeNull()
+    expect(within(dialog()).queryByText('News and catalysts')).toBeNull()
+    expect(within(dialog()).getByRole('group', { name: 'Before the open' })).toBeTruthy()
+    const show = within(dialog()).getByRole('button', { name: 'Show all widgets' })
+    expect(show.textContent.trim()).toBe('Show all')
+    // at the foot: after every drawn group's rows
+    const groups = within(dialog()).getAllByRole('group')
+    expect(groups.at(-1).compareDocumentPosition(show) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('pressing it draws the More group, puts focus on its first item and leaves; Back from a form keeps it open', () => {
+    render(<WidgetPalette editor={makeEditor().editor} />)
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Show all widgets' }))
+    const more = within(dialog()).getByRole('group', { name: 'More' })
+    expect(document.activeElement).toBe(within(more).getAllByRole('button')[0])
+    expect(within(dialog()).queryByRole('button', { name: 'Show all widgets' })).toBeNull()
+    fireEvent.click(within(more).getByText('News and catalysts'))
+    fireEvent.click(screen.getByRole('button', { name: '‹ Back' }))
+    expect(within(dialog()).getByRole('group', { name: 'More' })).toBeTruthy()
+  })
+
+  it('CONTROL: with no More items (wave 4 off) there is no Show all', () => {
+    __resetNotebookFlags()
+    latchNotebookFlags({ notebook_widgets_w1_enabled: true })
+    render(<WidgetPalette editor={makeEditor().editor} />)
+    expect(within(dialog()).queryByRole('button', { name: 'Show all widgets' })).toBeNull()
   })
 })

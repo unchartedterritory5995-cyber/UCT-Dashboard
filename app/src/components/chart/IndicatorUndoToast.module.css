@@ -18,3 +18,16 @@
   font-size: 14px; line-height: 1; padding: 2px 4px;
 }
 .refused { color: var(--text-muted, #c0c7d2); }
+
+/* ⭐ PHONE: THE TOP, NOT THE BOTTOM (decision B3, 2026-11-07). A pane the member
+   just added lands at the BOTTOM of the chart column, so a bottom-centred
+   "UCT RS added · Undo" covered the very pane it announced for its 8 s, on a
+   screen where the bottom band is also the hub's. Top-right clears the legend
+   (top-left) and the new pane; desktop and the tablet keep the bottom centre,
+   where the pane is tall enough to read past it. */
+@media (max-width: 640px) {
+  .toast {
+    top: 8px; bottom: auto; left: auto; right: 8px; transform: none;
+    max-width: calc(100% - 16px);
+  }
+}

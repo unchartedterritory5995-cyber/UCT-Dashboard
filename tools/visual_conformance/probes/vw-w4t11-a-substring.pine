@@ -1,0 +1,12 @@
+//@version=6
+indicator("vw-w4t11-a-substring")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-04-w4-t11.md, W4-T11-a (row A01/A02). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: str.substring 0-based, end-exclusive (expect 2) and the 2-argument form (expect 2). The bad positions A03-A06 are one file each: vw-w4t11-a0N-*.pine.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+string s = "abcdef"
+plot(str.length(str.substring(s, 1, 3)), "A01_inrange_expect_2")
+plot(str.length(str.substring(s, 4)), "A02_two_arg_expect_2")

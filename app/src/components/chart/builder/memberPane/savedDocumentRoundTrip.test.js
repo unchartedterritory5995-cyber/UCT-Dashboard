@@ -22,6 +22,9 @@ import { applyParamEdit, reconcileParams } from '../paramEdit.js'
 import { treesHash } from '../../engine/ast/trees.js'
 import { validateDefinition } from '../../engine/defSchema.js'
 import { installUserDefinitions, uninstallUserDefinition } from '../../engine/nativeRegistry.js'
+import { PINE_CALL_SHAPES, printFormula, __v6BoolHistoryForTests } from '../../engine/ast/pine.js'
+import { CALL_EXPANSIONS } from '../../engine/ast/callExpansions.js'
+import { supertrendTreesEngine56 } from '../../engine/ast/__fixtures__/supertrendTreesEngine56.js'
 
 const REPO = path.resolve(__dirname, '../../../../../..')
 const DIR = path.join(REPO, 'tests/fixtures/pine_param_ids')
@@ -161,6 +164,162 @@ const NEVER_INSTALLED = Object.freeze({
   'corpus/committed/pivot-high-low-points__hoTsDQRY3L.pine': 'the length of ta.highestbars was unfolded (resolve:window at install)',
 })
 
+/** ⭐⭐ ENGINE 55 — A COMPUTATION AN ENGINE CHANGE MOVED ON PURPOSE, by name. The script's
+ *  MANIFEST (ids, inputs, places) and the values replayed by id are still held exactly; only the
+ *  saved computation's digest is not, because the translator now writes a different — correct —
+ *  tree, and a bumped `SCRIPT_ENGINE_VERSION` re-translates the member's saved copy from its script. */
+const MOVED_BY_ENGINE = Object.freeze({
+  'corpus/committed/support-and-resistance-multi-time-frame__Ph230jpfC9.pine': {
+    why: 'engine 56 (built as 55; #1326 took 55): request.security(…, "W"|"M") with look-ahead off is tf_merge (TradingView\'s merge), no longer tf',
+    undo: 'tf_merge',
+  },
+  'corpus/committed/multicator-table__486858895c.pine': {
+    // its ta.stoch feeds only tables and votes, never a saved plot tree, so the digest moves by the supertrend
+    why: 'engine 57: ta.supertrend is the new tree (undone together with ta.stoch back on the house stoch, engine 57\'s two table changes)',
+    undo: 'engine57',
+  },
+  // ⭐ LANDING TRAIN 1 — engine 56-v2's two moves (its builder never ran this file on its final head;
+  // attributed by building both scripts at every merge of the train: equal to the saved documents up
+  // to the engine-57 merge, moved at the engine-56-v2 merge, unchanged by the three merges after it).
+  'tests/fixtures/pine_oos/high_engagement__09-on-balance-volume-everget.pine': {
+    why: 'engine 56-v2 (ruling a, re-review 6): a v1-v5 `and` reads an `na` operand as false, so `crossover(obv, signal) and highlightCrossovers` carries the cast `crossOver(…) != 0` (the crossing is `na` on the warm-up)',
+    undo: 'engine56',
+  },
+  'corpus/committed/opening-range-initial-balance-opening-price__4a7416ab01.pine': {
+    why: 'engine 56-v2 (P12b): a `bool` that can be `na` keeps its operator, so `show_mid and timeframe.isintraday` is no longer folded to its right side and `show_mid` (input default true) is a knob the document gains (an append)',
+    undo: 'engine56',
+  },
+  // ⭐⭐ Q-BH0 (engine 92) — the one saved document whose script reads a v6 bool's history
+  'corpus/committed/ema-ribbon-trend-filter-strixedge__737f5c58ad.pine': {
+    why: 'Q-BH0: a Pine v6 bool\'s history before history begins reads false (captures vw-v6-bool-history-bar0-{spy,rddt}), so `not isBullish[1]`, `isSqueeze[1]` and the like are `na(close[1]) ? 0 : x[1]` (`pine.js::v6BoolHistory`); the inputs inside sit one `?:` deeper',
+    undo: 'qbh0',
+  },
+})
+const movedKind = (script) => (Object.prototype.hasOwnProperty.call(MOVED_BY_ENGINE, script) ? MOVED_BY_ENGINE[script].undo : null)
+
+/** ⭐⭐ ENGINE 57 — THE CLAIMED MOVE UNDONE BY REBUILDING: `fn` runs with the two table entries engine 57
+ *  changed put back as engine 56 had them (`ta.stoch` on the house `stoch`; `ta.supertrend` on the
+ *  verbatim engine-56 expansion, `__fixtures__/supertrendTreesEngine56.js`), restored in `finally`.
+ *  A document built inside must EQUAL the saved one, so the move can carry nothing else. */
+const withEngine57Undone = (fn) => {
+  const stoch = PINE_CALL_SHAPES.stoch
+  const st = CALL_EXPANSIONS.supertrend
+  const sd = CALL_EXPANSIONS.supertrendDirection
+  const was = [stoch.table, st.build, sd.build]
+  stoch.table = 'stoch'
+  st.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.value : null }
+  sd.build = (a) => { const t = supertrendTreesEngine56(a[0], a[1]); return t ? t.direction : null }
+  try {
+    return fn()
+  } finally {
+    [stoch.table, st.build, sd.build] = was
+  }
+}
+
+/** The test Q-BH0 writes before a v6 bool's one-bar history (`na(close[1])`), as a tree. */
+const QBH0_PROBE = '"name":"na","args":[{"type":"offset","value":1,"args":[{"type":"series","name":"close"}]}]'
+/** ⭐⭐ Q-BH0 — THE CLAIMED MOVE UNDONE BY REBUILDING: `fn` runs with the rule off (`__v6BoolHistoryForTests`, a
+ *  v6 bool's history read as before Q-BH0), restored in `finally`. A document built inside must EQUAL the saved one,
+ *  so the move can carry nothing else. */
+const withQbh0Undone = (fn) => {
+  __v6BoolHistoryForTests(false)
+  try {
+    return fn()
+  } finally {
+    __v6BoolHistoryForTests(true)
+  }
+}
+
+/** ⭐⭐ ENGINE 55 (review M2) — TODAY'S DOCUMENT WITH THE ONE CLAIMED MOVE UNDONE: every
+ *  `tf_merge` node back to `tf`, every `tf_merge(` in a source back to `tf(`, and the trees'
+ *  hash re-taken over the restored trees. Its digest must EQUAL the saved one, so a move
+ *  listed in `MOVED_BY_ENGINE` can carry nothing else with it. */
+const undoTfMerge = (definition) => {
+  const back = (v) => {
+    if (Array.isArray(v)) return v.map(back)
+    if (!v || typeof v !== 'object') return typeof v === 'string' ? v.split('tf_merge(').join('tf(') : v
+    const o = {}
+    for (const k of Object.keys(v)) o[k] = k === 'type' && v[k] === 'tf_merge' ? 'tf' : back(v[k])
+    return o
+  }
+  const compute = back(definition.compute)
+  if (compute.treesHash !== undefined && compute.trees) compute.treesHash = treesHash(compute.trees)
+  return { ...definition, compute }
+}
+
+/** ⭐⭐ LANDING TRAIN 1 — ENGINE 56-v2'S TWO CLAIMED MOVES UNDONE ON TODAY'S DOCUMENT, and nothing else:
+ *    1. the operand cast: under `&&` / `||` / `!`, `crossOver(…) != 0` / `crossUnder(…) != 0` back to
+ *       the bare crossing;
+ *    2. the kept identity: `P && X`, where `P` is the literal of an input the SAVED document never
+ *       held (`savedIds`), back to `X`, and that gained input dropped from the manifest.
+ *  Every other locator is re-addressed past the nodes that vanish, each changed tree's source is
+ *  printed again and the trees' hash re-taken. Its digest must EQUAL the saved one, so a move
+ *  listed as `engine56` can carry nothing else with it. */
+const undoEngine56 = (definition, savedIds) => {
+  const compute = JSON.parse(JSON.stringify(definition.compute))
+  const manifest = compute.paramManifest || {}
+  const gained = Object.keys(manifest).filter((id) => !Object.prototype.hasOwnProperty.call(savedIds, id))
+  const follow = (n, p) => {
+    for (let i = 0; i < p.length;) {
+      if (p[i] === 'args') { n = n.args[p[i + 1]]; i += 2 } else { n = n[p[i]]; i += 1 }
+    }
+    return n
+  }
+  const gainedLiterals = new Set()
+  for (const id of gained) for (const l of manifest[id].locators || []) gainedLiterals.add(follow(compute.trees[l.treeIndex], l.astPath))
+  const isCast = (n) => !!n && n.type === 'op' && n.name === '!=' && n.args.length === 2
+    && n.args[1].type === 'num' && n.args[1].value === 0
+    && n.args[0].type === 'call' && (n.args[0].name === 'crossOver' || n.args[0].name === 'crossUnder')
+  const LOGIC = new Set(['&&', '||', '!'])
+  /** The child a vanishing node is replaced by, or -1. */
+  const kept = (n, parentOp) => (isCast(n) && LOGIC.has(parentOp) ? 0
+    : (!!n && n.type === 'op' && n.name === '&&' && gainedLiterals.has(n.args[0])) ? 1 : -1)
+  const opOf = (n) => (n && n.type === 'op' ? n.name : null)
+  const mapPath = (tree, q) => {
+    const out = []
+    let n = tree
+    let parent = null
+    for (let i = 0; i < q.length;) {
+      if (q[i] !== 'args') { out.push(q[i]); i += 1; continue }
+      const k = kept(n, parent)
+      if (k >= 0 && q[i + 1] === k) { n = n.args[k]; i += 2; continue }
+      out.push('args', q[i + 1]); parent = opOf(n); n = n.args[q[i + 1]]; i += 2
+    }
+    return out
+  }
+  for (const id of Object.keys(manifest)) {
+    if (gained.includes(id)) continue
+    manifest[id].locators = (manifest[id].locators || []).map((l) => ({ ...l, astPath: mapPath(compute.trees[l.treeIndex], l.astPath) }))
+  }
+  for (const id of gained) {
+    // ⛔ a gained input is dropped only when every place it holds is an identity this undo removes
+    for (const l of manifest[id].locators || []) {
+      const p = l.astPath
+      const parent = follow(compute.trees[l.treeIndex], p.slice(0, -2))
+      if (!(p[p.length - 2] === 'args' && p[p.length - 1] === 0 && parent.type === 'op' && parent.name === '&&')) {
+        throw new Error(`undoEngine56: ${id} sits somewhere other than a kept \`P && X\` identity`)
+      }
+    }
+    delete manifest[id]
+  }
+  const rw = (n, parentOp = null) => {
+    if (!n || typeof n !== 'object') return n
+    const k = kept(n, parentOp)
+    if (k >= 0) return rw(n.args[k], parentOp)
+    return Array.isArray(n.args) ? { ...n, args: n.args.map((x) => rw(x, opOf(n))) } : n
+  }
+  for (const key of Object.keys(compute.trees)) {
+    const back = rw(compute.trees[key])
+    if (JSON.stringify(back) === JSON.stringify(compute.trees[key])) continue
+    compute.trees[key] = back
+    if (compute.sources && key in compute.sources) compute.sources[key] = printFormula(back)
+  }
+  if (compute.treesHash !== undefined) compute.treesHash = treesHash(compute.trees)
+  const undone = { ...definition, compute }
+  if (MINTED.has(definition)) MINTED.set(undone, MINTED.get(definition))
+  return undone
+}
+
 const scripts = Object.keys(SAVED).filter((k) => k !== '_about' && fs.existsSync(path.join(REPO, k))
   && !Object.prototype.hasOwnProperty.call(NEVER_INSTALLED, k))
 
@@ -179,6 +338,40 @@ describe('C46 — the documents that never installed are exempt only while they 
   })
 })
 
+describe('ENGINE 55 / 56-v2 / 57 — a computation moved on purpose is named, and the move is the one claimed', () => {
+  it.each(Object.keys(MOVED_BY_ENGINE))('%s: its saved digest differs, and with the claimed move undone it is EQUAL', (script) => {
+    expect(SAVED[script], `${script} is not in the saved fixture — drop it from MOVED_BY_ENGINE`).toBeTruthy()
+    const built = build(script)
+    expect(built.ok, built.reason).toBe(true)
+    expect(sha(JSON.stringify(asSaved(built.definition)))).not.toBe(SAVED[script].computeSha)
+    // review M2 — the move is EXACTLY the one claimed: undo it, and the saved document returns
+    if (movedKind(script) === 'tf_merge') {
+      expect(JSON.stringify(built.definition.compute)).toContain('"tf_merge"')
+      expect(sha(JSON.stringify(asSaved(undoTfMerge(built.definition))))).toBe(SAVED[script].computeSha)
+    } else if (movedKind(script) === 'engine56') {
+      const undone = undoEngine56(built.definition, SAVED[script].params)
+      expect(JSON.stringify(undone.compute)).not.toBe(JSON.stringify(built.definition.compute))
+      expect(sha(JSON.stringify(asSaved(undone)))).toBe(SAVED[script].computeSha)
+    } else if (movedKind(script) === 'qbh0') {
+      expect(JSON.stringify(built.definition.compute)).toContain(QBH0_PROBE)
+      const undone = withQbh0Undone(() => build(script))
+      expect(undone.ok, undone.reason).toBe(true)
+      expect(JSON.stringify(undone.definition.compute)).not.toContain(QBH0_PROBE)
+      expect(sha(JSON.stringify(asSaved(undone.definition)))).toBe(SAVED[script].computeSha)
+      // and the rule is back on: a plain build after it is today's document again
+      expect(sha(JSON.stringify(asSaved(build(script).definition)))).toBe(sha(JSON.stringify(asSaved(built.definition))))
+    } else {
+      expect(movedKind(script)).toBe('engine57')
+      const undone = withEngine57Undone(() => build(script))
+      expect(undone.ok, undone.reason).toBe(true)
+      expect(JSON.stringify(undone.definition.compute)).not.toContain('"stochPine"')
+      expect(sha(JSON.stringify(asSaved(undone.definition)))).toBe(SAVED[script].computeSha)
+      // and the swap was undone: a plain build after it is today's document again
+      expect(sha(JSON.stringify(asSaved(build(script).definition)))).toBe(sha(JSON.stringify(asSaved(built.definition))))
+    }
+  })
+})
+
 describe('C46 — documents saved under the walk-order ids', () => {
   it('NON-VACUITY — the saved documents are here, and they hold the OLD small-number ids', () => {
     expect(scripts.length).toBeGreaterThanOrEqual(35)
@@ -187,17 +380,36 @@ describe('C46 — documents saved under the walk-order ids', () => {
     expect(ids.every((id) => /^__uct_param_\d{1,2}$/.test(id))).toBe(true)
   })
 
+  // ⭐ DOOR ROBUSTNESS (2026-11-16) — two of these documents NEVER INSTALLED and STILL DO NOT: the
+  // install door (`validateUserDefinitions` -> `compute.budget`) refused each one, so no chart ever drew
+  // it and a stored copy is refused at every load. The member door now says so when it builds them,
+  // under the budget's own guard, instead of handing back a document that installs nothing (the
+  // opposite case to NEVER_INSTALLED above, which installs now). ⛔ A DECISION, NOT A DIFF: a script
+  // joins this list only with the guard the door names; any other refusal is still a move.
+  const INSTALL_REFUSED = {
+    'corpus/committed/volume-spikes-growing-volume-signals-with-alerts-scanner__8e706f448f.pine': 'budget:lookback',
+    'tests/fixtures/pine_oos/mid_engagement__16-ict-smc-guide.pine': 'budget:nodes',
+  }
+
   it('⛔⛔ every saved document: the door still builds the same manifest — same ids, same inputs, same places', () => {
     const moved = []
+    const refusedAsPinned = []
     for (const script of scripts) {
       const was = SAVED[script]
       const built = build(script)
+      if (!built.ok && INSTALL_REFUSED[script] && built.guard === INSTALL_REFUSED[script]) { refusedAsPinned.push(script); continue }
       if (!built.ok) { moved.push({ script, problem: `the door no longer builds it: ${built.reason}` }); continue }
-      const manifest = built.definition.compute.paramManifest || {}
+      // ⭐ landing train 1 — engine 56-v2's moves re-address a locator (a node appears on its path), so
+      // the manifest is read off the document with that claimed move undone, as its digest is below
+      // (and Q-BH0's: an input inside a v6 bool's history read sits one `?:` deeper, so its locator moves with the
+      // claimed move, and is read off the document rebuilt with that move undone)
+      const held = movedKind(script) === 'engine56' ? undoEngine56(built.definition, was.params)
+        : movedKind(script) === 'qbh0' ? withQbh0Undone(() => build(script)).definition : built.definition
+      const manifest = held.compute.paramManifest || {}
       for (const id of new Set([...Object.keys(was.params), ...Object.keys(manifest)])) {
         const a = was.params[id]
         const b0 = manifest[id]
-        const b = b0 ? { ...b0, locators: savedLocators(built.definition, b0.locators) } : b0
+        const b = b0 ? { ...b0, locators: savedLocators(held, b0.locators) } : b0
         // ⭐ A GAIN IS AN APPEND (C46 ruling 3; R-P 2026-10-01): an id the saved document never
         // held, minted because the door now carries more of the script, moves nothing a member
         // saved. Only an id the saved document HELD and the door no longer builds is a move.
@@ -209,9 +421,18 @@ describe('C46 — documents saved under the walk-order ids', () => {
         if (!same) moved.push({ script, id, was: a.sourceName, now: b.sourceName, locators: [a.locators, (b.locators || []).length] })
       }
       // …and the document around the manifest is the same document.
-      if (sha(JSON.stringify(asSaved(built.definition))) !== was.computeSha) moved.push({ script, problem: 'the saved computation changed' })
+      // ⭐ review M2 — a document an engine moved on purpose is compared with that move undone
+      const kind = movedKind(script)
+      const compared = kind === 'tf_merge' ? undoTfMerge(built.definition)
+        : kind === 'engine56' || kind === 'qbh0' ? held
+          : kind === 'engine57' ? withEngine57Undone(() => build(script)).definition : built.definition
+      if (sha(JSON.stringify(asSaved(compared))) !== was.computeSha) {
+        moved.push({ script, problem: 'the saved computation changed' })
+      }
     }
     expect(moved, `saved documents no longer round-trip:\n${JSON.stringify(moved, null, 2)}`).toEqual([])
+    // every pinned install refusal is still refused by that guard (one the door builds again leaves the list)
+    expect(refusedAsPinned.sort()).toEqual(Object.keys(INSTALL_REFUSED).sort())
   }, 900000)
 
   it('⛔⛔ every saved document: the values a member saved, replayed BY ID, land on the same inputs', () => {
@@ -234,7 +455,25 @@ describe('C46 — documents saved under the walk-order ids', () => {
         wrong.push({ script, was: was.editedState, now: valuesOf(doc) })
       }
       // the edited document is byte-for-byte the one the old assignment saved
-      if (sha(JSON.stringify(asSaved(doc, built.definition.compute.fn, built.definition))) !== was.editedComputeSha) wrong.push({ script, problem: 'the edited document differs' })
+      const kind = movedKind(script)
+      let [docNow, unedited] = [doc, built.definition]
+      if (kind === 'tf_merge') [docNow, unedited] = [undoTfMerge(doc), undoTfMerge(built.definition)]
+      if (kind === 'engine56') [docNow, unedited] = [undoEngine56(doc, was.params), undoEngine56(built.definition, was.params)]
+      if (kind === 'engine57' || kind === 'qbh0') {
+        // rebuild AND replay inside the undo: an edit may re-translate
+        [docNow, unedited] = (kind === 'qbh0' ? withQbh0Undone : withEngine57Undone)(() => {
+          const b = build(script).definition
+          let d = b
+          for (const id of Object.keys(was.values)) {
+            const applied = applyParamEdit(d, id, was.values[id])
+            if (applied.ok) d = applied.definition
+          }
+          return [d, b]
+        })
+      }
+      if (sha(JSON.stringify(asSaved(docNow, built.definition.compute.fn, unedited))) !== was.editedComputeSha) {
+        wrong.push({ script, problem: 'the edited document differs' })
+      }
     }
     expect(wrong, `saved values landed elsewhere:\n${JSON.stringify(wrong, null, 2)}`).toEqual([])
   }, 900000)

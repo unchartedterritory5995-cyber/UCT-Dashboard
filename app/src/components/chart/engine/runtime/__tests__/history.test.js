@@ -306,21 +306,16 @@ describe('⭐⭐ the three offset tiers (§18) — measured, not assumed', () =>
     expect(program.history[0].depth).toBe(3)
     expect(out[10]).toBe(BARS[7].c)
 
-    // ⚠️⚠️ AND WHAT IS FROZEN IS THE INPUT'S **DEFAULT**, NOT A LATER OVERRIDE —
-    // which is `pine.js`'s existing, deliberate behaviour, not a gap this wave
-    // introduced. Its `parseOffsetIndex` records the owner decision of
-    // 2026-08-11 verbatim: folding an input "freezes its default into the saved
-    // definition — and that is ALREADY true of every length, so folding the
-    // offset makes the two agree rather than introducing a new surprise."
-    //
-    // ⚰️ THIS TEST FIRST ASSERTED THE OPPOSITE and failed, which is the useful
-    // outcome: an override that silently changed a ring's depth would make a
-    // knob mean one thing in a column and another in the runtime — the exact
-    // divergence the frozen-default rule exists to prevent. Pinning the real
-    // behaviour here is what stops someone "fixing" it on one side only.
+    // ⭐⭐ AND A LATER OVERRIDE IS THE MEMBER'S, IN BOTH LANES (settings parity 2c, 2026-11-16).
+    // ⚰️ This pinned the owner decision of 2026-08-11 (folding an input "freezes its default into
+    // the saved definition"), which kept the column and the runtime agreeing while BOTH froze.
+    // Settings parity 2a made the column compute the member's offset (`paramInputs.
+    // specializeParams` writes it into the literal), and the owner's 2026-11-16 ruling ("every
+    // TradingView setting changeable") supersedes the freeze, so the runtime follows: the same
+    // knob means the same thing in a column and in the runtime, now at the member's value.
     const { out: out5, program: p5 } = runPine(src, { n: 5 })
-    expect(p5.history[0].depth).toBe(3)
-    expect(out5[10]).toBe(BARS[7].c)
+    expect(p5.history[0].depth).toBe(5)
+    expect(out5[10]).toBe(BARS[5].c)
   })
 
   it('⛔ a RUNTIME-DERIVED offset refuses by name rather than answering `na`', () => {
@@ -345,8 +340,10 @@ describe('⛔ what 2F-2A does NOT do — every wall named', () => {
     expect(refusalOf(src).guard).toBe('runtime:history-expression')
   })
 
-  it('history over an EXPRESSION inside a FUNCTION still refuses', () => {
-    expect(refusalOf(`${head}f(v) =>\n    (v + 1)[1]\nplot(f(close))\n`).guard)
+  // W4-T7: a function body's own list now hoists (`w4FrameHoist.test.js`); a
+  // NESTED list inside the body still refuses.
+  it('history over an EXPRESSION inside a NESTED LIST of a FUNCTION still refuses', () => {
+    expect(refusalOf(`${head}f(v) =>\n    r = 0.0\n    if v > 0\n        r := (v + 1)[1]\n    r\nplot(f(close))\n`).guard)
       .toBe('runtime:history-expression')
   })
 

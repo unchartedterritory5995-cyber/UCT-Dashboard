@@ -190,7 +190,9 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
       // `newday(res)` as `time("D")`, which translates, so the next wall is line 140's
       // session clock `time(timeframe.period, '0000-0000:7')` - a window that wraps past
       // midnight, refused by name. Still refuses, still not on `timenow`.
-      ['chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine', 'pine:function', /time\(<timeframe>, <session>\)[\s\S]*wraps past midnight/],
+      // ⚰️ …AND LEFT THIS LIST (bt, Engine 66 (#1473)): "0000-0000:<day>" is the bar's own
+      // date (vw-w4-session-overnight-btcusd-60 O4, the user manual's "0000-0000:23456"),
+      // so the script now TRANSLATES — asserted below, by name, rather than dropped.
       // ⚰️ WAS /MILLISECONDS/. Same script, same guard, DIFFERENT blocker since
       // 2026-09-23: the merge reconciles `time` to Pine's milliseconds for any
       // script that declares a version, so this one no longer meets a units
@@ -221,6 +223,9 @@ describe('⭐ timenow and its five calendar fields are declared, fetch-anchored 
     const mtf = translatePine(fs.readFileSync(path.join(CORPUS,
       'mtf-key-levels-support-and-resistance__29f470a089.pine'), 'utf8'), { strict: true })
     expect(mtf.ok, JSON.stringify(mtf.refusal)).toBe(true)
+    const champions = translatePine(fs.readFileSync(path.join(CORPUS,
+      'chart-champions-part-1-npoc-levels-vwaps__wdeUFJ4ZD2.pine'), 'utf8'), { strict: true })
+    expect(champions.ok, JSON.stringify(champions.refusal)).toBe(true)
     for (const [file, guard, messagePattern] of cases) {
       const src = fs.readFileSync(path.join(CORPUS, file), 'utf8')
       const t = translatePine(src, { strict: true })

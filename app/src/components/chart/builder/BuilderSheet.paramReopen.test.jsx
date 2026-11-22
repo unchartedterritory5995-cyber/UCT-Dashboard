@@ -38,6 +38,7 @@ import { render, screen, cleanup, fireEvent, act, within } from '@testing-librar
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { reconcileParams } from './paramEdit'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { PINE_DEBOUNCE_MS } from './PineBox'
@@ -137,7 +138,7 @@ function mountFresh() {
   )
 }
 
-const formulaField = () => screen.getByLabelText('Formula')
+const formulaField = () => formulaBox()
 const pineField = () => screen.getByTestId('pine-box').querySelector('textarea')
 const tab = (name) => screen.getByRole('tab', { name })
 
@@ -152,7 +153,7 @@ async function settleFormula() {
 }
 
 async function paste(script) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pineField(), { target: { value: script } })
   await settlePine()
 }
@@ -210,6 +211,7 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     //        pencil -- `BuilderSheet.jsx`'s own `openForEdit`. ────────────
     mountFresh()
     await flushSwr()
+    toStart()
     const savedRow = screen.getByText('RSI Reopen Test')
     const listRow = savedRow.closest('li')
     expect(listRow, '"Your formulas" did not render the saved row').toBeTruthy()
@@ -235,7 +237,7 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     await settleFormula()
     expect(formulaField().value).toBe('rsi(close, 30)')
 
-    fireEvent.click(screen.getByRole('button', { name: /save changes/i }))
+    fireEvent.click(screen.getByTestId('sheet-save'))
     await flush()
 
     const putReq = H.requests.find((r) => r.method === 'PUT')
@@ -251,6 +253,7 @@ describe('reopening a saved Pine-parameterized definition through the real "Your
     cleanup()
     mountFresh()
     await flushSwr()
+    toStart()
     const savedRow2 = screen.getByText('RSI Reopen Test')
     fireEvent.click(within(savedRow2.closest('li')).getByRole('button', { name: /^Edit RSI Reopen Test$/i }))
     await settleFormula()

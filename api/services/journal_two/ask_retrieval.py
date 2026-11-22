@@ -770,18 +770,35 @@ def _json(raw):
 
 # ── Corpus coverage (§23) ────────────────────────────────────────────────────
 
+_UNSEARCHABLE_STATUSES = ("no_text", "processing_failed", "pending")
+
+
 def coverage(conn, user_id: str) -> dict[str, Any]:
     """What COULD have been searched. Lets synthesis say when coverage is
     incomplete instead of implying it searched everything (§29/§30)."""
     def one(sql, *p):
         r = conn.execute(sql, p).fetchone()
         return (r[0] if r else 0) or 0
+    # ⛔⛔ Audit 2026-11-05, spec S4 (B17): ONLY DOCUMENTS ON LIVE NOTES. This counted every
+    # j2_note_documents row the member owned, so the 16 trashed notes on the audit account made
+    # Ask say "7 attached documents couldn't be searched" for ONE image. A trashed note is never
+    # searched, so its documents are neither searched nor "could not be searched": they are out
+    # of the corpus. The join keeps the honesty semantics for everything that IS in it.
+    # The kind is read from the URL, which the upload door makes say what the row is (images are
+    # always `/inline/<hash>.<ext>`, document_extraction.maybe_create_document).
     docs = {}
+    unsearchable: dict[str, dict[str, int]] = {}
     for r in conn.execute(
-        "SELECT status, COUNT(*) c FROM j2_note_documents WHERE user_id = ? GROUP BY status",
+        "SELECT d.status AS status,"
+        " CASE WHEN d.attachment_url LIKE '%/inline/%' THEN 'image' ELSE 'document' END AS kind,"
+        " COUNT(*) c FROM j2_note_documents d"
+        " JOIN j2_notes n ON n.id = d.note_id AND n.user_id = d.user_id"
+        " WHERE d.user_id = ? AND n.deleted_at IS NULL GROUP BY d.status, kind",
         (user_id,),
     ).fetchall():
-        docs[r["status"]] = r["c"]
+        docs[r["status"]] = docs.get(r["status"], 0) + r["c"]
+        if r["status"] in _UNSEARCHABLE_STATUSES:
+            unsearchable.setdefault(r["kind"], {})[r["status"]] = r["c"]
     return {
         "notes_searchable": one(
             "SELECT COUNT(*) FROM j2_notes WHERE user_id = ? AND deleted_at IS NULL", user_id),
@@ -790,16 +807,23 @@ def coverage(conn, user_id: str) -> dict[str, Any]:
         # this counted 3. That number goes straight into the prompt as
         # "SEARCHED: n document pages", so a page nobody could read was being
         # reported to the model as searched. A row is not a page we have.
+        # Fix round 1 (review minor 14): pages and excerpts on a TRASHED note are out of the corpus,
+        # exactly as their documents are (B17) -- the same live-note join.
         "document_pages_searchable": one(
-            "SELECT COUNT(*) FROM j2_note_document_pages"
-            " WHERE user_id = ? AND TRIM(text) != ''", user_id),
+            "SELECT COUNT(*) FROM j2_note_document_pages p"
+            " JOIN j2_note_documents d ON d.id = p.document_id AND d.user_id = p.user_id"
+            " JOIN j2_notes n ON n.id = d.note_id AND n.user_id = d.user_id"
+            " WHERE p.user_id = ? AND TRIM(p.text) != '' AND n.deleted_at IS NULL", user_id),
         "excerpts_searchable": one(
-            "SELECT COUNT(*) FROM j2_note_excerpts WHERE user_id = ?", user_id),
+            "SELECT COUNT(*) FROM j2_note_excerpts x"
+            " JOIN j2_notes n ON n.id = x.note_id AND n.user_id = x.user_id"
+            " WHERE x.user_id = ? AND n.deleted_at IS NULL", user_id),
         "documents_by_status": docs,
         # The honesty fields: sources that exist but could NOT be searched.
-        "documents_not_searchable": (docs.get("no_text", 0)
-                                     + docs.get("processing_failed", 0)
-                                     + docs.get("pending", 0)),
+        "documents_not_searchable": sum(docs.get(s, 0) for s in _UNSEARCHABLE_STATUSES),
+        # What the unsearchable ones ARE, by kind ("image" / "document") and status, so the
+        # member is told "1 attached image has no readable text", not a bare count.
+        "documents_not_searchable_detail": unsearchable,
     }
 
 
@@ -852,6 +876,9 @@ def retrieve(user_id: str, query: str, *, limit: int = 8,
                 items += _reviews_for_notes(
                     conn, user_id, member_note_ids, query, limit,
                     per_thesis=SCOPED_REVIEW_HISTORY if entity else 0)
+                # S4 (B17): a drawn chart plan for the named security, as a fact line. Before the
+                # relevance pass below, so "What is my stop on NVDA?" reads it as an answer.
+                items += _chart_plans(conn, user_id, entity, member_note_ids, items)
             # ⛔ Thesis state and facts are CONTEXT, not a floor. Adding them
             # unconditionally made "zebra husbandry techniques" return the
             # member's thesis as evidence -- the exact §20 failure of forcing
@@ -903,6 +930,74 @@ def retrieve(user_id: str, query: str, *, limit: int = 8,
     finally:
         if owned:
             conn.close()
+
+
+#: How many of the entity's notes (newest edit first) are read for a drawn plan. A bound, so a
+#: member with hundreds of notes on one symbol costs one capped read, never a scan of all of them.
+PLAN_NOTES_MAX = 40
+
+
+def _fmt_plan_price(v: float) -> str:
+    s = f"{v:,.2f}"
+    return s.rstrip("0").rstrip(".") if "." in s else s
+
+
+#: Fix round 1 (review minor 14): the mark a drawn-plan fact carries in its text, so it can never be
+#: read (or quoted, or cited) as words the member wrote in the note.
+PLAN_FACT_MARK = "[Plan drawn on a chart in this note, not text in it]"
+
+
+def plan_fact_line(symbol: str, reading) -> str | None:
+    """`Plan on NVDA: entry 206, stop 196, target 225` for a reading that names a level, or None.
+    Only levels the reader resolved (state ok) are said; a contradiction is left out, never guessed."""
+    parts = [f"{role} {_fmt_plan_price(reading.value(role))}"
+             for role in ("entry", "stop", "target") if reading.value(role) is not None]
+    return f"Plan on {symbol}: {', '.join(parts)}" if parts else None
+
+
+def _chart_plans(conn, user_id: str, entity: dict[str, Any] | None,
+                 note_ids: list[str] | None, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Audit 2026-11-05, spec S4 (B17): a plan DRAWN on a chart (or a trade-plan canvas) as a fact
+    Ask can retrieve. Those levels live in the embed's attrs, never in `body_plain`, so the text
+    search cannot find "stop" in them -- "What is my stop on NVDA?" missed a drawn stop.
+
+    Read-only, through the ONE plan reader (`plan_extract.read_note_plan`, the grader's and the
+    exporters'), for the resolved security only, on the member's live notes. A note already in
+    `items` gets the line appended to its own passage (one note stays one source); any other note
+    joins as a note item whose text is the line, cited as the note (no passage claim). A plan
+    written as TEXT is already in `body_plain` and is not repeated."""
+    symbol = (entity or {}).get("symbol")
+    if not symbol or not note_ids:
+        return []
+    from api.services.journal_two import plan_extract  # noqa: PLC0415 -- only when a security was named
+    ids = note_ids[:]
+    ph = ",".join("?" * len(ids))
+    rows = conn.execute(
+        "SELECT id, user_id, title, ticker, body_json, properties_json FROM j2_notes"
+        f" WHERE user_id = ? AND deleted_at IS NULL AND id IN ({ph})"
+        " ORDER BY updated_at DESC LIMIT ?",
+        (user_id, *ids, PLAN_NOTES_MAX),
+    ).fetchall()
+    present = {i["source_id"]: i for i in items if i.get("source_type") == ev.NOTE}
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        row = dict(r)
+        reading = plan_extract.read_note_plan(row.get("body_json"), row.get("properties_json"),
+                                              symbol=symbol)
+        if not reading.is_plan or reading.primary_shape not in ("chart", "canvas"):
+            continue
+        line = plan_fact_line(symbol, reading)
+        if not line:
+            continue
+        line = f"{PLAN_FACT_MARK} {line}"
+        if row["id"] in present:
+            it = present[row["id"]]
+            if line not in (it.get("text") or ""):
+                it["text"] = ((it.get("text") or "").rstrip() + " " + line).strip()
+            continue
+        out.append(ev.from_note(row, snippet=line, location=None,
+                                citation_validity=ev.CITE_NOTE_ONLY))
+    return out
 
 
 def _entity_note_ids(conn, user_id: str, entity: dict[str, Any]) -> list[str]:

@@ -9,6 +9,10 @@ import { useFlagged } from '../../../hooks/useFlagged'
 import { COLUMN_DEFS } from '../columnDefs'
 import { REQUIRED_COLS } from './useScreenSpec'
 import styles from './ScannerShell.module.css'
+import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
+
+// The joystick's footprint above the safe area: its pad's offset plus its height.
+const HUB_BAND_PX = BOTTOM_OFFSET_PX + PAD_PX
 
 // The phone door: a virtualized card list. Line 1 = live dot + ticker + company
 // + price/chg (live-overlaid). Line 2 = the first THREE visible non-required
@@ -39,6 +43,9 @@ const ResultCards = forwardRef(function ResultCards({ rows, columns, livePrices,
     getScrollElement: () => scrollRef.current,
     estimateSize: () => 64,
     overscan: 8,
+    // B10: the list's last 152 px sit under the joystick's band (ScannerShell.module.css pads
+    // the scroller by the same sum), so a cursor step scrolls its card to just above it.
+    scrollPaddingEnd: HUB_BAND_PX,
     ...(virtualOpts || {}),
   })
 
@@ -83,10 +90,17 @@ const ResultCards = forwardRef(function ResultCards({ rows, columns, livePrices,
               <div className={styles.cardStats}>
                 {statCols.map(c => {
                   const def = COLUMN_DEFS[c] || { label: c, fmt: v => v ?? '—' }
+                  // The stats share ONE line (the rows are a fixed 64 px apart, so a second line
+                  // was drawn onto the next card). A stat whose value is words (the sector, the
+                  // industry) is the one that gives way: it is cut with an ellipsis and keeps its
+                  // full text in `title`. Numbers and labels never shrink or break.
+                  const raw = row[c]
+                  const words = typeof raw === 'string' && raw.trim() !== '' && Number.isNaN(Number(raw))
+                  const shown = def.fmt(raw, row)
                   return (
-                    <span key={c} className={styles.cardStat}>
+                    <span key={c} className={words ? `${styles.cardStat} ${styles.cardStatText}` : styles.cardStat}>
                       <span className={styles.cardStatLabel}>{def.label}</span>
-                      <span className={styles.cardStatVal}>{def.fmt(row[c], row)}</span>
+                      <span className={styles.cardStatVal} title={words ? (typeof shown === 'string' ? shown : raw) : undefined}>{shown}</span>
                     </span>
                   )
                 })}

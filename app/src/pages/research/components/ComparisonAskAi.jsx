@@ -107,7 +107,7 @@ export default function ComparisonAskAi({ symA, symB }) {
         <div className={styles.fnote}>
           Ask how these two securities compare — fundamentals, UCT rating, analyst
           expectations, or estimates — grounded in UCT's own data, with sources.
-          This assistant explains; it does not give buy/sell/hold advice.
+          The UCT Agent explains; it does not give buy/sell/hold advice.
         </div>
       )}
 
@@ -118,7 +118,7 @@ export default function ComparisonAskAi({ symA, symB }) {
       )}
       {status === 'error' && (
         <div className={styles.fnote} data-testid="comparison-ask-ai-error">
-          The AI assistant is temporarily unavailable. Try again shortly.
+          The UCT Agent is temporarily unavailable. Try again shortly.
         </div>
       )}
 

@@ -238,9 +238,8 @@ def test_the_seam_itself_still_makes_a_pdf_a_document_and_nothing_else(monkeypat
     non-PDF file returns None and touches nothing. (The router-level PDF
     test above proves the route reaches this; this proves the decision.)"""
     from api.services.journal_two import document_extraction
-    # Wave 7 G4: images and docx become documents only under their own gate;
-    # this rail pins the gate-OFF decision, so the gate is pinned off here.
-    monkeypatch.delenv(document_extraction.IMAGE_DOCX_GATE, raising=False)
+    # Wave 7 G4: an image becomes a document only from its own `/inline/` URL (this one
+    # has none), and a csv never does.
     created, queued = [], []
     monkeypatch.setattr(document_extraction, "create_document",
                         lambda uid, nid, url, name, **kw: created.append((uid, nid, url, name)) or {"id": "doc-1"})
@@ -285,19 +284,7 @@ def _upload_image_and_docx(client, note_id):
     return r_img.json(), r_doc.json()
 
 
-def test_gate_off_an_image_or_docx_upload_creates_no_document_row(app, client, monkeypatch):
-    """Wave 7 G4, through the REAL upload routes: with
-    NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED unset both uploads still answer 200
-    and the note carries no document -- exactly the pre-wave-7 behaviour."""
-    from api.services.journal_two import document_extraction
-    monkeypatch.delenv(document_extraction.IMAGE_DOCX_GATE, raising=False)
-    _login_as(app, "u1")
-    note_id = _create_note(client)
-    _upload_image_and_docx(client, note_id)
-    assert client.get(f"/api/j2/notes/{note_id}/documents").json()["documents"] == []
-
-
-def test_gate_on_an_image_and_a_docx_upload_each_create_a_document_row(app, client, monkeypatch):
+def test_an_image_and_a_docx_upload_each_create_a_document_row(app, client, monkeypatch):
     """The same two uploads with the gate ON: one pending row each, keyed by
     the saved URL, carrying its own source_kind. The list's `sourceKind`
     stays "attachment" for both -- they ARE filesystem attachments, never web
@@ -305,7 +292,6 @@ def test_gate_on_an_image_and_a_docx_upload_each_create_a_document_row(app, clie
     this lane deliberately did not widen."""
     from api.services.auth_db import get_connection
     from api.services.journal_two import document_extraction
-    monkeypatch.setenv(document_extraction.IMAGE_DOCX_GATE, "1")
     _login_as(app, "u1")
     note_id = _create_note(client)
     img, doc = _upload_image_and_docx(client, note_id)

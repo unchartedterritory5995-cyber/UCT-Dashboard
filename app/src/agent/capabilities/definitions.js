@@ -47,6 +47,8 @@ function snap(host) {
 
 export const definitionLibraryKind = {
   name: 'definitionLibrary',
+  source: 'charts',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Indicator definitions aren't available on this page — open Charts to work with indicators.",
   boardScoped: false,                 // a saved indicator is the member's in every layout
   selfDescribing: true,
   list: (host) => (host?.charts ? [snap(host)] : []),
@@ -80,7 +82,10 @@ function refusal(host, res) {
     case REASONS.READONLY: return 'Indicators can’t be managed from here.'
     case REASONS.DEPENDENT_EXISTS: return `${usageWords(host, d.usage).join(', ') || 'A chart'} still draws it — it has to come off those charts first (or approve deleting it anyway).`
     case REASONS.CHANGED_WHILE_WORKING: return d.what === 'usage' ? 'The charts using it changed since I showed you, so nothing was deleted — ask again.' : 'It changed while I was working, so nothing was changed — ask again.'
-    case REASONS.RESTORE_CONFLICT: return 'It can’t be restored exactly — something already holds that indicator again. Nothing was changed.'
+    // ⛔ F-15 — Indicators says WHY it cannot be exact (`detail.why`): "something already holds
+    // it again" is only one of the reasons, and was said for all of them. No "Nothing was changed."
+    // here: only an Undo meets this code, and the runtime already ends it "Nothing was undone."
+    case REASONS.RESTORE_CONFLICT: return d.why ? `It can’t be restored exactly: ${d.why}` : 'It can’t be restored exactly — something already holds that indicator again'
     case REASONS.PERMISSION_CHANGED: return 'Your access changed since I planned this, so nothing was changed.'
     case REASONS.NOT_FOUND: return 'That indicator is no longer there.'
     default: return 'That did not work — nothing was changed.'

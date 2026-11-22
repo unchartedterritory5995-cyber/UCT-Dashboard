@@ -1,77 +1,101 @@
-.page { display: flex; flex-direction: column; height: calc(100vh - 56px); min-height: 520px; background: var(--bg); color: var(--text); }
+/* The Screener's Focus layout, in UCT Signature (docs/uct-signature-style.md, 2026-11-16).
+   Structure: ONE top bar (what you are looking at on the left, how you look at it on the right),
+   ONE context line under it (a screen's quick controls and its facts), ONE notices line, then the
+   list and the chart. Quiet graphite, hairlines, sentence case, soft buttons.
+
+   Gold (--ut-gold, flat) marks only what is current or chosen (spec section 2b):
+     the open view's underline, the selected row's bar, the open group's bar in the screen picker,
+     the tick on the open screen, a pinned screen's pin, the on-your-radar dot, the spark of
+     "Describe a setup". Nothing else on this page is gold.
+
+   The Signature values (--scr-*) are set once, in FocusMenus.module.css. */
+/* The page FILLS its frame (Screener.module.css `.containerFull`: a column, the height of the
+   app's content area on every tier), so the list's foot and the chart's foot sit on the window's
+   bottom edge. It used to be `100vh - 56px`, which left a 56px gap under the page on a desktop
+   once the separate Stocks | Options header was folded into the top bar. */
+.page { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; background: var(--bg); color: var(--scr-text); font-family: var(--font-sans); }
 .body { display: flex; flex: 1; min-height: 0; }
-.listWrap { flex: 0 0 340px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border); }
+.listWrap { flex: 0 0 340px; display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--scr-line); }
 /* The listed rows answer the previous screen; the new one's answer is on its way. */
 .listPending .list { opacity: 0.45; pointer-events: none; transition: opacity 120ms ease; }
-.listHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; font-size: var(--text-base); color: var(--text-muted); border-bottom: 1px solid var(--border); }
+.listHead { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 40px; box-sizing: border-box; padding: 4px 14px 4px 16px; font-size: 12px; color: var(--scr-faint); border-bottom: 1px solid var(--scr-line); font-variant-numeric: tabular-nums; }
 .listHeadEnd { display: flex; align-items: center; gap: 10px; flex: none; }
-.stateFlags { display: flex; align-items: center; padding: 8px 20px 0; }
+.stateFlags { display: flex; align-items: center; padding: 8px 16px 0; }
 .stateFlags:empty { display: none; }
 /* a row action while the list answers the previous screen (aria-disabled, so it keeps focus) */
 .btnBusy { opacity: 0.5; cursor: not-allowed; }
-.listHeadValue { color: var(--text); }
-.list { flex: 1; overflow-y: auto; outline: none; position: relative; }
-.list:focus-visible { box-shadow: inset 0 0 0 2px var(--ut-gold); }
-.row { display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px; border-bottom: 1px solid var(--bg-surface); cursor: pointer; min-height: var(--tap-min); }
-/* The selection is the strongest fill on the list: the gold tint over the hover tone, so a
-   hovered row can never look more selected than the selected one. Hover is a half-strength
-   wash, and paints nothing while the member steps with the keys (`data-kbd`, set by
-   ResultList on a key press and cleared when the pointer moves). */
-.row:not(.rowSel):hover { background: color-mix(in srgb, var(--bg-hover) 55%, transparent); }
+.listHeadValue { color: var(--scr-text); font-weight: 600; }
+.list { flex: 1; overflow-y: auto; outline: none; position: relative; scrollbar-width: thin; }
+.list:focus-visible { box-shadow: inset 0 0 0 2px var(--scr-ring); }
+.row { display: flex; align-items: center; gap: 10px; padding: 9px 14px 9px 12px; border-bottom: 1px solid var(--scr-line); cursor: pointer; min-height: var(--tap-min); }
+/* The selection is the strongest fill on the list: the raised tone and the gold "you are here"
+   bar, so a hovered row can never look more selected than the selected one. Hover is the card
+   tone, and paints nothing while the member steps with the keys (`data-kbd`, set by ResultList
+   on a key press and cleared when the pointer moves). */
+.row:not(.rowSel):hover { background: var(--scr-card); }
 .list[data-kbd] .row:not(.rowSel):hover { background: transparent; }
-.rowSel { background: linear-gradient(var(--ut-gold-dim), var(--ut-gold-dim)), var(--bg-hover); box-shadow: inset 3px 0 0 var(--ut-gold); }
+.rowSel { background: var(--scr-raised); box-shadow: inset 2px 0 0 var(--ut-gold); }
 .rowQuiet .setup { font-style: italic; }
+/* on your radar: a thing already in use gets a small gold dot (spec 2b, mark 7) */
 .dotOn { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ut-gold); }
 .dotOff { flex: none; width: 6px; height: 6px; }
 .rowMain { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.ticker { font-size: var(--text-lg); font-weight: 700; letter-spacing: 0.2px; color: var(--text-heading); }
-.setup { font-size: var(--text-base); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rowNums { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: var(--text-md); font-weight: 600; color: var(--text-bright); }
+.ticker { font-size: 14px; font-weight: 700; letter-spacing: 0.1px; color: var(--scr-bright); }
+.setup { font-size: 12px; color: var(--scr-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rowNums { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 600; color: var(--scr-bright); }
 /* change figures, in the list and the pane: tabular, so a live tick never shifts the column */
-.up, .down, .flat { font-size: var(--text-base); font-weight: 600; font-variant-numeric: tabular-nums; }
+.up, .down, .flat { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .up { color: var(--success-ink); }
 .down { color: var(--danger-ink); }
-.flat { color: var(--text-muted); }
+.flat { color: var(--scr-dim); }
 .moreSentinel { height: 1px; }
 /* the per-row price line: fixed box, so rows do not shift when lines arrive */
 .rowSpark { flex: 0 0 56px; width: 56px; height: 20px; display: inline-flex; align-items: center; margin: 0 10px 0 6px; opacity: 0.9; }
-.keyHints { display: flex; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-top: 1px solid var(--border); font-size: var(--text-sm); color: var(--text-muted); }
-.keyHints b { color: var(--text); font-weight: 600; }
-.linkBtn { background: none; border: 0; padding: 0; min-height: 32px; display: inline-flex; align-items: center; gap: 0.3em; color: var(--text-muted); font: inherit; font-size: var(--text-base); cursor: pointer; }
-.linkBtn:hover { color: var(--text); }
-/* Buttons ARE the app's canonical button (styles/buttons.css): one geometry, one type treatment,
-   one set of roles. Composed, never restated, so a retune of the system reaches this page too. */
-.btn { composes: btn btn-secondary from global; }
-/* a toggle that is on (Flagged): the outline role, with the selection tint held */
-.btnOn { composes: btn btn-outline from global; background: var(--ut-gold-dim); }
-.btnPrimary { composes: btn btn-primary from global; }
+.keyHints { display: flex; gap: 14px; flex-wrap: wrap; padding: 8px 16px; border-top: 1px solid var(--scr-line); font-size: 11px; color: var(--scr-faint); }
+.keyHints b { color: var(--scr-rest); font-weight: 600; }
+.linkBtn { background: none; border: 0; padding: 0; min-height: 28px; display: inline-flex; align-items: center; gap: 0.3em; color: var(--scr-rest); font: inherit; font-size: 12px; cursor: pointer; border-radius: 6px; }
+.linkBtn:hover { color: var(--scr-bright); }
+.linkBtn:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 2px; }
+/* Buttons (spec "Buttons"): soft fills, never an outline and never gold. The secondary is the
+   pill; the primary is the same pill one step brighter; a toggle that is on (Flagged) holds the
+   selected tone. */
+.btn, .btnOn, .btnPrimary { display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-sizing: border-box; height: 30px; padding: 0 12px; border: 0; border-radius: 7px; font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; line-height: 1; white-space: nowrap; cursor: pointer; transition: background 120ms ease, color 120ms ease; }
+.btn { background: var(--scr-soft); color: var(--scr-text); }
+.btn:hover, .btn[aria-expanded='true'] { background: var(--scr-soft-hi); color: var(--scr-bright); }
+.btnOn { background: var(--scr-selected); color: var(--scr-bright); box-shadow: inset 0 0 0 1px rgba(248, 247, 243, 0.28); }
+.btnPrimary { background: var(--scr-soft-top); color: var(--scr-bright); }
+.btnPrimary:hover { background: var(--scr-soft-top-hi); }
+.btn:focus-visible, .btnOn:focus-visible, .btnPrimary:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
 .stateBox { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 40px 20px; text-align: center; flex: 1; }
-.stateHead { margin: 0; font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 700; color: var(--text-heading); }
-.stateBody { margin: 0; color: var(--text-muted); max-width: 40ch; font-size: var(--text-lg); line-height: var(--lh-normal); }
+.stateHead { margin: 0; font-family: var(--font-sans); font-size: 16px; font-weight: 700; color: var(--scr-bright); }
+.stateBody { margin: 0; color: var(--scr-dim); max-width: 44ch; font-size: 13px; line-height: 1.5; }
 .stateActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .skeleton { display: flex; flex-direction: column; }
-.skelRow { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--bg-surface); }
-.skelA { height: 12px; border-radius: var(--radius-sm); background: var(--bg-elevated); }
-.skelB { height: 9px; border-radius: var(--radius-sm); background: var(--bg-surface); }
-.pane { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 16px 24px 14px; }
-.paneHead { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
-.paneTicker { margin: 0; font-family: var(--font-heading); font-size: var(--text-3xl); font-weight: 700; line-height: var(--lh-tight); letter-spacing: var(--ls-tight); color: var(--text-heading); }
-.paneSub { color: var(--text-muted); font-size: var(--text-lg); }
-.panePrice { font-family: var(--font-mono); font-size: var(--text-3xl); font-weight: 700; line-height: var(--lh-tight); color: var(--text-bright); font-variant-numeric: tabular-nums; }
+.skelRow { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; border-bottom: 1px solid var(--scr-line); }
+.skelA { height: 12px; border-radius: 4px; background: var(--scr-raised); }
+.skelB { height: 9px; border-radius: 4px; background: var(--scr-card); }
+.pane { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 12px 20px 12px; }
+.paneHead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.paneTicker { margin: 0; font-family: var(--font-sans); font-size: 22px; font-weight: 700; line-height: 1.15; letter-spacing: 0; color: var(--scr-bright); }
+.paneSub { color: var(--scr-dim); font-size: 13px; }
+.panePrice { font-family: var(--font-mono); font-size: 22px; font-weight: 700; line-height: 1.15; color: var(--scr-bright); font-variant-numeric: tabular-nums; }
 .spacer { flex: 1; }
-.paneMeta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.setupTag { background: var(--ut-gold-dim); color: var(--ut-gold); border: 1px solid var(--ut-gold); border-radius: var(--radius-md); padding: 3px 10px; font-weight: 600; font-size: var(--text-base); letter-spacing: 0.2px; }
-.paneFacts { color: var(--text-muted); font-size: var(--text-base); font-variant-numeric: tabular-nums; }
-.paneEarnSoon { color: var(--warn); font-size: var(--text-base); font-weight: 600; font-variant-numeric: tabular-nums; }
+.paneMeta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* What the stock is doing, as a quiet soft tag: words, never a gold box. */
+.setupTag { background: var(--scr-soft); color: var(--scr-text); border-radius: 6px; padding: 4px 9px; font-weight: 600; font-size: 12px; line-height: 1.2; }
+.paneFacts { color: var(--scr-dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+.paneEarnSoon { color: var(--warn); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .staleTag { color: var(--warn); font-weight: 600; }
-/* The app's segmented switch (Breadth / UCT Terminal view tabs): an outlined group, the tabs clipped
-   to its corners, the one that is on filled gold. */
-.seg { display: inline-flex; flex: none; border: 1px solid var(--border-accent); border-radius: var(--radius-lg); overflow: hidden; }
-.segOn, .segOff { border: 0; border-radius: 0; padding: 5px 13px; font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 600; line-height: var(--lh-tight); cursor: pointer; min-width: 32px; min-height: 28px; white-space: nowrap; transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); }
-.segOn { background: var(--ut-gold); color: var(--bg); font-weight: 700; }
-.segOff { background: transparent; color: var(--text); }
-.segOff:hover { color: var(--ut-gold); }
-.chartBox { position: relative; flex: 1; min-height: 280px; isolation: isolate; display: flex; flex-direction: column; overflow: hidden; }
+/* The view switch (List, Charts, Map, Table): plain tabs, the open one bright with the gold
+   underline (spec 2b, mark 1). Never a filled segment. */
+.seg { display: inline-flex; flex: none; align-items: stretch; gap: 2px; }
+.segOn, .segOff { position: relative; border: 0; border-radius: 6px; background: transparent; padding: 0 10px; height: 30px; font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; line-height: 1; cursor: pointer; min-width: 32px; white-space: nowrap; transition: background 120ms ease, color 120ms ease; }
+.segOn { color: var(--scr-bright); }
+.segOn::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 1px; height: 2px; border-radius: 1px; background: var(--ut-gold); }
+.segOff { color: var(--scr-rest); }
+.segOff:hover { color: var(--scr-bright); background: var(--scr-soft); }
+.segOn:focus-visible, .segOff:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
+.chartBox { position: relative; flex: 1; min-height: 280px; isolation: isolate; display: flex; flex-direction: column; overflow: hidden; border-radius: 9px; }
 /* the /charts Chart widget (ScreenerChartWidget) fills the box, as a widget fills its /charts cell */
 .chartBox > * { flex: 1 1 auto; min-height: 0; }
 /* Desktop: the Chart widget over the /charts News & Catalysts widget, each in a cell of its own. */
@@ -88,70 +112,102 @@
 .paneBusy, .stateBusy { opacity: 0.55; transition: opacity 120ms ease; }
 /* B7: the pane takes focus on a click so arrow keys keep stepping the list; it draws no ring. */
 .pane:focus { outline: none; }
-.paneFoot { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; border-top: 1px solid var(--border); padding-top: 12px; }
-.paneActions { display: flex; align-items: center; gap: 10px; flex: none; white-space: nowrap; }
-.why { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; flex: 1 1 auto; min-width: 0; font-size: var(--text-base); }
-/* the app's eyebrow label (.t-label, TileCard titles) */
-.whyLabel { color: var(--text-muted); text-transform: uppercase; letter-spacing: var(--ls-label); font-size: var(--text-xs); font-weight: 600; line-height: var(--lh-tight); white-space: nowrap; flex: none; }
+.paneFoot { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; border-top: 1px solid var(--scr-line); padding-top: 10px; }
+.paneActions { display: flex; align-items: center; gap: 8px; flex: none; white-space: nowrap; }
+.why { display: flex; align-items: center; gap: 12px; flex-wrap: nowrap; flex: 1 1 auto; min-width: 0; font-size: 12px; }
+/* a section label (spec: 11.5px / 600, sentence case, no tracking) */
+.whyLabel { color: var(--scr-rest); font-size: 11.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; flex: none; }
 /* ONE line at every width: what does not fit is counted into the "+N more" cue (WhyStrip). */
 .whyList { display: flex; gap: 14px; flex-wrap: nowrap; flex: 1 1 auto; min-width: 0; overflow: hidden; list-style: none; margin: 0; padding: 0; }
 .whyItem { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; flex-shrink: 0; }
 .whyMore { flex: none; white-space: nowrap; }
 .whyCheck { color: var(--success-ink); }
-.whyPool { color: var(--text-muted); }
-.whyText { color: var(--text-muted); }
-.whyValue { color: var(--text-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
-/* The page's header bar, in the app's ONE header treatment (components/PageHeader, the Screener
-   page's own .headerFull): the surface fill, the header line and its downward shadow, 60px tall.
-   Right padding clears the app-wide feedback "?" (FeedbackWidget: fixed, top 10, right 14, 24px wide). */
-.topBar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; flex-shrink: 0; box-sizing: border-box; padding: 12px 52px 12px 20px; min-height: 60px; background: var(--bg-surface); border-bottom: 1px solid var(--header-line); box-shadow: var(--header-shadow); }
-.badge { display: inline-block; margin-left: 2px; background: var(--ut-gold); color: var(--bg); border-radius: var(--radius-pill); padding: 2px 7px; font-size: var(--text-sm); font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
-.iconBtn { background: transparent; border: 0; border-radius: var(--radius-md); color: var(--text-muted); width: var(--tap-min); height: 36px; font: inherit; font-size: var(--text-xl); font-weight: 700; cursor: pointer; }
-.iconBtn:hover { background: var(--bg-hover); color: var(--text); }
+.whyPool { color: var(--scr-faint); }
+.whyText { color: var(--scr-dim); }
+.whyValue { color: var(--scr-bright); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* The page's ONE top bar: the Stocks | Options switch (when the member has Options), the screen,
+   Filters; then the data's age, the view, Save, More and Help. Flat on the page, a hairline under
+   it. Right padding clears the app-wide feedback "?" (FeedbackWidget: fixed, top 10, right 14,
+   24px wide). */
+.topBar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; box-sizing: border-box; padding: 8px 52px 8px 16px; min-height: 48px; background: var(--bg); border-bottom: 1px solid var(--scr-line); }
+/* the count on Filters: a grey count, never a gold badge */
+.badge { display: inline-block; margin-left: 2px; background: var(--scr-soft-hi); color: var(--scr-bright); border-radius: 5px; padding: 3px 6px; font-size: 11px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+.iconBtn { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 0; border-radius: 6px; color: var(--scr-dim); width: 28px; height: 28px; font: inherit; font-size: 18px; font-weight: 600; line-height: 1; cursor: pointer; }
+.iconBtn:hover { background: var(--scr-soft-hi); color: var(--scr-text); }
+.iconBtn:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
 .menuWrap { position: relative; display: inline-flex; }
-.menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-dropdown); min-width: 220px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-lg); padding: 6px; display: flex; flex-direction: column; box-shadow: var(--shadow-popover); }
+/* Floating menu (spec "Floating menu"): graphite panel, one outline, radius 10, rows of 13px. */
+.menu { position: absolute; top: calc(100% + 6px); left: 0; z-index: var(--z-dropdown); min-width: 220px; box-sizing: border-box; background: var(--scr-menu); border: 1px solid var(--scr-outline); border-radius: 10px; padding: 5px; display: flex; flex-direction: column; gap: 1px; box-shadow: var(--scr-shadow); max-height: calc(100vh - 64px); overflow-y: auto; overscroll-behavior: contain; }
 .menuRight { left: auto; right: 0; }
-.menuItem { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; background: transparent; border: 0; color: var(--text); padding: var(--control-pad-y) var(--control-pad-x); border-radius: var(--radius-md); font: inherit; font-size: var(--text-md); line-height: var(--lh-snug); cursor: pointer; min-height: 36px; }
-.menuItem:hover, .menuItem:focus-visible { background: var(--bg-hover); outline: none; }
+.menuItem { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-align: left; background: transparent; border: 0; color: var(--scr-text); padding: 7px 10px; border-radius: 6px; font: inherit; font-family: var(--font-sans); font-size: 13px; font-weight: 500; line-height: 1.3; cursor: pointer; min-height: 32px; }
+.menuItem:hover, .menuItem:focus-visible { background: var(--scr-card); color: var(--scr-bright); outline: none; }
 .menuDanger { color: var(--danger-ink); }
-.menuHint { color: var(--text-muted); font-size: var(--text-base); font-variant-numeric: tabular-nums; }
-.menuDivider { height: 1px; background: var(--border); margin: 4px 6px; }
-/* menu and list section headings: the app's eyebrow label (.t-label) */
-.menuHeading { color: var(--text-muted); font-size: var(--text-xs); font-weight: 600; line-height: var(--lh-tight); text-transform: uppercase; letter-spacing: var(--ls-label); padding: 10px 12px 6px; }
-.receiptBtn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; color: var(--text-muted); font: inherit; font-size: var(--text-base); font-variant-numeric: tabular-nums; cursor: pointer; min-height: 36px; }
-.receiptBtn:hover { color: var(--text); }
+.menuHint { color: var(--scr-faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+.menuDivider { height: 1px; background: var(--scr-line); margin: 4px 6px; }
+/* a menu's group label: small, grey, sentence case */
+.menuHeading { color: var(--scr-faint); font-size: 11px; font-weight: 600; line-height: 1.2; padding: 8px 10px 4px; }
+.receiptBtn { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 0; border-radius: 6px; padding: 0 6px; color: var(--scr-dim); font: inherit; font-family: var(--font-sans); font-size: 12px; font-variant-numeric: tabular-nums; cursor: pointer; height: 30px; }
+.receiptBtn:hover { color: var(--scr-text); }
+.receiptBtn:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
 .liveDot { width: 6px; height: 6px; border-radius: 50%; background: var(--gain); }
-.idleDot { width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); }
-.infoMark { border: 1px solid var(--border-accent); border-radius: 50%; width: 16px; height: 16px; font-size: var(--text-xs); display: inline-flex; align-items: center; justify-content: center; }
-.receipt { width: 320px; padding: 14px; gap: 10px; }
-.receiptHead { margin: 0; color: var(--text); font-size: var(--text-md); line-height: var(--lh-snug); }
-/* The screen button IS the page title (the sr-only h1 names the page): it reads as the app's header
-   title (PageHeader .title: heading face, bold, the gold icon before it), and shows it opens on hover. */
-.screenBtn { display: inline-flex; align-items: center; gap: 9px; background: transparent; border: 1px solid transparent; border-radius: var(--radius-lg); color: var(--text-heading); padding: 4px 10px; margin-left: -10px; font-family: var(--font-heading); font-size: var(--text-2xl); font-weight: 700; line-height: var(--lh-tight); letter-spacing: 0.2px; cursor: pointer; min-height: 36px; white-space: nowrap; transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
-.screenBtn:hover, .screenBtn[aria-expanded='true'] { background: var(--bg-hover); border-color: var(--border); }
-.screenIcon { flex: none; }
-.screenCount { color: var(--text-muted); font-family: var(--font-mono); font-size: var(--text-md); font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
-.screenChevron { flex: none; color: var(--text-muted); }
-.screenMenu { width: 560px; max-width: calc(100vw - 40px); max-height: min(80vh, 760px); padding: 0; overflow: hidden; }
-.smSearch { padding: 12px; border-bottom: 1px solid var(--border); }
-.smInput { width: 100%; box-sizing: border-box; background: var(--bg); border: 1px solid var(--border-accent); border-radius: var(--control-radius); color: var(--text); padding: var(--control-pad-y) var(--control-pad-x); font: inherit; font-size: var(--control-font); }
-.smBody { overflow-y: auto; padding: 6px; }
-.smHead { margin: 0; padding: 12px 12px 6px; color: var(--text-muted); font-size: var(--text-xs); line-height: var(--lh-tight); letter-spacing: var(--ls-label); text-transform: uppercase; font-weight: 600; }
-.smItem { display: flex; align-items: center; gap: 8px; padding: 2px 8px; border-radius: var(--radius-md); }
-.smItem:hover { background: var(--bg-hover); }
-.smCurrent { background: var(--ut-gold-dim); }
-.smPin { background: none; border: 0; color: var(--text-muted); width: 32px; height: 36px; cursor: pointer; }
+.idleDot { width: 6px; height: 6px; border-radius: 50%; background: var(--scr-faint); }
+.infoMark { border: 1px solid var(--scr-outline); border-radius: 50%; width: 14px; height: 14px; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; color: var(--scr-faint); }
+.receipt { width: 320px; padding: 12px 14px; gap: 10px; }
+.receiptHead { margin: 0; color: var(--scr-text); font-size: 13px; line-height: 1.45; }
+/* The screen button IS the page title (the sr-only h1 names the page): the screen's name, its
+   count and a chevron. It shows it opens on hover. */
+.screenBtn { display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 0; border-radius: 7px; color: var(--scr-bright); padding: 0 10px; margin-left: -6px; height: 32px; font-family: var(--font-sans); font-size: 16px; font-weight: 700; line-height: 1.2; letter-spacing: 0; cursor: pointer; white-space: nowrap; transition: background 120ms ease; }
+.screenBtn:hover, .screenBtn[aria-expanded='true'] { background: var(--scr-soft-hi); }
+.screenBtn:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
+.screenIcon { flex: none; color: var(--scr-dim); }
+/* a long name gives way with an ellipsis, so the bar never grows a line for it */
+.screenName { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.screenCount { color: var(--scr-dim); font-family: var(--font-mono); font-size: 13px; font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.screenChevron { flex: none; color: var(--scr-dim); }
+/* The screen picker (spec "Picker"): a search well, the groups on a rail at the left, the open
+   group's screens at the right, the actions in a foot. One fixed size: it never grows or shrinks
+   as the member moves between groups. */
+.screenMenu { width: 640px; max-width: calc(100vw - 40px); height: min(78vh, 620px); padding: 0; gap: 0; overflow: hidden; }
+.smSearch { padding: 8px; border-bottom: 1px solid var(--scr-line); flex: none; }
+.smInput { width: 100%; box-sizing: border-box; height: 34px; background: var(--scr-well); border: 1px solid transparent; border-radius: 7px; color: var(--scr-text); padding: 0 10px; font: inherit; font-family: var(--font-sans); font-size: 13px; }
+.smInput::placeholder { color: var(--scr-faint); }
+.smInput:focus-visible { outline: none; border-color: var(--scr-outline); }
+.smBody { overflow-y: auto; padding: 5px; scrollbar-width: thin; }
+.smHead { margin: 0; padding: 10px 10px 4px; color: var(--scr-faint); font-size: 11px; line-height: 1.2; font-weight: 600; }
+/* A row reads name, tick, count, pin: the pin sits at the far right (a favourite's star, spec
+   "Timeframe menu"), so every name starts on the same left edge whether or not it is pinned. */
+.smItem { display: flex; align-items: center; gap: 6px; padding: 0 4px 0 10px; border-radius: 6px; }
+.smItem > * { order: 2; }
+.smItem > .smOpen { order: 1; }
+.smItem > .smPin { order: 3; }
+.smItem:hover, .smItem:focus-within { background: var(--scr-card); }
+/* the open screen: bright, with the tick (ScreenMenu draws it); never a gold fill */
+.smCurrent .smName { color: var(--scr-bright); font-weight: 700; }
+/* A pin shows on the row under the pointer or the keys; a pinned screen keeps its pin showing,
+   in gold (a favourite's filled star, spec 2b mark 4), so the state is never invisible. */
+.smPin { display: inline-flex; align-items: center; justify-content: center; background: none; border: 0; border-radius: 6px; color: var(--scr-faint); width: 28px; height: 32px; cursor: pointer; opacity: 0; }
+.smItem:hover .smPin, .smItem:focus-within .smPin, .smPin[aria-pressed='true'] { opacity: 1; }
+.smPin:hover { color: var(--scr-text); }
 .smPin[aria-pressed='true'] { color: var(--ut-gold); }
-.smOpen { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; background: none; border: 0; color: inherit; font: inherit; padding: 6px 0; cursor: pointer; }
-.smName { font-size: var(--text-md); font-weight: 600; color: var(--text-heading); }
-.smDesc { font-size: var(--text-base); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.smCount { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: var(--text-base); min-width: 40px; text-align: right; }
-.smFoot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--bg); }
-.goldLink { background: none; border: 0; color: var(--ut-gold); font: inherit; font-size: var(--text-md); font-weight: 600; cursor: pointer; min-height: 36px; }
+.smPin:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: -2px; }
+.smOpen { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; background: none; border: 0; color: inherit; font: inherit; font-family: var(--font-sans); padding: 7px 0; cursor: pointer; border-radius: 6px; }
+.smOpen:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
+.smName { font-size: 13px; font-weight: 600; color: var(--scr-text); }
+.smItem:hover .smName { color: var(--scr-bright); }
+.smDesc { font-size: 12px; color: var(--scr-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.smCount { color: var(--scr-dim); font-variant-numeric: tabular-nums; font-size: 12px; min-width: 40px; text-align: right; }
+.smFoot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; flex: none; padding: 8px 10px; border-top: 1px solid var(--scr-line); background: var(--scr-menu); }
+/* "+ New screen": the picker's one primary (spec: soft, one step brighter, a leading +). The
+   class keeps its name; it is no longer gold. */
+.goldLink { display: inline-flex; align-items: center; height: 30px; padding: 0 12px; background: var(--scr-soft-top); border: 0; border-radius: 7px; color: var(--scr-bright); font: inherit; font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.goldLink:hover { background: var(--scr-soft-top-hi); }
+.goldLink:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
 @media (max-width: 1024px) {
   .listWrap { flex-basis: 280px; }
   .btn, .btnOn, .btnPrimary, .linkBtn, .segOn, .segOff, .menuItem, .iconBtn, .receiptBtn, .screenBtn, .smPin, .smOpen, .goldLink, .pill, .pillX, .toastBtn, .dialogInput { min-height: var(--tap-min); }
   .smPin, .pillX { min-width: var(--tap-min); }
+  /* no pointer to reveal it: the pin is always there for a finger */
+  .smPin { opacity: 1; }
   .row { min-height: var(--tap-min); }
   /* The app's floating buttons (voice orb / joystick bottom-right, feedback "?" bottom-left) are
      fixed over this tier: keep Flag / Add to watchlist above them, and drop the keyboard hints
@@ -161,7 +217,7 @@
   .list { padding-bottom: 72px; }
   /* The footer would take ~150px of a short pane and squeeze the chart: shrink the head, drop the
      industry part of the name line (the company name stays), keep the why strip on one line. */
-  .paneTicker { font-size: var(--text-2xl); }
+  .paneTicker { font-size: 20px; }
   .paneIndustry { display: none; }
   .keyHints { display: none; }
 }
@@ -169,24 +225,33 @@
 .drawer:focus { outline: none; }
 /* the same dim as the app's Sheet backdrop (components/mobile/Sheet), which this page also opens */
 .drawerScrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, 0.55); }
-.drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 460px; max-width: 100%; background: var(--bg-surface); border-right: 1px solid var(--border-accent); box-shadow: var(--shadow-modal); display: flex; flex-direction: column; }
-.drawerHead { display: flex; align-items: center; gap: 10px; padding: 16px 18px 12px; }
-/* the app's dialog title (Sheet .title) */
-.drawerTitle { margin: 0; font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 600; color: var(--text-heading); }
-.drawerCount { color: var(--text-muted); font-size: var(--text-md); font-variant-numeric: tabular-nums; }
-.drawerSection { padding: 12px 18px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-.drawerBody { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px 10px; }
-.drawerFoot { display: flex; align-items: flex-start; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--border); }
+/* The Filters drawer: a Signature panel (graphite, one outline on its open edge). */
+.drawer { position: absolute; left: 0; top: 0; bottom: 0; width: 460px; max-width: 100%; background: var(--scr-menu); border-right: 1px solid var(--scr-outline); box-shadow: var(--scr-shadow-window); display: flex; flex-direction: column; color: var(--scr-text); font-family: var(--font-sans); }
+.drawerHead { display: flex; align-items: center; gap: 10px; padding: 14px 14px 10px 18px; }
+.drawerTitle { margin: 0; font-family: var(--font-sans); font-size: 15px; font-weight: 700; color: var(--scr-bright); }
+.drawerCount { color: var(--scr-dim); font-size: 13px; font-variant-numeric: tabular-nums; }
+.drawerSection { padding: 12px 18px; border-top: 1px solid var(--scr-line); }
+.drawerBody { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 8px 10px; border-top: 1px solid var(--scr-line); scrollbar-width: thin; }
+.drawerFoot { display: flex; align-items: flex-start; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--scr-line); }
 .pillRow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: var(--radius-pill); padding: 4px 6px 4px 12px; font: inherit; font-size: var(--text-base); background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); min-height: 32px; }
-button.pill { cursor: pointer; }
-button.pill:hover { border-color: var(--ut-gold); }
-.pillKey { color: var(--text-muted); }
-.pillX { background: none; border: 0; border-radius: var(--radius-pill); color: var(--text-muted); font-size: var(--text-lg); width: 28px; height: 28px; cursor: pointer; }
+/* an active filter: a soft pill with its own remove */
+.pill { display: inline-flex; align-items: center; gap: 4px; border-radius: 7px; padding: 0 4px 0 10px; font: inherit; font-family: var(--font-sans); font-size: 12px; font-weight: 500; background: var(--scr-soft); border: 0; color: var(--scr-text); min-height: 28px; }
+button.pill { cursor: pointer; padding-right: 10px; font-weight: 600; }
+button.pill:hover, button.pill[aria-expanded='true'] { background: var(--scr-soft-hi); color: var(--scr-bright); }
+button.pill:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 1px; }
+.pillKey { color: var(--scr-faint); font-weight: 500; }
+.pillX { background: none; border: 0; border-radius: 6px; color: var(--scr-faint); font-size: 15px; line-height: 1; width: 24px; height: 24px; cursor: pointer; }
+.pillX:hover { background: var(--scr-soft-hi); color: var(--scr-text); }
+.pillX:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: -1px; }
 .codeBox { flex: 1; min-width: 0; }
-.describeLabel { color: var(--ut-gold); font-weight: 600; font-size: var(--text-base); display: block; margin-bottom: 6px; }
-.describeInput { width: 100%; box-sizing: border-box; min-height: var(--tap-min); padding: var(--control-pad-y) var(--control-pad-x); font: inherit; font-size: var(--control-font); background: var(--bg-elevated); border: 1px solid var(--border-accent); border-radius: var(--control-radius); color: var(--text); }
-.describeNote { margin: 6px 0 0; color: var(--text-muted); font-size: var(--text-base); line-height: var(--lh-snug); }
+/* "Describe a setup" is UCT Intelligence's door: its label carries the gold spark (spec 2b,
+   mark 5); the words stay grey. */
+.describeLabel { display: flex; align-items: center; gap: 6px; color: var(--scr-rest); font-weight: 600; font-size: 11.5px; margin-bottom: 6px; }
+.describeLabel::before { content: '\2726'; color: var(--ut-gold); font-size: 12px; line-height: 1; }
+.describeInput { width: 100%; box-sizing: border-box; min-height: 36px; padding: 0 12px; font: inherit; font-family: var(--font-sans); font-size: 13px; background: var(--scr-card); border: 1px solid transparent; border-radius: 7px; color: var(--scr-text); }
+.describeInput::placeholder { color: var(--scr-faint); }
+.describeInput:focus-visible { outline: none; border-color: var(--scr-outline); }
+.describeNote { margin: 6px 0 0; color: var(--scr-dim); font-size: 12px; line-height: 1.45; }
 @media (max-width: 640px) { .drawer { width: 100%; } }
 
 /* Orchestrator (FocusScreener.jsx) */
@@ -194,44 +259,57 @@ button.pill:hover { border-color: var(--ut-gold); }
 /* Charts view: a slim paging bar over the /charts Multi-Chart grid, which fills the rest. */
 .gridMenu { position: relative; z-index: 20; }
 .gridView { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-.gridBar { display: flex; align-items: center; gap: 8px; flex: none; padding: 6px 12px; border-bottom: 1px solid var(--border); }
-.gridCount { font-size: var(--text-sm); color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 9em; }
+.gridBar { display: flex; align-items: center; gap: 8px; flex: none; padding: 6px 16px; border-bottom: 1px solid var(--scr-line); }
+.gridCount { font-size: 12px; color: var(--scr-faint); font-variant-numeric: tabular-nums; min-width: 9em; }
 .gridHost { flex: 1; min-height: 0; min-width: 0; }
-/* The catalyst strip under the pane's chart: two one-line entries, a fixed height so a step never moves the chart. */
 .saveSlot { display: contents; }
-.dropNote { margin: 0; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: var(--text-base); border-bottom: 1px solid var(--border); box-shadow: inset 3px 0 0 var(--ut-gold); }
-.metaNote { display: flex; align-items: center; gap: 12px; padding: 8px 20px; background: var(--bg-surface); color: var(--text); font-size: var(--text-base); border-bottom: 1px solid var(--border); }
-.rowCompany { font-size: var(--text-base); color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.howToSteps { margin: 0; padding: 0 0 0 20px; color: var(--text); font-size: var(--text-lg); line-height: var(--lh-normal); }
+/* The context line: what the open screen adds under the top bar, on ONE line. Its quick controls
+   lead (QuickControls), its facts follow at the far end (RsHeaderLine). Narrow, the two wrap. */
+.subBar { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 24px; flex-shrink: 0; box-sizing: border-box; min-height: 42px; padding: 6px 16px; border-bottom: 1px solid var(--scr-line); }
+/* The notices line: everything the page has to SAY (the market note, the first-visit note, what
+   the list leaves out) on one quiet line, never a stack of banners. Each wraps under the last on
+   a narrow screen. */
+.notices { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 28px; flex-shrink: 0; box-sizing: border-box; min-height: 34px; padding: 4px 16px; border-bottom: 1px solid var(--scr-line); font-size: 12px; line-height: 1.45; }
+/* what the list leaves out: a grey fact at the end of the line */
+.dropNote { flex: 0 1 auto; margin: 0 0 0 auto; padding: 0; color: var(--scr-faint); font-size: 12px; }
+.metaNote { display: flex; align-items: center; gap: 12px; flex: 1 1 auto; color: var(--scr-text); font-size: 12px; }
+.rowCompany { font-size: 12px; color: var(--scr-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.howToSteps { margin: 0; padding: 0 0 0 20px; color: var(--scr-text); font-size: 14px; line-height: 1.5; }
 .howToSteps li + li { margin-top: 6px; }
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: var(--z-toast); display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); background: var(--bg-elevated); border: 1px solid var(--border-accent); color: var(--text); padding: 8px 10px 8px 16px; border-radius: var(--radius-lg); font-size: var(--text-md); box-shadow: var(--shadow-popover); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: var(--z-toast); display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); background: var(--scr-menu); border: 1px solid var(--scr-outline); color: var(--scr-text); padding: 6px 8px 6px 14px; border-radius: 10px; font-size: 13px; box-shadow: var(--scr-shadow); }
 .toast .menu { top: auto; bottom: calc(100% + 6px); }
-.toastBtn { background: transparent; color: var(--ut-gold); border: 1px solid var(--border-accent); border-radius: var(--control-radius); padding: 6px 12px; font: inherit; font-size: var(--text-md); font-weight: 600; min-height: 32px; cursor: pointer; white-space: nowrap; }
-.toastBtn:hover { border-color: var(--ut-gold); }
-.toastBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.toastBtn { background: var(--scr-soft); color: var(--scr-bright); border: 0; border-radius: 7px; padding: 0 12px; font: inherit; font-size: 12.5px; font-weight: 600; min-height: 28px; cursor: pointer; white-space: nowrap; }
+.toastBtn:hover { background: var(--scr-soft-hi); }
+.toastBtn:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 2px; }
 [data-density='comfortable'] .row { padding-top: 14px; padding-bottom: 14px; }
 /* "Skip to save results": invisible and click-through until keyboard focus shows it. Clipped rather than
    opacity 0, so its ink is measured at full strength by the contrast rail. Text inks are --success-ink and
    --danger-ink, never the candle hues --gain/--loss (terminalReachableContrast). */
 .skipLink { position: absolute; top: 8px; left: 8px; z-index: 50; white-space: nowrap; padding: 8px 14px; border-radius: var(--radius-lg); background: var(--bg-elevated); color: var(--text); font-size: var(--text-md); font-weight: 600; text-decoration: none; transform: translateY(-200%); clip-path: inset(50%); pointer-events: none; }
 .skipLink:focus-visible { transform: none; clip-path: none; pointer-events: auto; outline: 2px solid var(--ut-gold); outline-offset: 2px; }
-/* NameDialog: the inline "name it" box (no window.prompt). */
+/* NameDialog: the inline "name it" box (no window.prompt). A Signature window. */
 .dialogScrim { position: fixed; inset: 0; z-index: var(--z-modal); background: rgba(0, 0, 0, 0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
-/* the app's modal panel (Sheet .panel_modal): surface, hairline, the modal radius and shadow */
-.nameDialog { width: 380px; max-width: 100%; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: var(--space-lg); display: flex; flex-direction: column; gap: var(--space-md); box-shadow: var(--shadow-modal); }
-.dialogTitle { margin: 0; font-family: var(--font-heading); font-size: var(--text-xl); font-weight: 600; color: var(--text-heading); }
-.dialogLabel { font-size: var(--text-base); color: var(--text-muted); }
-.dialogInput { background: var(--bg); color: var(--text); border: 1px solid var(--border-accent); border-radius: var(--control-radius); padding: var(--control-pad-y) var(--control-pad-x); font: inherit; font-size: var(--control-font); min-height: 36px; }
-.dialogInput:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 1px; }
-/* New today (spec 2026-10-16 s1): the row pill, the head line and the dropped popover. Tokens only. */
-.newPill { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 0 6px; border-radius: var(--radius-pill); font-size: var(--text-xs); font-weight: 700; letter-spacing: 0; color: var(--success-ink); border: 1px solid var(--success-ink); line-height: 16px; }
-.ntLine { position: relative; display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: var(--text-sm); color: var(--text-muted); }
-.ntBtn { background: none; border: 0; padding: 0; color: var(--text-muted); cursor: pointer; font: inherit; }
-.ntBtn:hover { color: var(--text); }
-.ntBtn:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
-.ntBtn[aria-pressed="true"] { color: var(--success-ink); font-weight: 700; }
-.ntPop { position: absolute; top: 100%; right: 0; z-index: var(--z-dropdown); display: flex; flex-wrap: wrap; gap: 6px; max-width: 260px; margin-top: 4px; padding: 8px; background: var(--bg-surface); border: 1px solid var(--border-accent); border-radius: var(--radius-lg); color: var(--text); box-shadow: var(--shadow-popover); }
-.ntNote { margin-right: 10px; font-size: var(--text-sm); color: var(--text-muted); }
+.nameDialog { width: 380px; max-width: 100%; background: var(--scr-menu); border: 1px solid var(--scr-outline); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-shadow: var(--scr-shadow-window); color: var(--scr-text); font-family: var(--font-sans); }
+.dialogTitle { margin: 0; font-family: var(--font-sans); font-size: 15px; font-weight: 700; color: var(--scr-bright); }
+.dialogLabel { font-size: 11.5px; font-weight: 600; color: var(--scr-rest); }
+.dialogInput { background: var(--scr-well); color: var(--scr-text); border: 1px solid transparent; border-radius: 7px; padding: 0 10px; font: inherit; font-size: 13px; min-height: 34px; }
+.dialogInput:focus-visible { outline: none; border-color: var(--scr-outline); }
+/* New today (spec 2026-10-16 s1): the row pill, the head line and the dropped popover. A quiet
+   word in a soft tag: never green (green means the price rose). */
+.newPill { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 0 6px; border-radius: 5px; font-size: 10.5px; font-weight: 700; letter-spacing: 0; color: var(--scr-bright); background: var(--scr-soft-hi); line-height: 16px; }
+.ntLine { position: relative; display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; font-size: 12px; color: var(--scr-faint); }
+.ntBtn { background: none; border: 0; padding: 0; color: var(--scr-rest); cursor: pointer; font: inherit; border-radius: 4px; }
+.ntBtn:hover { color: var(--scr-bright); }
+.ntBtn:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 2px; }
+.ntBtn[aria-pressed="true"] { color: var(--scr-bright); font-weight: 700; }
+.ntPop { position: absolute; top: 100%; right: 0; z-index: var(--z-dropdown); display: flex; flex-wrap: wrap; gap: 6px; max-width: 260px; margin-top: 4px; padding: 8px 10px; background: var(--scr-menu); border: 1px solid var(--scr-outline); border-radius: 10px; color: var(--scr-text); box-shadow: var(--scr-shadow); }
+/* Dropped names with reasons (RS screens): one name a line, its reason beside it in plain sight
+   (a title is never seen on a phone). Only when a name has a reason; else the chips above. */
+.ntPopRows { flex-direction: column; flex-wrap: nowrap; gap: 6px; width: max-content; max-width: min(340px, calc(100vw - 32px)); }
+.ntWhy { display: flex; align-items: baseline; gap: 8px; }
+.ntTicker { flex: none; min-width: 44px; font-weight: 700; }
+.ntReason { min-width: 0; color: var(--scr-dim); font-size: 11px; line-height: 1.35; }
+.ntNote { margin-right: 10px; font-size: 12px; color: var(--scr-faint); }
 
 /* Phones (spec 2026-10-16 s3): one column, list first. The side pane is hidden here and the
    chart opens as a full-screen sheet on tap (PhoneChartSheet). Tablet and up are untouched. */
@@ -243,15 +321,67 @@ button.pill:hover { border-color: var(--ut-gold); }
      above the safe area (app/src/hub/constants.js; the hub has no CSS token for its footprint). */
   .list { padding-bottom: calc(152px + env(safe-area-inset-bottom)); }
   .row { min-height: var(--tap-min); }
+  /* RS screens (`data-phone-scroll`, FocusScreener.jsx): their controls, ratings line, market
+     line and "not in this list" line sit above the list, and with the list as its own scroller
+     they left it about one row tall (152px at 390 x 778, live site, 2026-11-15). Here the page
+     is the one scroller: everything above the list scrolls away with it, and the sort line
+     stays at the top. ResultList keeps a stepped selection in view by scrolling this page. */
+  .page[data-phone-scroll] { overflow-y: auto; overscroll-behavior: contain; }
+  .page[data-phone-scroll] > .body { flex: none; min-height: auto; }
+  .page[data-phone-scroll] .listWrap { flex: none; min-height: auto; }
+  .page[data-phone-scroll] .list { flex: none; overflow-y: visible; }
+  .page[data-phone-scroll] .listHead { position: sticky; top: 0; z-index: 3; background: var(--bg); }
+  /* The top bar on a phone, three short lines: the Stocks | Options switch and the screen; Filters
+     and the data's age; the view, Save, More and Help. Tighter gaps and tabs so each line holds. */
+  .topBar { padding: 2px 12px; gap: 0 4px; }
+  /* the name is shown whole; it gives way (with an ellipsis) only when it is longer than the line */
+  .topBar > .menuWrap:has(> .screenBtn) { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+  .screenBtn { font-size: 15px; margin-left: -4px; padding: 0 6px; min-width: 0; max-width: 100%; }
+  .segOn, .segOff { padding: 0 7px; min-width: 0; }
+  .segOn::after { left: 7px; right: 7px; bottom: 8px; }
+  .topBar .btn { padding: 0 10px; }
+  .subBar, .notices { padding-left: 12px; padding-right: 12px; }
+  .dropNote { margin-left: 0; }
+  /* the picker in the bottom sheet: the groups run across the top, the screens fill the rest */
+  .screenSheetBody .smLayout { flex-direction: column; }
 }
 /* The chart sheet: a header strip (the only place a swipe steps stocks), then the pane. */
 .phoneSheetBody { display: flex; flex-direction: column; overflow: hidden; padding: 0; }
 .phoneSheetBody > .pane { flex: 1; min-height: 0; padding: 12px 16px; }
-.phoneSheetStrip { display: flex; align-items: center; gap: 8px; flex: none; padding: 4px 12px; border-bottom: 1px solid var(--border); background: var(--bg-surface); touch-action: none; user-select: none; -webkit-user-select: none; }
-.phoneSheetBack { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap-min); padding: 0 8px; background: none; border: 0; color: var(--text); font: inherit; font-size: var(--text-md); font-weight: 600; cursor: pointer; }
-.phoneSheetStep { min-width: var(--tap-min); min-height: var(--tap-min); background: transparent; border: 1px solid var(--border-accent); border-radius: var(--radius-md); color: var(--text); font: inherit; font-size: var(--text-xl); cursor: pointer; }
+.phoneSheetStrip { display: flex; align-items: center; gap: 8px; flex: none; padding: 4px 12px; border-bottom: 1px solid var(--scr-line); background: var(--scr-menu); touch-action: none; user-select: none; -webkit-user-select: none; }
+.phoneSheetBack { display: inline-flex; align-items: center; gap: 6px; min-height: var(--tap-min); padding: 0 8px; background: none; border: 0; color: var(--scr-text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.phoneSheetStep { min-width: var(--tap-min); min-height: var(--tap-min); background: var(--scr-soft); border: 0; border-radius: 7px; color: var(--scr-text); font: inherit; font-size: 16px; cursor: pointer; }
 .phoneSheetStep:disabled { opacity: 0.4; cursor: default; }
-.phoneSheetBack:focus-visible, .phoneSheetStep:focus-visible { outline: 2px solid var(--ut-gold); outline-offset: 2px; }
+.phoneSheetBack:focus-visible, .phoneSheetStep:focus-visible { outline: 2px solid var(--scr-ring); outline-offset: 2px; }
 /* The screen picker as a bottom sheet: the sheet scrolls the list, the search stays on top. */
 .screenSheetBody { display: flex; flex-direction: column; padding: 0; }
 .screenSheetBody .smBody { flex: 1; min-height: 0; }
+/* The picker's two columns: the group rail, then the open group's screens. */
+.smLayout { display: flex; flex: 1 1 auto; min-height: 0; }
+.smLayout .smBody { flex: 1 1 auto; min-width: 0; }
+
+/* The scan board (board/boardModel.js). `data-board` is set only for a member who has the board
+   (SCREENER_SCAN_BOARD_ENABLED, desktop), so nothing below touches the page anyone else sees. */
+.page[data-board] { background: var(--scr-well); }
+.page[data-board] .topBar { background: transparent; border-bottom: 0; padding: 8px 52px 2px 10px; gap: 6px; flex-wrap: nowrap; }
+.page[data-board] .topBar > * { flex-shrink: 0; }
+.page[data-board] .topBar > .spacer { flex: 1 1 0; min-width: 0; }
+.page[data-board] .topBar > [aria-label='Pinned screens'] { flex-shrink: 1; min-width: 0; }
+/* a tablet's board (SCREENER_SCAN_BOARD_TABLET_ENABLED): the bar may take a second line, so Save, More and Help
+   are never pushed off the side when the tablet is held upright */
+@media (max-width: 1024px) { .page[data-board] .topBar { flex-wrap: wrap; row-gap: 6px; padding-right: 10px; } }
+.page[data-board] .subBar { border-bottom: 0; padding: 2px 14px 4px; min-height: 36px; }
+.page[data-board] .notices { border-bottom: 0; padding: 0 14px 6px; min-height: 0; }
+.page[data-board] .listWrap { flex: 1 1 auto; min-width: 0; border-right: 0; }
+.page[data-board] .listWrap[data-lab-rows='chips'] { flex: none; }
+.page[data-board] .pane { padding: 0; gap: 6px; }
+.page[data-board] .chartBox, .page[data-board] .chartBox:has(.deskStack) { min-height: 0; }
+.page[data-board] .deskChart { min-height: 0; }
+.page[data-board] .pane[data-chrome='slim'] .paneMeta { padding: 0 4px; }
+.page[data-board] .pane[data-chrome='slim'] .paneFoot { padding: 4px 4px 0; border-top: 0; }
+.page[data-board] .row:not(.rowSel):hover { background: var(--scr-raised); }
+.page[data-board] .rowSel { background: var(--scr-selected); }
+.page[data-board] .screenBtn { height: 34px; padding: 0 12px; border-radius: 8px; background: var(--scr-soft); }
+.screenNameLab { font-size: 13px; font-weight: 600; color: var(--scr-text); white-space: nowrap; }
+.deskNewsFree { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; height: 100%; }
+.deskNewsFree > * { flex: 1 1 auto; min-height: 0; }

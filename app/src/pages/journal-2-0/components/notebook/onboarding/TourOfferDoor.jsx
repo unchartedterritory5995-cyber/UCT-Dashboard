@@ -34,12 +34,17 @@ class OfferDoorCatch extends Component {
   }
 }
 
+/** Notebook simplify: the "New in your Notebook" offer never opens by itself. The gate, its eligibility rules and
+ *  its queue stay as they were; this is the one switch that stops the automatic trigger. Every walkthrough is still
+ *  reachable from Help's Walkthroughs (the Learn menu went with Research home). A rail may build its own door with `makeTourOfferDoor(load, wait, true)`. */
+export const AUTO_TOUR_OFFER = false
+
 /** Build a door over `load` (rails hand in their own loader; the app uses the real gate). */
-export function makeTourOfferDoor(load, waitMs = RETRY_WAIT_MS) {
+export function makeTourOfferDoor(load, waitMs = RETRY_WAIT_MS, auto = AUTO_TOUR_OFFER) {
   const TourOfferGateLeaf = lazyLeaf(load, waitMs)
   function TourOfferDoor(props) {
     // The same switch `tourLive` asks for every tour beyond the base one (tourRegistry.js).
-    if (!checklistEnabled(notebookFlag)) return null
+    if (!auto || !checklistEnabled(notebookFlag)) return null
     return (
       <OfferDoorCatch>
         <Suspense fallback={null}>

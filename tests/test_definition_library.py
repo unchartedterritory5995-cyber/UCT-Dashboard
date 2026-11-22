@@ -78,7 +78,7 @@ def test_a_SHARED_definition_is_NOT_in_the_library_until_it_is_also_LISTED(store
     assert store.public_library()["entries"] == []
     assert store.listing_status(USER, "u_000000000001") == {
         "def_id": "u_000000000001", "listed": False, "requested": False,
-        "shared": True, "stale_grammar": False,
+        "shared": True, "stale_grammar": False, "taken_down": False, "licence": None,
     }
 
 
@@ -124,7 +124,8 @@ def test_revoking_the_LINK_removes_the_listing_with_no_second_write(store):
     state = store.listing_status(USER, "u_000000000001")
     # ⭐ AND THE PANEL CAN EXPLAIN WHY IT VANISHED: the owner still asked for it.
     assert state == {"def_id": "u_000000000001", "listed": False,
-                     "requested": True, "shared": False, "stale_grammar": False}
+                     "requested": True, "shared": False, "stale_grammar": False,
+                     "taken_down": False, "licence": None}
 
 
 def test_a_DELETED_definition_leaves_the_library_immediately(store):
@@ -155,14 +156,17 @@ def test_the_library_names_NO_AUTHOR(store):
     """⚠️ A DECISION, NOT AN OMISSION. Members published a formula, not their
     name. Attribution is additive later and cannot be taken back once shipped, so
     the default is the reversible one — while `author_id` still rides on an
-    INSTALL, where the recipient was handed the link deliberately.
+    INSTALL, where the recipient was handed the link deliberately -- server-side only since
+    2026-11-13 (`tests/test_share_privacy.py`).
     """
     out = _publish(store)
     entry = store.public_library()["entries"][0]
     assert "author_id" not in entry
     assert USER not in repr(entry)
-    # …and the install path is unchanged: it still carries provenance.
-    assert store.resolve_share(out["token"])["author_id"] == USER
+    # …and the install path still records provenance, SERVER-side only (share privacy,
+    # 2026-11-13: no share answer carries the author's member id)
+    assert "author_id" not in store.resolve_share(out["token"])
+    assert store.resolve_share(out["token"], _with_author=True)["author_id"] == USER
 
 
 def test_an_entry_carries_what_a_member_needs_to_choose_it(store):

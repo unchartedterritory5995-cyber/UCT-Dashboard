@@ -14,11 +14,12 @@ in the same class as `/api/groups` and `/api/delisted/list`.
 """
 import threading
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from api.middleware.auth_middleware import (
     get_current_user_with_plan, is_paid_user, require_admin,
 )
+from api.services import reference_cache
 from api.services import single_stock_etfs as ss
 
 router = APIRouter()
@@ -53,7 +54,9 @@ def ssetf_rebuild(force_shrink: bool = Query(default=False),
 
 
 @router.get("/api/single-stock-etfs/{symbol}")
-def ssetf_lookup(symbol: str, user: dict = Depends(require_paid)):
+def ssetf_lookup(symbol: str, response: Response = None, user: dict = Depends(require_paid)):
     if not ss._enabled():
-        return dict(ss._EMPTY_FAMILY)
-    return ss.lookup(symbol)
+        return dict(ss._EMPTY_FAMILY)   # switched off: not a fact about the symbol, never kept
+    family = ss.lookup(symbol)
+    reference_cache.allow(response, reference_cache.SINGLE_STOCK_ETFS_S)
+    return family

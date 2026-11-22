@@ -26,6 +26,7 @@ written, else empty with the quote in reveal_json.quote.
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import re
 import sys
@@ -37,7 +38,15 @@ from scripts.study._common import (FRAMING_TERMS, REPO, load_json, make_item, qu
 
 BRIEF = REPO / "docs" / "curriculum" / "uct_method_presenter_brief.json"
 PRINCIPLES = REPO / "api" / "data" / "voice_kb" / "trading_principles.json"
-BIBLE = pathlib.Path(r"C:\Users\pgosz\projects\uct-intelligence\prompts\01_methodology_bible.txt")
+#: ⛔ The methodology bible lives in the PRIVATE uct-intelligence repo and is never vendored into this
+#: public one. ⚰️ It was named by ONE developer's absolute path (C:\Users\pgosz\projects\...), so the
+#: generator and its rails failed on every other machine, the owner's box (C:\Users\Patrick\...) and
+#: CI included. First hit wins: $UCT_INTEL_PATH (this repo's one convention for that checkout,
+#: api/services/engine.py), the external/ submodule, then the two dev-box checkouts it has run from.
+BIBLE_REL = pathlib.PurePosixPath("prompts/01_methodology_bible.txt")
+BIBLE_ROOTS = tuple(r for r in (os.environ.get("UCT_INTEL_PATH"), str(REPO / "external" / "uct-intelligence"),
+                                r"C:\Users\Patrick\uct-intelligence", r"C:\Users\pgosz\projects\uct-intelligence")
+                    if r)
 CONCEPTS = REPO / "app" / "src" / "components" / "chart" / "engine" / "ast" / "conceptVocabulary.json"
 PLAYBOOKS = REPO / "app" / "src" / "pages" / "modelbook" / "setupPlaybooks.js"
 SKILL_MAP = REPO / "docs" / "study" / "skill_map.json"
@@ -86,10 +95,25 @@ def read_principles() -> list[dict]:
     return [p for p in load_json(PRINCIPLES).get("entries", []) if p.get("title") and p.get("text")]
 
 
+def bible_path() -> pathlib.Path | None:
+    """The private checkout's methodology bible, or None when no root in BIBLE_ROOTS holds it."""
+    for root in BIBLE_ROOTS:
+        p = pathlib.Path(root, *BIBLE_REL.parts)
+        if p.is_file():
+            return p
+    return None
+
+
 def read_bible_rules(text: str | None = None) -> list[tuple[int, str]]:
-    """(number, verbatim rule text) for the 23 condensed rules."""
+    """(number, verbatim rule text) for the 23 condensed rules. With no `text`, read from the private
+    checkout; ⛔ a box without one is REFUSED by name, never answered with an empty bible."""
     if text is None:
-        text = BIBLE.read_text(encoding="utf-8")
+        path = bible_path()
+        if path is None:
+            raise FileNotFoundError(
+                f"the methodology bible ({BIBLE_REL}) is in the PRIVATE uct-intelligence repo and no "
+                f"checkout of it is on this box (looked under {list(BIBLE_ROOTS)}); point UCT_INTEL_PATH at one")
+        text = path.read_text(encoding="utf-8")
     m = re.search(r"O'NEIL 23 RULES[^\n]*\n(.*?)\n\s*\n", text, re.S)
     block = m.group(1) if m else text
     out = []
@@ -279,13 +303,15 @@ def playbook_items(playbooks: list[dict]) -> list[dict]:
     return out
 
 
-def generate() -> dict[str, list[dict]]:
+def generate(bible_rules: list[tuple[int, str]] | None = None) -> dict[str, list[dict]]:
+    """Every recall segment. `bible_rules` (default: read from the private checkout, refused when
+    absent) lets a rail on a box without that checkout drive the bible segment from rules it has."""
     playbooks = read_playbooks()
     mistakes_pool = [m for p in playbooks for m in p["mistakes"]]
     return {
         "recall.glossary": glossary_items(read_glossary()),
         "recall.principles": principle_items(read_principles()),
-        "recall.bible": bible_items(read_bible_rules(), mistakes_pool),
+        "recall.bible": bible_items(read_bible_rules() if bible_rules is None else bible_rules, mistakes_pool),
         "recall.concepts": concept_items(read_concepts()),
         "recall.playbooks": playbook_items(playbooks),
     }

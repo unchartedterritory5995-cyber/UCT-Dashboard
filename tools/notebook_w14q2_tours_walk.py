@@ -20,9 +20,9 @@ Phases (each on its own sandbox, `notebook_perf_harness.Sandbox`, empty data dir
        card, Escape, and one small screenshot. Then the passive resurfacing explainer, and
        S6: accepting an offer for writing-help and for template-gallery, plus an offer
        accepted by a member with nothing to open (must not be spent).
-  off  the wave-14 switch OFF (getting started unset; onboarding ON, as in production today)
-       with every capability flag still ON: first-run screen, Help, Home and an open note
-       carry no tour, offer, explainer, Walkthroughs or What's new.
+  off  RETIRED 2026-11-04: it walked onboarding ON with the getting-started switch OFF, and that
+       switch was retired as always on, so the state can no longer exist. Asking for it is
+       recorded NOT RUN with that reason.
 
 Usage (PowerShell; ports 8730-8734; never 8077):
     python tools/notebook_w14q2_tours_walk.py --data-root '<scratch>\\w14q2' --port 8730 `
@@ -53,22 +53,20 @@ import notebook_w14_onboarding_walk as w  # noqa: E402  -- its probes, recorder 
 PORTS = range(8730, 8735)
 WIDTHS = [(1200, 900), (390, 844)]
 TOURS_DIR = REPO / "app" / "src" / "pages" / "journal-2-0" / "components" / "notebook" / "onboarding" / "tours"
-TRACKS = ["b1Core.js", "b2Trading.js", "b3Research.js"]
+# b4Styles.js (Templates, Template library) joined the registry after this list was written; go-live wave 2 added it, so
+# Help's Walkthroughs list and the walked tours are the registry's whole set (tours/index.js spreads all four).
+TRACKS = ["b1Core.js", "b2Trading.js", "b3Research.js", "b4Styles.js"]
 
 # Plain lists (the ledger convention). The switch, then every capability a registered tour rides on
 # (plus find-similar, which the setups-board tour's last steps sit on).
-SWITCH_FLAGS = ["NOTEBOOK_ONBOARDING_ENABLED", "NOTEBOOK_GETTING_STARTED_ENABLED"]
+# (The getting-started switch and most capability switches were retired as always on, 2026-11-04: their
+# tours ride a capability that is always there, so there is nothing to arm for them.)
+SWITCH_FLAGS = ["NOTEBOOK_ONBOARDING_ENABLED"]
 CAPABILITY_FLAGS = [
-    "NOTEBOOK_WRITING_HELP_ENABLED", "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED", "NOTEBOOK_PUBLISH_ENABLED",
-    "NOTEBOOK_TASK_REMINDERS_ENABLED", "NOTEBOOK_TEMPLATE_GALLERY_ENABLED", "NOTEBOOK_SEMANTIC_SEARCH_ENABLED",
-    "NOTEBOOK_FORMULAS_ENABLED", "NOTEBOOK_PLAN_GRADING_ENABLED", "NOTEBOOK_ENTRY_CONTEXT_ENABLED",
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED", "NOTEBOOK_PLAYBOOK_ENABLED", "NOTEBOOK_CHART_PLAN_ENABLED",
-    "NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED",
-    "NOTEBOOK_FIND_SIMILAR_ENABLED", "NOTEBOOK_EARNINGS_PREP_ENABLED", "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
-    "NOTEBOOK_PASSED_SETUPS_ENABLED", "NOTEBOOK_THESIS_CHIPS_ENABLED", "AWARENESS_NOTE_RESURFACE_ENABLED",
+    "NOTEBOOK_WRITING_HELP_ENABLED", "NOTEBOOK_PUBLISH_ENABLED", "NOTEBOOK_TASK_REMINDERS_ENABLED",
+    "NOTEBOOK_SEMANTIC_SEARCH_ENABLED", "AWARENESS_NOTE_RESURFACE_ENABLED",
 ]
 ARMED_ON = SWITCH_FLAGS + CAPABILITY_FLAGS
-ARMED_OFF = ["NOTEBOOK_ONBOARDING_ENABLED"] + CAPABILITY_FLAGS
 
 record = w.record
 
@@ -90,18 +88,33 @@ def read_registry() -> list[dict]:
             if not tid:
                 continue
             mod = re.search(r"import\('\./([^']+)'\)", block)
+            # b4Styles: one module for two tours, each picking its own array (`m.JOURNAL_STYLES_STEPS`)
+            pick = re.search(r"steps:\s*m\.([A-Z_]+)", block)
+            if not mod and pick:
+                shared = re.search(r"import\('\./([^']+)'\)", src)
+                mod = shared
             title = re.search(r"title: '([^']+)'", block)
             repl = re.search(r"replayable: (true|false)", block)
             steps = []
             if mod:
                 ssrc = (TOURS_DIR / f"{mod.group(1)}.js").read_text(encoding="utf-8")
-                body = ssrc.split("STEPS", 1)[1] if "STEPS" in ssrc else ssrc
-                body = body.split("COPY", 1)[0]
+                if pick and f"{pick.group(1)} = " in ssrc:
+                    body = ssrc.split(f"{pick.group(1)} = ", 1)[1].split("])", 1)[0]
+                else:
+                    body = ssrc.split("STEPS", 1)[1] if "STEPS" in ssrc else ssrc
+                    body = body.split("COPY", 1)[0]
                 for m in re.finditer(r"step\('([^']+)',\s*'([^']+)'|id: '([^']+)', anchor: '([^']+)'(?:, file: [A-Z_]+)?(?:, waitFor: '([^']+)')?", body):
+                    # Go-live wave 1 added a step `tier` (onboarding/tourTiers.js), written on the step's own line
+                    # in either form ({ ..., tier: 'wide' } or step(id, anchor, file?, { waitFor, tier })).
+                    rest = body[m.end():].split("\n", 1)[0]
+                    tier = re.search(r"tier: '(\w+)'", rest)
                     if m.group(1):
-                        steps.append({"id": m.group(1), "anchor": m.group(2), "waitFor": None})
+                        wf = re.search(r"waitFor: '([^']+)'", rest)
+                        steps.append({"id": m.group(1), "anchor": m.group(2), "waitFor": wf.group(1) if wf else None,
+                                      "tier": tier.group(1) if tier else None, "noBack": "noBack: true" in rest})
                     else:
-                        steps.append({"id": m.group(3), "anchor": m.group(4), "waitFor": m.group(5)})
+                        steps.append({"id": m.group(3), "anchor": m.group(4), "waitFor": m.group(5),
+                                      "tier": tier.group(1) if tier else None, "noBack": "noBack: true" in rest})
             out.append({"id": tid.group(1), "title": title.group(1) if title else tid.group(1),
                         "replayable": (repl.group(1) == "true") if repl else True, "steps": steps,
                         "module": mod.group(1) if mod else None})
@@ -268,23 +281,41 @@ def skip_reasons(pg, steps: list[dict], idxs: list[int]) -> list[dict]:
 
 # ── one tour ──────────────────────────────────────────────────────────────────────────────
 
+# Help > Walkthroughs names each tour's link "Start the <title> tour" until the member has taken it, then "Replay the
+# <title> tour" (S14, Support.jsx WalkthroughsSection). Either is the door.
+WALK_LINK = re.compile(r"^(Start|Replay) the ")
+
+# The engine's screen tiers (onboarding/tourTiers.js STEP_TIERS over styles/breakpoints.js: 640 and 1024). A step with
+# a tier is not in the tour on a screen of another tier, so "declared" is the count FOR THIS WIDTH.
+TIER_KEEP = {"phone": lambda w: w <= 640, "wide": lambda w: w >= 641,
+             "touch": lambda w: w <= 1024, "desktop": lambda w: w >= 1025}
+
+
+def steps_for_width(steps: list[dict], width: int) -> list[dict]:
+    """The declared steps the engine keeps at this window width (an unknown tier keeps the step, as the engine does)."""
+    return [s for s in steps if not s.get("tier") or TIER_KEEP.get(s["tier"], lambda w: True)(width)]
+
+
 def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dict:
-    tid, title, steps = entry["id"], entry["title"], entry["steps"]
+    tid, title = entry["id"], entry["title"]
+    steps = steps_for_width(entry["steps"], width)
     M = len(steps)
-    row = {"tour": tid, "width": width, "declared": M, "opens": False, "start": None, "shown": [],
-           "skipped": [], "clicked": [], "modes": [], "notes": []}
+    row = {"tour": tid, "width": width, "declared": M, "declared_all_tiers": len(entry["steps"]), "opens": False,
+           "start": None, "shown": [], "skipped": [], "clicked": [], "modes": [], "notes": []}
     pg.goto(base + "/support", wait_until="domcontentloaded", timeout=60000)
     li = (pg.locator("li").filter(has=pg.get_by_text(title, exact=True))
           # not exact: the link is named "Replay the <title> tour" (lane FIN-A11Y, M-14)
-          .filter(has=pg.get_by_role("link", name="Replay")))
+          .filter(has=pg.get_by_role("link", name=WALK_LINK)))
     try:
-        li.first.get_by_role("link", name="Replay").wait_for(timeout=20000)
+        li.first.get_by_role("link", name=WALK_LINK).wait_for(timeout=20000)
     except Exception:  # noqa: BLE001
         record(P, width, tid, "listed in Help > Walkthroughs", False)
         row["notes"].append("not listed in Walkthroughs")
         return row
-    li.first.get_by_role("link", name="Replay").click()
-    st = wait_state(pg, title, lambda s: s["kind"] in ("step", "unreachable"), 25)
+    li.first.get_by_role("link", name=WALK_LINK).click()
+    # a card that is still "Looking for the next step" has no number yet: wait for a numbered step (or the card saying
+    # the tour cannot run here)
+    st = wait_state(pg, title, lambda s: s["kind"] == "unreachable" or (s["kind"] == "step" and isinstance(s.get("n"), int)), 25)
     row["start"] = st.get("url")
     if st["kind"] == "unreachable":
         row["notes"].append(f"unreachable card: {st['title']}")
@@ -307,9 +338,12 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
     # Finding P6 (GenericTourEngine.numbering.test.jsx): a tour numbers the steps it SHOWS, so the
     # total may be below the declared count only when a declared step is not on screen at open --
     # e.g. the Formulas tour's "no properties yet" branch on a note that has properties.
-    not_shown = skip_reasons(pg, steps, list(range(M))) if st["of"] < M else []
+    # (go-live wave 2: a card whose progress line did not read "Step N of M" has no `of`; it fails this check, it
+    #  never stops the walk)
+    of = st["of"] if isinstance(st.get("of"), int) else 0
+    not_shown = skip_reasons(pg, steps, list(range(M))) if of < M else []
     record(P, width, tid, "progress counts the steps it shows (P6)",
-           st["of"] == M or (0 < st["of"] < M and len(not_shown) >= M - st["of"]),
+           of == M or (0 < of < M and len(not_shown) >= M - of),
            of=st["of"], declared=M, not_shown_at_open=not_shown)
     row["shot"] = snap(pg, f"{tid}-{width}")
     row["battery"] = card_battery(pg, P, width, tid)
@@ -320,6 +354,12 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
         st = state(pg, title)
         if st["kind"] != "step":
             break
+        if not isinstance(st.get("n"), int):
+            # The card is between steps ("Looking for the next step") and shows no "Step N of M" yet: look again
+            # (bounded by this loop), never compare a missing number (it stopped the walk with a TypeError).
+            row["notes"].append(f"a card without a step number for a moment: {st.get('title')!r}")
+            pg.wait_for_timeout(500)
+            continue
         if st["n"] not in row["shown"]:
             row["shown"].append(st["n"])
             row["modes"].append(st["mode"])
@@ -335,7 +375,12 @@ def walk_tour(pg, ctx, base: str, width: int, entry: dict, P: str = "on") -> dic
             ov = pg.evaluate("() => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1")
             if ov:
                 row["notes"].append(f"step {st['n']} horizontal overflow")
-            record(P, width, tid, f"step {st['n']} shown", None, **facts)
+            record(P, width, tid, f"step {st['n']} shown", None, **facts, back=st.get("backDisabled"))
+            # Follow-up B fix round 1: a step declared `noBack` (tours/index.js) draws no Back on its card (going back
+            # would name a control that is not on screen). `backDisabled` is null when the card has no Back button.
+            if 0 < st["n"] <= len(steps) and steps[st["n"] - 1].get("noBack"):
+                record(P, width, tid, f"step {st['n']} ({steps[st['n'] - 1]['id']}) card draws no Back (noBack)",
+                       st.get("backDisabled") is None, back_disabled=st.get("backDisabled"))
             if st["mode"] not in trap_done:
                 tp = trap_probe(pg, st["mode"])
                 trap_done.add(st["mode"])
@@ -438,6 +483,7 @@ def settle_home(pg) -> None:
     Compass card (Got it), the get-started list (Hide)."""
     pg.wait_for_timeout(2500)
     d = pg.locator("[role=dialog][aria-modal=true]")
+    # (a no-op since go-live wave 1: the base tour no longer starts by itself, and its first step is "Folders and tags")
     if d.count() and "Welcome to your Notebook" in (d.first.inner_text() or ""):
         pg.keyboard.press("Escape")
         pg.wait_for_timeout(600)
@@ -689,82 +735,17 @@ def walk_s6(browser, admin_req, base, width, height, registry) -> None:
     ctx.close()
 
 
-def phase_off(browser, admin_req, base: str) -> None:
-    P = "off"
-    for width, height in WIDTHS:
-        ctx, me, facts = new_member(browser, admin_req, base, f"q2off{width}", width, height, sample=False)
-        record(P, width, "setup", "member, switch OFF (onboarding on, getting started unset)",
-               me.get("notebook_onboarding_enabled") is True and me.get("notebook_getting_started_enabled") is False,
-               flags={k: me.get(k) for k in ("notebook_onboarding_enabled", "notebook_getting_started_enabled",
-                                             "notebook_writing_help_enabled", "notebook_task_reminders_enabled")})
-        pg = ctx.new_page()
-        chunks: list[str] = []
-        pg.on("response", lambda r: chunks.append(r.url.rsplit("/", 1)[-1]) if r.url.endswith(".js") else None)
-        pg.goto(base + "/journal/notebook", wait_until="domcontentloaded", timeout=60000)
-        h._dismiss_intro(pg)
-        pg.get_by_role("heading", name="Welcome to your Notebook", level=2).first.wait_for(timeout=30000)
-        pg.wait_for_timeout(2500)
-        d = pg.locator("[role=dialog][aria-modal=true]")
-        base_tour = d.count() > 0 and "Welcome to your Notebook" in (d.first.inner_text() or "")
-        record(P, width, "first-run", "the wave-8 base tour still auto-starts (onboarding on)", base_tour)
-        record(P, width, "first-run", "screenshot", None, shot=snap(pg, f"off-first-run-{width}"))
-        if base_tour:
-            pg.keyboard.press("Escape")
-            pg.wait_for_timeout(600)
-        settle_home(pg)
-        pg.wait_for_timeout(2500)
-        shape = pg.evaluate("""() => { const row = document.querySelector("[data-tour='first-run']");
-            const root = row && row.parentElement;
-            return { children: root ? [...root.children].map(e => e.tagName) : null,
-                     buttons: row ? [...row.querySelectorAll('button')].map(b => b.innerText.trim()) : null } }""")
-        none_w14 = {
-            "preview": pg.get_by_role("heading", name="What your Notebook can do").count(),
-            "checklist": pg.get_by_role("heading", name="Get started").count(),
-            "offer": pg.locator("[data-tour-offer]").count(),
-            "tour_card": pg.locator("[data-tour-card]").count(),
-            "explainer": pg.locator("[data-tour-explainer]").count(),
-        }
-        record(P, width, "first-run", "no wave-14 surface (preview, checklist, offer, tour card, explainer)",
-               not any(none_w14.values()), **none_w14, **shape)
-        # Help
-        pg.goto(base + "/support", wait_until="domcontentloaded", timeout=60000)
-        pg.wait_for_timeout(3000)
-        help_ = {"walkthroughs": pg.get_by_text("Walkthroughs", exact=True).count(),
-                 "whats_new": pg.locator("section[aria-labelledby='support-whats-new']").count(),
-                 "replay_links": pg.get_by_role("link", name="Replay", exact=True).count()}
-        record(P, width, "Help", "no Walkthroughs, no What's new, no Replay", not any(help_.values()), **help_,
-               shot=snap(pg, f"off-help-{width}"))
-        # Home with notes, and an open note
-        add_sample_status = add_sample(ctx, base)["status"]
-        pg.goto(base + "/journal/notebook", wait_until="domcontentloaded", timeout=60000)
-        settle_home(pg)
-        pg.wait_for_timeout(3000)
-        home = {"offer": pg.locator("[data-tour-offer]").count(), "tour_card": pg.locator("[data-tour-card]").count(),
-                "checklist": pg.get_by_role("heading", name="Get started").count()}
-        record(P, width, "Home", "no offer, tour card or checklist on Home with notes", not any(home.values()),
-               sample_status=add_sample_status, **home, shot=snap(pg, f"off-home-{width}"))
-        notes = ctx.request.get(base + "/api/j2/notes?limit=5").json()
-        items = notes.get("notes", notes.get("items", notes)) if isinstance(notes, dict) else notes
-        if items:
-            pg.goto(base + f"/journal/notebook?note={items[0]['id']}", wait_until="domcontentloaded", timeout=60000)
-            pg.wait_for_timeout(4000)
-            note = {"offer": pg.locator("[data-tour-offer]").count(), "tour_card": pg.locator("[data-tour-card]").count(),
-                    "explainer": pg.locator("[data-tour-explainer]").count()}
-            record(P, width, "open note", "no tour, offer or explainer in an open note", not any(note.values()),
-                   **note, shot=snap(pg, f"off-note-{width}"))
-        eng = [c for c in chunks if c.startswith("GenericTourEngine") or ".steps" in c or re.match(r"(b1|chartPlan|planGrading)", c)]
-        record(P, width, "bytes", "no tour engine or step chunk fetched with the switch off", not eng, fetched=eng)
-        ctx.close()
-
-
 def run_phase(phase: str, data_root: Path, port: int, registry, only) -> str | None:
+    if phase != "on":
+        return ("retired: the off phase walked getting started OFF with onboarding ON, and that switch was "
+                "retired as always on (2026-11-04)")
     data_dir = data_root / phase
     if data_dir.exists() and any(data_dir.iterdir()):
         return f"{data_dir} is not empty"
     data_dir.mkdir(parents=True, exist_ok=True)
-    for name in set(ARMED_ON + ARMED_OFF):
+    for name in set(ARMED_ON):
         os.environ.pop(name, None)
-    armed = ARMED_ON if phase == "on" else ARMED_OFF
+    armed = ARMED_ON
     os.environ.update({name: "1" for name in armed})
     for k in [k for k in os.environ if k.startswith("RAILWAY_")]:
         os.environ.pop(k, None)
@@ -782,10 +763,7 @@ def run_phase(phase: str, data_root: Path, port: int, registry, only) -> str | N
                 admin = browser.new_context()
                 try:
                     h._signup_or_login(admin.request, base, h.ADMIN_EMAIL, h.ADMIN_PW, "hubtest")
-                    if phase == "on":
-                        phase_on(browser, admin.request, base, registry, only)
-                    else:
-                        phase_off(browser, admin.request, base)
+                    phase_on(browser, admin.request, base, registry, only)
                 finally:
                     admin.close()
                     browser.close()
@@ -801,7 +779,7 @@ def main(argv=None) -> int:
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--port", type=int, default=8730)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--phases", default="on,off")
+    ap.add_argument("--phases", default="on")   # `off` is retired (see the module docstring)
     ap.add_argument("--only", default="", help="comma list of tour ids (skips S6 unless S6 is named); --only S6 runs S6 alone")
     args = ap.parse_args(argv)
     why = h.refuse_shared_root(args.data_root)

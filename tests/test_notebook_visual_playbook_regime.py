@@ -11,9 +11,8 @@ Nothing here re-derives a regime: the context rows are written through 13E's own
     regime filter and COUNTED (`excludedUnknown`), never treated as a match.
   * UNKNOWN: a context whose regime field is missing, a `captured_late` context, and a chart with
     no linked trade at all are each a labelled unknown, excluded and counted the same way.
-  * GATE OFF (`NOTEBOOK_ENTRY_CONTEXT_ENABLED` unset): the payload is byte-identical to the
-    pre-13E build -- the placeholder sentence, no `regime` key on any card, and a `regime=`
-    parameter ignored rather than refused.
+  * There is no gate-off case any more: `NOTEBOOK_ENTRY_CONTEXT_ENABLED` was retired as always
+    on (2026-11-04), so the filter is always available.
 """
 from __future__ import annotations
 
@@ -49,12 +48,7 @@ def _freeze(c, uid, symbol, regime_value=None, *, kind="at_entry", missing=None)
 
 @pytest.fixture
 def on(monkeypatch):
-    monkeypatch.setenv(entry_context.FLAG, "1")
-
-
-@pytest.fixture
-def off(monkeypatch):
-    monkeypatch.delenv(entry_context.FLAG, raising=False)
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 def _syms(out):
@@ -68,19 +62,6 @@ def test_the_regime_vocabulary_is_derived_from_the_one_classifier():
     assert set(vp.REGIMES) == swept
     assert vp.REGIMES[0] == regime_service.classify_regime(150)      # best first
     assert vp.REGIMES[-1] == regime_service.classify_regime(0)
-
-
-# ── gate OFF: unchanged ───────────────────────────────────────────────────────
-
-def test_gate_off_the_payload_is_the_pre_13e_placeholder_and_the_param_is_ignored(conn, off):
-    _seed(conn)
-    _freeze(conn, "u1", "NVDA", "green")          # a row exists, and still nothing reads it
-    plain = vp.cards("u1", conn)
-    assert plain["regime"] == {"available": False, "reason": vp.REGIME_UNAVAILABLE}
-    assert all("regime" not in c for c in plain["cards"])
-    for param in ("green", "red", "not-a-regime"):
-        filtered = vp.cards("u1", conn, regime=param)
-        assert filtered == plain, param
 
 
 # ── PRESENT ───────────────────────────────────────────────────────────────────
@@ -176,8 +157,6 @@ def test_the_regime_filter_composes_with_the_other_filters(conn, on):
 # ── the route ─────────────────────────────────────────────────────────────────
 
 def test_the_route_carries_the_regime_parameter(client, monkeypatch):
-    monkeypatch.setenv(vp.FLAG, "1")
-    monkeypatch.setenv(entry_context.FLAG, "1")
     c = _auth_conn()
     try:
         a = _note(c, "m1", "NVDA plan", _chart("a", "NVDA", "VCP", _fp(rs_rank=95)))
@@ -190,6 +169,3 @@ def test_the_route_carries_the_regime_parameter(client, monkeypatch):
     assert [x["symbol"] for x in client.get(BASE + "/cards?regime=amber").json()["cards"]] == ["NVDA"]
     assert client.get(BASE + "/cards?regime=green").json()["count"] == 0
     assert client.get(BASE + "/cards?regime=purple").status_code == 422
-    monkeypatch.delenv(entry_context.FLAG)
-    off = client.get(BASE + "/cards?regime=purple")
-    assert off.status_code == 200 and off.json()["regime"]["available"] is False

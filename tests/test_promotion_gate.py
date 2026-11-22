@@ -26,7 +26,7 @@ WF_OK = [{"name": ALWAYS, "state": "active"}, {"name": "b", "state": "active"}]
 
 
 def _ok(name):
-    return {"name": name, "status": "completed", "conclusion": "success"}
+    return {"name": name, "status": "completed", "conclusion": "success", "head_branch": "master", "event": "push"}
 
 
 # ── the marker, and what an unclassified workflow costs ──────────────────────
@@ -93,7 +93,7 @@ def test_an_empty_gating_set_refuses():
 
 
 def test_a_failed_gating_check_refuses():
-    runs = [_ok(ALWAYS), {"name": "b", "status": "completed", "conclusion": "failure"}]
+    runs = [_ok(ALWAYS), {"name": "b", "status": "completed", "conclusion": "failure", "head_branch": "master", "event": "push"}]
     v, why = pg.decide(gating=[ALWAYS, "b"], runs=runs, workflows=WF_OK)
     assert v == pg.REFUSE and "b=failure" in why
 
@@ -107,7 +107,7 @@ def test_an_advisory_red_does_not_block():
 
 
 def test_a_still_running_gating_check_waits_rather_than_refusing():
-    runs = [_ok(ALWAYS), {"name": "b", "status": "in_progress", "conclusion": None}]
+    runs = [_ok(ALWAYS), {"name": "b", "status": "in_progress", "conclusion": None, "head_branch": "master", "event": "push"}]
     v, _ = pg.decide(gating=[ALWAYS, "b"], runs=runs, workflows=WF_OK)
     assert v == pg.WAIT
 

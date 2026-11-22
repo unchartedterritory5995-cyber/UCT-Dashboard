@@ -2,8 +2,8 @@
 `api/routers/notebook_research_capture.py` passed_router).
 
 What each section proves:
-  * THE GATE: every passed-setups route answers the one 404 while
-    `NOTEBOOK_PASSED_SETUPS_ENABLED` is off, signed in or not; a paid plan is required.
+  * ACCESS: a paid plan is required (`NOTEBOOK_PASSED_SETUPS_ENABLED` was retired as always on,
+    2026-11-04).
   * FORWARD RETURNS PINNED on fixture bars in a real (temp) bars.db: +1, +5, +10, +20 sessions
     and the best move within 20, from the reference close the one rule picks (16:00 ET).
   * MISSING BARS ARE LABELLED, never a number: no_bars, missing (SPY had the sessions, the
@@ -31,7 +31,6 @@ from fastapi.testclient import TestClient
 
 from api.middleware import auth_middleware as authmw
 
-FLAG = "NOTEBOOK_PASSED_SETUPS_ENABLED"
 A, B = "user-ps-a", "user-ps-b"
 PAID = {"plan": "pro"}
 FREE = {"plan": "free"}
@@ -99,7 +98,7 @@ def bars(monkeypatch, tmp_path):
 
 @pytest.fixture
 def gate_on(monkeypatch):
-    monkeypatch.setenv(FLAG, "1")
+    """Was the flag's switch; the capability is always on since the flag was retired (2026-11-04)."""
 
 
 @pytest.fixture
@@ -162,23 +161,14 @@ def _manual(user_id, sym, saved_on, now):
 NOW = _at("2026-09-25", 20)          # well past +20 sessions of the fixture saves
 
 
-# ── the gate ────────────────────────────────────────────────────────────────────────────
+# ── access ────────────────────────────────────────────────────────────────────────────
 
 ROUTES = [("get", "/api/j2/research-capture/passed-setups"),
           ("post", "/api/j2/research-capture/passed-setups"),
           ("delete", "/api/j2/research-capture/passed-setups/x")]
 
 
-@pytest.mark.parametrize("method,path", ROUTES)
-def test_every_route_is_404_while_the_gate_is_off_signed_in_or_not(client, app, monkeypatch, method, path):
-    monkeypatch.delenv(FLAG, raising=False)
-    kw = {"json": {}} if method == "post" else {}
-    assert getattr(client, method)(path, **kw).status_code == 404
-    as_user(app, A)
-    assert getattr(client, method)(path, **kw).status_code == 404
-
-
-def test_CONTROL_the_list_answers_once_the_gate_is_on(client, app, gate_on, bars):
+def test_the_list_answers_a_member(client, app, gate_on, bars):
     as_user(app, A)
     r = client.get("/api/j2/research-capture/passed-setups")
     assert r.status_code == 200 and r.json()["items"] == []
@@ -427,17 +417,14 @@ def test_the_router_refuses_a_bad_symbol(client, app, gate_on, bars):
 
 # ── the nightly job, the purge, no network ──────────────────────────────────────────────
 
-def test_the_nightly_job_is_a_no_op_while_off_and_refreshes_when_on(db_path, bars, monkeypatch):
+def test_the_nightly_job_refreshes(db_path, bars, monkeypatch):
     bars("SPY", _rising(n=3))
     bars("NVDA", _rising(n=3))
     _manual(A, "NVDA", BASE_DAY, NOW)
     bars("SPY", _rising())
     bars("NVDA", _rising())
     from api.services.journal_two import passed_setups as ps
-    monkeypatch.delenv(FLAG, raising=False)
-    ps.nightly_job()
     assert _row(A, "NVDA")["r20"] is None
-    monkeypatch.setenv(FLAG, "1")
     ps.nightly_job()
     assert _row(A, "NVDA")["r20"] == 20.0
 

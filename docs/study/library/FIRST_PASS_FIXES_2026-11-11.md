@@ -1,0 +1,121 @@
+# First-pass fixes, 2026-11-11
+
+Claude's first pass flagged 111 questions (`tools/study_review/first_pass.py`): near-duplicates and answers far longer than the other choices.
+Each was resolved in its unit file and re-read cold by a second reader. Nothing here is the owner's ruling; the owner approves or reverses each in the review.
+
+## Cut (11): the question stays in the file marked `cut`; to restore one set its `verify` status back to `pass`
+
+- **SET.22#q21**: Cut because it is word for word the same as SET.20 q19 (which average the last third trails).
+- **SET.24#q17**: Cut because it asks the same thing, the same way, as SET.23 q18.
+- **SET.25#q16**: Cut because it asks the same thing as SET.23 q18, which stays.
+- **SET.34#q32**: Cut because it asks the same thing as SET.26 q32, which stays.
+- **SET.42#q42**: Cut because it asks the same thing, the same way, as SET.41 q42.
+- **SET.42#q44**: Cut because it asks the same thing, the same way, as SET.41 q46.
+- **SET.42#q71**: Cut because it asks the same thing, the same way, as SET.09 q84.
+- **SET.49#q71**: Cut because it asks the same thing in the same way as SET.15 q41 (3 tries a week, 6 a month).
+- **SET.51#q39**: Cut because it asks the same thing as SET.08 q22, which stays.
+- **SET.52#q62**: Cut because it is word for word the same as SET.20 q71 (1% of average daily volume cap).
+- **SET.53#q37**: Cut because it asks the same thing, the same way, as SET.51 q39.
+
+## Changed (100)
+
+- **F1.06#q16**: Shortened the right choice and lengthened the wrong ones so the right choice is no longer the longest.
+- **F10.02#q15**: Lengthened the three wrong choices so the right answer is no longer much longer than the rest.
+- **F11.04#q17**: Shortened the right choice and lengthened a wrong one so the right choice is no longer the longest.
+- **F5.03#q08**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **F5.05#q04**: Shortened the right choice and lengthened one wrong choice so the right answer is no longer the longest.
+- **F5.06#q21**: Shortened the right choice and lengthened one wrong choice so the right choice is no longer the longest.
+- **F5.08#q17**: Shortened the right choice and lengthened two wrong ones so the right answer is no longer the longest.
+- **F6.03#q16**: Made all four choices plain dollar amounts of the same length, so "all of it" no longer marks the right one.
+- **F6.06#q18**: Shortened the right choice and lengthened two wrong ones so the right answer is no longer the longest.
+- **F6.06#q23**: Shortened the right choice so it is no longer far the longest.
+- **F6.08#q19**: Shortened the right choice and lengthened a wrong one so the right choice is no longer the longest.
+- **F7.07#q13**: Lengthened the two wrong choices so the right answer is no longer clearly the longest.
+- **F8.01#q08**: Shortened the right choice and lengthened two wrong ones so the right answer is no longer the longest.
+- **F8.02#q23**: Shortened the right choice and lengthened a wrong one so the right choice is no longer the unique longest.
+- **F8.05#q07**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **F9.03#q04**: Shortened the right choice and lengthened two wrong ones so the right answer is no longer the longest.
+- **F9.06#q05**: Shortened the right choice and lengthened the three wrong ones so the right choice is no longer the longest.
+- **SET.07#q39**: Shortened the right choice and made the two wrong choices longer and more specific so the right answer no longer stands out.
+- **SET.07#q47**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.07#q63**: Shortened the right choice and lengthened one wrong choice so the right answer is no longer the longest.
+- **SET.07#q65**: Shortened the right choice and evened out the wrong ones so the right answer is no longer the longest.
+- **SET.08#q45**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer far the longest.
+- **SET.08#q49**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer far the longest.
+- **SET.11#q61**: Shortened the right choice and lengthened a wrong one so the right answer is no longer the longest.
+- **SET.12#q61**: Gave all three choices the same wording ('NN% of the account') so length tells nothing.
+- **SET.12#q64**: Shortened the right choice and lengthened the wrong ones so the right choice is no longer the longest.
+- **SET.13#q62**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.13#q65**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.14#q51**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer far the longest.
+- **SET.15#q49**: Shortened the right choice and lengthened a wrong one so the right choice is no longer the longest.
+- **SET.15#q53**: Shortened the right choice and lengthened the wrong ones so all three are about the same length.
+- **SET.15#q57**: Shortened the right choice and lengthened the wrong ones so the right choice is no longer the longest.
+- **SET.15#q64**: Shortened the right choice and lengthened the wrong ones so the right choice is no longer the longest.
+- **SET.17#q01**: Shortened the right choice and lengthened two wrong ones so the right choice is no longer far the longest.
+- **SET.17#q58**: Shortened the right choice and lengthened the wrong ones so the right choice is no longer the longest.
+- **SET.17#q62**: Shortened the right choice and lengthened a wrong one so the right choice is no longer the longest.
+- **SET.19#q64**: Shortened the right choice and lengthened a wrong one so the right choice is no longer the longest.
+- **SET.20#q43**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.24#q19**: Rewrote the question as a pick-the-pair ask with different wrong numbers, so it no longer repeats the Kicker unit's floor question.
+- **SET.24#q57**: Shortened the right choice and lengthened two wrong ones so the right answer is no longer the longest.
+- **SET.25#q18**: Reworded as a phone-alert story so it no longer repeats the Flat Base 'stop in your head' question; same rule, still False.
+- **SET.25#q39**: Now asks for the default trail of a steadier name (the 21-day) instead of a fast mover, so it no longer repeats the Kicker question and the Oops trail rule stays covered.
+- **SET.25#q55**: Shortened the right choice and lengthened the wrong ones so the right choice is no longer the longest.
+- **SET.25#q60**: Shortened the right choice and lengthened the two wrong ones so all three are about the same length.
+- **SET.27#q64**: Shortened the right choice so it is no longer far the longest.
+- **SET.29#q30**: Shortened the right choice and lengthened a wrong one so the right answer is no longer the longest.
+- **SET.30#q21**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.30#q23**: Shortened the right choice and lengthened two wrong ones so the right answer is no longer the longest.
+- **SET.30#q43**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.31#q42**: Shortened the right choice and lengthened the wrong ones so all four are close in length.
+- **SET.31#q61**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer far the longest.
+- **SET.32#q37**: Shortened the right choice and lengthened two wrong ones so the right choice is no longer the longest.
+- **SET.32#q46**: Shortened the right choice and lengthened the two wrong ones so all three are about the same length.
+- **SET.33#q09**: Shortened the right choice and lengthened two wrong ones so the right answer is no longer the longest.
+- **SET.33#q52**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.34#q18**: Now blanks out the 1R threshold instead of the 10 days, so it no longer repeats the Bull Flag time-stop question.
+- **SET.34#q38**: Flipped to an A-plus setup in an Orange reading (take it) so it no longer mirrors the Remount 'Orange, B grade' question.
+- **SET.34#q42**: Shortened the right choice so it is no longer far the longest.
+- **SET.34#q57**: Shortened the right choice and lengthened two wrong ones so the right choice is no longer the longest.
+- **SET.40#q44**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.40#q50**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.40#q51**: Shortened the right choice and lengthened one wrong choice so the right answer is no longer the longest.
+- **SET.40#q64**: Shortened the right choice and lengthened the wrong ones so the right answer no longer stands out.
+- **SET.41#q07**: Reworded as 'raising the stop' so it no longer repeats the Gap Support question; still True and still about the real stop order.
+- **SET.41#q28**: Shortened the right choice and lengthened the wrong ones so the right choice is no longer far the longest.
+- **SET.41#q44**: Turned the 3-tries-a-week question into a False statement about buying again after a stop-out with no new trigger, so it no longer repeats the EMA Crossback question and keeps the True/False balance.
+- **SET.42#q48**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.42#q49**: Shortened the right choice and reworded a wrong one so the right answer is no longer the longest.
+- **SET.42#q54**: Shortened the right choice so it is no longer much longer than the wrong ones.
+- **SET.42#q59**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.43#q55**: Shortened the right choice and lengthened a wrong one so the right answer is no longer the longest.
+- **SET.43#q68**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.43#q84**: Gave the fill-in a different story (an overnight jump past 5R) and a new opening line, so it no longer matches the VCP unit's fill-in.
+- **SET.44#q11**: Reworded into a two-stock comparison (7% against 13%) so it tests where the 10% line falls, not the same single 12% case as SET.07 q13.
+- **SET.44#q18**: Reworded to ask how much we sell at the first trim (a third), not where it comes, so it differs from SET.07 q19.
+- **SET.44#q48**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer far the longest.
+- **SET.45#q50**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer far the longest.
+- **SET.49#q45**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.49#q47**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.49#q57**: Shortened the right choice and lengthened two wrong ones so the right answer is no longer the longest.
+- **SET.49#q61**: Shortened the right choice and lengthened two wrong ones so the right answer is no longer the longest.
+- **SET.49#q63**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.50#q35**: Kept the 148 price in the right choice (the check needs it) and made the choices about the same length, so the right choice is no longer far the longest.
+- **SET.50#q37**: Gave all four choices the same shape (a distance plus a comment on the 3R trim) so the right choice is no longer far the longest.
+- **SET.50#q38**: Shortened the right choice and lengthened the wrong ones so the right choice is no longer far the longest.
+- **SET.52#q09**: Reworded so it tests the price half of the rule ($8 with big volume fails), while the twin in SET.16 tests the volume half.
+- **SET.52#q31**: Reworded as a worked case (still up only 0.5R after 10 days) instead of the bare rule that SET.51 q39 already asks, so it is no longer a copy.
+- **SET.52#q40**: Lengthened the two wrong choices so the right answer is no longer far the longest.
+- **SET.52#q54**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **SET.54#q07**: Turned the statement into a worked case (an RS rating of 84 in a strong group) so it no longer reads like the ORB unit's leader question.
+- **SET.54#q39**: Shortened the right choice and lengthened a wrong one so the right answer is no longer the longest.
+- **SET.54#q40**: Shortened the right choice and lengthened a wrong one so the right answer is no longer the longest.
+- **V.03#q41**: Lengthened the three wrong choices so the right answer is no longer the longest.
+- **V.05#q39**: Shortened the right choice and lengthened the wrong ones so the right answer is no longer the longest.
+- **V.05#q59**: Shortened the right choice and lengthened one wrong choice so the right answer is no longer the longest.
+- **V.06#q10**: Now asks what happens to the last third instead of where the trims sit, so it no longer repeats the Risk question about 3R and 5R.
+- **V.10#q25**: Shortened the right choice and lengthened one wrong choice so the right answer is no longer the longest.
+- **V.10#q44**: Lengthened the two wrong choices so the right answer is no longer far the longest.
+- **V.10#q46**: Lengthened the two wrong choices so the right answer is no longer far the longest.
+- **V.10#q61**: Lengthened the two wrong choices so the right answer is no longer far the longest.

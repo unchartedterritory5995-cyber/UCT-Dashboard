@@ -972,3 +972,48 @@ describe('Phase C Task 11 — a mute alert says what is wrong with it', () => {
     }
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// 2026-11-04 — MOVING-AVERAGE CROSS (`ma_cross`), as alert_catalog() serves it.
+// ═══════════════════════════════════════════════════════════════════════════
+
+const MA_CROSS_CONDS = [
+  { value: 'cross_above', label: 'Fast MA crosses above slow MA', needs_threshold: false },
+  { value: 'cross_below', label: 'Fast MA crosses below slow MA', needs_threshold: false },
+]
+const MA_CROSS = [{
+  indicator: 'ma_cross', label: 'MA Cross', conditions: MA_CROSS_CONDS, default_threshold: null,
+  plots: [{
+    value: 'ma_cross', label: 'MA Cross', instance_label: 'EMA(9) vs EMA(20)', conditions: MA_CROSS_CONDS,
+    default_threshold: null, inputs: { ma_type: 'ema', fast: 9, slow: 20 },
+    input_options: { ma_type: ['ema', 'sma'] }, instance_defs: ['movingAverage'],
+  }],
+}]
+
+describe('MA cross — rendered from the served entry', () => {
+  it('ma_type is a CHOICE (input_options), periods are numbers, and no threshold is asked', async () => {
+    mockCatalog(MA_CROSS)
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    const type = await screen.findByLabelText('ma_type input')
+    expect(type.tagName).toBe('SELECT')
+    expect([...type.options].map(o => o.value)).toEqual(['ema', 'sma'])
+    expect(screen.getByLabelText('fast input').value).toBe('9')
+    expect(screen.queryByLabelText('Threshold')).toBeNull()
+    expect(optionValues('Condition')).toEqual(['cross_above', 'cross_below'])
+
+    fireEvent.change(type, { target: { value: 'sma' } })
+    fireEvent.change(screen.getByLabelText('fast input'), { target: { value: '50' } })
+    fireEvent.change(screen.getByLabelText('slow input'), { target: { value: '200' } })
+    fireEvent.change(screen.getByLabelText('Condition'), { target: { value: 'cross_below' } })
+    fireEvent.click(screen.getByText('Add Alert'))
+    await waitFor(() => expect(H.created).toHaveLength(1))
+    expect(H.created[0]).toMatchObject({ indicator: 'ma_cross', condition: 'cross_below', params: { ma_type: 'sma', fast: 50, slow: 200 } })
+    expect(H.created[0].threshold).toBeUndefined()
+  })
+
+  it('a knob WITHOUT declared options is still a text/number box (every existing entry)', async () => {
+    mockCatalog(RSI_WITH_INPUTS)
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    expect((await screen.findByLabelText('period input')).tagName).toBe('INPUT')
+  })
+})

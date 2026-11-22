@@ -5,6 +5,8 @@
 // "Create your own scan" buttons are gone. All colors come from the picker's --wl-*
 // theme vars so it matches whichever app/UCT theme is active.
 import { forwardRef } from 'react'
+import { createPortal } from 'react-dom'
+import { useUctHeaderSlot, useUctControlsSlot } from '../uctHeaderSlot'
 import UIcon from '../../../components/ui/UIcon'
 import styles from './WatchlistPicker.module.css'
 import Input from '../../../components/ui/Input'
@@ -16,9 +18,22 @@ function PickerHeader({
   showSettings, settingsOpen, onToggleSettings, settingsTitle, gearRef,
   autoFocus = false,
 }, _ref) {
-  return (
-    <div className={styles.header}>
-      {/* Tab strip: flat tabs + New/⚙ on the right (Theme-Tracker period-bar layout). */}
+  // UCT frame, wide widget: the tab strip rides in the widget's title row (one row, as the
+  // chart's header) — same element, same handlers, just drawn up there via a portal.
+  const headerSlot = useUctHeaderSlot('picker')
+  // …and the ⚙ joins the window controls (⚙ + ▣ ⧉ ×), as on the chart.
+  const controlsSlot = useUctControlsSlot()
+  const gearButton = showSettings ? (
+          <button
+            ref={gearRef}
+            type="button"
+            className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
+            onClick={onToggleSettings}
+            title={settingsTitle}
+            aria-label={settingsTitle}
+          ><UIcon name="gear" size={13} /></button>
+  ) : null
+  const tabBar = (
       <div className={styles.tabBar} role="tablist">
         {tabs.map(t => (
           <button
@@ -45,20 +60,19 @@ function PickerHeader({
             {newHint && <span className={styles.newHint}>{newHint}</span>}
           </button>
         )}
-        {showSettings && (
-          <button
-            ref={gearRef}
-            type="button"
-            className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-            onClick={onToggleSettings}
-            title={settingsTitle}
-            aria-label={settingsTitle}
-          ><UIcon name="gear" size={13} /></button>
-        )}
+        {showSettings && !controlsSlot && gearButton}
       </div>
+  )
+  return (
+    <div className={styles.header}>
+      {/* Tab strip: flat tabs + New/⚙ on the right (Theme-Tracker period-bar layout). */}
+      {headerSlot ? createPortal(tabBar, headerSlot) : tabBar}
+      {controlsSlot && gearButton && createPortal(gearButton, controlsSlot)}
 
       {/* Search box — the exact Theme-Tracker style (squared, faint inset, thin border). */}
       <div className={styles.searchRow}>
+        {/* UCT frame only (CSS shows it there): a magnifying glass inside the field. */}
+        <span className={styles.searchGlyph} aria-hidden="true"><UIcon name="search" size={14} gold={false} /></span>
         <Input aria-label="Search"
           className={styles.searchBox}
           placeholder={searchPlaceholder}

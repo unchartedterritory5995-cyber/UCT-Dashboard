@@ -69,6 +69,8 @@
 // `unsupported` note: an op the program skips must make the program dirty, or
 // the object-only door's clean-win rule would accept a drawing with a hole in it.
 
+import { isPurePineCall } from './barConstant.js'
+
 /** How deep a drawing helper may call another. ⛔ Pine forbids recursion, so a
  *  real script never approaches this — it exists so a cycle this reader
  *  mis-detected stops loudly instead of looping. */
@@ -108,6 +110,37 @@ const PURE_BARE = new Set(['na', 'nz', 'int', 'float', 'bool', 'string', 'tostri
 const writesObject = (method) => method === 'delete' || method.startsWith('set_')
   || method === 'cell' || method.startsWith('cell_set_') || method === 'clear'
   || method === 'merge_cells' || method === 'new'
+
+/** ⭐ Is the MEMBER token at `toks[i]` a method on a VALUE receiver — a history
+ *  read `l[1].delete()` or a parenthesised expression `(c ? a : b).delete()` —
+ *  the shapes `pineObjects.js::emitOnValueReceiver` reads?
+ *
+ *  ⛔ NOT a chained CALL (`k._box.pop().delete()`, `ls.get(0).set_x2(…)`): the
+ *  `)` there closes a call (an ident stands before its `(`), and that is a
+ *  different, pre-existing question this rule deliberately does not widen —
+ *  measured, widening it re-reads `ict-killzones-pivots-tfo`'s UDT helpers as
+ *  drawing functions and flips a capture-matched table to refused. */
+export function onValueReceiver(toks, i) {
+  const dot = toks[i - 1]
+  const prev = toks[i - 2]
+  if (!dot || dot.kind !== 'punct' || dot.value !== '.' || !prev || prev.kind !== 'punct') return false
+  if (prev.value === ']') return true
+  if (prev.value !== ')') return false
+  let depth = 0
+  for (let k = i - 2; k >= 0; k -= 1) {
+    const t = toks[k]
+    if (t.kind !== 'punct') continue
+    if (t.value === ')') depth += 1
+    else if (t.value === '(') {
+      depth -= 1
+      if (depth === 0) {
+        const before = toks[k - 1]
+        return !(before && before.kind === 'ident' && before.line === t.line)
+      }
+    }
+  }
+  return false
+}
 
 /** Pine's own namespaces. ⛔ A dotted token under one of these is a built-in,
  *  never a method call on a script's handle — `color.new(…)` is not `x.new`. */
@@ -314,16 +347,126 @@ export function objectCollections(stmts, h) {
   return out
 }
 
+const DRAWING_FAMILIES = ['line', 'label', 'box', 'table', 'linefill']
+/** The collection methods that RETURN one element (Pine reference: `array.pop`
+ *  "Removes the last element from an array and returns its value", `array.shift`
+ *  "...the first element...", `array.remove` "Changes the contents of an array by
+ *  removing the element with the specified index", returning it; `array.get`,
+ *  `array.first`, `array.last` return one without removing it). */
+export const ELEMENT_METHODS = Object.freeze(['pop', 'shift', 'remove', 'get', 'first', 'last'])
+
+/** ⭐ THE DRAWING FAMILY EVERY COLLECTION THE SCRIPT NAMES HOLDS. Two sources:
+ *  a top-level `x = array.new_<fam>()` / `array.new<fam>()` (key `x`), and a
+ *  `type` FIELD declared `array<fam> f` or `fam[] f` (key `.f`, read off the
+ *  field's last dotted segment, `k._box` → `._box`). A field name declared with
+ *  two different families answers null: the tokens cannot say which. */
+export function collectionFamilies(stmts, h) {
+  const out = new Map()
+  const put = (k, fam) => { out.set(k, out.has(k) && out.get(k) !== fam ? null : fam) }
+  for (const st of stmts || []) {
+    const t = st.header || []
+    if (t[0] && t[0].kind === 'ident' && (t[0].value === 'type' || (t[0].value === 'export' && t[1] && t[1].value === 'type'))) {
+      // ⚠️ The block reaches here FLATTENED onto the header (`type kz array<box>
+      // _box line[] _hi_line …`), so the fields are read as a token stream —
+      // header after the name, then any sub-statements, the same two shapes.
+      const ft = [...t.slice(t[0].value === 'export' ? 3 : 2), ...(st.sub || []).flatMap((f) => f.header || [])]
+      for (let j = 0; j < ft.length; j += 1) {
+        const a = ft[j]
+        if (!a || a.kind !== 'ident') continue
+        let fam = null
+        let nm = null
+        if (a.value === 'array' && Array.isArray(a.typeArgs)) { fam = String(a.typeArgs[0] || ''); nm = ft[j + 1] }
+        else if (a.value === 'map' && Array.isArray(a.typeArgs)) { fam = String(a.typeArgs[1] || ''); nm = ft[j + 1] }
+        else if (h.isPunct(ft[j + 1], '[') && h.isPunct(ft[j + 2], ']')) { fam = String(a.value); nm = ft[j + 3] }
+        if (nm && nm.kind === 'ident' && DRAWING_FAMILIES.includes(fam)) put(`.${nm.value}`, fam)
+      }
+      continue
+    }
+    const eq = h.findTop(t, (x) => h.isPunct(x, '='))
+    if (eq < 1) continue
+    const rhs = t[eq + 1]
+    if (!rhs || rhs.kind !== 'ident') continue
+    const v = String(rhs.value)
+    // ⭐ gap (d): a MAP of drawings — `map.new<string, label>()` holds labels.
+    const fam = v.startsWith('array.new_') ? v.slice('array.new_'.length)
+      : (v === 'array.new' && Array.isArray(rhs.typeArgs) ? String(rhs.typeArgs[0] || '')
+        : (v === 'map.new' && Array.isArray(rhs.typeArgs) ? String(rhs.typeArgs[1] || '') : null))
+    const nameTok = t[eq - 1]
+    if (fam && DRAWING_FAMILIES.includes(fam) && nameTok && nameTok.kind === 'ident') put(String(nameTok.value), fam)
+  }
+  return out
+}
+
+/** The family a collection expression names: a declared top-level name, else
+ *  a field's last segment (`k._box`). Null when neither says. */
+export function familyOfCollection(name, fams) {
+  const n = String(name || '')
+  if (!n || !fams) return null
+  if (fams.has(n)) return fams.get(n)
+  const dot = n.lastIndexOf('.')
+  return dot >= 0 ? (fams.get(`.${n.slice(dot + 1)}`) || null) : null
+}
+
+/** ⭐ THE ELEMENT A CHAINED CALL HANDS ON — the member token at `toks[i]` follows
+ *  `<coll>.pop()` / `array.shift(<coll>)` / `<coll>.get(i)` … : `{coll, method,
+ *  family}`, else null. The collection is a single identifier (dotted for a field);
+ *  anything richer is not read. */
+export function chainedElementOf(toks, i, fams) {
+  const dot = toks[i - 1]
+  const close = toks[i - 2]
+  if (!dot || !(dot.kind === 'punct' && dot.value === '.') || !close || !(close.kind === 'punct' && close.value === ')')) return null
+  let depth = 0
+  let open = -1
+  for (let k = i - 2; k >= 0; k -= 1) {
+    const t = toks[k]
+    if (t.kind !== 'punct') continue
+    if (t.value === ')') depth += 1
+    else if (t.value === '(') { depth -= 1; if (depth === 0) { open = k; break } }
+  }
+  const callee = open > 0 ? toks[open - 1] : null
+  if (!callee || callee.kind !== 'ident' || callee.member || callee.line !== toks[open].line) return null
+  const v = String(callee.value)
+  let coll = null
+  let method = null
+  if (v.startsWith('array.') || v.startsWith('map.')) {
+    method = v.slice(v.indexOf('.') + 1)
+    const a = toks[open + 1]
+    if (a && a.kind === 'ident') coll = String(a.value)
+  } else {
+    const d = v.lastIndexOf('.')
+    if (d > 0) { method = v.slice(d + 1); coll = v.slice(0, d) }
+  }
+  if (!coll || !ELEMENT_METHODS.includes(method)) return null
+  return { coll, method, family: familyOfCollection(coll, fams) }
+}
+
 /** The subset of `defs` whose body WRITES a drawing — directly, through an
  *  object collection, or by calling another function that does. A fixpoint,
  *  because a helper may be defined below its first caller. */
-export function drawingFunctions(defs, objColls) {
+export function drawingFunctions(defs, objColls, fams = null) {
   const direct = (def) => {
     const toks = allTokens(def.body)
     for (let i = 0; i < toks.length; i += 1) {
       const tk = toks[i]
       if (tk.kind !== 'ident') continue
       const v = String(tk.value)
+      // ⭐ A METHOD ON A VALUE RECEIVER — `l[1].delete()`, `(c ? a : b).set_x(…)`
+      // (`onValueReceiver`). The segment lexes as a lone MEMBER token, so `nsOf`
+      // is null and a body whose only drawing step is written that way was "not
+      // a drawing function": never inlined, its removal gone with no count. A
+      // user METHOD so named is the script's own and is judged as one.
+      // ⭐ AND ON A CHAINED ELEMENT — `x.pop().delete()`, `k._box.shift().delete()`,
+      // `array.remove(a, i).delete()` (`chainedElementOf`): the same lone member
+      // token, the same silence before this.
+      if (tk.member && (onValueReceiver(toks, i) || chainedElementOf(toks, i, null))) {
+        const um = defs.get(v)
+        // ⭐ r2 (M6): a same-named user METHOD is the script's own — unless the
+        // element's list is one the declaration names as DRAWINGS, where Pine
+        // dispatches on the element type and the built-in runs.
+        const el = fams ? chainedElementOf(toks, i, fams) : null
+        if (writesObject(v) && (!(um && um.isMethod) || (el && el.family))) return true
+        continue
+      }
       const ns = nsOf(v)
       if (!ns) continue
       const m = methodOf(v)
@@ -402,7 +545,7 @@ const DRAWN_FAMILIES = ['line', 'label', 'box', 'table', 'linefill']
 const ARRAY_MUTATORS = new Set(['push', 'set', 'remove', 'clear', 'pop', 'shift',
   'unshift', 'insert', 'reverse', 'sort', 'fill', 'concat'])
 
-export function bodyEffects(def, defs, objColls) {
+export function bodyEffects(def, defs, objColls, fams = null) {
   const kinds = {}
   const families = []
   const creates = []
@@ -414,6 +557,9 @@ export function bodyEffects(def, defs, objColls) {
   // setters never ran, so the objects they would have moved or re-captioned are
   // not TradingView's (`pine.js`, `lostUnaddressed`).
   const setters = []
+  // ⭐ the named families of removals on a CHAINED ELEMENT (`chainedElementOf`):
+  // the converter withholds those families' objects (`pine.js`).
+  const chained = []
   const add = (k) => { kinds[k] = (kinds[k] || 0) + 1 }
   const seen = new Set()
   const visit = (d) => {
@@ -425,6 +571,33 @@ export function bodyEffects(def, defs, objColls) {
       const next = toks[i + 1]
       if (tk.kind !== 'ident' || next.kind !== 'punct' || next.value !== '(') continue
       const v = String(tk.value)
+      // ⭐ A METHOD ON A VALUE RECEIVER (`l[1].delete()`, `onValueReceiver`):
+      // family unnamed by the tokens — fail-closed exactly as the handle form
+      // below. A user METHOD so named falls through to the reading it had.
+      // ⭐ AND ON A CHAINED ELEMENT (`chainedElementOf`): the family is the
+      // collection's, read off its declaration (`collectionFamilies`) — so a lost
+      // `k._box.pop().delete()` is a lost BOX removal, which reaches only a chart
+      // that draws boxes. A `.clear()` there is counted only on a table element
+      // (an unnamed `.clear()` may be a numeric array's: ruling, 2026-11-08).
+      const elRaw = tk.member ? chainedElementOf(toks, i, fams) : null
+      // ⭐ r2 (M6): a user METHOD of that name is read as one, except on a list of
+      // a drawing family (Pine dispatches on the element type).
+      const el = elRaw && (elRaw.family || !(defs.get(v) && defs.get(v).isMethod)) ? elRaw : null
+      if (el) {
+        if (v === 'delete') { add('delete'); families.push(el.family); if (el.family) chained.push(el.family) } else if (v === 'clear' && el.family === 'table') {
+          add('clear'); families.push('table')
+        } else if (v.startsWith('set_')) setters.push([el.family, v])
+        if (['pop', 'shift', 'remove'].includes(el.method) && objColls.has(el.coll)) {
+          add(`coll_${el.method}`); colls.push(el.coll)
+        }
+        continue
+      }
+      if (tk.member && onValueReceiver(toks, i) && !(defs.get(v) && defs.get(v).isMethod)) {
+        if (v === 'delete') { add('delete'); families.push(null) } else if (v === 'clear') {
+          add('clear'); families.push(null)
+        } else if (v.startsWith('set_')) setters.push([null, v])
+        continue
+      }
       const ns = nsOf(v)
       if (!ns) {
         const callee = defs.get(v)
@@ -462,7 +635,7 @@ export function bodyEffects(def, defs, objColls) {
     }
   }
   visit(def)
-  return { kinds, families, creates, colls, ...(setters.length ? { setters } : {}) }
+  return { kinds, families, creates, colls, ...(setters.length ? { setters } : {}), ...(chained.length ? { chained } : {}) }
 }
 
 /** Keywords a `(` may follow without being a call — `if (a and b)`. */
@@ -706,11 +879,9 @@ const CONSTANT_NAMESPACES = new Set(['color', 'extend', 'xloc', 'yloc', 'size', 
   'syminfo', 'timeframe'])
 /** `timeframe.*` members that vary bar to bar despite the namespace. */
 const VARYING_CONSTANT_MEMBERS = new Set(['timeframe.change'])
-/** Calls whose result is invariant when every argument is. ⛔ `math.random` is
- *  the one `math.*` that is not a function of its arguments. */
-const INVARIANT_CALLS = new Set(['color.new', 'color.rgb', 'color.r', 'color.g', 'color.b',
-  'color.t', 'int', 'float', 'bool', 'string', 'nz', 'na'])
-const INVARIANT_CALL_NAMESPACES = new Set(['math', 'str'])
+// ⭐⭐ COND-TA — the calls whose result is invariant when every argument is: the ONE allowlist,
+// `barConstant.js::PURE_PINE_CALLS` (`isPurePineCall`; `math.random` and `str.format_time` are
+// excluded there), which the canonical-tree rule's pointwise half mirrors.
 /** `input.*` kinds that return a SIMPLE value. ⛔ `input.source` is a series. */
 const INVARIANT_INPUTS = new Set(['input.bool', 'input.int', 'input.float', 'input.string',
   'input.color', 'input.timeframe', 'input.session', 'input.symbol', 'input.text_area',
@@ -722,6 +893,34 @@ const INVARIANT_PUNCT = new Set(['(', ')', ',', '?', ':', '==', '!=', '<', '>', 
 export const isMutator = (tk) => tk && tk.kind === 'punct' && typeof tk.value === 'string'
   && tk.value.length >= 2 && tk.value.endsWith('=')
   && !['==', '!=', '<=', '>=', '=>'].includes(tk.value)
+
+/** v1-v4 `input(…, type = <kind>)` kinds whose value is SIMPLE (fixed for the run): the v4
+ *  `input.*` constants and the v3 bare words. ⛔ `input.source` / `source` is a series. */
+const SIMPLE_INPUT_TYPES = new Set(['input.bool', 'input.integer', 'input.float', 'input.string',
+  'input.symbol', 'input.resolution', 'input.session', 'input.color', 'input.time',
+  'bool', 'integer', 'float', 'string', 'symbol', 'resolution', 'session'])
+/** ⭐ C42 / COND-TA — is the bare `input(…)` opening at `toks[open]` a SIMPLE input?
+ *  Its `type =` argument says so when written (`input(title = "Period", type = input.string,
+ *  defval = "Day")`, fib-pivot-points-alerts: the guard `res == 'Y'` over it holds on every bar);
+ *  otherwise its default must be a literal written into the call (`input(true, …)`,
+ *  `input(defval = 14)`), which cannot be the SOURCE form (`input(close, …)`).
+ *  ⛔ Anything else (a source type, a default that is a name, an unreadable call) is not. */
+function isSimpleBareInput(toks, open) {
+  const isP = (tk, val) => !!tk && tk.kind === 'punct' && tk.value === val
+  const args = splitArgs(toks, open, isP)
+  if (!args || !args.length) return false
+  const typeArg = args.find((a) => a.name === 'type')
+  if (typeArg) {
+    return typeArg.toks.length === 1 && typeArg.toks[0].kind === 'ident' && !typeArg.toks[0].member
+      && SIMPLE_INPUT_TYPES.has(String(typeArg.toks[0].value))
+  }
+  const dflt = args.find((a) => a.name === 'defval') || (args[0].name === null ? args[0] : null)
+  if (!dflt) return false
+  const t = dflt.toks
+  const lit = (x) => !!x && (x.kind === 'number' || x.kind === 'string'
+    || (x.kind === 'ident' && !x.member && (x.value === 'true' || x.value === 'false')))
+  return (t.length === 1 && lit(t[0])) || (t.length === 2 && isP(t[0], '-') && t[1].kind === 'number')
+}
 
 /** Is every token in `toks[from, to)` an invariant atom? `names` are the
  *  invariant names. */
@@ -755,18 +954,12 @@ function allInvariant(toks, from, to, names) {
       // a guard that varies, and the conditional-call mark refused four drawings
       // of a block that runs on every bar.
       if (v === 'input') {
-        const first = toks[i + 2]
-        const after = toks[i + 3]
-        const literal = first && (first.kind === 'number' || first.kind === 'string'
-          || (first.kind === 'ident' && !first.member && (first.value === 'true' || first.value === 'false')))
-        const ends = after && after.kind === 'punct' && (after.value === ',' || after.value === ')')
         const close = closeOf(toks, i + 1)
-        if (!literal || !ends || close < 0 || close >= to) return false
+        if (close < 0 || close >= to || !isSimpleBareInput(toks, i + 1)) return false
         i = close
         continue
       }
-      const ns = nsOf(v)
-      if (INVARIANT_CALLS.has(v) || (ns && INVARIANT_CALL_NAMESPACES.has(ns) && v !== 'math.random')) continue
+      if (isPurePineCall(v)) continue
       return false
     }
     if (INVARIANT_WORDS.has(v)) continue
@@ -831,6 +1024,120 @@ export function barInvariantNames(stmts, h) {
 export function guardIsBarInvariant(toks, names) {
   if (!toks || !toks.length) return false
   return allInvariant(toks, 0, toks.length, names)
+}
+
+/** ⭐⭐ COND-TA (bar-constant PARAMETER guards) — per function, the parameters EVERY call site
+ *  fixes to a bar-invariant argument. A guard inside the body that reads only those (and the
+ *  top-level invariant names) holds on every bar or on none FOR EACH CALL SITE, so a `ta.*` call
+ *  under it keeps the every-bar history at that site: `get_MA(typ, len)` / `if (typ == "EMA")` /
+ *  `maVal := ema(src, len)` called as `get_MA(mafilt_type, mafilt_len)` over two inputs.
+ *  Returns `Map<function name, Set<parameter name>>`.
+ *  ⛔ FAIL CLOSED, each by name: a method or an overload (the body Pine picks is by type); a call
+ *  with a named argument, or with a count other than the definition's (a default would stand in);
+ *  a function with no call site at all; an argument written inside ANOTHER function's body that
+ *  reads one of that function's parameters, unless that parameter is itself proven fixed
+ *  (`filterLong(enable)` calling `filter(enable)`, 19-strategy-supertrend-atr: proven only once
+ *  every call of `filterLong` is); and any argument `allInvariant` does not admit (a series, a
+ *  history read, a call of a script function). */
+export function barInvariantParams(stmts, h, names) {
+  const out = new Map()
+  if (!names) return out
+  let defs
+  try { defs = readFunctionDefs(stmts, h) } catch { return out }
+  const eligible = [...defs].filter(([, def]) => !def.isMethod && !def.overloaded && def.params.length)
+  if (!eligible.length) return out
+  const NONE = new Set()
+  // ⭐ A FUNCTION NOTHING CALLS NEVER RUNS, so a call written in its body is not a call site
+  // (`filterShort`, defined and never used in 19-strategy-supertrend-atr, hands `filter` its own
+  // parameter). Reached: called from the top level, or from a function that is.
+  const callsIn = (list, from, into) => {
+    for (const st of list || []) {
+      const t = st.header || []
+      for (let i = st === list[0] ? from : 0; i < t.length; i += 1) {
+        const tk = t[i]
+        if (tk && tk.kind === 'ident' && !tk.member && defs.has(String(tk.value))) into.add(String(tk.value))
+      }
+      if (st.sub && st.sub.length) callsIn(st.sub, 0, into)
+    }
+    return into
+  }
+  const callees = new Map()
+  const reached = new Set()
+  for (const st of stmts || []) {
+    const head = definitionHeader(st.header, h)
+    if (head) callees.set(head.name, callsIn([st], head.arrow + 1, callees.get(head.name) || new Set()))
+    else callsIn([st], 0, reached)
+  }
+  for (const queue = [...reached]; queue.length;) {
+    for (const c of callees.get(queue.pop()) || []) if (!reached.has(c)) { reached.add(c); queue.push(c) }
+  }
+  /** One pass: every call site judged against `known` (the parameters proven so far). */
+  const pass = (known) => {
+    const recs = new Map(eligible.map(([name, def]) => [name, { flags: def.params.map(() => true), sites: 0 }]))
+    // `hidden`: the enclosing function's parameters; `fixed`: those of them already proven
+    const scan = (toks, from, hidden, fixed) => {
+      // a parameter hides a top-level name of its spelling; a proven one is an invariant name here
+      let scoped = names
+      if (hidden.size) {
+        scoped = new Set(names)
+        for (const p of hidden) scoped.delete(p)
+        for (const p of fixed) scoped.add(p)
+      }
+      for (let i = from; i < toks.length; i += 1) {
+        const tk = toks[i]
+        if (!tk || tk.kind !== 'ident' || tk.member) continue
+        const rec = recs.get(String(tk.value))
+        if (!rec) continue
+        const args = h.isPunct(toks[i + 1], '(') ? splitArgs(toks, i + 1, h.isPunct) : null
+        if (!args || args.length !== rec.flags.length || args.some((a) => a.name !== null)) {
+          rec.flags = rec.flags.map(() => false)
+          continue
+        }
+        rec.sites += 1
+        args.forEach((a, k) => {
+          if (!a.toks.length || !allInvariant(a.toks, 0, a.toks.length, scoped)) rec.flags[k] = false
+        })
+      }
+    }
+    const walk = (list, hidden, fixed) => {
+      for (const st of list || []) {
+        scan(st.header || [], 0, hidden, fixed)
+        if (st.sub && st.sub.length) walk(st.sub, hidden, fixed)
+      }
+    }
+    for (const st of stmts || []) {
+      const head = definitionHeader(st.header, h)
+      if (!head) { scan(st.header || [], 0, NONE, NONE); walk(st.sub, NONE, NONE); continue }
+      if (!reached.has(head.name)) continue
+      const def = defs.get(head.name)
+      const hidden = new Set(def ? def.params.map((p) => p.name) : [])
+      const fixed = known.get(head.name) || NONE
+      // ⛔ the definition's own header up to `=>` is not a call site
+      scan(st.header, head.arrow + 1, hidden, fixed)
+      walk(st.sub, hidden, fixed)
+    }
+    const found = new Map()
+    for (const [name, rec] of recs) {
+      if (!rec.sites) continue
+      const def = defs.get(name)
+      const set = new Set(def.params.filter((_, k) => rec.flags[k]).map((p) => p.name))
+      if (set.size) found.set(name, set)
+    }
+    return found
+  }
+  // ⭐ FROM NOTHING UPWARD: a pass can only prove more than the one before it (a proven parameter
+  // only ever makes an argument MORE readable), so the loop grows to its least fixed point and a
+  // function that passes its parameter to itself, or two that pass theirs to each other, prove
+  // nothing. Bounded by the parameter count.
+  let known = new Map()
+  const sizeOf = (m) => [...m.values()].reduce((n, set) => n + set.size, 0)
+  const cap = eligible.reduce((n, [, def]) => n + def.params.length, 0) + 1
+  for (let round = 0; round < cap; round += 1) {
+    const next = pass(known)
+    if (sizeOf(next) === sizeOf(known)) return next
+    known = next
+  }
+  return new Map()
 }
 
 /** ⭐ C14 — `toks[from..]` is exactly one getter on a NAMED handle:
@@ -1098,11 +1405,39 @@ function literalCountOf(toks, bind, locals, min) {
   return Number.isInteger(n) && n >= min ? n : null
 }
 
-/** ⭐ C42 — the first `ta.*(` call in these tokens, or null. */
+// ⭐⭐ COND-TA (engine 58) — GAP G-b CLOSED: Pine v1-v4 SPELL THE SAME CALLS BARE.
+// `sma(close, 3)` in a v4 `if` block is `ta.sma(close, 3)` in v5, and it keeps the same
+// per-call-site history (the v4 User Manual, "Execution of Pine functions and historical
+// context inside function blocks": "The history of series variables used inside Pine
+// functions is created through each successive call to the function. … Such functions will
+// not return expected results if they are placed in contexts where they are not executed
+// every bar, as would be the case for a `label.new` function call inside an if branch",
+// with `barssince` in "a ternary operator's conditional branch" as its worked example).
+// ⚰️ Every reader here matched the `ta.` PREFIX only, so a v4 block calling `sma` was drawn
+// off the EVERY-BAR number with no gate (`capture-queue-2026-10-31-prod-ternary.md`, G-b).
+// The translator sets, for the length of ONE translation, the predicate that says which
+// bare names are Pine's own `ta.*` calls in that script's version (`pine.js`, from
+// `pineNamespacedName`, the one legacy-name authority); null (v5+, or outside a
+// translation) keeps the prefix rule alone.
+let LEGACY_TA_CALL = null
+/** Install the legacy bare-name predicate; returns the previous one (restore it). */
+export function setLegacyTaCall(pred) {
+  const prev = LEGACY_TA_CALL
+  LEGACY_TA_CALL = typeof pred === 'function' ? pred : null
+  return prev
+}
+/** Is `name` a call to one of Pine's `ta.*` built-ins in the script being translated? */
+export function isTaCallName(name) {
+  const s = String(name || '')
+  return s.startsWith('ta.') || (LEGACY_TA_CALL !== null && !s.includes('.') && LEGACY_TA_CALL(s) === true)
+}
+
+/** ⭐ C42 — the first `ta.*(` call in these tokens (or, in Pine v1-v4, its bare
+ *  spelling: `isTaCallName`), or null. */
 export function taCallIn(toks) {
   for (let i = 0; i + 1 < (toks || []).length; i += 1) {
     const tk = toks[i]
-    if (tk && tk.kind === 'ident' && !tk.member && String(tk.value).startsWith('ta.')
+    if (tk && tk.kind === 'ident' && !tk.member && isTaCallName(tk.value)
       && toks[i + 1].kind === 'punct' && toks[i + 1].value === '(') return tk
   }
   return null
@@ -1234,7 +1569,7 @@ export function oneExecutionTokens(toks, h, {
   const left = taCallIn(out) || historyCallIn(out, historyFns)
   if (flagRest && left) {
     out = out.map((tk, i) => (historyCallAt(out, i, historyFns) || (tk.kind === 'ident' && !tk.member
-      && String(tk.value).startsWith('ta.') && out[i + 1] && out[i + 1].kind === 'punct' && out[i + 1].value === '(')
+      && isTaCallName(tk.value) && out[i + 1] && out[i + 1].kind === 'punct' && out[i + 1].value === '(')
       ? { ...tk, onceUnwitnessed: true } : tk))
   }
   return { toks: out, why, left }

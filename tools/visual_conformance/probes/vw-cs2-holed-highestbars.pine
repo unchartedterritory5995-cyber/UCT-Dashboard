@@ -1,0 +1,20 @@
+//@version=5
+indicator("UCTPROBE_VW_CS2_HOLED_HIGHESTBARS", overlay=false)
+
+// PROVENANCE: written 2026-11-15 for the Pine parity programme, capture session S17
+// (objects-lane PROBES-NEXT.md item 8, engine HL #1332 open cases). ta.highestbars / ta.lowestbars
+// over a HOLED source (x is na whenever bar_index % 50 == 30), and ta.highest's / ta.highestbars'
+// short warm-up window from the listing (bars 0..n-2: does Pine answer na, or the extreme of the
+// bars it has?).
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults.
+
+x = bar_index % 50 == 30 ? na : close
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(na(x) ? 1 : 0, "A01_x_is_na")
+plot(ta.highestbars(x, 10), "B00_highestbars_x_10")
+plot(ta.lowestbars(x, 10), "B01_lowestbars_x_10")
+plot(ta.highest(close, 10), "W00_highest_close_10")
+plot(ta.lowest(close, 10), "W01_lowest_close_10")
+plot(ta.highestbars(close, 10), "W02_highestbars_close_10")
+plot(ta.lowestbars(close, 10), "W03_lowestbars_close_10")

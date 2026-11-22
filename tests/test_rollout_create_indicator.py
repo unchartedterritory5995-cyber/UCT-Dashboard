@@ -175,4 +175,5 @@ def test_the_effective_client_cohorts_follow_the_switch(people, monkeypatch):
 def test_the_ledger_declares_the_flag_with_the_readers_default():
     flags = json.loads(Path("docs/feature_flags.json").read_text(encoding="utf-8"))["flags"]
     assert flags[FLAG]["default"] == rg.CREATE_INDICATOR_FLAG_DEFAULT == "0"
-    assert flags[FLAG]["status"] == "pending"
+    # Armed 2026-11-15 (owner decision: open to every account). It was "pending" from 2026-10-07.
+    assert flags[FLAG]["status"] == "armed" and flags[FLAG]["where"] == ["web"]

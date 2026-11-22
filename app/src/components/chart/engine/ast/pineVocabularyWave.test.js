@@ -327,19 +327,22 @@ describe('⭐⭐ time(tf, session[, tz]) — the session clock, vw-time-session 
     })
   }
 
-  it('⛔ an overnight window refuses by name — and the capture shows it could not have answered', () => {
+  // ⚰️ (bt, Engine 66 (#1473)) THIS SAID "an overnight window refuses by name — and the capture shows it
+  // could not have answered". The capture still cannot answer it ALONE (no bar here opens after
+  // 20:00); `vw-w4-session-overnight-btcusd-60-2026-11-16` (row O3) did: "2000-0000" runs to
+  // midnight. So S15 is served now, and on these bars it is `na` on every one, as captured.
+  it('S15 ("2000-0000") is served — to midnight, BTCUSD O3 — and matches every bar here', () => {
     for (const [rel] of CAPTURES) {
       const d = load(rel)
       // No captured bar opens in [20:00, 24:00) New York, so "always na" and
-      // "20:00 to midnight" are the same reading on every one of them.
+      // "20:00 to midnight" are the same reading on every one of them: these
+      // captures check the shape, the BTCUSD one (`btSessionClock.test.js`) the rule.
       const late = d.plotValues.rows.filter((r) => r[col(d, 'S01_hour_MUST_VARY_ON_INTRADAY')] >= 20)
       expect(late.length, rel).toBe(0)
     }
-    const res = againstCapture('vw-time-session-spy-1d-2026-09-27.json', 'D')
-    const s15 = (res.t.outputs || []).find((o) => o.refusal && /"2000-0000"/.test(o.refusal.message))
-    expect(s15, 'the overnight output did not refuse').toBeTruthy()
-    expect(s15.refusal.guard).toBe('pine:function')
-    expect(s15.refusal.message).toMatch(/wraps past midnight/)
+    for (const [rel, base, min] of CAPTURES) {
+      expectRowsMatch(againstCapture(rel, base), ['S15_na_2000_0000_OVERNIGHT'], min)
+    }
   })
 
   it('reads the corpus shapes: `+` joined sessions, `str.tostring` zones, `syminfo.timezone`', () => {
@@ -355,7 +358,9 @@ describe('⭐⭐ time(tf, session[, tz]) — the session clock, vw-time-session 
       [`${V6}plot(na(time("W", "0930-1600")) ? 0 : 1)`, /OWN timeframe/],
       [`${V6}plot(na(time(timeframe.period, "0930-1600", "Europe/London")) ? 0 : 1)`, /Europe\/London/],
       [`${V6}plot(na(time(timeframe.period, "0930-1000,1300-1400")) ? 0 : 1)`, /not a session read here/],
-      ['//@version=4\nstudy("p")\nplot(na(time(period, "0930-1600")) ? 0 : 1)', /no day list/],
+      // ⚰️ was `//@version=4`: a v4 session with no day list is Monday to Friday by the v4
+      // reference and the migration guide (bt, `btSessionClock.test.js`); v1-v3 keep the refusal
+      ['//@version=3\nstudy("p")\nplot(na(time(period, "0930-1600")) ? 0 : 1)', /no day list/],
     ]
     for (const [src, pattern] of cases) {
       const t = tr(src)

@@ -1,5 +1,5 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useContext, forwardRef, useImperativeHandle, lazy, Suspense } from 'react'
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, useCallback, useContext, forwardRef, useImperativeHandle, lazy, Suspense, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import { keepIndicatorState } from './indicatorPreservation'
@@ -52,7 +52,7 @@ const BuilderSheet = lazy(() => import('./builder/BuilderSheet'))
 const CreateIndicatorPanel = lazy(() => import('./builder/studio/CreateIndicatorPanel'))
 const SaveReceipt = lazy(() => import('./builder/studio/SaveReceipt'))
 import { mintScope, chartScope, createKey, editKey, draftWillRestore } from './builder/authoring/conversationSessions'
-import { seedFrom } from './builder/agentSeams'
+import { seedFrom, sendSeedFrom } from './builder/agentSeams'
 import { useUserDefinitions, readUserDefinition } from '../../hooks/useUserDefinitions'
 import { scriptUpgradeHeld } from './builder/memberPane/savedScriptUpgrade'
 import { createCustomCopy } from './builder/definitionActions'
@@ -83,6 +83,7 @@ import Input from '../ui/Input'
 import Select from '../ui/Select'
 import Checkbox from '../ui/Checkbox'
 import { routeIndicatorAuthoring } from '../../agent/indicatorEntry'
+import { onFavoriteToolsChange, readFavoriteTools, toggledFavorites, writeFavoriteTools } from './drawToolFavorites'
 
 // ─── SVG icon factory ────────────────────────────────────────────────────────
 const I = (children) => (
@@ -152,7 +153,7 @@ export const TOOL_ICONS = {
 // `favorites` = tool ids surfaced on the floating quick-toolbar. All tools are
 // visible by default (empty hidden set).
 const LS_HIDDEN = 'uct.chart.drawtools.hidden.v1'
-const LS_FAV = 'uct.chart.drawtools.favorites.v1'
+// the favourites' key and writer live in drawToolFavorites.js (shared with UCT Agent's drawingExtras.favoriteTool)
 const LS_FAVPOS = 'uct.chart.drawtools.favpos.v1'
 const _loadArr = (k) => { try { const a = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(a) ? a : [] } catch { return [] } }
 const _saveArr = (k, a) => { try { localStorage.setItem(k, JSON.stringify(a)) } catch { /* ignore */ } }
@@ -214,6 +215,16 @@ export const TOOLS = [
   // which of them it opens.
   { id: 'position',   label: chorded('position', 'Position Calculator') },
 ]
+
+// Group index of every drawing tool, read off TOOLS' own 'sep' markers (lines ·
+// shapes · studies · annotation · position). The row draws a hairline between
+// groups (owner 11-16, UCT Signature) — the order and the groups stay TOOLS'.
+export const TOOL_GROUP = (() => {
+  const m = {}
+  let g = 0
+  for (const t of TOOLS) { if (t === 'sep') g++; else m[t.id] = g }
+  return m
+})()
 
 const WIDTHS = [1, 2, 3]
 const FONT_SIZES = [10, 13, 16, 20, 26, 34, 44]
@@ -600,7 +611,7 @@ function ChartSettingsPanel({
           className={styles.sLauncher}
           onClick={() => onOpenFormulaBuilder?.()}
         >
-          <span>New formula</span>
+          <span>Create indicator</span>
           <span aria-hidden="true">→</span>
         </button>
       </div>
@@ -742,6 +753,39 @@ function ChartSettingsPanel({
               }} />
             Desk mentions
           </label>
+          {/* Next earnings date (owner 11-16): the modal's Events row writes the top-level `nextEarningsMarker`
+              (absent = off; chartViewOptions.js) — mirrored here so neither surface drifts behind. */}
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.nextEarningsMarker === true}
+              onChange={e => {
+                const next = { ...cs, nextEarningsMarker: e.target.checked, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            Next earnings date
+          </label>
+          {/* Price alerts (owner 11-16): the modal's Your activity row writes the top-level `priceAlertLines`
+              (absent = off; chartViewOptions.js) — mirrored here so neither surface drifts behind. */}
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.priceAlertLines === true}
+              onChange={e => {
+                const next = { ...cs, priceAlertLines: e.target.checked, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            Price alerts
+          </label>
+          {/* My trades (owner 11-16): the modal's Your activity row writes the top-level `myTradeMarkers`
+              (absent = off; chartViewOptions.js) — mirrored here so neither surface drifts behind. */}
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.myTradeMarkers === true}
+              onChange={e => {
+                const next = { ...cs, myTradeMarkers: e.target.checked, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            My trades
+          </label>
         </div>
       </div>
 
@@ -798,10 +842,16 @@ function ChartSettingsPanel({
   )
 }
 
-// Dropdown to show/hide + favorite drawing tools. Styled to match the info-row
-// "add a field" menu (dark, search on top, checkmark on shown rows, star on right).
+// Dropdown to show/hide + favorite drawing tools — UCT Signature style (owner 11-15,
+// docs/uct-signature-style.md): the graphite menu panel, a search well, a soft square on the
+// left (on = the tool shows on the toolbar), the tool's grey icon and plain name, and a star on
+// the right (a favourite's filled star always shows; an empty one appears on hover). A tool's
+// "— click the …" instruction moves out of the name into the hint strip at the bottom. No gold.
+const toolName = (label) => label.replace(/\s*\([^)]*\)\s*$/, '').replace(/\s+[—–-]\s+.*$/, '')
+const toolHint = (label) => { const m = label.match(/\s+[—–-]\s+(.*)$/); return m ? m[1] : '' }
 function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onToggleFavorite, anchorRect, onClose }) {
   const [q, setQ] = useState('')
+  const [hover, setHover] = useState(null)
   const ref = useRef(null)
   useEffect(() => {
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) onClose() }
@@ -811,34 +861,42 @@ function FavoriteDrawingsMenu({ tools, hidden, favorites, onToggleHidden, onTogg
   const filtered = tools.filter(t => t.label.toLowerCase().includes(q.toLowerCase()))
   const left = Math.min(anchorRect?.left ?? 100, window.innerWidth - 272)
   const top = (anchorRect?.bottom ?? 40) + 4
+  const h = hover && tools.find(t => t.id === hover)
   return createPortal(
-    <div ref={ref} className={styles.menuScroll} style={{ position: 'fixed', left: Math.max(8, left), top, width: 260, maxHeight: '68vh',
-        overflowY: 'auto', zIndex: 1000, background: 'var(--menu-bg,#14171c)',
-        border: '1px solid var(--menu-border,#232932)', borderRadius: 8, boxShadow: '0 8px 28px rgba(0,0,0,0.5)',
-        padding: 6, fontFamily: "'Instrument Sans', sans-serif" }}>
-      <Input aria-label="Search drawing tools" autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search tools…"
-        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 10px', marginBottom: 4,
-          background: 'var(--menu-bg-2,#1b1f26)', border: '1px solid var(--menu-border,#232932)', borderRadius: 6,
-          color: 'var(--menu-text,#e8eaed)', fontSize: 13, outline: 'none' }} />
-      {filtered.map(t => {
-        const visible = !hidden.includes(t.id)
-        const fav = favorites.includes(t.id)
-        return (
-          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6 }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'var(--menu-accent-bg,rgba(201,168,76,0.1))' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}>
-            <span onClick={() => onToggleHidden(t.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, cursor: 'pointer' }}>
-              <span style={{ width: 14, height: 14, color: '#c9a84c', flexShrink: 0, display: 'flex' }}>{visible ? ICONS.check : null}</span>
-              <span style={{ width: 16, color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.6, flexShrink: 0, display: 'flex' }}>{ICONS[t.id]}</span>
-              <span style={{ color: 'var(--menu-text,#e8eaed)', opacity: visible ? 1 : 0.6, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label.replace(/\s*\([^)]*\)\s*$/, '')}</span>
-            </span>
-            <span onClick={() => onToggleFavorite(t.id)} title={fav ? 'Remove from favorites toolbar' : 'Add to favorites toolbar'}
-              style={{ flexShrink: 0, color: fav ? '#c9a84c' : 'var(--menu-text-muted,#6b7280)', display: 'flex', cursor: 'pointer' }}>
-              {fav ? ICONS.favorites : ICONS.starOutline}
-            </span>
-          </div>
-        )
-      })}
+    <div ref={ref} className={styles.dtMenu} style={{ left: Math.max(8, left), top }} role="dialog" aria-label="Drawing tools">
+      <label className={styles.dtFind}>
+        <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.2" fill="none" stroke="currentColor" strokeWidth="1.5" /><path d="M10.2 10.2 13.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+        <Input aria-label="Search drawing tools" autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Find a tool…" className={styles.dtFindInput} />
+      </label>
+      <div className={`${styles.dtScroll} ${styles.menuScroll}`}>
+        {filtered.length ? filtered.map(t => {
+          const visible = !hidden.includes(t.id)
+          const fav = favorites.includes(t.id)
+          const name = toolName(t.label)
+          return (
+            <div key={t.id} className={`${styles.dtRow}${visible ? '' : ' ' + styles.dtRowOff}`} onMouseEnter={() => setHover(t.id)}>
+              <button type="button" className={styles.dtMain} role="checkbox" aria-checked={visible}
+                aria-label={`Show ${name} on the toolbar`} onClick={() => onToggleHidden(t.id)}>
+                <span className={`${styles.dtSoft}${visible ? ' ' + styles.dtSoftOn : ''}`} aria-hidden="true">
+                  {visible && <svg width="11" height="11" viewBox="0 0 12 12"><path d="M2.5 6.2l2.3 2.3 4.7-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                </span>
+                <span className={styles.dtIcon} aria-hidden="true">{ICONS[t.id]}</span>
+                <span className={styles.dtName}>{name}</span>
+              </button>
+              <button type="button" className={`${styles.dtStar}${fav ? ' ' + styles.dtStarOn : ''}`} aria-pressed={fav}
+                title={fav ? 'Remove from favorites toolbar' : 'Add to favorites toolbar'}
+                aria-label={fav ? `Remove ${name} from the favorites toolbar` : `Add ${name} to the favorites toolbar`}
+                onClick={() => onToggleFavorite(t.id)}>
+                <svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.6l-3.8 2 .7-4.3-3.1-3 4.3-.6z" fill={fav ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+              </button>
+            </div>
+          )
+        }) : <div className={styles.dtEmpty}>No tool matches “{q.trim()}”.</div>}
+      </div>
+      <div className={styles.dtHint} aria-live="polite">
+        {h ? <><b>{toolName(h.label)}</b>{toolHint(h.label) ? <><br />{toolHint(h.label).replace(/^./, c => c.toUpperCase())}</> : null}</>
+          : <>Tick a tool to show it on the toolbar · <span className={styles.dtHintStar}>★</span> adds it to your favorites bar</>}
+      </div>
     </div>, document.body)
 }
 
@@ -1003,6 +1061,13 @@ function formatReplayDate(t) {
   return formatETDate(t * 1000)
 }
 
+/** The words a member typed into the library's search before choosing "Describe it
+ *  instead": they go into Create Indicator's box, not sent. Anything else: no seed. */
+export function libraryDescribeSeed(opts) {
+  const s = opts && typeof opts.seed === 'string' ? opts.seed.trim() : ''
+  return s ? s.slice(0, 400) : null
+}
+
 function ChartToolbar({
   // Phone chart shell: MobileDrawBar presents the drawing tools instead, so
   // this strip hides ENTIRELY (its dialogs still portal out, its imperative
@@ -1086,6 +1151,11 @@ function ChartToolbar({
   // skips the compute check on an empty list rather than refusing, so a mount
   // site with no bars still gets a parseable proposal.
   bars = null,
+  // ⭐ 2026-11-19 -- the chart as the ENGINE sees it: `{bars, ctx}`, the bars the binder computes on and
+  // the compute context it is handed. For a check made beside the chart (`builder/runsHere.js`): a
+  // script Create Indicator's assistant wrote is run on it before the dock says it runs. Default
+  // `null`: a mount with none keeps the paste check alone.
+  engineChart = null,
   // Shared saved-color swatches (same list as Chart Settings + the right-click
   // drawing menu) so the toolbar's color popup is the full ColorPanel, not the
   // old 3×3 grid. Default `[]`/null → the panel simply omits the Saved row.
@@ -1112,6 +1182,10 @@ function ChartToolbar({
   studioDockHost = null,
   onStudioDockChange = null,
   onOpenLibrary = null,
+  // ⭐ UCT RS Phase 4 (unit 4-05) — the first add of a definition with an unseen
+  // `meta.tour` (the library's `onFirstAdd`). The library closes first, so the
+  // host's tour never opens under a sheet. Absent ⇒ the library reads no tour state.
+  onIndicatorFirstAdd = null,
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [colorPanelPos, setColorPanelPos] = useState({ left: 0, top: 0 })
@@ -1137,6 +1211,11 @@ function ChartToolbar({
   // read-only chart cannot sprout an add-dialog, without a second prop that
   // could disagree with the first (spec §5 "mount-site scoping").
   const [libraryOpen, setLibraryOpen] = useState(false)
+  // ⭐ 4-05 — a first add of a toured definition closes the library, then tells the host.
+  const handleLibraryFirstAdd = useCallback((defId) => {
+    setLibraryOpen(false)
+    try { onIndicatorFirstAdd?.(defId) } catch { /* noop */ }
+  }, [onIndicatorFirstAdd])
   // ⭐ PHASE D TASK 11 — the formula builder, held here for the SAME reason the
   // library is: it is opened from the settings panel, `Sheet` portals to
   // `document.body`, and the panel closes on outside mousedown — so a dialog
@@ -1149,8 +1228,16 @@ function ChartToolbar({
   // ⭐ P2 Track B — which door the builder opens on when Create Indicator hands
   // off to it (Formula / Import / Screenshot). `null` = the builder's own default.
   const [builderMode, setBuilderMode] = useState(null)
-  const openBuilder = useCallback((mode = null) => {
+  // ⭐ UCT SIGNATURE R2 — words to PRE-FILL into the start view's Describe it (never sent):
+  // the Indicators window's "Build “…” with the UCT Agent". Every other opening clears them.
+  const [builderDescription, setBuilderDescription] = useState(null)
+  // ⭐ A SCRIPT Create Indicator's assistant wrote (`builder/authoring/scriptAnswer.js`): opened on
+  // the script tab with this text in it, where it is checked, previewed and saved like a pasted one.
+  const [builderPine, setBuilderPine] = useState(null)
+  const openBuilder = useCallback((mode = null, opts = null) => {
     setBuilderMode(typeof mode === 'string' ? mode : null)
+    setBuilderDescription(opts && typeof opts.description === 'string' && opts.description.trim() ? opts.description : null)
+    setBuilderPine(opts && typeof opts.pine === 'string' && opts.pine.trim() ? opts.pine : null)
     setBuilderEverOpened(true)
     setBuilderOpen(true)
   }, [])
@@ -1159,6 +1246,9 @@ function ChartToolbar({
   const [createOpen, setCreateOpen] = useState(false)
   // ⭐ AGENT M1 — a request to PREFILL into the studio's box (never sent); consumed at mount
   const [createSeed, setCreateSeed] = useState(null)
+  // ⭐ 2026-11-16 — the member's own plain-words box asked for the seed to be SENT (`sendSeedFrom`).
+  // Read only together with a seed, so every door that clears the seed clears this too.
+  const [createSendSeed, setCreateSendSeed] = useState(false)
   // a seed lives for ONE opening: every other door clears it as it opens the studio
   // ⭐ PHASE 4 — UNIFIED EDITING. The STORE's row the studio / builder was opened on
   // (null = a new indicator). Held in state (a stable identity: the builder's
@@ -1206,7 +1296,13 @@ function ChartToolbar({
 
   // ── Drawing-tools customization (show/hide + favorites) ──
   const [hiddenTools, setHiddenTools] = useState(() => _loadArr(LS_HIDDEN))
-  const [favoriteTools, setFavoriteTools] = useState(() => _loadArr(LS_FAV))
+  const [favoriteTools, setFavoriteTools] = useState(() => readFavoriteTools())
+  // a ★ toggled by another toolbar in this tab, or by UCT Agent, shows here too
+  // favRef is the latest list, written only in handlers (never during render): a toggle builds on it, so two toggles
+  // in one tick compose, and the write + its event run OUTSIDE any setState updater (the event sets every other
+  // mounted toolbar's state, which must not happen while React is processing this one's update)
+  const favRef = useRef(favoriteTools)
+  useEffect(() => onFavoriteToolsChange((list) => { favRef.current = list; setFavoriteTools(list) }), [])
   const [favMenuOpen, setFavMenuOpen] = useState(false)
   const [favMenuRect, setFavMenuRect] = useState(null)
   const [favPos, setFavPos] = useState(() => { try { return JSON.parse(localStorage.getItem(LS_FAVPOS)) || null } catch { return null } })
@@ -1221,9 +1317,12 @@ function ChartToolbar({
   const toggleHiddenTool = useCallback((id) => setHiddenTools(prev => {
     const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; _saveArr(LS_HIDDEN, n); return n
   }), [])
-  const toggleFavoriteTool = useCallback((id) => setFavoriteTools(prev => {
-    const n = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]; _saveArr(LS_FAV, n); return n
-  }), [])
+  const toggleFavoriteTool = useCallback((id) => {
+    const n = toggledFavorites(favRef.current, id)
+    favRef.current = n
+    setFavoriteTools(n)
+    writeFavoriteTools(n)
+  }, [])
   const moveFavToolbar = useCallback((p) => { setFavPos(p); try { localStorage.setItem(LS_FAVPOS, JSON.stringify(p)) } catch { /* ignore */ } }, [])
   const openFavMenu = useCallback(() => {
     const r = favBtnRef.current?.getBoundingClientRect()
@@ -1296,10 +1395,11 @@ function ChartToolbar({
     // reason `openIndicatorLibrary` does: a read-only mount site passes no
     // `onUpdateSettings`, and a caller that got `true` would render a button that
     // opened nothing.
-    openFormulaBuilder: () => {
+    // ⭐ UCT SIGNATURE R2 — `{description}` opens the start view with those words in Describe it.
+    openFormulaBuilder: (opts = null) => {
       if (!canManageIndicators) return false
       setLibraryOpen(false)   // never two Sheets: see the mount comment below
-      openBuilder()
+      openBuilder(null, opts && typeof opts.description === 'string' ? { description: opts.description } : null)
       return true
     },
     // ⭐ P2 Track B — Chart Settings → Indicators → "+ Create Indicator". Only a
@@ -1366,6 +1466,7 @@ function ChartToolbar({
       if (!sameOpen) {
         // a different definition (or create ↔ edit) re-mounts the panel (its `key`)
         setCreateSeed(prefilled ? seed : null)
+        setCreateSendSeed(prefilled && sendSeedFrom(opts))
         setCreateEditRow(row)
         setCreateOpen(true)
       }
@@ -1587,26 +1688,38 @@ function ChartToolbar({
     <>
     <div className={`${styles.toolbar} ${collapsed ? styles.collapsed : ''}`} style={hiddenHost ? { display: 'none' } : prominent ? { opacity: 1 } : undefined}>
       {/* ── Tool buttons ── */}
-      {/* Every button is evenly spaced by the flex `gap`. TOOLS still carries its
-          'sep' markers and DRAW_TOOL_LIST still drops them: V2 tried rendering them
-          as ~6px of breathing room between lines / shapes / studies / annotation,
-          and the owner's call on the real chart was that the even row reads better.
-          One rhythm the whole way across. */}
+      {/* ⭐ GROUP HAIRLINES (owner 11-16, UCT Signature): a 1px divider sits between
+          TOOLS' own groups (its 'sep' markers — lines · shapes · studies · annotation
+          · position) and before the Boards/★ pair. It goes in front of the first
+          VISIBLE tool of a group, so hiding a group's first tool never orphans or
+          drops a line. (V2's plain ~6px gaps lost to an even row; the hairlines
+          were approved 11-16.) */}
       <div className={styles.tools} data-guide="chart.drawingTools">
-        {(toolFilter ? DRAW_TOOL_LIST.filter(t => toolFilter.includes(t.id)) : DRAW_TOOL_LIST).map((t) => (
+        {(() => { let lastGroup = null; return (toolFilter ? DRAW_TOOL_LIST.filter(t => toolFilter.includes(t.id)) : DRAW_TOOL_LIST).map((t) => {
+          const shown = toolFilter || !hiddenTools.includes(t.id)
+          const divide = shown && lastGroup !== null && TOOL_GROUP[t.id] !== lastGroup
+          if (shown) lastGroup = TOOL_GROUP[t.id]
+          return (
+          <Fragment key={t.id}>
+          {divide && <span className={styles.groupDivider} data-tool-divider="" aria-hidden="true" />}
           <button
-            key={t.id}
             /* Hidden tools stay in the DOM but collapse to width 0 (styles.toolHidden)
                so show/hide animates smoothly instead of popping. */
             className={`${styles.btn} ${activeTool === t.id ? styles.active : ''} ${(!toolFilter && hiddenTools.includes(t.id)) ? styles.toolHidden : ''}`}
             onClick={() => selectTool(t.id)}
             data-guide={`chart.tool.${t.id}`}
+            data-guide-on={activeTool === t.id ? 'true' : undefined}
             title={t.label}
             aria-label={t.label}
           >
             {ICONS[t.id]}
           </button>
-        ))}
+          </Fragment>
+          )
+        }) })()}
+        {!toolFilter && DRAW_TOOL_LIST.some(t => !hiddenTools.includes(t.id)) && (
+          <span className={styles.groupDivider} data-tool-divider="" aria-hidden="true" />
+        )}
         {/* Drawing Boards — at the END of the drawing tools, styled identically (it's
             handed this toolbar's own scoped button classes). Charts workspace only. */}
         {!toolFilter && showTracings && (
@@ -1619,6 +1732,7 @@ function ChartToolbar({
             className={`${styles.btn} ${favMenuOpen ? styles.active : ''}`}
             onClick={openFavMenu}
             title="Customize drawing tools — show/hide & favorite"
+            data-guide="chart.customizeTools"
             aria-label="Customize drawing tools"
           >
             {ICONS.favorites}
@@ -1776,6 +1890,7 @@ function ChartToolbar({
             className={styles.btn}
             onClick={onScreenshot}
             aria-label="Share chart"
+            data-guide="chart.share"
             title="Share chart — copy image, download PNG, or copy link"
           >
             {ICONS.share}
@@ -1838,6 +1953,7 @@ function ChartToolbar({
             className={`${styles.btn} ${alertPopoverOpen ? styles.active : ''}`}
             onClick={() => { setAlertInitial(null); setAlertPopoverOpen(o => !o) }}
             title={currentSym ? 'Indicator alerts' : 'Select a symbol to set alerts'}
+            data-guide="chart.alerts"
             aria-label="Indicator alerts"
             disabled={!currentSym}
           >
@@ -1917,6 +2033,13 @@ function ChartToolbar({
             registry={engineRegistry}
             sheetClassName={sheetClassName}
             extraRows={libraryExtraRows}
+            onFirstAdd={typeof onIndicatorFirstAdd === 'function' ? handleLibraryFirstAdd : null}
+            /* Create Indicator from the library: the door a phone has (it has no Chart Settings
+               window to reach it through). The same opening the pane's own button makes: the
+               library and the builder close, a fresh studio opens. */
+            onCreateIndicator={canModifyWithIntelligence && typeof onStudioPreview === 'function'
+              ? (opts) => { setLibraryOpen(false); setBuilderOpen(false); setCreateSeed(libraryDescribeSeed(opts)); setCreateEditRow(null); setCreateOpen(true) }
+              : null}
             /* 🔴 THE BUILDER'S DOOR ON `/charts` — its SECOND opener, and on the
                charts workspace its ONLY one.
                `ChartSettingsPanel` (below) has held the builder's single entry
@@ -1970,6 +2093,9 @@ function ChartToolbar({
                cannot write an instance. */
             settings={cs}
             onChange={onUpdateSettings}
+            /* ⭐ BACKLOG 49 (owner decision 2026-11-17) — opened from a chart, this window is where an
+               indicator is created or edited, and is titled so; the Screener's mount keeps "formula". */
+            noun="indicator"
             /* ⭐⭐ j.5 (2026-09-18) — THE HALF OF THE CONTRACT THIS DOOR NEVER
                IMPLEMENTED. `save()` has ended in `onSaved?.(res.row)` since Phase
                D and the screener door has always closed on it; this mount passed
@@ -1982,10 +2108,14 @@ function ChartToolbar({
             /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
                window the user sees. See the `bars` prop's declaration. */
             bars={bars}
+            /* ⭐ the script tab's status panel runs a pasted script on this chart (`builder/runsHere.js`) */
+            engineChart={engineChart}
             /* W1a hand-back: the preview draws on this chart */
             sym={currentSym}
             tf={tf}
             initialMode={builderMode}
+            initialDescription={builderDescription}
+            initialPine={builderPine}
             /* ⭐ PHASE 4 — "Edit formula" from the legend / inspector / Your indicators */
             editRow={builderEditRow}
           />
@@ -2005,8 +2135,12 @@ function ChartToolbar({
               key={createEditRow ? `edit:${createEditRow.def_id}` : 'create'}
               editRow={createEditRow}
               onEditFormula={createEditRow ? () => { const r = createEditRow; setCreateOpen(false); setCreateEditRow(null); setBuilderEditRow(r); setBuilderMode(null); setBuilderEverOpened(true); setBuilderOpen(true) } : null}
-              onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); if (res && res.receipt) setSaveReceipt(res.receipt) }}
+              onClose={(res) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); if (res && res.receipt) setSaveReceipt(res.receipt) }}
               seed={createSeed}
+              sendSeed={!!createSeed && createSendSeed}
+              /* ⭐ a script answer is RUN on this chart before the dock says it runs (`builder/runsHere.js`) */
+              engineChart={engineChart}
+              onOpenScript={({ pine }) => { setCreateOpen(false); setCreateEditRow(null); setCreateSeed(null); setCreateSendSeed(false); setBuilderEditRow(null); openBuilder('pine', { pine }) }}
               settings={cs}
               onChange={onUpdateSettings}
               sym={currentSym}
@@ -2153,6 +2287,7 @@ function ChartToolbar({
             disabled={!canUndo}
             title="Undo (Ctrl+Z)"
             aria-label="Undo"
+            data-guide="chart.drawUndo"
           >
             {ICONS.undo}
           </button>

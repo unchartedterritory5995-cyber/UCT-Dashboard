@@ -1,0 +1,37 @@
+{
+  "case": "rs_learn_videos",
+  "kind": "rs_learn_videos",
+  "note": "The SHARED fixture for the UCT Relative Strength Learn links (engineering map 2026-11-06 §2.8 / §3 row 2a-16; design spec 2026-11-05 §6.11). Six lesson keys the RS About readout (2a-10) links to, each a Desk video id plus a seek in seconds (decision D6, 2026-11-07: the chapter covering relative strength where the repo holds chapter data, otherwise 1 so the link opens the lesson at its top rather than the member's resume point; deskVideoHref.js records which rows got which start). Mirrored by app/src/lib/deskVideoHref.js RS_LEARN_VIDEOS (the JS lane reads this file in deskVideoHref.test.js); tests/test_rs_learn_seed.py pins every youtube_id against api/services/education_seed.py SEED_VIDEOS so a regenerated seed sheet cannot drop a target silently. Not an indicator-math case: no bars, no expected columns.",
+  "videos": {
+    "rsLine": {
+      "youtubeId": "sM-aFdyOps4",
+      "t": 1,
+      "label": "Manrav on the RS line: Relative Strength Workshop"
+    },
+    "phase": {
+      "youtubeId": "sM-aFdyOps4",
+      "t": 1,
+      "label": "Manrav on the RS line and its 21 EMA"
+    },
+    "newHigh": {
+      "youtubeId": "QCTOJgCQmjw",
+      "t": 1,
+      "label": "Chartmaster on tracking relative strength"
+    },
+    "beforePrice": {
+      "youtubeId": "_0ZvKLYznLo",
+      "t": 1814,
+      "label": "Chartmaster: RS shows before price confirms"
+    },
+    "redDay": {
+      "youtubeId": "mfswYu5UlX8",
+      "t": 341,
+      "label": "Chartmaster: RS highs on red market days"
+    },
+    "fourChecks": {
+      "youtubeId": "mfswYu5UlX8",
+      "t": 726,
+      "label": "Chartmaster: the four RS checks"
+    }
+  }
+}

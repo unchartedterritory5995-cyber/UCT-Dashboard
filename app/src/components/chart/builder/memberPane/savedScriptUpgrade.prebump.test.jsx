@@ -24,14 +24,15 @@ import { astHash } from '../../engine/ast/parse'
 import * as mpd from './memberPaneDefinition'
 import {
   upgradeKindOf, resolveRow, writeBackOnce, recordOnce, needsScriptForUpgrade, scriptUpgradeHeld, TRANSLATOR_LOAD_TIMEOUT_MS,
-  __resetSavedScriptUpgrade, __setTranslatorForTests,
+  __resetSavedScriptUpgrade, __setTranslatorForTests, UPGRADE_NOTIFY_COALESCE_MS,
 } from './savedScriptUpgrade'
 import { SCRIPT_ENGINE_VERSION, engineStampOf, withEngineStamp, PINE_SOURCE_MAX_BYTES } from '../../engine/scriptEngineVersion'
 
 const SCRIPT = '//@version=5\nindicator("Upgrade Probe")\nplot(ta.sma(close, 14), "avg")\n'
 const REFUSED = '//@version=5\nindicator("Draws Nothing")\nx = ta.sma(close, 14)\n'
 const wrapper = ({ children }) => <AuthContext.Provider value={{ user: { id: 'm1' } }}>{children}</AuthContext.Provider>
-const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, 0)) }) }
+// Past the landing-notify coalescing window (`UPGRADE_NOTIFY_COALESCE_MS`).
+const flush = async () => { await act(async () => { await new Promise((r) => setTimeout(r, UPGRADE_NOTIFY_COALESCE_MS + 5)) }) }
 
 /** A valid pre-engine script document (planted period 99, its own handle). */
 function stale(id) {
@@ -334,6 +335,16 @@ describe('pre-bump F3 — the SAME refused maths stays held past its engine', ()
   it('a version HOLDING its script is still re-translated (today’s engine answers it)', () => {
     const row = rowOf(stale('u_bbbbbbbbbb35'), { has_pine_source: true, pine_source: SCRIPT, engine_status: sameMaths(true) })
     expect(upgradeKindOf(row, N + 1)).toBe('retranslate')
+  })
+
+  // ⭐ TRACK 6 (a) (coordinator ruling 2026-11-22): a RUNTIME document is recompiled from its source on
+  // every run, so an older engine's refusal expires with that engine, same maths or not. The server's
+  // `engine_withheld_reason` answers the same (tests/test_pine_runtime_composition.py).
+  it('a RUNTIME document: an older refusal expires at N + 1 even on the same maths; today’s still binds', () => {
+    const d = { id: 'u_bbbbbbbbbb36', compute: { kind: 'runtime', source: SCRIPT, outputs: { v: 0 } }, meta: {} }
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(true) }), N + 1)).not.toBe('refused')
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(false) }), N + 1)).not.toBe('refused')
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(true) }), N)).toBe('refused')
   })
 })
 

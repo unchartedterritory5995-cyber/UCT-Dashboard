@@ -87,7 +87,7 @@ describe('AskAiSection', () => {
     // where it reads as an answer about MSFT.
     expect(screen.queryByText('why did it move?')).toBeNull()
     expect(screen.queryByText(ANSWER.answer)).toBeNull()
-    expect(screen.getByText('Ask AI about MSFT')).toBeTruthy()
+    expect(screen.getByText('Ask the UCT Agent about MSFT')).toBeTruthy()
     expect(screen.getByText(suggestionsFor({ sym: 'MSFT', lifecycle: 'PRINTED' })[0])).toBeTruthy()
   })
 

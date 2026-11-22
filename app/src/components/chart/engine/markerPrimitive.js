@@ -23,6 +23,8 @@
 // `location.absolute` is for) would then mark every bar with a non-zero price,
 // which is every bar. So the test is explicit rather than truthy.
 
+import { createWindowedMarkers } from '../windowedChart'
+
 /** Does this column value mark its bar?
  *
  *  ⚠️ `> 0` RATHER THAN `!== 0`, and it is deliberate. Pine's own rule for
@@ -46,6 +48,8 @@ const marks = (v) => Number.isFinite(v) && v > 0
  *   condition, so a marker can take the same two-colour treatment a line does
  * @param {string|null} [spec.colorUp]
  * @param {string|null} [spec.colorDown]
+ * @param {function|null} [spec.colourAt] ⭐ ENGINE 58 — `(i) => colour|null` for a
+ *   palette / gradient / packed rule; null falls back to `color`
  * @param {boolean} [spec.unknownNone] ⭐ P1 — `binder.unknownColourRule(def)`: an
  *   UNKNOWN colour condition takes the marker's own `color`, never `colorDown`
  *   (a semantics-2 document). Off ⇒ Pine's `na`-takes-else (owner ruling 2).
@@ -53,7 +57,7 @@ const marks = (v) => Number.isFinite(v) && v > 0
  * @returns {Array<object>} LWC marker objects, ascending by time
  */
 export function markersFor({ column, times, marker, color,
-  condColumn = null, colorUp = null, colorDown = null, unknownNone = false }) {
+  condColumn = null, colorUp = null, colorDown = null, unknownNone = false, colourAt = null }) {
   const out = []
   if (!column || !times || !marker) return out
   const n = Math.min(
@@ -67,7 +71,9 @@ export function markersFor({ column, times, marker, color,
   for (let i = 0; i < n; i += 1) {
     if (!marks(column[i])) continue
     const known = twoTone && Number.isFinite(condColumn[i])
-    const c = !twoTone ? color
+    // ⭐ ENGINE 58 — `colourAt(i)`: a palette / gradient / run-computed colour's
+    // per-bar answer (`binder.pointColour`), the plot's own colour where it has none.
+    const c = !twoTone ? (typeof colourAt === 'function' ? (colourAt(i) || color) : color)
       : known ? (condColumn[i] !== 0 ? colorUp : colorDown)
         : (unknownNone ? color : colorDown)
     const m = {
@@ -105,7 +111,8 @@ export function createMarkerLayer(createSeriesMarkers, series) {
       last = sig
       if (!controller) {
         if (!markers.length) return
-        controller = createSeriesMarkers(series, markers)
+        // window-aware: only the markers inside the chart's render window reach the plugin (chart/windowedChart.js)
+        controller = createWindowedMarkers(createSeriesMarkers, series, markers)
         return
       }
       controller.setMarkers(markers)

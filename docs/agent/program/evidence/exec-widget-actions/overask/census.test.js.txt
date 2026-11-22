@@ -1,0 +1,75 @@
+// STATIC COUNT of the which-widget guard over pl-auto's autotest sets (families/*.mjs + boards.mjs, read-only from C:/w/pl-auto-cap).
+// NOT a run of the browser harness: each case's scripted plan ops are put through the guard exactly as the executor calls it
+// (resolveArgs on widget.setOption / widget.sendToJournal / watchlist.showList / watchlist.exportList; whichListView's rule on
+// watchlist.arrangeColumns; the model path's screenWatchlistWidget), over the board's widgets from its saved layout.
+// Copied into a worktree's app/src/agent/ untracked, run with vitest, then deleted. Writes CENSUS_OUT (json).
+import { it } from 'vitest'
+import { writeFileSync, readdirSync } from 'fs'
+
+const AUTO = 'C:/w/pl-auto-cap/app/src/testing/agent/autotest'
+const OUT = process.env.CENSUS_OUT
+const MODE = process.env.CENSUS_MODE || 'head'          // head | old (a7d44da95a: screenWatchlistWidget only) | master (no guard)
+
+it('census', async () => {
+  const { BOARDS } = await import(/* @vite-ignore */ `${AUTO}/boards.mjs`)
+  let whichWidget = null, listSwitchable = null
+  if (MODE === 'head') ({ whichWidget, listSwitchable } = await import('./whichWidget'))
+  const screen = MODE === 'master' ? null
+    : MODE === 'old' ? (await import('./__census_old_watchlistTarget.js')).screenWatchlistWidget
+    : (await import('./watchlistTarget')).screenWatchlistWidget
+  const files = readdirSync(`${AUTO}/families`).filter(f => f.endsWith('.mjs') && f !== 'dsl.mjs')
+  const sets = {}
+  const unknownBoards = new Set()
+  for (const f of files) {
+    const mod = await import(/* @vite-ignore */ `${AUTO}/families/${f}`)
+    const fn = Object.values(mod).find(v => typeof v === 'function')
+    const L = []; fn(L)
+    const set = f.replace(/\.mjs$/, '')
+    const row = sets[set] = { cases: L.length, guarded: 0, notClarify: 0, overAsk: [], overRefuse: [], clarifyAsked: [], clarifyNotAsked: [], unknownBoard: 0 }
+    for (const c of L) {
+      const B = BOARDS[c.board]
+      let widgets = null, groupSyms = {}
+      try { widgets = JSON.parse(B?.browser?.prefs?.charts_workspace_layout || 'null')?.widgets || null } catch { widgets = null }
+      try { groupSyms = JSON.parse(B?.browser?.prefs?.charts_workspace_groups || '{}') } catch { groupSyms = {} }
+      if (!widgets && typeof B?.sim?.widgets === 'function') widgets = B.sim.widgets()
+      const host = { widgets: { snapshot: () => ({ raw: widgets || [], groupSyms }) } }
+      let asked = false, refused = false, any = false
+      for (const t of c.turns || []) {
+        const ops = t?.plan?.ops || []
+        const text = String(t?.say || '')
+        const g = ops.filter(o => ['widget.setOption', 'widget.sendToJournal', 'watchlist.showList', 'watchlist.exportList', 'watchlist.arrangeColumns'].includes(o?.action))
+        if (!g.length) continue
+        any = true
+        if (!widgets) { unknownBoards.add(c.board); row.unknownBoard++ }
+        if (MODE === 'head') {
+          for (const o of g) {
+            let r = null
+            if (o.action === 'watchlist.arrangeColumns') {
+              const name = String(o.target || '').replace(/^\$view:/, '')
+              const w = (widgets || []).find(x => x.type === 'watchlist' && x.opts?.watchName === name)
+              r = w ? whichWidget({ widget: w.id }, host, text) : null
+            } else if (o.action === 'watchlist.showList' || o.action === 'watchlist.exportList') {
+              r = whichWidget(o.args || {}, host, text, { type: 'watchlist', can: listSwitchable })
+            } else r = whichWidget(o.args || {}, host, text)
+            if (r?.ask) asked = true
+            if (r?.refuse) refused = true
+          }
+        }
+        if (screen) {
+          const s = screen({ host, ops, text })
+          if (s?.ask) asked = true
+        }
+      }
+      if (!any) continue
+      row.guarded++
+      const want = c.oracle?.outcome
+      if (want === 'clarify') (asked ? row.clarifyAsked : row.clarifyNotAsked).push(c.id)
+      else {
+        row.notClarify++
+        if (asked) row.overAsk.push(c.id)
+        if (refused) row.overRefuse.push(`${c.id}(${want})`)
+      }
+    }
+  }
+  writeFileSync(OUT, JSON.stringify({ mode: MODE, unknownBoards: [...unknownBoards], sets }, null, 1))
+}, 120000)

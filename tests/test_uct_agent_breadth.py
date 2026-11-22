@@ -45,6 +45,7 @@ REQ = {"mode": "value", "universe": "us", "metrics": ["pct_above_50sma"], "date"
        "compare_date": None, "start": None, "end": None}
 BREADTH_OP = {"action": "breadth.show", "target": "b1", "args": REQ}
 PROFILE_OP = {"action": "stock.profile", "target": "m1", "args": {"symbol": "NVDA"}}
+WRITE_OP = {"action": "chart.setType", "target": "m1", "args": {"type": "bars"}}
 
 
 def env(disposition, ops=(), reply="", question=None):
@@ -196,11 +197,42 @@ def test_MIRROR_the_servers_local_only_set_is_every_localOnly_capability():
     found = set()
     for f in (REPO / "app/src/agent/capabilities").glob("*.js"):
         src = f.read_text(encoding="utf-8")
-        for m in re.finditer(r"name: '([a-zA-Z]+\.[a-zA-Z]+)'", src):
+        # letters AND digits, the alphabet turn._CAP_NAME allows: a letters-only pattern could not see stock.uct20List
+        for m in re.finditer(r"name: '([a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z][a-zA-Z0-9]*)'", src):
             nxt = src.find("registerCapability(", m.end())
             if "localOnly: true" in src[m.end(): nxt if nxt != -1 else len(src)]:
                 found.add(m.group(1))
-    assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history"}
+    # W2-B2: history.afterEvent; journal.reviewTrades (W3 review B3): the member's own journal review is shown, never replayed to a model
+    # Phase 2 catalysts: news.movers (UCT's catalyst board: stored headlines + engine write-ups; catalysts.board is model-isolated)
+    # Phase 2: rs.compare (relative strength + leadership; rs.leadership is model-isolated)
+    # Terminal data wave 1: the four capabilities over the isolated kinds analyst.actions / highsLows.session / leaders.longRun / levels.darkpool
+    # Terminal data wave 2: the five capabilities over the isolated kinds highsLows.yearly / themes.rotation / confluence.board /
+    # earnings.expectedMove / earnings.callSearch
+    # Terminal data wave 3: the four capabilities over the isolated kinds levels.gamma / flow.topPicks / flow.record /
+    # earnings.reactions
+    # Terminal data wave 4: the three capabilities over the isolated kinds earnings.season / earnings.callThemes / group.drill
+    # Terminal data wave 5: the two capabilities over the isolated kinds short.interest / short.list
+    # Terminal data wave 6: the five capabilities over the isolated kinds seasonality.stock / seasonality.board /
+    # options.tideHistory / options.oiChange / rates.treasury
+    # Terminal data wave 7: the six capabilities over the isolated kinds market.regime / stock.setups / stock.eventsTimeline /
+    # uct20.list / options.ivHistory / dilution.watch
+    # Terminal data wave 8: the three capabilities over the isolated kinds stock.corporateActions / calendar.ipos /
+    # calendar.dividends
+    # Terminal data wave 9: the three capabilities over the isolated kinds rates.auctions / rates.realYields / fed.watch
+    assert found == set(turn.LOCAL_ONLY_ACTIONS) == {"breadth.show", "breadth.history", "history.afterEvent", "journal.reviewTrades",
+                                                     "news.movers", "rs.compare", "stock.analystActions", "stock.sessionHighsLows",
+                                                     "stock.longRunLeaders", "stock.darkPoolLevels", "stock.yearlyHighsLows",
+                                                     "stock.themeRotation", "stock.confluenceBoard", "stock.expectedMove",
+                                                     "stock.callSearch", "stock.gammaLevels", "stock.topFlowPicks",
+                                                     "stock.flowRecord", "stock.earningsReactions",
+                                                     "stock.earningsSeason", "stock.callThemes", "stock.groupDrill",
+                                                     "stock.shortInterest", "stock.shortList",
+                                                     "stock.seasonality", "stock.seasonalityBoard", "stock.tideHistory",
+                                                     "stock.oiChange", "stock.treasuryYields",
+                                                     "stock.marketRegime", "stock.setups", "stock.eventsTimeline",
+                                                     "stock.uct20List", "stock.ivHistory", "stock.dilutionWatch",
+                                                     "stock.splitsDividends", "stock.ipoCalendar", "stock.dividendsCalendar",
+                                                     "stock.auctionCalendar", "stock.realCurve", "stock.fomcWatch"}
 
 
 # ═══ 3. the one door: what a stored row may say to a model ══════════════════════════════════════════
@@ -258,9 +290,11 @@ def test_DOOR_a_local_plans_agent_row_is_left_out_even_if_stored_with_text():
 def test_PLAN_reply_is_blanked_for_a_local_lookup():
     out = turn.sanitize_envelope(env("apply", [BREADTH_OP], reply="Breadth was 73.5% on Friday."), {"b1"})
     assert out["ops"] == [BREADTH_OP] and out["reply"] == ""
-    # a plan without a local-only op keeps a disclosing reply
-    out2 = turn.sanitize_envelope(env("apply", [PROFILE_OP], reply="Using UCT's stock data."), {"m1"})
+    # a WRITE plan without a local-only op keeps a disclosing reply
+    out2 = turn.sanitize_envelope(env("apply", [WRITE_OP], reply="Using UCT's stock data."), {"m1"})
     assert out2["reply"] == "Using UCT's stock data."
+    # hotfix 2026-11-03: a data-read plan (stock.profile) never serves the model's pre-read words
+    assert turn.sanitize_envelope(env("apply", [PROFILE_OP], reply="Using UCT's stock data."), {"m1"})["reply"] == ""
 
 
 # ═══ 4. the joint multi-turn leak test (real router, scripted model, captured payloads) ════════════
@@ -279,6 +313,7 @@ def _assert_no_leak(model, cid, client):
             assert not leaked(t), "the stored agent row carries the figure"
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_LEAK_two_turns_success_then_follow_up(client, world, model):
     model.queue = [env("apply", [BREADTH_OP], reply="On it — breadth was about 73.5% Friday."),   # an INVENTED figure too
                    env("answer", reply="Ask me for any date and I'll look it up.")]
@@ -375,6 +410,7 @@ def _tf_args():
     return {k: ("W" if k == "timeframe" else None) for k in cap["args"]["properties"]}
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_MIXED_breadth_plus_news_the_model_asked_research_lookup_runs_news_disclosed_not_searched(monkeypatch):
     plan = {**env("apply", [BREADTH_OP], reply="Looking that up."), "research": {"query": "NVDA news", "recency": "day"}}
     out, m, searched = _run(monkeypatch, [plan], NEWS_MSG)
@@ -400,6 +436,7 @@ def test_MIXED_a_plain_breadth_question_gets_no_false_disclosure(monkeypatch, ms
     assert out["envelope"]["reply"] == "" and "local_notice" not in out["envelope"]
 
 
+@pytest.mark.usefixtures("routed_schema")
 def test_MIXED_breadth_plus_a_stock_profile_keeps_both_operations(monkeypatch):
     out, _m, _s = _run(monkeypatch, [env("apply", [BREADTH_OP, PROFILE_OP])], "US breadth on the 50-day and NVDA's profile")
     assert out["envelope"]["ops"] == [BREADTH_OP, PROFILE_OP] and out["envelope"]["reply"] == ""
@@ -433,7 +470,7 @@ def test_MIXED_news_plus_a_change_WITHOUT_breadth_still_researches_as_before(mon
 
 
 def test_MIXED_the_notice_is_never_attached_to_a_plan_without_a_local_lookup():
-    out = turn.sanitize_envelope(env("apply", [PROFILE_OP], reply="Using UCT's data."), {"m1"},
+    out = turn.sanitize_envelope(env("apply", [WRITE_OP], reply="Using UCT's data."), {"m1"},
                                  local_notice=turn.LOCAL_NEWS_NOT_DONE)
     assert out["reply"] == "Using UCT's data." and "local_notice" not in out
     assert not re.search(r"\d", turn.LOCAL_NEWS_NOT_DONE)              # deterministic words, no figures
@@ -476,6 +513,7 @@ def test_MIXED_only_UCTs_exact_flagged_notice_is_replayed_from_a_local_plan():
     "new 52-week highs today, and what does that mean?",
     "what caused the drop in % above the 200-day since September 1?",
 ])
+@pytest.mark.usefixtures("routed_schema")
 def test_EXPLAIN_breadth_plus_an_explanation_runs_the_lookup_and_says_it_was_not_explained(monkeypatch, msg):
     invented = "Breadth fell because the Fed surprised markets and tech sold off."           # a made-up cause
     out, m, searched = _run(monkeypatch, [env("apply", [BREADTH_OP], reply=invented)], msg)

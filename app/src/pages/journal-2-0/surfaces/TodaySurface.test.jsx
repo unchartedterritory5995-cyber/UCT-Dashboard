@@ -307,6 +307,16 @@ describe('TodaySurface — B3 secondary modules (week strip / goals / quick acti
     expect(navigateSpy).toHaveBeenCalledWith('/journal/notebook')
   })
 
+  // Follow-up B, item 1a: the two day pages are one press apart. "Daily brief" sits right after "Open Notebook".
+  it('quick action "Daily brief" navigates to the Notebook\'s Daily brief, placed after "Open Notebook"', () => {
+    renderToday()
+    const row = screen.getByRole('region', { name: 'Quick actions' })
+    const labels = [...row.querySelectorAll('button')].map((b) => b.textContent)
+    expect(labels).toEqual(['Log trade', 'Open Notebook', 'Daily brief', 'Review a trade'])
+    fireEvent.click(screen.getByTestId('qa-daily-brief'))
+    expect(navigateSpy).toHaveBeenCalledWith('/journal/notebook?view=today')
+  })
+
   it('quick action "Review a trade" navigates to the closed-trades segment', () => {
     renderToday()
     fireEvent.click(screen.getByTestId('qa-review-trade'))

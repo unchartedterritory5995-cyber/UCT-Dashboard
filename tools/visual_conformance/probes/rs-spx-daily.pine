@@ -1,0 +1,16 @@
+//@version=6
+indicator("UCTPROBE_RS_SPX_DAILY", overlay = false)
+
+// RS RATING TRANSFER, L1 -- THE CAPTURE THAT WITNESSES SP:SPX (docs/pine/RS-RATING-TRANSFER.md).
+//
+// UCT's daily index bars read FMP first (^GSPC), yfinance as the fallback (owner ruling
+// 2026-11-14). The peer rule: index bars count only after a capture MATCH. This probe gives
+// TradingView's SP:SPX on each bar of a stock chart, both as `"D"` and as `timeframe.period`
+// (RS Rating reads both), so alignment and value are each witnessed.
+
+plot(request.security("SP:SPX", "D", open), "X01_spx_D_open")
+plot(request.security("SP:SPX", "D", high), "X02_spx_D_high")
+plot(request.security("SP:SPX", "D", low), "X03_spx_D_low")
+plot(request.security("SP:SPX", "D", close), "X04_spx_D_close")
+plot(request.security("SP:SPX", timeframe.period, close), "X05_spx_period_close")
+plot(close, "X06_chart_close_CONTROL")

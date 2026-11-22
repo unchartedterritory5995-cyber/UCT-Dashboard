@@ -36,25 +36,15 @@ from io import BytesIO
 from typing import Any
 
 from api.services.auth_db import get_connection
-from api.services.notebook_flags import flag_on
 from api.services.journal_two.permit_pool import PermitPool
 
 log = logging.getLogger(__name__)
 
 # ── Wave 7 lane G (G4): image + docx attachments as documents ────────────────
 #
-# ⛔ DARK BY DEFAULT, AND THE GATE IS READ PER CALL. Unset means OFF and that is
-# the decision: an image or a .docx upload then creates no document row and the
-# member sees exactly the behaviour they had before wave 7. `J2_OCR_ENABLED` is a
-# DIFFERENT switch -- it only says whether a tesseract engine is wired in this
-# process -- so this gate cannot be folded into it (that one is armed on web, and
-# image OCR would have shipped live the day this merged).
-#
-# ⛔ The read shape copies `note_tasks.KILL_SWITCH` on purpose: an env name held
-# in a module constant, read with no literal default, which is the form
-# `feature_flag_index` resolves (and therefore the form
-# tests/test_feature_flag_ledger.py can hold to its ledger row).
-IMAGE_DOCX_GATE = "NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED"
+# Always on: `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` was retired 2026-11-04 (it was 1
+# on web). `J2_OCR_ENABLED` is a DIFFERENT switch -- it only says whether a tesseract
+# engine is wired in this process -- and still decides whether an image gets text.
 
 # `j2_note_documents.source_kind` is free text (`db.py` adds it with DEFAULT
 # 'attachment'). Two new values, both still FILESYSTEM attachments -- so
@@ -117,14 +107,6 @@ _IMAGE_DOC_NAME = "Image"
 
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
-
-def image_docx_documents_enabled() -> bool:
-    """Is the wave-7 image/docx document path ON for this call? Read per call,
-    never cached, so a flip needs no restart."""
-    # Wave 14 W14-C1: the ONE parse (`flag_on`), now that the auth payload carries this
-    # gate too. Same answer on every spelling as the old own parse (1/true/yes/on only):
-    # tests/test_notebook_flags.py::test_W14_C1_* compares the two per spelling.
-    return flag_on(IMAGE_DOCX_GATE, False)
 
 # Bounds worst-case per-document processing time/memory -- a 400-page filing
 # is real and expected; an unbounded page count is not. Text extraction past
@@ -1414,9 +1396,8 @@ def on_attachment_saved(
     beyond the synchronous row insert).
 
     A PDF file gets a pending document row + async extraction (the Wave I
-    behaviour, unchanged, and NOT behind the wave-7 gate). Under
-    `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` (read here, per call) two more
-    kinds become documents: an inline image (OCR through the existing
+    behaviour, unchanged). Two more kinds become documents (always on since
+    `NOTEBOOK_IMAGE_DOCX_DOCUMENTS_ENABLED` was retired, 2026-11-04): an inline image (OCR through the existing
     tesseract adapter, honouring `J2_OCR_ENABLED` exactly as a scanned PDF
     page does -- no engine means the row lands `no_text`, never an error) and
     a .docx file (stdlib text extraction) -- and, since wave 10 (G-160), a
@@ -1439,8 +1420,6 @@ def on_attachment_saved(
         if queue:
             queue_extraction(doc["id"])
         return doc
-    if not image_docx_documents_enabled():
-        return None
     url = att.get("url") or ""
     if kind == "image":
         from api.services.journal_two.notes import _ALLOWED_IMAGE_MIMES

@@ -1,0 +1,74 @@
+# promotion-gate: no — ADVISORY UNTIL OBSERVED BOTH WAYS (this repo's rule; the owner promotes).
+# ─── THE MASTER GATE'S PINE RUNTIME PYTHON RAILS, ON THE PULL REQUEST ────────
+#
+# ⚰️ WHY (2026-11-15). The master deploy gate went red twice in one afternoon on rails that ran
+# ONLY in the gate, after merge, blocking every member-facing deploy until someone noticed:
+#   * #1318 added tests/test_pine_runtime_run_telemetry.py without naming it in a gate step;
+#   * an engine bump to 55 left tests/fixtures/pine_runtime/service_smoke.json recorded at 54.
+# Both would have been red here, on the PR.
+#
+# ⛔ ONE AUTHORITY: tools/run_gate_pine_rails.py READS the pytest commands from the gate's
+# `pine-runtime` job; this file never retypes them. Setup mirrors that job's (Python 3.12, the
+# app's npm ci, the production dependency set, the server bundle) so the rails run on what the
+# gate runs them on.
+name: pine gate rails (PR)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/pine-gate-rails-pr.yml'
+      - '.github/workflows/master-deploy-gate.yml'
+      - 'tools/run_gate_pine_rails.py'
+      - 'tests/test_pine_runtime_*.py'
+      - 'tests/fixtures/pine_runtime/**'
+      - 'services/pine_runtime/**'
+      - 'app/src/components/chart/engine/**'
+      - 'app/scripts/build-pine-runtime.mjs'
+      - 'api/services/*pine*'
+      - 'api/routers/*pine*'
+      - 'tools/pine_runtime_*'
+      - 'requirements.txt'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  pine-gate-rails:
+    name: Pine runtime gate rails on the PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install the app's dependencies (for the Pine runtime bundle)
+        working-directory: app
+        run: npm ci
+
+      - name: The production dependency set (as the gate builds it)
+        run: |
+          python -m venv /tmp/prodvenv
+          /tmp/prodvenv/bin/python -m pip install --quiet --upgrade pip
+          /tmp/prodvenv/bin/python -m pip install --quiet -r requirements.txt
+          /tmp/prodvenv/bin/python -m pip install --quiet pytest httpx pyyaml
+
+      - name: The server bundle builds
+        working-directory: app
+        run: node scripts/build-pine-runtime.mjs
+
+      - name: The gate's Pine runtime Python rails (read from master-deploy-gate.yml)
+        run: /tmp/prodvenv/bin/python tools/run_gate_pine_rails.py

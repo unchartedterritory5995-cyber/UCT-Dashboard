@@ -228,7 +228,11 @@ const ENGINE_REL = 'app/src/components/chart/engine'
 // ─── the registry itself ─────────────────────────────────────────────────────
 
 describe('native registry — membership', () => {
-  it('lists 52 natives and 1 server definition — FIFTY-THREE, across two lanes', () => {
+  it('lists 52 natives and 6 server definitions — FIFTY-EIGHT, across two lanes', () => {
+    // ⭐ 2026-11-18 (UCT Mansfield RS): `rsMansfield` is the sixth server definition (57 -> 58).
+    // ⭐ 2026-11-12 (RS Exit Warnings): `rsExit` is the fifth server definition (56 -> 57).
+    // ⭐ UCT RS split, unit U6 (2026-11-09): `rsRating`, `rsPhases` and `rsVsEma`
+    // join `rsLine` on the server lane (`registrySizes.SHIPPED_DEF_IDS.server`).
     // ⭐ `movingAverage` IS THE EIGHTEENTH, and the first whose input is a SERIES
     // rather than the bars: `MA(Close)`, `MA(Volume)` and `MA(QQQ)` are one
     // definition pointed at different sources.
@@ -258,8 +262,8 @@ describe('native registry — membership', () => {
       'cmo', 'dataSeries', 'dollarVolume', 'donchian', 'envelope', 'fiftyTwoWeek',
       'forceIndex', 'historicalVolatility', 'ichimoku', 'keltner', 'macd', 'mfi',
       'momentum', 'movingAverage', 'obv', 'percentFromMa', 'ppo', 'pvt',
-      'relativeVolume', 'roc', 'rsLine', 'rsi', 'sar', 'squeeze',
-      'standardDeviation', 'stoch', 'stochRsi', 'superTrend', 'trix', 'tsi',
+      'relativeVolume', 'roc', 'rsExit', 'rsLine', 'rsMansfield', 'rsPhases', 'rsRating', 'rsVsEma',
+      'rsi', 'sar', 'squeeze', 'standardDeviation', 'stoch', 'stochRsi', 'superTrend', 'trix', 'tsi',
       'ultimate', 'upDownVolume', 'vortex', 'vwap', 'williamsR',
     ])
   })
@@ -275,8 +279,11 @@ describe('native registry — membership', () => {
     // still reachable for a native that lost its function (the case below).
     expect(listDefinitions().some(d => d.id === 'rsLine')).toBe(true)
     expect(getDefinition('rsLine').id).toBe('rsLine')
-    // …and it is still its own LANE, not folded into the natives.
-    expect(SERVER_DEFS.map(d => d.id)).toEqual(['rsLine'])
+    // …and it is still its own LANE, not folded into the natives. U6 (2026-11-09):
+    // the three RS split definitions follow it, in registration order.
+    // 2026-11-12 (RS Exit Warnings): and the fifth, `rsExit`, last.
+    // 2026-11-18 (UCT Mansfield RS): and the sixth, `rsMansfield`, last.
+    expect(SERVER_DEFS.map(d => d.id)).toEqual(['rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield'])
     expect(SERVER_DEFS[0].compute.kind).toBe('server')
     expect(validateDefinition(SERVER_DEFS[0]).ok).toBe(true)
     expect(NATIVE_DEFS.some(d => d.id === 'rsLine')).toBe(false)
@@ -386,7 +393,9 @@ const JULY_LEGACY_DEFAULTS = {
 // ⭐ THE TECHNICAL LIBRARY'S TIER 1 (2026-10-01) JOINS THEM — thirty-three studies
 // that never existed as a `cs.indicators` section, so there is no July value for
 // any of them to be a no-op against.
-const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'dataSeries', 'movingAverage', 'dollarVolume',
+// ⭐ THE RS SPLIT'S THREE (U6, 2026-11-09) JOIN THEM for rsLine's reason: server
+// definitions that were never a `cs.indicators` section.
+const NOT_A_MIGRATION = ['atrBands', 'avwap', 'rsLine', 'rsRating', 'rsPhases', 'rsVsEma', 'rsExit', 'rsMansfield', 'dataSeries', 'movingAverage', 'dollarVolume',
   'superTrend', 'aroon', 'vortex', 'choppiness', 'stochRsi', 'ppo', 'roc', 'momentum', 'tsi', 'cmo', 'trix', 'awesome', 'ultimate', 'balanceOfPower', 'bullBearPower', 'keltner', 'envelope', 'bbPercentB', 'bbWidth', 'atrPercent', 'adrPercent', 'historicalVolatility', 'squeeze', 'relativeVolume', 'accumDist', 'chaikinMoneyFlow', 'chaikinOscillator', 'forceIndex', 'pvt', 'upDownVolume', 'percentFromMa', 'fiftyTwoWeek', 'standardDeviation']
 
 describe('the July defaults table', () => {
@@ -870,7 +879,23 @@ describe('the MACD head-mask was DROPPED, and stays dropped (B3/A5, decision MAC
     expect(def.compute.rev, 'the maths did not').toBe(1)
     // Every other native is still on the shared version — the bump is scoped to
     // the definition the decision touched, not applied across the board.
-    for (const other of listDefinitions().filter(d => d.id !== 'macd')) {
+    // ⭐ `rsLine` is the one other definition off version 1, and for the OPPOSITE
+    // reason to MACD: UCT Relative Strength v2 changed the MATHS (eighteen
+    // server columns where there was one), so its `compute.rev` moved WITH its
+    // `version` — the downstream caches are told the numbers changed because they
+    // did. Plan: docs/superpowers/specs/2026-11-05-uct-relative-strength-indicator-design.md §8.
+    // v3 (Phase 2a unit 2a-14) moved both again: four more wire columns (the
+    // Mansfield line, its two zero-cross events, the cross dot), so every cached
+    // envelope and `alert_rev_migration.ADDRESS_REVS` read 3 with it.
+    // v4 (Phase 3 unit 3-08) moved both again: six more wire columns (RS-Ratio,
+    // RS-Momentum, the Clenow score and its gap dot, VARS and its average) and
+    // nine inputs, served behind `RS_V3_ENABLED` at rev 4.
+    // Rev 5 (Deepvue round 2, 2026-11-08): the RS Rating Reading's two wire
+    // columns and the `view` enum's sixth value moved both to 5.
+    const rs = getDefinition('rsLine')
+    expect(rs.version, 'UCT RS v5 is a deliberate migration').toBe(5)
+    expect(rs.compute.rev, 'and its wire columns changed, so rev moved with it').toBe(5)
+    for (const other of listDefinitions().filter(d => d.id !== 'macd' && d.id !== 'rsLine')) {
       expect(other.version, `${other.id} should not have been bumped`).toBe(1)
     }
   })

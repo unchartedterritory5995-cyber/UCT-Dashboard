@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, cleanup } from '@testing-library/react'
+import { render, cleanup, act } from '@testing-library/react'
 
 // Render smoke test for the whole StockChart component. Its value is catching
 // render-phase crashes that the build can't (a TDZ from a hook/memo referencing a
@@ -22,10 +22,19 @@ vi.mock('lightweight-charts', async (importOriginal) => {
     addSeries: () => series, addCandlestickSeries: () => series, addHistogramSeries: () => series,
     addLineSeries: () => series, addAreaSeries: () => series, addBarSeries: () => series,
     removeSeries: () => {}, applyOptions: () => {}, priceScale: () => ({ applyOptions: () => {}, width: () => 0 }),
+    // ⛔ Every name here is a REAL ITimeScaleApi method (lightweight-charts typings.d.ts), and
+    // the stub stays strict on purpose: a call to a name the library does not have must still
+    // throw, because in production it would. The pair `subscribe/unsubscribeVisibleTimeRangeChange`
+    // was missing (red in every nightly record from 2026-10-18 on): once bars land, StockChart
+    // mounts PatternOverlay with this chart and its first effect subscribes to the time range, so
+    // every run of this file threw "subscribeVisibleTimeRangeChange is not a function". The
+    // product was right; the stub was short of the real surface. Where the throw was REPORTED
+    // was a race, and the bar-count case below now closes it (see the flush there).
     timeScale: () => ({
       applyOptions: () => {}, fitContent: () => {}, setVisibleLogicalRange: () => {}, getVisibleLogicalRange: () => null,
       setVisibleRange: () => {}, scrollToPosition: () => {}, subscribeVisibleLogicalRangeChange: () => {},
-      unsubscribeVisibleLogicalRangeChange: () => {}, timeToCoordinate: () => 0, coordinateToTime: () => null,
+      unsubscribeVisibleLogicalRangeChange: () => {}, subscribeVisibleTimeRangeChange: () => {},
+      unsubscribeVisibleTimeRangeChange: () => {}, timeToCoordinate: () => 0, coordinateToTime: () => null,
       resetTimeScale: () => {}, options: () => ({}), width: () => 600,
     }),
     subscribeCrosshairMove: () => {}, unsubscribeCrosshairMove: () => {}, subscribeClick: () => {}, unsubscribeClick: () => {},
@@ -138,14 +147,29 @@ describe('StockChart render smoke', () => {
       ok: true,
       json: () => Promise.resolve(String(url).includes('/api/bars') ? { bars } : {}),
     })))
-    render(<StockChart sym="AAPL" tf="D" onDrawnBarCount={(n) => seen.push(n)} />)
-    // Called at all = the effect and the prop are wired in the real component.
-    await vi.waitFor(() => expect(seen.length).toBeGreaterThan(0), { timeout: 4000 })
-    expect(seen.every(n => typeof n === 'number')).toBe(true)
-    // And it reports the DRAWN series, not a constant: once bars land the count
-    // is their length. (jsdom has no IndexedDB, so the first report can be 0 -
-    // that is the honest "nothing drawn yet" this whole mechanism depends on.)
-    await vi.waitFor(() => expect(seen[seen.length - 1]).toBe(bars.length), { timeout: 4000 })
+    // ⛔ THE COMMIT THAT DRAWS THE BARS IS THE ONE THAT MOUNTS THE OVERLAYS, and React reports an
+    // effect that throws there through a window 'error' event, not through this case's awaits.
+    // Without listening, whether the throw failed THIS case or surfaced after it as an "Unhandled
+    // Error" (every case green, exit 1) depended on when the report landed against the end of the
+    // case: red on the CI runners, green-with-exit-1 on the dev box, for the same defect. The case
+    // now collects what React reports while it runs, so the outcome no longer depends on the race.
+    const thrown = []
+    const onError = (e) => thrown.push(String(e?.error?.message || e?.message || e))
+    window.addEventListener('error', onError)
+    try {
+      render(<StockChart sym="AAPL" tf="D" onDrawnBarCount={(n) => seen.push(n)} />)
+      // Called at all = the effect and the prop are wired in the real component.
+      await vi.waitFor(() => expect(seen.length).toBeGreaterThan(0), { timeout: 4000 })
+      expect(seen.every(n => typeof n === 'number')).toBe(true)
+      // And it reports the DRAWN series, not a constant: once bars land the count
+      // is their length. (jsdom has no IndexedDB, so the first report can be 0 -
+      // that is the honest "nothing drawn yet" this whole mechanism depends on.)
+      await vi.waitFor(() => expect(seen[seen.length - 1]).toBe(bars.length), { timeout: 4000 })
+      await act(async () => {})   // flush any effect still pending from that commit
+    } finally {
+      window.removeEventListener('error', onError)
+    }
+    expect(thrown, 'an effect threw in the commit that drew the bars').toEqual([])
   })
 
   it('unmounts cleanly', () => {

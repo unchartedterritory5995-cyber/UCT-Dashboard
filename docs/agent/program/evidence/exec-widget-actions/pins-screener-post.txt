@@ -1,0 +1,9 @@
+# head 354e61596f 2026-11-10T23:02:59Z dirty: 2 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentScreener.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget/app
+ ✓ src/agent/agentScreener.test.jsx (13 tests) 194ms
+ Test Files  1 passed (1)
+      Tests  13 passed (13)
+   Start at  18:03:02
+   Duration  13.56s (transform 10.23s, setup 419ms, import 11.91s, tests 194ms, environment 870ms)

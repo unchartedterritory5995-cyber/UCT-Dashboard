@@ -1,0 +1,9 @@
+//@version=5
+indicator("hp valuewhen", overlay=false)
+cond = close > ta.highest(high, 20)[1]
+vw = ta.valuewhen(cond, close, 0)
+vw1 = ta.valuewhen(cond, close, 1)
+cv = ta.cum(volume)
+plot(vw, "vw")
+plot(vw1, "vw1")
+plot(cv, "cumvol")

@@ -1,0 +1,37 @@
+{
+ "schema": "uct.ci-mutants/v1",
+ "mutants": [
+  {
+   "id": "MS1",
+   "mutant": "the sar() window back at 200 bars",
+   "file": "app/src/components/chart/engine/ast/callExpansions.js",
+   "from": "export const SAR_WARMUP = 400",
+   "to": "export const SAR_WARMUP = 200",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/sar.test.js"
+  },
+  {
+   "id": "MS2",
+   "mutant": "no legacy window recognised: a saved 200-bar tree no longer reads back as sar()",
+   "file": "app/src/components/chart/engine/ast/callExpansions.js",
+   "from": "export const SAR_LEGACY_WARMUPS = Object.freeze([200])",
+   "to": "export const SAR_LEGACY_WARMUPS = Object.freeze([])",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/sar.test.js"
+  },
+  {
+   "id": "MS3",
+   "mutant": "a saved 200-bar tree shows the current note instead of its legacy one",
+   "file": "app/src/components/chart/engine/ast/parse.js",
+   "from": "note: hit.legacyWarmup ? sarLegacyNote(hit.legacyWarmup) : spec.vendorNote",
+   "to": "note: spec.vendorNote",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/sar.test.js"
+  },
+  {
+   "id": "MS4",
+   "mutant": "the Python twin keeps the 200-bar window",
+   "file": "api/services/call_expansions.py",
+   "from": "SAR_WARMUP = 400",
+   "to": "SAR_WARMUP = 200",
+   "rail": "python -m pytest tests/test_call_expansions_parity.py -q -p no:cacheprovider -x"
+  }
+ ]
+}

@@ -61,10 +61,11 @@ describe('ta.falling — translates and mirrors ta.rising exactly', () => {
   })
 
   it('FN.falling is the structural mirror of FN.rising, with < in place of >', () => {
-    expect(Array.from(FN.falling([5, 4, 3, 2, 1], 3))).toEqual([NaN, NaN, NaN, 1, 1])
-    expect(Array.from(FN.falling([1, 2, 3, 4, 5], 3))).toEqual([NaN, NaN, NaN, 0, 0])
+    // ⭐ ENGINE 56 (probe 11): the first `n` samples answer false, never `na` (was NaN, NaN, NaN)
+    expect(Array.from(FN.falling([5, 4, 3, 2, 1], 3))).toEqual([0, 0, 0, 1, 1])
+    expect(Array.from(FN.falling([1, 2, 3, 4, 5], 3))).toEqual([0, 0, 0, 0, 0])
     // a tie (no strict decrease) is NOT falling, same convention as rising
-    expect(Array.from(FN.falling([5, 5, 4, 3], 3))).toEqual([NaN, NaN, NaN, 0])
+    expect(Array.from(FN.falling([5, 5, 4, 3], 3))).toEqual([0, 0, 0, 0])
   })
 
   it('⭐⭐ MUTATION: a running-minimum reading is a DIFFERENT function, and the '

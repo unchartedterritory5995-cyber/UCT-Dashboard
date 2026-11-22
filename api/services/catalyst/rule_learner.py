@@ -118,6 +118,7 @@ def _build_prompt(notes: list[dict], active_rules: list[dict]) -> str:
 
 def _call_llm(prompt: str) -> Optional[dict]:
     """One distillation call. Returns parsed JSON dict or None. Never raises."""
+    kwargs = {}
     try:
         from api.services.engine import _get_anthropic_client
         client = _get_anthropic_client()
@@ -152,8 +153,11 @@ def _call_llm(prompt: str) -> Optional[dict]:
             obj["_in_tok"] = in_tok
             obj["_out_tok"] = out_tok
         return obj
-    except Exception:
+    except Exception as e:
         logger.exception("[rule-learner] LLM call failed")
+        if kwargs:
+            cost_guard.charge_unreported_call(
+                time.strftime("%Y-%m-%d", time.gmtime()), "_RULE_LEARNER", LEARNER_MODEL, kwargs, e)
         return None
 
 

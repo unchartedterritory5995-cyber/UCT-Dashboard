@@ -448,6 +448,27 @@ describe('the templates keep what an engine says', () => {
   })
 })
 
+describe('a frame in our own built code keeps its position, so it can be traced to a source line', () => {
+  const O = 'https://uctintelligence.com'
+  it('keeps <origin>/assets/<chunk>.js:<line>:<col> whole, digits included, in V8 and Safari frames', () => {
+    const v8 = `TypeError: x\n    at Wn (${O}/assets/StockChart-B9x2Lq7.js:1:482913)\n    at ${O}/assets/index-BbbkKcqd.js:3:77`
+    expect(scrubStack(v8, 4000, { origin: O })).toBe(`    at Wn (${O}/assets/StockChart-B9x2Lq7.js:1:482913)\n    at ${O}/assets/index-BbbkKcqd.js:3:77`)
+    expect(scrubStack(`render@${O}/assets/vendor-react-Cm7qkAHc.js:12:34`, 4000, { origin: O })).toBe(`render@${O}/assets/vendor-react-Cm7qkAHc.js:12:34`)
+  })
+  it('masks as before: another origin, a deeper path, a non-script file, no origin given, and digits elsewhere on the line', () => {
+    expect(scrubStack('    at f (https://evil.test/assets/a1.js:1:2)', 4000, { origin: O })).toBe('    at f (https://evil.test/assets/a#.js:#:#)')
+    expect(scrubStack(`    at f (${O}/assets/x/a1.js:1:2)`, 4000, { origin: O })).toBe(`    at f (${O}/assets/x/a#.js:#:#)`)
+    expect(scrubStack(`    at f (${O}/a1.js:1:2)`, 4000, { origin: O })).toBe(`    at f (${O}/a#.js:#:#)`)
+    expect(scrubStack(`    at f (${O}/assets/a1.js:1:2)`)).toBe(`    at f (${O}/assets/a#.js:#:#)`)
+    expect(scrubStack(`    at f9 (${O}/assets/a1.js:1:2)`, 4000, { origin: O })).toBe(`    at f# (${O}/assets/a1.js:1:2)`)
+    expect(scrubStack(`    at f (${O}.evil.test/assets/a1.js:1:2)`, 4000, { origin: O })).toBe(`    at f (${O}.evil.test/assets/a#.js:#:#)`)
+  })
+  it('a report built on this site carries its own origin through to the stack', () => {
+    const r = buildReport(Object.assign(new TypeError('x is not a function'), { stack: `TypeError: x is not a function\n    at go (${O}/assets/index-A1b2.js:1:99)` }), { loc: { pathname: '/charts', origin: O } })
+    expect(r.stack).toBe(`    at go (${O}/assets/index-A1b2.js:1:99)`)
+  })
+})
+
 describe('scrubStack keeps frames and drops everything else', () => {
   it('handles V8, Safari/Firefox and React component frames', () => {
     const v8 = 'TypeError: secret words here\nat the open buy NVDA\n    at a (https://x.test/a.js:1:2)\n    at <anonymous>'

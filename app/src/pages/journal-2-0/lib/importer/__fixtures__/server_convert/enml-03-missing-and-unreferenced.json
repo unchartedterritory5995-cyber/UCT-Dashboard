@@ -1,0 +1,71 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "Cited:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000003/365dccce50f2d8411c4e737c7ff0057d"
+        },
+        "type": "image"
+      },
+      {
+        "content": [
+          {
+            "text": "A file whose bytes are gone:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "attempts": 0,
+          "name": null,
+          "reason": "missing_resource",
+          "ref": null,
+          "sourceUrl": null
+        },
+        "type": "importNotice"
+      },
+      {
+        "content": [
+          {
+            "text": "end of body",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "src": "import-ref://evernote-res://11111111-0000-4000-8000-000000000003/c2f342baf635f4739608b6fd24c6fb53"
+        },
+        "type": "image"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": [
+    {
+      "kind": "image",
+      "mime": "image/png",
+      "name": "chart.png",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000003/365dccce50f2d8411c4e737c7ff0057d"
+    },
+    {
+      "kind": "image",
+      "mime": "image/png",
+      "name": "uncited.png",
+      "ref": "evernote-res://11111111-0000-4000-8000-000000000003/c2f342baf635f4739608b6fd24c6fb53"
+    }
+  ]
+}

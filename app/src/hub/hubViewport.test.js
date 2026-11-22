@@ -11,6 +11,7 @@ import useHubViewport, {
   LANDSCAPE_IMMERSIVE_QUERY,
 } from './hubViewport'
 import { CHART_SCRIM_EXCLUDE_BOTTOM } from './constants'
+import { CHART_TOUCH_ATTR } from '../hooks/useChartTouchTuck'
 
 // `./registry` and `./hubRoutes` are mocked for the WHOLE file (not just the hideOnRoute
 // tests) so every test here runs against a small, fully-known route table instead of the real
@@ -94,6 +95,7 @@ afterEach(() => {
   // microtask flushes. Disconnecting first makes the order deterministic.
   cleanup()
   document.documentElement.removeAttribute(CHART_SHELL_ATTR)
+  document.documentElement.removeAttribute(CHART_TOUCH_ATTR)
   vi.restoreAllMocks()
 })
 
@@ -166,6 +168,33 @@ describe('hidden — landscape-immersive (scoped to the chart shell)', () => {
     setQuery(LANDSCAPE_IMMERSIVE_QUERY, true)
     const { result } = renderAt('/charts')
     expect(result.current.hidden).toBe(false)
+  })
+})
+
+describe('touchTucked — decision B3: a finger on the chart in the chart shell fades the hub (never `hidden`)', () => {
+  it('is true while the chart shell is mounted AND its chart is being touched', () => {
+    document.documentElement.setAttribute(CHART_SHELL_ATTR, '1')
+    document.documentElement.setAttribute(CHART_TOUCH_ATTR, '')
+    const { result } = renderAt('/charts')
+    expect(result.current.touchTucked).toBe(true)
+    // a tuck is a FADE: it never turns into the hard `hidden` attribute
+    expect(result.current.hidden).toBe(false)
+  })
+
+  it('tracks the attribute live: set and cleared after mount', async () => {
+    document.documentElement.setAttribute(CHART_SHELL_ATTR, '1')
+    const { result } = renderAt('/charts')
+    expect(result.current.touchTucked).toBe(false)
+    await act(async () => { document.documentElement.setAttribute(CHART_TOUCH_ATTR, '') })
+    expect(result.current.touchTucked).toBe(true)
+    await act(async () => { document.documentElement.removeAttribute(CHART_TOUCH_ATTR) })
+    expect(result.current.touchTucked).toBe(false)
+  })
+
+  it('is false without the chart shell, whatever the attribute says (kept to the chart)', () => {
+    document.documentElement.setAttribute(CHART_TOUCH_ATTR, '')
+    const { result } = renderAt('/charts')
+    expect(result.current.touchTucked).toBe(false)
   })
 })
 

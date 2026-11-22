@@ -124,6 +124,54 @@
   padding-left: 18px;
 }
 
+/* The Relative Strength screens' page (RS screens unit U6): the server's `rs_screens` document,
+ * drawn after the column cards. Same tokens as the cards above; nothing new is introduced. */
+.rsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  /* The door that opens here scrolls it to the top of the sheet; keep it off the sheet's edge. */
+  scroll-margin-top: 8px;
+}
+
+.rsTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 6px 0 0;
+}
+
+.rsRule {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin: 6px 0;
+}
+
+.rsTerms {
+  margin: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rsTerm dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.rsTerm dd {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 2px 0 0;
+}
+
+.rsSource {
+  font-style: italic;
+}
+
 .loading,
 .error {
   padding: 20px;

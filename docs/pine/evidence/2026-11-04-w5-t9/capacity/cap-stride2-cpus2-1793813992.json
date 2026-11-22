@@ -1,0 +1,191 @@
+{
+ "local_measurement": true,
+ "cpus": 2,
+ "stride": 2,
+ "workers": 2,
+ "affinity_mask": 80,
+ "node": "v24.13.1",
+ "symbols": 200,
+ "chunk": 20,
+ "universe": 3742,
+ "machine_logical_cpus": 24,
+ "request_overhead": {
+  "tiny_50_bars": {
+   "requests": 200,
+   "rtt_ms": {
+    "p50": 2,
+    "p95": 5.2
+   },
+   "job_ms": {
+    "p50": 0,
+    "p95": 2
+   },
+   "overhead_ms": {
+    "p50": 1.5,
+    "p95": 3.2
+   }
+  },
+  "one_5000_bar_job": {
+   "requests": 40,
+   "rtt_ms": {
+    "p50": 11.2,
+    "p95": 20.7
+   },
+   "job_ms": {
+    "p50": 6,
+    "p95": 10
+   },
+   "overhead_ms": {
+    "p50": 5.4,
+    "p95": 7.8
+   }
+  }
+ },
+ "sweep": {
+  "adx-and-di-for-v4": {
+   "jobs": 200,
+   "ok": 200,
+   "withheld": 0,
+   "withheld_guards": [],
+   "bad_requests": 0,
+   "wall_ms_per_symbol": 13.62,
+   "service_cpu_ms_per_symbol": 24.62,
+   "worker_job_ms": {
+    "p50": 19,
+    "p95": 36,
+    "mean": 22.53
+   },
+   "cpu_utilisation_of_pinned_cpus": 0.903,
+   "extrapolated_universe": {
+    "wall_minutes": 0.85,
+    "cpu_minutes": 1.54
+   }
+  },
+  "ema_macd": {
+   "jobs": 200,
+   "ok": 200,
+   "withheld": 0,
+   "withheld_guards": [],
+   "bad_requests": 0,
+   "wall_ms_per_symbol": 5.4,
+   "service_cpu_ms_per_symbol": 9.45,
+   "worker_job_ms": {
+    "p50": 5,
+    "p95": 11,
+    "mean": 6.67
+   },
+   "cpu_utilisation_of_pinned_cpus": 0.874,
+   "extrapolated_universe": {
+    "wall_minutes": 0.34,
+    "cpu_minutes": 0.59
+   }
+  },
+  "bollinger": {
+   "jobs": 200,
+   "ok": 200,
+   "withheld": 0,
+   "withheld_guards": [],
+   "bad_requests": 0,
+   "wall_ms_per_symbol": 18.67,
+   "service_cpu_ms_per_symbol": 33.2,
+   "worker_job_ms": {
+    "p50": 26,
+    "p95": 62,
+    "mean": 30.62
+   },
+   "cpu_utilisation_of_pinned_cpus": 0.889,
+   "extrapolated_universe": {
+    "wall_minutes": 1.16,
+    "cpu_minutes": 2.07
+   }
+  },
+  "rsi_stoch": {
+   "jobs": 200,
+   "ok": 200,
+   "withheld": 0,
+   "withheld_guards": [],
+   "bad_requests": 0,
+   "wall_ms_per_symbol": 7.93,
+   "service_cpu_ms_per_symbol": 13.21,
+   "worker_job_ms": {
+    "p50": 10,
+    "p95": 27,
+    "mean": 12.07
+   },
+   "cpu_utilisation_of_pinned_cpus": 0.833,
+   "extrapolated_universe": {
+    "wall_minutes": 0.49,
+    "cpu_minutes": 0.82
+   }
+  }
+ },
+ "rss_mb": 408,
+ "metrics_after": {
+  "jobs": {
+   "alert": {
+    "ok": 0,
+    "withheld": 0
+   },
+   "on-demand": {
+    "ok": 240,
+    "withheld": 0
+   },
+   "backtest": {
+    "ok": 0,
+    "withheld": 0
+   },
+   "sweep": {
+    "ok": 800,
+    "withheld": 0
+   },
+   "record": {
+    "ok": 0,
+    "withheld": 0
+   }
+  },
+  "refusals": {},
+  "latency_ms": {
+   "alert": {
+    "n": 0,
+    "p50": null,
+    "p95": null
+   },
+   "on-demand": {
+    "n": 240,
+    "p50": 1,
+    "p95": 7
+   },
+   "backtest": {
+    "n": 0,
+    "p50": null,
+    "p95": null
+   },
+   "sweep": {
+    "n": 800,
+    "p50": 14,
+    "p95": 40
+   },
+   "record": {
+    "n": 0,
+    "p50": null,
+    "p95": null
+   }
+  },
+  "workers": {
+   "live": 2,
+   "starts": 3,
+   "recycles": 1,
+   "kills": 0,
+   "ooms": 0,
+   "crashes": 0
+  },
+  "queue_depth": 0,
+  "heap": {
+   "used_bytes": 11423200,
+   "total_bytes": 148746240,
+   "rss_bytes": 416157696
+  },
+  "canary_runs": 1,
+  "canary_ok": true
+ }
+}

@@ -92,6 +92,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Callable, Optional
 
 from fastapi import Depends, HTTPException
@@ -270,6 +271,44 @@ def create_indicator_enabled_for(user_id: Optional[str]) -> bool:
     caller's role check, so a dark review never depends on the flag.)"""
     return cohort_enabled_for(user_id, CREATE_INDICATOR_COHORT,
                               kill_switch=create_indicator_cohort_enabled)
+
+
+def enroll_in_create_indicator(user_id: str) -> None:
+    """Owner decision 2026-11-15: Create Indicator is open to every account, so every
+    new signup joins its cohort. Membership is a WRITE, so it is not behind the switch:
+    what a member SEES is still `create_indicator_enabled_for`, which reads the kill
+    switch first. Same shape as `enroll_in_terminal_next`, and here for the same reason:
+    this module is the one place that names the cohort."""
+    from api.services import rollout
+    rollout.assign_cohort(CREATE_INDICATOR_COHORT, [user_id])
+
+
+#: The one-shot marker for the seed below, in DATA_DIR beside
+#: `TERMINAL_NEXT_SEED_MARKER`. Bump the suffix only to re-run it on every volume.
+CREATE_INDICATOR_SEED_MARKER = ".create_indicator_seed_v1"
+
+
+def seed_existing_members_into_create_indicator(data_dir: Optional[str] = None) -> Optional[int]:
+    """Owner decision 2026-11-15: every EXISTING account joins the Create Indicator
+    cohort, ONCE per volume. New signups are enrolled by `enroll_in_create_indicator`.
+
+    NOT A SECOND WRITER: it calls `rollout.seed_cohort_all_members`, the writer
+    `tools/rollout_cohort.py seed-all --apply` uses, which is idempotent and never
+    removes a tag. Returns the number of tag rows added, or None when the marker says
+    it already ran. The marker is written only AFTER the write succeeded, so a failure
+    raises, leaves no marker, and the next boot tries again. Turning the feature off is
+    still the flag, never this table.
+    """
+    d = data_dir or os.environ.get("DATA_DIR", "/data")
+    marker = os.path.join(d, CREATE_INDICATOR_SEED_MARKER)
+    if os.path.exists(marker):
+        return None
+    from api.services import rollout
+
+    added = rollout.seed_cohort_all_members(CREATE_INDICATOR_COHORT)
+    with open(marker, "w", encoding="utf-8") as fh:
+        fh.write("seeded %d\n" % int(added))
+    return int(added)
 
 
 #: ⛔ THE COHORTS A CLIENT MAY BE TOLD ABOUT, each beside the kill switch that
@@ -482,7 +521,9 @@ def pine_runtime_cohort_enabled_for(user_id: Optional[str]) -> bool:
 #      withholds the script, by name. (R4's `conditional-ta` is a `divergent`
 #      row until WS-C lands per-call-site history.)
 #   2. EVERY SCRIPT ON THE ALLOWLIST HAS AT LEAST ONE MATCH CAPTURE, graded
-#      with the runtime pane ON (a dark-pane grade measured the host lane).
+#      with the runtime pane ON (a dark-pane grade measured the host lane),
+#      and LISTS NO CAPTURE GRADED DIVERGE with the pane on: a DIVERGE on the
+#      members' lane dominates (coordinator ruling 2026-11-19).
 #
 # The data is `api/data/pine_runtime_allowlist.json` (`scripts[]` +
 # `capabilities{}`); `runtime_definitions.allow_list` serves only what this
@@ -491,7 +532,48 @@ def pine_runtime_cohort_enabled_for(user_id: Optional[str]) -> bool:
 
 PINE_CAPABILITY_CONFORMANT = "conformant"
 PINE_CAPTURE_MATCH = "MATCH"
+PINE_CAPTURE_DIVERGE = "DIVERGE"
 PINE_CAPTURE_PANE_ON = "on"
+
+# ⭐⭐ L7 (2026-11-14, owner ruling option (a)) — THE SUBSTITUTED ADMISSION PATH, SEPARATELY NAMED.
+# A script that reads a vendor-only fact (`syminfo.industry`, a seed with no public mirror) is served
+# with UCT data in its place, so it can never grade MATCH: its harness grade is MATCH_SUBSTITUTED (the
+# translation proven with the vendor's own value fed, the UCT value disclosed, not proven). Such a
+# record is admitted ONLY when it says so: `admission: "substituted"`, `substituted: [<Pine name>...]`
+# (what the member door discloses as "uses UCT data for: ..."), and at least one capture graded
+# MATCH_SUBSTITUTED with the runtime pane on whose own `substituted` names are EXACTLY the record's.
+#   * a record WITHOUT `admission` is the R1 path, unchanged: only a MATCH capture admits it, and a
+#     MATCH_SUBSTITUTED capture NEVER does (it is named in the reason, so the path to take is said);
+#   * a record ON the substituted path is admitted by MATCH_SUBSTITUTED captures only: a plain MATCH
+#     capture of a script that declares substituted inputs contradicts the declaration, so it is not
+#     evidence for it.
+# Capability conformance (rule 1) is asked the same way on both paths.
+PINE_CAPTURE_MATCH_SUBSTITUTED = "MATCH_SUBSTITUTED"
+PINE_ADMISSION_SUBSTITUTED = "substituted"
+
+
+def _pine_substituted_names(value):
+    """The record's substituted Pine names as a sorted tuple, or None when malformed or empty."""
+    if not isinstance(value, list) or not value or not all(isinstance(n, str) and n for n in value):
+        return None
+    if len(set(value)) != len(value):
+        return None
+    return tuple(sorted(value))
+
+
+def _pine_capture_ok(c, verdict) -> bool:
+    return bool(isinstance(c, dict) and isinstance(c.get("id"), str) and c.get("id")
+                and c.get("verdict") == verdict and c.get("runtimePane") == PINE_CAPTURE_PANE_ON)
+
+
+def pine_runtime_substituted_inputs(script) -> list[str]:
+    """The Pine names an allowlist record discloses as answered from UCT data: its `substituted`
+    list when it is on the substituted path, ``[]`` otherwise. What the member door reads (through
+    `runtime_definitions.substituted_inputs`) to say "uses UCT data for: ..."."""
+    if not isinstance(script, dict) or script.get("admission") != PINE_ADMISSION_SUBSTITUTED:
+        return []
+    names = _pine_substituted_names(script.get("substituted"))
+    return list(names) if names else []
 
 
 def pine_runtime_admission(script, registry) -> list[str]:
@@ -521,10 +603,225 @@ def pine_runtime_admission(script, registry) -> list[str]:
             if not isinstance(evidence, list) or not evidence:
                 reasons.append(f"capability `{cap}` is marked conformant but names no evidence (R1)")
     captures = script.get("captures")
-    matched = [c for c in (captures if isinstance(captures, list) else [])
-               if isinstance(c, dict) and isinstance(c.get("id"), str) and c.get("id")
-               and c.get("verdict") == PINE_CAPTURE_MATCH
-               and c.get("runtimePane") == PINE_CAPTURE_PANE_ON]
-    if not matched:
-        reasons.append("has no TradingView capture graded MATCH with the runtime pane on (R1)")
+    captures = captures if isinstance(captures, list) else []
+    # ⛔ A DIVERGE ON THE MEMBERS' LANE IS NEVER OUTWEIGHED (coordinator ruling 2026-11-19): a record that lists a
+    # capture graded DIVERGE with the runtime pane on is withheld whatever else it lists. Three MATCH captures and one
+    # DIVERGE are a script that draws a wrong picture on one chart, not a MATCH. (Until then any listed MATCH admitted.)
+    diverging = [c["id"] for c in captures if _pine_capture_ok(c, PINE_CAPTURE_DIVERGE)]
+    if diverging:
+        reasons.append(f"lists a TradingView capture graded DIVERGE with the runtime pane on ({', '.join(diverging)}): "
+                       "a DIVERGE on the members' lane is never outweighed by a MATCH (R1)")
+    admission = script.get("admission")
+    if admission is None:
+        matched = [c for c in captures if _pine_capture_ok(c, PINE_CAPTURE_MATCH)]
+        if not matched:
+            reasons.append("has no TradingView capture graded MATCH with the runtime pane on (R1)")
+            if any(_pine_capture_ok(c, PINE_CAPTURE_MATCH_SUBSTITUTED) for c in captures):
+                reasons.append("its capture is graded MATCH_SUBSTITUTED, which never admits on the MATCH "
+                               "path; it is admitted only as `admission: substituted`, naming its "
+                               "substituted inputs (L7)")
+    elif admission == PINE_ADMISSION_SUBSTITUTED:
+        names = _pine_substituted_names(script.get("substituted"))
+        if names is None:
+            reasons.append("is on the substituted path but names no substituted inputs (a non-empty "
+                           "list of distinct Pine names), so the member door could not disclose them (L7)")
+        else:
+            matched = [c for c in captures if _pine_capture_ok(c, PINE_CAPTURE_MATCH_SUBSTITUTED)
+                       and _pine_substituted_names(c.get("substituted")) == names]
+            if not matched:
+                reasons.append("has no TradingView capture graded MATCH_SUBSTITUTED with the runtime pane "
+                               f"on for exactly its substituted inputs ({', '.join(names)}) (L7)")
+    else:
+        reasons.append(f"names an unknown admission path {admission!r} (only the R1 MATCH path, or "
+                       f"`{PINE_ADMISSION_SUBSTITUTED}`)")
+    return reasons
+
+
+# --------------------------------------------------------------------------- #
+# ⭐⭐ WS-I PART 2 (2026-11-13) — ADMISSION BY CAPABILITY: WHEN A CAPABILITY IS
+# ADMITTED. A member's own copy of a script never hashes to a graded copy, so
+# `PINE_RUNTIME_CAPABILITY_ADMISSION=on` admits a script whose EVERY capability
+# (`api/services/pine_capabilities.py::capabilities_of`) is admitted here. A
+# registry row (`pine_runtime_allowlist.json` `capabilities{}`) admits its
+# capability only when ALL hold:
+#
+#   * `admitted: true` AND `status: conformant` (both: `admitted` is the
+#     stricter word, and R1's per-script gate keeps reading `status`);
+#   * at least TWO evidence entries `{capture, script, community, verdict: MATCH,
+#     runtimePane: on}`, naming TWO distinct captures of TWO DISTINCT scripts, where
+#     `script` is the script's FAMILY (`pine_evidence_script`: a probe and its own
+#     variant, `..._AVG` and `..._AVG_NEG`, are one script), and AT LEAST ONE of the
+#     counted scripts is a COMMUNITY script (`community: true`), not one of our
+#     UCTPROBE_ / vw- probes (coordinator ruling 2026-11-13). Probes still count as
+#     captures;
+#   * for an object family (`obj:*`), each counted entry ALSO carries
+#     `objectsV2: MATCH` and `objectsLane: runtime` (a v2 objects grade with the
+#     RUN drawing them) AND `objectsPaired`, a positive count of the records that
+#     grade paired (`objectsV2.pairedNothing` false: a MATCH that paired nothing
+#     compared nothing). U1 (2026-11-15) admits line, label, delete and
+#     collection on that evidence, graded on y (owner ruling G1); `obj:box` passes
+#     it too but is WITHHELD by ruling (its v4 default border colour is wrong on
+#     the runtime lane: inside-bar-boxes-rddt-1d-2026-11-14), absent from the registry;
+#   * ⛔ AND NO ENTRY OF AN `obj:*` ROW MAY CARRY AN x GRADE THAT DIVERGES
+#     (`objectsX: DIVERGE`, U13): one wrong bar vetoes the whole family, whatever
+#     else its evidence says (coordinator ruling 2026-11-15). Where an x grade
+#     exists it is recorded beside the y evidence;
+#   * ⛔ a capability whose FORMING bar no capture grades (`PINE_CAPABILITY_FORMING_UNGRADED`:
+#     `realtime-state`, and `varip` since 2026-11-18) admits ONLY with `scope: closed-bar-history`
+#     (coordinator ruling 2026-11-15, under G6; varip by coordinator ruling 2026-11-18: on a closed
+#     historical bar a `varip` is a `var`, and no capture grades its updates within a forming bar).
+#     Its evidence is closed-bar history; the member door refuses
+#     it BY NAME on a chart whose newest bar is forming or not known to be closed
+#     (`runtime_definitions.runtime_admission` -> `historyOnly`, `runtimeKill.js::
+#     runtimeFormingRefusalOf`).
+#
+# Pure: no env, no I/O, never raises; a malformed row admits nothing. Whether an
+# evidence id is a real capture graded MATCH is held by the rail
+# (`tests/test_pine_capability_admission.py`, A8), not read here.
+# --------------------------------------------------------------------------- #
+
+PINE_CAPABILITY_MIN_CAPTURES = 2
+PINE_CAPABILITY_MIN_SCRIPTS = 2
+PINE_CAPABILITY_MIN_COMMUNITY_SCRIPTS = 1
+#: A probe's title or capture id starts with one of these (compared lowercased); every other
+#: capture is a community script. Re-verify of #1204 (2026-11-13): `probe-` (probe-default-colour-v3/
+#: v4/v6, probe-sparse-rows) and `uct-` (the legacy uct-dmi / rsi-atr / sma-ema / hma-macd / rma-wma /
+#: stoch-parity-v1 captures) are ours too, and `uctprobe` also matches `UCTPROBE <name>` (a space).
+#: ⭐ 2026-11-17 (strategy-decl evidence): `w9_` / `w9-` are ours too. The W9 strategy probes
+#: (`tools/vendor_harness/w9_probes.py` writes every `tools/visual_conformance/probes/w9-*.pine`) are titled
+#: `W9_<ROW>` and captured as `w9-<row>-...`; without these the classifier counted 35 of the 60 W9 Strategy
+#: Tester captures as COMMUNITY scripts, so a strategy capability could have been admitted on our probes alone.
+PINE_PROBE_PREFIXES = ("uctprobe", "vw-", "probe-", "uct-", "w9_", "w9-")
+#: A probe's own variants: a `v<n>` version and a NEG / POS / ALT suffix, after `_`, `-` or a space.
+_PINE_PROBE_VARIANT_RX = re.compile(r"[_\- ](?:v\d+|neg|pos|alt)$", re.I)
+
+
+def pine_evidence_script(title, capture_id):
+    """``(script, community)`` for one evidence capture: the script FAMILY it counts as, and
+    whether it is a community script. A probe (`PINE_PROBE_PREFIXES` on its title or capture id,
+    lowercased) is one family with its variants: trailing `v<n>` / NEG / POS / ALT suffixes are
+    stripped, so UCTPROBE_VW_INT_ARRAY_AVG_NEG is UCTPROBE_VW_INT_ARRAY_AVG and uct-dmi-parity-v1
+    is uct-dmi-parity. A community script is its title, unchanged."""
+    t = title if isinstance(title, str) and title else (capture_id if isinstance(capture_id, str) else "")
+    cid = capture_id if isinstance(capture_id, str) else ""
+    probe = t.lower().startswith(PINE_PROBE_PREFIXES) or cid.lower().startswith(PINE_PROBE_PREFIXES)
+    if not probe:
+        return t, True
+    fam = t
+    while True:
+        base = _PINE_PROBE_VARIANT_RX.sub("", fam)
+        if base == fam or not base:
+            return fam, False
+        fam = base
+PINE_CAPABILITY_OBJECT_PREFIX = "obj:"
+PINE_OBJECTS_LANE_RUNTIME = "runtime"
+#: U13 x grade on an object evidence entry (`objectsX`): any DIVERGE vetoes the family.
+PINE_OBJECTS_X_DIVERGE = "DIVERGE"
+#: G6 (2026-11-15): capabilities no capture grades on a FORMING bar. Each admits only with
+#: `scope: closed-bar-history`; the member door then refuses it by name on a forming bar.
+#: `varip` (coordinator ruling 2026-11-18, the varip frame rule): it differs from `var` only within
+#: a forming bar, which no capture grades, so its evidence can only ever be closed-bar history.
+#: `request-other` (coordinator ruling 2026-11-19, admit:request-other): every committed capture that admits it holds a
+#: FINISHED newest bar. On a forming one a weekly / monthly read with look-ahead on is withheld by name (Q-HTF-FORM,
+#: `docs/pine/capture-queue-2026-11-19-htf-forming.md`) and the developing value with look-ahead off is witnessed only by
+#: an uncommitted probe, so it admits for closed-bar history only until that capture lands.
+PINE_CAPABILITY_FORMING_UNGRADED = frozenset({"realtime-state", "varip", "request-other"})
+#: U15 (coordinator ruling 2026-11-15): one row PER LIBRARY VERSION, `library:Author/Library/N`.
+#: The row pins the version by `sha256` (the sha of the library source the evidence graded), and an
+#: evidence entry counts only when its `library` names that path AND that sha: an entry graded
+#: against a fixture library, or against other code under the same version, never counts. The rule
+#: is the family rule (>= 2 distinct IMPORTING scripts, MATCH with the runtime pane on, >= 1 of them
+#: community); a TradingView-authored library is fine, the importing scripts are what must be.
+PINE_CAPABILITY_LIBRARY_PREFIX = "library:"
+_PINE_SHA256_RX = re.compile(r"^[0-9a-f]{64}$")
+PINE_CAPABILITY_SCOPE_CLOSED_BARS = "closed-bar-history"
+
+
+def _pine_ledger_entry_fresh(entry) -> bool:
+    """A ledger evidence entry was graded at today's SCRIPT_ENGINE_VERSION (the server's one reader)."""
+    from api.services import user_definitions  # noqa: PLC0415 -- the engine number's one authority
+    cur, at = user_definitions.SCRIPT_ENGINE_VERSION, entry.get("scriptEngineVersion")
+    return (isinstance(cur, int) and isinstance(at, int) and not isinstance(at, bool) and at == cur)
+
+
+def _pine_capability_evidence_counts(name: str, entry) -> bool:
+    """Does this evidence entry count toward admitting capability `name`?"""
+    if not isinstance(entry, dict):
+        return False
+    for key in ("capture", "script"):
+        if not isinstance(entry.get(key), str) or not entry.get(key):
+            return False
+    if entry.get("verdict") != PINE_CAPTURE_MATCH or entry.get("runtimePane") != PINE_CAPTURE_PANE_ON:
+        return False
+    # ⭐ LEDGER_ONLY evidence (a licence-held capture graded out of git, `evidence_ledger`) counts only
+    # while FRESH: graded at the engine this build ships. A bump retires it until a regrade refreshes it.
+    if "ledger" in entry and not (entry.get("ledger") is True and _pine_ledger_entry_fresh(entry)):
+        return False
+    if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX):
+        paired = entry.get("objectsPaired")
+        return (entry.get("objectsV2") == PINE_CAPTURE_MATCH
+                and entry.get("objectsLane") == PINE_OBJECTS_LANE_RUNTIME
+                and isinstance(paired, int) and not isinstance(paired, bool) and paired > 0)
+    return True
+
+
+def pine_capability_history_only(name, row) -> bool:
+    """Is admitted capability `name` admitted for CLOSED-BAR HISTORY only (G6)? Pure."""
+    return (isinstance(name, str) and name in PINE_CAPABILITY_FORMING_UNGRADED
+            and isinstance(row, dict) and row.get("scope") == PINE_CAPABILITY_SCOPE_CLOSED_BARS)
+
+
+def pine_capability_admission(name, row) -> list[str]:
+    """Why registry row `row` does NOT admit capability `name` (WS-I Part 2), or ``[]``.
+
+    ⛔ FAIL CLOSED: a row that cannot answer a question is not admitted, with the reason."""
+    if not isinstance(name, str) or not name:
+        return ["not a capability name"]
+    if not isinstance(row, dict):
+        return [f"capability `{name}` is not in the registry"]
+    reasons: list[str] = []
+    if row.get("admitted") is not True:
+        reasons.append(f"capability `{name}` is not marked admitted")
+    if row.get("status") != PINE_CAPABILITY_CONFORMANT:
+        reasons.append(f"capability `{name}` is {row.get('status') or 'ungraded'}, not conformant")
+    evidence = row.get("evidence")
+    if name in PINE_CAPABILITY_FORMING_UNGRADED and row.get("scope") != PINE_CAPABILITY_SCOPE_CLOSED_BARS:
+        reasons.append(f"capability `{name}` is graded on closed bars only (no capture grades a forming "
+                       f"bar, G6), so it admits only with scope `{PINE_CAPABILITY_SCOPE_CLOSED_BARS}`")
+    if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX):
+        x_bad = sorted({e.get("capture") for e in (evidence if isinstance(evidence, list) else [])
+                        if isinstance(e, dict) and e.get("objectsX") == PINE_OBJECTS_X_DIVERGE}, key=str)
+        if x_bad:
+            reasons.append(f"capability `{name}` has an x grade that DIVERGES ({', '.join(map(str, x_bad))}): "
+                           "a drawing on another bar vetoes the family")
+    counted = [e for e in (evidence if isinstance(evidence, list) else [])
+               if _pine_capability_evidence_counts(name, e)]
+    if name.startswith(PINE_CAPABILITY_LIBRARY_PREFIX):
+        # U15: the version is pinned by the row's sha256, and an entry counts only when it graded
+        # THAT code (its `library`: {path, sha256}); a fixture or probe library never counts
+        path = name[len(PINE_CAPABILITY_LIBRARY_PREFIX):]
+        pin = row.get("sha256")
+        if not (isinstance(pin, str) and _PINE_SHA256_RX.match(pin)):
+            reasons.append(f"capability `{name}` pins no library sha256: a version is admitted only as the "
+                           "code its evidence graded")
+            pin = None
+
+        def graded_this_library(e):
+            lib = e.get("library")
+            return (pin is not None and isinstance(lib, dict) and lib.get("path") == path
+                    and lib.get("sha256") == pin and e.get("libraryFixture") is not True)
+        counted = [e for e in counted if graded_this_library(e)]
+    captures = {e["capture"] for e in counted}
+    scripts = {e["script"] for e in counted}
+    community = {e["script"] for e in counted if e.get("community") is True}
+    if len(community) < PINE_CAPABILITY_MIN_COMMUNITY_SCRIPTS:
+        reasons.append(f"capability `{name}` has no community script among its evidence (only our "
+                       "probes); admission needs at least one")
+    if len(captures) < PINE_CAPABILITY_MIN_CAPTURES or len(scripts) < PINE_CAPABILITY_MIN_SCRIPTS:
+        what = ("objects v2 MATCH captures with the run drawing them and records paired"
+                if name.startswith(PINE_CAPABILITY_OBJECT_PREFIX)
+                else "MATCH captures with the runtime pane on")
+        reasons.append(f"capability `{name}` has {len(captures)} {what} from {len(scripts)} "
+                       f"script(s); admission needs {PINE_CAPABILITY_MIN_CAPTURES} from "
+                       f"{PINE_CAPABILITY_MIN_SCRIPTS}")
     return reasons

@@ -154,6 +154,36 @@
   padding: 7px 9px;
 }
 
+/* TradingView (Pine) names: the section's open button, its namespace groups and the two
+   words a row can say. Colour is on the word alone, as up/down is on a number. */
+.downloadRow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; }
+.downloadNote { flex: 1 1 240px; min-width: 0; font-size: 12px; color: var(--text-muted, #a9a59b); }
+.pineOpen:disabled { opacity: 0.6; cursor: default; }
+@media (max-width: 1024px) { .downloadRow .pineOpen { height: 44px; } }
+.pineOpen {
+  border: 0;
+  border-radius: 7px;
+  padding: 0 12px;
+  height: 30px;
+  background: rgba(248, 247, 243, 0.08);
+  color: var(--text-heading, #f0ece2);
+  font: 600 12.5px var(--font-sans, inherit);
+  cursor: pointer;
+}
+.pineOpen:hover { background: rgba(248, 247, 243, 0.13); }
+.pineOpen:focus-visible { outline: 2px solid rgba(248, 247, 243, 0.45); outline-offset: 2px; }
+.pineGroup { margin: 18px 0 0; }
+.pineGroupTitle {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text-heading, #f0ece2);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.pineRuns { color: #3fbf9a; font-weight: 600; }
+.pineNot { color: var(--text-muted, #8a857a); font-weight: 600; }
+
 .footer {
   margin: 8px 0 0;
   font-size: 12px;

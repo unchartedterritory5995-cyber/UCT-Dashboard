@@ -22,11 +22,15 @@
 // forever, and the budget lives on the call rather than the module so that a
 // screener pass over 5,000 symbols cannot let symbol 4,000 inherit 3,999's spend.
 
-import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED, CARRIED2 } from '../ast/interpret.js'
+import { BINARY, UNARY, TERNARY, POINTWISE_FOR_PARITY, FINITE_WINDOW, CARRIED_PINE, CARRIED2, requestAlignment } from '../ast/interpret.js'
+import { PINE_CMP } from '../pineCompare.js'
 import { OP, OP_NAME, IMPLEMENTED, SERIES_NAMES, CLOCK_FIELDS } from './program.js'
 import { TEXT_IMPL as TEXT_FNS } from './text.js'
 import { COLOUR_FNS, colourArgKind } from './colours.js'
-import { ARRAY_FNS, kindOf, argKind } from './collections.js'
+// ⭐ W6-T8 — a map's values hold drawings too (Pine's collector, `heldNow`)
+import { isMap } from './maps.js'
+import { ARRAY_FNS, kindOf, argKind, CollectionError } from './collections.js'
+import { isMatrix } from './matrices.js'
 // ⭐ ALIASED AT THE IMPORT. `vm.js` already has local `fieldGet`-shaped names in
 // scope in other arms, and a record accessor silently shadowed by one of them
 // would read the wrong thing with nothing red.
@@ -35,6 +39,8 @@ import {
 } from './records.js'
 // ⭐⭐ RT5 — the run's own drawings (`objectStore.js`).
 import { makeObjectStore } from './objectStore.js'
+// ⭐⭐ S1 — the strategy broker (`broker.js`).
+import { makeBroker, BrokerRefusal, BrokerStart, BROKER_ORDER_OPS } from './broker.js'
 import { isDrawingHandle } from './handles.js'
 import { Budget, RuntimeLimitError, LIVE_OBJECT_BYTES } from './limits.js'
 
@@ -67,14 +73,34 @@ const CLOCK_GETTER = Object.freeze(CLOCK_FIELDS.map((f) => {
 import { MAX_COLLECTION_CAP as ITER_SLOTS } from '../ast/objectProgram.js'
 
 const ADD = BINARY['+'], SUB = BINARY['-'], MUL = BINARY['*'], DIV = BINARY['/']
-const LT = BINARY['<'], GT = BINARY['>'], LE = BINARY['<='], GE = BINARY['>=']
-const EQ = BINARY['=='], NE = BINARY['!=']
+// ⭐⭐ engine 78 (#1858) (Q-FCMP / Q-FCMP2): the SIX COMPARISONS are Pine's, not the host table's IEEE ones.
+// The runtime lane runs only Pine, and Pine compares two floats within TradingView's absolute epsilon in every
+// version at run time (`pineCompare.js::PINE_CMP`); a v1-v4 comparison of two compile-time constants, the one
+// exact case, never reaches the VM: the frontend folds it (`pine.js::constCompareFold`).
+const LT = PINE_CMP['<'], GT = PINE_CMP['>'], LE = PINE_CMP['<='], GE = PINE_CMP['>=']
+const EQ = PINE_CMP['=='], NE = PINE_CMP['!=']
 const AND = BINARY['&&'], OR = BINARY['||']
 const NOT = UNARY['!'], NEG = UNARY['u-']
 const PW = POINTWISE_FOR_PARITY
 
 export class VmError extends Error {
   constructor(message) { super(message); this.name = 'VmError' }
+}
+
+/** ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots) — the broker operations a DISARMED run (`brokerDisarmed`)
+ *  treats as placing nothing: the order commands (`broker.js::BROKER_ORDER_OPS`, every void `strategy.*` op). */
+const DISARMED_NO_OPS = new Set(BROKER_ORDER_OPS)
+/** A disarmed run reached a broker read it cannot answer `na` for (a TEXT read: an order id or comment), so it
+ *  cannot stand in for the broker run (the caller keeps the broker's own refusal). ⚰️ Until engine 77
+ *  (#1833, fix/strategy-disarmed-taint) EVERY read stopped the run, and a strategy whose ORDER logic reads
+ *  `strategy.position_size` (macd-shortlong-strategy-for-tradingview-input-optimizer: six plain MACD plots) lost every
+ *  plot the host lane draws for it. */
+export class DisarmedBrokerRead extends Error {
+  constructor(fn) {
+    super(`\`${fn}\` reads the strategy broker, which a run without its broker does not hold`)
+    this.name = 'DisarmedBrokerRead'
+    this.fn = fn
+  }
 }
 
 /**
@@ -112,48 +138,290 @@ export function makeContext({ bars, series, columns, confirmed = true }) {
  * Execute `program` over `ctx`, one bar at a time.
  * @returns {{outputs: Float64Array[], budget: Budget}}
  */
-/** Run one request's expression over ANOTHER symbol's bars, then line the result
- *  up with the chart's.
+/** Run one request's expression over ANOTHER series' bars, then line the result up with
+ *  the chart's.
  *
- *  ⛔⛔ THE ALIGNMENT IS A MEASURED VENDOR FACT. Taken on a real TradingView
- *  chart, 2026-09-19 (vendor packet M1): on a HISTORICAL bar a `"D"` request
- *  returns the PREVIOUS COMPLETED daily bar — a 5-minute bar at 09-18 12:35 ET
- *  saw 09-17's close, not the forming day's. So a chart bar sees the last
- *  requested bar that had already CLOSED when it opened, and a requested bar
- *  stamped at or after the chart bar's time is still forming.
- *
- *  ⭐ STRICTLY BEFORE, which is what makes this free of lookahead: no chart bar
- *  can ever read a value that did not exist while it was open. A `<=` here would
- *  hand a backtest a number nobody could have traded on — the most
- *  valuable-looking wrong answer this engine could produce.
- */
+ *  ⭐⭐ RS RATING L5 — THE ALIGNMENT IS THE HOST LANE'S, NOT THIS FILE'S. The supply
+ *  (`requestSupply.js::runtimeRequestSupply`, `ctx.requestSupply[site]`) hands the bars to
+ *  run over AND, per chart bar, the index of the requested bar it reads (`index`, -1 for
+ *  none), both decided by `interpret.js::requestAlignment`: Pine's look-ahead-off merge for
+ *  a weekly / monthly read (`tf_merge`: the bar that closes its period reads that period,
+ *  every other bar the last closed one), and the same session date for another symbol at
+ *  the chart's own timeframe. A plain array (the discovery path, `ctx.requestBars`, no
+ *  supplier) is aligned by the same function as a same-timeframe series, exact `t`.
+ *  ⚰️ This used to align STRICTLY BEFORE (`otherTimes[j+1] < tNow`) on every request, from
+ *  vendor packet M1 (a `"D"` read on a 5-minute bar sees the previous day, which IS the
+ *  merge's answer mid-session): on a same-timeframe other symbol it handed each daily bar
+ *  YESTERDAY's value, where Pine's look-ahead-off answers the same day's bar, and on a
+ *  weekly read it lagged the bar that closes the week.
+ *  ⛔ A nested request is handed no supply: it is recorded in `requested` and answers `na`,
+ *  and the caller refuses a run that recorded one (`runtimeColumns.js`). */
+/** The bar fields `runRequest` hands a request's series in, by `READ_SERIES` index (`SERIES_NAMES` order). */
+const REQUEST_SERIES_KEYS = Object.freeze(['o', 'h', 'l', 'c', 'v'])
+const _bareFields = new WeakMap()
+let _bareFieldPickOff = false
+/** Tests: force every request through the VM sub-run (the identity rail compares both paths). */
+export function __bareFieldPickOffForTests(off) { _bareFieldPickOff = !!off }
+/** ⭐ PERF — the series indices a request region only reads and emits, in output order, or null for any other region.
+ *  The shape is exactly what `lowerIr.js` emits for a bare field or a tuple of them: `READ_SERIES s0 … s(r-1)`, then
+ *  `EMIT r-1 … EMIT 0` (a tuple's elements pop in reverse), then `HALT` — no hoisted statement, no other op. */
+export function bareFieldsOf(program, entry, results) {
+  let byEntry = _bareFields.get(program)
+  if (!byEntry) { byEntry = new Map(); _bareFields.set(program, byEntry) }
+  const memo = byEntry.get(entry)
+  if (memo !== undefined) return memo
+  const code = program.code
+  const max = program.instructions
+  const at = (pc, i) => code[pc * 3 + i]
+  let pc = Number.isInteger(entry) ? entry : -1
+  let fields = null
+  if (pc >= 0 && Number.isInteger(results) && results >= 1) {
+    const reads = []
+    while (pc < max && at(pc, 0) === OP.READ_SERIES) { reads.push(at(pc, 1)); pc += 1 }
+    let ok = reads.length === results && reads.every((s) => s >= 0 && s < REQUEST_SERIES_KEYS.length)
+    for (let k = results - 1; ok && k >= 0; k -= 1) {
+      ok = pc < max && at(pc, 0) === OP.EMIT && at(pc, 1) === k
+      pc += 1
+    }
+    if (ok && pc < max && at(pc, 0) === OP.HALT) fields = reads
+  }
+  byEntry.set(entry, fields)
+  return fields
+}
+
 function runRequest(program, site, otherBars, ctx, budget, requested, requestCache, results, requestDepth = 1, now) {
-  const n = otherBars.length
-  const pick = (k) => Float64Array.from(otherBars.map((b) => b[k]))
+  const plain = Array.isArray(otherBars)
+  const supply = plain
+    ? (() => {
+      const a = requestAlignment({ chartBars: (ctx.barTimes || []).map((t) => ({ t })), srcBars: otherBars, other: '?' })
+      return { runBars: otherBars, index: a.index.map((j, i) => (a.withheld[i] ? -1 : j)) }
+    })()
+    : otherBars
+  const bars = supply.runBars
+  const n = bars.length
+  // ⭐⭐ PERF (Fred RS 5m profile, 2026-11-19) — A BARE-FIELD REQUEST NEEDS NO SUB-RUN. Fred RS's four requests
+  // are each `close` (region: READ_SERIES 3 · EMIT 0 · HALT), yet each ran a full VM sub-run over the OTHER series'
+  // whole history: the program's every ring, persist and output allocated at the source's length and committed on
+  // every source bar. 8 sub-runs walked 43,112 source bars for a 2,000-bar 5m chart, 525 ms of the run half's
+  // 1,365 (one alone, SP:SPX on the 11,586-bar 5m grid, 501 ms). A region that only READS fields and EMITS them
+  // answers the same values by a pick through the alignment index, exactly as READ_SERIES + EMIT would: ToNumber
+  // (`Float64Array.from`), then EMIT's laundering (a non-finite value is `na`). Any other region runs as before.
+  // ⛔ The budget the sub-run would have charged for the SERIES (`HISTORY` at the source length, `REQUEST_FANOUT`) is
+  // charged the same; the program-wide peaks it would have re-charged at the source length (rings, memory) are not,
+  // because nothing of them is allocated.
+  const fields = _bareFieldPickOff ? null : bareFieldsOf(program, site.entry, results)
+  if (fields) {
+    budget.peak('HISTORY', n)
+    if (requestDepth > 0) budget.peak('REQUEST_FANOUT', requestDepth)
+    const out = []
+    for (let k = 0; k < results; k += 1) {
+      const key = REQUEST_SERIES_KEYS[fields[k]]
+      const col = new Float64Array(ctx.bars).fill(NaN)
+      for (let i = 0; i < ctx.bars; i += 1) {
+        const j = supply.index[i]
+        if (j >= 0 && j < n) {
+          const v = +bars[j][key]
+          col[i] = Number.isFinite(v) ? v : NaN
+        }
+      }
+      out.push(col)
+    }
+    return out
+  }
+  const pick = (k) => Float64Array.from(bars.map((b) => b[k]))
   const sub = execute(program, {
     bars: n,
     series: [pick('o'), pick('h'), pick('l'), pick('c'), pick('v')],
     columns: ctx.columns,
     confirmed: true,
-    barTimes: otherBars.map((b) => b.t),
-    requestBars: ctx.requestBars,
+    barTimes: bars.map((b) => b.t),
+    requestBars: plain ? ctx.requestBars : undefined,
   }, undefined, {
     entry: site.entry, budget, requested, requestCache, requestDepth, now,
   })
 
-  const chartTimes = ctx.barTimes || []
-  const otherTimes = otherBars.map((b) => b.t)
   const aligned = []
   for (let k = 0; k < results; k += 1) aligned.push(new Float64Array(ctx.bars).fill(NaN))
-  let j = -1
   for (let i = 0; i < ctx.bars; i += 1) {
-    const tNow = chartTimes[i]
-    // ⭐ ONE FORWARD WALK, not a search per bar: both series are in time order,
-    // so the pointer only ever moves forward across the whole alignment.
-    while (j + 1 < n && otherTimes[j + 1] < tNow) j += 1
-    if (j >= 0) for (let k = 0; k < results; k += 1) aligned[k][i] = sub.outputs[k][j]
+    const j = supply.index[i]
+    if (j >= 0 && j < n) for (let k = 0; k < results; k += 1) aligned[k][i] = sub.outputs[k][j]
   }
   return aligned
+}
+
+// ─── ⭐⭐ PERF (Fred RS 5m profile, 2026-11-19, item c) — A REQUEST'S SUB-RUN KEEPS ONLY WHAT ITS REGION OBSERVES ───
+//
+// `runRequest` runs a region of the program over another series, and that sub-run used to pay for the WHOLE
+// program at the requested series' length: every output allocated (and filled), and every history ring of the main
+// program and of every call site committed on every requested bar. The region reads a sliver of that: the main
+// program does not run in a sub-run, so its rings hold `na` the whole time, and only the region's own EMITs land.
+// `requestRegionScopeOf` reads the region's code, and the bodies of the functions it can call through each call
+// site, and names exactly what it can observe:
+//   * `rings` — the history rings it can READ: `READ_HIST_SLOT`, `READ_HIST_SLOT_DYN`, and a window's source ring
+//               (`WINDOW` reads `historyBase + historySlot` under `propagate`), each at the base the code runs
+//               under (the main frame's 0, or the call site's own);
+//   * `outs`  — the outputs it can EMIT (a request's results are among them: `lowerIr.js` emits EMIT 0..r-1).
+// The sub-run then allocates those outputs only and commits those rings only. `committed` still advances on every
+// bar, exactly as before (a window's warm-up reads it). Nothing else in a sub-run reads the rest: the probe, the
+// checkpoint, the resume, the realtime hooks, the broker and the object store are all top-level only, and
+// `runRequest` reads the results alone. A region whose code reads no ring skips the commit loop's work entirely.
+// ⛔ THE BUDGET IS CHARGED EXACTLY AS BEFORE: every peak keeps the program's nominal size (rings, cells, outputs,
+// memory), so a run stops by name where it stopped before, with the same numbers.
+// ⛔ AN ALLOWLIST OF OPCODES, NOT A DENYLIST. A region reaching an opcode this note has not reasoned about (a
+// drawing, a broker op, one added later) runs whole, as before (`null`). Each listed op touches only the stack,
+// the constants, the bars and clock, the columns, the locals, persist, carried, window and iteration stores
+// (all still allocated whole and reset as before) or values; the three that read a ring, EMIT and CALL are read
+// above.
+const SCOPE_PLAIN_OPS = new Set([
+  OP.CONST, OP.READ_SERIES, OP.READ_COLUMN, OP.READ_HIST, OP.READ_SERIES_HIST, OP.READ_CLOCK, OP.SESSION,
+  OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG, OP.LT, OP.GT, OP.LE, OP.GE, OP.EQ, OP.NE, OP.AND, OP.OR, OP.NOT, OP.SELECT,
+  OP.HALT, OP.EMIT_ITER, OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST, OP.READ_HIST_DYN,
+  OP.READ_SERIES_HIST_DYN, OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT, OP.RET, OP.POINTWISE, OP.CARRIED, OP.CONCAT,
+  OP.TEXT, OP.ARRAY, OP.LOOP_TICK, OP.REQUEST, OP.COLOUR, OP.DROP, OP.RECORD, OP.FIELD_GET, OP.FIELD_SET,
+  OP.CARRIED2, OP.LOAD_GLOBAL_LOCAL, OP.LOAD_GLOBAL_PERSIST, OP.WHILE_BOUND,
+])
+/** An output a request region never EMITs: no bar is written to it, and `runRequest` reads the results alone. */
+const NO_OUTPUT = new Float64Array(0)
+const _regionScopes = new WeakMap()
+let _regionScopeOff = false
+/** Tests: run every request region whole, as before (the identity rails compare both). */
+export function __requestScopeOffForTests(off) { _regionScopeOff = !!off }
+
+/** ⭐ PERF (item c) — what the request region at `entry` can observe, or `null` (run it whole). Memoized per program.
+ *  @returns {{rings: Int32Array, outs: Int32Array}|null} */
+export function requestRegionScopeOf(program, entry) {
+  let byEntry = _regionScopes.get(program)
+  if (!byEntry) { byEntry = new Map(); _regionScopes.set(program, byEntry) }
+  if (byEntry.has(entry)) return byEntry.get(entry)
+  const scope = regionScope(program, entry)
+  byEntry.set(entry, scope)
+  return scope
+}
+
+function regionScope(program, entry) {
+  const code = program.code
+  const max = program.instructions
+  if (!Number.isInteger(entry) || entry <= 0 || entry >= max) return null
+  // A region, and a function body, is a CONTIGUOUS run of code from its entry to the next entry (`lowerIr.js`: the
+  // main program and its HALT, every function body, then every request region, each in order). Reading the whole
+  // run is a superset of what can execute, so the footprint can only be too large, never too small.
+  const starts = [...(program.functions || []).map((f) => f.entry), ...(program.requests || []).map((r) => r.entry)]
+    .filter(Number.isInteger).sort((x, y) => x - y)
+  const endOf = (s) => { for (const e of starts) if (e > s) return e; return max }
+  const fns = program.functions || []
+  const sites = program.callSites || []
+  const wins = program.windows || []
+  const hist = program.history || []
+  const rings = new Set()
+  const outs = new Set()
+  const seen = new Set()
+  const work = [{ from: entry, historyBase: 0, windowBase: 0 }]
+  while (work.length) {
+    const w = work.pop()
+    const key = `${w.from}|${w.historyBase}|${w.windowBase}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const to = endOf(w.from)
+    for (let pc = w.from; pc < to; pc += 1) {
+      const op = code[pc * 3]
+      const a = code[pc * 3 + 1]
+      if (op === OP.READ_HIST_SLOT || op === OP.READ_HIST_SLOT_DYN) rings.add(w.historyBase + a)
+      else if (op === OP.WINDOW) {
+        const win = wins[w.windowBase + a]
+        if (!win) return null
+        if (Number.isInteger(win.historySlot)) rings.add(w.historyBase + win.historySlot)
+      } else if (op === OP.CALL) {
+        const fn = fns[a]
+        const site = sites[code[pc * 3 + 2]]
+        if (!fn || !site || !Number.isInteger(fn.entry)) return null
+        work.push({ from: fn.entry, historyBase: site.historyBase || 0, windowBase: site.windowBase || 0 })
+      } else if (op === OP.EMIT) outs.add(a)
+      else if (!SCOPE_PLAIN_OPS.has(op)) return null
+    }
+  }
+  for (const r of rings) if (!hist[r]) return null
+  const sorted = (s) => Int32Array.from([...s].sort((x, y) => x - y))
+  return { rings: sorted(rings), outs: sorted(outs) }
+}
+
+// ─── ⭐⭐ (Fred RS filled chart, item 3) — A RUN THAT READS REQUESTS RESUMES ACROSS A NEW SUPPLY ───────────────────
+//
+// A checkpoint of a run that reads requested bars holds state built from the requested values of an EARLIER
+// supply. It is still exact for a run over a NEW supply when every requested value bars [0, cp] read is the same
+// (`runtimeColumns.js::supplyAgreesTo`), and that is decidable WITHOUT running a sub-run when a region's value on
+// requested bar j is a function of the requested bars [0, j] alone (`requestRegionCausal`). The resumed run then
+// re-runs, before bar cp + 1, every sub-run the checkpointed run had made (`resume.requests`, in the order they were
+// first reached) over the NEW supply: its cache, its MEMORY account and its REQUEST_COUNT are then what a full run's
+// are by bar cp, and its cumulative charges are restored exactly (the checkpoint's counts minus what those sub-runs
+// had charged, `charged`, plus what the new ones charge). A peak stays the checkpoint's own or higher: a peak never
+// decides a stop by its stored value (`Budget.peak` compares the value it is handed), and the caller runs in full on
+// any throw of a resumed run (`runtimeColumns.js`), so every stop is the full run's own.
+
+/** The limits a run charges by ADDING (`Budget.charge`, and the VM's hot counters flushed as totals): what a
+ *  sub-run adds to them is subtracted when its checkpoint is resumed over a new supply. Every other limit is a
+ *  peak. `INSTRUCTIONS_PER_BAR` is charged only on the throwing path (a bar past its ceiling) and is a peak.
+ *  ⛔ Railed against every `.charge('…'` in the runtime (`resumeAcrossSupply.test.js`). */
+export const CUMULATIVE_LIMITS = Object.freeze(['TOTAL_INSTRUCTIONS', 'LOOP_ITERATIONS', 'CALL_COUNT',
+  'CARRIED_STEPS', 'WINDOW_CELLS', 'ARRAY_OPERATIONS', 'OBJECT_OPERATIONS'])
+const countsOf = (counts) => {
+  const out = {}
+  for (const k of CUMULATIVE_LIMITS) out[k] = counts[k]
+  return out
+}
+const chargedSince = (before, counts) => {
+  const out = {}
+  for (const k of CUMULATIVE_LIMITS) out[k] = counts[k] - before[k]
+  return out
+}
+
+/** The opcodes a CAUSAL region may reach: each reads only the sub-run's own bars and clock, its constants, its own
+ *  state (locals, persist, rings, windows, carried, iteration buffers) or values on the stack. ⛔ An ALLOWLIST: a
+ *  chart column (`READ_COLUMN`, `READ_HIST`, `READ_HIST_DYN`: the sub-run is handed the chart's columns and indexes
+ *  them by REQUESTED bar), a nested request, a drawing, a broker op or any opcode added later is not causal. */
+const CAUSAL_OPS = new Set([
+  OP.CONST, OP.READ_SERIES, OP.READ_SERIES_HIST, OP.READ_SERIES_HIST_DYN, OP.READ_CLOCK, OP.SESSION,
+  OP.ADD, OP.SUB, OP.MUL, OP.DIV, OP.NEG, OP.LT, OP.GT, OP.LE, OP.GE, OP.EQ, OP.NE, OP.AND, OP.OR, OP.NOT, OP.SELECT,
+  OP.HALT, OP.EMIT, OP.EMIT_ITER, OP.LOAD_LOCAL, OP.STORE_LOCAL, OP.LOAD_PERSIST, OP.STORE_PERSIST,
+  OP.READ_HIST_SLOT, OP.READ_HIST_SLOT_DYN, OP.WINDOW, OP.JUMP, OP.JUMP_IF_FALSE, OP.JUMP_IF_INIT, OP.RET,
+  OP.POINTWISE, OP.CARRIED, OP.CARRIED2, OP.CONCAT, OP.TEXT, OP.ARRAY, OP.LOOP_TICK, OP.COLOUR, OP.DROP,
+  OP.RECORD, OP.FIELD_GET, OP.FIELD_SET, OP.LOAD_GLOBAL_LOCAL, OP.LOAD_GLOBAL_PERSIST, OP.WHILE_BOUND, OP.CALL,
+])
+const _causal = new WeakMap()
+/** Is the request region at `entry` CAUSAL: its value on requested bar j a function of the requested bars [0, j]
+ *  (and the program) alone? Reads the region's code and every function body it can call. Memoized per program. */
+export function requestRegionCausal(program, entry) {
+  let byEntry = _causal.get(program)
+  if (!byEntry) { byEntry = new Map(); _causal.set(program, byEntry) }
+  if (!byEntry.has(entry)) byEntry.set(entry, regionCausal(program, entry))
+  return byEntry.get(entry)
+}
+function regionCausal(program, entry) {
+  const code = program.code
+  const max = program.instructions
+  if (!Number.isInteger(entry) || entry <= 0 || entry >= max) return false
+  // a region, and a function body, is a CONTIGUOUS run of code from its entry to the next entry (`lowerIr.js`): the
+  // whole run is a superset of what can execute
+  const starts = [...(program.functions || []).map((f) => f.entry), ...(program.requests || []).map((r) => r.entry)]
+    .filter(Number.isInteger).sort((x, y) => x - y)
+  const endOf = (s) => { for (const e of starts) if (e > s) return e; return max }
+  const fns = program.functions || []
+  const seen = new Set()
+  const work = [entry]
+  while (work.length) {
+    const from = work.pop()
+    if (seen.has(from)) continue
+    seen.add(from)
+    for (let pc = from, to = endOf(from); pc < to; pc += 1) {
+      const op = code[pc * 3]
+      if (!CAUSAL_OPS.has(op)) return false
+      if (op === OP.CALL) {
+        const fn = fns[code[pc * 3 + 1]]
+        if (!fn || !Number.isInteger(fn.entry)) return false
+        work.push(fn.entry)
+      }
+    }
+  }
+  return true
 }
 
 /** ⭐ RT7 — read once at load, not per instruction (see the dispatch note below). */
@@ -161,15 +429,23 @@ const OP_HALT = OP.HALT
 
 export function execute(program, ctx, limits, opts) {
   const budget = (opts && opts.budget) || new Budget(limits)
+  // ⭐⭐ (coordinator ruling 2026-11-19, engine 84) — a ceiling that scales with the chart is set from the bars
+  // THIS top-level run covers, once (`Budget.coverBars`): a request's sub-run shares its caller's
+  if (!(opts && Number.isInteger(opts.entry) && opts.entry > 0)) budget.coverBars(ctx.bars)
   // ⭐ A REQUEST RUNS THE SAME PROGRAM FROM A DIFFERENT ENTRY, over another
   // symbol's series. Sharing the BUDGET is deliberate: a script that requests
   // forty symbols has done forty symbols' worth of work, and a per-run budget
   // would let it do that forty times over inside one bar's allowance.
   const entryPc = (opts && Number.isInteger(opts.entry)) ? opts.entry : 0
+  // ⭐⭐ PERF (item c) — a request region's own footprint (`requestRegionScopeOf`), or null: run whole
+  const scope = entryPc > 0 && !_regionScopeOff ? requestRegionScopeOf(program, entryPc) : null
   // ⛔ WHAT THE RUN ASKED FOR AND COULD NOT GET. Shared with nested runs, so a
   // request made inside a request is reported to the same caller.
   const requested = (opts && opts.requested) || new Set()
   const requestCache = (opts && opts.requestCache) || new Map()
+  // ⭐⭐ (item 3) — THE SUB-RUNS A TOP-LEVEL RUN MADE, in the order it first reached them, with what each charged
+  // (`chargedSince`): a checkpoint carries them, so a resume over a new supply can make them again before bar cp + 1
+  const reqLog = (opts && Number.isInteger(opts.entry) && opts.entry > 0) ? null : []
   // ⭐⭐ THE PER-BAR HOOK — SEE THE END OF THE BAR LOOP FOR WHY IT EXISTS.
   const onBar = (opts && typeof opts.onBar === 'function') ? opts.onBar : null
   // ⭐⭐ P3 WS-F — THE REALTIME HOOKS (`runtimeColumns.js`, `varip` and `barstate.isnew`):
@@ -194,7 +470,15 @@ export function execute(program, ctx, limits, opts) {
   const consts = program.consts
   const nOut = program.outputs.length
   const outputs = []
-  for (let i = 0; i < nOut; i += 1) outputs.push(new Float64Array(ctx.bars).fill(NaN))
+  if (scope) {
+    // ⭐ PERF (item c) — only the outputs the region EMITs; the rest are never written or read
+    for (let i = 0; i < nOut; i += 1) outputs.push(NO_OUTPUT)
+    for (let k = 0; k < scope.outs.length; k += 1) {
+      if (scope.outs[k] < nOut) outputs[scope.outs[k]] = new Float64Array(ctx.bars).fill(NaN)
+    }
+  } else {
+    for (let i = 0; i < nOut; i += 1) outputs.push(new Float64Array(ctx.bars).fill(NaN))
+  }
   // ⭐⭐ PER-ITERATION BUFFERS — INDEXED BY LOOP COUNTER, NOT BY BAR.
   //
   // ⛔ SIZED INDEPENDENTLY OF `ctx.bars`, DELIBERATELY. The obvious thing is
@@ -290,6 +574,8 @@ export function execute(program, ctx, limits, opts) {
   const hist = boxedRings ? new Array(histTotal).fill(NaN) : new Float64Array(histTotal).fill(NaN)
   // How many bars have been committed, so a ring position is `(committed - k) % depth`.
   let committed = 0
+  // ⭐ PERF (item c) — the rings a request region can read (`requestRegionScopeOf`); null: every ring
+  const scopeRings = scope ? scope.rings : null
 
   // ⭐⭐⭐ P7.2 — THE HELD CELL, AND IT IS TRADINGVIEW'S RULING IN ONE ARRAY.
   //
@@ -320,6 +606,67 @@ export function execute(program, ctx, limits, opts) {
   // a sized `array.new_line(n)` may hold Pine's `na` handle (`collections.js::ARRAY_NEW`).
   if (store && budget.objectsInRun === undefined) budget.objectsInRun = true
 
+  // ⭐⭐ S1 — THE RUN'S BROKER, for a program that declares one. A request's sub-run
+  // (`opts.entry`) is another symbol's bars and never trades this chart's broker.
+  const brokerOps = program.brokerOps || []
+  let broker = null
+  // ⭐⭐ Engine 76 (#1803, fix/strategy-refusal-keeps-plots), Engine 77 (#1833, fix/strategy-disarmed-taint) — A DISARMED RUN
+  // (`opts.brokerDisarmed`): the program's plots and paints computed with NO broker, as the host lane computes them
+  // (every bar, the forming one included). An order command places nothing; a NUMBER read of a broker value is `na`,
+  // only so the order logic around it can finish: it never decides what is drawn. What is drawn was decided
+  // statically, before this run, by the host lane's own taint (`strategyTaint.js::strategyDisarmOf`, the program's
+  // `broker.disarm`): every output a broker value reaches is withheld by name by the caller. A TEXT read stops the
+  // run (`DisarmedBrokerRead`). Asked by `runtimeColumns.js` after the broker run refused by name: the member keeps
+  // the plots no broker value reaches, and the backtest alone is refused.
+  const disarmed = !!(opts && opts.brokerDisarmed === true)
+  if (program.broker && !disarmed && !(opts && opts.entry !== undefined)) {
+    // [B-START] a backtest is path-dependent: served only from TradingView's own first bar.
+    if (program.broker.fromListing !== true) {
+      throw new BrokerRefusal("this strategy's trades depend on the bar its backtest starts from, and this run is "
+        + "not known to start at the symbol's first bar", 'Q-S1n')
+    }
+    // [B-EXEC] calc_on_every_tick executes a strategy on every realtime tick of a forming bar.
+    if (program.broker.calcOnEveryTick === true && ctx.confirmed === false) {
+      throw new BrokerRefusal('`calc_on_every_tick = true` executes this strategy on every tick of the forming '
+        + 'bar, which a run over bars cannot reproduce', 'Q-S1o')
+    }
+    // ⭐⭐ W9-T1 — [3.4] a broker run takes the most recent `ctx.historyWindowBars` bars (the value of
+    // `bars_window.HISTORY_WINDOW_BARS`, handed in by the caller: this lane adds no bar constant).
+    // A run without it, or holding more bars than it, is refused: scroll-back must never change trades.
+    const win = ctx.historyWindowBars
+    if (!(Number.isInteger(win) && win > 0)) {
+      throw new BrokerStart('a strategy run needs the history window it starts from, and this run was not told it')
+    }
+    if (ctx.bars > win) {
+      throw new BrokerStart(`a strategy run takes the most recent ${win} bars, and this run holds ${ctx.bars}`)
+    }
+    // ⭐⭐ [B-START-DEEP] (2026-11-19, the strategy-only daily window) the depth a run from the listing is served at
+    // without the deep-start rule: the context's `listingDepthBars` (the chart's shared window, from the server), and
+    // absent, the window itself (every caller that hands no second value runs exactly as before)
+    const depth = Number.isInteger(ctx.listingDepthBars) && ctx.listingDepthBars > 0 ? ctx.listingDepthBars : win
+    // W9-T4 r1 — `ctx.minContract`: the symbol's `syminfo.mincontract`. W9-T4-F1: the one product caller
+    // (`runtimeColumns.js`) derives it from the symbol's witnessed `symbolScope.json::min_contract` row, the
+    // value a script's own `syminfo.mincontract` folds to; no row ⇒ undefined ⇒ a cash / percent-of-equity
+    // size refuses by name (Q-S1a).
+    broker = makeBroker(program.broker, {
+      series, barTimes: ctx.barTimes, isPinned: opts && opts.brokerPinned, minContract: ctx.minContract,
+      // W9-T8 — `ctx.tradingDays`: each bar's trading day, when the CALLER knows the session and exchange time zone.
+      // No product caller sets it yet, so max_intraday_filled_orders refuses by name (W9-R1i).
+      tradingDays: ctx.tradingDays,
+      // [B-EXEC] the forming newest bar this run does not execute (below), or none: the broker asks the rule
+      formingBar: ctx.confirmed === false && ctx.bars > 0 ? ctx.bars - 1 : null,
+      // [B-START-DEEP] the bar past the served depth, when the run covers more (the broker asks the rule)
+      deepFrom: ctx.bars > depth ? ctx.bars - depth : null,
+    })
+  }
+  // ⭐⭐ S1 — [B-EXEC] a default strategy executes once per CLOSED bar: on a forming bar
+  // it has not run yet, so nothing it computes exists there.
+  // [B-EXEC] is a rule like any other: unpinned, a forming bar stops the run instead of reading `na`. The
+  // BROKER asks it (`makeBroker`, `formingBar` above), so a run that served on a forming bar records it in
+  // `rulesUsed` and a capture can pin it. ⚰️ (2026-11-18) the vm asked it here, outside the broker's ledger: no run
+  // could ever report B-EXEC exercised, so no capture could pin it, and every in-session backtest was refused.
+  const runBars = broker && ctx.confirmed === false ? Math.max(0, ctx.bars - 1) : ctx.bars
+
   // ⭐⭐⭐ 2F-2B — ONE SCRATCH WINDOW PER SITE, ALLOCATED ONCE.
   //
   // The reducers in `interpret.js` take `(series, lo, hi)` over a CONTIGUOUS
@@ -344,7 +691,9 @@ export function execute(program, ctx, limits, opts) {
   // bug in the other.
   const carPlan = program.carried || []
   const carSpec = carPlan.map((c) => {
-    const spec = CARRIED[c.fn]
+    // ⭐ engine 78 (#1858) — the runtime lane runs only Pine: `CARRIED_PINE` (`ta.rising` / `ta.falling`
+    // compare within TradingView's epsilon, Q-FCMP2 B24 / B25; every other carried kernel is `CARRIED`'s own)
+    const spec = CARRIED_PINE[c.fn]
     if (!spec) throw new VmError(`no carried-state implementation for \`${c.fn}\``)
     return spec
   })
@@ -360,9 +709,15 @@ export function execute(program, ctx, limits, opts) {
   const carAlpha = carPlan.map((c, i) => (carSpec[i].alpha ? carSpec[i].alpha(c.n) : undefined))
   const carOffset = new Int32Array(carPlan.length)
   let carCells = 0
-  for (let i = 0; i < carPlan.length; i += 1) { carOffset[i] = carCells; carCells += carSpec[i].cells }
+  // ⭐ W4 T10 — `cells` IS A NUMBER FOR EVERY MEMBER THAT HOLDS A FIXED HANDFUL OF
+  // SCALARS AND A FUNCTION OF THE LENGTH FOR ONE THAT HOLDS A RING (the pivots),
+  // exactly as `CARRIED2`'s always was; `init` receives the length for the same
+  // reason. Existing members' `init(st, off)` ignore the extra argument.
+  const carCellsOf = (i) => (typeof carSpec[i].cells === 'function'
+    ? carSpec[i].cells(carPlan[i].n) : carSpec[i].cells)
+  for (let i = 0; i < carPlan.length; i += 1) { carOffset[i] = carCells; carCells += carCellsOf(i) }
   const carState = new Float64Array(carCells)
-  for (let i = 0; i < carPlan.length; i += 1) carSpec[i].init(carState, carOffset[i])
+  for (let i = 0; i < carPlan.length; i += 1) carSpec[i].init(carState, carOffset[i], carPlan[i].n)
   if (carPlan.length) {
     budget.peak('CARRIED_INSTANCES', carPlan.length)
     budget.peak('CARRIED_CELLS', carCells)
@@ -406,12 +761,25 @@ export function execute(program, ctx, limits, opts) {
   // that, so a skip window keeps its OWN ring of finite values — exactly n
   // cells, appended only when a finite value arrives. Bounded by construction:
   // the gap between observations can be arbitrary, the STORAGE cannot.
-  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span) : null))
+  // ⭐⭐ LANE B0 — `ffill` (`wma`) keeps a ring too: the last `w.span` FILLED values
+  // (each bar's own value, or the last finite one before it), right-aligned; its
+  // newest cell IS the carry, so no state beyond the ring (resume / rollback copy it
+  // already). `winObsN` counts its FINITE observations (capped at `w.span`): the warm-up.
+  // ⭐⭐ ENGINE HL — `finite` (`highest` / `lowest` / `highestbars` / `lowestbars`) keeps the same
+  // right-aligned ring of the last `w.span` finite values as a dynamic `skip`; `winObsN` counts them
+  // (capped at `w.span`). An `arg` member (`highestbars` / `lowestbars`, S17) counts its offset in
+  // BARS, so its ring is twice as long: cells `[w.span, 2 * w.span)` hold each kept value's bar,
+  // right-aligned beside it. One array, so resume / rollback / the state encoder carry both halves.
+  const winObs = winPlan.map((w) => (FINITE_WINDOW[w.fn].na === 'skip' ? new Float64Array(w.span)
+    : FINITE_WINDOW[w.fn].na === 'finite' ? new Float64Array(FINITE_WINDOW[w.fn].arg === true ? 2 * w.span : w.span)
+      : FINITE_WINDOW[w.fn].na === 'ffill' ? new Float64Array(w.span).fill(NaN) : null))
+  const winArg = winPlan.map((w) => FINITE_WINDOW[w.fn].arg === true)
   const winObsN = new Int32Array(winPlan.length)
   const winReduce = winPlan.map((w) => {
     const spec = FINITE_WINDOW[w.fn]
     if (!spec) throw new VmError(`no finite-window reducer for \`${w.fn}\``)
-    return spec.reduce
+    // ⭐ ENGINE 56 (S4-2) — over a bar price the newest tied bar wins (`interpret.js`)
+    return w.newest === true && spec.reduceNewest ? spec.reduceNewest : spec.reduce
   })
   // ⚰️⚰️ THERE WAS A `histPresent` FLAG ARRAY HERE, AND MEASURING IT KILLED IT.
   //
@@ -453,21 +821,29 @@ export function execute(program, ctx, limits, opts) {
   const heldNow = () => {
     const vars = new Set()
     const containers = new Set()
-    const seen = new Set()
-    const inside = (v, depth) => {
-      if (depth > 32 || v === null || typeof v !== 'object' || seen.has(v)) return
-      if (isDrawingHandle(v)) { containers.add(v.id); return }
-      seen.add(v)
-      if (Array.isArray(v)) { for (const x of v) inside(x, depth + 1); return }
-      if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1)
+    // ⭐ W-C22-DEL r6 — a drawing reached through ARRAYS only (`arrays`) is told apart
+    // from one a map, a matrix or a UDT field holds (`containers`): for boxes the
+    // array case is WITNESSED (objectPool.js C7, sonarlab-order-blocks-spy-1d).
+    const arrays = new Set()
+    const seen = [new Set(), new Set()]
+    const inside = (v, depth, pure) => {
+      const s = seen[pure ? 1 : 0]
+      if (depth > 32 || v === null || typeof v !== 'object' || s.has(v)) return
+      if (isDrawingHandle(v)) { (pure ? arrays : containers).add(v.id); return }
+      s.add(v)
+      if (Array.isArray(v)) { for (const x of v) inside(x, depth + 1, pure); return }
+      // ⭐ W6-T7 — a matrix's cells hold drawings too (`matrix<pivotGraphic>`)
+      if (isMatrix(v)) { for (const row of v.cells) inside(row, depth + 1, false); return }
+      if (isUdtRecord(v)) for (const x of Object.values(v.f)) inside(x, depth + 1, false)
+      if (isMap(v)) for (const x of v.m.values()) inside(x, depth + 1, false)
     }
     const top = (v) => {
       if (isDrawingHandle(v)) vars.add(v.id)
-      else inside(v, 0)
+      else inside(v, 0, Array.isArray(v))
     }
     for (let i = 0; i < persist.length; i += 1) top(persist[i])
     for (let i = 0; i < heldTop; i += 1) top(locals[i])
-    return { vars, containers }
+    return { vars, containers, arrays }
   }
 
   // ⭐ RT7 — read once: a budget's limits are fixed for its life (`limits.js`), and
@@ -490,6 +866,11 @@ export function execute(program, ctx, limits, opts) {
   // `true` answer stops the run there (`stoppedAt`). ⛔ Never for a program that
   // draws: an object store is not encoded, so it is not probed.
   const probe = opts && opts.probe && !store && entryPc === 0 ? opts.probe : null
+  // ⭐⭐ W9-T1 — a broker's state (orders, trades, position) is in no checkpoint and no probe
+  // cell, so a broker run is never resumed, checkpointed or probed: it runs from bar 0.
+  if (broker && opts && opts.probe) {
+    throw new BrokerRefusal('a strategy run is not probed by the warm-up curtain: the state of the broker is not part of its cells', 'W9-probe')
+  }
   const probeBars = probe && Array.isArray(probe.bars) ? probe.bars : []
   let probeI = 0
   let probeAt = probe && probeBars.length ? probeBars[0] : -1
@@ -509,8 +890,8 @@ export function execute(program, ctx, limits, opts) {
   // every tick, so no tick's writes accumulate into the next.
   // `opts.checkpointAt` names the bar at whose end this run's state is copied OUT
   // (`res.checkpoint`) — the last CONFIRMED bar, so no forming value is ever saved.
-  const resume = opts && opts.resume && entryPc === 0 ? opts.resume : null
-  const checkpointAt = opts && Number.isInteger(opts.checkpointAt) && entryPc === 0 ? opts.checkpointAt : -1
+  const resume = opts && opts.resume && entryPc === 0 && !broker ? opts.resume : null
+  const checkpointAt = opts && Number.isInteger(opts.checkpointAt) && entryPc === 0 && !broker ? opts.checkpointAt : -1
   let checkpoint = null
   let startBar = 0
   if (resume) {
@@ -525,7 +906,17 @@ export function execute(program, ctx, limits, opts) {
     committed = resume.committed
     for (let k = 0; k < nOut; k += 1) outputs[k].set(resume.outputs[k])
     if (store && resume.store) store.restore(resume.store)
-    Object.assign(budget.counts, resume.counts)
+    // a peak this run already reached before the restore (`HISTORY`: the bars it covers, `MEMORY`: what it allocated)
+    // is kept when it is higher than the checkpoint's: a run over one more bar peaks one bar higher, as a full run does
+    for (const k of Object.keys(resume.counts)) {
+      budget.counts[k] = CUMULATIVE_LIMITS.includes(k) ? resume.counts[k] : Math.max(budget.counts[k], resume.counts[k])
+    }
+    // ⭐⭐ (item 3) — the sub-runs the checkpointed run made are made again below, over THIS run's supply: what they
+    // charged then is taken back out first (a peak is kept: see `CUMULATIVE_LIMITS`)
+    for (const e of resume.requests || []) {
+      if (!e.charged) throw new VmError(`resume: the request ${e.a} the checkpoint read had no prepared supply`)
+      for (const k of CUMULATIVE_LIMITS) budget.counts[k] -= e.charged[k]
+    }
     startBar = resume.bar + 1
   }
   const takeCheckpoint = (bar) => {
@@ -537,6 +928,8 @@ export function execute(program, ctx, limits, opts) {
       outputs: outputs.map((o) => o.slice(0, bar + 1)),
       store: store ? store.snapshot() : null,
       counts: { ...budget.counts },
+      // ⭐⭐ (item 3) the sub-runs made by this bar's end, in the order first reached
+      requests: reqLog ? reqLog.map((e) => ({ ...e, charged: { ...e.charged } })) : [],
     }
   }
   // ⭐⭐ UIE PHASE 4 (M3) — THE HOT COUNTERS, KEPT LOCAL. A loop pass, a call, a carried
@@ -576,7 +969,73 @@ export function execute(program, ctx, limits, opts) {
     pkNest = bc.LOOP_NESTING
   }
   const realtime = opts && opts.realtime && entryPc === 0 ? opts.realtime : null
-  for (let bar = startBar; bar < ctx.bars; bar += 1) {
+  // ⭐⭐ W9-T6 — THE STEP ORDER OF A BAR THAT RE-RUNS ([B-FILLS], [B-POC-FILLS]). Under
+  // calc_on_order_fills a bar may execute more than once: at each fill tick (an extra execution) and,
+  // with process_orders_on_close, after a fill on its close. Every execution but the bar's last is
+  // ROLLED BACK to the bar's start state - `var`s, history, held and carried state, iteration buffers,
+  // drawings and this bar's outputs - the realtime rollback model; the broker's own state is kept,
+  // which is the point of the re-run. Only a broker run under calc_on_order_fills takes this path;
+  // every other run never snapshots and steps exactly as before.
+  const brokerReruns = !!broker && program.broker.calcOnOrderFills === true
+  // ⛔ DEFENSIVE, NOT REACHABLE THROUGH A PRODUCT DOOR TODAY: the realtime hooks exist only for a program
+  // with a `varip` or a `barstate.isnew` read (`runtimeColumns.js::realtimeRun`), and in a broker program
+  // `varip` refuses first (rule 11, `runtime:varip`) while `barstate.isnew` is refused by name on this lane
+  // (`closedTable.json::_barstate.refused`). Kept so that a ruling opening either one cannot let a
+  // rolled-back re-run step a realtime ledger built for one execution per update. Railed only through
+  // `execute` with test hooks (w9T6FillTiming, X7).
+  if (brokerReruns && realtime) {
+    throw new BrokerRefusal('`calc_on_order_fills` re-runs a bar, and this run also keeps realtime state '
+      + '(`varip` / `barstate.isnew`) whose value across those re-runs is not stated', 'W9-P1b')
+  }
+  let barSnap = null
+  let barReruns = 0
+  const snapBar = (bar) => {
+    const [p, ini, h, hd, cs, c2, wn, it] = cloneValues([persist, initialised, hist, held, carState, car2State, winObsN, iters])
+    return { bar, committed, persist: p, initialised: ini, hist: h, held: hd, carState: cs, car2State: c2, winObsN: wn,
+      winObs: winObs.map((o) => (o ? Array.from(o) : null)), iters: it,
+      out: outputs.map((o) => o[bar]), store: store ? store.snapshot() : null }
+  }
+  const restoreBar = (sn) => {
+    const [p, ini, h, hd, cs, c2, wn, it] = cloneValues([sn.persist, sn.initialised, sn.hist, sn.held, sn.carState,
+      sn.car2State, sn.winObsN, sn.iters])
+    const put = (into, from) => { for (let i = 0; i < into.length; i += 1) into[i] = from[i] }
+    put(persist, p); put(initialised, ini); put(hist, h); put(held, hd)
+    put(carState, cs); put(car2State, c2); put(winObsN, wn)
+    for (let w = 0; w < winObs.length; w += 1) if (winObs[w]) put(winObs[w], sn.winObs[w])
+    for (let k = 0; k < iters.length; k += 1) put(iters[k], it[k])
+    for (let k = 0; k < nOut; k += 1) outputs[k][sn.bar] = sn.out[k]
+    if (store && sn.store) store.restore(sn.store)
+    committed = sn.committed
+  }
+  // ⭐⭐ (item 3) — RESUMED OVER A NEW SUPPLY: every sub-run the checkpointed run had made by bar cp is made again,
+  // over THIS run's supply, in the order it first reached them, before bar cp + 1 — the cache, the MEMORY account
+  // and REQUEST_COUNT are then what a full run's are at that bar. A sub-run with no supply here throws (the caller
+  // runs in full).
+  if (resume) {
+    for (const e of resume.requests || []) {
+      const site = program.requests[e.a]
+      const prepared = ctx.requestSupply ? ctx.requestSupply[e.a] : undefined
+      if (!site || !prepared || !prepared.runBars.length || requestCache.has(`${e.a}::${e.key}`)) {
+        throw new VmError(`resume: the request ${e.a} the checkpoint read has no supply in this run`)
+      }
+      budget.peak('REQUEST_COUNT', requestCache.size + 1)
+      flushHot()
+      const before = countsOf(budget.counts)
+      const series2 = runRequest(program, site, prepared, ctx, budget, requested, requestCache, e.b, requestDepth + 1, now)
+      reloadHot()
+      requestBytes += 8 * e.b * ctx.bars
+      requestCache.set(`${e.a}::${e.key}`, series2)
+      reqLog.push({ a: e.a, key: e.key, b: e.b, charged: chargedSince(before, budget.counts) })
+    }
+  }
+  for (let bar = startBar; bar < runBars; bar += 1) {
+    // ⭐⭐ S1 — [B-FILL] the orders the last bar placed fill BEFORE this bar's script runs.
+    // ⭐⭐ W9-T6 — `true`: the walk stopped at a fill tick and THIS execution is an extra one ([B-FILLS]).
+    let extraRun = false
+    if (broker) {
+      if (brokerReruns && (!barSnap || barSnap.bar !== bar)) { barSnap = snapBar(bar); barReruns = 0 }
+      extraRun = broker.beginBar(bar)
+    }
     if (realtime) realtime.barStart(bar, persist, initialised)
     // ⛔ ONLY THE MAIN FRAME IS CLEARED PER BAR. A function's locals are cleared
     // per INVOCATION (see CALL) — which is stronger, and is what stops one bar's
@@ -683,6 +1142,12 @@ export function execute(program, ctx, limits, opts) {
           // (`close[na]` is `close` on all 100 na-offset bars, no error).
           const raw = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
+          // ⭐ A1 — a STRICT read (operand -1, a copy that reads a parameter per bar) stops by name on a negative or
+          // fractional offset, as `READ_HIST_SLOT_DYN`'s strict ring does: what Pine answers there is not captured
+          if (b < 0 && (!Number.isInteger(n) || n < 0)) {
+            throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — [${n}]: a history offset read on this bar `
+              + 'is negative or not a whole number, and what Pine answers for one is not captured')
+          }
           // ⭐⭐ WS-C — PAST PINE'S HISTORY BUFFER IS AN ERROR, NEVER AN ANSWER.
           // `b` is a DECLARED `max_bars_back` (0 = Pine's 5,000 ceiling). The
           // chart here may hold 32,768 bars, so without this a read 6,000 back
@@ -705,7 +1170,19 @@ export function execute(program, ctx, limits, opts) {
           const raw = stack[--sp]
           const live = stack[--sp]
           const n = Number.isNaN(raw) ? 0 : raw
-          if (!Number.isInteger(n) || n < 0) { stack[sp++] = NaN; break }
+          if (!Number.isInteger(n) || n < 0) {
+            // ⭐⭐ A1 — A STRICT RING (an offset read per bar from a call site's argument, whose bottom
+            // and wholeness nothing proved before bar 0) STOPS BY NAME here: what Pine answers for a
+            // negative or fractional history offset is not captured (DY1 covers the fractional half),
+            // and `na` would be this lane's guess drawn as an answer.
+            if (histPlan[historyBase + a].strict === true) {
+              throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — \`${histPlan[historyBase + a].name}\`[${n}]: `
+                + 'a history offset read on this bar is negative or not a whole number, and what Pine '
+                + 'answers for one is not captured')
+            }
+            stack[sp++] = NaN
+            break
+          }
           if (n === 0) { stack[sp++] = live; break }
           // WS-C — past Pine's history buffer stops the run (see READ_HIST_DYN).
           if (n > (b > 0 ? b : 5000)) {
@@ -912,8 +1389,32 @@ export function execute(program, ctx, limits, opts) {
           heldTop = localsTop
           // ⭐ P1 HARDENING — every drawing call is counted (`OBJECT_OPERATIONS`).
           budget.charge('OBJECT_OPERATIONS', 1)
-          const ov = store.call(oop.fn, oargs, bar, heldNow)
+          // ⭐⭐ ENGINE 54 — and where in the script it was written (`site`, on a drawing it makes)
+          const ov = store.call(oop.fn, oargs, bar, heldNow, oop.site || null)
           if (oop.returns !== 'void') stack[sp++] = ov === undefined ? NaN : ov
+          break
+        }
+        // ⭐⭐ S1 — A BROKER OPERATION: the PASSED arguments in parameter order, spread
+        // back onto the op's parameter list (`undefined` where the script passed none).
+        case 100 /* OP.BROKER */: {
+          const bop = brokerOps[a]
+          if (!broker && disarmed) {
+            // an order command (and the symbol hand-off) places nothing in a disarmed run; a number read is `na`
+            // (what it reaches is withheld by the static taint); a text read stops it
+            if (bop.returns === 'void' && (bop.fn === '#symbol' || DISARMED_NO_OPS.has(bop.fn))) { sp -= b; break }
+            if (bop.returns === 'number') { sp -= b; stack[sp++] = NaN; break }
+            throw new DisarmedBrokerRead(bop.fn)
+          }
+          if (!broker) {
+            throw new VmError(`pc ${pc - 1}: \`${bop.fn}\` is a broker op, and this run holds no broker `
+              + '(a request of other bars)')
+          }
+          sp -= b
+          const bargs = new Array(bop.present.length)
+          let k = sp
+          for (let i = 0; i < bop.present.length; i += 1) bargs[i] = bop.present[i] ? stack[k++] : undefined
+          const bv = broker.call(bop.fn, bargs, bar)
+          if (bop.returns !== 'void') stack[sp++] = bv === undefined ? NaN : bv
           break
         }
         case 85 /* OP.COLOUR */: {
@@ -976,6 +1477,18 @@ export function execute(program, ctx, limits, opts) {
             // ⭐ 'any' IS A REAL KIND HERE, not a missing check: `array.push`
             // takes whatever the array holds, and a typed array's element type
             // is the FRONT END's to police, not the VM's.
+            // ⭐⭐ W6-T3a (review N1) — AN `na` COLLECTION IS A NAMED STOP. A slot typed by
+            // its written type alone (`var array<float> a = na`) holds `na` here until a
+            // collection is assigned. Pine raises a runtime error on an `na` array id;
+            // this stops BY NAME (`runtime:CollectionError`), never with the VM's
+            // internal kind-mismatch sentence.
+            // ⭐ W6-T7 — and an `na` MATRIX (`var matrix<float> m = na`) the same way.
+            if ((want === 'array' || want === 'matrix') && typeof stack[sp + i] === 'number'
+                && Number.isNaN(stack[sp + i])) {
+              throw new CollectionError(
+                `\`${op.fn}\`: the ${want} is \`na\` (no ${want} was assigned to it before this call); `
+                + 'Pine stops the script here with a runtime error')
+            }
             if (want !== 'any' && kindOf(stack[sp + i]) !== want) {
               throw new VmError(
                 `pc ${pc - 1}: \`${op.fn}\` argument ${i + 1} takes ${want === 'array' ? 'an' : 'a'} `
@@ -983,7 +1496,16 @@ export function execute(program, ctx, limits, opts) {
             }
           }
           const args = Array.prototype.slice.call(stack, sp, sp + b)
-          const out = spec.fn(args, budget, op.typeArg)
+          let out
+          if (op.version === undefined) out = spec.fn(args, budget, op.typeArg)
+          else {
+            // ⭐⭐ the version island: a v5 library's collection call inside a v6 program is judged under v5 for
+            // THIS op only (`collections.js::ruleVersion` reads `budget.opVersion` before `budget.pineVersion`),
+            // and the script's version is back before the next instruction, a stop included
+            const outer = budget.opVersion
+            budget.opVersion = op.version
+            try { out = spec.fn(args, budget, op.typeArg) } finally { budget.opVersion = outer }
+          }
           // ⛔ A VOID CALL PUSHES NOTHING. `array.push` is a statement in Pine;
           // pushing an `undefined` for it would put a value on the stack that
           // nothing pops and that no kind check would recognise later.
@@ -1030,9 +1552,38 @@ export function execute(program, ctx, limits, opts) {
           // observation ring — the fourth time this addressing has been needed.
           const wi = windowBase + a
           const w = winPlan[wi]
-          const span = w.span
+          // ⭐⭐ W4-T8 — A `dynamic` WINDOW READS ITS LENGTH EVERY BAR (v6 `series int`). The length is
+          // on top of the stack (`lowerIr` pushes it after the source) and `w.span` is only the RING,
+          // sized to Pine's history ceiling; the span of THIS bar is the length it just read. A length
+          // that is `na`, fractional, below 1 or beyond the ring is stopped BY NAME, never clamped:
+          // clamping is how a bad length would answer a real number for a window nobody asked for.
+          let span = w.span
+          if (w.dynamic === true) {
+            const rawLen = stack[--sp]
+            if (!Number.isInteger(rawLen) || rawLen < 1 || rawLen > w.span) {
+              throw new VmError(`pc ${pc - 1}: runtime:history-dynamic-offset — the length of \`${w.name}\` was `
+                + `${Number.isNaN(rawLen) ? 'na' : rawLen} on this bar, and a window length must be a whole number `
+                + `from 1 to ${w.span} (Pine's history buffer)`)
+            }
+            span = rawLen
+          }
           const live = stack[--sp]
           const policy = winNa[wi]
+
+          if (policy === 'skip' && w.dynamic === true) {
+            // ⭐ THE SAME MEASURED RULE (the last `span` FINITE observations, answering even ON the
+            // `na` bar), over a ring that keeps the LAST `w.span` finite values RIGHT-ALIGNED, so the
+            // window of this bar's length is its tail: `[w.span - span, w.span - 1]`.
+            const obs = winObs[wi]
+            if (Number.isFinite(live)) {
+              obs.copyWithin(0, 1)
+              obs[w.span - 1] = live
+              if (winObsN[wi] < w.span) winObsN[wi] += 1
+            }
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            stack[sp++] = winObsN[wi] < span ? NaN : winReduce[wi](obs, w.span - span, w.span - 1)
+            break
+          }
 
           if (policy === 'skip') {
             // ⭐ THE MEASURED RULE: the last `span` FINITE observations, however
@@ -1048,9 +1599,51 @@ export function execute(program, ctx, limits, opts) {
             break
           }
 
-          // ⛔ `propagate` AND `restart` BOTH READ THE COMMITTED RING, so they
-          // keep 2F-2B's warm-up rule: `rolling` starts at bar n-1 and so does
-          // this. What differs is only WHERE the window begins.
+          if (policy === 'finite') {
+            // ⭐⭐ ENGINE HL — `interpret.js::rollingFinite`, a bar at a time: the last `span` FINITE
+            // values (fewer while fewer exist), `na` before bar `span - 1` and before the first finite
+            // value, an answer on the `na` bar itself. WITNESSED by S10 (`vw-cs2-holed-highest-*`).
+            const obs = winObs[wi]
+            const arg = winArg[wi]
+            if (Number.isFinite(live)) {
+              obs.copyWithin(0, 1, w.span)
+              obs[w.span - 1] = live
+              if (arg) { obs.copyWithin(w.span, w.span + 1); obs[2 * w.span - 1] = committed }
+              if (winObsN[wi] < w.span) winObsN[wi] += 1
+            }
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            const have = Math.min(winObsN[wi], span)
+            if (committed < span - 1 || have === 0) { stack[sp++] = NaN; break }
+            const r = winReduce[wi](obs, w.span - have, w.span - 1)
+            // ⭐⭐ S17 — an `arg` member's answer is a distance back in the DENSE ring (`hi - j`);
+            // TradingView counts it in BARS: this bar minus the bar the named value arrived on.
+            stack[sp++] = !arg ? r : Number.isFinite(r) ? committed - obs[2 * w.span - 1 - r] : NaN
+            break
+          }
+
+          if (policy === 'ffill') {
+            // ⭐⭐ LANE B0 (2026-11-09) — `ta.wma`, THE COLUMNAR LANE'S RULE
+            // (`interpret.js::rolling`): an `na` in the lookback is the last finite
+            // value before it (vendor-pinned 2026-09-08), the bar being asked about
+            // must itself be finite, and the window answers only once `span` FINITE
+            // values have arrived — WITNESSED from the listing on
+            // `trend-targets-algoalpha-rddt-1d-2026-10-02` (first answer on the bar
+            // holding the 40th finite value). ⚰️ This lane read `ffill` as
+            // `propagate`: any `na` in the window answered `na`, so it disagreed with
+            // the columnar lane on every hole and started `ta.ema(ta.wma(…))` late.
+            const obs = winObs[wi]
+            const filled = Number.isFinite(live) ? live : obs[w.span - 1]
+            if (Number.isFinite(live) && winObsN[wi] < w.span) winObsN[wi] += 1
+            obs.copyWithin(0, 1)
+            obs[w.span - 1] = filled
+            if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
+            stack[sp++] = !Number.isFinite(live) || winObsN[wi] < span ? NaN : winReduce[wi](obs, w.span - span, w.span - 1)
+            break
+          }
+
+          // ⛔ `propagate` READS THE COMMITTED RING, so it keeps 2F-2B's warm-up
+          // rule: `rolling` starts at bar n-1 and so does this. ⚰️ `restart` read it
+          // too until S17 (no member keeps that policy now).
           if (committed < span - 1) { stack[sp++] = NaN; break }
           const buf = winBuf[wi]
           buf[span - 1] = live
@@ -1064,16 +1657,6 @@ export function execute(program, ctx, limits, opts) {
             }
           }
           if ((cWin += span) > capWin) { bc.WINDOW_CELLS = cWin - span; budget.charge('WINDOW_CELLS', span) }
-          if (policy === 'restart') {
-            // ⭐ THE WINDOW BEGINS AGAIN AFTER A HOLE. The current bar must be
-            // finite (the vendor blanks ON the hole); the run then reaches back
-            // only as far as the last non-finite value.
-            if (!Number.isFinite(live)) { stack[sp++] = NaN; break }
-            let lo = span - 1
-            while (lo > 0 && Number.isFinite(buf[lo - 1])) lo -= 1
-            stack[sp++] = winReduce[wi](buf, lo, span - 1)
-            break
-          }
           stack[sp++] = winReduce[wi](buf, 0, span - 1)
           break
         }
@@ -1092,7 +1675,9 @@ export function execute(program, ctx, limits, opts) {
           // the history commit phase does for a skipped site (it re-commits a
           // HELD value). Two lifetimes, two rules, one wave apart.
           if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
-          stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci])
+          // ⭐ W4 T10 — `m` is the plan entry's SECOND number where a member needs
+          // one (`ta.pivothigh`'s `rightbars`); every other member ignores it.
+          stack[sp++] = carSpec[ci].step(carState, carOffset[ci], v, carPlan[ci].n, carAlpha[ci], carPlan[ci].m)
           break
         }
                 case 90 /* OP.CARRIED2 */: {
@@ -1102,12 +1687,15 @@ export function execute(program, ctx, limits, opts) {
           // ⭐⭐ RT7 — THE SITE IS FRAME-RELATIVE, as `OP.CARRIED`'s: `carried2Base`
           // is the call site's block, so two invocations of one body keep two
           // rings (`ta.valuewhen`) or two previous-bar pairs (the cross family).
+          // ⭐ W4 T10 — A THREE-INPUT MEMBER (`inputs: 3`: `ta.stoch`, `ta.vwap`)
+          // has its third value on top of the stack, pushed last.
+          const c2 = carried2Base + a
+          const v2third = car2Spec[c2].inputs === 3 ? stack[--sp] : NaN
           const v2src = stack[--sp]
           const v2cond = stack[--sp]
           if (++cCarried > capCarried) { bc.CARRIED_STEPS = cCarried - 1; budget.charge('CARRIED_STEPS', 1) }
-          const c2 = carried2Base + a
           stack[sp++] = car2Spec[c2].step(
-            car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n)
+            car2State, car2Offset[c2], v2cond, v2src, car2Plan[c2].n, v2third)
           break
         }
                 case 71 /* OP.RET */: {
@@ -1246,8 +1834,11 @@ export function execute(program, ctx, limits, opts) {
           const key = `${symbol}|${site.timeframe}`
           let series2 = requestCache.get(`${a}::${key}`)
           if (series2 === undefined) {
-            const other = ctx.requestBars && ctx.requestBars[key]
-            if (!other || !other.length) {
+            // ⭐ RS RATING L5 — a prepared supply for THIS site (`requestSupply.js`) wins; the
+            // keyed `requestBars` is the discovery path a supplier-less caller uses
+            const prepared = ctx.requestSupply ? ctx.requestSupply[a] : undefined
+            const other = prepared || (ctx.requestBars && ctx.requestBars[key])
+            if (!other || !(prepared ? prepared.runBars.length : other.length)) {
               // ⛔ NOT AN ERROR AND NOT A GUESS — a symbol this run has no bars
               // for is RECORDED and answers `na`. The script's symbols come out
               // of a pasted watchlist, so the only way to know what to fetch is
@@ -1255,13 +1846,18 @@ export function execute(program, ctx, limits, opts) {
               budget.peak('REQUEST_COUNT', requested.size + 1)
               requested.add(key)
               series2 = null
+              if (reqLog) reqLog.push({ a, key, b, unprepared: true })
             } else {
               budget.peak('REQUEST_COUNT', requestCache.size + 1)
               flushHot()   // the sub-run shares this budget
+              const before = reqLog && prepared ? countsOf(budget.counts) : null
               series2 = runRequest(program, site, other, ctx, budget, requested, requestCache, b,
                 requestDepth + 1, now)
               reloadHot()
               requestBytes += 8 * b * ctx.bars
+              // ⭐⭐ (item 3) a prepared supply's sub-run, recorded for a resume over a new supply
+              if (before) reqLog.push({ a, key, b, charged: chargedSince(before, budget.counts) })
+              else if (reqLog) reqLog.push({ a, key, b, unprepared: true })
             }
             requestCache.set(`${a}::${key}`, series2)
           }
@@ -1306,6 +1902,21 @@ export function execute(program, ctx, limits, opts) {
         + 'bar pushes must be consumed by the end of it')
     }
 
+    // ⭐⭐ W9-T6 — [B-POC] the close execution has run: the orders it placed get their attempt at this
+    // close. Then, under calc_on_order_fills, an extra execution (or a close fill) re-runs the bar.
+    if (broker) {
+      const again = extraRun || broker.endBar(bar)
+      if (again) {
+        barReruns += 1
+        if (barReruns > 64) {
+          throw new BrokerRefusal(`bar ${bar} re-ran more than 64 times under \`calc_on_order_fills\``, 'W9-P2')
+        }
+        restoreBar(barSnap)
+        bar -= 1
+        continue
+      }
+    }
+
     // ─── ⭐⭐⭐ THE END-OF-BAR COMMIT ───────────────────────────────────────
     //
     // The bar has finished. Whatever each history-bearing slot holds NOW is that
@@ -1323,7 +1934,19 @@ export function execute(program, ctx, limits, opts) {
     // re-executed on every tick must not advance `committed` until the bar is
     // confirmed (§27) — the counter is the only thing those features need to
     // touch, not the storage model.
-    if (nHist) {
+    if (nHist && scopeRings) {
+      // ⭐ PERF (item c) — a request region commits only the rings it can read (the same write as below);
+      // `committed` advances below, on every bar, as it does for the whole program (engine 82). ⚰️ It advanced here
+      // too, so after engine 82 moved the advance out of `if (nHist)` a scoped sub-run counted every bar twice and
+      // a window's warm-up and ring reads drifted (`requestRegionScope.test.js`, red on the e84 train).
+      for (let r = 0; r < scopeRings.length; r += 1) {
+        const i = scopeRings[r]
+        const plan = histPlan[i]
+        hist[histOffset[i] + (committed % plan.depth)] = plan.site === null
+          ? (plan.persist ? persist[plan.slot] : locals[plan.slot])
+          : held[i]
+      }
+    } else if (nHist) {
       for (let i = 0; i < nHist; i += 1) {
         const plan = histPlan[i]
         // ⭐ `committed` IS THIS BAR'S ORDINAL, which is what makes the read side
@@ -1342,8 +1965,16 @@ export function execute(program, ctx, limits, opts) {
           ? (plan.persist ? persist[plan.slot] : locals[plan.slot])
           : held[i]
       }
-      committed += 1
     }
+    // ⭐⭐ engine 82 — `committed` IS THE BAR'S ORDINAL, SO IT ADVANCES ON EVERY BAR, ring or no ring.
+    // ⚰️ It advanced only inside `if (nHist)`. A program with no history slot kept `committed = 0` for the whole
+    // run, and the one reader that needs the ordinal without a ring, the `finite` window policy (`ta.lowest` /
+    // `highest` / `lowestbars` / `highestbars`: `committed < span - 1` is its warm-up, and the `bars` members count
+    // back from it), answered `na` on every bar whose span was above 1. A window over an in-place source (HIST-S2)
+    // keeps its own ring and holds no history slot, so `if show` + `x := ta.lowest(low * 1, k)` read
+    // [95, na, na, na, 91, ...] where the root form (and Pine) read [95, 94, 93, 92, 91, ...], and a fixed length 3
+    // read `na` on every bar (`finiteWindowNoRing.test.js`). Every other reader of `committed` reads a ring.
+    committed += 1
 
     // ─── ⭐⭐⭐ THE BAR IS FINISHED — AND A DRAWING MAY STAND ON IT ────────
     //
@@ -1402,5 +2033,6 @@ export function execute(program, ctx, limits, opts) {
   if (probe && typeof probe.done === 'function') probe.done({ dynLowSeries, dynLowCol })
 
   return { outputs, iters, budget, requested: Array.from(requested).sort(), objects: store,
-    ...(checkpoint ? { checkpoint } : {}), ...(resume ? { resumedFrom: resume.bar } : {}) }
+    ...(checkpoint ? { checkpoint } : {}), ...(resume ? { resumedFrom: resume.bar } : {}),
+    ...(broker ? { broker: broker.summary() } : {}) }
 }

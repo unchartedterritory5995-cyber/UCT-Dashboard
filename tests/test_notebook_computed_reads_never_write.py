@@ -33,7 +33,6 @@ def db_path(monkeypatch):
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     monkeypatch.setenv("AUTH_DB_PATH", tmp.name)
-    monkeypatch.setenv("NOTEBOOK_FORMULAS_ENABLED", "1")
     from api.services import auth_db
     importlib.reload(auth_db)
     auth_db.init_db()

@@ -207,7 +207,7 @@ def rsi_from_wilder_averages(avg_gain: float, avg_loss: float) -> MaybeNum:
     return 100.0 - 100.0 / (1 + avg_gain / avg_loss)
 
 
-def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
+def compute_rsi_raw(closes: List[Number], period: int = 14, seed_mean=None) -> List[MaybeNum]:
     """Wilder-smoothed RSI, unrounded. Mirrors ``computeRSI`` in indicators.js.
 
     First RSI value lands at index ``period`` (needs ``period`` price diffs
@@ -226,6 +226,11 @@ def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
     and read exactly like a hold while the state underneath had been scaled down.
     Every later bar was then wrong and never re-converged. TradingView instead
     holds: ``na`` on the hole AND on the bar after it, then one normal step.
+
+    ⭐ RMA-SEED (engine 92) -- ``seed_mean(values)`` is how the two Wilder averages are SEEDED from the
+    first ``period`` gains and losses: Pine's ``ta.rsi`` passes ``ast_interpret._rma_seed_mean`` (the exactly
+    rounded sum / n) through ``FN_PINE["rsi"]``, twin of ``indicators.js::computeRSI``'s ``opts.seedMean``.
+    Without it (the native RSI, the screener) the seed is the running sum / n, as before.
     """
     n = len(closes)
     out: List[MaybeNum] = [None] * n
@@ -236,6 +241,8 @@ def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
     seen = 0
     sum_gain = 0.0
     sum_loss = 0.0
+    gains: List[float] = []
+    losses: List[float] = []
     for i in range(1, n):
         a, b = closes[i], closes[i - 1]
         if a is None or b is None:
@@ -246,13 +253,17 @@ def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
         gain = diff if diff > 0 else 0.0
         loss = -diff if diff < 0 else 0.0
         if avg_gain is None:
-            sum_gain += gain
-            sum_loss += loss
+            if seed_mean is not None:
+                gains.append(gain)
+                losses.append(loss)
+            else:
+                sum_gain += gain
+                sum_loss += loss
             seen += 1
             if seen < period:
                 continue
-            avg_gain = sum_gain / period
-            avg_loss = sum_loss / period
+            avg_gain = seed_mean(gains) if seed_mean is not None else sum_gain / period
+            avg_loss = seed_mean(losses) if seed_mean is not None else sum_loss / period
         else:
             avg_gain = (avg_gain * (period - 1) + gain) / period
             avg_loss = (avg_loss * (period - 1) + loss) / period
@@ -659,6 +670,7 @@ def compute_atr(bars: List[dict], period: int = 14) -> List[MaybeNum]:
 def compute_adx_raw(
     bars: List[dict],
     period: int = 14,
+    gt: Optional["Callable[[float, float], bool]"] = None,
 ) -> Tuple[List[MaybeNum], List[MaybeNum], List[MaybeNum]]:
     """Returns (adx, plus_di, minus_di) unrounded. Mirrors ``computeADX``.
 
@@ -666,6 +678,7 @@ def compute_adx_raw(
     of DX and first lands on ``bars[2 * period - 1]``. All three are bar-aligned
     and the same length — the JS lane used to return ``adx`` shorter than its DIs.
     """
+    _gt = gt if callable(gt) else (lambda a, b: a > b)
     n = len(bars)
     adx_out: List[MaybeNum] = [None] * n
     plus_di: List[MaybeNum] = [None] * n
@@ -679,8 +692,10 @@ def compute_adx_raw(
     for i in range(1, n):
         up = bars[i]["h"] - bars[i - 1]["h"]
         down = bars[i - 1]["l"] - bars[i]["l"]
-        plus_dm[i] = up if (up > down and up > 0) else 0.0
-        minus_dm[i] = down if (down > up and down > 0) else 0.0
+        # engine 78 (#1858) -- ``gt`` is IEEE for the native ADX (the default) and
+        # ``pine_compare.pine_gt`` for Pine's ``ta.dmi`` (``indicators.js::computeADX``'s ``opts.gt``)
+        plus_dm[i] = up if (_gt(up, down) and _gt(up, 0)) else 0.0
+        minus_dm[i] = down if (_gt(down, up) and _gt(down, 0)) else 0.0
         prev_c = bars[i - 1]["c"]
         tr[i] = max(
             bars[i]["h"] - bars[i]["l"],
@@ -1461,7 +1476,22 @@ CLOCK_TIMEFRAMES = CLOCK_INTRADAY_TFS + ("D", "W", "M")
 #: unit gate refuses together.
 CLOCK_TIME_DERIVED = ("time", "year", "month", "dayofmonth", "dayofweek",
                       "hour", "minute", "sessionfirst", "dayopentime",
-                      "timeclose", "dayclosetime", "weekfirst", "monthfirst")
+                      "timeclose", "dayclosetime", "weekfirst", "monthfirst",
+                      "regularhours", "regularfirst")
+
+#: ⭐ ``regularhours`` / ``regularfirst`` (2026-11-17) -- THE REGULAR SESSION, ONE AUTHORITY.
+#: ``sessionfirst`` is the first bar of the New York CALENDAR day, which is 04:00 on a chart that
+#: shows extended hours; "the opening range" and "today's high" are about the regular session.
+#:   * ``regularhours`` is 1 on a bar that opens inside the regular session AS THE CALENDAR HAS
+#:     IT -- a weekday the vendor's session trades, from 09:30 to that day's close
+#:     (``tradingview_close_minute``: 16:00, 13:00 on a half-day) -- and 0 on every other bar.
+#:   * ``regularfirst`` is 1 on the FIRST such bar of its New York day: the 09:30 bar where there
+#:     is one, else the first regular print (a thin symbol's 09:37). 0 on every other regular bar
+#:     and on every bar outside regular hours. ⛔ BLANK when a regular bar later than 09:30 has NO
+#:     bar before it: the window was cut mid-session, and answering 1 there would make the value
+#:     depend on the window rather than the tape (``sessionfirst``'s own reason, ``lookback: 1``).
+#: A date-keyed daily, weekly or monthly bar is stamped 09:30 by ``bar_open_instant``, so both
+#: read 1 on every bar there with no special case. Mirrors ``indicators.js::computeClock``.
 
 #: ⭐⭐ ``time_close``, ``time_close("D")`` AND ``timeframe.change("W"/"M")`` --
 #: the last four names above (2026-09-28, objects triage C8). Mirrors
@@ -2167,6 +2197,9 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     span = _TF_SPAN_SECONDS.get(tf) if isinstance(tf, str) else None
     week_first: List[MaybeNum] = [None] * n
     month_first: List[MaybeNum] = [None] * n
+    regular_hours: List[MaybeNum] = [None] * n
+    regular_first: List[MaybeNum] = [None] * n
+    prev_regular_day = -1
     time_close: List[MaybeNum] = [None] * n
     day_close: List[MaybeNum] = [None] * n
     # The one bar whose close depends on the GRID: 09:30 on a 60-minute chart.
@@ -2248,6 +2281,18 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
         close_minute = _tv_close_minute(day) if weekday else None
         session_close = (None if close_minute is None
                          else t + (close_minute * 60 - since_midnight))
+        # ``regularhours`` / ``regularfirst`` -- see ``CLOCK_TIME_DERIVED``.
+        in_regular = (close_minute is not None
+                      and _RTH_OPEN_MINUTE <= minute_of_day < close_minute)
+        regular_hours[i] = 1.0 if in_regular else 0.0
+        if not in_regular or prev_regular_day == day:
+            regular_first[i] = 0.0
+        elif minute_of_day == _RTH_OPEN_MINUTE or i > 0:
+            regular_first[i] = 1.0
+        else:
+            regular_first[i] = None       # a window cut mid-session: not known, never guessed
+        if in_regular:
+            prev_regular_day = day
         close = None
         dclose = None
         if not known or not weekday:
@@ -2307,6 +2352,8 @@ def compute_clock(bars: List[dict], tf: Optional[str] = None,
     cols["dayclosetime"] = day_close
     cols["weekfirst"] = week_first
     cols["monthfirst"] = month_first
+    cols["regularhours"] = regular_hours
+    cols["regularfirst"] = regular_first
     # `lastbartime`/`lastbaryear`/… are the newest bar's OWN fields, just
     # computed above -- read back, never recomputed, so this broadcast can
     # never disagree with what `year`/`month`/… already say about that bar.
@@ -2570,3 +2617,95 @@ def compute_case(
 
     # kind == "vwap_series" — deliberately not "vwap"; see _CASE_COLUMNS.
     return {"vwap": compute_vwap_raw(bars)}
+
+
+# ─── THE REGULAR SESSION'S OWN VALUES (2026-11-17) ────────────────────────────
+#
+# ``sessionOpen()``, ``sessionHigh()``, ``sessionLow()``, ``openingRangeHigh(minutes)`` and
+# ``openingRangeLow(minutes)``: what the regular session has done so far, on any chart.
+#
+# ⚰️ WHAT THIS REPLACES. Asked for "the high and low of the first 30 minutes of the day", the
+# assistant could only write a clock condition over a fixed number of bars, right on one chart
+# timeframe and wrong on every other. A window in this table is a literal bar count, and "since the
+# open" is a count that depends on the timeframe. It also cannot be an ``accum`` over a reset: open
+# to next open is 960 one-minute bars, the whole lookback budget (``sessionMaxBars``).
+#
+# ⭐ ONE CLOCK AUTHORITY. The session is whatever ``compute_clock`` says it is (``regularfirst``,
+# ``regularhours``): the vendor calendar's regular hours, early closes included. Nothing here reads
+# an hour or a minute.
+#
+#   * the value is UNKNOWN until a bar that is the first of a regular session (never a partial
+#     session read as a whole one: a window cut mid-session answers nothing until the next open);
+#   * on that bar it starts (the bar's open / high / low); on every later bar INSIDE regular hours
+#     it steps (kept / the higher / the lower); for an opening range it steps only while the bar
+#     opens less than ``minutes`` after the session's first bar, and is frozen after;
+#   * every other bar CARRIES it: after-hours and the next pre-market read the last regular
+#     session's value until the next regular open. An early close ends when the bars do;
+#   * a price that is not a finite number makes the rest of that session unknown (the VWAP rule:
+#     an extreme with an unknown term is unknown).
+#
+# Mirrors ``indicators.js::computeSessionRegular`` value for value.
+
+SESSION_READER_FIELDS = {"open": "o", "high": "h", "low": "l"}
+
+#: Why an opening range cannot be read on a chart, as CODES. The sentences are the browser's.
+OPENING_RANGE_BARS_LONGER = "opening-range:bars-longer"
+OPENING_RANGE_BARS_DO_NOT_DIVIDE = "opening-range:bars-do-not-divide"
+
+
+def opening_range_refusal(period_seconds: Any, minutes: Any) -> Optional[str]:
+    """Why an opening range of ``minutes`` cannot be read on bars ``period_seconds`` long, or None
+    when it can: one bar is longer than the range (a daily chart), or the range is not a whole
+    number of bars. An unknown bar length is not a range to read either."""
+    if (isinstance(period_seconds, bool) or not isinstance(period_seconds, (int, float))
+            or not isfinite(period_seconds) or period_seconds <= 0):
+        return OPENING_RANGE_BARS_LONGER
+    span = float(minutes) * 60.0
+    if period_seconds > span:
+        return OPENING_RANGE_BARS_LONGER
+    if span % period_seconds != 0:
+        return OPENING_RANGE_BARS_DO_NOT_DIVIDE
+    return None
+
+
+def compute_session_regular_raw(bars: List[dict], tf: Optional[str], kind: str,
+                                minutes: Optional[float] = None) -> List[MaybeNum]:
+    """One forward pass. ``kind`` is ``open`` / ``high`` / ``low``; ``minutes`` bounds an opening
+    range (None: the whole regular session). ``[]`` for no bars, else one value per bar."""
+    n = len(bars)
+    if n == 0:
+        return []
+    field = SESSION_READER_FIELDS[kind]
+    out: List[MaybeNum] = [None] * n
+    clock = compute_clock(bars, tf)
+    first, inside, when = clock["regularfirst"], clock["regularhours"], clock["time"]
+    if minutes is not None and opening_range_refusal(clock["periodseconds"][0], minutes) is not None:
+        return out
+    value: MaybeNum = None
+    known = False
+    open_time = 0.0
+    for i, bar in enumerate(bars):
+        # A BLANK ``regularfirst`` (the unit gate, or an oldest bar cut mid-session) needs no
+        # branch: it is neither 1 nor a known session, so nothing is known until the next open.
+        f = first[i]
+        if f == 1.0:
+            known = True
+            open_time = when[i]
+            value = _session_price(bar, field)
+        elif known and inside[i] == 1.0 and (minutes is None or when[i] < open_time + minutes * 60.0):
+            price = _session_price(bar, field)
+            if value is None or price is None:
+                value = None
+            elif kind == "high":
+                value = max(value, price)
+            elif kind == "low":
+                value = min(value, price)
+        out[i] = value if known else None
+    return out
+
+
+def _session_price(bar: Any, field: str) -> MaybeNum:
+    v = bar.get(field) if isinstance(bar, dict) else None
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not isfinite(v):
+        return None
+    return float(v)

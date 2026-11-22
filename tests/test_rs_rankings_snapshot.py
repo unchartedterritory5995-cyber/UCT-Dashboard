@@ -7,6 +7,8 @@ data, and a cold process answers from it (if younger than 6 h) while it rebuilds
 import json
 import time
 
+import pytest
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -76,3 +78,39 @@ def test_a_warm_memory_cache_wins_over_the_snapshot(monkeypatch, tmp_path):
         assert kicks["n"] == 0
     finally:
         rs_ranking._rs_cache.invalidate(rs_ranking._CACHE_KEY)
+
+
+# --- boot seed (2026-11-12): a deploy no longer re-fetches 3,685 tickers for an hour-old answer --
+
+def _fresh(rs, monkeypatch, tmp_path, age_s):
+    path = tmp_path / "rs.json"
+    row = {"ticker": "NVDA", "rs_score": 1.0, "rs_rank": 99, "returns": {}}
+    path.write_text(json.dumps({"computed_at": time.time() - age_s, "rankings": [row]}),
+                    encoding="utf-8")
+    monkeypatch.setattr(rs, "_SNAPSHOT_PATH", str(path))
+    rs._rs_cache.invalidate(rs._CACHE_KEY)
+    monkeypatch.setattr(rs, "_get_universe", lambda: (_ for _ in ()).throw(AssertionError("computed")))
+    return path
+
+
+def test_boot_seeds_a_fresh_snapshot_instead_of_computing(monkeypatch, tmp_path):
+    from api.services import rs_ranking as rs
+    _fresh(rs, monkeypatch, tmp_path, age_s=600)
+    rows = rs.compute_rs_scores()
+    assert rows and rows[0]["ticker"] == "NVDA"
+    assert rs._rs_cache.get(rs._CACHE_KEY) == rows
+    assert 2900 < rs.last_seed_remaining_s <= 3000, "seeded with its REMAINING life, never a fresh hour"
+
+
+def test_a_snapshot_older_than_the_cache_ttl_is_not_seeded(monkeypatch, tmp_path):
+    from api.services import rs_ranking as rs
+    _fresh(rs, monkeypatch, tmp_path, age_s=rs._CACHE_TTL + 5)
+    with pytest.raises(AssertionError, match="computed"):
+        rs.compute_rs_scores()
+
+
+def test_force_never_reads_the_snapshot(monkeypatch, tmp_path):
+    from api.services import rs_ranking as rs
+    _fresh(rs, monkeypatch, tmp_path, age_s=60)
+    with pytest.raises(AssertionError, match="computed"):
+        rs.compute_rs_scores(force=True)

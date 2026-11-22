@@ -12,7 +12,7 @@ number.
 
 | row | probe shape | what it settles |
 |---|---|---|
-| T1 | `var float s = na`, top level `s := close > open ? ta.sma(close, 3) : s`, then `if barstate.islast` / `label.new(bar_index, s, str.tostring(s))`, plus `plot(s)` | Does TradingView evaluate the `ta.sma` in the true arm only on the bars that arm is taken (expected: 149.2033 on RDDT, the `if` form's value, i.e. per-run history), or on every bar (145.7767, what our object lane draws now)? |
+| T1 | `var float s = na`, top level `s := close > open ? ta.sma(close, 3) : s`, then `if barstate.islast` / `label.new(bar_index, s, str.tostring(s))`, plus `plot(s)`; probe `vw-objcond-ternary-sma-var.pine` | Does TradingView evaluate the `ta.sma` in the true arm only on the bars that arm is taken (expected: 149.2033 on RDDT, the `if` form's value, i.e. per-run history), or on every bar (145.7767, what our object lane draws now)? |
 
 Notes:
 - T1 belongs to the `?:` arm family that `fix/prod-ternary-history` (C45) stamps for **plots**

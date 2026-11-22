@@ -208,14 +208,19 @@ if barstate.islast
     table.cell(t, 0, 0, "X", text_formatting = close)
 plot(close)
 `)
-    expect(t.objectDiagnostics.droppedPropNames).toContain('cell.text_formatting@5')
+    // (engine 51: the cell is withheld whole, so the prop is no longer listed as a
+    // drop of its own; the withholding is named below)
     // ⭐ AND IT IS COUNTED, not merely named — a visible limit, not a missing
     // feature. (`enumUnreadable` is what the fall-through added beside the name.)
     expect(t.objectDiagnostics.enumUnreadable).toBeGreaterThan(0)
-    // ⛔ THE CELL ITSELF SURVIVES. Formatting is styling, not content — losing
-    // the bold must not lose the number, the same rule `REQUIRED`/`CONTENT`
-    // already encode for a label's caption.
-    expect(t.objects.ops.filter((o) => o.k === 'cell')).toHaveLength(1)
+    // ⛔⛔ ENGINE 51 (coordinator ruling 2026-11-12): THE CELL IS WITHHELD BY NAME.
+    // ⚰️ It used to survive with the prop dropped, i.e. drawn in the renderer's
+    // default formatting — the same "computed value silently becomes the default"
+    // that drew ict-killzones-pivots-tfo's cells at the wrong size. A drawing whose
+    // enum slot cannot be read is now withheld (`enum:unreadable`), never drawn
+    // with a default in place of what the script asked for.
+    expect(t.objects.ops.filter((o) => o.k === 'cell')).toHaveLength(0)
+    expect(t.objectDiagnostics.dropReasons['enum:unreadable']).toBe(1)
   })
 
   it('⛔⛔ and a cell property OUTSIDE the vocabulary is named too — the bare `continue` is gone', () => {

@@ -122,6 +122,10 @@ export const IMPORT_ALLOW = {
   // file itself (so rule ① scans every request it can make), the trade page link, and the plan grade's words.
   swr: 'useSWR: cache and revalidation around a fetcher the block file writes itself, which rule ① scans; it sends nothing of its own',
   'react-router-dom': "Link: the review block's way to the trade page (navigation, no network, no writes)",
+  // Audit 2026-11-05, S17: a prep block with no names ASKS for them. The ask writes the member's WATCHLIST through the
+  // existing watchlist API (lib/myNames.js), never the note: the block's own capture after it is still `setParams`,
+  // the one door this rail protects.
+  'app/src/pages/journal-2-0/components/notebook/EmptyNamesAsk': "S17's empty-widget ask: writes the member's watchlist (the watchlist API), never a note; the block captures again through setParams",
   'app/src/pages/journal-2-0/lib/planGradeText': "the plan grade's words (verdict, detail, price format): pure functions shared with the trade page's card, no imports, no network",
   // P2b Task 8 (ruling R-PF-B8): the My rules block's ONE read seam. Its write is rulesApi.js (a block
   // file, WRITE_EXCEPTIONS above); the seam hands back the rules, their state and a re-read only.

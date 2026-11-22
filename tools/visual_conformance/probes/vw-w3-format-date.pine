@@ -1,0 +1,19 @@
+//@version=6
+indicator("vw-w3-format-date", overlay = true)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w3.md, W3 S1, row Q-W3-1 (shapes S1-A, S1-G). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: str.format {N,date,...} / {N,time,...} pattern tokens over a FIXED instant (2024-03-05 14:07:09 UTC). Read the six cell texts.
+// CAPTURE: AMEX:SPY 1D, inputs at defaults.
+
+// a FIXED instant: 2024-03-05 14:07:09 UTC
+int fixed = timestamp("UTC", 2024, 3, 5, 14, 7, 9)
+if barstate.islast
+    var table t = table.new(position.top_right, 1, 6)
+    table.cell(t, 0, 0, str.format("{0,date,dd MMMM yyyy, HH:mm:ss}", fixed))
+    table.cell(t, 0, 1, str.format("{0,date,yyyy-MM-dd}", fixed))
+    table.cell(t, 0, 2, str.format("{0,time,HH:mm:ssZ}", fixed))
+    table.cell(t, 0, 3, str.format("{0,date,short}", fixed))
+    table.cell(t, 0, 4, str.format("{0,date,yyyy-MM-dd}T{0,time,HH:mm:ssZ}", fixed))
+    table.cell(t, 0, 5, str.format("{0,date,MMM d, yy}", time))

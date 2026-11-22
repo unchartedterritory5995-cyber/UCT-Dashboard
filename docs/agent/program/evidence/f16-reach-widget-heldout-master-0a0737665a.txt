@@ -1,0 +1,15 @@
+# head 0a0737665a 2026-11-10T23:25:56Z dirty: 0 tracked file(s) modified
+node_modules LinkType=Junction Target=C:\w\pl-mc-fw\app\node_modules
+# cmd: cd app && npx vitest run src/agent/agentExecReach.test.jsx
+ RUN  v4.0.18 C:/w/pl-widget-pre3/app
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget held-out, routing v1
+[reach] widget held-out v1 {"model":"23/24","action":"20/24","list":"20/24"} misses: ["C3-170 flip the themes list so the worst ones are on top action+list","C3-166 only show sweeps in the options flow model+action+list","C3-151 show only 3 star economic events action+list","C3-152 expand the tbd earnings section action+list"]
+stdout | src/agent/agentExecReach.test.jsx > reach of the first model call > widget held-out, routing v2
+[reach] widget held-out v2 {"model":"23/24","action":"20/24","list":"20/24"} misses: ["C3-170 flip the themes list so the worst ones are on top action+list","C3-166 only show sweeps in the options flow model+action+list","C3-151 show only 3 star economic events action+list","C3-152 expand the tbd earnings section action+list"]
+ ✓ src/agent/agentExecReach.test.jsx (5 tests) 48364ms
+     ✓ widget held-out, routing v1  24073ms
+     ✓ widget held-out, routing v2  24287ms
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  18:26:02
+   Duration  60.23s (transform 7.57s, setup 429ms, import 9.64s, tests 48.36s, environment 1.18s)

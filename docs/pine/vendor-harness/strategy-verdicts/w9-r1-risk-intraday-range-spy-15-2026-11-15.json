@@ -1,0 +1,112 @@
+{
+ "schema": "uct.strategy-verdict/v1",
+ "captureId": "w9-r1-risk-intraday-range-spy-15-2026-11-15",
+ "captureSha256": "3d0e575acdbba1309dbaecec565b59e319e8f18480598200b4d7a3112a7c3850",
+ "receipt": 2167840392,
+ "sourceSha256": "edc03e613e4f3d998d91b1df1be8d243c557c3f419199166417e332fbac013bb",
+ "queueTargetId": "W9-R1i",
+ "symbol": "AMEX:SPY",
+ "timeframe": "15",
+ "gradeMethod": "b",
+ "verdict": "DIVERGE",
+ "step": 1,
+ "reason": "our run refused (runtime:strategy-unsettled) against a TradingView value",
+ "first": null,
+ "graded": {
+  "trades": false,
+  "fills": false,
+  "slots": 0,
+  "values": 0,
+  "texts": 0
+ },
+ "referenceTrades": 20,
+ "rulesExercised": [],
+ "ungradedSlots": [],
+ "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
+ "provenance": {
+  "strategySettings": {
+   "properties": [
+    {
+     "name": "Default entry/order Qty Type",
+     "value": "fixed"
+    },
+    {
+     "name": "Default entry/order Qty Value",
+     "value": 1
+    },
+    {
+     "name": "pyramiding",
+     "value": 1
+    },
+    {
+     "name": "Calculate Strategy on Order's Fill(s)",
+     "value": false
+    },
+    {
+     "name": "Calculate Strategy on every Tick(s)",
+     "value": false
+    },
+    {
+     "name": "Backtesting Limit Order(s) fill assumption",
+     "value": 0
+    },
+    {
+     "name": "Initial Capital",
+     "value": 100000
+    },
+    {
+     "name": "Base Currency",
+     "value": "NONE"
+    },
+    {
+     "name": "Backtesting slippage for market orders",
+     "value": 0
+    },
+    {
+     "name": "Commission Type",
+     "value": "percent"
+    },
+    {
+     "name": "Commission Value",
+     "value": 0
+    },
+    {
+     "name": "Process orders on bar Close",
+     "value": false
+    },
+    {
+     "name": "Close entries rule",
+     "value": "FIFO"
+    },
+    {
+     "name": "Margin Long",
+     "value": 100
+    },
+    {
+     "name": "Margin Short",
+     "value": 100
+    },
+    {
+     "name": "Risk free rate",
+     "value": 2
+    },
+    {
+     "name": "Use Bar Magnifier",
+     "value": false
+    },
+    {
+     "name": "Fill orders using standard OHLC",
+     "value": false
+    },
+    {
+     "name": "Calculate Strategy on every History Tick",
+     "value": false
+    }
+   ]
+  }
+ }
+}

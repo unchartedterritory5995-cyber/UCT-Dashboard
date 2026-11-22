@@ -29,6 +29,11 @@ def _ids(case):
 @pytest.mark.parametrize("case", CASES, ids=_ids)
 def test_a_trader_phrasing_reaches_the_model_or_is_refused_as_pinned(case):
     got = conv.understand_turn(case["message"], DATA["chart"])
+    if "gate" in case:
+        # a name the library HOLDS: refused by name, with its way forward, and no model call
+        assert got["refusal"] is not None and got["refusal"]["gate"] == case["gate"], got["refusal"]
+        assert got["refusal"]["reason"].startswith(case["says"]), got["refusal"]["reason"]
+        return
     if "refused" in case:
         assert got["refusal"] is not None, "expected a refusal with no model call"
         phrases = [n.get("phrase") for n in got["refusal"].get("not_understood") or []]
@@ -62,9 +67,22 @@ def test_understand_turn_is_what_converse_turn_runs():
 def test_every_full_name_word_is_its_own_bucket():
     """A tie in the planner's index matches nothing, so each word names one entry."""
     from api.services import definition_concierge as dc
+    from api.services import named_indicators as ni
+    # (2026-11-18) one full name is the LIBRARY'S now: an entry that declares the function it is the
+    # indicator of takes that function's phrase ("stochastic oscillator": the checked K and D, not a
+    # bare %K built from recollection). Still one entry per bucket.
+    taken = {alias: e["id"] for e in ni.entries() if e.get("names_function") for alias in e["aliases"]}
+    assert taken.get("stochastic oscillator") == "stochastic_oscillator"
+    # (2026-11-19) and the Ichimoku Cloud takes "ichimoku" / "ichimoku cloud" from the span-A function,
+    # which gives a span AT the bar it is worked out on; the indicator's spans are drawn ahead
+    assert taken.get("ichimoku cloud") == "ichimoku_cloud" and taken.get("ichimoku") == "ichimoku_cloud"
+    assert {e["names_function"] for e in ni.entries() if e.get("names_function")} == {"stoch", "ichimokuSpanA"}
     for phrase, key in conv.EXPANSION_PHRASES:
         stems, _ = dc._stem_key(dc._form_tokens(phrase))
-        assert [r["key"] for r in conv.CHART_LEXICON["index"][stems]] == [key], phrase
+        assert [r["key"] for r in conv.CHART_LEXICON["index"][stems]] == [taken.get(phrase, key)], phrase
+    # CONTROL: an entry that declares nothing never takes a function's phrase (the old rule stands)
+    stems, _ = dc._stem_key(dc._form_tokens("relative strength index"))
+    assert [r["section"] for r in conv.CHART_LEXICON["index"][stems]] != [ni.SECTION]
 
 
 def test_the_shared_planner_is_untouched_by_the_chart_words():

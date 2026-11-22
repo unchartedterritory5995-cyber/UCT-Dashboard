@@ -16,6 +16,7 @@ import {
 } from './__fixtures__/builderFixtures'
 import { TOOL_CATALOG } from './__fixtures__/toolCatalog'
 import { FORMULA_CATALOG } from './__fixtures__/formulaCatalog'
+import { reportInsertedBlock } from '../../../lib/notebookUsage'
 
 const flush = async (ms = 0) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
@@ -588,5 +589,33 @@ describe('WidgetBuilderSheet with "Your own fields" offered', () => {
     fireEvent.keyDown(document.body, { key: 'Escape' })
     expect(screen.queryByText(KEEP_QUESTION)).toBeNull()
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+})
+
+// Follow-up A fix round 1 (I4): a widget the builder inserts on its own Save counts as `block_inserted` {custom} under
+// the door that opened the builder (the real node plugin reports during the insert's run; the fake editor stands in).
+describe('block_inserted from the widget builder', () => {
+  const inserted = () => callsTo(fetchSpy, 'POST', (u) => u === '/api/j2/telemetry').map((c) => bodyOf(c))
+    .filter((b) => b.event === 'block_inserted')
+
+  async function saveNew(props) {
+    const { editor, run } = fakeEditor()
+    run.mockImplementation(() => { reportInsertedBlock('builtWidget'); return true })
+    route('POST', (u) => u === '/api/j2/widget-definitions', () => answer({ ...SAVED, id: 'd-9', rev: 1, usedIn: 0 }))
+    route('POST', (u) => u.endsWith('/run'), () => answer(payload({ defId: 'd-9', defRev: 1 })))
+    await openBuilder({ editor, ...props })
+    fireEvent.click(saveButton())
+    await flush()
+    expect(run).toHaveBeenCalled()
+  }
+
+  it('opened from the slash menu: one {custom, slash}', async () => {
+    await saveNew({ via: 'slash' })
+    expect(inserted()).toEqual([{ event: 'block_inserted', props: { kind: 'custom', via: 'slash' } }])
+  })
+
+  it('CONTROL: opened with no door: nothing', async () => {
+    await saveNew({})
+    expect(inserted()).toEqual([])
   })
 })

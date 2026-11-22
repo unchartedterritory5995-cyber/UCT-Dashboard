@@ -1,0 +1,13 @@
+//@version=6
+indicator("UCTPROBE_VW_W4_MBB_M1", overlay = false, max_bars_back = 20)
+
+// PROVENANCE: written 2026-11-03 for the Pine parity programme, W4-T17, capture queue row M1
+// (docs/pine/capture-queue-2026-10-31-wsc-history.md section Q1). NEVER COMPILED ON TRADINGVIEW.
+// ONE ROW PER FILE: a Pine runtime error STOPS the script, so a row that errors would hide every
+// row after it. The error text and the bar it names ARE the reading (record both); a script that
+// draws is read from the plots. Does a declared max_bars_back = 20 cap a CONSTANT offset of 30, or does auto-detection widen it? If it draws, the build refusal over-refuses.
+// CAPTURE: AMEX:SPY 1D from the listing (>= 6,000 bars for M5), inputs at defaults.
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(close[30], "M1_close_30_declared_20")
+plot(na(close[30]) ? 1 : 0, "M1_is_na")

@@ -30,6 +30,7 @@ def _env(monkeypatch):
     monkeypatch.setenv(gw.DATA_ENV, "1")
     monkeypatch.setenv(gw.KINDS_ENV, ",".join(gw.registry().names()))  # every kind on
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, "breadth.current,ratings")  # armed one by one
     gw._reset_for_test(None)
     monkeypatch.setattr(bars_fetch, "_last_closed_session_yyyymmdd", lambda now=None: LATEST)
     # the adapters ask sessions.last_completed_session (F-23); pin it to the same fixture calendar, never the wall clock
@@ -96,6 +97,7 @@ def test_dormant_refusals_spend_no_budget(monkeypatch):
     for _ in range(gw.MAX_READS_PER_TURN + 2):
         assert _read("breadth.current", {"metric": "pct_above_50sma"}, turn="d")["status"] == "refused"
     monkeypatch.setenv(gw.ISOLATED_ENV, "1")
+    monkeypatch.setenv(gw.ISOLATED_KINDS_ENV, "breadth.current")
     assert _read("breadth.current", {"metric": "pct_above_50sma"}, turn="d")["status"] == "ok"
 
 

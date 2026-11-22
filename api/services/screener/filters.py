@@ -61,6 +61,43 @@ def _enum(key, label, category, column, presets, options_column=None,
     return key, spec
 
 
+def _agent_omit(entry):
+    """Mark a ``(key, spec)`` registry entry as a member-only field: still a
+    screener filter, column and saved-screen key, but `field_catalog` flags it
+    ``agent_omit`` and UCT Agent's field list (`agent/capabilities/screener.js`
+    `loadMeta`) leaves it out. The Agent sends that list with every screen
+    request under a fixed context budget (`CONTEXT_BUDGET_BYTES`), so a field
+    it does not need costs every request."""
+    key, spec = entry
+    return key, {**spec, "agent_omit": True}
+
+
+def _rs_setup_enum(key, label, column, names_attr):
+    """An enum over one of the two RS screens label columns (unit U4), its options
+    the WRITER's own keys in the writer's order (`rs_setup.SETUPS`, `rs_setup.FLAGS`)
+    and its option labels the writer's own member-facing words
+    (`rs_setup.SETUP_LABELS`). Read at registry build, never retyped: a renamed
+    label cannot leave a control offering a value no row carries."""
+    from . import rs_setup  # noqa: PLC0415 - one writer, its names
+    presets = [{"label": "Any"}] + [
+        {"label": rs_setup.SETUP_LABELS[k], "op": "eq", "value": k}
+        for k in getattr(rs_setup, names_attr)]
+    return _enum(key, label, "relative_strength", column, presets)
+
+
+def _rs_names_enum(key, label, column, names_attr):
+    """An enum over one of the Phase 3 RS text columns (unit 3-11), its options
+    the WRITER's own names in the writer's code order: ``RRG_QUADRANT_NAMES``
+    from `relative_strength`, ``VARS_STATE_NAMES`` from `rs_columns` (which
+    names `vars_columns`' codes). Imported at registry build, never retyped."""
+    from . import rs_columns  # noqa: PLC0415 - one writer, its names
+    names = getattr(rs_columns, names_attr, None)
+    if names is None:
+        names = getattr(rs_columns.rs, names_attr)
+    presets = [{"label": "Any"}] + [{"label": n, "op": "eq", "value": n} for n in names]
+    return _enum(key, label, "relative_strength", column, presets)
+
+
 #: What the `pattern_engine_id` filter screens, said to a member. It is the
 #: engine's verdict, not the base read the row's setup line names.
 PATTERN_ENGINE_DESCRIPTION = (
@@ -95,7 +132,7 @@ def _token_label(tok: str) -> str:
     return " ".join(out)
 
 
-def _open_range(key, label, category, column, unit=None, factual=()):
+def _open_range(key, label, category, column, unit=None, factual=(), description=None):
     """A range control with no EDITORIAL preset thresholds — only ``Any``, the
     custom min/max the member types, and any FACTUAL presets passed in.
 
@@ -134,19 +171,36 @@ def _open_range(key, label, category, column, unit=None, factual=()):
     retyped in a test.
     """
     presets = [{"label": "Any"}] + [dict(p) for p in factual]
-    key, spec = _range(key, label, category, column, presets, unit)
+    key, spec = _range(key, label, category, column, presets, unit, description)
     spec["presets_deferred"] = True
     spec["factual_presets"] = tuple(p["label"] for p in factual)
     return key, spec
 
 
-def _bool(key, label, category, column):
-    return key, {"label": label, "category": category, "type": "bool",
-                 "column": column, "presets": [
-                     {"label": "Any"},
-                     {"label": "Yes", "op": "eq", "value": 1},
-                     {"label": "No", "op": "eq", "value": 0}],
-                 "allow_custom": False, "unit": None}
+def _bool(key, label, category, column, description=None):
+    spec = {"label": label, "category": category, "type": "bool",
+            "column": column, "presets": [
+                {"label": "Any"},
+                {"label": "Yes", "op": "eq", "value": 1},
+                {"label": "No", "op": "eq", "value": 0}],
+            "allow_custom": False, "unit": None}
+    if description:
+        spec["description"] = description
+    return key, spec
+
+
+#: What every scan primitive is measured on. These are nightly: the live tier does not re-derive them.
+_LAST_SESSION = "Measured at the last completed session."
+#: What a live-overlaid distance is measured on, because a field-to-field comparison can put it beside a nightly field.
+_LIVE_IN_SESSION = ("During the session this follows the live price, while a field measured at the last completed "
+                    "session does not, so comparing the two mixes two clocks.")
+#: How a signed run reads, said once for all six.
+_RUN_RULE = ("Positive counts consecutive sessions above, negative consecutive sessions below, and 0 means level on "
+             "the last session. +1 is the session it crossed up, -1 the session it crossed down, so a cross within N "
+             "sessions that still holds is 1 to N (or -1 to -N). A cross that has since reversed no longer counts. "
+             "Counted over the 400 stored sessions at most. Blank until both sides exist. " + _LAST_SESSION)
+_RISING_RULE = ("Yes when the average stands above its own value 20 sessions earlier. Blank until both values exist. "
+                + _LAST_SESSION)
 
 
 FILTERS = dict([
@@ -433,7 +487,86 @@ FILTERS = dict([
     _range("pct_vs_ema20", "EMA20 Distance", "technical", "pct_vs_ema20",
            [{"label": "Any"},
             {"label": "Within 1%", "op": "between", "min": -1, "max": 1},
-            {"label": "Within 2%", "op": "between", "min": -2, "max": 2}], unit="%"),
+            {"label": "Within 2%", "op": "between", "min": -2, "max": 2}], unit="%",
+           description="Percent the price is above (+) or below (-) its 20-day exponential moving average. "
+                       + _LIVE_IN_SESSION),
+    # ── scan primitives (`technicals.scan_primitives`) ──
+    # ⭐ COMPOSABLE CONDITIONS, NOT NAMED SCANS: each is one fact a screen combines with others. "Breakout on volume"
+    # is new_high_lookback plus vol_ratio, never a field of its own. ⛔ Each states its definition here, because a
+    # bare label leaves the window and the boundary to whoever reads it. All computed from the stored daily bars,
+    # none reads a later session than the one it describes, and none reads a base, pattern, rating or flow output.
+    # The first two are stored distances that had columns, a view seat and display defs but no filter.
+    _open_range("pct_vs_sma50", "SMA50 Distance", "technical", "pct_vs_sma50", unit="%",
+                description="Percent the price is above (+) or below (-) its 50-day simple moving average. "
+                            + _LIVE_IN_SESSION),
+    _open_range("pct_vs_sma200", "SMA200 Distance", "technical", "pct_vs_sma200", unit="%",
+                description="Percent the price is above (+) or below (-) its 200-day simple moving average. "
+                            + _LIVE_IN_SESSION),
+    _open_range("pct_vs_ema9", "EMA9 Distance", "technical", "pct_vs_ema9", unit="%",
+                description="Percent the close is above (+) or below (-) its 9-day exponential moving average. "
+                            + _LAST_SESSION),
+    _open_range("pct_vs_ema10", "EMA10 Distance", "technical", "pct_vs_ema10", unit="%",
+                description="Percent the close is above (+) or below (-) its 10-day exponential moving average. "
+                            + _LAST_SESSION),
+    _open_range("run_close_ema20", "Sessions vs EMA20", "technical", "run_close_ema20",
+                description="The close against its 20-day EMA. " + _RUN_RULE),
+    _open_range("run_close_sma50", "Sessions vs SMA50", "technical", "run_close_sma50",
+                description="The close against its 50-day SMA. " + _RUN_RULE),
+    _open_range("run_close_sma200", "Sessions vs SMA200", "technical", "run_close_sma200",
+                description="The close against its 200-day SMA. " + _RUN_RULE),
+    _open_range("run_ema9_ema20", "EMA9 vs EMA20 Run", "technical", "run_ema9_ema20",
+                description="The 9-day EMA against the 20-day EMA. " + _RUN_RULE),
+    _open_range("run_sma20_sma50", "SMA20 vs SMA50 Run", "technical", "run_sma20_sma50",
+                description="The 20-day SMA against the 50-day SMA. " + _RUN_RULE),
+    _open_range("run_sma50_sma200", "SMA50 vs SMA200 Run", "technical", "run_sma50_sma200",
+                description="The 50-day SMA against the 200-day SMA: +1 is a golden cross, -1 a death cross. "
+                            + _RUN_RULE),
+    _bool("sma20_rising", "SMA20 Rising", "technical", "sma20_rising", description=_RISING_RULE),
+    _bool("sma50_rising", "SMA50 Rising", "technical", "sma50_rising", description=_RISING_RULE),
+    _bool("sma200_rising", "SMA200 Rising", "technical", "sma200_rising", description=_RISING_RULE),
+    _open_range("avg_volume_10d", "Avg Volume (10d)", "technical", "avg_volume_10d",
+                description="Mean daily volume of the last 10 sessions, the last one included. Blank if any of "
+                            "them has no volume. " + _LAST_SESSION),
+    _open_range("avg_volume_50d", "Avg Volume (50d)", "technical", "avg_volume_50d",
+                description="Mean daily volume of the last 50 sessions, the last one included. Blank if any of "
+                            "them has no volume. " + _LAST_SESSION),
+    _open_range("min_volume_3d_prior", "Min Volume (3d, prior)", "technical", "min_volume_3d_prior",
+                description="The lowest daily volume of the three sessions before the last one (TC2000's "
+                            "MINV3.1). The last session is left out, so one heavy day cannot lift it. Blank if "
+                            "any of the three has no volume. " + _LAST_SESSION),
+    _open_range("vol_trend_pct", "Volume Trend (5d vs 20d)", "technical", "vol_trend_pct", unit="%",
+                description="Percent the 5-session average volume stands above (+) or below (-) the 20-session "
+                            "average, both ending at the last session. Blank if any of those sessions has no "
+                            "volume or the 20-session average is zero. " + _LAST_SESSION),
+    _open_range("vol_up_run", "Rising-Volume Run", "technical", "vol_up_run",
+                description="Consecutive sessions, ending at the last one, each on more volume than the session "
+                            "before. 0 when the last session did not rise. A session with no volume ends the run. "
+                            + _LAST_SESSION),
+    _open_range("vol_down_run", "Falling-Volume Run", "technical", "vol_down_run",
+                description="Consecutive sessions, ending at the last one, each on less volume than the session "
+                            "before. 0 when the last session did not fall. A session with no volume ends the run. "
+                            + _LAST_SESSION),
+    _open_range("new_high_lookback", "Close Above Prior Highs", "technical", "new_high_lookback",
+                description="How many consecutive prior sessions have a high below the last close, up to 252. "
+                            "At least N is a close above the N-session high, the last session excluded, so 20 is a "
+                            "20-day breakout. A close that only equals a prior high does not count. A short "
+                            "history can only count the sessions it holds. " + _LAST_SESSION),
+    _open_range("new_low_lookback", "Close Below Prior Lows", "technical", "new_low_lookback",
+                description="How many consecutive prior sessions have a low above the last close, up to 252. "
+                            "At least N is a close below the N-session low, the last session excluded. "
+                            + _LAST_SESSION),
+    _open_range("breakout_20d_age", "20-Day Breakout Age", "technical", "breakout_20d_age",
+                description="Sessions since the latest close above the highest high of the 20 sessions before it. "
+                            "0 is the last session. Blank when none happened in the last 63 sessions or with fewer "
+                            "than 21 sessions of history. " + _LAST_SESSION),
+    _open_range("high_52w_age", "52W High Age", "technical", "high_52w_age",
+                description="Sessions since the highest high of the last 252 sessions was set. 0 is the last "
+                            "session. Blank without a full year, except a stock listed inside the year. "
+                            + _LAST_SESSION),
+    _open_range("low_52w_age", "52W Low Age", "technical", "low_52w_age",
+                description="Sessions since the lowest low of the last 252 sessions was set. 0 is the last "
+                            "session. Blank without a full year, except a stock listed inside the year. "
+                            + _LAST_SESSION),
     # ── single candle ──
     # ⛔ QUERIES `candle_matches`, NOT `candle_type`. A bar routinely satisfies
     # several patterns; `candle_type` holds only the one that RENDERS. Screening
@@ -603,6 +736,182 @@ FILTERS = dict([
            {"label": "Rising", "op": "eq", "value": "up"},
            {"label": "Flat", "op": "eq", "value": "flat"},
            {"label": "Falling", "op": "eq", "value": "down"}]),
+    # ── relative strength (UCT Relative Strength, Phase 2a unit 2a-08) ──
+    # ⭐ ONE WRITER EACH, AND THE CONTROL SAYS NO MORE THAN THE WRITER DOES. The
+    # ten bar-derived columns are `rs_columns.collect_one` (the builder's
+    # `_step("bars_rs")`): the last bar of the SAME `relative_strength`
+    # columns the chart's rsLine draws, so a scan, a chart dot and an alert
+    # read one answer. The seven rating columns are `_read_rs_history_fields`
+    # over the `rs_rating_history` side table the 04:15 ET job writes — read
+    # by the 03:00 build, so a row carries the rating as of the session
+    # BEFORE its `bars_asof` (snapshot_db's column comment states it).
+    # ⚠️ NULL, never 0, wherever the window is short (252 prior bars for the
+    # 52-week columns, 200 for Mansfield), the benchmark has no bar at the
+    # row's date, a hole sits inside the lookback, or the rating table has no
+    # row for the name (a dark job, a name outside the rated population).
+    # ⭐ A FLAG IS Yes/No OVER A STORED 1/0 — the flag IS the boundary, the
+    # `pattern_engine_*` / `optionable` reasoning, so nothing editorial rides
+    # on a `_bool`. Every age, count, percent and percentile ships BARE
+    # (`_open_range`): no threshold on them is published. The ONE exception is
+    # `rs_rating_ibd`, which carries the 80 / 90 thresholds `rs_rank` already
+    # publishes above (engineering map §2.5 "Controls": "only rs_rating_ibd
+    # may carry Over 80/90 presets (identical to rs_rank's published
+    # thresholds)"). `test_screener_filters.py` derives all of this from the
+    # two writers, never from a list retyped here.
+    # ⚠️ Mansfield is on 200 DAILY bars (`rs_columns.MANSFIELD_LENGTH`), the
+    # curriculum's daily reading of Weinstein's 52-WEEK average — the label
+    # must never say "weekly". It is a PERCENT above or below that average.
+    # S1 (2026-11-10): the rail reads in the order the owner asked for -- the
+    # window ranks, the rating change, then the new-high family, the 21 EMA
+    # pair and Mansfield. Hidden-from-the-picker keys sit last (`PICKER_HIDDEN`).
+    _open_range("rs_rating_1m", "1M Return Rank", "relative_strength", "rs_rating_1m"),
+    _open_range("rs_rating_3m", "3M Return Rank", "relative_strength", "rs_rating_3m"),
+    _open_range("rs_rating_6m", "6M Return Rank", "relative_strength", "rs_rating_6m"),
+    _open_range("rs_rating_9m", "9M Return Rank", "relative_strength", "rs_rating_9m"),
+    _open_range("rs_rating_12m", "12M Return Rank", "relative_strength", "rs_rating_12m"),
+    _open_range("rs_rating_chg_20", "RS Rating Change (20 sessions)", "relative_strength",
+                "rs_rating_chg_20"),
+    _bool("rs_new_high", "RS New High (52-week)", "relative_strength", "rs_new_high"),
+    _bool("rs_nh_before_price", "RS New High Before Price", "relative_strength",
+          "rs_nh_before_price"),
+    _bool("rs_nh_red_day", "RS New High on a Red Day", "relative_strength",
+          "rs_nh_red_day"),
+    _open_range("rs_nh_bars_ago", "RS New High Age (bars)", "relative_strength",
+                "rs_nh_bars_ago"),
+    _open_range("green_on_red_20", "Up on Down Days (of 20)", "relative_strength",
+                "green_on_red_20"),
+    _bool("rs_line_above_ma", "RS Line Above 21 EMA", "relative_strength",
+          "rs_line_above_ma"),
+    _open_range("rs_cross_up_bars_ago", "RS Line Cross-Up Age (bars)",
+                "relative_strength", "rs_cross_up_bars_ago"),
+    _open_range("mansfield", "Mansfield RS", "relative_strength", "mansfield", unit="%"),
+    _open_range("mansfield_cross_bars_ago", "Mansfield Cross Age (bars)",
+                "relative_strength", "mansfield_cross_bars_ago"),
+    _range("rs_rating_ibd", "RS Rating (IBD-style)", "relative_strength", "rs_rating_ibd",
+           [{"label": "Any"},
+            {"label": "Over 80", "op": "gte", "min": 80},
+            {"label": "Over 90", "op": "gte", "min": 90}]),
+    _open_range("rs_rating_chg_5", "RS Rating Change (5 sessions)", "relative_strength",
+                "rs_rating_chg_5"),
+    _bool("rs_benchmark_agree", "RS Agrees vs SPY and RSP", "relative_strength",
+          "rs_benchmark_agree"),
+    # ── relative strength, Phase 3 (unit 3-11; engineering map D1 / D7) ──
+    # ⭐ THE THIRD FAMILY, ONE WRITER AGAIN: `rs_columns.PHASE3_COLUMNS`, written by
+    # the same `bars_rs` step only while `snapshot_builder.rs_v3_enabled()` is
+    # true, so `meta()` serves them only then (`rs_dark_keys`). The two TEXT
+    # columns are enums whose options ARE the writer's own names
+    # (`relative_strength.RRG_QUADRANT_NAMES`, `rs_columns.VARS_STATE_NAMES`),
+    # read here rather than retyped, so a renamed state cannot leave a control
+    # offering a value no row carries. A list of the values a column can hold is
+    # a definition, not a threshold. `clenow_score` ships BARE (`_open_range`):
+    # it is a FRACTION (0.50 = 50 % a year after the R² discount), so no `%`
+    # unit rides on it, and nobody here has published a "good" score.
+    # ⛔ No starter screens over these yet: `test_screener_saved.py` forbids a
+    # starter on a column the nightly rows leave empty.
+    _rs_names_enum("rrg_quadrant", "Rotation Quadrant vs SPY (weekly)", "rrg_quadrant",
+                   "RRG_QUADRANT_NAMES"),
+    _open_range("clenow_score", "Clenow Trend Score (90 days)", "relative_strength",
+                "clenow_score"),
+    _rs_names_enum("vars_state", "Volatility-Adjusted RS State", "vars_state",
+                   "VARS_STATE_NAMES"),
+    # ── relative strength: RS Exit Warnings (2026-11-13; the chart's rsExit) ──
+    # Written by the same RS_V2 `bars_rs` step as the ten (`rs_columns.EXIT_COLUMNS`),
+    # so `rs_dark_keys` darkens them with that family. `rs_exit_last` is an enum
+    # whose options are the writer's own names (`rs_columns.EXIT_NAMES`); the four
+    # ages ship BARE like every other RS age (0 = the newest session), and the
+    # "in the last N sessions" windows live in the starter screens.
+    # ⛔ SHORT LABELS ON PURPOSE: these two ride in UCT Agent's field list, which is sent
+    # with every screen request under `CONTEXT_BUDGET_BYTES` (20,000). Measured
+    # 2026-11-13 on the SAT-1 capture: 11 of its 30 screener requests sat at 19,923
+    # bytes on master, 77 under the line, and the longer labels pushed all 11 over,
+    # so the Agent's field definitions were dropped. The member reads the plain label
+    # (`plainWords.js`) and the column's own description.
+    _rs_names_enum("rs_exit_last", "RS Exit Warning", "rs_exit_last",
+                   "EXIT_NAMES"),
+    _open_range("rs_exit_bars_ago", "RS Exit Age",
+                "relative_strength", "rs_exit_bars_ago"),
+    # The three per-warning ages are member columns only: `agent_omit` keeps them out
+    # of UCT Agent's field list (`field_catalog` marks them; the Agent's catalog
+    # skips them), because the Agent sends that list with every screen request
+    # under a fixed context budget. The Agent screens exit warnings through
+    # `rs_exit_last` + `rs_exit_bars_ago`.
+    _agent_omit(_open_range("rs_quicksand_bars_ago", "Quicksand Age (sessions)",
+                            "relative_strength", "rs_quicksand_bars_ago")),
+    _agent_omit(_open_range("rs_quick_break_bars_ago", "Quick Break Age (sessions)",
+                            "relative_strength", "rs_quick_break_bars_ago")),
+    _agent_omit(_open_range("rs_dead_break_bars_ago", "Grateful Dead Break Age (sessions)",
+                            "relative_strength", "rs_dead_break_bars_ago")),
+    # ── relative strength: the RS screens (unit U1, 2026-11-14) ──
+    # ⭐ THE FOURTH FAMILY, ONE WRITER: `rs_post_pass.run`, after the build loop and
+    # again after the 04:15 ET rating job, only while `RS_SCREENS_ENABLED` is on, so
+    # `meta()` serves these only then (`rs_dark_keys`, `RS_SCREENS_KEYS`). Places ship
+    # BARE (`_open_range`): "top 50" is a screen's choice, never a published threshold.
+    # `rs_rating_session` is a date, a range over a TEXT column like `ipo_date`.
+    # ⛔ EVERY ONE IS `_agent_omit`: UCT Agent's field list is sent with every screen
+    # request under `CONTEXT_BUDGET_BYTES` and had 13 bytes of headroom on 2026-11-14.
+    _agent_omit(_open_range("rs_rating_pos", "RS Rating place", "relative_strength",
+                            "rs_rating_pos")),
+    _agent_omit(_open_range("rs_rating_pos_prev20", "Place a month ago", "relative_strength",
+                            "rs_rating_pos_prev20")),
+    _agent_omit(_open_range("rs_pos_1m", "1M place", "relative_strength", "rs_pos_1m")),
+    _agent_omit(_open_range("rs_pos_3m", "3M place", "relative_strength", "rs_pos_3m")),
+    _agent_omit(_open_range("rs_pos_6m", "6M place", "relative_strength", "rs_pos_6m")),
+    _agent_omit(_open_range("rs_pos_12m", "12M place", "relative_strength", "rs_pos_12m")),
+    _agent_omit(_open_range("rs_rating_session", "Ratings as of", "relative_strength",
+                            "rs_rating_session")),
+    # Hidden from the picker (`_PICKER_HIDDEN_ALWAYS`): the size of the ranking is the
+    # "of 1,931" beside a place, and the score is the number the places are ordered by.
+    _agent_omit(_open_range("rs_rating_pos_n", "Stocks ranked", "relative_strength",
+                            "rs_rating_pos_n")),
+    _agent_omit(_open_range("rs_rating_score", "RS Rating score", "relative_strength",
+                            "rs_rating_score")),
+    # ── relative strength: the RS screens, unit U4 (2026-11-14) ──
+    # Fourteen more keys of the same fourth family (`RS_SCREENS_KEYS`), dark with
+    # RS_SCREENS_ENABLED like the nine above and `_agent_omit` for the same reason.
+    # Two writers: `rs_post_pass.run` (the rating a month ago) and the build's own
+    # `bars_rs_screens` / `bars_rs_setup` steps (`snapshot_builder.build_row`).
+    # Ages and counts ship BARE: "this week" and "3% below" are a screen's choices
+    # (`rs_screens`), never published thresholds. The two label columns are enums
+    # over the writer's own keys (`_rs_setup_enum`); a list of the values a column
+    # can hold is a definition, not a threshold.
+    _agent_omit(_open_range("rs_rating_prev20", "RS Rating a month ago", "relative_strength",
+                            "rs_rating_prev20")),
+    _agent_omit(_open_range("rs_nh_count_20", "RS highs in 20 sessions", "relative_strength",
+                            "rs_nh_count_20")),
+    _agent_omit(_open_range("rs_nh_quiet", "Sessions before the RS high", "relative_strength",
+                            "rs_nh_quiet")),
+    _agent_omit(_open_range("rs_nh_red_bars_ago", "RS high on a down day, age",
+                            "relative_strength", "rs_nh_red_bars_ago")),
+    _agent_omit(_open_range("rs_nhbp_age", "RS high before price, age", "relative_strength",
+                            "rs_nhbp_age")),
+    _agent_omit(_open_range("rs_nh_span", "RS high span (sessions)", "relative_strength",
+                            "rs_nh_span")),
+    _agent_omit(_open_range("px_below_high_pct", "Below its high", "relative_strength",
+                            "px_below_high_pct", unit="%")),
+    _agent_omit(_rs_setup_enum("rs_setup", "Setup", "rs_setup", "SETUPS")),
+    _agent_omit(_bool("rs_tight", "Tight range", "relative_strength", "rs_tight")),
+    _agent_omit(_rs_setup_enum("rs_flag", "Setup flag", "rs_flag", "FLAGS")),
+    _agent_omit(_bool("rs_near_buy", "Near a buy point", "relative_strength", "rs_near_buy")),
+    _agent_omit(_open_range("atr_ext_ema21", "ATR Extension vs 21EMA", "relative_strength",
+                            "atr_ext_ema21", unit="ATR")),
+    _agent_omit(_open_range("pct_vs_ema8", "EMA8 Distance", "relative_strength",
+                            "pct_vs_ema8", unit="%")),
+    _agent_omit(_open_range("pct_vs_ema21", "EMA21 Distance", "relative_strength",
+                            "pct_vs_ema21", unit="%")),
+    # ── relative strength: the RS screens, unit U12 (2026-11-14) ──
+    # The weekly RS new high, two 0/1 flags from the build's `bars_rs_weekly` step
+    # (`rs_columns.weekly_fields`), for rows on the RS liquid floor. Same family,
+    # same flag, `_agent_omit` for the same reason.
+    _agent_omit(_bool("rs_nh_weekly", "Weekly RS new high", "relative_strength",
+                      "rs_nh_weekly")),
+    _agent_omit(_bool("rs_nhbp_weekly", "Weekly RS high before price", "relative_strength",
+                      "rs_nhbp_weekly")),
+    # UCT RS Leaders' list (unit U12): who is on it and for how many sessions, written
+    # by `rs_leaders_list.run` inside the rating pass. The count ships BARE.
+    _agent_omit(_bool("rs_leaders_member", "On UCT RS Leaders", "relative_strength",
+                      "rs_leaders_member")),
+    _agent_omit(_open_range("rs_leaders_days", "Sessions on UCT RS Leaders", "relative_strength",
+                            "rs_leaders_days")),
     # ── technical: expose the dark columns (registry/UI only) ──
     # ⚠️ NOT bare "ATR %" — that label word-reduces to exactly the FUNCTION
     # name `atr` (the manifest's own indicator call), and the plain-language
@@ -803,6 +1112,34 @@ FILTERS = dict([
           "pattern_engine_vcp"),
     _bool("pattern_engine_flat_base", "Flat Base (Pattern Engine)", "pattern",
           "pattern_engine_flat_base"),
+    # ── fundamental trends (2026-11-21): the TREND across quarters, from SEC filings
+    # through the point-in-time fundamentals store (`fund_trends`, one writer). ──
+    # All bare (E-8): the member types the threshold. The one number inside a
+    # definition, the 25% of `eps_streak_25`, is the builder's default (the EPS Growth
+    # filter's "Over 25%" preset), named in the label; the three "weakest of the last
+    # N quarters" columns are how a member screens ANY other threshold ("at least X%
+    # in each of the last N quarters" is that column at X or above).
+    # The latest-quarter revenue and EPS growth a growth screen also asks for are NOT
+    # new controls: `rev_growth` and `eps_growth` above already are those quarterly
+    # (not TTM) facts, and the Fundamental Trends view shows them beside these.
+    # `_agent_omit`: member controls; UCT Agent's field list (sent with every screen
+    # request under a fixed context budget) is unchanged.
+    _agent_omit(_open_range("rev_accel_q", "Revenue Growth Acceleration (quarters)",
+                            "fundamental_trends", "rev_accel_q")),
+    _agent_omit(_open_range("eps_streak_25", "EPS Growth 25%+ Streak (quarters)",
+                            "fundamental_trends", "eps_streak_25")),
+    _agent_omit(_open_range("eps_growth_min_2q", "EPS Growth, Weakest of Last 2 Quarters",
+                            "fundamental_trends", "eps_growth_min_2q", unit="%")),
+    _agent_omit(_open_range("eps_growth_min_3q", "EPS Growth, Weakest of Last 3 Quarters",
+                            "fundamental_trends", "eps_growth_min_3q", unit="%")),
+    _agent_omit(_open_range("eps_growth_min_4q", "EPS Growth, Weakest of Last 4 Quarters",
+                            "fundamental_trends", "eps_growth_min_4q", unit="%")),
+    _agent_omit(_open_range("net_margin_chg_1y", "Net Margin Change vs Year Ago",
+                            "fundamental_trends", "net_margin_chg_1y", unit="pts")),
+    _agent_omit(_open_range("gross_margin_chg_1y", "Gross Margin Change vs Year Ago",
+                            "fundamental_trends", "gross_margin_chg_1y", unit="pts")),
+    _agent_omit(_open_range("shares_chg_1y", "Share Count Change vs Year Ago",
+                            "fundamental_trends", "shares_chg_1y", unit="%")),
 ])
 
 # ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
@@ -857,6 +1194,27 @@ OP_OPERANDS = {
     "gte_col": ("other",),
     "lt_col": ("other",),
     "lte_col": ("other",),
+}
+
+#: `op` -> the words a member reads for it, in the refusal `query.build_where`
+#: raises when a filter arrives without the operand declared just above
+#: (`RS Rank: "at least" needs a number.`). Beside `OP_OPERANDS` for the same
+#: reason that table is beside `_VALID_OPS`: one definition per op, and
+#: `tests/test_screener_operand_refusal.py` asserts the two name the same ops.
+OP_WORDS = {
+    "gte": "at least",
+    "gt": "above",
+    "lte": "at most",
+    "lt": "below",
+    "between": "between",
+    "eq": "equals",
+    "contains": "contains",
+    "in": "is one of",
+    "not_in": "is none of",
+    "gt_col": "above",
+    "gte_col": "at least",
+    "lt_col": "below",
+    "lte_col": "at most",
 }
 
 #: ⛔ FILTERS THAT ONCE EXISTED AND NO LONGER DO — the safe-deletion mechanism.
@@ -931,7 +1289,8 @@ VIEWS = {
     "momentum": {"label": "Momentum", "columns": [
         "ticker", "company", "candle_score", "pct_vs_ema20", "close_cv_pct",
         "avg_body_pct_5", "pole_pct", "adr_pct", "vol_nweek_low",
-        "vol_updown_ratio", "rs_line_trend", "chg_pct_1d"]},
+        "vol_updown_ratio", "rs_line_trend", "rs_rating_ibd", "rs_new_high",
+        "rs_nh_before_price", "chg_pct_1d"]},
     # ⭐ THE THREE VIEWS BELOW EXIST BECAUSE SOMEBODY OPENED THE SCREEN
     # (2026-08-23). Waves 5-6 shipped three whole data families — the pattern
     # engine, dark-pool/options positioning, and the ownership/short block —
@@ -1003,6 +1362,66 @@ VIEWS = {
         "archive_traders_n", "archive_last_call_date", "archive_last_setup",
         "archive_last_r20", "archive_setup", "archive_setup_edge_r",
         "archive_setup_edge_20d", "archive_setup_n"]},
+    # UCT RELATIVE STRENGTH (Phase 2a, 2a-08; Phase 3, 3-11): every one of the twenty RS
+    # columns has its seat HERE, so the family is never filterable-and-
+    # invisible (the rail above this block). The three a trader asks of any
+    # list — the rating, the 52-week RS high and the high-before-price — also
+    # sit in Momentum. `rs_rank` leads so the fast UCT rating and the
+    # IBD-style one read side by side, as the chart chip shows them.
+    "relative_strength": {"label": "Relative Strength", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank",
+        "rs_rating_1m", "rs_rating_3m", "rs_rating_6m", "rs_rating_9m", "rs_rating_12m",
+        "rs_rating_chg_20", "rs_new_high", "rs_nh_before_price", "rs_nh_red_day",
+        "rs_nh_bars_ago", "green_on_red_20", "rs_line_above_ma",
+        "rs_cross_up_bars_ago", "mansfield", "mansfield_cross_bars_ago",
+        # S1: kept computed and valid for every saved screen, hidden from the
+        # picker by `picker_hidden_keys()` (see its docstring).
+        "rs_rating_ibd", "rs_rating_chg_5", "rs_benchmark_agree",
+        "rrg_quadrant", "clenow_score", "vars_state",
+        # RS Exit Warnings (2026-11-13): the newest warning, its age, and each
+        # warning's own age.
+        "rs_exit_last", "rs_exit_bars_ago", "rs_quicksand_bars_ago",
+        "rs_quick_break_bars_ago", "rs_dead_break_bars_ago",
+        # RS screens (U1, 2026-11-14): the exact places and the rating session. Dark
+        # with `RS_SCREENS_ENABLED` (`rs_dark_keys`); the last two are picker-hidden.
+        "rs_rating_pos", "rs_rating_pos_prev20", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
+        "rs_pos_12m", "rs_rating_session", "rs_rating_pos_n", "rs_rating_score",
+        # RS screens (U4, 2026-11-14): the rating a month ago, the six RS-line
+        # measures, the Setup label and its inputs. Dark with the same flag.
+        "rs_rating_prev20", "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago",
+        "rs_nhbp_age", "rs_nh_span", "px_below_high_pct", "rs_setup", "rs_tight",
+        "rs_flag", "rs_near_buy", "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
+        # RS screens (U12, 2026-11-14): the weekly RS new high, and UCT RS Leaders'
+        # list. Dark with the same flag.
+        "rs_nh_weekly", "rs_nhbp_weekly", "rs_leaders_member", "rs_leaders_days"]},
+    # THE RS SCREENS' OWN VIEWS (unit U4, 2026-11-14), one per screen: the Table
+    # view of Top RS Rating, RS New Highs, RS New High Before Price and UCT RS
+    # Leaders (`rs_screens`; RS exit warnings keeps the Relative Strength view).
+    # Ticker, company, price and change, then the columns that screen is about,
+    # under 16 so the table fits without the picker. Served only while
+    # RS_SCREENS_ENABLED and RS_V2 are both on (`RS_SCREENS_VIEWS`, `_member_views`).
+    "rs_top_rating": {"label": "Top RS Rating", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_rating_pos",
+        "rs_rating_pos_prev20", "rs_rating_chg_20", "rs_rating_prev20", "rs_pos_1m",
+        "rs_pos_3m", "rs_pos_6m", "rs_pos_12m", "rs_setup", "rs_rating_session"]},
+    "rs_new_highs": {"label": "RS New Highs", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_nh_bars_ago",
+        "rs_nh_count_20", "rs_nh_quiet", "rs_nh_span", "rs_nh_red_bars_ago",
+        "px_below_high_pct", "pct_vs_sma200", "rs_setup"]},
+    "rs_before_price": {"label": "RS New High Before Price", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "px_below_high_pct",
+        "rs_nhbp_age", "rs_nh_bars_ago", "rs_nh_count_20", "rs_nh_red_bars_ago",
+        "pct_vs_sma200", "rs_setup"]},
+    "rs_leaders": {"label": "UCT RS Leaders", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rs_rank", "rs_rating_pos",
+        "rs_setup", "rs_tight", "rs_flag", "rs_near_buy", "atr_ext_sma50",
+        "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21", "dist_52w_high_pct"]},
+    # FUNDAMENTAL TRENDS (2026-11-21): every trend column has its seat here, beside the
+    # latest-quarter revenue and EPS growth the Screener already carries.
+    "fundamental_trends": {"label": "Fundamental Trends", "columns": [
+        "ticker", "company", "price", "chg_pct_1d", "rev_growth", "rev_accel_q",
+        "eps_growth", "eps_streak_25", "eps_growth_min_2q", "eps_growth_min_3q",
+        "eps_growth_min_4q", "net_margin_chg_1y", "gross_margin_chg_1y", "shares_chg_1y"]},
 }
 
 # ── The Type filter (instrument class) ──────────────────────────────────────
@@ -1037,6 +1456,14 @@ CATEGORIES = [
     # category keeps its position; `pattern_engine_*` joined the existing
     # "pattern" category instead of minting a second pattern group (K5).
     {"key": "flow", "label": "Positioning & Flow"},
+    # UCT Relative Strength (Phase 2a, 2a-08): the seventeen RS columns are one
+    # family with one writer pair, so they get one group rather than being
+    # scattered across Technical and Momentum. Appended for the same reason
+    # `flow` was.
+    {"key": "relative_strength", "label": "Relative Strength"},
+    # Fundamental trends (2026-11-21): the eight point-in-time trend columns from SEC
+    # filings (`fund_trends`). Appended for the same reason `flow` was.
+    {"key": "fundamental_trends", "label": "Fundamental Trends"},
 ]
 
 
@@ -1058,9 +1485,54 @@ def field_catalog() -> list[dict]:
     """
     return [
         {"key": key, "label": f.get("label") or key, "type": f.get("type"),
-         "unit": f.get("unit"), "category": f.get("category")}
+         "unit": f.get("unit"), "category": f.get("category"),
+         **({"description": f["description"]} if f.get("description") else {}),
+         **({"agent_omit": True} if f.get("agent_omit") else {})}
         for key, f in FILTERS.items() if key not in RETIRED
     ]
+
+
+#: Enum filters whose column is a DELIMITER-WRAPPED token list (`,hammer,bullish-engulfing,`), so `in` / `not_in` cannot be a
+#: plain `col IN (...)`: that compares the whole cell, and misses every bar holding more than one pattern.
+def is_token_list(key) -> bool:
+    """Is this enum's column a wrapped token list? Read off the filter: `options_list_column` marks one, and a fixed preset
+    list written entirely in `contains` is one (`candle_type`). ⛔ A key, never a column name off the request."""
+    f = FILTERS.get(key) or {}
+    if f.get("type") != "enum":
+        return False
+    if f.get("options_list_column"):
+        return True
+    ops = {p.get("op") for p in f.get("presets") or [] if p.get("op")}
+    return ops == {"contains"}
+
+
+def wrap_token(value) -> str:
+    """`hammer` -> `,hammer,`, and a value already wrapped stays as it is. Unwrapped, ids collide as substrings
+    (`doji` sits inside `gravestone-doji`), so the test would match a pattern it was not asked for."""
+    v = str(value).strip(",")
+    return f",{v},"
+
+
+def live_field_keys() -> list:
+    """Filter keys whose column the live tier can overlay during the session (`live_tier.LIVE_COLUMNS`, the one list)."""
+    from api.services.screener import live_tier
+    live = set(live_tier.LIVE_COLUMNS)
+    return sorted(k for k, f in FILTERS.items() if k not in RETIRED and f.get("column") in live)
+
+
+def preset_options() -> dict:
+    """The value lists of enum filters whose presets ARE the vocabulary (no snapshot column to read): a member's word
+    matches a `label` in `values`, and `wire` says what the engine stores for it. `token` marks a wrapped list, where a bar
+    can hold several values. No coverage counts: a row with no pattern today is not a row we failed to classify."""
+    out: dict = {}
+    for key, f in FILTERS.items():
+        if key in RETIRED or f.get("type") != "enum" or f.get("options_column") or f.get("options_list_column"):
+            continue
+        wire = {p["label"]: p["value"] for p in f.get("presets") or []
+                if p.get("op") in ("eq", "contains") and isinstance(p.get("value"), str)}
+        if wire:
+            out[key] = {"values": list(wire), "wire": wire, **({"token": True} if is_token_list(key) else {})}
+    return out
 
 
 def field_options() -> dict:
@@ -1072,9 +1544,10 @@ def field_options() -> dict:
     ``with_value`` / ``total`` say how much of the universe the field classifies at all: a row
     with no industry can never match an industry filter, and a caller that reports a screen as
     exhaustive must be able to say so. One cheap DISTINCT + COUNT per field; no distributions.
+    Fields whose presets are the vocabulary come from `preset_options`, snapshot or no snapshot.
     """
     from api.services.screener import snapshot_db
-    out: dict = {}
+    out: dict = preset_options()
     try:
         with snapshot_db.connect() as conn:
             total = int(conn.execute("SELECT COUNT(*) FROM screener_rows").fetchone()[0] or 0)
@@ -1088,7 +1561,7 @@ def field_options() -> dict:
                 out[key] = {"values": [r["v"] for r in rows],
                             "with_value": sum(int(r["n"]) for r in rows), "total": total}
     except Exception:  # noqa: BLE001 — no snapshot yet: no options, never a 500
-        return {}
+        return preset_options()
     return out
 
 
@@ -1181,7 +1654,7 @@ def _my_lists_entry(user_id):
              "complement": bool(o.get("complement"))}
             for o in options],
         "desc": "Screen only the symbols on one of your own lists — a "
-                "watchlist, your flagged names, or a colour tag. "
+                "watchlist, your flagged names, or a color tag. "
                 "“Unflagged” is the complement: everything you have "
                 "NOT flagged, so you stop re-reviewing names you already "
                 "triaged. Two list filters intersect; several selections "
@@ -1476,8 +1949,209 @@ def _shared_filters(dist):
         return list(built)
 
 
-def meta(user_id=None) -> dict:
+# ── UCT Relative Strength: shown only while the data behind it fills ─────────
+# Review findings #12 and #14 (2026-11-07). The two RS column families each have
+# one writer, and each writer sits behind its own flag:
+#   * the ten bar-derived columns (`rs_columns.COLUMNS`), and the five RS Exit
+#     Warning columns (`rs_columns.EXIT_COLUMNS`), are written by the
+#     builder's `bars_rs` step, which follows `registry_defs.RS_V2_ENABLED`;
+#   * the seven rating columns (`snapshot_builder._RS_HISTORY_COLUMNS`) read the
+#     side table the 04:15 ET job writes, which follows
+#     `api.main.rs_history_enabled()`;
+#   * the three Phase 3 columns (`rs_columns.PHASE3_COLUMNS`, unit 3-11) are
+#     written by the same `bars_rs` step only while BOTH RS_V2 and
+#     `snapshot_builder.rs_v3_enabled()` are on (the step itself runs only
+#     under RS_V2).
+# With a flag off its columns are NULL on every row, so a control over them is a
+# filter that returns nothing and a seat in a view is a column of dashes.
+# `meta()` therefore leaves out each family's filters, its view seats (Momentum
+# and Relative Strength), the Relative Strength view itself while V2 is off,
+# and the category once nothing in it is left. FILTERS and VIEWS are NOT
+# changed: a stored spec still validates and runs, and the registry rails keep
+# reading the whole family. Both flags are read per call, read-only.
+
+
+def _rs_v2_on() -> bool:
+    """`registry_defs.RS_V2_ENABLED`, read at call time (tests set the attribute).
+    An unreadable flag is off: the surface stays dark."""
+    try:
+        from api.services.signature import registry_defs  # noqa: PLC0415 - lazy
+        return bool(getattr(registry_defs, "RS_V2_ENABLED", False))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _rs_history_on() -> bool:
+    """`api.main.rs_history_enabled()`, the ONE reader of RS_HISTORY_ENABLED.
+
+    ⚠️ Read through `sys.modules`, never imported here: importing `api.main`
+    builds the whole app. The web process that serves `meta()` has it loaded
+    (uvicorn api.main:app); any other caller (a script, a unit test) gets "off",
+    which is the dark answer."""
+    import sys  # noqa: PLC0415
+    main = sys.modules.get("api.main")
+    fn = getattr(main, "rs_history_enabled", None) if main is not None else None
+    if not callable(fn):
+        return False
+    try:
+        return bool(fn())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _rs_v3_on() -> bool:
+    """`snapshot_builder.rs_v3_enabled()`, the ONE reader of RS_V3_ENABLED (the
+    builder's own gate on the Phase 3 columns), read at call time. An
+    unreadable flag is off: the surface stays dark."""
+    try:
+        from . import snapshot_builder  # noqa: PLC0415 - lazy
+        return bool(snapshot_builder.rs_v3_enabled())
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _rs_screens_on(user=None) -> bool:
+    """`rs_post_pass.surfaces_on(user)`: is THIS user shown the RS screens' controls and
+    views (RS_SCREENS_ENABLED on for everyone, or `admin` and the user is an admin; unit
+    U10), read at call time. No user is a member's answer, and an unreadable flag is
+    off: the surface stays dark.
+
+    Only what `meta()` OFFERS is gated here. The scan and count routes need no gate: a
+    column that exists may be filtered by anyone, and under `admin` it holds values."""
+    try:
+        from . import rs_post_pass  # noqa: PLC0415 - lazy
+        return bool(rs_post_pass.surfaces_on(user))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+#: THE RS SCREENS FAMILY (2026-11-14): every filter key the RS screens programme adds.
+#: `rs_dark_keys` hides all of them from `meta()` while RS_SCREENS_ENABLED is off. A
+#: later unit that adds a key APPENDS IT HERE (and registers it `_agent_omit`); a key
+#: left out would be served to members before its writer runs.
+RS_SCREENS_KEYS = (
+    # unit U1: `rs_post_pass.run` (the exact places and the rating session)
+    "rs_rating_pos", "rs_rating_pos_prev20", "rs_pos_1m", "rs_pos_3m", "rs_pos_6m",
+    "rs_pos_12m", "rs_rating_session", "rs_rating_pos_n", "rs_rating_score",
+    # unit U4: `rs_post_pass.run` again (the rating a month ago) ...
+    "rs_rating_prev20",
+    # ... and the build's `bars_rs_screens` step (`rs_columns.SCREEN_COLUMNS`) ...
+    "rs_nh_count_20", "rs_nh_quiet", "rs_nh_red_bars_ago", "px_below_high_pct",
+    "rs_nhbp_age", "rs_nh_span",
+    # ... and its `bars_rs_setup` step (`snapshot_builder.RS_SETUP_COLUMNS`)
+    "rs_setup", "rs_tight", "rs_flag", "rs_near_buy",
+    "atr_ext_ema21", "pct_vs_ema8", "pct_vs_ema21",
+    # unit U12: the build's `bars_rs_weekly` step (`rs_columns.WEEKLY_COLUMNS`) ...
+    "rs_nh_weekly", "rs_nhbp_weekly",
+    # ... and `rs_leaders_list.run`, inside `rs_post_pass.run` (UCT RS Leaders' list)
+    "rs_leaders_member", "rs_leaders_days",
+)
+
+#: The four views that exist only for the RS screens (unit U4). `meta()` serves them
+#: only while RS_SCREENS_ENABLED and RS_V2 are both on: off, the payload's view list
+#: is the one it was.
+RS_SCREENS_VIEWS = ("rs_top_rating", "rs_new_highs", "rs_before_price", "rs_leaders")
+
+#: THE SHADOW FAMILY (RS screens unit U9, 2026-11-14): the Leader score, its four
+#: parts and its two bar inputs. Computed nightly and SHOWN TO NOBODY until the score
+#: passes its pre-registered test (plan section 8, owner decision D1).
+#:
+#: ⛔ NEVER LIT, AND NOT REGISTERED: none of these is a key of `FILTERS`, a column of
+#: `screener_rows` or a column of a view, and no flag changes that. `rs_dark_keys`
+#: can only hide a CONTROL: a scan answers `SELECT *` (`query.build_scan_sql`), so a
+#: value stored on the row reaches every member whatever `meta()` lists. The values
+#: live in `rs_leader_shadow`'s side tables under these same names.
+#: `tests/test_rs_screens_u9_unseen.py` holds every name out of every member payload,
+#: for every flag combination. A later unit that shows the score moves a name OUT of
+#: this tuple in the same change that registers it; it never registers one that is here.
+RS_SHADOW_KEYS = (
+    "rs_steady", "rs_line_below_high_pct",                       # the two bar inputs
+    "rs_leader_score",                                           # the score
+    "rs_ls_strength", "rs_ls_steady", "rs_ls_high", "rs_ls_group",   # its four parts
+)
+
+#: S1 (2026-11-10): RS columns that stay COMPUTED, FILTERABLE and valid inside
+#: every saved screen but are no longer OFFERED in the column picker or the
+#: Relative Strength rail. `rs_rating_chg_5` and `rs_benchmark_agree` always;
+#: `rs_rating_ibd` only while RS_RANK_IBD_ENABLED is on, because then it is the
+#: same number as the `rs_rank` column ("RS") and a second copy only confuses.
+#: RS screens U1 (2026-11-14): `rs_rating_score` (the unrounded number the places are
+#: ordered by) and `rs_rating_pos_n` (the "of N" beside a place) are read by the
+#: screens, never picked as columns.
+_PICKER_HIDDEN_ALWAYS = frozenset({"rs_rating_chg_5", "rs_benchmark_agree",
+                                   "rs_rating_score", "rs_rating_pos_n"})
+
+
+def picker_hidden_keys() -> frozenset:
+    """Keys `meta()` marks `picker_hidden` and leaves out of the member views.
+    The flag is read PER CALL the way `rs_ranking.rs_rank_ibd_enabled()` reads it
+    (a flip needs no restart); an unreadable flag shows the column (fail open for
+    the member's data, the filter itself is never removed from `FILTERS`)."""
+    hidden = set(_PICKER_HIDDEN_ALWAYS)
+    try:
+        from api.services import rs_ranking  # noqa: PLC0415 - lazy
+        if rs_ranking.rs_rank_ibd_enabled():
+            hidden.add("rs_rating_ibd")
+    except Exception:  # noqa: BLE001
+        pass
+    return frozenset(hidden)
+
+
+def rs_dark_keys(v2_on=None, history_on=None, v3_on=None, screens_on=None) -> frozenset:
+    """The RS filter keys (each equal to its column) a member is not shown now.
+
+    Derived from the bar writer (`rs_columns.COLUMNS`, `rs_columns.PHASE3_COLUMNS`)
+    and the registry's own category, never from a list retyped here. The Phase 3
+    family needs BOTH flags: its writer runs inside the RS_V2 step. The RS screens
+    family (`RS_SCREENS_KEYS`) follows RS_SCREENS_ENABLED alone and is taken out of
+    the rating family first, so it is never shown by RS_HISTORY_ENABLED."""
+    v2_on = _rs_v2_on() if v2_on is None else v2_on
+    history_on = _rs_history_on() if history_on is None else history_on
+    v3_on = _rs_v3_on() if v3_on is None else v3_on
+    screens_on = _rs_screens_on() if screens_on is None else screens_on
+    from . import rs_columns  # noqa: PLC0415 - lazy: the registry stays import-light
+    family = {k for k, f in FILTERS.items() if f.get("category") == "relative_strength"}
+    # The five RS Exit Warning columns share the ten's writer and gate.
+    bars = family & (set(rs_columns.COLUMNS) | set(rs_columns.EXIT_COLUMNS))
+    phase3 = family & set(rs_columns.PHASE3_COLUMNS)
+    screens = family & set(RS_SCREENS_KEYS)
+    ratings = family - bars - phase3 - screens
+    dark = set()
+    if not screens_on:
+        dark |= screens
+    if not v2_on:
+        dark |= bars
+    if not history_on:
+        dark |= ratings
+    if not (v2_on and v3_on):
+        dark |= phase3
+    return frozenset(dark)
+
+
+#: The view that exists only for the RS family; it follows RS_V2_ENABLED.
+RS_VIEW = "relative_strength"
+
+
+def _member_views(dark, v2_on, hidden=frozenset(), screens_on=None) -> list:
+    screens_on = _rs_screens_on() if screens_on is None else screens_on
+    out = []
+    for k, v in VIEWS.items():
+        if k == RS_VIEW and not v2_on:
+            continue
+        if k in RS_SCREENS_VIEWS and not (v2_on and screens_on):
+            continue
+        cols = [c for c in v["columns"] if c not in dark
+                and not (k == RS_VIEW and c in hidden)]
+        out.append({"key": k, **v, "columns": cols})
+    return out
+
+
+def meta(user_id=None, user=None) -> dict:
     """The whole panel payload.
+
+    `user` (the route's user dict) decides one thing: whether the RS screens' filter
+    keys and views are in it (`_rs_screens_on(user)`, unit U10). Without one the payload
+    is a member's, so the boot warm-up and a caller that forgets it fail closed.
 
     ⭐ `distribution` RIDES BESIDE EACH RANGE CONTROL, AND IS NOT A PRESET.
     Most of these controls ship with no presets and must keep doing so (E-8: a
@@ -1524,14 +2198,30 @@ def meta(user_id=None) -> dict:
     _parts["distribution"] = _time.perf_counter() - _t0
     out_filters = _shared_filters(dist)
     _parts["filters"] = _time.perf_counter() - _t0 - _parts["distribution"]
+    # The RS families whose writer is dark leave the payload (see `rs_dark_keys`).
+    rs_v2_on = _rs_v2_on()
+    # Read once for this user and handed to both readers below, so the keys and the
+    # views cannot disagree. A top-level key a later unit adds for the RS screens
+    # follows this same answer (`rs_screens_on`), never `rs_post_pass.enabled()`.
+    rs_screens_on = _rs_screens_on(user)
+    rs_dark = rs_dark_keys(v2_on=rs_v2_on, screens_on=rs_screens_on)
+    if rs_dark:
+        out_filters = [f for f in out_filters if f["key"] not in rs_dark]
+    # S1: hidden-but-valid. The control stays in the payload (a saved screen's
+    # chip still resolves its label) but the rail and the column picker skip it.
+    picker_hidden = picker_hidden_keys()
+    out_filters = [{**f, "picker_hidden": True} if f["key"] in picker_hidden else f
+                   for f in out_filters]
     categories = CATEGORIES
+    if not any(f.get("category") == "relative_strength" for f in out_filters):
+        categories = [c for c in CATEGORIES if c["key"] != "relative_strength"]
     if user_id is not None:
         _t1 = _time.perf_counter()
         entry = _my_scans_entry(user_id)
         _parts["my_scans"] = _time.perf_counter() - _t1
         if entry is not None:
             out_filters.append(entry)
-            categories = CATEGORIES + [{"key": "my_scans", "label": "My Scans"}]
+            categories = categories + [{"key": "my_scans", "label": "My Scans"}]
         _t1 = _time.perf_counter()
         lists = _my_lists_entry(user_id)
         _parts["my_lists"] = _time.perf_counter() - _t1
@@ -1540,7 +2230,9 @@ def meta(user_id=None) -> dict:
             categories = categories + [{"key": "my_lists", "label": "My Lists"}]
     _log_if_slow("screener-meta", _time.perf_counter() - _t0, _parts)
     return {"filters": out_filters,
-            "views": [{"key": k, **v} for k, v in VIEWS.items()],
+            "views": _member_views(rs_dark, rs_v2_on, picker_hidden,
+                                   screens_on=rs_screens_on),
+            "picker_hidden": sorted(picker_hidden),
             "categories": categories,
             # The floors, the wording and the vintage the bands were measured
             # on — stated ONCE, beside them, so no surface has to guess at any
@@ -1555,5 +2247,6 @@ def meta(user_id=None) -> dict:
             "comparable_fields": [
                 {"key": k, "label": FILTERS[k]["label"],
                  "category": FILTERS[k]["category"]}
-                for k in comparable_keys()],
+                for k in comparable_keys()
+                if k not in rs_dark and k not in picker_hidden],
             "column_ops": dict(COL_OPS)}

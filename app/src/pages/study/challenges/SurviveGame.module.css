@@ -1,0 +1,293 @@
+/* SURVIVE THE DRAWDOWN: only what the Study kit lacks (docs/study/GAMES.md §1.1): the account chart and its board, the
+   pick list with our range bracketed, the small drawings in the coach's card, and the end screen's many-stretches panel.
+   Everything else is the kit's
+   (study.module.css, kit2.module.css). Every colour is a kit token set on .kit (--k-gold, --k-ink, --k-up, --k-down, ...),
+   the kit's own rgba of one, or a literal the kit already uses (#9fe9bd, #ffb3b3, #ffc9c9, #e15656, #b23434, #fbefc4,
+   #1c1709, #0f0d06, #1d1e22, #0d0d0f; the reds are the kit's own wrong-answer key cap, kit2.module.css); no
+   new colours. Motion is the curve drawing trade by trade (the component's clock), the other four lines drawing in once,
+   and the marks fading in after a check; it stands down under prefers-reduced-motion (rule 18: calm motion). */
+
+/* ── the board: the head, the chart, the strip of trades, inside the arena's gold corner brackets (s.heroChart) ── */
+.board { display: grid; gap: 12px; padding: 16px 18px 14px; border: 1px solid var(--k-line); border-radius: 20px;
+  background: var(--k-glass), var(--k-plate); box-shadow: 0 18px 44px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .04); }
+
+.boardHead { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 16px; align-items: end; }
+.stat { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.statLabel { font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--k-ink-dim); white-space: nowrap; }
+.statBig { font-size: 26px; line-height: 1.05; font-weight: 900; letter-spacing: -.01em; color: var(--k-ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.statBig small { font-size: 13px; font-weight: 700; color: var(--k-ink-dim); letter-spacing: 0; }
+.stat > small { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.upText { color: #9fe9bd; }
+.downText { color: #ffb3b3; }
+
+.chip { align-self: flex-start; display: inline-flex; align-items: center; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 800;
+  font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--k-ink-soft); border: 1px solid var(--k-line-lit); background: rgba(255, 255, 255, .03); }
+.chipWin { color: #9fe9bd; border-color: rgba(47, 175, 104, .45); background: rgba(47, 175, 104, .12); }
+.chipLoss { color: #ffb3b3; border-color: rgba(223, 70, 70, .45); background: rgba(223, 70, 70, .12); }
+.verdictChip { align-self: flex-start; display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border-radius: 999px; border: 1px solid;
+  font-size: 12px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; white-space: nowrap; animation: chipIn .45s var(--k-ease) both; }
+.verdictChip svg { display: block; }
+
+/* how far under the peak: the bar runs from the high (empty) to the 50% line (full), marked at its end */
+.meterStat { gap: 5px; }
+.meter { position: relative; display: block; height: 8px; border-radius: 999px; background: #1d1e22; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .65); overflow: hidden; }
+.meter i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: inherit; background: linear-gradient(90deg, rgba(223, 70, 70, .55), var(--k-down));
+  transition: width .12s linear; }
+.meter em { position: absolute; right: 0; top: 0; bottom: 0; width: 2px; background: #ffb3b3; opacity: .7; }
+.meterBad i { box-shadow: 0 0 10px rgba(223, 70, 70, .6); }
+.meterText { font-size: 15px; font-weight: 900; font-variant-numeric: tabular-nums; color: var(--k-ink-soft); }
+.meterBad + .meterText { color: #ffb3b3; }
+
+/* ── the chart: x the trade, y the account on a log scale ─────────────────────────────────────────────────────── */
+.plot { margin: 0; min-width: 0; }
+.svg { display: block; width: 100%; height: auto; overflow: visible; user-select: none; -webkit-user-select: none; }
+.grid { stroke: rgba(255, 255, 255, .06); stroke-width: 1; }
+.startLine { stroke: var(--k-ink-dim); stroke-opacity: .55; stroke-width: 1; stroke-dasharray: 4 4; }
+.axis { stroke: var(--k-line-lit); stroke-width: 1; }
+.yTick { fill: var(--k-ink-dim); font-size: 11px; font-weight: 700; text-anchor: end; font-variant-numeric: tabular-nums; }
+.xTick { fill: var(--k-ink-dim); font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* a label drawn over a line keeps a halo in the plot's own colour, so it reads wherever it lands */
+.halfText, .bracketText, .peakText, .lowText, .endLabel text { paint-order: stroke; stroke: var(--k-plate); stroke-width: 4px; stroke-linejoin: round; }
+
+/* while the curve draws: the high-water mark, the fall under it, the 50% line half the mark below */
+.under { fill: var(--k-down); fill-opacity: .14; }
+.mark { fill: none; stroke: var(--k-gold); stroke-opacity: .5; stroke-width: 1.2; stroke-dasharray: 3 3; }
+.half { stroke: var(--k-down); stroke-opacity: .75; stroke-width: 1.3; stroke-dasharray: 6 4; }
+.halfText { fill: #ffb3b3; font-size: 10.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
+
+.mine { fill: none; stroke: var(--k-gold); stroke-width: 2.8; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 6px rgba(220, 187, 94, .35)); }
+.headDot { fill: var(--k-gold-bright); stroke: #0d0d0f; stroke-width: 2; filter: drop-shadow(0 0 8px rgba(233, 205, 119, .7)); }
+.other { fill: none; stroke: var(--k-ink-dim); stroke-opacity: .6; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; transition: stroke .3s, stroke-opacity .3s; }
+.drawIn { stroke-dasharray: 1; stroke-dashoffset: 1; animation: draw 1.15s cubic-bezier(.4, 0, .2, 1) .15s forwards; }
+/* the line the streak question asked about, once checked */
+.otherAt { stroke: #ffb3b3; stroke-opacity: 1; stroke-width: 2.2; }
+
+/* the labels at each line's right end */
+.endLabel text { fill: var(--k-ink-dim); font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.endMine text { fill: var(--k-gold-bright); font-weight: 900; }
+.endAt text { fill: #ffb3b3; font-weight: 900; }
+.leader { stroke: var(--k-line-lit); stroke-width: 1; }
+
+/* the reveal's marks: a fall drawn as a bracket from its peak down to its low */
+.bracket { animation: fadeIn .35s ease .1s both; }
+.bracket line { stroke-width: 1.6; }
+.bracket circle { stroke: #0d0d0f; stroke-width: 1.5; }
+.bracketBad line { stroke: var(--k-down); }
+.bracketBad circle { fill: var(--k-down); }
+.bracketBad .bracketText { fill: #ffb3b3; }
+.bracketNear line { stroke: var(--k-ink-dim); }
+.bracketNear circle { fill: var(--k-ink-dim); }
+.bracketNear .bracketText { fill: var(--k-ink-soft); }
+.bracket .bracketGuide, .bracketGuide { stroke-dasharray: 2 3; stroke-opacity: .7; }
+.bracketText { font-size: 12px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.window { fill: var(--k-down); fill-opacity: .07; }
+.peakLow { animation: fadeIn .3s ease both; }
+.peakDot { fill: #0d0d0f; stroke: var(--k-gold-bright); stroke-width: 2.2; }
+.lowDot { fill: #0d0d0f; stroke: var(--k-down); stroke-width: 2.2; }
+.peakText { fill: var(--k-gold-bright); font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.lowText { fill: #ffb3b3; font-size: 11.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.deepLine { stroke: var(--k-down); stroke-width: 2; }
+
+/* once drawn, the chart is a slider: a keyboard focus shows a gold ring (never on a tap), a finger scrolls the page
+   up and down but reads along the line */
+.reads { touch-action: pan-y; cursor: crosshair; border-radius: 10px; }
+.reads:focus { outline: none; }
+.reads:focus-visible { outline: 2px solid var(--k-gold); outline-offset: 3px; }
+.cross line { stroke: var(--k-ink-dim); stroke-width: 1; stroke-dasharray: 3 3; }
+.cross circle { fill: var(--k-gold-bright); stroke: #0d0d0f; stroke-width: 2; }
+.readout { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-height: 22px; padding: 6px 4px 0; font-size: 14px; color: var(--k-ink-soft);
+  font-variant-numeric: tabular-nums; }
+.readout small { font-size: 12.5px; color: var(--k-ink-dim); }
+.readKey { margin-right: 6px; font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--k-gold-bright); }
+.streak { font-size: 12px; font-weight: 900; letter-spacing: .04em; color: #ffb3b3; white-space: nowrap; animation: fadeIn .25s ease both; }
+
+/* the fifty trades: a strip of marks, gold a winner, red a loser */
+.stripRow { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.pips { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(50, minmax(0, 1fr)); gap: 2px; }
+.pip { display: block; height: 10px; border-radius: 2px; background: #1d1e22; box-shadow: inset 0 1px 1px rgba(0, 0, 0, .6); transition: background .15s; }
+.pipWin { background: linear-gradient(180deg, var(--k-gold-bright), var(--k-gold-deep)); box-shadow: 0 0 6px rgba(220, 187, 94, .35); }
+.pipLoss { background: linear-gradient(180deg, #e15656, #b23434); }
+.pipWindow { box-shadow: 0 0 0 1.5px #ffb3b3; }
+.legend { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 700; color: var(--k-ink-dim); white-space: nowrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
+
+/* under the board while it plays and once it has drawn */
+.after { display: grid; gap: 10px; }
+.afterLine { margin: 0; font-size: 18px; line-height: 1.4; font-weight: 800; }
+.afterNext { margin: 0; font-size: 14.5px; line-height: 1.5; color: var(--k-ink-dim); }
+.after > button:last-child { justify-self: start; }
+
+/* ── the pick: the system beside the five risks ──────────────────────────────────────────────────────────────── */
+.pickLayout { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1.2fr); gap: 20px; align-items: start; }
+.system { display: grid; gap: 14px; padding: 20px 22px; border: 1px solid var(--k-line); border-radius: 20px;
+  background: radial-gradient(120% 90% at 0% 0%, rgba(220, 187, 94, .09), transparent 55%), var(--k-glass), var(--k-plate);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .04); }
+.sysEyebrow { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--k-gold-bright); }
+.sysEdge { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sysEdge b { font-size: 46px; line-height: 1; font-weight: 900; letter-spacing: -.02em; color: var(--k-gold-bright); font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 24px rgba(220, 187, 94, .3); }
+.sysEdge span { font-size: 15px; font-weight: 700; color: var(--k-ink-soft); }
+.marbles { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.marbles i { display: block; width: 16px; height: 16px; border-radius: 50%; }
+.marbles i.pipWin { background: radial-gradient(circle at 35% 30%, #fbefc4, var(--k-gold) 55%, var(--k-gold-deep)); }
+.marbles i.pipLoss { background: radial-gradient(circle at 35% 30%, #ffc9c9, var(--k-down) 55%, #b23434); }
+.marbles small { margin-left: 6px; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--k-ink-dim); }
+.sysLine { margin: 0; font-size: 15px; line-height: 1.5; color: var(--k-ink-soft); }
+.sysFacts { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.sysFacts div { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--k-line); background: rgba(255, 255, 255, .02); }
+.sysFacts dt { font-size: 10.5px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; color: var(--k-ink-dim); }
+.sysFacts dd { margin: 0; font-size: 17px; font-weight: 900; color: var(--k-ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.pickArea { display: grid; gap: 14px; min-width: 0; }
+.pickHead { display: grid; gap: 6px; }
+.pickEyebrow { justify-self: start; display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px 5px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 900;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--k-gold-bright); border: 1px solid rgba(220, 187, 94, .4); background: linear-gradient(180deg, #1c1709, #0f0d06); }
+.pickEyebrow::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--k-gold-bright); box-shadow: 0 0 8px var(--k-gold); }
+.pickQ { margin: 4px 0 0; font-size: 32px; line-height: 1.1; font-weight: 800; letter-spacing: -.02em; color: var(--k-ink); text-wrap: balance; }
+.pickDetail { margin: 0; font-size: 16px; line-height: 1.55; color: var(--k-ink-soft); max-width: 62ch; }
+
+/* our range and the two over it, each bracketed and named */
+.pickList { display: grid; gap: 12px; }
+.group { display: grid; gap: 10px; padding: 12px; border-radius: 20px; border: 1px dashed rgba(220, 187, 94, .45); background: rgba(220, 187, 94, .035); }
+.groupOver { border-color: rgba(223, 70, 70, .42); background: rgba(223, 70, 70, .035); }
+.groupLabel { display: inline-flex; align-items: center; gap: 6px; padding: 0 4px; font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; color: var(--k-gold-bright); }
+.groupLabel svg { display: block; }
+.groupOver .groupLabel { color: #ffb3b3; }
+.pickTile.pickTile { min-height: 64px; }
+.risk { display: grid; grid-template-columns: 64px minmax(40px, 1fr) auto; align-items: center; gap: 14px; min-width: 0; }
+.risk b { font-size: 24px; font-weight: 900; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.riskBar { position: relative; display: block; height: 8px; border-radius: 999px; background: #1d1e22; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .65); overflow: hidden; }
+.riskBar i { position: absolute; left: 0; top: 0; bottom: 0; min-width: 4px; border-radius: inherit; background: linear-gradient(90deg, var(--k-gold-deep), var(--k-gold-bright)); }
+.groupOver .riskBar i { background: linear-gradient(90deg, var(--k-gold-deep), var(--k-gold-bright) 40%, var(--k-down)); }
+.risk small { font-size: 13px; font-weight: 700; color: var(--k-ink-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pickNote { margin: 0; font-size: 13.5px; color: var(--k-ink-dim); }
+.pickGo { margin-top: 2px; }
+
+/* ── the coach's card: the mistake line, the rule and its source (Size It's), and the two bar drawings ───────── */
+.mistake { margin: 0; padding: 12px 14px; border-radius: 12px; font-size: 15.5px; line-height: 1.45; color: var(--k-ink);
+  background: rgba(223, 70, 70, .1); border: 1px solid rgba(223, 70, 70, .35); }
+.rule { margin: 0; font-size: 16px; line-height: 1.5; color: var(--k-ink); }
+.source { font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--k-ink-dim); }
+
+/* the bars: name, track, value; the 50% line drawn down through every track at its own place */
+.bars, .climb { --nameW: 74px; --valW: 70px; --gapW: 10px; position: relative; display: grid; gap: 9px; }
+.bars { padding: 4px 0 24px; }
+.barRow { display: grid; grid-template-columns: var(--nameW) minmax(0, 1fr) var(--valW); gap: var(--gapW); align-items: center; }
+.barName { font-size: 13px; font-weight: 800; color: var(--k-ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.barName small { font-size: 11px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; color: var(--k-gold-bright); }
+.barTrack { position: relative; display: block; height: 12px; border-radius: 999px; background: #1d1e22; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .65); overflow: hidden; }
+.barTrack i { position: absolute; left: 0; top: 0; bottom: 0; min-width: 3px; border-radius: inherit; background: linear-gradient(90deg, var(--k-gold-deep), var(--k-gold-bright));
+  animation: grow .6s var(--k-ease) both; transform-origin: left center; }
+.barBad .barTrack i { background: linear-gradient(90deg, rgba(223, 70, 70, .6), var(--k-down)); box-shadow: 0 0 10px rgba(223, 70, 70, .45); }
+.barUp .barTrack i { background: linear-gradient(90deg, rgba(47, 175, 104, .6), var(--k-up)); box-shadow: 0 0 10px rgba(47, 175, 104, .4); }
+.barMine .barName { color: var(--k-gold-bright); }
+.barVal { font-size: 14px; font-weight: 900; text-align: right; color: var(--k-ink); font-variant-numeric: tabular-nums; }
+.barBad .barVal { color: #ffb3b3; }
+.barUp .barVal { color: #9fe9bd; }
+.barLine { position: absolute; top: 0; bottom: 18px; width: 0; border-left: 1.5px dashed #ffb3b3; pointer-events: none;
+  left: calc(var(--nameW) + var(--gapW) + (100% - var(--nameW) - var(--valW) - 2 * var(--gapW)) * var(--lf, .5)); }
+.barLine em { position: absolute; bottom: -18px; left: 0; transform: translateX(-50%); font-style: normal; font-size: 10.5px; font-weight: 900; letter-spacing: .12em;
+  text-transform: uppercase; white-space: nowrap; color: #ffb3b3; }
+
+/* the streak's working: the account after each loss in a row, a column a loss, each a share of the one before it */
+.lossSteps { display: grid; gap: 8px; }
+.stepCols { display: grid; grid-template-columns: repeat(var(--cols, 9), minmax(0, 1fr)); gap: 4px; align-items: end; height: 84px; }
+.stepCol { position: relative; display: block; height: 100%; border-radius: 4px; background: #1d1e22; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .65); overflow: hidden; }
+.stepCol i { position: absolute; left: 0; right: 0; bottom: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(223, 70, 70, .75), rgba(223, 70, 70, .35));
+  animation: rise .5s var(--k-ease) both; transform-origin: bottom center; }
+.stepFirst i { background: linear-gradient(180deg, var(--k-gold-bright), var(--k-gold-deep)); }
+.stepLast i { background: linear-gradient(180deg, var(--k-down), #b23434); box-shadow: 0 0 10px rgba(223, 70, 70, .45); }
+.stepFoot { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; font-weight: 800; color: var(--k-ink-dim); font-variant-numeric: tabular-nums; }
+.stepFoot b { color: #ffb3b3; font-weight: 900; text-align: right; }
+
+/* the takeover's one line (inside VerdictTakeover's sub) */
+.tkWhy { display: block; }
+
+/* ── the end screen: the kit's spinning rays are wider than a phone's column; clip that axis only, as Size It does ── */
+.end { overflow-x: clip; }
+.note { display: block; }
+.note + .note { margin-top: 6px; }
+.noteRule { color: var(--k-ink); font-weight: 700; }
+.noteRule small { display: block; margin-top: 2px; font-size: 11px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--k-ink-dim); }
+.saved { display: block; margin-top: 8px; font-size: 13px; color: var(--k-ink-dim); }
+.signIn { margin-top: 14px; }
+
+/* the same game 10,000 times: a card inside the end screen's note, read left to right; each pick a pair of bars (the
+   promised bag, then the one a little worse), how many stretches fell by half or more */
+.many { display: grid; gap: 12px; margin: 14px 0 12px; padding: 16px 18px; text-align: left; border: 1px solid var(--k-line); border-radius: 18px;
+  background: radial-gradient(120% 90% at 0% 0%, rgba(223, 70, 70, .07), transparent 55%), var(--k-glass), var(--k-plate);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .4), inset 0 1px 0 rgba(255, 255, 255, .04); }
+.manyEyebrow { font-size: 11px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--k-gold-bright); }
+.manyTitle { margin: 0; font-size: 17px; line-height: 1.35; font-weight: 800; color: var(--k-ink); text-wrap: balance; }
+.manyChart { display: grid; gap: 8px; }
+.manyHead { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-size: 11px; font-weight: 900; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--k-ink-dim); }
+.manyKey { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; letter-spacing: .06em; text-transform: none; font-weight: 800; }
+.manyKey > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.manyKey i { display: inline-block; width: 12px; height: 6px; border-radius: 999px; }
+.keyBig, .trackBig i { background: linear-gradient(90deg, rgba(223, 70, 70, .6), var(--k-down)); }
+.keySmall, .trackSmall i { background: repeating-linear-gradient(135deg, #ffb3b3 0 3px, rgba(223, 70, 70, .45) 3px 6px); }
+.manyRow { display: grid; grid-template-columns: 44px minmax(0, 1fr) 54px; gap: 10px; align-items: center; }
+.manyRow .barName { font-size: 13px; }
+.manyOver .barName { color: #ffb3b3; }
+.manyTracks { display: grid; gap: 3px; min-width: 0; }
+.manyTrack { position: relative; display: block; height: 7px; border-radius: 999px; background: #1d1e22; box-shadow: inset 0 1px 2px rgba(0, 0, 0, .65); overflow: hidden; }
+.manyTrack i { position: absolute; left: 0; top: 0; bottom: 0; min-width: 3px; border-radius: inherit; animation: grow .6s var(--k-ease) both; transform-origin: left center; }
+.trackBig i { box-shadow: 0 0 8px rgba(223, 70, 70, .4); }
+.manyVals { display: grid; gap: 1px; text-align: right; font-size: 11.5px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.manyVals b { font-weight: 900; color: var(--k-ink); }
+.manyVals b + b { font-weight: 800; color: var(--k-ink-soft); }
+.manyLines { margin: 2px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.manyLines li { position: relative; padding-left: 16px; font-size: 14.5px; line-height: 1.5; color: var(--k-ink-soft); }
+.manyLines li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 6px; height: 6px; border-radius: 50%; background: var(--k-gold-bright); }
+.manyLines li:last-child { color: var(--k-ink); font-weight: 700; }
+
+/* the stretch that did not deal (never seen in a test or a 10,000-seed sweep, but never a blank screen) */
+.empty { display: grid; justify-items: center; gap: 14px; padding: 48px 0; text-align: center; }
+.empty h2 { margin: 0; font-size: 24px; font-weight: 800; color: var(--k-ink); }
+.empty p { margin: 0; max-width: 44ch; font-size: 16px; line-height: 1.5; color: var(--k-ink-soft); }
+.emptyIcon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; color: var(--k-gold-bright); border: 1px solid rgba(220, 187, 94, .45);
+  background: linear-gradient(180deg, #1c1709, #0f0d06); }
+.emptyGo { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes rise { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes chipIn { from { opacity: 0; transform: translateY(6px) scale(.96); } to { opacity: 1; transform: none; } }
+
+@media (max-width: 1024px) {
+  .pickLayout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .board { padding: 12px 12px 12px; gap: 10px; border-radius: 16px; }
+  .boardHead { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 12px; }
+  /* "Fell past 50%" and "Held this time" in spaced capitals must fit half a phone's board (about 150px) */
+  .verdictChip { gap: 5px; padding: 6px 10px; font-size: 10.5px; letter-spacing: .1em; }
+  .statBig { font-size: 21px; }
+  .stripRow { flex-direction: column; align-items: stretch; gap: 6px; }
+  .pip { height: 8px; }
+  .legend { font-size: 11px; }
+  .afterLine { font-size: 16px; }
+  .system { padding: 16px; gap: 12px; }
+  .sysEdge b { font-size: 38px; }
+  .sysFacts dd { font-size: 15px; }
+  .pickQ { font-size: 25px; }
+  .group { padding: 10px; gap: 8px; }
+  .risk { grid-template-columns: 50px minmax(0, 1fr); gap: 4px 12px; }
+  .risk b { font-size: 20px; grid-row: span 2; }
+  .risk small { font-size: 12.5px; }
+  .bars, .climb { --nameW: 58px; --valW: 62px; --gapW: 8px; }
+  .mistake { font-size: 15px; padding: 10px 12px; }
+  .stepCols { gap: 3px; height: 70px; }
+  .many { padding: 14px 12px; }
+  .manyTitle { font-size: 16px; }
+  .manyRow { grid-template-columns: 38px minmax(0, 1fr) 50px; gap: 8px; }
+  .manyLines li { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .drawIn { animation: none; stroke-dashoffset: 0; }
+  .bracket, .peakLow, .verdictChip, .streak { animation: none; }
+  .barTrack i, .manyTrack i, .stepCol i { animation: none; }
+  .meter i, .other, .pip { transition: none; }
+}

@@ -1,0 +1,1905 @@
+{
+ "unit": "F6.06",
+ "track": "F6",
+ "title": "Vega and implied volatility",
+ "teaches": "Implied volatility is the size of move the market prices into an option, read from its price; vega is how much the option's price changes for each one-point change in IV; and IV tends to fall after a report, which can make a call lose money even when the stock gaps up.",
+ "skills": [
+  {
+   "id": "options.vega_iv",
+   "title": "Vega and implied volatility"
+  }
+ ],
+ "as_of": "2026-11-09",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Vega",
+   "url": "https://www.optionseducation.org/advancedconcepts/vega",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Volatility & the Greeks",
+   "url": "https://www.optionseducation.org/advancedconcepts/volatility-the-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Options Pricing",
+   "url": "https://www.optionseducation.org/optionsoverview/options-pricing",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Theta",
+   "url": "https://www.optionseducation.org/advancedconcepts/theta",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Call (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-call",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Covered Call (Buy-Write) (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/covered-call-buy-write",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Long Straddle (strategy page)",
+   "url": "https://www.optionseducation.org/strategies/all-strategies/long-straddle",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Video Library: Implied Volatility Explained: What Drives Options Pricing (page text and chapter list)",
+   "url": "https://www.optionseducation.org/videolibrary/implied-volatility-explained-what-drives-options-pricing",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Video Library: Implied Volatility and Post-Earning Volatility Risk (page text and chapter list)",
+   "url": "https://www.optionseducation.org/videolibrary/implied-volatility-and-post-earning-volatility-risk",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "The Options Clearing Corporation and the US options exchanges",
+   "title": "Characteristics and Risks of Standardized Options (June 2024 edition)",
+   "url": "https://cdn.robinhood.com/assets/robinhood/legal/Characteristics%20and%20Risks%20of%20Standardized%20Options.pdf",
+   "why_reliable": "The official options disclosure document every options customer must receive (June 2024 edition, the version Cboe Regulatory Circular RC24-009 says replaces all prior ones). theocc.com refuses plain clients (403), so this cites the copy Robinhood distributes to its customers (cover: June 2024; copyright the exchanges and OCC).",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "Cboe Global Markets",
+   "title": "VIX Volatility Products (the VIX Index product page)",
+   "url": "https://www.cboe.com/tradable_products/vix/",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "Cboe Global Indices",
+   "title": "Cboe Volatility Index Methodology (version 6.0, last revised February 26, 2026)",
+   "url": "https://cdn.cboe.com/api/global/us_indices/governance/Volatility_Index_Methodology_Cboe_Volatility_Index.pdf",
+   "why_reliable": "The index provider's own methodology document for the VIX (README Tier 1: an index provider's methodology page). Version and revision date read from its Appendix 2.",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s13",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Get to Know the Options Greeks",
+   "url": "https://www.schwab.com/learn/story/get-to-know-option-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s14",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Tools for Trading Options Around Earnings",
+   "url": "https://www.schwab.com/learn/story/trading-options-around-earnings-announcements",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s15",
+   "tier": 2,
+   "publisher": "Charles Schwab",
+   "title": "Using Implied Volatility Percentages and Rankings",
+   "url": "https://www.schwab.com/learn/story/using-implied-volatility-percentiles",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s16",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Mastering Vega: A Guide to Pricing and Trading Strategies (James Chen, CMT; updated July 20, 2026)",
+   "url": "https://www.investopedia.com/terms/v/vega.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s17",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Exploring Implied Volatility and Options Pricing (Akhilesh Ganti; updated August 2, 2026)",
+   "url": "https://www.investopedia.com/terms/i/iv.asp",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s18",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Understanding options pricing",
+   "url": "https://www.fidelity.com/learning-center/trading-investing/understanding-options-pricing",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s19",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "Trading Options Around Earnings (Trading Strategy Desk webinar slides, 2016)",
+   "url": "https://fidelity.com/bin-public/060_www_fidelity_com/documents/TradingOptionsandEarnings_Webinar.pdf",
+   "why_reliable": "Fidelity's own Trading Strategy Desk education deck, hosted on fidelity.com (copyright 2016 FMR LLC). Its earnings example does not name the stock, so the file uses it without a ticker or date.",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s21",
+   "tier": 1,
+   "publisher": "The Options Industry Council (OCC)",
+   "title": "Understanding Options Greeks",
+   "url": "https://www.optionseducation.org/advancedconcepts/understanding-options-greeks",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s22",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-17"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "Implied volatility has no direct correlation to actual past historical or statistical volatility; rather it is a measure of predicted future movement.",
+   "claim": "Implied volatility is a forecast of future movement, not a record of past moves."
+  },
+  {
+   "id": "f2",
+   "source": "s1",
+   "quote": "Implied volatility tends to increase when there is uncertainty or anticipated news, while it tends to decrease in times of calm.",
+   "claim": "IV tends to rise on uncertainty or expected news and to fall when things are calm."
+  },
+  {
+   "id": "f3",
+   "source": "s1",
+   "quote": "Also, Vega and implied volatility can change without any movement in the underlying.",
+   "claim": "IV, and with it the option's price, can change while the stock does not move at all."
+  },
+  {
+   "id": "f4",
+   "source": "s1",
+   "quote": "If we know what the current market premiums are for the calls and the puts on a certain strike, we can solve for the implied volatility",
+   "claim": "Implied volatility is solved for from the option's market price."
+  },
+  {
+   "id": "f5",
+   "source": "s1",
+   "quote": "Increased demand and higher premiums mean an increase in implied volatility.",
+   "claim": "More demand for an option means a higher premium and a higher implied volatility."
+  },
+  {
+   "id": "f6",
+   "source": "s1",
+   "quote": "Vega measures the amount of increase or decrease in premium based on a 1% (100 basis points) change in the implied volatility assumption.",
+   "claim": "Vega is the premium change for a one-point (100 basis point) change in implied volatility."
+  },
+  {
+   "id": "f7",
+   "source": "s1",
+   "quote": "Longer-term options tend to have higher Vega than near-term options.",
+   "claim": "Longer-dated options tend to carry more vega than near-term ones."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "If OICX were trading $50 and front-month $50 call was trading $2 and the 12-month-out $50 call was trading $5, the more expensive call would be more profoundly affected by a 1% change in implied volatility.",
+   "claim": "Same stock and strike, the pricier 12-month call moves more on a one-point IV change than the front-month call."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "a call with 12 months until expiration has an implied volatility of 30%, a Vega of .15, and a current market value of $4.",
+   "claim": "OIC's example call: 12 months left, IV 30%, vega .15, price $4."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "If implied volatility were to instantly rise 2% to 32%, the investor might expect the option premium to increase by: .15 X 2 = $.30 to around $4.30, all things being equal.",
+   "claim": "In that example, IV rising two points to 32% adds about .15 times 2, or $.30, to the premium."
+  },
+  {
+   "id": "f11",
+   "source": "s1",
+   "quote": "A decrease in implied volatility by 5% may result in the option losing around: .15 X 5 = $.75 in value.",
+   "claim": "In the same example, a five-point IV drop takes about $.75 out of the option."
+  },
+  {
+   "id": "f12",
+   "source": "s1",
+   "quote": "changes in implied volatility can have drastic effects on an option price, probably second only to underlying price in importance.",
+   "claim": "After the stock price itself, IV is probably the biggest driver of an option's price."
+  },
+  {
+   "id": "f13",
+   "source": "s2",
+   "quote": "Implied Volatility is a measure of how much the marketplace expects the asset price to move based on the price of the option.",
+   "claim": "Implied volatility is how much the market expects the stock to move, read from the option's price."
+  },
+  {
+   "id": "f14",
+   "source": "s2",
+   "quote": "Statistical (Historical) Volatility is a measure of actual asset price changes over a specific period.",
+   "claim": "Historical volatility measures how much the price actually moved over a past period."
+  },
+  {
+   "id": "f15",
+   "source": "s2",
+   "quote": "Vega is the sensitivity of option value to changes in implied volatility. Vega indicates an absolute change in option value for a 1% change in volatility.",
+   "claim": "Vega is the dollar change in an option's value for a one-point change in implied volatility."
+  },
+  {
+   "id": "f16",
+   "source": "s2",
+   "quote": "a Vega of .090 indicates the option's theoretical value increases by .090 if the implied volatility increases by 1.0%. Alternately, the option’s theoretical value decreases by .090 if the implied volatility decreases by 1.0%.",
+   "claim": "Vega works both ways: the value rises by vega when IV rises a point and falls by vega when IV falls a point."
+  },
+  {
+   "id": "f17",
+   "source": "s2",
+   "quote": "For a call option, a Delta of .50 means a half-point rise in premium for every dollar that the stock goes up.",
+   "claim": "A call with delta .50 gains about half a point for each dollar the stock rises."
+  },
+  {
+   "id": "f18",
+   "source": "s2",
+   "quote": "Volatility measured by annual standard deviation",
+   "claim": "In the Black-Scholes model, volatility goes in as an annual figure."
+  },
+  {
+   "id": "f19",
+   "source": "s3",
+   "quote": "Higher volatility estimates indicate greater expected fluctuations (in either direction) in underlying price levels.",
+   "claim": "Higher volatility means bigger expected swings, up or down."
+  },
+  {
+   "id": "f20",
+   "source": "s3",
+   "quote": "This expectation generally results in higher option premiums for puts and calls alike. It is most noticeable with at-the-money options.",
+   "claim": "Higher expected volatility lifts calls and puts alike, and the effect is biggest at the money."
+  },
+  {
+   "id": "f21",
+   "source": "s4",
+   "quote": "If a day passed without a change in the option price, then one of the other variables must have changed. In most cases, it would likely have been an increase in implied volatility.",
+   "claim": "When an option holds its price through a day of decay, a rise in IV is the most likely reason."
+  },
+  {
+   "id": "f22",
+   "source": "s4",
+   "quote": "options trade at elevated implied volatility levels because of the actual historical volatility or because of an earnings announcement, product announcement, etc.",
+   "claim": "An upcoming earnings or product announcement can keep a stock's options at elevated IV."
+  },
+  {
+   "id": "f23",
+   "source": "s4",
+   "quote": "Rather, options with the least remaining time until expiration will tend to decay the most.",
+   "claim": "The options with the least time left tend to lose the most to time decay."
+  },
+  {
+   "id": "f24",
+   "source": "s5",
+   "quote": "Volatility tends to boost the value of any long option strategy.",
+   "claim": "Rising volatility tends to help anyone who owns options."
+  },
+  {
+   "id": "f25",
+   "source": "s6",
+   "quote": "Volatility Impact It would tend to increase the cost of buying the short call back to close the position.",
+   "claim": "For a covered call writer, rising volatility makes the short call cost more to buy back."
+  },
+  {
+   "id": "f26",
+   "source": "s7",
+   "quote": "Conversely, if implied volatility declines, so would both options' resale values (and therefore, profitability).",
+   "claim": "When IV falls, the call and the put in a long straddle both lose resale value."
+  },
+  {
+   "id": "f27",
+   "source": "s8",
+   "quote": "Review how implied volatility reflects the market's expectation of future stock movement and why it often falls sharply after earnings or other major announcements.",
+   "claim": "IV reflects the movement the market expects, and it often falls sharply after earnings or other big news."
+  },
+  {
+   "id": "f29",
+   "source": "s9",
+   "quote": "See how an option can lose value even when the stock moves in your favor",
+   "claim": "An option can lose value through a report even when the stock moves your way."
+  },
+  {
+   "id": "f30",
+   "source": "s9",
+   "quote": "Volatility Crush After Earnings",
+   "claim": "OIC names the post-earnings IV drop a volatility crush."
+  },
+  {
+   "id": "f31",
+   "source": "s10",
+   "quote": "Variability indexes based on equity securities have historically tended to move inversely to their reference indexes",
+   "claim": "Volatility indexes on stocks have historically tended to move opposite to the stock index they track."
+  },
+  {
+   "id": "f32",
+   "source": "s10",
+   "quote": "But this relationship does not always hold true and, indeed, a variability index may be rising at a time when its reference index or the price of its reference security is also rising.",
+   "claim": "That inverse pattern does not always hold: a volatility index can rise while its stock index rises too."
+  },
+  {
+   "id": "f33",
+   "source": "s10",
+   "quote": "The realized volatility of the reference interest may not conform to those predictions.",
+   "claim": "The volatility that actually shows up may not match what implied volatility predicted."
+  },
+  {
+   "id": "f34",
+   "source": "s10",
+   "quote": "The more an option is out of the money and the shorter the remaining time to expiration, the greater the risk that an option holder will lose all or part of his investment in the option.",
+   "claim": "Less time left means a bigger risk of losing the premium."
+  },
+  {
+   "id": "f35",
+   "source": "s11",
+   "quote": "a leading measure of market expectations of near-term volatility conveyed by S&P 500 Index (SPX) option prices",
+   "claim": "The VIX measures the near-term volatility the market expects, as shown by S&P 500 option prices."
+  },
+  {
+   "id": "f36",
+   "source": "s11",
+   "quote": "The VIX Index has had a historically strong inverse relationship with the S&P 500 Index.",
+   "claim": "The VIX has historically tended to move opposite to the S&P 500."
+  },
+  {
+   "id": "f37",
+   "source": "s11",
+   "quote": "Over long periods, index options have tended to price in slightly more uncertainty than the market ultimately realizes.",
+   "claim": "Over long periods, index options have tended to price in a bit more movement than actually showed up."
+  },
+  {
+   "id": "f38",
+   "source": "s11",
+   "quote": "the expected volatility implied by SPX option prices tends to trade at a premium relative to subsequent realized volatility in the S&P 500 Index.",
+   "claim": "S&P 500 implied volatility has tended to sit above the volatility the index then realized."
+  },
+  {
+   "id": "f39",
+   "source": "s12",
+   "quote": "The VIX Index measures 30-day expected volatility of the S&P 500 Index.",
+   "claim": "The VIX measures the S&P 500's expected volatility over the next 30 days."
+  },
+  {
+   "id": "f40",
+   "source": "s12",
+   "quote": "The calculation takes as input the market prices of SPX options and SPXW options as well as U.S. Treasury yield curve rates.",
+   "claim": "The VIX is calculated from S&P 500 option prices (plus Treasury rates)."
+  },
+  {
+   "id": "f41",
+   "source": "s12",
+   "quote": "VIX Index is often referred to as the “fear gauge.”",
+   "claim": "The VIX is often called the fear gauge."
+  },
+  {
+   "id": "f42",
+   "source": "s13",
+   "quote": "Vega measures the rate of change in price of the option per one percentage-point change in the implied volatility of the underlying stock.",
+   "claim": "Vega is the option's price change for each one percentage-point change in implied volatility."
+  },
+  {
+   "id": "f43",
+   "source": "s13",
+   "quote": "Implied volatility reflected in the price of an option is an inference based on option market participants' expectations of future price moves.",
+   "claim": "The IV in an option's price is the market's inference about future moves."
+  },
+  {
+   "id": "f44",
+   "source": "s14",
+   "quote": "IV greatly impacts options pricing and tends to be elevated before earnings.",
+   "claim": "IV has a big effect on option prices and tends to run high before earnings."
+  },
+  {
+   "id": "f45",
+   "source": "s14",
+   "quote": "In the immediate aftermath of an earnings report, IV can sometimes collapse, removing value from associated options contracts.",
+   "claim": "Right after a report, IV can collapse and take value out of the options."
+  },
+  {
+   "id": "f46",
+   "source": "s14",
+   "quote": "Traders sometimes call this sudden drop in IV an implied volatility \"crush,\" and it can cause the value of an option to fall even when the stock makes a move in the anticipated direction.",
+   "claim": "That post-report drop is called an IV crush, and it can sink an option even when the stock moves the way you expected."
+  },
+  {
+   "id": "f47",
+   "source": "s14",
+   "quote": "Some traders, for instance, trade long puts on a stock and then can't understand why their trade lost money even though the stock declined following its earnings report. It's often because the IV collapsed",
+   "claim": "Put buyers can lose money even when the stock falls after the report, often because IV collapsed."
+  },
+  {
+   "id": "f48",
+   "source": "s14",
+   "quote": "if the current IV percentile is high, it means options premiums are typically going to be relatively expensive.",
+   "claim": "A high IV percentile means the options are relatively expensive."
+  },
+  {
+   "id": "f49",
+   "source": "s15",
+   "quote": "IV is calculated from the prices of currently listed options and expressed in annualized terms.",
+   "claim": "IV comes from listed option prices and is quoted as an annual figure."
+  },
+  {
+   "id": "f50",
+   "source": "s15",
+   "quote": "if ZYX's implied volatility swung between 15 and 45 during a 52-week period and its current IV was 30, its IVR, or \"Current IV Percentile,\" would be 50%.",
+   "claim": "Schwab's worked example: IV ranged 15 to 45 over 52 weeks and sits at 30, so it is 50% of the way up its range."
+  },
+  {
+   "id": "f51",
+   "source": "s15",
+   "quote": "IV is a forward-looking measure implied by the options market, while HV is backward looking.",
+   "claim": "IV looks forward; historical volatility looks back."
+  },
+  {
+   "id": "f52",
+   "source": "s16",
+   "quote": "Both call and put options have a positive vega, meaning they both increase in value when volatility rises.",
+   "claim": "Calls and puts both gain value when volatility rises."
+  },
+  {
+   "id": "f53",
+   "source": "s16",
+   "quote": "At-the-money options and those with longer expirations will have the highest vegas",
+   "claim": "At-the-money and longer-dated options carry the most vega."
+  },
+  {
+   "id": "f54",
+   "source": "s16",
+   "quote": "This sensitivity diminishes as the option approaches expiration or moves further in or out of the money.",
+   "claim": "Vega shrinks as expiry nears and as the option moves deeper in or further out of the money."
+  },
+  {
+   "id": "f55",
+   "source": "s16",
+   "quote": "However, should volatility drop, they might face losses, even if the underlying stock price remains unchanged.",
+   "claim": "A drop in IV can cost an option holder money even with the stock unchanged."
+  },
+  {
+   "id": "f56",
+   "source": "s17",
+   "quote": "Rather than predicting whether prices will rise or fall, IV estimates the magnitude of potential price swings.",
+   "claim": "IV sizes the expected swing; it does not say which way."
+  },
+  {
+   "id": "f57",
+   "source": "s17",
+   "quote": "Historical volatility indicates past price movements, while implied volatility is forward-looking. IV is derived from the current market price.",
+   "claim": "Historical volatility looks back; IV looks forward and comes from the option's current price."
+  },
+  {
+   "id": "f58",
+   "source": "s17",
+   "quote": "Start with the option’s current price and work backward to determine the level of volatility that would justify that price, given all the other known variables entered into the model.",
+   "claim": "IV is found by working backward from the option's price through a pricing model."
+  },
+  {
+   "id": "f59",
+   "source": "s17",
+   "quote": "Implied volatility is expressed as an annualized percentage in options trading.",
+   "claim": "IV is quoted as an annual percentage."
+  },
+  {
+   "id": "f60",
+   "source": "s17",
+   "quote": "This rapid decline, known as an IV crush, can reduce an option’s value despite a favorable move in the underlying stock.",
+   "claim": "The rapid post-event IV drop is called an IV crush, and it can cut an option's value even after a favorable move."
+  },
+  {
+   "id": "f61",
+   "source": "s17",
+   "quote": "High IV means that buying options is more expensive, and there’s a greater risk of the stock making a big move, although this may never materialize.",
+   "claim": "High IV makes options more expensive to buy, and the big move it prices may never come."
+  },
+  {
+   "id": "f62",
+   "source": "s18",
+   "quote": "Implied volatility is a measure of what the market expects volatility to be in the future for a given stock, ETF, or index.",
+   "claim": "IV is the volatility the market expects in the future for a stock, ETF or index."
+  },
+  {
+   "id": "f63",
+   "source": "s18",
+   "quote": "When there are many options traders who are buying up call and put options, generating strong demand, those options will generally increase in price.",
+   "claim": "Strong buying of calls and puts generally pushes their prices up."
+  },
+  {
+   "id": "f64",
+   "source": "s19",
+   "quote": "Derived from the option contract prices on the given security",
+   "claim": "IV is derived from the option prices on the stock."
+  },
+  {
+   "id": "f65",
+   "source": "s19",
+   "quote": "Annualized percentage for future expected move",
+   "claim": "IV is an annual percentage for the expected move."
+  },
+  {
+   "id": "f66",
+   "source": "s19",
+   "quote": "IV is a product of supply and demand for option contracts",
+   "claim": "IV comes from supply and demand for the options."
+  },
+  {
+   "id": "f68",
+   "source": "s19",
+   "quote": "Vega estimates the amount an option contract will change due to a 1% move in IV",
+   "claim": "Vega estimates an option's price change for a one-point move in IV."
+  },
+  {
+   "id": "f69",
+   "source": "s19",
+   "quote": "You are predicting a 8% drop in IV after an earnings announcement. -8 x .0535 x 100 = -$42.80 / contract",
+   "claim": "Fidelity's example: an 8-point IV drop times vega .0535 times 100 shares is a $42.80 loss per contract."
+  },
+  {
+   "id": "f70",
+   "source": "s19",
+   "quote": "Long Put: Cost: $1.88 * 100 shares = $188 Maximum Gain = $6,312 Maximum Loss = $188 Results: Value: $2.77 * 100 shares = $277 Gain/Loss = $2.77 - $1.88 = $0.89 * 100 = $89",
+   "claim": "In Fidelity's earnings example, a put bought for $1.88 was worth $2.77 after the report, a gain of $0.89 a share."
+  },
+  {
+   "id": "f71",
+   "source": "s19",
+   "quote": "Volatility on the Puts: IV Mid was 94.38% with Vega at $0.0193 IV Mid ended up at 33.23% Option Value Lost due to Volatility = 94.38% - 33.23% = 61.15% * $0.0193 = about $1.18",
+   "claim": "On the puts, IV fell from 94.38% to 33.23%; at vega 0.0193 that drop took about $1.18 of value."
+  },
+  {
+   "id": "f72",
+   "source": "s19",
+   "quote": "IV percentile shows where a specific stock’s IV is compared to where its been within the last 52 weeks.",
+   "claim": "IV percentile compares a stock's IV now with its own range over the last 52 weeks."
+  },
+  {
+   "id": "f73",
+   "source": "s18",
+   "quote": "Since implied volatility is standardized, you can compare it relatively across different stocks or ETFs to see which ones are expected to be more or less volatile.",
+   "claim": "IV can be compared across stocks to see which are expected to move more or less."
+  },
+  {
+   "id": "f74",
+   "source": "s13",
+   "quote": "By comparing the underlying stock's implied volatility to the historical volatility, you can sometimes get a good sense of whether an option is priced higher or lower than normal.",
+   "claim": "Comparing a stock's IV with its own historical volatility can show whether its options are priced above or below normal."
+  },
+  {
+   "id": "f75",
+   "source": "s21",
+   "quote": "Greeks are not a guarantee of exact option premium changes, but rather a theoretical guidepost",
+   "claim": "Greeks give estimates of how an option's price will change, not exact numbers."
+  },
+  {
+   "id": "h01",
+   "source": "s22",
+   "quote": "Options occasionally; no further rules. The premium paid is the stop.",
+   "claim": "We use options only now and then, with no extra rules: the premium paid is the stop."
+  },
+  {
+   "id": "h02",
+   "source": "s22",
+   "quote": "No new buys in the 3 days before an earnings report; hold through a report only if the trade is up 5R.",
+   "claim": "We make no new buys in the 3 days before an earnings report, and hold through one only when the trade is up 5R."
+  },
+  {
+   "id": "h03",
+   "source": "s22",
+   "quote": "Trade shares; options are only a defined-risk alternative.",
+   "claim": "We trade shares; options are only a defined-risk alternative."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "What implied volatility is",
+   "steps": [
+    "Implied volatility, IV, is how big a move the market expects. It's read off what people pay for the option.",
+    "So it looks forward, not back at the chart. The chart shows what it did. IV prices what's next.",
+    "It sizes the move. It never says which way. Direction is your read from the chart.",
+    "When IV is high, calls and puts both cost more, most of all at the money."
+   ],
+   "facts": [
+    "f13",
+    "f57",
+    "f1",
+    "f56",
+    "f20"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Vega puts a price on IV",
+   "steps": [
+    "Vega tells you what a one-point change in IV does to your option's price.",
+    "Say a call is $4 with IV at 30% and a vega of .15. Then IV ticks up to 32%.",
+    "Two points times .15 is about $.30. The call's now around $4.30 without the stock doing a thing.",
+    "Calls and puts you own both gain when IV rises. After the stock price itself, IV's probably the biggest driver."
+   ],
+   "facts": [
+    "f15",
+    "f42",
+    "f9",
+    "f10",
+    "f52",
+    "f24",
+    "f25",
+    "f12"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "The crush",
+   "steps": [
+    "IV tends to climb into an earnings report. Once the news is out, it often falls hard.",
+    "That drop takes value out of calls and puts at the same time. Traders call it the IV crush.",
+    "So your call can lose money on a gap up. The move has to give you more than the crush takes."
+   ],
+   "facts": [
+    "f44",
+    "f27",
+    "f45",
+    "f26",
+    "f46",
+    "f29"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "options.vega_iv",
+   "rung": 1,
+   "format": "mcq",
+   "q": "You open ZQRT's option chain and there's an IV column next to every strike. What's that number telling you?",
+   "choices": [
+    "How big a move is priced in",
+    "How much it moved last month",
+    "Which way the stock will go",
+    "What it loses each day"
+   ],
+   "answer": "How big a move is priced in",
+   "term": "Implied volatility",
+   "why": "The size of the move the options are pricing in. IV is backed out of what people are paying for the option right now. So it looks forward, not back at the chart. It tells you how big a swing is expected, up or down. It never tells you which way. Your read on direction comes from the chart. What IV tells you is how much you're paying for the move.",
+   "lesson_line": "IV is the size of the move the options are pricing. It never tells you the direction.",
+   "facts": [
+    "f13",
+    "f1",
+    "f62",
+    "f43",
+    "f56",
+    "f14",
+    "f57",
+    "f23"
+   ],
+   "wrong": {
+    "How much it moved last month": "That's historical volatility, built from moves that already happened. IV looks ahead.",
+    "Which way the stock will go": "IV has no side. It prices the size of the swing, up or down.",
+    "What it loses each day": "That's theta, the daily cost of time. IV is about the size of the move."
+   },
+   "simple": "It shows how big a move the options are pricing in, up or down, but not which way.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "options.vega_iv",
+   "rung": 1,
+   "format": "tf",
+   "q": "Implied volatility is worked out from the stock's past price moves.",
+   "answer": "False",
+   "why": "False. A stock's past price moves give historical volatility, a measure of actual changes over a past period. Implied volatility is solved from the option's market price and looks forward. OIC says implied volatility has no direct correlation to past historical volatility. The two are different numbers and can sit far apart.",
+   "lesson_line": "Historical volatility looks back at the chart. Implied volatility looks ahead, from option prices.",
+   "facts": [
+    "f14",
+    "f1",
+    "f57",
+    "f51"
+   ],
+   "simple": "False, because past moves give a different number, and IV is read from the price the option trades at today.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q03",
+   "skill": "options.vega_iv",
+   "rung": 1,
+   "format": "mcq",
+   "q": "Your ZQRT call shows a vega of 0.10 on the chain. What's that number measuring?",
+   "choices": [
+    "Price change per 1-point move in IV",
+    "Price change per $1 move in the stock",
+    "Value the option loses each day",
+    "How fast delta changes per $1 move"
+   ],
+   "answer": "Price change per 1-point move in IV",
+   "term": "Vega",
+   "why": "Price change per point of IV. With a vega of 0.10, if IV rises one point, your call gains about $0.10 a share. If IV drops a point, it loses about $0.10. One point means one percentage point of IV, not one percent of the IV level. Why you care: vega tells you how much of your option's price rides on IV instead of the stock. Into a report, that's the number that tells you what a crush can cost.",
+   "lesson_line": "Vega tells you what one point of IV is worth to your option.",
+   "facts": [
+    "f15",
+    "f42",
+    "f6",
+    "f17",
+    "f21",
+    "f23"
+   ],
+   "wrong": {
+    "Price change per $1 move in the stock": "That's delta, what the option does for each dollar the stock moves.",
+    "Value the option loses each day": "That's theta, time decay. Vega is about IV.",
+    "How fast delta changes per $1 move": "That's gamma, how fast delta shifts as the stock moves. Vega tracks IV, not the stock."
+   },
+   "simple": "Vega is how much your option's price moves when IV changes by one point.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q04",
+   "skill": "options.vega_iv",
+   "rung": 2,
+   "format": "fill",
+   "q": "Fill in the blank.",
+   "sentence": "Implied volatility is backed out of the option's ___.",
+   "bank": [
+    "price",
+    "volume",
+    "strike",
+    "delta",
+    "chart"
+   ],
+   "answer": "price",
+   "why": "Price. Start with the option's market price. Enter the other known inputs into a pricing model. Then solve for the volatility that would justify that price. That number is the implied volatility. It is not read from volume, delta or the chart.",
+   "lesson_line": "IV comes from what people pay for the option, not from the chart.",
+   "facts": [
+    "f4",
+    "f58",
+    "f64"
+   ],
+   "simple": "Price, because implied volatility is worked out backward from what the option trades for.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "wave7"
+  },
+  {
+   "key": "q05",
+   "skill": "options.vega_iv",
+   "rung": 2,
+   "format": "tf",
+   "q": "Nothing changes on ZQRT except its IV, which jumps. Its calls and its puts both get more expensive.",
+   "answer": "True",
+   "why": "True, both get pricier. IV has no side. A higher IV means a bigger swing is priced in. A bigger swing can pay off a call or a put. So you pay more for either one. Calls and puts both carry positive vega. Keep that in mind when you want protection right before scary news. Everyone else wants it too, and you'll pay up for it.",
+   "lesson_line": "IV has no side. When it rises, calls and puts both cost more.",
+   "facts": [
+    "f19",
+    "f20",
+    "f52",
+    "f24",
+    "f12",
+    "f23"
+   ],
+   "simple": "True, because a higher IV means a bigger swing is priced in, either way, and that lifts calls and puts alike.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "options.vega_iv",
+   "rung": 2,
+   "format": "mcq",
+   "q": "You see the VIX quoted next to the S&P 500 every morning. What is it actually measuring?",
+   "choices": [
+    "Expected S&P 500 move, next 30 days",
+    "How much the S&P 500 moved last month",
+    "Which way the S&P 500 will go next",
+    "Trading volume on the S&P 500"
+   ],
+   "answer": "Expected S&P 500 move, next 30 days",
+   "term": "VIX",
+   "why": "The move the S&P 500's options expect over the next 30 days. The VIX is built from SPX option prices, plus Treasury rates. So it's implied volatility for the whole index. It looks ahead, not back. And like any IV, it doesn't pick a direction. People call it the fear gauge. Treat it as a read on how nervous the options market is, not as a call on where you're headed.",
+   "lesson_line": "The VIX is the options market's guess at how much the S&P 500 moves in the next 30 days.",
+   "facts": [
+    "f39",
+    "f40",
+    "f35",
+    "f41",
+    "f56",
+    "f14"
+   ],
+   "wrong": {
+    "Trading volume on the S&P 500": "It's built from SPX option prices, not from how many shares traded.",
+    "How much the S&P 500 moved last month": "That's looking back, historical volatility. The VIX looks ahead, from option prices.",
+    "Which way the S&P 500 will go next": "Like any IV, it sizes the move. It doesn't call the direction."
+   },
+   "simple": "It shows how much the S&P 500 is expected to move over the next 30 days, read from option prices.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "the definition comes from Cboe's VIX methodology, which is revised over time"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q07",
+   "skill": "options.vega_iv",
+   "rung": 3,
+   "format": "mcq",
+   "q": "ZQRT reported last night. This morning its options price a much smaller move, and the premiums have sunk. What's that called?",
+   "choices": [
+    "IV crush",
+    "Time decay",
+    "A gap fill",
+    "A short squeeze"
+   ],
+   "answer": "IV crush",
+   "term": "IV crush",
+   "why": "IV crush. Before a report, the options price in a big move because nobody knows the number. Once the news is out, that unknown is gone. IV drops fast, and the option loses the value that was riding on it. It can hit you even when the stock moves your way. That's the trap with buying calls into earnings. You pay for the uncertainty, then it disappears overnight. You can see the priced move on the Calendar page in our app, in the earnings list's Impl. Move column.",
+   "lesson_line": "IV builds into a report and often gets crushed right after it.",
+   "facts": [
+    "f46",
+    "f60",
+    "f30",
+    "f45",
+    "f13",
+    "f23"
+   ],
+   "wrong": {
+    "Time decay": "Decay is the clock, a little every day. This was IV falling out of the price overnight.",
+    "A gap fill": "A gap fill is about the stock's chart. Here the options' priced move shrank, and that's IV.",
+    "A short squeeze": "A squeeze is shorts buying back stock. This was the options' IV dropping."
+   },
+   "simple": "That's an IV crush, the fast drop in IV once the news is out.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker edit 2026-11-09 or 2026-11-11)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "options.vega_iv",
+   "rung": 3,
+   "format": "tf",
+   "q": "ZQRT ends the day flat, right where it started. So your ZQRT call ends the day at the same price too.",
+   "answer": "False",
+   "why": "False. The stock is only one input. IV can move while the stock sits still, and vega turns that into a price change. If IV drops, your call loses value with the stock flat. A day also passed, and time takes its bite. In fact, when a call holds its price through a flat day, the likely reason is IV rose and covered the decay. So when your option doesn't do what you expect, check IV, not just the stock.",
+   "lesson_line": "A flat stock doesn't mean a flat option. IV and time are moving it too.",
+   "facts": [
+    "f3",
+    "f21",
+    "f55"
+   ],
+   "simple": "False, because IV can rise or fall while the stock sits still, and time passes too, so the option's price moves.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q09",
+   "skill": "options.vega_iv",
+   "rung": 4,
+   "format": "mcq",
+   "q": "ZQRT is at 50. Same expiry, different strikes. When IV jumps, which option's price moves the most dollars?",
+   "choices": [
+    "The at-the-money strike",
+    "A deep in-the-money strike",
+    "A far out-of-the-money strike",
+    "They all react the same"
+   ],
+   "answer": "The at-the-money strike",
+   "why": "The at-the-money one. With ZQRT at 50, that's the 50 strike. Vega is biggest at the money. Go deeper in the money or further out and it fades, so the same IV jump moves those fewer dollars. Here's why you care. Buy at the money into a report and you own the most vega of any strike in that expiry. That's the most value a crush can take from you.",
+   "lesson_line": "At the money carries the most vega. Buy it into a report and you own the most crush risk.",
+   "facts": [
+    "f20",
+    "f53",
+    "f54",
+    "f15"
+   ],
+   "wrong": {
+    "A deep in-the-money strike": "Vega fades the deeper in the money you go. It's biggest at the money.",
+    "A far out-of-the-money strike": "Vega fades the further out you go too. At the money moves the most dollars.",
+    "They all react the same": "Vega changes by strike. It peaks at the money."
+   },
+   "simple": "The at-the-money option, because that's where vega is biggest. It fades as you go further in or out.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker edit 2026-11-09 or 2026-11-11)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q10",
+   "skill": "options.vega_iv",
+   "rung": 4,
+   "format": "mcq",
+   "q": "You own a ZQRT call with a vega of 0.12. IV rises 4 points and nothing else changes. What does the call gain, per share?",
+   "answer": "$0.48",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "vega * points",
+     "vega": 0.12,
+     "points": 4
+    }
+   },
+   "why": "$0.48 a share. Vega times the points IV moved: 0.12 times 4 is 0.48. It works the same way down. A 4-point drop takes about $0.48 back. Treat it as an estimate, all else equal, since the stock and the clock move the price too. This is how you size what IV can do to you before you buy.",
+   "lesson_line": "Vega times the points IV moves. That's your rough gain or hit, per share.",
+   "facts": [
+    "f15",
+    "f16",
+    "f10"
+   ],
+   "simple": "About $0.48 a share, because vega of 0.12 times a 4-point rise in IV is 0.48.",
+   "tier": "core",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$0.03",
+    "$4.12",
+    "$48.00",
+    "$0.48"
+   ],
+   "wrong": {
+    "$0.03": "That's 0.12 divided by 4. You multiply vega by the points, you don't divide.",
+    "$4.12": "That's 0.12 plus 4. Multiply, don't add.",
+    "$48.00": "That's the gain on a whole contract. The question asked per share."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The call and the IV move",
+    "rows": [
+     {
+      "key": "call_vega",
+      "label": "Call vega",
+      "value": 0.12,
+      "fmt": "count"
+     },
+     {
+      "key": "iv_rises,_points",
+      "label": "IV rises, points",
+      "value": 4.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Call's gain",
+     "as": "per_share"
+    }
+   }
+  },
+  {
+   "key": "q11",
+   "skill": "options.vega_iv",
+   "rung": 4,
+   "format": "tf",
+   "q": "An IV of 30% on a weekly option means the market expects a 30% move this week.",
+   "answer": "False",
+   "why": "False. IV is quoted as a yearly figure, even on a weekly option. Turning it into a one-week move is a separate step.",
+   "lesson_line": "IV is an annual number. Never read it as this week's move.",
+   "facts": [
+    "f49",
+    "f59",
+    "f65",
+    "f18"
+   ]
+  },
+  {
+   "key": "q12",
+   "skill": "options.vega_iv",
+   "rung": 5,
+   "format": "mcq",
+   "q": "You own one ZQRT call, vega 0.08. IV drops 15 points after the news. What does that cost you, per contract?",
+   "answer": "$120",
+   "prefix": "$",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "vega * points * multiplier",
+     "vega": 0.08,
+     "points": 15,
+     "multiplier": 100
+    }
+   },
+   "why": "$120 a contract. Per share first: 0.08 times 15 is $1.20. One contract covers 100 shares, so $1.20 times 100 is $120. That's money gone from IV alone, before the stock does anything. So size it before the news, not after. If that number would hurt, you're either too big or you shouldn't own it into the event.",
+   "lesson_line": "Size the crush before the news: vega, times the points IV drops, times 100.",
+   "facts": [
+    "f69",
+    "f68",
+    "f16",
+    "f11"
+   ],
+   "simple": "About $120, because 0.08 times 15 is $1.20 a share, and a contract covers 100 shares.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "$1.20",
+    "$120",
+    "$8",
+    "$1,500"
+   ],
+   "wrong": {
+    "$1.20": "That's the loss per share. A contract is 100 shares.",
+    "$8": "That's 0.08 times 100 with the IV drop left out.",
+    "$1,500": "That's 15 times 100 with vega left out."
+   },
+   "visual": {
+    "kind": "size",
+    "title": "The call and the IV move",
+    "rows": [
+     {
+      "key": "call_vega",
+      "label": "Call vega",
+      "value": 0.08,
+      "fmt": "count"
+     },
+     {
+      "key": "iv_drops,_points",
+      "label": "IV drops, points",
+      "value": 15.0,
+      "fmt": "count"
+     },
+     {
+      "key": "calls_held",
+      "label": "Calls held",
+      "value": 1.0,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Cost per contract",
+     "as": "dollars"
+    }
+   },
+   "deeper": {
+    "example": "Fidelity works it the same way in its earnings webinar. Expecting an 8-point drop in IV on a vega of .0535, the math is -8 x .0535 x 100 = -$42.80 a contract."
+   }
+  },
+  {
+   "key": "q13",
+   "skill": "options.vega_iv",
+   "rung": 5,
+   "format": "tf",
+   "q": "Traders pile into ZQRT's calls and puts all morning while the stock sits still. That buying pushes ZQRT's IV up.",
+   "answer": "True",
+   "why": "True, it does. Nobody sets IV. It's backed out of what people pay for the options. Heavy demand pushes premiums up. With the stock flat and nothing else changed, the only way to explain a higher price is a higher IV. That's why IV climbs into a big event. Everyone wants a piece, and you pay up to get one.",
+   "lesson_line": "IV is supply and demand. When everyone's buying options, IV climbs.",
+   "facts": [
+    "f5",
+    "f63",
+    "f66",
+    "f12",
+    "f23"
+   ],
+   "simple": "True, because heavy buying pushes option prices up, and a higher price with the stock flat means a higher IV.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q14",
+   "skill": "options.vega_iv",
+   "rung": 5,
+   "format": "scenario",
+   "story": "A buddy bought ZQRT calls the day before earnings. ZQRT beats and gaps up 2%. His calls open below what he paid.",
+   "q": "What took his money?",
+   "choices": [
+    "IV fell once the news was out",
+    "IV rose once the news was out",
+    "One day of time decay alone",
+    "The call's delta went negative"
+   ],
+   "answer": "IV fell once the news was out",
+   "why": "The crush. Before the report, his calls were priced for a big move. ZQRT gave him 2%. The gap added some value, but IV collapsed once the number was out, and that took more. He was right on direction and still lost. We don't make new buys in the 3 days before a report, so you don't end up in his spot. And when we do buy an option, the premium paid is the stop. Know what you can lose before you buy.",
+   "lesson_line": "A beat and a gap up don't make a winning call. The crush can take more than the move gives.",
+   "facts": [
+    "f46",
+    "f45",
+    "f29",
+    "f60",
+    "f47",
+    "f17",
+    "f52",
+    "f27",
+    "f23",
+    "f44",
+    "f13",
+    "h01",
+    "h02"
+   ],
+   "wrong": {
+    "The call's delta went negative": "A call's delta doesn't go negative. The gap still added value, the IV drop just took more.",
+    "IV rose once the news was out": "Rising IV would have helped his calls. After a report, IV often falls hard.",
+    "One day of time decay alone": "One day of decay costs a little. The big hit after a report is IV falling out of the price."
+   },
+   "simple": "IV fell after the report, and that drop took more value than the 2% gap added.",
+   "deeper": {
+    "trap": "Being right on direction isn't enough into a report. IV runs high before earnings, so the call's price already holds a big expected move. If the stock moves less than that, the crush takes more than the move gives."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q15",
+   "skill": "options.vega_iv",
+   "rung": 6,
+   "format": "scenario",
+   "story": "You own 100 shares of ZQRT and sold a call against them for income. ZQRT hasn't moved, but the market gets nervous and IV jumps.",
+   "q": "What happens to the price of buying that call back?",
+   "choices": [
+    "It rises, so closing costs more",
+    "It stays near the price it sold at",
+    "It drops, as high IV helps sellers",
+    "It depends only on the stock price"
+   ],
+   "answer": "It rises, so closing costs more",
+   "why": "It costs more to close. You sold the call, so you're short it, and you make money when its price falls. Higher IV lifts option prices even with the stock flat. So the call you'd buy back just got more expensive. That's a loss on paper. High IV is great at the moment you sell, because you collect a richer premium. Once you're short, a rising IV works against you.",
+   "lesson_line": "Once you've sold an option, a rising IV works against you, even on a stock that sits still.",
+   "facts": [
+    "f25",
+    "f3",
+    "f2",
+    "f48",
+    "f61"
+   ],
+   "wrong": {
+    "It drops, as high IV helps sellers": "High IV helps at the sale, it fattens the premium. Once you're short, a jump in IV hurts.",
+    "It stays near the price it sold at": "A flat stock doesn't freeze the option. IV went up, so the call costs more.",
+    "It depends only on the stock price": "The stock didn't move and the price still changed. IV is part of every option's price."
+   },
+   "simple": "Buying it back costs more, because higher IV raises the call's price even with the stock flat.",
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker edit 2026-11-09 or 2026-11-11)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q16",
+   "skill": "options.vega_iv",
+   "rung": 6,
+   "format": "mcq",
+   "q": "ZQRT's IV ran from 20% to 60% over the past year. It's 50% today. Where does today sit in that range?",
+   "answer": "75%",
+   "suffix": "%",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(today - low) / (high - low) * 100",
+     "today": 50,
+     "low": 20,
+     "high": 60
+    }
+   },
+   "why": "75% of the way up. Take today minus the low, over the high minus the low. 50 minus 20 is 30. 60 minus 20 is 40. 30 over 40 is 0.75, so 75%. That puts ZQRT's IV near the top of its own year. Its options are expensive by its own standards, so if you're buying, you're paying up. Platforms name this differently, IV rank or IV percentile, so check how yours works it out.",
+   "lesson_line": "Judge IV against the stock's own year. Near the top of its range, you're paying up.",
+   "facts": [
+    "f50",
+    "f72",
+    "f48"
+   ],
+   "simple": "Today sits 75% of the way from the year's low to its high, so its options are pricey for this stock.",
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "choices": [
+    "75%",
+    "83%",
+    "125%",
+    "250%"
+   ],
+   "wrong": {
+    "83%": "That's 50 over 60. You skipped the low.",
+    "125%": "That's 50 over 40, the width of the range. Take the low off today first.",
+    "250%": "That's 50 over 20, today over the low."
+   },
+   "deeper": {
+    "example": "Schwab's version: IV swung between 15 and 45 over 52 weeks and sits at 30 now, so its IV rank, or Current IV Percentile, is 50%. Fidelity's IV percentile also compares against the last 52 weeks."
+   }
+  },
+  {
+   "key": "q17",
+   "skill": "options.vega_iv",
+   "rung": 7,
+   "format": "scenario",
+   "story": "A friend buys the ZQRT 100 call the day before earnings, stock at 100, expiring next week, for $4.40. Delta 0.50, vega 0.05, IV 80%. ZQRT opens $3 higher and IV drops to 40%.",
+   "q": "Using delta and vega, about what is his call worth at the open?",
+   "choices": [
+    "About $3.90, down $0.50",
+    "About $5.90, up $1.50",
+    "About $2.40, down $2.00",
+    "About $4.40, no change"
+   ],
+   "answer": "About $3.90, down $0.50",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "premium + delta * move - vega * (iv_before - iv_after)",
+     "premium": 4.4,
+     "delta": 0.5,
+     "move": 3,
+     "vega": 0.05,
+     "iv_before": 80,
+     "iv_after": 40
+    }
+   },
+   "why": "About $3.90, down $0.50. Work the two pieces. Delta: 0.50 times the $3 move adds $1.50. Vega: IV fell from 80 to 40, that's 40 points, and 40 times 0.05 takes $2.00. So $4.40 plus $1.50 minus $2.00 is $3.90. The stock went his way and he still lost $0.50. Greeks are a rough guide, not exact, but the point stands. At 80% IV, the call was priced for a bigger move than $3.",
+   "lesson_line": "Into a report, the move has to beat the crush. Delta and vega let you rough out both before you buy.",
+   "facts": [
+    "f17",
+    "f15",
+    "f75",
+    "f46",
+    "f13",
+    "f44"
+   ],
+   "wrong": {
+    "About $5.90, up $1.50": "That counts the gap and forgets the crush. The IV drop is the part that bites.",
+    "About $2.40, down $2.00": "That counts the crush and forgets ZQRT rose $3. Delta still added $1.50.",
+    "About $4.40, no change": "The two don't cancel. The IV drop took $2.00 and the gap only gave $1.50."
+   },
+   "simple": "About $3.90, because the $3 rise adds about $1.50 but the IV drop takes about $2.00.",
+   "deeper": {
+    "trap": "The gap looks like a win: ZQRT rose $3 and the call's delta is positive. The trap is forgetting vega. At 80% IV the day before earnings, the price already held a big expected move. A $3 move wasn't big enough to pay for a 40-point IV drop."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "size",
+    "title": "Delta and vega at the open",
+    "rows": [
+     {
+      "key": "call_price",
+      "label": "Call price",
+      "value": 4.4,
+      "fmt": "$"
+     },
+     {
+      "key": "delta",
+      "label": "Delta",
+      "value": 0.5,
+      "fmt": "count"
+     },
+     {
+      "key": "stock_rises",
+      "label": "Stock rises",
+      "value": 3.0,
+      "fmt": "$"
+     },
+     {
+      "key": "vega",
+      "label": "Vega",
+      "value": 0.05,
+      "fmt": "count"
+     },
+     {
+      "key": "iv_before",
+      "label": "IV before",
+      "value": 80.0,
+      "fmt": "%"
+     },
+     {
+      "key": "iv_after",
+      "label": "IV after",
+      "value": 40.0,
+      "fmt": "%"
+     }
+    ],
+    "find": {
+     "label": "Worth at the open",
+     "as": "per_share"
+    }
+   }
+  },
+  {
+   "key": "q18",
+   "skill": "options.vega_iv",
+   "rung": 7,
+   "format": "mcq",
+   "q": "ZQRT's options show an IV of 60%. ZVLT's show 30%. What can you fairly take from that?",
+   "choices": [
+    "ZQRT is expected to swing more",
+    "ZQRT's options are overpriced",
+    "ZQRT is more likely to go up soon",
+    "ZVLT's options are a bargain"
+   ],
+   "answer": "ZQRT is expected to swing more",
+   "why": "ZQRT is expected to swing more, and that's all. IV sits on the same scale for every stock. Line names up and you see who the options expect to move more. It doesn't tell you who's mispriced. ZQRT could just be a fast mover, or have news coming. To call options rich or cheap, check each stock's IV against its own history.",
+   "lesson_line": "IV across stocks shows who's expected to move more. Rich or cheap, you judge against the stock's own history.",
+   "facts": [
+    "f73",
+    "f13",
+    "f22",
+    "f74",
+    "f56"
+   ],
+   "wrong": {
+    "ZQRT's options are overpriced": "Not from this alone. A 60% IV can be normal for a stock that really moves. Check ZQRT against its own past.",
+    "ZQRT is more likely to go up soon": "IV has no direction. It sizes the swing, up or down.",
+    "ZVLT's options are a bargain": "A 30% IV can be right for a quiet stock. Cheap or not depends on ZVLT's own history."
+   },
+   "simple": "ZQRT is expected to swing more. A higher IV means a bigger expected move, not a wrong price.",
+   "deeper": {
+    "trap": "The tempting move is to call ZQRT's options expensive and ZVLT's cheap. A 60% IV can be normal for a fast mover, and 30% can be high for a quiet one. Compare each stock's IV with its own historical volatility before you call anything rich or cheap."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker edit 2026-11-09 or 2026-11-11)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "options.vega_iv",
+   "rung": 7,
+   "format": "scenario",
+   "story": "You like ZQRT for a longer swing. Instead of the one-month at-the-money call, you buy the one-year call at the same strike.",
+   "q": "Next to the one-month call, what's different about the one-year call?",
+   "choices": [
+    "More vega, so IV moves it more",
+    "More time decay lost each day",
+    "A smaller premium to pay up front",
+    "The same IV risk, as strikes match"
+   ],
+   "answer": "More vega, so IV moves it more",
+   "why": "More vega. Longer options carry more of it, so a one-point change in IV moves the one-year call more dollars. Take a stock at $50, with the front-month $50 call at $2 and the 12-month $50 call at $5. The $5 call feels a one-point IV change more. On the clock, it runs the other way. The one-year call costs more but decays less each day. You buy slower decay, and you pay for it with more IV risk.",
+   "lesson_line": "Buying more time slows the decay but adds vega. You own both.",
+   "facts": [
+    "f7",
+    "f8",
+    "f53",
+    "f23"
+   ],
+   "wrong": {
+    "More time decay lost each day": "Backwards. The options with the least time left decay the fastest.",
+    "A smaller premium to pay up front": "It costs more. A year of time isn't free: in the example, $5 against $2.",
+    "The same IV risk, as strikes match": "Time changes it. At the same strike, the one-year call is more exposed to IV."
+   },
+   "simple": "The one-year call has more vega, so each point of IV moves it more dollars.",
+   "deeper": {
+    "trap": "More time feels safer, and it does slow the daily decay. But the extra vega cuts both ways. A one-point change in IV moves the one-year call more dollars, up or down. Buy a long-dated call while IV is high and you carry that risk for as long as you hold it."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker edit 2026-11-09 or 2026-11-11)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q20",
+   "skill": "options.vega_iv",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A real one, from a Fidelity options webinar. A put bought before a report for $1.88 was worth $2.77 after it. Its IV fell from 94.38% to 33.23%. Vega was 0.0193.",
+   "q": "How much value did the IV drop take from that put, per share?",
+   "choices": [
+    "About $1.18",
+    "About $0.89",
+    "About $0.02",
+    "About $2.77"
+   ],
+   "answer": "About $1.18",
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "(iv_before - iv_after) * vega",
+     "iv_before": 94.38,
+     "iv_after": 33.23,
+     "vega": 0.0193
+    }
+   },
+   "why": "About $1.18 a share. IV fell from 94.38 to 33.23, a 61.15-point drop. 61.15 times 0.0193 is about $1.18. The put still made money, from $1.88 to $2.77, a $0.89 gain. So the stock's move added more than the crush took. Now flip it. With a smaller move, that same crush could have made it a loser. Being right on direction doesn't protect you.",
+   "lesson_line": "Right on direction, and the crush still took its cut. Know what IV is doing before a report.",
+   "facts": [
+    "f71",
+    "f70",
+    "f68"
+   ],
+   "wrong": {
+    "About $0.89": "That's what the put made overall, $2.77 minus $1.88. The crush is a separate piece.",
+    "About $0.02": "That's vega, what one point of IV is worth. IV fell 61.15 points.",
+    "About $2.77": "That's what the put was worth after the report."
+   },
+   "simple": "About $1.18, because the 61.15-point IV drop times vega of 0.0193 is about $1.18.",
+   "deeper": {
+    "example": "The crush and the move are separate pieces. Here the move added more than the crush took, so the put still gained $0.89. With a smaller move, the same IV drop of about $1.18 a share could have made it a loss."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "computed key",
+     "fixed before (checker edit 2026-11-09 or 2026-11-11)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "visual": {
+    "kind": "size",
+    "title": "The IV drop",
+    "rows": [
+     {
+      "key": "iv_before",
+      "label": "IV before",
+      "value": 94.38,
+      "fmt": "%"
+     },
+     {
+      "key": "iv_after",
+      "label": "IV after",
+      "value": 33.23,
+      "fmt": "%"
+     },
+     {
+      "key": "vega",
+      "label": "Vega",
+      "value": 0.0193,
+      "fmt": "count"
+     }
+    ],
+    "find": {
+     "label": "Value the drop took",
+     "as": "per_share"
+    }
+   }
+  },
+  {
+   "key": "q21",
+   "skill": "options.vega_iv",
+   "rung": 8,
+   "format": "tf",
+   "q": "ZQRT reports tonight. A buddy holds puts, sure it drops. Puts don't get hit by the IV crush.",
+   "answer": "False",
+   "why": "False. The crush has no side. Calls and puts both have positive vega, so when IV collapses after the number, both lose value. Some put buyers watch the stock fall on the report and still lose money. IV dropped more than the move paid them. Being right on direction doesn't shield him. If you ever hold an option through a report, size it for the crush either way.",
+   "lesson_line": "The crush hits calls and puts alike. Picking the right side doesn't get you out of it.",
+   "facts": [
+    "f47",
+    "f26",
+    "f52"
+   ],
+   "simple": "False, because the IV drop takes value from puts too, so he can lose even when the stock falls.",
+   "deeper": {
+    "trap": "It's tempting to think the crush only hits bulls. It has no side. Calls and puts both have positive vega, so the drop in IV after the report hits both, whichever way the stock went."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q22",
+   "skill": "options.vega_iv",
+   "rung": 8,
+   "format": "tf",
+   "q": "The VIX is up today. That means the S&P 500 is down today.",
+   "answer": "False",
+   "why": "False. VIX up, stocks down is the common pairing, and it's held for a long time. It doesn't always hold, though. Some days the VIX rises right along with the market. So a rising VIX tells you the options market is getting nervous. It doesn't tell you where the S&P 500 closed. Pull up the index and look.",
+   "lesson_line": "VIX up and stocks down is the common pairing. Common isn't always, so check the index itself.",
+   "facts": [
+    "f36",
+    "f31",
+    "f32"
+   ],
+   "simple": "False, because the VIX tends to move against the S&P 500 but not always, and both can rise together.",
+   "deeper": {
+    "trap": "The VIX moving with stocks is unusual, not impossible. A plan that reads every VIX rise as a market drop breaks on the days it isn't one. Treat the link as a tendency, never a law."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q23",
+   "skill": "options.vega_iv",
+   "rung": 9,
+   "format": "scenario",
+   "story": "A friend is bullish on ZQRT into its report. The front-week calls show IV near the top of its one-year range.",
+   "q": "What should he weigh most before buying those calls?",
+   "choices": [
+    "A crush, even if he's right",
+    "High IV warns the stock will fall",
+    "IV will likely keep rising after",
+    "High IV makes the calls cheap"
+   ],
+   "answer": "A crush, even if he's right",
+   "why": "The crush. IV near the top of its year means those calls are expensive by ZQRT's own standards. He's paying for a big move up front. After the number, IV can collapse, and the calls can lose even if ZQRT goes his way. He needs a move bigger than what's already priced. I'd tell him to pass. We don't make new buys in the 3 days before a report anyway. You can check the priced move on the Calendar page in our app, in the Impl. Move column.",
+   "lesson_line": "IV at the top of its range into a report means the call needs a move bigger than the crush.",
+   "facts": [
+    "f48",
+    "f44",
+    "f45",
+    "f61",
+    "f29",
+    "f27",
+    "f56",
+    "h02"
+   ],
+   "wrong": {
+    "IV will likely keep rising after": "After a report, IV often falls hard. That's the crush.",
+    "High IV makes the calls cheap": "Backwards. High IV makes options more expensive to buy.",
+    "High IV warns the stock will fall": "IV has no direction. It prices the size of the move, and that move may never come."
+   },
+   "simple": "IV can collapse after the report, so the calls can lose even if ZQRT goes up like he expects.",
+   "deeper": {
+    "trap": "High IV feels like proof that something big is coming. The price already includes that move, and the buyer pays for it up front. If the stock moves less than what was priced, the crush can leave the call down even on a gain."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (checker edit 2026-11-09 or 2026-11-11)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q24",
+   "skill": "options.vega_iv",
+   "rung": 9,
+   "format": "mcq",
+   "q": "Over long stretches, has S&P 500 implied volatility run above or below the moves that actually showed up?",
+   "choices": [
+    "Implied ran a bit higher",
+    "Implied ran a bit lower",
+    "They matched almost exactly",
+    "No clear pattern either way"
+   ],
+   "answer": "Implied ran a bit higher",
+   "why": "A bit higher. Over long stretches, index options have priced in slightly more movement than the S&P 500 then delivered. Cboe, the exchange behind the VIX, has found this. But it's a long-run tendency, not a rule for any one month. In a given month, the real move can come in bigger than what was priced. So don't treat the priced move as a ceiling.",
+   "lesson_line": "Index options have priced a bit more movement than showed up. A tendency, not a promise.",
+   "facts": [
+    "f37",
+    "f38",
+    "f33"
+   ],
+   "wrong": {
+    "They matched almost exactly": "IV is a forecast. What actually happens can miss it either way.",
+    "Implied ran a bit lower": "Cboe found the reverse. Over long periods, implied has sat above what showed up.",
+    "No clear pattern either way": "There is one over the long run, implied above realized. Just not a rule for any one month."
+   },
+   "simple": "Implied ran a bit higher than the moves that actually came, over long periods.",
+   "deeper": {
+    "counter": "Cboe's finding is about S&P 500 index options over long periods. Don't carry it over to a single stock's options without checking."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": []
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q25",
+   "skill": "options.vega_iv",
+   "rung": 2,
+   "format": "tf",
+   "q": "After the stock's own price, a change in IV is one of the biggest things that moves an option's price.",
+   "answer": "True",
+   "simple": "True, because after the stock's own price, IV is probably the biggest thing moving an option's price.",
+   "why": "True. The stock's price comes first. Right behind it is IV, and a big change in IV can swing an option's price hard. So when you own an option, you're betting on two things: the stock and its IV. Check both before you buy. We trade shares. For us an option is only a defined-risk alternative, and it brings vega along with it.",
+   "lesson_line": "Own an option and you're betting on the stock and its IV. Watch both.",
+   "facts": [
+    "f12",
+    "h03"
+   ],
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "single source (OIC Tier 1)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "Vega 'per 1%': OIC, Fidelity and Investopedia write vega per '1%' change in IV and mean one percentage point (OIC: '1% (100 basis points)'; its own example goes from 30% to 32% and calls it '2%'). Schwab says 'one percentage-point'. The file says 'one point' and gives every example in points.",
+  "Investopedia's vega page also says 'options that expire immediately have negative vega'. That conflicts with the definitions on OIC and Schwab and with Investopedia's own line that calls and puts have positive vega. Not used.",
+  "q09 asks which strike moves the most dollars on an IV change: measured in percent of its own price, a far out-of-the-money option can move more, so the question names dollars, which is what vega measures.",
+  "IV rank vs IV percentile: Schwab calls the position-in-range figure 'IVR, or Current IV Percentile' (f50); Fidelity calls a 52-week comparison 'IV percentile' (f72); some other platforms define IV percentile as the share of past days with lower IV, which gives a different number. q16 asks only where today's IV sits in its one-year range and names neither.",
+  "Schwab's Greeks page also says 'A drop in vega will typically cause both calls and puts to lose value', using 'vega' loosely for IV. Not used; the file keeps IV (the input) and vega (the sensitivity) apart.",
+  "q17 is a delta-and-vega estimate: Greeks are estimates (OIC, f75), gamma adds a little on a 3-point gap, and a day of theta takes a little away. The question says 'Using delta and vega' and 'about', and the why calls it a rough guide. The inputs were picked to be realistic for an at-the-money weekly at 80% IV.",
+  "q20: Fidelity's 2016 earnings slides do not name the stock or tie the trade slides to a date, so q20 gives neither. The vega times IV-points arithmetic is Fidelity's own ('about $1.18'); vega itself changes as IV moves, which is why the key says 'about'.",
+  "Overlap with sibling units, checked 2026-11-09: F5.05 uses the call side of the same Fidelity slides (direction only); q20 here uses the put side and computes the IV loss. F6.08 owns expected-move math and has its own questions on IV being yearly and coming from option prices, and a real IBM weekly-vs-monthly IV case; this unit kept q04 and q11 as the vega unit's basics (track audit 2026-11-09 then cut q11 as a duplicate of F6.08 q01, so q02 and q04 remain) and dropped its own weekly-vs-monthly question for a cross-stock IV question (q18).",
+  "The VIX and the S&P 500: Cboe's VIX page says 'historically strong inverse relationship'; the disclosure document says the relationship 'does not always hold true'. No conflict; q22 keys the disclosure document and teaches 'usually, not always'."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "All 20 sources re-fetched 2026-11-09 by my own plain client (73/73 quotes found, read in context); Investopedia iv.asp refused my client today (403/402), so its quotes were read in context in the quote checker's 200 copy fetched 2026-11-09 00:38. f13, f57, f1 (OIC/Investopedia), f56, f20 (OIC: higher premiums for puts and calls alike) support every step. Read in context: OIC vega page says IV has no direct correlation to past volatility.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "All 20 sources re-fetched 2026-11-09 by my own plain client (73/73 quotes found, read in context); Investopedia iv.asp refused my client today (403/402), so its quotes were read in context in the quote checker's 200 copy fetched 2026-11-09 00:38. Step 2 said the option gains 'about .30' with no unit; now 'about $.30', as OIC writes it (WebFetch of the OIC vega page confirms .15 X 2 = $.30). f15, f42, f52, f24, f25, f12 support the other steps.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "All 20 sources re-fetched 2026-11-09 by my own plain client (73/73 quotes found, read in context); Investopedia iv.asp refused my client today (403/402), so its quotes were read in context in the quote checker's 200 copy fetched 2026-11-09 00:38. f44 (Schwab: elevated before earnings), f27 (OIC: often falls sharply after), f45, f26 (both straddle legs lose), f46, f29. Hedged 'tends' / 'often', as the sources are.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Situation stem, verdict first, says what IV can and can't tell you. Answer and facts f13/f56/f57 hold."
+  },
+  "q02": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in wave7: see the resolver's notes"
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: the wrong note called 'how fast delta changes' 'delta itself shifting'. That is gamma (taught in F6.04/F6.05). Fixed the note. Voice fine."
+  },
+  "q04": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Plain claim with a setup line; true per f19/f20/f52. Protection-before-news line follows from f2."
+  },
+  "q06": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "VIX: forward 30-day, no direction, built from SPX options (f35/f39/f40). Good closing judgment."
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "IV crush named; Calendar page Impl. Move column exists in the app (CalendarWidget, also taught in F5.04/F5.05)."
+  },
+  "q08": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "False, worked through IV and time (f3/f21/f55)."
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'the most vega on the chain' is wrong, longer expiries carry more vega (f53), so it is 'the most vega of any strike in that expiry'. Also cut the loose 'most premium rides on the expected move' line. Was 3.5."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Kept: 'Multiply, don't add' is arithmetic. 0.12 x 4 = 0.48, right. Voice 5."
+  },
+  "q11": {
+   "status": "cut",
+   "notes": "duplicate of F6.08#q01. Track audit 2026-11-09: Same fact and misconception (IV is a yearly figure, not the move to expiry); the F6.06 checker had already noted the overlap. F6.08 owns the annualising and builds on it. The checker had passed it (its note is kept under 'prior'); the question stays in the file as the record.",
+   "fixed": false,
+   "by": "auditor",
+   "prior": {
+    "status": "pass",
+    "notes": "All 20 sources re-fetched 2026-11-09 by my own plain client (73/73 quotes found, read in context); Investopedia iv.asp refused my client today (403/402), so its quotes were read in context in the quote checker's 200 copy fetched 2026-11-09 00:38. f49 (Schwab), f59 (Investopedia), f65 (Fidelity) and f18 (OIC) all say IV is annualized. False is right on any expiry. Sibling F6.08 q01 asks the same fact as an MCQ (different skill); noted for the owner.",
+    "fixed": false,
+    "by": "checker"
+   }
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "0.08 x 15 = 1.20, x 100 = 120 recomputed; Fidelity kept in deeper only."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "True; the stem keeps the stock still, the why says nothing else changed (f5/f63/f66)."
+  },
+  "q14": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'That's one reason we don't make new buys in the 3 days before a report' gave his rule a reason he never stated (B22 is about all new buys, not the crush). Now states the rule and what it keeps you out of. Buddy framing keeps rule 15. Was 4."
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Covered call buy-back cost rises with IV (f25); good line on high IV helping only at the sale."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "(50-20)/(60-20) = 30/40 = 0.75 = 75% recomputed; wrongs 50/60, 50/40, 50/20 check out. Steps shown."
+  },
+  "q17": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "4.40 + 0.50x3 - 0.05x40 = 4.40 + 1.50 - 2.00 = 3.90 recomputed; friend's trade (rule 15); Greeks-as-estimate kept (f75)."
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Stock A/B now ZQRT/ZVLT (rule 7); rich vs cheap judged against own history (f73/f74)."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "More vega on the one-year call (f7/f8), decay trade-off (f23). Good closing line."
+  },
+  "q20": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'With a smaller move, that same crush turns the trade into a loser' overstates it; only a move worth less than the $1.18 crush makes it a loss. Now 'could have'. 94.38-33.23 = 61.15, x 0.0193 = 1.18; 2.77-1.88 = 0.89 recomputed."
+  },
+  "q21": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Rule 15: the stem put the member holding puts through a report, the one trade the writer moved to a friend everywhere else (we hold through a report only when up 5R). Now a buddy's trade, with a fresh stem opening. Answer stays False (f26/f47/f52)."
+  },
+  "q22": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice was 3 (stamped 'That's the long-run pattern' textbook lines). Rewritten as a mentor would say it, same facts (f31/f32/f36)."
+  },
+  "q23": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Best of the lesson: verdict, the reason, 'I'd tell him to pass', our 3-day rule (h02) and where the priced move lives in the app."
+  },
+  "q24": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Cboe finding stated as a tendency, not a ceiling (f33/f37/f38). Cboe is the source of the fact the question tests, not a book author."
+  },
+  "q25": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Truth: 'That's one more reason we trade shares' invented a reason for his rule A6. Now states the rule as written (h03) and what it means here."
+  }
+ }
+}

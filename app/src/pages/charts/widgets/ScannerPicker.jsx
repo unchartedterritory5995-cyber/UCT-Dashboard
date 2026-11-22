@@ -137,7 +137,7 @@ export default function ScannerPicker({ onPick, settingsOverride = null, onSetti
                 <span>{g.label}</span>
                 <span className={styles.catCount}>{g.scans.length} {g.scans.length === 1 ? 'scan' : 'scans'}</span>
               </div>
-              <div className={styles.scanList}>
+              <div className={styles.scanList} data-guide="scanner.list">
                 {g.scans.map(s => (
                   <button key={s.key} type="button" className={styles.row} onClick={() => onPick?.({ key: s.key, name: s.name })}>
                     <span className={styles.rowIcon}><UIcon name="search" size={13} gold={false} /></span>

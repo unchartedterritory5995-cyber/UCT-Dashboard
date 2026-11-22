@@ -1,3 +1,4 @@
+// S7 (audit 2026-11-05, one vocabulary): the note menu's "Delete" reads "Move to Trash" (and its question "Move this note to Trash?"), the sidebar's word; the rails below follow the new words.
 /**
  * Wave 6 item 11 — Delete on a note that still holds unsent words.
  *
@@ -96,9 +97,9 @@ const typeUnsentWords = (editor) => act(() => {
 })
 const confirmDelete = async () => {
   openMoreNoteActions()
-  fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-  const modal = await screen.findByRole('dialog', { name: 'Delete this note?' })
-  fireEvent.click(within(modal).getByRole('button', { name: 'Delete' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Move to Trash' }))
+  const modal = await screen.findByRole('dialog', { name: 'Move this note to Trash?' })
+  fireEvent.click(within(modal).getByRole('button', { name: 'Move to Trash' }))
 }
 
 describe('Delete with unsent words (the 404 path)', () => {

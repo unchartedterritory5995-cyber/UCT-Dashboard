@@ -1,0 +1,24 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "services/pine_runtime/Dockerfile",
+    "watchPatterns": [
+      "services/pine_runtime/**",
+      "app/src/components/chart/engine/**",
+      "app/src/lib/marketClock/**",
+      "app/src/components/chart/indicators.js",
+      "app/src/components/chart/timeframes.js",
+      "app/src/components/chart/builder/authoring/crossContext.json",
+      "app/package*.json",
+      "app/vite.config.js",
+      "app/scripts/build-pine-runtime.mjs",
+      "tools/pine_runtime_host_parity.mjs"
+    ]
+  },
+  "deploy": {
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 60,
+    "restartPolicyType": "ALWAYS"
+  }
+}

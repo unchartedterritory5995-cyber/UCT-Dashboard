@@ -14,6 +14,8 @@ import AskPanel from './AskPanel'
 import DocumentPreviewSheet from './DocumentPreviewSheet'
 import CapturedSourceSheet from './CapturedSourceSheet'
 import { SaveTranscriptButton } from './TranscriptDoors'
+import { ImportTweetButton } from './TweetDoors'
+import { tweetImportEnabled } from '../../lib/tweetImport'
 import { SkeletonLine } from '../../../../components/Skeleton'
 import styles from './TickerResearchWorkspace.module.css'
 
@@ -167,7 +169,7 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
   }
   if (isLoading || !summary) {
     // G-106 (Wave B lower-frequency sweep): same skeleton idiom as
-    // ResearchHome's own loading state -- a title-shaped line, then a
+    // Research Home's old loading state -- a title-shaped line, then a
     // couple of body-shaped lines -- rather than bare text.
     return (
       <div className={styles.loading} role="status" aria-label="Loading…">
@@ -232,13 +234,21 @@ export default function TickerResearchWorkspace({ symbol, onOpenNote, showBackLi
               cited excerpt. Renders nothing while notebook_transcript_capture_enabled is off. */}
           <SaveTranscriptButton symbol={identity.symbol} notes={[...activeTheses, ...notes]}
             onSaved={refresh} onOpenNote={openNote} disabled={creating} />
+          {/* Import a tweet: gold-outlined, right after transcripts. Renders nothing while
+              notebook_tweet_import_enabled is off. */}
+          <ImportTweetButton symbol={identity.symbol} notes={[...activeTheses, ...notes]}
+            onSaved={refresh} onOpenNote={openNote} disabled={creating} />
         </div>
       </div>
 
       {isEmpty ? (
         <div className={styles.empty}>
           <p>No research on {identity.symbol} yet.</p>
-          <p className={styles.emptyHint}>Start a note or a thesis — it'll show up here automatically.</p>
+          <p className={styles.emptyHint}>
+            {tweetImportEnabled()
+              ? "Start a note or a thesis, or bring in a tweet. It'll show up here automatically."
+              : "Start a note or a thesis — it'll show up here automatically."}
+          </p>
         </div>
       ) : (
         <>

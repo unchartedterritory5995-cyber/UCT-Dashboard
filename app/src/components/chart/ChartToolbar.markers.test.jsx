@@ -29,6 +29,7 @@ const TOOLBAR_LABEL = {
   Dividends: 'Dividends',
   News: 'News markers',
   'Desk mentions': 'Desk mentions',
+  'Next earnings date': 'Next earnings date',   // (11-16) top-level `nextEarningsMarker`, not cs.markers.*
 }
 
 const mount = (onUpdateSettings, initial = mergeChartSettings(JSON.stringify({}))) => {
@@ -57,7 +58,8 @@ describe('ChartToolbar — the inline panel\'s marker checkboxes', () => {
     // and not the other, which is the defect the review found.
     render(<ChartSettingsModal open settings={mergeChartSettings(JSON.stringify({}))} onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('tab', { name: 'Markers' }))
-    const section = screen.getByText('Event markers').parentElement
+    // owner 11-15: the modal's section is titled "Events" now
+    const section = screen.getByText('Events').parentElement
     const modalLabels = within(section).getAllByRole('switch').map(s => s.getAttribute('aria-label'))
     expect(modalLabels.length).toBeGreaterThanOrEqual(5)   // the extraction found rows
     expect(modalLabels).toContain('Desk mentions')         // …including the new one
@@ -69,6 +71,56 @@ describe('ChartToolbar — the inline panel\'s marker checkboxes', () => {
       expect(mapped, `the modal offers "${label}" but no toolbar label is mapped for it`).toBeTruthy()
       expect(box(mapped), `"${label}" is missing from the toolbar's marker panel`).toBeTruthy()
     }
+  })
+
+  it('Price alerts is unchecked by default and writes the top-level priceAlertLines, not cs.markers', () => {
+    const onChange = vi.fn()
+    mount(onChange)
+    const cb = box('Price alerts')
+    expect(cb.checked).toBe(false)
+    fireEvent.click(cb)
+    expect(lastCall(onChange).priceAlertLines).toBe(true)
+    expect(lastCall(onChange).preset).toBe('custom')
+    expect('priceAlertLines' in lastCall(onChange).markers).toBe(false)
+    fireEvent.click(box('Price alerts'))
+    expect(lastCall(onChange).priceAlertLines).toBe(false)
+  })
+
+  it('Price alerts: the Your activity switch in the modal has its toolbar twin', () => {
+    render(<ChartSettingsModal open settings={mergeChartSettings(JSON.stringify({}))} onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Markers' }))
+    const section = screen.getByText('Your activity').parentElement
+    const modalLabels = within(section).getAllByRole('switch').map(s => s.getAttribute('aria-label'))
+    expect(modalLabels).toEqual(['My trades', 'Price alerts'])
+    cleanup()
+    mount(vi.fn())
+    for (const l of modalLabels) expect(box(l), l).toBeTruthy()
+  })
+
+  it('My trades is unchecked by default and writes the top-level myTradeMarkers, not cs.markers', () => {
+    const onChange = vi.fn()
+    mount(onChange)
+    const cb = box('My trades')
+    expect(cb.checked).toBe(false)
+    fireEvent.click(cb)
+    expect(lastCall(onChange).myTradeMarkers).toBe(true)
+    expect(lastCall(onChange).preset).toBe('custom')
+    expect('myTradeMarkers' in lastCall(onChange).markers).toBe(false)
+    fireEvent.click(box('My trades'))
+    expect(lastCall(onChange).myTradeMarkers).toBe(false)
+  })
+
+  it('Next earnings date is unchecked by default and writes the top-level nextEarningsMarker, not cs.markers', () => {
+    const onChange = vi.fn()
+    mount(onChange)
+    const cb = box('Next earnings date')
+    expect(cb.checked).toBe(false)
+    fireEvent.click(cb)
+    expect(lastCall(onChange).nextEarningsMarker).toBe(true)
+    expect(lastCall(onChange).preset).toBe('custom')
+    expect('nextEarningsMarker' in lastCall(onChange).markers).toBe(false)
+    fireEvent.click(box('Next earnings date'))
+    expect(lastCall(onChange).nextEarningsMarker).toBe(false)
   })
 
   it('Desk mentions is unchecked by default and writes markers.desk without disturbing siblings', () => {

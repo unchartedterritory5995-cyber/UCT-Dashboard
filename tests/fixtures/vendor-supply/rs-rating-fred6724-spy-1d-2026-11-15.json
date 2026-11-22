@@ -1,0 +1,299 @@
+{
+ "schema": "uct.harness-supply/v1",
+ "capture": "rs-rating-fred6724-spy-1d-2026-11-15",
+ "why": "RS RATING L8 (docs/pine/RS-RATING-TRANSFER.md): the bars OUR SERVER serves for this capture's other symbols, recorded beside it, so the grade runs on the real supply (never on TradingView's own SPX, which would be circular). Read by app/src/components/chart/engine/__tests__/vendorHarness/ourSide.js::recordedSupplyOf. RS RATING L9: index bars are kept OUT of git (`rows` manifest); the L8 record's yfinance ^GSPC rows were removed from this file (they remain in history at bce0de1ecb).",
+ "other": {
+  "SPX": {
+   "notRecorded": "not graded, by owner ruling 2026-11-15 (\"Leave spy blank imo\"). The served SPX source (FMP) is recorded since L9 (local supply store, out of git), but this capture is deliberately not supplied, so no verdict implies a pass or a fail for it. Before the ruling, the L5 builder's probe on the yfinance fallback read a rating of 63 where TradingView draws 64.",
+   "primaryRecorded": true
+  },
+  "SEED_FRED6725_RS_RATING:RSRATING": {
+   "servedBy": "api/services/pine_seed_store.py::build_bars (the /api/bars seed door)",
+   "source": "pine_seed_store's replay of Fred6725/rs-log output/RSRATING.csv (812 uploads applied oldest first, each non-empty upload replacing the series; newest upload 64440c2a0187a53f8f9da3b6f6563306d97482af, 2026-11-11T03:04:36Z), read back through build_bars",
+   "primaryRecorded": true,
+   "recordedAtUTC": "2026-11-15T01:16:00Z",
+   "bars": [
+    {
+     "t": "2026-10-07",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 199.57,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-08",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 199.57,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-09",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 199.57,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-10",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 199.57,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-11",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 199.57,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-12",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 125.0,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-13",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 125.0,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-14",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 125.0,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-15",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 125.0,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-16",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 125.0,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-17",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 102.85,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-18",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 102.85,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-19",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 102.85,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-20",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 102.85,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-21",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 102.85,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-22",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 94.28,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-23",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 94.28,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-24",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 94.28,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-25",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 94.28,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-26",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 94.28,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-27",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 78.22,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-28",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 78.22,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-29",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 78.22,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-30",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 78.22,
+     "v": 0.0
+    },
+    {
+     "t": "2026-10-31",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 78.22,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-01",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 42.44,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-02",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 42.44,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-03",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 42.44,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-04",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 42.44,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-05",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 42.44,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-06",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 12.5,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-07",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 12.5,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-08",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 12.5,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-09",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 12.5,
+     "v": 0.0
+    },
+    {
+     "t": "2026-11-10",
+     "o": 0.0,
+     "h": 1000.0,
+     "l": 0.0,
+     "c": 12.5,
+     "v": 0.0
+    }
+   ]
+  }
+ }
+}

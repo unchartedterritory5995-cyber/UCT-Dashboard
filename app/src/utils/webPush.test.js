@@ -106,6 +106,10 @@ describe('pushSupport — secure context is checked, never inferred', () => {
     expect(pushSupport(full({ isSecureContext: false }))).toEqual({ ok: false, reason: 'insecure' })
     expect(pushSupport(full({ isSecureContext: undefined })).reason).toBe('insecure')
   })
+  it('the desktop shell is named first, even when everything else is present', () => {
+    expect(pushSupport(full({ uctDesktop: {} }))).toEqual({ ok: false, reason: 'desktop-shell' })
+    expect(pushSupport(full({ uctDesktop: {}, isSecureContext: false })).reason).toBe('desktop-shell')
+  })
   it('missing APIs name the reason', () => {
     expect(pushSupport(full({ navigator: {} })).reason).toBe('no-service-worker')
     const noPush = full(); delete noPush.PushManager

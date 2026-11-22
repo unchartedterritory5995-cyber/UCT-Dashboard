@@ -1,0 +1,6 @@
+//@version=5
+indicator("hp dmi", overlay=false)
+[dp, dm, adx] = ta.dmi(14, 14)
+plot(dp, "diplus")
+plot(dm, "diminus")
+plot(adx, "adx")

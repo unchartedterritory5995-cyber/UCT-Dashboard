@@ -177,9 +177,11 @@ describe('typed arrays in the runtime lane', () => {
     })
   })
 
-  it('CONTROL: matrix.new is refused BY NAME', () => {
-    const r = refusalOf('m = matrix.new<float>(2, 2, 0.0)\nplot(matrix.rows(m))\n')
-    expect(r.message).toMatch(/matrix\.new/)
+  // ⭐ W6-T7 serves `matrix.new` / `matrix.rows` (`w6Matrix.test.js`); the control is a
+  // `matrix.*` member the lane still does not hold.
+  it('CONTROL: an unserved matrix member (matrix.det) is refused BY NAME', () => {
+    const r = refusalOf('m = matrix.new<float>(2, 2, 0.0)\nplot(matrix.det(m))\n')
+    expect(r.message).toMatch(/matrix\.det/)
   })
 
   it('array.new<T>(size) with NO initial value is served for int and float…', () => {

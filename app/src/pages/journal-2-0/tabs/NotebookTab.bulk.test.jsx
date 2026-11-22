@@ -49,7 +49,6 @@ vi.mock('../components/notebook/NoteBoardView', () => ({ default: () => <div dat
 vi.mock('../components/notebook/NoteGraphView', () => ({ default: () => <div data-testid="note-graph" /> }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({ default: () => null }))
 vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({ default: () => null }))
-vi.mock('../components/notebook/ResearchHome', () => ({ default: () => <div data-testid="research-home" /> }))
 // R23-N6: the hub's own answer to "could the joystick be in the corner here?"
 let hubEligible = false
 vi.mock('../../../hub/useHubActive', async (importOriginal) => ({
@@ -91,6 +90,12 @@ import { __resetNotebookFlags } from '../lib/offline/notebookFlags'
 import { installKeyRange } from '../lib/offline/__fixtures__/fakeIndexedDb'
 import { BOTTOM_OFFSET_PX, PAD_PX } from '../../../hub/constants'
 import { MQ } from '../../../styles/breakpoints'
+import { chooseView } from './__tests__/toolbarDoors'
+import { preloadLazyChunks, NOTEBOOK_TAB_CHUNKS } from '../../../testing/lazyChunks'
+
+// ⛔ The lazily loaded code these tests wait on is loaded first, with its own allowance (src/testing/lazyChunks.js):
+// a first wait that raced a cold module load went red on saturated CI runners, for no fault of the feature.
+preloadLazyChunks(NOTEBOOK_TAB_CHUNKS)
 
 /** Turn the offline wave on with a store holding unsent work for `queued`;
  *  a note in `unreadable` fails its own read (R1-S1: it cannot be checked). */
@@ -271,7 +276,7 @@ describe('NotebookTab — selecting notes', () => {
     renderTab()
     expect(box('First note')).toBeInTheDocument()
     expect(box('Third note')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /board view/i }))
+    chooseView('Board')
     expect(screen.queryAllByRole('checkbox')).toHaveLength(0)
   })
 
@@ -401,10 +406,12 @@ describe('NotebookTab — selecting notes', () => {
     expect(toolbar()).toBeNull()
   })
 
-  it('the table view selects too, with a select-all header', () => {
+  // Tier 1a bytes: the table view mode is fetched on its first use (lazyView), so its header is awaited.
+  it('the table view selects too, with a select-all header', async () => {
     renderTab()
-    fireEvent.click(screen.getByRole('button', { name: /table view/i }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all notes in view' }))
+    chooseView('Table')
+    // master: the table is lazy now, so its select-all box arrives after the chunk loads
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Select all notes in view' }))
     expect(within(toolbar()).getByText('3 selected')).toBeInTheDocument()
   })
 
@@ -480,6 +487,10 @@ describe('NotebookTab — selecting notes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add tag' }))
     fireEvent.keyDown(window, { key: 'b', code: 'KeyB', ctrlKey: true, altKey: true })
     expect(document.activeElement).toBe(screen.getByRole('combobox', { name: 'Folder to move the selected notes to' }))
+    // ⛔ THE TAG WRITE ENDS IN THIS TEST (2026-11-20): it settles its revision (`recordLandedRevision`) when the
+    // batch answers. Left in flight, that settle landed inside the NEXT async test, after its beforeEach had
+    // cleared the mocks, and "move: ... every advanced revision LANDED" read a third, leaked row on a slow runner.
+    expect(await screen.findByText('Tagged 1 note #swing.')).toBeInTheDocument()
   })
 
   it('the shortcut does nothing without a selection (nothing to jump to)', () => {

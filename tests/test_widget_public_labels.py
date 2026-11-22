@@ -42,7 +42,6 @@ OWN_IMAGE = f"/api/j2/notes/attachments/{OWNER}/{NOTE}/inline/widget-embed.png"
 def _fresh_state(monkeypatch):
     monkeypatch.setattr(nw, "_POOL", nw.BoundedPool(nw.WIDGET_POOL_WORKERS, "nb-walkfix-test",
                                                     reserve=nw.WIDGET_POOL_RESERVE))
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")      # the notes source reads kinds
     wrun._reset_state()
     yield
     wrun._reset_state()
@@ -178,7 +177,7 @@ def test_folder_tag_and_kind_splits_are_numbered_on_a_public_page(conn):
     add_n(conn, UID, folder=a, tags=["TAG-CANARY-revenge"], kind=k)
     add_n(conn, UID, folder=b, tags=["TAG-CANARY-calm"])
     for split, word, canary in ((("folder", None), "Folder", "FOLDER-CANARY"), (("tag", None), "Tag", "TAG-CANARY"),
-                                (("kind", None), "Note kind", "KIND-CANARY"),
+                                (("kind", None), "Note type", "KIND-CANARY"),
                                 (("folder", "tag"), "Folder", "CANARY")):
         sp = {"by": split[0], **({"then": split[1]} if split[1] else {})}
         out = run_out(raw(split=sp, view={"type": "table"}))

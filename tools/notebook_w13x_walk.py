@@ -131,16 +131,11 @@ MEMBER = ("w13x@local.dev", "LocalTest2026!", "w13x")
 PORTS = range(8695, 8700)
 REQUIRED = [h.PRE_BOOT, h.POST_BOOT, h.PREWARM, h.SHUTDOWN]
 
-# Every wave-13 flag this lane arms at once, plus the already-armed wave-11 trio. Verified
-# against api/routers/auth.py NOTEBOOK_FLAGS 2026-10-03 -- every name below is a literal key in
-# that dict. The payload key is the one derivation every lane's own comment names: lowercase.
+# The wave-13/11 flags this lane arms, each a literal key of api/routers/auth.py NOTEBOOK_FLAGS. The
+# payload key is the one derivation every lane's own comment names: lowercase. (The other wave-13 lanes,
+# the trade canvas and formulas were retired as always on, 2026-11-04: their keys always read True.)
 FLAGS = [
-    "NOTEBOOK_PLAN_GRADING_ENABLED", "NOTEBOOK_ENTRY_CONTEXT_ENABLED", "NOTEBOOK_EARNINGS_PREP_ENABLED",
-    "NOTEBOOK_CHART_PLAN_ENABLED", "NOTEBOOK_TA_FINGERPRINT_ENABLED", "NOTEBOOK_VISUAL_PLAYBOOK_ENABLED",
-    "NOTEBOOK_PLAYBOOK_ENABLED", "NOTEBOOK_THESIS_CHIPS_ENABLED", "NOTEBOOK_TRANSCRIPT_CAPTURE_ENABLED",
-    "NOTEBOOK_PASSED_SETUPS_ENABLED", "NOTEBOOK_SETUPS_BOARD_ENABLED", "NOTEBOOK_FIND_SIMILAR_ENABLED",
-    "NOTEBOOK_REVIEW_DRAFTS_ENABLED", "AWARENESS_NOTE_RESURFACE_ENABLED",
-    "NOTEBOOK_TRADE_CANVAS_ENABLED", "NOTEBOOK_AI_ACTIONS_ENABLED", "NOTEBOOK_FORMULAS_ENABLED",
+    "AWARENESS_NOTE_RESURFACE_ENABLED", "NOTEBOOK_AI_ACTIONS_ENABLED",
 ]
 PAYLOAD_KEYS = {f: f.lower() for f in FLAGS}
 CAL_FILE = "w13x-sandbox-calendar.json"

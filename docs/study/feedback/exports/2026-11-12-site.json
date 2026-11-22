@@ -1,0 +1,112 @@
+{
+ "feedback": [
+  {
+   "id": 1,
+   "at": "2026-10-24T19:23:27+00:00",
+   "screen": "question",
+   "kind": "visuals",
+   "item_id": "",
+   "context": {
+    "item_id": "si_9d442ebbc314",
+    "question": 2,
+    "skill_id": "size.formula",
+    "type": "size"
+   },
+   "text": "For ones like this we should have a calculator pop up on the screen or position size calculator for us to do the math in and input the information in order to find the answer",
+   "role": "owner",
+   "channel": "site",
+   "verdict": null,
+   "handled_at": null
+  },
+  {
+   "id": 2,
+   "at": "2026-10-24",
+   "screen": null,
+   "kind": "other",
+   "item_id": "si_5cfd7146dbe1",
+   "context": null,
+   "text": "great example but when the chart transitions it is hard to see where we are looking from. I want the chart more animated to show the spots and highlight the area or candles in question",
+   "role": "owner",
+   "channel": "site",
+   "verdict": null,
+   "handled_at": null
+  },
+  {
+   "id": 3,
+   "at": "2026-10-24",
+   "screen": null,
+   "kind": "unclear_question",
+   "item_id": "si_ff54fa2fbd6c",
+   "context": null,
+   "text": "never heard of a homing pidgeon hahaha",
+   "role": "owner",
+   "channel": "site",
+   "verdict": null,
+   "handled_at": null
+  },
+  {
+   "id": 4,
+   "at": "2026-10-24",
+   "screen": null,
+   "kind": "bad_chart",
+   "item_id": "si_da629236c3be",
+   "context": null,
+   "text": "The visual and the transition make it very difficult to see where i should be focused on and the chart is far too compressed.",
+   "role": "owner",
+   "channel": "site",
+   "verdict": null,
+   "handled_at": null
+  },
+  {
+   "id": 5,
+   "at": "2026-11-05T02:14:31+00:00",
+   "screen": "landing",
+   "kind": "learning",
+   "item_id": "",
+   "context": null,
+   "text": "On the ansers and descriptions, I want the teaching to have significantly more value on right and wrong answers. I want chart examples, and a lot of them that we can verify together. I want CLIPS/RECORDINGS from all our library of video content and if there is a message or clip where I or anyone talks about a kicker candle or talks about stop losses or whatever the topic is that the wquestion pertains to then i want you to reference that teaching moment. Can use discord mesages, screenshots, zoom transcripts, videos, anything at our disposal in our library of intelligence and access to information and answers about how to trade and how someone can get an answer to that quesiton.",
+   "role": "owner",
+   "channel": "site",
+   "verdict": null,
+   "handled_at": null
+  },
+  {
+   "id": 6,
+   "at": "2026-11-13T02:09:45+00:00",
+   "screen": "reveal",
+   "kind": "interaction",
+   "item_id": "",
+   "context": {
+    "item_id": "si_9d442ebbc314",
+    "question": 2,
+    "skill_id": "size.formula",
+    "type": "size"
+   },
+   "text": "Risk/Stop is too qide so the question is invalid, also i think we should make these ones multiple choice",
+   "role": "owner",
+   "channel": "site",
+   "verdict": null,
+   "handled_at": null
+  },
+  {
+   "id": 7,
+   "at": "2026-11-13T02:10:51+00:00",
+   "screen": "reveal",
+   "kind": "layout",
+   "item_id": "",
+   "context": {
+    "item_id": "si_74d5fccd2c5b",
+    "question": 3,
+    "skill_id": "vocab.candle",
+    "type": "recall"
+   },
+   "text": "I think for all of these we can remove the \"THE READ ON THIS CHART\" and all that data there. Ultimately I think that is just nosiey. Also the chart layout should take up most of the screen vs just a tiny portion",
+   "role": "owner",
+   "channel": "site",
+   "verdict": null,
+   "handled_at": null
+  }
+ ],
+ "next_since_id": 7,
+ "note": "transcribed from GET /api/study/admin/feedback/export on 2026-11-12 (owner's own notes; no member data)"
+}

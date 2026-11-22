@@ -516,3 +516,117 @@
     min-width: var(--tap-min);
   }
 }
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      the chart widget's style. Tabs are plain normal-case text, the active one white with a
+      short gold bar on the hairline; "New" is a quiet text button; search is a soft field. ── */
+:global(.uct-frame) .tabBar { gap: 2px; padding: 0 8px; min-height: 34px; align-items: stretch; }
+:global(.uct-frame) .tabBar > .tabSpacer + *,
+:global(.uct-frame) .tabBar > .newAction,
+:global(.uct-frame) .tabBar > .gearBtn { align-self: center; }
+:global(.uct-frame) .tabFlat {
+  position: relative;
+  padding: 0 8px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--widget-text, var(--wl-text, var(--text-muted, #cfcac0)));
+}
+:global(.uct-frame) .tabFlat:hover { background: none; color: var(--widget-text-strong, var(--wl-sym, var(--text-bright, #f8f7f3))); }
+:global(.uct-frame) .tabFlatActive,
+:global(.uct-frame) .tabFlatActive:hover {
+  color: var(--widget-text-strong, var(--wl-sym, var(--text-bright, #f8f7f3)));
+  font-weight: 700;
+  background: none;
+}
+:global(.uct-frame) .tabFlatActive::after {
+  content: '';
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--widget-accent, var(--accent, #dcbb5e));
+}
+:global(.uct-frame) .newAction {
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--widget-text-strong, var(--wl-text-strong, var(--text-bright, #f8f7f3)));
+}
+:global(.uct-frame) .newAction:hover:not(:disabled) {
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: var(--widget-row-hover, rgba(255, 255, 255, 0.07));
+}
+:global(.uct-frame) .newHint { font-size: 9px; letter-spacing: 0.3px; text-transform: none; }
+:global(.uct-frame) .gearBtn { width: 24px; height: 22px; padding: 0; border-radius: 6px; color: var(--widget-text, var(--wl-text, #cfcac0)); }
+:global(.uct-frame) .gearBtn:hover,
+:global(.uct-frame) .gearBtnActive { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .searchRow { padding: 8px 10px; border-bottom: none; }
+:global(.uct-frame) .searchBox {
+  padding: 7px 11px;
+  border-radius: 8px;
+  border-color: transparent;
+  font-size: 12.5px;
+  background: color-mix(in srgb, var(--widget-text, #cfcac0) 8%, transparent);
+}
+:global(.uct-frame) .searchBox:focus {
+  border-color: color-mix(in srgb, var(--widget-accent, var(--accent, #dcbb5e)) 32%, transparent);
+  background: color-mix(in srgb, var(--widget-text, #cfcac0) 10%, transparent);
+}
+:global(.uct-frame) .section {
+  padding: 12px 12px 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+}
+/* Category cards: a quiet normal-case title over the rows (no gold edge, no band). */
+:global(.uct-frame) .catGroup { border-radius: 10px; border-color: color-mix(in srgb, var(--wl-divider, var(--border, #1f2937)) 80%, transparent); }
+:global(.uct-frame) .catHeader {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--widget-text-strong, var(--wl-text-strong, var(--text-bright, #f8f7f3)));
+  padding: 9px 12px;
+  background: transparent;
+  box-shadow: none;
+}
+:global(.uct-frame) .catIcon { color: var(--widget-text, var(--text-muted, #cfcac0)); }
+:global(.uct-frame) .catCount { font-size: 11px; opacity: 1; color: var(--widget-text, var(--text-muted, #cfcac0)); }
+/* Search field (owner 11-13): crisp site grey text + placeholder, a magnifying glass inside. */
+.searchGlyph { display: none; }
+:global(.uct-frame) .searchRow { position: relative; }
+:global(.uct-frame) .searchGlyph {
+  position: absolute;
+  left: 21px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  pointer-events: none;
+  color: var(--widget-text, var(--text-muted, #cfcac0));
+  opacity: 0.8;
+}
+:global(.uct-frame) .searchGlyph svg,
+:global(.uct-frame) .searchGlyph svg * { stroke: currentColor !important; filter: none !important; }
+:global(.uct-frame) .searchBox {
+  padding-left: 32px;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+}
+:global(.uct-frame) .searchBox::placeholder { color: var(--widget-text, var(--text-muted, #cfcac0)); opacity: 0.85; }
+:global(.uct-frame) .searchBox:focus {
+  border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 22%, transparent);
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+}

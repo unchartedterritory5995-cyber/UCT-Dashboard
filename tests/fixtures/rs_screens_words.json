@@ -1,0 +1,8093 @@
+{
+ "about": "Written by tests/test_rs_screens_u11_words.py (UPDATE_RS_SCREENS_GOLDEN=1 rewrites): what api/services/screener/rs_words.py says for each row. Read by app/src/pages/screener/focus/__tests__/rsServerWords.test.js, which runs rsRows.js on the same rows and must read the same words.",
+ "cases": [
+  {
+   "name": "setup below_50 tight None",
+   "row": {
+    "rs_setup": "below_50",
+    "rs_tight": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Below its 50-day line",
+    "tag": "",
+    "setup": "Below its 50-day line",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup below_50 tight 0",
+   "row": {
+    "rs_setup": "below_50",
+    "rs_tight": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Below its 50-day line",
+    "tag": "",
+    "setup": "Below its 50-day line",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup below_50 tight 1",
+   "row": {
+    "rs_setup": "below_50",
+    "rs_tight": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Below its 50-day line",
+    "tag": "",
+    "setup": "Below its 50-day line",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup below_50 tight True",
+   "row": {
+    "rs_setup": "below_50",
+    "rs_tight": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Below its 50-day line",
+    "tag": "",
+    "setup": "Below its 50-day line",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup extended tight None",
+   "row": {
+    "rs_setup": "extended",
+    "rs_tight": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Extended",
+    "tag": "",
+    "setup": "Extended",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup extended tight 0",
+   "row": {
+    "rs_setup": "extended",
+    "rs_tight": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Extended",
+    "tag": "",
+    "setup": "Extended",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup extended tight 1",
+   "row": {
+    "rs_setup": "extended",
+    "rs_tight": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Extended",
+    "tag": "",
+    "setup": "Extended",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup extended tight True",
+   "row": {
+    "rs_setup": "extended",
+    "rs_tight": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Extended",
+    "tag": "",
+    "setup": "Extended",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup at_pivot tight None",
+   "row": {
+    "rs_setup": "at_pivot",
+    "rs_tight": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "At pivot",
+    "tag": "",
+    "setup": "At pivot",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup at_pivot tight 0",
+   "row": {
+    "rs_setup": "at_pivot",
+    "rs_tight": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "At pivot",
+    "tag": "",
+    "setup": "At pivot",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup at_pivot tight 1",
+   "row": {
+    "rs_setup": "at_pivot",
+    "rs_tight": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "At pivot, tight range",
+    "tag": "",
+    "setup": "At pivot, tight range",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup at_pivot tight True",
+   "row": {
+    "rs_setup": "at_pivot",
+    "rs_tight": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "At pivot",
+    "tag": "",
+    "setup": "At pivot",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup pullback_8 tight None",
+   "row": {
+    "rs_setup": "pullback_8",
+    "rs_tight": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Pullback to the 8-day",
+    "tag": "",
+    "setup": "Pullback to the 8-day",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup pullback_8 tight 0",
+   "row": {
+    "rs_setup": "pullback_8",
+    "rs_tight": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Pullback to the 8-day",
+    "tag": "",
+    "setup": "Pullback to the 8-day",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup pullback_8 tight 1",
+   "row": {
+    "rs_setup": "pullback_8",
+    "rs_tight": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Pullback to the 8-day, tight range",
+    "tag": "",
+    "setup": "Pullback to the 8-day, tight range",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup pullback_8 tight True",
+   "row": {
+    "rs_setup": "pullback_8",
+    "rs_tight": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Pullback to the 8-day",
+    "tag": "",
+    "setup": "Pullback to the 8-day",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup pullback_21 tight None",
+   "row": {
+    "rs_setup": "pullback_21",
+    "rs_tight": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Pullback to the 21-day",
+    "tag": "",
+    "setup": "Pullback to the 21-day",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup pullback_21 tight 0",
+   "row": {
+    "rs_setup": "pullback_21",
+    "rs_tight": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Pullback to the 21-day",
+    "tag": "",
+    "setup": "Pullback to the 21-day",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup pullback_21 tight 1",
+   "row": {
+    "rs_setup": "pullback_21",
+    "rs_tight": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Pullback to the 21-day, tight range",
+    "tag": "",
+    "setup": "Pullback to the 21-day, tight range",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup pullback_21 tight True",
+   "row": {
+    "rs_setup": "pullback_21",
+    "rs_tight": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Pullback to the 21-day",
+    "tag": "",
+    "setup": "Pullback to the 21-day",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup uptrend tight None",
+   "row": {
+    "rs_setup": "uptrend",
+    "rs_tight": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Uptrend, no setup",
+    "tag": "",
+    "setup": "Uptrend, no setup",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup uptrend tight 0",
+   "row": {
+    "rs_setup": "uptrend",
+    "rs_tight": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Uptrend, no setup",
+    "tag": "",
+    "setup": "Uptrend, no setup",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup uptrend tight 1",
+   "row": {
+    "rs_setup": "uptrend",
+    "rs_tight": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Tight range",
+    "tag": "",
+    "setup": "Tight range",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup uptrend tight True",
+   "row": {
+    "rs_setup": "uptrend",
+    "rs_tight": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Uptrend, no setup",
+    "tag": "",
+    "setup": "Uptrend, no setup",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup not_a_setup tight None",
+   "row": {
+    "rs_setup": "not_a_setup",
+    "rs_tight": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup not_a_setup tight 0",
+   "row": {
+    "rs_setup": "not_a_setup",
+    "rs_tight": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup not_a_setup tight 1",
+   "row": {
+    "rs_setup": "not_a_setup",
+    "rs_tight": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup not_a_setup tight True",
+   "row": {
+    "rs_setup": "not_a_setup",
+    "rs_tight": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup None tight None",
+   "row": {
+    "rs_setup": null,
+    "rs_tight": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup None tight 0",
+   "row": {
+    "rs_setup": null,
+    "rs_tight": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup None tight 1",
+   "row": {
+    "rs_setup": null,
+    "rs_tight": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "setup None tight True",
+   "row": {
+    "rs_setup": null,
+    "rs_tight": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "flag buyout_pending",
+   "row": {
+    "rs_flag": "buyout_pending"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Buyout pending",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "flag one_day_move",
+   "row": {
+    "rs_flag": "one_day_move"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "One-day move",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "flag new_issue",
+   "row": {
+    "rs_flag": "new_issue"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "New issue",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "flag not_a_flag",
+   "row": {
+    "rs_flag": "not_a_flag"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "flag None",
+   "row": {
+    "rs_flag": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age 0",
+   "row": {
+    "rs_nh_bars_ago": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high today",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age 1",
+   "row": {
+    "rs_nh_bars_ago": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high yesterday",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age 2",
+   "row": {
+    "rs_nh_bars_ago": 2
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high 2 sessions ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age 4",
+   "row": {
+    "rs_nh_bars_ago": 4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high 4 sessions ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age 1500",
+   "row": {
+    "rs_nh_bars_ago": 1500
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high 1,500 sessions ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age -1",
+   "row": {
+    "rs_nh_bars_ago": -1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age None",
+   "row": {
+    "rs_nh_bars_ago": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age '3'",
+   "row": {
+    "rs_nh_bars_ago": "3"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age 2.5",
+   "row": {
+    "rs_nh_bars_ago": 2.5
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high 3 sessions ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "rs high age True",
+   "row": {
+    "rs_nh_bars_ago": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high 0",
+   "row": {
+    "px_below_high_pct": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "At its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high 0.0",
+   "row": {
+    "px_below_high_pct": 0.0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "At its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high -0.49",
+   "row": {
+    "px_below_high_pct": -0.49
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "At its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high -0.5",
+   "row": {
+    "px_below_high_pct": -0.5
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "1% below its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high -1.4",
+   "row": {
+    "px_below_high_pct": -1.4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "1% below its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high -1.5",
+   "row": {
+    "px_below_high_pct": -1.5
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "2% below its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high -2.5",
+   "row": {
+    "px_below_high_pct": -2.5
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "3% below its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high -3",
+   "row": {
+    "px_below_high_pct": -3
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "3% below its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high -4.5",
+   "row": {
+    "px_below_high_pct": -4.5
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "5% below its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high -12",
+   "row": {
+    "px_below_high_pct": -12
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "12% below its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high -24.51",
+   "row": {
+    "px_below_high_pct": -24.51
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "25% below its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high None",
+   "row": {
+    "px_below_high_pct": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "below high '5'",
+   "row": {
+    "px_below_high_pct": "5"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "moved place",
+   "row": {
+    "rs_rating_pos": 14,
+    "rs_rating_pos_prev20": 40,
+    "rs_rating_chg_5": 6
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": 14,
+    "caption": "was #40 a month ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "moved from a big place",
+   "row": {
+    "rs_rating_pos": 14,
+    "rs_rating_pos_prev20": 1234
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": 14,
+    "caption": "was #1,234 a month ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "same place, week up",
+   "row": {
+    "rs_rating_pos": 14,
+    "rs_rating_pos_prev20": 14,
+    "rs_rating_chg_5": 6
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": 14,
+    "caption": "RS Rating up 6 this week",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "no place a month ago, week down",
+   "row": {
+    "rs_rating_pos": 14,
+    "rs_rating_pos_prev20": null,
+    "rs_rating_chg_5": -3
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": 14,
+    "caption": "RS Rating down 3 this week",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "week unchanged",
+   "row": {
+    "rs_rating_pos": 14,
+    "rs_rating_pos_prev20": 14,
+    "rs_rating_chg_5": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": 14,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "no place now",
+   "row": {
+    "rs_rating_pos": null,
+    "rs_rating_pos_prev20": 12,
+    "rs_rating_chg_5": 2
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "was #12 a month ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "a period board says the week, never the month",
+   "row": {
+    "rs_rating_pos": 14,
+    "rs_rating_pos_prev20": 40,
+    "rs_rating_chg_5": 6,
+    "rs_pos_1m": 3
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": 3,
+    "caption": "RS Rating up 6 this week",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "a list numbered by position still says the month",
+   "row": {
+    "rs_rating_pos": 14,
+    "rs_rating_pos_prev20": 40
+   },
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 6,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": 7,
+    "caption": "was #40 a month ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Quick Break age 0",
+   "row": {
+    "rs_exit_last": "Quick Break",
+    "rs_exit_bars_ago": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Quick Break today",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Quick Break age 1",
+   "row": {
+    "rs_exit_last": "Quick Break",
+    "rs_exit_bars_ago": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Quick Break yesterday",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Quick Break age 4",
+   "row": {
+    "rs_exit_last": "Quick Break",
+    "rs_exit_bars_ago": 4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Quick Break 4 sessions ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Quick Break age None",
+   "row": {
+    "rs_exit_last": "Quick Break",
+    "rs_exit_bars_ago": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Quicksand age 0",
+   "row": {
+    "rs_exit_last": "Quicksand",
+    "rs_exit_bars_ago": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Quicksand today",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Quicksand age 1",
+   "row": {
+    "rs_exit_last": "Quicksand",
+    "rs_exit_bars_ago": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Quicksand yesterday",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Quicksand age 4",
+   "row": {
+    "rs_exit_last": "Quicksand",
+    "rs_exit_bars_ago": 4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Quicksand 4 sessions ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Quicksand age None",
+   "row": {
+    "rs_exit_last": "Quicksand",
+    "rs_exit_bars_ago": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Grateful Dead Break age 0",
+   "row": {
+    "rs_exit_last": "Grateful Dead Break",
+    "rs_exit_bars_ago": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Grateful Dead Break today",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Grateful Dead Break age 1",
+   "row": {
+    "rs_exit_last": "Grateful Dead Break",
+    "rs_exit_bars_ago": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Grateful Dead Break yesterday",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Grateful Dead Break age 4",
+   "row": {
+    "rs_exit_last": "Grateful Dead Break",
+    "rs_exit_bars_ago": 4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Grateful Dead Break 4 sessions ago",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Grateful Dead Break age None",
+   "row": {
+    "rs_exit_last": "Grateful Dead Break",
+    "rs_exit_bars_ago": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Not A Warning age 0",
+   "row": {
+    "rs_exit_last": "Not A Warning",
+    "rs_exit_bars_ago": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Not A Warning age 1",
+   "row": {
+    "rs_exit_last": "Not A Warning",
+    "rs_exit_bars_ago": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Not A Warning age 4",
+   "row": {
+    "rs_exit_last": "Not A Warning",
+    "rs_exit_bars_ago": 4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit Not A Warning age None",
+   "row": {
+    "rs_exit_last": "Not A Warning",
+    "rs_exit_bars_ago": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit None age 0",
+   "row": {
+    "rs_exit_last": null,
+    "rs_exit_bars_ago": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit None age 1",
+   "row": {
+    "rs_exit_last": null,
+    "rs_exit_bars_ago": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit None age 4",
+   "row": {
+    "rs_exit_last": null,
+    "rs_exit_bars_ago": 4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "exit None age None",
+   "row": {
+    "rs_exit_last": null,
+    "rs_exit_bars_ago": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "group: the theme",
+   "row": {
+    "industry": "Semiconductors"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": "AI chips",
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "AI chips",
+    "tag": "",
+    "setup": "",
+    "group": "AI chips"
+   }
+  },
+  {
+   "name": "group: the industry",
+   "row": {
+    "industry": "Semiconductors"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Semiconductors",
+    "tag": "",
+    "setup": "",
+    "group": "Semiconductors"
+   }
+  },
+  {
+   "name": "group: neither",
+   "row": {
+    "industry": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in 0",
+   "row": {
+    "days_to_earnings": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings today",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in 1",
+   "row": {
+    "days_to_earnings": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings tomorrow",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in 2",
+   "row": {
+    "days_to_earnings": 2
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 2 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in 5",
+   "row": {
+    "days_to_earnings": 5
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 5 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in 6",
+   "row": {
+    "days_to_earnings": 6
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in -1",
+   "row": {
+    "days_to_earnings": -1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in None",
+   "row": {
+    "days_to_earnings": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in 2.0",
+   "row": {
+    "days_to_earnings": 2.0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 2 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in 2.5",
+   "row": {
+    "days_to_earnings": 2.5
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in '1'",
+   "row": {
+    "days_to_earnings": "1"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings in True",
+   "row": {
+    "days_to_earnings": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-14' read on a Saturday, stored count 0",
+   "row": {
+    "next_earnings_date": "2026-11-14",
+    "days_to_earnings": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings today",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-15' read on a Saturday, stored count 1",
+   "row": {
+    "next_earnings_date": "2026-11-15",
+    "days_to_earnings": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings tomorrow",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-16' read on a Saturday, stored count 3",
+   "row": {
+    "next_earnings_date": "2026-11-16",
+    "days_to_earnings": 3
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 2 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-19' read on a Saturday, stored count 5",
+   "row": {
+    "next_earnings_date": "2026-11-19",
+    "days_to_earnings": 5
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 5 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-20' read on a Saturday, stored count 2",
+   "row": {
+    "next_earnings_date": "2026-11-20",
+    "days_to_earnings": 2
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-13' read on a Saturday, stored count 2",
+   "row": {
+    "next_earnings_date": "2026-11-13",
+    "days_to_earnings": 2
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '20261117' read on a Saturday, stored count None",
+   "row": {
+    "next_earnings_date": "20261117",
+    "days_to_earnings": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on 20261117 read on a Saturday, stored count None",
+   "row": {
+    "next_earnings_date": 20261117,
+    "days_to_earnings": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-11-17T00:00:00' read on a Saturday, stored count 9",
+   "row": {
+    "next_earnings_date": "2026-11-17T00:00:00",
+    "days_to_earnings": 9
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on 'not a date' read on a Saturday, stored count 4",
+   "row": {
+    "next_earnings_date": "not a date",
+    "days_to_earnings": 4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 4 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '' read on a Saturday, stored count 1",
+   "row": {
+    "next_earnings_date": "",
+    "days_to_earnings": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings tomorrow",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on None read on a Saturday, stored count 2",
+   "row": {
+    "next_earnings_date": null,
+    "days_to_earnings": 2
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 2 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings on '2026-13-01' read on a Saturday, stored count 3",
+   "row": {
+    "next_earnings_date": "2026-13-01",
+    "days_to_earnings": 3
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-11-14",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings: an impossible day of a real month rolls over on both sides",
+   "row": {
+    "next_earnings_date": "2026-02-31",
+    "days_to_earnings": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-02-28",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "earnings: across the new year",
+   "row": {
+    "next_earnings_date": "2027-01-02"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": "2026-12-30",
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly 1",
+   "row": {
+    "rs_nh_weekly": 1
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Weekly RS high",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly 0",
+   "row": {
+    "rs_nh_weekly": 0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly None",
+   "row": {
+    "rs_nh_weekly": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly True",
+   "row": {
+    "rs_nh_weekly": true
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly '1'",
+   "row": {
+    "rs_nh_weekly": "1"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "weekly 1.0",
+   "row": {
+    "rs_nh_weekly": 1.0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "Weekly RS high",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: weekly follows earnings and leads before price",
+   "row": {
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": 0,
+    "px_below_high_pct": -6.0
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": true,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "6% below its high",
+    "tag": "Weekly RS high",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: earnings leads",
+   "row": {
+    "days_to_earnings": 3,
+    "rs_nhbp_age": 0,
+    "px_below_high_pct": -6.0,
+    "rs_nh_bars_ago": 0,
+    "rs_nh_red_bars_ago": 0,
+    "rs_flag": "one_day_move"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": true,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high today · 6% below its high",
+    "tag": "Earnings in 3 days",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: before price",
+   "row": {
+    "days_to_earnings": null,
+    "rs_nhbp_age": 0,
+    "px_below_high_pct": -6.0,
+    "rs_nh_bars_ago": 0,
+    "rs_nh_red_bars_ago": 0,
+    "rs_flag": "one_day_move"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": true,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high today · 6% below its high",
+    "tag": "Before price",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: before price needs 3% under the high",
+   "row": {
+    "days_to_earnings": null,
+    "rs_nhbp_age": 0,
+    "px_below_high_pct": -2.99,
+    "rs_nh_bars_ago": 0,
+    "rs_nh_red_bars_ago": null,
+    "rs_flag": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high today · 3% below its high",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: before price at exactly 3%",
+   "row": {
+    "rs_nhbp_age": 2,
+    "px_below_high_pct": -3
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "3% below its high",
+    "tag": "Before price",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: down day",
+   "row": {
+    "days_to_earnings": null,
+    "rs_nhbp_age": null,
+    "px_below_high_pct": -6.0,
+    "rs_nh_bars_ago": 0,
+    "rs_nh_red_bars_ago": 0,
+    "rs_flag": "one_day_move"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": true,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high today · 6% below its high",
+    "tag": "Market down day",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: an older down day is not the newest high",
+   "row": {
+    "rs_nh_bars_ago": 1,
+    "rs_nh_red_bars_ago": 4
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "RS high yesterday",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: flag",
+   "row": {
+    "rs_flag": "new_issue"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": true,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "New issue",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: new",
+   "row": {
+    "rs_flag": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": true,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "New",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: none",
+   "row": {
+    "rs_flag": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: the starter's order decides",
+   "row": {
+    "days_to_earnings": 3,
+    "rs_nhbp_age": 0,
+    "px_below_high_pct": -6.0,
+    "rs_nh_bars_ago": 0,
+    "rs_nh_red_bars_ago": 0,
+    "rs_flag": "one_day_move"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [],
+    "tags": [
+     "flag",
+     "down_day",
+     "earnings"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "One-day move",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "tag: one the page does not know",
+   "row": {
+    "days_to_earnings": 3,
+    "rs_nhbp_age": 0,
+    "px_below_high_pct": -6.0,
+    "rs_nh_bars_ago": 0,
+    "rs_nh_red_bars_ago": 0,
+    "rs_flag": "one_day_move"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [],
+    "tags": [
+     "not_a_tag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": true,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "New",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "place: a column",
+   "row": {
+    "rs_rating_pos": 7
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": 7,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "place: a blank column",
+   "row": {
+    "rs_rating_pos": null
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "place: position",
+   "row": {},
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 11,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": 12,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "place: none",
+   "row": {
+    "rs_rating_pos": 7
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "setup",
+     "moving",
+     "rs_high_age",
+     "below_high",
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "",
+    "tag": "",
+    "setup": "",
+    "group": ""
+   }
+  },
+  {
+   "name": "caption: a part the page does not know",
+   "row": {
+    "rs_setup": "extended",
+    "industry": "Banks"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "not_a_part",
+     "setup",
+     "group"
+    ],
+    "tags": []
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "today": null,
+   "want": {
+    "place": null,
+    "caption": "Extended · Banks",
+    "tag": "",
+    "setup": "Extended",
+    "group": "Banks"
+   }
+  },
+  {
+   "name": "starter_rs_top_rating row 1 RISE5",
+   "row": {
+    "ticker": "RISE5",
+    "company": "RISE5 Corp",
+    "price": 215.29,
+    "chg_pct_1d": 0.4,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 99,
+    "market_cap": 1500000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 215290000.0,
+    "rs_rating_pos": 1,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 1,
+    "rs_rating_chg_5": 0,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 1,
+    "caption": "Tight range",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_top_rating row 2 RISE4",
+   "row": {
+    "ticker": "RISE4",
+    "company": "RISE4 Corp",
+    "price": 147.38,
+    "chg_pct_1d": 0.3,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 96,
+    "market_cap": 1400000000.0,
+    "adr_pct": 4.0,
+    "industry": "Banks",
+    "sector": "Financials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 147380000.0,
+    "rs_rating_pos": 2,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 6,
+    "rs_rating_chg_5": 1,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 1,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 2,
+    "caption": "Tight range · was #6 a month ago",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Banks"
+   }
+  },
+  {
+   "name": "starter_rs_top_rating row 3 RUN1",
+   "row": {
+    "ticker": "RUN1",
+    "company": "RUN1 Corp",
+    "price": 88.31,
+    "chg_pct_1d": 3.01,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 93,
+    "market_cap": 1700000000.0,
+    "adr_pct": 4.0,
+    "industry": "Drug makers",
+    "sector": "Healthcare",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 88310000.0,
+    "rs_rating_pos": 3,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "extended",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 28,
+    "rs_rating_chg_5": 18,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 2,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 3,
+    "caption": "Extended · was #28 a month ago",
+    "tag": "",
+    "setup": "Extended",
+    "group": "Drug makers"
+   }
+  },
+  {
+   "name": "starter_rs_top_rating row 4 WALK23",
+   "row": {
+    "ticker": "WALK23",
+    "company": "WALK23 Corp",
+    "price": 223.56,
+    "chg_pct_1d": 0.63,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 92,
+    "market_cap": 6300000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 223560000.0,
+    "rs_rating_pos": 4,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 8,
+    "rs_rating_chg_5": 2,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 3,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 4,
+    "caption": "Tight range · was #8 a month ago",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_top_rating row 5 SLIP0",
+   "row": {
+    "ticker": "SLIP0",
+    "company": "SLIP0 Corp",
+    "price": 151.22,
+    "chg_pct_1d": -5.0,
+    "base_render": "Expanding Range",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 90,
+    "market_cap": 3000000000.0,
+    "adr_pct": 4.0,
+    "industry": "Machinery",
+    "sector": "Industrials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 151220000.0,
+    "rs_rating_pos": 5,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "pullback_21",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "px_below_high_pct": -5.0,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 7,
+    "rs_rating_chg_5": -3,
+    "days_to_earnings": null,
+    "base_bias": "neutral"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 4,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 5,
+    "caption": "Pullback to the 21-day, tight range · was #7 a month ago",
+    "tag": "",
+    "setup": "Pullback to the 21-day, tight range",
+    "group": "Machinery"
+   }
+  },
+  {
+   "name": "starter_rs_top_rating row 6 WALK17",
+   "row": {
+    "ticker": "WALK17",
+    "company": "WALK17 Corp",
+    "price": 159.25,
+    "chg_pct_1d": 1.24,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 89,
+    "market_cap": 5700000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 159250000.0,
+    "rs_rating_pos": 6,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 13,
+    "rs_rating_chg_5": 2,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 5,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 6,
+    "caption": "Tight range · was #13 a month ago",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_top_rating row 7 RUN0",
+   "row": {
+    "ticker": "RUN0",
+    "company": "RUN0 Corp",
+    "price": 101.48,
+    "chg_pct_1d": 2.0,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 87,
+    "market_cap": 1600000000.0,
+    "adr_pct": 4.0,
+    "industry": "Semiconductors",
+    "sector": "Technology",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 101480000.0,
+    "rs_rating_pos": 7,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "extended",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 43,
+    "rs_rating_chg_5": 16,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 6,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 7,
+    "caption": "Extended · was #43 a month ago",
+    "tag": "",
+    "setup": "Extended",
+    "group": "Semiconductors"
+   }
+  },
+  {
+   "name": "starter_rs_top_rating row 8 RISE3",
+   "row": {
+    "ticker": "RISE3",
+    "company": "RISE3 Corp",
+    "price": 116.33,
+    "chg_pct_1d": 0.25,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 86,
+    "market_cap": 1300000000.0,
+    "adr_pct": 4.0,
+    "industry": "Oil and gas",
+    "sector": "Energy",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 116330000.0,
+    "rs_rating_pos": 8,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 10,
+    "rs_rating_chg_5": 2,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_rating_pos",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 7,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 8,
+    "caption": "Tight range · was #10 a month ago",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Oil and gas"
+   }
+  },
+  {
+   "name": "starter_rs_new_high row 1 RISE5",
+   "row": {
+    "ticker": "RISE5",
+    "company": "RISE5 Corp",
+    "price": 215.29,
+    "chg_pct_1d": 0.4,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 99,
+    "market_cap": 1500000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 215290000.0,
+    "pct_vs_sma200": 44.89,
+    "rs_nh_bars_ago": 0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 1,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": null,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.817316,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "rs_high_age",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "RS high today · Retail",
+    "tag": "Weekly RS high",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_new_high row 2 RISE4",
+   "row": {
+    "ticker": "RISE4",
+    "company": "RISE4 Corp",
+    "price": 147.38,
+    "chg_pct_1d": 0.3,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 96,
+    "market_cap": 1400000000.0,
+    "adr_pct": 4.0,
+    "industry": "Banks",
+    "sector": "Financials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 147380000.0,
+    "pct_vs_sma200": 32.73,
+    "rs_nh_bars_ago": 0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 2,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": null,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.552571,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "rs_high_age",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 1,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "RS high today · Banks",
+    "tag": "Weekly RS high",
+    "setup": "Tight range",
+    "group": "Banks"
+   }
+  },
+  {
+   "name": "starter_rs_new_high row 3 RUN1",
+   "row": {
+    "ticker": "RUN1",
+    "company": "RUN1 Corp",
+    "price": 88.31,
+    "chg_pct_1d": 3.01,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 93,
+    "market_cap": 1700000000.0,
+    "adr_pct": 4.0,
+    "industry": "Drug makers",
+    "sector": "Healthcare",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 88310000.0,
+    "pct_vs_sma200": 43.85,
+    "rs_nh_bars_ago": 0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "extended",
+    "rs_tight": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 3,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": null,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.550208,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "rs_high_age",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 2,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "RS high today · Drug makers",
+    "tag": "Weekly RS high",
+    "setup": "Extended",
+    "group": "Drug makers"
+   }
+  },
+  {
+   "name": "starter_rs_new_high row 4 WALK23",
+   "row": {
+    "ticker": "WALK23",
+    "company": "WALK23 Corp",
+    "price": 223.56,
+    "chg_pct_1d": 0.63,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 92,
+    "market_cap": 6300000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 223560000.0,
+    "pct_vs_sma200": 34.74,
+    "rs_nh_bars_ago": 0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 4,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": null,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.5204,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "rs_high_age",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 3,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "RS high today · Retail",
+    "tag": "Weekly RS high",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_new_high row 5 WALK17",
+   "row": {
+    "ticker": "WALK17",
+    "company": "WALK17 Corp",
+    "price": 159.25,
+    "chg_pct_1d": 1.24,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 89,
+    "market_cap": 5700000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 159250000.0,
+    "pct_vs_sma200": 25.7,
+    "rs_nh_bars_ago": 0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 6,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": null,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.469931,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "rs_high_age",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 4,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "RS high today · Retail",
+    "tag": "Weekly RS high",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_new_high row 6 RUN0",
+   "row": {
+    "ticker": "RUN0",
+    "company": "RUN0 Corp",
+    "price": 101.48,
+    "chg_pct_1d": 2.0,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 87,
+    "market_cap": 1600000000.0,
+    "adr_pct": 4.0,
+    "industry": "Semiconductors",
+    "sector": "Technology",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 101480000.0,
+    "pct_vs_sma200": 36.99,
+    "rs_nh_bars_ago": 0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "extended",
+    "rs_tight": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 7,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": null,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.443241,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "rs_high_age",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 5,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "RS high today · Semiconductors",
+    "tag": "Weekly RS high",
+    "setup": "Extended",
+    "group": "Semiconductors"
+   }
+  },
+  {
+   "name": "starter_rs_new_high row 7 SLIP3",
+   "row": {
+    "ticker": "SLIP3",
+    "company": "SLIP3 Corp",
+    "price": 195.84,
+    "chg_pct_1d": 1.0,
+    "base_render": "Expanding Range",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 81,
+    "market_cap": 3300000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 195840000.0,
+    "pct_vs_sma200": 23.84,
+    "rs_nh_bars_ago": 0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "px_below_high_pct": -1.31,
+    "rs_rating_pos": 11,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": null,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.401511,
+    "base_bias": "neutral"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "rs_high_age",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 6,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "RS high today · Retail",
+    "tag": "Weekly RS high",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_new_high row 8 UPDAY1",
+   "row": {
+    "ticker": "UPDAY1",
+    "company": "UPDAY1 Corp",
+    "price": 99.15,
+    "chg_pct_1d": 1.8,
+    "base_render": "Square Box (Declining Structure)",
+    "base_pivot_px": 108.21,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 80,
+    "market_cap": 2500000000.0,
+    "adr_pct": 4.0,
+    "industry": "Oil and gas",
+    "sector": "Energy",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 99150000.0,
+    "pct_vs_sma200": 19.79,
+    "rs_nh_bars_ago": 0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 1,
+    "px_below_high_pct": -6.45,
+    "rs_rating_pos": 12,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nhbp_age": 0,
+    "rs_nh_red_bars_ago": null,
+    "rs_rating_score": 1.392682,
+    "base_bias": "neutral"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "rs_high_age",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "before_price",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 7,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "RS high today · Oil and gas",
+    "tag": "Weekly RS high",
+    "setup": "Below its 50-day line",
+    "group": "Oil and gas"
+   }
+  },
+  {
+   "name": "starter_rs_nh_before_price row 1 WALK20",
+   "row": {
+    "ticker": "WALK20",
+    "company": "WALK20 Corp",
+    "price": 136.5,
+    "chg_pct_1d": -0.7,
+    "base_render": "Expanding Range",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 55,
+    "market_cap": 6000000000.0,
+    "adr_pct": 4.0,
+    "industry": "Machinery",
+    "sector": "Industrials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 136500000.0,
+    "pct_vs_sma200": 14.04,
+    "rs_nhbp_age": 1,
+    "px_below_high_pct": -3.39,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "rs_rating_pos": 28,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.235589,
+    "base_bias": "neutral"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "below_high",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "3% below its high · Machinery",
+    "tag": "Weekly RS high",
+    "setup": "Tight range",
+    "group": "Machinery"
+   }
+  },
+  {
+   "name": "starter_rs_nh_before_price row 2 HOLD0",
+   "row": {
+    "ticker": "HOLD0",
+    "company": "HOLD0 Corp",
+    "price": 74.12,
+    "chg_pct_1d": -0.24,
+    "base_render": "Declining Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 40,
+    "market_cap": 1800000000.0,
+    "adr_pct": 4.0,
+    "industry": "Machinery",
+    "sector": "Industrials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 74120000.0,
+    "pct_vs_sma200": 9.61,
+    "rs_nhbp_age": 1,
+    "px_below_high_pct": -3.44,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "rs_rating_pos": 37,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.170998,
+    "base_bias": "bearish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "below_high",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 1,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "3% below its high · Machinery",
+    "tag": "Weekly RS high",
+    "setup": "Below its 50-day line",
+    "group": "Machinery"
+   }
+  },
+  {
+   "name": "starter_rs_nh_before_price row 3 WALK06",
+   "row": {
+    "ticker": "WALK06",
+    "company": "WALK06 Corp",
+    "price": 57.19,
+    "chg_pct_1d": 0.03,
+    "base_render": "Expanding Range",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 26,
+    "market_cap": 4600000000.0,
+    "adr_pct": 4.0,
+    "industry": "Semiconductors",
+    "sector": "Technology",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 57190000.0,
+    "pct_vs_sma200": 9.19,
+    "rs_nhbp_age": 1,
+    "px_below_high_pct": -3.59,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "rs_rating_pos": 46,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.098626,
+    "base_bias": "neutral"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "below_high",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 2,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "4% below its high · Semiconductors",
+    "tag": "Weekly RS high",
+    "setup": "Below its 50-day line",
+    "group": "Semiconductors"
+   }
+  },
+  {
+   "name": "starter_rs_nh_before_price row 4 WALK05",
+   "row": {
+    "ticker": "WALK05",
+    "company": "WALK05 Corp",
+    "price": 57.48,
+    "chg_pct_1d": -0.17,
+    "base_render": "Declining Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 19,
+    "market_cap": 250000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 57480000.0,
+    "pct_vs_sma200": 4.48,
+    "rs_nhbp_age": 1,
+    "px_below_high_pct": -3.64,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "rs_rating_pos": 51,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.061937,
+    "base_bias": "bearish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "below_high",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 3,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "4% below its high · Retail",
+    "tag": "Weekly RS high",
+    "setup": "Below its 50-day line",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_nh_before_price row 5 HOLD1",
+   "row": {
+    "ticker": "HOLD1",
+    "company": "HOLD1 Corp",
+    "price": 89.1,
+    "chg_pct_1d": -0.3,
+    "base_render": "Declining Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 52,
+    "market_cap": 1900000000.0,
+    "adr_pct": 4.0,
+    "industry": "Oil and gas",
+    "sector": "Energy",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 89100000.0,
+    "pct_vs_sma200": 12.43,
+    "rs_nhbp_age": 1,
+    "px_below_high_pct": -4.12,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "rs_rating_pos": 30,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.226622,
+    "base_bias": "bearish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "below_high",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 4,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "4% below its high · Oil and gas",
+    "tag": "Weekly RS high",
+    "setup": "Below its 50-day line",
+    "group": "Oil and gas"
+   }
+  },
+  {
+   "name": "starter_rs_nh_before_price row 6 WALK14",
+   "row": {
+    "ticker": "WALK14",
+    "company": "WALK14 Corp",
+    "price": 92.22,
+    "chg_pct_1d": -0.95,
+    "base_render": "Expanding Range",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 28,
+    "market_cap": 5400000000.0,
+    "adr_pct": 4.0,
+    "industry": "Machinery",
+    "sector": "Industrials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 92220000.0,
+    "pct_vs_sma200": 5.38,
+    "rs_nhbp_age": 1,
+    "px_below_high_pct": -4.6,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "rs_rating_pos": 45,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.106025,
+    "base_bias": "neutral"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "below_high",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 5,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "5% below its high · Machinery",
+    "tag": "Weekly RS high",
+    "setup": "Below its 50-day line",
+    "group": "Machinery"
+   }
+  },
+  {
+   "name": "starter_rs_nh_before_price row 7 WALK26",
+   "row": {
+    "ticker": "WALK26",
+    "company": "WALK26 Corp",
+    "price": 165.54,
+    "chg_pct_1d": 0.74,
+    "base_render": "Declining Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 46,
+    "market_cap": 6600000000.0,
+    "adr_pct": 4.0,
+    "industry": "Machinery",
+    "sector": "Industrials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 165540000.0,
+    "pct_vs_sma200": 11.23,
+    "rs_nhbp_age": 0,
+    "px_below_high_pct": -4.7,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "rs_rating_pos": 33,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.198031,
+    "base_bias": "bearish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "below_high",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 6,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "5% below its high · Machinery",
+    "tag": "Weekly RS high",
+    "setup": "Below its 50-day line",
+    "group": "Machinery"
+   }
+  },
+  {
+   "name": "starter_rs_nh_before_price row 8 WALK11",
+   "row": {
+    "ticker": "WALK11",
+    "company": "WALK11 Corp",
+    "price": 67.99,
+    "chg_pct_1d": 0.67,
+    "base_render": "Wyckoff Spring (Green Line Breakout) +1",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 23,
+    "market_cap": 5100000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 67990000.0,
+    "pct_vs_sma200": 5.38,
+    "rs_nhbp_age": 0,
+    "px_below_high_pct": -5.75,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "rs_rating_pos": 48,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_nh_weekly": 1,
+    "rs_nh_red_bars_ago": 1,
+    "rs_rating_score": 1.07712,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "below_high",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "weekly",
+     "down_day",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 7,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "6% below its high · Retail",
+    "tag": "Weekly RS high",
+    "setup": "Below its 50-day line",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_leaders row 1 RISE5",
+   "row": {
+    "ticker": "RISE5",
+    "company": "RISE5 Corp",
+    "price": 215.29,
+    "chg_pct_1d": 0.4,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 99,
+    "market_cap": 1500000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 215290000.0,
+    "pct_vs_sma200": 44.89,
+    "sma200_rising": 1,
+    "dist_52w_high_pct": -1.96,
+    "rs_line_above_ma": 1,
+    "rs_flag": null,
+    "rs_leaders_member": 1,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 1,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_leaders_days": 21,
+    "rs_rating_score": 1.817316,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": [
+     "days"
+    ]
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 1,
+    "caption": "Tight range · Retail",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_leaders row 2 RISE4",
+   "row": {
+    "ticker": "RISE4",
+    "company": "RISE4 Corp",
+    "price": 147.38,
+    "chg_pct_1d": 0.3,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 96,
+    "market_cap": 1400000000.0,
+    "adr_pct": 4.0,
+    "industry": "Banks",
+    "sector": "Financials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 147380000.0,
+    "pct_vs_sma200": 32.73,
+    "sma200_rising": 1,
+    "dist_52w_high_pct": -1.96,
+    "rs_line_above_ma": 1,
+    "rs_flag": null,
+    "rs_leaders_member": 1,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 2,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_leaders_days": 21,
+    "rs_rating_score": 1.552571,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": [
+     "days"
+    ]
+   },
+   "index": 1,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 2,
+    "caption": "Tight range · Banks",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Banks"
+   }
+  },
+  {
+   "name": "starter_rs_leaders row 3 RUN1",
+   "row": {
+    "ticker": "RUN1",
+    "company": "RUN1 Corp",
+    "price": 88.31,
+    "chg_pct_1d": 3.01,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 93,
+    "market_cap": 1700000000.0,
+    "adr_pct": 4.0,
+    "industry": "Drug makers",
+    "sector": "Healthcare",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 88310000.0,
+    "pct_vs_sma200": 43.85,
+    "sma200_rising": 1,
+    "dist_52w_high_pct": -1.96,
+    "rs_line_above_ma": 1,
+    "rs_flag": null,
+    "rs_leaders_member": 1,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "extended",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 3,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_leaders_days": 5,
+    "rs_rating_score": 1.550208,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": [
+     "days"
+    ]
+   },
+   "index": 2,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 3,
+    "caption": "Extended · Drug makers",
+    "tag": "",
+    "setup": "Extended",
+    "group": "Drug makers"
+   }
+  },
+  {
+   "name": "starter_rs_leaders row 4 WALK23",
+   "row": {
+    "ticker": "WALK23",
+    "company": "WALK23 Corp",
+    "price": 223.56,
+    "chg_pct_1d": 0.63,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 92,
+    "market_cap": 6300000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 223560000.0,
+    "pct_vs_sma200": 34.74,
+    "sma200_rising": 1,
+    "dist_52w_high_pct": -1.96,
+    "rs_line_above_ma": 1,
+    "rs_flag": null,
+    "rs_leaders_member": 1,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 4,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_leaders_days": 21,
+    "rs_rating_score": 1.5204,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": [
+     "days"
+    ]
+   },
+   "index": 3,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 4,
+    "caption": "Tight range · Retail",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_leaders row 5 SLIP0",
+   "row": {
+    "ticker": "SLIP0",
+    "company": "SLIP0 Corp",
+    "price": 151.22,
+    "chg_pct_1d": -5.0,
+    "base_render": "Expanding Range",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 90,
+    "market_cap": 3000000000.0,
+    "adr_pct": 4.0,
+    "industry": "Machinery",
+    "sector": "Industrials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 151220000.0,
+    "pct_vs_sma200": 25.76,
+    "sma200_rising": 1,
+    "dist_52w_high_pct": -6.86,
+    "rs_line_above_ma": 1,
+    "rs_flag": null,
+    "rs_leaders_member": 1,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "pullback_21",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "px_below_high_pct": -5.0,
+    "rs_rating_pos": 5,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_leaders_days": 21,
+    "rs_rating_score": 1.470482,
+    "base_bias": "neutral"
+   },
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": [
+     "days"
+    ]
+   },
+   "index": 4,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 5,
+    "caption": "Pullback to the 21-day, tight range · Machinery",
+    "tag": "",
+    "setup": "Pullback to the 21-day, tight range",
+    "group": "Machinery"
+   }
+  },
+  {
+   "name": "starter_rs_leaders row 6 WALK17",
+   "row": {
+    "ticker": "WALK17",
+    "company": "WALK17 Corp",
+    "price": 159.25,
+    "chg_pct_1d": 1.24,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 89,
+    "market_cap": 5700000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 159250000.0,
+    "pct_vs_sma200": 25.7,
+    "sma200_rising": 1,
+    "dist_52w_high_pct": -1.96,
+    "rs_line_above_ma": 1,
+    "rs_flag": null,
+    "rs_leaders_member": 1,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 6,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_leaders_days": 10,
+    "rs_rating_score": 1.469931,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": [
+     "days"
+    ]
+   },
+   "index": 5,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 6,
+    "caption": "Tight range · Retail",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "starter_rs_leaders row 7 RUN0",
+   "row": {
+    "ticker": "RUN0",
+    "company": "RUN0 Corp",
+    "price": 101.48,
+    "chg_pct_1d": 2.0,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 87,
+    "market_cap": 1600000000.0,
+    "adr_pct": 4.0,
+    "industry": "Semiconductors",
+    "sector": "Technology",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 101480000.0,
+    "pct_vs_sma200": 36.99,
+    "sma200_rising": 1,
+    "dist_52w_high_pct": -1.96,
+    "rs_line_above_ma": 1,
+    "rs_flag": null,
+    "rs_leaders_member": 1,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "extended",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 7,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_leaders_days": 3,
+    "rs_rating_score": 1.443241,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": [
+     "days"
+    ]
+   },
+   "index": 6,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 7,
+    "caption": "Extended · Semiconductors",
+    "tag": "",
+    "setup": "Extended",
+    "group": "Semiconductors"
+   }
+  },
+  {
+   "name": "starter_rs_leaders row 8 RISE3",
+   "row": {
+    "ticker": "RISE3",
+    "company": "RISE3 Corp",
+    "price": 116.33,
+    "chg_pct_1d": 0.25,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 86,
+    "market_cap": 1300000000.0,
+    "adr_pct": 4.0,
+    "industry": "Oil and gas",
+    "sector": "Energy",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 116330000.0,
+    "pct_vs_sma200": 26.88,
+    "sma200_rising": 1,
+    "dist_52w_high_pct": -1.96,
+    "rs_line_above_ma": 1,
+    "rs_flag": null,
+    "rs_leaders_member": 1,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 1,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 8,
+    "rs_rating_pos_n": 62,
+    "days_to_earnings": null,
+    "rs_leaders_days": 18,
+    "rs_rating_score": 1.437978,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "index",
+    "caption": [
+     "setup",
+     "group"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": [
+     "days"
+    ]
+   },
+   "index": 7,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 8,
+    "caption": "Tight range · Oil and gas",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Oil and gas"
+   }
+  },
+  {
+   "name": "starter_rs_exit_warning_5 row 1 SLIP2",
+   "row": {
+    "ticker": "SLIP2",
+    "company": "SLIP2 Corp",
+    "price": 155.41,
+    "chg_pct_1d": -4.5,
+    "base_render": "Declining Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 58,
+    "market_cap": 3200000000.0,
+    "adr_pct": 4.0,
+    "industry": "Banks",
+    "sector": "Financials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "rs_exit_bars_ago": 0,
+    "dollar_vol_30d": 155410000.0,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 3,
+    "px_below_high_pct": -12.91,
+    "rs_rating_pos": 26,
+    "rs_rating_pos_n": 62,
+    "rs_exit_last": "Quick Break",
+    "base_bias": "bearish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "Quick Break today · Banks",
+    "tag": "",
+    "setup": "Below its 50-day line",
+    "group": "Banks"
+   }
+  },
+  {
+   "name": "starter_rs_exit_warning_5 row 2 SLIP5",
+   "row": {
+    "ticker": "SLIP5",
+    "company": "SLIP5 Corp",
+    "price": 119.07,
+    "chg_pct_1d": -8.0,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 17,
+    "market_cap": 3500000000.0,
+    "adr_pct": 4.0,
+    "industry": "Drug makers",
+    "sector": "Healthcare",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "rs_exit_bars_ago": 0,
+    "dollar_vol_30d": 119070000.0,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 3,
+    "px_below_high_pct": -15.36,
+    "rs_rating_pos": 52,
+    "rs_rating_pos_n": 62,
+    "rs_exit_last": "Quick Break",
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 1,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "Quick Break today · Drug makers",
+    "tag": "",
+    "setup": "Below its 50-day line",
+    "group": "Drug makers"
+   }
+  },
+  {
+   "name": "starter_rs_exit_warning_5 row 3 FALL3",
+   "row": {
+    "ticker": "FALL3",
+    "company": "FALL3 Corp",
+    "price": 109.51,
+    "chg_pct_1d": -6.0,
+    "base_render": "Stage 4 Breakdown (Advancing Structure)",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 14,
+    "market_cap": 2900000000.0,
+    "adr_pct": 4.0,
+    "industry": "Drug makers",
+    "sector": "Healthcare",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "rs_exit_bars_ago": 1,
+    "dollar_vol_30d": 109510000.0,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 5,
+    "px_below_high_pct": -21.92,
+    "rs_rating_pos": 54,
+    "rs_rating_pos_n": 62,
+    "rs_exit_last": "Grateful Dead Break",
+    "base_bias": "bearish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 2,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "Grateful Dead Break yesterday · Drug makers",
+    "tag": "",
+    "setup": "Below its 50-day line",
+    "group": "Drug makers"
+   }
+  },
+  {
+   "name": "starter_rs_exit_warning_5 row 4 SLIP4",
+   "row": {
+    "ticker": "SLIP4",
+    "company": "SLIP4 Corp",
+    "price": 72.24,
+    "chg_pct_1d": -5.01,
+    "base_render": "Stage 4 Breakdown (Declining Structure)",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 13,
+    "market_cap": 3400000000.0,
+    "adr_pct": 4.0,
+    "industry": "Semiconductors",
+    "sector": "Technology",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "rs_exit_bars_ago": 1,
+    "dollar_vol_30d": 72240000.0,
+    "security_type": "Stock",
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "below_50",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 5,
+    "px_below_high_pct": -22.62,
+    "rs_rating_pos": 55,
+    "rs_rating_pos_n": 62,
+    "rs_exit_last": "Quicksand",
+    "base_bias": "bearish"
+   },
+   "cfg": {
+    "place": null,
+    "caption": [
+     "exit_warning",
+     "group"
+    ],
+    "tags": [
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 3,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": null,
+    "caption": "Quicksand yesterday · Semiconductors",
+    "tag": "",
+    "setup": "Below its 50-day line",
+    "group": "Semiconductors"
+   }
+  },
+  {
+   "name": "top rating 1M row 1 ONEDAY",
+   "row": {
+    "ticker": "ONEDAY",
+    "company": "ONEDAY Corp",
+    "price": 130.0,
+    "chg_pct_1d": 0.0,
+    "base_render": "Green Line Breakout (Undefined Structure)",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 68,
+    "market_cap": 7100000000.0,
+    "adr_pct": 4.0,
+    "industry": "Drug makers",
+    "sector": "Healthcare",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 130000000.0,
+    "rs_flag": "one_day_move",
+    "security_type": "Stock",
+    "rs_pos_1m": 2,
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "extended",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 1,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 20,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 57,
+    "rs_rating_chg_5": 57,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 0,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 2,
+    "caption": "Extended · RS Rating up 57 this week",
+    "tag": "One-day move",
+    "setup": "Extended",
+    "group": "Drug makers"
+   }
+  },
+  {
+   "name": "top rating 1M row 2 RUN1",
+   "row": {
+    "ticker": "RUN1",
+    "company": "RUN1 Corp",
+    "price": 88.31,
+    "chg_pct_1d": 3.01,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 93,
+    "market_cap": 1700000000.0,
+    "adr_pct": 4.0,
+    "industry": "Drug makers",
+    "sector": "Healthcare",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 88310000.0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_pos_1m": 3,
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "extended",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 3,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 28,
+    "rs_rating_chg_5": 18,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 1,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 3,
+    "caption": "Extended · RS Rating up 18 this week",
+    "tag": "",
+    "setup": "Extended",
+    "group": "Drug makers"
+   }
+  },
+  {
+   "name": "top rating 1M row 3 RUN0",
+   "row": {
+    "ticker": "RUN0",
+    "company": "RUN0 Corp",
+    "price": 101.48,
+    "chg_pct_1d": 2.0,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 87,
+    "market_cap": 1600000000.0,
+    "adr_pct": 4.0,
+    "industry": "Semiconductors",
+    "sector": "Technology",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 101480000.0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_pos_1m": 4,
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "extended",
+    "rs_tight": 0,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 7,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 43,
+    "rs_rating_chg_5": 16,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 2,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 4,
+    "caption": "Extended · RS Rating up 16 this week",
+    "tag": "",
+    "setup": "Extended",
+    "group": "Semiconductors"
+   }
+  },
+  {
+   "name": "top rating 1M row 4 WALK21",
+   "row": {
+    "ticker": "WALK21",
+    "company": "WALK21 Corp",
+    "price": 135.48,
+    "chg_pct_1d": 0.84,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 51,
+    "market_cap": 6100000000.0,
+    "adr_pct": 4.0,
+    "industry": "Oil and gas",
+    "sector": "Energy",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 135480000.0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_pos_1m": 5,
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 31,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 40,
+    "rs_rating_chg_5": 6,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 3,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 5,
+    "caption": "Tight range · RS Rating up 6 this week",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Oil and gas"
+   }
+  },
+  {
+   "name": "top rating 1M row 5 RISE5",
+   "row": {
+    "ticker": "RISE5",
+    "company": "RISE5 Corp",
+    "price": 215.29,
+    "chg_pct_1d": 0.4,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 99,
+    "market_cap": 1500000000.0,
+    "adr_pct": 4.0,
+    "industry": "Retail",
+    "sector": "Consumer",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 215290000.0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_pos_1m": 6,
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 1,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 1,
+    "rs_rating_chg_5": 0,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 4,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 6,
+    "caption": "Tight range",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Retail"
+   }
+  },
+  {
+   "name": "top rating 1M row 6 WALK08",
+   "row": {
+    "ticker": "WALK08",
+    "company": "WALK08 Corp",
+    "price": 62.25,
+    "chg_pct_1d": 0.47,
+    "base_render": "Green Line Breakout (Saucer) +2",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 37,
+    "market_cap": 4800000000.0,
+    "adr_pct": 4.0,
+    "industry": "Machinery",
+    "sector": "Industrials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 62250000.0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_pos_1m": 7,
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": -0.72,
+    "rs_rating_pos": 39,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 52,
+    "rs_rating_chg_5": 5,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 5,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 7,
+    "caption": "Tight range · RS Rating up 5 this week",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Machinery"
+   }
+  },
+  {
+   "name": "top rating 1M row 7 WALK04",
+   "row": {
+    "ticker": "WALK04",
+    "company": "WALK04 Corp",
+    "price": 54.47,
+    "chg_pct_1d": 0.5,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 32,
+    "market_cap": 4400000000.0,
+    "adr_pct": 3.99,
+    "industry": "Banks",
+    "sector": "Financials",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 54470000.0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_pos_1m": 8,
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 42,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 53,
+    "rs_rating_chg_5": 9,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 6,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 8,
+    "caption": "Tight range · RS Rating up 9 this week",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Banks"
+   }
+  },
+  {
+   "name": "top rating 1M row 8 WALK13",
+   "row": {
+    "ticker": "WALK13",
+    "company": "WALK13 Corp",
+    "price": 97.44,
+    "chg_pct_1d": 1.28,
+    "base_render": "Advancing Structure",
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": 49,
+    "market_cap": 5300000000.0,
+    "adr_pct": 4.0,
+    "industry": "Drug makers",
+    "sector": "Healthcare",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 97440000.0,
+    "rs_flag": null,
+    "security_type": "Stock",
+    "rs_pos_1m": 9,
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": "uptrend",
+    "rs_tight": 1,
+    "rs_nh_bars_ago": 0,
+    "px_below_high_pct": 0.0,
+    "rs_rating_pos": 32,
+    "rs_rating_pos_n": 62,
+    "rs_rating_pos_prev20": 38,
+    "rs_rating_chg_5": 12,
+    "days_to_earnings": null,
+    "base_bias": "bullish"
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 7,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 9,
+    "caption": "Tight range · RS Rating up 12 this week",
+    "tag": "",
+    "setup": "Tight range",
+    "group": "Drug makers"
+   }
+  },
+  {
+   "name": "top rating 1M row 9 BABY",
+   "row": {
+    "ticker": "BABY",
+    "company": "BABY Corp",
+    "price": 147.38,
+    "chg_pct_1d": 0.3,
+    "base_render": null,
+    "base_pivot_px": null,
+    "vol_ratio": 1.0,
+    "rvol_live": null,
+    "rs_rank": null,
+    "market_cap": 7600000000.0,
+    "adr_pct": 4.0,
+    "industry": "Semiconductors",
+    "sector": "Technology",
+    "next_earnings_date": null,
+    "bars_asof": "20260227",
+    "dollar_vol_30d": 147380000.0,
+    "rs_flag": "new_issue",
+    "security_type": "Stock",
+    "rs_pos_1m": 12,
+    "rs_rating_session": "2026-02-27",
+    "rs_setup": null,
+    "rs_tight": 1,
+    "rs_nh_bars_ago": null,
+    "px_below_high_pct": null,
+    "rs_rating_pos": null,
+    "rs_rating_pos_n": null,
+    "rs_rating_pos_prev20": null,
+    "rs_rating_chg_5": null,
+    "days_to_earnings": null,
+    "base_bias": null
+   },
+   "cfg": {
+    "place": "rs_pos_1m",
+    "caption": [
+     "setup",
+     "moving"
+    ],
+    "tags": [
+     "earnings",
+     "flag",
+     "new"
+    ],
+    "facts": []
+   },
+   "index": 8,
+   "theme": null,
+   "is_new": false,
+   "want": {
+    "place": 12,
+    "caption": "",
+    "tag": "New issue",
+    "setup": "",
+    "group": "Semiconductors"
+   }
+  }
+ ],
+ "columns": [
+  {
+   "starter": "starter_rs_top_rating",
+   "place": null,
+   "columns": [
+    "rs_rank",
+    "rs_rating_session",
+    "rs_setup",
+    "rs_tight",
+    "rs_nh_bars_ago",
+    "px_below_high_pct",
+    "rs_rating_pos",
+    "rs_rating_pos_n",
+    "rs_rating_pos_prev20",
+    "rs_rating_chg_5",
+    "days_to_earnings",
+    "next_earnings_date",
+    "rs_flag"
+   ]
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "place": "rs_pos_1m",
+   "columns": [
+    "rs_rank",
+    "rs_rating_session",
+    "rs_setup",
+    "rs_tight",
+    "rs_nh_bars_ago",
+    "px_below_high_pct",
+    "rs_rating_pos",
+    "rs_rating_pos_n",
+    "rs_pos_1m",
+    "rs_rating_pos_prev20",
+    "rs_rating_chg_5",
+    "days_to_earnings",
+    "next_earnings_date",
+    "rs_flag"
+   ]
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "place": "rs_pos_3m",
+   "columns": [
+    "rs_rank",
+    "rs_rating_session",
+    "rs_setup",
+    "rs_tight",
+    "rs_nh_bars_ago",
+    "px_below_high_pct",
+    "rs_rating_pos",
+    "rs_rating_pos_n",
+    "rs_pos_3m",
+    "rs_rating_pos_prev20",
+    "rs_rating_chg_5",
+    "days_to_earnings",
+    "next_earnings_date",
+    "rs_flag"
+   ]
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "place": "rs_pos_6m",
+   "columns": [
+    "rs_rank",
+    "rs_rating_session",
+    "rs_setup",
+    "rs_tight",
+    "rs_nh_bars_ago",
+    "px_below_high_pct",
+    "rs_rating_pos",
+    "rs_rating_pos_n",
+    "rs_pos_6m",
+    "rs_rating_pos_prev20",
+    "rs_rating_chg_5",
+    "days_to_earnings",
+    "next_earnings_date",
+    "rs_flag"
+   ]
+  },
+  {
+   "starter": "starter_rs_top_rating",
+   "place": "rs_pos_12m",
+   "columns": [
+    "rs_rank",
+    "rs_rating_session",
+    "rs_setup",
+    "rs_tight",
+    "rs_nh_bars_ago",
+    "px_below_high_pct",
+    "rs_rating_pos",
+    "rs_rating_pos_n",
+    "rs_pos_12m",
+    "rs_rating_pos_prev20",
+    "rs_rating_chg_5",
+    "days_to_earnings",
+    "next_earnings_date",
+    "rs_flag"
+   ]
+  },
+  {
+   "starter": "starter_rs_new_high",
+   "place": null,
+   "columns": [
+    "rs_rank",
+    "rs_rating_session",
+    "rs_setup",
+    "rs_tight",
+    "rs_nh_bars_ago",
+    "px_below_high_pct",
+    "rs_rating_pos",
+    "rs_rating_pos_n",
+    "industry",
+    "days_to_earnings",
+    "next_earnings_date",
+    "rs_nh_weekly",
+    "rs_nhbp_age",
+    "rs_nh_red_bars_ago",
+    "rs_flag"
+   ]
+  },
+  {
+   "starter": "starter_rs_nh_before_price",
+   "place": null,
+   "columns": [
+    "rs_rank",
+    "rs_rating_session",
+    "rs_setup",
+    "rs_tight",
+    "rs_nh_bars_ago",
+    "px_below_high_pct",
+    "rs_rating_pos",
+    "rs_rating_pos_n",
+    "industry",
+    "days_to_earnings",
+    "next_earnings_date",
+    "rs_nh_weekly",
+    "rs_nh_red_bars_ago",
+    "rs_flag"
+   ]
+  },
+  {
+   "starter": "starter_rs_leaders",
+   "place": null,
+   "columns": [
+    "rs_rank",
+    "rs_rating_session",
+    "rs_setup",
+    "rs_tight",
+    "rs_nh_bars_ago",
+    "px_below_high_pct",
+    "rs_rating_pos",
+    "rs_rating_pos_n",
+    "industry",
+    "days_to_earnings",
+    "next_earnings_date",
+    "rs_flag",
+    "rs_leaders_days"
+   ]
+  },
+  {
+   "starter": "starter_rs_exit_warning_5",
+   "place": null,
+   "columns": [
+    "rs_rank",
+    "rs_rating_session",
+    "rs_setup",
+    "rs_tight",
+    "rs_nh_bars_ago",
+    "px_below_high_pct",
+    "rs_rating_pos",
+    "rs_rating_pos_n",
+    "rs_exit_last",
+    "rs_exit_bars_ago",
+    "industry"
+   ]
+  }
+ ],
+ "ratings_as_of": [
+  {
+   "session": "2026-11-13",
+   "want": "Ratings as of Nov 13"
+  },
+  {
+   "session": "20261113",
+   "want": "Ratings as of Nov 13"
+  },
+  {
+   "session": "2026-01-05",
+   "want": "Ratings as of Jan 5"
+  },
+  {
+   "session": "2026-13-01",
+   "want": ""
+  },
+  {
+   "session": "not a day",
+   "want": ""
+  },
+  {
+   "session": null,
+   "want": ""
+  },
+  {
+   "session": "",
+   "want": ""
+  }
+ ],
+ "days_on_list": [
+  {
+   "days": 1,
+   "want": "Day 1 on this list"
+  },
+  {
+   "days": 2,
+   "want": "Day 2 on this list"
+  },
+  {
+   "days": 12,
+   "want": "Day 12 on this list"
+  },
+  {
+   "days": 1500,
+   "want": "Day 1,500 on this list"
+  },
+  {
+   "days": 0,
+   "want": ""
+  },
+  {
+   "days": -1,
+   "want": ""
+  },
+  {
+   "days": null,
+   "want": ""
+  },
+  {
+   "days": 2.5,
+   "want": ""
+  },
+  {
+   "days": "3",
+   "want": ""
+  },
+  {
+   "days": true,
+   "want": ""
+  }
+ ],
+ "rule_labels": {
+  "price": "Price",
+  "dollar_vol_30d": "Dollar Volume (30d)",
+  "adr_pct": "Avg daily range",
+  "market_cap": "Market Cap",
+  "rs_rank": "RS Rank",
+  "pct_vs_sma200": "vs 200-day avg",
+  "sma200_rising": "SMA200 Rising",
+  "dist_52w_high_pct": "From 52-week high",
+  "rs_line_above_ma": "RS line above its 21-day avg",
+  "rs_flag": "Setup flag",
+  "security_type": "Type"
+ }
+}

@@ -361,3 +361,35 @@
   .econStats { gap: 7px; }
 }
 
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      the chart widget's style. Section headers are quiet normal-case titles (no gold edge
+      band); date arrows and the gear are quiet header-white icon buttons; "Today" reads as
+      a small normal-case note under the date. ── */
+:global(.uct-frame) .navBtn { color: var(--widget-text, var(--cal-chrome, #cfcac0)); width: 24px; height: 22px; border-radius: 6px; }
+:global(.uct-frame) .navBtn:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .dateMain { font-size: 1em; }
+:global(.uct-frame) .dateSub { font-size: 0.72em; letter-spacing: 0; text-transform: none; }
+:global(.uct-frame) .todayPill { color: var(--widget-accent, var(--accent, #dcbb5e)); font-weight: 700; }
+:global(.uct-frame) .gearBtn { width: 24px; height: 22px; padding: 0; border-radius: 6px; color: var(--widget-text, var(--cal-chrome, #cfcac0)); }
+:global(.uct-frame) .gearBtn:hover,
+:global(.uct-frame) .gearBtnActive { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); background: var(--widget-row-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .sectionHead {
+  padding: 9px 12px;
+  font-size: 0.86em;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: none;
+}
+:global(.uct-frame) .sectionHead .headIcon { color: var(--widget-text, var(--cal-chrome, #cfcac0)); }
+:global(.uct-frame) .sectionHead.pre .headIcon { color: var(--warn); }
+:global(.uct-frame) .sectionHead.post .headIcon { color: var(--info); }
+:global(.uct-frame) .sectionHead .colActive,
+:global(.uct-frame) .sectionHead .colBtn:hover,
+:global(.uct-frame) .headTitle:hover { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+/* Importance stars white instead of gold on the board (owner 11-13). */
+:global(.uct-frame) .starBtn:hover,
+:global(.uct-frame) .starOn { color: var(--widget-text-strong, var(--text-bright, #f8f7f3)); }
+:global(.uct-frame) .starBtn svg { color: inherit !important; filter: none !important; }
+:global(.uct-frame) .starBtn svg * { stroke: currentColor !important; }

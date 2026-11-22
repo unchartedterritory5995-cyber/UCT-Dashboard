@@ -1,0 +1,14 @@
+[
+ [
+  "CONTROL no-op comment",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "// It is NOT imported by the bundle.",
+  "// It is NOT imported by the bundle (control)."
+ ],
+ [
+  "S2 scanner scans test files too",
+  "src/components/chart/engine/runtime/brokerPinsLock.js",
+  "/(^|[\\\\/])__tests__([\\\\/]|$)/.test(path) || ",
+  ""
+ ]
+]

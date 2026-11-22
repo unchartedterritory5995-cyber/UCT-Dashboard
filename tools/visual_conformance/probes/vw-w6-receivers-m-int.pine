@@ -1,0 +1,15 @@
+//@version=6
+indicator("vw-w6-receivers-m-int", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit, split out of tools/visual_conformance/probes/vw-w6-receivers.pine after capture queue
+// run cq1-2026-11-16 (PR #1472) read that file as one compile error ("Could not find {kind} '{fullName}'") whose text names no line or value. One question
+// per file, so an error here IS this file's reading: record its text and the bar it names. No licence-held text.
+// QUESTION: overloads `m(float)` and `m(string)` called on an `int`: does it compile, and which one (U09 1 = float)?
+// CAPTURE: AMEX:SPY 1D, inputs at defaults, AFTER THE CLOSE. A00 is the control (it must plot on every bar).
+plot(bar_index, "A00_bar_index_CONTROL")
+method m(float x) =>
+    1
+method m(string x) =>
+    2
+int k = 3
+plot(k.m(), "U09_m_on_an_int")

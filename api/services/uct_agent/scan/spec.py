@@ -132,6 +132,9 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
     if spec.get("logic") is not None and not isinstance(spec["logic"], dict):
         raise SpecError("`logic` must be a screener logic tree")
     leaves = _leaves(spec)
+    # F-16: a hidden name ANYWHERE in the tree or the rank, even where the engine would not read it, is refused
+    if hidden.refusal_for(named_fields({"logic": spec.get("logic"), "rank": spec.get("rank")})):
+        raise SpecError(hidden.refusal_for(named_fields({"logic": spec.get("logic"), "rank": spec.get("rank")})))
     if len(leaves) - len(filters_) > MAX_LOGIC_LEAVES:
         raise SpecError(f"at most {MAX_LOGIC_LEAVES} conditions in the logic tree")
     for f in leaves:
@@ -149,12 +152,14 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
             continue
         if key in SPECIAL_KEYS:
             continue
-        refusal = hidden.refusal_for([key, f.get("other")])
+        other = f.get("other")
+        if other is not None and not isinstance(other, str):
+            raise SpecError("a compared field (`other`) is one screener field's key")
+        refusal = hidden.refusal_for([key, other])
         if refusal:                                   # SC-1 §2d: refused, never dropped or substituted
             raise SpecError(refusal)
         if key not in catalog:
             raise SpecError(f"the Screener has no field {key!r}")
-        other = f.get("other")
         if other is not None and other not in catalog:
             raise SpecError(f"the Screener has no field {other!r}")
 
@@ -226,16 +231,26 @@ def validate(spec: Any, *, catalog: frozenset | None = None, columns: frozenset 
     return out
 
 
+def logic_refusal(checked: dict) -> Optional[str]:
+    """The engine's own sentence for a tree on a server that has groups off, else None. Said before admission, a tree
+    that could never run spends none of the turn's budget. `query.build_scan_sql` still refuses on its own."""
+    if checked.get("logic"):
+        from api.services.screener import logic
+        if not logic.is_enabled():
+            return logic.DISABLED_SENTENCE
+    return None
+
+
 def precheck(params: Any) -> Optional[str]:
     """The gateway's pre-admission hook (`Kind.validate`): None, or the sentence refusing the request.
     A refusal here spends none of the turn's budget. The adapter re-validates after admission
     (defence in depth); an admitted request that the screener then refuses has spent its scan."""
     p = params if isinstance(params, dict) else {}
     try:
-        validate(p.get("spec"))
+        checked = validate(p.get("spec"))
     except SpecError as e:
         return str(e)
-    return None
+    return logic_refusal(checked)
 
 
 def row_limit(spec: Any) -> int:

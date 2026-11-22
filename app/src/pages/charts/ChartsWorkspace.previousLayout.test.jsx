@@ -224,14 +224,13 @@ test('navigation is not Undo: "undo" after a non-layout change still reverses th
 // ⭐ A1.3b (owner Q7) — a MEMBER's layout open is undoable with the Agent's rules: Undo
 // reopens the previous saved layout (here MAIN, an own layout that auto-saves, so nothing
 // was discarded).
-test('A1.3b — Dock open → "Switched to …" → Undo reopens the previous layout', async () => {
+test('owner 11-16 — a Dock open switches quietly: NO "Switched to …" banner', async () => {
   mount(MAIN)
   await act(async () => { dockButton('Swing Board').click() })
   await waitFor(() => expect(activeId()).toBe(2))
-  const toast = await screen.findByTestId('layout-undo-toast')
-  expect(toast.textContent).toMatch(/^Switched to “Swing Board”/)
-  await act(async () => { within(toast).getByRole('button', { name: 'Undo' }).click() })
-  await waitFor(() => expect(activeId()).toBe(1))
+  await new Promise((r) => setTimeout(r, 300))
+  expect(screen.queryByTestId('layout-undo-toast')).toBeNull()
+  expect(screen.queryByText(/Switched to/)).toBeNull()
   expect(modelCalls).toBe(0)
 }, 30000)
 
@@ -248,7 +247,8 @@ test('A1.3b — a Dock open that does not land shows NO toast', async () => {
 }, 30000)
 
 // ⛔ Agent integration test (2026-10-13): the member's toast must not outlive the switch it names.
-test('A1.3b — the toast goes when the board moves on to another layout', async () => {
+// Owner 11-16: the banner is off (LAYOUT_SWITCH_BANNER in ChartsWorkspace.jsx) — kept for when it returns.
+test.skip('A1.3b — the toast goes when the board moves on to another layout', async () => {
   mount(MAIN)
   await act(async () => { dockButton('Swing Board').click() })
   await waitFor(() => expect(activeId()).toBe(2))

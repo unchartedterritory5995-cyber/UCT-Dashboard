@@ -1,0 +1,217 @@
+{
+  "_": "⭐⭐ RS RATING L1b / L6b (2026-11-14) — OTHER-SYMBOL SPELLINGS THAT ARE SERVED ONLY BEHIND A CAPTURE WITNESS. Each key is the spelling a script writes (`request.security(\"SP:SPX\", …)`; a seed as `request.seed(source, symbol, …)` spells `<SOURCE>:<SYMBOL>`, upper-cased). `store` is the key our bars route serves it under (`/api/bars/<store>`), `timeframes` the chart timeframes the witness covers, `queue_row` / `probe` the capture that settles it, `alignment` how the witness places the series' bars on a chart's bars (`otherSymbols.js::WITNESS_ALIGNMENTS`). ⛔ A ROW SERVES ONLY WHEN IT CARRIES `witness` (the capture) AND `captured` (its date) — the rule `symbolScope.json::confirmed` keeps: a row without a witness is an assertion wearing a data structure. Without them the spelling is refused BY NAME, citing its queue row (`otherSymbols.js::staticallyUnservable`, the one gate both lanes ask). Turning a row on is ONE data edit. ⭐ The `seed` rows are the frontend's manifest of `api/services/pine_seed_store.py::SEEDS`; `tests/test_pine_seed_manifest.py` rails that the two agree. ⭐⭐ RS RATING L11 (2026-11-17) — a chart timeframe with a block of its own (`periods.<tf>`) is served from the series HELD at another timeframe (`held`; fetched and cached under `<store>@<held>`, `otherSymbols.js::heldFetchOf`) and read per request timeframe as its capture witnessed (`reads`: `period` = the chart's own timeframe, a FOLD; `D` = a daily read below the chart, the row's daily read SAMPLED per chart bar; `otherSymbols.js::WITNESS_PERIOD_READS`). A block serves only with its own `witness` + `captured`; a timeframe listed in `timeframes` with no block is the row's own (`alignment`).",
+  "rows": {
+    "SP:SPX": {
+      "kind": "index",
+      "store": "SPX",
+      "timeframes": [
+        "D",
+        "W",
+        "M",
+        "1",
+        "5",
+        "15",
+        "30",
+        "60"
+      ],
+      "queue_row": "Q-RS3",
+      "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+      "alignment": "previous-session",
+      "source": "api/index_bars.py: daily from FMP ^GSPC first, yfinance ^GSPC as the fallback (owner ruling 2026-11-14); `t` is unix seconds at the session date's UTC midnight, keyed by session date at bind",
+      "witness": "rs-spx-daily-rddt-1d-2026-11-15, rs-spx-daily-spy-1d-2026-11-15 (s10 batch, local; UCT probes)",
+      "captured": "2026-11-15",
+      "how": "TradingView's request.security(\"SP:SPX\", \"D\" and timeframe.period, open/high/low/close) on NYSE:RDDT 1D (666 bars, from the listing) and AMEX:SPY 1D: on EVERY chart bar both spellings read the PREVIOUS session's SPX bar, never the same day's. Graded against yfinance ^GSPC (the fallback; FMP needs a key): close 0/666 and 0/679 mismatches against the previous session (max 0.0102), low 0; open 20 and high 4 differ from yfinance's own opens/highs (yfinance quirks, not alignment). X04 (\"D\") == X05 (timeframe.period) on every bar. Hence `previous-session`: each SPX bar is read on the chart's NEXT session.",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "period": "previous-week",
+            "D": "week-last-row"
+          },
+          "queue_row": "Q-RS7",
+          "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+          "witness": "rs-spx-daily-w-rddt-1w-2026-11-17, rs-rating-fred6724-w-rddt-1w-2026-11-17, rs-rating-fred6724-w-nvda-1w-2026-11-17 (rs-weekly-2026-11-17 batch, local; Q-RS7)",
+          "captured": "2026-11-17",
+          "how": "TradingView on NYSE:RDDT 1W (140 bars) and NASDAQ:NVDA 1W (1453 bars), newest week forming. R1, `timeframe.period` (X05; the RS line): EVERY settled week reads the PREVIOUS week's last daily SPX close (week of 2026-11-09 reads 2026-11-06's 7376.86; 2026-11-02 reads 2026-10-30's 7580.07): 139/139 RDDT weeks against FMP ^GSPC daily (max relative difference 0) and 138/138 against TradingView's own daily SP:SPX (from the committed rs-spx-daily-pm-rddt-1d-2026-11-16), holiday weeks included (Good Friday 2025-04-18 and 2026-04-03, 2026-07-03, every Monday holiday); RS Rating's RS line on RDDT 1W is exact on all 139 settled weeks with it (`previous-week`). R2, \"D\" (X01..X04): every settled week reads the previous-session-aligned daily bar at the week's LAST session (its Thursday in a full week: 2026-11-12's 7592.40 for the week of 2026-11-09; Wednesday in a Good Friday week), open/high/low/close all equal, 139/139 (`week-last-row` over the row's `previous-session` read). The SPX weekly store (`/api/bars/SPX?tf=W`, Monday keys, ten years of yfinance) is not used: the daily rows are fetched and held. ⛔ NOT WITNESSED, and served as the fold builds them: the weekly open/high/low at `timeframe.period` (only the close, X05, is captured). ⏳ The FORMING week reads the latest SPX value on TradingView (7340.53 on 2026-11-17, both reads); here it reads the previous week's close (R1) and the newest placed daily row (R2): the one known difference, owed to an in-session capture (PR 2)."
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "period": "previous-month",
+            "D": "month-last-row"
+          },
+          "queue_row": "Q-RS-M",
+          "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+          "witness": "rs-spx-daily-m-rddt-1m-2026-11-18, rs-rating-fred6724-m-rddt-1m-2026-11-18, rs-rating-fred6724-m-nvda-1m-2026-11-18 (rs-monthly-2026-11-18c batch, local; Q-RS-M)",
+          "captured": "2026-11-18",
+          "how": "TradingView on NYSE:RDDT 1M (33 months from 2024-03-01, the listing month) and NASDAQ:NVDA 1M (335 months from 1999-01), newest month forming, captured pre-market 2026-11-18T13:0xZ (a fresh load). R1, `timeframe.period` (X05; the RS line): EVERY settled month reads the PREVIOUS month's last daily SPX close (October 2026 reads 2026-09-30's 7651.54; November reads 2026-10-30's 7580.07): 32/32 RDDT months against our FMP ^GSPC daily (max relative difference 0), and RS Rating's RS line equals close / that close x 3360 on all 33 RDDT months (`previous-month`); NVDA's 335 the same apart from the accepted pre-2023-12-05 S&P 500 history (Q-RS9). R2, \"D\" (X01..X04): every settled month reads the previous-session-aligned daily bar at the month's LAST session (the close of its penultimate session: 2026-10-29's 7720.39 for October), open/high/low/close all equal, 32/32 (`month-last-row` over the row's `previous-session` read). The FORMING month reads 7340.53, the newest SPX close (2026-11-17), which `previous-session` places on its NEXT session (2026-11-18), inside November: the newest row is read by the forming period's last-row sample (`otherSymbols.js::belowChartSeriesOf`), as on NYSE:RDDT 1W after the close (2026-11-17T21:18Z, X04 7340.53). R3 (this chart's own symbol at \"D\", a bare `close`): TradingView's monthly close is its month's last daily close on 32/32 settled RDDT months (the 1M capture against the committed rs-spx-daily-pm-rddt-1d-2026-11-16 daily bars). ⏳ The forming month's R1 on a chart that has ticked since it loaded (in session) reads its own month's latest close (PR 2's rule, `newestOwnPeriodOf`); this pre-market fresh load read the previous month, as PR 2 serves it."
+        },
+        "1": {
+          "held": "1",
+          "alsoHeld": "D",
+          "reads": {
+            "period": "latest-at-or-before",
+            "D": "session-completed"
+          },
+          "queue_row": "Q-L12-1",
+          "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+          "witness": "rs-spx-daily-is-rddt-1-2026-11-18 (l12-is-2026-11-18 batch, local; Q-L12-1)",
+          "how": "TradingView's X05 on NYSE:RDDT 1 (an EXTENDED-hours chart, captured in session 2026-11-18T15:15Z): each regular-hours bar shares its open time with an SPX bar and reads THAT bar; pre-market bars read the previous official daily close, post-market bars the day's official close (read from the held daily closes). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX row a chart bar is unknown (withheld), not na. Measured against our /api/bars/SPX?tf=1 rows recorded 15:17:44Z (7 days, yfinance's cap): 2,339 of 2,343 regular bars equal to the 2-decimal print; the four others are three yfinance prints off by 0.02 / 0.20 / 0.07 and our newest stored bar (11-18 09:35, a partial print served as settled: fixed by #1868); pre-market 399 previous close, post-market 431 day close. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
+          "captured": "2026-11-18"
+        },
+        "5": {
+          "held": "5",
+          "alsoHeld": "D",
+          "reads": {
+            "period": "latest-at-or-before",
+            "D": "session-completed"
+          },
+          "queue_row": "Q-L12-1",
+          "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+          "witness": "rs-spx-daily-pm-rddt-5-2026-11-18, rs-rating-fred6724-pm-rddt-5-2026-11-18 (l12-pm-2026-11-18 batch, local; Q-L12-1)",
+          "how": "TradingView's request.security(\"SP:SPX\", timeframe.period, close) (X05) on NYSE:RDDT 5 (an EXTENDED-hours chart, the rig layout's own session; captured pre-open 2026-11-18T14:2xZ, the newest bars settled): every regular-hours bar shares its open time with an SPX 5m bar and reads THAT bar (4,617 of 4,620 equal our /api/bars/SPX?tf=5 rows to 0.005; three tiny yfinance prints off), the session's last bar (15:55) reading its own close (= ours, 60 of 60 days). Extended-hours bars read the latest SPX value: pre-market the previous official daily close, post-market the day's official close (1,698 of 1,698); both read from the held daily closes. Fred RS's RS line = close / that SPX close x 3360 on all 4,680 shared bars. `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX 5m row (60 days: yfinance's cap) a chart bar is unknown (withheld), not na. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
+          "captured": "2026-11-18"
+        },
+        "15": {
+          "held": "15",
+          "alsoHeld": "D",
+          "reads": {
+            "period": "latest-at-or-before",
+            "D": "session-completed"
+          },
+          "queue_row": "Q-L12-1",
+          "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+          "witness": "rs-spx-daily-is-rddt-15-2026-11-18 (l12-is-2026-11-18 batch, local; Q-L12-1)",
+          "how": "TradingView's X05 on NYSE:RDDT 15 (EXTENDED-hours, captured in session 2026-11-18T15:13Z): each regular-hours bar shares its open time with an SPX bar and reads THAT bar; pre-market bars read the previous official daily close, post-market bars the day's official close (read from the held daily closes). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX row a chart bar is unknown (withheld), not na. Against our /api/bars/SPX?tf=15 rows (60 days, yfinance's cap): 1,534 of 1,535 regular bars equal; the other is our newest stored bar (11-18 09:30, its 09:35 print 7350.26 where TradingView's settled bar is 7323.32: #1868); pre-market 967 previous close, post-market 817 day close. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
+          "captured": "2026-11-18"
+        },
+        "30": {
+          "held": "30",
+          "alsoHeld": "D",
+          "reads": {
+            "period": "latest-at-or-before",
+            "D": "session-completed"
+          },
+          "queue_row": "Q-L12-1",
+          "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+          "witness": "rs-spx-daily-is-rddt-30-2026-11-18, rs-rating-fred6724-is-rddt-30-2026-11-18 (l12-is-2026-11-18 batch, local; Q-L12-1)",
+          "how": "TradingView's X05 on NYSE:RDDT 30 (EXTENDED-hours, captured in session 2026-11-18T15:12Z): each regular-hours bar shares its open time with an SPX bar and reads THAT bar; pre-market bars read the previous official daily close, post-market bars the day's official close (read from the held daily closes). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX row a chart bar is unknown (withheld), not na. Against our /api/bars/SPX?tf=30 rows (60 days): 767 of 768 regular bars equal; the other is our newest stored bar (11-18 09:30, a partial print: #1868); pre-market 567 previous close, post-market 458 day close. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
+          "captured": "2026-11-18"
+        },
+        "60": {
+          "held": "60",
+          "alsoHeld": "D",
+          "reads": {
+            "period": "latest-at-or-before",
+            "D": "session-completed"
+          },
+          "queue_row": "Q-L12-1",
+          "probe": "tools/visual_conformance/probes/rs-spx-daily.pine",
+          "witness": "rs-spx-daily-pm-rddt-60-2026-11-18, rs-rating-fred6724-pm-rddt-60-2026-11-18, rs-rating-fred6724-pm-nvda-60-2026-11-18 (l12-pm-2026-11-18 batch, local; Q-L12-1)",
+          "how": "TradingView's X05 on NYSE:RDDT 60, an EXTENDED-hours chart (bars hour-aligned 04:00..19:00 ET): each bar reads the SPX hourly bar that OPENED at or before it in its session (the 10:00 bar the 09:30 SPX bar, ... the 15:00 bar the 14:30 bar), 360 of 360 equal our /api/bars/SPX?tf=60 rows; pre-market the previous official daily close, post-market the day's official close (60 of 60 days). On a REGULAR-hours chart (the product's default) every bar opens with an SPX bar (09:30, 10:30, ...), so the same rule reads the SAME bar; the regular-hours 60m grid itself is not separately captured (the rig layout autosaves, so its session is never switched). `latest-at-or-before` (the index's own bars of the chart's timeframe and its official daily closes held beside them, `SPX@D`); before our store's first SPX 60m row (yfinance: 730 days) a chart bar is unknown. ⭐ U-DAILY (L12 PR 2): SP:SPX read at \"D\" above this chart (the rs-spx probe's X01..X04 on the same l12-is captures): a bar opening before its session's close reads the PREVIOUS session's daily row (every pre-market and regular bar), a bar from the close the session's own (every post-market bar on 15 / 30 / 60m; on 1m / 5m the first post bars on some days still the previous one, the official print's own lag). `session-completed`, from the held daily rows (`SPX@D`).",
+          "captured": "2026-11-18"
+        }
+      }
+    },
+    "SEED_FRED6725_RS_RATING:RSRATING": {
+      "kind": "seed",
+      "store": "SEED_FRED6725_RS_RATING:RSRATING",
+      "timeframes": [
+        "D",
+        "W",
+        "M",
+        "1",
+        "5",
+        "15",
+        "30",
+        "60"
+      ],
+      "queue_row": "Q-RS2",
+      "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+      "alignment": "same-date-gaps-na",
+      "source": "api/services/pine_seed_store.py: the NEWEST upload of the public mirror Fred6725/rs-log output/RSRATING.csv (replace-on-upload, 01ce0d567f); calendar-day rows, ISO `t`",
+      "witness": "rs-seed-rsrating-rddt-1d-2026-11-15 (s10 batch, local; UCT probe)",
+      "captured": "2026-11-15",
+      "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1D (666 bars): na on every chart bar before 2026-10-07, then exactly the newest upload's weekday rows, each on the chart bar of the SAME DATE; weekend rows never land, and chart bars after the last row read na (no carry-forward). pine_seed_store replace-on-upload gives 0 mismatches on all 666 bars, values and na-ness (peer, 2026-11-15). Hence `same-date-gaps-na`: a chart bar with no row of its date reads na, which is known, not withheld.",
+      "periods": {
+        "W": {
+          "held": "D",
+          "reads": {
+            "D": "week-first-day"
+          },
+          "queue_row": "Q-RS7",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-w-rddt-1w-2026-11-17 (rs-weekly-2026-11-17 batch, local; Q-RS7)",
+          "captured": "2026-11-17",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1W (140 bars, captured 2026-11-17T21:18Z): each week reads the row dated its FIRST calendar day (Monday): the week of 2026-11-09 reads 39.88 (the 2026-11-09 row) although 2026-11-12..15 hold 12.98; the week of 2026-11-16 reads 12.98; the week of 2026-10-12, whose Monday has no row (the series begins 2026-10-13), reads na where the first row of the week would have been 190.9. 140/140 weeks, values and na, against pine_seed_store's replay of the rs-log upload af528c134fb9 (2026-11-17T09:39:26Z, the newest before the capture), the forming week included (`week-first-day`, the row's `same-date-gaps-na` read sampled)."
+        },
+        "M": {
+          "held": "D",
+          "reads": {
+            "D": "month-first-session"
+          },
+          "queue_row": "Q-RS-M",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-m-rddt-1m-2026-11-18 (rs-monthly-2026-11-18c batch, local; Q-RS-M)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1M (33 months, captured 2026-11-18T13:0xZ): each month reads the row dated its FIRST SESSION: November 2026 reads 75 (the 2026-11-02 row, Monday, the month's first session), not Sunday 2026-11-01's 92.81 although the seed holds calendar-day rows; October 2026 reads na, its first session 2026-10-01 having no row (the series begins 2026-10-13, 190.9); every earlier month na (`month-first-session`, the row's `same-date-gaps-na` read sampled; the session from `lib/marketClock/sessionCalendar.js`)."
+        },
+        "1": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-3",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-1-2026-11-18 (l12-seed3-now-2026-11-18 batch, local; Q-L12-3)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 1m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 22,216 of 22,216 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
+        },
+        "5": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-2",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-5-2026-11-18 (l12-now-2026-11-18 batch, local; Q-L12-2)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 5m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 20,681 of 20,681 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
+        },
+        "15": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-3",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-15-2026-11-18 (l12-seed3-now-2026-11-18 batch, local; Q-L12-3)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 15m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 21,018 of 21,018 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
+        },
+        "30": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-3",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-30-2026-11-18 (l12-seed3-now-2026-11-18 batch, local; Q-L12-3)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 30m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 19,830 of 19,830 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
+        },
+        "60": {
+          "held": "D",
+          "reads": {
+            "D": "utc-midnight-at-or-after"
+          },
+          "queue_row": "Q-L12-2",
+          "probe": "tools/visual_conformance/probes/rs-seed-rsrating.pine",
+          "witness": "rs-seed-rsrating-n-rddt-60-2026-11-18 (l12-now-2026-11-18 batch, local; Q-L12-2)",
+          "captured": "2026-11-18",
+          "how": "TradingView's request.seed('seed_fred6725_rs_rating','RSRATING', close/open/high) on NYSE:RDDT 60m (extended-hours chart, captured 2026-11-18 after the close): each row, dated D, reads on the FIRST chart bar opening at or after D 00:00 UTC (in EST the previous session's 19:00 bar, or the next bar where the chart has none at 19:00; in EDT the next session's 04:00 bar), several rows on one bar the NEWEST (a weekend's: the Monday row), every other bar na. 10,353 of 10,353 graded bars, values and na, against pine_seed_store's rows recorded beside the capture (`utc-midnight-at-or-after`); 'the oldest wins' is off on the 2 weekend bars, a bar that CONTAINS the instant and ET midnight are off on 17 to 27."
+        }
+      }
+    }
+  }
+}

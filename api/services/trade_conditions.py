@@ -35,12 +35,13 @@ import threading
 
 log = logging.getLogger(__name__)
 
-# Default OFF after the 2026-07-16 extended-hours incident: filtering Form-T (see
-# _SESSION_CODES) froze the post-market last-price cache and flickered the live
-# candle during the NFLX earnings sell-off. Re-enable with
-# TRADE_CONDITION_FILTER_ENABLED=1 once the extended-hours handling is verified
-# live. The RTH ghost-wick heal (StockChart seed-reconcile) is unaffected.
-FILTER_ENABLED = os.environ.get("TRADE_CONDITION_FILTER_ENABLED", "0") == "1"
+# Default ON (2026-11-10). It went default-OFF after the 2026-07-16 extended-hours
+# incident (filtering Form-T froze the post-market last-price cache); the Form-T /
+# extended-hours codes are now exempt by id AND by name (_SESSION_CODES,
+# _is_session_condition), the flag has been armed on web since, and the server
+# push stream is the single source of the live candle — so the correct behaviour
+# is the default. Kill-switch: TRADE_CONDITION_FILTER_ENABLED=0.
+FILTER_ENABLED = os.environ.get("TRADE_CONDITION_FILTER_ENABLED", "1") == "1"
 
 # Extended-hours session-classification codes — NOT print-quality defects. A
 # post-market trade is Form T (12); a late-reported ext print is 13. During
@@ -133,15 +134,25 @@ _last_ineligible: set[int] = set(_LAST_INELIGIBLE_FALLBACK) - _SESSION_CODES
 _loaded_from_provider = False
 
 
-def classify(conditions) -> tuple[bool, bool]:
+# Feeds whose condition codes ARE the SIP/Massive numeric table. Finnhub numbers
+# its own codes (a different table), so classifying them against the SIP ids
+# would hide real trades and keep ghosts at random (D10). Anything not listed
+# here is treated as unclassifiable => fully eligible (the safe default).
+_SIP_SOURCES = frozenset({"sip", "massive"})
+
+
+def classify(conditions, source: str = "sip") -> tuple[bool, bool]:
     """Return (updates_high_low, updates_last) for a trade's condition list.
+
+    `source` names the feed the codes came from. Only SIP/Massive codes are
+    classified; codes from another feed (e.g. "finnhub") return (True, True).
 
     A print is eligible for a metric unless one of its conditions forbids it (the
     most-restrictive condition wins — matches the SIP rule). Empty/missing
     conditions, unknown codes, or a disabled filter => fully eligible (True, True),
     so we never suppress a genuine trade.
     """
-    if not FILTER_ENABLED or not conditions:
+    if not FILTER_ENABLED or not conditions or source not in _SIP_SOURCES:
         return True, True
     hl_ok = True
     last_ok = True

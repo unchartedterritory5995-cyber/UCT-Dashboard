@@ -180,6 +180,7 @@ export function ScopeControl({ lists, activeId, helpers, themeVars }) {
         className={`${styles.scopeBtn} ${styles.scopeBtnCustom}`}
         onClick={() => (open ? close() : openMenu())}
         title="Choose what the scanner watches"
+        data-guide="volumeScan.scope"
       >
         <UIcon name={active ? 'star' : 'rows'} size={11} gold={false} />
         <span className={styles.scopeLabel}>{label}</span>

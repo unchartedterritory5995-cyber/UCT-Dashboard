@@ -204,6 +204,10 @@ _SELF_ENSURED_ELSEWHERE = {
     "watchlist_origins": "api/services/watchlist_origin.py",
     "what_else_open_occasions": "api/services/what_else_open.py",
     "j2_earnings_followup_log": "api/services/journal_two/earnings_followup.py",
+    # Community scan-board layouts (2026-11-17): created on first use by their own service.
+    "screener_layout_gallery": "api/services/screener_layout_gallery.py",
+    "screener_layout_gallery_reports": "api/services/screener_layout_gallery.py",
+    "screener_layout_gallery_uses": "api/services/screener_layout_gallery.py",
 }
 
 
@@ -524,8 +528,6 @@ def test_account_purge_removes_library_rows_and_keeps_copies(db_path, monkeypatc
     from api.services.journal_two import journal_styles as js
     from api.services.journal_two import template_gallery as gallery
 
-    monkeypatch.setenv("NOTEBOOK_STYLE_LIBRARY_ENABLED", "1")
-    monkeypatch.setenv("NOTEBOOK_JOURNAL_STYLES_ENABLED", "1")
     conn = get_connection()
     try:
         for uid in ("author", "member", "other_author", "fan"):
@@ -595,7 +597,7 @@ def test_account_purge_removes_layout_items_and_keeps_adopters_layouts(db_path, 
     from api.services.journal_two import page_layout_share as pls
     from api.services.journal_two import template_gallery as gallery
 
-    for name in ("NOTEBOOK_STYLE_LIBRARY_ENABLED", "JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED"):
+    for name in ("JOURNAL_PAGE_LAYOUTS_ENABLED", "NOTEBOOK_LAYOUT_SHARING_ENABLED"):
         monkeypatch.setenv(name, "1")
     trade = [{"id": "story", "shown": True}, {"id": "chart", "shown": False}]
     conn = get_connection()

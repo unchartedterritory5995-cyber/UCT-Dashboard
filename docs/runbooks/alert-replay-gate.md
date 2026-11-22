@@ -220,6 +220,30 @@ to *"if the log moves that is a finding, never a number to regenerate"*), and al
 copies here went stale in the same minute while every gate stayed green. **Read the
 number off `--check`; do not carry it.**
 
+### Sanctioned re-freezes of the fire log (the ONLY ones; each is dated, owned and proved)
+
+Every entry here is a deliberate decision that the log's numbers were wrong, not a regeneration
+after a regression. A re-freeze that is not on this list is a defect.
+
+1. **Daily VWAP unit fix**, `2999e8f0`: the daily-VWAP unit was wrong; the log was re-frozen with it.
+2. **SMA de-duplication, 2026-08-09** (`rerecorded[0]` in the log, at `5be3031c5d`): `compute_sma` stopped
+   carrying its own rolling accumulator and read `ast_interpret`'s `sma`; 66 `price_vs_ma` keys moved, every
+   moved fire a threshold straddle (`tests/test_alert_replay.py`, the block above `_FROZEN_EIGHT`). It was
+   not listed here, which is how this page came to say "the ONE" exception while the log carried two.
+3. **SMA-EXACT, 2026-11-16**, `fix/pine-sma-exact-sum`; decided by the coordinator under the owner's
+   "you decide" mandate. **Reason:** `ta.sma` is the EXACTLY ROUNDED window sum (`math.fsum`), the one
+   TradingView equals on every bar of every capture from 2026-11-14 on
+   (`docs/pine/evidence/2026-11-16-sma-exact-sum/EVIDENCE.md`); keeping alerts on the left-to-right
+   mean would have made them a second SMA authority that disagrees with the chart. **Proof**, recorded
+   in that EVIDENCE.md: (a) replaying every fixture with the retired left-to-right mean swapped back in
+   reproduces the committed log BYTE FOR BYTE (11 / 11 fixtures); (b) under the exact sum every fire's
+   (alert, bar, sample) is identical except on `price_vs_ma` alerts at single bars where
+   `close - sma` lands within 3.79 ulps of the bar's close of a grid threshold (54 fire rows at 21
+   (fixture, bar, alert) points), listed one by one there with the margin in ulps;
+   every other moved fire moved its VALUE only, in the last bits. Re-frozen with
+   `--record --force` on that tree (which does not carry the log's `appended` / `rerecorded` provenance:
+   both were put back and this re-record appended as `rerecorded[1]`), then `--check`: FIRE LOG MATCHES.
+
 ⛔ **`PYTHONDONTWRITEBYTECODE=1` IS NOT OPTIONAL.** A same-size mutation applied within
 one second of the last run imports the previous `.pyc` and the mutation silently never
 executes — measured on this branch.

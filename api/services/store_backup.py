@@ -110,6 +110,10 @@ STORES: tuple[Store, ...] = (
     # (ledger, seq order, repeat counts). trade_exchange_news/integrity.py alerts when the newest
     # snapshot is stale. Restore: docs/runbooks/trade-exchange-news-retention.md.
     Store("trade_exchange_news", CLASS_RETAINED, "api.services.trade_exchange_news.config", "db_path"),
+    # Market Tide by day (2026-11-20): one row per finished session, written once after the close.
+    # There is no backfill (a past day's whole tape cannot be re-read), so a lost file is lost
+    # history. Absent until the first capture, and reported so.
+    Store("market_tide_history", CLASS_RETAINED, "api.services.options_analytics.tide_history", "_db_path"),
 )
 
 #: Stores another rail already backs up. Never registered above.
@@ -363,15 +367,54 @@ def stale_stores(client, bucket: str, *, now: _dt.datetime, max_age_hours: float
     return out
 
 
+#: The catch-up re-runs any registered store whose newest object is older than this. Below a day so
+#: a store the nightly run missed is caught the same day; above the nightly interval's jitter so a
+#: store the nightly run DID back up is never copied twice.
+CATCHUP_AGE_HOURS = 20
+
+
+def run_catchup(*, now: Optional[_dt.datetime] = None, client=None, bucket=None) -> Optional[dict]:
+    """Back up ONLY the registered stores whose newest object is older than CATCHUP_AGE_HOURS.
+
+    ⚰️ Why it exists (2026-11-14): `web` is released many times a night, and a release replaces
+    the process. The 03:05 run on 2026-11-14 was killed after 7 of 13 stores by a release that
+    went live minutes after it started, and the other six waited a full day for the next night.
+    The bucket is the authority (artefact-first, as stale_stores is), so a run killed at any point
+    is finished by the next catch-up. None when dark, unconfigured, or the listing fails; {} when
+    nothing is stale; else run_backup's {store: result}. Never raises."""
+    if not is_enabled():
+        return None
+    try:
+        now = now or _dt.datetime.now(_dt.timezone.utc)
+        if client is None:
+            client, bucket = _r2()
+        if not (client and bucket):
+            return None
+        stale = [name for name, _why in stale_stores(client, bucket, now=now, max_age_hours=CATCHUP_AGE_HOURS)]
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[store_backup] catch-up listing failed (non-fatal): %s", e)
+        return None
+    if not stale:
+        return {}
+    logger.info("[store_backup] catch-up: %s", stale)
+    return run_backup(now=now, client=client, bucket=bucket, stores=stale)
+
+
 def register_jobs(scheduler) -> bool:
-    """Nightly 03:05 ET (after auth.db's 02:55). Registers nothing while dark."""
+    """Nightly 03:05 ET (after auth.db's 02:55), plus a catch-up at :35 past every odd hour ET
+    (so never beside the nightly run) that finishes whatever a killed run left. Registers nothing
+    while dark."""
     if not is_enabled():
         logger.info("[store_backup] disabled (%s unset)", ENABLED_ENV)
         return False
     from apscheduler.triggers.cron import CronTrigger
     from zoneinfo import ZoneInfo
-    scheduler.add_job(run_backup, trigger=CronTrigger(hour=3, minute=5, timezone=ZoneInfo("America/New_York")),
+    et = ZoneInfo("America/New_York")
+    scheduler.add_job(run_backup, trigger=CronTrigger(hour=3, minute=5, timezone=et),
                       id="store_backup_nightly", max_instances=1, replace_existing=True,
                       # a busy executor at 03:05 must not silently drop the night (default grace = 1s)
                       misfire_grace_time=3600, coalesce=True)
+    scheduler.add_job(run_catchup, trigger=CronTrigger(hour="1-23/2", minute=35, timezone=et),
+                      id="store_backup_catchup", max_instances=1, replace_existing=True,
+                      misfire_grace_time=1800, coalesce=True)
     return True

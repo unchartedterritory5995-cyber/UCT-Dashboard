@@ -1,0 +1,9 @@
+//@version=5
+indicator("hp udf", overlay=false)
+f_zscore(src, len) =>
+    m = ta.sma(src, len)
+    s = ta.stdev(src, len)
+    s == 0 ? 0.0 : (src - m) / s
+f_clamp(x, lo, hi) => math.max(lo, math.min(hi, x))
+plot(f_zscore(close, 20), "z")
+plot(f_clamp(f_zscore(volume, 50), -2, 2), "zv")

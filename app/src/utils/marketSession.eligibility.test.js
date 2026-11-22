@@ -50,11 +50,12 @@ describe('expectedBarsBehind — counted in BUCKETS, not wall-clock seconds', ()
     expect(expectedBarsBehind(undefined, '5', at('15:55'))).toBe(Infinity)
   })
 
-  test('⛔ the opening bucket is irregular on tf=60 and is walked, not divided', () => {
-    // 09:30-10:00 is a THIRTY minute bucket. At 11:05 the frontier is the
-    // 10:00-11:00 bar; a 09:30 tail is exactly ONE bucket behind, and naive
-    // (frontier - lastT)/3600 would say 0.5 and round wrong.
-    expect(expectedBarsBehind(bar('09:30'), '60', at('11:05'))).toBe(1)
+  test('⛔ the hourly grid is irregular on tf=60 and is walked, not divided', () => {
+    // TradingView grid 09:30, 10:30 … 15:30 (a THIRTY minute last bar). At 11:35
+    // the frontier is the 10:30-11:30 bar; a 09:30 tail is ONE bucket behind.
+    expect(expectedBarsBehind(bar('09:30'), '60', at('11:35'))).toBe(1)
+    // At 11:05 the 09:30-10:30 bar is the frontier itself.
+    expect(expectedBarsBehind(bar('09:30'), '60', at('11:05'))).toBe(0)
   })
 })
 

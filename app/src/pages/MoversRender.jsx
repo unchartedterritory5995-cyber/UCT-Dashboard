@@ -1,4 +1,4 @@
-// app/src/pages/MoversRender.jsx — headless, token-gated Pre-Market Movers export.
+// app/src/pages/MoversRender.jsx — headless Pre-Market Movers export.
 //
 // Renders the wire's cap×direction mover buckets (Top Small-Cap Positive /
 // Top Big-Cap Positive / Top Big-Cap Negative) as a branded panel: logo ·
@@ -8,15 +8,15 @@
 //
 // Data arrives in the URL (?data= base64url JSON of the RESOLVED buckets) —
 // blurb resolution (catalyst → analyst → earnings → headline → company) lives
-// wire-side; this page is presentation only. ?token= checked against
-// VITE_CHART_RENDER_TOKEN.
+// wire-side; this page is presentation only. It fetches no data of its own
+// (logos aside), so the page asks the server whether the address's token is
+// accepted before it draws.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import { useServerTokenCheck } from '../lib/renderToken'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
-
-import { renderTokenOk } from '../lib/renderToken'
 const UP = '#22c55e'
 const DN = '#ef4444'
 const BUCKET_STYLE = {
@@ -109,16 +109,18 @@ export default function MoversRender() {
   const token = sp.get('token') || ''
   const w = Math.min(1200, Math.max(700, parseInt(sp.get('w') || '1000', 10)))
   const payload = useMemo(() => decodeData(sp.get('data') || ''), [sp])
-  const [err, setErr] = useState('')
+  // The page asks the server whether the address's token is accepted before it draws.
+  const check = useServerTokenCheck(token)
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
+    if (check !== 'ok') return
     const t = setTimeout(() => { window.__panelReady = true }, 2400) // logos settle
     return () => clearTimeout(t)
-  }, [token, payload])
+  }, [check, payload])
 
-  if (err) return <div style={{ color: '#e74c3c', padding: 20 }}>{err}</div>
+  if (check === 'refused') return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
+  if (check === 'pending') return null
   const buckets = (payload && payload.buckets) || []
 
   return (

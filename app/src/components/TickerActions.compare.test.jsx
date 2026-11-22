@@ -74,6 +74,6 @@ test('unrelated actions (Full Research, Ask AI, Flag) still work alongside the n
   render(<TickerActionsMenu menu={MENU} onClose={vi.fn()} />)
   fireEvent.click(screen.getByRole('button', { name: /full research/i }))
   expect(navigateMock).toHaveBeenCalledWith('/research/NVDA')
-  expect(screen.getByRole('button', { name: /ask ai about nvda/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /ask the uct agent about nvda/i })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /flag/i })).toBeInTheDocument()
 })

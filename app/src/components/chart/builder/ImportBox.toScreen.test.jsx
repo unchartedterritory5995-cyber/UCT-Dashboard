@@ -18,6 +18,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { conditionFrom, COMPARISONS, operatorLabel } from './toCondition'
@@ -46,20 +47,22 @@ const flush = async () => {
 const noop = () => {}
 
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={noop} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
 const tab = (name) => screen.getByRole('tab', { name })
 const pasteField = () => screen.getByTestId('pine-box').querySelector('textarea')
 
 async function paste(script) {
-  fireEvent.click(tab(/^import$/i))
+  openSource('pine')
   fireEvent.change(pasteField(), { target: { value: script } })
   await act(async () => { vi.advanceTimersByTime(PINE_DEBOUNCE_MS + 1) })
   await flush()
@@ -143,7 +146,7 @@ describe('🔴 a numeric paste offers the comparison, and it reaches the formula
     fireEvent.click(screen.getByTestId('pine-use'))
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 1) })
     await flush()
-    expect(screen.getByLabelText('Formula').value).toBe(want.formula)
+    expect(formulaBox().value).toBe(want.formula)
   })
 
   it('⛔ leaving the threshold BLANK keeps the column — a number is still chartable', async () => {
@@ -157,7 +160,7 @@ describe('🔴 a numeric paste offers the comparison, and it reaches the formula
     await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 1) })
     await flush()
     const numeric = translatePine(NUMERIC).outputs.find((o) => o.formula).formula
-    expect(screen.getByLabelText('Formula').value).toBe(numeric)
+    expect(formulaBox().value).toBe(numeric)
   })
 
   it('⛔ a threshold that is not a number says so rather than screening on zero', async () => {

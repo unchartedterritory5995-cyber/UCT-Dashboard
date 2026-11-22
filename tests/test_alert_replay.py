@@ -725,23 +725,35 @@ _ORIGINAL_FIXTURES = ("intraday5m", "spy_daily", "nvda_5m_extended",
 # 17 asts × 579 bars`, exit 0. The fire log and the conformance digests are
 # DIFFERENT rails; only the first moved, and that is the whole reason this
 # movement is ownable.
+#
+# ⚠️ MOVED A SECOND TIME, DELIBERATELY, 2026-11-16 — SMA-EXACT (coordinator, under
+# the owner's "you decide" mandate; `docs/runbooks/alert-replay-gate.md`, sanctioned
+# re-freezes). `ast_interpret`'s `sma` is now the EXACTLY ROUNDED window sum
+# (`math.fsum`), the one TradingView's `ta.sma` equals on every bar of every
+# capture from 2026-11-14 on. Again EVERY moved alert key is `price_vs_ma`; the
+# retired left-to-right lane, swapped back in, reproduces the previous log byte
+# for byte; the 54 one-sided fires sit within 3.79 ulps of the bar's close of
+# their threshold. `spy_daily` gives back the fire the 08-09 move added
+# (29378→29377, 114846→114845): the exact value sits ON the -4.4846 threshold.
+# The full list: `docs/pine/evidence/2026-11-16-sma-exact-sum/EVIDENCE.md`. The
+# table above is regenerated from the re-frozen log, not typed.
 _FROZEN_EIGHT = {
     ("intraday5m", "1"):
-        (44543, "1b85de6b00e428a687ae283ecc294d9742c4c755f5938c09c4badee67baf290b"),
+        (44543, "822ad82844fac98622aba9f3ba20a66501d7f4bc2bd60b3582ad3f55d1ef44ea"),
     ("intraday5m", "4"):
-        (176275, "1b48654a5b434622cf40c62d3815af6e8c665fcf15f422693825c1d52f58b51c"),
+        (176275, "e0eb321aaa47d76daf47cd6fa1816c33260de7318c4bcd4fd8109b80e4fe95dd"),
     ("spy_daily", "1"):
-        (29378, "a7afc1f4a6110a4594c3d5735bbf3dccf181d6ac4c4982a5d017a665360af4ad"),
+        (29377, "f68d640e410f5821769903c2cd48ce8268be243449e903190e8dfa2045a7bdb9"),
     ("spy_daily", "4"):
-        (114846, "daab48483a8a2fc69981d5a693b2324b7201782b6b700f4275e489cb90229c19"),
+        (114845, "6598320325b7781b5c719422ed6d8ab3422feef1b4a560d153a02a8e86bd5a88"),
     ("nvda_5m_extended", "1"):
-        (61963, "2bb2e581f3bffdd8657721bc9dedb4575bde1c3eb76af8cea183de9c59729545"),
+        (61963, "a85f6372bcbd275c815f574ebea013e1db2ad0dc00163ae864e392bbeb1e58e3"),
     ("nvda_5m_extended", "4"):
-        (244269, "47d973d23b55cd625c46c4b76ec39fbec6f107bb91755da88eef01d1a2d50fa7"),
+        (244269, "684fa06ac563f750b20f7d222fbd8fd50cbbba2032e229d4901b6db53bcdbb88"),
     ("wick_that_unwinds", "1"):
-        (2786, "1934a73dcd5f44b070bd7e9b94fe014216842bc9868717156e898fa561847f68"),
+        (2786, "6c43a22d8d5cb9bfa4fb0b7adc93f7e2d7dd1a07d09635be5818d8fb27b1151d"),
     ("wick_that_unwinds", "4"):
-        (11135, "87e7fcb53856c53452bc60471d48fe34ddc13e163b36396fe820ce5a57984a8e"),
+        (11135, "e3452db6153a828191907379f465a1f4ae068e0d621d1f668ddcb42c3c7a8ab5"),
 }
 
 _EXTENDED_FIXTURES = ("gap_open_5m", "high_vol_5m", "thin_illiquid_5m",
@@ -992,7 +1004,11 @@ def test_bar_close_epoch_lands_on_the_next_bar_start_in_the_60m_open_buckets():
     import zoneinfo
 
     et = zoneinfo.ZoneInfo("America/New_York")
-    bars = ar.load_fixture("hourly_open_60m")["bars"]
+    from api.services.bars_sqlite import is_old_grid_60m_ts
+    # The tape predates the 2026-11-10 TradingView grid (09:30, 10:30 … 15:30):
+    # old H:00 RTH buckets map 1:1 to H:30 (see test_alert_bar_close_60m_grid).
+    bars = [dict(b, t=int(b["t"]) + 1800) if is_old_grid_60m_ts(b["t"]) else b
+            for b in ar.load_fixture("hourly_open_60m")["bars"]]
     shortened: dict = {}
     adjacent = gaps = 0
     for i in range(len(bars) - 1):
@@ -1009,7 +1025,7 @@ def test_bar_close_epoch_lands_on_the_next_bar_start_in_the_60m_open_buckets():
             start = datetime.datetime.fromtimestamp(bars[i]["t"], et).strftime("%H:%M")
             # what the nominal answer WOULD have overstated this bar by
             shortened.setdefault(start, []).append(bars[i]["t"] + 3600 - close_at)
-    assert set(shortened) == {"09:00", "09:30"}, (
+    assert set(shortened) == {"09:00", "15:30"}, (
         f"the 60-minute grid changed shape: {sorted(shortened)}")
     for start, deltas in shortened.items():
         assert set(deltas) == {1800}, (start, sorted(set(deltas)))

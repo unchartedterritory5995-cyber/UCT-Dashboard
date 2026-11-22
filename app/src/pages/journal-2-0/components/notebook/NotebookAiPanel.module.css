@@ -1,0 +1,22 @@
+/* Notebook simplify, Task 5: the notes list's AI section (Research home's Ask section, moved). Under the list toolbar,
+   at a reading width. "Or tell Notebook what to change" stretches to it; the question panel keeps its own width. */
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-sm);
+  max-width: 820px;
+  margin-bottom: var(--space-md);
+}
+
+.askDoor {
+  align-self: flex-start;
+}
+
+/* The desktop question panel is a popover that hangs from its own toggle (AskPanel.module.css `.panel`). Here there is
+   no toggle (the AI button is the door), so the panel takes its place in the section instead of floating over the
+   notes and over "Or tell Notebook what to change". `data-anchor` is on the desktop panel only; on the touch tier
+   the panel is a sheet and this matches nothing. */
+.askDoor [role='dialog'][data-anchor] {
+  position: static;
+}

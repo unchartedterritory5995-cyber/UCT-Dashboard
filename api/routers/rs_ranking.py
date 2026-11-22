@@ -16,7 +16,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
-from api.services.rs_ranking import cached_rankings, get_rs_for_ticker, kick_background_warm, snapshot_rankings
+from api.services.rs_ranking import (cached_rankings, get_rs_for_ticker, kick_background_warm,
+                                     snapshot_rankings, unified_rankings)
 
 router = APIRouter()
 
@@ -53,6 +54,10 @@ def rs_rankings(_user: dict = Depends(require_paid)):
             return JSONResponse(status_code=503, headers={"Retry-After": "30"},
                                 content={"status": "warming",
                                          "error": "RS rankings are being computed; retry shortly"})
+        # One RS rating everywhere (U5a): under RS_RANK_IBD_ENABLED the list carries
+        # the nightly rating as `rs_rank` (the badge and the RS leaders panel read it
+        # from here). A table read, not a compute; flag off, `data` is untouched.
+        data = unified_rankings(data)
         # A pending acquisition (DEAL_STATUS_ENABLED) is not shown as an RS leader. Removed
         # from the DISPLAYED list only: every other name keeps the percentile it was ranked
         # at. Flag off: the set is empty and the list is served untouched.

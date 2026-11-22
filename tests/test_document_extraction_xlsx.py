@@ -14,8 +14,8 @@ What these rails hold:
   * every sheet, in tab order, is its own run of pages headed by its name;
   * refused whole (None, never a raise) when a part is past the per-part or
     the whole-workbook cap, carries a DOCTYPE, or is not a workbook;
-  * the GATE: off means an .xlsx upload is a plain attachment; on, it becomes
-    a document of its own kind, only when its saved URL ends in `.xlsx`;
+  * an .xlsx upload becomes a document of its own kind, only when its saved URL
+    ends in `.xlsx` (always on since its gate was retired, 2026-11-04);
   * END TO END through `document_search.search_document_pages` (the
     production search path), with the positive control that the cell value
     was not findable before extraction; OCR never plans an xlsx page.
@@ -36,7 +36,6 @@ from api.services.journal_two import document_ocr as ocr
 from api.services.journal_two import document_search
 from api.services.journal_two import notes as notes_svc
 
-GATE = dx.IMAGE_DOCX_GATE
 S_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 PKG_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
@@ -311,7 +310,6 @@ def env(tmp_path, monkeypatch):
     auth_db.init_db()
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "j2_attachments")
-    monkeypatch.setenv(GATE, "1")
     queued: list[str] = []
     monkeypatch.setattr(dx, "queue_extraction", lambda doc_id: queued.append(doc_id))
     ocr.set_adapter(None)
@@ -343,17 +341,7 @@ def _row_of(doc_id: str) -> dict:
 class TestXlsxGate:
     XLSX = {"url": "/api/j2/notes/attachments/u1/n1/file/abc_trades.xlsx", "name": "trades.xlsx"}
 
-    @pytest.mark.parametrize("value", [None, "", "0", "false", "off"])
-    def test_gate_off_an_xlsx_is_a_plain_attachment(self, monkeypatch, value):
-        if value is None:
-            monkeypatch.delenv(GATE, raising=False)
-        else:
-            monkeypatch.setenv(GATE, value)
-        monkeypatch.setattr(dx, "create_document", lambda *a, **k: pytest.fail("no row while dark"))
-        assert dx.on_attachment_saved("u1", "n1", dict(self.XLSX), dx.XLSX_MIME, kind="file") is None
-
-    def test_gate_on_an_xlsx_becomes_a_document_of_its_own_kind(self, monkeypatch):
-        monkeypatch.setenv(GATE, "1")
+    def test_an_xlsx_becomes_a_document_of_its_own_kind(self, monkeypatch):
         created, queued = [], []
         monkeypatch.setattr(dx, "create_document",
                             lambda uid, nid, url, name, **kw: created.append((url, name, kw.get("source_kind")))
@@ -363,7 +351,6 @@ class TestXlsxGate:
         assert created == [(self.XLSX["url"], "trades.xlsx", dx.SOURCE_KIND_XLSX)] and queued == ["d1"]
 
     def test_an_xlsx_whose_url_does_not_end_in_xlsx_stays_a_plain_attachment(self, monkeypatch):
-        monkeypatch.setenv(GATE, "1")
         odd = {"url": "/api/j2/notes/attachments/u1/n1/file/abc_trades.bin", "name": "trades.bin"}
         assert dx.on_attachment_saved("u1", "n1", odd, dx.XLSX_MIME, kind="file") is None
 

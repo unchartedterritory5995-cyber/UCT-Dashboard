@@ -1,4 +1,5 @@
 import { useRef, useEffect, useMemo, useCallback } from 'react'
+import { watchChartView } from './chartViewWatcher'
 
 // Renders a small "+X%" label above each setup candle showing the price advance
 // from the PREVIOUS setup to this one (close-to-close). Auto-generated from the
@@ -120,36 +121,17 @@ export default function SetupMoveOverlay({
   // the tracker dead when the overlay mounted before the chart existed or the
   // series was later recreated (see the matching ChartDrawingOverlay fix).
   useEffect(() => {
-    const onRange = () => redrawRef.current?.()
-    let subscribedChart = null
-    let raf = null
+    // Every frame while the view moves, resting when it is still (watchChartView, 2026-11-10).
     let lastKey = ''
-    const tick = () => {
-      const chart = chartRef?.current
-      const series = seriesRef?.current
-      if (chart !== subscribedChart) {
-        try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* gone */ }
-        subscribedChart = null
-        if (chart) {
-          try { chart.timeScale().subscribeVisibleLogicalRangeChange(onRange); subscribedChart = chart } catch { /* older API */ }
-        }
-      }
-      if (chart) {
-        try {
-          const r = chart.timeScale().getVisibleLogicalRange()
-          let y0 = null, y1 = null
-          try { y0 = series?.priceToCoordinate(1); y1 = series?.priceToCoordinate(100) } catch { /* disposed series */ }
-          const key = `${r ? `${r.from.toFixed(2)}_${r.to.toFixed(2)}` : ''}|${y0 ?? ''}|${y1 ?? ''}`
-          if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
-        } catch { /* torn down */ }
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => {
-      if (raf) cancelAnimationFrame(raf)
-      try { subscribedChart?.timeScale().unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* already removed */ }
-    }
+    const watcher = watchChartView({
+      chartRef,
+      seriesRef,
+      onRange: () => redrawRef.current?.(),
+      sample: ({ key }) => {
+        if (key !== lastKey) { lastKey = key; redrawRef.current?.() }
+      },
+    })
+    return () => watcher.stop()
   }, [chartRef, seriesRef])
 
   return <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }} />

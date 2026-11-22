@@ -1,0 +1,11 @@
+{
+  "about": "Expectations that legitimately DIFFER with the market clock, per pinned instant (testing/clock.js: post | rth). An intent listed here asserts these instead of its own `expect` at that instant (its own `expect` is the after-hours truth, unchanged). Locked by tests/test_uct_agent_capreg_baseline.py like every other entry.",
+  "intents": {
+    "session.extended": {
+      "rth": {
+        "why": "utils/extSession.js + capabilities/chart.js chart.setSession: on a DAILY chart \"Include pre/post-market\" is only available during pre- and post-market (the chart's own toggle is disabled in the regular session), so the request is refused and nothing changes",
+        "expect": { "unchanged": true, "setting": { "key": "sessionView", "value": "regular" }, "receipt": false, "refusal": true }
+      }
+    }
+  }
+}

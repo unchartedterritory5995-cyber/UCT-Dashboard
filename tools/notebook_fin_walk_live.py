@@ -80,7 +80,7 @@ def run_live(C, browser, admin, base, fs, vp: str) -> None:
     def today():
         C.goto(pg, base, "/journal/notebook")
         C.settle_first_run(pg)
-        b = pg.get_by_role("button", name="Today", exact=True)
+        b = pg.get_by_role("button", name="Today's note", exact=True)   # the notes list's button (Research Home is gone)
         there = C.vis_loc(b, 20000)
         landed, title = None, None
         if there:

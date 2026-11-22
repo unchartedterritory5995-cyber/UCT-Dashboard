@@ -269,6 +269,13 @@ _top_built = 0.0
 
 # Provider symbols currently subscribed to bar_stream (owner="volume") for the A.* push.
 _subscribed_provs: set = set()
+# bar_stream ownership for the volume push, declared here and nowhere else.
+# on_aggregate reads only `av`/`c` off A/AM aggregates and ignores T, so the volume
+# owner needs aggregates only (owner-approved 2026-11-13; lossless). AM is dropped on
+# the wire under the universe AM.* wildcard. Honoured with STREAM_SCOPED_CHANNELS=1;
+# with it off bar_stream gives every owner every channel, exactly as before.
+STREAM_OWNER = "volume"
+STREAM_CHANNELS = frozenset({"AM", "A"})
 
 # Custom scan lists — app-symbols a user's OWN list asks the scanner to actively track, on
 # top of the top-N liquid universe. Registered (app-sym -> expiry epoch) on each live request
@@ -944,7 +951,7 @@ def _sync_push_subscriptions() -> None:
     if not _push_enabled():
         if _subscribed_provs:
             try:
-                bar_stream.unsubscribe_symbols(sorted(_subscribed_provs), owner="volume")
+                bar_stream.unsubscribe_symbols(sorted(_subscribed_provs), owner=STREAM_OWNER)
             except Exception:
                 pass
             _subscribed_provs = set()
@@ -958,9 +965,9 @@ def _sync_push_subscriptions() -> None:
     gone = _subscribed_provs - want
     try:
         if new:
-            bar_stream.subscribe_symbols(sorted(new), owner="volume")
+            bar_stream.subscribe_symbols(sorted(new), owner=STREAM_OWNER, channels=STREAM_CHANNELS)
         if gone:
-            bar_stream.unsubscribe_symbols(sorted(gone), owner="volume")
+            bar_stream.unsubscribe_symbols(sorted(gone), owner=STREAM_OWNER)
     except Exception:
         return
     _subscribed_provs = want
@@ -1016,7 +1023,7 @@ def stop() -> None:
     if _subscribed_provs:
         try:
             from api.services import bar_stream
-            bar_stream.unsubscribe_symbols(sorted(_subscribed_provs), owner="volume")
+            bar_stream.unsubscribe_symbols(sorted(_subscribed_provs), owner=STREAM_OWNER)
         except Exception:
             pass
         _subscribed_provs = set()

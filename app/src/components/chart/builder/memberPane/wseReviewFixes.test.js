@@ -2,9 +2,9 @@
 //
 // ─── ⭐⭐ PHASE 3 WS-E — THE REVIEW'S FINDINGS ON 2e82c07db2, AS RAILS ─────────
 //
-//   H1  `calc_bars_count`: what `bar_index` reads on the window's first bar is
-//       uncaptured (Q-WSE1), so a run whose answer depends on it is refused by name;
-//       one that reads it only as a distance or a drawing's place is drawn.
+//   H1  `calc_bars_count`: what `bar_index` reads on the window's first bar is 0, WITNESSED
+//       since CBC-FMT (vw-cs1-calc-bars); every shape the old probe refused is drawn, and
+//       `last_bar_index` / `barstate.isfirst` in a window are refused by name.
 //   M1  a windowed document never draws a host object program computed over the
 //       whole chart beside plots computed over the window.
 //   L1  `fill(p1, p2, color, title, editable, fillgaps)` is not a gradient.
@@ -17,7 +17,7 @@ import { memberPaneDefinition } from './memberPaneDefinition'
 import * as registry from '../../engine/nativeRegistry'
 import { computeRuntimeColumns } from '../../engine/runtime/runtimeColumns'
 import { runtimeObjectsOf } from '../../engine/runtime/runtimeObjects'
-import { CALC_BARS_INDEX_GUARD } from '../../engine/runtime/calcBarsWindow'
+
 
 const ID = 'u_wse-review'
 const N = 260
@@ -44,37 +44,52 @@ const colOf = (d, cols, label) => cols[d.definition.plots.find((p) => p.label ==
 
 afterEach(() => { registry.uninstallUserDefinition(ID); vi.unstubAllEnvs() })
 
-describe('WS-E review H1 — the calc_bars_count window and `bar_index`', () => {
-  it('⛔ the reviewer\'s probe: `plot(bar_index)` on 101 bars of a chart off the listing is refused by name', () => {
+describe('WS-E review H1, SETTLED (CBC-FMT) — the calc_bars_count window and `bar_index`', () => {
+  // ⭐⭐ `bar_index` on the window's first bar is WITNESSED: 0 (`vw-cs1-calc-bars-rddt-1d-2026-11-14`
+  // A00 and `vw-wse-calc-bars-bar-index-rddt-1d-2026-11-14`, chart bars 566..665 read 0..99). The
+  // probe that refused a run whose answer moved with that base is gone (review D3): each of the
+  // shapes it refused is drawn, off the witnessed base. What a window still does not witness —
+  // `last_bar_index`, `barstate.isfirst` — is refused by its own name.
+  it('⭐ the reviewer\'s probe: `plot(bar_index)` on 101 bars reads 0..99 over the window, nothing before', () => {
     flags()
     const d = door(`${CB()}${ACC}plot(bar_index, "bi")\n`)
     expect(d.ok, d.reason).toBe(true)
     expect(d.definition.meta.runtimeHistory).toBe('listing')
+    expect(d.definition.meta.calcBarsCount).toBe(100)
     const r = run(d, BARS.slice(0, 101))
-    expect(r.err && r.err.guard).toBe(CALC_BARS_INDEX_GUARD)
-    expect(r.err.message).toMatch(/what `bar_index` reads/)
+    expect(r.err, r.err && r.err.message).toBeUndefined()
+    const bi = colOf(d, r.cols, 'bi')
+    expect(Number.isNaN(bi[0])).toBe(true)
+    expect(bi[1]).toBe(0)
+    expect(bi[100]).toBe(99)
   })
 
-  it('⛔ and on a chart that reaches the listing too: the value is uncaptured either way', () => {
-    flags()
-    const d = door(`${CB()}${ACC}plot(bar_index, "bi")\n`)
-    expect(run(d, BARS, true).err.guard).toBe(CALC_BARS_INDEX_GUARD)
-  })
-
-  it('⛔ a phase of it (`bar_index % 5` carried in state), its text, and `last_bar_index` are refused', () => {
+  it('⭐ a phase of it, its text, a drawing placed off it, and a helper reading it are drawn', () => {
     flags()
     for (const tail of [
       'var float k = 0.0\nif bar_index % 5 == 0\n    k += 1\nplot(k, "k")\n',
       'if barstate.islast\n    label.new(bar_index, close, str.tostring(bar_index))\n',
-      'plot(last_bar_index, "lbi")\n',
       'if bar_index % 50 == 0\n    label.new(bar_index * 2, close, "x")\n',
       'f() => bar_index\nplot(f(), "fb")\n',
     ]) {
       const d = door(`${CB()}${ACC}${tail}`)
       expect(d.ok, `${tail}: ${d.reason}`).toBe(true)
       const r = run(d)
-      expect(r.err && r.err.guard, tail).toBe(CALC_BARS_INDEX_GUARD)
+      expect(r.err, `${tail}: ${r.err && r.err.message}`).toBeUndefined()
     }
+    const k = door(`${CB()}${ACC}var float k = 0.0\nif bar_index % 5 == 0\n    k += 1\nplot(k, "k")\n`)
+    expect(colOf(k, run(k).cols, 'k')[N - 1]).toBe(20) // window bars 0, 5, …, 95
+  })
+
+  it('⭐ `last_bar_index` and `barstate.isfirst` in a window read the WINDOW\'s (S10 vw-cbc-history-reads: 99, and 1 on its first bar)', () => {
+    flags()
+    const d = door(`${CB()}${ACC}plot(last_bar_index, "lbi")\nplot(barstate.isfirst ? 1 : 0, "f")\n`)
+    expect(d.ok, d.reason).toBe(true)
+    const r = run(d)
+    expect(r.err, r.err && r.err.message).toBeUndefined()
+    expect(colOf(d, r.cols, 'lbi')[N - 1]).toBe(99)
+    expect(colOf(d, r.cols, 'f')[N - 100]).toBe(1)
+    expect(colOf(d, r.cols, 'f')[N - 99]).toBe(0)
   })
 
   it('⭐ CONTROL — a distance between bars and a drawing placed AT an index are drawn', () => {
@@ -127,12 +142,14 @@ describe('WS-E review M1 — a windowed document and the host object program', (
     expect(runtimeObjectsOf(r.cols).live.map((o) => o.props.x)).toEqual(want)
   })
 
-  it('⛔ CONTROL — the same script without `calc_bars_count` keeps its clean host program', () => {
+  // ⭐⭐ PARITY UNIT LF step 1 (coordinator ruling 2026-11-18): without `calc_bars_count` the clean host
+  // program is CARRIED (beside the run's drawings, as their fallback); under it, it is not (above).
+  it('⛔ CONTROL — the same script without `calc_bars_count` carries its clean host program', () => {
     flags()
     const d = door(`//@version=6\nindicator("t", overlay = true)\n${ACC}${TURN}`)
     expect(d.ok, d.reason).toBe(true)
     expect(d.definition.objects).toBeTruthy()
-    expect(d.definition.compute.objects).toBeUndefined()
+    expect(d.definition.compute.objects).toBe(true)
   })
 })
 

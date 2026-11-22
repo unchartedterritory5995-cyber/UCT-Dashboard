@@ -33,6 +33,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import sys
 import threading
 import time
@@ -44,7 +45,14 @@ _log = logging.getLogger("boot_probe")
 #: i.e. seconds after the process starts -- close enough for a boot-window gate.
 _T0 = time.monotonic()
 
-BOOT_WINDOW_S = 300.0        # `[boot-probe]` summary lines only inside this window
+BOOT_WINDOW_S = 420.0        # `[boot-probe]` summary lines only inside this window
+#: ⭐ After the boot window, one `[cpu-probe]` line per STEADY_S (2026-11-13): which threads
+#: burned the CPU over the last 5 minutes, the worst event-loop lag, the busiest anyio
+#: reading. On 11/13 every small member endpoint (auth/me, preferences, accounts,
+#: watchlists) took 0.2-2.5 s INSIDE the pod during market hours while bars reads took
+#: 4 ms: the pod was CPU-bound and nothing said by what, because the per-thread view only
+#: existed for the first 7 minutes after boot.
+STEADY_S = float(os.environ.get("CPU_PROBE_EVERY_S", "300"))
 ENTRY_LOG_WINDOW_S = 600.0   # route-entry lines only inside this window
 TICK_S = 5.0
 STACK_AT_S = (10.0, 30.0, 90.0, 180.0, 360.0)
@@ -251,11 +259,105 @@ def _io_pressure() -> Optional[str]:
     return None
 
 
+_CLK_TCK = 100.0
+try:
+    _CLK_TCK = float(os.sysconf("SC_CLK_TCK"))
+except Exception:  # noqa: BLE001 -- not Linux
+    pass
+_GROUP_TAIL = re.compile(r"[-_]\d+$")
+_DEFAULT_NAME = re.compile(r"^Thread-\d+ \((.+)\)$")
+
+
+def _thread_cpu_ticks() -> Optional[Dict[int, float]]:
+    """{native tid: utime+stime seconds} for every thread of this process (Linux only)."""
+    try:
+        out: Dict[int, float] = {}
+        for tid in os.listdir("/proc/self/task"):
+            try:
+                with open(f"/proc/self/task/{tid}/stat", "r") as fh:
+                    rest = fh.read().rsplit(")", 1)[1].split()
+                out[int(tid)] = (int(rest[11]) + int(rest[12])) / _CLK_TCK
+            except Exception:  # noqa: BLE001 -- the thread ended mid-read
+                continue
+        return out
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _thread_group(name: str) -> str:
+    """`ThreadPoolExecutor-3_7` and `ThreadPoolExecutor-3_2` are one pool: strip index tails."""
+    m = _DEFAULT_NAME.match(name)
+    if m:  # an unnamed `Thread(target=f)` is "Thread-12 (f)": the target is the useful part
+        name = m.group(1)
+    prev = None
+    while prev != name:
+        prev, name = name, _GROUP_TAIL.sub("", name)
+    return name or "?"
+
+
+def hot_threads(before: Dict[int, float], after: Dict[int, float], wall: float,
+                names: Dict[int, str], top: int = 4) -> str:
+    """The thread groups that burned the most CPU between two readings, as `name 85%`.
+    `names` maps native tid -> Python thread name; a tid Python does not know (a native
+    library's own thread) is reported as `native`."""
+    groups: Dict[str, float] = {}
+    for tid, t in after.items():
+        d = t - before.get(tid, 0.0)  # a thread born inside the interval: all of its CPU is new
+        if d <= 0:
+            continue
+        g = _thread_group(names.get(tid, "native"))
+        groups[g] = groups.get(g, 0.0) + d
+    ranked = sorted(groups.items(), key=lambda kv: -kv[1])[:top]
+    return ",".join(f"{g} {100.0 * d / max(1e-6, wall):.0f}%" for g, d in ranked if d / max(1e-6, wall) >= 0.05)
+
+
+#: Pools whose thread names say nothing about the work (no thread_name_prefix).
+_GENERIC_GROUPS = ("ThreadPoolExecutor", "Thread")
+
+
+def _own_frames(frame, depth: int = 60) -> List[str]:
+    """Innermost-first `file:line fn` for frames in our own code (paths under api/)."""
+    out: List[str] = []
+    f = frame
+    while f is not None and depth > 0:
+        co = f.f_code
+        fn = co.co_filename.replace("\\", "/")
+        if "/api/" in fn:
+            out.append(f"{_short(co.co_filename)}:{f.f_lineno} {co.co_name}")
+        f = f.f_back
+        depth -= 1
+    return out
+
+
+def generic_pool_work(before: Dict[int, float], after: Dict[int, float],
+                      threads: List[threading.Thread], frames: Dict[int, Any], top: int = 2) -> str:
+    """For busy threads in a generically named pool, what they are running: the OUTERMOST
+    own-code frame (the job that was submitted) and the innermost (where it is now), most
+    common first, as `job @ where xN`. Code objects and line numbers only, never locals."""
+    seen: Dict[str, int] = {}
+    for t in threads:
+        tid = getattr(t, "native_id", None)
+        if tid is None or _thread_group(t.name) not in _GENERIC_GROUPS:
+            continue
+        if after.get(tid, 0.0) - before.get(tid, 0.0) <= 0.05:
+            continue
+        own = _own_frames(frames.get(t.ident))
+        if not own:
+            continue
+        key = own[-1] if len(own) == 1 else f"{own[-1]} @ {own[0]}"
+        seen[key] = seen.get(key, 0) + 1
+    ranked = sorted(seen.items(), key=lambda kv: -kv[1])[:top]
+    return " | ".join(f"{k} x{n}" for k, n in ranked)
+
+
 class _Deltas:
+    top = 4
+
     def __init__(self) -> None:
         self.cpu = time.process_time()
         self.wall = time.monotonic()
         self.io = _read_proc_io()
+        self.threads = _thread_cpu_ticks()
 
     def step(self) -> str:
         cpu, wall, io = time.process_time(), time.monotonic(), _read_proc_io()
@@ -268,14 +370,27 @@ class _Deltas:
         psi = _io_pressure()
         if psi:
             parts.append(f"io-full {psi}")
-        self.cpu, self.wall, self.io = cpu, wall, io
+        threads = _thread_cpu_ticks()
+        if threads is not None and self.threads is not None:
+            names = {getattr(t, "native_id", None): t.name for t in threading.enumerate()}
+            hot = hot_threads(self.threads, threads, dw, names, top=self.top)
+            if hot:
+                parts.append(f"hot={hot}")
+            if any(g in hot for g in _GENERIC_GROUPS):
+                work = generic_pool_work(self.threads, threads, threading.enumerate(),
+                                         sys._current_frames())
+                if work:
+                    parts.append(f"pool-work={work}")
+        self.cpu, self.wall, self.io, self.threads = cpu, wall, io, threads
         return " ".join(parts)
 
 
-def summary_line(lag: float, deltas: _Deltas) -> str:
+def summary_line(lag: float, deltas: _Deltas, tokens: Optional[str] = None) -> str:
+    """`tokens` is the anyio reading taken ON the loop by the caller; the rest is read here,
+    which `run_sampler` runs on a worker thread (see there)."""
     names = {t.ident: t.name for t in threading.enumerate()}
     imp = importing_threads(names=names)
-    return (f"[boot-probe] boot+{boot_age():.0f}s anyio {_anyio_tokens()} "
+    return (f"[boot-probe] boot+{boot_age():.0f}s anyio {tokens if tokens is not None else _anyio_tokens()} "
             f"threads={len(names)} yf {_yf_pool()} loop-lag={lag * 1000:.0f}ms "
             f"{deltas.step()} tracked={tracked_count()} "
             f"importing={len(imp)}{(' ' + ', '.join(imp)) if imp else ''}")
@@ -283,20 +398,46 @@ def summary_line(lag: float, deltas: _Deltas) -> str:
 
 async def run_sampler(tick: float = TICK_S, boot_window: float = BOOT_WINDOW_S) -> None:
     """Forever: every `tick` s dump stacks of stuck tracked blocks; inside the boot window
-    also log one `[boot-probe]` summary. Runs ON the event loop (the anyio limiter can only
-    be read from it); every reading is a few ms."""
+    also log one `[boot-probe]` summary.
+
+    ⛔ 2026-11-16: the summary and the `[cpu-probe]` line are BUILT ON A WORKER THREAD. They
+    open /proc/self/task/<tid>/stat for every thread (~150-200 on web) and walk every stack.
+    Each file read hands the interpreter lock back and has to win it again, so under boot load
+    one reading held the event loop for 1.5 s and more: three of the first four stored stall
+    captures on 2026-11-16 (18:22-18:24Z) show the loop thread in `_thread_cpu_ticks` <- `step`
+    <- `summary_line` <- `run_sampler`, every 5 s for the 7-minute boot window. Only the anyio
+    limiter has to be read on the loop, and that reading is a few microseconds."""
     deltas = _Deltas()
+    steady: Optional[_Deltas] = None
+    lag_max = 0.0
     while True:
         t_before = time.monotonic()
         await asyncio.sleep(tick)
         lag = max(0.0, time.monotonic() - t_before - tick)
+        lag_max = max(lag_max, lag)
         try:
             for line in slow_stacks():
                 _log.warning(line)
             if boot_age() < boot_window:
-                _log.info(summary_line(lag, deltas))
+                tokens = _anyio_tokens()           # on the loop: the limiter is only readable here
+                _log.info(await asyncio.to_thread(summary_line, lag, deltas, tokens))
+            elif STEADY_S > 0:
+                if steady is None:
+                    steady, lag_max = _Deltas(), 0.0
+                    steady.top = 8
+                elif time.monotonic() - steady.wall >= STEADY_S:
+                    tokens = _anyio_tokens()       # on the loop, as above
+                    _log.info(await asyncio.to_thread(steady_line, lag_max, steady, tokens))
+                    lag_max = 0.0
         except Exception as exc:               # noqa: BLE001 -- the probe never dies on a reading
             _log.debug("[boot-probe] tick failed: %s", exc)
+
+
+def steady_line(lag_max: float, deltas: "_Deltas", tokens: Optional[str] = None) -> str:
+    """One `[cpu-probe]` line covering everything since the previous one (built off the loop)."""
+    return (f"[cpu-probe] up={boot_age():.0f}s over={time.monotonic() - deltas.wall:.0f}s "
+            f"anyio {tokens if tokens is not None else _anyio_tokens()} threads={threading.active_count()} "
+            f"loop-lag-max={lag_max * 1000:.0f}ms {deltas.step()}")
 
 
 def reset_for_tests() -> None:

@@ -17,6 +17,7 @@ import ToolPicker from './ToolPicker'
 import { openRoutineEditor } from './openRoutineEditor'
 import { openTrackerEditor } from './openTrackerEditor'
 import { TOOL_NOT_ADDED, TOOL_SAVED_NOT_ADDED, placeTool } from '../../../lib/toolEmbed'
+import { withInsertDoor } from '../../../lib/notebookUsage'
 
 let _open = null
 
@@ -39,7 +40,8 @@ class PickerBoundary extends Component {
   }
 }
 
-export function openToolPicker({ editor = null, kind, navigate = null } = {}) {
+// Follow-up A fix I4: `via` is the insert door the press that opened the picker ran in (`block_inserted`).
+export function openToolPicker({ editor = null, kind, navigate = null, via = null } = {}) {
   if (kind !== 'routine' && kind !== 'tracker') return () => {}
   if (_open) return _open
   const from = typeof document !== 'undefined' ? document.activeElement : null
@@ -74,14 +76,14 @@ export function openToolPicker({ editor = null, kind, navigate = null } = {}) {
     kind,
     onClose: () => close(),
     onPick: (tool) => {
-      placeTool(editor, kind, tool, TOOL_NOT_ADDED)
+      withInsertDoor(via, () => placeTool(editor, kind, tool, TOOL_NOT_ADDED))
       close(() => {})
     },
     onNew: () => close(() => {
       openEditor({
         editor,
         // m-2: a note that turned read-only while the editor was open keeps nothing, and says the tool was kept.
-        onSaved: (tool) => { placeTool(editor, kind, tool, TOOL_SAVED_NOT_ADDED) },
+        onSaved: (tool) => { withInsertDoor(via, () => placeTool(editor, kind, tool, TOOL_SAVED_NOT_ADDED)) },
         returnFocus: editor?.view?.dom || null,
         navigate: typeof navigate === 'function' ? navigate : null,
       })

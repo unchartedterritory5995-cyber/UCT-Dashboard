@@ -47,3 +47,26 @@ def test_build_candle_events_updates_last_state():
     with patch("api.routers.stream.realtime_candle.get_current", return_value=cur):
         stream._build_candle_events(["QQQ"], last_state)
     assert last_state.get("QQQ") == (1715080800, 702.5, 1500000)
+
+
+def test_bar_close_is_a_full_ohlcv_bar():
+    """D1: bar_close used to carry only {t, c, v}; the client stored it verbatim and
+    painted the just-closed 1m candle with undefined o/h/l."""
+    first = {"t": 1715080800, "o": 700, "h": 706, "l": 698, "c": 702.5, "v": 1500}
+    nxt = {"t": 1715080860, "o": 705, "h": 705, "l": 705, "c": 705, "v": 10}
+    state = {}
+    with patch("api.routers.stream.realtime_candle.get_current", return_value=first):
+        stream._build_candle_events(["QQQ"], state)
+    with patch("api.routers.stream.realtime_candle.get_current", return_value=nxt):
+        events = stream._build_candle_events(["QQQ"], state)
+    closes = [e for e in events if e["type"] == "bar_close"]
+    assert closes[0]["bar"] == {"t": 1715080800, "o": 700, "h": 706, "l": 698, "c": 702.5, "v": 1500}
+
+
+def test_bar_close_without_known_ohlc_still_has_finite_ohlc():
+    cur = {"t": 1715080860, "o": 705, "h": 705, "l": 705, "c": 705, "v": 1000}
+    last_state = {"QQQ": (1715080800, 702.5, 1500000)}
+    with patch("api.routers.stream.realtime_candle.get_current", return_value=cur):
+        events = stream._build_candle_events(["QQQ"], last_state)
+    bar = [e for e in events if e["type"] == "bar_close"][0]["bar"]
+    assert bar["o"] == bar["h"] == bar["l"] == 702.5

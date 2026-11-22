@@ -47,7 +47,8 @@ test('navigableTargets() is exactly one `to` per group — no free-tier Wire tab
   // tier, so four groups give four targets.
   expect(navigableTargets()).toEqual(NAV_GROUPS.map((g) => g.routes[0]))
   expect(navigableTargets().sort()).toEqual(
-    ['/terminal', '/dashboard', '/journal', '/model-book'].sort(),
+    // 2026-11-11: Charts leads Home; Dashboard is hidden, so Markets starts at Breadth.
+    ['/charts', '/breadth', '/journal', '/model-book'].sort(),
   )
   expect(navigableTargets()).not.toContain('/morning-wire')
 })

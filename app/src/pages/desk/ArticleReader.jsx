@@ -19,7 +19,7 @@ import ReadAloudButton from '../../components/voice/ReadAloudButton'
 import useReadAloudFollow from '../../hooks/useReadAloudFollow'
 import useLivePrices from '../../hooks/useLivePrices'
 import useUserTickerSet from '../../hooks/useUserTickerSet'
-import { prefetchBar } from '../../utils/prefetchBars'
+import { prefetchBar } from '../../utils/barsWarm'
 // Named `bookmark`, not `progress`: the component already has a `progress`
 // state for the reading BAR, which would shadow a module called the same.
 import * as bookmark from './articleProgress'

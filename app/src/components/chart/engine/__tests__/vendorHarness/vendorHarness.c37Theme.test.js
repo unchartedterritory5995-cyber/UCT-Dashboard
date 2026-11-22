@@ -114,11 +114,16 @@ describe('C37 — a theme reference is drawn in the chart\'s OWN colours', () =>
     expect(fgCells(ours)).not.toContain('#0F0F0F')
   }, 120000)
 
-  it('⛔ with no theme handed in the slot has no colour of its own (the renderer\'s default), never a guess', () => {
+  // ⭐ RE-PIN (e93, 2026-11-21): was `text_color` undefined (the table renderer's fixed grey). An unresolved theme slot
+  // "takes its default, exactly as an uncarried colour does" (`toRenderState`), and a cell's default is now the
+  // witnessed `color.black` of every version (`objectDefaults.js` NAMED_OBJECT_DEFAULTS.cell): still never a guess at
+  // the member's theme, and never TradingView's foreground.
+  it('⛔ with no theme handed in the slot has no colour of its own: it takes the cell default, never a guess', () => {
     const state = toRenderState(held(), { bars: toProductBars(cap), tf: 'D' })
     const cells = state.tables[0].cells.filter((c) => c.col >= 1 && c.row >= 1 && c.row <= 10)
     expect(cells.length).toBe(20)
-    for (const c of cells) expect(c.text_color).toBeUndefined()
+    for (const c of cells) expect(c.text_color).toBe('#363A45')
+    expect(cells.map((c) => c.text_color)).not.toContain('#0F0F0F')
   }, 120000)
 
   it('⛔ a GRADIENT background is unresolved, by name — Pine\'s value for it is documented, not witnessed (Q-T1)', () => {
@@ -162,13 +167,14 @@ describe('C37 — the reference itself', () => {
     expect(themeColourWithTransparency('#FFFFFF', 10)).toBeNull()
   })
 
-  it('⛔ the PLOT lane does not carry a theme colour: still declared `colorDynamic`, by name', () => {
-    // A plot's colour is a member-editable colour input whose default must be a
-    // concrete colour; a default that follows the chart is a decision this lane
-    // does not take. The line keeps drawing (ruling R-G).
+  it('⭐ the PLOT lane carries a theme colour as a theme reference (engine 58 colours), no longer `colorDynamic`', () => {
+    // ⚰️ Until engine 58 (landing train 1) this was declared `colorDynamic` by name: a plot's colour is a
+    // member-editable input whose default had to be a concrete colour. Engine 58 carries
+    // `chart.fg_color` / `chart.bg_color` on a plot as a THEME REFERENCE, resolved against the chart where
+    // it is drawn (`pool.planBindings`); the harness grades its alpha byte only.
     const t = translatePine(['//@version=6', 'indicator("t")', 'plot(close, color = chart.fg_color)'].join(LF) + LF, {})
-    expect(t.outputs[0].presentation.colorDynamic).toBe(true)
-    expect(t.outputs[0].presentation.color).toBeUndefined()
+    expect(t.outputs[0].presentation.colorDynamic).toBeUndefined()
+    expect(t.outputs[0].presentation.color).toBe('chart.fg_color')
   })
 })
 

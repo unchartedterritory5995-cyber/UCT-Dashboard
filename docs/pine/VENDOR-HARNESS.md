@@ -252,7 +252,8 @@ from bar 0 (a young listing, or SPY `12M`) is what settles them.
 ## The evidence engine (2026-11-02) — the capture queues, batched
 
 `tools/vendor_harness/evidence_engine.py` turns every `docs/pine/capture-queue-*.md` row into one
-machine-readable queue (`docs/pine/vendor-harness/capture-queue.json`, priority = sample scripts
+machine-readable queue (`docs/pine/vendor-harness/capture-queue.json`, derived on demand and not committed
+since 2026-11-16, priority = sample scripts
 unblocked, derived from `coverage-map.json`), writes a manifest the unattended batch below runs
 with each target's OWN symbol and timeframe, grades the run under the heavy lock, and stops at a
 promotion packet a person reads before `promote --packet-sha` copies licence-clear captures into
@@ -269,6 +270,22 @@ signs in once, in the window it opens; nothing after that needs a person.
 
 ⚠️ **Status: built and proved against a recording double only. It has NOT been run
 against live TradingView.** The first live run is the owner's (steps below).
+
+⛔⛔ **A CAPTURE RUN NEVER CLICKS ANYTHING IT CANNOT NAME** (coordinator ruling, 2026-11-16).
+On 2026-11-16, the first live runs on TradingView's current editor:
+- the script title had moved into an `H2`, and the title finder's fallback (`/script/i` over every
+  control above the editor) chose the **"Publish script"** button, which the driver clicked on the
+  owner's account (the publish dialog opened; nothing was published; the buffer was an unsaved
+  Untitled script and cleanup ran). The finder (`tools/vendor_harness/rig_title.js`) is now an
+  allow-list: one heading above the editor whose own text is a script name, or nothing. Railed over
+  the recorded header, which holds a "Publish script" button, in
+  `app/src/components/chart/engine/__tests__/vendorHarness/rigTitle.test.js`.
+- at the 1440-wide window the editor collapsed `Add to chart` to an icon, so the binding gate counted
+  0 and refused every script: the rig window is now 1760 x 1000 (`RIG_VIEWPORT`).
+- the binding gate was read the instant `Create new > Indicator` produced a model, before the header
+  re-rendered (0 / 0): it now waits up to 15 s (`BINDING_SETTLE_S`) and then decides as before.
+After those three, 109 captures were taken in one signed-in session (runs `cb1`..`cq1-2026-11-16`)
+with every title the driver clicked printed and reading "Untitled script".
 
 ### What it does per script
 
@@ -288,6 +305,49 @@ line, then the written file re-verified) → **cleanup, always**: remove the stu
 (and only that — a study that was on the rig before is never touched), put symbol /
 resolution / pane stretch back, `__uctVH.cleanup()`, assert no `__uct*` globals. After
 the last script the chart is put back on the symbol and resolution it started on.
+
+### A TradingView built-in (or published script), from the Indicators dialog (2026-11-20)
+
+A manifest row `{"slug", "builtin": {"id": "STD;VWAP"}, "builtinInputs": {"Anchor Period": "Earnings"}, …}` is
+added from the Indicators dialog instead of the Pine editor (patrick-54's scratchpad `batch_builtin.py`, moved into
+`batch_capture.py` by the coordinator's ruling). Two gates, both stopping the row by name:
+
+1. **pre-click**, inside the click's own evaluation: the dialog is searched, and only the ONE element whose
+   `data-id` is exactly the row's id is clicked. None or several: nothing is clicked (GATE_FAILED).
+2. **post-add**: the chart model's indicators must read exactly `["Script$<id>@tv-scripting"]`
+   (`metaInfo().id`, chart events left out as in `tv_capture.js`), or the row stops naming what it landed on,
+   and cleanup removes it.
+
+The search comes from `BUILTIN_SEARCH`, a table of MEASURED pairs (33 built-ins, 4 published scripts, each captured
+with that identity). ⚰️ `STD;VWAP` is searched `VWAP`: the search "Volume Weighted Average Price" lists 36 community
+scripts and not the built-in, whose dialog title is "Volume-weighted average price" (7 of 7 rows stopped on it,
+2026-11-20). A row naming another term for a measured id is refused at load. An unmeasured `STD;`/`PUB;` id must
+name its search, and its first live run is the proof. Any other id kind (e.g. `VWAPAA@tv-basicstudies`) is refused:
+its identity is unmeasured. The capture's `source` is a label GENERATED from the row (`builtin_label`: what was
+added, how, at which settings), and the row's `sha256` is derived from it. A row carrying a `path` (a hand label)
+or another sha is refused at load.
+
+### A row's session is READ, never set (#2134, rulings 2026-11-21)
+
+A row may say `"session": "extended" | "regular"`. The batch never writes a session (ruling (ii)). After the row's
+symbol and resolution read back, it reads the chart's RESOLVED session at that resolution (`symbolInfo().session`,
+and `subsession_id` when TradingView reports one). It must be `0400-2000` / `0930-1600`, or the row stops by name
+(GATE_FAILED) and nothing is captured. The capture id says the named session (`-ext` / `-rth`).
+- A daily, weekly or monthly chart of a US listing resolves `0930-1600` whatever the layout's hours (every daily
+  capture on record), so the read is made at the row's own resolution, never on the batch's 1D chart.
+- The rig layout `01f1AcIj` is saved with EXTENDED hours: probe R1 (2026-11-21) read 0400-2000 at 60, with 186 of
+  300 bars off-hours, and every intraday capture since 2026-11-14 agrees. A regular-hours row runs on its copy
+  **`MyS1vKSg`** ("UCT CAPTURE RIG REGULAR HOURS — no studies"; ruling B1, made once by patrick-54; 0930-1600 at 60,
+  0 of 300 bars off-hours), never on a toggled one: `run --layout MyS1vKSg`, and the row says
+  `"layout": "MyS1vKSg"`. One layout per batch. The page must be on the batch's layout by URL before any read
+  (sign-in ends on the rig, so the batch navigates after it). A row naming another layout is skipped, and the other
+  layout's batch takes it in the same run dir.
+- ⛔ Writing a session is not a mechanism: a direct `sessionId.setValue` is not persisted (a fresh load reverts it),
+  and the chart model's `changeSessionId` pushes an undo command that the layout's autosave keeps.
+- ⚰️ The first version (2026-11-20) wrote the session as `setSymbol('={"session":…,"symbol":…}')`. That string is
+  TradingView's wire encoding, not a symbol name: the live chart kept it as a literal symbol and never resolved it.
+  Its double parsed the spec and `sym_match` read through it, so the rails agreed with the code, not with
+  TradingView. Now a chart whose symbol reads `={…}` is on no symbol, and the double keeps a spec as a literal.
 
 `startsAtBar0` is asserted ONLY when the history stopped growing AND the first loaded
 bar is the symbol's listing day in its own timezone (known for `NYSE:RDDT` =

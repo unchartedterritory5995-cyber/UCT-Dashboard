@@ -92,7 +92,7 @@ describe('UCT Agent panel', () => {
     render(<AgentPanel host={host} onClose={() => {}} />)
     type('Change this chart to bars, switch it to weekly, hide Volume, and make the background cream')
     const receipt = await screen.findByTestId('agent-receipt')
-    expect(receipt.textContent).toContain('Changed chart to Bars · Switched timeframe to Weekly · Hid Volume · Changed background to #f3efe4')
+    expect(receipt.textContent).toContain('Changed chart to Bars · Switched timeframe to Weekly · Hid Volume · Changed background to cream')
     expect(host.commits).toHaveLength(1)
     expect(host.raw('w1').tf).toBe('W')
     // natural-language undo: deterministic, no model call
@@ -159,15 +159,16 @@ describe('UCT Agent panel', () => {
     expect(host.raw('w1').stored.volume.visible).toBe(false)
   })
 
+  // round 3: Undo is field-scoped — a manual edit to the SAME field is never overwritten (an edit to another field is kept,
+  // and no longer blocks the Undo: agentCore stale protection)
   it('stale undo: a manual edit after the Agent wrote is never overwritten', async () => {
     const host = makeHost([{ ref: 'w1' }])
     render(<AgentPanel host={host} onClose={() => {}} />)
-    type('bars')
+    type('weekly')
     await screen.findByTestId('agent-receipt')
     act(() => host.manual('w1', { tf: '60' }))
     type('undo')
     await screen.findByText(/changed since I made that change/)
-    expect(host.raw('w1').stored.chartType).toBe('bars')
     expect(host.raw('w1').tf).toBe('60')
   })
 

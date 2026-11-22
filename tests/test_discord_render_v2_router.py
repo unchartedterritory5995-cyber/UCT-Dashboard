@@ -147,6 +147,40 @@ def test_several_tickers_become_one_multi_job(client, v2):
     assert [j.command for j in v2.offered] == ["multi"] and v2.offered[0].label == "/chart NVDA AMD AVGO"
 
 
+def test_v2_buzz_is_offered_and_deferred_PUBLICLY(client, v2, monkeypatch):
+    """Owner ruling 2026-11-13: the on-demand board is visible to the channel (it was private
+    from 2026-09-02 until then).
+
+    ⛔ V2 STATES THE VISIBILITY TWICE AND THE TWO MUST AGREE: the defer Discord is handed (which
+    is what actually fixes it) and the job's own `ephemeral` record (stored with the job, and
+    what a Retry click replays). Flipping only the defer leaves a job row that says "private"
+    about a public message, so both are pinned here."""
+    tc, rt, sk = client
+    monkeypatch.setattr(rt, "run_buzz_job", lambda *a, **k: (_ for _ in ()).throw(AssertionError("old job ran")))
+    r = _post(tc, sk, _slash(name="buzz", options=[]))
+    assert r.json() == {"type": 5}, "the board would have gone to the asking member only"
+    (job,) = v2.offered
+    assert job.command == "buzz" and job.ephemeral is False
+
+
+def test_v2_buzz_is_held_to_the_command_channel(client, v2, monkeypatch):
+    """Owner ruling 2026-11-13: "/buzz just in UCT Intelligence". The gate exists on BOTH reply
+    paths, and this is the one that is easy to miss: with V2 on, the pre-V2 branch that carries
+    the same check is never reached, so a gate added only there holds in the tests of that file
+    and lets every board through in production."""
+    tc, rt, sk = client
+    monkeypatch.setenv("CHART_FLOW_CHANNEL_ID", "123,456")
+    monkeypatch.setattr(rt, "run_buzz_job", lambda *a, **k: (_ for _ in ()).throw(AssertionError("old job ran")))
+    r = _post(tc, sk, _slash(name="buzz", options=[], channel="999")).json()
+    assert r["type"] == 4 and r["data"]["flags"] == di.EPHEMERAL
+    assert "<#123>" in r["data"]["content"] and "456" not in r["data"]["content"]
+    assert v2.offered == [], "a refused board was still queued"
+    # Non-vacuity: in the channel it is offered, and the private admin entry works too.
+    assert _post(tc, sk, _slash(name="buzz", options=[], channel="123")).json() == {"type": 5}
+    assert _post(tc, sk, _slash(name="buzz", options=[], channel="456", iid="1415926535897932385")).json() == {"type": 5}
+    assert [j.command for j in v2.offered] == ["buzz", "buzz"]
+
+
 def test_an_invalid_ticker_is_refused_privately_and_never_queued(client, v2):
     tc, _, sk = client
     r = _post(tc, sk, _slash(options=[{"name": "ticker", "value": "N*VDA"}])).json()

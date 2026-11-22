@@ -6,8 +6,12 @@
 //   FMP has statements  → source line · statement tables (income / balance /
 //                          cash flow / ratios, 24q / 12y, fiscal labels) · the
 //                          six statement panels the ERN modal already shows.
-//   FMP answered empty  → the yfinance grids (FinancialsTab), labelled as the
-//                          FALLBACK with the reason. Never silently.
+//   FMP answered empty  → the compact grids (FinancialsTab). Its own source line,
+//                          read off the /financials payload, names what supplied
+//                          them for this ticker: the Yahoo frames labelled as the
+//                          FALLBACK with the reason, or FMP when that route still
+//                          read statements this request did not (annual only, or
+//                          a read that failed here and worked there). Never silently.
 //   the request FAILED  → "Could not load" with a retry — never "unavailable",
 //                          which would be a claim about the company.
 //
@@ -57,14 +61,11 @@ export default function FinancialsDeep({ sym }) {
   }
   if (!hasFmp) {
     return (
-      <div className={styles.wrap} data-testid="fa-deep" data-source="yfinance">
-        {/* Audit 2026-10-08 (FA, point 20): member words, never a library method name or a
-            vendor endpoint path. */}
-        <SourceLine vendor="Yahoo Finance" fallback
-                    activity="Yahoo Finance quarterly and annual income statements"
-                    reason={data?.fmp_unavailable
-                      ? 'FMP statement history could not be read right now; showing Yahoo Finance (about 5 years / 5 quarters, calendar-quarter labels).'
-                      : 'FMP holds no statement history for this ticker; showing Yahoo Finance (about 5 years / 5 quarters, calendar-quarter labels).'} />
+      <div className={styles.wrap} data-testid="fa-deep">
+        {/* No source line and no `data-source` of this panel's own: which vendor stands
+            behind the compact grids is the /financials payload's to say, per ticker,
+            and FinancialsTab renders that line (member words, never a library method
+            name or a vendor endpoint path: audit 2026-10-08, FA point 20). */}
         <FinancialsTab sym={s} />
       </div>
     )

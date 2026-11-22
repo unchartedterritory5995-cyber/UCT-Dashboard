@@ -55,6 +55,11 @@ MEMBER_TABLES = (
     "definition_shares",
     # The member's public-library listings (the feed is read from this table).
     "definition_listings",
+    # UCT's takedowns of the member's listings, keyed by the owner (no admin id is stored).
+    "definition_listing_takedowns",
+    # How heavy each version the member listed is to draw, as the server measured it
+    # (Studio R6, `load_budget`): counts about their definitions, keyed by their user_id.
+    "definition_load_measurements",
     # The re-lint pass's audit trail (`user_definition_relint.py`, self-ensured there): which of
     # the member's definitions it healed. Keyed by their user_id, so it leaves with them.
     "user_definition_relint_log",
@@ -62,6 +67,13 @@ MEMBER_TABLES = (
     # stored versions (`user_definitions.record_engine_status`). Keyed by their user_id and
     # meaningless without the definitions it describes, so it leaves with them.
     "definition_engine_status",
+    # ⭐ STUDIO R4 — the member's own status-panel headlines about their stored versions
+    # (`user_definitions.record_status_headline`), served on their share links. Keyed by their
+    # user_id and meaningless without the definitions it describes, so it leaves with them.
+    "definition_status_headlines",
+    # TRACK 6 RE-TRANSLATE (b): the server's translations of the member's held script documents
+    # (`server_translations.py`). Keyed by their user_id and derived from their versions, so they leave with them.
+    "definition_server_translations",
 )
 
 # ⚠️ NOT IN THIS DATABASE, AND CORRECTLY NOT PURGED: `definition_evaluations` and the

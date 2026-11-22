@@ -1,4 +1,5 @@
 import useSWR from 'swr'
+import { withRsAlert } from '../focus/rsAlerts'
 
 // ⛔ K7: THROWS on a non-ok response, deliberately. A silent 402 renders as
 // "None saved yet" — which looks exactly like a paid, empty account — and the
@@ -11,8 +12,9 @@ const fetcher = async url => {
   return r.json()
 }
 
-export default function useSavedScreens() {
-  const { data, error, mutate } = useSWR('/api/screener/saved-screens', fetcher)
+/** `enabled: false` → a null SWR key: nothing is fetched (the Agent's screener host for a non-admin). */
+export default function useSavedScreens({ enabled = true } = {}) {
+  const { data, error, mutate } = useSWR(enabled ? '/api/screener/saved-screens' : null, fetcher)
 
   const create = async (name, spec, is_public = false) => {
     await fetch('/api/screener/saved-screens', {
@@ -76,9 +78,42 @@ export default function useSavedScreens() {
     return { ok: false, error: detail || `The server refused to delete this screen (${r.status}).` }
   }
 
+  /**
+   * RS screens unit U13: turn the daily "what joined and what left" message on or off for one RS
+   * screen (POST / DELETE /api/screener/rs-alerts/{starter id}).
+   *
+   * OPTIMISTIC: the payload's own `rs_alerts.subscribed` changes at once, so the switch moves under
+   * the finger, and SWR puts the earlier payload back if the server refuses or cannot be reached.
+   * No second read of the payload: the answer to "is it on" is the one the request just gave.
+   *
+   * @returns {Promise<{ok: true} | {ok: false}>}
+   */
+  const setRsAlert = async (starterId, on) => {
+    try {
+      await mutate(async cur => {
+        const r = await fetch(`/api/screener/rs-alerts/${encodeURIComponent(starterId)}`, { method: on ? 'POST' : 'DELETE' })
+        if (!r.ok) throw new Error(`rs-alerts ${r.status}`)
+        return withRsAlert(cur, starterId, on)
+      }, { optimisticData: cur => withRsAlert(cur, starterId, on), rollbackOnError: true, revalidate: false })
+      return { ok: true }
+    } catch {
+      return { ok: false }
+    }
+  }
+
   return {
     saved: data?.saved ?? [],
     starters: data?.starters ?? [],
+    // RS screens unit U8: the market caution state the server puts in this payload while the RS
+    // screens are on ({ state, text, asof }); null when it sent none.
+    rsMarket: data?.rs_market ?? null,
+    // The first night: { text } while the RS lists have not been built yet (no row has a place);
+    // null when the payload carries no such key, which is every other day.
+    rsPending: data?.rs_pending ?? null,
+    // RS screens unit U13: { available, subscribed: [starter ids] } while the daily joined-and-left
+    // message is on for this member; null when the payload carries no such key.
+    rsAlerts: data?.rs_alerts ?? null,
+    setRsAlert,
     error: error || null,
     // True once the read has answered (with screens or with a refusal).
     loaded: data !== undefined || !!error,

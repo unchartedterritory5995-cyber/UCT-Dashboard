@@ -5,10 +5,14 @@ __pycache__/
 *.pyc
 node_modules/
 app/dist/
+# W5-T1/T19: the pine-runtime server bundle is a build output (app/scripts/build-pine-runtime.mjs); never committed
+app/dist-server/
 app/node_modules/
 *.egg-info/
 .pytest_cache/
 data/
+# Client source lives in app/src/data/ (BarStore) - never ignore source
+!app/src/data/
 # Voice KB corpus is version-controlled — deploys with the code
 !api/data/voice_kb/
 !api/data/voice_kb/**
@@ -111,6 +115,9 @@ tools/_gj_runs/
 
 # Pine intake bench — pasted scripts are evidence, never committed fixtures
 tests/fixtures/pine-inbox/
+# vendor-harness warm-candidate metadata cache (ourSide.js warmCandidates), rebuilt per file on size/mtime
+tests/fixtures/vendor/harness/.warm-candidates.index
+tests/fixtures/vendor/harness/.warm-candidates.index.*.tmp
 tests/fixtures/thinkscript-inbox/
 
 # UI stress harness output (screenshots + findings; regenerated per run)
@@ -252,3 +259,15 @@ tools/scan_handoff_out.json
 # docs/pine/support-loop/PHASE-B.md
 /.support-loop-work/
 
+
+# flow-read gate run logs (tools/flow_read_gate.py)
+.flow_read_gate/
+
+# licence-held translated document (docs/pine/LICENSING.md 2d): graphWireFixture.test.js re-emits it
+# locally when the held source is on the machine; it must never be committed again.
+tests/fixtures/graph_wire/u_c2d900000005.json
+
+# The Pine capture queue is DERIVED ON DEMAND (tools/vendor_harness/evidence_engine.py queue), never committed:
+# committed, it was the conflicting file in 5 of 5 unmergeable Pine PRs on 2026-11-16 (39 master commits in
+# three days). `queue --check` (pine-heavy's derived-evidence job) fails if it is tracked again.
+docs/pine/vendor-harness/capture-queue.json

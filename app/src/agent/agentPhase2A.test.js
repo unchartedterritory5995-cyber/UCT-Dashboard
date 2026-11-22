@@ -163,7 +163,7 @@ describe('D2 / F15 — drawings', () => {
     const id = store.peekDrawings(SYM)[0].id
     const { p, env } = await plan(h, [dop('drawing.style', { drawing: id, color: 'red', style: null, width: null })], ['drawing'])
     expect(p.ok, JSON.stringify(p.refusals)).toBe(true)
-    expect(p.lines[0]).toMatch(/colour/)
+    expect(p.lines[0]).toMatch(/color/)
     await commitPlan(h, p, { env })
     const d = store.peekDrawings(SYM)[0]
     expect(d.labelColor).not.toBe('#ffffff')

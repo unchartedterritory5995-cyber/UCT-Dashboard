@@ -64,12 +64,51 @@ describe('P6 — the step counter counts what is shown', () => {
     expect((await progress()).textContent).toBe('Step 1 of 2')
   })
 
-  it('a middle step that turns out not to be there is dropped from the total when it is passed', async () => {
+  // ⛔ Audit 2026-11-05, spec S5 (B6): the total used to DROP when a missing middle step was passed
+  // ("Step 1 of 5", then "Step 2 of 3" on the My Playbook tour). The list is fixed when the tour
+  // opens, so a step not on screen then is out of the total from the first card, and it holds.
+  it('a middle step that is not there is out of the total from the first card, and the total holds', async () => {
     render(<Page entry={tour(['a', 'b', 'c'])} anchors={['anchor-a', 'anchor-c']} />)
-    expect((await progress()).textContent).toBe('Step 1 of 3')
+    expect((await progress()).textContent).toBe('Step 1 of 2')
     next()
     expect((await screen.findByText('Step 2 of 2', {}, { timeout: 4000 })).textContent).toBe('Step 2 of 2')
     expect(screen.getByRole('dialog')).toHaveAccessibleName('Title c')
+  })
+
+  // ⛔ Fix round 1 (review finding 3): an anchor that is IN the page but not on screen until the
+  // tour marks it (the chart toolbar, revealed by [data-tour-active]) is a step the tour will show.
+  // It is counted from the first card, so the total never grows as the tour reaches it.
+  // Fix round 2 (re-review N5): the reveal is modelled the way the engine can show it -- an anchor
+  // in the page with NO BOX yet (CSS keyed on [data-tour-active] gives it one), never a `hidden`
+  // attribute, which `anchorFor` refuses for ever.
+  it('an anchor in the page with no box until the tour reveals it is counted from the first card', async () => {
+    render(<Page entry={tour(['a', 'b'])} anchors={['anchor-a']} />)
+    const revealedLater = document.createElement('div')
+    revealedLater.setAttribute('data-tour', 'anchor-b')
+    revealedLater.setAttribute('data-test-box', 'none')      // display:none until the tour marks it
+    document.body.appendChild(revealedLater)
+    try {
+      expect((await progress()).textContent).toBe('Step 1 of 2')
+    } finally {
+      revealedLater.remove()
+    }
+  })
+
+  it('an anchor the engine can never show (inside [hidden] or aria-hidden) is not counted', async () => {
+    render(<Page entry={tour(['a', 'b', 'c'])} anchors={['anchor-a']} />)
+    const never = document.createElement('div')
+    never.setAttribute('hidden', '')
+    never.innerHTML = '<span data-tour="anchor-b"></span>'
+    const alsoNever = document.createElement('div')
+    alsoNever.setAttribute('aria-hidden', 'true')
+    alsoNever.innerHTML = '<span data-tour="anchor-c"></span>'
+    document.body.append(never, alsoNever)
+    try {
+      expect((await progress()).textContent).toBe('Step 1 of 1')
+    } finally {
+      never.remove()
+      alsoNever.remove()
+    }
   })
 
   it('Back onto an earlier step keeps its number', async () => {

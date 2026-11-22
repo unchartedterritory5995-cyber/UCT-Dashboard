@@ -1,0 +1,133 @@
+{
+ "schema": "uct.strategy-verdict/v1",
+ "captureId": "vw-s1-q-s1d-two-entries-rpt-rddt-1d-2026-11-16",
+ "captureSha256": "3b127e55748c8a828e71d79e8fc58a5fb26f4734a1a2547def750bba7ad65ffb",
+ "receipt": 3704988256,
+ "sourceSha256": "940c9a2d6c2bef73ad2f75bd5e640d936d321592f2f3717455290c97308e8ec7",
+ "queueTargetId": "Q-S1d",
+ "symbol": "NYSE:RDDT",
+ "timeframe": "1D",
+ "gradeMethod": "a",
+ "verdict": "UNGRADABLE",
+ "step": 0,
+ "reason": "the reference has too few trades (0, floor 5)",
+ "first": null,
+ "graded": {
+  "trades": false,
+  "fills": false,
+  "slots": 0,
+  "values": 0,
+  "texts": 0
+ },
+ "referenceTrades": 2,
+ "rulesExercised": [],
+ "ungradedSlots": [],
+ "ungradedTexts": [],
+ "firstDifference": null,
+ "prefixExact": null,
+ "culprit": null,
+ "afterDifference": null,
+ "newestBarNotRun": 1794839400,
+ "provenance": {
+  "strategySettings": {
+   "properties": [
+    {
+     "name": "pyramiding",
+     "value": 2
+    },
+    {
+     "name": "Calculate Strategy on Order's Fill(s)",
+     "value": false
+    },
+    {
+     "name": "Calculate Strategy on every Tick(s)",
+     "value": false
+    },
+    {
+     "name": "Backtesting Limit Order(s) fill assumption",
+     "value": 0
+    },
+    {
+     "name": "Default entry/order Qty Type",
+     "value": "fixed"
+    },
+    {
+     "name": "Default entry/order Qty Value",
+     "value": 1
+    },
+    {
+     "name": "Initial Capital",
+     "value": 1000000
+    },
+    {
+     "name": "Base Currency",
+     "value": "NONE"
+    },
+    {
+     "name": "Backtesting slippage for market orders",
+     "value": 0
+    },
+    {
+     "name": "Commission Type",
+     "value": "percent"
+    },
+    {
+     "name": "Commission Value",
+     "value": 0
+    },
+    {
+     "name": "Process orders on bar Close",
+     "value": false
+    },
+    {
+     "name": "Close entries rule",
+     "value": "FIFO"
+    },
+    {
+     "name": "Margin Long",
+     "value": 0
+    },
+    {
+     "name": "Margin Short",
+     "value": 0
+    },
+    {
+     "name": "Run mode: 'backtest', 'alert' or something else",
+     "value": "BACKTEST"
+    },
+    {
+     "name": "Alert message template for run mode 'alert'",
+     "value": ""
+    },
+    {
+     "name": "Alert type for run mode 'alert'",
+     "value": "order_fills"
+    },
+    {
+     "name": "exclude_from_report",
+     "value": ""
+    },
+    {
+     "name": "risk_free_rate",
+     "value": 2
+    },
+    {
+     "name": "Use Bar Magnifier",
+     "value": false
+    },
+    {
+     "name": "Fill orders using standard OHLC",
+     "value": false
+    },
+    {
+     "name": "trim_orders",
+     "value": false
+    },
+    {
+     "name": "calc_range",
+     "value": ""
+    }
+   ]
+  }
+ }
+}

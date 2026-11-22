@@ -1,6 +1,6 @@
 import { Component, memo, Suspense, useEffect, useMemo, useRef } from 'react'
 import { lazyLeaf } from '../../lib/lazyChunk'
-import { CHART_MIN_ZOOM, dayLabel, itemLabel, roleOf, tfLabel, fmtPrice } from '../../lib/tradeCanvas'
+import { CHART_MIN_ZOOM, dayLabel, itemLabel, levelAnnotations, roleOf, tfLabel, fmtPrice } from '../../lib/tradeCanvas'
 import styles from './TradeCanvasBoard.module.css'
 
 /**
@@ -43,10 +43,8 @@ function ChartBody({ item, levels, showChart }) {
     params: { symbol: item.symbol, tf: item.tf, to: item.mode === 'frozen' ? item.asOf : null },
     // Levels attached to THIS chart, as horizontal price lines (the chart's own
     // controlled annotation layer; nothing is written back from it).
-    annotations: levels.map((lv) => ({
-      id: `level-${lv.id}`, type: 'horizontal', points: [{ price: lv.price }],
-      color: roleOf(lv.role).color, lineWidth: 2, showPriceLabel: true,
-    })),
+    // Review Critical 1: real colour values for the canvas (never the chips' `var()`), lib/tradeCanvas.js.
+    annotations: levelAnnotations(levels),
   }), [item.symbol, item.tf, item.mode, item.asOf, levels])
   const placeholder = (
     <p className={styles.chartNote}>

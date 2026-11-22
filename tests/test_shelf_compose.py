@@ -32,7 +32,6 @@ def S(monkeypatch, tmp_path):
     # member_interest reads <DATA_DIR>/auth.db, the same file in production.
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     from api.services.journal_two import plan_grading
-    monkeypatch.setenv(plan_grading.FLAG, "1")
     from api.services import auth_db, indicator_alert_service as ias
     from api.services.alert_taxonomy import db as atdb
     importlib.reload(auth_db)
@@ -573,25 +572,6 @@ def test_params_shape(S):
 
 
 # ── fix round 1 ───────────────────────────────────────────────────────────────────────────────
-
-def test_plan_grading_off_reads_not_available_right_now(S, monkeypatch):
-    """W10-R38: with plan grading off, Plan vs actual reads nothing and says so."""
-    from api.services.journal_two import plan_grading
-    with _conn() as c:
-        tid = trade(c, A, r=1.0)
-        link(c, A, tid, {"entry": 100.0, "stop": 95.0, "target": 110.0})
-    real_get = plan_grading.get_trade
-    monkeypatch.delenv(plan_grading.FLAG, raising=False)
-    monkeypatch.setattr(plan_grading, "get_trade",
-                        lambda *a, **k: (_ for _ in ()).throw(AssertionError("read a trade")))
-    got = S.my_plan_vs_actual(A, {"tradeId": tid}, MON)
-    assert got["lines"] == ["Not available right now."] and got["rows"] == []
-    assert got["available"] is False
-    # CONTROL: the switch on, the same trade is laid out.
-    monkeypatch.setattr(plan_grading, "get_trade", real_get)
-    monkeypatch.setenv(plan_grading.FLAG, "1")
-    assert S.my_plan_vs_actual(A, {"tradeId": tid}, MON)["rows"]
-
 
 def test_alert_rows_read_real_text(S):
     """W10-R37 (probe p15): each row in the log's own words; "Alert fired" only for a fire the

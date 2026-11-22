@@ -67,7 +67,14 @@ const SCRIPTS = fs.existsSync(DIR)
 // ⭐ `runObjectLane(lane, view)` is the entry that actually runs one, with
 // `{bars, series, confirmed, readTime, barTimes, requestBars}` — see
 // `memberPaneTables.test.js` for the member's own route end to end.
-describe('⭐⭐ the object lane, measured over the committed corpus', () => {
+// A whole-corpus measurement (buildObjectLane over every committed script), so
+// wall time grades the MACHINE, not the code: measured ~44s for its slowest test
+// alone on Node 20 (--maxWorkers=1, 2026-11-08) and slower in a folder run, past
+// vite.config's 15s testTimeout. 150s is ~3x the slow-box duration. A genuine
+// hang still fails; no assertion is weakened.
+const MEASURE_TIMEOUT_MS = 150000
+
+describe('⭐⭐ the object lane, measured over the committed corpus', { timeout: MEASURE_TIMEOUT_MS }, () => {
   it('⛔ CONTROL — the corpus is actually on disk', () => {
     // An empty result is a failed invocation until proven otherwise.
     expect(SCRIPTS.length).toBeGreaterThan(200)

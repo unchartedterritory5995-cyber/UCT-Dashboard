@@ -1,0 +1,198 @@
+[
+ {
+  "id": "C0",
+  "what": "control: no edit",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx",
+   "src/components/chart/builder/memberPane/runHalf.pairing.rail.test.js"
+  ],
+  "exit": 0,
+  "verdict": "GREEN (control)",
+  "tail": "Test Files  2 passed (2) | Tests  41 passed (41)",
+  "restored_blob_equal": true,
+  "seconds": 14
+ },
+ {
+  "id": "X2",
+  "what": "the door ignores probe.requests",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.pairing.rail.test.js"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 7 passed (8)",
+  "restored_blob_equal": true,
+  "seconds": 11
+ },
+ {
+  "id": "X3",
+  "what": "the door ignores probe.naTests",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.pairing.rail.test.js"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 7 passed (8)",
+  "restored_blob_equal": true,
+  "seconds": 10
+ },
+ {
+  "id": "X4",
+  "what": "the door ignores calc_bars_count",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 32 passed (33)",
+  "restored_blob_equal": true,
+  "seconds": 11
+ },
+ {
+  "id": "X5",
+  "what": "the bind ignores the script's runtime.error stop",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 32 passed (33)",
+  "restored_blob_equal": true,
+  "seconds": 8
+ },
+ {
+  "id": "X6",
+  "what": "DIV-4 ignores the not-graded served stamp",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/div4RuntimeReadPaint.test.js"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 41 passed (42)",
+  "restored_blob_equal": true,
+  "seconds": 32
+ },
+ {
+  "id": "X7",
+  "what": "the rail treats na against a number as agreeing",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 32 passed (33)",
+  "restored_blob_equal": true,
+  "seconds": 8
+ },
+ {
+  "id": "X8",
+  "what": "the door maps hidden rows",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 32 passed (33)",
+  "restored_blob_equal": true,
+  "seconds": 7
+ },
+ {
+  "id": "X9",
+  "what": "the bind runs a run half not bound to the document's script",
+  "file": "app/src/components/chart/engine/nativeRegistry.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  2 failed | 31 passed (33)",
+  "restored_blob_equal": true,
+  "seconds": 10
+ },
+ {
+  "id": "X10",
+  "what": "the save door accepts a run half naming another script",
+  "file": "api/services/runtime_definitions.py",
+  "tests": [
+   "tests/test_run_half_source_binding.py"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed, 11 passed, 544 warnings in 1.67s",
+  "restored_blob_equal": true,
+  "seconds": 13
+ },
+ {
+  "id": "X11a",
+  "what": "client schema accepts a run half beside another script's colours",
+  "file": "app/src/components/chart/engine/defSchema.js",
+  "tests": [
+   "src/components/chart/engine/__tests__/runtimeObjectsSchemaParity.test.js"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 24 passed (25)",
+  "restored_blob_equal": true,
+  "seconds": 8
+ },
+ {
+  "id": "X11b",
+  "what": "server schema accepts a run half beside another script's colours",
+  "file": "api/services/presentation_schema.py",
+  "tests": [
+   "tests/test_runtime_objects_schema_parity.py"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed, 24 passed, 200 warnings in 0.88s",
+  "restored_blob_equal": true,
+  "seconds": 13
+ },
+ {
+  "id": "X12",
+  "what": "a refused run half with no host program publishes nothing",
+  "file": "app/src/components/chart/engine/binder.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 32 passed (33)",
+  "restored_blob_equal": true,
+  "seconds": 8
+ },
+ {
+  "id": "X13",
+  "what": "the door counts JS bytes, not the store's",
+  "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+  "tests": [
+   "src/components/chart/builder/memberPane/runHalf.test.jsx"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "Test Files  1 failed (1) | Tests  1 failed | 32 passed (33)",
+  "restored_blob_equal": true,
+  "seconds": 9
+ },
+ {
+  "id": "X14",
+  "what": "a share copy keeps the author's run half",
+  "file": "api/services/user_definitions.py",
+  "tests": [
+   "tests/test_run_half_source_binding.py"
+  ],
+  "exit": 1,
+  "verdict": "KILLED",
+  "tail": "1 failed, 11 passed, 544 warnings in 2.23s",
+  "restored_blob_equal": true,
+  "seconds": 18
+ }
+]

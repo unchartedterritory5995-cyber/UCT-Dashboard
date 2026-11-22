@@ -14,6 +14,14 @@
 //                   bars, a broken receipt. Never folded into either of the two
 //                   above, because "we could not tell" and "it is right" are
 //                   different facts and a member acts on the second.
+//     MATCH_SUBSTITUTED  (L7, 2026-11-14) everything agrees, but our side ran with
+//                   one or more SUBSTITUTED inputs (a vendor-only fact the member
+//                   door answers from UCT data: `syminfo.industry` from our
+//                   classification, a seed with no public mirror) and was FED the
+//                   vendor's own value of each, read off the capture. It proves the
+//                   translation; it does NOT prove the UCT value a member is served.
+//                   ⛔ ITS OWN BUCKET: never MATCH, never folded into MATCH by any
+//                   consumer (coverage map, evidence ledger, capability admission).
 //
 // ⛔ PURE. No engine import, no filesystem. The same function grades a real
 // capture and a perturbed copy of it, which is what makes the controls in the
@@ -55,12 +63,91 @@
 //   observation states the vendor's own display precision, and nothing else".
 //   ⛔ NEVER WIDEN THESE TO MAKE A DELTA GO AWAY.
 import { isFillTarget } from './schema.mjs'
+import { startsAtBar0Holds } from './history_claim.mjs'
 
 export const REL_TOL = 1e-9
 export const ABS_TICK_FRACTION = 1e-6
 export const ABS_FLOOR_UNKNOWN_SCALE = 1e-12
 
-export const VERDICTS = Object.freeze(['MATCH', 'DIVERGE', 'INCONCLUSIVE'])
+export const VERDICTS = Object.freeze(['MATCH', 'MATCH_SUBSTITUTED', 'DIVERGE', 'INCONCLUSIVE'])
+export const MATCH_SUBSTITUTED = 'MATCH_SUBSTITUTED'
+
+// ── L7: SUBSTITUTED INPUTS (owner ruling 2026-11-14, option (a)) ─────────────
+//
+// THE CONTRACT our side (`ourSide.js::runOurSide`) fills, on its result:
+//
+//   substituted: [{ name, source, vendorValueFrom, value }]
+//     name             the Pine name the door answers from UCT data, e.g. 'syminfo.industry'
+//     source           where the MEMBER's value comes from (what the door discloses as
+//                      "UCT data"), e.g. 'uct:ticker_meta'
+//     vendorValueFrom  where the value our side was FED for this grade came from:
+//                        'capture.<dotted path>'  a field of this capture (verified here:
+//                                                 it must resolve, and equal `value`);
+//                        'committed:<repo path>'  a committed capture our side's own
+//                                                 supply read (the C26 other-symbol path,
+//                                                 for a seed series); stated by our side,
+//                                                 not re-read here (this file is pure)
+//     value            the value our side was fed (required for a 'capture.' source)
+//
+// ⛔ An entry that was NOT fed the vendor's value (no `vendorValueFrom`, an unresolvable
+// path, a fed value that is not the capture's) grades INCONCLUSIVE: a grade over UCT
+// data cannot tell an engine defect from a data difference, so it proves nothing.
+// An empty or absent list is the run every capture had before L7: plain MATCH.
+export const SUBSTITUTED_FROM_CAPTURE = 'capture.'
+export const SUBSTITUTED_FROM_COMMITTED = 'committed:'
+
+/** The vendor's value at `vendorValueFrom` ('capture.<dotted path>') on this capture:
+ *  `{found, value}`. The ONE resolver: our side feeds with it, the comparator checks with it. */
+export function vendorValueOf(capture, vendorValueFrom) {
+  if (typeof vendorValueFrom !== 'string' || !vendorValueFrom.startsWith(SUBSTITUTED_FROM_CAPTURE)) return { found: false, value: undefined }
+  let cur = capture
+  for (const k of vendorValueFrom.slice(SUBSTITUTED_FROM_CAPTURE.length).split('.')) {
+    if (!k || cur === null || typeof cur !== 'object' || !Object.prototype.hasOwnProperty.call(cur, k)) return { found: false, value: undefined }
+    cur = cur[k]
+  }
+  return cur === undefined ? { found: false, value: undefined } : { found: true, value: cur }
+}
+
+/** Why our side's `substituted` declaration cannot stand behind a grade, or [] when it can. */
+export function substitutionProblems(capture, substituted) {
+  if (substituted === undefined || substituted === null) return []
+  if (!Array.isArray(substituted)) return ["our side's `substituted` is not a list"]
+  const out = []
+  const seen = new Set()
+  for (const e of substituted) {
+    const name = e && typeof e.name === 'string' && e.name ? e.name : null
+    if (!name) { out.push('a substituted input names no `name`'); continue }
+    if (seen.has(name)) out.push(`substituted input ${name} is declared twice`)
+    seen.add(name)
+    if (typeof e.source !== 'string' || !e.source) out.push(`substituted input ${name} names no \`source\` (the UCT data a member is served)`)
+    const from = e.vendorValueFrom
+    if (typeof from !== 'string' || !from) {
+      out.push(`substituted input ${name} was not fed the vendor's value (no \`vendorValueFrom\`): a grade over UCT data proves nothing about the engine`)
+    } else if (from.startsWith(SUBSTITUTED_FROM_CAPTURE)) {
+      const got = vendorValueOf(capture, from)
+      if (!got.found) out.push(`substituted input ${name}: the vendor's value is not on this capture (${from})`)
+      else if (!Object.prototype.hasOwnProperty.call(e, 'value')) out.push(`substituted input ${name} does not say what our side was fed`)
+      else if (JSON.stringify(e.value) !== JSON.stringify(got.value)) out.push(`substituted input ${name}: our side was fed ${JSON.stringify(e.value)}, not the vendor's ${JSON.stringify(got.value)} (${from})`)
+    } else if (!(from.startsWith(SUBSTITUTED_FROM_COMMITTED) && from.length > SUBSTITUTED_FROM_COMMITTED.length)) {
+      out.push(`substituted input ${name}: vendorValueFrom ${JSON.stringify(from)} is neither 'capture.<path>' nor 'committed:<path>'`)
+    }
+  }
+  return out
+}
+
+/** The record a substituted grade carries: which inputs, the UCT source a member is served,
+ *  and where the vendor value the grade was fed came from. (The fed VALUE is not carried: a
+ *  seed series is a column, and the ledger never files bulk.) */
+export function substitutedRecord(substituted) {
+  return substituted.map((e) => ({
+    name: e.name, source: e.source, vendorValueFrom: e.vendorValueFrom,
+    checked: e.vendorValueFrom.startsWith(SUBSTITUTED_FROM_CAPTURE) ? 'by the comparator, against the capture' : 'stated by our side (a committed capture it supplied)',
+  }))
+}
+
+/** MATCH -> MATCH_SUBSTITUTED; every other verdict unchanged. ⛔ The only place the new
+ *  bucket is minted, so it can never be minted from a DIVERGE or an INCONCLUSIVE. */
+const asSubstituted = (v) => (v === 'MATCH' ? MATCH_SUBSTITUTED : v)
 
 export function tolerancePolicy(capture) {
   const ps = Number(capture && capture.symbol && capture.symbol.pricescale)
@@ -76,7 +163,11 @@ export function tolerancePolicy(capture) {
     absReason = 'pricescale unknown — double-noise floor 1e-12'
   }
   if (declared !== null) {
-    const half = 0.5 * 10 ** (-declared)
+    // ⛔ `0.5 / 10 ** d`, not `0.5 * 10 ** -d`: a NEGATIVE exponent is not correctly
+    // rounded on every engine (V8 in Node 20, CI's Node: `10 ** -4` = 0.00009999999999999999),
+    // while 10^d for a whole d >= 0 is exact and a division is correctly rounded, so this
+    // is the nearest double to half a unit in the d-th decimal on every engine (2026-11-08).
+    const half = 0.5 / 10 ** declared
     if (half > abs) {
       abs = half
       absReason = `half a unit in the ${declared}th decimal — the capture's declared readDecimals (legacy)`
@@ -87,10 +178,12 @@ export function tolerancePolicy(capture) {
 
 const isNa = (v) => v === null || v === undefined || (typeof v === 'number' && !Number.isFinite(v))
 
-export function valuesAgree(ours, vendor, tol) {
+export function valuesAgree(ours, vendor, tol, floor = 0) {
   if (isNa(ours) || isNa(vendor)) return isNa(ours) && isNa(vendor)
   const d = Math.abs(ours - vendor)
-  return d <= tol.abs || d <= tol.rel * Math.abs(vendor)
+  // ⭐ ENGINE 56 (S4-4) — `floor`: the float-order floor of a plot a running total feeds
+  // (`ourSide.js::floatOrderFloorOf`, 8 ulps of the total's magnitude so far), 0 elsewhere
+  return d <= tol.abs || d <= tol.rel * Math.abs(vendor) || (floor > 0 && d <= floor)
 }
 
 /** A colour to `#rrggbbaa`, lowercase, or null when it cannot be read.
@@ -120,6 +213,27 @@ export function normalizeColor(c) {
  *  fully transparent colour is the SAME drawing — nothing — so it canonicalises
  *  to one spelling before two readings are compared. */
 export const NO_COLOUR = '#00000000'
+
+/** ⭐⭐ ENGINE 58 — OUR SIDE'S COLOUR FOR A BAR WHERE IT WITHHELD THE COLOUR BY
+ *  NAME (`plots[].colorWithheld.points`: a colour rule with no colour on that bar,
+ *  drawn in none). Not a colour: such a bar is not compared, it is COUNTED, and a
+ *  plot with any (on a bar TradingView coloured) is INCONCLUSIVE with the count —
+ *  never MATCH having compared nothing there, never DIVERGE against a colour our
+ *  side never claimed. `ourSide.js` writes it. */
+export const COLOUR_WITHHELD_POINT = 'withheld'
+/** ⭐⭐ ENGINE 58 — A THEME REFERENCE IS GRADED ON ITS ALPHA BYTE ALONE. Its hue is
+ *  the chart's (`chart.fg_color` is our chart's text colour, TradingView's is its own
+ *  theme's — the C37 rule, theme-relative), but its TRANSPARENCY is the script's
+ *  (`color.new(chart.fg_color, 85)` is alpha `26` on every chart). So both sides are
+ *  reduced to `#000000<alpha>` and compared as colours: the alpha has to agree, the
+ *  hue is not asked. A non-colour (`null`, `undefined`, `COLOUR_WITHHELD_POINT`) is
+ *  passed through unchanged. */
+export function alphaOnlyColour(c) {
+  if (typeof c !== 'string' || c === COLOUR_WITHHELD_POINT) return c
+  const n = normalizeColor(c)
+  return n ? `#000000${n.slice(7)}` : c
+}
+
 export function canonicalColour(c) {
   return typeof c === 'string' && /^#[0-9a-f]{6}00$/.test(c) ? NO_COLOUR : c
 }
@@ -345,19 +459,28 @@ export function mapPlots(vendorValuePlots, ourPlots) {
  *                                   See `colourWarmupOf`.
  * @param {object} a.tol             from `tolerancePolicy`
  */
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null }) {
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null, behindBars = null }) {
   const n = times.length
   const res = {
     bars: n,
     compared: 0,
     // Bars our side cannot report the vendor's quantity for (see `leadBy`).
     oursUnread: 0,
+    // ⭐ ENGINE 56 — bars our side withheld BY NAME on this plot (a per-bar witness code):
+    // not compared, and counted with how many of them TradingView drew a value on
+    withheldBars: 0,
+    withheldVendorValued: 0,
+    withheldWarmupVendorValued: 0,
+    floatOrderFloorUsed: 0,
     matching: 0,
     vendorRowsMissing: 0,
     naMismatches: 0,
     valueMismatches: 0,
     colorMismatches: 0,
     colorCompared: 0,
+    // ⭐ ENGINE 58 — bars TradingView coloured where our side withheld the colour
+    // by name (`COLOUR_WITHHELD_POINT`).
+    colorWithheld: 0,
     // Bars where the VENDOR drew a value in a known colour — the bars a colour
     // claim is about. Counted whether or not our side's colour resolved, so a
     // plot that never draws anything is told apart from one we could not read.
@@ -373,6 +496,9 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
   let gapAfterRows = 0
   const steadyComparedBars = []
   const steadyDivergentBars = []
+  // SUPPLY-ATTRIBUTED (2026-11-17): every steady divergent bar with its time and kind, kept OFF the
+  // serialised stats (non-enumerable, below) so a verdicts file does not grow by a list per plot
+  const steadyDivergent = []
   for (let i = 0; i < n; i++) {
     const v = vendor[i]
     if (v === undefined) {
@@ -384,6 +510,19 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     }
     firstRowSeen = true
     if (Number.isInteger(oursUnreadAfter) && i >= oursUnreadAfter) { res.oursUnread += 1; continue }
+    // OTHER-SYMBOL UNSETTLED (coordinator ruling on #1541): a bar TradingView's own captures disagree about
+    // is not compared; it is named on the plot (`otherSymbolUnsettled`) and counted here, never a gap
+    if (unsettledBars && unsettledBars[i]) { res.unsettledBars = (res.unsettledBars || 0) + 1; continue }
+    // SUPPLY BEHIND THE CAPTURE (coordinator ruling, 2026-11-18): the forming newest bar a recorded supply cannot
+    // answer (`supplyAttribution.js::supplyBehindOf`) is not compared; it is named on the plot (`supplyBehind`)
+    if (behindBars && behindBars[i]) { res.supplyBehindBars = (res.supplyBehindBars || 0) + 1; continue }
+    if (withheldBars && withheldBars[i]) {
+      res.withheldBars += 1
+      // only a steady-state bar weighs on the verdict; a warm-up bar is reported, as a warm-up
+      // divergence is (`warmup.divergent`)
+      if (!isNa(v)) { if (i >= warmupBars) res.withheldVendorValued += 1; else res.withheldWarmupVendorValued += 1 }
+      continue
+    }
     const o = ours[i]
     res.compared += 1
     if (!isNa(v)) res.valued += 1
@@ -396,13 +535,19 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       const rel = d / Math.max(Math.abs(v), Number.MIN_VALUE)
       if (d > res.maxAbs) res.maxAbs = d
       if (Math.abs(v) > 0 && rel > res.maxRel) res.maxRel = rel
-      if (!valuesAgree(o, v, tol)) { kind = 'value'; res.valueMismatches += 1 }
+      const floor = floatOrderFloor && Number.isFinite(floatOrderFloor[i]) ? floatOrderFloor[i] : 0
+      if (!valuesAgree(o, v, tol)) {
+        if (floor > 0 && valuesAgree(o, v, tol, floor)) res.floatOrderFloorUsed += 1
+        else { kind = 'value'; res.valueMismatches += 1 }
+      }
     }
     if (vendorColors && !isNa(v) && vendorColors[i] !== undefined && vendorColors[i] !== null) res.colorComparable += 1
     if (!kind && vendorColors && ourColors && !isNa(v) && i >= colorWarmupBars) {
       const vc = vendorColors[i]
       const oc = ourColors[i]
-      if (vc !== undefined && vc !== null && oc !== undefined) {
+      if (oc === COLOUR_WITHHELD_POINT) {
+        if (vc !== undefined && vc !== null) res.colorWithheld += 1
+      } else if (vc !== undefined && vc !== null && oc !== undefined) {
         res.colorCompared += 1
         if (!coloursAgree(vc, oc)) { kind = 'color'; res.colorMismatches += 1 }
       }
@@ -419,6 +564,7 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       if (region === res.steady) {
         res.steady.last = rec
         steadyDivergentBars.push(i)
+        steadyDivergent.push({ bar: i, time: times[i], kind })
       }
     } else {
       res.matching += 1
@@ -427,7 +573,49 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
   }
   res.vendorRowGapsAfterStart = gapAfterRows
   res.steady.pattern = divergencePattern(steadyComparedBars, steadyDivergentBars, res.steady)
+  Object.defineProperty(res, 'steadyDivergent', { value: steadyDivergent, enumerable: false })
   return res
+}
+
+// ── SUPPLY-ATTRIBUTED DIVERGENCE (coordinator ruling on #1541, 2026-11-17) ──────────────
+//
+// A capture that reads ANOTHER symbol is graded on the bars OUR SERVER serves for it (RS RATING L8, never
+// on TradingView's own: `ourSide.js::recordedSupplyOf`). Where that supply differs from TradingView's own
+// series, the plot differs because the DATA differs, not the engine. Where (and only where) the supply
+// symbol has a committed TradingView WITNESS of that symbol (`requestWitnesses.json` row `witness`,
+// committed), a DIVERGE plot is graded MATCH_SUBSTITUTED when ALL of:
+//   1. it reads no window (`lookback === 0`): a windowed plot spanning a differing date stays DIVERGE;
+//   2. EVERY steady divergent bar is a VALUE difference on a date where our supply differs from the
+//      witness (`attributableToSupply`): one difference on an agreeing date keeps it DIVERGE;
+//   3. our side, run again on the supply with the witness's values on those dates (the counterfactual,
+//      `vendorHarness/supplyAttribution.js`), agrees with TradingView on every bar of that plot.
+// The record names the UCT source, the witness and N of M dates (`supplyAttributed`). The grade a member
+// reads stays on OUR supply; the counterfactual only proves which side of the difference is the data.
+
+// ── OTHER-SYMBOL UNSETTLED (coordinator ruling on #1541, 2026-11-17) ───────────────────────
+//
+// When committed TradingView evidence disagrees with ITSELF about another symbol's value on a bar, that bar
+// is UNSETTLED, not a divergence. This capture's own read is implied by our side: run again with that
+// symbol read as a candidate value on that bar (`supplyAttribution.js::otherSymbolUnsettledOf`), it
+// reproduces the capture's value there. If at least one OTHER committed TradingView witness of that symbol
+// and date reads a different value, the bar grades INCONCLUSIVE by name and the plot's verdict follows from
+// the remaining bars. A single uncontradicted source never unsettles a bar.
+export const UNSETTLED_MAX_BARS = 3
+
+/** The `otherSymbolUnsettled` record for one bar, or null when no committed witness contradicts this
+ *  capture's implied read (no witness of that date, or every witness reads the same value). */
+export function unsettledRecord({ symbol, date, implied, capture, witnesses }) {
+  const ws = Array.isArray(witnesses) ? witnesses.filter((w) => w && typeof w.value === 'number') : []
+  if (!ws.length || !Number.isFinite(implied) || ws.every((w) => w.value === implied)) return null
+  return { symbol, date, readBy: [{ ...capture, value: implied }, ...ws.map((w) => ({ id: w.id, capturedAtUTC: w.capturedAtUTC || null, value: w.value }))] }
+}
+
+/** Is every steady divergence of a zero-lookback plot a value difference on a supply-differing date?
+ *  @param {{lookback: number|null, divergent: {time: number, kind: string}[], diffDays: Set<string>,
+ *            dayOf: (t: number) => string|null}} arg */
+export function attributableToSupply({ lookback, divergent, diffDays, dayOf }) {
+  if (lookback !== 0 || !Array.isArray(divergent) || !divergent.length || !diffDays || !diffDays.size) return false
+  return divergent.every((d) => d.kind === 'value' && diffDays.has(dayOf(d.time)))
 }
 
 /**
@@ -481,14 +669,17 @@ function divergencePattern(compared, divergent, steady) {
  *  exactly as unknowable as a value inside the value's warm-up, and it is excused
  *  by the same rule: no further, and never on a capture from the listing.
  *  ⛔ ONLY THE COLOUR: the value is still compared from `warmupBars` on. */
-export function colourWarmupOf({ bar0, capture, warmupBars, colorLookback }) {
+export function colourWarmupOf({ bar0, capture, warmupBars, colorLookback, replayedBars = 0 }) {
   if (bar0) return warmupBars
   if (capture && capture.warmup && Number.isInteger(capture.warmup.bars)) return warmupBars
-  return Number.isInteger(colorLookback) && colorLookback > warmupBars ? colorLookback : warmupBars
+  // ⭐ DIV-1 — our side replayed `replayedBars` of proved prehistory first, so the
+  // colour rule's reach is covered for that many bars too (as the value's is).
+  const reach = Number.isInteger(colorLookback) ? Math.max(0, colorLookback - (replayedBars > 0 ? replayedBars : 0)) : null
+  return reach !== null && reach > warmupBars ? reach : warmupBars
 }
 
 /** One plot's verdict from its comparison, with the reason written out. */
-export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReason = null, ourColorReason = null }) {
+export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReason = null, ourColorReason = null, ourColorWithheldBy = null }) {
   if (r.vendorRowGapsAfterStart > 0) {
     return { verdict: 'INCONCLUSIVE', reason: `${r.vendorRowGapsAfterStart} bars have no vendor row after the study had started — a hole in what was read, not an answer` }
   }
@@ -502,6 +693,11 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
   }
   if (r.steady.compared === 0) {
     return { verdict: 'INCONCLUSIVE', reason: r.compared === 0 ? 'no bar was compared' : 'every compared bar is inside the warm-up region — nothing in steady state to judge' }
+  }
+  // ⭐ ENGINE 56 — a bar our side withheld BY NAME where TradingView drew a value is not a
+  // wrong value and not a match: the plot is INCONCLUSIVE, with the count, until it is served
+  if (r.withheldVendorValued > 0) {
+    return { verdict: 'INCONCLUSIVE', reason: `${r.steady.compared} compared bars agree; ${r.withheldVendorValued} bar(s) where TradingView draws a value are withheld by name on our side (not compared)` }
   }
   // ⛔ A COLOUR THE CAPTURE HOLDS BUT THE HARNESS COULD NOT DECODE IS NOT A MATCH.
   // ⚰️ It was: a palette-less colorer read `colors: null`, our side had colours,
@@ -519,7 +715,14 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
   if (colorMeasured && !colorResolvable && (r.colorComparable === undefined || r.colorComparable > 0)) {
     return { verdict: 'INCONCLUSIVE', reason: `values agree, but the capture records per-bar colour and our side's colour could not be resolved${ourColorReason ? ` (${ourColorReason})` : ''}` }
   }
-  return { verdict: 'MATCH', reason: `${r.steady.compared} steady-state bars agree` + (r.warmup.divergent ? ` (${r.warmup.divergent} warm-up bars differ, reported separately)` : '') }
+  // ⭐ ENGINE 58 — a colour our side withheld by name on some bars TradingView
+  // coloured: the bars it did colour agree, and the rest are not an answer.
+  if (colorMeasured && r.colorWithheld > 0) {
+    return { verdict: 'INCONCLUSIVE', reason: `values agree, and the colour agrees on ${r.colorCompared} bars; on ${r.colorWithheld} bars our side withheld it by name${ourColorWithheldBy ? ` (${ourColorWithheldBy})` : ''} — nothing is drawn there rather than a colour the script does not choose` }
+  }
+  return { verdict: 'MATCH', reason: `${r.steady.compared} steady-state bars agree`
+    + (r.floatOrderFloorUsed ? ` (${r.floatOrderFloorUsed} of them within the float-order floor of the running total the plot is a linear combination of)` : '')
+    + (r.warmup.divergent ? ` (${r.warmup.divergent} warm-up bars differ, reported separately)` : '') }
 }
 
 const fmt = (x) => (x === null || x === undefined ? 'na' : typeof x === 'number' ? String(x) : JSON.stringify(x))
@@ -669,12 +872,37 @@ export function compareCapture(capture, ours, opts = {}) {
   // with an edited input is a different script as far as the numbers go, and
   // grading it against the defaults would report the edit as a divergence.
   const changed = nonDefaultInputs(capture)
-  if (changed.length) return inconclusive(`the vendor study ran with non-default inputs (${changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')}); v1 compares at default inputs only — re-capture at defaults`)
-  if (!ours || !ours.ok) return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`)
+  // ⭐⭐ SETTINGS PARITY (2c) — UNLESS OUR SIDE RAN AT THE SAME SETTINGS. `ourSide.js` now computes a
+  // capture at the inputs TradingView recorded in it (`captureInputs.js`) and reports them
+  // (`ours.capturedInputs`: Pine name -> the vendor's value, one per moved input); a capture whose
+  // every moved input our side moved too is graded like any other, and says which settings it
+  // graded (`settings`). One our side did not move, or could not, stays INCONCLUSIVE by name.
+  const tookSettings = changed.length && ours && ours.ok && ours.capturedInputs
+    && typeof ours.capturedInputs === 'object' && Object.keys(ours.capturedInputs).length === changed.length
+  if (tookSettings) base.settings = { ...ours.capturedInputs }
+  const movedText = changed.map((i) => `${i.name || i.id}=${JSON.stringify(i.value)} vs default ${JSON.stringify(i.defval)}`).join(', ')
+  // ⭐ (track 4, 2026-11-22) OUR OWN REFUSAL IS NAMED FIRST. A capture taken at moved settings of a script our side
+  // refuses was reported as "v1 compares at default inputs only — re-capture at defaults": the seven built-in VWAP
+  // anchor rows (s4-vwap-anchors-retake3-2026-11-21) read so, though settings parity (2c) would have graded them and
+  // the wall is our side's (the built-in VWAP is refused on both lanes). A re-capture at defaults would not move them.
+  // The moved settings stay in the sentence, so neither cause is lost.
+  if (!ours || !ours.ok) {
+    return inconclusive(`refused on our side: ${(ours && ours.refusal) || 'no result'}`
+      + (changed.length ? ` (the vendor study also ran with non-default inputs: ${movedText})` : ''))
+  }
+  if (changed.length && !tookSettings) return inconclusive(`the vendor study ran with non-default inputs (${movedText}); v1 compares at default inputs only — re-capture at defaults`)
+  // ⭐ L7 — a substituted input must have been FED the vendor's own value, or nothing below
+  // proves the engine (`substitutionProblems`).
+  const subProblems = substitutionProblems(capture, ours.substituted)
+  if (subProblems.length) return inconclusive(`substituted inputs: ${subProblems.join('; ')}`)
+  const substituted = Array.isArray(ours.substituted) && ours.substituted.length ? substitutedRecord(ours.substituted) : null
 
   const tol = tolerancePolicy(capture)
   base.tolerance = tol
   const times = capture.bars.rows.map((r) => r[0])
+  // SUPPLY BEHIND THE CAPTURE: ONLY the newest bar, ONLY when `supplyBehindOf` found its supply behind it
+  const supplyBehind = opts.supplyBehind || null
+  const behindBars = supplyBehind && times.length ? times.map((_, i) => i === times.length - 1) : null
   const rowsByTime = new Map((capture.plotValues.rows || []).map((r) => [String(r[0]), r]))
   const roles = vendorPlotRoles(capture)
   for (const p of roles.notDrawn) base.notCompared.push({ id: p.id, title: p.title, type: p.type, why: 'alertcondition — draws nothing on TradingView either; not a visual claim' })
@@ -682,7 +910,8 @@ export function compareCapture(capture, ours, opts = {}) {
 
   // History: a capture that provably starts at bar 0 has no pre-window state our
   // side lacks, so there is no warm-up excuse and every bar counts.
-  const bar0 = capture.history && capture.history.startsAtBar0 === true
+  // ⛔⛔ read through `history_claim.mjs`: a claim the capture's own bar_index row contradicts is FALSE
+  const bar0 = startsAtBar0Holds(capture)
 
   const map = mapPlots(roles.value, ours.plots || [])
   for (const u of map.unmappedVendor) {
@@ -716,8 +945,13 @@ export function compareCapture(capture, ours, opts = {}) {
       if (row) return notDrawn(row[v.column])
       return sparseNative ? null : undefined
     })
-    if (!o.column) {
+    // ⭐ 2026-11-09 — a plot our side WITHHELD BY NAME on every bar (`withheldBy`, a
+    // chart-clock code) is graded the way a missing column is: not compared, with the
+    // reason. ⚰️ Graded as its all-`na` column it read DIVERGE — the verdict a WRONG
+    // value gets — on 13 captures (triage lane WN, 2026-11-08).
+    if (!o.column || o.withheldBy) {
       base.plots.push({ id: v.id, title: v.title, ours: o.key || null, rule: pair.rule, verdict: 'INCONCLUSIVE',
+        ...(o.withheldBy ? { withheld: o.withheldBy } : {}),
         reason: `our side produced no column for this plot${o.missingReason ? ` — ${o.missingReason}` : ''}` })
       continue
     }
@@ -728,9 +962,20 @@ export function compareCapture(capture, ours, opts = {}) {
     let warmupSource
     if (bar0) { warmupBars = 0; warmupSource = 'capture starts at bar 0 — no warm-up excuse' }
     else if (capture.warmup && Number.isInteger(capture.warmup.bars)) { warmupBars = capture.warmup.bars; warmupSource = `declared by the capture (${capture.warmup.source || 'unstated'})` }
+    // ⭐⭐ DIV-1 (2026-11-09) — OUR SIDE HAD THE HISTORY TRADINGVIEW HAD. `ourSide.js`
+    // computed this plot over [proved prehistory + window] (`warmBarsSupply`, the RC1
+    // supplier), so the window's first bars are no longer "computed from history
+    // neither side holds": the excuse shrinks by the bars replayed (to 0 whenever the
+    // replay reaches back past the plot's own lookback, i.e. every SPY 1D capture).
+    else if (o.historyReplayed && Number.isInteger(o.historyReplayed.bars) && o.historyReplayed.bars > 0) {
+      warmupBars = Number.isInteger(o.lookback) ? Math.max(0, o.lookback - o.historyReplayed.bars) : 0
+      warmupSource = `our side replayed ${o.historyReplayed.bars} bars of proved prehistory (${o.historyReplayed.file}) before the window`
+        + (Number.isInteger(o.lookback) ? ` against a maxLookback of ${o.lookback}` : '')
+    }
     else if (Number.isInteger(o.lookback)) { warmupBars = o.lookback; warmupSource = 'derived: our evaluator\'s maxLookback for this plot' }
     else { warmupBars = 0; warmupSource = 'lookback unknown — no warm-up region' }
-    const colorWarmupBars = colourWarmupOf({ bar0, capture, warmupBars, colorLookback: o.colorLookback })
+    const colorWarmupBars = colourWarmupOf({ bar0, capture, warmupBars, colorLookback: o.colorLookback,
+      replayedBars: o.historyReplayed && Number.isInteger(o.historyReplayed.bars) ? o.historyReplayed.bars : 0 })
     const oursCol = leadBy(drawnOnly && o.column ? Array.from(o.column, notDrawn) : o.column, treeShift)
     // ⭐ A plot TradingView does not display (style `display: 0`, i.e. the author's
     // `display = display.none`) has no colour anyone sees, so its colour is not
@@ -749,32 +994,117 @@ export function compareCapture(capture, ours, opts = {}) {
     // colour `#2962FF` on 632 bars of a glyph nobody can see).
     const metaStyle = (capture.study && capture.study.styles && capture.study.styles[v.id]) || null
     const emptyGlyph = v.type === 'chars' && !!metaStyle && metaStyle.char === '' && !metaStyle.text
+    // ⭐ ENGINE 58 — a plot coloured `chart.fg_color` / `chart.bg_color` is drawn in
+    // OUR chart's colour, not TradingView's theme: THEME-RELATIVE, the C37 rule the
+    // object colours already follow (`objectTheme.js`; `themeRelative` agrees).
+    // ⭐ …graded on its ALPHA byte alone (`alphaOnlyColour`): the transparency is the
+    // script's, only the hue is the chart's.
+    const themeRelative = o.colorsThemeRelative === true
     const colourUngraded = hiddenOnVendor || emptyGlyph
-    const r = comparePlot({ times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : vc.colors, ourColors: colourUngraded ? null : ourColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: treeShift ? times.length - treeShift : null })
-    const pv = plotVerdict(r, {
+    const gradedVendorColors = themeRelative && vc.colors ? vc.colors.map(alphaOnlyColour) : vc.colors
+    const gradedOurColors = themeRelative && ourColors ? ourColors.map(alphaOnlyColour) : ourColors
+    // ⭐⭐ ENGINE 55 — the NEWEST bar our side withheld BY NAME (`withheldNewest`: the
+    // `request:htf-newest-unconfirmed` code, a finished newest bar whose period end is
+    // the next session's date) is not compared, exactly as a whole-series withholding
+    // is not: our side drew nothing there, and drew it on purpose. Every other bar is.
+    const unreadAfter = [treeShift ? times.length - treeShift : null, o.withheldNewest === true ? times.length - 1 : null]
+      .filter((x) => x !== null)
+    const plotArgs = { times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
+      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null, behindBars }
+    let r = comparePlot(plotArgs)
+    const verdictOpts = {
       colorMeasured: vc.measured && !colourUngraded,
       colorResolvable: !!ourColors,
       vendorColorReason: vc.measured && !vc.colors ? vc.reason : null,
       ourColorReason: o.colorsReason || null,
-    })
+      ourColorWithheldBy: o.colorsWithheldBy || null,
+    }
+    let pv = plotVerdict(r, verdictOpts)
+    // OTHER-SYMBOL UNSETTLED (see `unsettledRecord`): a zero-lookback plot whose ONLY steady divergences
+    // (at most UNSETTLED_MAX_BARS, values) are bars where this capture's own read of another symbol is
+    // contradicted by another committed TradingView witness of that symbol and date
+    const ou = opts.otherSymbolUnsettled || null
+    if (pv.verdict === 'DIVERGE' && ou && o.lookback === 0 && Array.isArray(r.steadyDivergent)
+      && r.steadyDivergent.length && r.steadyDivergent.length <= UNSETTLED_MAX_BARS
+      && r.steadyDivergent.every((d) => d.kind === 'value')) {
+      const recs = []
+      for (const d of r.steadyDivergent) {
+        let rec = null
+        for (const cand of ou.candidatesFor(d.time)) {
+          const cf = cand.run()
+          const co = cf && cf.ok ? (cf.plots || []).find((x) => x && x.key === o.key && x.column) : null
+          const col = co ? leadBy(drawnOnly ? Array.from(co.column, notDrawn) : co.column, treeShift) : null
+          if (col && !isNa(col[d.bar]) && !isNa(vendorVals[d.bar]) && valuesAgree(col[d.bar], vendorVals[d.bar], tol)) {
+            rec = unsettledRecord({ symbol: ou.symbol, date: ou.dayOf(d.time), implied: cand.read,
+              capture: { id: capture.id, capturedAtUTC: capture.capturedAtUTC || null }, witnesses: ou.witnessesFor(d.time) })
+            break
+          }
+        }
+        if (!rec) break
+        recs.push({ bar: d.bar, time: d.time, ...rec })
+      }
+      if (recs.length === r.steadyDivergent.length) {
+        const mask = times.map(() => false)
+        for (const x of recs) mask[x.bar] = true
+        r = comparePlot({ ...plotArgs, unsettledBars: mask })
+        pv = plotVerdict(r, verdictOpts)
+        pv = { ...pv,
+          reason: `${pv.reason}; ${recs.length} bar(s) INCONCLUSIVE by name: TradingView's own captures disagree on ${ou.symbol} there (otherSymbolUnsettled)`,
+          otherSymbolUnsettled: recs.map((x) => ({ verdict: 'INCONCLUSIVE', ...x })) }
+      }
+    }
+    // SUPPLY-ATTRIBUTED (see `attributableToSupply`): rules 1 and 2 here, rule 3 on the counterfactual run
+    const sa = opts.supplyAttribution || null
+    if (pv.verdict === 'DIVERGE' && sa && attributableToSupply({ lookback: o.lookback, divergent: r.steadyDivergent,
+      diffDays: sa.diffDays, dayOf: sa.dayOf })) {
+      const cf = typeof sa.counterfactual === 'function' ? sa.counterfactual() : null
+      const co = cf && cf.ok ? (cf.plots || []).find((x) => x && x.key === o.key && x.column) : null
+      const cr = co ? comparePlot({ times, vendor: vendorVals, ours: leadBy(drawnOnly ? Array.from(co.column, notDrawn) : co.column, treeShift),
+        vendorColors: null, ourColors: null, warmupBars, colorWarmupBars, tol,
+        oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
+        withheldBars: leadBy(co.withheldBars, treeShift) || null, floatOrderFloor: leadBy(co.floatOrderFloor, treeShift) || null, behindBars }) : null
+      if (cr && cr.steady.divergent === 0 && cr.steady.compared > 0) {
+        const n = r.steady.divergent
+        pv = {
+          verdict: MATCH_SUBSTITUTED,
+          reason: `${n} steady-state bars differ, every one a value on a date where UCT's ${sa.record.symbol} `
+            + `(${sa.record.source}) differs from TradingView's (witness ${sa.record.witness.join(', ')}: `
+            + `${sa.record.datesDiffer} of ${sa.record.datesCompared} dates differ); on the witness's values every bar agrees`,
+          supplyAttributed: { ...sa.record, bars: n },
+        }
+      }
+    }
+    if (supplyBehind && r.supplyBehindBars) {
+      const last = times.length - 1
+      const { sentence, ...rec } = supplyBehind
+      pv = { ...pv,
+        reason: `${pv.reason}; the newest bar INCONCLUSIVE by name: ${sentence} (supplyBehind)`,
+        supplyBehind: { verdict: 'INCONCLUSIVE', bar: last, time: times[last], ...rec } }
+    }
     base.plots.push({
       id: v.id, title: v.title ?? o.title, ours: o.key, rule: pair.rule, ...pv,
       warmupBars, warmupSource, derivedLookback: Number.isInteger(o.lookback) ? o.lookback : null,
       ...(colorWarmupBars !== warmupBars ? { colorWarmupBars, colorWarmupSource: `derived: the colour rule's own maxLookback (${o.colorLookback})` } : {}),
       ...(treeShift ? { treeShift, treeShiftNote: `offset = ${treeShift}: our column read ${treeShift} bars ahead to meet the vendor's unshifted series; the last ${treeShift} bars are unread` } : {}),
+      ...(o.withheldNewest === true ? { withheldNewest: 'request:htf-newest-unconfirmed', withheldNewestNote: 'the newest bar is withheld by name on our side (a finished bar whose week or month end is the date of the next session) and is not compared' } : {}),
       color: !vc.measured ? 'not captured'
         : colourUngraded ? (emptyGlyph ? 'not graded — an empty plotchar glyph draws nothing' : 'not graded — hidden on TradingView (display none)')
           : !vc.colors ? 'undecodable in the capture'
             : r.colorComparable === 0 ? 'nothing drawn on any bar — no colour to compare'
-              : ourColors ? 'compared' : 'unresolvable on our side',
+              : ourColors ? (themeRelative ? 'compared on alpha only — a theme reference (chart.fg_color / chart.bg_color) takes its hue from the chart (C37)' : 'compared') : 'unresolvable on our side',
       stats: r,
     })
   }
   for (const o of map.unmappedOurs) base.notCompared.push({ ours: o.key, title: o.title, why: 'our plot has no vendor counterpart (hidden helper or a plot TradingView did not report)' })
 
   // Objects — counts of what each side KEEPS, and the text they carry.
+  // ⭐ OTHER-SYMBOL UNSETTLED, FOR THE DRAWINGS TOO (`unsettledBarsOf`): a drawing placed on a bar the plot grade
+  // found unsettled is not compared, by the same name.
   if (capture.objects || (ours.objects && ours.objects.drawsObjects)) {
-    base.objects = compareObjects(capture.objects || null, ours.objects || null, opts.objectColours || null)
+    base.objects = compareObjects(capture.objects || null, ours.objects || null, opts.objectColours || null, opts.objectRecords || null,
+      unsettledBarsOf(base.plots, capture))
+    // ⭐⭐ A v1 MATCH CANNOT STAND WHEN v2 DIVERGES (`v2Overrules`, coordinator ruling 2026-11-21)
+    base.objects = v2Overrules(base.objects, opts.objectRecords || null, ours)
   }
 
   // Paints — `bgcolor` / `barcolor` (B1, step 61). Graded only where the caller
@@ -814,6 +1144,32 @@ export function compareCapture(capture, ours, opts = {}) {
   // its own cause and no other.)
   if (base.objects && base.objects.verdictWithoutColour) {
     out.verdictWithoutColour = overallOf([...plotVerdicts, base.objects.verdictWithoutColour, ...(paintJoins ? [base.paints.verdict] : [])]).verdict
+  }
+  // ⭐⭐ L7 — A RUN WITH SUBSTITUTED INPUTS NEVER READS MATCH. Applied LAST, after every
+  // roll-up above, so DIVERGE / INCONCLUSIVE are decided exactly as before. Every plot is
+  // relabelled too: the engine does not yet say which outputs a substitution reaches, so
+  // every output is taken to (fail closed). The objects and paints sub-records keep their
+  // own grades (other functions read them as inputs); the capture's verdict carries the tag.
+  // SUPPLY-ATTRIBUTED — a capture with an attributed plot never reads MATCH (as L7 below)
+  const attributed = base.plots.filter((p) => p.supplyAttributed)
+  if (attributed.length) {
+    out.supplyAttributed = { ...attributed[0].supplyAttributed, plots: attributed.map((p) => p.title ?? p.id) }
+    delete out.supplyAttributed.bars
+    out.verdict = asSubstituted(out.verdict)
+    if (out.verdictWithoutPaints) out.verdictWithoutPaints = asSubstituted(out.verdictWithoutPaints)
+    if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
+  }
+  // SUPPLY BEHIND THE CAPTURE — the capture names the bar it could not judge and the plots it was withheld from;
+  // the verdict is the other bars' (never lifted to MATCH by it, never lowered)
+  const behind = base.plots.filter((p) => p.supplyBehind)
+  if (behind.length) out.supplyBehind = { ...behind[0].supplyBehind, plots: behind.map((p) => p.title ?? p.id) }
+  if (substituted) {
+    out.substituted = substituted
+    out.verdict = asSubstituted(out.verdict)
+    if (out.verdict === MATCH_SUBSTITUTED) out.reason = `${out.reason}, with substituted inputs fed the vendor's value (${substituted.map((e) => e.name).join(', ')}); the UCT data a member is served is not proven`
+    if (out.verdictWithoutPaints) out.verdictWithoutPaints = asSubstituted(out.verdictWithoutPaints)
+    if (out.verdictWithoutColour) out.verdictWithoutColour = asSubstituted(out.verdictWithoutColour)
+    out.plots = out.plots.map((p) => (p.verdict === 'MATCH' ? { ...p, verdict: MATCH_SUBSTITUTED } : p))
   }
   return out
 }
@@ -908,7 +1264,187 @@ export function objectColourRows(pairing) {
  *  @param {{rows: object[], unpaired: object}|null} [colour] the paired colour
  *    slots (C44). `null` — a caller that did not pair them — grades counts and
  *    texts only, exactly as before, and its reason reads as it always did. */
-export function compareObjects(vendorObjs, ourObjs, colour = null) {
+/** ⭐⭐ DISCLOSED PARTIAL — the guard a partly withheld family is graded under (`compareObjects`). */
+export const OBJECTS_PARTIAL_GUARD = 'objects:partial'
+/** ⭐⭐ …and the one it is graded under when a drawn record's PLACE (x) could not be compared: the capture predates the
+ *  x table and has no sidecar (coordinator ruling 2026-11-19). Never a lift: `host_divergence.py` keeps a script's
+ *  entry on this grade, and only a capture WITH the x table can lift it. */
+export const OBJECTS_PARTIAL_UNPOSITIONED_GUARD = 'objects:partial-unpositioned'
+/** The families a disclosed partial is graded on record by record (the ones v2 pairs by value). */
+const PARTIAL_GRADED = new Set(['lines', 'labels', 'boxes'])
+/** Does every record our side DRAWS in family `f` pair with one of TradingView's and agree field by field?
+ *  `{agree, first}` — `first` names the first record that does not. Fails closed: no pairing, or any field that
+ *  differs (x included), is not agreement. */
+function drawnRecordsAgree(records, f) {
+  const p = records && records.families ? records.families[f] : null
+  if (!p) return { agree: false, first: 'no record of it was paired field by field' }
+  // (every record of ours is paired: a partial holds fewer than TradingView, and `alignByValue` pairs the smaller side whole)
+  let unpositioned = false
+  for (const pair of p.pairs || []) {
+    for (const r of pair.fields || []) {
+      if (V2_DIFFERS.has(r.state)) return { agree: false, first: { field: r.field, vendor: r.vendor, ours: r.ours, where: pair.where, vendorId: pair.vendorId } }
+      if (r.x === true && V2_X_MISSING.has(r.state)) unpositioned = true
+    }
+  }
+  return { agree: true, first: null, unpositioned }
+}
+/** Is every item of `sub` in `all`, as many times (both sorted)? */
+function subMultiset(sub, all) {
+  const left = new Map()
+  for (const x of all) left.set(x, (left.get(x) || 0) + 1)
+  for (const x of sub) {
+    const n = left.get(x) || 0
+    if (!n) return false
+    left.set(x, n - 1)
+  }
+  return true
+}
+
+// ── OTHER-SYMBOL UNSETTLED, FOR THE DRAWINGS (coordinator, 2026-11-21) ─────────────────────
+//
+// The plot grade leaves a bar UNSETTLED where TradingView's own captures disagree about another symbol's value there
+// (`unsettledRecord`): that bar is not compared, by name. A drawing PLACED on such a bar reads the same unsettled value,
+// so it is not compared either, by the same name: a paired record (lines, labels, boxes: `objectRecords.js::pairRecords`)
+// any of whose x coordinates resolves, on either side, to an unsettled bar is taken out of the counts, the texts and the
+// records before the drawing is graded, and named on the grade (`otherSymbolUnsettled`). The verdict follows from the
+// drawings that remain; with none left on either side it is INCONCLUSIVE.
+// ⚰️ rs-rating-fred6724-pm-alab-1d-2026-11-16: its plots agree on 667 of 668 bars and the newest is unsettled (SPX
+// 7416.59 in this capture, 7561.67 in the other three of that date), yet the RS label drawn ON that bar graded DIVERGE
+// (y 91.6678 vs 89.9090: exactly the SPX ratio; text "74" vs "69").
+// ⛔ FAIL CLOSED: only PAIRED records are taken out (an unpaired one stays a count difference), a text that cannot be
+// matched to the counted texts leaves the grade exactly as it was, and a colour the colour pairing grades is not touched.
+
+// ── SUPPLY BEHIND THE CAPTURE, FOR THE DRAWINGS (coordinator ruling 2026-11-21) ──────────────────────────────────
+//
+// The plot grade leaves the forming newest bar INCONCLUSIVE by name when the other-symbol supply recorded beside the
+// capture predates the session that bar read (`supplyAttribution.js::supplyBehindOf`, `supplyBehind`). A drawing PLACED
+// on that bar reads the same value, so it is not compared either, by that name, the same way as an unsettled bar
+// (`unsettledCutOf`), and named on the grade apart (`supplyBehind`).
+// ⚰️ rs-rating-fred6724-w-{nvda,rddt}-1w-2026-11-17 (runtime-on): the two RS labels sit at `y = rs` on the forming week;
+// TradingView's y equals its own RS Line on that bar exactly (62.2642 / 37.8408, read with the 2026-11-17 SPX close),
+// ours read the harness's 2026-11-16 SPX: the y "differed" while x and the rating text agreed. v1, which compares no
+// coordinate, read MATCH; v2 read DIVERGE. Neither was a judgement of that bar.
+
+/** The capture-bar indexes the plot grade left unsettled (`otherSymbolUnsettled`, by time) or could not answer from
+ *  the recorded supply (`supplyBehind`, the newest bar), each named with its rule, or null. */
+export function unsettledBarsOf(plots, capture) {
+  const recs = (plots || []).flatMap((p) => (p && Array.isArray(p.otherSymbolUnsettled) ? p.otherSymbolUnsettled : []))
+  const behind = (plots || []).map((p) => p && p.supplyBehind).filter((s) => s && Number.isFinite(s.time))
+  if (!recs.length && !behind.length) return null
+  const rows = (capture && capture.bars && capture.bars.rows) || []
+  const at = new Map(rows.map((r, i) => [r[0], i]))
+  const bars = new Set()
+  const names = new Map()
+  for (const r of recs) {
+    const i = at.get(r.time)
+    if (!Number.isInteger(i)) continue
+    bars.add(i)
+    names.set(i, { time: r.time, symbol: r.symbol, date: r.date })
+  }
+  for (const s of behind) {
+    const i = at.get(s.time)
+    if (!Number.isInteger(i) || bars.has(i)) continue
+    bars.add(i)
+    names.set(i, { rule: 'supplyBehind', time: s.time, symbol: s.symbol, session: s.session, newestRow: s.newestRow })
+  }
+  return bars.size ? { bars, names } : null
+}
+
+const UNSETTLED_FAMILIES = ['lines', 'labels', 'boxes']
+
+/** Both sides with the paired records placed on an unsettled bar taken out, and the list of what was, or null when
+ *  nothing is taken out (or the cut cannot be made exactly: then the grade is the one it always was). */
+export function unsettledCutOf(vendorObjs, ourObjs, records, unsettled) {
+  if (!unsettled || !unsettled.bars || !unsettled.bars.size || !records || !records.families) return null
+  if (!vendorObjs || !ourObjs || !ourObjs.ok || ourObjs.drawsObjects === false) return null
+  const onUnsettled = (pair) => (pair.fields || []).some((r) => r.x === true
+    && ((Number.isInteger(r.vendor) && unsettled.bars.has(r.vendor)) || (Number.isInteger(r.ours) && unsettled.bars.has(r.ours))))
+  const excluded = []
+  const families = { ...records.families }
+  for (const f of UNSETTLED_FAMILIES) {
+    const p = records.families[f]
+    if (!p || !Array.isArray(p.pairs)) continue
+    const out = p.pairs.filter(onUnsettled)
+    if (!out.length) continue
+    families[f] = { ...p, pairs: p.pairs.filter((x) => !onUnsettled(x)) }
+    for (const pair of out) {
+      const xr = (pair.fields || []).find((r) => r.x === true
+        && ((Number.isInteger(r.vendor) && unsettled.bars.has(r.vendor)) || (Number.isInteger(r.ours) && unsettled.bars.has(r.ours))))
+      const bar = unsettled.bars.has(xr.vendor) ? xr.vendor : xr.ours
+      const text = (pair.fields || []).find((r) => r.field === 'text')
+      excluded.push({ family: f, vendorId: pair.vendorId, ourId: pair.ourId, where: pair.where, bar, ...unsettled.names.get(bar),
+        ...(text ? { vendorText: text.vendor, ourText: text.ours } : {}) })
+    }
+  }
+  if (!excluded.length) return null
+  const vCounts = { ...(vendorObjs.counts || {}) }
+  const oCounts = { ...(ourObjs.counts || {}) }
+  for (const e of excluded) {
+    if (!Number.isFinite(vCounts[e.family]) || !Number.isFinite(oCounts[e.family])) return null
+    vCounts[e.family] -= 1
+    oCounts[e.family] -= 1
+  }
+  // a label's text leaves the counted texts with it: one occurrence each side, or no cut at all
+  const drop = (list, x) => {
+    const i = list.indexOf(x)
+    if (i < 0) return false
+    list.splice(i, 1)
+    return true
+  }
+  const vTexts = { ...(vendorObjs.texts || {}) }
+  const oTexts = { ...(ourObjs.texts || {}) }
+  const labels = excluded.filter((e) => e.family === 'labels')
+  if (labels.length) {
+    const vt = Array.isArray(vTexts.labels) ? vTexts.labels.map(String) : null
+    const ot = Array.isArray(oTexts.labels) ? oTexts.labels.map(String) : null
+    if (vt && ot) {
+      for (const e of labels) {
+        if (typeof e.vendorText !== 'string' || typeof e.ourText !== 'string') return null
+        if (!drop(vt, e.vendorText) || !drop(ot, e.ourText)) return null
+      }
+      vTexts.labels = vt
+      oTexts.labels = ot
+    }
+  }
+  const remaining = UNSETTLED_FAMILIES.concat(['tables', 'tableCells'])
+    .reduce((n, f) => n + (Number.isFinite(vCounts[f]) ? vCounts[f] : 0) + (Number.isFinite(oCounts[f]) ? oCounts[f] : 0), 0)
+  return {
+    vendor: { ...vendorObjs, counts: vCounts, texts: vTexts },
+    ours: { ...ourObjs, counts: oCounts, texts: oTexts },
+    records: { ...records, families },
+    excluded: excluded.map(({ vendorText, ourText, ...e }) => ({ verdict: 'INCONCLUSIVE', ...e })),
+    remaining,
+  }
+}
+
+/** @param {object|null} [records] `objectRecords.js::pairRecords`' pairing (by value where counts differ): a family
+ *  our side drew fewer of BY NAME (`ourObjs.partialFamilies`, coordinator ruling 2026-11-19) is graded on what it
+ *  draws. `null` grades exactly as before.
+ *  @param {object|null} [unsettled] `unsettledBarsOf`: the drawings placed on those bars are not compared, by name. */
+export function compareObjects(vendorObjs, ourObjs, colour = null, records = null, unsettled = null) {
+  const cut = unsettledCutOf(vendorObjs, ourObjs, records, unsettled)
+  if (!cut) return gradeObjects(vendorObjs, ourObjs, colour, records)
+  const graded = gradeObjects(cut.vendor, cut.ours, colour, cut.records)
+  const symbolsOf = (list) => [...new Set(list.map((e) => e.symbol).filter(Boolean))].join(', ') || 'another symbol'
+  const osu = cut.excluded.filter((e) => e.rule !== 'supplyBehind')
+  const behind = cut.excluded.filter((e) => e.rule === 'supplyBehind').map(({ rule, ...e }) => e)
+  const parts = []
+  if (osu.length) parts.push(`${osu.length} drawing object(s) placed on a bar where TradingView's own captures disagree on ${symbolsOf(osu)} are not compared (otherSymbolUnsettled)`)
+  if (behind.length) {
+    parts.push(`${behind.length} drawing object(s) placed on the forming newest bar, which the ${symbolsOf(behind)} supply recorded `
+      + `beside this capture (newest row ${behind[0].newestRow}) cannot answer for session ${behind[0].session}, are not compared (supplyBehind)`)
+  }
+  const said = parts.join('; ')
+  const named = { ...(osu.length ? { otherSymbolUnsettled: osu } : {}), ...(behind.length ? { supplyBehind: behind } : {}) }
+  // (a DIVERGE that remains, a colour the colour pairing grades among them, is never softened)
+  if (!cut.remaining && graded.verdict !== 'DIVERGE') {
+    return { ...graded, verdict: 'INCONCLUSIVE', ...(graded.verdictWithoutColour ? { verdictWithoutColour: 'INCONCLUSIVE' } : {}),
+      reason: `every drawing object is on such a bar: ${said}`, ...named }
+  }
+  return { ...graded, reason: `${graded.reason}; ${said}`, ...named }
+}
+
+function gradeObjects(vendorObjs, ourObjs, colour = null, records = null) {
   if (!vendorObjs) return { verdict: 'INCONCLUSIVE', reason: 'our side draws objects but the capture recorded none — re-capture with graphics' }
   // ⭐ OUR SCRIPT HAS NO DRAWING PROGRAM AT ALL. That is an answer, not a missing
   // one: if TradingView drew nothing either, the two agree; if it drew something,
@@ -931,29 +1467,105 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
   }
   if (!ourObjs || !ourObjs.ok) return { verdict: 'INCONCLUSIVE', reason: `our object lane did not run: ${(ourObjs && ourObjs.reason) || 'no result'}` }
   const families = ['lines', 'labels', 'boxes', 'tables', 'tableCells']
+  // ⭐ W-C22-DEL — a family our run WITHHELD WHOLE, by name (`withheldFamilies`,
+  // runtime family names): not compared, and never part of a MATCH. A gap with a
+  // name, the way F3 grades a withheld drawing — and where every other family
+  // agrees the verdict is INCONCLUSIVE, since what TradingView holds of the
+  // withheld family is not what we hold.
+  const RUNTIME_FAMILY = { lines: 'line', labels: 'label', boxes: 'box', tables: 'table', tableCells: 'table' }
+  const withheldFams = new Set(Array.isArray(ourObjs.withheldFamilies) ? ourObjs.withheldFamilies : [])
+  // ⭐⭐ DISCLOSED PARTIAL (coordinator ruling 2026-11-19) — a family our side drew FEWER of than TradingView holds, BY
+  // NAME (a create the program lost, an object the run withheld: `ourSide.js` `partialFamilies`), is graded on what it
+  // DRAWS: every record of ours paired (by value) with one of TradingView's and agreeing field by field is a gap with a
+  // name (WITHHELD, `objects:partial`), never a count DIVERGE; one record that does not agree is still a DIVERGE. A
+  // family we hold MORE of, one nobody named, or one whose records were not paired, grades on its count as before.
+  // ⚰️ rsi-support-resistance-by-dgt: its 5 level lines equal TradingView's bit for bit, its 200 oscillator lines and 5
+  // labels are named at the door ("6 of 52 drawing elements aren't supported yet"), and it graded DIVERGE on count.
+  const partialNamed = new Set(Array.isArray(ourObjs.partialFamilies) ? ourObjs.partialFamilies : [])
+  const partialOf = (f) => partialNamed.has('*') || partialNamed.has(RUNTIME_FAMILY[f])
+  const partial = new Map()
   const rows = []
   let diverge = 0
+  let withheldHeld = 0
   for (const f of families) {
     const v = vendorObjs.counts ? vendorObjs.counts[f] : undefined
     const o = ourObjs.counts ? ourObjs.counts[f] : undefined
+    if (withheldFams.has(RUNTIME_FAMILY[f])) {
+      if (Number.isFinite(v) && v > 0) withheldHeld += 1
+      rows.push({ family: f, vendor: v ?? null, ours: null, agree: null, withheld: true })
+      continue
+    }
     if (v === undefined || o === undefined) { rows.push({ family: f, vendor: v ?? null, ours: o ?? null, agree: null }); continue }
     const agree = v === o
+    if (!agree && o < v && PARTIAL_GRADED.has(f) && partialOf(f)) {
+      const drawn = drawnRecordsAgree(records, f)
+      if (drawn.agree) {
+        partial.set(f, { vendor: v, ours: o, unpositioned: drawn.unpositioned })
+        rows.push({ family: f, vendor: v, ours: o, agree: null, withheld: true, partial: true, ...(drawn.unpositioned ? { unpositioned: true } : {}) })
+        continue
+      }
+      diverge += 1
+      rows.push({ family: f, vendor: v, ours: o, agree: false, partial: true, drawnDiffers: drawn.first })
+      continue
+    }
     if (!agree) diverge += 1
     rows.push({ family: f, vendor: v, ours: o, agree })
   }
   const textRows = []
   for (const f of ['labels', 'tableCells']) {
+    if (withheldFams.has(RUNTIME_FAMILY[f])) continue
     const vt = vendorObjs.texts && vendorObjs.texts[f]
     const ot = ourObjs.texts && ourObjs.texts[f]
     if (!Array.isArray(vt) || !Array.isArray(ot)) continue
     const a = [...vt].map(String).sort()
     const b = [...ot].map(String).sort()
-    const agree = a.length === b.length && a.every((x, i) => x === b[i])
+    // a disclosed partial's texts: every text we draw is one TradingView's holds (the rest are withheld by name)
+    const agree = partial.has(f) ? subMultiset(b, a) : a.length === b.length && a.every((x, i) => x === b[i])
     if (!agree) diverge += 1
     textRows.push({ family: `${f} text`, agree, onlyVendor: a.filter((x) => !b.includes(x)).slice(0, 10), onlyOurs: b.filter((x) => !a.includes(x)).slice(0, 10) })
   }
-  const measured = rows.filter((r) => r.agree !== null).length + textRows.length
+  const measured = rows.filter((r) => r.agree !== null || r.partial).length + textRows.length
   if (!measured) return { verdict: 'INCONCLUSIVE', reason: 'no object family was recorded on both sides', counts: rows }
+  // (a colour that differs on a family we DO draw still diverges)
+  const shownColourDiffers = colour
+    ? objectColourRows(colour).some((r) => r.agree === false && !withheldFams.has(RUNTIME_FAMILY[r.family]))
+    : false
+  if ((withheldHeld || partial.size) && !diverge && !shownColourDiffers) {
+    const names = rows.filter((r) => r.withheld && !r.partial).map((r) => r.family).join(', ')
+    const said = []
+    let guards = []
+    if (withheldHeld) {
+      // ⭐ OZ — a family withheld by another named guard (`withheldGuards`) says that
+      // guard and the member's sentence; the collector-only reason is unchanged.
+      guards = Array.isArray(ourObjs.withheldGuards) && ourObjs.withheldGuards.length
+        ? [...ourObjs.withheldGuards] : ['objects:collector']
+      const onlyCollector = guards.length === 1 && guards[0] === 'objects:collector'
+      said.push(onlyCollector
+        ? `our ${names} are withheld by name (TradingView's object limit may have removed some of them; objects:collector)`
+        : `our ${names} are withheld by name (${guards.join(', ')}: ${ourObjs.withheldWhy || 'no sentence'})`)
+    }
+    if (partial.size) {
+      const each = [...partial].map(([f, c]) => `${f} ${c.ours} of ${c.vendor}`).join(', ')
+      // ⛔ a drawn record whose PLACE (x) this capture cannot compare is not witnessed: its own grade, never a lift
+      if ([...partial.values()].some((c) => c.unpositioned)) {
+        guards.push(OBJECTS_PARTIAL_UNPOSITIONED_GUARD)
+        said.push(`our drawing is a disclosed partial (${each} drawn): each one drawn pairs with a record of TradingView's and agrees on every field this capture can compare, but where it sits on the chart (x) is not in this capture (it predates the x table), so its place is not witnessed; the rest are withheld by name (${OBJECTS_PARTIAL_UNPOSITIONED_GUARD})`)
+      } else {
+        guards.push(OBJECTS_PARTIAL_GUARD)
+        said.push(`our drawing is a disclosed partial (${each} drawn): each one drawn pairs with a record of TradingView's and agrees field by field, and the rest are withheld by name (${OBJECTS_PARTIAL_GUARD})`)
+      }
+    }
+    return {
+      verdict: 'INCONCLUSIVE',
+      withheld: guards.join(','),
+      reason: `${said.join('; ')}; every other object family's counts and texts agree`,
+      counts: rows,
+      texts: textRows,
+      // the colours of what we DO draw, paired with TradingView's, are still graded
+      // (a differing one would have made this a DIVERGE above)
+      ...(colour ? { colours: objectColourRows(colour), colourUnpaired: colour.unpaired || null } : {}),
+    }
+  }
   if (!colour) {
     return {
       verdict: diverge ? 'DIVERGE' : 'MATCH',
@@ -990,6 +1602,447 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
   }
 }
 
+// ── OBJECTS v2 — EVERY PAIRED RECORD, FIELD BY FIELD ────────────────────────
+//
+// ⭐⭐ v1 (`compareObjects`) grades a drawing by its COUNTS, its TEXTS and (C44)
+// the colours of objects it pairs BY VALUE. Nothing in v1 asks WHERE a drawing
+// is: a line at the wrong price pairs with nothing, is filed `unpaired`, and the
+// family still grades MATCH when the counts and texts agree. v2 pairs each of
+// our records with the capture's record of the same family by CREATION ORDER
+// and compares every field the capture holds.
+//
+// ⛔⛔ v2 IS A SEPARATE REPORT, NOT THE VERDICT. `compareCapture` and every
+// ratchet keep reading v1; `harness.js::gradeCapture` hands v2 back beside the
+// verdict (`objectsV2`). A stricter grade that silently replaced v1 would turn
+// ratchets red on the progress they measure, or force them to be loosened.
+//
+// THE PAIRING (`vendorHarness/objectRecords.js`, the only reader of records):
+//   lines, labels, boxes  equal counts: both sides sorted by id (creation order), paired in order.
+//            ⭐⭐ COUNTS THAT DIFFER (coordinator ruling 2026-11-19): paired BY VALUE, never by position
+//            (`objectRecords.js::alignByValue`): each record of the smaller side takes the record of
+//            the other it agrees with best on every field the capture holds, ties going to the
+//            newest-end position (the object limit takes the oldest). ⚰️ Aligned at the newest end,
+//            rsi-support-resistance-by-dgt's 5 level lines (equal to TradingView's bit for bit) were
+//            graded against its 5 newest oscillator lines. The extra records are counted `unpaired`.
+//   tables   by creation order; cells by (paired table, column, row).
+//   linefills by their two lines (one fill per pair of lines, Pine's rule), the
+//            lines mapped through the line pairing.
+//
+// ⛔⛔ ONLY THE FIELDS THE CAPTURE HOLDS ARE GRADED, AND A FIELD IT LACKS IS NAMED.
+// `tv_capture.js::readGraphics` records `_primitivesDataById` verbatim. Its `x`,
+// `x1`, `x2` are small integers (0 … a few hundred on a 1,800-bar chart): a
+// POSITION in the study's own `_indexes` table, whose entries are model bar
+// indices (object-semantics-spy-1d-2026-09-08). Not a bar index, not a time.
+// ⭐⭐ U13 (G1) — x IS GRADED, kind `x`: the vendor's position is resolved through
+// the table the capture now records (`objects.xIndex`, `tv_capture.js::readXIndex`)
+// to a bar of the capture's own window; ours through the bars our object lane ran
+// on (`ourSide.js` `objects.xFrame`, both lanes), honouring `xloc` exactly as the
+// render state places it (`objectRenderState.js::makeBarClock`). EXACT bar
+// alignment: one bar off is a difference. A future bar is the window's length
+// plus the bars past the last one, on both sides.
+// ⛔ AN x NEITHER SIDE CAN RESOLVE IS NEVER A MATCH. A capture taken before U13
+// holds no table, so its x is `xMissing` (named, counted), and a v2 MATCH needs
+// every paired line / label / box to have its x graded: otherwise the capture is
+// INCONCLUSIVE, with the reason. `verdictWithoutX` keeps the pre-U13 grade, so
+// the two baselines are read side by side from ONE run.
+// `xloc` itself is not recorded by the vendor: TradingView resolves both modes to
+// a model bar, which is what the x grade compares.
+//
+// ⛔ A VENDOR CODE THIS TABLE CANNOT DECODE IS NOT GRADED (state `undecoded`,
+// counted with the code). Read as a mismatch it would invent a defect; read as
+// a match it would invent a pass.
+//
+// Each field: `vendor` key in the capture's record, `ours` property on our live
+// object, `kind`:
+//   price   `valuesAgree` under the capture's tolerance (na agrees only with na)
+//   number  exact
+//   enum    the vendor code decoded through `codes`, then exact
+//   text    exact string
+//   colour  the C44 reading (`objectColours.js`): theme-relative is not graded
+//   x       a bar of the capture's window, both sides (U13): exact
+// `default`: Pine's own default (v6 reference) for a property the script left
+// unset, so our absent property is compared as what Pine draws.
+const EXTEND_CODES = Object.freeze({ n: 'none', r: 'right', b: 'both' })
+// ⛔ EVERY CODE BELOW IS WITNESSED: in the 2026-11-12 re-grade each one met ONLY
+// that value of ours on paired records (docs/pine/evidence/2026-11-12-objects-v2).
+// A code no paired record has shown (`l` for extend, `cir`, `ab`, `al` …) is left out on
+// purpose: it reads `undecoded` (named, not graded) until a capture pairs it.
+const LINE_STYLE_CODES = Object.freeze({ sol: 'solid', dsh: 'dashed', dot: 'dotted', ar: 'arrow_right' })
+const LABEL_STYLE_CODES = Object.freeze({
+  n: 'none', ldn: 'label_down', lup: 'label_up', lcn: 'label_center', llf: 'label_left', lrg: 'label_right',
+})
+const YLOC_CODES = Object.freeze({ pr: 'price', ab: 'abovebar', bl: 'belowbar' })
+const SAME = (...names) => Object.freeze(Object.fromEntries(names.map((n) => [n, n])))
+const SIZE_CODES = SAME('auto', 'tiny', 'small', 'normal', 'large', 'huge')
+const HALIGN_CODES = SAME('left', 'center', 'right')
+const VALIGN_CODES = SAME('top', 'center', 'bottom')
+const WRAP_CODES = SAME('none', 'auto')
+const POSITION_CODES = SAME('top_left', 'top_center', 'top_right', 'middle_left', 'middle_center', 'middle_right',
+  'bottom_left', 'bottom_center', 'bottom_right')
+const FONT_CODES = SAME('default', 'monospace')
+
+const XLOC_UNRECORDED = 'TradingView records no xloc: it resolves both modes to a model bar, and that bar is graded as x (U13)'
+export const OBJECTS_V2_FIELDS = Object.freeze({
+  lines: Object.freeze({
+    ourFamily: 'line',
+    fields: Object.freeze([
+      { field: 'x1', vendor: 'x1', ours: 'x1', kind: 'x' },
+      { field: 'y1', vendor: 'y1', ours: 'y1', kind: 'price' },
+      { field: 'x2', vendor: 'x2', ours: 'x2', kind: 'x' },
+      { field: 'y2', vendor: 'y2', ours: 'y2', kind: 'price' },
+      { field: 'extend', vendor: 'ex', ours: 'extend', kind: 'enum', codes: EXTEND_CODES, default: 'none' },
+      { field: 'style', vendor: 'st', ours: 'style', kind: 'enum', codes: LINE_STYLE_CODES, default: 'solid' },
+      { field: 'width', vendor: 'w', ours: 'width', kind: 'number', default: 1 },
+      { field: 'color', vendor: 'ci', ours: 'color', kind: 'colour' },
+    ]),
+    vendorKeysNotGraded: Object.freeze(['fo']),
+    ungraded: Object.freeze({ xloc: XLOC_UNRECORDED, force_overlay: 'recorded on some captures only (`fo`), and our side does not carry it' }),
+  }),
+  labels: Object.freeze({
+    ourFamily: 'label',
+    fields: Object.freeze([
+      // y is graded only where the label is placed BY PRICE on both sides: at
+      // abovebar / belowbar neither platform draws it at y.
+      { field: 'x', vendor: 'x', ours: 'x', kind: 'x' },
+      { field: 'y', vendor: 'y', ours: 'y', kind: 'price', onlyAtPrice: true },
+      { field: 'yloc', vendor: 'yl', ours: 'yloc', kind: 'enum', codes: YLOC_CODES, default: 'price' },
+      { field: 'text', vendor: 't', ours: 'text', kind: 'text', default: '' },
+      { field: 'style', vendor: 'st', ours: 'style', kind: 'enum', codes: LABEL_STYLE_CODES, default: 'label_down' },
+      { field: 'size', vendor: 'sz', ours: 'size', kind: 'enum', codes: SIZE_CODES, default: 'normal' },
+      { field: 'textalign', vendor: 'ta', ours: 'textalign', kind: 'enum', codes: HALIGN_CODES, default: 'center' },
+      { field: 'tooltip', vendor: 'tt', ours: 'tooltip', kind: 'text', default: '' },
+      { field: 'color', vendor: 'ci', ours: 'color', kind: 'colour' },
+      { field: 'textcolor', vendor: 'tci', ours: 'textcolor', kind: 'colour', onlyWithText: true },
+    ]),
+    vendorKeysNotGraded: Object.freeze(['fo']),
+    ungraded: Object.freeze({ xloc: XLOC_UNRECORDED, text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture', force_overlay: 'recorded on some captures only (`fo`), and our side does not carry it' }),
+  }),
+  boxes: Object.freeze({
+    ourFamily: 'box',
+    fields: Object.freeze([
+      { field: 'left', vendor: 'x1', ours: 'left', kind: 'x' },
+      { field: 'top', vendor: 'y1', ours: 'top', kind: 'price' },
+      { field: 'right', vendor: 'x2', ours: 'right', kind: 'x' },
+      { field: 'bottom', vendor: 'y2', ours: 'bottom', kind: 'price' },
+      { field: 'extend', vendor: 'ex', ours: 'extend', kind: 'enum', codes: EXTEND_CODES, default: 'none' },
+      { field: 'border_style', vendor: 'st', ours: 'border_style', kind: 'enum', codes: LINE_STYLE_CODES, default: 'solid' },
+      { field: 'border_width', vendor: 'w', ours: 'border_width', kind: 'number', default: 1 },
+      { field: 'text', vendor: 't', ours: 'text', kind: 'text', default: '' },
+      { field: 'text_size', vendor: 'ts', ours: 'text_size', kind: 'enum', codes: SIZE_CODES, default: 'auto', onlyWithText: true },
+      { field: 'text_halign', vendor: 'tha', ours: 'text_halign', kind: 'enum', codes: HALIGN_CODES, default: 'center', onlyWithText: true },
+      { field: 'text_valign', vendor: 'tva', ours: 'text_valign', kind: 'enum', codes: VALIGN_CODES, default: 'center', onlyWithText: true },
+      { field: 'text_wrap', vendor: 'tw', ours: 'text_wrap', kind: 'enum', codes: WRAP_CODES, default: 'none', onlyWithText: true },
+      { field: 'border_color', vendor: 'c', ours: 'border_color', kind: 'colour' },
+      { field: 'bgcolor', vendor: 'bc', ours: 'bgcolor', kind: 'colour' },
+      { field: 'text_color', vendor: 'tc', ours: 'text_color', kind: 'colour', onlyWithText: true },
+    ]),
+    vendorKeysNotGraded: Object.freeze([]),
+    ungraded: Object.freeze({ xloc: XLOC_UNRECORDED, text_font_family: 'not recorded by the capture', text_formatting: 'not recorded by the capture', force_overlay: 'not recorded by the capture for boxes' }),
+  }),
+  tables: Object.freeze({
+    ourFamily: 'table',
+    fields: Object.freeze([
+      { field: 'position', vendor: 'pos', ours: 'position', kind: 'enum', codes: POSITION_CODES },
+      { field: 'columns', vendor: 'cols', ours: 'columns', kind: 'number' },
+      { field: 'rows', vendor: 'rows', ours: 'rows', kind: 'number' },
+      { field: 'frame_width', vendor: 'frmw', ours: 'frame_width', kind: 'number', default: 0 },
+      { field: 'border_width', vendor: 'brdw', ours: 'border_width', kind: 'number', default: 0 },
+      { field: 'bgcolor', vendor: 'bgc', ours: 'bgcolor', kind: 'colour' },
+      { field: 'frame_color', vendor: 'frmc', ours: 'frame_color', kind: 'colour', onlyIfVendor: 'frmw' },
+      { field: 'border_color', vendor: 'brdc', ours: 'border_color', kind: 'colour', onlyIfVendor: 'brdw' },
+    ]),
+    vendorKeysNotGraded: Object.freeze([]),
+    ungraded: Object.freeze({ force_overlay: 'not recorded by the capture' }),
+  }),
+  tableCells: Object.freeze({
+    ourFamily: 'cell',
+    fields: Object.freeze([
+      { field: 'text', vendor: 't', ours: 'text', kind: 'text', default: '' },
+      { field: 'text_halign', vendor: 'tha', ours: 'text_halign', kind: 'enum', codes: HALIGN_CODES, default: 'center', onlyWithText: true },
+      { field: 'text_valign', vendor: 'tva', ours: 'text_valign', kind: 'enum', codes: VALIGN_CODES, default: 'center', onlyWithText: true },
+      // ⭐ WITNESSED, not the reference's: the reference states `size.normal`, but
+      // TradingView records `auto` for a cell whose script names no size
+      // (k-clustering, 8 cells), and our renderer draws `auto` and `normal` alike.
+      { field: 'text_size', vendor: 'ts', ours: 'text_size', kind: 'enum', codes: SIZE_CODES, default: 'auto', onlyWithText: true },
+      { field: 'tooltip', vendor: 'tt', ours: 'tooltip', kind: 'text', default: '' },
+      // `tf` is absent from a record whose font is the default (658 of 702 cells)
+      { field: 'text_font_family', vendor: 'tf', ours: 'text_font_family', kind: 'enum', codes: FONT_CODES, default: 'default', vendorDefault: 'default', onlyWithText: true },
+      { field: 'text_color', vendor: 'tc', ours: 'text_color', kind: 'colour', onlyWithText: true },
+      { field: 'bgcolor', vendor: 'bgc', ours: 'bgcolor', kind: 'colour' },
+    ]),
+    // `tid` / `col` / `row` are the cell's address: the pairing, not a graded field
+    pairingKeys: Object.freeze(['tid', 'col', 'row']),
+    vendorKeysNotGraded: Object.freeze(['w', 'h', 'colspan', 'rowspan']),
+    ungraded: Object.freeze({
+      width: 'the capture holds null on every cell record (702 of 702)',
+      height: 'the capture holds null on every cell record (702 of 702)',
+      text_formatting: 'not recorded by the capture',
+      colspan: 'a merge is held on our table, not on the cell; not paired by v2',
+      rowspan: 'a merge is held on our table, not on the cell; not paired by v2',
+    }),
+  }),
+  linefills: Object.freeze({
+    ourFamily: 'linefill',
+    fields: Object.freeze([
+      { field: 'color', vendor: 'ci', ours: 'color', kind: 'colour' },
+    ]),
+    // a fill is PAIRED by its two lines (one fill per pair, Pine's rule), so they
+    // are the pairing; a fill between other lines is unpaired, a count difference
+    pairingKeys: Object.freeze(['line1', 'line2']),
+    vendorKeysNotGraded: Object.freeze([]),
+    ungraded: Object.freeze({}),
+  }),
+})
+export const OBJECTS_V2_FAMILIES = Object.freeze(Object.keys(OBJECTS_V2_FIELDS))
+
+/** What each field state means for the v2 grade — said ONCE, here. */
+export const V2_AGREES = new Set(['agree'])
+export const V2_DIFFERS = new Set(['differ'])
+/** Not graded, and counted: the capture cannot be decoded, the slot is
+ *  theme-relative, the object is drawn by neither side, or the field does not
+ *  apply (label y off price, text colour of an empty text). */
+// ⭐ Engine 52 — `pointSize`: our side drew a v6 int text size (typographic points); no capture
+// records a point size's pixels, so it is served and NOT graded (`objectRecords.js::fieldRow`).
+export const V2_NOT_GRADED = new Set(['undecoded', 'themeRelative', 'undrawn', 'notApplicable', 'pointSize'])
+/** ⭐ U13 — an x one side cannot resolve to a bar (no x table in the capture, our
+ *  side's frame absent, an `na` x, a `bar_time` off the loaded bars). Not graded,
+ *  counted with its reason, and it BLOCKS a MATCH: a capture whose drawings' x was
+ *  not witnessed is INCONCLUSIVE (coordinator ruling G1), never passed. */
+export const V2_X_MISSING = new Set(['xMissing'])
+
+/**
+ * The v2 report for one capture.
+ * @param {object} v1        `compareObjects`' result (the verdict v1 gave)
+ * @param {object|null} pairing  `objectRecords.js::pairRecords`, or null when
+ *        no record could be paired (our object lane did not run, or the capture
+ *        recorded no objects)
+ */
+export function compareObjectsV2(v1, pairing, oursWithheldFamilies = []) {
+  const ungraded = Object.fromEntries(OBJECTS_V2_FAMILIES.map((f) => [f, Object.keys(OBJECTS_V2_FIELDS[f].ungraded)]))
+  if (!v1) return null
+  if (!pairing) {
+    // ⚠️ `pairedNothing`: this verdict is v1's, carried; v2 graded nothing (review #1150 note 6)
+    return { verdict: v1.verdict, verdictWithoutX: v1.verdict, v1: v1.verdict, pairedNothing: true, x: null, reason: `no record was paired; v1: ${v1.reason}`, families: [], ungraded }
+  }
+  // ⭐ OTHER-SYMBOL UNSETTLED (`unsettledCutOf`): the records v1 took out, by their pair, are not graded here either —
+  // ONE decision, v1's, read off its own lists (and the newest bar SUPPLY BEHIND the capture, the same way)
+  const osuOut = Array.isArray(v1.otherSymbolUnsettled) ? v1.otherSymbolUnsettled : []
+  const behindOut = Array.isArray(v1.supplyBehind) ? v1.supplyBehind : []
+  const unsettledOut = [...osuOut, ...behindOut]
+  if (unsettledOut.length) {
+    const out = new Set(unsettledOut.map((e) => `${e.family}|${e.vendorId}|${e.ourId}`))
+    const fams = { ...pairing.families }
+    for (const f of UNSETTLED_FAMILIES) {
+      const p = pairing.families[f]
+      if (p && Array.isArray(p.pairs)) fams[f] = { ...p, pairs: p.pairs.filter((x) => !out.has(`${f}|${x.vendorId}|${x.ourId}`)) }
+    }
+    pairing = { ...pairing, families: fams }
+  }
+  const families = []
+  // ⛔ A FAMILY v1 FOUND WITHHELD BY NAME (W-C22-DEL / OZ: `counts[].withheld`)
+  // is a gap with a name, already graded as one; v2 does not pair it again and
+  // never counts its missing records as a difference (the cells go with their
+  // tables, as in v1's RUNTIME_FAMILY, and the fills with their lines).
+  const withheld = new Set((v1.counts || []).filter((r) => r && r.withheld && !r.partial).map((r) => r.family))
+  if (withheld.has('tables')) withheld.add('tableCells')
+  // ⭐⭐ DISCLOSED PARTIAL — a family v1 graded on what it draws (`compareObjects`, `objects:partial`): its paired records
+  // are graded here as always; the records TradingView holds that our side withheld by name are counted, never a difference
+  const partialFams = new Set((v1.counts || []).filter((r) => r && r.withheld && r.partial).map((r) => r.family))
+  // ⛔ What OUR side withheld by name is read from its own list
+  // (`ourSide.js` withheldFamilies, our family names), never inferred: a fill
+  // our side still holds is graded even when its lines were withheld
+  // (review #1150 note 3).
+  const OUR_TO_V2 = { line: 'lines', label: 'labels', box: 'boxes', table: 'tables', linefill: 'linefills' }
+  for (const fam of oursWithheldFamilies || []) {
+    const f = OUR_TO_V2[fam]
+    if (f) withheld.add(f)
+    if (f === 'tables') withheld.add('tableCells')
+  }
+  // a fill lives between two lines: withheld lines explain fills our side does
+  // NOT hold, and only those. A fill our side still holds is graded.
+  const lf = pairing.families.linefills
+  if (withheld.has('lines') && lf && lf.pairs.length === 0 && lf.unpairedOurs === 0) withheld.add('linefills')
+  for (const f of OBJECTS_V2_FAMILIES) {
+    const p = pairing.families[f]
+    if (!p) continue
+    if (withheld.has(f)) {
+      families.push({ family: f, withheld: true, paired: 0, unpairedVendor: 0, unpairedOurs: 0, graded: 0, agreeing: 0,
+        differing: 0, notGraded: 0, undecoded: {}, byField: {}, first: null, firstWithoutX: null, agree: null, agreeWithoutX: null,
+        x: null, xIncomplete: false, differsOnlyByCreationOrder: false })
+      continue
+    }
+    const row = {
+      family: f, paired: p.pairs.length, unpairedVendor: p.unpairedVendor, unpairedOurs: p.unpairedOurs,
+      graded: 0, agreeing: 0, differing: 0, notGraded: 0, undecoded: {}, byField: {}, first: null, firstWithoutX: null,
+      agree: null, agreeWithoutX: null,
+      // ⭐ U13 — the x grade, tallied APART so the pre-U13 tallies above stay comparable
+      x: { graded: 0, agreeing: 0, differing: 0, missing: 0, missingWhy: {}, first: null },
+      xIncomplete: false,
+    }
+    for (const pair of p.pairs) {
+      for (const r of pair.fields) {
+        const bf = row.byField[r.field] || (row.byField[r.field] = { agree: 0, differ: 0, notGraded: 0 })
+        const at = { field: r.field, vendor: r.vendor, ours: r.ours, vendorId: pair.vendorId, ourId: pair.ourId, where: pair.where }
+        if (r.x === true) {
+          if (V2_AGREES.has(r.state)) { row.x.graded += 1; row.x.agreeing += 1; bf.agree += 1 } else if (V2_DIFFERS.has(r.state)) {
+            row.x.graded += 1
+            row.x.differing += 1
+            bf.differ += 1
+            if (!row.x.first) row.x.first = at
+            if (!row.first) row.first = at
+          } else if (V2_X_MISSING.has(r.state)) {
+            bf.notGraded += 1
+            row.x.missing += 1
+            const why = r.why || 'unstated'
+            row.x.missingWhy[why] = (row.x.missingWhy[why] || 0) + 1
+          } else {
+            // ⛔ FAIL CLOSED, as below: an x state this table does not name is never agreeing.
+            throw new Error(`objects v2: unknown x field state ${JSON.stringify(r.state)}`)
+          }
+          continue
+        }
+        if (V2_AGREES.has(r.state)) { row.graded += 1; row.agreeing += 1; bf.agree += 1 } else if (V2_DIFFERS.has(r.state)) {
+          row.graded += 1
+          row.differing += 1
+          bf.differ += 1
+          if (!row.firstWithoutX) row.firstWithoutX = at
+          if (!row.first) row.first = at
+        } else if (V2_NOT_GRADED.has(r.state)) {
+          row.notGraded += 1
+          bf.notGraded += 1
+          if (r.state === 'undecoded') row.undecoded[`${r.field}=${r.vendor}`] = (row.undecoded[`${r.field}=${r.vendor}`] || 0) + 1
+        } else {
+          // ⛔ FAIL CLOSED: a state this table does not name is never read as agreeing.
+          throw new Error(`objects v2: unknown field state ${JSON.stringify(r.state)}`)
+        }
+      }
+    }
+    row.agreeWithoutX = row.graded === 0 ? null : row.differing === 0
+    // ⛔ A record one side holds and the other does not is a difference a member
+    // sees (for lines … cells v1's counts already say so; for linefills only v2 does).
+    if (partialFams.has(f) && p.unpairedVendor && !p.unpairedOurs) {
+      row.withheldUnpaired = p.unpairedVendor
+    } else if (p.unpairedVendor || p.unpairedOurs) {
+      row.agreeWithoutX = false
+      const count = { field: 'count', vendor: row.paired + p.unpairedVendor, ours: row.paired + p.unpairedOurs, where: `${f} held` }
+      if (!row.firstWithoutX) row.firstWithoutX = count
+      if (!row.first) row.first = count
+    }
+    if (p.pairedByValue) row.pairedByValue = true
+    // ⭐ ORPHAN FILLS (`objectRecords.js`, coordinator ruling 2026-11-21): TradingView's fill records whose lines the
+    // object limit removed are not drawable; counted apart and named, never a count difference
+    if (Number.isInteger(p.orphanVendor) && p.orphanVendor > 0) row.orphanVendor = p.orphanVendor
+    // ⭐ U13 — with x: any difference diverges; an x not resolved (and nothing that
+    // differs) leaves the family UNGRADED (`xIncomplete`), never agreeing.
+    if (row.agreeWithoutX === false || row.x.differing > 0) row.agree = false
+    else if (row.x.missing > 0) { row.agree = null; row.xIncomplete = true } else if (row.agreeWithoutX === true || row.x.graded > 0) row.agree = true
+    else row.agree = null
+    row.differsOnlyByCreationOrder = !!p.differsOnlyByCreationOrder
+    families.push(row)
+  }
+  const divergingWithoutX = families.filter((r) => r.agreeWithoutX === false)
+  const diverging = families.filter((r) => r.agree === false)
+  const incomplete = families.filter((r) => r.xIncomplete)
+  const graded = families.reduce((n, r) => n + r.graded, 0)
+  const xt = { graded: 0, agreeing: 0, differing: 0, missing: 0, missingWhy: {} }
+  for (const r of families) {
+    if (!r.x) continue
+    xt.graded += r.x.graded; xt.agreeing += r.x.agreeing; xt.differing += r.x.differing; xt.missing += r.x.missing
+    for (const [k, n] of Object.entries(r.x.missingWhy)) xt.missingWhy[k] = (xt.missingWhy[k] || 0) + n
+  }
+  const firstOf = (list, key) => (list.length ? { family: list[0].family, ...list[0][key] } : null)
+  const first = firstOf(diverging, 'first')
+  const firstWithoutX = firstOf(divergingWithoutX, 'firstWithoutX')
+  // ⭐ v2 never makes a v1 DIVERGE or INCONCLUSIVE better; it can only find a
+  // MATCH whose records are in the wrong place.
+  let verdictWithoutX = v1.verdict
+  if (v1.verdict === 'MATCH' && divergingWithoutX.length) verdictWithoutX = 'DIVERGE'
+  // ⭐⭐ U13 (G1) — and, with x: a MATCH needs every paired line / label / box on
+  // the SAME bar as TradingView's; an x that could not be resolved is INCONCLUSIVE.
+  let verdict = v1.verdict
+  if (v1.verdict === 'MATCH' && diverging.length) verdict = 'DIVERGE'
+  else if (v1.verdict === 'MATCH' && incomplete.length) verdict = 'INCONCLUSIVE'
+  const fieldsSaid = graded || xt.graded
+    ? (first
+      ? `${diverging.length} object ${diverging.length === 1 ? 'family differs' : 'families differ'} field by field (first: ${first.family} ${first.field} of ${first.where} — vendor ${JSON.stringify(first.vendor)}, ours ${JSON.stringify(first.ours)})${diverging.every((r) => r.differsOnlyByCreationOrder) ? ' — ONLY in creation order: paired by equal ids, every field agrees' : ''}`
+      : `every paired record agrees on ${graded} graded fields`)
+    : 'no field of a paired record was graded'
+  const orphans = families.reduce((n, r) => n + (r.orphanVendor || 0), 0)
+  const orphansSaid = orphans
+    ? `; ${orphans} of TradingView's fill records are between lines the object limit removed (not drawable, not graded: orphanFills)`
+    : ''
+  const topWhy = Object.entries(xt.missingWhy).sort((a, b) => b[1] - a[1])[0]
+  const xSaid = xt.missing
+    ? `x: ${xt.graded} graded (${xt.differing} differ), ${xt.missing} not resolvable to a bar (${topWhy[0]})${verdict === 'INCONCLUSIVE' && v1.verdict === 'MATCH' ? ', so x is not witnessed and this is not a MATCH (G1)' : ''}`
+    : `x: ${xt.graded} graded, ${xt.differing} differ (exact bar)`
+  return {
+    verdict,
+    verdictWithoutX,
+    v1: v1.verdict,
+    pairedNothing: false,
+    differsOnlyByCreationOrder: diverging.length > 0 && diverging.every((r) => r.differsOnlyByCreationOrder),
+    reason: `${fieldsSaid}${orphansSaid}; ${xSaid}; v1: ${v1.reason}; not graded: xloc (TradingView records none; the bar it resolves to is the x grade)`,
+    first,
+    firstWithoutX,
+    x: { ...xt, incompleteFamilies: incomplete.map((r) => r.family) },
+    families,
+    ungraded,
+    ...(orphans ? { orphanFills: orphans } : {}),
+    ...(osuOut.length ? { otherSymbolUnsettled: osuOut } : {}),
+    ...(behindOut.length ? { supplyBehind: behindOut } : {}),
+  }
+}
+
+// ── A v1 MATCH CANNOT STAND WHEN v2 DIVERGES (coordinator ruling 2026-11-21) ─────────────────────────────────────
+//
+// v1 grades a drawing by its counts, its texts and the colours it pairs by value: no coordinate, no fill count. v2
+// grades every paired record field by field. Until this ruling v2 was "a separate report, not the verdict", so a
+// capture whose labels sat at another price, or whose lines sat one bar off, read MATCH on v1 while v2 said DIVERGE
+// (htf-candle-footprint-cartel-console: label y 147.06 vs 144.41; average-day-range-adr-pivots: lines x2 666 vs 665).
+// Now the objects grade is v1's, except that a v1 MATCH whose v2 report DIVERGEs is DIVERGE, by name (`overruledBy`),
+// with v1's own grade kept beside it (`v1Verdict`, `v1Reason`). v2 never improves a v1 DIVERGE or INCONCLUSIVE, and an
+// x v2 could not resolve leaves the v1 MATCH as it is (G1 makes the v2 REPORT INCONCLUSIVE; the verdict is not
+// lowered for a field nobody could compare). ⛔ Nor does a v2 DIVERGE that v2 itself names ONLY CREATION ORDER
+// (`differsOnlyByCreationOrder`: paired by equal ids, every field agrees): the same drawings, made in another order, are
+// the same picture (vw-call-site-history-{rddt,spy}-1d-2026-10-01: 24 labels, every field agreeing id for id). `verdictWithoutColour` (C44) moves with it only where v2 differs on more
+// than colour, so a capture whose two verdicts differ still differs for colour and no other reason.
+// ⛔ It reads the SAME pairing the v2 report does (`objectRecords.js::pairRecords`); with no pairing it changes nothing.
+
+/** Does this v2 report differ on anything but a colour field (a count, an x, a coordinate, a text, a style)? */
+export function v2DiffersBeyondColour(v2) {
+  for (const r of (v2 && v2.families) || []) {
+    if (r.agree !== false) continue
+    if ((r.unpairedVendor || r.unpairedOurs) && !r.withheldUnpaired) return true
+    const spec = OBJECTS_V2_FIELDS[r.family]
+    const kindOf = (field) => ((spec && spec.fields.find((x) => x.field === field)) || {}).kind
+    for (const [field, s] of Object.entries(r.byField || {})) {
+      if (s && s.differ > 0 && kindOf(field) !== 'colour') return true
+    }
+  }
+  return false
+}
+
+/** The objects grade with the v2 rule applied (see the header): `v1` itself unless v1 reads MATCH and v2 DIVERGEs. */
+export function v2Overrules(v1, records, ours) {
+  if (!v1 || v1.verdict !== 'MATCH' || !records) return v1
+  const v2 = compareObjectsV2(v1, records, (ours && ours.objects && ours.objects.withheldFamilies) || [])
+  // a DIVERGE v2 itself says is ONLY creation order (paired by equal ids, every field agrees) is the same picture
+  if (!v2 || v2.verdict !== 'DIVERGE' || v2.differsOnlyByCreationOrder === true) return v1
+  const f = v2.first || {}
+  const said = `the records differ field by field (objectsV2, first: ${f.family} ${f.field} of ${f.where} — vendor `
+    + `${JSON.stringify(f.vendor)}, ours ${JSON.stringify(f.ours)}); v1, which compares no coordinate and no fill count, `
+    + `read MATCH: ${v1.reason}`
+  return {
+    ...v1,
+    verdict: 'DIVERGE',
+    ...(v1.verdictWithoutColour === 'MATCH' && v2DiffersBeyondColour(v2) ? { verdictWithoutColour: 'DIVERGE' } : {}),
+    overruledBy: 'objectsV2',
+    v1Verdict: v1.verdict,
+    v1Reason: v1.reason,
+    reason: said,
+  }
+}
+
 // ── PAINTS (B1, step 61) ─────────────────────────────────────────────────────
 //
 // ⭐⭐ `bgcolor` / `barcolor` JOIN THE VERDICT (integrator ruling 2026-10-02, the
@@ -1003,9 +2056,17 @@ export function compareObjects(vendorObjs, ourObjs, colour = null) {
 //   titleMismatch               DIFFERS — the pairing itself disagrees
 //   hiddenVendorOnly            DIFFERS — we draw a paint TradingView does not
 //   hiddenOursOnly              DIFFERS — TradingView draws a paint we hide
-//   withheld                    DIFFERS — the door refused it by name (a GAP, and
-//                               counted as one), unless TradingView does not draw
-//                               it either, when neither side paints a bar
+//   withheld (with a reason)    INCONCLUSIVE — the door refused it BY NAME: nothing
+//                               is drawn, and the member is told why. Graded the
+//                               way a plot withheld by name is (coordinator ruling
+//                               2026-11-15, G5 of s245-bugs-1115). ⚰️ It graded
+//                               DIFFERS until then ("a GAP, counted as one"), so a
+//                               paint the bind refused by name kept a capture
+//                               DIVERGE when its plots were INCONCLUSIVE.
+//                               Where TradingView does not draw it either, neither
+//                               side paints a bar: NOT GRADED (`undrawn`)
+//   withheld (no reason)        DIFFERS — a withholding nobody can read is not
+//                               "by name" (fail closed)
 //   notDrawn                    DIFFERS where TradingView painted a bar; where it
 //                               painted NONE (every bar `na` at the defaults) the
 //                               picture agrees and the paint is NOT GRADED —
@@ -1028,12 +2089,17 @@ export function comparePaints(grade) {
   let undecodable = 0
   const differing = []
   const undrawnIds = []
+  const withheldByName = []
   for (const r of rows) {
     const s = r.state
     if (PAINT_AGREES.has(s)) agreeing += 1
     else if (PAINT_DIFFERS.has(s)) differing.push(r)
     else if (s === 'withheld') {
-      if (r.displayed === false) { undrawn += 1; undrawnIds.push(r.id) } else differing.push(r)
+      // ⭐ ENGINE 58 (S11) — …and one TradingView paints on NO bar is undrawn on both
+      // sides too, by the same rule as `notDrawn` below (dot-dynamics).
+      if (r.displayed === false || r.vendorPainted === 0) { undrawn += 1; undrawnIds.push(r.id) }
+      else if (typeof r.reason === 'string' && r.reason.trim()) withheldByName.push(r)
+      else differing.push(r)
     } else if (s === 'notDrawn') {
       if (r.vendorPainted === 0) { undrawn += 1; undrawnIds.push(r.id) } else differing.push(r)
     } else if (s === 'vendorUnreadable') undecodable += 1
@@ -1044,7 +2110,20 @@ export function comparePaints(grade) {
   const graded = agreeing + differing.length + unpaired.length
   const undrawnSaid = undrawn ? `; ${undrawn} paint${undrawn === 1 ? '' : 's'} neither side draws not graded (${undrawnIds.join(', ')})` : ''
   const undecodableSaid = undecodable ? `; ${undecodable} unreadable in the capture` : ''
+  const w0 = withheldByName[0]
+  const withheldSaid = w0
+    ? `; ${withheldByName.length} paint${withheldByName.length === 1 ? '' : 's'} withheld by name, not graded (first: ${w0.kind} ${w0.id}${w0.title ? ` "${w0.title}"` : ''} — ${w0.reason})`
+    : ''
+  // ⭐⭐ (2026-11-19, held evidence) each row says which of OUR paints it is (`line`, `title`) and whether it DIFFERS, so a
+  // licence-held capture's ledger row can name the one paint to withhold (`held_evidence.lane_withholds`)
+  const rowsOut = () => rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}),
+    ...(Number.isInteger(r.line) ? { line: r.line } : {}), ...(r.title ? { title: r.title } : {}),
+    differs: differing.includes(r) }))
   if (!graded) {
+    // ⭐ G5 — a paint withheld BY NAME is an item that could not be compared, as a plot is
+    if (withheldByName.length) {
+      return { verdict: 'INCONCLUSIVE', reason: `no paint was graded${withheldSaid}${undrawnSaid}${undecodableSaid}`, agreeing, differing: 0, withheld: withheldByName.length, undrawn, undecodable, unpaired, rows: rowsOut() }
+    }
     return { verdict: null, reason: `no paint was graded${undrawnSaid}${undecodableSaid}`, agreeing, differing: 0, undrawn, undecodable, unpaired }
   }
   const first = differing[0]
@@ -1053,16 +2132,17 @@ export function comparePaints(grade) {
     : null
   const diverge = differing.length + unpaired.length
   return {
-    verdict: diverge ? 'DIVERGE' : 'MATCH',
+    verdict: diverge ? 'DIVERGE' : (withheldByName.length ? 'INCONCLUSIVE' : 'MATCH'),
     reason: diverge
-      ? `${diverge} paint${diverge === 1 ? '' : 's'} differ${diverge === 1 ? 's' : ''}${firstSaid ? ` (first: ${firstSaid})` : ''}${unpairedSaid.length ? `; unpaired — ${unpairedSaid.join('; ')}` : ''}${undrawnSaid}${undecodableSaid}`
-      : `${agreeing} paint${agreeing === 1 ? '' : 's'} agree bar for bar${undrawnSaid}${undecodableSaid}`,
+      ? `${diverge} paint${diverge === 1 ? '' : 's'} differ${diverge === 1 ? 's' : ''}${firstSaid ? ` (first: ${firstSaid})` : ''}${unpairedSaid.length ? `; unpaired — ${unpairedSaid.join('; ')}` : ''}${withheldSaid}${undrawnSaid}${undecodableSaid}`
+      : `${agreeing} paint${agreeing === 1 ? '' : 's'} agree bar for bar${withheldSaid}${undrawnSaid}${undecodableSaid}`,
     agreeing,
     differing: differing.length,
+    withheld: withheldByName.length,
     undrawn,
     undecodable,
     unpaired,
-    rows: rows.map((r) => ({ id: r.id, kind: r.kind, state: r.state, ...(r.reason ? { reason: r.reason } : {}) })),
+    rows: rowsOut(),
   }
 }
 
@@ -1071,8 +2151,8 @@ export function comparePaints(grade) {
 export function renderSummary(results) {
   const pad = (s, n) => String(s ?? '').slice(0, n).padEnd(n)
   const lines = [
-    `${pad('capture', 44)} ${pad('symbol/tf', 16)} ${pad('plots', 6)} ${pad('verdict', 13)} first divergence / reason`,
-    `${'-'.repeat(44)} ${'-'.repeat(16)} ${'-'.repeat(6)} ${'-'.repeat(13)} ${'-'.repeat(40)}`,
+    `${pad('capture', 44)} ${pad('symbol/tf', 16)} ${pad('plots', 6)} ${pad('verdict', 17)} first divergence / reason`,
+    `${'-'.repeat(44)} ${'-'.repeat(16)} ${'-'.repeat(6)} ${'-'.repeat(17)} ${'-'.repeat(40)}`,
   ]
   for (const r of results) {
     const plots = (r.plots || []).length
@@ -1084,18 +2164,19 @@ export function renderSummary(results) {
         ? `${d.title}: bar ${f.bar} t=${f.time} color vendor=${f.vendorColor ?? 'none'} ours=${f.ourColor ?? 'none'}`
         : `${d.title}: bar ${f.bar} t=${f.time} ${f.kind} vendor=${fmt(f.vendor)} ours=${fmt(f.ours)}`
     }
-    lines.push(`${pad(r.id, 44)} ${pad(`${r.symbol || '?'} ${r.timeframe || '?'}`, 16)} ${pad(plots, 6)} ${pad(r.verdict, 13)} ${tail}`)
+    lines.push(`${pad(r.id, 44)} ${pad(`${r.symbol || '?'} ${r.timeframe || '?'}`, 16)} ${pad(plots, 6)} ${pad(r.verdict, 17)} ${tail}`)
     for (const p of (r.plots || [])) {
       const s = p.stats
       const detail = s ? `cmp ${s.compared} ok ${s.matching} warm ${s.warmup.divergent}/${s.warmup.compared} steady ${s.steady.divergent}/${s.steady.compared} maxRel ${s.maxRel.toExponential(2)}` : ''
-      lines.push(`    ${pad(p.title ?? p.id, 40)} ${pad(p.verdict, 13)} ${detail}${p.verdict !== 'MATCH' ? ` — ${p.reason}` : ''}`)
+      lines.push(`    ${pad(p.title ?? p.id, 40)} ${pad(p.verdict, 17)} ${detail}${p.verdict !== 'MATCH' && p.verdict !== MATCH_SUBSTITUTED ? ` — ${p.reason}` : ''}`)
     }
     if (r.objects) lines.push(`    ${pad('objects', 40)} ${pad(r.objects.verdict, 13)} ${r.objects.reason}`)
     if (r.paints) lines.push(`    ${pad('paints', 40)} ${pad(r.paints.verdict || 'NOT GRADED', 13)} ${r.paints.reason}`)
   }
   const tally = Object.fromEntries(VERDICTS.map((v) => [v, results.filter((r) => r.verdict === v).length]))
   lines.push('')
-  lines.push(`TOTAL ${results.length} captures — MATCH ${tally.MATCH} · DIVERGE ${tally.DIVERGE} · INCONCLUSIVE ${tally.INCONCLUSIVE}`)
+  lines.push(`TOTAL ${results.length} captures — MATCH ${tally.MATCH} · DIVERGE ${tally.DIVERGE} · INCONCLUSIVE ${tally.INCONCLUSIVE}`
+    + (tally.MATCH_SUBSTITUTED ? ` · MATCH_SUBSTITUTED ${tally.MATCH_SUBSTITUTED} (verified with substituted inputs; never counted as MATCH)` : ''))
   // ⭐ C44 — the same total as it read before object colour joined the verdict,
   // and every capture colour moved, by name.
   const coloured = results.filter((r) => r.verdictWithoutColour)
@@ -1115,4 +2196,408 @@ export function renderSummary(results) {
     lines.push(`CHANGED BY PAINTS (${moved.length}): ${moved.map((r) => `${r.id} ${r.verdictWithoutPaints} → ${r.verdict}`).join('; ') || 'none'}`)
   }
   return lines.join('\n')
+}
+
+// ═══ W9-T2: THE STRATEGY GRADE (design 5.2 E) ═══════════════════════════════════
+//
+// Pure. Applied IN ORDER; the first step that decides, decides.
+//
+//   0. THE REFERENCE FLOOR, decided from the TradingView capture alone BEFORE our run
+//      is read. Fewer than STRATEGY_FLOOR closed trades in the graded span is
+//      UNGRADABLE on that symbol, and OUR RUN IS NEVER CONSULTED: our trade count is
+//      not read, compared or logged here (a spy on `ours.trades` proves it).
+//      ⛔ The floor is NEVER applied to our count: a broker that under- or over-trades
+//      against a reference at or above the floor is a DIVERGE, never a hidden script.
+//   1. EXPECTED-REFUSAL: our run refused by rule 11 or another wave wall. Tallied
+//      apart from the W9 DIVERGE count. Any other refusal against a TradingView value
+//      is a DIVERGE.
+//   2. BAR IDENTITY (and the data settings): OHLCV identical to the tick over the span,
+//      else INCONCLUSIVE "bars differ". ⭐ A script with NO literal settings reads
+//      INCONCLUSIVE on the settings agreement ('strategy-settings:nothing-compared'):
+//      that is the absence of a comparison, not a disagreement, and it never blocks.
+//      Only a real disagreement, or no strategy() declaration at all, blocks.
+//   3. SIGNAL IDENTITY, method (b) only: the script own plots identical inside
+//      [X, Y), else INCONCLUSIVE "the warm-up has not converged".
+//   4. TRADES AND VALUES. Counts differ: DIVERGE, naming the first unmatched fill by
+//      time and its `rule`. Equal counts: JOINED ON BAR TIME, NEVER BAR INDEX (on
+//      method (b) the indexes differ by a constant). Prices to the tick, quantities
+//      exactly, currency to REL_TOL. All equal: MATCH; else DIVERGE naming the rule.
+//   5. FILLS (U14), when the reference carries TradingView's fill list. Fill BY FILL,
+//      grouped by bar time: the same bars, and on each bar the same fills by side,
+//      role (the order COMMAND: entry, exit / close, or strategy.order) and price to the tick, quantities summed exactly (TradingView logs
+//      a bracket's exit once per trade it closes and a close-all once; a sum per key
+//      makes the two loggings one fact), and every entry / exit id ours names among
+//      TradingView's. Fills that cannot be placed in time are INCONCLUSIVE, never skipped.
+//   6. REPORT SLOTS (U14), when given: every slot BOTH sides state is compared (counts
+//      exactly, everything else to REL_TOL); a slot either side does not state is listed
+//      as ungraded with its reason, never compared against a default.
+//   7. VALUE SERIES, when given: every plot of the capture against our output of the same plot,
+//      bar by bar, joined on time (`na` only equals `na`; numbers to REL_TOL). The caller pairs the
+//      plots and refuses a pairing it cannot prove (INCONCLUSIVE, never paired anyway). A differing
+//      bar is DIVERGE naming the plot, the bar and both values.
+//   8. DRAWN TEXTS, when given: the label texts per bar, as multisets. Texts the caller could not
+//      draw are listed in `ungradedTexts` with the reason, never dropped and never compared.
+//   ⭐ `graded` says what the MATCH covered. A MATCH with `graded.fills === false` is a
+//      trade-list match only, and `evidence_engine.resolve_pins` never pins from one.
+//   ⛔ Step 2 also blocks on the run's EFFECTIVE settings disagreeing with the read-back
+//      (`settings.effectiveDisagreements`) and on an unread Properties input the run
+//      depends on (`settings.unreadDependedOn`, strategy_reference.mjs).
+
+export const STRATEGY_FLOOR = 5
+export const STRATEGY_VERDICTS = Object.freeze(['MATCH', 'DIVERGE', 'INCONCLUSIVE', 'UNGRADABLE', 'EXPECTED-REFUSAL'])
+
+const inSpan = (t, span) => !span || ((span.from === undefined || t >= span.from) && (span.to === undefined || t < span.to))
+const sameTick = (a, b, tick) => Math.abs(a - b) < tick / 2
+const sameCurrency = (a, b) => Math.abs(a - b) <= REL_TOL * Math.abs(b) || Math.abs(a - b) <= ABS_FLOOR_UNKNOWN_SCALE
+
+function barsDiffer(refBars, ourBars, span, tick) {
+  if (!Array.isArray(refBars) || !Array.isArray(ourBars)) return 'bars are missing on a side'
+  const a = refBars.filter((b) => inSpan(b.time, span))
+  const b = ourBars.filter((x) => inSpan(x.time, span))
+  if (a.length === 0) return 'no reference bars in the span'
+  if (a.length !== b.length) return `bar counts differ (${a.length} against ${b.length})`
+  for (let i = 0; i < a.length; i += 1) {
+    if (a[i].time !== b[i].time) return `bar times differ at ${a[i].time}`
+    for (const k of ['open', 'high', 'low', 'close']) if (!sameTick(a[i][k], b[i][k], tick)) return `${k} differs at ${a[i].time}`
+    if (a[i].volume !== b[i].volume) return `volume differs at ${a[i].time}`
+  }
+  return null
+}
+
+function signalsDiffer(ref, our, graded, tol) {
+  const names = Object.keys(ref || {})
+  if (names.length === 0 || !our) return 'no plots to compare'
+  for (const name of names) {
+    const a = (ref[name] || []).filter((p) => inSpan(p.time, graded))
+    const m = new Map((our[name] || []).filter((p) => inSpan(p.time, graded)).map((p) => [p.time, p.value]))
+    if (m.size !== a.length) return `plot ${name} has a different bar count inside the graded span`
+    for (const p of a) if (!m.has(p.time) || !valuesAgree(m.get(p.time), p.value, tol)) return `plot ${name} differs at ${p.time}`
+  }
+  return null
+}
+
+const ruleOf = (t) => (t && t.rule) || 'unattributed'
+
+/** ⭐ (2026-11-17) the closed trades of each ENTRY BAR, in one canonical order: exit time, then exit price, then
+ *  quantity. One entry fill can close as SEVERAL trades (a margin call or a partial exit closes part of a trade,
+ *  which keeps its entry): w9-q-s1i-short-v6 lists trades 4-8 all entered on one bar, two of them exited on one bar
+ *  (60 at 108.19, 316 at 113.8). ⚰️ This joined on the entry time alone (a Map, one trade per time), so the second
+ *  trade of a bar silently replaced the first and was compared against the reference's first. Both sides are put in
+ *  the same canonical order, so two lists that hold the same trades pair them whatever order each side lists them
+ *  in; a bar whose count differs is a DIVERGE. */
+function tradesByEntry(list) {
+  const m = new Map()
+  for (const t of list) {
+    if (!m.has(t.entryTime)) m.set(t.entryTime, [])
+    m.get(t.entryTime).push(t)
+  }
+  for (const g of m.values()) g.sort((x, y) => (x.exitTime - y.exitTime) || (x.exitPrice - y.exitPrice) || (x.qty - y.qty))
+  return m
+}
+function compareTrades(refTrades, ourTrades, tick) {
+  const byEntry = tradesByEntry(ourTrades)
+  const refEntries = new Set(refTrades.map((t) => t.entryTime))
+  if (refTrades.length !== ourTrades.length) {
+    const ref = [...refTrades].sort((x, y) => x.entryTime - y.entryTime)
+    const first = ref.find((t) => !byEntry.has(t.entryTime))
+      || [...ourTrades].sort((x, y) => x.entryTime - y.entryTime).find((t) => !refEntries.has(t.entryTime))
+    return { verdict: 'DIVERGE', reason: `trade counts differ (reference ${refTrades.length}, ours ${ourTrades.length})`, first: first ? { time: first.entryTime, rule: ruleOf(first) } : null }
+  }
+  const refByEntry = tradesByEntry(refTrades)
+  for (const [entryTime, refGroup] of [...refByEntry.entries()].sort((x, y) => x[0] - y[0])) {
+    const ourGroup = byEntry.get(entryTime) || []
+    if (ourGroup.length && ourGroup.length !== refGroup.length) {
+      return { verdict: 'DIVERGE', reason: `the trades entered at ${entryTime} differ in number (reference ${refGroup.length}, ours ${ourGroup.length})`, first: { time: entryTime, rule: ruleOf(ourGroup[0]) } }
+    }
+    for (const [k, r] of refGroup.entries()) {
+      const o = ourGroup[k]
+      if (!o) return { verdict: 'DIVERGE', reason: `no fill of ours at ${r.entryTime}`, first: { time: r.entryTime, rule: ruleOf(r) } }
+      const bad = [
+        o.direction !== r.direction && 'direction',
+        o.exitTime !== r.exitTime && 'exitTime',
+        !sameTick(o.entryPrice, r.entryPrice, tick) && 'entryPrice',
+        !sameTick(o.exitPrice, r.exitPrice, tick) && 'exitPrice',
+        o.qty !== r.qty && 'qty',
+        !sameCurrency(o.profit, r.profit) && 'profit',
+      ].find(Boolean)
+      if (bad) return { verdict: 'DIVERGE', reason: `${bad} differs at ${r.entryTime}`, first: { time: r.entryTime, rule: ruleOf(r) } }
+    }
+  }
+  return { verdict: 'MATCH', reason: 'every trade and value equal', first: null }
+}
+
+/**
+ * @param {{reference:{trades:object[]}, ours:object, method?:'a'|'b', span?:{from?:number,to?:number},
+ *          graded?:{from?:number,to?:number}, tick?:number, settings?:object, refBars?:object[], ourBars?:object[],
+ *          refSignals?:object, ourSignals?:object, slots?:object}} g
+ *   `reference.fills` (U14: strategy_reference.mjs, with `fillsTimed` / `fillsReason`) and
+ *   `ours.fills` (`{time, side, role, price, qty, id, labelled, rule}`) add step 5; `slots` step 6.
+ */
+export function gradeStrategy(g) {
+  const { reference, ours, method = 'a', span, graded, tick = 0.01, settings, refBars, ourBars, refSignals, ourSignals, slots, values, texts } = g
+  // 0. the reference floor: the TradingView capture alone.
+  const listed = (reference && reference.trades) || null
+  if (!Array.isArray(listed)) return { verdict: 'INCONCLUSIVE', step: 0, reason: 'the capture carries no trade list' }
+  // U14: a reference lists its open trades too (`open: true`, strategy_reference.mjs); the floor and the
+  // trade grade read CLOSED trades only (an open trade's entry is graded with the fills)
+  const refTrades = listed.filter((t) => t.open !== true)
+  const inGraded = (t) => inSpan(t.exitTime !== undefined ? t.exitTime : t.entryTime, graded || span)
+  const refCount = refTrades.filter(inGraded).length
+  if (refCount < STRATEGY_FLOOR) {
+    return { verdict: 'UNGRADABLE', step: 0, reason: `the reference has too few trades (${refCount}, floor ${STRATEGY_FLOOR})` }
+  }
+  // 1. expected refusals.
+  const refusal = ours && ours.refusal
+  if (refusal) {
+    return refusal.expected
+      ? { verdict: 'EXPECTED-REFUSAL', step: 1, reason: `refused by ${refusal.rule}`, rule: refusal.rule }
+      : { verdict: 'DIVERGE', step: 1, reason: `our run refused (${refusal.rule}) against a TradingView value`, rule: refusal.rule }
+  }
+  // 2. settings and bar identity.
+  if (settings) {
+    const hasDisagreement = Array.isArray(settings.disagreements) && settings.disagreements.length > 0
+    const noDeclaration = typeof settings.reason === 'string' && settings.reason.startsWith('strategy-settings:no-declaration')
+    if (hasDisagreement || noDeclaration) {
+      return { verdict: 'INCONCLUSIVE', step: 2, reason: hasDisagreement ? 'the data settings differ' : 'no strategy() declaration to read the settings from' }
+    }
+    const eff = Array.isArray(settings.effectiveDisagreements) ? settings.effectiveDisagreements : []
+    if (eff.length) {
+      return { verdict: 'INCONCLUSIVE', step: 2, reason: `the run's settings differ from the read-back: ${eff.map((d) => d.key).join(', ')}` }
+    }
+    const unread = Array.isArray(settings.unreadDependedOn) ? settings.unreadDependedOn : []
+    if (unread.length) {
+      return { verdict: 'INCONCLUSIVE', step: 2, reason: `the read-back lacks input(s) the run depends on: ${unread.join(', ')}` }
+    }
+  }
+  const bd = barsDiffer(refBars, ourBars, span, tick)
+  if (bd) return { verdict: 'INCONCLUSIVE', step: 2, reason: `bars differ: ${bd}` }
+  // 3. signal identity, method (b) only.
+  if (method === 'b') {
+    // `ourSignals` may be a function (U14), so a caller's run is read only here
+    const sd = signalsDiffer(typeof refSignals === 'function' ? refSignals() : refSignals, typeof ourSignals === 'function' ? ourSignals() : ourSignals, graded, { rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
+    if (sd) return { verdict: 'INCONCLUSIVE', step: 3, reason: `the warm-up has not converged: ${sd}` }
+  }
+  // 4. trades and values (our trade list is read for the first time here).
+  const r = compareTrades(refTrades.filter(inGraded), (ours.trades || []).filter(inGraded), tick)
+  const covered = { trades: true, fills: false, slots: 0, values: 0, texts: 0 }
+  if (r.verdict !== 'MATCH') return { ...r, step: 4, graded: covered }
+  // 5. fills, fill by fill (U14).
+  const refFills = reference.fills
+  if (Array.isArray(refFills)) {
+    if (reference.fillsTimed !== true) {
+      return { verdict: 'INCONCLUSIVE', step: 5, reason: `the reference fills cannot be placed in time: ${reference.fillsReason || 'untimed'}`, first: null, graded: covered }
+    }
+    const inFills = (f) => inSpan(f.time, graded || span)
+    const f = compareFills(refFills.filter(inFills), (Array.isArray(ours.fills) ? ours.fills : []).filter(inFills), tick)
+    if (f.verdict !== 'MATCH') return { ...f, step: 5, graded: covered }
+    covered.fills = true
+  }
+  // 6. the report slots (U14). `slots` may be a function, so a caller's run is read only here.
+  let done = { ...r, step: covered.fills ? 5 : 4 }
+  let ungradedSlots
+  const slotsNow = typeof slots === 'function' ? slots() : slots
+  if (slotsNow) {
+    const s = compareSlots(slotsNow)
+    covered.slots = s.compared.length
+    ungradedSlots = s.ungraded
+    if (s.verdict !== 'MATCH') return { verdict: s.verdict, reason: s.reason, first: null, step: 6, graded: covered, ungradedSlots }
+    done = { verdict: 'MATCH', step: 6, reason: 'every trade, fill and stated report slot equal', first: null }
+  }
+  const extra = ungradedSlots ? { ungradedSlots } : {}
+  // 7. the value series (the script's own plots, bar by bar). A function, read only here.
+  const valuesNow = typeof values === 'function' ? values() : values
+  if (valuesNow) {
+    if (valuesNow.status !== 'ok') {
+      return { verdict: 'INCONCLUSIVE', step: 7, reason: `the value series cannot be paired: ${valuesNow.reason || 'unpaired'}`, first: null, graded: covered, ...extra }
+    }
+    // a slot paired by identity whose value is not a series compared here (a colour, an alert condition) is
+    // LISTED with the call it serves, never dropped (2026-11-17: the paint grade grades colours)
+    if (Array.isArray(valuesNow.notCompared) && valuesNow.notCompared.length) extra.ungradedValues = valuesNow.notCompared
+    const v = compareValueSeries(valuesNow.series, graded || span)
+    if (v.verdict !== 'MATCH') return { ...v, step: 7, graded: covered, ...extra }
+    covered.values = valuesNow.series.length
+    done = { verdict: 'MATCH', step: 7, reason: `${done.reason}; every value series equal bar by bar`, first: null }
+  }
+  // 8. the texts the script draws (label texts, by bar). Ungraded texts are LISTED, never dropped.
+  const textsNow = typeof texts === 'function' ? texts() : texts
+  if (textsNow) {
+    if (textsNow.status === 'ungraded') extra.ungradedTexts = [{ what: textsNow.what || 'labels', why: textsNow.reason || 'ungraded' }]
+    else if (textsNow.status !== 'ok') {
+      return { verdict: 'INCONCLUSIVE', step: 8, reason: `the drawn texts cannot be read: ${textsNow.reason || 'unread'}`, first: null, graded: covered, ...extra }
+    } else {
+      const t = compareTexts(textsNow.reference, textsNow.ours, graded || span)
+      if (t.verdict !== 'MATCH') return { ...t, step: 8, graded: covered, ...extra }
+      covered.texts = t.compared
+      done = { verdict: 'MATCH', step: 8, reason: `${done.reason}; every drawn text equal`, first: null }
+    }
+  }
+  return { ...done, graded: covered, ...extra }
+}
+
+// ── step 7: the value series ──────────────────────────────────────────────────
+/** A value's tolerance: the corpus harness's (`REL_TOL`, the unknown-scale floor); `na` only equals `na`. */
+const VALUE_TOL = Object.freeze({ rel: REL_TOL, abs: ABS_FLOOR_UNKNOWN_SCALE })
+/**
+ * `series`: `[{ title, reference: [{time, value}], ours: [{time, value}], rule? }]`, one per plot of the
+ * capture, ALREADY PAIRED by the caller (which refuses a pairing it cannot prove). Every bar of the
+ * reference inside `span` must have a bar of ours at that time with an agreeing value.
+ */
+function compareValueSeries(series, span) {
+  for (const s of series) {
+    const ref = (s.reference || []).filter((p) => inSpan(p.time, span))
+    const our = new Map((s.ours || []).filter((p) => inSpan(p.time, span)).map((p) => [p.time, p.value]))
+    const rule = s.rule || 'B-VAL'
+    if (our.size !== ref.length) {
+      return { verdict: 'DIVERGE', reason: `value series ${s.title} has ${our.size} bars of ours against ${ref.length}`, first: { time: ref.length ? ref[0].time : null, rule } }
+    }
+    for (const p of ref) {
+      if (!our.has(p.time) || !valuesAgree(our.get(p.time), p.value, VALUE_TOL)) {
+        const o = our.has(p.time) ? our.get(p.time) : undefined
+        return { verdict: 'DIVERGE', reason: `value series ${s.title} differs at ${p.time} (reference ${isNa(p.value) ? 'na' : p.value}, ours ${o === undefined ? 'no bar' : isNa(o) ? 'na' : o})`, first: { time: p.time, rule } }
+      }
+    }
+  }
+  return { verdict: 'MATCH', reason: 'every value series equal', first: null }
+}
+
+// ── ruling D11: THE FIRST DIFFERENCE of a run that diverges, found mechanically ─────────────────
+/**
+ * The earliest bar on which our run and TradingView's differ, over everything the grade places on a bar: the
+ * fills (step 5), the value series (step 7) and the drawn texts (step 8). Trades are checked through their
+ * fills; a report slot has no bar and never sets it.
+ *
+ * `prefixExact` is the proof ruling D11 asks for: restricted to the bars STRICTLY BEFORE that bar, the closed
+ * trades, the fills, every value series and every text are equal. It is computed here, never asserted, and it
+ * FAILS CLOSED: plots that could not be paired, texts that could not be read, or reference fills that could
+ * not be placed in time make it false.
+ *
+ * @returns {{bar:number, step:5|7|8, prefixExact:boolean} | null}  null when no fill, value or text differs
+ *   (a difference in a profit or a report slot alone): there is then no event to scope a culprit to.
+ */
+export function strategyFirstDifference({ reference, ours, tick = 0.01, span, graded, values, texts }) {
+  const within = graded || span
+  const inS = (t) => inSpan(t, within)
+  const refFills = reference && Array.isArray(reference.fills) ? reference.fills : null
+  if (!refFills || reference.fillsTimed !== true) return null
+  const ourFills = Array.isArray(ours && ours.fills) ? ours.fills : []
+  const valuesOk = !!values && values.status === 'ok'
+  const textsOk = !!texts && texts.status === 'ok'
+  const textsGraded = !texts || texts.status === 'ungraded' || textsOk // absent / ungraded texts are not a graded step
+  const f = compareFills(refFills.filter((x) => inS(x.time)), ourFills.filter((x) => inS(x.time)), tick)
+  const fillAt = f.verdict === 'MATCH' ? null : f.first.time
+  let valueAt = null
+  if (valuesOk) {
+    for (const s of values.series) {
+      const our = new Map((s.ours || []).map((p) => [p.time, p.value]))
+      for (const p of s.reference || []) {
+        if (!inS(p.time) || (valueAt !== null && p.time >= valueAt)) continue
+        if (!our.has(p.time) || !valuesAgree(our.get(p.time), p.value, VALUE_TOL)) valueAt = p.time
+      }
+    }
+  }
+  let textAt = null
+  if (textsOk) {
+    const t = compareTexts(texts.reference, texts.ours, within)
+    if (t.verdict !== 'MATCH') textAt = t.first.time
+  }
+  const at = [fillAt, valueAt, textAt].filter((x) => x !== null)
+  if (!at.length) return null
+  const bar = Math.min(...at)
+  const step = fillAt === bar ? 5 : valueAt === bar ? 7 : 8
+  const before = { from: within && within.from, to: within && within.to !== undefined ? Math.min(within.to, bar) : bar }
+  const inB = (t) => inSpan(t, before)
+  const closedBefore = (list) => (list || []).filter((t) => t.open !== true && t.exitTime !== null && t.exitTime !== undefined && inB(t.exitTime))
+  const tradesExact = compareTrades(closedBefore(reference.trades), closedBefore(ours && ours.trades), tick).verdict === 'MATCH'
+  const fillsExact = compareFills(refFills.filter((x) => inB(x.time)), ourFills.filter((x) => inB(x.time)), tick).verdict === 'MATCH'
+  const valuesExact = valuesOk && compareValueSeries(values.series, before).verdict === 'MATCH'
+  const textsExact = textsGraded && (!textsOk || compareTexts(texts.reference, texts.ours, before).verdict === 'MATCH')
+  return { bar, step, prefixExact: tradesExact && fillsExact && valuesExact && textsExact }
+}
+
+// ── step 8: the drawn texts ───────────────────────────────────────────────────
+/** `reference` / `ours`: `[{ time, text }]`. The same texts on the same bars, as multisets per bar. */
+function compareTexts(reference, ours, span) {
+  const bag = (rows) => {
+    const m = new Map()
+    for (const r of rows || []) {
+      if (!inSpan(r.time, span)) continue
+      if (!m.has(r.time)) m.set(r.time, [])
+      m.get(r.time).push(String(r.text))
+    }
+    for (const v of m.values()) v.sort()
+    return m
+  }
+  const a = bag(reference)
+  const b = bag(ours)
+  let compared = 0
+  for (const t of [...new Set([...a.keys(), ...b.keys()])].sort((x, y) => x - y)) {
+    const x = a.get(t) || []
+    const y = b.get(t) || []
+    if (x.length !== y.length || x.some((v, i) => v !== y[i])) {
+      return { verdict: 'DIVERGE', reason: `the drawn texts at ${t} differ (reference ${JSON.stringify(x)}, ours ${JSON.stringify(y)})`, first: { time: t, rule: 'B-VAL' } }
+    }
+    compared += x.length
+  }
+  return { verdict: 'MATCH', compared }
+}
+
+// ── U14 step 5: fills ─────────────────────────────────────────────────────────
+const fillKey = (f, tick) => `${f.side}|${f.role}|${Math.round(f.price / tick)}`
+function fillGroups(fills, tick) {
+  const byTime = new Map()
+  for (const f of fills) {
+    if (!byTime.has(f.time)) byTime.set(f.time, new Map())
+    const g = byTime.get(f.time)
+    const k = fillKey(f, tick)
+    if (!g.has(k)) g.set(k, { qty: 0, ids: new Set(), fills: [] })
+    const e = g.get(k)
+    e.qty += f.qty
+    if (typeof f.id === 'string') e.ids.add(f.id)
+    e.fills.push(f)
+  }
+  return byTime
+}
+function compareFills(refFills, ourFills, tick) {
+  const a = fillGroups(refFills, tick)
+  const b = fillGroups(ourFills, tick)
+  const times = [...new Set([...a.keys(), ...b.keys()])].sort((x, y) => x - y)
+  for (const t of times) {
+    const ra = a.get(t)
+    const ob = b.get(t)
+    const ourRule = ob ? ruleOf([...ob.values()][0].fills[0]) : 'unattributed'
+    if (!ra) return { verdict: 'DIVERGE', reason: `a fill of ours at ${t} that TradingView does not have`, first: { time: t, rule: ourRule } }
+    if (!ob) return { verdict: 'DIVERGE', reason: `no fill of ours at ${t}`, first: { time: t, rule: 'unattributed' } }
+    for (const k of new Set([...ra.keys(), ...ob.keys()])) {
+      const x = ra.get(k)
+      const y = ob.get(k)
+      const rule = y ? ruleOf(y.fills[0]) : ourRule
+      if (!x || !y) return { verdict: 'DIVERGE', reason: `the fills at ${t} differ (${k} on ${x ? "TradingView's" : 'our'} side only)`, first: { time: t, rule } }
+      if (Math.abs(x.qty - y.qty) > 1e-9 * Math.max(1, Math.abs(x.qty))) {
+        return { verdict: 'DIVERGE', reason: `the ${k} quantity at ${t} differs (reference ${x.qty}, ours ${y.qty})`, first: { time: t, rule } }
+      }
+      for (const of of y.fills) {
+        if (of.labelled === true && typeof of.id === 'string' && !x.ids.has(of.id)) {
+          return { verdict: 'DIVERGE', reason: `the ${k} fill at ${t} is ${of.id} on our side and ${[...x.ids].join(' / ') || 'unnamed'} on TradingView's`, first: { time: t, rule: ruleOf(of) } }
+        }
+      }
+    }
+  }
+  return { verdict: 'MATCH', reason: 'every fill equal', first: null }
+}
+
+// ── U14 step 6: the report slots ──────────────────────────────────────────────
+/** `slots`: `{ slot: { kind: 'count'|'value', reference: {status, value?}, ours: {status, value?, guard?} } }`. */
+function compareSlots(slots) {
+  const compared = []
+  const ungraded = []
+  for (const [slot, s] of Object.entries(slots)) {
+    const ref = s && s.reference
+    const our = s && s.ours
+    if (!ref || ref.status !== 'ok') { ungraded.push({ slot, why: `reference ${ref ? ref.status : 'absent'}` }); continue }
+    if (!our || our.status !== 'served') { ungraded.push({ slot, why: `ours ${our ? (our.guard || our.status) : 'absent'}` }); continue }
+    compared.push(slot)
+    const same = s.kind === 'count' ? our.value === ref.value : sameCurrency(our.value, ref.value)
+    if (!same) return { verdict: 'DIVERGE', reason: `report slot ${slot} differs (reference ${ref.value}, ours ${our.value})`, compared, ungraded }
+  }
+  return { verdict: 'MATCH', compared, ungraded }
 }

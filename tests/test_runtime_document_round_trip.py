@@ -65,6 +65,10 @@ def store(tmp_path, monkeypatch):
     # rails those doors themselves (who, and which scripts).
     monkeypatch.setenv(rt.STAGE_ENV, rt.STAGE_ALL)
     monkeypatch.setenv(rt.ALLOW_ENV, ",".join(d["definition"]["meta"]["runtimeSourceHash"] for d in DOCS))
+    # ...and the COMMITTED kill list (RT1 2026-11-15) is set aside too: it held trend-targets, one of
+    # the six, until PR #1374 lifted it, and this file is about the store, not the kill (railed in
+    # test_pine_capability_admission.py)
+    monkeypatch.setattr(rt, "KILLLIST_PATH", str(tmp_path / "no-committed-kills.json"))
     return tmp_path
 
 
@@ -156,7 +160,7 @@ def test_GT_D2_a_runtime_document_over_the_RUNTIME_cap_is_refused_by_name(store,
     pad = rt.RUNTIME_MAX_DEFINITION_BYTES - _blob_size(d) + 64
     d["meta"]["description"] = (d["meta"].get("description") or "") + "x" * pad
     assert _blob_size(d) > rt.RUNTIME_MAX_DEFINITION_BYTES
-    with pytest.raises(ValueError, match=rf"definition exceeds {rt.RUNTIME_MAX_DEFINITION_BYTES} bytes"):
+    with pytest.raises(ValueError, match=rf"too large to keep: .* a saved indicator may hold at most {rt.RUNTIME_MAX_DEFINITION_BYTES}\. Nothing was saved"):
         svc.save(USER, d["id"], d)
     assert svc.get(USER, d["id"]) is None
 

@@ -8,7 +8,7 @@ import { FREE_PAGES } from '../constants/freePages'
 import { useTerminalNavPath } from '../pages/terminal/TerminalRoutes'
 import { TERMINAL_PATH } from '../pages/terminal/terminalGate'
 import styles from './NavBar.module.css'
-import uctLogo from './intro/assets/compass-mark.png'
+import uctLogo from './intro/assets/compass-mark.webp'
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null))
@@ -28,19 +28,21 @@ export const NAV_ITEMS = [
   // (viewportLockedRoutes.test.js) is docs/notebook/proof/f5-r2-routes/routes-nav-terminal-*.json.
   // V19: a member who ticked "keep classic calendar" gets this entry pointed at `/calendar`
   // instead (`useTerminalNavPath`, applied in renderItem); `to` here stays the declared route.
-  { to: '/terminal',     label: 'UCT Terminal',  icon: 'calendar', alsoActive: ['/calendar'] },
+  // ⭐ CHARTS IS THE HOME (owner 2026-11-11): first in the rail and the default landing page.
   { to: '/charts',       label: 'Charts',        icon: 'equity' },
+  { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
+  { to: '/terminal',     label: 'UCT Terminal',  icon: 'calendar', alsoActive: ['/calendar'] },
   { to: '/morning-wire', label: 'Morning Wire',  icon: 'wire' },
   // MARKETS
-  { to: '/dashboard',    label: 'Dashboard',     icon: 'dashboard' },
+  // ⚰️ Dashboard HIDDEN (owner 2026-11-11): no entry here, and /dashboard redirects to
+  // /charts (App.jsx). The page and its code are kept, to be brought back later.
   { to: '/ai-search',    label: 'AI Search',     icon: 'sparkle' },
   { to: '/uct-20',       label: 'UCT 20',        icon: 'star' },
-  { to: '/breadth',      label: 'Breadth',       icon: 'breadth' },
   { to: '/screener',     label: 'Screener',      icon: 'screener' },
   { to: '/options-flow', label: 'Options Flow',  icon: 'flow' },
-  { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'star' },
+  { to: '/flow-scoreboard', label: 'Flow Record',  icon: 'flag' },
   { to: '/live-massive', label: 'Live Flow',     icon: 'bolt' },
-  { to: '/catalysts/history', label: 'Catalysts History', icon: 'star' },
+  { to: '/catalysts/history', label: 'Catalysts History', icon: 'clock' },
   // CHARTS
   { to: '/model-book',   label: 'Model Book',    icon: 'book' },
   { to: '/formulas/reference', label: 'Formula Reference', icon: 'chart' },
@@ -146,9 +148,9 @@ export default function NavBar({ onOpenPalette }) {
           className={`${styles.item} ${styles.locked}`}
           aria-label={`${item.label} — unlock with Pro`}
         >
-          <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
+          <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold={false} /></span>
           <span className={styles.label}>{item.label}</span>
-          <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
+          <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold={false} /></span>
         </Link>
       )
     }
@@ -162,7 +164,7 @@ export default function NavBar({ onOpenPalette }) {
         }
         aria-label={item.label}
       >
-        <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold /></span>
+        <span className={styles.icon} aria-hidden="true"><UIcon name={item.icon} gold={false} /></span>
         <span className={styles.label}>{item.label}</span>
         {item.to === '/journal' && compassUnread > 0 && (
           <span className={styles.compassBadge}
@@ -200,7 +202,7 @@ export default function NavBar({ onOpenPalette }) {
         onClick={() => onOpenPalette?.()}
         aria-label="Search — Ctrl+K"
       >
-        <span className={styles.icon} aria-hidden="true"><UIcon name="search" gold /></span>
+        <span className={styles.icon} aria-hidden="true"><UIcon name="search" gold={false} /></span>
         <span className={styles.label}>Search</span>
         <kbd className={styles.shortcutHint} aria-hidden="true">⌘K</kbd>
       </button>
@@ -258,7 +260,7 @@ export default function NavBar({ onOpenPalette }) {
             title="Admin"
             aria-label="Admin"
           >
-            <span className={styles.icon} aria-hidden="true"><UIcon name="shield" gold /></span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name="shield" gold={false} /></span>
             <span className={styles.label}>Admin</span>
           </NavLink>
         )}
@@ -271,7 +273,7 @@ export default function NavBar({ onOpenPalette }) {
             title="Settings"
             aria-label="Settings"
           >
-            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold /></span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold={false} /></span>
             <span className={styles.label}>Settings</span>
           </NavLink>
         ) : (
@@ -281,9 +283,9 @@ export default function NavBar({ onOpenPalette }) {
             title="Settings — unlock with Pro"
             aria-label="Settings — unlock with Pro"
           >
-            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold /></span>
+            <span className={styles.icon} aria-hidden="true"><UIcon name="gear" gold={false} /></span>
             <span className={styles.label}>Settings</span>
-            <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold /></span>
+            <span className={styles.lock} aria-hidden="true"><UIcon name="lock" size={11} gold={false} /></span>
           </Link>
         )}
         {renderItem(NAV_ITEMS.find((i) => i.to === '/support'))}
@@ -295,7 +297,7 @@ export default function NavBar({ onOpenPalette }) {
           title="UCT Website"
           aria-label="UCT Website"
         >
-          <span className={styles.icon} aria-hidden="true"><UIcon name="globe" gold /></span>
+          <span className={styles.icon} aria-hidden="true"><UIcon name="globe" gold={false} /></span>
           <span className={styles.label}>Website</span>
         </a>
       </div>

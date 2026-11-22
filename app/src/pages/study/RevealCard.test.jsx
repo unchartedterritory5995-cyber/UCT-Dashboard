@@ -165,3 +165,101 @@ describe('RevealCard lesson parts and feedback', () => {
     expect(screen.queryByTestId('feedback-open')).not.toBeInTheDocument()
   })
 })
+
+// Round 23 (the owner's rule 8, on every screen that teaches a setup): a setup item's reveal carries its trade plan
+// (api/services/study_trade.py); the answer card reviews it against the bars that followed.
+describe('RevealCard trade review', () => {
+  const bar = (t, o, h, l, c) => ({ t, o, h, l, c, v: 100 })
+  const item = { id: 'si_k', skill_id: 'setup.family3.kicker', bars: { bars: [bar(20240101, 10, 10.3, 9.9, 10.1), bar(20240102, 10.6, 10.7, 10.0, 10.05), bar(20240103, 10.2, 11.2, 10.5, 11.1)] } }
+  const trade = { skill: 'setup.family3.kicker', direction: 'bullish', entry: 10.71, stop: 10.5, t1: 11.13, t2: 11.34, enters_intraday: true,
+    entry_note: "over the red day's high, on the Kicker day", stop_note: "under the Kicker's low", trail: 'under each higher low' }
+  it('shows the entry, the stop, the marks and what happened', () => {
+    render(<RevealCard correct reveal={{ answer: 'Yes', trade, forward_bars: [bar(20240104, 11.1, 11.5, 10.9, 11.4)] }} item={item} fire={false} />)
+    const box = screen.getByTestId('trade-review')
+    expect(box).toHaveTextContent('The trade · your Kicker rules')
+    expect(box).toHaveTextContent('$10.71')
+    expect(box).toHaveTextContent('$11.13 · $11.34')
+    // 3R and 5R are marks on the ruler, never fixed sells (the owner's D-013, 2026-11-12, superseding "a third at 3R" and
+    // "a third at 5R"), named from the plan's trim_r (3R and 5R when it has none)
+    // the box says when each mark traded; the line under the boxes says what each mark is (the screen check, 2026-11-14:
+    // the whole sentence inside the box made it a 13-line strip on a phone)
+    expect(box).toHaveTextContent('3R hit on the signal day · 5R hit on session 1')
+    expect(box).toHaveTextContent('3R is a mark on the ruler; the stop can move up to breakeven between 2R and 5R.')
+    expect(box).toHaveTextContent('5R is inside the 5 to 10R zone where a first sell into strength is often best, by judgment, usually day 3 or later.')
+    expect(box).toHaveTextContent('and reached 3R and 5R')
+    expect(box.textContent).not.toMatch(/third|\btrims?\b/i)
+  })
+  it('a reveal without a plan shows no trade', () => {
+    render(<RevealCard correct reveal={{ answer: 'Yes' }} item={item} fire={false} />)
+    expect(screen.queryByTestId('trade-review')).toBeNull()
+  })
+
+  // course questions (docs/study/courses, owner 2026-11-08: "verified and accurate against reliable information sources")
+  const course = {
+    lesson: "That's the bid. It is the most a buyer will pay right now.",
+    provenance: { source_kind: 'course', source_ref: 'docs/study/courses/F1/F1.03.json#q01' },
+    depth: { sources: [{ name: 'SEC, Investor.gov: Bid price', url: 'https://www.investor.gov/x', quote: 'q' },
+                       { name: 'FINRA: Order types', url: 'https://www.finra.org/y', quote: 'q' }] },
+    wrong: { 'The ask': 'That is the price sellers want.' },
+    answer: { answer: 'The bid' },
+  }
+
+  it('names the cited pages as links, never the repo path', () => {
+    render(<RevealCard correct reveal={course} item={{ id: 'c1', type: 'recall' }} feedback={false} />)
+    const src = screen.getByTestId('reveal-sources')
+    expect(src).toHaveTextContent('Sources')
+    const links = src.querySelectorAll('a')
+    expect(links).toHaveLength(2)
+    expect(links[0]).toHaveAttribute('href', 'https://www.investor.gov/x')
+    expect(links[0]).toHaveAttribute('rel', 'noopener noreferrer')
+    expect(screen.queryByText(/docs\/study\/courses/)).toBeNull()
+  })
+
+  it('on a wrong pick, says why that pick was wrong', () => {
+    render(<RevealCard correct={false} reveal={course} item={{ id: 'c1', type: 'recall' }} picked="The ask" feedback={false} />)
+    expect(screen.getByTestId('wrong-why')).toHaveTextContent('Why not The ask')
+    expect(screen.getByTestId('wrong-why')).toHaveTextContent('That is the price sellers want.')
+  })
+
+  it('shows no why-not line on a right answer or a pick with no note', () => {
+    const { rerender } = render(<RevealCard correct reveal={course} item={{ id: 'c1' }} picked="The bid" feedback={false} />)
+    expect(screen.queryByTestId('wrong-why')).toBeNull()
+    rerender(<RevealCard correct={false} reveal={course} item={{ id: 'c1' }} picked="The open" feedback={false} />)
+    expect(screen.queryByTestId('wrong-why')).toBeNull()
+  })
+})
+
+describe('RevealCard: an upgraded course question (docs/study/OVERBUILD_PLAN.md)', () => {
+  const upgraded = {
+    lesson: 'A lockup agreement bars insiders from selling for a set period after an IPO.',
+    simple: 'When the lockup ends, insiders are allowed to sell, so more shares can hit the market.',
+    deeper: { example: 'A new issue with a 180-day lockup.', trap: 'Treating the expiry as a guaranteed drop.' },
+    answer: { answer: 'More shares free to sell' },
+  }
+
+  it('leads with the one plain line and keeps the full answer one tap away', () => {
+    render(<RevealCard correct reveal={upgraded} item={{ id: 'c1', type: 'recall' }} />)
+    expect(screen.getByTestId('reveal-simple')).toHaveTextContent('When the lockup ends, insiders are allowed to sell')
+    const full = screen.getByTestId('full-answer')
+    expect(full.tagName).toBe('DETAILS')
+    expect(full).not.toHaveAttribute('open')
+    expect(screen.getByText('The full answer')).toBeInTheDocument()
+    expect(full).toHaveTextContent('A lockup agreement bars insiders from selling')
+    expect(screen.getByTestId('deeper-example')).toHaveTextContent('A new issue with a 180-day lockup.')
+    expect(screen.getByTestId('deeper-trap')).toHaveTextContent('Treating the expiry as a guaranteed drop.')
+    expect(screen.queryByTestId('deeper-counter')).not.toBeInTheDocument()
+  })
+
+  it('shows nothing extra for a question without a simple answer (the old reveal is unchanged)', () => {
+    render(<RevealCard correct reveal={{ lesson: 'Plain old lesson.', answer: { answer: 'x' } }} item={{ id: 'c2', type: 'recall' }} />)
+    expect(screen.queryByTestId('reveal-simple')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('full-answer')).not.toBeInTheDocument()
+    expect(screen.getByText('Plain old lesson.')).toBeInTheDocument()
+  })
+
+  it('ignores a blank simple answer and a malformed deeper block', () => {
+    render(<RevealCard correct reveal={{ lesson: 'Just the lesson.', simple: '   ', deeper: 'oops', answer: { answer: 'x' } }} item={{ id: 'c3', type: 'recall' }} />)
+    expect(screen.queryByTestId('reveal-simple')).not.toBeInTheDocument()
+    expect(screen.getByText('Just the lesson.')).toBeInTheDocument()
+  })
+})

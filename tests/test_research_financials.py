@@ -1,4 +1,10 @@
-"""Tests for the research financials service + router."""
+"""Tests for the research financials service + router.
+
+These pin the yfinance FALLBACK path and the route: every test here runs with the
+FMP statements reader answering "no statements held" (the autouse fixture
+below), which is the only case the yfinance frames are read in. The FMP
+path, and the choice between the two, is tests/test_research_financials_fmp_first.py.
+"""
 import pandas as pd
 import pytest
 
@@ -6,6 +12,20 @@ from api.services.research import financials as fin
 from api.services.cache import cache
 from api.services.entity_master import schema, store
 from api.services.entity_master import api as em_api
+
+
+@pytest.fixture(autouse=True)
+def _fmp_feed_holds_nothing(monkeypatch):
+    """No vendor is reached from this file: the FMP reader is replaced at the
+    service's own seam with a clean "nothing held" answer, and its calls counted."""
+    calls = []
+
+    def _nothing(sym, quarterly):
+        calls.append((sym, quarterly))
+        return {"sym": sym, "periods": [], "series": {}}, True
+
+    monkeypatch.setattr(fin, "_fetch_statements", _nothing)
+    return calls
 
 
 def _income_df(cols_values):
@@ -81,7 +101,7 @@ class TestFetchIncome:
 
 class TestGetFinancials:
     def setup_method(self):
-        cache.invalidate("research_fin::TEST")
+        cache.invalidate(fin._cache_key("TEST"))
 
     def _fund_ok(self):
         return {
@@ -103,14 +123,30 @@ class TestGetFinancials:
         assert out["balance"]["debt_to_equity"] == 1.5
         assert out["metrics"]["roe"] == 120.0
         # cached now
-        assert cache.get("research_fin::TEST") is not None
+        assert cache.get(fin._cache_key("TEST")) is not None
+
+    def test_the_fallback_is_labelled_and_read_only_after_the_fmp_feed(
+            self, monkeypatch, _fmp_feed_holds_nothing):
+        df = _income_df([("2024-12-31", {"Total Revenue": 1000.0})])
+        order = []
+        monkeypatch.setattr(fin, "_fetch_income",
+                            lambda sym, q: order.append("yahoo") or (df, True))
+        monkeypatch.setattr(fin, "get_fundamentals", lambda sym: self._fund_ok())
+        real = fin._fetch_statements
+        monkeypatch.setattr(fin, "_fetch_statements",
+                            lambda sym, q: order.append("fmp") or real(sym, q))
+        out = fin.get_financials("test")
+        assert order == ["fmp", "fmp", "yahoo", "yahoo"]
+        assert _fmp_feed_holds_nothing == [("TEST", False), ("TEST", True)]
+        assert out["sources"] == {"statements": "Yahoo Finance", "summary": "Yahoo Finance"}
+        assert "fmp_unavailable" not in out and "unread" not in out
 
     def _captured_ttl(self, monkeypatch, *, fetch_income, get_fundamentals):
         seen = {}
         real_set = cache.set
 
         def spy(key, value, ttl=None):
-            if key == "research_fin::TEST":
+            if key == fin._cache_key("TEST"):
                 seen["ttl"] = ttl
             return real_set(key, value, ttl)
 
@@ -144,6 +180,7 @@ class TestGetFinancials:
         # the quarterly leg that DID resolve is still served, not thrown away
         assert out["quarterly"]
         assert out["annual"] == []
+        assert out["unread"] == ["annual"]    # a gap in what could be read, not a finding
         assert ttl == fin._FAIL_TTL
         assert ttl < fin._CACHE_TTL
 
@@ -191,8 +228,8 @@ class TestEntityResolution:
         store._local.conns = {}
         store._ALIAS_CACHE.clear()
         store._CACHE_LOADED = False
-        cache.invalidate("research_fin::SEEDED")
-        cache.invalidate("research_fin::UNKNOWNTICKER")
+        cache.invalidate(fin._cache_key("SEEDED"))
+        cache.invalidate(fin._cache_key("UNKNOWNTICKER"))
 
     def _fund_ok(self):
         return {
@@ -239,3 +276,22 @@ class TestRoute:
         body = r.json()
         assert set(body.keys()) == {"sym", "annual", "quarterly", "balance", "metrics"}
         assert body["sym"] == "AAPL"
+
+    def test_the_route_passes_the_source_block_through(self, monkeypatch):
+        import api.routers.research as research_router
+        monkeypatch.setattr(research_router, "get_financials", lambda sym: {
+            "sym": sym.upper(), "annual": [], "quarterly": [{"period": "Q3 2026"}], "balance": {},
+            "metrics": {}, "sources": {"statements": "FMP", "summary": "Yahoo Finance"},
+        })
+        body = self._client().get("/api/research/financials/AAPL").json()
+        assert body["sources"] == {"statements": "FMP", "summary": "Yahoo Finance"}
+
+    def test_a_build_that_raised_is_marked_unread_not_served_as_no_history(self, monkeypatch):
+        import api.routers.research as research_router
+
+        def boom(sym):
+            raise RuntimeError("single-flight follower timed out")
+        monkeypatch.setattr(research_router, "get_financials", boom)
+        body = self._client().get("/api/research/financials/AAPL").json()
+        assert body["annual"] == [] and body["quarterly"] == []
+        assert body["unread"] == ["quarterly", "annual"]

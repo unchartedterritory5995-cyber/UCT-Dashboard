@@ -1,0 +1,206 @@
+{
+  "doc": {
+    "content": [
+      {
+        "content": [
+          {
+            "text": "Pre-market checklist",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "attrs": {
+              "checked": true
+            },
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Entry level set",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "taskItem"
+          },
+          {
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Stop placed",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "taskItem"
+          },
+          {
+            "attrs": {
+              "checked": false
+            },
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Review the tape",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "taskItem"
+          }
+        ],
+        "type": "taskList"
+      },
+      {
+        "content": [
+          {
+            "text": "Then:",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "content": [],
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          }
+        ],
+        "type": "bulletList"
+      },
+      {
+        "content": [
+          {
+            "attrs": {
+              "checked": true
+            },
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Nested in a list item",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "taskItem"
+          }
+        ],
+        "type": "taskList"
+      },
+      {
+        "content": [
+          {
+            "text": "after the list",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "outer item",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              },
+              {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "content": [],
+                        "type": "paragraph"
+                      }
+                    ],
+                    "type": "listItem"
+                  }
+                ],
+                "type": "bulletList"
+              },
+              {
+                "content": [
+                  {
+                    "attrs": {
+                      "checked": false
+                    },
+                    "content": [
+                      {
+                        "content": [
+                          {
+                            "text": "two levels down",
+                            "type": "text"
+                          }
+                        ],
+                        "type": "paragraph"
+                      }
+                    ],
+                    "type": "taskItem"
+                  }
+                ],
+                "type": "taskList"
+              }
+            ],
+            "type": "listItem"
+          },
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "second outer",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          }
+        ],
+        "type": "bulletList"
+      },
+      {
+        "content": [
+          {
+            "text": "end",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": []
+}

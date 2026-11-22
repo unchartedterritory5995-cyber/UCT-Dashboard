@@ -24,7 +24,11 @@
  *    is public, so hash every candidate and match. Over the skeleton, every
  *    candidate a dictionary holds lands on one hash ("What a hash may see").
  * ⛔ EVERY DIGIT in the message and the stack becomes `#` — prices, sizes,
- *    times, line numbers alike.
+ *    times alike. ONE exception, in stack frames only (2026-11-11): a position
+ *    in this site's OWN built code, `<origin>/assets/<chunk>.js:<line>:<col>`,
+ *    keeps its digits, because it names where the code is and nothing a member
+ *    wrote, and without it no report can be traced to a source line
+ *    (`ownAssetPosition` below; the server applies the same exception).
  * ⛔ STACKS ARE FRAMES ONLY. The `Name: message` header V8 puts first is cut,
  *    and any stack line that repeats a line of the message is dropped, BEFORE
  *    the frame filter — so a message line that happens to be shaped like a
@@ -610,17 +614,39 @@ function scrubFrameLine(line) {
     .replace(FS_PATH_IN_FRAME, (_m, lead, path) => lead + scrubUrl(path.replace(/\\/g, '/')))
 }
 
-/** Frame lines only (any other line is dropped), URL-scrubbed, digits masked.
+// ⭐ A FRAME'S POSITION IN OUR OWN BUILT CODE KEEPS ITS DIGITS (2026-11-11, desktop speed plan 9.7).
+// `<this site's origin>/assets/<chunk>.js:<line>:<col>` is WHERE THE CODE IS: a build artifact's file
+// name and a position in it, never anything a member typed. With its digits masked (`index-B#x.js:#:#`)
+// a report could never be traced to a source line; kept whole, `tools/resolve_client_error.mjs` maps it
+// to `src/...jsx:line` by rebuilding that exact build with source maps. ONLY this site's own origin and
+// ONLY a file directly under /assets/: a third-party script, a blob, a data URL or a deeper path is
+// masked as before. The server applies the identical exception (api/services/client_errors.py).
+const ORIGIN_SHAPE = /^https?:\/\/[\w.-]+(?::\d{1,5})?$/
+function ownAssetPosition(origin) {
+  if (typeof origin !== 'string' || !ORIGIN_SHAPE.test(origin)) return null
+  return new RegExp(`${escapeRe(origin)}/assets/[\\w.-]{1,120}\\.m?js:\\d{1,7}:\\d{1,7}(?![\\w:.])`, 'g')
+}
+function maskKeepingOwnPositions(line, ownRe) {
+  if (!ownRe) return maskDigits(line)
+  const kept = []
+  const masked = maskDigits(line.replace(/\u0000/g, '').replace(ownRe, (m) => { kept.push(m); return '\u0000' }))
+  let i = 0
+  return masked.replace(/\u0000/g, () => kept[i++] || '')
+}
+
+/** Frame lines only (any other line is dropped), URL-scrubbed, digits masked
+ *  (except a position in this site's own /assets/ chunks, above).
  *  `exclude` is a set of trimmed lines never to keep — the message's own
  *  lines, so a message line shaped like a frame cannot pass as one. */
-export function scrubStack(stack, max = MAX_STACK, { react = false, exclude = null } = {}) {
+export function scrubStack(stack, max = MAX_STACK, { react = false, exclude = null, origin = null } = {}) {
   if (typeof stack !== 'string' || !stack) return ''
+  const ownRe = ownAssetPosition(origin)
   const lines = []
   for (const line of stack.slice(0, 2 * max).split('\n')) {
     if (exclude && exclude.has(line.trim())) continue
     const isFrame = V8_FRAME.test(line) || JSC_FRAME.test(line) || (react && REACT_FRAME.test(line))
     if (!isFrame) continue
-    lines.push(maskDigits(scrubFrameLine(line)).slice(0, MAX_FRAME))
+    lines.push(maskKeepingOwnPositions(scrubFrameLine(line), ownRe).slice(0, MAX_FRAME))
   }
   return lines.join('\n').slice(0, max)
 }
@@ -674,8 +700,8 @@ function fromRaw(raw, { kind = 'error', componentStack, loc } = {}) {
     name: m.name,
     message: m.message,
     template: m.template,
-    stack: scrubStack(cutHeader(raw.stack, raw.name, raw.message), MAX_STACK, { exclude }),
-    componentStack: scrubStack(typeof componentStack === 'string' ? componentStack : '', MAX_COMPONENT_STACK, { react: true, exclude }),
+    stack: scrubStack(cutHeader(raw.stack, raw.name, raw.message), MAX_STACK, { exclude, origin: where?.origin }),
+    componentStack: scrubStack(typeof componentStack === 'string' ? componentStack : '', MAX_COMPONENT_STACK, { react: true, exclude, origin: where?.origin }),
     page: reducePath(pathname).slice(0, MAX_PAGE),
     ts: Date.now(),
   }

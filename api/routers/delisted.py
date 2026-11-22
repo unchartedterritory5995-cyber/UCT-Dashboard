@@ -10,10 +10,10 @@ Both routes are PAID now. `/{sym}` is the cheap per-symbol lookup the chart uses
 to decide whether to freeze the live paths — it is on the same paid chart surface
 as `/list`, and leaving the singular open would just make the bulk route a loop.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
-from api.services import delisted_registry
+from api.services import delisted_registry, reference_cache
 
 router = APIRouter()
 
@@ -40,7 +40,7 @@ def delisted_list(_user: dict = Depends(require_paid)):
 
 
 @router.get("/api/delisted/{sym}")
-def delisted_one(sym: str, _user: dict = Depends(require_paid)):
+def delisted_one(sym: str, response: Response = None, _user: dict = Depends(require_paid)):
     """Metadata for one delisted ticker, or {delisted: false} if it isn't one. The
     frontend calls this to decide whether to FREEZE the live paths (no streaming, no live
     price, 'Delisted YYYY' badge, curated watermark)."""
@@ -48,6 +48,9 @@ def delisted_one(sym: str, _user: dict = Depends(require_paid)):
     # "BSC-OLD" Bear Stearns entity), so the badge/watermark are correct even when a user
     # charts the bare reused symbol. A live ticker resolves to None (never mislabeled).
     rec = delisted_registry.resolve(sym)
+    # The registry is loaded from the release and does not change while it runs: both answers
+    # are complete, so the member's browser may keep either (api/services/reference_cache.py).
+    reference_cache.allow(response, reference_cache.DELISTED_S)
     if not rec:
         return {"ticker": (sym or "").upper(), "delisted": False}
     return {**rec, "delisted": True}

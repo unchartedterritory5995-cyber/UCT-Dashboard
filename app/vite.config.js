@@ -1,6 +1,10 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath } from 'node:url'
+// The chart library's data layer does (series x time points) of work on every series.setData,
+// so a flip of a 30-series chart was mostly that. Three exact edits, applied to the bundle only;
+// the why, the measurements and the proof are in the module and its test.
+import { patchChartLibrary } from './scripts/chartLibraryPatch.mjs'
 
 /** Pre-launch metadata swap.
  *
@@ -27,7 +31,7 @@ function comingSoonMeta() {
   // (observed: cf-cache-status HIT serving the previous card after deploy) and
   // X/Discord/iMessage cache their copy far longer. Both key on the FULL url,
   // so the query string is what actually busts them. FastAPI ignores the param.
-  const IMAGE = 'https://uctintelligence.com/og-coming-soon.png?v=nov14-card'
+  const IMAGE = 'https://uctintelligence.com/og-coming-soon.png?v=dec5-card'
 
   // The JSON-LD block declares two purchasable Offers ($200/mo, $2000/yr) and a
   // 7-day free trial. That is machine-readable "you can buy this now" that
@@ -120,12 +124,13 @@ function stripManifestProse() {
     async transform(code, id) {
       const file = id.split('\\').join('/')
       if (file.endsWith('/lib/marketClock/market_calendar.json')) {
-        // ⭐ Not prose: repetition. Lossless: `calendarCompact.test.js` proves the
-        // runtime's `expandCalendar` rebuilds the file exactly.
-        const { compactCalendar } = await import('./src/lib/marketClock/calendarCompact.js')
-        const { doc, savedBytes } = compactCalendar(JSON.parse(code))
+        // ⭐ Mostly not prose: repetition. `calendarCompact.test.js` proves the
+        // runtime's `expandCalendar` rebuilds every row exactly. The one field left
+        // out is the `source` note, which nothing in the app reads (same test).
+        const { bundleCalendar } = await import('./src/lib/marketClock/calendarCompact.js')
+        const { doc, savedBytes } = bundleCalendar(JSON.parse(code))
         // eslint-disable-next-line no-console
-        console.log(`[uct] market_calendar: rows grouped, dates as day gaps, `
+        console.log(`[uct] market_calendar: rows grouped, dates as day gaps, source note left out, `
           + `${(savedBytes / 1024).toFixed(1)}kB off the bundle`)
         return { code: JSON.stringify(doc), map: null }
       }
@@ -153,7 +158,7 @@ function stripManifestProse() {
 }
 
 export default defineConfig({
-  plugins: [react(), comingSoonMeta(), stripManifestProse()],
+  plugins: [react(), comingSoonMeta(), stripManifestProse(), patchChartLibrary()],
   // ⛔⛔ ONE `build` KEY. There were TWO top-level `build` keys from 2026-09-12 (`d261d0731`
   // added the engine floor below as a second `build: { target }` block) until 2026-09-20,
   // fixed independently on master and on wave 7 (the two fixes met in the wave-7 merge). In an
@@ -179,6 +184,12 @@ export default defineConfig({
     // price the Notebook route (entry + everything it reaches), instead of a hand-typed chunk
     // list that goes stale on the next rename. It changes no chunk; it only writes the graph.
     manifest: true,
+    // ⭐ HIDDEN SOURCE MAPS (2026-11-11, desktop speed plan 9.7): a .map per chunk and NO
+    // sourceMappingURL comment, so the shipped JS is byte-identical and no browser fetches a map.
+    // `scripts/stash-sourcemaps.mjs` (next in the build) moves them out of the public /assets mount
+    // into dist/.maps/; only the admin endpoint GET /api/admin/client-errors/sourcemap/{chunk} reads
+    // them, so `tools/resolve_client_error.mjs` turns an error report's kept position into a source line.
+    sourcemap: 'hidden',
     chunkSizeWarningLimit: 4000,
     // ⚰️⚰️ THE `target` ABOVE LIVED IN A SECOND `build:` KEY UNTIL 2026-09-20, AND A DUPLICATE KEY IN AN
     // OBJECT LITERAL IS NOT A MERGE — THE LAST ONE WINS AND THE FIRST IS DISCARDED ENTIRELY.
@@ -269,7 +280,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    setupFiles: './src/test-setup.js',
+    // + the read capture, ONLY when asked (pine heavy's legs set UCT_READ_CAPTURE_DIR): which files each
+    // test file reads, for tools/ci_whole_app_rails.py. Header: src/test-read-capture.cjs.
+    setupFiles: process.env.UCT_READ_CAPTURE_DIR
+      ? ['./src/test-setup.js', './src/test-read-capture.js']
+      : './src/test-setup.js',
     pool: 'forks',
     // The full suite (~3,100 tests under jsdom + echarts/recharts) peaks near
     // the default ~4GB worker heap and OOMs a fork mid-run ("Ineffective
@@ -330,7 +345,15 @@ export default defineConfig({
     // test legitimately needs more than a couple of seconds, the question is
     // still what it is doing — this only stops a healthy 2.3s test from being
     // killed because the machine was busy.
-    testTimeout: 15000,
+    //
+    // ⭐ 15000 -> 30000 on 2026-11-16, for the same reason one layer up: the ENGINE and vendor-harness
+    // lanes on GitHub's runners. One passing run of those lanes (PR #1502) held 35 tests at 7-15 s with
+    // no per-file budget, and that night two tripped the 15 s line on slower runners while answering
+    // correctly: vendorHarness.div1WarmHistory's htf-liquidity grade (11.5 / 13.1 / 15.45 s across
+    // three PRs) and objectFnInline.vendor's sector-rotation (8.8 / 10.1 / 13.1 s, then >15 s). Full
+    // grades of real scripts, roughly 1x headroom against a 2x runner variance: the margin above, again.
+    // Files that need more still say so with `vi.setConfig({ testTimeout })` (c26OtherSymbol: 60 s).
+    testTimeout: 30000,
     server: {
       deps: {
         // Alias the broken @picovoice/porcupine-web package to our test stub

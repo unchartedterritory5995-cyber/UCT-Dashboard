@@ -1,0 +1,76 @@
+/* SCTR and HILO (data wave 1): the two small bars marketPanels.module.css has no class for.
+   App tokens only (the terminal wears the member's theme); every bar is decoration beside a number
+   that carries its own sign, so color is never the only signal. Nothing here is clickable. */
+
+/* SCTR: one bar per sector, growing right of the middle for a gain and left of it for a loss. */
+.barRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.track {
+  position: relative;
+  flex: 1 1 4rem;
+  min-width: 3rem;
+  max-width: 16rem;
+  height: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.mid {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--border);
+}
+
+.bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  opacity: 0.7;
+}
+
+.barUp {
+  left: 50%;
+  background: var(--success-ink);
+}
+
+.barDown {
+  right: 50%;
+  background: var(--danger-ink);
+}
+
+.value {
+  flex: 0 0 auto;
+  min-width: 4.6em;
+  text-align: right;
+}
+
+/* HILO: the share of names at a new high against the share at a new low, as one split bar. */
+.splitBar {
+  display: flex;
+  width: 100%;
+  height: 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+
+.splitUp {
+  background: var(--success-ink);
+  opacity: 0.7;
+}
+
+.splitDown {
+  background: var(--danger-ink);
+  opacity: 0.7;
+}

@@ -26,8 +26,14 @@ import { planIndicatorMutation, applyIndicatorMutation, confirmIndicatorMutation
 import { instancesOf } from '../../components/chart/builder/agentSeams'
 import { catalogRows, userCatalogRows } from '../../components/chart/indicatorCatalog'
 import * as nativeRegistry from '../../components/chart/engine/nativeRegistry'
+import { visibleInputs } from '../../components/chart/indicatorRegistry'
+import { serverDeclares, isCatalogRowOffered } from '../../components/chart/engine/serverCompute'
+import { enumOptionRequiresServer } from '../../components/chart/engine/defSchema'
 import { afterRender } from '../frames'
 import { wordsSelect } from '../routing'
+import { savedReferent } from './indicatorAuthoring'
+import { colorName } from './chart'
+import { calcTimeframeOf } from '../../components/chart/engine/instanceTimeframe'
 
 const REF = 'ixe:'
 const refOf = (chartRef) => `${REF}${chartRef}`
@@ -57,6 +63,8 @@ const rowsOf = (cs) => { try { return instancesOf(cs, nativeRegistry).filter(r =
 const snapOf = (host, c) => ({
   ref: refOf(c.ref), chartRef: c.ref, label: c.label, position: c.position || null, symbol: c.symbol,
   cs: c.cs, canManage: mutationCtx(host, c.ref).canManage, rows: rowsOf(c.cs),
+  // the chart's OWN timeframe (calc-TF family: a calculation frame is judged against it, and it must not move)
+  tf: c.tf ?? null,
 })
 export { refOf as indicatorEditsRef, chartRefOf as chartOfIndicatorEdits, rowsOf as indicatorRowsOf }
 
@@ -66,10 +74,12 @@ export function addableRows() {
   const owned = new Set(ownedIds())
   let shipped = []
   let mine = []
-  try { shipped = catalogRows(nativeRegistry).filter(r => !!nativeRegistry.getDefinition(r.id)) } catch { shipped = [] }
+  // ⭐ RS split U1 — and only what the live server lists: a `meta.requiresServer` definition is not
+  // offered until its row exists (`isCatalogRowOffered`, the same gate the library and the sheet read).
+  try { shipped = catalogRows(nativeRegistry).filter(r => !!nativeRegistry.getDefinition(r.id) && isCatalogRowOffered(r, nativeRegistry)) } catch { shipped = [] }
   try { mine = userCatalogRows(nativeRegistry).filter(r => owned.has(r.id)) } catch { mine = [] }
   return [...shipped, ...mine].map(r => {
-    const settings = settingsLine(r.inputs)
+    const settings = settingsLine(r.inputs, r.id)
     return settings ? { defId: r.id, name: r.name, settings } : { defId: r.id, name: r.name }
   })
 }
@@ -80,11 +90,36 @@ export function addableRows() {
 //   "period int 1-500 (5); maType sma|ema|wma|… (sma)". Colours, sources and text are left
 // out — the Agent sets lengths, multipliers, types and switches, not paint.
 const SETTABLE = new Set(['int', 'float', 'enum', 'bool'])
-export function settableInputs(inputs) {
-  return (Array.isArray(inputs) ? inputs : []).filter(i => i && SETTABLE.has(i.type))
+// ⭐ UCT RS 3-14 — AND ONLY WHAT THE SETTINGS SURFACES SHOW. With `defId`, the list follows
+// the one visibility model the dialog, the phone sheet and the inspector read
+// (`indicatorRegistry.visibleInputs` over `serverCompute.serverDeclares`): a `requiresServer`
+// input or option the live row has not declared is not offered (fail closed while unknown),
+// and a `legacy` input only while its `mapsTo` successor is still gated off. A definition
+// that marks nothing gated or legacy is returned exactly as before.
+const optionValueOf = (o) => (Array.isArray(o) ? o[0] : (o && typeof o === 'object' && 'value' in o ? o.value : o))
+const gatedDef = (def) => !!def && Array.isArray(def.inputs) && def.inputs.some(i => i && (i.legacy === true
+  || i.requiresServer === true || (Array.isArray(i.options) && i.options.some(enumOptionRequiresServer))))
+function shownInputsOf(defId) {
+  let def = null
+  try { def = defId ? nativeRegistry.getDefinition(defId) : null } catch { def = null }
+  if (!gatedDef(def)) return null
+  let declared = null
+  try { declared = serverDeclares(defId) } catch { declared = null }
+  return new Map(visibleInputs(def, declared).map(i => [i.key, i]))
 }
-function settingsLine(inputs) {
-  return settableInputs(inputs).map(i => {
+export function settableInputs(inputs, defId) {
+  const list = (Array.isArray(inputs) ? inputs : []).filter(i => i && SETTABLE.has(i.type))
+  const shown = shownInputsOf(defId)
+  if (!shown) return list
+  return list.filter(i => shown.has(i.key)).map(i => {
+    const v = shown.get(i.key)
+    if (i.type !== 'enum' || !Array.isArray(i.options) || !Array.isArray(v.options)) return i
+    const ok = new Set(v.options.map(optionValueOf))
+    return { ...i, options: i.options.filter(o => ok.has(optionValueOf(o))) }
+  })
+}
+function settingsLine(inputs, defId) {
+  return settableInputs(inputs, defId).map(i => {
     const kind = i.type === 'enum' ? (i.options || []).map(o => String(o.value)).join('|')
       : i.type === 'bool' ? 'true|false'
         : `${i.type}${Number.isFinite(i.min) || Number.isFinite(i.max) ? ` ${i.min ?? ''}-${i.max ?? ''}` : ''}`
@@ -95,7 +130,7 @@ function settingsLine(inputs) {
 export function inputsOfDef(defId) {
   try {
     const row = [...catalogRows(nativeRegistry), ...userCatalogRows(nativeRegistry)].find(r => r.id === defId)
-    return settableInputs(row && row.inputs)
+    return settableInputs(row && row.inputs, defId)
   } catch { return [] }
 }
 
@@ -136,15 +171,26 @@ export function alreadyOnChart(st, defId, inputs) {
 // definition declares as a colour, a source or text is refused here, before Indicators is asked — paint
 // and data links stay in the settings dialog until Indicators ships its own validated ops for them
 // (docs/agent/PHASE2-SHARED-CONTRACT.md). An undeclared key is left to Indicators' own refusal.
-const UNSETTABLE_WORD = { color: 'colours', source: 'data sources', text: 'text' }
+const UNSETTABLE_WORD = { color: 'colors', source: 'data sources', text: 'text' }
 export function unsettableInput(defId, inputs) {
   if (!inputs) return null
   let declared = []
   try { declared = (nativeRegistry.getDefinition(defId) || {}).inputs || [] } catch { declared = [] }
+  const shown = shownInputsOf(defId)
   for (const key of Object.keys(inputs)) {
     const d = declared.find(i => i && i.key === key)
     if (d && !SETTABLE.has(d.type)) {
       return `I can't change an indicator's ${UNSETTABLE_WORD[d.type] || `“${d.label || key}” setting`} yet — use that indicator's settings on the chart.`
+    }
+    // ⭐ 3-14: a setting the settings surfaces do not show (gated off by the server, or a
+    // retired legacy switch) is not written either — the Agent writes what it advertises.
+    if (d && shown) {
+      const v = shown.get(key)
+      const value = inputs[key]
+      const optionHidden = v && d.type === 'enum' && Array.isArray(v.options)
+        && Array.isArray(d.options) && d.options.some(o => optionValueOf(o) === value)
+        && !v.options.some(o => optionValueOf(o) === value)
+      if (!v || optionHidden) return `“${d.label || key}”${optionHidden ? ` set to ${JSON.stringify(value)}` : ''} isn't available on this indicator yet, so I didn't change anything.`
     }
   }
   return null
@@ -163,6 +209,10 @@ export function settingsPhrase(defId, values) {
   }).join(', ')
 }
 const NOT_ADDABLE = /^(volume ?profile|vpvr|vp|ma|moving average|classic|overlay)$/i
+// Charts family (2026-11-12): Volume Profile is still NOT an Indicator Library add (no definition — the carved-out key), but
+// the Agent now turns it on through its own action, so an indicator.add of it says THAT rather than "Chart Settings"
+const VOLUME_PROFILE_WORDS = /^(volume ?profile|vpvr|vp)$/i
+export const VP_NOT_AN_ADD = 'Volume Profile isn’t added from the Indicator Library — it is the chart’s own overlay. Say “turn on Volume Profile” and I’ll switch it on.'
 
 // ── sentences for every refusal the interface returns (§15.4) ──
 export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
@@ -210,22 +260,38 @@ export function refusalSentence(res, { chart = 'that chart', op = null } = {}) {
       }
       // ⭐ P2: the op's own allowed values (`detail.options`: values, or {label} rows)
       if (!allowed && Array.isArray(d.options) && d.options.length) allowed = ` It can be ${d.options.map(o => (o && typeof o === 'object' ? (o.label ?? o.value ?? o.target) : o)).join(', ')}.`
+      // calc-TF family: the product's own reason it follows the chart's timeframe (CAPABILITY_WORDS / the select's note)
+      // (AUDIT #1171 ruling 1) a lower / straddling frame: the Inspector's Timeframe select CAN store it — say so; never coerced
+      if (op === 'setCalculationTimeframe' && d.relation) return `I didn't change its calculation timeframe: ${d.why}. Nothing was changed. The indicator's own Timeframe setting (Chart Settings → Indicators) can still store it, and the chart would then show that same note and calculate it on the chart's own bars.`
+      if (op === 'setCalculationTimeframe' && (d.capability || d.relation)) return `I didn't change its calculation timeframe: ${d.why}. Nothing was changed.`
       return `I didn't ${op === 'setInputs' || P2_OPS.has(op) ? 'change it' : 'add it'}: ${d.why || 'that setting is not valid'}.${allowed} Nothing was changed.`
     }
     default: return 'That did not work.'
   }
 }
 
-const P2_OPS = new Set(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom'])
+// ⭐ UCT RS Phase 2a (2a-12b): `setDotSize` — the Dot size control (small / medium / large), one of the STYLE ops
+const P2_OPS = new Set(['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize', 'movePane', 'setPaneSize', 'duplicate', 'copyFrom', 'setCalculationTimeframe'])
 const severText = (list) => (list || []).map(d => (d.kind === 'infoValue' ? `a header value reading it` : `${d.name}'s ${d.key || 'source'} input`))
 
+// ⭐ PACKAGE 3: one of the member's OWN indicators is said by its saved NAME ("Volume Thrust Days"), not the legend's
+// 12-character chip cut of it ("Volume" — which reads as the built-in Volume). A name that reads like a formula keeps the chip.
+const OWN_DEF = /^u_[0-9a-z]+$/i
+export function ownIndicatorName(defId) {
+  if (!OWN_DEF.test(String(defId || ''))) return null
+  let n = null
+  try { n = nativeRegistry.getDefinition(defId)?.meta?.name || null } catch { n = null }
+  n = typeof n === 'string' ? n.trim() : ''
+  return n && n.length <= 40 && !/[<>=+*^[\]·−×÷]|&&|\|\|/.test(n) ? n : null
+}
 /** The receipt sentence — only from a CONFIRMED receipt. */
 export function receiptLine(receipt, chart) {
-  const name = receipt.name || 'the indicator'
+  const name = ownIndicatorName(receipt.defId) || receipt.name || 'the indicator'
   const where = chart ? ` on ${chart}` : ''
   if (receipt.op === 'undo') {
     // ⭐ P2: style / placement / pane edits put back exactly; a duplicate or a copy removed again
-    if (['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget'].includes(receipt.undoOf)) return `Put ${name}${where} back as it was.`
+    if (receipt.undoOf === 'setCalculationTimeframe') return `Put ${name}${where} back on its previous calculation timeframe.`
+    if (['setAppearance', 'setPlotStyle', 'setColor', 'setDisplayTarget', 'setVisibility', 'setDotSize'].includes(receipt.undoOf)) return `Put ${name}${where} back as it was.`
     if (receipt.undoOf === 'movePane' || receipt.undoOf === 'setPaneSize') return `Put the ${name} pane${where} back as it was.`
     if (receipt.undoOf === 'duplicate' || receipt.undoOf === 'copyFrom') return `Removed the ${name} I added${where}.`
     if (receipt.undoOf === 'remove') {
@@ -262,18 +328,34 @@ export function receiptLine(receipt, chart) {
 const STYLE_WORD = { lineWidth: 'line width', lineStyle: 'line style', overlap: 'overlap' }
 export const placeWord = (t) => (t === 'price' ? 'on the price pane' : t === 'volume' ? 'on the volume pane' : t === 'pane' ? 'in its own pane' : typeof t === 'string' && t.startsWith('@') ? 'in another indicator\'s pane' : String(t || 'where it was'))
 export const shareWord = (s) => (s == null ? 'automatic height' : `${Math.round(s * 100)}% of the chart's height`)
+// "Daily only" → "Daily charts", "Daily + Weekly" → "Daily + Weekly charts", "Intraday only" → "intraday charts" (Indicators' visibilitySummary words)
+const showWord = (v) => { const t = String(v || 'All timeframes').replace(/ only$/, ''); return t === 'All timeframes' ? 'all timeframes' : `${/^(Intraday|Daily & above)$/.test(t) ? t.toLowerCase() : t} charts` }
+// ⭐ 2a-12b: the Dot size words as the control shows them — "medium" is the declared size, labelled "Default" (`DOT_SIZE_OPTIONS`)
+export const dotSizeWord = (w) => (w === 'medium' ? 'Default' : String(w || 'Default'))
+// calc-TF family: a calculation frame in the member's words ("weekly", "1-hour"); the chart's timeframe as its menu says it
+const CALC_WORD = { D: 'daily', W: 'weekly', M: 'monthly', 60: '1-hour', 1: '1-minute', 5: '5-minute', 15: '15-minute', 30: '30-minute' }
+export const calcWord = (code) => CALC_WORD[code] || String(code || '')
+const chartTfWord = (tf) => (tf === 'D' ? 'Daily' : tf === 'W' ? 'Weekly' : tf === 'M' ? 'Monthly' : /^\d+$/.test(String(tf)) ? (Number(tf) % 60 === 0 ? `${Number(tf) / 60}h` : `${tf}m`) : String(tf))
 export function extReceiptLine(receipt, name, where) {
   const c = receipt.change || {}
   switch (receipt.op) {
     case 'setAppearance': return `Changed ${name}'s ${STYLE_WORD[c.key] || c.key}${where} — ${c.before} → ${c.after}.`
+    // ⭐ 2a-12b: `plotKey` only when ONE dot output was sized (absent = the instance level, as the Dot size control writes it)
+    case 'setDotSize': return `Changed ${name}'s dot size${c.plotKey ? ` (${c.plotKey})` : ''}${where} — ${dotSizeWord(c.before)} → ${dotSizeWord(c.after)}.`
     case 'setPlotStyle': return `Changed how ${name}${c.plotKey ? ` (${c.plotKey})` : ''} is drawn${where} — ${c.before || 'default'} → ${c.after}.`
-    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} colour` : 'colour'}${where} to ${c.after}.`
+    case 'setColor': return `Changed ${name}'s ${String(c.target || '').startsWith('sign:') ? `${c.target === 'sign:up' ? 'up' : 'down'} color` : 'color'}${where} to ${colorName(c.after)}.`
+    // calc-TF family: which bars COMPUTE it (never the chart's timeframe, never where it shows)
+    case 'setCalculationTimeframe': return c.after
+      ? `Calculated ${name}${where} on ${calcWord(c.after)} bars (was ${c.before ? `${calcWord(c.before)} bars` : 'the chart\'s own timeframe'})${c.chartTf ? ` — the chart itself stays on ${chartTfWord(c.chartTf)}` : ''}.`
+      : `Calculated ${name}${where} on the chart's own timeframe again (was ${calcWord(c.before)} bars).`
+    case 'setVisibility': return c.after === 'All timeframes' ? `${name}${where} shows on all timeframes again (was ${showWord(c.before)}).` : `${name}${where} now shows on ${showWord(c.after)} only (was ${showWord(c.before)}).`
     case 'setDisplayTarget': return `Moved ${name} ${placeWord(c.after)}${where}${(c.guests || []).length ? ` — ${c.guests.map(g => g.name).join(', ')} moved with it` : ''}.`
     case 'movePane': return `Moved the ${name} pane${where} — now ${paneOrderWord(c.after, c.paneKey)}.`
     case 'setPaneSize': return `Set the ${name} pane${where} to ${shareWord(c.after)}.`
     case 'duplicate': return `Added a copy of ${receipt.from || name}${where} (${name}).`
     case 'copyFrom': {
-      const done = (receipt.copied || []).map(x => x.name)
+      // PACKAGE 3: one of the member's own indicators by its saved name (its instance id carries its definition)
+      const done = (receipt.copied || []).map(x => ownIndicatorName(/^inst:(u_[0-9a-z]+):/i.exec(String(x.instanceId || ''))?.[1]) || x.name)
       const had = (receipt.already || []).map(x => x.name)
       return `Copied ${done.join(', ') || name}${where}${had.length ? ` · already there: ${had.join(', ')}` : ''}.`
     }
@@ -334,8 +416,24 @@ async function persistAndReadBack(host, chartRef, before, written) {
 
 const fail = (msg, { unreverted = false } = {}) => Object.assign(new Error(msg), unreverted ? { unreverted: true } : {})
 
+// ⛔ calc-TF family READ-BACK: the chart as read after the save (`after`) against the chart before it (`before`). The chart's
+// own timeframe must be unchanged, and the STORED instance must read the frame the change named (a change) or a frame other
+// than the one it had (an Undo — Indicators' confirm has already proved the exact leaves). An instance a restored "stored
+// nothing" no longer lists computes on the chart (no frame).
+function calcLanded(after, before, patch) {
+  if (!after || String(after.tf ?? '') !== String(before?.tf ?? '')) return false
+  const id = patch.undo ? patch.undo.ids?.[0] : patch.change?.plan?.args?.instanceId
+  const find = (cs) => [].concat(cs?.indicatorInstances || []).find(i => i && i.instanceId === id)
+  const stored = find(after.stored)
+  if (patch.undo) return (stored ? calcTimeframeOf(stored) : null) !== calcTimeframeOf(find(before?.cs))
+  return !!stored && calcTimeframeOf(stored) === (patch.change.plan.preview?.change?.after ?? null)
+}
+
 export const indicatorEditsKind = {
   name: 'indicatorEdits',
+  source: 'charts',             // fix-nothing-on-workspace: the host source this kind reads (capabilities.noTargetSentence)
+  unavailable: "Indicators aren't available on this page — open Charts to change a chart's indicators.",
+  empty: "There are no charts on this board yet.",
   noun: 'chart',                 // what a local "which one?" asks for
   // Its target IS a chart: the mutation policy counts "this chart's indicators" and "this chart" as one.
   groupOf: (ref) => chartRefOf(ref) ?? ref,
@@ -349,8 +447,34 @@ export const indicatorEditsKind = {
     const c = chartRefOf(ref) && host?.charts?.read(chartRefOf(ref))
     return c ? snapOf(host, c) : null
   },
-  stateOf: (s) => ({ chart: s.label, chartRef: s.chartRef, cs: s.cs, canManage: s.canManage, rows: s.rows, change: null }),
+  stateOf: (s) => ({ chart: s.label, chartRef: s.chartRef, cs: s.cs, canManage: s.canManage, rows: s.rows, chartTf: s.tf ?? null, symbol: s.symbol, change: null }),
   patch: (before, after) => (after.change ? { change: after.change } : null),
+  // ⛔ STEP IDENTITY (11-14, BUG B — agent/stepIdentity.js): the instance a queued step's words mean on the state the member
+  // asked about ("#20:ema", "#20", "EMA 20", an id) — pinned before the first step runs, compared with the live reading after
+  pinIdentity(host, op) {
+    const words = op?.args?.instance
+    if (typeof words !== 'string' || !words.trim()) return null
+    const snap = indicatorEditsKind.read(host, op.target)
+    if (!snap) return null
+    const st = indicatorEditsKind.stateOf(snap)
+    const t = targetOf(st, words)
+    if (!t.ok || !t.instanceId) return null
+    const row = (st.rows || []).find(r => r.instanceId === t.instanceId)
+    return { arg: 'instance', words, id: t.instanceId, name: row?.name || null }
+  },
+  resolvePinned(host, op, pin) {
+    const aimed = { ...op, args: { ...op.args, [pin.arg]: pin.id } }
+    const snap = indicatorEditsKind.read(host, op.target)
+    if (!snap) return { op }
+    const st = indicatorEditsKind.stateOf(snap)
+    const now = targetOf(st, pin.words)
+    if (now.ok && now.instanceId === pin.id) return { op: aimed }
+    if (now.ok || now.reason === REASONS.AMBIGUOUS) {
+      return { say: `I didn’t change ${pin.name || 'that indicator'} in this step: after the change before it, “${String(pin.words).replace(/^#/, '')}” could mean a different indicator on ${st.chart}, so I left it. Say which one (for example by its new length).` }
+    }
+    const still = (st.rows || []).some(r => r.instanceId === pin.id)
+    return { op: still ? aimed : op }
+  },
   // A change, or an Undo — both through the Indicators interface, then the chart's own
   // persist, then the authoritative read-back.
   async commit(host, ref, patch) {
@@ -376,6 +500,12 @@ export const indicatorEditsKind = {
     if (!saved.ok) throw fail(`the save was not confirmed (${saved.reason}), so it is not done`, { unreverted: true })
     const done = confirmIndicatorMutation(saved.readBack, step.pending, ctx)
     if (done.status !== 'confirmed') throw fail(refusalSentence({ reason: done.reason || done.status }, { chart: label }), { unreverted: true })
+    // ⛔ calc-TF family: a calculation-timeframe change is "done" only when the STORED instance reads the new frame back
+    // and the chart's OWN timeframe did not move (the change is to the indicator's bars, never the chart's)
+    const calcOp = patch.undo ? patch.undo.op : patch.change?.plan?.op
+    if (calcOp === 'setCalculationTimeframe' && !calcLanded(host.charts.read(chartRef), cur, patch)) {
+      throw fail(refusalSentence({ reason: REASONS.NOT_LANDED }, { chart: label }), { unreverted: true })
+    }
     // GATE C: the indicator this chat is now talking about ("make it a 9") — only from a CONFIRMED receipt
     const r = done.receipt
     if (!patch.undo && ['add', 'setInputs', 'setVisible'].includes(r.op) && r.instanceIds?.length === 1) {
@@ -388,7 +518,8 @@ export const indicatorEditsKind = {
       mentioned = [...mentioned, ...r.instanceIds.map(id => ({ chartRef, instanceId: id }))].slice(-48)
     }
     if (!patch.undo && r.op === 'duplicate' && patch.change?.plan?.preview?.from) r.from = patch.change.plan.preview.from
-    return { lines: [receiptLine(done.receipt, label)], undoData: done.undo || null }
+    // (`note`: what a capability adds to the receipt that the mutation cannot know, e.g. which saved template it came from)
+    return { lines: [receiptLine(done.receipt, label), ...(patch.change?.note ? [patch.change.note] : [])], undoData: done.undo || null }
   },
   // `confirmIndicatorMutation` already verified the read-back inside commit.
   landed: () => true,
@@ -441,7 +572,12 @@ export function targetOf(st, instance) {
   // Phase 2: "remove RSI" — the KIND of indicator, when exactly one of that kind is on the chart
   const want = String(instance || '').trim().toLowerCase()
   const kinds = (st.rows || []).filter(r => String(r.defId).toLowerCase() === want)
-  return kinds.length === 1 ? { ok: true, instanceId: kinds[0].instanceId } : byName
+  if (kinds.length === 1) return { ok: true, instanceId: kinds[0].instanceId }
+  // calc-TF family (C5): two of that kind ("the RSI" with RSI 14 and RSI 7 on the chart) is a question, not "not on the chart"
+  if (kinds.length > 1 && !byName.ok && byName.reason !== REASONS.AMBIGUOUS) {
+    return { ok: false, reason: REASONS.AMBIGUOUS, detail: { candidates: kinds.map(r => ({ instanceId: r.instanceId, name: r.name })) } }
+  }
+  return byName
 }
 /** "rsi" / "relative strength index" → the catalog id, when the words name exactly one indicator. */
 export function defIdOfWords(words) {
@@ -682,7 +818,7 @@ export function registerIndicatorEditCapabilities() {
     // ⭐ F5: the same add on several charts is proposed once and run once PER CHART (useAgent fan-out)
     fanOut: true,
     summary: 'Add ONE indicator to ONE chart — exactly what the Indicator Library\'s Add to Chart does. Built-in indicators or the member\'s own saved ones; Undo removes it again.',
-    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) and Volume Profile are NOT added this way — say they live in Chart Settings. '
+    hints: 'target = the ref of that chart\'s indicatorEdits entry. defId = an id from indicatorCatalog (never invented, never a name). The SAME indicator on several charts = one indicator.add per chart named, same defId; if it isn\'t clear which charts, ask. Classic overlay averages (the legacy EMA/SMA rows) are NOT added this way — say they live in Chart Settings. Volume Profile: volumeProfile.set. '
       + 'inputs = null for the indicator\'s defaults, else [{key, value}] with ONLY keys from that row\'s `settings` ("a 20 EMA" → movingAverage, [{key:"period",value:20},{key:"maType",value:"ema"}]; "RSI 7" → rsi, [{key:"period",value:7}]). '
       + 'Every number or type the member named goes in inputs — never drop one or add a default instead. A setting the row does not list: say it isn\'t available; never guess a key. '
       + 'A moving average named by its LENGTH only ("the 9 and 20", "a 50 ma"): EMA for 8, 9, 10, 20 and 21, SMA for 50 and above (the member\'s default — say which you used); any other length: ask EMA or SMA.',
@@ -714,7 +850,10 @@ export function registerIndicatorEditCapabilities() {
     // with parameters, or a near-name, goes to the model; the check below still decides.
     // ⭐ Phase 2 — "add another 20 EMA" / "a second RSI" / "RSI again": the member's explicit copy (agent/duplicates.js
     // reuses an identical one otherwise).
-    fast: ({ lower }) => {
+    fast: ({ lower, raw, host }) => {
+      // PACKAGE 3: "apply it" right after the Agent SAVED an indicator (no draft active) = add that saved definition
+      const saved = savedReferent(host, raw)
+      if (saved) return { defId: saved.defId, inputs: null, __target: refOf(saved.chart), __explicit: true }
       const m = /^(?:please )?(?:add|put|apply|plot)(?: another| a second| one more| an extra| an?| the| my)? (.+?)(?: indicator| study)?(?: again)?(?: (?:on|to|onto|in) (?:my|the|this) chart)?(?: again)?$/.exec(lower)
       if (!m) return null
       const defId = defIdOfWords(m[1])
@@ -726,6 +865,7 @@ export function registerIndicatorEditCapabilities() {
       return args
     },
     check(st, { defId, inputs }) {
+      if (VOLUME_PROFILE_WORDS.test(String(defId || '').trim())) return VP_NOT_AN_ADD
       if (NOT_ADDABLE.test(String(defId || '').trim())) return refusalSentence({ reason: REASONS.UNSUPPORTED_DEFINITION })
       const ins = inputsOfArgs(inputs)
       if (!ins.ok) return refusalSentence({ reason: REASONS.BAD_INPUT, detail: { why: ins.why } })

@@ -229,6 +229,52 @@ def test_empty_board_is_well_formed():
     assert isinstance(board["methodology"], str) and board["methodology"]
 
 
+def test_the_method_text_names_its_sources():
+    """The picks and entry prices come from the flow tape; every gain, win rate and
+    OI confirmation is computed from the option prices and open interest recorded
+    each weekday after the close from Massive, with Schwab as backup
+    (api.top_flow_tracker.snapshot_prices, owner ruling 2026-11-17). Results
+    recorded before that came from Schwab. The page prints this text verbatim, so
+    it has to say all three."""
+    text = compute_scoreboard([], today=TODAY)["methodology"]
+    assert "flagged on UCT's options flow tape" in text
+    assert "recorded each weekday after the close from Massive. " in text
+    assert "Schwab as backup" not in text                    # the backup was removed 2026-11-17
+    assert text.count("Schwab") == 1                         # said once, about the past
+    assert "Results recorded before November 2026 came from Schwab and stay as recorded" in text
+    assert "read from Schwab" not in text
+
+
+def test_the_docstring_names_the_source_order_the_tracker_runs():
+    import api.flow_scoreboard as fs
+    import api.top_flow_tracker as tracker
+    doc = " ".join(fs.__doc__.split())
+    assert "from Massive (api.massive_oi_snapshots._fetch_fields_all_async)" in doc
+    assert "and from nothing else" in doc and "schwab_service" not in doc
+    assert "before November 2026 came from Schwab and stay as recorded" in " ".join(doc.split())
+    assert 'with none is Schwab' in " ".join(doc.split())
+    # ...and that is what the tracker does, not a wish: no switch, no second source
+    assert not hasattr(tracker, "TOP_FLOW_MODE_FLAGS") and not hasattr(tracker, "snapshot_source")
+
+
+def test_the_docstring_describes_the_gated_mount_not_a_public_route():
+    """The module said "No auth on the GET ... public" long after api/main.py began
+    mounting it behind the open-reads gate. The docstring must describe the mount,
+    and the mount must still be what it describes."""
+    import pathlib
+
+    import api.flow_scoreboard as fs
+    doc = " ".join(fs.__doc__.split())
+    assert "no longer public by design" in doc and "open-reads gate" in doc
+    assert "cacheable, public" not in doc and "public trust asset" not in doc
+    root = pathlib.Path(fs.__file__).resolve().parents[1]
+    main_src = (root / "api" / "main.py").read_text(encoding="utf-8")
+    assert "app.include_router(flow_scoreboard_router, dependencies=_OPEN_READS)" in main_src
+    from api import open_reads_gate as g
+    assert g.GATED_READS["/api/flow-scoreboard"] == g.PAID
+    assert g.GATED_READS["/api/flow-scoreboard/"] == g.PAID
+
+
 # ── compute_scoreboard: grade calibration ────────────────────────────────────
 
 def test_by_grade_buckets_and_emoji_strip():

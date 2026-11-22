@@ -61,6 +61,7 @@ import { Parser } from 'acorn'
 import jsx from 'acorn-jsx'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { PINE_DEBOUNCE_MS } from './PineBox'
 import { memberPaneDefinition } from './memberPane/memberPaneDefinition'
 import { AuthContext } from '../../../context/AuthContext'
@@ -92,7 +93,7 @@ const seen = { saved: [], closed: 0 }
 function mount() {
   seen.saved = []
   seen.closed = 0
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet
@@ -107,11 +108,13 @@ function mount() {
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 
 /** Paste a script into the one Import box and let its debounce settle. */
 async function paste(script) {
-  fireEvent.click(screen.getByRole('tab', { name: /^import$/i }))
+  openSource('pine')
   fireEvent.change(screen.getByTestId('pine-box').querySelector('textarea'), { target: { value: script } })
   await act(async () => { vi.advanceTimersByTime(PINE_DEBOUNCE_MS + 1) })
   await flush()

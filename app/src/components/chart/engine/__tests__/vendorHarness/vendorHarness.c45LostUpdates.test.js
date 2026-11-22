@@ -102,10 +102,13 @@ describe('C45 — volume-profile: 200 lines held at bar 0 are withheld, by the o
     expect(r.note.note.startsWith(`${r.d.droppedOps} of ${r.d.attemptedOps} drawing elements in this script aren't supported yet`)).toBe(true)
   })
 
-  it('graded: lines 203 / 0 — a DIVERGE that says so, where 203 / 200 hid 200 wrong positions', () => {
+  // ⭐ OZ RE-PIN (2026-11-09): the empty family is now withheld BY NAME
+  // (`objects:not-carried`) — INCONCLUSIVE, where a bare 203 / 0 read as a confident DIVERGE.
+  it('graded: lines 203 / withheld by name — INCONCLUSIVE, where 203 / 200 hid 200 wrong positions', () => {
     const { verdict } = gradeCapture(parent(ID))
-    expect(familyOf(verdict, 'lines')).toMatchObject({ vendor: 203, ours: 0, agree: false })
-    expect(verdict.objects.verdict).toBe('DIVERGE')
+    expect(familyOf(verdict, 'lines')).toMatchObject({ vendor: 203, ours: null, withheld: true })
+    expect(verdict.objects.verdict).toBe('INCONCLUSIVE')
+    expect(verdict.objects.withheld).toBe('objects:not-carried')
   })
 })
 
@@ -138,11 +141,13 @@ describe('C45 — atr-support-and-resistance: zones the lost loop extends are wi
     expect(r.note.note.startsWith(`${r.d.droppedOps} of ${r.d.attemptedOps} drawing elements`)).toBe(true)
   })
 
-  it('graded: boxes 20 / 0 and lines 20 / 0 — DIVERGE, where 20 / 20 was a count of zero-width zones', () => {
+  // ⭐ OZ RE-PIN (2026-11-09): both empty families are now withheld BY NAME.
+  it('graded: boxes and lines 20 / withheld by name — INCONCLUSIVE, where 20 / 20 was a count of zero-width zones', () => {
     const { verdict } = gradeCapture(parent(ID))
-    expect(familyOf(verdict, 'boxes')).toMatchObject({ vendor: 20, ours: 0 })
-    expect(familyOf(verdict, 'lines')).toMatchObject({ vendor: 20, ours: 0 })
-    expect(verdict.objects.verdict).toBe('DIVERGE')
+    expect(familyOf(verdict, 'boxes')).toMatchObject({ vendor: 20, ours: null, withheld: true })
+    expect(familyOf(verdict, 'lines')).toMatchObject({ vendor: 20, ours: null, withheld: true })
+    expect(verdict.objects.verdict).toBe('INCONCLUSIVE')
+    expect(verdict.objects.withheld).toBe('objects:not-carried')
   })
 })
 
@@ -433,12 +438,24 @@ describe('C45 — across the committed corpus', () => {
     // (atr-support-and-resistance is not in this list: its lost moves NAME their
     // lists — `activeBox = array.get(upBox, i)` in a loop dropped whole — and are
     // withheld by handle, above.)
+    // ⭐ CHAINED ELEMENTS (2026-11-08, `fix/pine-chained-removal`): a setter on
+    // `kz._box.get(0)` / `idx.get(i)` — a user type's field, which the object
+    // program holds no register for — fell through every reader with NO count.
+    // It is now named with its family (`box.set_right`, `refuseChainedElement`)
+    // and so withheld here: ict-killzones 3 → 173 (its object program and the
+    // table its capture matches are unchanged, C11b), and bull-vs-bear joins.
+    // ⭐ UNTRACED-HANDLE SHAPES (2026-11-19): `object.set_*` (a setter whose family the reader cannot
+    // name) reaches every family with that setter instead of none: bull-vs-bear 2 → 22, still refused.
     expect(named).toEqual([
+      'bull-vs-bear-market-intraday-sessions-kioseff-trading: 22 (not attached)',
       'correlation-matrix: 55 (not attached)',
       'fx-market-sessions: 12 (not attached)',
       'ict-institutional-order-flow-fadi: 28 (not attached)',
-      'ict-killzones-pivots-tfo: 3',
+      'ict-killzones-pivots-tfo: 173',
       'market-structure-break-order-block: 4 (not attached)',
+      // ⭐ FIELD REGISTER STEP A + (b) (2026-11-19): its 21 setters through fields read before they are written are
+      // untraced now (`update:target`), each reaching its families; still refused.
+      'mgi-levels-suite: 77 (not attached)',
       'previous-day-high-and-low-separators-dailyweekly: 3 (not attached)',
       'sector-rotation: 6',
       'session-tpo-profile: 1 (not attached)',

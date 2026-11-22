@@ -10,7 +10,7 @@ import { HEADER_FIELD_BY_KEY } from './headerFields'
 // that hidden items expose no color controls.
 
 const base = () => mergeChartSettings(JSON.stringify({}))
-const openHeaderTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Header' }))
+const openHeaderTab = () => fireEvent.click(screen.getByRole('tab', { name: 'Header & legend' }))
 const lastCall = (spy) => spy.mock.calls[spy.mock.calls.length - 1][0]
 
 // The Info Row swatches are titled `${field.label} color` from the very catalog the

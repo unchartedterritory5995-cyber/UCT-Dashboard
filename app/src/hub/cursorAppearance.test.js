@@ -76,7 +76,7 @@ describe('⛔ ONE authority for the hub cursor\'s appearance (D-29)', () => {
       'a second [data-hub-cursor] rule appeared. Two rules means two answers to "what does the '
       + 'cursor look like" that only disagree on the surfaces one of them reaches. Change the '
       + '--hub-cursor-* tokens in tokens.css instead.',
-    ).toEqual([`${TOKENS_REL} ([data-hub-cursor="active"])`])
+    ).toEqual([`${TOKENS_REL} (:root[data-hub-engaged] [data-hub-cursor="active"])`])
   })
 
   it('that rule declares NO value of its own — every property reads a --hub-cursor-* token', () => {

@@ -112,16 +112,16 @@ describe('⛔⛔ the VM refuses an offset deeper than its ring — the bound\'s 
       .toThrow(/reaches past its ring of depth 2/)
   })
 
-  it('and an input set ABOVE the default the bound was proved at fails loudly, never wrong', () => {
-    // The bound folds the AUTHOR'S default (the frozen resolver, as every ring
-    // size does); a member value larger than it would reach past the ring.
+  it('an input set ABOVE the default sizes the bound at the MEMBER\'s value (settings parity 2c), never past the ring', () => {
+    // ⚰️ The bound folded the AUTHOR'S default (the frozen resolver) and a member value above it
+    // reached past the ring and threw. Since settings parity 2c the fold sees the member's value
+    // (the column lane computes it too, `paramInputs.specializeParams`), so the ring is sized at
+    // it and the loop reads every bar it asks for.
     const src = `${head}len = input.int(3, "len")\nvar float x = 0.0\nx := close\ns = 0.0\n`
       + 'for i = 0 to len - 1\n    s := s + x[i]\nplot(s)\n'
     expect(() => run(src)).not.toThrow()
-    const built = buildRuntimeIr(src, { bars: BARS, inputs: { len: 6 } })
-    expect(built.ok).toBe(true)
-    const program = lowerIrProgram(built.ir)
-    expect(() => execute(program, { bars: N, series: SERIES, columns: program.columns, confirmed: true }))
-      .toThrow(/reaches past its ring/)
+    const [s6] = run(src, { len: 6 })
+    const want = BARS.slice(N - 6).reduce((a, b) => a + b.c, 0)
+    expect(s6[N - 1]).toBeCloseTo(want, 9)
   })
 })

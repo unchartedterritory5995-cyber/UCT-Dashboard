@@ -23,7 +23,9 @@ import styles from '../ChartsWorkspace.module.css'
  * (the Ticker Hub sheet) can colour it with the text inks instead of the chart colours
  * (ChartsWorkspace.module.css, `data-ticker-hub-chart`). Elsewhere it changes nothing.
  */
-export default function ChartDayGain({ sym, upOverride = null, downOverride = null }) {
+// splitPct (the /charts integrated header only): render the % half in its own spans so the
+// header can drop the brackets and dim it. Off = the original single-text markup.
+export default function ChartDayGain({ sym, upOverride = null, downOverride = null, splitPct = false }) {
   const { chartsTheme } = useWorkspace()
   // User-chosen up/down colors (Chart Settings → Header); each falls back to the
   // theme's built-in green/red when unset.
@@ -89,7 +91,9 @@ export default function ChartDayGain({ sym, upOverride = null, downOverride = nu
     <span className={styles.chartDayGainWrap}>
       {hasReg && (
         <span className={styles.chartDayGain} data-day-gain={regUp ? 'up' : 'down'} style={{ color: regUp ? upColor : downColor }}>
-          {regUp ? '+' : ''}{regAbs.toFixed(2)} ({regUp ? '+' : ''}{regPct.toFixed(2)}%)
+          {splitPct
+            ? <>{regUp ? '+' : ''}{regAbs.toFixed(2)}<span data-dg-pct=""> <span data-dg-paren="">(</span>{regUp ? '+' : ''}{regPct.toFixed(2)}%<span data-dg-paren="">)</span></span></>
+            : <>{regUp ? '+' : ''}{regAbs.toFixed(2)} ({regUp ? '+' : ''}{regPct.toFixed(2)}%)</>}
         </span>
       )}
       {hasExt && (

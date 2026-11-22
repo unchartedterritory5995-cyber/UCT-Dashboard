@@ -1,0 +1,79 @@
+//@version=6
+indicator("vw-w6-forin-held-alias")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row Q-W6T6-H (N1b, indirect, shape b)
+// of docs/pine/capture-queue-2026-11-06-w6-t6.md: `for q in qs` with `a = q.arr` then `array.push(a, 1.0)`;
+// a chain `a = q.arr`, `b = a`, `b.push(1.0)`; an outer `var array<float> g = array.new_float()` with
+// `g := q.arr` then `array.push(g, 1.0)` in the body; `pre = array.get(qs, 0).arr` read BEFORE the walk and
+// changed by `array.push(pre, 1.0)` in the body; `var vals = array.new_float()` stored into a walked record,
+// `array.push(qs, Q.new(vals))` on bar 0, changed by `array.push(vals, 1.0)` in the body. Same `qs` and plots
+// as shape a (`vw-w6-forin-held-fn.pine`), plus `array.size(pre)` and `array.size(vals)`. One walk per shape,
+// in that order, over one `qs`. No licence-held text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: a list reached through an alias of a list the walked element holds (`a`, `b`, `g`, `pre`), or a
+// list stored into a walked record (`vals`), changed in the walk: does the element's list change with it?
+// Our runtime lane refuses each by name: "the body changes a list the element `q` may hold (through `a`, not
+// provably independent of it), not yet captured (W6-F1)" (`b`, `g`, `pre`, `vals` likewise). A00 is the control.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults.
+
+type Q
+    array<float> arr
+
+plot(bar_index, "A00_bar_index_CONTROL")
+var array<Q> qs = array.from(Q.new(array.from(1.0, 2.0)), Q.new(array.from(1.0, 2.0)), Q.new(array.from(1.0, 2.0)))
+var vals = array.new_float()
+if barstate.isfirst
+    array.push(qs, Q.new(vals))
+
+for q in qs
+    a = q.arr
+    array.push(a, 1.0)
+plot(array.size(array.get(qs, 0).arr), "B1_alias_a_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "B1_alias_a_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "B1_alias_a_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "B1_alias_a_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "B1_alias_a_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "B1_alias_a_q2_sum")
+
+for q in qs
+    a = q.arr
+    b = a
+    b.push(1.0)
+plot(array.size(array.get(qs, 0).arr), "B2_chain_b_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "B2_chain_b_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "B2_chain_b_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "B2_chain_b_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "B2_chain_b_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "B2_chain_b_q2_sum")
+
+var array<float> g = array.new_float()
+for q in qs
+    g := q.arr
+    array.push(g, 1.0)
+plot(array.size(array.get(qs, 0).arr), "B3_outer_g_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "B3_outer_g_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "B3_outer_g_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "B3_outer_g_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "B3_outer_g_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "B3_outer_g_q2_sum")
+
+pre = array.get(qs, 0).arr
+for q in qs
+    array.push(pre, 1.0)
+plot(array.size(array.get(qs, 0).arr), "B4_pre_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "B4_pre_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "B4_pre_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "B4_pre_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "B4_pre_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "B4_pre_q2_sum")
+plot(array.size(pre), "B4_pre_size")
+
+for q in qs
+    array.push(vals, 1.0)
+plot(array.size(array.get(qs, 0).arr), "B5_vals_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "B5_vals_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "B5_vals_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "B5_vals_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "B5_vals_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "B5_vals_q2_sum")
+plot(array.size(vals), "B5_vals_size")

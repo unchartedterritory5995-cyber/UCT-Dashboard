@@ -1,0 +1,49 @@
+//@version=6
+indicator("vw-w6-forin-held-fn")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from row Q-W6T6-H (N1b, indirect, shape a)
+// of docs/pine/capture-queue-2026-11-06-w6-t6.md: `bump(array<float> a) => array.push(a, 1.0)`,
+// `method bumpm(array<float> a) => a.push(1.0)`, `outer(array<float> b) => bump(b)`; `for q in qs` with
+// `bump(q.arr)`, then (separate loops, separate plots) `q.arr.bumpm()` and `outer(q.arr)`; `qs` = three
+// `Q.new(array.from(1.0, 2.0))` made on bar 0 (`var`); size and sum for k = 0..2 after each walk, every bar.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: a user function, method or helper of a helper handed a list the element holds, changing its own
+// parameter: does the element's list change? A00 is the control.
+// CAPTURE: NYSE:RDDT 1D, inputs at defaults.
+
+type Q
+    array<float> arr
+
+bump(array<float> a) => array.push(a, 1.0)
+method bumpm(array<float> a) => a.push(1.0)
+outer(array<float> b) => bump(b)
+
+plot(bar_index, "A00_bar_index_CONTROL")
+var array<Q> qs = array.from(Q.new(array.from(1.0, 2.0)), Q.new(array.from(1.0, 2.0)), Q.new(array.from(1.0, 2.0)))
+
+for q in qs
+    bump(q.arr)
+plot(array.size(array.get(qs, 0).arr), "F1_bump_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "F1_bump_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "F1_bump_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "F1_bump_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "F1_bump_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "F1_bump_q2_sum")
+
+for q in qs
+    q.arr.bumpm()
+plot(array.size(array.get(qs, 0).arr), "F2_method_bumpm_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "F2_method_bumpm_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "F2_method_bumpm_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "F2_method_bumpm_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "F2_method_bumpm_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "F2_method_bumpm_q2_sum")
+
+for q in qs
+    outer(q.arr)
+plot(array.size(array.get(qs, 0).arr), "F3_outer_q0_size")
+plot(array.sum(array.get(qs, 0).arr), "F3_outer_q0_sum")
+plot(array.size(array.get(qs, 1).arr), "F3_outer_q1_size")
+plot(array.sum(array.get(qs, 1).arr), "F3_outer_q1_sum")
+plot(array.size(array.get(qs, 2).arr), "F3_outer_q2_size")
+plot(array.sum(array.get(qs, 2).arr), "F3_outer_q2_sum")

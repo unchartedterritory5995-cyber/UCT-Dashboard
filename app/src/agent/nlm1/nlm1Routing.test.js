@@ -1,0 +1,337 @@
+// NLM-1 D1 — routing v2 units: the vocabulary is valid data, the router registry (NLM1_ROUTER) has selectGroups'
+// interface, the index is generated from the registry (a capability registered later is routable by its own words),
+// and the dev paraphrase floor holds (dev/paraphrases.json — the TUNING set, not the held-out one).
+import fs from 'node:fs'
+import path from 'node:path'
+import { describe, it, expect } from 'vitest'
+import { registerCatalog } from '../qa/capabilityRegression/testing/registry'
+import { routedNames } from '../qa/capabilityRegression/testing/route'
+import { GROUPS, groupOfAction, selectGroups, routeManifest, wordsSelect } from '../routing'
+import { MANIFEST_CONTRACT, manifestFor } from '../capabilities'
+import { correctTypos, lexiconFor } from '../nl/lexicon'
+import vocabulary from './vocabulary.json'
+import dev from './dev/paraphrases.json'
+import { vocabularyTerms, buildIndex, entityTokens, tokens } from './capabilityIndex'
+import { selectGroupsV2, scoreGroups, routeManifestV2 } from './routingV2'
+import { ROUTERS, routerFromEnv, routerName, routeManifestFromEnv } from './routers'
+
+await registerCatalog()
+const ids = new Set(GROUPS.map(g => g.id))
+const correct = (t) => (correctTypos(t, lexiconFor(null)) || []).map(v => v.text)
+const ownHit = (k) => {
+  const s = selectGroupsV2(k.text, { recentActions: k.recentActions || [], correct })
+  return { s, ok: s.matched && k.needs.map(groupOfAction).every(g => s.selected.includes(g)) }
+}
+
+describe('vocabulary.json is valid, reviewed data', () => {
+  it('every term names known groups with weights in (0, 1] and compiles', () => {
+    for (const [term, groups] of Object.entries(vocabulary.terms)) {
+      expect(term, 'lower-case').toBe(term.toLowerCase())
+      for (const [g, w] of Object.entries(groups)) {
+        expect(ids.has(g), `${term} → unknown group ${g}`).toBe(true)
+        expect(w > 0 && w <= 1, `${term} weight`).toBe(true)
+      }
+    }
+    expect(vocabularyTerms().length).toBe(Object.keys(vocabulary.terms).length)
+    for (const [g, rel] of Object.entries(vocabulary.related)) {
+      expect(ids.has(g)).toBe(true)
+      for (const r of rel) expect(ids.has(r), `${g} related ${r}`).toBe(true)
+    }
+    expect(vocabulary.reviewed?.status).toBeTruthy()
+  })
+  it('stays a SUPPLEMENT: the registry index alone recognises most of the dev set', () => {
+    globalThis.__NLM1_TUNING__ = { VOCAB_W: 0 }
+    try {
+      const ok = dev.cases.filter(k => ownHit(k).ok).length
+      expect(ok / dev.cases.length).toBeGreaterThanOrEqual(0.75)
+    } finally { globalThis.__NLM1_TUNING__ = null }
+  })
+})
+
+describe('the index is generated from the registry', () => {
+  const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  it('every manifest group is a document; names, args and the indicator catalog are in it', () => {
+    const idx = buildIndex(full())
+    for (const c of full()) expect(idx.docs.has(groupOfAction(c.name)), c.name).toBe(true)
+    expect(idx.docs.get('charts').has('timeframe')).toBe(true)
+    expect(idx.docs.get('drawingTools').has('fib')).toBe(true)
+    expect(idx.docs.get('indicators').has('rsi')).toBe(true)
+  })
+  it('a capability only the index knows is routable by its own words', () => {
+    const fake = [...full(), { name: 'layout.zorbify', summary: 'Zorbify the quantum flux capacitor', args: { type: 'object', properties: {} } }]
+    expect(scoreGroups(fake, 'zorbify my flux capacitor').scores.layouts).toBeGreaterThan(0)
+    expect(scoreGroups(full(), 'zorbify my flux capacitor').scores.layouts || 0).toBe(0)
+  })
+  it('entity typing maps values onto argument words', () => {
+    expect(entityTokens('jump back to march 2020')).toContain('date')
+    expect(entityTokens('line at 182.50')).toContain('price')
+    expect(entityTokens('flip to AMD')).toContain('symbol')
+    expect(entityTokens('make it orange')).toContain('color')
+    expect(tokens('the studies')).toEqual(['study'])
+  })
+})
+
+describe('NLM1_ROUTER: pluggable routers with the selectGroups interface', () => {
+  it('default v1; nlm1 = selectGroupsV2; unknown refused', () => {
+    expect(routerName({})).toBe('v1')
+    expect(routerFromEnv({})).toBe(selectGroups)
+    expect(routerFromEnv({ NLM1_ROUTER: 'nlm1' })).toBe(selectGroupsV2)
+    expect(routeManifestFromEnv({})).toBe(routeManifest)
+    expect(routeManifestFromEnv({ NLM1_ROUTER: 'nlm1' })).toBe(routeManifestV2)
+    expect(() => routerFromEnv({ NLM1_ROUTER: 'zzz' })).toThrow(/unknown router/)
+  })
+  it('same shape as selectGroups', () => {
+    for (const name of Object.keys(ROUTERS)) {
+      const s = ROUTERS[name]('add the 9 ema', { recentActions: [] })
+      for (const k of ['selected', 'priority', 'matched', 'soft']) expect(s, `${name}.${k}`).toHaveProperty(k)
+      expect(Array.isArray(s.selected) && Array.isArray(s.priority)).toBe(true)
+    }
+  })
+})
+
+describe('dev paraphrase floor (tuning set)', () => {
+  it('own-words recall ≥ 95%, fallback ≤ 2%, packed recall ≥ 97%, every request within the budget', () => {
+    let own = 0, fb = 0, packed = 0
+    for (const k of dev.cases) {
+      const { s, ok } = ownHit(k)
+      own += ok; fb += !s.matched
+      const p = routedNames(k.text, { recentActions: k.recentActions || [], after: k.after || null, v2: true })
+      packed += k.needs.every(n => p.names.includes(n))
+      expect(p.names.length).toBeLessThanOrEqual(MANIFEST_CONTRACT.routingThreshold)
+    }
+    const n = dev.cases.length
+    expect(own / n).toBeGreaterThanOrEqual(0.95)
+    expect(fb / n).toBeLessThanOrEqual(0.02)
+    expect(packed / n).toBeGreaterThanOrEqual(0.97)
+  })
+})
+// autotest follow-up: "when did nh/nl last go negative" got Undo offered, and counted as recognised, on the word "last". The
+// undo group's index is its own description, so only its words and vocabulary may name it.
+describe('undo rides on its own words, never on the words of its description', () => {
+  const m = manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const sel = (q, o = {}) => selectGroupsV2(q, { manifest: m, ...o })
+  it.each(['when did nh/nl last go negative', 'when did the market last go up', 'what was the last price', 'last earnings date for NVDA', 'last time new lows outnumbered new highs on nasdaq',
+    'show the last change in breadth', 'when was the last change in nh/nl', 'what changed last', 'MSFT performance over the last 20 days', "what was NVDA's EPS last quarter",
+    'rename my Momentum layout to Momentum Trades', 'move the macd pane above the rsi pane', 'what was your last change',
+    'back out of this layout', 'walk back through the last 5 days', 'what you just changed, explain it', 'what you just added to the chart, show me its settings'])('no signal: %s', (q) => {
+    const s = sel(q)
+    expect(s.undoSignal).toBe(false)
+    expect(s.priority || []).not.toContain('undo')
+    expect(s.scores.undo).toBeUndefined()
+  })
+  it.each(['undo', 'undo that', 'undo the last change', 'undo my last change', 'revert your last change', 'undo everything you just did', 'take that back', 'reverse that',
+    'put it back how it was', 'go back to how it was', 'oops', 'whoops', 'my bad, go back to before', 'ctrl z', 'nah that is wrong, put it the way it was', 'that was wrong, change it back',
+    'your last change was wrong', 'not what i wanted', 'back out the last change', 'back that out', 'walk that back', 'walk back the last change', 'change it back', 'remove what you just added'])('signal, offered and recognised: %s', (q) => {
+    const s = sel(q)
+    expect(s.undoSignal).toBe(true)
+    expect(s.matched).toBe(true)
+    expect(s.priority).toContain('undo')
+    expect(routedNames(q, { v2: true }).names).toContain('agent.undo')
+  })
+  it('a typo of an undo word still counts through its correction; "last" through a correction does not', () => {
+    expect(sel('undoo that', { correct }).undoSignal).toBe(true)
+    expect(sel('whne did nh/nl last go negative', { correct }).undoSignal).toBe(false)
+  })
+  it('a recognised question is not sent Undo; one nothing recognises still gets the fallback fill, undo included, exactly as v1', () => {
+    expect(routedNames('last earnings date for NVDA', { v2: true }).names).not.toContain('agent.undo')
+    expect(routedNames('when did nh/nl last go negative', { v2: true }).names).toContain('breadth.history')
+  })
+})
+
+// DRAWING EXTRAS (drawingExtras, words-only): its words never take a plain drawing, a price alert or a ticker's flag — and
+// they DO reach each action in the FIRST call on both routers (the action is in the manifest sent)
+describe('drawingExtras: its own words, and the controls that must stay where they were, v1 and v2', () => {
+  const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
+  const BY = { v1: routeManifest, v2: routeManifestV2 }
+  const first = (v, msg) => {
+    const r = BY[v](full(), msg, opts())
+    return { selected: r.routing ? r.routing.selected : ['FULL'], names: new Set(r.manifest.map(c => c.name)) }
+  }
+  const OWN = [
+    ['open the position calculator with entry 50 stop 48 target 56', 'drawing.positionCalculator'],
+    ['size this trade: entry 20, stop 19, target 23', 'drawing.positionCalculator'],
+    ['make this trendline my default style', 'drawing.saveDefaults'],
+    ['save this rectangle as the default for new drawings', 'drawing.saveDefaults'],
+    ['add the fib tool to my favourites', 'drawing.favoriteTool'],
+    ['unstar the measure tool', 'drawing.favoriteTool'],
+  ]
+  it.each(['v1', 'v2'].flatMap(v => OWN.map(o => [v, ...o])))('%s "%s" carries %s in the first call', (v, msg, action) => {
+    expect(wordsSelect('drawingExtras', msg)).toBe(true)
+    expect(first(v, msg).names.has(action)).toBe(true)
+  })
+  // [request, group it must keep, action it must keep]
+  const CONTROLS = [['draw a line', 'drawings', null], ['set an alert at my stop', 'alerts', 'alert.create'], ['favourite NVDA', null, null],
+    ['flag NVDA as a favorite', null, null], ['star NVDA in my watchlist', 'lists', null], ['save this layout as default', null, null], ['reset the chart to its defaults', null, null]]
+  it.each(['v1', 'v2'].flatMap(v => CONTROLS.map(c => [v, ...c])))('%s control "%s" never selects drawingExtras', (v, msg, group, action) => {
+    const { selected, names } = first(v, msg)
+    expect(wordsSelect('drawingExtras', msg)).toBe(false)
+    expect(selected).not.toContain('drawingExtras')
+    if (group) expect(selected).toContain(group)
+    if (action) expect(names.has(action)).toBe(true)
+  })
+})
+
+// AUDIT (wordsOnly fill, post-#1027): a `wordsOnly` group (routing.js) is chosen by its OWN words only. v1's fallback already
+// left it out of the filler (selectGroups `filler`); v2's step-6 fill packed EVERY group, so on a request nothing recognised
+// watchlistShow rode the fill and took the room `definitions` / `indicatorAlerts` had before #1027. The rail is generic over
+// GROUPS.filter(g => g.wordsOnly): a new words-only group must add a phrase of its own words to OWN_WORDS below.
+describe('routing v2: a words-only group never rides the fill, and is still sent on its own words', () => {
+  const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
+  const sentOf = (msg) => new Set(routeManifestV2(full(), msg, opts()).manifest.map(c => groupOfAction(c.name)))
+  // compare.openView: the RS INDICATOR's Rotation view (its `view` input) never selects the Compare panel's words
+  it.each(['show rotation on the RS indicator', 'switch the RS indicator to the rotation view', 'set the relative strength view to rotation', 'put the rrg view in the rs pane', 'compare nvda with amd'])('"%s": not the comparePanel words', (msg) => expect(wordsSelect('comparePanel', msg)).toBe(false))
+  // SERVER-ARMED words-only groups, BY NAME: their words are empty in routing.js until their capability registers (the server
+  // serves the kind), so their own-words / fill checks live in their own file with the capability served. Only these ids are
+  // skipped here; any OTHER words-only group with no words fails below, by name.
+  const SERVER_ARMED = new Map([['cot', 'agentCot.test.js'], ['catalysts', 'agentCatalysts.test.js'], ['rs', 'agentRsLeadership.test.js'],
+    ['marketBoards', 'agentTerminalDataWave3.test.js'], ['marketViews', 'agentTerminalDataWave4.test.js'],
+    ['shortInterest', 'agentTerminalDataWave5.test.js'], ['marketRecords', 'agentTerminalDataWave6.test.js'],
+    ['marketReads', 'agentTerminalDataWave7.test.js'], ['marketCalendars', 'agentTerminalDataWave8.test.js'],
+    ['marketRates', 'agentTerminalDataWave9.test.js']])
+  it.each([...SERVER_ARMED])('server-armed words-only group %s: its words are empty until armed, and %s pins its own words / fill', (id, file) => {
+    const g = GROUPS.find(x => x.id === id)
+    expect(g, `${id} is not a routing group`).toBeTruthy()
+    expect(g.wordsOnly, `${id} must be words-only`).toBe(true)
+    expect(g.words, `${id}: words must be empty until its capability registers`).toEqual([])
+    expect(fs.existsSync(path.join(__dirname, '..', file)), `${id}: its own test file ${file} is missing`).toBe(true)
+  })
+  it('no OTHER words-only group has empty words', () => {
+    const empty = GROUPS.filter(g => g.wordsOnly && !SERVER_ARMED.has(g.id) && !(g.words || []).length).map(g => g.id)
+    expect(empty, `words-only groups with no words (not server-armed): ${empty.join(', ')}`).toEqual([])
+  })
+  const wordsOnly = GROUPS.filter(g => g.wordsOnly && !SERVER_ARMED.has(g.id))
+  const OWN_WORDS = {
+    // calc-TF (indicatorStyle.setCalcTimeframe): which bars compute an indicator — calculate / compute on, use the weekly bars, a weekly RSI
+    indicatorCalc: ['calculate the rsi on weekly bars', 'make the 50 sma use the weekly', 'show a weekly rsi on this daily chart', 'put rsi back to the chart\'s timeframe'],
+    // compare.openView: the rotation / RRG map, graph, tab or view; the Compare (Symbols) panel; its Overlay tab
+    comparePanel: ['open the rotation map', 'show me the rrg view for nvda', 'switch the compare panel to the rotation tab', 'go to the overlay tab'],
+    // drawing extras: the Position Calculator, a drawing's Save as default, a drawing tool's ★
+    drawingExtras: ['open the position calculator with entry 50 stop 48 target 56', 'make this trendline my default style', 'add the fib tool to my favourites'],
+    watchlistShow: ['put my flagged list in the watchlist widget', 'export my momentum list to excel', 'make the price column wider in the watchlist'],
+    // #1073: chartSetup.compareGroup's own words — a compare/remove verb governing the group noun, or a group noun with its overlay/scale
+    compareGroups: ['compare this chart with the semiconductor industry group', 'remove the energy sector from this chart', 'set the software theme overlay to a percent scale'],
+    // pl-zoom (C1-028): chartSetup.zoom's own words — zoom + a direction, closer / tighter on the chart, a wider view of it, more / fewer bars
+    chartView: ['zoom in on this chart', 'zoom the AMD chart out', 'zoom out a lot', 'zoom all the way in', 'get a closer look at the candles', 'give me a wider view of the chart', 'show me fewer bars'],
+    // #1082 (C3-205..207): Custom-Period Sort's own words — the tool's name, a rank / sort over dates, a Dock of the ranking
+    // Charts family (2026-11-12): volumeProfile.set's own words — the profile named (volume profile / VPVR), or VP with an on / off verb
+    volumeProfile: ['turn on volume profile', 'set the vpvr bins to 30', 'hide vp on this chart'],
+    // Charts family (2026-11-15): newsLibrary.*'s own words — a headline saved / noted, the library, a collection's own verbs
+    newsLibrary: ['save the NVDA headline', 'show my saved headlines', 'create a collection called Earnings', 'add a note to that headline: watch it'],
+    periodSort: ['open the period sort for themes', 'rank stocks between 2026-01-02 and 2026-03-31', 'sort sectors from mar 3 to jun 30', 'dock the ranking as a widget'],
+    // uctIntelligence.set: the chart INDICATOR by name (never "… with UCT Intelligence" authoring), or one of its panel's switches
+    uctIntelligence: ['add uct intelligence to this chart', 'turn off auto patterns', 'turn on the setups layer', 'show candlestick patterns on this chart'],
+    // #1070: the Drawing Boards actions' own words — a switch / rename / delete / new verb governing the board noun, or "drawing board"
+    drawingBoards: ['switch to my Earnings board', 'rename Board 3 to Gaps', 'delete the current drawing board', 'make me a new board called Breakouts'],
+    // #1076 (Lead decision 2026-11-11): the drawing menu's Duplicate and a position's entry / stop / target alerts
+    drawingOps: ['duplicate this trendline', 'make a duplicate of the trendline', 'set the stop and target alerts on my position', 'alert me at my stop'],
+    // #1030: the Multi Chart grid's own words (the grid as a thing acted on, a shape with rows AND columns, sync WITH what it syncs)
+    multiChart: ['open multi chart as a 2x3', 'open my momentum nine grid', 'sync the crosshairs on every chart', 'turn groups mode on'],
+    // #1074: the Layout Dock's bar — a place on the bar / dock, "unpin", or "pin" with "layout"
+    layoutBar: ['take Swing off the bar', 'pin my Momentum layout', 'move Day Trading to the left on the layout bar'],
+    // family C (C1-178 / C1-061): Ask AI with about / on / for or a chart word; the watermark with a reset / back / default word
+    chartMenu: ['ask ai about this chart', 'open the ai on the nvda chart', 'reset the watermark on this chart', 'put the watermark back where it was'],
+    // chartFeatures: the panel or the strip by name (company info / company or profile panel / earnings or fundamentals strip /
+    // the strip under the chart), or a tab only the company panel has
+    chartFeatures: ['add the company panel', 'collapse the company info on this chart', 'remove the profile panel', 'show the earnings strip',
+      'add the fundamentals strip to the nvda chart', 'take the strip under the chart off', 'switch to the ownership tab', 'open the news tab of the company panel'],
+    // chartReplay: the bar replay as a thing played — a playback verb governing "the replay", the replay bar / speed, a step "in the replay"
+    chartReplay: ['play the replay', 'pause the bar replay', 'step the replay forward 10 bars', 'set the replay speed to 5x', 'next bar in the replay', 'open the time machine'],
+  }
+  // chartReplay negatives: Replay Mode's cutoff (chart.replay), a step outside replay (chartSetup.stepBars), other replays
+  it.each(['replay mode as of oct 15', 'go back to oct 15', 'replay as of last friday', 'exit replay mode', 'next bar', 'step forward 10 bars',
+    'replay the tutorial', 'replay that alert', 'watch the replay of the earnings call'])('"%s": not the chartReplay words', (msg) => {
+    expect(wordsSelect('chartReplay', msg)).toBe(false)
+    expect(sentOf(msg).has('chartReplay')).toBe(false)
+  })
+  // #1070 negative controls: a bare "board" is the workspace — these never select drawingBoards
+  it.each(['remove everything from the board', 'add a chart to the board', 'make the board 2x2', 'clear the board', 'new chart on the board'])
+  ('"%s": not the Drawing Boards group', (msg) => {
+    expect(wordsSelect('drawingBoards', msg)).toBe(false)
+  })
+  // family C: "ask" / "watermark" / "journal" / "header" alone never select chartMenu (the words are used elsewhere)
+  // chartFeatures: a bare earnings / news / panel / strip word never selects it (data questions, other widgets' panels)
+  it.each(['when does nvda report earnings', 'show me the latest news on amd', 'open the settings panel', 'what is in the news tab',
+    'strip the indicators off this chart', 'add the earnings calendar widget', 'compare the fundamentals of nvda and amd'])('"%s": not the chartFeatures words', (msg) => expect(wordsSelect('chartFeatures', msg)).toBe(false))
+  it.each(['make the watermark bigger', 'hide the watermark', 'send this chart to my journal', 'ask about nvda earnings', 'show the header', 'reset the view'])('"%s": not chartMenu\'s words', (msg) => expect(wordsSelect('chartMenu', msg)).toBe(false))
+  it('there is a words-only group, and every one has phrases of its own words here', () => {
+    expect(wordsOnly.length).toBeGreaterThan(0)
+    for (const g of wordsOnly) expect(OWN_WORDS[g.id]?.length, `${g.id}: add phrases of its own words to OWN_WORDS`).toBeGreaterThan(0)
+  })
+  // requests v1 does not recognise, on which v2's fill is on (all but "hmm" sent watchlistShow on master a15b666119)
+  it.each(['flip to AMD', 'lose the gridlines', 'any articles on RIVN lately', 'show me the leaders', 'both', 'whats the RS on this', 'hmm'])
+  ('"%s": the v2 first call carries no words-only group', (msg) => {
+    const sent = sentOf(msg)
+    expect(sent.size).toBeGreaterThan(1)
+    for (const g of wordsOnly) expect(sent.has(g.id), `${g.id} for "${msg}"`).toBe(false)
+  })
+  // #1082 negative controls: a bare sort / rank / dock (a list column, a scan, a widget) never names the Custom-Period Sort
+  it.each(['sort my watchlist by change', 'rank these by relative strength', 'sort the list from highest to lowest', 'dock the chart on the left', 'show the top gainers since the open', 'what period does this cover'])
+  ('"%s": not the Custom-Period Sort', (msg) => {
+    expect(wordsSelect('periodSort', msg)).toBe(false)
+    expect(sentOf(msg).has('periodSort')).toBe(false)
+  })
+  // uctIntelligence.set NEGATIVE controls: indicator AUTHORING with UCT Intelligence (the builder's "Modify with UCT Intelligence",
+  // Create Indicator) and bare pattern / setup questions never send the UCT Intelligence indicator's group, v1 or the v2 first call
+  it.each(['modify with uct intelligence', 'create an indicator with UCT Intelligence', 'build me a breakout indicator using uct intelligence',
+    'what patterns do you see on nvda', 'describe the setup on this chart', 'turn on chart iq pattern recognition'])
+  ('"%s": not the UCT Intelligence indicator', (msg) => {
+    expect(wordsSelect('uctIntelligence', msg)).toBe(false)
+    expect(sentOf(msg).has('uctIntelligence')).toBe(false)
+  })
+  it.each(wordsOnly.flatMap(g => (OWN_WORDS[g.id] || []).map(m => [g.id, m])))('%s on its own words: "%s"', (id, msg) => {
+    expect(wordsSelect(id, msg)).toBe(true)
+    expect(sentOf(msg).has(id)).toBe(true)
+  })
+  // pl-zoom NEGATIVE controls: "zoom" that names no direction on a chart (a company, a meeting, the Reset view words, a range
+  // pill) and "closer" / "wider" that are not about the chart's bars never select chartView, in v1 or in the v2 first call
+  it.each(['how did Zoom Video do last quarter', 'pull up ZM', 'zoom earnings date', 'reset the zoom', 'reset zoom on this chart', 'zoom to 1y',
+    'zoominfo stock', 'zoom into the semis theme', 'make the chart wider', 'take a closer look at NVDA earnings', 'show more history', 'is ZM in an uptrend'])
+  ('"%s": chartView is not selected', (msg) => {
+    expect(wordsSelect('chartView', msg)).toBe(false)
+    expect(sentOf(msg).has('chartView')).toBe(false)
+  })
+})
+
+// #1076 (AUDIT 2026-11-11): drawingOps is words-only — its words never take a plain price alert or an indicator copy, and the
+// v1 undo words ("scratch that", "never mind", …) carry agent.undo in the FIRST call on both routers
+describe('#1076 drawingOps controls and the undo words, v1 and v2', () => {
+  const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
+  const BY = { v1: routeManifest, v2: routeManifestV2 }
+  const first = (v, msg) => {
+    const r = BY[v](full(), msg, opts())
+    return { selected: r.routing ? r.routing.selected : ['FULL'], names: new Set(r.manifest.map(c => c.name)) }
+  }
+  const CONTROLS = [['alert me at 150', 'alerts', 'alert.create'], ['set an alert on NVDA', 'alerts', 'alert.create'], ['duplicate my RSI', 'indicatorSetup', 'indicatorCopy.duplicate'], ['create a custom copy of the rsi indicator', 'definitions', 'definition.duplicate']]
+  // ("create a custom copy of the rsi indicator" → definition.duplicate is a v2 reach, as duplicateRouting.test.js; v1 sends indicators / indicatorSetup)
+  it.each(['v1', 'v2'].flatMap(v => CONTROLS.filter(c => v === 'v2' || c[1] !== 'definitions').map(c => [v, ...c])))('%s control "%s" reaches %s (%s), never drawingOps', (v, msg, group, action) => {
+    const { selected, names } = first(v, msg)
+    console.log(`[#1076 control] ${v} "${msg}": ${selected.join(',')}`)
+    expect(wordsSelect('drawingOps', msg)).toBe(false)
+    expect(selected).not.toContain('drawingOps')
+    expect(selected).toContain(group)
+    expect(names.has(action)).toBe(true)
+  })
+  const UNDO = ['scratch that', 'never mind', 'go back to how it was before', 'put it back']
+  it.each(['v1', 'v2'].flatMap(v => UNDO.map(m => [v, m])))('%s undo words "%s" carry agent.undo in the first call', (v, msg) => {
+    expect(first(v, msg).names.has('agent.undo')).toBe(true)
+  })
+})
+
+// calc-TF family (indicatorStyle.setCalcTimeframe): its own words reach the action in the FIRST call (v1 and v2), and plain
+// chart-timeframe / show-on words do not pull it in (they keep chart.setTimeframe / indicatorStyle.set)
+describe('calc-TF: indicatorStyle.setCalcTimeframe is sent on its own words, and only on them', () => {
+  const full = () => manifestFor({ surface: 'charts', createIndicator: true, manageIndicators: true })
+  const opts = () => ({ enabled: true, limit: MANIFEST_CONTRACT.limits.maxCapabilities, budget: MANIFEST_CONTRACT.routingThreshold, correct })
+  const sent = (v, msg) => new Set((v === 'v2' ? routeManifestV2(full(), msg, opts()) : routeManifest(full(), msg, opts())).manifest.map(c => c.name))
+  const OWN = ['show a weekly rsi on this daily chart', 'make the 50 sma use the weekly', 'calculate the rsi on weekly bars', 'compute the macd on the daily', 'put rsi back to the chart\'s timeframe']
+  it.each(['v1', 'v2'].flatMap(v => OWN.map(m => [v, m])))('%s "%s" carries indicatorStyle.setCalcTimeframe', (v, msg) => {
+    expect(sent(v, msg).has('indicatorStyle.setCalcTimeframe')).toBe(true)
+  })
+  it.each(['switch the chart to weekly', 'go to the daily', 'weekly chart please', 'show me the monthly', 'change the timeframe to 1 hour'])
+  ('"%s": the calc words do not select indicatorCalc (the chart\'s own timeframe)', (msg) => {
+    expect(wordsSelect('indicatorCalc', msg)).toBe(false)
+  })
+})

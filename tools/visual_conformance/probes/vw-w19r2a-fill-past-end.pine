@@ -1,0 +1,12 @@
+//@version=6
+indicator("vw-w19r2a-fill-past-end", overlay = false)
+
+// PROVENANCE: written 2026-11-16 by the UDT coverage unit, split out of tools/visual_conformance/probes/vw-w19r2-collections.pine after capture queue
+// run cq1-2026-11-16 (PR #1472) read that file as one runtime error ("Index {index} is out of bounds") whose text names no line or value. One question
+// per file, so an error here IS this file's reading: record its text and the bar it names. No licence-held text.
+// QUESTION: `array.fill(a, 7, 1, 5)` on a 3-element array: clipped to the end (F01_sum 15), or an out-of-bounds error?
+// CAPTURE: NYSE:RDDT 1D from the listing, inputs at defaults, AFTER THE CLOSE. A00 is the control (it must plot on every bar).
+plot(bar_index, "A00_bar_index_CONTROL")
+a = array.from(1.0, 2.0, 3.0)
+array.fill(a, 7.0, 1, 5)
+plot(array.sum(a), "F01_sum")

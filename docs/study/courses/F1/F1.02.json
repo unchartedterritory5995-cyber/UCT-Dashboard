@@ -1,0 +1,1722 @@
+{
+ "unit": "F1.02",
+ "track": "F1",
+ "title": "What a share is, and where it trades",
+ "teaches": "What a share is, how a ticker names it, where a stock lists and where your order fills, the index a stock belongs to, and how SPY, QQQ and IWM read the market before you look at any one stock.",
+ "skills": [
+  {
+   "id": "basics.shares",
+   "title": "What a share is, and where it trades"
+  }
+ ],
+ "as_of": "2026-11-08",
+ "sources": [
+  {
+   "id": "s1",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Stocks",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s2",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Stock",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/stock",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s3",
+   "tier": 1,
+   "publisher": "FINRA",
+   "title": "Stocks",
+   "url": "https://www.finra.org/investors/investing/investment-products/stocks",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s4",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Ticker",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/ticker",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s5",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: National Securities Exchange",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/national-securities-exchange",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s6",
+   "tier": 1,
+   "publisher": "SEC",
+   "title": "National Securities Exchanges (last reviewed Jan. 7, 2026)",
+   "url": "https://www.sec.gov/divisions/marketreg/mrexchanges.shtml",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s7",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Listing Standards",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/listing-standards",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s8",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Executing an Order",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/executing-order",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s9",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Market Index",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/market-index",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s10",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Index Fund",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/index-fund",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s11",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Exchange-Traded Fund (ETF)",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/exchange-traded-fund-etf",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s12",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Updated Investor Bulletin: Exchange-Traded Funds (ETFs)",
+   "url": "https://www.investor.gov/additional-resources/news-alerts/alerts-bulletins/investor-bulletin-exchange-traded-funds-etfs",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s13",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "What is Risk?",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/what-risk",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s14",
+   "tier": 1,
+   "publisher": "SEC, Investor.gov",
+   "title": "Glossary: Market Capitalization",
+   "url": "https://www.investor.gov/introduction-investing/investing-basics/glossary/market-capitalization",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s15",
+   "tier": 1,
+   "publisher": "State Street Investment Management (formerly SSGA), SPY's trustee and marketing agent",
+   "title": "SPY: State Street SPDR S&P 500 ETF Trust (fund page)",
+   "url": "https://www.ssga.com/us/en/individual/etfs/spdr-sp-500-etf-trust-spy",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund's own official page (objective, benchmark, listing), published by State Street, the fund's trustee and marketing agent. The page names PDR as the sponsor. units_plan.json lists the funds' own fact pages under Tier 1."
+  },
+  {
+   "id": "s16",
+   "tier": 1,
+   "publisher": "Invesco (QQQ's sponsor)",
+   "title": "Invesco QQQ ETF",
+   "url": "https://www.invesco.com/qqq-etf/en/home.html",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its own fund. Only its factual lines are used (index tracked, expense ratio, index definitions), never its performance marketing."
+  },
+  {
+   "id": "s17",
+   "tier": 1,
+   "publisher": "BlackRock iShares (IWM's sponsor)",
+   "title": "iShares Russell 2000 ETF (IWM)",
+   "url": "https://www.ishares.com/us/products/239710/ishares-russell-2000-etf",
+   "accessed": "2026-11-08",
+   "why_reliable": "The fund sponsor's own page for its own fund (objective, benchmark, risk disclosure)."
+  },
+  {
+   "id": "s18",
+   "tier": 1,
+   "publisher": "Nasdaq (index provider)",
+   "title": "Nasdaq-100 Index Methodology",
+   "url": "https://indexes.nasdaqomx.com/docs/Methodology_NDX.pdf",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s19",
+   "tier": 1,
+   "publisher": "Nasdaq (index provider)",
+   "title": "Nasdaq-100 Index: Companies, Methodology & Data",
+   "url": "https://www.nasdaq.com/solutions/global-indexes/nasdaq-100",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s20",
+   "tier": 1,
+   "publisher": "FTSE Russell, LSEG (index provider)",
+   "title": "Russell 2000 Index",
+   "url": "https://www.lseg.com/en/ftse-russell/indices/russell-2000-index",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s21",
+   "tier": 1,
+   "publisher": "FTSE Russell, LSEG (index provider)",
+   "title": "Russell US Indexes",
+   "url": "https://www.lseg.com/en/ftse-russell/indices/russell-us",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s22",
+   "tier": 2,
+   "publisher": "Fidelity Investments",
+   "title": "What is the S&P 500? (Fidelity Learning Center)",
+   "url": "https://www.fidelity.com/learning-center/smart-money/what-is-the-sp-500",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s23",
+   "tier": 2,
+   "publisher": "Investopedia",
+   "title": "Capitalization-Weighted Indexes: A Guide to Definition and Calculation",
+   "url": "https://www.investopedia.com/terms/c/capitalizationweightedindex.asp",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s24",
+   "tier": 2,
+   "publisher": "Investor's Business Daily (IBD)",
+   "title": "Market Direction (IBD University: the M in CAN SLIM)",
+   "url": "https://www.investors.com/ibd-university/how-to-buy/market-direction/",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s25",
+   "tier": 2,
+   "publisher": "The Associated Press",
+   "title": "How major US stock indexes fared Thursday, 7/11/2024 (AP wire, as carried by Yahoo Finance)",
+   "url": "https://ca.finance.yahoo.com/news/major-us-stock-indexes-fared-202835996.html",
+   "accessed": "2026-11-08",
+   "why_reliable": "An AP wire story with the AP byline and date, syndicated unchanged on Yahoo Finance. AP is named in the contract's Tier 2 list for history."
+  },
+  {
+   "id": "s26",
+   "tier": 2,
+   "publisher": "CNBC",
+   "title": "S&P 500 retreats from record as investors sell high-flying Big Tech stocks, Nvidia drops 5%: Live updates (July 11, 2024)",
+   "url": "https://www.cnbc.com/2024/07/10/stock-market-today-live-updates.html",
+   "accessed": "2026-11-08"
+  },
+  {
+   "id": "s27",
+   "tier": 1,
+   "publisher": "Nasdaq (index provider)",
+   "title": "Nasdaq Composite Index Methodology",
+   "url": "https://indexes.nasdaqomx.com/docs/Methodology_COMP.pdf",
+   "accessed": "2026-11-09"
+  },
+  {
+   "id": "s28",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The account rulebook, section 9 (the owner, 2026-11-09)",
+   "url": "repo:docs/study/sizing_rule.md#9-the-account-rulebook-the-owner-2026-11-09",
+   "accessed": "2026-11-12"
+  },
+  {
+   "id": "h3",
+   "tier": 3,
+   "publisher": "UCT house rule",
+   "title": "The owner's review notes (2026-11-12)",
+   "url": "repo:docs/study/REVIEW_LEARNINGS.md",
+   "accessed": "2026-11-12"
+  }
+ ],
+ "facts": [
+  {
+   "id": "f1",
+   "source": "s1",
+   "quote": "Stocks are a type of security that gives stockholders a share of ownership in a company.",
+   "claim": "A stock gives you a share of ownership in a company."
+  },
+  {
+   "id": "f2",
+   "source": "s2",
+   "quote": "A share of stock is an instrument that signifies an ownership position (called equity) in a corporation, and a claim on its proportional share in the corporation's assets and profits.",
+   "claim": "One share is an ownership stake: a proportional claim on the company's assets and profits."
+  },
+  {
+   "id": "f3",
+   "source": "s2",
+   "quote": "Most stocks also provide voting rights, which give shareholders a proportional vote in certain corporate decisions, such as the election of corporate directors.",
+   "claim": "Most stocks carry a vote on certain decisions, such as electing directors."
+  },
+  {
+   "id": "f4",
+   "source": "s3",
+   "quote": "Stocks are also referred to as equities because they represent an ownership stake in a company.",
+   "claim": "Stocks are also called equities, because they are ownership."
+  },
+  {
+   "id": "f5",
+   "source": "s3",
+   "quote": "The issuing company may pay dividends, but it doesn’t have to.",
+   "claim": "A company may pay a dividend, but it does not have to."
+  },
+  {
+   "id": "f6",
+   "source": "s3",
+   "quote": "If it does, the amount of the dividend isn't guaranteed, and the company can cut the amount of the dividend or eliminate it altogether.",
+   "claim": "A dividend is not guaranteed and can be cut or dropped."
+  },
+  {
+   "id": "f7",
+   "source": "s13",
+   "quote": "With a stock, you are purchasing a piece of ownership in a company. With a bond, you are loaning money to a company.",
+   "claim": "A stock is ownership; a bond is a loan to the company."
+  },
+  {
+   "id": "f8",
+   "source": "s1",
+   "quote": "stockholders usually don’t have voting rights but they receive dividend payments before common stockholders do",
+   "claim": "Preferred stockholders usually cannot vote, but get dividends before common stockholders."
+  },
+  {
+   "id": "f9",
+   "source": "s1",
+   "quote": "There’s no guarantee that the company whose stock you hold will grow and do well, so you can lose money you invest in stocks.",
+   "claim": "Nothing guarantees the company does well, so you can lose money in a stock."
+  },
+  {
+   "id": "f10",
+   "source": "s1",
+   "quote": "Penny stocks do not pay dividends and are highly speculative.",
+   "claim": "Penny stocks pay no dividends and are highly speculative."
+  },
+  {
+   "id": "f11",
+   "source": "s4",
+   "quote": "Each publicly traded common stock in the U.S. receives a short abbreviation that identifies it, known as its stock symbol or stock ticker symbol.",
+   "claim": "Every US-listed common stock has a short code that identifies it: its ticker, or stock symbol."
+  },
+  {
+   "id": "f12",
+   "source": "s4",
+   "quote": "Some stocks have single-letter ticker symbols while others may have up to five.",
+   "claim": "A ticker runs from one letter up to five."
+  },
+  {
+   "id": "f13",
+   "source": "s4",
+   "quote": "Letters that appear after a ticker provide additional information. For instance, the letter \"Q\" after a ticker signifies that the company is in bankruptcy.",
+   "claim": "Letters added after a ticker carry extra information; a Q means the company is in bankruptcy."
+  },
+  {
+   "id": "f14",
+   "source": "s5",
+   "quote": "A \"national securities exchange\" is a securities exchange that has registered with the SEC under Section 6 of the Securities Exchange Act of 1934.",
+   "claim": "A national securities exchange is one registered with the SEC."
+  },
+  {
+   "id": "f15",
+   "source": "s6",
+   "quote": "Following is a list of exchanges registered with the SEC under Section 6(a) of the Exchange Act as national securities exchanges",
+   "claim": "The SEC publishes the list of registered national securities exchanges."
+  },
+  {
+   "id": "f16",
+   "source": "s6",
+   "quote": "The Nasdaq Stock Market New York Stock Exchange LLC NYSE Arca, Inc.",
+   "claim": "The Nasdaq Stock Market, the New York Stock Exchange and NYSE Arca are on the SEC's list of registered exchanges."
+  },
+  {
+   "id": "f17",
+   "source": "s7",
+   "quote": "Before a company’s stock can begin trading on an exchange, the company must meet certain minimum financial and non-financial requirements, or \"initial listing standards.\"",
+   "claim": "To trade on an exchange, a company first has to meet that exchange's listing standards."
+  },
+  {
+   "id": "f18",
+   "source": "s7",
+   "quote": "If a company fails to meet these continued listing standards, the exchange may remove or “delist” the company’s stock from the exchange.",
+   "claim": "A company that stops meeting the standards can be delisted."
+  },
+  {
+   "id": "f19",
+   "source": "s7",
+   "quote": "Listing standards vary between each exchange and are available to review on each exchange’s website.",
+   "claim": "Each exchange sets its own listing standards and publishes them."
+  },
+  {
+   "id": "f20",
+   "source": "s8",
+   "quote": "For a stock that is listed on an exchange, your broker may direct the order to that exchange, to another exchange, or to a firm called a \"market maker.\"",
+   "claim": "For a listed stock, your broker can send your order to its exchange, another exchange, or a market maker."
+  },
+  {
+   "id": "f21",
+   "source": "s8",
+   "quote": "When you push that enter key, your order is sent over the Internet to your broker -- who in turn decides which market to send it to for execution.",
+   "claim": "Your order goes to your broker, and the broker decides which market fills it."
+  },
+  {
+   "id": "f22",
+   "source": "s3",
+   "quote": "Once you place an order, your registered investment professional or brokerage firm’s system will route your order to an execution venue, which is where the trade will actually occur.",
+   "claim": "Your broker routes the order to an execution venue, and that is where the trade happens."
+  },
+  {
+   "id": "f23",
+   "source": "s3",
+   "quote": "Microcap securities, sometimes referred to as penny stocks, include low-priced securities issued by small companies with low market capitalization.",
+   "claim": "Microcaps, also called penny stocks, are low-priced shares of very small companies."
+  },
+  {
+   "id": "f24",
+   "source": "s3",
+   "quote": "These securities are primarily traded on the over-the-counter (OTC) market.",
+   "claim": "Microcaps mostly trade over the counter (OTC)."
+  },
+  {
+   "id": "f25",
+   "source": "s3",
+   "quote": "the microcap sector has a long history of bad actors engaging in price manipulation and other fraud.",
+   "claim": "Microcaps have a long history of price manipulation and fraud."
+  },
+  {
+   "id": "f26",
+   "source": "s3",
+   "quote": "This is largely because relatively little information is available about microcap companies compared with larger companies that list their securities on national exchanges.",
+   "claim": "Relatively little information is available on microcaps compared with larger companies listed on national exchanges."
+  },
+  {
+   "id": "f27",
+   "source": "s3",
+   "quote": "The performance of an individual stock is also affected by what's happening in the stock market in general, which is in turn affected by the economy as a whole.",
+   "claim": "A single stock's performance is also driven by the stock market as a whole."
+  },
+  {
+   "id": "f28",
+   "source": "s3",
+   "quote": "If many investors feel the same way, the stock market as a whole is likely to drop in value, which in turn may affect the value of the investments you hold.",
+   "claim": "When the whole market drops, it can pull down the stocks you hold."
+  },
+  {
+   "id": "f29",
+   "source": "s13",
+   "quote": "A stock’s price can be affected by factors inside the company, such as a faulty product, or by events the company has no control over, such as political or market events.",
+   "claim": "A stock's price moves on company news and also on market events the company cannot control."
+  },
+  {
+   "id": "f30",
+   "source": "s3",
+   "quote": "A stock that has a beta above 1.0 means it is more volatile than the overall market.",
+   "claim": "A beta above 1.0 means the stock swings more than the overall market."
+  },
+  {
+   "id": "f31",
+   "source": "s24",
+   "quote": "You can have all the other six traits lined up, but if the overall market is in a downtrend, it will be very hard for even the best stocks to move higher.",
+   "claim": "IBD: in a market downtrend, even the best stocks have a hard time moving higher."
+  },
+  {
+   "id": "f32",
+   "source": "s24",
+   "quote": "That's because 3 of 4 stocks move in the same direction as the general market, either up or down.",
+   "claim": "IBD's rule of thumb: 3 of 4 stocks move the same way as the general market."
+  },
+  {
+   "id": "f33",
+   "source": "s24",
+   "quote": "(The \"general market\" refers to the major indexes, primarily the Nasdaq Composite, S&P 500 and Dow Jones Industrial Average.)",
+   "claim": "IBD: \"the general market\" means the major indexes, mainly the Nasdaq Composite, the S&P 500 and the Dow."
+  },
+  {
+   "id": "f34",
+   "source": "s24",
+   "quote": "Making new buys in a correction is riskier, since most stocks will follow the market's downward trend.",
+   "claim": "IBD: buying in a correction is riskier, because most stocks follow the market down."
+  },
+  {
+   "id": "f35",
+   "source": "s9",
+   "quote": "A measurement of the performance of a specific \"basket\" of stocks considered to represent a particular market or sector of the U. S. economy.",
+   "claim": "A market index measures a basket of stocks that stands for a market or sector."
+  },
+  {
+   "id": "f36",
+   "source": "s9",
+   "quote": "For example, the Dow Jones Industrial Average (DJIA) is an index of 30 \"blue chip\" stocks of U.S. companies.",
+   "claim": "The Dow Jones Industrial Average is an index of 30 blue-chip US stocks."
+  },
+  {
+   "id": "f37",
+   "source": "s10",
+   "quote": "These funds follow a passive investment strategy designed to achieve approximately the same return as a particular index before fees.",
+   "claim": "An index fund aims for about the same return as its index, before fees."
+  },
+  {
+   "id": "f38",
+   "source": "s11",
+   "quote": "unlike mutual funds, investors buy and sell ETF shares on national securities exchanges at market prices.",
+   "claim": "ETF shares are bought and sold on exchanges at market prices."
+  },
+  {
+   "id": "f39",
+   "source": "s12",
+   "quote": "For an indexed-based ETF, the adviser seeks to track an underlying securities index and achieve returns that closely correspond to the returns of that index.",
+   "claim": "An index ETF tries to match the returns of the index it tracks."
+  },
+  {
+   "id": "f40",
+   "source": "s12",
+   "quote": "ETF shares are traded throughout the day on national stock exchanges and at market prices.",
+   "claim": "ETF shares trade all day on exchanges, like stocks."
+  },
+  {
+   "id": "f41",
+   "source": "s14",
+   "quote": "Market capitalization is the value of a corporation determined by multiplying the current public market price of one share of the corporation by the number of total outstanding shares.",
+   "claim": "Market cap is one share's price times all the shares outstanding."
+  },
+  {
+   "id": "f42",
+   "source": "s15",
+   "quote": "The State Street® SPDR® S&P 500® ETF Trust seeks to provide investment results that, before expenses, correspond generally to the price and yield performance of the S&P 500® Index",
+   "claim": "SPY aims to match the S&P 500's price and yield performance, before expenses."
+  },
+  {
+   "id": "f43",
+   "source": "s15",
+   "quote": "The S&P 500® Index is designed to measure the performance of the large-cap segment of the US equity market. It is float-adjusted market capitalization weighted.",
+   "claim": "The S&P 500 measures large US companies, weighted by float-adjusted market cap."
+  },
+  {
+   "id": "f44",
+   "source": "s15",
+   "quote": "The S&P 500 Index is a diversified large cap U.S. index that holds companies across all eleven GICS sectors",
+   "claim": "The S&P 500 holds large US companies from all eleven sectors."
+  },
+  {
+   "id": "f45",
+   "source": "s15",
+   "quote": "Launched in January 1993, SPY was the very first exchange traded fund listed in the United States",
+   "claim": "SPY, launched in January 1993, was the first US-listed ETF."
+  },
+  {
+   "id": "f46",
+   "source": "s15",
+   "quote": "Exchange Listing Date Trading Currency Ticker CUSIP ISIN NYSE ARCA Jan 22 1993 USD SPY",
+   "claim": "SPY's listing exchange is NYSE Arca, listed Jan 22, 1993, ticker SPY."
+  },
+  {
+   "id": "f47",
+   "source": "s15",
+   "quote": "It is not possible to invest directly in an index.",
+   "claim": "You cannot invest in an index directly."
+  },
+  {
+   "id": "f48",
+   "source": "s15",
+   "quote": "The shares of the State Street® SPDR® S&P 500® ETF Trust represent ownership in the State Street® SPDR® S&P 500® ETF Trust, a unit investment trust.",
+   "claim": "A SPY share is ownership in the fund (a unit investment trust), not in the index."
+  },
+  {
+   "id": "f49",
+   "source": "s16",
+   "quote": "Invesco QQQ is passively managed and tracks the Nasdaq-100 index, which offers exposure to many industry-leading companies in a single investment.",
+   "claim": "QQQ tracks the Nasdaq-100."
+  },
+  {
+   "id": "f50",
+   "source": "s16",
+   "quote": "The Nasdaq-100 index includes many of the world’s leading technology stocks, as well as the companies at the forefront of many long-term innovative themes shaping today’s economy.",
+   "claim": "The Nasdaq-100 includes many of the world's leading technology stocks."
+  },
+  {
+   "id": "f51",
+   "source": "s16",
+   "quote": "The NASDAQ Composite Index measures all NASDAQ domestic and international-based common stocks listed on The Nasdaq Stock Market.",
+   "claim": "The Nasdaq Composite measures the common stocks listed on Nasdaq, a different index from the Nasdaq-100."
+  },
+  {
+   "id": "f52",
+   "source": "s16",
+   "quote": "Invesco QQQ’s total expense ratio is 0.18%.",
+   "claim": "QQQ's total expense ratio is 0.18% a year."
+  },
+  {
+   "id": "f53",
+   "source": "s16",
+   "quote": "An investor cannot invest directly in an index.",
+   "claim": "You cannot invest in an index directly."
+  },
+  {
+   "id": "f54",
+   "source": "s18",
+   "quote": "The Nasdaq-100 Index® (the “Index”) is designed to measure the performance of 100 of the largest Nasdaq-listed non-financial companies.",
+   "claim": "The Nasdaq-100 measures 100 of the largest non-financial companies listed on Nasdaq."
+  },
+  {
+   "id": "f55",
+   "source": "s18",
+   "quote": "The Index employs a modified market capitalization weighting scheme.",
+   "claim": "The Nasdaq-100 is weighted by (modified) market cap."
+  },
+  {
+   "id": "f56",
+   "source": "s18",
+   "quote": "A company must be primarily listed on a U.S. Nasdaq-affiliated exchange.",
+   "claim": "To be in the Nasdaq-100, a company must be primarily listed on a Nasdaq exchange."
+  },
+  {
+   "id": "f57",
+   "source": "s18",
+   "quote": "A company must not be classified in the Financial Industry under the Industry Classification Benchmark (ICB)",
+   "claim": "Companies in the Financial industry are not eligible for the Nasdaq-100."
+  },
+  {
+   "id": "f58",
+   "source": "s19",
+   "quote": "Market Capitalization-Based Weighting Reflects the economic significance of larger companies within the index.",
+   "claim": "Nasdaq weights the Nasdaq-100 by market cap, so larger companies count for more."
+  },
+  {
+   "id": "f59",
+   "source": "s17",
+   "quote": "The iShares Russell 2000 ETF seeks to track the Russell 2000 Index. The fund offers broad exposure to U.S.small-cap stocks.",
+   "claim": "IWM tracks the Russell 2000, US small-cap stocks."
+  },
+  {
+   "id": "f60",
+   "source": "s17",
+   "quote": "Small-capitalization companies may be less stable and more susceptible to adverse developments, and their securities may be more volatile and less liquid than larger capitalization companies.",
+   "claim": "Small-cap stocks can be more volatile and less liquid than large caps."
+  },
+  {
+   "id": "f61",
+   "source": "s20",
+   "quote": "The Russell 2000® Index measures the performance of the small-cap segment of the US equity universe. It includes approximately 2,000 of the smallest securities based on a combination of their market cap and current index membership.",
+   "claim": "The Russell 2000 measures US small caps: about 2,000 of the smallest stocks."
+  },
+  {
+   "id": "f63",
+   "source": "s21",
+   "quote": "Russell US Indexes will change from an annual to a semi-annual schedule",
+   "claim": "FTSE Russell is moving the Russell US reconstitution from once a year to twice a year."
+  },
+  {
+   "id": "f64",
+   "source": "s22",
+   "quote": "Because the stocks it tracks represent companies from a broad range of industries, the S&P 500 is considered a barometer of overall stock market performance.",
+   "claim": "The S&P 500 is seen as a barometer of the overall stock market."
+  },
+  {
+   "id": "f65",
+   "source": "s22",
+   "quote": "Although you can’t invest directly in the S&P 500, you can buy shares of an index mutual fund or exchange-traded fund (ETF) that aims to track the index and match its returns.",
+   "claim": "You can't buy the S&P 500 itself; you buy a fund that tracks it."
+  },
+  {
+   "id": "f66",
+   "source": "s22",
+   "quote": "A trillion-dollar company’s stock price change would have a greater effect on the S&P 500’s value than a stock price change for a company in the index worth, say, a quarter of that.",
+   "claim": "In the S&P 500, a move in a giant company moves the index more than the same move in a smaller one."
+  },
+  {
+   "id": "f67",
+   "source": "s22",
+   "quote": "a company must be US-based, trade stock on a major US market exchange like the NYSE or Nasdaq",
+   "claim": "S&P 500 members can be listed on the NYSE or on Nasdaq."
+  },
+  {
+   "id": "f68",
+   "source": "s22",
+   "quote": "One major difference is that the DJIA is composed of just 30 companies and excludes firms in the utilities and transportation sectors",
+   "claim": "The Dow holds 30 companies and leaves out utilities and transportation."
+  },
+  {
+   "id": "f69",
+   "source": "s22",
+   "quote": "The DJIA gives more weight to the highest-priced stocks, whereas the S&P 500 gives more weight to the largest market cap companies, using the free float formula.",
+   "claim": "The Dow weights by share price; the S&P 500 weights by market cap."
+  },
+  {
+   "id": "f70",
+   "source": "s22",
+   "quote": "often referred to as the Nasdaq, tracks the value of more than 3,000 companies, almost all the ones listed on the Nasdaq stock exchange.",
+   "claim": "The Nasdaq Composite, often just called \"the Nasdaq\", tracks almost every Nasdaq-listed company."
+  },
+  {
+   "id": "f71",
+   "source": "s22",
+   "quote": "The Nasdaq Composite index also tracks stocks predominantly of technology companies of varying sizes, whereas the S&P 500 tracks only large-cap companies but across all sectors.",
+   "claim": "The Nasdaq Composite leans to tech; the S&P 500 is large caps from all sectors."
+  },
+  {
+   "id": "f72",
+   "source": "s22",
+   "quote": "tracks the performance of about 2,000 small-cap publicly traded companies in the US.",
+   "claim": "The Russell 2000 tracks about 2,000 US small caps."
+  },
+  {
+   "id": "f73",
+   "source": "s23",
+   "quote": "A capitalization-weighted index gives weight to its components based on their market capitalizations, giving the largest companies more influence on its performance.",
+   "claim": "In a cap-weighted index the largest companies have the most influence."
+  },
+  {
+   "id": "f74",
+   "source": "s23",
+   "quote": "For a capitalization-weighted index, significant changes in the share price of its largest companies significantly influence the value of the overall index.",
+   "claim": "Big moves in the largest companies move a cap-weighted index a lot."
+  },
+  {
+   "id": "f75",
+   "source": "s25",
+   "quote": "How major US stock indexes fared Thursday, 7/11/2024",
+   "claim": "AP's index recap for Thursday, July 11, 2024."
+  },
+  {
+   "id": "f76",
+   "source": "s25",
+   "quote": "Three out of every four stocks in the S&P 500 climbed Thursday, and homebuilders, real-estate owners and other stocks that benefit the most from easier interest rates led the way.",
+   "claim": "On July 11, 2024, three of every four S&P 500 stocks rose."
+  },
+  {
+   "id": "f77",
+   "source": "s25",
+   "quote": "But slumps for Nvidia, Tesla and other influential stocks in the small group that's come to be known as the Magnificent Seven masked the underlying strength. That dragged the S&P 500 down 0.9%.",
+   "claim": "Drops in a few giants (Nvidia, Tesla and the rest of the Magnificent Seven) pulled the S&P 500 down 0.9% that day."
+  },
+  {
+   "id": "f78",
+   "source": "s25",
+   "quote": "The Nasdaq fell 2% and the Dow rose 32 points.",
+   "claim": "AP's own shorthand: \"the Nasdaq\" fell 2% that day."
+  },
+  {
+   "id": "f79",
+   "source": "s25",
+   "quote": "The S&P 500 fell 49.37 points, or 0.9%, to 5,584.52.",
+   "claim": "The S&P 500 fell 0.9% on July 11, 2024."
+  },
+  {
+   "id": "f80",
+   "source": "s25",
+   "quote": "The Nasdaq composite fell 364.04 points, or 2%, to 18,283.41.",
+   "claim": "The Nasdaq composite fell 2% on July 11, 2024."
+  },
+  {
+   "id": "f81",
+   "source": "s25",
+   "quote": "The Russell 2000 index of smaller companies rose 73.28 points, or 3.6%, to 2,125.04.",
+   "claim": "The Russell 2000 rose 3.6% on July 11, 2024."
+  },
+  {
+   "id": "f82",
+   "source": "s26",
+   "quote": "The catalyst for the move was the lowest consumer price index reading in more than three years, which sent rates lower and investors into small caps and housing-related shares.",
+   "claim": "A soft inflation report that day sent investors into small caps."
+  },
+  {
+   "id": "f83",
+   "source": "s26",
+   "quote": "The S&P 500 retreated from a record as investors rotated out of the big technology winners of the year, including Nvidia and Meta Platforms.",
+   "claim": "Investors rotated out of the year's big tech winners that day."
+  },
+  {
+   "id": "f84",
+   "source": "s26",
+   "quote": "The small-cap benchmark Russell 2000 Index gained about 3.6% as investors hoped for a Federal Reserve rate cut in September and an economic soft landing following the inflation data.",
+   "claim": "CNBC: the small-cap Russell 2000 gained about 3.6% that day."
+  },
+  {
+   "id": "f85",
+   "source": "s26",
+   "quote": "The S&P 500 fell 0.88%, retreating from a record it touched earlier in the session and closing at 5,584.54.",
+   "claim": "CNBC: the S&P 500 fell 0.88% that day."
+  },
+  {
+   "id": "f86",
+   "source": "s26",
+   "quote": "The Nasdaq Composite pulled back 1.95%, after also hitting a new record earlier in the trading day.",
+   "claim": "CNBC: the Nasdaq Composite fell 1.95% that day."
+  },
+  {
+   "id": "f87",
+   "source": "s27",
+   "quote": "The Nasdaq Composite Index includes all domestic and international common type stocks listed on the Nasdaq Stock Market.",
+   "claim": "Nasdaq: the Composite holds every common-type stock listed on Nasdaq, US and foreign."
+  },
+  {
+   "id": "f88",
+   "source": "s27",
+   "quote": "There is no industry or sector eligibility criterion.",
+   "claim": "Nasdaq: the Composite has no industry or sector rule, so a Nasdaq-listed bank is in it."
+  },
+  {
+   "id": "f89",
+   "source": "s26",
+   "quote": "Stocks in the AI darling were under pressure early in the session following a cooler-than-expected June inflation print",
+   "claim": "CNBC: that morning's June inflation report came in cooler than expected."
+  },
+  {
+   "id": "f90",
+   "source": "s26",
+   "quote": "Those moves added pressure to the S&P 500, even as a majority of the stocks in the benchmark traded in positive territory.",
+   "claim": "CNBC, at midday: drops in the megacaps pressured the S&P 500 even as most of its stocks traded higher."
+  },
+  {
+   "id": "h1",
+   "source": "s28",
+   "quote": "Trade only stocks at $10 or more that trade at least $20 million a day.",
+   "claim": "Our rule: we trade only stocks priced at $10 or more that trade at least $20 million a day."
+  },
+  {
+   "id": "h2",
+   "source": "s28",
+   "quote": "A market filter decides when the account trades: the app's market reading (Green, Yellow, Orange, Red).",
+   "claim": "Our rule: a market filter, the app's market reading, decides when we trade."
+  },
+  {
+   "id": "h3",
+   "source": "h3",
+   "quote": "a strong setup is a name to track for relative strength until the market stabilizes",
+   "claim": "Our view: in a weak market, a strong setup is a name to track for relative strength until the market stabilizes."
+  }
+ ],
+ "walkthroughs": [
+  {
+   "key": "w1",
+   "title": "A share, and its ticker",
+   "steps": [
+    "Buy a share and you own a small piece of the company. That's why stocks get called equities.",
+    "Every US stock has a short code that names it, its ticker. One to five letters, like NVDA.",
+    "Funds get tickers too. SPY, QQQ and IWM are funds, and each one tracks an index."
+   ],
+   "facts": [
+    "f1",
+    "f2",
+    "f4",
+    "f11",
+    "f12",
+    "f46",
+    "f49",
+    "f59"
+   ]
+  },
+  {
+   "key": "w2",
+   "title": "Where it trades",
+   "steps": [
+    "A company lists its stock on an exchange, like the NYSE or Nasdaq. Both are registered with the SEC.",
+    "To get listed it has to meet that exchange's standards. Stop meeting them and it can get delisted.",
+    "When you hit buy, your broker decides where the order goes. That exchange, another one, or a market maker."
+   ],
+   "facts": [
+    "f14",
+    "f16",
+    "f17",
+    "f18",
+    "f20",
+    "f21",
+    "f19"
+   ]
+  },
+  {
+   "key": "w3",
+   "title": "Three funds, three markets",
+   "steps": [
+    "SPY tracks the S&P 500: the big US companies, across all eleven sectors.",
+    "QQQ tracks the Nasdaq-100, the biggest non-financial Nasdaq names. IWM tracks the Russell 2000, the small caps.",
+    "Check all three before you open a single chart. Most stocks follow the market, about three of every four."
+   ],
+   "facts": [
+    "f42",
+    "f43",
+    "f44",
+    "f49",
+    "f54",
+    "f59",
+    "f61",
+    "f27",
+    "f29",
+    "f32"
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "key": "q01",
+   "skill": "basics.shares",
+   "rung": 1,
+   "format": "mcq",
+   "term": "share",
+   "q": "Say you buy 100 shares of NVDA. What do you actually own?",
+   "choices": [
+    "A slice of the company",
+    "A loan to the company",
+    "A promised yearly dividend",
+    "A vote on every decision"
+   ],
+   "answer": "A slice of the company",
+   "why": "A slice of the company. A share is ownership, which is why stocks get called equities. Your 100 shares are a claim on your piece of the company's assets and profits. Good and bad, you own it. It's not a loan. Lending the company money is a bond. Nobody promises you a dividend either. And your vote covers certain things, like electing directors, not every call the company makes. You're in it for the move, but know what you're holding.",
+   "lesson_line": "A share is a slice of the business. You own your piece, good and bad.",
+   "facts": [
+    "f1",
+    "f2",
+    "f4",
+    "f7",
+    "f5",
+    "f3",
+    "f6"
+   ],
+   "wrong": {
+    "A loan to the company": "That's a bond. With a bond you lend the company money. With a share you own a piece of it.",
+    "A promised yearly dividend": "Nobody promises you a dividend. A company may pay one, but it doesn't have to.",
+    "A vote on every decision": "Most stocks get a vote on certain things, like electing directors. Not on everything."
+   },
+   "simple": "A slice of the company. You own a small piece of the business and its profits, which is why stocks are called equities.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (stem narrowed to common stock)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q02",
+   "skill": "basics.shares",
+   "rung": 1,
+   "format": "fill",
+   "term": "ticker",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "Every US stock has a short code that identifies it, called its ___.",
+   "bank": [
+    "ticker",
+    "index",
+    "exchange",
+    "sector",
+    "float"
+   ],
+   "answer": "ticker",
+   "why": "Ticker. Each publicly traded US common stock gets a short abbreviation that identifies it, known as its ticker or stock symbol. A ticker runs from one letter up to five. Funds have tickers too: SPY is a fund that lists on NYSE Arca. An index, an exchange or a sector is not a stock's name.",
+   "lesson_line": "Ticker first. One to five letters that say exactly what you're buying.",
+   "facts": [
+    "f11",
+    "f12",
+    "f46"
+   ],
+   "simple": "Ticker. It is the short code of letters that names a stock, and funds have one too, like SPY.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "stable definition, one Tier 1 page with two agreeing facts"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q03",
+   "skill": "basics.shares",
+   "rung": 2,
+   "format": "tf",
+   "q": "A stock you hold pays a dividend. The company can still cut it, or stop paying it altogether.",
+   "answer": "True",
+   "why": "True. Owning the shares doesn't make the check a promise. A company may pay a dividend, but it doesn't have to. If it does pay, the amount isn't locked in. It can cut it, or drop it completely. We're swing traders. We're in a stock for the move in the price, so a dividend is a bonus at best. Never count on it.",
+   "lesson_line": "A dividend is a bonus, never a promise. We're here for the move.",
+   "facts": [
+    "f5",
+    "f6"
+   ],
+   "simple": "True. A company may pay a dividend but doesn't have to, and it can cut it or stop it.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source only (FINRA's Common Stock section)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q04",
+   "skill": "basics.shares",
+   "rung": 2,
+   "format": "mcq",
+   "term": "SPY",
+   "q": "You pull up SPY to check the market before the open. Which index are you really reading?",
+   "choices": [
+    "The S&P 500",
+    "The Nasdaq-100",
+    "The Russell 2000",
+    "The Dow Jones"
+   ],
+   "answer": "The S&P 500",
+   "why": "The S&P 500. SPY is a fund built to match it, before its costs. That's the big US companies, from all eleven sectors. So SPY tells you how the large caps are doing as a group. QQQ is your read on the Nasdaq-100, and IWM on the Russell 2000. The Dow is its own index. I check all three funds before I look at any one stock. Each one shows me a different part of the market.",
+   "lesson_line": "SPY is the big caps in one ticker. Check it before any stock.",
+   "facts": [
+    "f42",
+    "f43",
+    "f44",
+    "f49",
+    "f54",
+    "f59",
+    "f61",
+    "f36"
+   ],
+   "wrong": {
+    "The Dow Jones": "The Dow is its own index, 30 blue chips. SPY follows the S&P 500.",
+    "The Nasdaq-100": "That's QQQ's index, the biggest non-financial Nasdaq names.",
+    "The Russell 2000": "That's IWM's index, the small caps. SPY is the big caps."
+   },
+   "simple": "The S&P 500. SPY is built to match that index of big US companies, so it's your large-cap read.",
+   "tier": "core",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "one source only (the fund's own page)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q05",
+   "skill": "basics.shares",
+   "rung": 3,
+   "format": "mcq",
+   "term": "market index",
+   "q": "Every market headline quotes an index, like the Dow or the S&P 500. What is an index?",
+   "choices": [
+    "A score for a basket of stocks",
+    "A fund you buy through your broker",
+    "The exchange a stock lists on",
+    "One company's total market value"
+   ],
+   "answer": "A score for a basket of stocks",
+   "why": "A score for a basket of stocks. An index picks a group of stocks to stand for a market or a sector, then tracks how that group does. The Dow is 30 big blue-chip names. You can't buy an index itself. You buy a fund that follows it, like SPY for the S&P 500. So when I say the market's up today, I mean those scoreboards are up.",
+   "lesson_line": "An index is the scoreboard. The fund that follows it is what you actually trade.",
+   "facts": [
+    "f35",
+    "f36",
+    "f47",
+    "f37",
+    "f67",
+    "f41",
+    "f65",
+    "f42"
+   ],
+   "wrong": {
+    "A fund you buy through your broker": "That's the fund that follows an index, like SPY. You can't buy the index itself.",
+    "The exchange a stock lists on": "That's where a stock lists, like the NYSE or Nasdaq. One index can hold stocks from both.",
+    "One company's total market value": "That's market cap: one share's price times all the shares outstanding."
+   },
+   "simple": "A score for a basket of stocks picked to stand for a market or a sector. You trade a fund that follows it.",
+   "deeper": {
+    "counter": "An index is not a thing you own. The Dow is a list of 30 blue-chip stocks and a way to score them. An index fund is the thing you buy: it aims for about the same return as its index, before fees. Market cap is a third idea: the value of one company, price times shares outstanding."
+   },
+   "tier": "core",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "one source only for the definition (Investor.gov)",
+     "fixed before",
+     "key text shortened in wave6 (was the longest choice and echoed the stem)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q06",
+   "skill": "basics.shares",
+   "rung": 3,
+   "format": "tf",
+   "q": "When you buy SPY, you are buying the S&P 500 index itself.",
+   "answer": "False",
+   "why": "False. It is not possible to invest directly in an index. A SPY share is ownership in the SPDR S&P 500 ETF Trust, a unit investment trust. The trust aims to match the S&P 500's price and yield, before expenses. Its results correspond generally to the index, not exactly.",
+   "lesson_line": "SPY is the fund. The S&P 500 is the scoreboard it follows.",
+   "facts": [
+    "f47",
+    "f48",
+    "f42",
+    "f65"
+   ],
+   "simple": "False. You cannot buy an index itself, so a SPY share makes you an owner of a fund that tracks it.",
+   "tier": "core",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (why reworded to the fund page's wording)"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q07",
+   "skill": "basics.shares",
+   "rung": 4,
+   "format": "mcq",
+   "term": "QQQ",
+   "q": "You want a quick read on the big tech names, so you check QQQ. Which index does it track?",
+   "choices": [
+    "The Nasdaq-100",
+    "The Nasdaq Composite",
+    "The S&P 500",
+    "The Russell 2000"
+   ],
+   "answer": "The Nasdaq-100",
+   "why": "The Nasdaq-100. That's 100 of the largest non-financial companies listed on Nasdaq, a lot of the leading tech names. Don't mix it up with the Nasdaq Composite. The Composite holds every common stock listed on Nasdaq, so it's a much wider basket. QQQ is your big-tech read. SPY covers the large caps across every sector, and IWM the small caps.",
+   "lesson_line": "QQQ is the Nasdaq-100. Your big-tech read, not the whole Nasdaq.",
+   "facts": [
+    "f49",
+    "f54",
+    "f50",
+    "f51",
+    "f42",
+    "f59",
+    "f87"
+   ],
+   "wrong": {
+    "The Nasdaq Composite": "Close, but no. The Composite is every common stock on Nasdaq. QQQ's index is just 100 of the largest.",
+    "The S&P 500": "That's SPY. Large US companies from every sector.",
+    "The Russell 2000": "That's IWM, the small caps."
+   },
+   "simple": "The Nasdaq-100. QQQ follows the biggest non-financial Nasdaq names, not the wider Nasdaq Composite.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two Tier 1 sources agree (Invesco, Nasdaq methodology)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q08",
+   "skill": "basics.shares",
+   "rung": 4,
+   "format": "fill",
+   "q": "Tap the word that fits the blank.",
+   "sentence": "IWM tracks the Russell 2000, an index of ___-cap US stocks.",
+   "bank": [
+    "small",
+    "large",
+    "mid",
+    "mega"
+   ],
+   "answer": "small",
+   "why": "Small. IWM seeks to track the Russell 2000. FTSE Russell says that index measures the small-cap segment of the US market. Market cap is the share price times all shares outstanding, so a small cap is a company with a small total value. The index holds about 2,000 of the smallest stocks. It is not a mid-cap or large-cap index.",
+   "lesson_line": "IWM is your small-cap read. Small caps can swing harder and trade thinner than big names.",
+   "facts": [
+    "f59",
+    "f61",
+    "f72",
+    "f60",
+    "f41"
+   ],
+   "simple": "Small. The Russell 2000 is an index of about 2,000 small US stocks, so IWM gives you a small-cap read.",
+   "tier": "core",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "three sources agree (iShares, FTSE Russell, Fidelity)"
+    ]
+   },
+   "batch": "review1"
+  },
+  {
+   "key": "q09",
+   "skill": "basics.shares",
+   "rung": 5,
+   "format": "scenario",
+   "story": "Midday, you check the market. SPY is up 0.3%. QQQ is up 0.4%. IWM is down 2.1%.",
+   "q": "Where's the selling?",
+   "choices": [
+    "Small-cap stocks",
+    "Large tech names",
+    "The biggest US companies",
+    "Mid-cap stocks"
+   ],
+   "answer": "Small-cap stocks",
+   "why": "Small caps. IWM tracks the Russell 2000, the small-cap index, and it's down 2.1%. SPY's up 0.3% and QQQ's up 0.4%, so the big caps and big tech are fine. The selling sits in one group, not the whole market. That's worth knowing before you buy a smaller name. It'd be swimming against its own group today. A glance at all three tells you where the pressure is.",
+   "lesson_line": "Check all three. When one splits from the others, it shows you where the selling is.",
+   "facts": [
+    "f59",
+    "f61",
+    "f49",
+    "f50",
+    "f42",
+    "f43"
+   ],
+   "wrong": {
+    "Large tech names": "QQQ's up 0.4%. Big tech is holding fine.",
+    "The biggest US companies": "SPY follows the big caps, and it's up 0.3%.",
+    "Mid-cap stocks": "IWM is the Russell 2000, the small caps, not mid caps. It's the only one of the three that's red."
+   },
+   "simple": "Small caps. IWM, the small-cap fund, is the only one of the three that's down.",
+   "tier": "extended",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "made-up numbers in the story; key rests on two agreeing sources"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q10",
+   "skill": "basics.shares",
+   "rung": 5,
+   "format": "tf",
+   "q": "You buy SPY, which lists on NYSE Arca. Your order can still fill on another exchange, or with a market maker.",
+   "answer": "True",
+   "why": "True. Where a stock lists and where your order fills are two different things. SPY lists on NYSE Arca, but your order goes to your broker first. The broker picks the venue: that exchange, another one, or a market maker. The trade happens wherever it lands. You don't have to choose it. What you control is your price and your stop.",
+   "lesson_line": "Where it lists and where you get filled are two different things.",
+   "facts": [
+    "f46",
+    "f20",
+    "f21",
+    "f22",
+    "f40",
+    "f38"
+   ],
+   "simple": "True. Your broker picks where the order goes, so it can fill on another exchange or with a market maker.",
+   "tier": "extended",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "SPY's listing exchange can change",
+     "fixed before (stem reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q11",
+   "skill": "basics.shares",
+   "rung": 6,
+   "format": "scenario",
+   "story": "Banks are leading the market today. You're watching a big US bank whose stock lists on Nasdaq.",
+   "q": "Which index won't hold it, however big it gets?",
+   "choices": [
+    "The Nasdaq-100",
+    "The S&P 500",
+    "The Nasdaq Composite",
+    "The Dow Jones"
+   ],
+   "answer": "The Nasdaq-100",
+   "why": "The Nasdaq-100. Its rules keep out financial companies, and a bank is a financial company. Size doesn't change that. The Nasdaq Composite has no sector rule, so that bank's in it. The S&P 500 holds all eleven sectors. Here's why you care. QQQ follows the Nasdaq-100. So on a day the banks lead, QQQ can sit there and miss the whole move. Know what's in a fund before you read the market off it.",
+   "lesson_line": "Know what's in the fund. QQQ has no banks, so it can miss a day the banks lead.",
+   "facts": [
+    "f54",
+    "f57",
+    "f49",
+    "f44",
+    "f67",
+    "f51",
+    "f68",
+    "f87",
+    "f88"
+   ],
+   "wrong": {
+    "The Dow Jones": "The Dow leaves out utilities and transportation. Banks aren't ruled out.",
+    "The S&P 500": "It holds all eleven sectors, from the NYSE or Nasdaq. A big bank can be in it.",
+    "The Nasdaq Composite": "No sector rule at all. Every common stock on Nasdaq is in it, banks included."
+   },
+   "simple": "The Nasdaq-100. Its rules keep out financial companies, so a bank stays out however big it gets.",
+   "deeper": {
+    "trap": "QQQ is not the whole Nasdaq. Its index leaves out financial companies, so a big Nasdaq-listed bank is not in it, however large. On a day when banks lead, QQQ can miss the move. The Nasdaq Composite, which has no industry rule, holds that bank."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 6,
+    "reasons": [
+     "one source only for the key (Nasdaq-100 methodology)",
+     "index rules are revised over time",
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q12",
+   "skill": "basics.shares",
+   "rung": 6,
+   "format": "mcq",
+   "q": "A friend sends you a ticker with an extra Q tacked on the end. What's that Q telling you?",
+   "choices": [
+    "The company's in bankruptcy",
+    "The stock lists on Nasdaq",
+    "The stock pays a dividend",
+    "Its earnings report is due soon"
+   ],
+   "answer": "The company's in bankruptcy",
+   "why": "Bankruptcy. Letters added after a ticker carry extra information, and a Q means the company is in bankruptcy. It's got nothing to do with the exchange, a dividend or the quarter. I'd walk away. There's no guarantee a company comes back from that, and you can lose the money you put in. Read the whole ticker before you ever get involved.",
+   "lesson_line": "Read the whole ticker. A Q on the end means bankruptcy. Pass.",
+   "facts": [
+    "f13",
+    "f11",
+    "f12",
+    "f9"
+   ],
+   "wrong": {
+    "The stock pays a dividend": "Nothing to do with dividends. A Q flags bankruptcy.",
+    "The stock lists on Nasdaq": "A Q doesn't name the exchange. It flags a company in bankruptcy.",
+    "Its earnings report is due soon": "Q isn't for quarter here. It flags a company in bankruptcy."
+   },
+   "simple": "Bankruptcy. A Q added after a ticker flags a company in bankruptcy, and I'd stay away from it.",
+   "tier": "extended",
+   "risk": {
+    "score": 5,
+    "reasons": [
+     "one cited fact only (Investor.gov glossary)",
+     "symbol conventions change (Nasdaq dropped the Q on its own listings in 2006, see conflicts)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q13",
+   "skill": "basics.shares",
+   "rung": 7,
+   "format": "scenario",
+   "story": "July 11, 2024. A cooler inflation report hits that morning. By the close the S&P 500 is down 0.9% and the Nasdaq Composite is down 2%. The Russell 2000 is up 3.6%.",
+   "q": "Where's the money going?",
+   "choices": [
+    "Into small caps",
+    "Into big tech",
+    "Out of stocks altogether",
+    "Into bets on higher rates"
+   ],
+   "answer": "Into small caps",
+   "why": "Into small caps. The Russell 2000 ran 3.6% while the S&P 500 fell 0.9% and the Nasdaq Composite fell 2%. The cooler inflation report sent rates lower, and investors piled into small caps. They rotated out of the year's big tech winners, like Nvidia. So money didn't leave stocks. It moved from one group to another. That's rotation. Look at the chart: one big candle, up to the top of a range it had chopped in for months.",
+   "lesson_line": "When small caps and big tech split hard, that's money rotating. Read all three.",
+   "facts": [
+    "f75",
+    "f81",
+    "f79",
+    "f80",
+    "f61",
+    "f82",
+    "f83",
+    "f84",
+    "f89"
+   ],
+   "wrong": {
+    "Into big tech": "Big tech was the one getting sold. Investors rotated out of the year's big winners, like Nvidia.",
+    "Out of stocks altogether": "Small caps jumped 3.6%. Money moved between groups. It didn't leave stocks.",
+    "Into bets on higher rates": "The cooler inflation report sent rates lower, not higher. That's what sent money into small caps."
+   },
+   "simple": "Into small caps. The small-cap index jumped while big tech sold off, so money rotated from one group to the other.",
+   "deeper": {
+    "counter": "A down day for the S&P 500 is not proof that money left stocks. On July 11, 2024 the Russell 2000 rose 3.6% while the S&P 500 and the Nasdaq Composite fell. Check the small caps before you call it selling everywhere."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "voice-8-2026-11-17",
+   "chart": {
+    "sym": "RUT",
+    "asof": "2024-07-11",
+    "window": 120,
+    "forward": 5
+   }
+  },
+  {
+   "key": "q14",
+   "skill": "basics.shares",
+   "rung": 7,
+   "format": "numeric",
+   "q": "On July 11, 2024 the Russell 2000 rose 3.6% and the S&P 500 fell 0.9%. How many percentage points apart were they?",
+   "answer": 4.5,
+   "calc": {
+    "fn": "arith",
+    "args": {
+     "expr": "russell_2000 - sp_500",
+     "russell_2000": 3.6,
+     "sp_500": -0.9
+    }
+   },
+   "suffix": "points",
+   "why": "4.5 percentage points. The gap is 3.6 minus negative 0.9, which is 3.6 plus 0.9. When one index rises and the other falls, you add the two moves. The answer is in percentage points, not a percent change. One slip is to subtract 0.9 from 3.6, which treats the fall as a rise.",
+   "lesson_line": "Measure the gap between the big caps and the small caps. A wide split shows you which group leads.",
+   "facts": [
+    "f81",
+    "f79",
+    "f84",
+    "f85"
+   ],
+   "simple": "4.5 points. One index rose 3.6% and the other fell 0.9%, so you add the two moves to get the gap.",
+   "deeper": {
+    "trap": "Percentage points are not percent. The gap between a 3.6% rise and a 0.9% fall is 4.5 percentage points. It is not a 4.5% change in anything."
+   },
+   "tier": "extended",
+   "risk": {
+    "score": 2,
+    "reasons": [
+     "computed key"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q15",
+   "skill": "basics.shares",
+   "rung": 8,
+   "format": "tf",
+   "q": "The S&P 500 fell 0.9% on July 11, 2024. Most of the stocks in it fell that day too.",
+   "answer": "False",
+   "why": "False. Three of every four S&P 500 stocks went up that day. A few giants did the damage. Nvidia, Tesla and other Magnificent Seven names slumped and dragged the index down 0.9%. The S&P 500 is weighted by size, so its biggest names move it most. A red index can hide a lot of green stocks. That's what breadth is for: how many stocks are actually rising. Our Breadth page shows it.",
+   "lesson_line": "A few giants can hide what most stocks are doing. Check breadth, not just the index.",
+   "facts": [
+    "f76",
+    "f77",
+    "f43",
+    "f66",
+    "f73",
+    "f90"
+   ],
+   "simple": "False. Most S&P 500 stocks rose that day, but a few giants fell hard enough to drag the index down.",
+   "deeper": {
+    "example": "A trillion-dollar company moves the S&P 500 more than a company a quarter of its size making the same move. So a handful of giants can sink the index on a day when three of every four members rise. Check how many stocks rose, not just the index."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 0,
+    "reasons": [
+     "two publishers agree (AP, CNBC)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q16",
+   "skill": "basics.shares",
+   "rung": 8,
+   "format": "scenario",
+   "story": "A name on your list just reported strong earnings, and the chart looks good. But SPY, QQQ and IWM have all been falling hard for two weeks.",
+   "q": "What's the play?",
+   "choices": [
+    "Track its relative strength",
+    "Buy it, the earnings make it safe",
+    "Ignore the market, buy it",
+    "Buy the dip, it's on sale"
+   ],
+   "answer": "Track its relative strength",
+   "why": "Track it. Keep it on your watchlist and watch how it acts while SPY, QQQ and IWM keep falling. That's its relative strength. If it holds up while everything around it drops, that's a leader showing itself. That's the name you want when the market stabilizes. Buy now and you're buying into the wind. Most stocks follow the market down, and good earnings don't make one immune. The market reading in our app, Green down to Red, is your guide to how much to trade. Let the market settle, then get involved.",
+   "lesson_line": "In a weak market, track the strong setup's relative strength. Get involved when the market stabilizes.",
+   "facts": [
+    "f27",
+    "f28",
+    "f29",
+    "f31",
+    "f32",
+    "f34",
+    "h2",
+    "h3"
+   ],
+   "wrong": {
+    "Buy it, the earnings make it safe": "Nothing makes it safe. Good news or not, the whole market can drag it down.",
+    "Ignore the market, buy it": "Stocks don't trade alone. Market events move prices in ways the company can't control.",
+    "Buy the dip, it's on sale": "A falling market isn't a sale. Most stocks follow it down, and you'd be buying right into that."
+   },
+   "simple": "Track it. A strong stock that holds up in a weak market is the one you want once the market stabilizes.",
+   "deeper": {
+    "trap": "Good news can make a falling market feel beside the point. IBD says the reverse: in a market downtrend, even the best stocks have a hard time moving higher. A drop in the whole market is not a sale on your stock. It is the wind you would be buying into."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before (stem reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q17",
+   "skill": "basics.shares",
+   "rung": 9,
+   "format": "scenario",
+   "story": "A friend texts you a tip on a $0.40 stock. It trades over the counter, not on a national exchange.",
+   "q": "What should you know before you touch it?",
+   "choices": [
+    "Little public info and higher risk",
+    "Low price means little downside",
+    "OTC stocks meet listing standards",
+    "Penny stocks pay dividends"
+   ],
+   "answer": "Little public info and higher risk",
+   "why": "Little public information, higher risk. Low-priced microcaps, also called penny stocks, trade mostly over the counter. Relatively little information is available on them compared with companies listed on national exchanges. The microcap sector has a long history of price manipulation and fraud. Penny stocks pay no dividends, and you can lose the money you put in. At UCT we skip it anyway: we trade only stocks at $10 or more that trade at least $20 million a day.",
+   "lesson_line": "Little public information and a long fraud history. It is also under our $10 floor. I'd pass on that tip.",
+   "facts": [
+    "f23",
+    "f24",
+    "f26",
+    "f25",
+    "f10",
+    "f9",
+    "f17",
+    "h1"
+   ],
+   "wrong": {
+    "Low price means little downside": "Cheap isn't safe. Penny stocks are highly speculative, and you can lose the money you put in.",
+    "OTC stocks meet listing standards": "Listing standards are the bar for trading on an exchange. This stock isn't on one.",
+    "Penny stocks pay dividends": "Penny stocks do not pay dividends. Investor.gov calls them highly speculative."
+   },
+   "simple": "Little public info and higher risk. Little is known about cheap OTC microcaps, and the sector has a long history of fraud.",
+   "deeper": {
+    "trap": "A cheap price feels like low risk. It is not. With little public information, you cannot check the story behind a tip. And the microcap sector has a long history of price manipulation."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 1,
+    "reasons": [
+     "fixed before"
+    ]
+   },
+   "batch": "wave6"
+  },
+  {
+   "key": "q18",
+   "skill": "basics.shares",
+   "rung": 9,
+   "format": "scenario",
+   "story": "The evening news says \"the Nasdaq\" fell 2% today. They mean the Nasdaq Composite. You check QQQ, and it's down 1.6%.",
+   "q": "Why doesn't QQQ match the headline?",
+   "choices": [
+    "QQQ tracks a different index",
+    "QQQ's yearly fee ate the gap",
+    "QQQ stopped trading early",
+    "QQQ weights stocks by price"
+   ],
+   "answer": "QQQ tracks a different index",
+   "why": "Different index. The headline is the Nasdaq Composite, every common stock listed on Nasdaq. QQQ tracks the Nasdaq-100, just 100 of the largest non-financial names. Two baskets, two numbers. Nothing's wrong with your fund. The fee can't explain it either. QQQ charges 0.18% for a whole year. The gap here is 2 minus 1.6 in one day, more than double that. When the news says \"the Nasdaq\", it often means the Composite. So read the market off the funds you trade, not the headline.",
+   "lesson_line": "The headline's Nasdaq is often the Composite. Read the market off the funds you trade.",
+   "facts": [
+    "f70",
+    "f78",
+    "f80",
+    "f51",
+    "f49",
+    "f54",
+    "f52",
+    "f40",
+    "f87",
+    "f55",
+    "f75"
+   ],
+   "wrong": {
+    "QQQ weights stocks by price": "The Nasdaq-100 weights by market cap, not share price. The gap is a different basket.",
+    "QQQ's yearly fee ate the gap": "The fee is 0.18% for a whole year. This gap is 2 minus 1.6 in one day. Way bigger.",
+    "QQQ stopped trading early": "ETFs trade all day, like stocks. The gap comes from what each one tracks."
+   },
+   "simple": "QQQ tracks a different index. The headline is the Nasdaq Composite, but QQQ follows the smaller Nasdaq-100.",
+   "deeper": {
+    "example": "On July 11, 2024, AP reported that the Nasdaq composite fell 2%. That headline number is the Composite, not QQQ's index. Before you compare a headline to your fund, check which index the headline names."
+   },
+   "tier": "expert",
+   "risk": {
+    "score": 3,
+    "reasons": [
+     "QQQ's expense ratio (in a wrong note) changes over time",
+     "fixed before (key reworded by the checker)"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  },
+  {
+   "key": "q19",
+   "skill": "basics.shares",
+   "rung": 6,
+   "format": "tf",
+   "house": true,
+   "q": "A $12 stock that trades $5 million a day hits your scan. We need $10 a share and $20 million a day. It makes the cut.",
+   "answer": "False",
+   "why": "False. The price is fine, $12 clears our $10 floor. The trading isn't. $5 million a day is a quarter of the $20 million we want. So I'd leave it alone. Thin names hurt you on the way out. When you need to sell, there may not be enough buyers near your price. Your stop can fill a lot worse than you planned. To check any name, multiply its price by the shares it trades a day. That's its dollar volume.",
+   "simple": "False. It clears $10, but $5 million a day is far under the $20 million a day we need.",
+   "lesson_line": "$10 or more and $20 million a day. Miss either one and it's not on my list.",
+   "facts": [
+    "h1"
+   ],
+   "tier": "extended",
+   "risk": {
+    "score": 4,
+    "reasons": [
+     "a rule from the owner's rulebook (B23)",
+     "new in wave6"
+    ]
+   },
+   "batch": "voice-8-2026-11-17"
+  }
+ ],
+ "conflicts": [
+  "Russell 2000 reconstitution: FTSE Russell's Russell 2000 page says the index 'is completely reconstituted annually' and Fidelity says 'Each year', but FTSE Russell's Russell US Indexes page (f63) says the schedule 'will change from an annual to a semi-annual schedule'. No question asks how often the index is rebuilt.",
+  "July 11, 2024 closes: AP has the S&P 500 at 5,584.52 (down 0.9%) and the Nasdaq composite down 2%; CNBC has 5,584.54 (down 0.88%) and the Nasdaq Composite down 1.95%. The two agree once rounded. Questions use AP's rounded moves (0.9%, 2%, 3.6%; CNBC also has the Russell 2000 'about 3.6%') and never a closing level.",
+  "Nasdaq Composite coverage: Invesco says it 'measures all' Nasdaq-listed common stocks; Fidelity says 'almost all' of them and 'more than 3,000 companies'. The count changes over time, so no question asks it. q11 relies only on a Nasdaq-listed common stock (a bank) being in the Composite, which both sources support. Checker, 2026-11-09: Nasdaq's own Composite methodology (s27, Tier 1) settles it: the index 'includes all domestic and international common type stocks listed on the Nasdaq Stock Market' and has 'no industry or sector eligibility criterion'. ETFs, preferreds and closed-end funds are not eligible, which is why Fidelity says 'almost all'. q07, q11 and q18 now cite f87.",
+  "IBD's '3 of 4 stocks move in the same direction as the general market' is a rule of thumb, not a measured law. q16 states it as IBD's rule of thumb, and its key rests on FINRA's Tier 1 line that a stock's performance is also driven by the market as a whole. The same page's '75% chance of being right' line is not used. William O'Neil's own June 2003 AAII Journal article says the same thing ('three out of four of your stocks will plummet with the market averages'), but aaii.com served this client a bot-check page, so it is not cited.",
+  "Dividends: Investor.gov's Stocks page says common stock 'entitles owners to vote at shareholder meetings and receive dividends', while FINRA says the company 'may pay dividends, but it doesn’t have to'. Read together: holders share in dividends when declared, and nothing obliges the company to declare one. q03 is keyed on FINRA's wording.",
+  "Sponsor pages as Tier 1: the SPY, QQQ and IWM objective and listing facts come from the fund sponsors' own pages (SSGA, Invesco, iShares), which units_plan.json lists as Tier 1. Each source carries a why_reliable. SEC EDGAR prospectuses were not used: EDGAR refuses a client that does not declare a contact address. A checker who wants EDGAR can confirm the same objectives in each fund's prospectus. Checker, 2026-11-09: State Street is SPY's trustee and marketing agent, not its sponsor (the page lists the sponsor as PDR), and SSGA is now State Street Investment Management. s15's publisher and why_reliable were corrected; the facts taken from the page are unchanged.",
+  "S&P Dow Jones Indices' own S&P 500 page refused the plain client (HTTP 403). The S&P 500 is described from SPY's sponsor page (which quotes the index's own description) and Fidelity, never from memory.",
+  "S&P 500 size: Fidelity says it holds 503 stocks as of February 2026 because some companies have more than one share class, and that members are picked by a committee. No question says it is simply 'the 500 largest companies'.",
+  "Q after a ticker: Investor.gov's glossary (f13) says a Q after a ticker means bankruptcy. Nasdaq's 2005 notice (nasdaqtrader.com, nva2005-021, read 2026-11-09) says Nasdaq stopped using the C, E and Q fifth characters on its own listed symbols as of February 1, 2006, so a Q is now seen mainly on over-the-counter symbols. FINRA's OTC fifth-character page (otce.finra.org) loads its text by script, so this checker could not read it and it is not cited. q12 asks only what an added Q means, never that every bankrupt stock carries one."
+ ],
+ "verify": {
+  "w1": {
+   "status": "pass",
+   "notes": "Fresh fetch 2026-11-09: f1, f2 (Investor.gov), f4 (FINRA), f11, f12 (Investor.gov Ticker), f46 (SPY page listing table), f49 (Invesco), f59 (iShares) are on the pages and read the same in context. Each step matches its fact. No change.",
+   "fixed": false,
+   "by": "checker"
+  },
+  "w2": {
+   "status": "pass",
+   "notes": "f14, f16 (SEC exchange list, last reviewed Jan. 7, 2026), f17, f18, f20, f21 confirmed in context. Step 1 said a company lists on an exchange as if all do; many stocks trade OTC (q17), so it now says 'can list'. Added f19 for 'that exchange's standards'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "w3": {
+   "status": "pass",
+   "notes": "f42-f44 (State Street SPY page), f49, f54 (Nasdaq-100 methodology, 2026), f59, f61 confirmed. Step 3's 'A stock moves with the market' was flat; FINRA (f27) and SEC (f29) say the market ALSO moves a stock, so it now says 'A stock's price also moves with the market'.",
+   "fixed": true,
+   "by": "checker"
+  },
+  "q01": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice 4 (final 4). A real buy (100 NVDA) and a plain question. The why says what you own and what you don't (bond, dividend, vote), from f2, f3, f4, f5, f7. Truth checked. Owner: good."
+  },
+  "q02": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review1: see the resolver's notes"
+  },
+  "q03": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 4 (final 4). The why is in his voice (dividend as a bonus, we trade the move), f5 and f6. But the stem put the member in a stock 'partly for its dividend', which is the opposite of the why's 'we're in it for the move'. The stem is now plain: a stock you hold pays one. Still True."
+  },
+  "q04": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 4 (final 4). TRUTH: 'So when SPY's green, the large caps are green' is false and contradicts q15 in this same lesson (July 11, 2024: S&P 500 red, three of four members green). Now: SPY tells you how the large caps do as a group. The 'check all three' line is now first person (I check all three)."
+  },
+  "q05": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice 4 (final 4). The scoreboard framing and 'when I say the market's up' sound like a person. Facts f35, f36, f47, f41. 'Every market headline' is light talk, not a claim tested. Owner: good."
+  },
+  "q06": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review1: see the resolver's notes"
+  },
+  "q07": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice 4 (final 4). Stem gives the reason to look (the big tech read); why separates the Nasdaq-100 (f54) from the Composite (f87). Owner: good."
+  },
+  "q08": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in fills: see the resolver's notes"
+  },
+  "q09": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice 4 (final 4). Numbers worked from the story (IWM -2.1, SPY +0.3, QQQ +0.4); 'swimming against its own group' gives the reason. Owner: good."
+  },
+  "q10": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice 4 (final 4). Plain claim in your seat; why ends on what you control. f20, f21, f22, f46. Owner: good."
+  },
+  "q11": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 4 (final 4). The why is good (QQQ can miss a bank day; f54, f57, f88, f44, f68). The story's second sentence read clumsily ('One of the biggest is a US bank whose stock lists on Nasdaq') and needed a second read (rule 5). Rewritten plainly."
+  },
+  "q12": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice 4 (final 4). Real moment (a friend's ticker), blunt verdict (I'd walk away, Pass). f13, f9. Owner: good."
+  },
+  "q13": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": false,
+   "notes": "Voice 4 (final 4). Story narrates the day; why names the rotation (f81, f79, f80, f82, f83). Chart claim checked on RUT daily bars: July 11, 2024 closed 2,125.04 (+3.57%), just over the March 28 close of 2,124.55, the top of a range held since January, so 'one big candle, up to the top of a range it had chopped in for months' is true. Owner: good."
+  },
+  "q14": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review1: see the resolver's notes"
+  },
+  "q15": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 4 (final 5). TRUTH: 'Nvidia, Tesla and the rest of the Magnificent Seven slumped' says all seven fell; AP (f77) says Nvidia, Tesla and OTHER stocks in that group. Now 'other Magnificent Seven names'. Rest kept: breadth and our Breadth page is the practical how."
+  },
+  "q16": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 4 (final 4). His note is fully met: the key is 'Track its relative strength', and the why and lesson line say to track it for when the market stabilizes (h3). IBD is out of the why, kept in deeper. TRUTH: 'Our app's market reading tells you when we trade' states the reading as an on/off switch; the color is a guide to how much we trade (rule 19; Red is mostly cash, not a ban). Reworded and the label explained."
+  },
+  "q17": {
+   "status": "cut",
+   "by": "writer",
+   "fixed": false,
+   "notes": "cut in review2: see the resolver's notes"
+  },
+  "q18": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 4 (final 4). His note 'slightly misleading': the writer dropped 'likeliest', but the story still left the member to guess which index the headline meant, so the right answer rested on an assumption. The story now says the headline is the Nasdaq Composite (f70, f80), so the question tests one thing: QQQ follows the Nasdaq-100. The fee math is said plainly (2 minus 1.6 in a day is more than double QQQ's 0.18% a year, f52). Answer unchanged."
+  },
+  "q19": {
+   "status": "pass",
+   "by": "checker",
+   "fixed": true,
+   "notes": "Voice 3 (final 4). The stem still opened on the rule ('Our floor is ...') and then asked for a 5-against-20 comparison, a rule restated. Now the situation comes first (a name on your scan), then our minimums (not yet taught in this lesson, so they stay in the stem, rule 28), then the claim. The why works it (5 is a quarter of 20), says why thin names hurt, and gives the how (dollar volume = price times shares a day). Still False. h1."
+  }
+ }
+}

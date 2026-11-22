@@ -25,8 +25,133 @@
 // drift; seven hand-written checks can, and the one that drifts is the one
 // nobody reads again.
 
-import { formatNumber } from '../objectRuntime.js'
+import { formatNumber, formatNumberWhy } from '../objectRuntime.js'
+import { tickNumberText, tickNumberWhy } from '../pineTextFormat.js'
 import { timestampMs, instantField, INSTANT_FIELDS } from './clockFns.js'
+// ⭐ ONE AUTHORITY for "a Pine runtime error, the script stops here": `collections.js`'s
+// `PineRuntimeError` (name 'runtime.error', guard 'runtime:runtime.error'). The pane
+// pipeline (`runtimeColumns.js`) tells a reached runtime error from an engine failure by
+// exactly that name; a second class here would be retried WITHOUT drawings and draw the
+// plots where TradingView stops the script.
+import { PineRuntimeError } from './collections.js'
+
+// ⭐⭐ W4-T11 INDEX RULES, ONE PLACE. Pine's `str.substring` is 0-BASED with an
+// EXCLUSIVE end (`begin_pos` is the first character kept, `end_pos - 1` the last).
+// ⛔ A position outside `0 <= begin <= end <= length`, or one that is not a whole
+// number, is a Pine RUNTIME ERROR rather than a silent clamp: clamping would draw
+// a value where TradingView stops the script. ⚠️ NEEDS CAPTURE (queue row W4-T11-a):
+// whether the error is raised or `na` returned for each bad position.
+function substringOf(s, begin, end) {
+  if (!Number.isInteger(begin) || !Number.isInteger(end)) {
+    throw new PineRuntimeError(`\`str.substring\` takes whole-number positions, got ${begin} and ${end}`)
+  }
+  if (begin < 0 || end < begin || end > s.length) {
+    throw new PineRuntimeError(
+      `\`str.substring\` positions ${begin}..${end} are outside a text of length ${s.length}; Pine stops the script here`)
+  }
+  return s.slice(begin, end)
+}
+
+// ⭐ `str.replace` replaces the Nth occurrence (0-BASED, left to right) of a
+// LITERAL target, occurrences NON-OVERLAPPING; a missing Nth occurrence leaves the
+// source unchanged. ⛔ An empty target has no defined occurrence: refused at run
+// time by name rather than answered with JavaScript's insert-at-0.
+function replaceNth(s, target, replacement, n) {
+  if (!Number.isInteger(n) || n < 0) {
+    throw new PineRuntimeError(`\`str.replace\` takes a whole-number occurrence from 0, got ${n}`)
+  }
+  if (target === '') throw new PineRuntimeError('`str.replace` cannot find an empty target')
+  let at = -1
+  let from = 0
+  for (let k = 0; k <= n; k += 1) {
+    at = s.indexOf(target, from)
+    if (at < 0) return s
+    from = at + target.length
+  }
+  return s.slice(0, at) + replacement + s.slice(at + target.length)
+}
+
+// ⭐⭐ STR-TONUMBER (engine 90) — `str.tonumber`, AS TRADINGVIEW READS TEXT. A plain decimal (an optional
+// sign, digits, an optional point and fraction: "12", "-2", "+2", "1.5", ".5", "5.", "007") is its value once
+// the SPACES around it are dropped (" 3" and "3 " are 3); anything else is `na` (NaN here). WITNESSED on every
+// one of the 21 rows of `vw-bi-str-tonumber-spy-1d-2026-11-19`, every bar: "1,000", "0x10", "NaN", "inf", "",
+// "abc", "12abc", "1_000" and the EXPONENT spellings "1e3" / "1E-2" are all `na`. ⚰️ This lane read "1e3" as
+// 1000 and "1E-2" as 0.01, and " 3" / "3 " as `na` (four rows DIVERGE on every bar, served wrong).
+// ⛔ Never `Number(s)`: it answers `0` for "", accepts "0x10", "Infinity", exponents and every blank.
+// ⛔ ONLY THE SPACE IS MEASURED: text that begins or ends with a tab, a line break or another blank stops the
+// run by name (`SURROUNDING_OTHER_BLANK`) rather than being read either way. Capture row Q-STN2.
+const DECIMAL = /^[+-]?(?:\d+\.?\d*|\.\d+)$/
+const SURROUNDING_SPACES = /^ +| +$/g
+const SURROUNDING_OTHER_BLANK = /^\s|\s$/
+const toNumber = (s) => {
+  const t = s.replace(SURROUNDING_SPACES, '')
+  if (SURROUNDING_OTHER_BLANK.test(t)) {
+    throw new PineRuntimeError('`str.tonumber` of text that begins or ends with a tab, a line break or another '
+      + 'blank that is not a space: how TradingView reads that text is not measured, so no number is given for it')
+  }
+  return DECIMAL.test(t) ? Number(t) : NaN
+}
+
+// ⭐ `str.pos`: 0-based index of the FIRST occurrence, `na` when absent.
+const posOf = (s, sub) => { const i = s.indexOf(sub); return i < 0 ? NaN : i }
+
+/**
+ * ⭐ `str.format_time` over the EXCHANGE's zone (America/New_York) with a literal
+ * pattern: the SimpleDateFormat letters this lane answers exactly, as tokens.
+ * `yyyy yy MM M dd d HH H mm m ss s`, `'quoted text'` (`''` is one quote) and any
+ * non-letter separator. Any other letter returns `null` (the front end refuses it
+ * by name; the run answers it with a runtime error).
+ */
+const FMT_RUNS = { y: ['yyyy', 'yy'], M: ['MM', 'M'], d: ['dd', 'd'], H: ['HH', 'H'], m: ['mm', 'm'], s: ['ss', 's'] }
+export function compileTimeFormat(fmt) {
+  if (typeof fmt !== 'string' || fmt === '') return null
+  const out = []
+  let i = 0
+  while (i < fmt.length) {
+    const ch = fmt[i]
+    if (ch === "'") {
+      let lit = ''
+      let closed = false
+      i += 1
+      while (i < fmt.length) {
+        if (fmt[i] === "'") {
+          if (fmt[i + 1] === "'") { lit += "'"; i += 2; continue }
+          closed = true; i += 1; break
+        }
+        lit += fmt[i]; i += 1
+      }
+      if (!closed) return null
+      out.push({ lit })
+    } else if (/[A-Za-z]/.test(ch)) {
+      let j = i
+      while (fmt[j] === ch) j += 1
+      const run = fmt.slice(i, j)
+      if (!FMT_RUNS[ch] || !FMT_RUNS[ch].includes(run)) return null
+      out.push({ f: run })
+      i = j
+    } else {
+      out.push({ lit: ch }); i += 1
+    }
+  }
+  return out
+}
+
+const FMT_FIELD = { y: 'year', M: 'month', d: 'dayofmonth', H: 'hour', m: 'minute', s: 'second' }
+function formatTimeNy(ms, fmt) {
+  if (!Number.isFinite(ms)) return ''
+  const toks = compileTimeFormat(fmt)
+  if (toks === null) throw new PineRuntimeError(`\`str.format_time\` does not read the pattern "${fmt}"`)
+  let o = ''
+  for (const t of toks) {
+    if (t.lit !== undefined) { o += t.lit; continue }
+    const v = instantField(FMT_FIELD[t.f[0]], ms, 'exchange')
+    if (!Number.isFinite(v)) return ''
+    if (t.f === 'yyyy') o += String(v).padStart(4, '0')
+    else if (t.f === 'yy') o += String(v % 100).padStart(2, '0')
+    else o += t.f.length === 2 ? String(v).padStart(2, '0') : String(v)
+  }
+  return o
+}
 
 /**
  * @typedef {object} TextFn
@@ -80,6 +205,37 @@ export const TEXT_FNS = Object.freeze({
     args: ['string', 'string'], returns: 'number', fn: (s, suf) => (s.endsWith(suf) ? 1 : 0),
   },
   'str.length': { args: ['string'], returns: 'number', fn: (s) => s.length },
+
+  // ── W4-T11: positions, parts and numbers over RUNTIME text ──
+  // `afterDoor: true` = added after master 685b5e91d7: the front end asks `objectDoorRefuses`
+  // before lowering it, so the C18 object door keeps master's answer (objectDoorGate.test.js).
+  // `variants` maps a GIVEN argument count below `args.length` to the entry that
+  // answers it (`WS_TEXT_FNS`): Pine's optional trailing arguments, one arity per
+  // entry because the VM checks arity against the declaration.
+  'str.substring': {
+    args: ['string', 'number', 'number'], returns: 'string', fn: substringOf,
+    afterDoor: true,
+    variants: { 2: 'str.substring/from' },
+  },
+  'str.replace': {
+    args: ['string', 'string', 'string', 'number'], returns: 'string', fn: replaceNth,
+    afterDoor: true,
+    variants: { 3: 'str.replace/first' },
+  },
+  'str.tonumber': { args: ['string'], returns: 'number', fn: toNumber, afterDoor: true },
+  'str.pos': { args: ['string', 'string'], returns: 'number', fn: posOf, afterDoor: true },
+})
+
+/** The shorter spellings of the optional-argument entries above, and the
+ *  exchange-zone `str.format_time` (the front end canonicalises its zone and pattern). */
+export const WS_TEXT_FNS = Object.freeze({
+  'str.substring/from': {
+    args: ['string', 'number'], returns: 'string', fn: (s, b) => substringOf(s, b, s.length),
+  },
+  'str.replace/first': {
+    args: ['string', 'string', 'string'], returns: 'string', fn: (s, t, r) => replaceNth(s, t, r, 0),
+  },
+  'str.format_time/ny': { args: ['number', 'string'], returns: 'string', fn: formatTimeNy },
 })
 
 /**
@@ -99,14 +255,50 @@ export const RUN_TEXT_FNS = Object.freeze({
   'str.tostring': {
     args: ['any'],
     returns: 'string',
-    fn: (v) => (typeof v === 'string' ? v : typeof v === 'number' ? formatNumber(v) : ''),
+    fn: (v) => (typeof v === 'string' ? v : typeof v === 'number' ? runNumberText(v) : ''),
   },
   'str.tostring/fmt': {
     args: ['any', 'string'],
     returns: 'string',
-    fn: (v, f) => (typeof v === 'string' ? v : typeof v === 'number' ? formatNumber(v, f) : ''),
+    fn: (v, f) => (typeof v === 'string' ? v : typeof v === 'number' ? runNumberText(v, f) : ''),
+  },
+  // ⭐⭐ TC — `str.tostring(x, format.mintick)`: the binding's own tick TEXT (the front end hands
+  // `syminfo.mintick`'s witnessed decimal text, `bind.js::SYMBOL_TICK_SIZE`, or '' where the
+  // symbol settles none) through the host lane's ONE tick formatter (`tickNumberText`, CBC-FMT
+  // S10 T08-T12: `n / tick` rounded in binary, the tick's decimals kept). Withheld BY NAME
+  // (`tickNumberWhy`) exactly where that formatter withholds.
+  'str.tostring/mintick': {
+    args: ['any', 'string'],
+    returns: 'string',
+    fn: (v, tick) => (typeof v === 'string' ? v : typeof v === 'number' ? runTickText(v, tick) : ''),
   },
 })
+
+/** ⭐⭐ CBC-FMT — a number this lane prints, or a NAMED stop. ⛔ The one formatter answers
+ *  `null` where no capture settles the text (`formatNumberWhy`: a tie the two readings
+ *  part on, a negative zero, a magnitude past 1e21 …); that `null` used to enter the run as
+ *  a value and reach `+` (`OP.CONCAT`), which threw an unnamed VM error, or a drawing's
+ *  `text`, which threw an unnamed drawing error. It now stops the run BY THAT NAME: a run
+ *  that draws keeps its plots and withholds its drawings under it (`runtimeColumns.js`,
+ *  RT5), and one that does not is refused under it. */
+function runNumberText(v, f) {
+  const s = formatNumber(v, f)
+  if (s !== null) return s
+  const why = formatNumberWhy(v, f) || 'format:withheld'
+  const err = new Error(`\`str.tostring\` of ${v}${f ? ` through "${f}"` : ''} has no text a capture settles (${why}), so it is not printed rather than printed differently`)
+  err.guard = why
+  throw err
+}
+
+/** ⭐ TC — a number at the symbol's tick, or a NAMED stop (`runNumberText`'s rule). */
+function runTickText(v, tick) {
+  const s = tickNumberText(v, tick)
+  if (s !== null) return s
+  const why = tickNumberWhy(v, tick) || 'format:withheld'
+  const err = new Error(`\`str.tostring\` of ${v} through \`format.mintick\` has no text a capture settles (${why}), so it is not printed rather than printed differently`)
+  err.guard = why
+  throw err
+}
 
 /**
  * ⭐⭐ P3 WS-B — PINE'S CLOCK OVER AN INSTANT THE RUN COMPUTES (`clockFns.js`).
@@ -130,7 +322,7 @@ export const CLOCK_TEXT_FNS = Object.freeze({
 })
 
 /** Every text op the VM can execute: the shared table plus the run-only ones. */
-export const TEXT_IMPL = Object.freeze({ ...TEXT_FNS, ...RUN_TEXT_FNS, ...CLOCK_TEXT_FNS })
+export const TEXT_IMPL = Object.freeze({ ...TEXT_FNS, ...WS_TEXT_FNS, ...RUN_TEXT_FNS, ...CLOCK_TEXT_FNS })
 
 /** The names this lane serves, for the front end's admission check. */
 export const TEXT_NAMES = Object.freeze(Object.keys(TEXT_FNS))
@@ -139,4 +331,5 @@ export const TEXT_NAMES = Object.freeze(Object.keys(TEXT_FNS))
  *  returning a number composes with ordinary arithmetic and needs no text
  *  routing, while one returning a string must stay out of the columnar lane. */
 export const producesText = (name) => (
-  Object.prototype.hasOwnProperty.call(TEXT_FNS, name) && TEXT_FNS[name].returns === 'string')
+  name === 'str.format_time'
+  || (Object.prototype.hasOwnProperty.call(TEXT_FNS, name) && TEXT_FNS[name].returns === 'string'))

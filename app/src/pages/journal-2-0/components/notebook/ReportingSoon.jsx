@@ -3,6 +3,8 @@ import { Link, useLocation } from 'react-router-dom'
 import useMobileSWR from '../../../../hooks/useMobileSWR'
 import UIcon from '../../../../components/ui/UIcon'
 import LoadFailed from '../LoadFailed'
+import EmptyNamesAsk from './EmptyNamesAsk'
+import { useFirstLiveWidget } from '../../lib/firstLiveWidget'
 import {
   SOON_URL, earningsPrepEnabled, fetchReportingSoon, createEarningsPrepNote, fmtShortDay,
   sourceLabel, timingLabel,
@@ -15,6 +17,9 @@ import styles from './ReportingSoon.module.css'
  *  again every UNREAD_RETRY_MS, at most UNREAD_RETRIES times, then stops and offers Try again. */
 export const UNREAD_RETRY_MS = 10000
 export const UNREAD_RETRIES = 6
+/** S17: what Reporting soon needs, when the member has no names. */
+export const REPORTING_ASK = 'Add the tickers you watch, and the ones reporting earnings in the next week show up here.'
+
 const unreadEmpty = (d) => d?.partial === true && !(Array.isArray(d?.items) && d.items.length)
 
 function whenText(item) {
@@ -81,6 +86,10 @@ export default function ReportingSoon({ onOpenNote, retryMs = UNREAD_RETRY_MS })
     return () => cancelAnimationFrame(raf)
   }, [enabled, loaded, location.hash, location.key])
 
+  // S20 "First aha": the first time this box lists the member's own names reporting (once per browser).
+  const reportingCount = Array.isArray(data?.items) ? data.items.length : 0
+  useFirstLiveWidget('reporting', reportingCount)
+
   if (!enabled) return null
 
   const create = async (symbol) => {
@@ -118,7 +127,12 @@ export default function ReportingSoon({ onOpenNote, retryMs = UNREAD_RETRY_MS })
         <LoadFailed compact what="the earnings calendar for your names" error={error} onRetry={() => mutate()} />
       )}
       {!error && isLoading && <p className={styles.quiet} role="status">Checking the calendar…</p>}
-      {!error && data && items.length === 0 && !data.partial && (
+      {/* S17 (M7): with no names at all it ASKS for them (the server counts them in `watched`); with names and no
+          report this week it says so, as before. */}
+      {!error && data && items.length === 0 && !data.partial && data.watched === 0 && (
+        <EmptyNamesAsk sentence={REPORTING_ASK} onAdded={() => mutate()} testId="reporting-soon-ask" />
+      )}
+      {!error && data && items.length === 0 && !data.partial && data.watched !== 0 && (
         <p className={styles.quiet}>
           None of your watchlist, flagged or open-position names report in the next {days} days.
           A prep note is one click here once one does.

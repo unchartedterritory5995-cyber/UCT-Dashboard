@@ -12,15 +12,18 @@
 //   2. What does the accepted corpus actually cost — nodes, outputs, bars, wall
 //      clock — so that any limit is derived from the distribution rather than
 //      from the one script that failed.
-import { describe, it, expect } from 'vitest'
-import fs from 'node:fs'
-import path from 'node:path'
+import { describe, expect } from 'vitest'
 import { translatePine, printFormula } from '../ast/pine'
 import { interpret, nodeCount } from '../ast/interpret'
 import { DEFAULT_BUDGET } from '../ast/budget'
 import { memberInputTranslation } from '../../builder/builderInputs'
+import { pineFixtureDir } from '../ast/__tests__/licenceHeld'
 
-const OOS = path.resolve(process.cwd(), '../tools/c0_oos_fixtures')
+// ⛔ Ten of the corpus's eighteen scripts are LICENCE-HELD (2026-11-15,
+// docs/pine/vendor-harness/licence-held.json): read from the local store when present. A
+// case that needs an absent one is SKIPPED BY NAME, and the C2A.6 distribution is the WHOLE
+// roster or nothing (a distribution over the committed eight would read as a cheaper corpus).
+const OOS = pineFixtureDir('tools/c0_oos_fixtures')
 const N_CHART = 5000
 
 const bars = (n) => Array.from({ length: n }, (_, i) => ({
@@ -31,7 +34,7 @@ const bars = (n) => Array.from({ length: n }, (_, i) => ({
 }))
 
 function carried(file) {
-  const src = fs.readFileSync(path.join(OOS, `${file}.pine`), 'utf8')
+  const src = OOS.read(file)
   const t = memberInputTranslation(translatePine, src, {})
   const outs = (t.outputs || []).filter((o) => o && o.ast && o.formula && !o.hidden).slice(0, 12)
   const inputs = {}
@@ -78,7 +81,7 @@ describe('C2A.4 — is identical work done more than once?', () => {
     'high_engagement__24-coppock-curve-multi-filter-markittick',
   ]
 
-  it('duplicated canonical subtrees across a document\'s outputs', { timeout: 300_000 }, () => {
+  OOS.it(SCRIPTS, 'duplicated canonical subtrees across a document\'s outputs', () => {
     const lines = []
     let worst = 0
     for (const f of SCRIPTS) {
@@ -115,12 +118,12 @@ describe('C2A.4 — is identical work done more than once?', () => {
     // translation time would drop this sharply, which is worth being told about.
     expect(worst, 'the most-duplicated document should be heavily repeated')
       .toBeGreaterThan(50)
-  })
+  }, 300_000)
 })
 
 describe('C2A.6 — the execution-cost distribution of the accepted corpus', () => {
-  it('nodes, outputs and wall clock at chart scale', { timeout: 300_000 }, () => {
-    const files = fs.readdirSync(OOS).filter((f) => f.endsWith('.pine')).sort()
+  OOS.it(OOS.held(), 'nodes, outputs and wall clock at chart scale', () => {
+    const files = OOS.population()
     const B = bars(N_CHART)
     const rows = []
     for (const f of files) {
@@ -156,5 +159,5 @@ describe('C2A.6 — the execution-cost distribution of the accepted corpus', () 
       + `  scripts with >=1 column refused: ${rows.filter((r) => r.failed).length}/${rows.length}\n`
       + `  slowest:\n${slow.map((r) => `    ${String(r.ms).padStart(5)}ms  ${r.outputs} outputs  ${r.nodes} nodes  ${r.name}`).join('\n')}`)
     expect(rows.length).toBeGreaterThan(10)
-  })
+  }, 300_000)
 })

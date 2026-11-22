@@ -174,8 +174,8 @@ describe('str.* in the runtime lane', () => {
   })
 
   it('CONTROL: a str.* this task does not serve is refused BY NAME', () => {
-    const r = refusalOf(mutated('"abcd"', 'str.substring(s, 1, 3) == "bc"'))
-    expect(r.message).toMatch(/str\.substring/)
+    const r = refusalOf(mutated('"abcd"', 'str.match(s, "b+") == "b"'))
+    expect(r.message).toMatch(/str\.match/)
   })
 
   it('CONTROL: str.split is served ELSEWHERE — it returns a collection', () => {

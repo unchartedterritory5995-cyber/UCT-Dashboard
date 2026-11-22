@@ -25,10 +25,17 @@ describe('the event set', () => {
   it('is the core Notebook actions (the seven of wave 6, the R-16 eight of wave 10, the two of P3a and the three of P5), each with a schema', () => {
     expect(Object.values(NOTEBOOK_EVENTS).sort()).toEqual([
       'ask_used', 'block_used', 'bulk_used', 'capture_used', 'conflict_forked', 'dictation_used', 'export_used',
-      'import_used', 'library_viewed', 'note_open_ms', 'publish_used', 'save_failed', 'save_success', 'search_used',
-      'share_used', 'style_adopted', 'style_applied', 'style_created', 'switcher_used', 'writing_help_used',
-    ])
-    expect(Object.values(NOTEBOOK_EVENTS)).toHaveLength(20)
+      'first_live_widget', 'first_run_completed', 'first_run_skipped',
+      'import_used', 'library_viewed', 'note_open_ms', 'publish_used', 'recap_written', 'save_failed', 'save_success',
+      'search_used', 'share_used', 'style_adopted', 'style_applied', 'style_created', 'switcher_used', 'today_opened',
+      'trust_incident', 'writing_help_used',
+      // Follow-up A (usage counting).
+      'block_inserted', 'list_layout_used', 'menu_row_used', 'notebook_route_opened', 'panel_row_used',
+      'template_started', 'today_door_used', 'view_used',
+    ].sort())
+    // Audit 2026-11-05 (S16, S20): + the first run's two, the first live widget, a recap written, a trust incident.
+    // S15: + the Today home opened. Follow-up A: + the eight usage events.
+    expect(Object.values(NOTEBOOK_EVENTS)).toHaveLength(34)
     for (const name of Object.values(NOTEBOOK_EVENTS)) expect(EVENT_SCHEMAS[name]).toBeTruthy()
   })
 })
@@ -175,5 +182,17 @@ describe('P5 - style_applied, style_created and block_used', () => {
     expect(sanitizeProps('style_applied', { via: 'switch', styleId: 's1', name: TITLE })).toEqual({ via: 'switch' })
     expect(sanitizeProps('style_created', { via: TITLE })).toEqual({ via: 'other' })
     expect(sanitizeProps('block_used', { kind: 'free text', params: { entry: 1 } })).toEqual({ kind: 'other' })
+  })
+})
+
+describe('S20 - the return-metric events carry counts and enums, never a ticker or a title', () => {
+  it('first_run_completed keeps the COUNT of names; a ticker list or a pack name typed by hand cannot ride along', () => {
+    const clean = sanitizeProps('first_run_completed', { names: 3, pack: 'swing', plan: true, ms: 41000.4, tickers: ['NVDA'] })
+    expect(clean).toEqual({ names: 3, pack: 'swing', plan: true, ms: 41000 })
+    expect(sanitizeProps('first_run_completed', { pack: 'NVDA swing' }).pack).toBe('other')
+  })
+  it('trust_incident is one of its two kinds', () => {
+    expect(sanitizeProps('trust_incident', { kind: 'publish_undone', ms: 1 })).toEqual({ kind: 'publish_undone', ms: 1 })
+    expect(sanitizeProps('trust_incident', { kind: 'my note title' }).kind).toBe('other')
   })
 })

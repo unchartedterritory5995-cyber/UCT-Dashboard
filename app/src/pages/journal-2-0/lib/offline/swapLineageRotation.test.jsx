@@ -295,6 +295,19 @@ const where = (text) => ({
 })
 
 // ── C1 ──────────────────────────────────────────────────────────────────────
+
+// Tier 2 fix round 1 (review (e)): Tier 1a made version history load on its FIRST OPEN (NoteEditorPage mounts the
+// panel only once `historyEverOpen`), so the rail's stand-in button exists only after History is opened -- through
+// the real door, More note actions > Version history, as a member does. Opened OUTSIDE act (state set inside an
+// async act is not rendered until it ends), then the restore is pressed inside it, as before.
+async function openHistoryRail() {
+  if (!screen.queryByRole('button', { name: 'rail: restore a version' })) {
+    fireEvent.click(screen.getByRole('button', { name: 'More note actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Version history' }))
+  }
+  return screen.findByRole('button', { name: 'rail: restore a version' })
+}
+
 describe('C1 · ⛔⛔ an Undo that crosses a whole-view swap never drops the words the swap put on screen', () => {
   it('adoption, OFFLINE: adopt queued words, the durable write lands, type, Undo past the adoption ⇒ the words are still in a layer', async () => {
     server = makeServer({ body: doc(ONLINE), updatedAt: T0 })
@@ -406,7 +419,7 @@ describe('I1 · each swap mints a lineage, and keystrokes on the NEW view never 
     server.updatedAt = TV
     versionGate.note = server.note()
     const before = minted.length
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'rail: restore a version' })); await settleIdb(6) })
+    { const rail = await openHistoryRail(); await act(async () => { fireEvent.click(rail); await settleIdb(6) }) }
     expect(await viewText(), 'precondition: the version is on the page').toContain('a restored version')
     expect(minted.length, 'the version restore minted a new lineage').toBeGreaterThan(before)
     await typeAtEnd(' gh')

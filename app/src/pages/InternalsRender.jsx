@@ -7,8 +7,7 @@
 //   treemap   — the breadth heatmap (TreemapView)
 //   combo     — exposure tile above the treemap
 //
-// Public route (no AuthGuard). ?token= is checked against VITE_CHART_RENDER_TOKEN and
-// forwarded to the API.
+// Public route (no AuthGuard). ?token= is forwarded to the API, which checks it.
 //
 // ⛔ Reads /api/r/breadth + /api/r/breadth-monitor, NOT the bare paths. Both bare
 // endpoints went behind `require_paid` in 9ff74f69 (2026-08-09) and this page renders
@@ -17,15 +16,18 @@
 // an error, for a week. Keep the soft fallback (a half-rendered panel beats none) but
 // remember it means THIS PAGE CANNOT REPORT ITS OWN AUTH FAILURE: verify a change
 // here by looking at the rendered image, never by the absence of an exception.
+// Since 2026-11-19 a 401 or 403 answer is the one failure the page does report: it
+// shows "unauthorized" and never sets the ready flag. Every other failed read keeps
+// the soft fallback.
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import MarketBreadth from '../components/tiles/MarketBreadth'
 import TreemapView from './breadth/views/TreemapView'
 import { TREEMAP_DEF } from './breadth/heatmapMetrics'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
-import { renderTokenOk } from '../lib/renderToken'
+import { renderRefused } from '../lib/renderToken'
 // Newsletter export: drop treemap tiles that DUPLICATE the live exposure card
 // directly above it (score/exposure/index closes). The treemap reads yesterday's
 // breadth-collector snapshot, so those tiles can contradict the live card inside
@@ -93,15 +95,19 @@ export default function InternalsRender() {
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
+    // The server checks ?token= on both reads; a refused read (401/403) shows "unauthorized".
+    const answered = (r, fallback) => {
+      if (renderRefused(r.status)) setErr('unauthorized')
+      return r.ok ? r.json() : fallback
+    }
     const jobs = []
     if (needBreadth) {
-      jobs.push(fetch(`/api/r/breadth?token=${encodeURIComponent(token)}`).then((r) => (r.ok ? r.json() : {})).then(setBreadth).catch(() => setBreadth({})))
+      jobs.push(fetch(`/api/r/breadth?token=${encodeURIComponent(token)}`).then((r) => answered(r, {})).then(setBreadth).catch(() => setBreadth({})))
     } else setBreadth({})
     if (needRow) {
       jobs.push(
         fetch(`/api/r/breadth-monitor?days=10&token=${encodeURIComponent(token)}`)
-          .then((r) => (r.ok ? r.json() : { rows: [] }))
+          .then((r) => answered(r, { rows: [] }))
           .then((d) => {
             const rows = (d.rows || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)))
             setRow(rows[rows.length - 1] || null)
@@ -114,10 +120,10 @@ export default function InternalsRender() {
 
   const ready = (!needBreadth || breadth != null) && (!needRow || row !== undefined)
   useEffect(() => {
-    if (!ready) return
+    if (!ready || err) return
     const t = setTimeout(() => { window.__panelReady = true }, 2600) // ECharts + fonts settle
     return () => clearTimeout(t)
-  }, [ready])
+  }, [ready, err])
 
   if (err) return <div style={{ color: '#e74c3c', padding: 20 }}>{err}</div>
   if (!ready) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>

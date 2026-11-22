@@ -99,11 +99,14 @@ afterEach(() => {
 
 const card = () => slot.querySelector('[data-orb-coachmark]')
 
+// Tier 1b fix round 1 (review Important 5): on the PHONE Notebook route the orb gives way to the Notebook's "+" and
+// its card waits there by route (FloatingOrb.coachmark.test.jsx). This file is about the EDITOR's hold on the stage,
+// so the orb lives on another Journal page here: the card's wait below can only come from the editor.
 function mountOrb() {
   const div = document.createElement('div')
   document.body.appendChild(div)
   return render(
-    <MemoryRouter initialEntries={['/journal/notebook']}><VoiceProvider><FloatingOrb /></VoiceProvider></MemoryRouter>,
+    <MemoryRouter initialEntries={['/journal']}><VoiceProvider><FloatingOrb /></VoiceProvider></MemoryRouter>,
     { container: div },
   )
 }

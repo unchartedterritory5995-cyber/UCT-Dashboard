@@ -1,0 +1,69 @@
+//@version=5
+indicator("UCTPROBE_VW_HIST_CALLSITE_KERNELS_V5", overlay = false, max_bars_back = 5000)
+
+// The v5 copy of vw-hist-callsite-kernels.pine (same rows; v5 `?:` arms are documented lazy, not captured).
+// PROVENANCE: written 2026-11-16 for the Pine parity programme, coverage unit "runtime history"
+// (queue row HIST-K1). NEVER COMPILED ON TRADINGVIEW: a warning that a call "should be called on
+// each calculation" is fine; an error names its line - split that row out and capture the rest.
+//
+// QUESTION: the built-ins the sample scripts call in a block or `?:` arm that runs on SOME bars,
+// which no capture has asked: do they keep the history of the block's RUNS (as ta.sma / ta.ema /
+// ta.change do, vw-call-site-history C03 / C04, vw-arm-history T05) or the chart's bars?
+//   B*  in an `if close > open` block        T*  the same call in a `?:` arm
+//   E*  the every-bar answer each is read against
+// Each row is chosen so the two readings print different NUMBERS:
+//   crossover / crossunder of close and its own 3-bar mean: "the previous value" is the previous
+//     RUN's or the previous BAR's;
+//   barssince(close > close[1]) counts runs or bars; valuewhen(.., close, 1) the 2nd most recent hit;
+//   wma(close, 4) weights the last 4 runs or bars; cum(1) counts runs or bars;
+//   mom(close, 2) and rsi(close, 5) read the previous runs or bars.
+// CAPTURE: NYSE:RDDT 1D from the listing (every run is on a loaded bar), inputs at defaults (none);
+// AMEX:SPY 1D second.
+
+up = close > open
+m3 = ta.sma(close, 3)
+hit = close > close[1]
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(up ? 1 : 0, "A01_up_CONTROL")
+plot(ta.crossover(close, m3) ? 1 : 0,  "E01_crossover_every_bar")
+plot(ta.crossunder(close, m3) ? 1 : 0, "E02_crossunder_every_bar")
+plot(ta.barssince(hit),           "E03_barssince_every_bar")
+plot(ta.valuewhen(hit, close, 1), "E04_valuewhen1_every_bar")
+plot(ta.wma(close, 4),            "E05_wma4_every_bar")
+plot(ta.cum(1),                   "E06_cum1_every_bar")
+plot(ta.mom(close, 2),            "E07_mom2_every_bar")
+plot(ta.rsi(close, 5),            "E08_rsi5_every_bar")
+
+float b_xo = na
+float b_xu = na
+float b_bs = na
+float b_vw = na
+float b_wma = na
+float b_cum = na
+float b_mom = na
+float b_rsi = na
+if up
+    b_xo := ta.crossover(close, m3) ? 1 : 0
+    b_xu := ta.crossunder(close, m3) ? 1 : 0
+    b_bs := ta.barssince(hit)
+    b_vw := ta.valuewhen(hit, close, 1)
+    b_wma := ta.wma(close, 4)
+    b_cum := ta.cum(1)
+    b_mom := ta.mom(close, 2)
+    b_rsi := ta.rsi(close, 5)
+plot(b_xo,  "B01_crossover_in_up_block")
+plot(b_xu,  "B02_crossunder_in_up_block")
+plot(b_bs,  "B03_barssince_in_up_block")
+plot(b_vw,  "B04_valuewhen1_in_up_block")
+plot(b_wma, "B05_wma4_in_up_block")
+plot(b_cum, "B06_cum1_in_up_block")
+plot(b_mom, "B07_mom2_in_up_block")
+plot(b_rsi, "B08_rsi5_in_up_block")
+
+plot(up ? (ta.crossover(close, m3) ? 1 : 0) : na,  "T01_crossover_in_true_arm")
+plot(up ? (ta.crossunder(close, m3) ? 1 : 0) : na, "T02_crossunder_in_true_arm")
+plot(up ? ta.barssince(hit) : na,           "T03_barssince_in_true_arm")
+plot(up ? ta.valuewhen(hit, close, 1) : na, "T04_valuewhen1_in_true_arm")
+plot(up ? ta.wma(close, 4) : na,            "T05_wma4_in_true_arm")
+plot(up ? ta.cum(1) : na,                   "T06_cum1_in_true_arm")

@@ -34,6 +34,7 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 
 import BuilderSheet from './BuilderSheet'
+import { writeMyself, toStart, startFrom, openSource, openTab, formulaBox, reveal, openPlots, openInputs, pickChoice, choiceValue, chooseValue, choiceOf } from '../../../testing/builder/builderStart.testkit.js'
 import { FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { AuthContext } from '../../../context/AuthContext'
 
@@ -51,13 +52,15 @@ const flush = async () => {
   await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve() })
 }
 function mount() {
-  return render(
+  const view = render(
     <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
       <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
         <BuilderSheet open onClose={() => {}} />
       </SWRConfig>
     </AuthContext.Provider>,
   )
+  writeMyself()
+  return view
 }
 const settle = async () => { await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS + 10) }) }
 const type = async (el, value) => {
@@ -74,8 +77,8 @@ afterEach(() => { vi.useRealTimers(); cleanup(); vi.restoreAllMocks() })
 describe('a hand-typed formula binding a member input to a WINDOW slot', () => {
   it('⭐⭐ shows the pre-check message and disables Save — never silently saves an uncomputable formula', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, period)')
-    await click(screen.getByTestId('add-input'))
+    await type(formulaBox(), 'sma(close, period)')
+    await click((openInputs(), screen.getByTestId('add-input')))
     await set(screen.getByLabelText('Input 1 name'), 'period')
     await settle()
 
@@ -95,15 +98,15 @@ describe('a hand-typed formula binding a member input to a WINDOW slot', () => {
 
   it('⭐ moving the SAME key out of the window slot makes the message disappear on its own, and Save enables', async () => {
     mount(); await flush()
-    await type(screen.getByLabelText('Formula'), 'sma(close, period)')
-    await click(screen.getByTestId('add-input'))
+    await type(formulaBox(), 'sma(close, period)')
+    await click((openInputs(), screen.getByTestId('add-input')))
     await set(screen.getByLabelText('Input 1 name'), 'period')
     await settle()
     expect(screen.getByTestId('member-input-problem-0')).toBeTruthy()
 
     // The member edits the formula so `period` no longer lands in a window
     // argument — the SAME declared input, a DIFFERENT position.
-    await type(screen.getByLabelText('Formula'), 'sma(close, 20) * period')
+    await type(formulaBox(), 'sma(close, 20) * period')
     await set(screen.getByLabelText(/^Name/i), 'Window Bound Fixed')
     await settle()
 

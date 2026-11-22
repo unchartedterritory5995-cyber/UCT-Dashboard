@@ -51,7 +51,10 @@ export const CARRIED_COMPUTE = Object.freeze(['rev', 'paramState'])
 const ROW_PRESENTATION = Object.freeze(['colorMode', 'colorUp', 'colorDown', 'colorPalette', 'colorGradient',
   'opacity', 'displace', 'displaceFrom', 'fill', 'fillColor', 'fillOpacity',
   // ⭐ P3 — a plot's line style (`buildDefinition` projects it from the row).
-  'lineStyle'])
+  'lineStyle',
+  // ⭐ ROW 42 — "breaks where it has no value" (`set_style.breaks`; `buildDefinition`
+  // writes it only when true).
+  'sparse'])
 
 const isDefaultPane = (p) => JSON.stringify(p) === JSON.stringify(PANE_PLACEMENT())
 

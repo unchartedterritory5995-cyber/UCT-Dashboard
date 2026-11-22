@@ -1,0 +1,17 @@
+[
+ {
+  "mutant": "control-comment",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "SURVIVED"
+ },
+ {
+  "mutant": "comments not skipped",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ },
+ {
+  "mutant": "scan: commented strategy( not skipped",
+  "file": "tools/vendor_harness/evidence_engine.py",
+  "verdict": "KILLED"
+ }
+]

@@ -1,0 +1,75 @@
+/* The small form row a data-wave-4 panel shows above its list (PCHG's two dates, TSRC's search
+   box). Tokens only: the controls follow the member's theme. The inputs are the ui kit's `Input`,
+   so the shell's themed control floor applies; this file only lays them out. */
+
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.input {
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 2px var(--space-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.grow {
+  flex: 1 1 14rem;
+}
+
+.error {
+  display: block;
+  color: var(--text);
+  font-size: var(--text-xs);
+}
+
+/* A quote from a call: the server's excerpt, with the matched words marked. */
+.quote {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mark {
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* A month's share of calls as a bar inside barCells.module.css's track. The number beside it is
+   the value; the bar is its picture, and it has no direction, so it takes no up or down color. */
+.barFill {
+  left: 0;
+  background: var(--text-muted);
+}
+
+/* PHONE: one control per row, each the full width of the panel, so two date boxes and a button
+   never share a 390px line (panelPhoneLayout.rail). */
+@media (max-width: 640px) {
+  .form {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

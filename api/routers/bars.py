@@ -47,7 +47,7 @@ from api.services.bars_fetch import (
 # Re-export module for any consumer that imports `from api.routers import bars`
 from api.services import bars_fetch as _bars_fetch  # noqa: F401
 
-# Cash-settled indexes (SPX, NDX, VIX, RUT, DJX, XSP, XND) — Schwab's
+# Cash-settled indexes (SPX, NDX, VIX, RUT, DJX, XSP, XND) — the equity bar
 # /pricehistory silently returns empty for these, so route through yfinance.
 # See api/index_bars.py for the symbol map and divisor logic.
 from api.index_bars import is_index, fetch_index_bars
@@ -373,7 +373,7 @@ def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(require_b
 _bars_proxy_client = None
 
 
-async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
+async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin, session=""):
     """Forward a /api/bars request to the dedicated bars-serving tier and return its
     response VERBATIM — body + status + the exact Cache-Control/Pragma/Server-Timing
     headers `serve_bars` sets — so the browser cannot tell proxy from local (the tier
@@ -389,9 +389,10 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
         _bars_proxy_client = httpx.AsyncClient(
             timeout=httpx.Timeout(8.0, connect=2.0), follow_redirects=False)
     url = f"{origin}/api/bars/{_quote(ticker)}"
-    r = await _bars_proxy_client.get(
-        url, params={"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm},
-        headers=bars_service_headers())
+    params = {"tf": tf, "bars": bars, "since": since, "to": to, "warm": warm}
+    if session:
+        params["session"] = session   # the tier must see the chart's session too
+    r = await _bars_proxy_client.get(url, params=params, headers=bars_service_headers())
     # ⛔⛔ A TIER AUTH REFUSAL IS OURS, NEVER THE MEMBER’S. This caller already
     # decided the request is entitled; a 401/403 from the tier can only mean
     # PUSH_SECRET is unset or mismatched there. Raising drops into `get_bars`’
@@ -402,7 +403,8 @@ async def _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin):
         raise RuntimeError(f"bars tier refused the service token ({r.status_code})")
     resp = _Response(content=r.content, status_code=r.status_code,
                      media_type=r.headers.get("content-type", "application/json"))
-    for _h in ("cache-control", "pragma", "server-timing"):
+    # retry-after / x-bars-shed: a deliberate tier shed must reach the browser intact.
+    for _h in ("cache-control", "pragma", "server-timing", "retry-after", "x-bars-shed"):
         if _h in r.headers:
             resp.headers[_h] = r.headers[_h]
     resp.headers["X-Bars-Tier"] = "1"  # canary observability only; the client ignores it
@@ -430,6 +432,37 @@ def _econ_refusal(ticker: str) -> JSONResponse:
         "ticker": (ticker or "").strip().upper(), "bars": [],
         "error": "economic series are served by /api/econ"})
     resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+#: How long a browser may keep "this is not a bars symbol". The answer is a property of the
+#: NAME, so it cannot go stale; an hour bounds any future change of heart.
+_THEME_INDEX_REFUSAL_MAX_AGE_S = 3600
+
+
+def is_theme_index_symbol(ticker) -> bool:
+    """Is this a THEME-INDEX identity (`$IDX:<THEME>`, any case)?
+
+    A theme index is a synthetic equal-weight series built from a theme's holdings
+    (api/services/theme_index.py) and read through `/api/theme-index/{slug}`. It has no
+    rows in bars.db and no provider carries it, so on this lane it could only ever answer
+    "warming": measured on production 2026-11-16, one pass through the app's pages made
+    123 requests of `/api/bars/$IDX:<theme>`, every one answered 503 `error: warming` with
+    `Retry-After: 3` (or an empty 200), and the "warming" answer invites the page to ask
+    again. It also kicked a background provider fetch for a symbol that cannot exist.
+
+    A SHAPE TEST, like `is_econ_symbol`: the whole `$IDX:` namespace belongs to theme
+    indexes, so an unknown theme is answered the same way."""
+    return isinstance(ticker, str) and ticker.strip().upper().startswith("$IDX:")
+
+
+def _theme_index_refusal(ticker: str, tf: str = "D") -> JSONResponse:
+    """200, an empty series, and why: the shape the page already reads as "stop asking"
+    (`no_data`), never the retryable "warming". Kept by the member's own browser for an hour
+    (`private`: no shared or edge cache), so a warm list that names a theme index costs one
+    request, once."""
+    resp = _no_data_response((ticker or "").strip(), tf if isinstance(tf, str) else "D", "not_a_bars_symbol")
+    resp.headers["Cache-Control"] = "private, max-age=%d" % _THEME_INDEX_REFUSAL_MAX_AGE_S
     return resp
 
 
@@ -473,6 +506,21 @@ def _is_market_indicator(ticker: str) -> bool:
         return False
 
 
+def _is_pine_seed(ticker: str) -> bool:
+    """Is this a registered Pine Seeds series (`SEED_<SOURCE>:<SYMBOL>`)?
+
+    ⭐ THE SAME DOORS AS `_is_market_indicator`, AND FOR THE SAME REASON: the bars proxy,
+    the history proxy, `/api/bars`' serve branch and `/api/bars-history` must all agree. A seed has
+    no rows in bars.db, so a door that forgot it would serve a valid, cacheable empty 200.
+    Served from the web pod's `pine_seed_store` (docs/pine/RS-RATING-TRANSFER.md, L6).
+    """
+    try:
+        from api.services import pine_seed_store as _seeds
+        return _seeds.is_seed_symbol(ticker)
+    except Exception:
+        return False
+
+
 def _is_breadth_derived_indicator(ticker: str) -> bool:
     """A published market indicator whose history is COMPUTED FROM canonical breadth
     (`SRC_BREADTH_DERIVED`: US:MCO/MCS/AD/ZBT today), so its content follows the breadth
@@ -485,6 +533,40 @@ def _is_breadth_derived_indicator(ticker: str) -> bool:
         return s is not None and s.source_type == _mireg.SRC_BREADTH_DERIVED
     except Exception:
         return False
+
+
+#: Seconds a member's chart waits before asking again when the tier is unreachable (a deploy swap is seconds).
+TIER_DOWN_RETRY_AFTER_S = 2
+
+
+def _tier_down_cold_tail(ticker: str, tf: str, to: str):
+    """The warming 503 for an INTRADAY read whose tier proxy just failed and whose LOCAL tail is cold-stale
+    (missing a whole session, `bars_fetch._is_cold_stale_intraday`), else None (serve locally as before).
+
+    ⛔⛔ MEASURED ON PRODUCTION 2026-11-20, 16:52:49Z. A bars-api deploy swap left the tier unreachable; the edge
+    hedged a signed-in read to web after 1.2 s; web re-proxied it to the same tier, waited out the 2.0 s connect
+    timeout (`_proxy_bars_to_tier`), and served its LOCAL store. Nothing heals that store while every read is
+    proxied (`BARS_PROXY_PCT=100`), so RDDT 5m came back with a 13:50 ET tail from the day before, 22 hours old,
+    as a 200 that looked current. A deliberate warming 503 instead: the client keeps the rows it holds and asks
+    again after `TIER_DOWN_RETRY_AFTER_S`, by which time the tier is back.
+    ⚠️ Scope: intraday reads only, and not a replay (`to`) or an index (its store is not bars.db). A daily read
+    keeps the local fallback (its own catch-up rules apply). A tail that is merely behind within today's session
+    still falls back locally: answering 503 for every chart during a longer outage would trade a slightly old
+    chart for none. A tail we cannot read is served as before (abstain)."""
+    if to or tf not in _INTRADAY_TFS or is_index(ticker):
+        return None
+    try:
+        last_ts = _bars_fetch._sqlite.get_last_ts(ticker.upper(), tf)
+        if last_ts is None or not _bars_fetch._is_cold_stale_intraday(tf, last_ts):
+            return None
+    except Exception:  # noqa: BLE001 - abstain: the local serve decides as it always has
+        return None
+    resp = JSONResponse(status_code=503, content={
+        "ticker": ticker.upper(), "tf": tf, "bars": [], "warming": True, "error": "tier_unreachable"})
+    resp.headers["Retry-After"] = str(TIER_DOWN_RETRY_AFTER_S)
+    resp.headers["X-Bars-Shed"] = "tier-unreachable"
+    resp.headers["Cache-Control"] = "no-store, must-revalidate"
+    return resp
 
 
 def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
@@ -515,6 +597,18 @@ def _bars_proxy_should_route(ticker: str, warm: int) -> bool:
     # the exclusion cannot drift from the routing.
     if _is_market_indicator(ticker):
         return False
+    # A Pine seed is served from the web pod's `pine_seed_store`, like the above.
+    if _is_pine_seed(ticker):
+        return False
+    # A currency pair (BTCUSD) is the web pod's too: the tier answers one with 501 "ask
+    # web" (`bars_api_main._pair_handed_to_web`), so proxying it could only fail and fall
+    # back here. Whatever `CRYPTO_BARS_ENABLED` says.
+    try:
+        from api import crypto_bars as _crypto_bars
+        if _crypto_bars.is_pair(ticker):
+            return False
+    except Exception:
+        pass
     if os.environ.get("BARS_PROXY_ENABLED", "0") != "1":
         return False
     try:
@@ -565,6 +659,7 @@ async def get_bars(
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
     to: str = Query(default="", description="Return bars ending at this date (YYYY-MM-DD) — replay pre-cutoff window"),
     warm: int = Query(default=0, description="1 = best-effort background warm (skips the provider fetch when the pod is busy, so it can't starve a real chart request)"),
+    session: str = Query(default="", description="Chart session: 'rth' | 'eth' (intraday only). eth on tf=60 serves TradingView's extended 60m grid (clock hours); tail_status is judged against this session. Absent = legacy behaviour."),
 ):
     """HTTP route → the dedicated bars-serving tier (Path B Phase 2) or the local
     `serve_bars` core.
@@ -576,17 +671,38 @@ async def get_bars(
     directly — they must never hit the proxy path."""
     if is_econ_symbol(ticker):          # ⛔ before proxy, provider, add-ons -- see is_econ_symbol
         return _econ_refusal(ticker)
+    if is_theme_index_symbol(ticker):   # ⛔ same place, same reason -- see is_theme_index_symbol
+        return _theme_index_refusal(ticker, tf)
+    if not isinstance(session, str):    # called in-process: the Query() default object
+        session = ""
+    # A currency pair (BTCUSD), dark behind CRYPTO_BARS_ENABLED: served by THIS pod from
+    # `api/crypto_bars.py` (FMP only), never the tier (it has no member identity and hands
+    # a pair back here with 501) and never the stock/index serve below. `serves` is False for
+    # every other symbol and for everyone while the switch is off, so they fall through
+    # to exactly the lines that follow.
+    from api.routers import crypto as _crypto
+    if _crypto.serves(ticker, _access):
+        from starlette.concurrency import run_in_threadpool as _pair_pool
+        return await _pair_pool(_crypto.pair_bars_response, ticker, tf, bars, since, to)
     origin = os.environ.get("BARS_ORIGIN_URL", "").rstrip("/")
     if origin and _bars_proxy_should_route(ticker, warm):
         try:
-            return await _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin)
+            # `session` only when asked: an absent param keeps the legacy call/URL exactly.
+            _extra = (session,) if session else ()
+            return await _proxy_bars_to_tier(ticker, tf, bars, since, to, warm, origin, *_extra)
         except Exception:
-            pass  # tier unreachable/slow/error → fall through to local serve (today's path)
+            # tier unreachable/slow/error → fall through to local serve (today's path), EXCEPT an intraday
+            # read whose local tail is cold-stale: see `_tier_down_cold_tail`.
+            from starlette.concurrency import run_in_threadpool as _shed_pool
+            _shed = await _shed_pool(_tier_down_cold_tail, ticker, tf, to)
+            if _shed is not None:
+                return _shed
     # Local serve is SYNC (SQLite/provider I/O) → run it in the threadpool so it never
     # blocks the event loop (this route is async now for the proxy path). Behaviourally
     # identical to the pre-Phase-2 sync route, which FastAPI also ran in the threadpool.
     from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(serve_bars, ticker, tf, bars, since, to, warm)
+    return await run_in_threadpool(serve_bars_http, ticker, tf, bars, since, to, warm,
+                                   *((session,) if session else ()))
 
 
 @router.get("/api/adjustment-basis/{ticker}")
@@ -721,10 +837,29 @@ def _augment_daily_with_today(response, ticker: str):
     return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
 
 
+def _augment_index_daily_with_today(response, ticker: str, now: float | None = None):
+    """A cash index's 200 daily answer with TODAY's session bar as its tail
+    (`index_bars.with_todays_session`: built from the index's own 5m bars of today's
+    regular session; none before the open, on a day with no session, or from a stale or
+    proxied 5m series). Returns the original response on ANY problem."""
+    try:
+        payload = orjson.loads(response.body)
+    except Exception:
+        return response
+    if not isinstance(payload, dict) or not isinstance(payload.get("bars"), list):
+        return response
+    from api import index_bars as _index_bars
+    out = _index_bars.with_todays_session(ticker, payload["bars"], now)
+    if out is None:
+        return response
+    payload["bars"] = out
+    return JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+
+
 _INTRADAY_TFS = ("1", "5", "15", "30", "60")
 
 
-def _augment_with_tail_status(response, ticker: str, tf: str):
+def _augment_with_tail_status(response, ticker: str, tf: str, session: str | None = None):
     """Attach ``tail_status`` + ``verified_through`` (and ``Retry-After`` when the tail
     is unverified) to an intraday 200.
 
@@ -739,9 +874,23 @@ def _augment_with_tail_status(response, ticker: str, tf: str):
         return response
     if not isinstance(payload, dict) or payload.get("no_data") or payload.get("error"):
         return response
-    rows = payload.get("bars")
-    if not isinstance(rows, list):
+    if not isinstance(payload.get("bars"), list):
         return response
+    headers = _apply_tail_status(payload, ticker, tf, session)
+    if headers is None:
+        return response
+    out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+    for k, v in headers.items():
+        out.headers[k] = v
+    return out
+
+
+def _apply_tail_status(payload: dict, ticker: str, tf: str, session: str | None = None,
+                       contract_vt=_bars_fetch._VT_UNSET):
+    """`tail_status` (+ `retry_after`) onto an intraday payload in place. Returns the
+    headers to add, or None when there is no tail to judge (an empty full answer).
+    `contract_vt`: the proof the bar contract attached to THIS payload (judged as is)."""
+    rows = payload.get("bars")
     if payload.get("delta"):
         from api.services import bars_sqlite as _bs
         tail = _bs.get_last_ts(ticker.upper(), tf)
@@ -752,16 +901,87 @@ def _augment_with_tail_status(response, ticker: str, tf: str):
                 pass
     else:
         if not rows:
-            return response
+            return None
         tail = rows[-1].get("t") if isinstance(rows[-1], dict) else None
-    st = _bars_fetch.intraday_tail_status(ticker, tf, tail)
+    if contract_vt is not _bars_fetch._VT_UNSET:
+        st = _bars_fetch.intraday_tail_status(ticker, tf, tail, session=session,
+                                              verified_through=contract_vt)
+    else:
+        st = (_bars_fetch.intraday_tail_status(ticker, tf, tail, session=session) if session
+              else _bars_fetch.intraday_tail_status(ticker, tf, tail))
     payload["tail_status"] = st["tail_status"]
     payload["verified_through"] = st["verified_through"]
     headers = {}
     if st["tail_status"] == "unverified":
         payload["retry_after"] = 3
         headers["Retry-After"] = "3"
+    return headers
+
+
+def _since_key(since, tf: str):
+    """The `since=` param as the store's intraday key (unix s), else None."""
+    if not since or tf not in _INTRADAY_TFS:
+        return None
+    try:
+        s = int(since)
+    except (TypeError, ValueError):
+        return None
+    return s // 1000 if s > 10_000_000_000 else s
+
+
+def _augment_with_contract(response, ticker: str, tf: str, session: str | None, *,
+                           store_backed: bool, tail_status: bool, to: bool = False,
+                           meta: dict | None = None, since_key: int | None = None,
+                           own_history_rev: bool = False):
+    """THE BAR CONTRACT (docs/architecture/bar-contract.md) onto EVERY 200 bars answer
+    — every tf, every serve branch, full / `since=` / `to=` alike — in ONE parse that
+    also carries `tail_status` where it always applied (`tail_status=True`: live equity
+    intraday, not replay). Additive: `bars` is untouched. Computed by
+    `bar_contract.compute`, the one implementation. Returns the response unchanged on
+    ANY problem — a contract field must never break a chart serve.
+
+    `own_history_rev`: the answer states its own `history_rev` (a cash index: the time its
+    hole repair last changed held history, `index_bars.repair_rth_holes`) and the contract,
+    which reads only bars.db, has none for it: the answer's own value stands."""
+    try:
+        payload = orjson.loads(response.body)
+    except Exception:
+        return response
+    if not isinstance(payload, dict) or payload.get("no_data") or payload.get("error"):
+        return response
+    rows = payload.get("bars")
+    if not isinstance(rows, list):
+        return response
+    headers = {}
+    own_hist = payload.get("history_rev") if own_history_rev else None
+    try:
+        from api.services import bar_contract
+        fields = bar_contract.compute(ticker, tf, session, rows,
+                                      delta=bool(payload.get("delta")), to=to,
+                                      store_backed=store_backed, meta=meta,
+                                      since_key=since_key)
+        spliced = fields.pop("_bars", None)
+        if spliced is not None:
+            payload["bars"] = spliced      # the store's current tail (see compute)
+        payload.update(fields)
+    except Exception as e:                 # noqa: BLE001
+        _bars_log.warning("[bars] contract fields failed %s tf=%s: %s", ticker, tf,
+                          type(e).__name__)
+    if own_hist is not None and payload.get("history_rev") is None:
+        payload["history_rev"] = own_hist
+    if tail_status and tf in _INTRADAY_TFS:
+        try:
+            if "contract" in payload and store_backed:
+                headers = _apply_tail_status(payload, ticker, tf, session,
+                                             contract_vt=payload.get("verified_through")) or {}
+            else:
+                headers = _apply_tail_status(payload, ticker, tf, session) or {}
+        except Exception:
+            headers = {}
     out = JSONResponse(content=payload, status_code=getattr(response, "status_code", 200))
+    for h in ("retry-after", "x-bars-shed"):
+        if h in response.headers:
+            out.headers[h] = response.headers[h]
     for k, v in headers.items():
         out.headers[k] = v
     return out
@@ -813,6 +1033,20 @@ def _augment_with_bar_close_state(response, tf: str):
             newest = datetime(y, m, d, tzinfo=ZoneInfo("America/New_York")).timestamp()
         except Exception:
             return response
+    elif (tf == "D" and isinstance(newest, (int, float)) and not isinstance(newest, bool)
+          and newest >= 1_000_000_000 and int(newest) == newest and int(newest) % 86400 == 0):
+        # ⭐ RS RATING L10 — A CASH INDEX'S DAILY KEY IS THE UTC MIDNIGHT OF ITS SESSION DATE
+        # (`index_bars._utc_midnight`), not an instant: read as one it is the PREVIOUS ET
+        # evening, and today's forming index bar answered `false` ("settled"). Same rule as the
+        # string branch: the session date's midnight in ET (`bar_contract._session_date_of`,
+        # the one reader of that key).
+        try:
+            from zoneinfo import ZoneInfo
+            from api.services.bar_contract import _session_date_of
+            sd = _session_date_of(newest)
+            newest = datetime(sd.year, sd.month, sd.day, tzinfo=ZoneInfo("America/New_York")).timestamp()
+        except Exception:
+            return response
     if not isinstance(newest, (int, float)) or isinstance(newest, bool):
         return response
     try:
@@ -838,6 +1072,7 @@ def serve_bars(
     since: str = "",
     to: str = "",
     warm: int = 0,
+    session: str = "",
 ):
     """Member/tier entry point. Marks this request thread as INTERACTIVE (a non-warm
     ask) for the lifetime of the serve so an intraday tail repair may use the reserved
@@ -845,11 +1080,139 @@ def serve_bars(
     anyio worker thread is reused by the next request."""
     if is_econ_symbol(ticker):          # the tier + in-process callers enter here, not via get_bars
         return _econ_refusal(ticker)
+    if is_theme_index_symbol(ticker):   # the Worker sends /api/bars/* straight to the tier: it enters here
+        return _theme_index_refusal(ticker, tf)
     _bars_fetch.set_request_interactive(not warm)
     try:
-        return _serve_bars_impl(ticker, tf, bars, since, to, warm)
+        sess = _bars_fetch.normalize_session(session) if tf in _INTRADAY_TFS else None
+        if tf == "60" and sess == "eth":
+            return _serve_eth_hourly(ticker, bars, since, to, warm)
+        return _serve_bars_impl(ticker, tf, bars, since, to, warm, session=sess)
     finally:
         _bars_fetch.set_request_interactive(False)
+
+
+# ── EXTENDED-HOURS 60m (TradingView's 04:00-20:00 chart: clock hours) ─────────
+# ⭐ DERIVED ON READ FROM THE 15m SERVE, NEVER STORED. The stored tf=60 series is
+# the RTH grid (09:30, 10:30 ... — `SIXTY_MIN_GRID`), and the two grids cannot be
+# converted into each other (09:30-10:30 straddles two clock hours). A stored
+# '60e' series would need a twin write in every 60m writer (cold fetch, delta,
+# heal, range, rebuild, R2 sync, live store) and a second copy of the data;
+# deriving from 15m reuses the ONE source both grids are built from
+# (`_session_resample_hourly`), so the ETH hour inherits all of 15m's freshness,
+# heal, warm-shed, deep and replay (`to=`) machinery — and its `tail_status` is the
+# 15m tail judged against the EXTENDED frontier, i.e. the chart's own session.
+# Cost: a 4x-wider SQLite read + an in-process resample (milliseconds).
+_ETH_SRC_PER_HOUR = 4           # 15m bars per 60m bucket
+# ⛔ DEEP CAP (#1061 review F2). The client's 60m deep target is 32000 bars → 128000
+# 15m rows ×2 JSON round-trips, held in the entry-count-bounded TTLCache under a key
+# nothing else uses (pods have OOM'd on bars memory before). Capped at the 15m chart's
+# OWN deep target (`fullBarsFor('15')` = 30000, ~1.9 years of ETH hours): the deep ETH
+# read then SHARES the 15m deep cache entry instead of adding a 4x-larger one.
+_ETH_SRC_MAX = 30000
+_ETH_HEADERS = ("cache-control", "pragma", "server-timing", "retry-after", "x-bars-shed")
+
+
+def _eth_src_count(bars: int) -> int:
+    """15m rows to read for `bars` ETH hours. ⛔ A first paint (under the deep
+    threshold) stays under it on the 15m side too, so a 60m first paint can never
+    take the heavy synchronous deep branch it would not have taken as tf=60."""
+    n = max(1, int(bars)) * _ETH_SRC_PER_HOUR
+    thr = _bars_fetch._DEEP_REQUEST_THRESHOLD
+    if int(bars) < thr:
+        n = min(n, thr - 1)
+    return min(n, _ETH_SRC_MAX)
+
+
+def _carry_headers(new, old):
+    if new is not old:
+        for h in _ETH_HEADERS:
+            if h in old.headers:
+                new.headers[h] = old.headers[h]
+    return new
+
+
+def _serve_eth_hourly(ticker: str, bars: int, since: str, to: str, warm: int):
+    """tf=60 on the ETH (clock-hour) grid, from the 15m serve. See the block above."""
+    since15 = ""
+    floor = None
+    if since:
+        try:
+            s = int(since)
+            s = s // 1000 if s > 10_000_000_000 else s
+            # Re-aggregate the WHOLE bucket the delta starts in: every 15m row of it.
+            floor = _bars_fetch.bucket_60_et_unix_seconds(s + 1, grid="eth")
+            since15 = str(max(0, floor - 1))
+        except (TypeError, ValueError):
+            since15 = since
+    n15 = _eth_src_count(bars)
+    resp = _serve_bars_impl(ticker, "15", n15, since15, to, warm, session="eth")
+    try:
+        payload = orjson.loads(resp.body)
+    except Exception:
+        return resp
+    if not isinstance(payload, dict):
+        return resp
+    payload["tf"] = "60"
+    payload["session"] = "eth"
+    # A cash index's 15m hole-repair record (`index_bars._repair_fields`) names 15m buckets and
+    # 15m sessions; it does not describe the hours derived here, so it is not passed on as theirs.
+    for k in ("repaired", "holes", "holes_total"):
+        payload.pop(k, None)
+    base_contract = {k: payload.get(k) for k in ("series_rev", "history_rev", "sealed_through",
+                                                 "verified_through", "complete_through")}
+    rows = payload.get("bars")
+    if isinstance(rows, list) and rows:
+        try:
+            src = [r for r in rows if isinstance(r, dict) and isinstance(r.get("t"), (int, float))]
+            out = _session_resample_hourly(src, grid="eth")
+            if floor is not None:
+                out = [b for b in out if b["t"] >= floor]
+            elif not payload.get("delta"):
+                # ⛔ A COUNT-LIMITED SOURCE STARTS MID-HOUR (#1061 review F1): the oldest
+                # hour would be built from 1-3 of its 4 quarters and, via the client's
+                # merge (fresh wins), overwrite the complete bar in deep history. When
+                # the read may have been cut (it returned the full count asked for) and
+                # does not start on the hour, that hour is incomplete: drop it.
+                if (out and len(src) >= n15
+                        and int(src[0]["t"]) != _bars_fetch.bucket_60_et_unix_seconds(int(src[0]["t"]), grid="eth")):
+                    out = out[1:]
+                out = out[-int(bars):]
+            payload["bars"] = out
+        except Exception:                  # noqa: BLE001 — never a 60m answer on the wrong grid
+            payload["bars"] = []
+            payload["tail_status"] = "unverified"
+    if "contract" in payload:
+        # The 15m answer's contract, re-stated on the ETH hour grid (`derive_for_grid`).
+        try:
+            from api.services import bar_contract
+            payload.update(bar_contract.derive_for_grid(
+                ticker, "60", "eth", payload.get("bars") or [], base_contract, "15"))
+        except Exception:                  # noqa: BLE001
+            for k in ("complete_through", "developing"):
+                payload[k] = None
+    out_resp = _carry_headers(
+        JSONResponse(content=payload, status_code=getattr(resp, "status_code", 200)), resp)
+    if getattr(resp, "status_code", 200) == 200 and payload.get("bars"):
+        try:
+            out_resp = _carry_headers(_augment_with_bar_close_state(out_resp, "60"), out_resp)
+        except Exception:                  # noqa: BLE001
+            pass
+    return out_resp
+
+
+def serve_bars_http(ticker, tf, bars=200, since="", to="", warm=0, session=""):
+    """`serve_bars` for an HTTP request behind the edge: runs it under ONE wait budget
+    (bars_fetch._bounded_wait) so the sum of every request-path wait stays under the
+    edge's 8 s abort. ⚠️ HTTP routes only — in-process callers (seasonality,
+    cot_prewarm, data_exports, discord...) call `serve_bars` and keep each wait's own
+    ceiling (review F3). Resolves `serve_bars` at call time, so a patched core is used."""
+    _bars_fetch.start_request_budget()
+    try:
+        return (serve_bars(ticker, tf, bars, since, to, warm, session) if session
+                else serve_bars(ticker, tf, bars, since, to, warm))
+    finally:
+        _bars_fetch.end_request_budget()
 
 
 def _serve_bars_impl(
@@ -859,6 +1222,7 @@ def _serve_bars_impl(
     since: str = "",
     to: str = "",
     warm: int = 0,
+    session: str | None = None,
 ):
     """Return OHLCV bars for client-side charting (Lightweight Charts v5).
 
@@ -888,13 +1252,16 @@ def _serve_bars_impl(
     # before these are assigned (a crash path serves a fault response, not a
     # daily payload, so the append is skipped anyway).
     _is_breadth = False
+    _is_mkt_ind = False
+    _is_seed = False
     _drec = None
+    _meta_pre = None
     try:
         try:
-            # Schwab /pricehistory doesn't serve cash-settled indexes — silently
+            # The equity bar path doesn't serve cash-settled indexes — silently
             # returns empty bar arrays for SPX/NDX/VIX/RUT/DJX/XSP/XND. Route
             # these through yfinance instead (SPX → ^GSPC, etc.). Equity and ETF
-            # tickers (SPY, TSLA, AAPL, ...) fall through to the existing Schwab
+            # tickers (SPY, TSLA, AAPL, ...) fall through to the existing equity
             # path unchanged.
             # DELISTED entity (dead company — Yahoo, Enron, Bear Stearns): serve its
             # FROZEN historical bars from an isolated path that fetches the provider symbol
@@ -926,7 +1293,13 @@ def _serve_bars_impl(
             from api.services import delisted_registry as _delisted
             _is_breadth = _breadth_syms.is_breadth_symbol(ticker)
             _is_mkt_ind = (not _is_breadth) and _is_market_indicator(ticker)
-            _drec = None if (_is_breadth or _is_mkt_ind) else _delisted.resolve(ticker)
+            _is_seed = (not _is_breadth) and (not _is_mkt_ind) and _is_pine_seed(ticker)
+            _drec = None if (_is_breadth or _is_mkt_ind or _is_seed) else _delisted.resolve(ticker)
+            if not (_is_breadth or _is_mkt_ind or _is_seed or _drec):
+                # Bar contract: the series meta is read BEFORE the rows, so an answer's
+                # rows are never older than the `series_rev` they carry.
+                from api.services.bar_contract import snapshot_meta as _snap_meta
+                _meta_pre = _snap_meta(ticker, tf, session)
             if _is_breadth:
                 # Coarse label now; build_breadth_bars refines it to breadth-cache vs
                 # breadth-build once the bars-layer cache lands (Phase 2).
@@ -936,6 +1309,10 @@ def _serve_bars_impl(
                 from api.services.market_indicators import series as _mseries
                 _mark_serve("market-indicator")
                 response = JSONResponse(content=_mseries.build_bars(ticker, tf, bars))
+            elif _is_seed:
+                from api.services import pine_seed_store as _seeds
+                _mark_serve("pine-seed")
+                response = JSONResponse(content=_seeds.build_bars(ticker, tf, bars))
             elif _drec:
                 from api.services.bars_fetch import _get_delisted_bars_response
                 # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
@@ -985,6 +1362,8 @@ def _serve_bars_impl(
                                 content={"ticker": ticker.upper(), "tf": tf, "bars": [], "warming": True},
                             )
                             response.headers["Retry-After"] = "4"
+                            # deliberate shed → edge passes it through (worker.js)
+                            response.headers["X-Bars-Shed"] = "warm-shed"
                 if response is None:
                     try:
                         if since:
@@ -1073,11 +1452,21 @@ def _serve_bars_impl(
         # snapshot helper self-limits to an OPEN regular session (returns None
         # pre-market / weekend / holiday) with a per-ticker ~8s TTL, so a
         # scan/warm storm can't fan out one provider call per request.
-        if (tf == "D" and not to and not _is_breadth and _drec is None
+        if (tf == "D" and not to and not _is_breadth and not _is_seed and _drec is None
                 and not is_index(ticker)
                 and getattr(response, "status_code", 200) == 200):
             try:
                 response = _augment_daily_with_today(response, ticker)
+            except Exception:
+                pass  # never let the developing-bar append break a real serve
+
+        # ⭐ RS RATING L10 — A CASH INDEX'S DAILY ANSWER ENDS AT TODAY'S SESSION TOO, built from
+        # the index's own 5-minute bars (`index_bars.with_todays_session`). A SEPARATE block:
+        # the equity append above is untouched, and this one runs for `is_index` only.
+        if (tf == "D" and not to and is_index(ticker)
+                and getattr(response, "status_code", 200) == 200):
+            try:
+                response = _augment_index_daily_with_today(response, ticker)
             except Exception:
                 pass  # never let the developing-bar append break a real serve
 
@@ -1094,11 +1483,18 @@ def _serve_bars_impl(
         # says whether its tail is current, provider-verified, or UNVERIFIED — so a
         # repair shed for capacity can no longer reach the client as a silent 200 that
         # looks exactly like a current chart. Same live-equity scope as the daily append.
-        if (tf in _INTRADAY_TFS and not to and not _is_breadth and _drec is None
-                and not is_index(ticker)
-                and getattr(response, "status_code", 200) == 200):
+        # ⭐ AND EVERY 200 CARRIES THE BAR CONTRACT (P1, 2026-11-11): complete_through,
+        # developing, verified_through, grid, session, series_rev, cache_key — on every
+        # tf and every serve branch, in the same single parse.
+        if getattr(response, "status_code", 200) == 200:
+            _live_equity = (not _is_breadth and not _is_mkt_ind and not _is_seed
+                            and _drec is None and not is_index(ticker))
             try:
-                response = _augment_with_tail_status(response, ticker, tf)
+                response = _augment_with_contract(
+                    response, ticker, tf, session,
+                    store_backed=_live_equity and get_serve_layer() != "yf-only",
+                    tail_status=(_live_equity and not to), to=bool(to), meta=_meta_pre,
+                    since_key=_since_key(since, tf), own_history_rev=is_index(ticker))
             except Exception:
                 pass
 
@@ -1177,6 +1573,31 @@ def _period_start_iso(tf: str) -> str:
     return today.isoformat()
 
 
+def calendar_last_sealed_day() -> str:
+    """The last NYSE trading day strictly before today (ET), as YYYY-MM-DD: the daily `d` EVERY browser sends.
+
+    The browser stamps its history request with the newest sealed bar of ITS tail (`lastSealedDate`,
+    utils/barsHistorySplit.js), and the tail (/api/bars) holds yesterday's bar as soon as the session closes.
+    The worker's deep store can lag a day behind after a restart (its D/W/M refresh is a ~13,000-symbol queue),
+    so its own `last_sealed` cannot be the authority for which URL is the current one. Measured 2026-11-19
+    02:20 ET: browsers asked d=2026-11-18 while the worker answered last_sealed=2026-11-17, so every daily
+    history was served with the short 1 h cache and rebuilt on each cold edge (1-2 s), and the pre-warm sweep
+    warmed the 11-17 URLs nobody asked for. "" if the calendar cannot answer.
+    """
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+    from api.services import session_calendar as _sc
+    day = datetime.now(ZoneInfo("America/New_York")).date() - timedelta(days=1)
+    for _ in range(14):
+        try:
+            if _sc.is_trading_day(day):
+                return day.isoformat()
+        except Exception:  # noqa: BLE001 - the calendar never decides by raising
+            return ""
+        day -= timedelta(days=1)
+    return ""
+
+
 def _is_iso_date(t) -> bool:
     return isinstance(t, str) and len(t) == 10 and t[4] == "-" and t[7] == "-"
 
@@ -1227,6 +1648,10 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
             # new catalogue was added to `/api/bars` alone.
             from api.services.market_indicators import series as _mseries
             all_bars = (_mseries.build_bars(sym, tfu, bars) or {}).get("bars") or []
+        elif _is_pine_seed(sym):
+            # The third door (see `_is_pine_seed`): bars.db has no seed rows.
+            from api.services import pine_seed_store as _seeds
+            all_bars = (_seeds.build_bars(sym, tfu, bars) or {}).get("bars") or []
         elif is_index(sym):
             # Cash-settled indexes carry unix-ts + aren't date-sliceable here.
             return _no_store(JSONResponse(content={
@@ -1284,7 +1709,12 @@ def serve_bars_history(ticker: str, tf: str = "D", bars: int = 60000,
         if if_none_match and etag in [t.strip() for t in if_none_match.split(",")]:
             from fastapi.responses import Response as _Resp
             return _Resp(status_code=304, headers={"ETag": etag, "Cache-Control": "no-cache"})
-    elif d and last_sealed and d == last_sealed:
+    elif d and last_sealed and (d == last_sealed or (
+            # ⭐ D: the CURRENT boundary by the calendar, even when this store's newest sealed bar is older (a
+            # worker catching up after a restart). The content then ends a day or two early; the browser's
+            # always-fresh /api/bars tail covers those days, exactly as it covers a late correction (see the
+            # policy above). Only ever the calendar's day, never a future or an older one.
+            tfu == "D" and last_sealed < d and d == calendar_last_sealed_day())):
         out.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     else:
         out.headers["Cache-Control"] = "public, max-age=3600, stale-while-revalidate=86400"
@@ -1349,6 +1779,11 @@ async def get_bars_history(
     See docs/superpowers/specs/2026-08-31-edge-deep-history."""
     if is_econ_symbol(ticker):
         return _econ_refusal(ticker)
+    # A currency pair (see routers/crypto.py): for an admitted caller this route answers the
+    # pair's settled bars from the web pod's own held series, uncached, and is never proxied.
+    from api.routers import crypto as _crypto
+    if _crypto.serves(ticker, _access):
+        return _crypto.pair_history_response(ticker, tf, bars)
     origin = os.environ.get("BARS_HISTORY_ORIGIN_URL", "").rstrip("/")
     # ⛔⛔ MARKET INDICATORS ARE NEVER PROXIED, for exactly the reason the hot-path proxy
     # excludes them (`_bars_proxy_should_route`): their stores — `cboe_indices.db`,
@@ -1363,20 +1798,60 @@ async def get_bars_history(
     # depends on WHICH POD serves it has to be excluded at every routing decision, not
     # just the ones that look like routing.
     if origin and os.environ.get("BARS_HISTORY_PROXY_ENABLED", "0") == "1" \
-            and not _is_market_indicator(ticker) and not _is_breadth_symbol(ticker):
+            and not _is_market_indicator(ticker) and not _is_breadth_symbol(ticker) \
+            and not _is_pine_seed(ticker):
         # ⛔ BREADTH TOO, for the same reason: a breadth pseudo-ticker's sealed history is
         # composed on the web pod (collector rows + the OHLC store + the breadth authority
         # seam), none of which the worker has. `/api/bars` already keeps breadth local.
         try:
-            return await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+            resp = await _proxy_bars_history_to_worker(ticker, tf, bars, v, d, origin)
+            return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
         except Exception:
             pass  # worker unreachable/slow → fall back to the web's own shallow history
     # ⛔ (2026-10-10) OFF THE EVENT LOOP. This handler is `async`, and `serve_bars_history` is
     # synchronous: a breadth / market-indicator build here (seconds, cold) froze every request
     # on the single web pod for its whole duration. Same threadpool `/api/bars` uses.
     from starlette.concurrency import run_in_threadpool
-    return await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
+    resp = await run_in_threadpool(serve_bars_history, ticker, tf, bars, v, d,
                                    if_none_match=request.headers.get("if-none-match", ""))
+    return gzip_with_length(resp, request.headers.get("accept-encoding", ""))
+
+
+# ⭐⭐ A LENGTH, OR CACHE RESERVE NEVER KEEPS IT (2026-11-19). Cloudflare's Cache Reserve (the
+# persistent tier behind the edge) stores only responses that carry a Content-Length; a chunked
+# response is refused (developers.cloudflare.com/cache/advanced-configuration/cache-reserve,
+# eligibility). This route's IMMUTABLE answers went out chunked whenever the client asked for gzip,
+# which Cloudflare always does: a middleware inside GZip re-streams the body in several messages, so
+# GZipMiddleware takes its streaming branch and drops the length (measured against the origin: gzip
+# -> `transfer-encoding: chunked`, no length; identity -> `content-length: 873380`). The deep daily
+# history therefore lived only in the ordinary edge cache, which evicts it within hours: at 10:00 ET
+# on 2026-11-19, 0 of 100 tickers the 04:00 sweep had stocked were still cached, and every first
+# open of a daily chart paid the 2-3 s origin build again.
+# The body is gzipped ONCE here, with its length; GZipMiddleware passes an already-encoded response
+# through untouched (`content_encoding_set`), and the length survives to the client.
+GZIP_WITH_LENGTH_MIN_BYTES = 1000
+
+
+def gzip_with_length(resp, accept_encoding: str, *, level: int = 5):
+    """`resp` gzipped with a Content-Length when the client accepts gzip and it is a 200 worth
+    compressing; otherwise `resp` unchanged. Headers (Cache-Control, ETag, Server-Timing) carry over."""
+    import gzip as _gzip
+    from starlette.responses import Response as _Resp
+    body = getattr(resp, "body", None)
+    if (getattr(resp, "status_code", 0) != 200 or not isinstance(body, (bytes, bytearray))
+            or len(body) < GZIP_WITH_LENGTH_MIN_BYTES
+            or "gzip" not in (accept_encoding or "").lower()
+            or "content-encoding" in resp.headers):
+        return resp
+    packed = _gzip.compress(bytes(body), compresslevel=level, mtime=0)
+    headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-encoding")}
+    out = _Resp(content=packed, status_code=200, headers=headers)
+    out.headers["Content-Encoding"] = "gzip"
+    out.headers["Content-Length"] = str(len(packed))
+    vary = out.headers.get("vary", "")
+    if "accept-encoding" not in vary.lower():
+        out.headers["Vary"] = (vary + ", " if vary else "") + "Accept-Encoding"
+    return out
 
 
 @router.post("/api/admin/warm-universe")
@@ -1554,7 +2029,56 @@ def bars_stream_status():
         out["websocket"] = bar_stream.get_status()
     except Exception as e:  # noqa: BLE001
         out["websocket_error"] = str(e)[:200]
+    try:
+        from api.services import bar_stream
+        # Per-channel subscription counts + each owner's channels (STREAM_SCOPED_CHANNELS).
+        out["websocket_channels"] = bar_stream.get_channel_counts()
+    except Exception as e:  # noqa: BLE001
+        out["websocket_channels_error"] = str(e)[:200]
+    try:
+        from api.services import feed_client
+        out["feed_source"] = feed_client.feed_source()
+        st = feed_client.status()
+        if st is not None:
+            out["feed_client"] = st
+    except Exception as e:  # noqa: BLE001
+        out["feed_client_error"] = str(e)[:200]
     return out
+
+
+@router.post("/api/admin/bars/regraft")
+def bars_regraft(request: Request, payload: dict = Body(...)):
+    """Re-fetch a NAMED list of tickers' deep D/W/M history through the store's own writer, on THIS pod
+    (`api.services.bars_regraft`). A proven join replaces stored pre-floor rows; an unproven one is
+    add-only. Auth: Bearer PUSH_SECRET. Body: {"tickers": [...] (at most 300), "tfs": ["D","W","M"],
+    "dry_run": true (the DEFAULT: writes nothing, reports per-row effects), "interval_s": 5}.
+    One job at a time (409 while one runs); poll GET /api/admin/bars/regraft-status."""
+    _check_admin_auth(request)
+    from api.services import bars_regraft as _rg
+    tickers = list(dict.fromkeys(str(t).strip().upper() for t in (payload.get("tickers") or []) if str(t).strip()))
+    if not tickers or len(tickers) > _rg.MAX_TICKERS:
+        raise HTTPException(status_code=400, detail=f"tickers: 1..{_rg.MAX_TICKERS} symbols")
+    tfs = [str(t).upper() for t in (payload.get("tfs") or list(_rg.TFS))]
+    if not tfs or any(t not in _rg.TFS for t in tfs):
+        raise HTTPException(status_code=400, detail=f"tfs: a subset of {list(_rg.TFS)}")
+    dry_run = payload.get("dry_run", True) is not False
+    try:
+        interval_s = float(payload.get("interval_s", 5.0))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="interval_s: a number of seconds")
+    if not _rg.claim(len(tickers), tfs, dry_run):
+        return JSONResponse(status_code=409, content={"status": "already-running", **_rg.status()})
+    _threading.Thread(target=_rg.run, args=(tickers, tfs, dry_run, interval_s), daemon=True,
+                      name="bars-regraft").start()
+    return {"status": "started", "dry_run": dry_run, "tickers": len(tickers), "tfs": tfs,
+            "interval_s": max(_rg.MIN_INTERVAL_S, interval_s), "poll": "/api/admin/bars/regraft-status"}
+
+
+@router.get("/api/admin/bars/regraft-status")
+def bars_regraft_status(request: Request):
+    _check_admin_auth(request)
+    from api.services import bars_regraft as _rg
+    return _rg.status()
 
 
 @router.get("/api/admin/warm-universe-status")
@@ -1736,6 +2260,7 @@ def refresh_bars_all_endpoint(
         # handles to the dropped one).
         try:
             _bs.bump_db_epoch()
+            _bs.bump_store_floor("bulk delete")
         except Exception:
             pass
     except Exception as e:

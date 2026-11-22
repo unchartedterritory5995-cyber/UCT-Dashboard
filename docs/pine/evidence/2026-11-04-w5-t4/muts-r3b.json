@@ -1,0 +1,14 @@
+[
+ [
+  "control:noop-comment",
+  "../tools/pine_runtime_host_parity.mjs",
+  "// ─── report-only cases (the V8 sin/cos finding)",
+  "// ─── report-only cases (the V8 sin/cos finding) (noop)"
+ ],
+ [
+  "rep:list-lost-reason",
+  "../tools/pine_runtime_host_parity.mjs",
+  "out.set(name, r.reason)",
+  "out.set(name, '')"
+ ]
+]

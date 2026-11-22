@@ -7,6 +7,7 @@ import asyncio
 import json
 import logging
 import os
+import threading
 import time
 import uuid
 
@@ -223,6 +224,7 @@ def _build_candle_events(tickers, last_state: dict) -> list[dict]:
     Args:
       tickers: iterable of ticker symbols to check
       last_state: dict {sym: (t, c, v)} mutated in-place to track current state
+        (plus last_state["__ohlc__"][sym] = (o, h, l) so bar_close is a full bar)
 
     Returns:
       List of event dicts: {"type": "tick", "sym", "price", "ts", "vol"} or
@@ -235,17 +237,25 @@ def _build_candle_events(tickers, last_state: dict) -> list[dict]:
         if not cur:
             continue
         cur_key = (cur["t"], cur["c"], cur["v"])
+        ohlc = last_state.setdefault("__ohlc__", {})
         prev = last_state.get(sym_u)
         if prev == cur_key:
             continue
         # Detect bar boundary close: prev existed and prev_t != cur_t
         if prev and prev[0] != cur["t"]:
-            # Emit bar_close for the prior bar
+            # Emit bar_close for the prior bar — a FULL OHLCV bar (D1: it used to
+            # carry only {t, c, v}, and the client stored it verbatim, painting
+            # the just-closed 1m candle with undefined o/h/l until the next setData).
+            bar = {"t": prev[0], "c": prev[1], "v": prev[2]}
+            o, h, l = ohlc.get(sym_u) or (None, None, None)
+            bar["o"] = o if o is not None else prev[1]
+            bar["h"] = h if h is not None else max(bar["o"], prev[1])
+            bar["l"] = l if l is not None else min(bar["o"], prev[1])
             events.append({
                 "type": "bar_close",
                 "sym": sym_u,
                 "tf": "1",
-                "bar": {"t": prev[0], "c": prev[1], "v": prev[2]},
+                "bar": bar,
             })
         # Always emit tick on any change
         events.append({
@@ -256,6 +266,7 @@ def _build_candle_events(tickers, last_state: dict) -> list[dict]:
             "vol": cur["v"],
         })
         last_state[sym_u] = cur_key
+        ohlc[sym_u] = (cur.get("o"), cur.get("h"), cur.get("l"))
     return events
 
 
@@ -301,6 +312,57 @@ def _build_stale_events(tickers, now=None, bb=None):
         if bars_liveness.is_stale(last_seen, tf="1", market_open=None):
             events.append({"type": "stale", "sym": sym.upper(), "last_seen": last_seen})
     return events
+
+
+#: How much NEWER a Finnhub trade must be than the live feed's last trade before Finnhub's price is
+#: sent (the two feeds stamp the same print within about a second of each other).
+FRESHER_SOURCE_MARGIN_MS = 2000
+
+
+def _trade_ms(v) -> int | None:
+    """A trade time in epoch ms whatever unit it was stored in (Finnhub's trade handler keeps ms, the
+    tick recorder seconds); None when absent or not a time."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    if not x > 0:
+        return None
+    return int(x) if x > 1e12 else int(x * 1000)
+
+
+def _overlay_live(current: dict, sym: str, mp) -> None:
+    """Overlay the MASSIVE live quote (`mp`, bar_broadcaster.get_last_price) on the Finnhub entry in
+    `current`, in place. Only the price, the live day volume and the trade time are overlaid; the
+    client recomputes the day % from the price and the REST previous close.
+
+    ⭐ THE FRESHER SOURCE WINS (2026-11-17 audit, gap 2: stale shown as live). The live price used to
+    overlay Finnhub's whenever it existed, so a symbol whose live trades stopped arriving (the vendor
+    socket up, that symbol's flow lost) held a frozen price while Finnhub's own trades moved on. Now a
+    Finnhub trade more than FRESHER_SOURCE_MARGIN_MS newer than the live one keeps its own price."""
+    if not mp or mp.get("price") is None:
+        return
+    entry = current.get(sym)
+    live_ms = _trade_ms(mp.get("trade_ts"))
+    other_ms = _trade_ms(entry.get("timestamp")) if entry else None
+    if live_ms is not None and other_ms is not None and other_ms - live_ms > FRESHER_SOURCE_MARGIN_MS:
+        return
+    if entry is None:
+        entry = {}
+        current[sym] = entry
+    entry["price"] = mp["price"]
+    # Live cumulative day volume (Massive `av`) overlays the 15s REST value so the Volume column ticks too.
+    if mp.get("volume") is not None:
+        entry["volume"] = mp["volume"]
+    # Stamp the TRADE time, not this loop's send time: the client buckets the live price into a candle
+    # by `updated_at`, and send time put a 9:59:59.9 print into the 10:00 candle. `trade_ts` (ms) is the
+    # exact value; send time is only the fallback.
+    tts = mp.get("trade_ts")
+    if tts:
+        entry["updated_at"] = int(tts // 1000)
+        entry["trade_ts"] = int(tts)
+    else:
+        entry["updated_at"] = int(time.time())
 
 
 @router.get("/api/stream/prices")
@@ -392,18 +454,7 @@ async def stream_prices(
                 # recomputes the day % from this price + the REST prev close.
                 if _bb is not None:
                     for sym in ticker_list:
-                        mp = _bb.get_last_price(sym)
-                        if mp and mp.get("price") is not None:
-                            entry = current.get(sym)
-                            if entry is None:
-                                entry = {}
-                                current[sym] = entry
-                            entry["price"] = mp["price"]
-                            # Live cumulative day volume (Massive `av`) overlays the
-                            # 15s REST value so the Volume column ticks too.
-                            if mp.get("volume") is not None:
-                                entry["volume"] = mp["volume"]
-                            entry["updated_at"] = int(time.time())
+                        _overlay_live(current, sym, _bb.get_last_price(sym))
 
                 # Only send if any ticker's price OR live volume actually changed
                 # (volume is included so the Volume column still ticks on a trade
@@ -485,11 +536,82 @@ async def stream_prices(
     )
 
 
+# D8 seed fetches (one provider REST call per newly streamed symbol) run on a
+# SMALL DEDICATED pool, never the shared default executor every to_thread() in
+# the app uses, and are BOUNDED: when _SEED_MAX_INFLIGHT are already queued or
+# running (a fast scan across tickers), further seeds are skipped — the chart
+# still streams, its bucket is "since subscribe" until the next AM-backed bucket.
+_SEED_WORKERS = int(os.environ.get("STREAM_BARS_SEED_WORKERS", "4"))
+_SEED_MAX_INFLIGHT = int(os.environ.get("STREAM_BARS_SEED_MAX_INFLIGHT", "16"))
+_seed_pool = None
+_seed_inflight = 0
+_seed_skipped_total = 0
+_seed_lock = threading.Lock()
+
+
+def _kick_seed(fn, sym: str) -> bool:
+    """Run fn(sym) on the bounded seed pool. Returns False when it was skipped."""
+    global _seed_pool, _seed_inflight, _seed_skipped_total
+    with _seed_lock:
+        if _seed_inflight >= _SEED_MAX_INFLIGHT:
+            _seed_skipped_total += 1
+            return False
+        if _seed_pool is None:
+            from concurrent.futures import ThreadPoolExecutor
+            _seed_pool = ThreadPoolExecutor(max_workers=_SEED_WORKERS, thread_name_prefix="bars-seed")
+        _seed_inflight += 1
+
+    def _run():
+        global _seed_inflight
+        try:
+            fn(sym)
+        except Exception as e:  # noqa: BLE001
+            _logger.debug("[stream_bars] seed failed for %s: %s", sym, type(e).__name__)
+        finally:
+            with _seed_lock:
+                _seed_inflight -= 1
+
+    try:
+        _seed_pool.submit(_run)
+    except Exception:  # noqa: BLE001 — pool shut down at exit
+        with _seed_lock:
+            _seed_inflight -= 1
+        return False
+    return True
+
+
+def _contract_event(bar_contract, msg: dict, session: str) -> dict:
+    """⭐ BAR CONTRACT on a stream frame (docs/architecture/bar-contract.md): the same
+    identity as the REST answer for this series (grid, session, cache_key, series_rev)
+    plus the frame's own `rev` (set by the broadcaster) and `final` lifted from `bar`.
+    `t_s` = the bucket start in unix SECONDS (REST's unit; `bar.t` stays ms for old
+    clients). Additive; a failure leaves the frame exactly as the broadcaster built it."""
+    try:
+        out = dict(msg)
+        out.update(bar_contract.stream_fields(msg.get("sym"), str(msg.get("tf")),
+                                              msg.get("session") or session))
+        bar = msg.get("bar") or {}
+        out["final"] = bool(bar.get("final"))
+        if isinstance(bar.get("t"), (int, float)):
+            out["t_s"] = int(bar["t"]) // 1000
+        return out
+    except Exception:                      # noqa: BLE001
+        return msg
+
+
 @router.get("/api/stream/bars")
 async def stream_bars(
     request: Request,
     bars: str = Query(..., description="Comma-separated SYM:TF pairs, e.g. AAPL:5,MSFT:1"),
     _access: dict = Depends(require_bars_access),
+    session: str = Query("rth", description=(
+        "60m bucket alignment, TradingView-style: 'rth' = 9:30, 10:30 ... 15:30 "
+        "(default), 'eth' = clock hours 04:00 ... 19:00. 1-30m are identical in both.")),
+    v: int = Query(1, description=(
+        "Wire version. v=2 opts in to OLDER-t `final` correction frames (a late "
+        "AM re-emitting a closed bucket). v=1 (default) never receives a frame "
+        "older than one it already got, so legacy consumers that take bar.c as "
+        "the live price cannot snap back.")),
     last_event_id: str | None = Query(None, description=(
         "Id of the last event a reconnecting client received (the pooled "
         "manager's door; a browser auto-reconnect sends the Last-Event-ID "
@@ -502,7 +624,9 @@ async def stream_bars(
       es.addEventListener('bar', e => { const {sym, tf, bar} = JSON.parse(e.data) })
 
     Each `event: bar` message contains the latest in-progress (or just-closed) bar
-    for the (sym, tf) pair. Frontend should call series.update(bar) to apply.
+    for the (sym, tf) pair: {sym, tf, bar: {t, o, h, l, c, v, final, trade_ts?}}
+    (+ `session` on 60m). `final: true` = the bucket is closed; a later
+    `final` for the same `t` is an authoritative correction — replace that bar.
 
     Every frame carries `id:`. A reconnect presenting a Last-Event-ID gets an
     `event: resume` first frame declaring resume not applicable (last-value-wins,
@@ -524,6 +648,9 @@ async def stream_bars(
 
     if not pairs:
         return JSONResponse({"error": "No valid sym:tf pairs"}, status_code=400)
+    session = (session if isinstance(session, str) else "rth").strip().lower() or "rth"
+    if session not in ("rth", "eth"):
+        return JSONResponse({"error": "session must be rth or eth"}, status_code=400)
     pairs = pairs[:MAX_BARS_PAIRS]  # cap to prevent runaway subscriptions per connection
 
     # Admission BEFORE the broadcaster subscribe, for the same reason as
@@ -534,37 +661,86 @@ async def stream_bars(
 
     from api.services.bar_broadcaster import get_broadcaster
     bb = get_broadcaster()
-    queues = [(sym, tf, bb.subscribe(sym, tf)) for (sym, tf) in pairs]
+    v2 = isinstance(v, int) and v >= 2
+
+    def _sub(sym, tf):
+        kw = {}
+        if session != "rth":
+            kw["session"] = session
+        if v2:
+            kw["v2"] = True
+        return bb.subscribe(sym, tf, **kw)
+
+    queues = [(sym, tf, _sub(sym, tf)) for (sym, tf) in pairs]
+    from api.services import bar_contract as _bar_contract
     _logger.info("[stream_bars] subscribed %d pairs: %s", len(pairs), pairs[:10])
+    # D8: fold the day's stored/REST minute bars into each symbol's minute map
+    # (once per upstream subscription) so a mid-bucket subscriber gets the true
+    # bucket-to-date O/H/L/V. Off the event loop; the broadcaster re-emits the
+    # corrected bucket when the seed lands. Best-effort: a failed seed only
+    # means "bucket since subscribe" until the next AM-backed bucket.
+    _seed = getattr(bb, "ensure_seeded", None)
+    if _seed is not None:
+        for _sym in sorted({p[0] for p in pairs}):
+            _kick_seed(_seed, _sym)
 
     resume = _resume_declaration("bars", _requested_last_event_id(request, last_event_id))
 
     async def event_generator():
         last_heartbeat = time.time()
+        # ⭐ EVENT-DRIVEN, NOT POLLED (2026-11-16). One pending `get()` per subscribed pair; the
+        # loop wakes the moment any queue receives a frame and sends it. This replaced a poll that
+        # slept 250 ms whenever nothing was ready, so a frame landing during the sleep waited up to
+        # 250 ms (~125 ms on average) before leaving the pod: production measured exchange -> pod
+        # dequeue at most 100 ms at the median and ~310 ms exchange -> browser, so most of the gap
+        # was this wait. It also costs less CPU than the poll it replaced (the reason the poll was
+        # slowed from 100 ms): an idle connection wakes once a second (WAIT_S) to notice a
+        # disconnect and keep the heartbeat on time, instead of four times a second.
+        WAIT_S = 1.0
+        getters: dict[int, asyncio.Task] = {}
+        # ⭐ THE UPSTREAM'S WORD, AS IT CHANGES (2026-11-18). A mirror of stream-ingest (web in
+        # remote mode, stream-edge) knows when the Massive socket behind it is down (`feed_fresh`:
+        # ingest's `connect` status, or no batch at all). Without telling the browser, a chart kept
+        # `delivering` for up to 150 s of silence (barsStreamManager's hysteresis) with the Finnhub
+        # tick writers suppressed: a frozen candle. `event: status` {"live": bool} goes out once at
+        # the start and on every change; the browser drops `delivering` at once on live:false. A
+        # broadcaster without `feed_fresh` (web's own socket, local mode) sends none, as before.
+        feed_live = getattr(bb, "feed_fresh", None)
+        last_live = None
         try:
             if resume is not None:
                 yield _frame("bars", json.dumps(resume), "resume")
             while True:
                 if await request.is_disconnected():
                     break
-                # Drain whatever is ready from any queue without blocking forever.
-                # We round-robin one wait at a time so no queue starves.
-                got_one = False
-                for (sym, tf, q) in queues:
+                if feed_live is not None:
                     try:
-                        msg = q.get_nowait()
-                    except asyncio.QueueEmpty:
+                        live = bool(feed_live())
+                    except Exception:  # noqa: BLE001 - a status read must never end the stream
+                        live = None
+                    if live is not None and live != last_live:
+                        last_live = live
+                        yield _frame("bars", json.dumps({"live": live}), "status")
+                for i, (_sym, _tf, q) in enumerate(queues):
+                    if i not in getters:
+                        getters[i] = asyncio.ensure_future(q.get())
+                done, _pending = await asyncio.wait(
+                    set(getters.values()), timeout=WAIT_S, return_when=asyncio.FIRST_COMPLETED)
+                # Pairs in subscription order; within a pair, the frame the getter took and then
+                # whatever queued behind it, so each pair's frames keep their order.
+                for i, (_sym, _tf, q) in enumerate(queues):
+                    task = getters.get(i)
+                    if task is None or task not in done:
                         continue
-                    got_one = True
-                    yield _frame("bars", json.dumps(msg), "bar")
-
-                if not got_one:
-                    # 250ms idle floor — MATCH stream_prices (deliberately slowed
-                    # 100ms→250ms because every open tab holds one of these loops on the
-                    # single shared event loop; 20Hz here was 2x that tuned budget). The
-                    # broadcaster's 10Hz upstream throttle already caps freshness, so the
-                    # extra ≤250ms drain latency is imperceptible.
-                    await asyncio.sleep(0.25)
+                    del getters[i]
+                    msg = task.result()
+                    yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
+                    while True:
+                        try:
+                            msg = q.get_nowait()
+                        except asyncio.QueueEmpty:
+                            break
+                        yield _frame("bars", json.dumps(_contract_event(_bar_contract, msg, session)), "bar")
 
                 if time.time() - last_heartbeat > 15:
                     # NAMED event (not a `:` comment): a bare comment keeps the
@@ -576,9 +752,14 @@ async def stream_bars(
                     yield _frame("bars", "{}", "heartbeat")
                     last_heartbeat = time.time()
         finally:
+            for task in getters.values():   # a disconnect leaves one pending get() per pair
+                task.cancel()
             unsubscribe("bars", _token)
             for (sym, tf, q) in queues:
-                bb.unsubscribe(sym, tf, q)
+                if session == "rth":
+                    bb.unsubscribe(sym, tf, q)
+                else:
+                    bb.unsubscribe(sym, tf, q, session)
             _logger.info("[stream_bars] disconnected, unsubscribed %d pairs", len(queues))
 
     return StreamingResponse(

@@ -24,8 +24,9 @@ def _found(src: str) -> bool:
     code, _ = cm.strip_code(src)
     row = [r for r in cm.FEATURES if r[0] == FID]
     assert len(row) == 1, "exactly one conditional-ta row"
-    _fid, _label, rx, fl = row[0]
-    return bool(re.search(rx, code, fl))
+    # WS-I Part 2 review B1 (2026-11-13): the row's regex never matches; `features_of` decides it
+    # with a linear line scan (`conditional_ta_in`), the regex it replaced backtracked for minutes.
+    return FID in cm.features_of(code)
 
 
 POSITIVE = {

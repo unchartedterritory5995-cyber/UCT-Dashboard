@@ -4,9 +4,12 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from '../../../components/chart/ColorPanel'
-import UIcon from '../../../components/ui/UIcon'
+import ChoiceMenu from '../../../components/chart/ChoiceMenu'
+import { rowToggleClick } from './widgetMenuRowToggle'
+import Switch from '../../../components/ui/Switch'
 import WidgetThemeSection from './WidgetThemeSection'
 import styles from './NhnlSettingsPanel.module.css'
+import useWidgetMenuPlacement from './useWidgetMenuPlacement'
 
 const PANEL_W = 268
 const BG_MODES = [{ key: 'solid', label: 'Solid' }, { key: 'gradient', label: 'Gradient' }]
@@ -22,32 +25,14 @@ function Row({ label, hint, children }) {
 }
 
 export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null,
-  title = 'Highs / Lows Settings', showLogos = null, onToggleLogos = null, widgetType = 'nhnl' }) {
+  title = 'Highs / lows settings', showLogos = null, onToggleLogos = null, widgetType = 'nhnl' }) {
   const panelRef = useRef(null)
   const [pos, setPos] = useState(null)
   const [activeTarget, setActiveTarget] = useState(null)
   const [colorPos, setColorPos] = useState(null)
 
   // Place beside the widget on the side CLOSEST TO THE MIDDLE of the layout.
-  useLayoutEffect(() => {
-    if (!hostEl) return
-    const place = () => {
-      const r = hostEl.getBoundingClientRect()
-      const gap = 8
-      const preferRight = (r.left + r.width / 2) < window.innerWidth / 2
-      let left = preferRight ? r.right + gap : r.left - gap - PANEL_W
-      if (preferRight && left + PANEL_W > window.innerWidth - 8) left = r.left - gap - PANEL_W
-      if (!preferRight && left < 8) left = Math.min(window.innerWidth - PANEL_W - 8, r.right + gap)
-      left = Math.max(8, Math.min(left, window.innerWidth - PANEL_W - 8))
-      let top = Math.max(8, r.top)
-      const panelH = Math.min(420, Math.round(window.innerHeight * 0.8))
-      if (top + panelH > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - panelH)
-      setPos({ left: Math.round(left), top: Math.round(top) })
-    }
-    place()
-    window.addEventListener('resize', place)
-    return () => window.removeEventListener('resize', place)
-  }, [hostEl])
+  useWidgetMenuPlacement({ hostEl, gearEl, panelW: PANEL_W, setPos, onClose })
 
   // ColorPanel pops to the RIGHT of the menu (flip left if tight).
   useLayoutEffect(() => {
@@ -65,6 +50,7 @@ export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onCl
       if (e.target.closest?.('[data-color-swatch]')) return
       if (e.target.closest?.('[data-color-panel]')) return
       if (e.target.closest?.('[data-uct-theme-gallery]')) return
+      if (e.target.closest?.('[data-choice-menu]')) return  // a ChoiceMenu's list is portalled outside the panel
       if (panelRef.current && panelRef.current.contains(e.target)) { setActiveTarget(null); return }
       if (gearEl && gearEl.contains(e.target)) return
       onClose?.()
@@ -109,19 +95,20 @@ export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onCl
     <>
       <div
         ref={panelRef}
+        data-side={pos?.side}
         className={styles.panel}
-        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
+        style={{ ...(themeVars || {}), ...(pos ? { left: pos.left, top: pos.top, maxHeight: pos.maxHeight } : { visibility: 'hidden' }) }}
         onClick={e => e.stopPropagation()}
       >
         <div className={styles.head}>
-          <span className={styles.title}><UIcon name="gear" size={13} /> {title}</span>
+          <span className={styles.title}>{title}</span>
           <div className={styles.headRight}>
-            <button className="btn btn-ghost btn-sm" onClick={onReset} title="Restore settings to defaults">↺ Reset</button>
-            <button className={styles.close} onClick={onClose} title="Close">✕</button>
+            <button className={styles.uReset} onClick={onReset} title="Restore settings to defaults">Reset</button>
+            <button className={styles.close} onClick={onClose} title="Close" aria-label="Close">✕</button>
           </div>
         </div>
 
-        <div className={styles.body}>
+        <div className={styles.body} onClick={rowToggleClick(styles.row)}>
           <div className={styles.sectionLabel}>Theme</div>
           <Row label="UCT theme" hint="whole-widget look">
             <WidgetThemeSection
@@ -129,31 +116,22 @@ export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onCl
               currentSettings={s}
               onSettings={(next) => onChange(next)}
               themeVars={themeVars}
-              buttonClass="btn btn-ghost btn-sm"
+              buttonClass={styles.uBtn} buttonLabel="UCT themes"
             />
           </Row>
           {showLogos !== null && onToggleLogos && (
             <>
               <div className={styles.sectionLabel}>Display</div>
               <Row label="Logos" hint="company logo by ticker">
-                <div className={styles.seg}>
-                  <button className={`${styles.segBtn}${showLogos ? ' ' + styles.segBtnOn : ''}`}
-                    onClick={() => onToggleLogos(true)}>On</button>
-                  <button className={`${styles.segBtn}${!showLogos ? ' ' + styles.segBtnOn : ''}`}
-                    onClick={() => onToggleLogos(false)}>Off</button>
-                </div>
+                <Switch checked={!!showLogos} onClick={() => onToggleLogos(!showLogos)} aria-label="Logos"
+                  className={styles.toggle} checkedClassName={styles.toggleOn} knobClassName={styles.knob} />
               </Row>
             </>
           )}
           <div className={styles.sectionLabel}>Canvas</div>
           <Row label="Background">
-            <div className={styles.seg}>
-              {BG_MODES.map(m => (
-                <button key={m.key}
-                  className={`${styles.segBtn}${s.bgMode === m.key ? ' ' + styles.segBtnOn : ''}`}
-                  onClick={() => set({ bgMode: m.key })}>{m.label}</button>
-              ))}
-            </div>
+            <ChoiceMenu ariaLabel="Background" value={s.bgMode}
+              options={BG_MODES.map(m => ({ value: m.key, label: m.label }))} onChange={(v) => set({ bgMode: v })} />
           </Row>
           {s.bgMode === 'solid' && <Row label="Canvas color">{swatch('bg', 'Canvas')}</Row>}
           {s.bgMode === 'gradient' && (
@@ -168,20 +146,15 @@ export default function NhnlSettingsPanel({ settings: s, onChange, onReset, onCl
 
           <div className={styles.sectionLabel}>Text</div>
           <Row label="Text size" hint="row + header text">
-            <select
-              className={styles.sizeSelect}
-              value={Number(s.fontSize) || 11}
-              onChange={e => set({ fontSize: Number(e.target.value) })}
-              title="Row + header text size"
-            >
-              {FONT_SIZES.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
+            <ChoiceMenu ariaLabel="Row + header text size" title="Row + header text size" value={Number(s.fontSize) || 11}
+              options={FONT_SIZES.map(v => ({ value: v, label: String(v) }))}
+              onChange={(v) => set({ fontSize: Number(v) })} />
           </Row>
 
           <div className={styles.sectionLabel}>Text colors</div>
           <Row label="Symbol" hint="ticker + price ink">{swatch('textColor', 'Symbol')}</Row>
 
-          <div className={styles.sectionLabel}>New Highs / New Lows</div>
+          <div className={styles.sectionLabel}>New highs / new lows</div>
           <Row label="Highs" hint="green side">{swatch('upColor', 'New Highs color')}</Row>
           <Row label="Lows" hint="red side">{swatch('downColor', 'New Lows color')}</Row>
         </div>

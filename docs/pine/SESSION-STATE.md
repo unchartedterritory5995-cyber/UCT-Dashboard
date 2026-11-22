@@ -1,6 +1,139 @@
 # Session state — Pine on our charts
 
-## READ THIS FIRST — the program as it stands (written 2026-10-01 by lane C44, on wave 10 `e4e24524ef`)
+## READ THIS FIRST — current state as of 2026-11-11 (origin/master `22836e479c`)
+
+> This block is the current page. Everything below it is HISTORY (the 2026-11-08 block, the
+> 2026-10-01 block from lane C44, and the PR #145 record). When they disagree, this block wins.
+> Every claim cites a file or a PR; re-check before acting on one.
+
+### Engine version
+
+- `SCRIPT_ENGINE_VERSION = 49` on master (`app/src/components/chart/engine/scriptEngineVersion.js`;
+  the `/** N = ... */` lines above the export are the authority for what each bump means).
+- Every merge that changes served output bumps it by exactly 1. Before starting an engine lane,
+  re-read the file on master and check no open PR already claims the next number.
+
+### Landed since the 2026-11-08 block (engines 37-49)
+
+| engine | PR | lane |
+|---|---|---|
+| 37 | #946 | STRAT-COLOR: a `strategy.*` read reaching colour or a drawing step is withheld (`pine:strategy-call`) |
+| 38 | (delete stack) | IDX-DELETE, CHAINED-REMOVAL, UDT-FIELD-CREATES, SILENT-CREATE-GAPS, STRAT-NOTE |
+| 39-41 | (W9 stack) | broker integration T4/T6/T7/T13a; T12 markers, T13b report panel, NO-GUARD-IDS; T5 costs, T8 risk, T4-F1, T11-F1, T7-F1 |
+| 42 | | CUM-OFF-LISTING (off-listing running totals withheld unless they cancel), DIV-1 warm-history grading |
+| 43 | #1009 | LIMITS: runtime limit refusals say their limit in plain words |
+| 44 | #1017 | VAR-OFF: unknowable off-listing `var` values withheld by name |
+| 45 | #1019 | DIV-4 paint/colour |
+| 46 | #1049 | LANE2: the B0 `na` seed lane with its version gate (`docs/pine/evidence/2026-11-10-lane2-b0`) |
+| 47 | #1075 | OZ stack: DIV-3 `table.cell` replace, W-C22-DEL withheld deletes, OZ silent-zero naming |
+| 48 | #1096 | `x = na(x[k]) ? na : U` refuses `pine:cycle` in every version, both lanes (`2026-11-11-engine48-na-self-ref`) |
+| 49 | #1122 | a v3+ declaration that reads its own history refuses `pine:cycle`, both lanes; v1/v2 unchanged (`2026-11-11-engine49-v3-self-ref`) |
+
+Saved-indicator lane (not engine bumps): F-15 #617 (Agent delete -> Undo keeps the script and engine
+stamp, or refuses), follow-ups #1087 and #1109; flag ledger #1086. The saved-script upgrade is ON
+(`VITE_SAVED_SCRIPT_UPGRADE` unset; its reader is `savedScriptUpgrade.js`), so engine bumps reach
+saved scripts, not only new ones.
+
+### Known open engine items (not over-refusals unless stated)
+
+- The four doors (screen, pane strict, `buildRuntimeIr`, `memberPaneDefinition`) still disagree on
+  some v3+ self-reference shapes the runtime refuses and the host draws (review ENG49-1122 findings
+  1-3, 6). Engine 50 (`fix/pine-engine50-doors-agree`) is the lane for this.
+- The v3+ honest recurrence spelling `x = 0.0` / `x := f(x[1])` refuses `pine:state` in the host lane;
+  only the runtime lane (dark until armed) draws it. This is the host lane's design, so coverage for
+  it arrives with arming, not with a host fix.
+
+### Decisions, honesty rule, where evidence lives
+
+Unchanged from the 2026-11-08 block below (D1-D10 in `docs/pine/W9-DECISIONS-2026-11-07.md`;
+honesty rule; `docs/pine/evidence/<date>-<lane>/`).
+
+### Open, owner-only
+
+- Captures that need a TradingView sign-in on the rig (capture-queue rows; also Q-C22-1, array-held
+  lines/labels, which would let the C22 withhold rule be checked against a witness).
+- Flag arming per W2 stage (D6). D4: the rig account's plan.
+
+---
+
+## HISTORY (superseded 2026-11-11) — state as of 2026-11-08 (origin/master `0ea4697b3f`)
+
+> Superseded by the 2026-11-11 block above. Kept because its decisions, honesty rule and
+> owner-only list still hold; its engine numbers and landing list do not.
+> Every claim here cites a file or a git log line; re-check before acting on one.
+
+### Engine version
+
+- `SCRIPT_ENGINE_VERSION = 36` on master (`app/src/components/chart/engine/scriptEngineVersion.js`,
+  history lines `/** N = ... */` above the export). Recent bumps:
+  - 34 = I6a-N4: non-multiple-of-4 block indent refuses `pine:indent` (PR #945, `b732c57e41`)
+  - 35 = PT-GAPS: six host-lane gaps (L3, L4, L6, G-c, G-d, G-h); G-f/G-i queued as Q-PT6/Q-PT7 (PR #947, `7f699417a6`)
+  - 36 = HONESTY-SWEEP: probes vw-hs1..hs7 (PR #952, `43598d4735`)
+- LANDING (not on master when this was written): 37 = STRAT-COLOR (#946); 38 = the delete/removal
+  stack. Re-read `scriptEngineVersion.js` on master before trusting either number.
+
+### Recently landed Pine lanes (`git log origin/master --merges`)
+
+| PR | lane |
+|---|---|
+| #952 | honesty sweep (engine 36) |
+| #947 | PT-GAPS (engine 35) |
+| #945 | I6a-N4 switch indent (engine 34) |
+| #944 | W9-OQ-N1: strategy.* reads in a dark order argument are values |
+| #941 | RULING-0927 (engine 33: input.time T16 default form only) |
+| #938 | rail gaps 2026-11-07 (source of the honesty sweep's "unbacked served behaviour" list) |
+| #937, #933, #924 | probe docs (E, D, all) |
+| #936 | Pine design docs on master |
+| #935 | W9 open questions |
+| #934 | capture-queue non-capture rows |
+| #931, #917 | W9-T14 server backtests, single-symbol |
+| #929 | W9 decisions + T15 scorecard wording |
+| #927, #914 | W6-T10 reserved names / enum |
+| #925 | W6-T6-N1b indirect |
+| #915 | W9-T11 record |
+| #956 | test timeouts for four whole-corpus object-lane measurements |
+
+### Decisions: `docs/pine/W9-DECISIONS-2026-11-07.md` (D1-D10)
+
+- D1 pin before serve: every broker rule refuses `runtime:strategy-unpinned` until a MATCHing capture pins it.
+- D2 always show "this backtest starts on <date>; TradingView may start elsewhere" (implemented, railed in `tests/test_pine_strategy_backtest.py`).
+- D3 defer T9 (bar detalization). D4 NOT DECIDED (owner's rig-account plan).
+- D5 W9.4 route uses the W5 plan gate, single-symbol for now. D6 arming per W2 stage; arming is the owner's act.
+- D7 scorecard wording by the builder (T15). D8 uncomputable metrics show the refusal (T13a/T13b not built yet).
+- D9 `HISTORY_WINDOW_BARS` stays 5000. D10 grading floor stays 5 closed trades in TradingView's capture, reference only.
+
+### The honesty rule
+
+Serve only what the Pine reference/manual states exactly or a capture witnesses; otherwise refuse
+BY NAME, with a capture-queue row and a probe (`docs/pine/evidence/2026-11-07-honesty-sweep/EVIDENCE.md`;
+rails in `app/src/components/chart/engine/runtime/__tests__/honestySweep.test.js`).
+
+### Where reviews and evidence live
+
+- `docs/pine/evidence/<date>-<lane>/` — one directory per lane (latest: `2026-11-07-honesty-sweep`,
+  `-pt-gaps`, `-i6a-n4`, `-ruling-0927`, `-w9-open-questions`, `-w9-t14`, `-w6-t10n`, `-w6-t6-n1b`);
+  also `w2-arming-2026-11-02`, `w5-host-parity`, `rf-runtime-readiness-2026-10-02`.
+- Capture queues: `docs/pine/capture-queue-<date>-<lane>.md`, aggregated on demand by
+  `python tools/vendor_harness/evidence_engine.py queue` into a LOCAL `capture-queue.json` (git ignores it
+  since 2026-11-16: never commit it, and `git rm` it if a merge of master conflicts on it).
+- Vendor harness and triage: `tools/vendor_harness/`, `docs/pine/vendor-harness/objects-triage-2026-09-28.md`.
+
+### Test baseline
+
+- CI runs Node 20 (`.github/workflows/agent-ci.yml` `node-version: '20'`). Run chart vitest on Node 20.
+- Note: the hostParity digests for engines 34-36 were regenerated on Node 24 (commit subjects
+  `b732c57e41`, `7f699417a6`, `43598d4735`).
+- Whole-corpus object-lane measurements have sized timeouts (PR #956, `e79119bebe`).
+
+### Open, owner-only
+
+- Captures that need a TradingView sign-in on the rig (capture-queue rows, e.g. Q-HS1..Q-HS6, Q-PT6, Q-PT7).
+- Flag arming: per W2 stage, the owner's act (D6; `docs/pine/evidence/w2-arming-2026-11-02`).
+- D4: the rig account's plan (blocks W9-R1i 15-minute depth and plan-dependent captures).
+
+---
+
+## HISTORY (superseded 2026-11-08) — the program as it stood (written 2026-10-01 by lane C44, on wave 10 `e4e24524ef`)
 
 > Everything under the line **"History through 2026-09-19"** further down is the record of
 > PR #145 (`feat/indicator-r0r1`, merged `e855f62cdb`). It is closed and kept verbatim. It says

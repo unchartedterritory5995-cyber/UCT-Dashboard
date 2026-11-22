@@ -1,0 +1,180 @@
+headline transfer before/after 212
+
+== [drawing-objects] sole BEFORE 55 AFTER 3
+ where the 55 went (new wall; sole where single):
+    6  [paint-withheld]
+    3  [drawing-objects]
+    3  (multi) object op dropped: coll:diverged + object op dropped: coll:push + object op dropped: creat
+    1  (multi) label.new + line.new
+    1  [drawing-never-attempted]
+    1  (multi) object op dropped: create:line <- pine:function + object op dropped: create:line <- pine:o
+    1  (multi) object op dropped: coll:diverged + object op dropped: create:label <- pine:collection + ob
+    1  label.new
+    1  (multi) object op dropped: guard:cell <- pine:undefined + object op dropped: guard:coll_push <- pi
+    1  (multi) array.last + object op dropped: guard:cell <- pine:builtin + object op dropped: guard:crea
+    1  (multi) object op dropped: guard:partial + object op dropped: guard:update <- pine:state
+    1  (multi) object op dropped: guard:create <- pine:reassign + object op dropped: guard:delete <- pine
+    1  object op dropped: fn:conditional-history
+    1  (multi) object op dropped: guard:copy <- pine:function + object op dropped: guard:create <- pine:f
+    1  object op dropped: fn:in-expression
+    1  (multi) object op dropped: cell:text <- pine:block + object op dropped: cell:text <- pine:builtin 
+    1  (multi) object op dropped: coll:diverged + object op dropped: create:box <- pine:state + object op
+    1  (multi) object op dropped: guard:create <- pine:state + object op dropped: guard:delete <- pine:st
+    1  (multi) object op dropped: fn:conditional-history + object op dropped: fn:receiver + object op dro
+    1  (multi) object op dropped: content:withheld + object op dropped: create:label <- pine:state + obje
+    1  (multi) object op dropped: guard:coll_pop <- pine:collection + object op dropped: guard:coll_remov
+    1  (multi) object op dropped: guard:create <- pine:builtin + object op dropped: guard:create <- pine:
+    1  (multi) object op dropped: create:label <- pine:builtin + object op dropped: create:line <- pine:b
+    1  (multi) object op dropped: create:label <- pine:text-value + object op dropped: state:lost
+    1  (multi) object op dropped: create:box <- pine:state + object op dropped: create:label <- pine:stat
+    1  (multi) object op dropped: guard:cell <- pine:collection + object op dropped: guard:clear <- pine:
+    1  (multi) object op dropped: create:box <- pine:reassign + object op dropped: delete:target
+    1  (multi) box.new + line.new + object op dropped: guard:create <- pine:request + object op dropped: 
+    1  (multi) object op dropped: coll:diverged + object op dropped: guard:coll_unshift <- pine:undefined
+    1  object op dropped: create:line <- pine:reassign
+    1  object op dropped: guard:loop <- pine:builtin
+    1  (multi) object op dropped: coll:diverged + object op dropped: geometry:withheld + object op droppe
+    1  (multi) object op dropped: create:line <- pine:function + object op dropped: create:line <- pine:r
+    1  (multi) object op dropped: fn:receiver + object op dropped: guard:loop <- pine:collection
+    1  (multi) object op dropped: guard:create <- pine:collection + object op dropped: guard:delete <- pi
+    1  (multi) object op dropped: coll:diverged + object op dropped: fn:conditional-history + object op d
+    1  (multi) object op dropped: guard:create <- pine:state + object op dropped: guard:update <- pine:st
+    1  (multi) line.new + object op dropped: guard:create <- pine:reassign + object op dropped: guard:del
+    1  (multi) array.remove + label.new + object op dropped: coll:diverged
+    1  (multi) object op dropped: create:label <- pine:type + object op dropped: create:line <- pine:type
+    1  object op dropped: guard:create <- pine:function
+    1  (multi) object op dropped: guard:create <- pine:function + object op dropped: guard:delete <- pine
+    1  (multi) object op dropped: coll:diverged + object op dropped: guard:coll_push <- pine:reassign + o
+    1  object op dropped: create:label <- pine:text-value
+    1  (multi) object op dropped: guard:create <- pine:type + object op dropped: guard:update <- pine:typ
+    1  (multi) object op dropped: create:label <- pine:reassign + object op dropped: guard:create <- pine
+ object-program split among them: {'never-attempted': 4, 'dropped': 45, 'no-output-other': 6}
+
+== [imperative] sole BEFORE 39 AFTER 39
+ where the 39 went (new wall; sole where single):
+   39  [imperative]
+ object-program split among them: {'never-attempted': 23, 'dropped': 14, 'no-output-other': 2}
+
+== new sole counts of the new walls over ALL scripts
+  [drawing-never-attempted] sole 1 touches 1
+  [drawing-no-output-other] sole 0 touches 0
+  [paint-withheld] sole 6 touches 25
+  [drawing-objects] sole 3 touches 44
+
+== dropped-op walls (touches)
+   33 object op dropped: update:props
+   29 object op dropped: coll:diverged
+   27 object op dropped: loop:empty
+   18 object op dropped: cell:text <- pine:reassign
+   18 object op dropped: guard:loop <- pine:collection
+   15 object op dropped: loop:bounds
+   14 object op dropped: guard:create <- pine:function
+   12 object op dropped: cell:text <- pine:request
+   12 object op dropped: coll:push
+   11 object op dropped: geometry:lost
+   11 object op dropped: cell:text <- pine:builtin
+   11 object op dropped: create:label <- pine:text-value
+   10 object op dropped: geometry:withheld
+   10 object op dropped: cell:text <- pine:text-value
+   10 object op dropped: guard:update <- pine:state
+    9 object op dropped: fn:conditional-history
+    9 object op dropped: guard:create <- pine:collection
+    9 object op dropped: guard:create <- pine:state
+    9 object op dropped: cell:text <- pine:block
+    9 object op dropped: create:line <- pine:reassign
+    9 object op dropped: create:label <- pine:state
+    9 object op dropped: guard:partial
+    8 object op dropped: guard:create <- pine:reassign
+    8 object op dropped: guard:loop <- pine:reassign
+    8 object op dropped: guard:create <- pine:builtin
+    8 object op dropped: content:withheld
+    8 object op dropped: guard:create <- pine:block
+    7 object op dropped: guard:create <- pine:type
+    7 object op dropped: guard:loop <- pine:block
+    7 object op dropped: guard:delete <- pine:collection
+    7 object op dropped: cell:text <- pine:collection
+    6 object op dropped: create:label <- pine:tuple
+    6 object op dropped: guard:create <- pine:tuple
+    6 object op dropped: guard:update <- pine:tuple
+    6 object op dropped: content:lost
+    6 object op dropped: cell:text <- pine:input-kind
+    6 object op dropped: create:label <- pine:type
+    6 object op dropped: cell:text <- pine:state
+    6 object op dropped: guard:update <- pine:function
+    6 object op dropped: create:label <- pine:request
+== dropped-op walls (sole)
+    2 object op dropped: create:label <- pine:text-value
+    1 object op dropped: cell:text <- pine:reassign
+    1 object op dropped: create:label <- pine:function
+    1 object op dropped: guard:update <- pine:collection
+    1 object op dropped: fn:conditional-history
+    1 object op dropped: fn:in-expression
+    1 object op dropped: create:label <- pine:request
+    1 object op dropped: create:line <- pine:reassign
+    1 object op dropped: guard:loop <- pine:builtin
+    1 object op dropped: guard:loop <- pine:block
+    1 object op dropped: guard:create <- pine:function
+
+== firstGuards x split
+   (('pine:no-output',), 'dropped') 39
+   (('pine:objects-only',), 'dropped') 34
+   (('pine:no-output',), 'never-attempted') 27
+   (('pine:no-output',), 'no-output-other') 1
+
+top blockers after:
+   [imperative] imperative 39 178
+   [strategy] strategy 38 70
+   [request-security] request-security 17 54
+   [imports-libraries] imports-libraries 10 65
+   [user-functions] user-functions 9 67
+   [translator-robustness] translator-robustness 7 36
+   [paint-withheld] paint-withheld 6 25
+   [output-contract] output-contract 6 6
+   [history-offsets] history-offsets 4 22
+   [udt-methods] udt-methods 4 20
+   [drawing-objects] drawing-objects 3 44
+   object op dropped: create:label <- pine:text-value text-colour-values 2 11
+   array.get collections 2 9
+   [text-colour-values] text-colour-values 2 8
+   ta.sar builtin-missing 2 3
+
+rt attachedDirtyWalls: {
+"builtin:multi-time-period-charts__Multi-TimePe": [
+"[drawing-objects]",
+"object op dropped: guard:create <- pine:input-kind",
+"object op dropped: guard:create <- pine:type",
+"object op dropped: guard:update <- pine:input-kind",
+"object op dropped: guard:update <- pine:type"
+],
+"builtin:parabolic-sar-strategy__Parabolic1SA": [
+"[imperative]"
+],
+"committed:artemis-oscillator-pro__ea1097ca9e": [
+"object op dropped: cell:text <- pine:reassign"
+],
+"committed:atr-support-and-resistance__3e9ddb38c4": [
+"object op dropped: coll:diverged",
+"object op dropped: geometry:lost",
+"object op dropped: geometry:withheld",
+"object op dropped: guard:loop <- pine:block"
+],
+"committed:atr-trailing-stop-by-ceyhun__UMldb6tGLd": [
+"object op dropped: create:label <- pine:function"
+],
+"committed:auto-trendline-dojiemoji__c21f83602c": [
+"object op dropped: guard:update <- pine:collection"
+],
+"committed:average-day-range-adr-pivots__38b8c996e9": [
+"object op dropped: cell:text <- pine:reassign",
+"object op dropped: guard:create <- pine:state",
+"object op dropped: guard:delete <- pine:state"
+],
+"committed:dual-view-htf-candlestick-patterns-theultimator5__e0385fb61b": [
+"object op dropped: coll:diverged",
+"object op dropped: geometry:lost",
+"object op dropped: geometry:withheld",
+"object op dropped: guard:copy <- pine:state",
+"object op dropped: guard:delete <- pine:reassign",
+"object op dropped: guard:loop <- pine:reassign",
+"object op dropped: guard:update <- pine:state",
+"object op dropped: loop:bo

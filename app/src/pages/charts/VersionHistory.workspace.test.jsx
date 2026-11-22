@@ -47,6 +47,7 @@ vi.mock('../../hooks/useChartLayouts', () => ({
 }))
 
 import ChartsWorkspace, { isUnreadableStoredLayout } from './ChartsWorkspace'
+import { UCT_DEFAULT_OFFERED } from './layoutDockPins'
 import { WORKSPACE_DOC_URL } from './VersionHistory'
 
 const CORRUPT = '{"widgets":[{"id":"c1","type":"chart"'   // a truncated write
@@ -63,7 +64,7 @@ async function flush() {
 }
 function openLayoutsMenu() {
   const header = document.querySelector('header')
-  const trigger = within(header).getAllByRole('button').find(b => /^Layouts/.test(b.textContent))
+  const trigger = within(header).getAllByRole('button').find(b => b.dataset.guide === 'workspace.layoutsMenuBtn')  // the layout NAME is the Layouts button (owner 11-15)
   act(() => { fireEvent.click(trigger) })
 }
 const layoutWrites = () => setPref.mock.calls.filter(([k]) => k === 'charts_workspace_layout')
@@ -94,8 +95,10 @@ describe('STATE-2: a stored board that cannot be read is never autosaved over', 
     vi.useFakeTimers()
     mockPrefs = { charts_workspace_layout: CORRUPT }
     const { unmount } = renderWS()
-    // The board still renders a default (there is nothing else to show)...
-    expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+    // The board still renders a default (there is nothing else to show) — UCT Default while it is
+    // offered, the blank starting board while it is hidden (owner 11-16)...
+    if (UCT_DEFAULT_OFFERED) expect(screen.getByTestId('body-chart')).toBeInTheDocument()
+    else expect(document.querySelectorAll('[data-testid^="body-"]')).toHaveLength(0)
     // ...and the member is told, in words.
     expect(screen.getByTestId('layout-held-notice').textContent).toBe(
       'Your saved board could not be read. A default board is showing instead. Your saved board has been kept as it was, and changes made here are not saved automatically until you open a layout or save this one.',
@@ -124,7 +127,7 @@ describe('STATE-2: a stored board that cannot be read is never autosaved over', 
     mockPrefs = { charts_workspace_layout: CORRUPT }
     renderWS()
     openLayoutsMenu()
-    act(() => { fireEvent.click(screen.getByRole('button', { name: 'New Layout' })) })
+    act(() => { fireEvent.click(document.querySelector('header [data-guide="workspace.newLayout"]')) })
     expect(layoutWrites().map(([, v]) => JSON.parse(v).widgets)).toEqual([[]])
   })
 
@@ -151,7 +154,7 @@ describe('the Layouts menu entry', () => {
     await flush()
     // Non-vacuity: the entry asked the store and got its 404.
     expect(probe.mock.calls.some(([u]) => String(u).startsWith(`${WORKSPACE_DOC_URL}/versions?`))).toBe(true)
-    expect(screen.getByRole('button', { name: 'New Layout' })).toBeInTheDocument()   // the menu IS open
+    expect(document.querySelector('header [data-guide="workspace.newLayout"]')).toBeInTheDocument()   // the menu IS open
     expect(screen.queryByRole('button', { name: /version history/i })).toBeNull()
   })
 })

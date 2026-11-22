@@ -119,3 +119,57 @@
   .opt { min-height: var(--tap-min); align-items: center; }
   .list { max-height: 50vh; }
 }
+
+/* ── UCT frame (owner 11-13, /charts board only — :global(.uct-frame) set by WidgetHost):
+      the add-a-ticker box in the chart-widget style. A soft rounded field in the normal text
+      face; suggestions in the site's menu panel — ticker in white, name in grey, a grey
+      highlight (no gold). Elsewhere (the /watchlists page, the ticker popup) is unchanged. ── */
+:global(.uct-frame) .wrap {
+  gap: 7px;
+  padding: 0 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 8%, transparent);
+}
+:global(.uct-frame) .wrap:focus-within { border-color: color-mix(in srgb, var(--widget-text-strong, #f8f7f3) 24%, transparent); }
+:global(.uct-frame) .icon { opacity: 0.8; color: var(--widget-text, var(--text-muted, #a9a59b)); }
+:global(.uct-frame) .icon svg, :global(.uct-frame) .icon svg * { stroke: currentColor !important; filter: none !important; }
+:global(.uct-frame) .input,
+:global(.uct-frame) .compact .input {
+  height: 32px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--widget-text-strong, var(--text-bright, #f8f7f3));
+}
+:global(.uct-frame) .input::placeholder { color: var(--widget-text, var(--text-muted, #a9a59b)); letter-spacing: 0; opacity: 0.85; }
+:global(.uct-frame) .list {
+  top: calc(100% + 6px);
+  padding: 6px;
+  max-height: 300px;
+  border-radius: 10px;
+  background: var(--menu-bg, var(--bg-elevated, #1b1c20));
+  border: 1px solid var(--menu-border, var(--border-accent, #383b41));
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
+}
+:global(.uct-frame) .opt { align-items: center; gap: 10px; padding: 7px 9px; border-radius: 6px; }
+:global(.uct-frame) .optActive { background: var(--bg-hover, rgba(255, 255, 255, 0.07)); }
+:global(.uct-frame) .optSym {
+  min-width: 46px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--text-bright, #f8f7f3);
+}
+:global(.uct-frame) .optName { font-size: 12px; color: var(--text-muted, #a9a59b); }
+:global(.uct-frame) .optAlreadyTag { font-size: 11px; letter-spacing: 0; text-transform: none; }
+:global(.uct-frame) .optEmpty { padding: 10px; font-size: 12px; }
+:global(.uct-frame) .icon svg { color: inherit !important; }
+/* Compact panel (owner 11-13 round 4): a shorter field and a shorter list of tighter rows. */
+:global(.uct-frame) .input,
+:global(.uct-frame) .compact .input { height: 30px; font-size: 12.5px; }
+:global(.uct-frame) .list { left: -7px; right: -41px; max-height: 232px; }
+:global(.uct-frame) .opt { padding: 6px 8px; gap: 9px; }
+:global(.uct-frame) .optSym { min-width: 42px; font-size: 12px; }
+:global(.uct-frame) .optName { font-size: 11.5px; }

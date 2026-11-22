@@ -30,6 +30,9 @@
 //   carries one action: it adds the sample notebook through sampleNotebook.js and asks the gate to
 //   run THIS tour again. A member who has notes gets the `/chart` card with no such action: the
 //   server refuses the sample to anyone who has a note, D-C6.)
+//   (Go-live wave 1) TIERS. A step may name the screen tier it belongs to (`tier`: phone, wide, touch, desktop;
+//      tourTiers.js). The engine drops the steps of other tiers when the tour loads, so a control that lives in a
+//      different place on a phone than on a desktop gets one step per place, and each screen counts only its own.
 //   5. PASSIVE. A `replayable: false` entry (a 1-2 step explainer) renders as a light,
 //      non-modal note that never takes focus, shown once per member (any row in
 //      `notebook_tours` means it was seen).
@@ -44,11 +47,13 @@ import { useSWRConfig } from 'swr'
 import usePreferences from '../../../../../hooks/usePreferences'
 import { trapTabKey } from '../../../../../components/mobile/useFocusTrap'
 import { claimFirstRunStage } from '../../../../../components/firstRun/firstRunStage'
-import { anchorFor, requestReveal } from './tourAnchorVisibility'
+import { anchorFor, requestReveal, NEVER_SHOWN } from './tourAnchorVisibility'
+import { focusPageIfLost } from './keyboardDoors'
 import { TOURS_PREF, TOUR_STATES, readToursPref, recordTourState } from './tourSeenState'
 import { UNREACHABLE_COPY, atStart, resolveStart } from './tourStart'
 import { SAMPLE_COPY, addSampleNotebook, isNotebookKey } from './sampleNotebook'
 import { cardIsTopmost, dialogHost } from './tourLayers'
+import { stepsForScreen } from './tourTiers'
 import { carryRegistryTourOpen, stripTourState } from './tourRegistryControl'
 import { importWithOneRetry } from '../../../lib/lazyChunk'
 import { reportError } from '../../../../../lib/errorBeacon'
@@ -56,6 +61,7 @@ import { registerShortcuts } from '../../../../command/shortcutRegistry'
 import styles from './NotebookTour.module.css'
 import own from './GenericTourEngine.module.css'
 import PoliteStatus from '../PoliteStatus'
+import { TOUR_NAV } from '../../../lib/notebookUsage'
 
 export { atStart }
 
@@ -86,6 +92,17 @@ function explainerSlot() {
     document.body.prepend(el)
   }
   return el
+}
+
+/** The anchor is IN the page and the engine COULD show it: on screen or not yet (a box comes when
+ *  the tour marks it), but never inside `[hidden]` or `aria-hidden="true"`, which `anchorFor`
+ *  refuses for ever (fix round 2, re-review N5: one visibility rule with the engine). */
+function anchorExists(anchor) {
+  if (typeof document === 'undefined' || !anchor) return false
+  try {
+    const el = document.querySelector(`[data-tour="${anchor}"]`)
+    return Boolean(el) && !el.closest(NEVER_SHOWN)
+  } catch { return false }
 }
 
 function presentFrom(steps, from, dir) {
@@ -135,7 +152,8 @@ export default function GenericTourEngine({
   useEffect(() => {
     let cancelled = false
     loadTourContent(entry)
-      .then((c) => { if (!cancelled) setContent(c) })
+      // Go-live wave 1: a step for another screen tier (`tier`, tourTiers.js) is not in the tour on this one.
+      .then((c) => { if (!cancelled) setContent({ ...c, steps: stepsForScreen(c.steps) }) })
       .catch((err) => {
         // A stale step file after a deploy: close and say so, never hold the one tour slot.
         if (cancelled) return
@@ -151,22 +169,35 @@ export default function GenericTourEngine({
 
   const steps = content?.steps || null
 
-  // ── the step counter counts what is SHOWN ────────────────────────────────────────────────
-  // A step that was passed over because its anchor is not on this screen is not a step the
-  // member takes, so it is in neither number: a tour whose first step cannot show here opens
-  // on "Step 1 of N-1", never "Step 2 of N" (the Formulas tour did, at every width). A step
-  // reached later (Back onto one that has since appeared) counts again.
-  const [passed, setPassed] = useState(() => new Set())
+  // ── the step counter counts what is SHOWN, over ONE list fixed at the start ────────────────
+  // A step whose anchor is not on this screen is not a step the member takes, so it is in
+  // neither number: a tour whose first step cannot show here opens on "Step 1 of N-1", never
+  // "Step 2 of N" (the Formulas tour did, at every width).
+  // ⛔ Audit 2026-11-05, spec S5 (B6): THE LIST IS COMPUTED ONCE, when the tour opens. The total
+  // used to drop each time a later step turned out not to be there, so the My Playbook tour read
+  // "Step 1 of 5" and then "Step 2 of 3". Now the steps whose anchors are on screen when the
+  // tour opens are the list (anchors in the page, plus every step after the first one that waits for
+  // the member), and the total holds. A step outside it that the tour lands on anyway is an
+  // "Extra step": the total never grows mid-tour (fix round 1).
+  const [visible, setVisible] = useState(null)   // sorted step indices, or null before opening
   const indexRef = useRef(0)
   indexRef.current = index
   const land = useCallback((from, to) => {
-    setPassed((prev) => {
-      const out = new Set(prev)
-      for (let j = from + 1; j < to; j += 1) out.add(j)
-      out.delete(to)
-      return out.size === prev.size && [...out].every((j) => prev.has(j)) ? prev : out
+    setVisible((prev) => {
+      if (prev === null) {
+        // ⛔ Fix round 1 (review finding 3): a step is in the list when its anchor EXISTS in the
+        // page -- on screen or not: some anchors only get a box once the tour marks them (the chart
+        // toolbar, revealed by [data-tour-active]) -- or when it comes after a step that WAITS for
+        // the member (a door that opens a sheet or a page). Computed ONCE; never changed after.
+        const firstWait = (steps || []).findIndex((s) => s.waitFor)
+        return (steps || []).map((_, j) => j).filter((j) => j === to || anchorExists(steps[j].anchor)
+          || (firstWait >= 0 && j > firstWait))
+      }
+      // A step outside the list that the tour lands on anyway shows as an extra step (see the
+      // progress line); the list -- and so the total -- never changes mid-tour.
+      return prev
     })
-  }, [])
+  }, [steps])
   const step = phase === 'open' && steps ? steps[index] : null
 
   // ── 1. START ──────────────────────────────────────────────────────────────────────────
@@ -196,7 +227,9 @@ export default function GenericTourEngine({
         // pathname), and this engine with it: carry the request so the new gate goes on
         // with this tour instead of dropping it silently (W14-Q2: trade starts never opened).
         if (new URL(r.path, 'http://tour.invalid').pathname !== location.pathname) carryRegistryTourOpen(entry.id)
-        navigate(r.path, { state: stripTourState(location.state) })
+        // Follow-up A fix round 1 (I2): marked as the walkthrough's own move, so the Notebook does not count it as a
+        // link the member followed (`view_used`, lib/notebookUsage.js `linkOpened`).
+        navigate(r.path, { state: { ...(stripTourState(location.state) || {}), [TOUR_NAV]: true } })
       }
       setPhase('waiting')
     })
@@ -239,6 +272,8 @@ export default function GenericTourEngine({
     const back = returnFocusRef.current
     returnFocusRef.current = null
     if (back && typeof back.focus === 'function' && document.contains(back)) back.focus()
+    // VIS-5 (audit 2026-11-05, issue 25): what opened it may be gone (a Learn menu row); never <body>.
+    if (openedRef.current) focusPageIfLost()
     onCloseRef.current({ opened: openedRef.current, ...extra })
   }, [])
   const finish = useCallback(() => end(), [end])
@@ -301,6 +336,7 @@ export default function GenericTourEngine({
 
   const goBack = useCallback(() => {
     if (!steps || moving) return
+    if (steps[index]?.noBack) return
     const prev = presentFrom(steps, index - 1, -1)
     if (prev >= 0) goTo(prev)
   }, [steps, moving, index, goTo])
@@ -493,6 +529,8 @@ export default function GenericTourEngine({
   }
 
   const isFirst = presentFrom(steps, index - 1, -1) < 0
+  // Follow-up B fix round 1: a step that lives inside a view a previous step opened (a menu's second view) draws no
+  // Back: going back would name a control that is no longer on screen (`noBack`, tours/index.js contract).
   const isLast = index === steps.length - 1
   // FIN-A11Y (I-8): the step count and the "do this" hint are part of what is SAID. The
   // dialog is described by them, and so is the heading that takes focus on every step
@@ -511,7 +549,9 @@ export default function GenericTourEngine({
       data-tour-card={modal ? 'modal' : 'non-modal'}
     >
       <p id={progressId} className={styles.progress}>
-        {`Step ${index + 1 - [...passed].filter((j) => j < index).length} of ${steps.length - passed.size}`}
+        {visible && !visible.includes(index)
+          ? 'Extra step'
+          : `Step ${(visible?.indexOf(index) ?? -1) + 1 || 1} of ${visible?.length || steps.length}`}
       </p>
       <h2 id={titleId} ref={titleRef} tabIndex={-1} className={styles.title}
         aria-describedby={`${progressId}${hintId}`}>{copy.title}</h2>
@@ -523,9 +563,11 @@ export default function GenericTourEngine({
           Skip tour
         </button>
         <span className={styles.nav}>
-          <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst || moving}>
-            Back
-          </button>
+          {!step.noBack && (
+            <button type="button" className="btn btn-secondary" onClick={goBack} disabled={isFirst || moving}>
+              Back
+            </button>
+          )}
           {isLast ? (
             <button type="button" className="btn btn-primary" onClick={() => close(TOUR_STATES.done)}>
               Done

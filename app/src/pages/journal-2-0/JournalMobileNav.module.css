@@ -114,3 +114,18 @@
     padding-right: 3px;
   }
 }
+
+/* Tier 2 (production check of Tier 1b, 390 x 844) and its fix round 1: on the phone Notebook (`compact`,
+   JournalLayout passes it on Notebook routes only) the strip is labels only, at the 44 px floor, with 8 px below it.
+   D2's levers above are KEPT -- the 8 px bleed, 3 px side padding, no gap -- so all six tabs still share the row
+   (about 326 px of labels in 358 px at 390; the scroller remains the fallback below that). Every other page keeps
+   the icon-over-label strip. */
+@media (max-width: 640px) {
+  .mobileNav.compact { margin-bottom: 8px; }
+  .compact .item {
+    gap: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .compact .icon { display: none; }
+}

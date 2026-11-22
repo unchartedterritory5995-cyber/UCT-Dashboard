@@ -32,14 +32,14 @@ function Pairs({ items, variant }) {
 export const ROWS_PREVIEW = 8
 
 /** Rows: a compact table where the panel is wide enough; one stacked card per row where it is not. */
-export function Rows({ table, testId = 'agent-result-table', preview = ROWS_PREVIEW }) {
+export function Rows({ table, testId = 'agent-result-table', preview = ROWS_PREVIEW, label = 'Results' }) {
   const [all, setAll] = useState(false)
   const cols = table.columns
   const cut = !all && preview && table.rows.length > preview + 2
   const rows = cut ? table.rows.slice(0, preview) : table.rows
   return (
     <div className={`${styles.rows} ${cols.length > 2 ? styles.many : ''}`} data-testid={testId}>
-      <table className={styles.table}>
+      <table className={styles.table} aria-label={label}>
         <thead><tr>{cols.map(c => <th key={c.key} scope="col">{c.label}</th>)}</tr></thead>
         <tbody>
           {rows.map((r, i) => (
@@ -64,6 +64,35 @@ function Headlines({ items }) {
   )
 }
 
+// RS-1 research: the three sections the contract names, then the dated sources. Facts first (UCT's own data,
+// each sentence naming its source and time); web commentary is labelled as such and never mixed into the facts.
+const RESEARCH_SECTIONS = [['facts', "What UCT's data shows"], ['interpretation', 'Interpretation (web commentary, not UCT data)'], ['unknown', 'Not known / not available']]
+function Research({ view }) {
+  return (
+    <div className={styles.research} data-testid="agent-result-research">
+      {RESEARCH_SECTIONS.map(([key, label]) => (view[key]?.length > 0 && (
+        <section key={key} className={styles.section} data-testid={`agent-research-${key}`}>
+          <h4 className={styles.sectionTitle}>{label}</h4>
+          <ul className={styles.sectionList}>{view[key].map((s, i) => <li key={i}>{s}</li>)}</ul>
+        </section>
+      )))}
+      {view.cited?.length > 0 && (
+        <section className={styles.section} data-testid="agent-research-sources">
+          <h4 className={styles.sectionTitle}>Sources</h4>
+          <ul className={styles.cited}>
+            {view.cited.map((c, i) => (
+              <li key={i}>
+                <span className={styles.meta}>{c.when}</span>
+                {c.url ? <a href={c.url} target="_blank" rel="noreferrer noopener">{c.title}</a> : <span>{c.title}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  )
+}
+
 function OpenLink({ link }) {
   const inRouter = useInRouterContext()
   return inRouter
@@ -81,7 +110,7 @@ function Details({ details, sources }) {
         {details?.headlines?.length > 0 && <Headlines items={details.headlines} />}
         {details?.items?.length > 0 && <Pairs items={details.items} variant="dense" />}
         {details?.text && <Prose text={details.text} />}
-        {details?.table && <Rows table={details.table} testId="agent-details-table" />}
+        {details?.table && <Rows table={details.table} testId="agent-details-table" label="Details" />}
         {details?.trimmed && <p className={styles.muted}>Some details were too long to keep with this conversation.</p>}
         {sources?.length > 0 && (
           <div className={styles.sources}>
@@ -126,7 +155,7 @@ const METRIC = new Set(['value', 'comparison', 'metrics', 'range'])
 
 // structured views use the column's width (so their figures sit side by side); a single figure and
 // short prose stay as compact as their content
-const FULL = new Set(['comparison', 'metrics', 'range', 'table', 'headlines'])
+const FULL = new Set(['comparison', 'metrics', 'range', 'table', 'headlines', 'research'])
 
 export default function AgentResult({ view, onOpenChart = null, busy = false }) {
   const body = (() => {
@@ -151,6 +180,14 @@ export default function AgentResult({ view, onOpenChart = null, busy = false }) 
           <>
             {view.title && <div className={styles.title}>{view.title}</div>}
             <Headlines items={view.headlines} />
+          </>
+        )
+      case 'research':
+        return (
+          <>
+            {view.title && <div className={styles.title}>{view.title}</div>}
+            <Research view={view} />
+            {view.note && <div className={styles.note}>{view.note}</div>}
           </>
         )
       default:

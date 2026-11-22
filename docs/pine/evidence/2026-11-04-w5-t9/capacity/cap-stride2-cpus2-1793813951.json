@@ -1,0 +1,191 @@
+{
+ "local_measurement": true,
+ "cpus": 2,
+ "stride": 2,
+ "workers": 2,
+ "affinity_mask": 80,
+ "node": "v24.13.1",
+ "symbols": 200,
+ "chunk": 20,
+ "universe": 3742,
+ "machine_logical_cpus": 24,
+ "request_overhead": {
+  "tiny_50_bars": {
+   "requests": 200,
+   "rtt_ms": {
+    "p50": 1.7,
+    "p95": 3.3
+   },
+   "job_ms": {
+    "p50": 0,
+    "p95": 1
+   },
+   "overhead_ms": {
+    "p50": 1.5,
+    "p95": 2.6
+   }
+  },
+  "one_5000_bar_job": {
+   "requests": 40,
+   "rtt_ms": {
+    "p50": 11.3,
+    "p95": 17.8
+   },
+   "job_ms": {
+    "p50": 6,
+    "p95": 8
+   },
+   "overhead_ms": {
+    "p50": 5.1,
+    "p95": 11.8
+   }
+  }
+ },
+ "sweep": {
+  "adx-and-di-for-v4": {
+   "jobs": 200,
+   "ok": 200,
+   "withheld": 0,
+   "withheld_guards": [],
+   "bad_requests": 0,
+   "wall_ms_per_symbol": 16.3,
+   "service_cpu_ms_per_symbol": 26.64,
+   "worker_job_ms": {
+    "p50": 23,
+    "p95": 47,
+    "mean": 26.56
+   },
+   "cpu_utilisation_of_pinned_cpus": 0.817,
+   "extrapolated_universe": {
+    "wall_minutes": 1.02,
+    "cpu_minutes": 1.66
+   }
+  },
+  "ema_macd": {
+   "jobs": 200,
+   "ok": 200,
+   "withheld": 0,
+   "withheld_guards": [],
+   "bad_requests": 0,
+   "wall_ms_per_symbol": 7.43,
+   "service_cpu_ms_per_symbol": 12.5,
+   "worker_job_ms": {
+    "p50": 6,
+    "p95": 18,
+    "mean": 8.6
+   },
+   "cpu_utilisation_of_pinned_cpus": 0.841,
+   "extrapolated_universe": {
+    "wall_minutes": 0.46,
+    "cpu_minutes": 0.78
+   }
+  },
+  "bollinger": {
+   "jobs": 200,
+   "ok": 200,
+   "withheld": 0,
+   "withheld_guards": [],
+   "bad_requests": 0,
+   "wall_ms_per_symbol": 20.16,
+   "service_cpu_ms_per_symbol": 35.55,
+   "worker_job_ms": {
+    "p50": 29,
+    "p95": 59,
+    "mean": 32.53
+   },
+   "cpu_utilisation_of_pinned_cpus": 0.882,
+   "extrapolated_universe": {
+    "wall_minutes": 1.26,
+    "cpu_minutes": 2.22
+   }
+  },
+  "rsi_stoch": {
+   "jobs": 200,
+   "ok": 200,
+   "withheld": 0,
+   "withheld_guards": [],
+   "bad_requests": 0,
+   "wall_ms_per_symbol": 9.23,
+   "service_cpu_ms_per_symbol": 16.25,
+   "worker_job_ms": {
+    "p50": 11,
+    "p95": 25,
+    "mean": 13.41
+   },
+   "cpu_utilisation_of_pinned_cpus": 0.88,
+   "extrapolated_universe": {
+    "wall_minutes": 0.58,
+    "cpu_minutes": 1.01
+   }
+  }
+ },
+ "rss_mb": 427,
+ "metrics_after": {
+  "jobs": {
+   "alert": {
+    "ok": 0,
+    "withheld": 0
+   },
+   "on-demand": {
+    "ok": 240,
+    "withheld": 0
+   },
+   "backtest": {
+    "ok": 0,
+    "withheld": 0
+   },
+   "sweep": {
+    "ok": 800,
+    "withheld": 0
+   },
+   "record": {
+    "ok": 0,
+    "withheld": 0
+   }
+  },
+  "refusals": {},
+  "latency_ms": {
+   "alert": {
+    "n": 0,
+    "p50": null,
+    "p95": null
+   },
+   "on-demand": {
+    "n": 240,
+    "p50": 0,
+    "p95": 6
+   },
+   "backtest": {
+    "n": 0,
+    "p50": null,
+    "p95": null
+   },
+   "sweep": {
+    "n": 800,
+    "p50": 17,
+    "p95": 45
+   },
+   "record": {
+    "n": 0,
+    "p50": null,
+    "p95": null
+   }
+  },
+  "workers": {
+   "live": 2,
+   "starts": 3,
+   "recycles": 1,
+   "kills": 0,
+   "ooms": 0,
+   "crashes": 0
+  },
+  "queue_depth": 0,
+  "heap": {
+   "used_bytes": 38384816,
+   "total_bytes": 170471424,
+   "rss_bytes": 447324160
+  },
+  "canary_runs": 1,
+  "canary_ok": true
+ }
+}

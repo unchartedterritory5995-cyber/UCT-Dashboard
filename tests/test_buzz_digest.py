@@ -549,8 +549,9 @@ def test_an_alerting_failure_never_costs_the_room_its_ingest(mods, monkeypatch):
 def test_the_scheduled_post_is_never_ephemeral(mods, monkeypatch):
     """⛔⛔ THE OPPOSITE MISTAKE, AND IT IS THE EXPENSIVE ONE.
 
-    On-demand /buzz became ephemeral 2026-09-02 so a member checking the board
-    does not put a second copy in front of 750 people. The SCHEDULED post must
+    On-demand /buzz was ephemeral from 2026-09-02 until the owner made it public
+    again on 2026-11-13; its visibility is a product choice that has now moved
+    twice. The SCHEDULED post is not a choice: it must
     stay public -- it IS the thing the room is meant to see. An ephemeral flag
     on this path would make seven boards a day visible to nobody, and every
     check we have would still read green: the job runs, `posted` is stamped, the

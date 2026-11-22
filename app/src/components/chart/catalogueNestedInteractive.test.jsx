@@ -235,7 +235,9 @@ describe('the structure list in Chart Settings', () => {
     expect(found, formatViolations(found)).toEqual([])
   })
 
-  it('one Tab stop, and the arrows walk it: focus follows the selection onto the next name button', () => {
+  // ⭐ UCT Signature (one column): opening a row's editor replaces the list, so ↓ moves the list's
+  // FOCUS (and its one tab stop) to the next name; Enter / a click on that name opens it.
+  it('one Tab stop, and the arrows walk it: focus and the tab stop move onto the next name button', () => {
     mount()
     const row = selectMovable()
     const stops = rows().filter((r) => rowPrimaryOf(r).getAttribute('tabindex') === '0')
@@ -243,8 +245,10 @@ describe('the structure list in Chart Settings', () => {
     rowPrimaryOf(row).focus()
     fireEvent.keyDown(document.activeElement, { key: 'ArrowDown' })
     const next = rows()[rows().indexOf(row) + 1]
-    expect(rowIsSelected(next), `↓ did not select ${nameOf(next)}`).toBe(true)
-    expect(document.activeElement, 'focus did not follow the selection').toBe(rowPrimaryOf(next))
+    expect(document.activeElement, `↓ did not move focus to ${nameOf(next)}`).toBe(rowPrimaryOf(next))
+    expect(rows().filter((r) => rowPrimaryOf(r).getAttribute('tabindex') === '0'), 'the tab stop did not move with focus').toEqual([next])
+    fireEvent.click(rowPrimaryOf(next))
+    expect(rowIsSelected(next), `clicking ${nameOf(next)} did not open it`).toBe(true)
   })
 
   it('the grip keeps its own keys: ↑ on it reorders and does not move the selection', () => {

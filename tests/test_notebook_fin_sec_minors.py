@@ -33,7 +33,6 @@ from api.services.journal_two import tech_fingerprint as tfp
 from api.services.journal_two.db import ensure_schema
 
 TO_0930 = 1759255200 + 365 * 86400
-FP_FLAG = "NOTEBOOK_TA_FINGERPRINT_ENABLED"
 
 
 # ── M-5 ──────────────────────────────────────────────────────────────────────
@@ -113,10 +112,7 @@ def _stub_compute(symbol, as_of):
 @pytest.fixture
 def client(db_path, monkeypatch):
     from api.routers import notebook_fingerprint, notebook_setups_board, notebook_visual_playbook
-    from api.services.journal_two import setups_board, similar_matches, visual_playbook
     monkeypatch.setattr(tfp, "compute", _stub_compute)
-    for flag in (FP_FLAG, visual_playbook.FLAG, setups_board.FLAG, similar_matches.FLAG):
-        monkeypatch.setenv(flag, "1")
     app = FastAPI()
     app.include_router(notebook_fingerprint.router)
     app.include_router(notebook_visual_playbook.router)

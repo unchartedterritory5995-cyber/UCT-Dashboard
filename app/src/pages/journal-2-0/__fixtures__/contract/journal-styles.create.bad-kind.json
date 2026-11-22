@@ -10,6 +10,6 @@
     "status": 400
   },
   "body": {
-    "detail": "Choose a kind of note for this style."
+    "detail": "Choose a note type for this style."
   }
 }

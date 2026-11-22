@@ -3,6 +3,8 @@
 renderer is busy or off, the member still gets the numbers."""
 from __future__ import annotations
 
+import re
+
 from api.services import buzz_boards
 
 BAR_W = 18
@@ -59,6 +61,71 @@ def build_board_text(now: int, window: str = "open") -> str:
                      " · ".join(f"{h['ticker']} {h['ratio']}x" for h in heat))
     lines.append(f"_{buzz_boards.coverage(now)}_")
     return "\n".join(lines)
+
+
+def as_card(text: str, window: str = "open", *, image: str | None = None) -> dict:
+    """The on-demand /buzz reply as a card in the bot's one style (discord_cards).
+
+    Built FROM the text above, never from a second query: the numbers have one source,
+    and the scheduled board, which still posts that text, cannot disagree with this card.
+    The text's own shape is read back here, next to the code that writes it:
+
+      board   "**Most talked about — <label>**", a ``` table ```, maybe a 🔥 line, "_<coverage>_"
+      ticker  "**<T>** — N mention(s) from M member(s)", a `spark`, maybe a link, "_<coverage>_"
+      empty   one sentence
+
+    With `image` the rendered board is shown inside the card, so the table is left out:
+    the picture IS the table, and both at once is the clutter this card replaced. Any other
+    text (a builder this does not know) is shown whole, under a plain title."""
+    from api.services import discord_cards
+    label = buzz_boards.WINDOW_LABEL.get(window, window)
+    lines = [ln for ln in str(text or "").split("\n")]
+    footer_bits: list[str] = []
+    if lines and lines[-1].startswith("_") and lines[-1].endswith("_") and len(lines[-1]) > 2:
+        footer_bits.append(lines.pop()[1:-1])
+    head = lines[0] if lines else ""
+    board = head.startswith("**Most talked about")
+    ticker = re.match(r"^\*\*([A-Z0-9.\-]{1,10})\*\* — (.+)$", head)
+    if head.startswith("No mentions counted yet") and len(lines) == 1:
+        # "No mentions counted yet for **since the open**. counted through 11:21a."
+        sentence, _, rest = head.partition(". ")
+        title = f"Most talked about — {label}"
+        description = "No mentions counted yet."
+        if rest and not footer_bits:
+            footer_bits.append(rest.rstrip("."))
+    elif board:
+        title = head.strip("*")
+        body = lines[1:]
+        if image:
+            out, inside = [], False
+            for ln in body:
+                if ln.startswith("```"):
+                    inside = not inside
+                    continue
+                if not inside:
+                    out.append(ln)
+            body = out
+        description = "\n".join(body).strip()
+    elif ticker:
+        mentions = ticker.group(2).rstrip(".")
+        title = f"${ticker.group(1)} · Buzz · {label[:1].upper()}{label[1:]}"
+        if mentions.startswith("no mentions"):
+            # "no mentions in that window. counted through 11:21a." - the coverage rides at the end
+            sentence, _, rest = mentions.partition(". ")
+            description = sentence[:1].upper() + sentence[1:] + "."
+            if rest and not footer_bits:
+                footer_bits.append(rest.rstrip("."))
+        else:
+            description = "\n".join([mentions[:1].upper() + mentions[1:]] + lines[1:]).strip()
+            description = description.replace("[jump to the latest]", "[Jump to the latest message]")
+    else:
+        title = f"Buzz · {label[:1].upper()}{label[1:]}"
+        description = "\n".join(lines).strip()
+    # "1 mention(s) from 1 member(s)" is the text board's shorthand; a card says it properly.
+    description = re.sub(r"\b(\d+) (mention|member)\(s\)",
+                         lambda m: discord_cards.plural(int(m.group(1)), m.group(2)), description)
+    return discord_cards.card("buzz", title=title, description=description,
+                              footer=footer_bits + ["from the room's chat"], image=image)
 
 
 def build_ticker_text(ticker: str, window: str, now: int) -> str:

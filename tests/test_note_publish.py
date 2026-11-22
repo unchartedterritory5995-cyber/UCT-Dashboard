@@ -245,9 +245,25 @@ def test_the_editor_context_names_the_notes_folder(svc):
     n = _note(A, "in a folder", folderId=f)
     u = _note(A, "unfiled")
     assert svc.list_mine(A, note_id=n)["note"] == {"noteId": n, "exists": True, "publishable": True,
-                                                    "folderId": f, "folderName": "Weekly plans"}
+                                                    "folderId": f, "folderName": "Weekly plans",
+                                                    "folderNoteCount": 1}
     assert svc.list_mine(A, note_id=u)["note"] == {"noteId": u, "exists": True, "publishable": True,
-                                                    "folderId": None, "folderName": None}
+                                                    "folderId": None, "folderName": None,
+                                                    "folderNoteCount": None}
+
+
+def test_the_editor_context_counts_what_a_folder_publish_would_take(svc):
+    """Audit 2026-11-05, spec S1: the confirm step says how many notes a folder publish takes.
+    The count is exactly the folder publish's own snapshot: the tree, live notes only (never
+    trashed, never archived), capped at MEMBER_CAP."""
+    f = _folder(A, "Weekly plans")
+    n = _note(A, "one", folderId=f)
+    _note(A, "two", folderId=f)
+    gone = _note(A, "trashed", folderId=f)
+    _note(A, "elsewhere")
+    from api.services.journal_two import notes
+    notes.delete_note(A, gone)
+    assert svc.list_mine(A, note_id=n)["note"]["folderNoteCount"] == 2
 
 
 def test_M3_the_editor_context_reports_an_archived_note_as_not_publishable(svc):

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, cleanup, within } from '@testing-library/react'
 
-import SharePanel, { shareUrlFor } from './SharePanel'
+import SharePanel, { shareUrlFor, SHARE_SOURCE_SENTENCE, LIBRARY_SOURCE_SENTENCE } from './SharePanel'
 
 /**
  * The DOOR onto W5b.
@@ -31,6 +31,9 @@ describe('SharePanel', () => {
   })
 
   beforeEach(() => { calls = [] })
+
+  // Create and Publish are offered only once the share state is READ (review of #1227)
+  const enabled = async (el) => { await waitFor(() => expect(el).not.toBeDisabled()); return el }
   afterEach(() => { cleanup(); vi.restoreAllMocks() })
 
   it('⛔⛔ opening the panel READS both consents and grants NEITHER', async () => {
@@ -78,7 +81,7 @@ describe('SharePanel', () => {
       [/^POST .*\/list$/, { body: { listed: true, token: `sh_${'b'.repeat(32)}` } }],
     ])
     render(<SharePanel defId="u_abc" />)
-    fireEvent.click(await screen.findByTestId('library-publish'))
+    fireEvent.click(await enabled(await screen.findByTestId('library-publish')))
 
     expect(await screen.findByTestId('library-withdraw')).toBeTruthy()
     // ⛔ THE HALF THAT IS EASY TO MISS: the share block must stop saying "This
@@ -110,7 +113,7 @@ describe('SharePanel', () => {
     ])
     render(<SharePanel defId="u_abc" />)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Create a share link/i }))
+    fireEvent.click(await enabled(await screen.findByRole('button', { name: /Create a share link/i })))
     const box = await screen.findByLabelText('Share link')
     expect(box.value).toContain('sh_' + 'a'.repeat(32))
     expect(calls.filter((c) => c.startsWith('POST')).length).toBe(1)
@@ -191,7 +194,7 @@ describe('SharePanel', () => {
       [/^GET .*\/shared\//, {
         body: {
           definition: { meta: { name: 'Gap And Go' } },
-          author_id: 'u-someone', origin_version: 3,
+          origin_version: 3,
         },
       }],
     ])
@@ -275,6 +278,120 @@ describe('SharePanel', () => {
     render(<SharePanel defId="u_abc" />)
     await screen.findByRole('alert')
     expect(screen.getByRole('alert').textContent).toMatch(/check your connection/i)
+  })
+
+  // ⭐ DECIDED 2026-11-13: a shared script carries its Pine source. The AUTHOR is told so before a
+  // link exists (on open, beside Create), while it is live, and beside Publish -- read from the
+  // server's `includesSource`, never inferred here.
+  it('⛔⛔ a script that shares its source SAYS SO before a link is created', async () => {
+    global.fetch = jsonRoute([
+      [/^GET .*\/share$/, { body: { token: null, includesSource: true } }],
+      [/^GET .*\/list$/, { body: { listed: false, requested: false, shared: false } }],
+      [/^POST .*\/share$/, { body: { token: 'sh_' + 'd'.repeat(32), includesSource: true } }],
+    ])
+    render(<SharePanel defId="u_abc" />)
+
+    await screen.findByText(/This formula is private/i)
+    // beside the button that would make the link (its own section), and beside Publish
+    const create = screen.getByRole('button', { name: /Create a share link/i })
+    expect(within(create.closest('section')).getByTestId('share-source-disclosure'))
+      .toHaveTextContent(SHARE_SOURCE_SENTENCE)
+    // the library is EVERY member, not "anyone with the link"
+    expect(within(screen.getByTestId('library-block')).getByTestId('library-source-disclosure'))
+      .toHaveTextContent(LIBRARY_SOURCE_SENTENCE)
+    expect(LIBRARY_SOURCE_SENTENCE).toMatch(/source code to every member/)
+    expect(SHARE_SOURCE_SENTENCE).toMatch(/Pine source code with anyone who has the link/)
+    // ⛔ shown BEFORE the press: nothing has been minted yet
+    expect(calls.some((c) => c.startsWith('POST'))).toBe(false)
+    // …and still there once the link is live
+    fireEvent.click(await enabled(screen.getByRole('button', { name: /Create a share link/i })))
+    const box = await screen.findByLabelText('Share link')
+    expect(within(box.closest('section')).getByTestId('share-source-disclosure'))
+      .toHaveTextContent(SHARE_SOURCE_SENTENCE)
+  })
+
+  // ⛔ review of #1227: nothing makes a link before the share state is READ for this definition
+  it('⛔⛔ Create and Publish stay disabled until the share read resolves', async () => {
+    let release
+    const pending = new Promise((res) => { release = res })
+    global.fetch = vi.fn(async (url, opts = {}) => {
+      const method = opts.method || 'GET'
+      calls.push(`${method} ${url}`)
+      if (/\/share$/.test(url) && method === 'GET') {
+        await pending
+        return { ok: true, status: 200, json: async () => ({ token: null, includesSource: true }) }
+      }
+      if (/\/list$/.test(url)) return { ok: true, status: 200, json: async () => ({ listed: false, requested: false, shared: false }) }
+      return { ok: false, status: 404, json: async () => ({}) }
+    })
+    render(<SharePanel defId="u_abc" />)
+    const create = await screen.findByRole('button', { name: /Create a share link/i })
+    expect(create).toBeDisabled()
+    expect(screen.getByTestId('library-publish')).toBeDisabled()
+    fireEvent.click(create)
+    expect(calls.some((c) => c.startsWith('POST'))).toBe(false)
+    release()
+    await waitFor(() => expect(screen.getByRole('button', { name: /Create a share link/i })).not.toBeDisabled())
+    expect(screen.getByTestId('share-source-disclosure')).toHaveTextContent(SHARE_SOURCE_SENTENCE)
+  })
+
+  it('⛔ a FAILED share read says so and keeps Create disabled', async () => {
+    global.fetch = jsonRoute([
+      [/^GET .*\/share$/, { status: 500, body: { detail: 'the store is unreadable' } }],
+      [/^GET .*\/list$/, { body: { listed: false, requested: false, shared: false } }],
+    ])
+    render(<SharePanel defId="u_abc" />)
+    expect(await screen.findByRole('alert')).toHaveTextContent(/the store is unreadable/)
+    expect(screen.getByRole('button', { name: /Create a share link/i })).toBeDisabled()
+  })
+
+  it('⛔ another definition starts unread: the last one\'s answer never carries over', async () => {
+    let releaseB
+    const pendingB = new Promise((res) => { releaseB = res })
+    global.fetch = vi.fn(async (url, opts = {}) => {
+      const method = opts.method || 'GET'
+      if (/u_aaa\/share$/.test(url)) return { ok: true, status: 200, json: async () => ({ token: null, includesSource: true }) }
+      if (/u_bbb\/share$/.test(url)) {
+        await pendingB
+        return { ok: true, status: 200, json: async () => ({ token: null, includesSource: false }) }
+      }
+      if (/\/list$/.test(url)) return { ok: true, status: 200, json: async () => ({ listed: false, requested: false, shared: false }) }
+      return { ok: false, status: 404, json: async () => ({ method }) }
+    })
+    const { rerender } = render(<SharePanel defId="u_aaa" />)
+    expect(await screen.findByTestId('share-source-disclosure')).toBeTruthy()
+    rerender(<SharePanel defId="u_bbb" />)
+    await waitFor(() => expect(screen.queryByTestId('share-source-disclosure')).toBeNull())
+    expect(screen.getByRole('button', { name: /Create a share link/i })).toBeDisabled()
+    releaseB()
+    await waitFor(() => expect(screen.getByRole('button', { name: /Create a share link/i })).not.toBeDisabled())
+    expect(screen.queryByTestId('share-source-disclosure')).toBeNull()
+  })
+
+  it('⭐ the mint answer sets the flag too (a link that carries the script says so)', async () => {
+    global.fetch = jsonRoute([
+      [/^GET .*\/share$/, { body: { token: null, includesSource: false } }],
+      [/^GET .*\/list$/, { body: { listed: false, requested: false, shared: false } }],
+      [/^POST .*\/share$/, { body: { token: 'sh_' + 'e'.repeat(32), includesSource: true } }],
+    ])
+    render(<SharePanel defId="u_abc" />)
+    const create = await screen.findByRole('button', { name: /Create a share link/i })
+    await waitFor(() => expect(create).not.toBeDisabled())
+    expect(screen.queryByTestId('share-source-disclosure')).toBeNull()
+    fireEvent.click(create)
+    const box = await screen.findByLabelText('Share link')
+    expect(within(box.closest('section')).getByTestId('share-source-disclosure')).toHaveTextContent(SHARE_SOURCE_SENTENCE)
+  })
+
+  it('⭐ a formula that carries no source shows no such line', async () => {
+    global.fetch = jsonRoute([
+      [/^GET .*\/share$/, { body: { token: null, includesSource: false } }],
+      [/^GET .*\/list$/, { body: { listed: false, requested: false, shared: false } }],
+    ])
+    render(<SharePanel defId="u_abc" />)
+
+    await screen.findByText(/This formula is private/i)
+    expect(screen.queryByTestId('share-source-disclosure')).toBeNull()
   })
 
   it('⭐ the share URL is built from the token, and is empty without one', () => {

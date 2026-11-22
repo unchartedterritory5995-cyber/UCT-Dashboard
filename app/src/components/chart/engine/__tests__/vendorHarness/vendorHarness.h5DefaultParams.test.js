@@ -29,6 +29,7 @@ import fs from 'node:fs'
 import { gradeCapture, loadCapture, HARNESS_DIR } from './harness'
 import { sha256Hex, sealCapture } from '../../../../../../../tools/vendor_harness/schema.mjs'
 import { registerPineLibrary, clearPineLibraries } from '../../ast/pineLibraryStore'
+import { fixtureLibrary } from '../../ast/__tests__/libraryFixture.js'
 
 const load = (id) => loadCapture(path.join(HARNESS_DIR, `${id}.json`)).capture
 afterEach(() => { vi.unstubAllEnvs(); clearPineLibraries() })
@@ -85,7 +86,7 @@ const CAP4 = fs.readFileSync(path.join(__dirname, 'vendorHarness.capRound4.test.
 const TA7 = CAP4.match(/const L2_TA7_FIXTURE = `([\s\S]*?)`/)[1]
 const LIB = load('vw-library-import-rddt-1d-2026-10-02')
 describe('⭐ H5 — Q-L1 on the HOST lane (fixture library at TradingView/ta/7)', () => {
-  const withLib = (src = TA7) => registerPineLibrary({ path: 'TradingView/ta/7', source: src, licence: 'test-fixture', attribution: 'L2 rail fixture (no third-party code)' })
+  const withLib = (src = TA7) => registerPineLibrary(fixtureLibrary({ path: 'TradingView/ta/7', source: src, licence: 'test-fixture', attribution: 'L2 rail fixture (no third-party code)' }))
 
   it('⭐ door: all seven plots MATCH on all 636 bars with the runtime pane OFF', () => {
     withLib()

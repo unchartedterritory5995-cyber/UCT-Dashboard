@@ -24,7 +24,7 @@ def test_the_axis_declares_exactly_what_the_legacy_lane_enumerates():
     assert declared == legacy, (
         "the axis and the legacy lane disagree about what exists — "
         f"only-axis={declared - legacy} only-legacy={legacy - declared}")
-    assert len(declared) == 31, f"expected 30 indicators + close, got {len(declared)}"
+    assert len(declared) == 44, f"expected 30 indicators + close + ma_cross + 12 rs_line (2b-05; +rating, 2b-06 2026-11-07), got {len(declared)}"
 
 
 def test_parameter_signatures_come_from_the_compute_not_from_this_module():

@@ -546,7 +546,8 @@ move it off this box (§6.1), and the ruling reverses the day that lands.
 
 ### 4.3 Advisory — informative, never blocking
 
-- The **whole-range secret scan**, already labelled `ADVISORY — never gates` (`:213`).
+- ~~The **whole-range secret scan**, labelled `ADVISORY — never gates`.~~ **Gating since
+  2026-11-06**; see `docs/breadth/range-scan-finding.md`, "Promoted 2026-11-06".
 - Any **count** from `tools/mobile_audit.py`: a pointer to elements, not a verdict.
 - Any **sub-300 ms verdict from a screen mirror** — INCONCLUSIVE-TRANSPORT (§2 T5).
 - **Tier-share performance readings**, reported beside the latency number and *never* as

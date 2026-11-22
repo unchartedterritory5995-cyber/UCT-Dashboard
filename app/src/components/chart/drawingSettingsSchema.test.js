@@ -44,7 +44,7 @@ const ALL_TYPES = [
 //     Duplicate / Lock             — always
 //     Hide                         — onToggleHide
 //     Save as default              — onSaveDefaults
-//     Delete Drawing               — always
+//     Delete drawing               — always
 //
 //   …with the three `*Supported` flags computed by the overlay as:
 //     LEVEL_LINE_TYPES  = trendline, ray, extended, horizontal, hray
@@ -349,7 +349,7 @@ describe('labels that depend on the drawing', () => {
     expect(labelOf('trendline', 'setAlert')).toBe('Set alert…')
     expect(labelOf('rect', 'duplicate')).toBe('Duplicate')
     expect(labelOf('rect', 'saveDefault')).toBe('Save as default')
-    expect(labelOf('rect', 'remove')).toBe('Delete Drawing')
+    expect(labelOf('rect', 'remove')).toBe('Delete drawing')
     expect(labelOf('text', 'fontSize')).toBe('Text size')
     expect(labelOf('trendline', 'color')).toBe('Color')
   })

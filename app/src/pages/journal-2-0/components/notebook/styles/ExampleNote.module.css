@@ -46,7 +46,7 @@
 .switch:has(.track:disabled) { opacity: 0.45; cursor: default; }
 .track { position: relative; width: 30px; height: 16px; padding: 0; border-radius: 999px; border: 1px solid var(--field-edge); background: var(--bg-surface); flex: none; cursor: inherit; }
 .track:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.knob { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); transition: left 0.15s; }
+.knob { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: var(--text-muted); transition: left var(--duration-fast) var(--ease-out); }
 .track[aria-checked='true'] { border-color: var(--accent); }
 .track[aria-checked='true'] .knob { left: 16px; background: var(--accent); }
 .confirm { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-accent); background: var(--bg-elevated); }

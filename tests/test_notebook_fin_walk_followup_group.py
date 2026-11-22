@@ -11,8 +11,18 @@ import sys
 from datetime import date, datetime
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "tools"))
+
+# ⛔ 2026-11-18: SKIPPED (with this reason), never silently absent, when playwright is not installed. The walk tool
+# loads playwright.sync_api when it is imported (through the walk modules it imports), so without the package this file could not even be COLLECTED, and one
+# collection error interrupted every other file in the pytest session it shared (remote run 44307507019). CI installs
+# no browser stack on purpose: the package alone would turn the real-browser rails (e.g.
+# tests/test_intraday_watchlist_scan_bench.py) from a skip into a failure. These rails need no browser, so a lazy
+# import inside the tool would let them RUN in CI -- that is the follow-up, not this guard.
+pytest.importorskip("playwright.sync_api", reason="tools/notebook_fin_walk.py loads playwright when imported (through the walk modules it imports); CI installs no browser stack")
 
 import notebook_fin_walk as C  # noqa: E402
 import notebook_fin_walk_features as F  # noqa: E402
@@ -23,9 +33,13 @@ def test_the_followup_step_is_registered_right_after_smart():
     assert F.ORDER.count("followup") == 1
 
 
-def test_the_followup_flag_is_one_the_walk_arms_in_c2():
-    assert F.EARNINGS_FOLLOWUP_KEY.upper() in C.WAVE_FLAGS          # armed in c2 (c2 = armed + WAVE_FLAGS)
-    assert F.JOURNAL_STYLES_KEY.upper() in C.WAVE_FLAGS             # the card's create needs it too
+def test_the_followup_flag_is_always_on_so_the_walk_arms_nothing_for_it():
+    """Both switches were retired as ALWAYS ON (2026-11-04): the payload hard-codes their keys True, so
+    every config serves the follow-up and the walk must not arm a variable nobody reads."""
+    from api.routers import auth
+    for key in (F.EARNINGS_FOLLOWUP_KEY, F.JOURNAL_STYLES_KEY):     # the card's create needs styles too
+        assert key in auth.NOTEBOOK_ALWAYS_ON_KEYS
+        assert key.upper() not in C.WAVE_FLAGS
 
 
 def test_the_headings_the_walk_expects_are_the_products():

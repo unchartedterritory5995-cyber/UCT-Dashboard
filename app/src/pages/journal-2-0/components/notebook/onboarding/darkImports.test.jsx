@@ -97,16 +97,28 @@ describe('the tour offer door', () => {
   it('switch ON: loads the gate and hands it every prop', async () => {
     latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
     const load = gate()
-    const Door = makeTourOfferDoor(load, 0)
+    const Door = makeTourOfferDoor(load, 0, true)
     render(<Door tours={[]} noteOpen />)
     expect(await screen.findByText('offer gate, noteOpen=true')).toBeInTheDocument()
     expect(load).toHaveBeenCalledTimes(1)
   })
 
+  // Notebook simplify (task 1): the offer never opens by itself. The component and its queue stay; the automatic
+  // trigger is off, so even with every switch on the app's own door asks for nothing.
+  it('the app own door (automatic trigger OFF) renders nothing and never loads the gate, switches on', async () => {
+    latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
+    const load = gate()
+    const Door = makeTourOfferDoor(load, 0)
+    const { container } = render(<Door tours={[]} noteOpen={false} />)
+    await new Promise((r) => setTimeout(r, 30))
+    expect(container.innerHTML).toBe('')
+    expect(load).not.toHaveBeenCalled()
+  })
+
   it('a gate that cannot load is no offer, not a broken page', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {})
     latchNotebookFlags({ notebook_onboarding_enabled: true, notebook_getting_started_enabled: true })
-    const Door = makeTourOfferDoor(vi.fn(async () => { throw new Error('gone') }), 0)
+    const Door = makeTourOfferDoor(vi.fn(async () => { throw new Error('gone') }), 0, true)
     const { container } = render(<div><h1>Notebook</h1><Door tours={[]} noteOpen={false} /></div>)
     await new Promise((r) => setTimeout(r, 60))
     expect(screen.getByRole('heading', { name: 'Notebook' })).toBeInTheDocument()

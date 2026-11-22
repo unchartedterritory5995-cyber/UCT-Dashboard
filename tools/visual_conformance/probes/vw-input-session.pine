@@ -1,0 +1,14 @@
+//@version=6
+indicator("UCTPROBE_VW_INPUT_SESSION", overlay = false)
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme, capture queue row Q-D4
+// (docs/pine/capture-queue-2026-10-31-wsd-input-kinds.md). NEVER COMPILED ON TRADINGVIEW.
+// An `input.session` default reaching `time(tf, session)` unchanged: S01 is 1 on the bars inside
+// 09:30-16:00 (exchange time) and 0 outside. WS-D owns the text arriving; the consumer
+// (`time(..., session)`, a per-bar clock call) is WS-B's. This capture witnesses both together.
+// CAPTURE: AMEX:SPY 15, inputs at defaults, extended hours as the chart has them (record which).
+
+s = input.session("0930-1600", "s")
+
+plot(bar_index, "A00_bar_index_CONTROL")
+plot(not na(time(timeframe.period, s)) ? 1 : 0, "S01_in_session")

@@ -4,12 +4,12 @@
   "total": 31,
   "passed": 10,
   "answerable": {
-    "passed": 5,
-    "of": 26
+    "passed": 0,
+    "of": 21
   },
   "refusals": {
-    "passed": 5,
-    "of": 5
+    "passed": 10,
+    "of": 10
   },
   "by_category": {
     "earnings": {

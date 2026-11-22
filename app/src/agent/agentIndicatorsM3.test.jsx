@@ -27,6 +27,8 @@ const P = (src) => { const r = parseFormula(src); if (!r.ok) throw new Error(`${
 const TREND = 'ema(close, 9) > ema(close, 20)'
 const TREND_RSI = 'ema(close, 9) > ema(close, 20) && rsi(close, 14) > 50'
 
+const UCT_NOTE = 'This value is recomputed from 500 bars back on every bar, so its counts restart 500 bars back.'
+const ASSISTANT_ASSUMED = 'A cross is the close moving from at or below the average to above it.'
 /** The model, scripted: the member's sentence → the envelope a model would return. */
 let calls
 function converse({ message, state, gateCtx }) {
@@ -48,6 +50,13 @@ function converse({ message, state, gateCtx }) {
     return env([{ op: 'create', name: 'Pivot highs', placement: 'price', outputs: [{ key: 'ph', label: 'Pivot high', tree: P('pivothigh(high, 2, 2)') }] }])
   }
   if (m.startsWith('also mark pivot highs')) return env([{ op: 'add_output', key: 'ph', label: 'Pivot high', tree: P('pivothigh(high, 2, 2)') }])
+  // ⭐ 2026-11-21: a build that carries UCT's own note about its limits, and the assistant's assumption
+  if (m.startsWith('count the bars since')) {
+    return { ...env([{ op: 'create', name: 'Bars since', placement: 'pane', outputs: [{ key: 'since', label: 'Bars since', tree: P('barssince(close > sma(close, 50), 500)') }] }]),
+      envelope: { contract: PATCH, baseRevision: state.revision, disposition: 'change',
+        ops: [{ op: 'create', name: 'Bars since', placement: 'pane', outputs: [{ key: 'since', label: 'Bars since', tree: P('barssince(close > sma(close, 50), 500)') }] }],
+        assumptions: [{ output: 'since', text: UCT_NOTE, by: 'uct' }, { text: ASSISTANT_ASSUMED }] } }
+  }
   if (m.startsWith('which')) return { ok: true, disposition: 'clarify', turn: 'question', reply: '',
     envelope: { contract: PATCH, baseRevision: state.revision, ops: [], assumptions: [], disposition: 'clarify', questions: [{ id: 'q1', text: 'Which EMA lengths?' }] } }
   if (m.startsWith('spend')) return { ok: false, gate: 'cost:user', reason: "you have used up today's allowance" }
@@ -554,7 +563,7 @@ describe('⭐ several drafts — the member chooses; nothing is picked for them'
     const amb = draftAmbiguity(h, [say(a, 'Okay, also require RSI to be above 50.')])
     expect(amb.text).toBe('You have 2 indicator drafts open — which one do you mean?')
     expect(amb.choices.map(c => c.ref).sort()).toEqual([a, b].sort())
-    expect(amb.choices.map(c => c.label)).toEqual(expect.arrayContaining(['“EMA 9 · EMA 20” (draft)']))
+    expect(amb.choices.map(c => c.label)).toEqual(expect.arrayContaining(['“EMA trend candles” (draft)']))
     for (const action of ['indicator.previewDraft', 'indicator.saveDraft', 'indicator.undoDraft']) {
       expect(draftAmbiguity(h, [{ action, target: a, args: {} }]), action).not.toBe(null)
     }
@@ -849,5 +858,38 @@ describe('S5 — Undo chain, dock ownership, preview lifecycle, independent char
     expect(instancesOn(h, 'L').some(i => i.defId === saved.def_id)).toBe(false)
     expect(instancesOn(h, 'R').some(i => i.defId === saved.def_id)).toBe(true)
     expect(server.has(saved.def_id)).toBe(true)
+  })
+})
+
+// ── 2026-11-21: UCT's OWN NOTES ABOUT A BUILD ARE MUST-SHOW LINES ─────────────────────────────────────
+// The reply after an applied turn is ONE line (owner, 2026-10-12) plus what a member must always see: questions,
+// refusals, unavailable parts. A ruling of 2026-11-21 adds one case: what UCT itself says about a build's
+// limits (`by: 'uct'` on the wire). The assistant's own assumptions stay out (the dock and the box show them).
+describe('UCT\'s own notes about a build are shown under the one-line reply', () => {
+  it('an applied turn that carries one shows it, on its own line, and never the assistant\'s assumption', async () => {
+    const h = host([L])
+    const r = await run(h, [say(NEW, 'Count the bars since the close crossed above its 50 day average.')])
+    expect(r.res.ok).toBe(true)
+    expect(r.res.lines[0]).toMatch(/^Draft ready \(not saved yet\): .+\. Want me to apply it or change anything\?$/)
+    expect(r.res.lines).toEqual([r.res.lines[0], UCT_NOTE])
+    expect(r.res.lines.join('\n')).not.toContain(ASSISTANT_ASSUMED)
+  })
+
+  it('CONTROL: an applied turn with no such note is the one line and nothing else', async () => {
+    const h = host([L])
+    const r = await run(h, [say(NEW, 'Mark pivot highs on my chart.')])
+    expect(r.res.ok).toBe(true)
+    expect(r.res.lines).toHaveLength(1)
+    expect(r.res.lines[0]).toMatch(/^Draft ready \(not saved yet\): /)
+  })
+
+  it('a later change does not repeat the first build\'s note', async () => {
+    const h = host([L])
+    await run(h, [say(NEW, 'Count the bars since the close crossed above its 50 day average.')])
+    const ref = activeRef(h)
+    const r = await run(h, [say(ref, 'Also mark pivot highs on it.')])
+    expect(r.res.ok).toBe(true)
+    expect(r.res.lines.join('\n')).not.toContain(UCT_NOTE)
+    expect(r.res.lines[0]).toMatch(/^Draft updated \(not saved yet\): /)
   })
 })

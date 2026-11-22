@@ -252,7 +252,7 @@ function Row({ position, current, accountSize, visibleColumns, onEdit, onClose, 
                 as="button"
                 className={styles.actionBtn}
               >
-                <span title="Chart, Research & Ask AI (right-click a bar to add)"><UIcon name="equity" size={14} /></span>
+                <span title="Chart, Research & the UCT Agent (right-click a bar to add)"><UIcon name="equity" size={14} /></span>
               </TickerPopup>
             </span>
             <button

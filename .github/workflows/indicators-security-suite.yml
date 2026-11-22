@@ -73,9 +73,12 @@ on:
       - 'tests/test_definition_*.py'
       - 'tests/test_runtime_*.py'
 
+# CI COST (2026-11-06, owner): a newer push to the same PR cancels that PR's older run; master pushes,
+# dispatches and schedules group by their own SHA and are never cancelled (was: one group per ref, never
+# cancelled, so every superseded PR push ran to completion). tests/test_ci_cost_rails.py pins this.
 concurrency:
-  group: indicators-security-${{ github.ref }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

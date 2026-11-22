@@ -3,7 +3,7 @@
 ⭐⭐ THIS IS A SOURCE UPGRADE, NOT A SECOND CHART ENGINE. The chart, the pane, the
 drawing tools and the discovery UI are all unchanged; what changes is where the numbers
 come from and how deep they go. Today `/api/bars/VIX` reaches yfinance through
-`api/index_bars.py`, is capped at FIVE YEARS of daily history, serves VIX alone, and
+`api/index_bars.py` (daily from 1990 since RS Rating L9; it was five years), serves VIX alone, and
 emits `t` as unix seconds — which is why an index added as a second series into a pane
 matches zero bars (`engine/symbolProjection.js` joins on exact `t`, and every other
 family emits `"YYYY-MM-DD"`). Cboe publish the same indices themselves, with real OHLC,

@@ -219,7 +219,8 @@ def test_a_series_that_is_not_in_SECONDS_refuses_the_TIME_columns_and_only_those
     # ⭐⭐ 8 -> 15 (2026-09-20): `lastbartime` + its five calendar fields, and
     # `dayopentime`, all read the SAME `t` the original eight do, so a fetch
     # that fails their unit gate fails these too.
-    assert len(time_derived) == 15, sorted(time_derived)
+    # (2026-11-17) 15 -> 17: `regularhours` and `regularfirst` read the same `t`.
+    assert len(time_derived) == 17, sorted(time_derived)
     for name in sorted(exp):
         # ⭐ `False` EXPLICITLY — the same reasoning as the JS twin. Omit it and
         # the four realtime columns blank for want of a tri-state, which is the
@@ -393,8 +394,9 @@ def test_sessionfirst_is_WINDOW_INDEPENDENT_and_declares_the_bar_it_reads():
     assert windows["sessionfirst"] == 1, windows
     # ⭐ (2026-09-28, C8) `weekfirst` / `monthfirst` are `sessionfirst`'s rule over
     # a wider key and declare the same one-bar window; nothing else has one.
+    # (2026-11-17) `regularfirst`: the first bar of a REGULAR session reads the bar before it too.
     assert [n for n, w in windows.items() if w] == ["sessionfirst", "weekfirst",
-                                                     "monthfirst"], (
+                                                     "monthfirst", "regularfirst"], (
         f"another clock entry grew a window and nothing bounded it: {windows}")
     for wider in ("weekfirst", "monthfirst"):
         whole = _column(wider, bars, doc["tf"])
@@ -531,7 +533,9 @@ def test_every_ZERO_ONE_clock_value_is_DECLARED_bool_and_a_consumer_READS_it():
     declared = {n: ast_table.yields_of(n) for n in sorted(ast_table.clock_names())}
     bools = sorted(n for n, y in declared.items() if y == "bool")
     assert bools == sorted(TF_FLAGS + BARSTATE_FLAGS
-                           + ("sessionfirst", "weekfirst", "monthfirst")), declared
+                           + ("sessionfirst", "weekfirst", "monthfirst",
+                              # (2026-11-17) the regular session's two leaves
+                              "regularhours", "regularfirst")), declared
     # ⚠️ AND THE REST ARE MAGNITUDES — derived as the complement rather than
     # counted. Both halves are asserted, so a lane that declared
     # everything `bool` -- or everything `num` -- fails.

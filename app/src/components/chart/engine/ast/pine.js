@@ -76,6 +76,7 @@
 // screenshot.
 
 import { CALL_EXPANSIONS } from './callExpansions.js'
+import { roundToMintickTree } from './tickRound.js'
 import { TABLE, NODE_TYPES, parseFormula, astHash, isPointwise, TICKER_SHAPE, BAR_READERS, barReadersOf, RECURRENCES , hostAdmissible } from './parse.js'
 // ⭐ THE ONE `yields` RESOLVER IN THIS LANE. See `treeYieldsBool` — this module
 // used to carry a second copy, and closed table v2 made the two disagree in a
@@ -100,13 +101,18 @@ import { yieldsOf, compileRules, SENTENCE_RULES, didYouMean } from './sentence.j
 // 4 that would drift the day the interpreter moves. A translated body that
 // looked back further would build a tree that translates and then refuses at
 // evaluation time, which is a refusal at the wrong door.
-import { FN, MAX_SELF_LAG, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf } from './interpret.js'
+import { FN, MAX_SELF_LAG, SEED_RESIDUAL_TOLERANCE, TF_RESAMPLABLE, TF_LADDER, BASE_TF, isIntradayTf, sessionAnchoredIn, ambiguousVarSeed, switchedVarSeed, heldFalseSeed, naConditionIsFalse, periodFirstCondition, readingSeed, chartOwnTimeNode, OWN_TIME_WITNESSED_TF, periodCloseNode, PERIOD_CLOSE_CODES, periodAnchorNode, chartSixtyTimeNode, dayAnchorNode, sessionDayGateNode, sessionDayWindowNode, SIXTY_WITNESSED_TF, PERIOD_ANCHOR_WITNESSED_TF, PERIOD_CLOSE_WITNESSED_TF, requestBaseNode, treeReadsLowerTf, listingSeedIsUnpinned, isBarPriceTree } from './interpret.js'
 import { isLowerTfRequest, lowerTfRefusal, LOWER_TF_REFUSAL } from '../lowerTf.js'
+import { staticallyUnservable, spellingUnservable, staticOtherSymbolMessage, US_EQUITY_VENUES, witnessRowOf, SEED_SPELLING } from '../otherSymbols.js'
 import { memberNumber } from './memberValue.js'
+// ⭐⭐ CBC-FMT — the request reads a `calc_bars_count` window refuses (pure, imports nothing).
+import { CALC_BARS_REQUEST_SOURCE } from '../calcBarsWindow.js'
+import { timeInputDefaultOf, isTimeInputCall } from '../runtime/runtimeInputs.js'
 // ⭐ The budget's own verdict, asked at the translate door (see the row builder
 // in `translatePine`). ⚠️ NOT A CYCLE: `budget.js` imports `interpret.js` and
 // `parse.js`, neither of which imports this file.
-import { checkBudget } from './budget.js'
+import { checkBudget, DEFAULT_BUDGET, REFUSALS as BUDGET_REFUSALS } from './budget.js'
+import { openDoorWindow, closeDoorWindow, doorWindowOpen, doorTripped, openDoor, doorDeadlinePassed } from './doorDeadline.js'
 // ⭐⭐ C3B — the OBJECT half of a Pine script. `pineObjects.js` reads the
 // statements; `objectProgram.js` owns the canonical shape they become. Neither
 // imports this file, so there is no cycle and the object model stays authorable
@@ -116,10 +122,13 @@ import {
   OBJECT_NAMESPACES, OUT_OF_SCOPE_NAMESPACES, SETTER_PROPS,
 } from './pineObjects.js'
 import {
-  INLINE_SUFFIX, definitionHeader, barInvariantNames, guardIsBarInvariant,
+  INLINE_SUFFIX, definitionHeader, barInvariantNames, barInvariantParams, guardIsBarInvariant,
   guardIsLastBarOnly, oneExecutionTokens, taCallIn, historyCallIn, callHistoryFunctions, isHistoryCallName,
+  isTaCallName, setLegacyTaCall,
   readFunctionDefs, objectCollections, drawingFunctions, callOwnedSeriesFor, chartSeriesFor,
 } from './objectFnInline.js'
+import { legacyTaCallFor } from './legacyTaNames.js'
+import { barConstantTree } from './barConstant.js'
 // ⭐ Pine's method form. Only the SPLITTER is needed here: `mutatorTargets`
 // works on tokens rather than on parse nodes, and what it has to recognise is
 // that `a.push` names a receiver `a`. One splitter, so this file and the object
@@ -132,11 +141,12 @@ import {
   BAR_COORD_PROPS,
   GETTER_PROPS as OBJECT_GETTER_PROPS, MAX_BARS_BACK_CAP, AUTO_MAX_BARS_BACK,
   RUNTIME_AT_CALL, RUNTIME_PROGRAM_VERSION, MAX_RUNTIME_VALUES, runtimeAtIndex, rtLoopId,
-  withObjectTransparency, isPassCondition,
+  withObjectTransparency, isPassCondition, objectSiteKey,
 } from './objectProgram.js'
 import { wholeTransparency, unpackColor } from '../colorInt.js'
-import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR } from '../runtime/colours.js'
-import { THEME_NAMES } from '../objectTheme.js'
+import { hexToPacked, byteTransparency, gradientChannelTree, objectHexToPacked, GRADIENT_ZERO_COLOUR, fromGradient, packedToObjectHex } from '../runtime/colours.js'
+import { THEME_NAMES, themeColourWithTransparency, parseThemeColour } from '../objectTheme.js'
+import { POINT_SIZE_ANCHORS } from '../objectPointSizes.js'
 import { VERSIONS_WITH_OBJECT_DEFAULTS } from '../objectDefaults.js'
 
 // ⭐⭐ KIND 4 — the symbol-scoped vocabulary, as DATA. Every value in
@@ -151,7 +161,7 @@ import { pineColourHex, isPineColourSpelling, isBareColourSpelling } from '../pi
 // ⭐⭐ `str.format`'s PATTERN GRAMMAR — compiled here, formatted by the object
 // runtime, both from ONE module so what this door admits and what the runtime
 // draws cannot drift (C15, objects-triage step 13).
-import { compileMessagePattern, tostringPatternOf } from '../pineTextFormat.js'
+import { compileMessagePattern, tostringPatternOf, literalTostringText } from '../pineTextFormat.js'
 // ⛔ THE TEXT ARITHMETIC IS THE FOLD'S, IMPORTED RATHER THAN COPIED. This door
 // folds a predicate over two LITERALS at translate time and `bind.js` settles the
 // same predicate over a symbol at bind time — one question, two moments — and two
@@ -159,6 +169,7 @@ import { compileMessagePattern, tostringPatternOf } from '../pineTextFormat.js'
 // keeps paying for. The exchange-witness map lives there too: it is consulted per
 // BINDING, which is not a question a door that runs once per script can answer.
 import { TEXT_PREDICATE_FN, foldScalar } from './bind.js'
+import { constCompareFold, pineCompareAmbiguous, constantTreeValue } from '../pineCompare.js'
 // ⭐ THE SHARED WINDOW PREDICATE — from `parse.js`, the one module the SAVE
 // door, the bind stage and the repaint LINTER can all see. See L2 in
 // `bindFoldableAgreement.test.js` for why it cannot live beside the fold.
@@ -177,7 +188,9 @@ import { LEGACY_PARAM_IDS } from './paramIdLegacy.js'
 // ⭐⭐ L1 — `import Author/Library/Version` is linked, not refused, when the library
 // registry holds that version (`pineLibraries.js`).
 import { linkLibraries, remapLibraryLocation } from './pineLibraries.js'
+import { versionAt, LIBRARY_VERSION } from './pineLibraryVersion.js'
 import { PINNED_SCRIPT_KEYS } from './paramIdPinned.js'
+import { strategyTaintSinks, STRATEGY_TAINT_ROW_SINKS, STRATEGY_TAINT_SCRIPT_SINKS } from './strategyTaint.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -247,6 +260,9 @@ const STRATEGY_ORDER_NOTE = (word) => `\`${word}\` places an order in TradingVie
   + 'nothing of its own on the chart, and the trade it would make is not simulated here'
 
 export const REFUSALS = Object.freeze({
+  // ⭐⭐ B3 — `pine.js::chartOffsetFunctions` / `callsInBlocks`
+  'pine:fn-history-in-block':
+    'a script function reads a chart series at a bar offset and is called inside a block that does not run on every bar; in Pine v2 and v3 that read is a copy the function keeps of the series, repeating its last value on bars the call does not run (captures `vw-fn-history-in-if-v2` / `-v3`; v1 does not compile an `if`, s24), which this lane does not compute',
   'pine:empty':
     'there is no Pine here to translate',
   'pine:character':
@@ -259,6 +275,18 @@ export const REFUSALS = Object.freeze({
     'a Pine library exports functions instead of producing a plot to filter on',
   'pine:module':
     'importing another script pulls in code this engine never sees',
+  // ⭐⭐ U15 — the two named library refusals (`pineLibraries.js` LIBRARY_CHANGED / LIBRARY_NO_SHA)
+  'pine:library-changed':
+    'the imported library is not the code this script was saved against',
+  'pine:library-no-sha':
+    'the imported library is not served without the sha256 of its own source',
+  'pine:library-licence':
+    'the imported library is published under a non-commercial licence, so it is not served on this product',
+  'pine:library-denied':
+    'this library version is withheld until its drawing is verified against TradingView',
+  // ⭐⭐ U15 Phase B — a v5 library in a v6 script, where the code it reaches changed meaning in v6
+  'pine:library-version':
+    'the imported library is written in Pine v5 and uses something whose meaning changed in v6',
   'pine:strategy-call':
     'a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate',
   // ⚰️ IT SAID "another symbol or another timeframe is outside what one screened
@@ -310,6 +338,9 @@ export const REFUSALS = Object.freeze({
     'a name that is reassigned later cannot be folded into one expression',
   'pine:block':
     'a Pine block spans several statements and this engine stores a single expression',
+  // ⭐ I6a-N4 — see `refuseOffBlockIndent`.
+  'pine:indent':
+    'a Pine local block is indented by four spaces or a tab, and this line sits at another indent',
   // ⚰️ "the four node shapes" — THERE ARE EIGHT, and the count was stale rather
   // than wrong-in-principle: `tf`, `sym` and `tf_live` all landed after it was
   // typed. A member reading it was told the engine is half the size it is. The
@@ -392,6 +423,14 @@ export const REFUSALS = Object.freeze({
   'pine:window-dependent':
     'this value depends on how much history was loaded, so the same script would '
     + 'answer differently for the same stock on the same day',
+  // ⭐⭐ CBC-FMT — `indicator(calc_bars_count = …)`, read by ONE reader
+  // (`declarationCalcBars`) for every door. A positive whole-number literal is the window
+  // TradingView computes the script on (witnessed, `engine/calcBarsWindow.js`), `0` is every
+  // bar (S10 `vw-cbc-zero`, MATCH), and anything else is TradingView's own compile error
+  // (S10 `vw-cbc-input-count-rddt-1d-2026-11-15`: CE10123, "calc_bars_count needs a const int").
+  'pine:calc-bars-count-expr':
+    '`calc_bars_count` must be a constant whole number (TradingView does not compile a count read '
+    + 'from an input or an expression: its compile error CE10123), so this script is not drawn',
   'pine:function':
     'this Pine function maps to nothing the engine grammar declares',
   'pine:arity':
@@ -471,6 +510,30 @@ export const REFUSALS = Object.freeze({
   'pine:budget':
     'this column translates, but the engine would refuse to compute it, so it is '
     + 'not offered',
+})
+
+/** ⭐⭐ DRAW-1 (2026-11-16) — WHY A DRAWING STEP'S CONDITION COULD NOT BE READ, WHEN NOTHING
+ *  THREW. A `guard:<kind>` drop is named by the refusal its condition's tree threw
+ *  (`noteGuardRefusal`, `guardRefusals`); five return paths of the object pass's guard reader
+ *  threw none, and a read-before-write withhold (C14) named its names but no guard, so the
+ *  census counted those drops as "op dropped, no guard named". Each now carries this guard and
+ *  its own sentence. Diagnostics only: what is drawn, dropped and disclosed is unchanged. */
+const OBJECT_CONDITION_GUARD = 'pine:object-condition'
+const objectConditionWhy = (message) => Object.freeze({ guard: OBJECT_CONDITION_GUARD, message })
+const OBJECT_CONDITION_WHY = Object.freeze({
+  unparsed: objectConditionWhy('the condition of this drawing step is not an expression the object reader parses'),
+  loopScalar: objectConditionWhy('the condition reads a number taken off a drawing inside a loop: that number is '
+    + 'written once a bar, and the loop body reads it on every pass, which the object reader does not follow'),
+  unlifted: objectConditionWhy("the condition reads a drawing's state in a form the object reader cannot lift "
+    + 'into a per-bar test'),
+  loopCross: objectConditionWhy("the condition is a crossing of a drawing's value inside a loop: a crossing is "
+    + 'observed once a bar, and a loop body runs several times a bar'),
+  unreduced: objectConditionWhy('the condition does not reduce to an expression this chart computes, and no '
+    + 'narrower reason was recorded for it'),
+  unrecorded: objectConditionWhy('the condition of this drawing step could not be read, and no narrower reason '
+    + 'was recorded for it'),
+  readBeforeWrite: (names) => objectConditionWhy(`the step reads ${(names || []).map((n) => `\`${n}\``).join(', ')} `
+    + "before the script's own later write of it on the same bar, which the object reader does not order"),
 })
 
 /** ⭐⭐ RULING D2 (2026-09-12) — THE GUARDS WHOSE SENTENCE PROMISES SOMETHING
@@ -622,6 +685,23 @@ const timeAnchorSentence = (pineName) => `\`${pineName}(<timeframe>)\` is the OP
   + 'the clock it does declare is `dayofweek`, `dayofmonth`, `month`, '
   + '`year` and `sessionfirst` — and `sessionfirst` is the closest to what '
   + 'an anchor comparison is usually asking'
+/** ⭐⭐ U-BUILTIN B1 (2026-11-19) — `timeframe.in_seconds("1440")` IS `timeframe.in_seconds("D")`, AND THAT
+ *  ONE READER ONLY. Capture Q-BT2 (`vw-bt-time-1440-spy-{1d,60}-2026-11-16`, probe `vw-bt-time-1440.pine`,
+ *  AMEX:SPY 1D 8,508 bars and 60m 20,861 bars) reads R7 = 86400 on every bar of both charts, graded through
+ *  the member door (`pineBuiltinsUnit.test.js`).
+ *  ⛔ THE SAME CAPTURE SAYS `time("1440", …)` = `time("D", …)` and `time("1440")` = `time("D")` on every bar
+ *  (R1-R6), and neither is read here, because on THIS engine the `"D"` side is not TradingView's: through the
+ *  member door R5/R6 (`time("D") - time`) read -34200 s on every 1D and 60m bar where TradingView reads 0 /
+ *  the 09:30 open, and R1/R2 (`time("D", "0930-1600")` on the 60m chart) read `na` where TradingView reads
+ *  the session open. Spelling `"1440"` as `"D"` there would draw those values for a script that today
+ *  refuses by name. They stay refused, and the `"D"` findings are the time/session owner's (reported with
+ *  the capture). ⛔ NOT a `PINE_TF_SPELLING` entry: that map also feeds `request.security` and the
+ *  `timeframe.*` family, and no capture asked a request at `"1440"`. */
+const CLOCK_TF_ALIASES = Object.freeze({ 1440: 'D' })
+const clockTfCodeOf = (lit) => {
+  const key = String(lit).trim().toUpperCase()
+  return PINE_TF_SPELLING[key] || (Object.prototype.hasOwnProperty.call(CLOCK_TF_ALIASES, key) ? CLOCK_TF_ALIASES[key] : null)
+}
 const TIME_ANCHOR_PERIODS = Object.freeze({ W: 'W', '1W': 'W', M: 'M', '1M': 'M', '3M': '3M', '12M': '12M' })
 export function timeAnchorPeriodOf(raw) {
   const key = String(raw).trim().toUpperCase()
@@ -832,6 +912,22 @@ export function notePeriodRead(name, version) { recordPeriodRead(name, version) 
  *  shadowing CONTROL, not by review — for the second time. */
 export const OWN_TF_NAMES = new Set(['timeframe.period', 'period'])
 
+/** ⭐⭐ Engine 66 (#1473) (bt) — BARE `period` IS PINE v1–v3's, AND ONLY THEIRS. TradingView's v4 compiler
+ *  refuses it — "Compilation error: Undeclared identifier 'period';" (capture-session reading
+ *  2026-11-16, recorded in the header of the captured `vw-w4-session-default-days-v4` source) — and
+ *  neither the v4 nor the v5 reference holds a bare `period` (only `timeframe.period`). Reading it as
+ *  the chart's timeframe in v4+ was an over-acceptance; an UNBOUND `period` in v4+ now refuses by this
+ *  name on every lane (the host's `stringValueOf` / `ownTimeframeOf` / `resolveName`, the runtime
+ *  lane's own readers). A script's OWN `period` (`period = "60"`, a parameter) is untouched: a
+ *  binding is consulted first everywhere this is asked. */
+export const LEGACY_PERIOD_SENTENCE = '`period` is the chart\'s timeframe in Pine v1–v3 only. From v4 on '
+  + 'TradingView reads it as an undeclared identifier (its compiler: "Undeclared identifier \'period\'") '
+  + 'and names the chart\'s timeframe `timeframe.period`; write that.'
+export const legacyPeriodUndeclared = (name, version) => name === 'period'
+  && version !== null && version !== undefined && version >= 4
+export const legacyPeriodRefusal = (tok) => new PineRefusal('pine:builtin',
+  `${REFUSALS['pine:builtin']} — ${LEGACY_PERIOD_SENTENCE}`, tok ? locate(tok) : null)
+
 /** ⭐⭐ C33 / C48 — THE TEXT AN `input.timeframe` DEFAULT PRINTS: THE DEFAULT, VERBATIM.
  *
  *  `input.timeframe` has no knob in this product (it is not a numeric kind, so
@@ -885,8 +981,21 @@ const OWN_SYMBOL_NAMES = new Set([
 // DESCRIPTORS and this file builds the `PineRefusal`.
 import * as VEC from './arrayVectors.js'
 import { seriesWindowOf, WINDOW_READ_MEMBERS, MAX_WINDOW_CAP, spanOf, windowWriterStatements } from './arrayWindows.js'
+import { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE, ENUM_DROPS } from '../enumNaRule.js'
+import { OBJECT_ENUM_VALUES } from '../objectEnums.js'
 
 const TICKER_CALLS = new Set(['ticker.new', 'tickerid'])
+
+
+// ⛔ W9-OQ-N2 — the sinks that refuse (or withhold) their own row (`STRATEGY_TAINT_ROW_SINKS`) and the sinks with no
+// row and no object of their own (`STRATEGY_TAINT_SCRIPT_SINKS`: a `fill` band, `alert()`, `hline`, which refuse the
+// script) are `strategyTaint.js`'s, imported above: the disarmed strategy run (`strategyDisarmOf`) reads the same two.
+// Every OTHER tainted sink is a drawing, and the object pass withholds that one drawing step by name
+// (`strategyTaintDrawingAtLine`).
+/** ⛔ W9-OQ-N2 — the drawing sink a broker value reaches on a line, set per `translatePineResult`. */
+let strategyTaintDrawingAtLine = () => null
+/** ⛔ W9-OQ-N2 — the current translation's taint verdict at a line, set per `translatePineResult`. */
+let strategyTaintAtLine = () => null
 
 const NAMESPACE_GUARD = Object.freeze({
   request: 'pine:request',
@@ -1099,7 +1208,11 @@ export const PINE_CALL_SHAPES = Object.freeze({
   alma: { table: 'alma', pineArity: 4, build: [{ pine: 0 }, { pine: 1 }, { pine: 2 }, { pine: 3 }] },
   // ⭐ THE PERMUTATION. Pine (source, high, low, length) → table (high, low, close,
   // length): Pine's `source` plays the role this table calls `c`.
-  stoch: { table: 'stoch', pineArity: 4, build: [{ pine: 1 }, { pine: 2 }, { pine: 0 }, { pine: 3 }] },
+  // ⭐⭐ ENGINE 57 — AND IT LANDS ON `stochPine`, NOT ON THE HOUSE `stoch`: Pine's own rule
+  // (the last n finite highs / lows, the last value kept where the formula has none; S6
+  // `stochastic-rsi` and S1 probe P2, 0 mismatches; the house column started 10 bars late
+  // and drew 50 on a flat window). See `interpret.js::stochPineScan`.
+  stoch: { table: 'stochPine', pineArity: 4, build: [{ pine: 1 }, { pine: 2 }, { pine: 0 }, { pine: 3 }] },
   // Pine's `ta.wpr(length)` leaves high/low/close implicit; supplying them is an
   // identity, and the rail measures it at max difference 0.
   wpr: { table: 'williams_r', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
@@ -1165,7 +1278,11 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // refuses every other source by name. See the `key === 'vwap'` branch there.
   // ⭐⭐ THE THREE LEGS `ta.dmi` ANSWERS WITH. Pine has no singular spelling for
   // them — the only way to reach one is to destructure `[+DI, -DI, ADX]` — so
-  // these keys are synthetic and `dmiParts` is their only caller.
+  // these keys are synthetic. ⚰️ RMA-SEED (engine 92): their only caller,
+  // `dmiParts`, is gone — `ta.dmi` is `PINE_TUPLE_BUILTINS.dmi`, TradingView's body
+  // over `ta.rma` — so no translation of `ta.dmi` emits them any more. They stay
+  // declared only for what already names them (a formula translated before this
+  // engine number reads `plusDI` / `minusDI` / `adx`, `FN_PINE`'s).
   //
   // ⛔ THEY ARE DECLARED HERE RATHER THAN BUILT AT THE DESTRUCTURE, and that is
   // the point of this table: the manifest states what KIND each argument is and
@@ -1332,8 +1449,51 @@ export function derivedSeriesTree(name, table) {
   if (!own(DERIVED_SERIES, name)) return null
   const parts = DERIVED_SERIES[name]
   if (parts.some((p) => !own((table && table.series) || {}, p))) return null
+  // ⭐⭐ `hlcc4` IS `(high + low + 2 * close) / 4`, AS TRADINGVIEW COMPUTES IT (Engine 65 (#1489),
+  // 2026-11-16). The reference writes `(high + low + close + close) / 4`, and a left-to-right sum
+  // of four terms rounds twice where TradingView's rounds once, so the two differ in the last
+  // binary digit on some bars. WITNESSED: `h3-vwap-source-spy-1d-2026-10-02` S08
+  // (`ta.vwap(hlcc4)` on a daily chart, each bar its own session): this spelling, through the
+  // session's `(src * volume) / volume`, is TradingView's value bit for bit on 1800 of 1800 bars;
+  // the four-term sum is not (`hlcc4BitExact.test.js`). `2 * close` is exact, so the order of
+  // that product does not matter. A hand-written four-term sum keeps its own arithmetic.
+  if (name === 'hlcc4') {
+    return cOp('/', [cOp('+', [cOp('+', [cSeries('high'), cSeries('low')]), cOp('*', [cNum(2), cSeries('close')])]),
+      cNum(4)])
+  }
+  return meanTree(parts)
+}
+
+/** The left-nested mean `(a + b + …) / n` of bar fields: the reference's arithmetic for `hl2`,
+ *  `hlc3` and `ohlc4`, and a hand-written `(high + low + close + close) / 4`. */
+function meanTree(parts) {
   const sum = parts.map(cSeries).reduce((a, b) => cOp('+', [a, b]))
   return cOp('/', [sum, cNum(parts.length)])
+}
+
+/** ⛔ IS THIS (RESOLVED) SOURCE A PRICE THE BAR ITSELF HOLDS? `open`, `high`,
+ *  `low`, `close`, or one of Pine's means of them (`hl2`, `hlc3`, `ohlc4`,
+ *  `hlcc4`, exactly as `derivedSeriesTree` builds them), compared on the resolved
+ *  canonical tree, so `input.source(close)` and a hand-written `(high + low) / 2`
+ *  answer as the names do.
+ *  ⭐ THE ENGINE'S ONE ANSWER TO "CAN THIS SOURCE BE `na` ON A BAR?", written for
+ *  the H3 `ta.vwap(source)` refusal and asked by `ta.cmo` too since W1 — never a
+ *  list of either's own. Every bar holds its four prices, so these are known on
+ *  every bar; anything COMPUTED can be `na` on a bar after its first value (an `na`
+ *  arm, a division by zero, a `ta.*` call's own gap), and `volume` is not a price:
+ *  a bar may carry none, and `interpret.js` seeds a missing field `na`, never 0.
+ *  ⛔ A whitelist, never "might be `na` at runtime" (see `isNaNLiteral`): whoever
+ *  asks refuses by name what is not on it. */
+function isBarPriceSource(tree, table) {
+  const got = JSON.stringify(tree)
+  return ['open', 'high', 'low', 'close'].filter((n) => own((table && table.series) || {}, n))
+    .map((n) => cSeries(n))
+    .concat(['hl2', 'hlc3', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, table)).filter(Boolean))
+    // a hand-written `(high + low + close + close) / 4` is still a price the bar holds (the
+    // spelling `hlcc4` expanded to before it took TradingView's arithmetic)
+    .concat(['high', 'low', 'close'].every((n) => own((table && table.series) || {}, n))
+      ? [meanTree(['high', 'low', 'close', 'close'])] : [])
+    .some((t) => JSON.stringify(t) === got)
 }
 
 /** Pine built-ins that are not a MEAN of price series but are still an exact
@@ -1435,6 +1595,66 @@ const BUILTIN_SERIES_TREE = Object.freeze({
   // measured against the full-history capture in `pinePhase1Builtins.test.js`).
   nvi: () => volumeIndexTree('<'),
   pvi: () => volumeIndexTree('>'),
+  // ⭐⭐ W1 (2026-11-02) — `ta.obv` and `ta.pvt` JOIN THE SAME `cum` BARGAIN, the
+  // one `_functions_excluded.obv`/`.pvt` refuse for a SCREEN and
+  // `_functions_cumulative` (amended 2026-09-08) permits on a PANE. Each is
+  // TradingView's published reference body, verbatim:
+  //     ta.obv = ta.cum(math.sign(ta.change(close)) * volume)
+  //     ta.pvt = ta.cum((ta.change(close) / close[1]) * volume)
+  // so bar 0 (`ta.change` is `na` there) is `na`, and `cum`'s vendor-measured
+  // `na` rule (blank on an `na` bar, total held across it) is what the reference
+  // body inherits. ⛔ THE BOUNDED REWRITES ARE UNTOUCHED AND STILL WIN:
+  // `obv > obv[k]`, `obv - obv[k]` and `obv <cmp> sma(obv, n)` are decided in the
+  // binary case before either operand resolves, so a SCREEN keeps `obvN`/`pvtN`,
+  // and a bare LEVEL reaches here only on a pane (`seriesTreeOf`).
+  // ⚠️ No capture holds either level yet: `docs/pine/capture-queue-2026-11-02-w1.md`.
+  obv: () => cCall('cum', [cOp('*', [cCall('sign', [cCall('change', [cSeries('close')])]), cSeries('volume')])]),
+  pvt: () => cCall('cum', [cOp('*', [
+    cOp('/', [cCall('change', [cSeries('close')]), { type: 'offset', value: 1, args: [cSeries('close')] }]),
+    cSeries('volume'),
+  ])]),
+  // ⭐ W1 (2026-11-02) — the three remaining volume built-ins, each TradingView's
+  // published reference body (the "the same on pine" half of each variable's own
+  // reference example; every source and second witness, name by name, is in
+  // `docs/pine/evidence/2026-11-02-w1/formula-sources.md`):
+  //     ta.iii  = (2 * close - high - low) / ((high - low) * volume)
+  //     ta.wvad = (close - open) / (high - low) * volume
+  //     ta.wad  = ta.cum(mom > 0 ? close - math.min(low, close[1])
+  //                      : mom < 0 ? close - math.max(high, close[1]) : 0),  mom = ta.change(close)
+  // ⛔ W1 RE-REVIEW (2026-11-02): IN `ta.iii` THE VOLUME DIVIDES. That is the v4
+  // reference's body, PyneCore's, and the answer TradingView's own exported values
+  // give on every row of PyneCore's export fixture (100 of 100). The v5/v6 pages
+  // print `((2 * close - high - low) / (high - low)) * volume`, which W1 first built
+  // from and which those same values contradict on every row (0 of 100). A zero
+  // range or a zero volume is a division by zero, and it meets the engine's one rule
+  // for that: IEEE division (`interpret.js::BINARY['/']`, mirrored by
+  // `ast_interpret._binary_div`), and a non-finite answer is `na` at the column
+  // (`interpret.js::toColumn`), a gap.
+  // `iii` and `wvad` are per-bar (no state), so a screen may read them. `wad` is a
+  // running total and joins the `cum` bargain (pane only). Its bar 0 is 0, not
+  // `na`: `mom` is `na` there and both comparisons answer false, exactly as the
+  // reference body reads in Pine. ⚠️ No capture of ours yet (capture queue W1-C).
+  iii: () => cOp('/', [
+    cOp('-', [cOp('-', [cOp('*', [cNum(2), cSeries('close')]), cSeries('high')]), cSeries('low')]),
+    cOp('*', [cOp('-', [cSeries('high'), cSeries('low')]), cSeries('volume')]),
+  ]),
+  wvad: () => cOp('*', [
+    cOp('/', [cOp('-', [cSeries('close'), cSeries('open')]), cOp('-', [cSeries('high'), cSeries('low')])]),
+    cSeries('volume'),
+  ]),
+  wad: () => {
+    const prevClose = () => ({ type: 'offset', value: 1, args: [cSeries('close')] })
+    const mom = () => cCall('change', [cSeries('close')])
+    return cCall('cum', [cOp('?:', [
+      cOp('>', [mom(), cNum(0)]),
+      cOp('-', [cSeries('close'), cCall('min', [cSeries('low'), prevClose()])]),
+      cOp('?:', [
+        cOp('<', [mom(), cNum(0)]),
+        cOp('-', [cSeries('close'), cCall('max', [cSeries('high'), prevClose()])]),
+        cNum(0),
+      ]),
+    ])])
+  },
 })
 
 /** Does a canonical tree call any of `names`? Iterative, like every walk here. */
@@ -1466,11 +1686,110 @@ const PHASE1_MODERN_SPELLING = Object.freeze({
   nvi: 'ta.nvi',
   pvi: 'ta.pvi',
   accdist: 'ta.accdist',
+  obv: 'ta.obv',
+  pvt: 'ta.pvt',
+  iii: 'ta.iii',
+  wvad: 'ta.wvad',
+  wad: 'ta.wad',
+  cmo: 'ta.cmo',
+  cog: 'ta.cog',
+  // ⭐ U-BUILTIN (2026-11-19) — v4 lists these bare; from v5 they live under `math.` (the v4→v5
+  // migration guide's `math` table), so a bare spelling in a v5/v6 script refuses by name.
+  toradians: 'math.toradians',
+  todegrees: 'math.todegrees',
+  asin: 'math.asin',
 })
 
+/** ⛔ W1 (review, 2026-11-02) — THE RUNNING TOTALS W1 SERVED ARE HELD FROM
+ *  DRAWINGS. `ta.obv`, `ta.pvt` and `ta.wad` are `cum(…)` from the first bar the
+ *  chart loaded, so their LEVEL is a fact about where the history starts. A pane
+ *  PLOT carries that fact to the member: its tree raises the `window_dependent`
+ *  requirement tag, and the pane says how much history it drew. A table cell or a
+ *  label does not — the tags are read off the pane's plots and colours, never its
+ *  drawings (`memberPaneDefinition.js::requirementTagsRaised`) — so it would print
+ *  a number that moves with the fetch, unmarked: on SPY, whose chart does not start
+ *  at the listing, an OBV TradingView never printed (`vendorHarness.h5MulticatorValues`).
+ *  So every drawing door refuses them BY NAME (`Resolver.seriesTreeOf`) until a
+ *  capture grades a drawing of the level: the host object pass (`objectPass`), the
+ *  runtime lane's object door and, since the W1 re-review, a runtime build that
+ *  draws its own objects (both `objectDoor`). The bounded rewrites (`obvN`,
+ *  `pvtN`) are not these names and keep drawing.
+ *  ⚠️ Phase 1's three (`accdist`, `nvi`, `pvi`) are running totals as well and are
+ *  NOT held here: they reach drawings on master already, and withdrawing a drawing
+ *  is an owner decision, not this wave's. */
+const PINE_DRAWING_HELD_SERIES = Object.freeze(new Set(['obv', 'pvt', 'wad']))
+
 /** The `BUILTIN_SERIES_TREE` names that are running totals (`cum`), so only a
- *  pane is handed them — see `Resolver.seriesTreeOf`. */
-const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'pvi']))
+ *  pane is handed them — see `Resolver.seriesTreeOf`. Phase 1's three and W1's
+ *  (`PINE_DRAWING_HELD_SERIES`), each name written once. */
+const PINE_WINDOW_DEPENDENT_SERIES = Object.freeze(new Set(['accdist', 'nvi', 'pvi', ...PINE_DRAWING_HELD_SERIES]))
+
+/** W1 — `ta.cog`'s window as its expansion reads it (`BUILTIN_CALL_TREE.cog`): a
+ *  whole number of at least 1 this engine can read when it builds the formula, as
+ *  the folded `num` node, else `null`. */
+function cogWindowOf(args) {
+  if (args.length !== 2) return null
+  const n = foldWindow(args[1])
+  return n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1 ? n : null
+}
+
+/** ⛔ W1 (review, 2026-11-02) — HOW LONG A `ta.cog` WINDOW MAY BE IS THE
+ *  BUDGET'S QUESTION, never a cap of the expansion's own. `ta.cog` unrolls its
+ *  window into one term per bar, and `budget.js` refuses a tree over
+ *  `DEFAULT_BUDGET.maxNodes` evaluation units at registration and at compute
+ *  (`budget:nodes`). The cap this replaced (200) let through windows the budget
+ *  then refused downstream (past 32 bars of `close`), after the member had been
+ *  told the script translated. So the built tree is measured by the budget's own
+ *  check (`checkBudget`, every cap) and refused at the translator, by name, in
+ *  the budget's own words (`resolveTableCall`'s `cmo`/`cog` arm). That is exactly
+ *  where the budget would refuse: a whole tree holds every unit, every bar of
+ *  lookback and every series its `ta.cog` part holds, so a part over a cap puts
+ *  the whole over it. A window longer than the node cap is never built
+ *  (`BUILTIN_CALL_TREE.cog`): each of its bars reads the source at its own
+ *  offset, one distinct unit apiece, so it cannot fit whatever else the tree
+ *  holds. A tree the budget cannot MEASURE is not a budget refusal: it goes on to
+ *  meet the engine's own refusal, as the screener lane's lookback check treats
+ *  one. Returns the budget's sentence, or `null` when the window fits. */
+function cogOverBudget(args, tree) {
+  const n = cogWindowOf(args)
+  if (!n) return null
+  const len = Number(n.value)
+  const cap = DEFAULT_BUDGET.maxNodes
+  if (len > cap) {
+    return `${BUDGET_REFUSALS['budget:nodes']} — a window of ${len} bars is ${len} terms before anything `
+      + `else is counted, and the cap is ${cap}`
+  }
+  if (!tree) return null
+  let fit
+  try { fit = checkBudget(tree) } catch (e) { if (isStackOverflow(e)) throw e; return null }
+  return fit.ok ? null : fit.error
+}
+
+/** ⛔ W1 FIX (coordinator ruling, 2026-11-02) — CAN `ta.cmo`'S SOURCE BE `na` ON A
+ *  BAR AFTER ITS FIRST VALUE? `ta.cmo` is served only where the answer is no, by the
+ *  engine's two existing authorities and never a list of its own: a tree that is
+ *  never `na` at all (`neverNaTree`: a number, a comparison, `na(…)`, and the logic
+ *  over them), or a price the bar itself holds (`isBarPriceSource`, H3's rule). Every
+ *  other source is refused by name (`resolveTableCall`'s `cmo`/`cog` arm).
+ *  WHY: on an `na` momentum AFTER the source's first value, TradingView's published
+ *  `f_cmo` and its own v5/v6 remark ("`na` values in the `source` series are
+ *  ignored") give different numbers. Read literally, the body adds 0.0 to `sm1` and
+ *  `math.sum` (`NA.SKIP`) skips the bar in `sm2`, so it draws a value on that bar and
+ *  on the `length` bars after it; PyneCore answers `na` there and advances neither
+ *  sum. A remark does not settle it: the captures behind `interpret.js::NA` found the
+ *  windowed family treating a gap three ways (`sum` skips, `dev` propagates,
+ *  `highest`/`lowest` read the last n finite values, S10 2026-11-15, after the 2026-09-08 probe had read them as a restart). No capture says which `ta.cmo` computes (capture queue
+ *  W1-E, rows E04/E05), and this engine never draws where TradingView may hide.
+ *  ⭐ A WARM-UP IS NOT A GAP: the momentum's own `na` on bar 0 (or a source's leading
+ *  `na`) gives the same values either way, because both windows begin after it, so
+ *  `ta.cmo(close, n)` is unchanged (`docs/pine/evidence/2026-11-02-w1/formula-sources.md`:
+ *  130 of 130 of TradingView's exported rows).
+ *  ⚠️ CONSERVATIVE BY CONSTRUCTION: a computed source with no gap in fact
+ *  (`ta.sma(close, 5)`, `close - open`, `close[1]`) is refused too, and `volume` (a bar
+ *  may carry none). Widening the rule is a capture's decision, not this function's. */
+function cmoSourceCannotGap(source, table) {
+  return neverNaTree(source) || isBarPriceSource(source, table)
+}
 
 /** `exp(cum(cond ? ln(1 + (close - close[1]) / close[1]) : 0))` — see `nvi`/`pvi`
  *  above. `cmp` is how this bar's volume must compare with `nz(volume[1], 0)`. */
@@ -1535,6 +1854,12 @@ function volumeIndexTree(cmp) {
  *  arithmetic we already believed. 8 sites in 1 script. */
 export const PINE_MATH_CONSTANTS = Object.freeze({
   'math.pi': () => cNum(Math.PI),
+  // ⭐ U-BUILTIN B8 (2026-11-19) — Euler's number, the reference's own sentence (v5 and v6,
+  // `math.e`): "It is equal to 2.7182818284590452." That text is read as a double here, and it is
+  // the IEEE-754 double nearest e, which is `Math.E` (railed: `Number('2.7182818284590452') ===
+  // Math.E`, `pineBuiltinsUnit.test.js`). A constant depends on nothing, so it is not strict-gated,
+  // for the reason `math.pi` gives above.
+  'math.e': () => cNum(Math.E),
 })
 
 export const BUILTIN_CONSTANT_TREE = Object.freeze({
@@ -1629,6 +1954,32 @@ export const BUILTIN_TIMEFRAME_ALIAS = Object.freeze({
   'timeframe.isweekly': 'isweekly',
   'timeframe.ismonthly': 'ismonthly',
   'timeframe.isintraday': 'isintraday',
+})
+
+/** ⭐ 2026-11-17 — THE REGULAR SESSION, UNDER THE NAMES A MEMBER WRITES. The same repair as the
+ *  map above, one namespace over: the engine holds the two columns
+ *  (`closedTable.json::clock.regularfirst` / `.regularhours`, computed by `computeClock` from the
+ *  vendor calendar's regular hours, early closes included) and the door refused the dotted names
+ *  as `pine:builtin` ("names something the engine grammar does not hold").
+ *
+ *   · `session.isfirstbar_regular` — "true on the first regular session bar of the day … the same
+ *     whether extended session information is used or not" — is `regularfirst`.
+ *   · `session.ismarket` — "true if the current bar is a part of the regular trading hours (as
+ *     opposed to pre/postmarket)" — is `regularhours`.
+ *
+ *  ⚠️ ONE STATED DIFFERENCE, AND IT IS A BLANK, NEVER A WRONG ANSWER: on the oldest loaded bar,
+ *  when that bar opens later in a regular session, `regularfirst` is blank (the window was cut
+ *  mid-session and nothing before it can show whether it is the first), where TradingView, which
+ *  holds the whole history, answers false. Every other bar is the tape's own answer.
+ *  ⛔ `session.isfirstbar` / `islastbar` / `ispremarket` / `ispostmarket` are NOT here: each needs
+ *  the chart's own session setting (extended hours shown or not), which a translation does not
+ *  hold, and they stay refused by name.
+ *
+ *  Engine 73 (#1713, the engine 73 train): this changes what the translator WRITES for an
+ *  unchanged script (two names move from refused to translated). */
+export const BUILTIN_SESSION_ALIAS = Object.freeze({
+  'session.isfirstbar_regular': 'regularfirst',
+  'session.ismarket': 'regularhours',
 })
 
 /** ⭐⭐ `timeframe.multiplier` — A FIFTH KIND OF DOTTED NAME: a value the BARS
@@ -1817,6 +2168,12 @@ export const BUILTIN_SYMBOL_SCOPED = Object.freeze({
   'syminfo.currency': 'currency',
   'syminfo.timezone': 'timezone',
   'syminfo.session': 'session',
+  // ⭐ RS RATING L3 (2026-11-15) — the classification fields (`symbolScope.json::classification`).
+  // They settle per BINDING from the symbol's class and strings: TradingView's where a capture
+  // witnesses it, else OUR string tagged substituted (`bind.js::classificationWith`), else refused
+  // by name from the fold.
+  'syminfo.industry': 'industry',
+  'syminfo.sector': 'sector',
 })
 
 /** The `syminfo.*` fields REFUSED BY NAME, with their reasons — read straight off
@@ -1848,6 +2205,9 @@ export const BUILTIN_SYMBOL_NUMERIC = Object.freeze({
   'syminfo.mintick': 'mintick',
   // ⭐ C29 — 1 on every US listing captured 2026-09-30, per witnessed exchange.
   'syminfo.pointvalue': 'pointvalue',
+  // ⭐ W9-T4-F1 — per witnessed exchange (`symbolScope.json::min_contract`); no row
+  // is served until a capture lands, so today it refuses by name from the fold.
+  'syminfo.mincontract': 'mincontract',
 })
 
 /** Why a numeric symbol field refuses on a SCREEN — read off the manifest. */
@@ -2250,6 +2610,23 @@ export const BUILTIN_CALL_TREE = Object.freeze({
     a.slice(1).reduce((acc, x) => cOp('+', [acc, x]), a[0]),
     cNum(a.length),
   ]),
+  // ⭐⭐ U-BUILTIN B2 (2026-11-19) — `math.toradians(x)` IS `x * math.pi / 180` AND
+  // `math.todegrees(y)` IS `y * 180 / math.pi`, LEFT TO RIGHT, AND THE ORDER IS THE WHOLE
+  // MEASUREMENT. The reference says only "an approximately equivalent angle"; `x * pi / 180`,
+  // `x / 180 * pi` and `x * (pi / 180)` differ in the last bit on many inputs, and a script that
+  // feeds the angle to `math.sin` (builtin:moon-phases, over a 150-year ephemeris) carries that bit
+  // forward. Capture Q-BT3 settles it: `vw-bt-toradians-spy-1d-2026-11-16` (probe
+  // `vw-bt-toradians.pine`, AMEX:SPY 1D, 8,508 bars from the listing) reads D1 = `math.toradians(x)
+  // - x * math.pi / 180` and E1 = `math.todegrees(y) - y * 180 / math.pi` as exactly 0 on EVERY bar,
+  // where D2 / D3 / E2 / E3 (the other two spellings of each) are non-zero on 3,131 / 8,360 / 3,040 /
+  // 2,311 bars. So the tree is that spelling, and `na` is IEEE's (`na * pi` is `na`), the table's one
+  // rule (`interpret.js::toColumn`). One argument, by position: anything else declines (`null`) and is
+  // refused by name in `resolveTableCall`. ⛔ The v1–v4 bare `toradians` / `todegrees` are the same
+  // functions (the v4→v5 migration guide's `math` table renames them); from v5 the bare spelling is
+  // refused (`PHASE1_MODERN_SPELLING`). The runtime lane lowers THIS builder over runtime state
+  // (`pineRuntimeFrontend.js::callTreeExpansion`), so the two lanes are one formula.
+  toradians: (a) => (a.length === 1 ? cOp('/', [cOp('*', [a[0], cNum(Math.PI)]), cNum(180)]) : null),
+  todegrees: (a) => (a.length === 1 ? cOp('/', [cOp('*', [a[0], cNum(180)]), cNum(Math.PI)]) : null),
   // ta.cross(a, b) = they crossed in EITHER direction on this bar. The table
   // already declares both directions, so this costs zero new vocabulary — the
   // same bar `roc` and `avg` clear.
@@ -2404,6 +2781,51 @@ export const BUILTIN_CALL_TREE = Object.freeze({
     const doubleSmooth = (s) => cCall('ema', [cCall('ema', [s, longLen]), shortLen])
     return cOp('/', [doubleSmooth(pc), doubleSmooth(cCall('abs', [pc]))])
   },
+  // ⭐ W1 (2026-11-02) — `ta.cmo(source, length)`, TradingView's published
+  // `f_cmo`, verbatim in its arithmetic and its order:
+  //     mom = ta.change(src)
+  //     sm1 = math.sum(mom >= 0 ? mom : 0.0, length)
+  //     sm2 = math.sum(mom >= 0 ? 0.0 : -mom, length)
+  //     100 * (sm1 - sm2) / (sm1 + sm2)
+  // ⚠️ An `na` momentum is NOT symmetric in that body and is kept so: `na >= 0`
+  // is false, so it adds 0.0 to `sm1` and `-na` (= `na`) to `sm2`, which
+  // `math.sum` SKIPS (the table's `sum`, vendor-pinned `NA.SKIP`). So `sm2` holds
+  // `length` known values only from bar `length`, the first bar this answers.
+  // ⛔ W1 FIX (coordinator ruling, 2026-11-02): a hole LATER in the source would
+  // skew `sm2`'s window the same way, and there TradingView's answer is unknown,
+  // so the Resolver hands this expansion only a source that cannot be `na` after
+  // its first value and refuses every other by name (`cmoSourceCannotGap`).
+  // `length` must be a whole number this engine can read when it builds the
+  // formula (the caller records an input that reaches it). ⚠️ No capture yet
+  // (capture queue W1-C; the gap rows are W1-E's E04/E05).
+  cmo: (a) => {
+    if (a.length !== 2) return null
+    const n = foldWindow(a[1])
+    if (!(n && n.type === 'num' && Number.isInteger(Number(n.value)) && Number(n.value) >= 1)) return null
+    const mom = () => cCall('change', [a[0]])
+    const up = () => cOp('>=', [mom(), cNum(0)])
+    const sm1 = cCall('sum', [cOp('?:', [up(), mom(), cNum(0)]), n])
+    const sm2 = cCall('sum', [cOp('?:', [up(), cNum(0), cOp('u-', [mom()])]), n])
+    return cOp('/', [cOp('*', [cNum(100), cOp('-', [sm1, sm2])]), cOp('+', [sm1, sm2])])
+  },
+  // ⭐ W1 (2026-11-02) — `ta.cog(source, length)`, TradingView's published
+  // `pine_cog`: `-num / math.sum(source, length)`, where `num` starts at 0.0 and
+  // adds `source[i] * (i + 1)` for i = 0 … length − 1 IN THAT ORDER. The loop has
+  // a whole-number bound, so it is unrolled into the same left-to-right sum
+  // (`0.0 + x` is `x` exactly, so the seed term is dropped). An `na` anywhere in
+  // the window is `na`, by plain arithmetic, as there. ⛔ A window longer than the
+  // node budget's cap is not built: `cogOverBudget` says why, and the Resolver
+  // refuses it, and any window whose tree the budget would refuse, by name.
+  // ⚠️ No capture yet (capture queue W1-C).
+  cog: (a) => {
+    const n = cogWindowOf(a)
+    if (!n || Number(n.value) > DEFAULT_BUDGET.maxNodes) return null
+    const len = Number(n.value)
+    const at = (k) => (k === 0 ? a[0] : { type: 'offset', value: k, args: [a[0]] })
+    let num = at(0)
+    for (let i = 1; i < len; i++) num = cOp('+', [num, cOp('*', [at(i), cNum(i + 1)])])
+    return cOp('/', [cOp('u-', [num]), cCall('sum', [a[0], n])])
+  },
   // ⭐⭐ THE `timenow` CLOCK-FIELD IDENTITY FORMS (2026-09-20). Pine spells
   // five calendar values two ways: a bare global (`year`) reads THIS bar's
   // own value, and a one-argument function form (`year(timestamp)`) reads
@@ -2466,6 +2888,43 @@ const BUILTIN_RULED = Object.freeze({
   // copy here would have been a SECOND AUTHORITY over one member-facing sentence:
   // two places to edit, one of which somebody would miss. This map keeps the
   // names that are not symbol-scoped.
+})
+
+/** ⭐ Engine 66 (#1473) (bt) — `chart.*` names ruled BY NAME, beside `BUILTIN_RULED`. The refusal ENDS with the
+ *  name (`… — \`chart.bg_color\``), the shape the object lane's subject reader takes (`noteGuardRefusal`,
+ *  `REFUSED_SUBJECT`), so a dropped drawing op still names what stopped it. */
+const CHART_RULED = Object.freeze({
+  // ⭐ Engine 66 (#1473) (bt) — THE FOUR `chart.*` NAMES THE CORPUS READS, RULED. The two visible-bar
+  // times are the VIEWPORT: TradingView's user manual (Time, "Visible bar times"): "Each time the
+  // visible window changes, the script re-executes automatically to update the variables' values
+  // on all available bars." This engine computes an indicator once for the bars, not once per
+  // scroll position, so no value it could hold is the one TradingView would draw.
+  'chart.left_visible_bar_time':
+    'It is the opening time of the leftmost bar VISIBLE on the chart, and TradingView re-runs the '
+    + 'whole script every time the member scrolls or zooms ("Each time the visible window changes, the '
+    + 'script re-executes", user manual). This engine computes an indicator once for its bars, not once '
+    + 'per view, so any value served here would be a different chart window than the one on screen.',
+  'chart.right_visible_bar_time':
+    'It is the opening time of the rightmost bar VISIBLE on the chart, and TradingView re-runs the '
+    + 'whole script every time the member scrolls or zooms ("Each time the visible window changes, the '
+    + 'script re-executes", user manual). This engine computes an indicator once for its bars, not once '
+    + 'per view, so any value served here would be a different chart window than the one on screen.',
+  // ⛔ The two theme colours are the MEMBER'S chart settings (TradingView: "the chart's background "
+  // color, as defined by the "Background" inputs"; `chart.fg_color` is #dbdbdb on a dark background
+  // and #0f0f0f on a light one). As a colour something is PAINTED with they are already carried as
+  // a theme reference and drawn in this chart's own colours (engine 58, `withThemeColour`); these
+  // sentences are for the reads that are not a paint (a comparison, a stored value, arithmetic),
+  // where the theme would have to be a number the computation holds, and it is not.
+  'chart.bg_color':
+    'It is the background colour of the member\'s own chart settings. Painted with, it is carried as '
+    + 'the chart\'s theme and drawn in this chart\'s colour; read as a value (compared, stored or '
+    + 'computed with), it would need the theme inside the computation, which does not hold it, so it is '
+    + 'not guessed.',
+  'chart.fg_color':
+    'It is the high-contrast colour for the member\'s own chart background (#dbdbdb on a dark one, '
+    + '#0f0f0f on a light one, per the user manual). Painted with, it is carried as the chart\'s theme '
+    + 'and drawn in this chart\'s colour; read as a value (compared, stored or computed with), it would '
+    + 'need the theme inside the computation, which does not hold it, so it is not guessed.',
 })
 
 // ⭐ RE-EXPORTED, NOT REDEFINED. The predicate is pure manifest logic and it
@@ -2681,6 +3140,15 @@ const CHART_ONLY_CALLS = Object.freeze(new Set([
  *  the screener lane keeps ignoring them, as TradingView's screener does. */
 export const PAINT_CALLS = Object.freeze(new Set(['bgcolor', 'barcolor']))
 
+/** ⭐⭐ THE FAMILY LEDGER'S VOCABULARY (2026-11-19) — every call that DRAWS on a chart, from this file's own sets: the
+ *  outputs (`OUTPUT_CALLS`), the four-column candles (`MULTI_OUTPUT_CALLS`) and the chart-only calls
+ *  (`CHART_ONLY_CALLS`), less the two that draw nothing on TradingView either (`alertcondition`, `alert`). The runtime
+ *  door names every one of them a script declares and its document does not draw
+ *  (`memberPane/runtimeFamilyLedger.js`); derived, so a call these sets gain is ledgered at once. */
+export const CHART_DRAWING_CALLS = Object.freeze([...new Set([
+  ...Object.keys(OUTPUT_CALLS), ...Object.keys(MULTI_OUTPUT_CALLS), ...CHART_ONLY_CALLS,
+])].filter((c) => c !== 'alertcondition' && c !== 'alert'))
+
 // --------------------------------------------------------------------------- //
 // the derived function index
 // --------------------------------------------------------------------------- //
@@ -2711,6 +3179,39 @@ function functionIndex(table) {
 }
 
 const own = (obj, key) => obj != null && Object.prototype.hasOwnProperty.call(obj, key)
+
+/** ⭐⭐ THE `PINE_NAMESPACED_TREE` KEY A PINE CALL NAME RESOLVES TO, BY THE SCRIPT'S OWN VERSION.
+ *
+ *  The namespaced spelling (`ta.highestbars`) is its own key. The legacy BARE spelling
+ *  (`highestbars`) is re-routed to `ta.<name>` only in v1-v4, where the bare name is
+ *  unambiguously Pine's own (v5 removed it); `null` = not a member. ONE authority: the
+ *  translator's resolver and the runtime lane's `windowTarget` both ask this (W34-I6c: the
+ *  runtime lane read v4 `highestbars` as the bare POSITIVE table entry, the sign this
+ *  rewrite exists to flip). */
+/** ⛔⛔ HONESTY-SWEEP item 2 (2026-11-07) — THE v1-v3 BARE `highestbars` / `lowestbars` SIGN.
+ *
+ *  W34-I6c settled the v4 bare spelling from the extracted v4 reference
+ *  (https://www.tradingview.com/pine-script-reference/v4/#fun_highestbars, "Offset to the
+ *  highest bar") and the translator's vendor-measured re-route, both v4. No v1-v3
+ *  reference text is held and no capture witnesses a v1-v3 script's sign, so the
+ *  `pineVersion <= 4` bound served the v4 rule to v1-v3 unbacked. Until capture Q-HS2
+ *  (`tools/visual_conformance/probes/vw-hs2-v3-highestbars.pine`) witnesses it, a
+ *  v1-v3 bare call is refused by THIS name on every lane (the translator's Resolver
+ *  and the runtime lane's `windowTarget` both ask `legacyBarsSignUnstated`). A script
+ *  with no `//@version` (the formula box) has no version and is untouched. */
+export const LEGACY_BARS_SIGN_SENTENCE = 'the sign of a Pine v1-v3 `highestbars` / `lowestbars` offset '
+  + 'is not stated by any reference text this engine holds (the v4 reference states v4 only) and is '
+  + 'not yet captured (Q-HS2); write it in `//@version=4` or later'
+export const legacyBarsSignUnstated = (pineName, pineVersion) => (
+  pineVersion !== null && pineVersion !== undefined && pineVersion <= 3
+  && (pineName === 'highestbars' || pineName === 'lowestbars'))
+
+export const pineNamespacedName = (pineName, pineVersion) => {
+  const name = String(pineName)
+  if (own(PINE_NAMESPACED_TREE, name)) return name
+  return (pineVersion !== null && pineVersion !== undefined && pineVersion <= 4
+    && !name.includes('.') && own(PINE_NAMESPACED_TREE, `ta.${name}`)) ? `ta.${name}` : null
+}
 
 // --------------------------------------------------------------------------- //
 // the lexer
@@ -2834,6 +3335,207 @@ function stripTypeArguments(tokens) {
  *  indent is still the run of spaces and tabs it opens with, so these only ever
  *  sit between tokens or before a comment (the measured case). */
 const PINE_EXTRA_BLANKS = Object.freeze(new Set(['\u3000']))
+
+/** ⭐⭐ LEGACY SEMANTICS (B1, 2026-11-15) — `n` IS THE BAR INDEX IN //@version=1, 2 AND 3 (and a
+ *  source with no pragma, which is v1). The v1-v3 reference names it so (v3: "n — Bar index",
+ *  https://www.tradingview.com/pine-script-reference/v3/#var_n; v4 renamed it `bar_index` and has no
+ *  `n`). Witnessed: S17 / S18 captured the same probes with `n` and with `cum(1) - 1` (the bar index
+ *  there) and TradingView's columns are identical (`vw-ternary-arm-legacy-v1..v3`,
+ *  `vw-cs2-bool-na-v1/v3`, and their `-cum` re-takes).
+ *  Done ONCE, on the tokens both lanes lex (`translatePine` and `buildRuntimeIr` call `lexPine`), so
+ *  no lane can spell it differently: every bare `n` becomes the `bar_index` token.
+ *  ⛔ ONLY WHERE THE SCRIPT NEVER DECLARES ITS OWN `n`: a name the script binds (`n = …`, `n := …`, a
+ *  function parameter, a `for n = …` counter, a `[…, n] = …` part) shadows the built-in, and then
+ *  nothing is rewritten (the script's own `n` keeps today's path). A dotted name (`x.n`) is one
+ *  token and is never touched. */
+/** ⭐⭐ LEGACY SEMANTICS (B1 / B2) — IS THIS PRAGMA-LESS SOURCE PINE v1? A source with no `//@version`
+ *  is read two ways in this file: as the formula box (our own vocabulary) and, for Pine's own rules, as
+ *  v1 (`selfReferenceSentence`, `listingSeedIsUnpinned`). The one fact that tells them apart is the
+ *  declaration: a Pine script calls `study(` (or `strategy(`), the formula box never does. ONE answer,
+ *  read from the tokens both lanes lex, carried on the lex as `v1Declared` and handed to the Resolver as
+ *  `pineV1` (`Resolver.legacyV1To`). */
+export function pineV1Declared(tokens, version) {
+  if (version !== null && version !== undefined) return false
+  for (let k = 0; k + 1 < (tokens || []).length; k += 1) {
+    const t = tokens[k]
+    if (t && t.kind === 'ident' && (t.value === 'study' || t.value === 'strategy') && isPunct(tokens[k + 1], '(')) return true
+  }
+  return false
+}
+
+/** ⭐⭐ LEGACY SEMANTICS (B3, 2026-11-15) — A FUNCTION'S READ OF A CHART SERIES AT AN OFFSET, WHEN THE
+ *  FUNCTION IS CALLED INSIDE A BLOCK, IN v1-v3.
+ *
+ *  WITNESSED (NYSE:RDDT 1D from the listing, our probes `vw-fn-history-in-if-v2/-v3/-v4/-v5`: a helper
+ *  reading `high[2]` called in an `if` every third bar; s22 v3/v5, s23 v2/v4):
+ *    - //@version=2 and 3: CARRY — the function's own copy of `high` advances every bar and repeats its
+ *      last value on bars the call does not run (221 of 221 call bars, both), which is also what explains
+ *      ytc-swing-highs-lows bar 46 (G7);
+ *    - //@version=4 and 5: the chart's own history (222 of 222, both), what this engine always read.
+ *  v1 (no pragma) cannot express an `if` (s24: TradingView does not compile one), and a call in a TERNARY
+ *  arm reads the chart every bar at v1 and v3 alike (s24 `vw-fn-history-in-tern-v1/-v3`). The CARRY reading lives in the runtime lane
+ *  (`legacyCarryStatements`, the VM's per-call-site held history); the host lane reads every bar, so it
+ *  refuses such a script by name at v1-v3, and the runtime lane refuses v1. v4+ is unchanged.
+ *
+ *  `chartOffsetFunctions(stmts)`: the top-level functions whose body reads a chart series at an offset
+ *  (a name in `CARRY_CHART_SERIES` the function does not bind as a parameter or a local, followed by `[`).
+ *  `callsInBlocks(stmts, names)`: the first call to one of `names` inside an `if` / `else` / `for` /
+ *  `while` / `switch` block (or inside another function's body called so), or null. */
+export const CARRY_CHART_SERIES = Object.freeze(new Set(['open', 'high', 'low', 'close', 'volume', 'time',
+  'hl2', 'hlc3', 'ohlc4']))
+export const FN_HISTORY_IN_BLOCK = 'pine:fn-history-in-block'
+/** The versions whose in-block function history is CARRY (s22 v3, s23 v2). */
+export const CARRY_VERSIONS = Object.freeze(new Set([2, 3]))
+/** Is `version` (null: the lex says v1 or the formula box) one whose in-block function history is not the
+ *  chart's own: v2/v3 (CARRY) or v1 (unwitnessed)? v4+ and the formula box read every bar. */
+export const carryShapeVersion = (version, v1Declared) => (version !== null ? CARRY_VERSIONS.has(version) : v1Declared === true)
+const isFnDefHeader = (h) => !!h && h[0] && h[0].kind === 'ident' && isPunct(h[1], '(')
+  && findTop(h, (t) => isPunct(t, '=>')) > 1
+function fnDefParts(st) {
+  const h = st.header || []
+  const arrow = findTop(h, (t) => isPunct(t, '=>'))
+  const params = new Set()
+  for (const t of h.slice(2, arrow)) if (t.kind === 'ident') params.add(String(t.value))
+  return { name: String(h[0].value), arrow, params, inline: h.slice(arrow + 1) }
+}
+function stmtTokens(list, out = []) {
+  for (const st of list || []) { out.push(...(st.header || [])); stmtTokens(st.sub, out) }
+  return out
+}
+function declaredIn(list, out = new Set()) {
+  for (const st of list || []) {
+    const h = st.header || []
+    if (h[0] && h[0].kind === 'ident' && (isPunct(h[1], '=') || isPunct(h[1], ':='))) out.add(String(h[0].value))
+    declaredIn(st.sub, out)
+  }
+  return out
+}
+export function chartOffsetFunctions(stmts) {
+  const out = new Map()
+  for (const st of stmts || []) {
+    if (!isFnDefHeader(st.header)) continue
+    const p = fnDefParts(st)
+    const toks = [...p.inline, ...stmtTokens(st.sub)]
+    const own = new Set([...p.params, ...declaredIn(st.sub)])
+    const names = new Set()
+    toks.forEach((t, i) => {
+      if (t.kind === 'ident' && CARRY_CHART_SERIES.has(String(t.value)) && !own.has(String(t.value))
+          && isPunct(toks[i + 1], '[')) names.add(String(t.value))
+    })
+    if (names.size) out.set(p.name, names)
+  }
+  return out
+}
+const BLOCK_WORDS_FOR_CARRY = new Set(['if', 'else', 'for', 'while', 'switch'])
+export function callsInBlocks(stmts, names) {
+  if (!names || !names.size) return null
+  const callIn = (toks) => {
+    for (let i = 0; i + 1 < toks.length; i += 1) {
+      if (toks[i].kind === 'ident' && names.has(String(toks[i].value)) && isPunct(toks[i + 1], '(')) return toks[i]
+    }
+    return null
+  }
+  const opens = (h) => h.some((t) => t.kind === 'ident' && BLOCK_WORDS_FOR_CARRY.has(String(t.value)))
+  const walk = (list, inBlock) => {
+    for (const st of list || []) {
+      const h = st.header || []
+      if (inBlock) { const c = callIn(h); if (c) return c }
+      const found = walk(st.sub, inBlock || (!isFnDefHeader(h) && opens(h)))
+      if (found) return found
+    }
+    return null
+  }
+  return walk(stmts, false)
+}
+
+/** ⭐ B3 (s24) — a call to one of `names` in a conditional ARM (after a `?` in its statement, or inside
+ *  an `iff(`), or null. A ternary arm is NOT a block: TradingView reads the chart every bar there, at v1
+ *  and at v3 alike (s24 `vw-fn-history-in-tern-v1/-v3`, 222 of 222 each). */
+export function callsInConditionalArms(stmts, names) {
+  if (!names || !names.size) return null
+  const walk = (list) => {
+    for (const st of list || []) {
+      const h = st.header || []
+      let arm = false
+      for (let i = 0; i + 1 < h.length; i += 1) {
+        if (isPunct(h[i], '?') || (h[i].kind === 'ident' && String(h[i].value) === 'iff' && isPunct(h[i + 1], '('))) arm = true
+        else if (arm && h[i].kind === 'ident' && names.has(String(h[i].value)) && isPunct(h[i + 1], '(')) return h[i]
+      }
+      const found = walk(st.sub)
+      if (found) return found
+    }
+    return null
+  }
+  return walk(stmts)
+}
+
+/** ⭐⭐ B3 — the runtime lane's v3 CARRY, as statements: inside each function whose body reads a chart
+ *  series at an offset, the series becomes a body LOCAL (`__uct_carry_high = high`, declared first) and
+ *  each offset read reads that local. A body local's history belongs to its CALL SITE and HOLDS on the
+ *  bars the site does not run (the VM's held cell, `vm.js` P7.2) — exactly CARRY — and a site called on
+ *  every bar sees the chart's own series. Only at //@version=2 and 3; any other version returns `stmts`. */
+export function legacyCarryStatements(stmts, version) {
+  if (!CARRY_VERSIONS.has(version)) return stmts
+  const fns = chartOffsetFunctions(stmts)
+  if (!fns.size) return stmts
+  return stmts.map((st) => {
+    if (!isFnDefHeader(st.header)) return st
+    const p = fnDefParts(st)
+    const names = fns.get(p.name)
+    if (!names) return st
+    const at = st.header[0]
+    const local = (n) => `__uct_carry_${p.name}_${n}`
+    const rename = (toks) => toks.map((t, i) => (t.kind === 'ident' && names.has(String(t.value))
+      && isPunct(toks[i + 1], '[') ? { ...t, value: local(String(t.value)) } : t))
+    const renameList = (list) => (list || []).map((s) => ({ ...s, header: rename(s.header || []), sub: renameList(s.sub) }))
+    // ⛔ DECLARED, THEN REASSIGNED: a name bound once to a pure expression is an `env` macro, expanded
+    // where it is read (its `[k]` would be the chart's again); a reassigned name is a SLOT, whose history
+    // the VM keeps per call site.
+    const tok = (kind, value) => ({ ...at, kind, value })
+    const decls = [...names].flatMap((n) => [
+      { header: [tok('ident', local(n)), tok('punct', '='), tok('ident', n)], body: [], sub: [] },
+      { header: [tok('ident', local(n)), tok('punct', ':='), tok('ident', n)], body: [], sub: [] },
+    ])
+    const sub = p.inline.length
+      ? [...decls, { header: rename(p.inline), body: [], sub: [] }]
+      : [...decls, ...renameList(st.sub)]
+    const header = st.header.slice(0, p.arrow + 1)
+    return { ...st, header, body: stmtTokens(sub), sub }
+  })
+}
+
+export function legacyBarIndexTokens(tokens, version, v1Declared = false) {
+  // ⛔ A SOURCE WITH NO PRAGMA is v1 Pine only when it declares itself (`study(`): otherwise it is the
+  // formula box, whose vocabulary has no `n` (`pineV1Declared`)
+  if (version !== null && version !== undefined ? version > 3 : !v1Declared) return tokens
+  const isN = (t) => !!t && t.kind === 'ident' && t.value === 'n'
+  const isP = (t, v) => !!t && t.kind === 'punct' && t.value === v
+  const closesThen = (k, open, close, then) => {
+    let depth = 0
+    for (let j = k + 1; j < tokens.length; j += 1) {
+      const t = tokens[j]
+      if (isP(t, open)) depth += 1
+      else if (isP(t, close)) {
+        if (depth === 0) return then.some((v) => isP(tokens[j + 1], v))
+        depth -= 1
+      }
+    }
+    return false
+  }
+  let any = false
+  for (let k = 0; k < tokens.length; k += 1) {
+    if (!isN(tokens[k])) continue
+    any = true
+    const next = tokens[k + 1]
+    const prev = tokens[k - 1]
+    if (isP(next, '=') || isP(next, ':=') || /^[+\-*/%]=$/.test(next && next.kind === 'punct' ? next.value : '')) return tokens
+    if (prev && prev.kind === 'ident' && prev.value === 'for') return tokens
+    if ((isP(next, ',') || isP(next, ')')) && closesThen(k, '(', ')', ['=>'])) return tokens
+    if ((isP(next, ',') || isP(next, ']')) && closesThen(k, '[', ']', ['=', ':='])) return tokens
+  }
+  if (!any) return tokens
+  return tokens.map((t) => (isN(t) ? { ...t, value: 'bar_index', legacyName: 'n' } : t))
+}
 
 export function lexPine(src) {
   const raw = String(src == null ? '' : src)
@@ -3085,7 +3787,9 @@ export function lexPine(src) {
   // ⭐ ONE NORMALISATION, BEFORE ANY PARSER SEES THE TOKENS — see
   // `stripTypeArguments` for why a type argument belongs to the lexer and not to
   // either lane's parser.
-  return { tokens: stripTypeArguments(tokens), indents, version, lines, rawOffsetMap }
+  const typed = stripTypeArguments(tokens)
+  const v1Declared = pineV1Declared(typed, version)
+  return { tokens: legacyBarIndexTokens(typed, version, v1Declared), indents, version, v1Declared, lines, rawOffsetMap }
 }
 
 // --------------------------------------------------------------------------- //
@@ -3267,6 +3971,79 @@ export function blockStatements(toks, indents, indent) {
   return out
 }
 
+/** ⭐⭐ I6a-N4 — AN OPENER WHOSE EVERY LINE BENEATH IS A WRAP HAS NO BLOCK, AND IS REFUSED
+ *  BY NAME ON BOTH LANES (the host translator and the runtime front end call this right
+ *  after `blockStatements`, so they agree by construction).
+ *
+ *  The Pine Script User Manual, "Script structure": "A local block must be indented by a
+ *  tab or four spaces." and, under "Line wrapping": "each wrapped line after the first can
+ *  use any indentation length _except_ multiples of four, because Pine uses four-space or
+ *  tab indentations to define local code blocks." "Conditional structures" says of `if`
+ *  and `switch`: "The local blocks in conditional structures must be indented by four
+ *  spaces or a tab."
+ *
+ *  `blockStatements` takes ANY deeper line under an opener as its block. So
+ *  `0 => switch k` / `         0 => close` / `         => low` (inner arms at indent 9 or
+ *  6), `if c` / `      x := 1` and `for …` / `      s += 1` were SERVED, although by the
+ *  manual every one of those lines is a wrap of the opener's line and the opener has no
+ *  local block at all. ⛔ What TradingView then reports (a compile error, as the manual's
+ *  syntax implies) is not stated in so many words; that is capture row I6A-N4-1
+ *  (`docs/pine/capture-queue-2026-11-07-i6a-n4.md`), not a guess here.
+ *
+ *  ⛔ NARROW ON PURPOSE — measured on 877 corpus scripts, published scripts TradingView
+ *  compiles write all of these, and each stays exactly as it was:
+ *  - a WRAPPED CONDITION above a real block (`if a` / `      and b` / `        x := 1`):
+ *    some line beneath IS at a multiple of four, so the opener has a block;
+ *  - a function or arm whose value wraps (`f(x) =>` / `      a ? b :` / `      c`, and
+ *    `c => a` / `     + b`): the opener is a `=>` and the wraps are its inline value
+ *    (W34-I6a's `wrappedArmOf` joins the arm form);
+ *  - a deeper line at a multiple of four (indent 12 under a line at 4): unchanged.
+ *  Checked: a header whose LAST top-level opener is an opener WORD (`if`, `else`, `for`,
+ *  `while`, `switch`, including `c => switch k`), with a body whose line starts outside
+ *  brackets are ALL at an indent that is not a multiple of four. */
+function openerWordOwnsBody(header) {
+  let depth = 0
+  let word = null
+  for (const tok of header || []) {
+    if (tok.kind === 'punct' && (tok.value === '(' || tok.value === '[')) { depth += 1; continue }
+    if (tok.kind === 'punct' && (tok.value === ')' || tok.value === ']')) { depth = Math.max(0, depth - 1); continue }
+    if (depth > 0) continue
+    if (tok.kind === 'ident' && BLOCK_OPENERS.has(tok.value)) word = tok.value
+    else if (isPunct(tok, '=>')) word = null
+  }
+  return word
+}
+export function refuseOffBlockIndent(stmts, indents) {
+  for (const st of stmts || []) {
+    const word = st.body && st.body.length ? openerWordOwnsBody(st.header) : null
+    if (word) {
+      let depth = 0
+      let prevLine = st.header[st.header.length - 1].line
+      let first = null
+      let blockLine = false
+      for (const tok of st.body) {
+        if (tok.line !== prevLine && depth === 0) {
+          if ((indents[tok.line - 1] || 0) % 4 === 0) { blockLine = true; break }
+          if (!first) first = tok
+        }
+        prevLine = tok.line
+        if (tok.kind === 'punct') {
+          if (tok.value === '(' || tok.value === '[') depth += 1
+          else if (tok.value === ')' || tok.value === ']') depth = Math.max(0, depth - 1)
+        }
+      }
+      if (!blockLine && first) {
+        const ind = indents[first.line - 1] || 0
+        throw new PineRefusal('pine:indent', `${REFUSALS['pine:indent']} — \`${word}\` has no local block: `
+          + `every line beneath it starts at an indent that is not a multiple of four (the first at ${ind}), and `
+          + 'Pine reads such a line as a wrap of the line above, not as a block (User Manual, "Script structure" -> '
+          + '"Line wrapping")', locate(first))
+      }
+    }
+    if (st.sub && st.sub.length) refuseOffBlockIndent(st.sub, indents)
+  }
+}
+
 export const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
 
 /** H2 — the segments of a comma line that carries at least one `:=`-family
@@ -3383,39 +4160,6 @@ function eqAtDmi(toks, close) {
   return rel < 0 ? -1 : close + 1 + rel
 }
 
-/** `[a, b, c] = ta.dmi(diLen, adxLen)` → three bindings, or `null`.
- *
- *  ⛔ NOTHING IS INVENTED HERE. Each part is an ordinary Pine call node naming a
- *  function the MANIFEST declares (`plusDI`/`minusDI`/`adx`), handed to the same
- *  resolver every other call goes through — so the arity, the argument roles and
- *  the lookback all come from the table rather than from this function. */
-function dmiParts(toks, close, names, env, first) {
-  if (names.length !== 3) return null
-  const eq = eqAtDmi(toks, close)
-  let call = null
-  try { call = parseWholeExpression(toks.slice(eq + 1)) } catch { return null }
-  // `ta.dmi` and a bare `dmi` are the same call; `normaliseName` lowercases and
-  // drops underscores but keeps the namespace, so the segment is taken here.
-  const bare = normaliseName(String(call.name).split('.').pop())
-  if (!call || call.type !== 'call' || bare !== 'dmi') return null
-  const args = (call.args || []).map((a) => a.value)
-  if (args.length !== 2) return null
-  const at = locate(first)
-  // Each leg is an ordinary Pine call whose ROLE ORDER is declared in
-  // `PINE_CALL_SHAPES`, so the three series come from the table's own statement
-  // of them rather than from this function. (Filling them here refused at
-  // `pine:role-order`, correctly.)
-  // ⛔ THE TWO PERIODS ARE COMPARED AT RESOLVE TIME, NOT HERE. At fold time a
-  // name is not a value, so the first cut compared the two argument nodes by
-  // SPELLING — which refused `ta.dmi(diLen, adxSmooth)` even when both inputs
-  // hold 14, and that is exactly the call the corpus's ADX script makes.
-  // Deferring it is the same shape `switch` and a tuple part already use.
-  const leg = (pineName) => ({
-    kind: 'dmiLeg', pineName, a: args[0], b: args[1], env: new Map(env), at,
-  })
-  return [leg('dmiplusleg'), leg('dmiminusleg'), leg('dmiadxleg')]
-}
-
 /** ⭐⭐ THE BUILT-IN TUPLES THIS ENGINE CAN TAKE APART, each part written as an
  *  ordinary PINE expression over the caller's own argument nodes.
  *
@@ -3505,6 +4249,10 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       const nm = (name) => ({ type: 'name', name, tok })
       // `useTrueRange` defaults to TRUE and must be a literal to be read here;
       // Pine types it `simple bool`, and `true`/`false` parse as 1/0.
+      // ⛔ U-BUILTIN (2026-11-19): a computed flag stays refused. The reference body is
+      // `span = useTrueRange ? ta.tr : high - low`, but the flag must be a `simple bool`, and this builder
+      // cannot tell an input from a per-bar series (`f = close > open`, which TradingView refuses to
+      // compile), so writing the ternary here would accept a script the vendor rejects.
       const flag = a[3]
       const isNum = (n, v) => n && n.type === 'number' && Number(n.value) === v
       let span = null
@@ -3514,6 +4262,60 @@ const PINE_TUPLE_BUILTINS = Object.freeze({
       const mid = pc('ta.ema', [a[0], a[1]])
       const band = bin('*', a[2], pc('ta.ema', [span, a[1]]))
       return [mid, bin('+', mid, band), bin('-', mid, band)]
+    },
+  },
+  // ⭐⭐ DMI — `[diPlus, diMinus, adx] = ta.dmi(diLength, adxSmoothing)` (RMA-SEED, engine 92), TradingView's
+  // own "Directional Movement Index" body, written out over `ta.rma` on BOTH lanes (the runtime lane takes these
+  // same trees through `pineTupleBuiltinCallParts`):
+  //   up = ta.change(high), down = -ta.change(low)
+  //   plusDM = na(up) ? na : (up > down and up > 0 ? up : 0)      (minusDM the mirror)
+  //   truerange = ta.rma(ta.tr, diLength)
+  //   plus = fixnan(100 * ta.rma(plusDM, diLength) / truerange)    (minus the mirror)
+  //   adx = 100 * ta.rma(math.abs(plus - minus) / (sum == 0 ? 1 : sum), adxSmoothing), sum = plus + minus
+  // ⭐ WITNESSED, not assumed: `vw-bi-dmi-{spy,rddt}-1d-2026-11-19` W1-W4 subtract this body from TradingView's
+  // `ta.dmi` and read 0 on every bar, for (17, 14) and (14, 20) — so the ADX smooths over the SECOND length,
+  // and an unequal pair is served (it refused `pine:tuple` while the legs were the house table's one-period
+  // `adx`). With `ta.rma`'s exactly rounded seed (`interpret.js::rmaSeedMean`) all seven of its columns are
+  // TradingView's bit for bit on both symbols; the house `computeADX` this replaced (a Wilder SUM, not `ta.rma`)
+  // missed the last bit on 6,703 / 8,497 SPY bars of +DI alone. `>` and `==` are the Pine document's own
+  // (TradingView's epsilon, `pineCompare.js`), as the built-in's are (vw-fcmp-builtins B32-B34).
+  // ⛔ The native chart / screener ADX (`indicators.js::computeADX`) is not this and is untouched: it is not
+  // Pine-served.
+  dmi: {
+    arity: 2,
+    parts: 3,
+    // both lengths are the member's inputs whichever leg is read (the ADX alone reads the second)
+    resolveEveryArg: true,
+    build: (a, tok) => {
+      const pc = (n, args) => ({ type: 'call', name: n, args: args.map((v) => ({ value: v })), tok })
+      const bin = (op, left, right) => ({ type: 'binary', op, left, right, tok })
+      const nm = (name) => ({ type: 'name', name, tok })
+      const num = (value) => ({ type: 'number', value, tok })
+      const tern = (test, yes, no) => ({ type: 'ternary', test, yes, no, tok })
+      const off = (arg, n) => ({ type: 'offset', arg, n, tok })
+      // ⛔ NO STATEFUL CALL IN A `?:` ARM. The body names `up`, `down` and `sum` as variables, computed on every
+      // bar; written inline, a call inside an arm runs in Pine only on the bars the arm is taken. The member door
+      // refuses `ta.change` there (`pine:block`, `armRunsWhy`), and the runtime lane stops by name on a chart
+      // where `sum == 0` skips the `ta.rma`s inside `sum` (`CallSiteRunsStop`; a run of inside bars does it). So
+      // `ta.change(high)` is spelled `high - high[1]` (its definition, the same subtraction bit for bit) and the
+      // ADX's `sum == 0 ? 1 : sum` as `sum + (sum == 0 ? 1 : 0) * (1 - sum)`:
+      // where `sum == 0` (within TradingView's epsilon) that is `sum + (1 - sum)`, which rounds to exactly 1 for
+      // 0 <= sum <= 1e-10 (|1 - sum - (1 - sum)rounded| <= 2^-54, so `sum + fl(1 - sum)` is 1 within half an ulp,
+      // ties to even); elsewhere `sum + 0 * (1 - sum)` is `sum` exactly, and `na` stays `na`. The DIs are never
+      // negative, so `sum` is not either. Railed bit for bit on both lanes, every bar (`rmaSeedDmi.test.js`).
+      const up = bin('-', nm('high'), off(nm('high'), 1))
+      const down = { type: 'unary', op: '-', arg: bin('-', nm('low'), off(nm('low'), 1)), tok }
+      const dm = (x, y) => tern(pc('na', [x]), nm('na'),
+        tern(bin('and', bin('>', x, y), bin('>', x, num(0))), x, num(0)))
+      const truerange = pc('ta.rma', [nm('ta.tr'), a[0]])
+      const di = (move) => pc('fixnan', [bin('/', bin('*', num(100), pc('ta.rma', [move, a[0]])), truerange)])
+      const plus = di(dm(up, down))
+      const minus = di(dm(down, up))
+      const sum = bin('+', plus, minus)
+      const denominator = bin('+', sum, bin('*', tern(bin('==', sum, num(0)), num(1), num(0)), bin('-', num(1), sum)))
+      const adx = bin('*', num(100), pc('ta.rma', [
+        bin('/', pc('math.abs', [bin('-', plus, minus)]), denominator), a[1]]))
+      return [plus, minus, adx]
     },
   },
   // ⭐⭐ SUPERTREND — `[st, dir] = ta.supertrend(factor, atrPeriod)`. Not a stateless
@@ -3562,6 +4364,10 @@ function builtinTupleParts(toks, close, names, env, first) {
   // being guessed at.
   const built = spec.build(raw.map((a) => a.value), first)
   if (!built) return null
+  // ⭐ RMA-SEED — an entry that names every argument has each one resolved with any part (`mintArgs`, `resolveBinding`)
+  if (spec.resolveEveryArg) {
+    return built.map((node) => Object.assign(exprBinding(node, new Map(env), at), { mintArgs: raw.map((a) => a.value) }))
+  }
   return built.map((node) => exprBinding(node, new Map(env), at))
 }
 
@@ -3650,6 +4456,157 @@ export function seedAndUpdateOf(body, table) {
   return ternarySeedAndUpdate(body, table) || nzSeedAndUpdate(body, table)
 }
 
+/** ⭐⭐ LANE B0 — the ternary spelling whose seed is Pine's `na` literal and whose
+ *  test is a BARE history read (`na(x[k])`). ENGINE 48: it refuses `pine:cycle` by
+ *  name in every version (see the call site, and `selfReferenceSentence`).
+ *  Only that test: `na(nz(x[1]))` is never true, and its bar 0 runs the update
+ *  instead. */
+export function naSeededSelfReference(body, parts, table) {
+  if (!parts || !isStaticNa(parts.seed) || !ternarySeedAndUpdate(body, table)) return false
+  // ⛔ THE SHAPE ONLY, NOT THE NAME (engine-48 review N5). `ternarySeedAndUpdate` already
+  // requires the `na(…)` test to contain a free `self`, and `na` takes one argument, so a bare
+  // series read here (or an offset of one) can only be `self`. A name check beside it could
+  // never fire, and a guard that cannot fail is not counted as one.
+  const read = body.args[0].args && body.args[0].args[0]
+  return !!read && (read.type === 'series'
+    || (read.type === 'offset' && read.args && read.args[0] && read.args[0].type === 'series'))
+}
+
+/** ⭐⭐ ENGINE 49 — A DECLARATION THAT READS ITS OWN HISTORY: `x = … x[k] …` with the `=`
+ *  (not `:=`), where `x` was not declared before it in this scope or an enclosing one.
+ *  `declaredBefore` is the caller's answer to that last question (the host asks the env the
+ *  declaration was written in; the runtime lane its scope chain and env), so a local that
+ *  shadows a global, a function parameter, an earlier same-scope `x`, a `var` and a tuple
+ *  never reach here, and stay what they were.
+ *
+ *  Pine v3 removed self-reference in a declaration (a variable must be declared before it is
+ *  referenced): `s = nz(s[1]) + close` is written `s = 0.0` then `s := nz(s[1]) + close`, and
+ *  in v3+ the first spelling does not compile. v1/v2 (and no pragma) do compile it, so each
+ *  lane asks this ONLY where `!listingSeedIsUnpinned(version)`, and refuses `pine:cycle` with
+ *  `selfReferenceSentence`. Census (engine 49): no v3+ script in `corpus/`, the repo's `.pine`
+ *  fixtures and vendor captures, or the licence-held sample spells it.
+ *  ⛔ A HISTORY read only (`x[k]`, `k` any expression): a bare `x = x + 1` reads a name nothing
+ *  declared, and keeps its `pine:undefined` refusal (TradingView's own error for it). */
+export function selfReferencingDeclaration(node, name, declaredBefore) {
+  return !declaredBefore && typeof name === 'string' && !PINE_BUILTIN_VARIABLE_NAMES.has(name)
+    && readsOwnPrevious(node, name)
+}
+
+/** ⛔ A DECLARATION NAMED AFTER A BUILT-IN VARIABLE (`close = close[1] + 1`) IS NOT ASKED: its
+ *  `close[1]` may be Pine's own `close`, and whether TradingView reads it that way (or refuses the
+ *  name) is not settled here, so nothing is refused for it. The bar series, the clock names, and
+ *  the other built-in series a script can read bare. */
+export const PINE_BUILTIN_VARIABLE_NAMES = new Set(['open', 'high', 'low', 'close', 'volume', 'hl2', 'hlc3',
+  'ohlc4', 'hlcc4', 'time', 'time_close', 'time_tradingday', 'timenow', 'bar_index', 'last_bar_index',
+  'tr', 'vwap', 'obv', 'accdist', 'iii', 'nvi', 'pvi', 'pvt', 'wad', 'wvad', 'na',
+  ...Object.keys(TABLE.series || {}), ...Object.keys(TABLE.clock || {})])
+
+/** ⭐⭐ ENGINE 50 — DECLARED BEFORE AS A VARIABLE (the host's answer to `declaredBefore`). Pine
+ *  keeps variables and functions in separate namespaces (`atr = atr(14)` is legal in v4), so a user
+ *  function of the same name written earlier (`x(a) => a * 2`) does not declare the VARIABLE `x`:
+ *  in `x = nz(x[1]) + 1` the `x[1]` still reads a variable nothing declared (review ENG49-1122
+ *  note 3; the runtime lane's scope never held the function, and already refused).
+ *  ⛔ THE HOST ENV IS ONE MAP FOR BOTH NAMESPACES, so a function defined AFTER a variable of the same
+ *  name (`x = close` / `x(a) => a * 2`) overwrites the variable's binding. The kind of whatever the
+ *  map holds now therefore cannot answer this (review PR #1141 finding 1: a function-local `x` that
+ *  shadows the global VARIABLE `x` was refused). The answer is a variable-only record carried by the
+ *  function binding itself: `hidesVariable`, the variable binding the function's definition covered
+ *  (`variableBeneath`, set at every site that binds a function under a name). It travels with every
+ *  copy of the env (`new Map(env)` copies the reference), so a function body, a block and every later
+ *  statement see it. */
+export function declaredAsVariable(env, name) {
+  return !!variableBeneath(env, name)
+}
+
+/** A function binding (a folded `fn`, or an opaque one that did not fold). */
+const isFunctionBinding = (b) => !!b && (b.kind === 'fn' || (b.kind === 'opaque' && b.isFunction === true))
+
+/** ⭐ ENGINE 50 — the VARIABLE binding visible under `name` in `env`, or null: the binding itself when
+ *  it is not a function, else the variable the function binding covered (`hidesVariable`). Asked by
+ *  `declaredAsVariable`, and by every site that binds a function under a name, to record what it
+ *  covers. */
+export function variableBeneath(env, name) {
+  if (!env || typeof env.has !== 'function' || !env.has(name)) return null
+  const b = env.get(name)
+  if (!b) return null
+  return isFunctionBinding(b) ? (b.hidesVariable || null) : b
+}
+
+/** ⭐⭐ ENGINE 50 — A BLOCK-VALUED DECLARATION THAT READS ITS OWN HISTORY: `x = if …` /
+ *  `x = switch …` (statement `i` of `stmts`, with `=`, never `:=`) whose conditions or arms read
+ *  `x[k]` (review ENG49-1122 note 6). The rule of `selfReferencingDeclaration`, for a declaration
+ *  whose value is a block: `x` is not declared until the whole statement ends, so in v3+ the read
+ *  is of an undeclared variable. The caller answers "declared before" and gates on the version;
+ *  both lanes ask this one function.
+ *  ⛔ CONSERVATIVE: a block that declares `x` itself anywhere (an inner `x = …`, typed or `var`, a
+ *  tuple, a loop counter) is left alone, since its `x[k]` may read that inner `x`; a field read
+ *  `p.x[1]` is not a read of `x`; a built-in name is never asked (`PINE_BUILTIN_VARIABLE_NAMES`). */
+export function blockDeclarationReadsOwnHistory(stmts, i, name) {
+  const st = stmts && stmts[i]
+  const head = st && st.header
+  if (!head || typeof name !== 'string' || PINE_BUILTIN_VARIABLE_NAMES.has(name)) return false
+  const eq = findTop(head, (t) => isPunct(t, '='))
+  const kw = eq > 0 ? head[eq + 1] : null
+  if (!kw || kw.kind !== 'ident' || (kw.value !== 'if' && kw.value !== 'switch')) return false
+  const toks = head.slice(eq + 2)
+  const subs = [st.sub]
+  if (kw.value === 'if') {
+    const chain = ifBranches(stmts, i)
+    for (let j = i + 1; chain && j < chain.next; j += 1) {
+      toks.push(...(stmts[j].header || []))
+      subs.push(stmts[j].sub)
+    }
+  }
+  let declares = false
+  const visit = (list) => {
+    for (const s of list || []) {
+      const h = s && s.header
+      if (!h || !h.length) continue
+      toks.push(...h)
+      const e = findTop(h, (t) => isPunct(t, '='))
+      const bound = e > 0 ? boundName(h, e) : null
+      if (bound && bound.value === name) declares = true
+      if (isPunct(h[0], '[') || (h[0].kind === 'ident' && h[0].value === 'for')) {
+        const stop = e > 0 ? e : h.length
+        if (h.slice(0, stop).some((t) => t.kind === 'ident' && t.value === name)) declares = true
+      }
+      visit(s.sub)
+    }
+  }
+  subs.forEach(visit)
+  if (declares) return false
+  for (let k = 0; k < toks.length; k += 1) {
+    const t = toks[k]
+    if (!t || t.kind !== 'ident' || t.value !== name) continue
+    if (!isPunct(toks[k + 1], '[') || isPunct(toks[k + 2], ']')) continue
+    if (k > 0 && isPunct(toks[k - 1], '.')) continue
+    return true
+  }
+  return false
+}
+
+/** ⭐⭐ ENGINE 48/49 — the specifics of the `pine:cycle` refusal of a self-referencing
+ *  declaration (the lead sentence is `REFUSALS['pine:cycle']`). One wording per version
+ *  family, exported so both lanes' rails pin it:
+ *  - v3+: every declaration `selfReferencingDeclaration` catches (engine 49), engine 48's
+ *    `x = na(x[k]) ? na : U` among them. It names no spelling, so it is true of each.
+ *  - v1/v2 and no pragma: engine 48's `x = na(x[k]) ? na : U` only (`naSeededSelfReference`);
+ *    every other v1/v2 self-reference compiles in Pine and keeps its path.
+ *  `version` is the lexed pragma (`null` = no pragma, read as v1). */
+export function selfReferenceSentence(name, version) {
+  if (!listingSeedIsUnpinned(version)) {
+    return `\`${name}\` reads its own history inside its own declaration. This does not compile `
+      + 'in Pine v3+: a variable cannot refer to itself in its own declaration, so TradingView '
+      + 'draws nothing for this script and nothing is drawn here. In v3+ the variable is declared '
+      + 'once and updated with `:=`'
+  }
+  return `\`${name}\` is set to \`na\` whenever its own earlier value, as its \`na()\` test reads it, `
+    + `is \`na\`. Pine v1/v2 (and a script with no \`//@version\`) does not state what that earlier value `
+    + `is before the first bar: if it is \`na\`, \`${name}\` is \`na\` on every bar; if it is 0, the update `
+    + 'runs from the first bar. The two readings can disagree, and no TradingView capture has settled '
+    + 'which one TradingView draws, so neither is drawn'
+}
+
 /** `na(self…) ? SEED : UPDATE` — the spelling the docblock above describes. */
 function ternarySeedAndUpdate(body, table) {
   if (!body || body.type !== 'op' || body.name !== '?:') return null
@@ -3660,7 +4617,13 @@ function ternarySeedAndUpdate(body, table) {
   if (!containsFreeSelfSeries(test, table)) return null
   if (containsFreeSelfSeries(seed, table)) return null
   if (!containsFreeSelfSeries(update, table)) return null
-  return { seed, update }
+  // ⭐⭐ ENGINE 56 (A1) — `step` IS THE WHOLE `?:`, `na(self…)` TEST KEPT. The accumulator
+  // fills its lag history with the seed before the first step, so the test is false on
+  // bar 0 and the step equals `update` there; but an update that answers `na` mid-series
+  // (`x = na(x[1]) ? 0 : x[1] + close - sma(close, 20)`, `sma` warming up) makes `x[1]`
+  // `na` on the next bar, where Pine takes the SEED arm again and the bare update carried
+  // `na` forever. `update` (the arm alone) is still what the convergence gates ask.
+  return { seed, update, step: body }
 }
 
 /** ⭐⭐ THE SECOND SPELLING OF ONE FIRST-BAR VALUE: `nz(self…, SEED)` IN PLACE.
@@ -3731,6 +4694,14 @@ function nzSeedAndUpdate(body, table) {
   const want = printFormula(seed)
   for (const w of wrappers) if (printFormula(w.args[1]) !== want) return null
 
+  // ⭐⭐ ENGINE 56 (A1) — THE `nz` WRAPPERS STAY IN THE STEP. "Inside the built body
+  // `self[k]` is never unknown" (above) is true on bar 0 and false after an update that
+  // answers `na`: `atr-trailing-stops-sylvain-vervoort` (v1, NYSE:RDDT 1D from the
+  // listing, 2026-11-14) reads `nz(x[1], 0)` while `nLoss` is `na` on bars 0-3, so
+  // `max(0, na)` makes `x` `na` and Pine's `nz` reads 0 on bar 4 — TradingView draws
+  // 16.49 there, and the stripped step drew 99.01 off a bare `na` self. The stripped
+  // copy (`update`) is kept for the convergence gates, which ask about the update's
+  // shape, and `step` (the body as written) is what the accumulator runs.
   const seen = new Set(wrappers)
   const substitute = (n) => {
     if (!n || typeof n !== 'object') return n
@@ -3740,7 +4711,7 @@ function nzSeedAndUpdate(body, table) {
     // ⭐ C45 — a copied `?:` keeps its arm stamp (`carryArmRuns`)
     return next.every((v, i) => v === n.args[i]) ? n : carryArmRuns(n, { ...n, args: next })
   }
-  return { seed, update: substitute(body) }
+  return { seed, update: substitute(body), step: body }
 }
 
 /** Does this tree read a `self` that NOTHING HAS BOUND?
@@ -4009,7 +4980,9 @@ function containsSelfSeries(node, table) {
  *  carrying the value forward. Only the ARMS must forget.
  *  ⛔ Conservative by construction: an unrecognised shape answers NO. A wrong yes
  *  is invisible in the output; a wrong no is a named refusal somebody can read. */
-export const SEED_RESIDUAL_TOLERANCE = 1e-6
+// ⭐ 2026-11-09 — the constant moved to `interpret.js` (its second reader, `varOriginMask`,
+// lives there and cannot import this module); re-exported under its old name.
+export { SEED_RESIDUAL_TOLERANCE }
 
 /** ⚰️⚰️ A TRANSIENT-GROWTH CEILING WAS WRITTEN BESIDE THE TOLERANCE ABOVE AND
  *  THEN MEASURED AWAY. The worry was real in shape: a multi-lag form is a MATRIX
@@ -4609,9 +5582,8 @@ function smaOfBareObv(node) {
  *  refuses, both spellings agree), never the membership, so adding a venue is a
  *  one-line change that nothing else has to follow.
  */
-const US_EQUITY_VENUES = Object.freeze(new Set([
-  'NASDAQ', 'NYSE', 'AMEX', 'ARCA', 'NYSEARCA', 'BATS', 'CBOE', 'OTC', 'IEX',
-]))
+// ⭐ ENGINE 55 (review L5) — `US_EQUITY_VENUES` now lives in `otherSymbols.js`, read by
+// this translator and by `spellingUnservable`, so the two lanes judge one list.
 
 /** `"AMEX:SPY"` → `'SPY'`; a bare `"SPY"` → `'SPY'`; a venue we do not serve →
  *  null, which the callers turn into the ordinary `pine:request` refusal.
@@ -4625,7 +5597,10 @@ const VENUE_QUALIFIED = /^([A-Z][A-Z0-9_.]{0,15}):([A-Z][A-Z0-9.-]{0,9})$/
 function tickerWithoutVenue(raw) {
   const found = VENUE_QUALIFIED.exec(raw)
   if (!found) return raw
-  return US_EQUITY_VENUES.has(found[1]) ? found[2] : null
+  if (US_EQUITY_VENUES.has(found[1])) return found[2]
+  // ⭐ RS RATING L1b — a spelling with a witness row (`SP:SPX`, `otherSymbols.js::witnessRowOf`)
+  // names its ticker too; whether it is SERVED is the row's (the static gate and the bind ask it)
+  return witnessRowOf(found[1], found[2]) ? found[2] : null
 }
 
 /** The same question asked of `ticker.new`'s SEPARATE exchange argument.
@@ -4665,6 +5640,65 @@ function tickerCallPrefixOf(call) {
  *  every tree of the result, plot or object pass, has its spelling here. */
 let OTHER_SYMBOL_SINK = null
 
+/** A Pine symbol STRING (`'SP:SPX'`, `'AMEX:SPY'`, `'SPY'`, a registered seed) as `{ticker, venue}`
+ *  (`venue` '' when the spelling names none), or null when it names no ticker. The ONE reading of a
+ *  symbol string: `Resolver.otherSymbolOf` for a literal, and `engine/symbolInputs.js` for a member's
+ *  choice of a symbol setting. */
+export function pineSymbolSpelling(value) {
+  // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
+  // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
+  // disagree about one script.
+  const raw = String(value).trim().toUpperCase()
+  // ⭐ RS RATING L6b — a registered Pine seed (`SEED_<SOURCE>:<SYMBOL>`, whose source can be
+  // longer than any exchange spelling): its symbol is the ticker, its source the venue
+  const seed = SEED_SPELLING.exec(raw)
+  if (seed && witnessRowOf(seed[1], seed[2]) && TICKER_SHAPE.test(seed[2])) return { ticker: seed[2], venue: seed[1] }
+  const ticker = tickerWithoutVenue(raw)
+  // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
+  if (ticker === null || !TICKER_SHAPE.test(ticker)) return null
+  const found = VENUE_QUALIFIED.exec(raw)
+  return { ticker, venue: found ? found[1] : '' }
+}
+
+/** ⭐ SETTINGS PARITY (symbol) — for each `sym` node the translation IN FLIGHT emitted, where its ticker
+ *  came from: `{input, venue, default}` (a name bound to an `input(…)` / `input.symbol(…)` /
+ *  `input.string(…)` whose default spells it) or null (a literal, anything else). A WeakMap keyed by the
+ *  node; opened and closed with `OTHER_SYMBOL_SINK`, read by `symbolInputsOf` over the FINAL trees. */
+let SYMBOL_INPUT_SINK = null
+
+/** ⭐ SETTINGS PARITY (symbol) — per side of the result (`plots`: its outputs and presentation trees;
+ *  `objects`: its object trees), each ticker EVERY `sym` node of that side reaches through ONE input:
+ *  `[{input, ticker, venue, default, pass}]`. ⛔ A node the map does not know (a copy) counts as a literal,
+ *  so a side holding one offers no setting for that ticker. */
+function symbolInputsOf(t, marks) {
+  const out = []
+  const sides = [['plots', [t.outputs, t.presentation]], ['objects', [t.objects]]]
+  for (const [pass, roots] of sides) {
+    const byTicker = new Map()
+    const stack = [...roots]
+    const seen = new Set()
+    while (stack.length) {
+      const n = stack.pop()
+      if (!n || typeof n !== 'object' || seen.has(n)) continue
+      seen.add(n)
+      if (n.type === 'sym' && typeof n.value === 'string') {
+        const info = marks.has(n) ? marks.get(n) : null
+        if (!byTicker.has(n.value)) byTicker.set(n.value, new Map())
+        byTicker.get(n.value).set(info ? `input:${info.input}` : 'literal', info)
+      }
+      for (const v of Object.values(n)) if (v && typeof v === 'object') stack.push(v)
+    }
+    for (const ticker of [...byTicker.keys()].sort()) {
+      const by = byTicker.get(ticker)
+      const only = by.size === 1 ? [...by.values()][0] : null
+      if (only && typeof only.default === 'string') {
+        out.push({ input: only.input, ticker, venue: only.venue, default: only.default, title: only.title || null, pass })
+      }
+    }
+  }
+  return out
+}
+
 /** ⭐⭐ C41 — the lower-timeframe codes of the translation IN FLIGHT: every code
  *  an `ltf` node was emitted for (`securityAsNode`), plot or object pass. Opened
  *  and closed by `translatePine` beside `OTHER_SYMBOL_SINK`; the result carries
@@ -4679,6 +5713,10 @@ let LIBRARY_LINK_SINK = null
  *  and closed by `translatePine` beside the sinks above; read only by
  *  `pineConstIntValue`. */
 let DECL_WORDS_SINK = null
+/** ⭐⭐ CBC-FMT — the HOST-lane `calc_bars_count` of the translation in flight
+ *  (`declarationCalcBars`, written at the declaration), stamped by `translatePine` on
+ *  every return — a refused script's too, so the runtime lane's document carries it. */
+let CALC_BARS_SINK = null
 
 /** ⭐⭐ F1 — DOES PINE TRUNCATE THIS `/`? Before v6 it does exactly when BOTH
  *  operands are `const int`; from v6 a `const int` quotient keeps its fraction
@@ -4796,6 +5834,124 @@ export function pineConstIntValue(node, lookup, ctx, depth = 0) {
  *  ⭐ A write is visible from the END of its statement, so the read of `a` inside
  *  `a := a / 100` sees the value before the write.
  *  @returns {{valueAt: (name: string, offset: number) => (number|null)}} */
+/** ⭐⭐ ENGINE 56 (review #1265 finding 6) — THE VARIABLES THAT HOLD A PRICE THE BAR ITSELF HOLDS
+ *  on every bar they are read: every write is a top-level `name = <price>` / `name := <price>`
+ *  (`open` / `high` / `low` / `close`, or `hl2` / `hlc3` / `ohlc4` / `hlcc4`), except an optional
+ *  first `name = na` declaration that no top-level statement mentions before the first price
+ *  write. Any other write anywhere (a block, a function, a tuple, a compound operator, a `var`)
+ *  disqualifies the name. The runtime lane reads it for the arg-extreme tie rule (S4-2): over
+ *  such a variable the newest tied bar wins, as over the price itself. Conservative by design. */
+const BAR_PRICE_WORDS = new Set(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+/** ⭐ ENGINE 56 (review #1265 finding 6) — THE NAMES EVERY WRITE OF WHICH IS A `bool` THAT IS NEVER
+ *  `na` at this version: a written `true` / `false`, a comparison of literals and bar prices, and
+ *  an `and` / `or` / `not` (read as false over an `na` operand at every version: S1, `rt3-na-logic`). Any other
+ *  write, in any scope, disqualifies the name. The runtime lane reads it so `inPos == true` over
+ *  such a variable is served rather than declined; its history (`b[1]`) is still `na` before bar 0. */
+export function neverNaBoolNamesOf(stmts, version) {
+  const v = version === null || version === undefined ? 1 : Number(version)
+  const state = new Map()
+  const PRICES = new Set(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+  const knownNum = (n) => !!n && ((n.type === 'number' && Number.isFinite(n.value)) || (n.type === 'name' && PRICES.has(n.name)))
+  const CMP = new Set(['<', '>', '<=', '>=', '==', '!='])
+  const neverNa = (n) => {
+    if (!n) return false
+    if (n.type === 'number') return n.value === 0 || n.value === 1
+    if (n.type === 'paren' || n.type === 'group') return neverNa(n.expr || n.inner)
+    if (n.type === 'binary' && CMP.has(n.op)) return knownNum(n.left) && knownNum(n.right)
+    if (n.type === 'binary' && (n.op === 'and' || n.op === 'or')) return true
+    if (n.type === 'unary' && n.op === 'not') return true
+    return false
+  }
+  const visit = (list) => {
+    for (const st of list || []) {
+      const toks = st.header || []
+      if (toks.length && !toks.some((t) => isPunct(t, '=>'))) {
+        const mut = findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value))
+        let name = null
+        let rhs = null
+        let ok = true
+        if (mut === 1 && toks[0].kind === 'ident') {
+          name = String(toks[0].value)
+          if (toks[1].value !== ':=') ok = false
+          rhs = toks.slice(2)
+        } else if (mut < 0) {
+          const eq = findTop(toks, (t) => isPunct(t, '='))
+          if (eq > 0 && !isPunct(toks[0], '[')) {
+            const nameTok = boundName(toks, eq)
+            if (nameTok) { name = String(nameTok.value); rhs = toks.slice(eq + 1) }
+          } else if (eq > 0) {
+            for (const t of toks.slice(1, eq)) if (t.kind === 'ident') state.set(String(t.value), false)
+          }
+        }
+        if (name) {
+          let node = null
+          if (ok && rhs && rhs.length) { try { node = parseWholeExpression(rhs) } catch { node = null } }
+          if (!ok || !neverNa(node)) state.set(name, false)
+          else if (!state.has(name)) state.set(name, true)
+        }
+      }
+      visit(st.sub)
+    }
+  }
+  visit(stmts)
+  return new Set([...state].filter(([, ok]) => ok).map(([k]) => k))
+}
+
+export function barPriceVarsOf(stmts) {
+  const state = new Map() // name -> 'na' (declared na, no price yet) | 'price' | 'bad'
+  const bad = (name) => state.set(name, 'bad')
+  const targetOf = (toks) => {
+    const mut = findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value))
+    if (mut === 1 && toks[0].kind === 'ident') return { name: String(toks[0].value), op: toks[1].value, rhs: toks.slice(2) }
+    if (mut > 0) return { other: true }
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    if (eq <= 0) return null
+    if (isPunct(toks[0], '[')) return { tuple: toks.slice(1, eq).filter((t) => t.kind === 'ident').map((t) => String(t.value)) }
+    const nameTok = boundName(toks, eq)
+    if (!nameTok) return null
+    const words = toks.slice(0, eq - 1).map((t) => String(t.value))
+    return { name: String(nameTok.value), op: '=', rhs: toks.slice(eq + 1), words }
+  }
+  const nested = (list) => {
+    for (const st of list || []) {
+      const w = targetOf(st.header || [])
+      if (w && w.name) bad(w.name)
+      if (w && w.tuple) for (const n of w.tuple) bad(n)
+      nested(st.sub)
+    }
+  }
+  for (const st of stmts || []) {
+    const toks = st.header || []
+    nested(st.sub)
+    if (!toks.length) continue
+    if (toks.some((t) => isPunct(t, '=>'))) {
+      // a function body may write a global with `:=`: anything it names is disqualified
+      for (const t of toks) if (t.kind === 'ident' && state.has(String(t.value))) bad(String(t.value))
+      continue
+    }
+    const w = targetOf(toks)
+    // a statement that READS a name still at `na` before its first price write disqualifies it
+    for (const t of toks) {
+      const nm = t.kind === 'ident' ? String(t.value) : null
+      if (nm && state.get(nm) === 'na' && !(w && w.name === nm && t === toks[0])) bad(nm)
+    }
+    if (!w) continue
+    if (w.tuple) { for (const n of w.tuple) bad(n); continue }
+    if (!w.name) continue
+    if ((w.words || []).some((x) => x === 'var' || x === 'varip')) { bad(w.name); continue }
+    const rhs = w.rhs
+    const isPrice = rhs.length === 1 && rhs[0].kind === 'ident' && BAR_PRICE_WORDS.has(String(rhs[0].value))
+    const isNa = rhs.length === 1 && rhs[0].kind === 'ident' && String(rhs[0].value) === 'na'
+    const prior = state.get(w.name)
+    if (prior === 'bad') continue
+    if (w.op !== '=' && w.op !== ':=') { bad(w.name); continue }
+    if (isPrice) { state.set(w.name, 'price'); continue }
+    if (isNa && prior === undefined && w.op === '=') { state.set(w.name, 'na'); continue }
+    bad(w.name)
+  }
+  return new Set([...state].filter(([, v]) => v === 'price').map(([k]) => k))
+}
+
 export function constIntWritesOf(stmts, ctx) {
   const disq = new Set()
   const order = []
@@ -5007,6 +6163,9 @@ function nzWrappedBarssince(node) {
  *  answer on exactly the bars it matters most (a symbol with no pivot yet),
  *  so this returns false and the script stays honestly refused. */
 function nzSentinelSound(op, sentinel, k) {
+  // ⭐ engine 78 (#1858) — a sentinel within Pine's epsilon of `k` compares differently under the exact and
+  // the tolerant rule, so the rewrite is not proven sound there
+  if (pineCompareAmbiguous(sentinel, k)) return false
   const impliedTrue = op === '>' || op === '>='
   let actual
   if (op === '<') actual = sentinel < k
@@ -5277,7 +6436,7 @@ function parsePostfix(cur) {
       if (node.type === 'name') {
         const joined = `${node.name}.${member}`
         node = isCall
-          ? { type: 'call', name: joined, args, tok: node.tok, endTok }
+          ? seedAsSecurity({ type: 'call', name: joined, args, tok: node.tok, endTok })
           : { type: 'name', name: joined, tok: node.tok }
         continue
       }
@@ -5450,7 +6609,7 @@ function parsePrimary(cur) {
       // `endTok` is the whole of what would change this." This is that.
       // `parseArguments` consumes through the `)`, so the last token it ate IS
       // the closing paren — the same way `thinkscript.js::parseCall` gets it.
-      return { type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null }
+      return seedAsSecurity({ type: 'call', name: tok.value, args, tok, endTok: cur.toks[cur.i - 1] || null })
     }
     return { type: 'name', name: tok.value, tok }
   }
@@ -5480,6 +6639,43 @@ function parseArguments(cur) {
 }
 
 /** One statement's tokens → one Pine expression, with nothing left over. */
+/** ⭐⭐ RS RATING L6b — `request.seed(source, symbol, expression)` IS AN OTHER-SYMBOL READ.
+ *  A Pine Seeds series is daily data under the symbol `<SOURCE>:<SYMBOL>`, so the call is
+ *  rewritten here, once, into the read every lane already has:
+ *  `request.security("<SOURCE>:<SYMBOL>", "D", expression)` — both lanes parse with this
+ *  module, so neither can read a seed differently. Whether that spelling is SERVED is
+ *  `otherSymbols.js`'s (`requestWitnesses.json`'s `seed` rows, the frontend's manifest of
+ *  `pine_seed_store.py::SEEDS`): an unregistered seed refuses by name.
+ *  ⛔ ONLY THE THREE-ARGUMENT CALL WITH TEXT LITERALS for source and symbol (positional or
+ *  named `source` / `symbol` / `expression`): `ignore_invalid_symbol` and `calc_bars_count`
+ *  change the read, and a computed source names no series this door can know. Anything else
+ *  is left as it was (and refuses as it always did). */
+function seedAsSecurity(node) {
+  if (!node || node.type !== 'call' || node.name !== 'request.seed') return node
+  const args = node.args || []
+  if (args.length !== 3) return node
+  const names = ['source', 'symbol', 'expression']
+  const slots = [undefined, undefined, undefined]
+  let k = 0
+  for (const a of args) {
+    if (!a) return node
+    const at = a.name ? names.indexOf(a.name) : k++
+    if (at < 0 || slots[at] !== undefined) return node
+    slots[at] = a.value
+  }
+  const [src, sym, expr] = slots
+  if (!src || src.type !== 'string' || !sym || sym.type !== 'string' || !expr) return node
+  const key = `${String(src.value).trim().toUpperCase()}:${String(sym.value).trim().toUpperCase()}`
+  return {
+    type: 'call', name: 'request.security', tok: node.tok, endTok: node.endTok, seed: true,
+    args: [
+      { name: null, value: { type: 'string', value: key, tok: src.tok } },
+      { name: null, value: { type: 'string', value: 'D', tok: sym.tok } },
+      { name: null, value: expr },
+    ],
+  }
+}
+
 export function parseWholeExpression(toks) {
   const cur = new Cursor(toks)
   const node = parseExpression(cur, 0)
@@ -5607,6 +6803,14 @@ export function constantValueOf(node, budget = { left: MAX_FOLD_NODES }) {
     // stops a malformed tree reaching an implementation that would read
     // `undefined` and answer NaN rather than refusing.
     if (!spec || !isPointwise(spec) || typeof FN[node.name] !== 'function') return null
+    // ⛔ ENGINE 56 — the A3 marker is its operand where its flag is 0 and WITHHELD elsewhere
+    // (`interpret.js::boolNaMask`): a constant flag that is not 0 withholds every bar, so it
+    // folds only where the flag folds to 0
+    if (node.name === 'boolNaWithheld') {
+      const marked = node.args || []
+      if (marked.length !== 2 || constantValueOf(marked[1], budget) !== 0) return null
+      return constantValueOf(marked[0], budget)
+    }
     const args = node.args || []
     if (args.length !== spec.args.length) return null
     const cols = []
@@ -5793,8 +6997,7 @@ function barReadsOf(tree) {
 /** ⭐ C9 — the declaration's `max_bars_back = N` (code, never prose — the same
  *  stripped scan as the `max_*_count` ceilings), and whether the script calls
  *  the per-series `max_bars_back(x, n)` form. ⭐ C38 — ONE reader for both
- *  lanes: the object lane's `historyReadRef` and the plot lane's
- *  `Resolver.historyReadOf` size a per-bar read from this and nothing else. */
+ *  lanes, through `historyReadBufferOf` below. */
 function declaredMaxBarsBackOf(source) {
   const code = strippedForScan(String(source || ''))
   const m = /\bmax_bars_back\s*=\s*(\d+)/.exec(code)
@@ -5803,6 +7006,28 @@ function declaredMaxBarsBackOf(source) {
     limit: Number.isInteger(n) && n >= 1 && n <= MAX_BARS_BACK_CAP ? n : null,
     call: /\bmax_bars_back\s*\(/.test(code),
   }
+}
+
+/** ⭐⭐ engine 83 (WS-C; coordinator ruling 2026-11-19) — THE BUFFER A PER-BAR READ `x[e]` MAY
+ *  REACH INTO, the ONE authority both lanes that build one size it from: the plot lane's
+ *  `Resolver.historyReadOf` (`barsAgo`'s window) and the object lane's `historyReadRef` (`{v:'at'}`).
+ *
+ *  ⭐ A DECLARED `max_bars_back` NEVER SHRINKS IT BELOW THE AUTOMATIC BUFFER: it is
+ *  max(declared, `AUTO_MAX_BARS_BACK`). TradingView read past the declaration, each read equal to the bar it names:
+ *    · `close[25]` under `max_bars_back = 20` on every bar past 100 (`vw-w4-max-bars-back-m2`, AMEX:SPY 1D);
+ *    · `close[k]` and `ta.ema(close, 5)[k]`, k = `bar_index % 120`, under `max_bars_back = 50` (Q-MBB-1,
+ *      `uctprobe-mbb-dyn` / `-late`, AMEX:SPY and NYSE:RDDT 1D, licence-held, graded locally).
+ *  ⚰️ Both lanes took `declared.limit || AUTO_MAX_BARS_BACK`, so those reads were withheld (or, on the object lane,
+ *  a runtime error) where TradingView draws them.
+ *
+ *  `auto` marks the automatic bound: past it is UNMEASURED, so the read is withheld on that bar, never a runtime
+ *  error and never a guess (`objectRuntime.js::atCheck`; the plot lane's root mask). A declaration AT OR ABOVE
+ *  it is the buffer, exactly as before. */
+function historyReadBufferOf(source) {
+  const declared = declaredMaxBarsBackOf(source).limit
+  return declared !== null && declared >= AUTO_MAX_BARS_BACK
+    ? { limit: declared, auto: false }
+    : { limit: AUTO_MAX_BARS_BACK, auto: true }
 }
 
 function foldWindow(node) {
@@ -6018,6 +7243,9 @@ export function printFormula(node, parentBp = 0) {
       // ⚠️ ITS OWN SPELLING, never `tf` with a flag — a member reading the formula
       // back must be able to see that this one reads the FORMING period.
       return `tf_live(${printFormula(node.args[0], 0)}, '${node.value}')`
+    case 'tf_merge':
+      // ⭐ ENGINE 55 — Pine's look-ahead-off request, in the spelling `parse.js` reads back.
+      return `tf_merge(${printFormula(node.args[0], 0)}, '${node.value}')`
     case 'ltf':
       // ⭐ C41 — the read BELOW the chart, in the spelling `parse.js` reads back.
       return `ltf(${printFormula(node.args[0], 0)}, '${node.value}')`
@@ -6163,6 +7391,39 @@ function barOffsetNode(child, n, table, tok, wrote) {
     + 'both of which this table already declares', locate(tok))
 }
 
+/** ⭐⭐ Q-BH0 (engine 92) — A PINE v6 `bool`'S HISTORY BEFORE HISTORY BEGINS READS `false`.
+ *
+ *  WITNESSED: TradingView's captures `vw-v6-bool-history-bar0-{spy,rddt}-1d-2026-11-19` (committed; probe
+ *  `tools/visual_conformance/probes/vw-v6-bool-history-bar0.pine`, from the listing) draw 1 on bar 0 for `b[1] == false`,
+ *  `not b[1]`, `b[1] != true`, `b != b[1]`, `b and not b[1]`, a `var bool`'s `c[1] == false` / `not c[1]` and
+ *  `u[1] == false`, and on bars 0 and 1 for `b[2] == false`; the reference says why ("To Pine Script version 6":
+ *  "Boolean values cannot be na"). This engine read that history as `na` and drew 0 there.
+ *  So a WRITTEN `x[k]` (`k` a whole number ≥ 1) of a v6 `bool` is `na(close[k]) ? 0 : x[k]`: `false` exactly on the
+ *  first `k` bars, where the read reaches before the series' first bar, and the read itself on every later bar. The
+ *  series' own `close` stands for "a bar exists `k` bars before this one" (`na` exactly on its first `k` bars; inside
+ *  a `tf` / `sym` read it is that series' own), and it reads back from formula text (`close[k]`; an offset of a
+ *  literal, `1[k]`, does not: `pine:roundtrip`). The run writes the same test (`pineRuntimeFrontend.js::v6BoolHistoryIr`).
+ *  ⛔ NOT `nz(x[k], 0)`: that would also turn a value this engine holds as `na` after history begins (a crossing's
+ *  own warm-up, a bar a supply lacks) into a confident `false`, which Q-BH0 did not witness. Only the bars before
+ *  history are answered. ⛔ Off the listing those bars are read before the chart's first bar and stay withheld by
+ *  name, as every such read is (`interpret.js::historyBeforeChartMask`). ⛔ v5 and older keep `na` (a v5 `bool` can
+ *  be `na`: engine 56, S1), judged per token (`versionAt`), so a v5 library inside a v6 script keeps it.
+ *  `version` is the version at the read's token; `tree` is the read as resolved. Python twin: the same nodes, no
+ *  new rule (`ast_interpret.py` evaluates `?:`, `na` and `close[k]` as `interpret.js` does;
+ *  `tests/fixtures/ast/v6_bool_history_parity.json`). */
+let v6BoolHistoryOn = true
+/** Tests and measurements only (the Q-BH0 rails' controls and census): `false` reads a v6 bool's history as this
+ *  engine read it before Q-BH0, in both lanes (the run asks `v6BoolHistoryServed`). Nothing a member reaches calls it. */
+export function __v6BoolHistoryForTests(on) { v6BoolHistoryOn = on !== false }
+/** Is the Q-BH0 rule on (always, outside a test that turned it off)? */
+export const v6BoolHistoryServed = () => v6BoolHistoryOn
+function v6BoolHistory(tree, back, version) {
+  if (!v6BoolHistoryOn) return tree
+  if (!(Number(version) >= 6) || !Number.isInteger(back) || back < 1) return tree
+  if (!tree || typeof tree !== 'object' || tree.type === 'num' || !isBoolishTree(tree)) return tree
+  return cOp('?:', [cCall('na', [{ type: 'offset', value: back, args: [cSeries('close')] }]), cNum(0), tree])
+}
+
 const PINE_OP_TO_TABLE = Object.freeze({
   '+': '+', '-': '-', '*': '*', '/': '/',
   '>': '>', '<': '<', '>=': '>=', '<=': '<=',
@@ -6259,6 +7520,328 @@ export function constantTestValue(tree) {
  *  unreadable while its label beside it read. The plot lane keeps 4: see
  *  `Resolver.objectPass`. */
 const TF_READ_HOPS = 16
+
+/** ⭐⭐ (request unit, TF-FOLD, engine 89) — HOW FAR THE RUNTIME LANE READS A REQUEST'S TIMEFRAME
+ *  (`Resolver.runtimeRequestTimeframes`): the object pass's hops, and (request unit PR 2, engine 90) a call to
+ *  a script function the runtime lane hands over settled (`calls`: `throughSettledCall`,
+ *  `settledRequestFunctionOf`). Handed to `ownTimeframeOf` / `timeframeLiteralOf` by the request readers alone
+ *  (`requestTimeframeReach`); every other reader of a timeframe (`time()`, `time_close()`, `timeframe.change`,
+ *  the plot lane) keeps its own reach. */
+const REQUEST_TF_REACH = Object.freeze({ hops: TF_READ_HOPS, calls: true })
+
+/* ─── ⭐⭐ ENGINE 56 (A3) — A PINE v1-v5 `bool` CAN BE `na` ──────────────────────────────────
+ *
+ *  WITNESSED (S1 evidence session, 2026-11-14, `tools/visual_conformance/probes/vw-cs1-*.pine`,
+ *  NYSE:RDDT 1D from the listing; v2 = v4 = v5), on the warm-up bars where `na_s` is `na`:
+ *    - `c = close > na_s` is `na`, not false; `bool nb = na` behaves the same;
+ *    - `c == false`, `c != false`, `c == true` are `na`;
+ *    - `not c` is TRUE; `c and true` / `c and false` are false, `c or true` is true,
+ *      `c or false` is false: `and` / `or` read `na` as false;
+ *    - a `?:` whose test is `na` takes the ELSE branch.
+ *  v1's `==` agrees (`accumulation-distribution-with-markers`, bar 14: `adSmaller == true and
+ *  adSmaller[1] == false` is `na`/false there), and s18-2026-11-15 witnesses v1 and v3 directly
+ *  (`vw-cs2-bool-na-v1-cum` / `-v3-cum`: the same forms, the same answers). v6 bools are never
+ *  `na` and keep the shared rule.
+ *
+ *  This engine keeps a comparison's VALUE as it was (`cmp` answers 0 for an `na` operand),
+ *  which is Pine's answer wherever the `bool` is READ AS A CONDITION (`?:`, `if`, `and`, `or`,
+ *  `not`: `na` reads false there, and `not na` is true), and tracks WHERE a `bool` is `na`
+ *  beside it (`naInfo`). Where Pine's `na` and false differ, the value is rewritten:
+ *    - `==` / `!=` with a `bool` side that can be `na` is `na` there:
+ *      `(flag) ? na : (a == b)` — the VALUE form. Read as a condition (`Resolver.condition`)
+ *      its `na` arm reads false (`naArmsReadFalse`), so `(c == false) ? 1 : 0` is 0 where `c`
+ *      is `na`, and `not (c != false)` is true;
+ *    - `na(b)` of a `bool` that can be `na` is true there;
+ *    - a `bool` PLOTTED as a value is `na` there (`plot(close > na_s)` in v1-v3).
+ *  A `bool` side whose `na` cannot be tracked meets `==` / `!=` as `boolNaWithheld(side, 1)`:
+ *  withheld by name on every bar (`interpret.js::boolNaMask`, `pine:bool-na-unwitnessed`),
+ *  never served with the comparison's 0. */
+const PINE_BAR_PRICES = new Set(['open', 'high', 'low', 'close'])
+const NA_NEVER = Object.freeze({ type: 'num', value: 0 })
+const isNaNever = (m) => m === NA_NEVER || (!!m && m.type === 'num' && m.value === 0)
+const naOr = (a, b) => (isNaNever(a) ? b : isNaNever(b) ? a : cOp('||', [a, b]))
+const naTree = (m) => (isNaNever(m) ? cNum(0) : m)
+const isBoolLiteralNode = (t) => !!t && t.type === 'num' && (t.value === 0 || t.value === 1)
+/** A Pine `true` / `false` as WRITTEN (the parse keeps the token: `{type:'number', value, tok}`). */
+const isPineBoolLiteral = (n) => !!n && n.type === 'number' && !!n.tok
+  && (n.tok.value === 'true' || n.tok.value === 'false')
+const BOOL_NA_RANGE = new Set(['<', '<=', '>', '>='])
+const NA_KEEPING_OPS = new Set(['+', '-', '*', 'u-'])
+const NA_KEEPING_CALLS = new Set(['abs', 'max', 'min', 'sign'])
+/** Nodes that read their child on OTHER bars (another timeframe, symbol or the bars below):
+ *  a tracked flag is lifted through the same node, so it is read on the bars the value is. */
+const NA_LIFT_TYPES = new Set(['tf', 'tf_live', 'tf_merge', 'sym', 'ltf'])
+const naInfoOf = (na, maybe) => ({ na, maybe })
+const NA_INFO_NEVER = Object.freeze(naInfoOf(NA_NEVER, NA_NEVER))
+/** 1 where the NUMBER `x` is `na`, or `NA_NEVER` for a value known on every bar (a finite
+ *  literal, a bar price, a member's input, `nz(_, known)`, and `+ - *`, `abs`, `max`, `min`
+ *  over known values). Anything else is asked on the bar (`na(x)`). */
+function naOfNumber(x, version) {
+  if (!x || typeof x !== 'object') return cCall('na', [x])
+  if (x.type === 'num') return Number.isFinite(x.value) ? NA_NEVER : cCall('na', [x])
+  if (x.type === 'series' && (PINE_BAR_PRICES.has(x.name)
+    || (x.inputName !== undefined && Number.isFinite(x.inputDefault)))) return NA_NEVER
+  if (x.type === 'call' && x.name === 'nz' && Array.isArray(x.args) && x.args.length === 2
+    && isNaNever(naOfNumber(x.args[1], version))) return NA_NEVER
+  const known = Array.isArray(x.args) && x.args.length > 0
+    && ((x.type === 'op' && NA_KEEPING_OPS.has(x.name)) || (x.type === 'call' && NA_KEEPING_CALLS.has(x.name)))
+  if (known && x.args.every((a) => isNaNever(naOfNumber(a, version)))) return NA_NEVER
+  const asBool = naInfo(x, version)
+  if (asBool !== null) return naOr(asBool.na, asBool.maybe)
+  return cCall('na', [x])
+}
+/** ⭐⭐ ENGINE 56 (review #1265, finding 1) — IS THIS RESOLVED TREE A `bool`? A tree whose
+ *  manifest kind is `bool` (comparisons, `and` / `or` / `not`, the bool-yielding calls), and
+ *  the shapes that carry one: an offset, a timeframe / symbol / lower-timeframe read, a
+ *  `valuewhen` whose source is one, an `accum` whose seed and every step arm are one (a
+ *  `var bool`). `selfIsBool` is true inside such an `accum`'s body. */
+export function isBoolishTree(t, selfIsBool = false) {
+  if (!t || typeof t !== 'object') return false
+  if (t.type === 'num') return t.value === 0 || t.value === 1
+  if (isStaticNa(t)) return selfIsBool
+  if (t.type === 'series') return selfIsBool && t.name === 'self'
+  if (t.type === 'offset' || NA_LIFT_TYPES.has(t.type)) return isBoolishTree(t.args && t.args[0], selfIsBool)
+  if (t.type === 'op' && t.name === '?:' && Array.isArray(t.args) && t.args.length === 3) {
+    return isBoolishTree(t.args[1], selfIsBool) && isBoolishTree(t.args[2], selfIsBool)
+      && !(isBoolLiteralNode(t.args[1]) && isBoolLiteralNode(t.args[2]) && !selfIsBool)
+      || treeYieldsBool(t)
+  }
+  if (t.type === 'call' && (t.name === 'valuewhen' || t.name === 'valuewhenOccurrence')) {
+    return isBoolishTree(t.args && t.args[1], selfIsBool)
+  }
+  if (t.type === 'call' && t.name === 'accum' && Array.isArray(t.args)) {
+    return isBoolishTree(t.args[0], true) && isBoolishTree(t.args[1], true)
+  }
+  return treeYieldsBool(t)
+}
+/** A side that is a `bool` (not a bare `1` / `0`, which may be a number): bool-typed by the
+ *  manifest or the shapes above, or tracked. */
+const isBoolSide = (x, v) => !isBoolLiteralNode(x) && (isBoolishTree(x) || naInfo(x, v) !== null)
+/** ⭐⭐ ENGINE 56 (A3) — where this resolved `bool` tree is Pine's `na`: `{na, maybe}`, each a
+ *  0/1 tree or `NA_NEVER`, or null when the tree is not one this engine tracks as a `bool`.
+ *  `na` is where it IS `na`; `maybe` is where it is false or `na` and no capture says which:
+ *  a v1-v3 `and` over an `na` operand (read as false it is false; carried through, `na`).
+ *  A condition reads both as false, so only an operator that tells `na` from false
+ *  (`boolNaOperator`) asks. `boolCtx`: the tree is known to be a `bool` (it meets a written
+ *  `true` / `false`, or a tracked `bool`), so `1` / `0` / `na` arms of a `?:` are `bool`s
+ *  (review #1265 finding 5: never otherwise, so `c ? 1 : na` compared with `1` stays a number). */
+const NA_INFO_MEMO = new WeakMap()
+export function naInfo(t, version, boolCtx = false) {
+  if (!t || typeof t !== 'object') return null
+  const v = version === null || version === undefined ? 1 : Number(version)
+  // ⭐ memoised per node, version and context: trees here share subtrees
+  let byKey = NA_INFO_MEMO.get(t)
+  if (!byKey) { byKey = new Map(); NA_INFO_MEMO.set(t, byKey) }
+  const key = `${v}|${boolCtx ? 1 : 0}`
+  if (byKey.has(key)) return byKey.get(key)
+  const info = naInfoUncached(t, v, boolCtx)
+  byKey.set(key, info)
+  return info
+}
+function naInfoUncached(t, v, boolCtx) {
+  if (isStaticNa(t)) return naInfoOf(cNum(1), NA_NEVER)
+  if (t.type === 'op' && Array.isArray(t.args)) {
+    const [a, b] = t.args
+    if (BOOL_NA_RANGE.has(t.name)) return naInfoOf(naOr(naOfNumber(a, v), naOfNumber(b, v)), NA_NEVER)
+    if (t.name === '==' || t.name === '!=') {
+      // a comparison OF bools is rewritten by `boolNaOperator` (served false, or withheld)
+      if (isBoolSide(a, v) || isBoolSide(b, v)) return NA_INFO_NEVER
+      return naInfoOf(naOr(naOfNumber(a, v), naOfNumber(b, v)), NA_NEVER)
+    }
+    // `and` / `or` read an `na` operand as false and `not na` is true (S1, v2 = v4 = v5): never `na`
+    if (t.name === '&&' || t.name === '||' || t.name === '!') return NA_INFO_NEVER
+    if (t.name === '?:' && t.args.length === 3) {
+      const typedArm = (n) => !isBoolLiteralNode(n) && !isStaticNa(n)
+      const bothLiteral = !typedArm(t.args[1]) && !typedArm(t.args[2])
+      // literal arms are a `bool` only where the context says the tree is one
+      if (bothLiteral && !boolCtx) return null
+      const arm = (x) => (isBoolLiteralNode(x) ? NA_INFO_NEVER : isStaticNa(x) ? naInfoOf(cNum(1), NA_NEVER) : naInfo(x, v, boolCtx))
+      const x = arm(t.args[1])
+      const y = arm(t.args[2])
+      if (x === null || y === null) return null
+      const pick = (mx, my) => (isNaNever(mx) && isNaNever(my) ? NA_NEVER : cOp('?:', [t.args[0], naTree(mx), naTree(my)]))
+      return naInfoOf(pick(x.na, y.na), pick(x.maybe, y.maybe))
+    }
+    return null
+  }
+  if (t.type === 'offset' && Array.isArray(t.args) && t.args[0]) {
+    const inner = naInfo(t.args[0], v, boolCtx)
+    if (inner === null) return null
+    // a read before the first bar is `na` too
+    const back = (m, before) => cCall('nz', [{ type: 'offset', value: t.value, args: [m] }, cNum(before)])
+    return naInfoOf(isNaNever(inner.na) ? cCall('na', [t]) : back(inner.na, 1),
+      isNaNever(inner.maybe) ? NA_NEVER : back(inner.maybe, 0))
+  }
+  // ⭐ (review finding 1) a read on other bars: the flag is read through the SAME node, so it is
+  // the flag of the bar the value came from; a bar the read cannot fill is `na` (fail closed)
+  if (NA_LIFT_TYPES.has(t.type) && Array.isArray(t.args) && t.args[0]) {
+    const inner = naInfo(t.args[0], v, boolCtx)
+    if (inner === null) return null
+    const lift = (m, gap) => cCall('nz', [{ ...t, args: [naTree(m)] }, cNum(gap)])
+    return naInfoOf(lift(inner.na, 1), isNaNever(inner.maybe) ? NA_NEVER : lift(inner.maybe, 0))
+  }
+  if (t.type === 'call' && t.name === 'na') return NA_INFO_NEVER
+  // ⭐ (re-review #1265, 6) a crossing / monotone test is `na` where this engine's own column is
+  // (its warm-up): nothing beyond that is witnessed, so nothing more is claimed
+  if (t.type === 'call' && (t.name === 'crossOver' || t.name === 'crossUnder'
+    || t.name === 'rising' || t.name === 'falling')) return naInfoOf(cCall('na', [t]), NA_NEVER)
+  // `nz(b, S)` of a `bool`: `na` only where `b` is and `S` is too
+  if (t.type === 'call' && t.name === 'nz' && Array.isArray(t.args) && t.args.length === 2) {
+    const x = naInfo(t.args[0], v, boolCtx)
+    if (x === null) return null
+    const fb = isBoolLiteralNode(t.args[1]) ? NA_INFO_NEVER : naInfo(t.args[1], v, boolCtx)
+    if (fb === null || !isNaNever(x.maybe) || !isNaNever(fb.maybe)) return null
+    return isNaNever(fb.na) || isNaNever(x.na) ? NA_INFO_NEVER : naInfoOf(cOp('&&', [naTree(x.na), naTree(fb.na)]), NA_NEVER)
+  }
+  // ⭐ (review finding 1) `valuewhen(cond, src, k)` of a `bool`: the source's flag at the SAME
+  // occurrence; before an occurrence the answer is `na`
+  if (t.type === 'call' && (t.name === 'valuewhen' || t.name === 'valuewhenOccurrence')
+    && Array.isArray(t.args) && t.args.length === 3) {
+    const inner = naInfo(t.args[1], v, boolCtx || isBoolishTree(t.args[1]))
+    if (inner === null) return null
+    const at = (m, none) => cCall('nz', [cCall(t.name, [t.args[0], naTree(m), t.args[2]]), cNum(none)])
+    return naInfoOf(at(inner.na, 1), isNaNever(inner.maybe) ? NA_NEVER : at(inner.maybe, 0))
+  }
+  // ⭐ (review finding 1) a `var bool` (`accum` of a `bool`): its flag is a recurrence of its own,
+  // stepped with the value's (`self` there is the flag's own previous value). A step whose flag
+  // has a `maybe` part, or a seed or arm this cannot track, is not tracked (null).
+  if (t.type === 'call' && t.name === 'accum' && Array.isArray(t.args) && t.args.length === 3
+    && (boolCtx || isBoolishTree(t))) {
+    const [seed, body, warmup] = t.args
+    if (!containsFreeSelfSeries(body, TABLE)) return naInfo(body, v, true)
+    const seedInfo = isBoolLiteralNode(seed) ? NA_INFO_NEVER : naInfo(seed, v, true)
+    const bodyInfo = naInfoSelf(body, v)
+    if (seedInfo === null || bodyInfo === null || !isNaNever(seedInfo.maybe) || !isNaNever(bodyInfo.maybe)) return null
+    if (isNaNever(bodyInfo.na)) return NA_INFO_NEVER
+    // a step whose flag does not read the flag's past is that step's flag, bar by bar
+    if (!containsFreeSelfSeries(bodyInfo.na, TABLE)) return naInfoOf(bodyInfo.na, NA_NEVER)
+    // an unknown flag (the recurrence before its seed is read) is `na`
+    return naInfoOf(cCall('nz', [cCall('accum', [naTree(seedInfo.na), naTree(bodyInfo.na), warmup]), cNum(1)]), NA_NEVER)
+  }
+  return null
+}
+/** The flag of an `accum` step: as `naInfo`, with `self` / `self[k]` read as the flag
+ *  recurrence's own previous value. Not memoised (the meaning of `self` is local). */
+function naInfoSelf(t, v) {
+  if (!t || typeof t !== 'object') return null
+  if (t.type === 'series' && t.name === 'self') return naInfoOf(cSeries('self'), NA_NEVER)
+  if (t.type === 'offset' && t.args && t.args[0] && t.args[0].type === 'series' && t.args[0].name === 'self') {
+    return naInfoOf({ type: 'offset', value: t.value, args: [cSeries('self')] }, NA_NEVER)
+  }
+  if (!containsFreeSelfSeries(t, TABLE)) return isBoolLiteralNode(t) ? NA_INFO_NEVER : isStaticNa(t) ? naInfoOf(cNum(1), NA_NEVER) : naInfo(t, v, true)
+  // `and` / `or` / `not` are never `na`, whatever reads the past (S1)
+  if (t.type === 'op' && (t.name === '&&' || t.name === '||' || t.name === '!')) return NA_INFO_NEVER
+  // `nz(self[k], S)`: `na` only where the flag says so AND `S` is `na`
+  if (t.type === 'call' && t.name === 'nz' && Array.isArray(t.args) && t.args.length === 2
+    && !containsFreeSelfSeries(t.args[1], TABLE)) {
+    const x = naInfoSelf(t.args[0], v)
+    const fallback = isBoolLiteralNode(t.args[1]) ? NA_INFO_NEVER : naInfo(t.args[1], v, true)
+    if (x === null || fallback === null || !isNaNever(x.maybe) || !isNaNever(fallback.maybe)) return null
+    return isNaNever(fallback.na) ? NA_INFO_NEVER : naInfoOf(cOp('&&', [naTree(x.na), naTree(fallback.na)]), NA_NEVER)
+  }
+  if (t.type === 'op' && t.name === '?:' && Array.isArray(t.args) && t.args.length === 3) {
+    const x = naInfoSelf(t.args[1], v)
+    const y = naInfoSelf(t.args[2], v)
+    if (x === null || y === null) return null
+    const pick = (mx, my) => (isNaNever(mx) && isNaNever(my) ? NA_NEVER : cOp('?:', [t.args[0], naTree(mx), naTree(my)]))
+    return naInfoOf(pick(x.na, y.na), pick(x.maybe, y.maybe))
+  }
+  return null
+}
+/** ⭐⭐ ENGINE 56 (A3) — `out` (the operator as built) rewritten for a v1-v5 `bool` that can
+ *  be `na`, or `out` unchanged. `right` is null for `!`. `pineLeft` / `pineRight` are the
+ *  operands as WRITTEN (a written `true` / `false` makes the comparison a `bool` one). See the
+ *  block above. ⛔ (review #1265 finding 1) A `bool` side this cannot track is WITHHELD on every
+ *  bar (`boolNaWithheld(side, 1)`), never served with the comparison's 0 for its `na`. */
+function boolNaOperator(op, left, right, pineVersion, out = undefined, pineLeft = null, pineRight = null) {
+  const built = out === undefined ? cOp(op, right === null ? [left] : [left, right]) : out
+  const v = pineVersion === null || pineVersion === undefined ? 1 : Number(pineVersion)
+  if (!(v <= 5)) return built
+  // ⭐ (s18 B05 / B08, S1) `c and true` / `c or false` are NEVER `na`, but the identity fold
+  // (`foldLogicalIdentity`) leaves `c` alone, which is `na` where `c` is: a `bool` that can be `na`
+  // keeps its operator, so `na(v)` of it (through a function's parameter too) reads false
+  if ((op === '&&' || op === '||') && right !== null && built && !(built.type === 'op' && built.name === op)
+    && (built === left || built === right)) {
+    const info = naInfo(built, v, true)
+    if (info !== null && !(isNaNever(info.na) && isNaNever(info.maybe))) return cOp(op, [left, right])
+  }
+  if (!built || built.type !== 'op' || built.name !== op) return built
+  // `and` / `or` / `not` over an `na` operand: served as built (`and` / `or` read it as false,
+  // `not na` is true — exactly what `cmp`'s 0 gives)
+  if (op !== '==' && op !== '!=') return built
+  const pineLitL = isPineBoolLiteral(pineLeft)
+  const pineLitR = isPineBoolLiteral(pineRight)
+  const boolL = pineLitL || isBoolSide(left, v)
+  const boolR = pineLitR || isBoolSide(right, v)
+  // a comparison of NUMBERS keeps the shared rule
+  if (!boolL && !boolR) return built
+  // a `1` / `0` beside a `bool` is that `bool`'s literal (v1-v3 compare a bool with a number)
+  const litL = pineLitL || (isBoolLiteralNode(left) && boolR)
+  const litR = pineLitR || (isBoolLiteralNode(right) && boolL)
+  const UNTRACKED = 'untracked'
+  const sideInfo = (tree, lit) => {
+    if (lit) return NA_INFO_NEVER
+    const info = naInfo(tree, v, true)
+    if (info !== null) return info
+    // a NUMBER compared with a `bool` (v1-v3: `x == true` is `x == 1`): `na` where the number is
+    if (!isBoolishTree(tree)) return naInfoOf(naOfNumber(tree, v), NA_NEVER)
+    return UNTRACKED
+  }
+  const sideL = sideInfo(left, litL)
+  const sideR = sideInfo(right, litR)
+  if (sideL === UNTRACKED || sideR === UNTRACKED) {
+    return cOp(op, [cCall('boolNaWithheld', [left, cNum(1)]), right])
+  }
+  const flag = naOr(naOr(sideL.na, sideL.maybe), naOr(sideR.na, sideR.maybe))
+  if (isNaNever(flag)) return built
+  return boolNaValue(flag, built)
+}
+
+/** ⭐ ENGINE 56 (A3) — `tree`, but `na` where `flag` is 1: a v1-v5 `bool` VALUE that is `na`
+ *  there. Read as a condition its `na` arm reads false (`naArmsReadFalse`). */
+function boolNaValue(flag, tree) {
+  return cOp('?:', [flag, cOp('/', [cNum(0), cNum(0)]), tree])
+}
+
+/** ⭐ ENGINE 56 (A3) — a `bool` VALUE form (`boolNaValue`) read AS A CONDITION in v1-v5: its
+ *  `na` arm reads false (S1: `na` reads false in `and` / `or`, a `?:` on `na` takes the else
+ *  branch), so the arm is 0. Every other tree comes back as the very same object. */
+export function naArmsReadFalse(t) {
+  if (!t || t.type !== 'op' || t.name !== '?:' || !Array.isArray(t.args) || t.args.length !== 3) return t
+  const [c, a, b] = t.args
+  // ⛔ only the VALUE form `boolNaValue` builds — `(flag) ? na : (x == y)` / `(x != y)` — and the
+  // `?:` arms around one: every other tree keeps its bytes (a saved document's computation is
+  // compared byte for byte, and an author's `c ? na : x` already reads false where it is tested)
+  if (isStaticNa(a) && b && b.type === 'op' && (b.name === '==' || b.name === '!=')) {
+    const a2 = isStaticNa(a) ? cNum(0) : naArmsReadFalse(a)
+    return cOp('?:', [c, a2, b])
+  }
+  const a2 = naArmsReadFalse(a)
+  const b2 = naArmsReadFalse(b)
+  return a2 === a && b2 === b ? t : cOp('?:', [c, a2, b2])
+}
+
+/** A WRITTEN `and` / `or` / `not` (a parse node): never `na` in v1-v5 (S1). */
+function writtenLogic(n) {
+  if (!n || typeof n !== 'object') return false
+  if (n.type === 'paren' || n.type === 'group') return writtenLogic(n.expr || n.inner)
+  return (n.type === 'binary' && (n.op === 'and' || n.op === 'or')) || (n.type === 'unary' && n.op === 'not')
+}
+
+/** ⭐ ENGINE 56 (A3) — the 0/1 tree where this v1-v5 `bool` VALUE is `na`, or null for a tree
+ *  that is not a tracked `bool` or is never `na`. */
+export function boolNaFlagOf(tree, version) {
+  const v = version === null || version === undefined ? 1 : Number(version)
+  // ⛔ a `bool` by the manifest (a comparison, `and` / `or` / `not`, an offset of one, …), never
+  // by the looser shapes `naInfo` follows (a 1 / `na` counter is a number)
+  if (!(v <= 5) || !treeYieldsBool(tree) || isBoolLiteralNode(tree)) return null
+  const info = naInfo(tree, v, true)
+  if (info === null) return null
+  const flag = naOr(info.na, info.maybe)
+  // the value is already `na` exactly there (`(close > open)[1]` on bar 0): nothing to rewrite
+  if (flag && flag.type === 'call' && flag.name === 'na' && Array.isArray(flag.args) && flag.args[0] === tree) return null
+  return isNaNever(flag) ? null : flag
+}
 
 function foldLogicalIdentity(op, left, right, table) {
   const isNum = (n, v) => n && n.type === 'num' && n.value === v
@@ -6358,6 +7941,21 @@ function carryArmRuns(from, to) {
   return to
 }
 
+/** ⭐⭐ G-c — `JSON.parse(JSON.stringify(tree))`, byte for byte (its `NaN` → `null`,
+ *  its dropped `undefined` keys: what the copy always was), with every `_armRuns`
+ *  stamp put back on the node it was copied from. Walked in parallel over the
+ *  original's own enumerable keys, which are exactly the keys the JSON copy has. */
+export function copyKeepingArmRuns(tree) {
+  const out = JSON.parse(JSON.stringify(tree))
+  const pair = (from, to, d) => {
+    if (!from || typeof from !== 'object' || !to || typeof to !== 'object' || d > 4096) return
+    carryArmRuns(from, to)
+    for (const k of Object.keys(from)) pair(from[k], to[k], d + 1)
+  }
+  pair(tree, out, 0)
+  return out
+}
+
 /** ⭐ C45 — is this canonical tree the same number on every bar of ONE BINDING?
  *  Literals, the chart's `timeframe.is*` flags (`BIND_TIME_CLOCK`, the manifest's
  *  own roster), a DECLARED input leaf (`inputDefault`, which `declareInputs` puts
@@ -6368,26 +7966,19 @@ function carryArmRuns(from, to) {
  *  else — a bar value, a call, an offset, a clock that moves, a `var` seeded from a
  *  bar — is not, and the bind decides from the chart's bars instead. */
 export function bindTimeConstantTree(tree) {
-  const stack = [tree]
-  while (stack.length) {
-    const n = stack.pop()
-    if (!n || typeof n !== 'object') return false
-    if (n.type === 'num') continue
-    if (n.type === 'series') {
-      if (BIND_TIME_CLOCK.includes(n.name)) continue
-      if (typeof n.inputDefault === 'number' && Number.isFinite(n.inputDefault)) continue
-      return false
-    }
-    if (n.type === 'op' && Array.isArray(n.args)) { for (const a of n.args) stack.push(a); continue }
-    if (n.type === 'call' && Object.hasOwn(RECURRENCES, n.name) && Array.isArray(n.args)) {
+  // ⭐⭐ COND-TA — ONE AUTHORITY (`barConstant.js::barConstantTree`, which the runtime lane's
+  // `invariantTest` asks too). This door adds only its `var` seed rule. ⚰️ Its own copy admitted
+  // no call at all, so `math.max(len, 5) > 10 ? ta.sma(close, 3) : close` was stamped here (and
+  // refused on the screener lane) while the runtime lane, asking a pure call, drew it.
+  return barConstantTree(tree, {
+    table: TABLE,
+    seedOf: (n) => {
+      if (!Object.hasOwn(RECURRENCES, n.name)) return undefined
       const rec = RECURRENCES[n.name]
       const body = n.args[rec.body]
-      if (body && body.type === 'series' && body.name === rec.binds) { stack.push(n.args[rec.seed]); continue }
-      return false
-    }
-    return false
-  }
-  return true
+      return body && body.type === 'series' && body.name === rec.binds ? n.args[rec.seed] : null
+    },
+  })
 }
 
 /** ⭐ C45 — the first call WRITTEN in this parse node that keeps a history of its
@@ -6398,13 +7989,50 @@ export function bindTimeConstantTree(tree) {
  *  used as an EXPRESSION (`ifArm`, `foldIfChain`): that branch's value is written
  *  right there, and runs only when the branch is taken (H2). */
 export function armHistoryCallOf(node, historyFns, depth = 0) {
-  if (!node || typeof node !== 'object' || depth > 64) return null
-  const walk = (n) => armHistoryCallOf(n, historyFns, depth + 1)
+  return armHistoryWalk(node, historyFns, depth, armMemoFor(historyFns))
+}
+
+/** ⭐ L6 — ONE ANSWER PER CHAIN NODE PER TRANSLATION. `stampTernaryArms` asks this of
+ *  every `?:` it builds, and each asks of its arms, which hold the next `?:` down: an
+ *  N-deep `else if` / colour chain cost O(N²) node visits. The answer depends only on
+ *  the node and the history-function roster (`historyFns`, one `Set` per translation,
+ *  so the memo is keyed by it and goes with it). Only the nodes a chain repeats are
+ *  remembered (a `ternary`, an `if` branch's `bound`); a leaf is cheaper to walk than
+ *  to look up. ⛔ Only an answer reached WITHOUT the depth cap is
+ *  kept: a `null` the cap produced is a fact about where the walk began, not about
+ *  the node, and a shallower start could find a call there. */
+const ARM_MEMO = new WeakMap()
+const ARM_MEMO_NO_FNS = {}
+const ARM_MEMO_MISS = Symbol('miss')
+/** Test hook: the number of node visits `armHistoryCallOf` has made (L6's rail). */
+export const armHistoryWalkStats = { visits: 0, capHits: 0 }
+function armMemoFor(historyFns) {
+  const key = historyFns && typeof historyFns === 'object' ? historyFns : ARM_MEMO_NO_FNS
+  let m = ARM_MEMO.get(key)
+  if (!m) { m = new WeakMap(); ARM_MEMO.set(key, m) }
+  return m
+}
+function armHistoryWalk(node, historyFns, depth, memo) {
+  if (!node || typeof node !== 'object') return null
+  if (depth > 64) { armHistoryWalkStats.capHits += 1; return null }
+  const remembered = node.type === 'ternary' || node.type === 'bound'
+  if (remembered) {
+    const hit = memo.has(node) ? memo.get(node) : ARM_MEMO_MISS
+    if (hit !== ARM_MEMO_MISS) return hit
+  }
+  armHistoryWalkStats.visits += 1
+  const capsBefore = armHistoryWalkStats.capHits
+  const call = armHistoryCallAt(node, historyFns, (n) => armHistoryWalk(n, historyFns, depth + 1, memo))
+  if (remembered && armHistoryWalkStats.capHits === capsBefore) memo.set(node, call)
+  return call
+}
+function armHistoryCallAt(node, historyFns, walk) {
   const argsOf = (n) => (n.args || []).map((a) => (a && a.value !== undefined ? a.value : a))
   switch (node.type) {
     case 'call': {
       const name = typeof node.name === 'string' ? node.name : ''
-      if (name.startsWith('ta.')) return { name, udf: false }
+      // ⭐ COND-TA (engine 58, G-b) — a Pine v1-v4 bare `sma(…)` is the same call (`isTaCallName`)
+      if (isTaCallName(name)) return { name, udf: false }
       if (isHistoryCallName(name, historyFns)) return { name, udf: true }
       if (name.startsWith('request.')) return null
       for (const a of argsOf(node)) { const c = walk(a); if (c) return c }
@@ -6427,6 +8055,13 @@ export function armHistoryCallOf(node, historyFns, depth = 0) {
     default: return null
   }
 }
+
+/** ⭐⭐ COND-TA (engine 58) — what the SCREENER lane adds to a gate's own sentence when it
+ *  refuses it: that lane binds no chart, so nothing can say the code ran on every bar. */
+export const SCREEN_GATE_SENTENCE = ' — a screen or an alert reads this value on every bar of every symbol, and no '
+  + 'chart is bound there to say whether that code ran on each one, so it is not computed; add the script to a '
+  + 'chart instead, or give that call its own line above (for example `r = ta.rsi(close, 14)`) and use the name '
+  + 'here, which runs it on every bar'
 
 /** The member's sentence for a stamped arm (the bind adds where it skipped). */
 function armRunsWhy(call, tok, op, ifBranch = false) {
@@ -6473,30 +8108,85 @@ function readsFreeRecurrenceBind(tree, table) {
  *  plot because the bind finds no run after a skip. ⛔ One the walk cannot make
  *  standalone (a free bind of a multi-state recurrence) carries no gate and is
  *  drawn as it always was — never refused here, never guessed. */
-export function armRunGates(trees, table) {
+export function armRunGates(trees, table, opts = {}) {
   const out = []
-  const seen = new Set()
+  // ⭐ L3 — a node is visited once PER ENCLOSING-ARM CONTEXT (`ctx.key`): the same
+  // stamped subtree under two different arms runs on two different sets of bars.
+  const seen = new Map()
   const keys = new Set()
-  const visit = (n, accum, d) => {
-    if (!n || typeof n !== 'object' || seen.has(n) || d > 4096) return
-    seen.add(n)
+  const NO_CTX = { conds: [], key: '' }
+  // ⭐⭐ L4 — the guard a `?:` arm carries reads an `na` test as Pine's `?:` does.
+  // Pine v4+ takes the FALSE arm where the test is `na` (`interpret.js::PINE_TERNARY`,
+  // witnessed by `rt1-na-test-v4/v5/v6`, NYSE:RDDT 1D from the listing, 2026-10-02):
+  // the true arm SKIPPED that bar and the false arm RAN. ⚰️ The bare test read `na`
+  // as "neither a run nor a skip" (`blockRuns.firstRunAfterSkip`), so a test `na`
+  // on early bars and then true was a run after skips the gate did not see. Written
+  // as the `?:` itself (`t ? 1 : 0`, `t ? 0 : 1`), the guard is evaluated with the
+  // plot's own options, so it reads `na` as false exactly where the plot's `?:` does
+  // (`listingOptsFor`: from the listing, in a document declaring
+  // `meta.naConditionFalse`) and as `na` everywhere else, as before — on both lanes
+  // (`api/services/ast_interpret.py::_ternary` has no listing rule, and neither has
+  // its plot). A test that is never `na` (`neverNaTree`) keeps its tree byte for byte.
+  // ⛔ A `?:` stamp only: a v6 `and` / `or` right side keeps its left side as it stands.
+  const armGuardOf = (n, test, negate) => {
+    if (n.type === 'op' && n.name === '?:' && !neverNaTree(test)) {
+      return negate ? cOp('?:', [test, cNum(0), cNum(1)]) : cOp('?:', [test, cNum(1), cNum(0)])
+    }
+    return negate ? cOp('!', [test]) : test
+  }
+  // ⭐⭐ L3 — A NESTED ARM RUNS WHERE EVERY ARM ENCLOSING IT IS TAKEN. In
+  // `a ? (b ? ta.sma(…) : x) : y` the inner arm runs where `a and b`; its gate read
+  // `b` alone, and a `b` that varies only where `a` is false still refused. The
+  // enclosing STAMPED arms' run guards are carried down the walk (`ctx.conds`) and
+  // put round the nested guard as `?:` (`c ? g : 0`): a bar where an enclosing arm is
+  // not taken is a SKIP whatever the inner test reads there (a `&&` would be `na`).
+  // ⛔ Only a STAMPED encloser is known lazy (a `?:` from v5, a v6 `and` / `or`, an
+  // `if` expression); an unstamped one (`iff`, v4, a rewrite) adds nothing.
+  // ⛔ Not through an `offset` (the inner node is read on an earlier bar than the
+  // encloser's test) nor into a recurrence (its body runs on every bar of its own
+  // state): there the walk drops the context, which is the rule as it was — the
+  // nested guard alone, beside the encloser's own gate.
+  const within = (conds, g) => conds.reduceRight((acc, c) => cOp('?:', [c, acc, cNum(0)]), g)
+  const visit = (n, accum, d, ctx) => {
+    if (!n || typeof n !== 'object' || d > 4096) return
+    let at = seen.get(n)
+    if (!at) { at = new Set(); seen.set(n, at) }
+    if (at.has(ctx.key)) return
+    at.add(ctx.key)
     const stamp = n[ARM_RUNS]
+    let armCtx = null
     if (stamp && Array.isArray(n.args) && n.args.length) {
       let guard = n.args[0]
       if (containsFreeSelfSeries(guard, table)) guard = accum ? previousBarOf(guard, accum, table) : null
       if (guard && !readsFreeRecurrenceBind(guard, table)) {
-        const text = printFormula(guard)
+        const own = { yes: armGuardOf(n, guard, false), no: armGuardOf(n, guard, true) }
         for (const r of stamp.runs) {
-          const key = `${r.negate ? '!' : ''}(${text})|${r.why}`
+          if (opts.skipLogicRight && r.logicRight) continue
+          const g = within(ctx.conds, r.negate ? own.no : own.yes)
+          const key = `${printFormula(g)}|${r.why}`
           if (keys.has(key)) continue
           keys.add(key)
-          out.push({ why: r.why, guard: r.negate ? cOp('!', [guard]) : guard, what: r.what })
+          out.push({ why: r.why, guard: g, what: r.what })
         }
+        armCtx = own
       }
     }
     if (!Array.isArray(n.args)) return
     const fn = n.type === 'call' ? table.functions[n.name] : null
     const spec = fn && fn.recurrence
+    // the context each argument is read under: a stamped `?:`'s arms add their own
+    // guard; a stamped `&&` / `||`'s right side adds the left side's
+    const ctxOf = (i) => {
+      if (n.type === 'offset' || spec || (fn && fn.multiState)) return NO_CTX
+      if (!armCtx || i === 0) return ctx
+      const isTernary = n.type === 'op' && n.name === '?:'
+      const isLogic = n.type === 'op' && (n.name === '&&' || n.name === '||')
+      if (!isTernary && !isLogic) return ctx
+      const c = isTernary ? (i === 1 ? armCtx.yes : (i === 2 ? armCtx.no : null))
+        : (i === 1 ? (n.name === '||' ? armCtx.no : armCtx.yes) : null)
+      if (!c) return ctx
+      return { conds: [...ctx.conds, c], key: `${ctx.key}&${printFormula(c)}` }
+    }
     // ⭐⭐ M1 — A RECURRENCE'S SEED IS READ ON ONE BAR. `var x = up ? ta.highest(…) : low`
     // runs its initialiser once, on bar 0 (`accum`'s seed slot; an `accumK`'s
     // `seeds`), where no call has a history to diverge: the arm's every-bar answer
@@ -6508,10 +8198,10 @@ export function armRunGates(trees, table) {
     const seeds = spec ? [spec.seed] : (fn && fn.multiState && Array.isArray(fn.multiState.seeds) ? fn.multiState.seeds : null)
     n.args.forEach((a, i) => {
       if (seeds && seeds.includes(i)) return
-      visit(a, spec && i === spec.body ? n : accum, d + 1)
+      visit(a, spec && i === spec.body ? n : accum, d + 1, ctxOf(i))
     })
   }
-  for (const t of trees) visit(t, null, 0)
+  for (const t of trees) visit(t, null, 0, NO_CTX)
   return out
 }
 
@@ -6703,9 +8393,42 @@ let TRANSLATE_PATH = null
 let TRANSLATE_BUDGET = 0
 let printSteps = 0
 
-export function beginTranslateBudget(budgetMs, sourcePath) {
+// ─── ⭐⭐ W5-T2 — THE TRANSLATOR'S CLOCK IS INJECTABLE (SERVER-RUNTIME-DESIGN 2.2 H5) ──
+//
+// Every wall-clock read in this translator goes through `translateNow()`. By default it
+// is the host's `Date.now()`, read LATE (so nothing here is a function of when the
+// module loaded). A caller hands its own clock in one of two ways, and both reach every
+// limb of `pine:timeout` that reads time:
+//   * `translatePine(src, { now })` — the window this call opens reads it;
+//   * `withTranslateClock(now, fn)` — every Resolver CONSTRUCTED inside `fn` reads it
+//     (the runtime lane's front end builds its own Resolvers outside any
+//     `translatePine` window: `runtime/runtimeColumns.js` passes the run's `opts.now`).
+// ⛔ The clock is a SAFETY STOP, never the verdict: the deterministic limbs (the step
+// cap and the depth bound below) decide the same on every host, and a host that
+// injects a clock that never advances keeps only them (ruling R3, design 9.1).
+const wallNow = () => Date.now()
+let TRANSLATE_CLOCK = null
+let TRANSLATE_WINDOW_CLOCK = wallNow
+const clockOrNull = (now) => (typeof now === 'function' ? now : null)
+
+/** The clock a Resolver constructed NOW reads: the scoped one, else the open window's
+ *  (the host's when no window is open). */
+function translateNow() { return TRANSLATE_CLOCK || TRANSLATE_WINDOW_CLOCK }
+
+/** Runs `fn` with `now` as the translator's clock (restored after, nesting-safe).
+ *  A non-function `now` leaves the clock as it is. */
+export function withTranslateClock(now, fn) {
+  const clock = clockOrNull(now)
+  if (!clock) return fn()
+  const prior = TRANSLATE_CLOCK
+  TRANSLATE_CLOCK = clock
+  try { return fn() } finally { TRANSLATE_CLOCK = prior }
+}
+
+export function beginTranslateBudget(budgetMs, sourcePath, now) {
+  TRANSLATE_WINDOW_CLOCK = clockOrNull(now) || TRANSLATE_CLOCK || wallNow
   TRANSLATE_BUDGET = Number.isFinite(budgetMs) ? budgetMs : PINE_TRANSLATE_BUDGET_MS
-  TRANSLATE_DEADLINE = TRANSLATE_BUDGET > 0 ? Date.now() + TRANSLATE_BUDGET : Infinity
+  TRANSLATE_DEADLINE = TRANSLATE_BUDGET > 0 ? TRANSLATE_WINDOW_CLOCK() + TRANSLATE_BUDGET : Infinity
   TRANSLATE_PATH = typeof sourcePath === 'string' ? sourcePath : null
   printSteps = 0
 }
@@ -6714,6 +8437,7 @@ export function endTranslateBudget() {
   TRANSLATE_DEADLINE = Infinity
   TRANSLATE_PATH = null
   TRANSLATE_BUDGET = 0
+  TRANSLATE_WINDOW_CLOCK = wallNow
 }
 
 /** Throws `pine:timeout` once the wall-clock budget is gone. Cheap: a masked
@@ -6731,14 +8455,91 @@ export function endTranslateBudget() {
  * difference between 10s and 46 × 10s on a 45-output script like Uncharted Clouds.
  */
 export function translateBudgetExpired() {
-  return TRANSLATE_DEADLINE !== Infinity && Date.now() > TRANSLATE_DEADLINE
+  if (doorWindowOpen() && doorDeadlinePassed()) return true
+  return TRANSLATE_DEADLINE !== Infinity && TRANSLATE_WINDOW_CLOCK() > TRANSLATE_DEADLINE
 }
 
 export function translateBudgetMs() { return TRANSLATE_BUDGET }
 
+/** The sentence of the whole-script refusal the output loop and the object pass raise when the
+ *  budget is gone: the door's own when the DOOR's deadline is what passed (`withDoorDeadline`). */
+function wholeScriptTimeout(sourcePath) {
+  const door = doorWindowOpen() ? doorDeadlinePassed() : null
+  if (door) return doorRefusal(door, null)
+  return new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
+    + (sourcePath ? ' translating `' + sourcePath + '`' : '')
+    + '. This is a translator defect, not a limit on the script: report it with the file.',
+    null)
+}
+
+// ─── ⭐⭐ THE DOOR DEADLINE: ONE CLOCK ACROSS A WHOLE MEMBER-DOOR CALL (`doorDeadline.js`, 2026-11-20) ─────────
+// A member door's call opens ONE window (`withDoorDeadline`), and every clock limb below also asks it: the sampled
+// check of every Resolver of the call (`checkClock`), the printer's tick, and the output loop's and object pass's
+// `translateBudgetExpired`; once it has tripped, every later resolution step refuses at once (`checkBudget`). Why the
+// per-translation bounds alone held a tab for minutes, and the measurement: `doorDeadline.js`.
+// ⛔ Closed (no window), nothing here reads a clock and every limb answers exactly as before, byte for byte.
+
+/**
+ * Runs `fn` inside a door window of `budgetMs` on `now` (default the wall clock, `wallNow`). A window opened inside
+ * another never outlives it: each check asks every open window, innermost first.
+ * @returns {{value: *, tripped: boolean, elapsedMs: number}} `tripped` when the deadline passed while `fn` ran (a
+ *   throw after the trip is caught here: `value` is then `null`); any other throw propagates unchanged.
+ */
+export function withDoorDeadline(budgetMs, fn, now) {
+  const clock = clockOrNull(now) || wallNow
+  const t0 = clock()
+  const win = openDoorWindow(budgetMs, clock)
+  let value = null
+  try {
+    value = fn()
+  } catch (err) {
+    if (!win.tripped) throw err
+    value = null
+  } finally {
+    closeDoorWindow(win)
+  }
+  return { value, tripped: win.tripped, elapsedMs: clock() - t0 }
+}
+
+/** The translator's refusal for a passed door deadline (the door replaces it with its own sentence). */
+function doorRefusal(door, tok) {
+  return new PineRefusal('pine:timeout',
+    `${REFUSALS['pine:timeout']} — the whole check of this script gave up after ${door.budgetMs}ms`,
+    tok ? locate(tok) : null)
+}
+
+/** The tripped window's one refusal, made once and thrown again at every later step (`checkBudget`). */
+function trippedDoorRefusal() {
+  const door = openDoor()
+  if (!door.refusal) door.refusal = doorRefusal(door, null)
+  return door.refusal
+}
+
+/** ⭐ A door-only tick for a walk the translator's own budgets never bounded, charged `n` units of work: with no
+ *  door window open it returns at once, so a translation outside the member door answers exactly as before; with one,
+ *  a tripped window throws at once, and the clock is read each time the work charged crosses a 4,096 boundary. */
+let doorTicks = 0
+function tickDoorOnly(n = 1) {
+  if (!doorWindowOpen()) return
+  if (doorTripped()) throw trippedDoorRefusal()
+  const before = doorTicks
+  doorTicks += n
+  if (Math.floor(before / (BUDGET_CHECK_MASK + 1)) === Math.floor(doorTicks / (BUDGET_CHECK_MASK + 1))) return
+  checkDoorClock(null)
+}
+
+/** A checkpoint between phases (`doorDeadline.js::checkDoorDeadline`), raising the translator's own refusal. */
+function checkDoorClock(tok) {
+  if (!doorWindowOpen()) return
+  const door = doorDeadlinePassed()
+  if (door) throw doorRefusal(door, tok)
+}
+
 export function tickTranslateBudget() {
   if ((((printSteps += 1)) & BUDGET_CHECK_MASK) !== 0) return
-  if (Date.now() <= TRANSLATE_DEADLINE) return
+  checkDoorClock(null)
+  if (TRANSLATE_WINDOW_CLOCK() <= TRANSLATE_DEADLINE) return
   throw new PineRefusal('pine:timeout',
     `${REFUSALS['pine:timeout']} — gave up after ${TRANSLATE_BUDGET}ms`
     + (TRANSLATE_PATH ? ' translating `' + TRANSLATE_PATH + '`' : '')
@@ -6813,6 +8614,14 @@ export class Resolver {
      *  bar. That is not an offset — it is LOOK-AHEAD, and `PINE_NAMESPACED_TREE`
      *  says so itself: the `[R]` shift is what cancels it. */
     this.pineVersion = Number.isFinite(opts.pineVersion) ? opts.pineVersion : null
+    /** ⭐ ENGINE 56 — this Resolver reads a PINE script (`translatePine`, the runtime lane's
+     *  pure subtrees), where a missing `//@version` is v1; `null` without it is the house
+     *  language (thinkScript), whose `na` conditions keep their answer. */
+    this.pineScript = opts.pineScript === true
+    /** ⭐⭐ LEGACY SEMANTICS (B2) — a pragma-less source that declares itself Pine (`study(`), i.e. v1
+     *  (`pineV1Declared`, carried on the lex). `pineVersion` stays `null` for it, so every rule that
+     *  reads `null` as the formula box is unchanged; a rule that is Pine v1's asks this too. */
+    this.pineV1 = this.pineVersion === null && opts.pineV1 === true
     /** ⭐ F1 — `declarationWordsOf` this script's tokens, for a Resolver built
      *  outside `translatePine` (the runtime lane's pure subtrees); inside it the
      *  translation's own `DECL_WORDS_SINK` answers. */
@@ -6840,6 +8649,10 @@ export class Resolver {
      *  that input. Default `BASE_TF` (derived, = `'D'`), overridable so the guard
      *  below is PROVABLE rather than merely present. */
     this.basePeriod = basePeriodOf(opts)
+    /** ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — the RUNTIME lane's request reader (`pineRuntimeFrontend.js`, its
+     *  `targetReader`) reads a daily read above an intraday chart as an `above` target its supply serves. Every
+     *  other resolver (the host's translation, the screen) keeps the refusal it always had (ruling 3.5, C49). */
+    this.aboveDailyReads = opts.aboveDailyReads === true
     /** ⭐⭐ C10 (2026-09-29) — THE TIMEFRAME A `request.security` CHILD IS BEING
      *  RESOLVED FOR, while `securityAsNode` resolves one at another timeframe;
      *  `null` everywhere else. Pine evaluates the requested expression IN that
@@ -6877,7 +8690,9 @@ export class Resolver {
      *  pass `budgetMs: 0` to disable it, which is for tests that deliberately
      *  measure a slow path — never for a batch run over untrusted scripts. */
     this.budgetMs = Number.isFinite(opts.budgetMs) ? opts.budgetMs : PINE_TRANSLATE_BUDGET_MS
-    this.deadline = this.budgetMs > 0 ? Date.now() + this.budgetMs : Infinity
+    /** ⭐ W5-T2 — the clock this Resolver's own deadline reads (`translateNow`). */
+    this.now = clockOrNull(opts.now) || translateNow()
+    this.deadline = this.budgetMs > 0 ? this.now() + this.budgetMs : Infinity
     /** Named in the refusal so a batch says WHICH file, not just that one hung. */
     this.sourcePath = typeof opts.sourcePath === 'string' ? opts.sourcePath : null
     this.maxSteps = Number.isFinite(opts.maxSteps) ? opts.maxSteps : PINE_TRANSLATE_MAX_STEPS
@@ -6906,14 +8721,6 @@ export class Resolver {
      *  can see their `'D'` became the chart's own series. A fold nobody is told about
      *  is a script that quietly stopped being the one they pasted. */
     this.baseFolds = new Map()
-    /** ⭐⭐ P0 (inv + imp, 2026-10-05) — every look-ahead-OFF higher-timeframe read
-     *  this run emitted as `tf`. `tf` reads the last CLOSED period on every bar, so
-     *  on the bar that completes a week/month UCT still shows the PREVIOUS period
-     *  where TradingView already shows the completed one: one bar later on the last
-     *  bar of every period. The evaluator is not changed in P0; the difference is
-     *  DISCLOSED through the `_folds` seam (`closedTable.json::_folds.
-     *  htfLookaheadOffStepBacks`), surfaced per output exactly like `baseFolds`. */
-    this.htfStepBacks = new Map()
     /** Which bound input names this run may emit as identifiers: `'all'`, a Set,
      *  or null for the shipped default (fold everything, as before). */
     this.declareInputs = null
@@ -7013,6 +8820,46 @@ export class Resolver {
      *  `floor_pivot_resolution` chain is six hops deep), and re-pinning that map
      *  is an owner-ruled act. The object pass mints no parameters. */
     this.objectPass = opts.objectPass === true
+    /** ⭐⭐ (request unit, TF-FOLD, engine 89) — THE RUNTIME LANE'S READING OF A REQUEST'S TIMEFRAME. Set by
+     *  `pineRuntimeFrontend.js` on its own resolvers (`requestTimeframeReader: 'runtime'`) and by nothing else. The
+     *  timeframe argument of a `request.security` (and only that argument: `requestTimeframeReach`) is followed
+     *  through `TF_READ_HOPS` names and ternary arms, the object pass's reach (C10), where the plot lane reads 4: the
+     *  literal a constant chain settles before the first bar (cppivot-boss-floor-pivots' six-hop
+     *  `floor_pivot_resolution`, over an input's default).
+     *  ⛔ CONFINED, and the confinement is the point: the host translator never sets it, so no plot-lane
+     *  translation moves and no parameter id is minted in a new order (the C10 reason the plot lane keeps 4;
+     *  `requestTimeframeReader.test.js` holds the plot lane byte-identical over the committed corpus). */
+    this.runtimeRequestTimeframes = opts.requestTimeframeReader === 'runtime'
+    /** ⭐⭐ (request unit PR 2, engine 90) — THE SCRIPT'S FUNCTIONS, SETTLED, FOR THAT READER ALONE. The runtime
+     *  lane's resolver environment holds pure expression bindings and no user function, so a timeframe written as a
+     *  call (Saty ATR Levels' `timeframe_func()`, TehThomas' `getAlignedTimeframe()`) was unreadable there. The
+     *  runtime lane hands its own kept bodies (`pineRuntimeFrontend.js`: `name → settledRequestFunctionOf(body)`,
+     *  anything with a `get(name)`), read ONLY by `throughSettledCall`, ONLY under `runtimeRequestTimeframes`.
+     *  ⛔ The host translator never sets it. */
+    this.requestSettledFunctions = this.runtimeRequestTimeframes && opts.requestSettledFunctions
+      && typeof opts.requestSettledFunctions.get === 'function' ? opts.requestSettledFunctions : null
+    /** ⭐⭐ (request unit PR 2, EXT-OWN, engine 90) — THE CHART'S OWN SYMBOL ON THE EXTENDED SESSION, READ AS THE
+     *  CHART'S OWN DAILY BARS ON A DAILY CHART. Set by `pineRuntimeFrontend.js` on its own resolvers
+     *  (`requestExtendedOwn: 'daily-identity'`) and by nothing else: `request.security(ticker.new(syminfo.prefix,
+     *  syminfo.ticker, session.extended), <the chart's own daily timeframe>, x)` is `x` (`extendedOwnTickerOf`).
+     *  TradingView's manual (Sessions): "Extended hours data is only shown on intraday timeframes; on "1D" and above,
+     *  this variable is always `false`" (`session.ispremarket` / `session.ispostmarket`). It does not say what an
+     *  extended ticker's daily bars ARE, so this is served on its captures alone: Saty ATR Levels on NYSE:RDDT and
+     *  AMEX:SPY 1D (`saty-atr-levels-{rddt,spy}-1d-2026-11-14`, licence-held; its `"D"` reads `close[1]`,
+     *  `ta.atr(14)[1]`, `high`, `low` through that ticker), graded on the runtime lane (the request unit PR 2's
+     *  evidence), and the rig's own probe when captured (capture-queue row Q-REQ5, `vw-req-extended-own.pine`).
+     *  ⛔ NOTHING WIDER: a daily chart only, the identity only. The extended ticker at another timeframe (W / M on a
+     *  daily chart, `"D"` on an intraday chart, any lower timeframe) keeps its refusal: no capture reads it, and on an
+     *  intraday chart the extended series has bars the regular one does not. */
+    this.runtimeExtendedOwnDaily = opts.requestExtendedOwn === 'daily-identity'
+    /** ⛔ W1 (review, 2026-11-02) — THE RUNTIME LANE'S OBJECT DOOR. Set by
+     *  `pineRuntimeFrontend.js` when it builds a drawing script's values
+     *  (`atObjectDoor`: `runtimeColumns.js::probeObjectRuntime` /
+     *  `runtimeObjectValues`) and, since the W1 re-review, when a build draws its
+     *  own objects (`objectsInRun`, the runtime pane's drawings) — by nothing else.
+     *  Read in ONE place, `seriesTreeOf`: a running total `PINE_DRAWING_HELD_SERIES`
+     *  holds is refused there by name, exactly as the host object pass refuses it. */
+    this.objectDoor = opts.objectDoor === true
     /** ⭐ C22 — the op the object pass is converting (`{topTok, siteIndex}`),
      *  so a window read inside a helper is placed at its call (`windowReadPos`). */
     this.windowReadSite = null
@@ -7359,6 +9206,16 @@ export class Resolver {
     // and refused for being too deep HAS been read, and re-resolving it in the
     // closing pass would report the same exhaustion twice under a worse name.
     if (bound && typeof bound === 'object') bound.read = true
+    // ⭐ RMA-SEED — a part of a tuple built-in that names every argument (`PINE_TUPLE_BUILTINS.dmi`,
+    // `resolveEveryArg`): each argument is resolved first, for what resolving does to the script's inputs (an
+    // `input.int` length is minted as the member's parameter whichever leg is read). ⚰️ `dmiParts`' legs resolved
+    // both lengths to compare them, so a script reading only +DI / -DI still listed its "DMI Smoothing" input, and
+    // its frozen parameter ids (`paramIdLegacy.js`) address it; TradingView lists it too.
+    if (bound && bound.kind === 'expr' && Array.isArray(bound.mintArgs)) {
+      const prevEnv = this.env
+      this.env = bound.env || prevEnv
+      try { for (const a of bound.mintArgs) this.resolve(a) } finally { this.env = prevEnv }
+    }
     // ⭐⭐ C31 — see `foldStatements`' conditional-call mark. Only a Resolver
     // that asks (`refuseCondCalls`, the object pass's) refuses it.
     // ⭐⭐ C42 — where the block runs exactly ONCE the fold also built what the
@@ -7386,8 +9243,14 @@ export class Resolver {
     //   · the object pass (`refuseCondCalls`) refuses at the read, as C31 did;
     //   · a mark with no guard to carry is refused once the output has resolved
     //     (`condRefusal`), never served;
-    //   · every other resolver — the screener lane's among them, where nothing
-    //     binds a chart — reads as it always has.
+    //   · every other resolver reads as it always has. ⚰️ The screener lane's was
+    //     among them ("nothing binds a chart"), and so it served the every-bar
+    //     number; since COND-TA (engine 58) its output loop sets `condGate` too and
+    //     refuses each value gate by name (`SCREEN_GATE_SENTENCE`).
+    // ⭐ G-h (r1) — a paint's / a fill's colour reads a one-run binding the way a plot
+    // does (`holderColourGates` turns `condGate` on): ⚰️ r0 read it the every-bar way
+    // (`condGateNotesOnly`), and `if barstate.islast` / `s := ta.sma(close, 3)` painted
+    // the every-bar mean on the last bar with no gate, where the plot reads Pine's `na`.
     if (!this.refuseCondCalls && this.condGate && this.mintOnly === 0 && bound && bound.oneExecution) {
       this.mintOnlyRead(() => this.resolveBinding(bound, tok, name))
       const minted = this.paramMint
@@ -7730,33 +9593,6 @@ export class Resolver {
       }
       return this.resolveBinding(picked, tok, name)
     }
-    // ⭐ ONE LEG OF `ta.dmi`, with its two periods compared HERE where they are
-    // values rather than names.
-    //
-    // ⛔ PINE SMOOTHS THE ADX OVER ITS SECOND ARGUMENT while the DI legs use the
-    // first; this table's `adx` takes ONE period for both. So an unequal pair
-    // refuses rather than quietly returning a 14/14 ADX — the identical decision
-    // `ADX14.20` makes on the TC2000 side, and the same reason: a member who
-    // asked for 14/20 must not be handed a number that is not the indicator they
-    // asked for.
-    if (bound.kind === 'dmiLeg') {
-      const prevEnv = this.env
-      this.env = bound.env || prevEnv
-      try {
-        const a = this.resolve(bound.a)
-        const b = this.resolve(bound.b)
-        const same = a.type === 'num' && b.type === 'num' && a.value === b.value
-        if (!same) {
-          throw new PineRefusal('pine:tuple',
-            `${REFUSALS['pine:tuple']} — \`ta.dmi\` smooths its ADX over the SECOND period `
-            + 'and this table uses one period for both, so the two must agree',
-            bound.at || locate(tok))
-        }
-        return this.resolve({
-          type: 'call', name: bound.pineName, args: [{ value: bound.a }], tok,
-        })
-      } finally { this.env = prevEnv }
-    }
     // ⭐⭐ ONE ELEMENT OF A TUPLE `request.security` (2026-09-11). Volume's line 259
     // is `[a,…,h] = request.security(syminfo.tickerid, 'D', f_getDailyData(),
     // lookahead = barmerge.lookahead_off)` — eight daily values fetched in one
@@ -7798,9 +9634,14 @@ export class Resolver {
         })
         if (!out) {
           // ⭐ C27 — a tuple element of a request below the chart names why.
+          // ⭐ ENGINE 55 — …and one naming a spelling this door cannot even turn into a
+          // listing (a foreign exchange, `BRK/B`): the one sentence both lanes say.
           const lower = this.lowerTfDeclineOf(bound.call)
+          const spelled = lower ? null : this.otherSymbolSpellingDeclineOf(bound.call)
+          if (spelled) throw new PineRefusal('pine:request', spelled.message, bound.at || locate(tok))
+          const why = lower ? lower.why : null
           throw new PineRefusal('pine:request',
-            `${REFUSALS['pine:request']} — \`${name}\`${lower ? `: ${lower.why}` : ''}`,
+            `${REFUSALS['pine:request']} — \`${name}\`${why ? `: ${why}` : ''}`,
             bound.at || locate(tok))
         }
         return out
@@ -7837,6 +9678,24 @@ export class Resolver {
         throw this.undefinedName(name, tok)
       }
       try { return this.resolveBinding(frame[bound.index], tok, name) } finally { this.frames.push(frame) }
+    }
+    // ⭐⭐ ENGINE 49 — A v3+ DECLARATION THAT READS ITS OWN HISTORY (`x = … x[k] …`) DOES NOT
+    // COMPILE IN PINE, and refuses by name here, before its initialiser is resolved, so no
+    // other wall in it (and no recurrence fold below) speaks first. The declaration sites mark
+    // the binding (`selfDeclaration`, the declared name) when `selfReferencingDeclaration` holds
+    // in the env the declaration was written in: a shadowing local, a parameter, a `var`, a
+    // tuple and the `x = 0.0` + `x := …` form are never marked. v1/v2 and no pragma compile the
+    // spelling and keep their paths (engine 48's `na`-seeded refusal below included).
+    // ⭐ ENGINE 50 — this is no longer the only door: the walk also records every mark
+    // (`ctx.selfDeclarations`) and refuses the whole script by the first one after the walk, so a
+    // marked binding nothing reads, one read only through `color=`, a name an earlier user function
+    // holds (`declaredAsVariable`) and a block-valued `x = if/switch …` refuse too, as the runtime
+    // lane does (review ENG49-1122 notes 1-3, 6). This branch still speaks for a resolved binding,
+    // with the same sentence, so a plot's own refusal says the same thing.
+    if (bound.selfDeclaration && !listingSeedIsUnpinned(this.pineVersion)) {
+      throw new PineRefusal('pine:cycle',
+        `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(bound.selfDeclaration, this.pineVersion)}`,
+        bound.at || locate(tok))
     }
     if (this.stack.has(bound)) {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
@@ -7944,6 +9803,36 @@ export class Resolver {
             + 'first-bar value the way `na(' + name + '[1]) ? … : …` does',
             bound.at || locate(tok))
         }
+        // ⭐⭐ ENGINE 48 — `x = na(x[k]) ? na : U` REFUSES BY NAME, in every version, in
+        // both lanes, and no column is drawn for it. The runtime lane reaches this branch for
+        // a binding it keeps in the `Resolver`; one it makes a SLOT (a function local, or one
+        // whose update reads a slot) is refused with the same sentence by
+        // `pineRuntimeFrontend.js::naSeededSelfDeclaration` (review N1). Where the runtime lane
+        // meets another wall first (a warm-up update: `runtime:conditional-history`), it refuses
+        // by that name instead; the member door shows this one. Neither answer it could draw is
+        // witnessed:
+        //   - v3+ (`!listingSeedIsUnpinned`): TradingView does not COMPILE it. Pine v3
+        //     removed self-reference in a declaration, so there is no TradingView value
+        //     at all. Engine 46 (LANE B0) drew the all-`na` column here, and before it
+        //     the counter spelling refused `pine:state` (LANE2-r1r3 N3).
+        //   - v1/v2 and no pragma: Pine compiles it, and its answer turns on the one fact
+        //     W34-I4b leaves unpinned, `x[k]` before the first bar. Read as `na`, every
+        //     bar takes the `na` arm, so `x` is `na` on EVERY bar. Read as 0, bar 0 runs
+        //     `U` from 0 and each later bar runs `U` from there. The listing pass's
+        //     candidates (seed, update(U, na), zero) do not include the first reading,
+        //     so for a `U` that forgets its seed they agreed from bar 1 on a value the
+        //     first reading contradicts, and the host served it (LANE2-r1r3 N1). No
+        //     capture pins it (capture row W34-I4-S1).
+        // ⛔ Only this spelling: a stated seed (`na(x[1]) ? 7.0 : U`) and a test that is
+        // not a bare history read (`na(nz(x[1]))`) keep their paths below, in v1/v2 and no
+        // pragma. Since engine 49 a v3+ declaration never reaches this branch: every v3+
+        // declaration that reads its own history refuses at the top of `resolveBindingInner`
+        // (`selfDeclaration`), with the same v3+ sentence.
+        if (naSeededSelfReference(body, parts, this.table)) {
+          throw new PineRefusal('pine:cycle',
+            `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(name, this.pineVersion)}`,
+            bound.at || locate(tok))
+        }
         // 🔴🔴 THE SAME CONVERGENCE GATE AS THE MUTABLE FORM, asked of the UPDATE
         // ARM ALONE — the seed arm is what the accumulator re-seeds WITH, so
         // asking it to forget itself is asking the wrong question. Routing around
@@ -7966,7 +9855,9 @@ export class Resolver {
         const args = []
         args[spec.recurrence.seed] = selfCounter ? switchedVarSeed(readingSeed(parts.seed, 'seed'))
           : switchedState ? switchedVarSeed(parts.seed) : parts.seed
-        args[spec.recurrence.body] = parts.update
+        // ⭐ ENGINE 56 (A1) — the step as written (`seedAndUpdateOf`'s `step`), never the
+        // update with its `na(self)` test or `nz(self, S)` wrappers taken out
+        args[spec.recurrence.body] = parts.step
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         const built = cCall('accum', args)
         this.recurrenceColumns.set(name, built)
@@ -8293,6 +10184,50 @@ export class Resolver {
   }
 
   /** The `var x = <seed>` + `x := …` binding behind a plain name, or null. */
+  /** ⭐⭐ engine 78 (#1858) (Q-FCMP2) — THE v1-v4 COMPILE-TIME COMPARISON. TradingView's v1-v4 compiler
+   *  compares two compile-time CONSTANTS exactly (the form twins' T50; vw-fcmp-const-v4 C01-C04, C10-C14:
+   *  literals, named literals, sums of them, a function or a `?:` that yields one, int against float), while
+   *  an input, a series or a reassigned name is compared at run time, tolerantly (C05-C09), as is everything
+   *  in v5 / v6. `pineCompare.js::constCompareFold` answers the rule; this proves the operands:
+   *    · each RESOLVED side is a constant expression — numbers and `+ - * /` over them, nothing else (a
+   *      declared input is a `series` leaf here, a bar read a `series`, a call a `call`); and
+   *    · no NAME either PINE side reads is reassigned (`this.mutated`: `rv := …` folds to its last value in
+   *      the resolved tree, and Pine compares it at run time) or bound to an input call (an undeclared input
+   *      also resolves to its literal).
+   *  The 0/1, or `null` (nothing to fold: the run's own compare answers). */
+  constCompareOf(mapped, node, rl, rr) {
+    if (!['>', '<', '>=', '<=', '==', '!='].includes(mapped)) return null
+    const a = constantTreeValue(rl)
+    const b = constantTreeValue(rr)
+    if (a === null || b === null) return null
+    const fold = constCompareFold(mapped, a, b, this.pineVersion)
+    if (fold === null) return null
+    const seen = new Set()
+    const runtimeName = (n, env, depth = 0) => {
+      if (!n || typeof n !== 'object' || depth > 64) return false
+      if (Array.isArray(n)) return n.some((x) => runtimeName(x, env, depth + 1))
+      if (n.type === 'name' && typeof n.name === 'string') {
+        if (this.mutated.has(n.name)) return true
+        const bound = env && typeof env.get === 'function' ? env.get(n.name) : undefined
+        if (bound && bound.kind === 'expr' && bound.node) {
+          if (bound.node.type === 'call' && typeof bound.node.name === 'string'
+            && (bound.node.name === 'input' || bound.node.name.startsWith('input.'))) return true
+          if (seen.has(bound)) return false
+          seen.add(bound)
+          return runtimeName(bound.node, bound.env instanceof Map ? bound.env : env, depth + 1)
+        }
+        return false
+      }
+      for (const [key, v] of Object.entries(n)) {
+        if (key === 'tok' || key === 'binding' || !v || typeof v !== 'object') continue
+        if (runtimeName(v, env, depth + 1)) return true
+      }
+      return false
+    }
+    if (runtimeName(node.left, this.env) || runtimeName(node.right, this.env)) return null
+    return fold
+  }
+
   stateBindingOf(node) {
     if (!node || node.type !== 'name') return null
     const b = this.env.get(node.name)
@@ -8362,7 +10297,11 @@ export class Resolver {
       // ⚠️ RESOLVED ONCE AND COPIED. Sharing one object across K positions puts
       // the same node in a tree twice, which any walker that annotates in place
       // would then read as one node visited twice.
-      const copy = () => JSON.parse(JSON.stringify(base))
+      // ⭐⭐ G-c — …AND THE COPY KEEPS ITS ARM STAMPS (`copyKeepingArmRuns`). The
+      // JSON round trip dropped every non-enumerable `_armRuns`, so
+      // `n := up and ta.rising(close, 2) ? n + 1 : 0` lost its v6 right-side stamp and
+      // the run-length tree was drawn off the every-bar `ta.rising` with no gate.
+      const copy = () => copyKeepingArmRuns(base)
       let tree = null
       for (let i = 0; i < run; i++) {
         let term = shape.invert ? cOp('!', [copy()]) : copy()
@@ -8522,9 +10461,12 @@ export class Resolver {
       // "which spellings mean the chart's own timeframe" would let this door and
       // `securityAsNode` disagree about one script.
       // ⭐ C29 — as TEXT, in the script's own Pine version (`periodTextOf`).
+      if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) {
-        const text = periodTextOf(this.periodInForce(node.name, node.tok), this.pineVersion)
-        if (!this.periodCodeRead) recordPeriodRead('timeframe.period', this.pineVersion)
+        // ⭐⭐ the version island: inside a v5 library, the library's version (`"D"`, not `"1D"`)
+        const atVersion = versionAt(node.tok, this.pineVersion)
+        const text = periodTextOf(this.periodInForce(node.name, node.tok), atVersion)
+        if (!this.periodCodeRead) recordPeriodRead('timeframe.period', atVersion)
         return text
       }
       return null
@@ -8708,6 +10650,10 @@ export class Resolver {
    */
   checkBudget(tok) {
     this.budgetSteps += 1
+    // ⭐⭐ A TRIPPED DOOR WINDOW REFUSES AT EVERY STEP (`withDoorDeadline`): a refusal a caller catches and retries
+    // around must not buy the script another 4,096 steps per retry. One property read when a window is open, and
+    // ONE refusal per window, thrown again (a fresh one captured a stack per retry: measured, ~0.6 s of a 3 s trip).
+    if (doorTripped()) throw trippedDoorRefusal()
     // ⛔ THE STEP CAP IS CHECKED OUTSIDE THE MASK. Gating it behind the same
     // 4096-step gate as the clock made any cap below 4096 UNREACHABLE — a guard
     // that cannot fire. A control asking a normal script to stop at 100 steps is
@@ -8726,6 +10672,8 @@ export class Resolver {
   /** The wall-clock half of `checkBudget`, also asked by a replayed probe
    *  (`resolveProbed`) whose charged steps cross a sampling boundary. */
   checkClock(tok) {
+    // ⭐⭐ THE DOOR'S CLOCK FIRST (`withDoorDeadline`): it bounds every Resolver of the call, however many.
+    checkDoorClock(tok)
     const where = this.sourcePath ? ' translating `' + this.sourcePath + '`' : ''
     const tail = '. This is a translator defect, not a limit on the script: '
       + 'report it with the file.'
@@ -8740,7 +10688,9 @@ export class Resolver {
     // `this.deadline` is the fallback for a Resolver constructed directly,
     // outside `translatePine`, where no window was ever opened.
     const deadline = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_DEADLINE : this.deadline
-    if (Date.now() <= deadline) return
+    // ⭐ W5-T2 — each deadline is read on the clock it was set with
+    const clock = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_WINDOW_CLOCK : this.now
+    if (clock() <= deadline) return
     const budget = TRANSLATE_DEADLINE !== Infinity ? TRANSLATE_BUDGET : this.budgetMs
     throw new PineRefusal('pine:timeout',
       `${REFUSALS['pine:timeout']} — gave up after ${budget}ms for the whole script`
@@ -9415,9 +11365,21 @@ export class Resolver {
     } else {
       // a growing window: slots 0 … size−1 are filled, so a fold carries the
       // running value only through slots that exist (`has`).
-      const step = (acc, j) => (member === 'max' || member === 'min'
-        ? [I(`math.${member}`), P('('), ...acc, P(','), ...v(j), P(')')]
-        : [P('('), ...acc, P('+'), ...v(j), P(')')])
+      // ⭐ door-deadline — THESE FOLDS ARE BUILT BY COPYING, AND THE UNSHIFT ONE DOUBLES EVERY SLOT (its running
+      // value appears in both arms), so it is the one walk of a translation no budget bounded: measured, most of a
+      // member-door call that ran for minutes on a public script. Each step of the fold is charged to the door BEFORE
+      // its copies are made, by the tokens it carries (`tickDoorOnly` in `step`, which both orders call once a slot: a
+      // no-op with no door window, so the tokens and every answer are unchanged), and the copies themselves are the
+      // spreads they always were.
+      // ⚰️ MEASURED, BOTH WAYS IT WENT WRONG: a copy token by token, ticking each, ran one public script's call on to
+      // the deadline where the spread had finished; a bulk `concat` made the worker exit at once, every time. Keep the
+      // spreads.
+      const step = (acc, j) => {
+        tickDoorOnly(acc.length)
+        return member === 'max' || member === 'min'
+          ? [I(`math.${member}`), P('('), ...acc, P(','), ...v(j), P(')')]
+          : [P('('), ...acc, P('+'), ...v(j), P(')')]
+      }
       if (w.order === 'unshift') {
         // index order j = 0, 1, …: acc_j = has(j) ? step(acc_{j-1}, j) : acc_{j-1}
         body = v(0)
@@ -9699,12 +11661,21 @@ export class Resolver {
    *  reads there. See `implicitBoolCast` for the rule and its evidence status.
    *  `site` names the context (`and`/`or`/`not`/`ternary`) for the observer. */
   condition(tree, site, tok) {
-    const cast = implicitBoolCast(tree, this.pineVersion, this.table)
-    const out = naOperandReadAsFalse(cast, site, this.pineVersion)
+    // ⭐⭐ the version island (bool na, implicit cast): a condition a v5 library writes inside a v6 script is read
+    // under v5 (`versionAt` at its token): its `na` bool reads false, a number is cast to a bool
+    const version = versionAt(tok, this.pineVersion)
+    // ⭐ ENGINE 56 (A3) — a v1-v5 `bool` VALUE that is `na` (`boolNaValue`) reads false here
+    if (version === null || version === undefined || Number(version) <= 5) {
+      tree = naArmsReadFalse(tree)
+    }
+    const cast = implicitBoolCast(tree, version, this.table)
+    // ⭐ ENGINE 56 (S1, s18) — a Pine script with no `//@version` is v1, and v1-v3 read an `na`
+    // operand of `and` / `or` / `not` as false like v4 / v5 (`naConditionIsFalse`)
+    const out = naOperandReadAsFalse(cast, site, this.pineScript && version === null ? 1 : version)
     if (this.onCondition) {
       const at = locate(tok)
       this.onCondition({
-        site, kind: out.kind, cast: out.cast, version: this.pineVersion,
+        site, kind: out.kind, cast: out.cast, version,
         line: at && at.line, column: at && at.column, tree,
       })
     }
@@ -9738,7 +11709,7 @@ export class Resolver {
       case 'unary': {
         const inner = this.resolve(node.arg)
         // ⭐ `not` IS A BOOL CONTEXT — see `implicitBoolCast`. `-x` is not.
-        if (node.op === 'not') return cOp('!', [this.condition(inner, 'not', node.tok)])
+        if (node.op === 'not') return boolNaOperator('!', this.condition(inner, 'not', node.tok), null, this.pineVersion)
         return cOp('u-', [inner])
       }
       case 'binary': {
@@ -9917,6 +11888,9 @@ export class Resolver {
           if (q !== null) return cNum(q)
         }
         const mapped = PINE_OP_TO_TABLE[node.op]
+        // ⭐⭐ the version island (bool na): an operator a v5 library writes inside a v6 script holds its `na` bool as
+        // a v5 script's does (`versionAt` at its token; `boolNaOperator` below, on every path)
+        const opVersion = versionAt(node.tok, this.pineVersion)
         if (!mapped || !own(this.table.operators, mapped)) {
           throw new PineRefusal('pine:operator',
             `${REFUSALS['pine:operator']} — \`${node.op}\``, locate(node.tok))
@@ -9961,11 +11935,11 @@ export class Resolver {
           // addresses); only a right side that REFUSES is skipped, because the
           // left has already decided the answer on every bar.
           if (!this.objectPass) {
-            const out = foldLogicalIdentity(mapped, decidedBy,
-              this.condition(this.resolve(node.right), node.op, node.tok), this.table)
+            const rightCast = this.condition(this.resolve(node.right), node.op, node.tok)
+            const out = foldLogicalIdentity(mapped, decidedBy, rightCast, this.table)
             // ⭐⭐ C45 — a v6 right side that runs only where the left has not decided
             this.stampLogicRight(out, node, decidedBy, mapped)
-            return out
+            return boolNaOperator(mapped, decidedBy, rightCast, opVersion, out, node.left, node.right)
           }
           let right
           try {
@@ -9978,14 +11952,24 @@ export class Resolver {
           // ⭐ C41 — …and a right side that READS BELOW THE CHART is skipped the
           // same way (`deadLowerTfRead`): the left has decided every bar.
           if (deadLowerTfRead(right) && constantTestValue(decidedBy) === annihilator) return cNum(annihilator)
-          return foldLogicalIdentity(mapped, decidedBy, right, this.table)
+          return boolNaOperator(mapped, decidedBy, right, opVersion,
+            foldLogicalIdentity(mapped, decidedBy, right, this.table), node.left, node.right)
         }
         if (probed) {
-          return foldLogicalIdentity(mapped,
-            this.resolveProbed(node.left, probed), this.resolveProbed(node.right, probed), this.table)
+          const pl = this.resolveProbed(node.left, probed)
+          const pr = this.resolveProbed(node.right, probed)
+          // ⭐⭐ engine 78 (#1858) — the v1-v4 constant fold, on this path too (`constCompareOf`)
+          const constFoldP = this.constCompareOf(mapped, node, pl, pr)
+          if (constFoldP !== null) return cNum(constFoldP)
+          return boolNaOperator(mapped, pl, pr, opVersion, foldLogicalIdentity(mapped, pl, pr, this.table), node.left, node.right)
         }
-        return foldLogicalIdentity(mapped,
-          this.resolve(node.left), this.resolve(node.right), this.table)
+        const rl = this.resolve(node.left)
+        const rr = this.resolve(node.right)
+        // ⭐⭐ engine 78 (#1858) (Q-FCMP2) — v1-v4 compare two COMPILE-TIME CONSTANTS exactly; everything
+        // else (and v5 / v6) is the run's tolerant compare. See `constCompareOf`.
+        const constFold = this.constCompareOf(mapped, node, rl, rr)
+        if (constFold !== null) return cNum(constFold)
+        return boolNaOperator(mapped, rl, rr, opVersion, foldLogicalIdentity(mapped, rl, rr, this.table), node.left, node.right)
       }
       case 'ternary': {
         // ⭐ THE TEST IS A BOOL CONTEXT — `if` chains fold to this node too, so
@@ -10164,6 +12148,13 @@ export class Resolver {
         }
         const blockRead = this.blockLocalHistory(node)
         if (blockRead !== null) return blockRead
+        // ⭐⭐ Q-BH0 — a v6 `bool`'s history before history begins is `false` (`v6BoolHistory`), on the plain read
+        // below. ⛔ Not on a reassigned name's read here (`plainRecurrence`): inside the name's own update it is the
+        // recurrence's `self`, and above the update, measured 2026-11-20, a v6 `bool` latch read there is refused by
+        // name on this lane (`pine:state`: an `if`-block latch and a self-referential `?:` one alike), so no rail can
+        // reach a wrap there (mutation-proved: the wrap's removal survived every rail). The run reads such a latch
+        // from its slot and serves the rule (`pineRuntimeFrontend.js::v6BoolHistoryIr`).
+        const histVersion = versionAt(node.tok, this.pineVersion)
         const plain = this.plainRecurrence(node, node.tok)
         if (plain !== null) return plain
         this.guardOffsetOfMutable(node)
@@ -10171,7 +12162,7 @@ export class Resolver {
         // reach the seam the same way and nesting needs no special case.
         const child = this.resolve(node.arg)
         const wrote = node.arg.type === 'name' ? `${node.arg.name}[${node.n}]` : null
-        return barOffsetNode(child, node.n, this.table, node.tok, wrote)
+        return v6BoolHistory(barOffsetNode(child, node.n, this.table, node.tok, wrote), node.n, histVersion)
       }
       case 'name': return this.resolveName(node)
       case 'call': return this.resolveCall(node)
@@ -10216,9 +12207,10 @@ export class Resolver {
    *  it evaluates is the object lane's own, stated once in `interpret.js` (`historyReadable`)
    *  (measured, `vw-offset-na` / `vw-mbb-auto` 2026-09-30).
    *
-   *  The buffer is the script's declared `max_bars_back`, else
-   *  `AUTO_MAX_BARS_BACK` (the reach TradingView's automatic buffer was measured
-   *  to cover) — read by the SAME `declaredMaxBarsBackOf` the object lane reads —
+   *  The buffer is `historyReadBufferOf`'s, the SAME one the object lane reads: the
+   *  script's declared `max_bars_back` when it is at least `AUTO_MAX_BARS_BACK` (the
+   *  reach TradingView's automatic buffer was measured to cover), else that
+   *  automatic buffer (WS-C: a declaration never shrinks the read) —
    *  and never more than the index can take (`maxHistoryBack`), so
    *  `close[cond ? na : 1]` asks for two bars rather than four hundred, and
    *  `bar_index[-ta.lowestbars(low, 100)]` for a hundred rather than the 5,000 a
@@ -10233,6 +12225,10 @@ export class Resolver {
    *  parameter map (`docs/pine/param-ids.json`), an owner-ruled act this lane
    *  does not take. Deleting this arm is the whole change, once ruled.
    *
+   *  ⭐ engine 83 (WS-C M4): a script that calls `max_bars_back(x, n)` is read like any other.
+   *  TradingView drew `x[60]` and `ta.sma(x, 60)` after `max_bars_back(x, 50)` on every bar
+   *  (`vw-w4-max-bars-back-m4`): the per-series form bounds nothing, so it no longer refuses this read.
+   *
    *  Answers null (the caller keeps `pine:offset-literal`) for a CONSTANT index
    *  that is not a whole number of bars; for an index that reads NO bar — an
    *  expression over inputs and literals the window fold could not reduce
@@ -10241,8 +12237,6 @@ export class Resolver {
    *  and on the screener lane — a saved scan
    *  is evaluated where the root is not withheld around an unreadable count
    *  (`interpret.js::historyReadMask` is the chart lanes'). Refuses by name:
-   *    · `max_bars_back(x, n)` — the per-series form sizes one buffer, a rule
-   *      this read does not model (the object lane's `max-bars-back-call`);
    *    · a source the script REASSIGNS — its history is the value it held when
    *      each earlier bar finished, which the binding in scope here is not. */
   historyReadOf(node, back) {
@@ -10255,20 +12249,13 @@ export class Resolver {
         `${REFUSALS['pine:offset-literal']} — this one moves only with \`barstate.*\` (whether `
         + 'the bar is still forming), and a per-bar index was measured on closed bars only', at)
     }
-    const declared = declaredMaxBarsBackOf(this.source)
-    if (declared.call) {
-      throw new PineRefusal('pine:offset-literal',
-        `${REFUSALS['pine:offset-literal']} — this one changes from bar to bar, and the script `
-        + 'sizes a series\' history with `max_bars_back(x, n)`, a per-series buffer this read '
-        + 'does not model', at)
-    }
     const arg = node.arg
     if (arg && arg.type === 'name' && (this.mutated.has(arg.name) || this.buildingRecurrence === arg.name)) {
       throw new PineRefusal('pine:state',
         `${REFUSALS['pine:state']} — \`${arg.name}[…]\` reads what \`${arg.name}\` held a `
         + 'changing number of bars ago, and this script reassigns it', at)
     }
-    const limit = declared.limit || AUTO_MAX_BARS_BACK
+    const { limit } = historyReadBufferOf(this.source)
     // `-(-x)` is `x`, exactly (an `na` stays `na`): Pine's `x[-ta.lowestbars(…)]`
     // negates a count this table already answers as bars back
     let count = back
@@ -10405,7 +12392,18 @@ export class Resolver {
    *  walk reads; skipping the stamp there could only lose it on a memoised node a
    *  later output reuses. */
   stampTernaryArms(out, node, test) {
-    if (!node.ifExpr && !(Number(this.pineVersion) >= 5)) return
+    // ⭐⭐ COND-TA — `?:` ARMS ARE LAZY FROM PINE v4, EAGER BEFORE IT. BOTH WITNESSED (run
+    // s17-2026-11-15, NYSE:RDDT 1D from the listing):
+    //   · probe 10 (`vw-cs2-v4-ternary-lazy`): a v4 arm's `sma`, `barssince` and a helper calling
+    //     `sma` see only the bars the arm ran on (bar 7: TradingView na, the eager `sma` 53.72), as
+    //     v5 / v6 do (`vw-arm-history`); v4 `iff` is eager. ⚰️ Master drew v4 arms off the every-
+    //     bar number, wrong on up to 299 bars: stamped now, withheld by name where the test varies;
+    //   · probe P2 (`vw-ternary-arm-legacy-v1/v2/v3`): in v1 (no pragma), v2 and v3 an arm's
+    //     `change`, `sma`, `ema`, `rma`, `barssince` and `cum` equal their EVERY-BAR values on every
+    //     bar — and `cci-coded-obv` / `trade-archer-obv-mas-v1` (no pragma) equal the eager OBV on
+    //     666 / 666 bars (the lazy reading misses 662). So v1-v3 arms are not stamped: drawn eager.
+    // `iff` is a call, never stamped: eager at every version it exists in.
+    if (!node.ifExpr && !(Number(this.pineVersion) >= 4)) return
     if (!out || out.type !== 'op' || out.name !== '?:') return
     // ⛔ ONE question, not two: a literal or a constant expression is a tree of
     // `num`s, which `bindTimeConstantTree` admits (an `na` test included — it takes
@@ -10431,7 +12429,7 @@ export class Resolver {
     if (bindTimeConstantTree(left)) return
     const call = armHistoryCallOf(node.right, this.historyFnsOf ? this.historyFnsOf() : null)
     if (!call) return
-    stampArmRuns(out, [{ negate: mapped === '||', what: 'that right side', why: armRunsWhy(call, node.tok, node.op) }])
+    stampArmRuns(out, [{ negate: mapped === '||', what: 'that right side', logicRight: true, why: armRunsWhy(call, node.tok, node.op) }])
   }
 
   /** ⭐⭐ C48 — RUN A READ THE WAY IT ALWAYS RAN, FOR ITS PARAMETER MINT ALONE.
@@ -10480,24 +12478,58 @@ export class Resolver {
    *  (`vw-getter-history`, G03: `ya[1]` in the last-bar block is `close[1]`), and
    *  so do the chart's own series (A13 / A14, C06).
    *  ⛔ Minting, and which resolver asks, as `resolveBinding` says. null → not
-   *  such a read (or one a chart's plot reads on, for the bind to decide). */
+   *  such a read (or one a chart's plot reads on, for the bind to decide).
+   *  ⭐ Engine 55 — THE SCREENER LANE ASKS TOO (`this.screen`). It binds no chart, so
+   *  nothing carries the block's guard to a bind: the read refuses here, by this
+   *  sentence, and a once-run block reads `na` as above. ⚰️ It read on through
+   *  `barOffsetNode`, the previous BAR's value: s10 probe `vw-w3n-draw-block-history-d`
+   *  translated `ok` and disagreed with TradingView on 169 of 315 RDDT bars (bar 2:
+   *  100.88 vs 92). Rails: `lenientBlockLocalHistory.test.js`. */
   blockLocalHistory(node) {
-    if (this.mintOnly > 0 || !(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
-    const bound = this.env.get(node.arg.name)
+    if (this.mintOnly > 0 || !(node.n >= 1) || !node.arg) return null
+    // ⭐⭐ COND-TA (F2, the #1326 review) — AN EXPRESSION'S HISTORY OVER A BLOCK LOCAL is the same
+    // read: `(x + 0)[1]` is the expression at the block's previous RUN, which this lane does not
+    // keep either. ⚰️ Only `name[k]` was asked, so `p := (x + 0)[1]` read the previous BAR's value
+    // with no gate on any lane. FAIL CLOSED: any block-local name the offset's own expression reads.
+    const local = node.arg.type === 'name' ? { name: node.arg.name, expr: false } : this.blockLocalReadIn(node.arg)
+    if (!local) return null
+    const bound = this.env.get(local.name)
     if (!bound || typeof bound !== 'object' || !bound.blockLocal) return null
-    if (!this.refuseCondCalls && !this.condGate) return null
+    if (!this.refuseCondCalls && !this.condGate && !this.screen) return null
     if (bound.blockLocal === 'once') {
       if (this.paramMint) this.mintOnlyRead(() => this.resolve(node))
       return cOp('/', [cNum(0), cNum(0)])
     }
-    const why = `\`${node.arg.name}[${node.n}]\` reads the history of a name declared `
+    const read = local.expr ? `\`(…)[${node.n}]\`, the history of an expression over \`${local.name}\`,`
+      : `\`${local.name}[${node.n}]\``
+    const why = `${read} reads the history of a name declared `
       + 'inside a block that does not run on every bar: TradingView answers the value at the block\'s previous '
       + 'RUN, not the previous bar\'s (capture `vw-call-site-history`, rows C05 / D03), and that history is not kept here'
     const err = new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${why}`, locate(node.tok))
     err.noRuntime = true
-    if (this.refuseCondCalls) throw err
+    if (this.refuseCondCalls || this.screen) throw err
     // a chart's plot reads on, and the bind decides (`resolveBinding`)
     this.noteBlockRun(bound, why, err)
+    return null
+  }
+
+  /** ⭐ COND-TA (F2) — the first name a parse expression reads that is bound to a block local
+   *  (`blockLocal`), or null. Walks the expression only (never a function's body). */
+  blockLocalReadIn(expr, d = 0) {
+    if (!expr || typeof expr !== 'object' || d > 64) return null
+    if (Array.isArray(expr)) {
+      for (const x of expr) { const r = this.blockLocalReadIn(x, d + 1); if (r) return r }
+      return null
+    }
+    if (expr.type === 'name') {
+      const b = this.env.get(expr.name)
+      return b && typeof b === 'object' && b.blockLocal ? { name: expr.name, expr: true } : null
+    }
+    for (const [k, v] of Object.entries(expr)) {
+      if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
+      const r = this.blockLocalReadIn(v, d + 1)
+      if (r) return r
+    }
     return null
   }
 
@@ -10729,6 +12761,10 @@ export class Resolver {
       if (own(BUILTIN_TIMEFRAME_ALIAS, name)) {
         return { type: 'series', name: BUILTIN_TIMEFRAME_ALIAS[name] }
       }
+      // ⭐ 2026-11-17 — and the regular session's two (`BUILTIN_SESSION_ALIAS`), the same way
+      if (own(BUILTIN_SESSION_ALIAS, name)) {
+        return { type: 'series', name: BUILTIN_SESSION_ALIAS[name] }
+      }
       // ⭐⭐ KIND 5 — SETTLED BY THE BARS THIS TRANSLATION IS FOR. A number, so it
       // folds here; see `BUILTIN_TIMEFRAME_SCALAR` for why `this.basePeriod` is
       // the authority rather than a new one.
@@ -10810,6 +12846,11 @@ export class Resolver {
       if (own(BUILTIN_RULED, name)) {
         throw new PineRefusal('pine:builtin',
           `${REFUSALS['pine:builtin']} — \`${name}\`. ${BUILTIN_RULED[name]}`,
+          locate(node.tok))
+      }
+      if (own(CHART_RULED, name)) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']}: ${CHART_RULED[name]} — \`${name}\``,
           locate(node.tok))
       }
       // ⭐⭐ WAVE 2 (a) — AND THE SAME READ ON THIS PATH. A call arrives here as
@@ -10899,6 +12940,7 @@ export class Resolver {
       }
       return clockLeaf(clockKey)
     }
+    if (legacyPeriodUndeclared(name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
     if (PINE_KNOWN_BUILTINS.has(name)) {
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
@@ -11048,7 +13090,25 @@ export class Resolver {
           `${REFUSALS['pine:named-argument']} — on \`${name}\``, locate(node.tok))
       }
       if (name === 'na' && arity === 1) {
-        return cCall('na', [this.resolve(node.args[0].value)])
+        // ⭐ Engine 66 (#1473) (bt) — `na(time(tf, <wrapping session>))` READS MEMBERSHIP ONLY, so the
+        // session clock hands back its membership tree (`?:(inside, 1, na)`) instead of the value tree:
+        // the same `na` on every bar, with fewer series references (no `time`, no `periodseconds`).
+        // Measured: `session-hilo`'s background paint reads two wrapping sessions and their `[1]`
+        // history; with the value tree it measured 10 series references against the install cap of
+        // 8 (`budget:series`) and the whole script stopped installing. Only a call WRITTEN directly
+        // inside `na(…)` is told, never one reached through a binding.
+        const arg0 = node.args[0].value
+        const prevMembership = this.sessionMembershipTok
+        this.sessionMembershipTok = arg0 && arg0.type === 'call' && arg0.name === 'time' && arg0.tok
+          ? arg0.tok : null
+        let x
+        try { x = this.resolve(arg0) } finally { this.sessionMembershipTok = prevMembership }
+        // ⭐ ENGINE 56 (A3) — `na(b)` of a v1-v5 `bool` that is `na` is true (S1: `na(c > na_s)`);
+        // a WRITTEN `and` / `or` / `not` never is (`rt3-na-logic`: `na(w or false)` is false), and
+        // the identity fold may have reduced it to its operand, so it is read off the source
+        // ⭐⭐ the version island: `na()` a v5 library writes inside a v6 script reads the v5 `bool`'s `na`
+        const flag = writtenLogic(node.args[0].value) ? null : boolNaFlagOf(x, versionAt(node.tok, this.pineVersion))
+        return flag ? cOp('||', [cCall('na', [x]), flag]) : cCall('na', [x])
       }
       if (name === 'nz' && (arity === 1 || arity === 2)) {
         // ⭐ A `var`'s own `x[k]` INSIDE `nz(…)` IS A GUARDED history read: on
@@ -11391,8 +13451,10 @@ export class Resolver {
       if (name === 'request.security' || name === 'security') {
         const decline = this.securityDeclineReason(node)
         if (decline) {
+          // ⭐ ENGINE 55 (review L5) — a spelling no binding serves carries its OWN whole
+          // sentence (`staticOtherSymbolMessage`), said verbatim by the runtime lane too.
           throw new PineRefusal(guard,
-            `${REFUSALS[guard]} — \`${name}\`: ${decline.why}`,
+            decline.message || `${REFUSALS[guard]} — \`${name}\`: ${decline.why}`,
             locate(node.tok), decline.suggest)
         }
       }
@@ -11479,11 +13541,12 @@ export class Resolver {
   /** A ternary whose CONDITION is a constant → the branch that actually runs,
    *  else null. THE ONE PLACE THAT DECIDES, read by both timeframe readers.
    *
-   *  ⭐⭐ `res = useCurrentRes ? period : resCustom` IS THE MTF TOGGLE IDIOM and
-   *  two community scripts are nothing but it. `pine.security.test.js` recorded
+   *  ⭐⭐ THE MTF TOGGLE IDIOM: a boolean input picks either the chart's own
+   *  timeframe (`period`) or a second, timeframe-typed input, and the result
+   *  feeds `security`. Two community scripts are nothing but it. `pine.security.test.js` recorded
    *  the case as unwinnable in the words "a TERNARY. No literal exists to fold
    *  to." True — and beside the point, because nobody has to fold the ternary
-   *  itself. `useCurrentRes = input(true, …)` is a CONSTANT, so exactly one arm
+   *  itself. The boolean input's default is a CONSTANT, so exactly one arm
    *  is reachable and the other is dead code in the script as shipped.
    *
    *  ⛔ THE CONDITION IS READ, NEVER ASSUMED. Taking `yes` unconditionally passes
@@ -11589,7 +13652,8 @@ export class Resolver {
       // ⭐ THE SPELLING MAP IS ASKED, NOT COPIED. `'1H'`, `'1D'` and `'4H'` are
       // Pine spellings of codes this engine already holds, and recognising them
       // here rather than only their bare forms is free.
-      code = lit === null ? null : (PINE_TF_SPELLING[String(lit).trim().toUpperCase()] || null)
+      // ⭐ U-BUILTIN B1 — and `"1440"` as `"D"` (Q-BT2 R7: 86400 on every bar), `clockTfCodeOf`.
+      code = lit === null ? null : clockTfCodeOf(lit)
       // ⚰️ PHASE 1 (2026-10-30) BUILT AND WITHDREW `timeframe.in_seconds("")` AS
       // THE CHART'S OWN LENGTH, and the reason is the next thing to fix, not the
       // rule. Pine reads an empty timeframe as the chart's (it is what
@@ -11920,10 +13984,19 @@ export class Resolver {
     if (!tfNode || !sessNode) throw no('it needs both a timeframe and a session')
 
     // ── 1. THE TIMEFRAME: the chart's own, and only that. ────────────────────
-    const isOwnTf = this.ownTimeframeOf(tfNode) !== null
+    // ⭐ Engine 66 (#1473) (bt) — `""` IS THE CHART'S OWN TIMEFRAME. The reference (`time`, argument
+    // `timeframe`): "If the value is an empty string, the function uses the script's main
+    // timeframe." The runtime lane already reads it so (W4 T3, `rebuiltSessionClockCall`); this
+    // lane refused it as "another timeframe", so a script asking `time("", sess)` was answered on
+    // one lane and refused on the other.
+    const isOwnTf = this.ownTimeframeOf(tfNode) !== null || this.timeframeLiteralOf(tfNode) === ''
     const lit = isOwnTf ? null : this.timeframeLiteralOf(tfNode)
+    // ⛔ U-BUILTIN B1 — `"1440"` is NOT read as `"D"` here (`clockTfCodeOf` says why).
     const code = lit === null ? null : PINE_TF_SPELLING[String(lit).trim().toUpperCase()]
-    if (!isOwnTf && code !== this.basePeriod) {
+    // ⭐ U-BUILTIN T-D — a literal `"D"` is read on any base: below a daily chart its tree is the day anchor
+    // or the daily gate (step 4), each withheld by name where it is not measured, so the runtime lane (which
+    // translates on the chart's own base) answers what the member door's daily-base translation answers.
+    if (!isOwnTf && code !== this.basePeriod && code !== 'D') {
       throw no('it is read here on the chart\'s OWN timeframe (`timeframe.period`), '
         + 'which is what the vendor was measured on. A different period groups the '
         + 'session into bars this chart does not have, and nothing measured says how.')
@@ -11967,22 +14040,52 @@ export class Resolver {
     const [sh, sm, eh, em] = m.slice(1, 5).map(Number)
     if (sh > 23 || eh > 23 || sm > 59 || em > 59) throw no(`\`"${spec}"\` names a time that does not exist`)
     const start = sh * 60 + sm
-    const end = eh * 60 + em
-    if (end <= start) {
-      throw no(`\`"${spec}"\` wraps past midnight (or spans the whole day). The capture `
-        + 'read `"2000-0000"` as `na` on every bar it holds, but none of those bars '
-        + 'opens after 20:00, so it cannot say whether such a window is empty or '
-        + 'runs to midnight — and the two answer differently on a 24-hour symbol.')
-    }
+    let end = eh * 60 + em
     let days = null
     if (m[5]) {
       days = [...new Set(m[5].split('').map(Number))].sort()
+    } else if (this.pineVersion === 4) {
+      // ⭐ Engine 66 (#1473) (bt) — A v4 SESSION WITH NO DAY LIST IS MONDAY TO FRIDAY, and two texts
+      // say so exactly: the v4 reference (`time`): "If the days aren't specified, the session is
+      // considered to have been set from Monday to Friday (Saturday and Sunday are excluded as the
+      // weekend days)", and the v4→v5 migration guide: "The default set of days for `session`
+      // strings used in the time() and time_close() functions … has changed from "23456" (Monday
+      // to Friday) to "1234567" (Sunday to Saturday)". And TradingView answered it so on every bar
+      // of `vw-w4-session-default-days-v4-btcusd-60-2026-11-16` (N1 "0000-2359": in Monday to
+      // Friday, out Saturday and Sunday). ⛔ v1–v3 keep the refusal: no reference text for them is
+      // held (TradingView's reference bundle serves v4–v6 only) and no v1–v3 probe is captured.
+      days = [2, 3, 4, 5, 6]
     } else if (this.pineVersion === null || this.pineVersion < 5) {
-      throw no(`\`"${spec}"\` has no day list, and in Pine v${this.pineVersion || '1–4'} the `
-        + 'default days are not the ones measured. Add `:1234567` (every day) or '
-        + '`:23456` (Monday–Friday) to say which you mean.')
+      throw no(`\`"${spec}"\` has no day list, and in Pine v${this.pineVersion || '1–3'} the `
+        + 'default days are not stated by any reference text this engine holds (the v4 reference '
+        + 'states v4\'s: Monday to Friday). Add `:1234567` (every day) or `:23456` '
+        + '(Monday–Friday) to say which you mean.')
     }
     if (days && days.length === 7) days = null
+    // ⭐⭐ Engine 66 (#1473) (bt) — A WINDOW WHOSE END IS NOT AFTER ITS START, as TradingView answered
+    // it on BITSTAMP:BTCUSD (a symbol with a bar every hour of every day) and as the user manual's
+    // session table states it ("0000-0000:1234567 — a 7-day, 24-hour session beginning at midnight";
+    // "0000-0000:23456 — a 24-hour session beginning at midnight, but only Monday to Friday";
+    // "1700-1700:23456 — An overnight session. The Monday session starts Sunday at 17:00 and ends
+    // Monday at 17:00"). The captures (probes under `tools/visual_conformance/probes/`):
+    //   · "HHMM-0000" runs to MIDNIGHT of its own day: `vw-w4-session-overnight-btcusd-60-2026-11-16`
+    //     O3 "2000-0000:1234567" is in at 20:00–23:00 every day, and
+    //     `vw-bt-session-to-midnight-daymask-btcusd-60-2026-11-16` M1 "2000-0000:23456" at
+    //     20:00–23:00 Monday to Friday — the day list is asked of the bar's own day.
+    //   · "0000-0000" is the WHOLE DAY of the bar's own date: O4 in on every bar.
+    //   · any other end at or before the start WRAPS: O1 "1800-0200:1234567" is in at 18:00–23:00
+    //     and 00:00–01:00 every day, and the part after midnight belongs to the session that ENDS
+    //     that day — O2 "1800-0200:23456" is in from Sunday 18:00 to Friday 01:00, never Friday
+    //     18:00 or later, never Saturday.
+    //   · the VALUE inside a wrapping session is the measured grid rule below (reading 2), the grid
+    //     anchored at the session start CONTINUING across midnight:
+    //     `vw-bt-session-overnight-value-btcusd-60-2026-11-16` V1 "1930-0230" answers −1800 s on
+    //     every in-session hourly bar, 00:00–02:00 included, V2–V4 0; and the 1D capture
+    //     `vw-bt-session-overnight-value-btcusd-1d-2026-11-16` answers the session's start the
+    //     evening before (V1 −16200, V2 −21600, V3 "1700-1700" −25200, V4 "2000-1630" −14400 s on
+    //     a 00:00 UTC daily bar).
+    const wraps = end <= start && end !== 0
+    if (end === 0) end = 1440
 
     // ── 3. THE ZONE. ─────────────────────────────────────────────────────────
     let offset = null // null = the exchange clock (America/New_York here)
@@ -11991,13 +14094,22 @@ export class Resolver {
       if (tz === SESSION_EXCHANGE_TZ || tz === 'America/New_York') {
         offset = null
       } else {
-        const g = typeof tz === 'string' ? /^GMT([+-])(\d{1,2})$/.exec(tz.trim()) : null
-        if (!g || Number(g[2]) > 14) {
+        // ⭐ Engine 66 (#1473) (bt) — "UTC" IS THE SAME NOTATION AS "GMT", and the minutes form too.
+        // The user manual (Time, "Time zone strings"): "UTC (or GMT) offset notation, e.g.,
+        // "UTC-5", "UTC+05:30", "GMT+0100"". The fixed-offset ARITHMETIC is the one measured on
+        // "GMT-4" / "GMT-5" (S11, S12); only the spelling widens. `UTC+530` (three digits) is no
+        // form the manual shows and stays refused.
+        const g = typeof tz === 'string'
+          ? /^(?:GMT|UTC)([+-])(?:(\d{1,2})|(\d{2}):?(\d{2}))$/.exec(tz.trim()) : null
+        const hh = g ? Number(g[2] !== undefined ? g[2] : g[3]) : NaN
+        const mm = g && g[4] !== undefined ? Number(g[4]) : 0
+        if (!g || hh > 14 || mm > 59 || hh * 60 + mm > 14 * 60) {
           throw no(`the zone ${tz === null ? 'is not text this translation can read' : `\`"${tz}"\``} `
             + 'is not one this engine reads. It takes `"America/New_York"`, '
-            + '`syminfo.timezone`, or a fixed `"GMT±H"` — the forms the vendor was measured on.')
+            + '`syminfo.timezone`, or a fixed UTC/GMT offset (`"GMT-4"`, `"UTC+1"`, `"UTC+05:30"`, '
+            + '`"GMT+0100"`) — the forms the vendor was measured on and the manual spells.')
         }
-        offset = (g[1] === '-' ? -1 : 1) * Number(g[2])
+        offset = (g[1] === '-' ? -1 : 1) * (hh * 60 + mm) // minutes east of UTC
       }
     }
 
@@ -12009,25 +14121,67 @@ export class Resolver {
       dow = clockLeaf('dayofweek')
     } else {
       // ⭐ A FIXED ZONE IS ARITHMETIC ON THE INSTANT, NOT ON THE NEW YORK CLOCK:
-      // local minutes since 1970 = floor(time / 60) + offset × 60. 1970-01-01
+      // local minutes since 1970 = floor(time / 60) + the offset in minutes. 1970-01-01
       // was a Thursday, Pine's day 5, hence the `+ 4` before the `mod 7`.
-      const local = cOp('+', [cCall('floor', [cOp('/', [cSeries('time'), cNum(60)])]), cNum(offset * 60)])
+      const local = cOp('+', [cCall('floor', [cOp('/', [cSeries('time'), cNum(60)])]), cNum(offset)])
       minuteOfDay = cCall('mod', [local, cNum(1440)])
       dow = cOp('+', [cCall('mod', [cOp('+', [cCall('floor', [cOp('/', [local, cNum(1440)])]), cNum(4)]), cNum(7)]), cNum(1)])
     }
-    let inside = cOp('&&', [cOp('>=', [minuteOfDay, cNum(start)]), cOp('<', [minuteOfDay, cNum(end)])])
-    if (days) {
-      const anyDay = days.map((d) => cOp('==', [dow, cNum(d)]))
-        .reduce((acc, t) => (acc ? cOp('||', [acc, t]) : t), null)
-      inside = cOp('&&', [inside, anyDay])
+    const onDays = (d) => (days
+      ? days.map((k) => cOp('==', [d, cNum(k)])).reduce((acc, t) => (acc ? cOp('||', [acc, t]) : t), null)
+      : null)
+    let inside
+    if (wraps) {
+      // the part from the start to midnight belongs to TOMORROW's session (O2), the part from
+      // midnight to the end to today's; a day list is asked of the session's own day.
+      const tomorrow = cOp('+', [cCall('mod', [dow, cNum(7)]), cNum(1)])
+      const late = cOp('>=', [minuteOfDay, cNum(start)])
+      const early = cOp('<', [minuteOfDay, cNum(end)])
+      inside = days
+        ? cOp('||', [cOp('&&', [late, onDays(tomorrow)]), cOp('&&', [early, onDays(dow)])])
+        : cOp('||', [late, early])
+    } else {
+      inside = cOp('&&', [cOp('>=', [minuteOfDay, cNum(start)]), cOp('<', [minuteOfDay, cNum(end)])])
+      if (days) inside = cOp('&&', [inside, onDays(dow)])
     }
-    if (onItsOwnChart) inside = cOp('&&', [inside, onItsOwnChart])
+    // ⭐⭐ U-BUILTIN T-D (2026-11-19) — A LITERAL "D" IS NO LONGER `na` OFF A DAILY CHART.
+    // ⚰️ `onItsOwnChart` (`periodseconds == 86400`) sat inside the membership, so on an intraday chart
+    // `time("D", sess)` was `na` on every bar, and a script's own `na(t) ? … : …` drew that as an answer:
+    // capture `vw-bt-time-1440-spy-60-2026-11-16` R2 reads `time("D", "0930-1600")` as the 09:30 session
+    // open on every regular-hours hourly bar.
+    // ⭐⭐ U-BUILTIN T-D EXT (2026-11-20) — AND THE VALUE IS THE START OF THE WINDOW, NOT THE OPEN OF THE DAY.
+    // On a chart with pre-market and after-hours bars TradingView answers every window as its own start on the
+    // bar's day (`vw-bi-time-d-extended-spy-60-2026-11-19` S1-S4: "0930-1600" reads 09:30 there while
+    // `time("D")` reads 04:00). ⚰️ A 09:30 window was written as the `time("D")` anchor (`dayAnchorNode`), the
+    // same instant on a regular-hours chart and 5.5 hours apart on an extended one. So EVERY window of one day
+    // in the exchange's zone is now the one gated daily tree (`interpret.js::sessionDayWindowNode`, built there
+    // so its recogniser is the same builder): read through its gate where `sessionDayGateServed` says it is
+    // measured (an extended-hours chart, and a 09:30 window on a regular-hours, 1W or 1M chart), withheld by
+    // name on any other chart below daily (`time-session:day-on-other-chart`). A window that wraps past
+    // midnight or names a fixed zone keeps the gated tree below and is withheld off a daily chart. A chart
+    // that states no timeframe reads every one as before (`na` off a daily bar length).
+    const dayLiteral = !isOwnTf && code === 'D'
+    if (dayLiteral && !wraps && offset === null) {
+      return sessionDayWindowNode(start, end, days, this.pineVersion !== null)
+    }
+    const gated = (tree) => (dayLiteral ? sessionDayGateNode(tree) : tree)
+    if (onItsOwnChart && !dayLiteral) inside = cOp('&&', [inside, onItsOwnChart])
+    // ⭐ membership only (`na(time(…))`, see `resolveCall`): any finite value inside, `na` outside —
+    // the same `na` as the value tree on every bar, without its series references.
+    if (wraps && this.sessionMembershipTok === tok) {
+      return gated(cOp('?:', [inside, cNum(1), cOp('/', [cNum(0), cNum(0)])]))
+    }
+    // the minutes since the session's start: same day, or — for a wrapping session read after
+    // midnight — since yesterday's start (`(m − start + 1440) mod 1440`, never negative)
+    const sinceStart = wraps
+      ? cCall('mod', [cOp('+', [cOp('-', [minuteOfDay, cNum(start)]), cNum(1440)]), cNum(1440)])
+      : cOp('-', [minuteOfDay, cNum(start)])
     const secs = cOp('-', [cSeries('time'),
-      cCall('mod', [cOp('*', [cOp('-', [minuteOfDay, cNum(start)]), cNum(60)]), gridSecs])])
+      cCall('mod', [cOp('*', [sinceStart, cNum(60)]), gridSecs])])
     // Pine's `time` is milliseconds for a versioned script — the same gate the
     // bare name and `time("D")` use (`clockTransformFor`).
     const value = this.pineVersion !== null ? cOp('*', [secs, cNum(1000)]) : secs
-    return cOp('?:', [inside, value, cOp('/', [cNum(0), cNum(0)])])
+    return gated(cOp('?:', [inside, value, cOp('/', [cNum(0), cNum(0)])]))
   }
 
   /** A session or zone argument as TEXT, or null. `stringValueOf` plus the two
@@ -12073,32 +14227,91 @@ export class Resolver {
    *  identifier in v2/v3 Pine and a script may reassign it; `period = "60"` means
    *  hourly, and reading it as the chart's own timeframe answers off whatever
    *  bars happen to be loaded. */
-  ownTimeframeOf(node, depth = 0) {
-    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
+  ownTimeframeOf(node, depth = 0, reach = undefined) {
+    if (!node || depth > (reach ? reach.hops : (this.objectPass ? TF_READ_HOPS : 4))) return null
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
-      return taken ? this.ownTimeframeOf(taken, depth + 1) : null
+      return taken ? this.ownTimeframeOf(taken, depth + 1, reach) : null
+    }
+    // ⭐⭐ (request unit PR 2) — a call to a script function the runtime lane handed over settled
+    if (reach && reach.calls && node.type === 'call') {
+      return this.throughSettledCall(node, (n) => this.ownTimeframeOf(n, depth + 1, reach))
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
       if (bound) {
-        return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1) : null
+        return bound.kind === 'expr' ? this.ownTimeframeOf(bound.node, depth + 1, reach) : null
       }
+      // ⭐⭐ (request unit PR 2) — a name the runtime lane holds per bar, bound once to a settled call
+      const aliased = reach && reach.calls ? this.settledAliasOf(node.name) : null
+      if (aliased) return this.ownTimeframeOf(aliased, depth + 1, reach)
+      if (legacyPeriodUndeclared(node.name, this.pineVersion)) throw legacyPeriodRefusal(node.tok)
       if (OWN_TF_NAMES.has(node.name)) return node.name
     }
     return null
   }
 
-  timeframeLiteralOf(node, depth = 0) {
-    if (!node || depth > (this.objectPass ? TF_READ_HOPS : 4)) return null
+  /** ⭐⭐ (request unit, TF-FOLD, engine 89) — the reach a REQUEST's timeframe is read with: `REQUEST_TF_REACH` on
+   *  the runtime lane's resolvers (`runtimeRequestTimeframes`), else none (each reader's own). */
+  requestTimeframeReach() {
+    return this.runtimeRequestTimeframes ? REQUEST_TF_REACH : undefined
+  }
+
+  /** ⭐⭐ (request unit PR 2, engine 90) — `fn(result)` for a call to a SCRIPT function the runtime lane handed
+   *  over settled (`requestSettledFunctions`: `settledRequestFunctionOf`), where `result` is the expression its body
+   *  leaves as its value, read in the body's own scope (the names the script bound before the function, the body's
+   *  own bindings) with the call's arguments as its parameters (the frame `throughBinding` reads a parameter from,
+   *  as a helper is inlined everywhere else); null for anything else (no such function, a body not settled, a named
+   *  argument, an argument count that is not the function's, a recursion).
+   *  ⭐ Nothing is evaluated here that the same expression written out would not fold: the reader handed `result`
+   *  (`timeframeLiteralOf` / `ownTimeframeOf`) asks `constantBranchOf` of each arm, so a test that varies per bar (a
+   *  per-bar argument included) still answers null and the request keeps its refusal. */
+  /** ⭐⭐ (request unit PR 2) — the call the runtime lane says a top-level name is bound to, once and for good
+   *  (`requestSettledFunctions.alias`: `alignedTF = getAlignedTimeframe()`, a name that lane holds per bar and so
+   *  never hands this reader as a binding), or null. Read only under `requestSettledFunctions`. */
+  settledAliasOf(name) {
+    const sf = this.requestSettledFunctions
+    if (!sf || typeof sf.alias !== 'function' || this.env && this.env.has(name)) return null
+    let call = null
+    try { call = sf.alias(name) } catch { call = null }
+    return call && call.type === 'call' ? call : null
+  }
+
+  throughSettledCall(node, fn) {
+    if (!node || node.type !== 'call' || !this.requestSettledFunctions || typeof node.name !== 'string') return null
+    let s = null
+    try { s = this.requestSettledFunctions.get(node.name) } catch { s = null }
+    if (!s || !s.node || !Array.isArray(s.params)) return null
+    const args = node.args || []
+    if (args.some((a) => !a || a.name) || args.length !== s.params.length) return null
+    if (this.frames.length >= MAX_CALL_DEPTH || this.stack.has(s)) return null
+    const callerEnv = this.env
+    // the names the script bound before the function, then its parameters, then its own bindings, in order
+    const bodyEnv = new Map(s.env || callerEnv || [])
+    s.params.forEach((p, k) => bodyEnv.set(p, { kind: 'param', index: k, name: p }))
+    for (const ln of s.lines || []) bodyEnv.set(ln.name, { kind: 'expr', node: ln.node })
+    this.stack.add(s)
+    this.frames.push(args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
+    this.env = bodyEnv
+    try { return fn(s.node) } finally { this.frames.pop(); this.env = callerEnv; this.stack.delete(s) }
+  }
+
+  timeframeLiteralOf(node, depth = 0, reach = undefined) {
+    if (!node || depth > (reach ? reach.hops : (this.objectPass ? TF_READ_HOPS : 4))) return null
     if (node.type === 'string') return node.value
     if (node.type === 'ternary') {
       const taken = this.constantBranchOf(node)
-      return taken ? this.timeframeLiteralOf(taken, depth + 1) : null
+      return taken ? this.timeframeLiteralOf(taken, depth + 1, reach) : null
+    }
+    // ⭐⭐ (request unit PR 2) — a call to a script function the runtime lane handed over settled; any other call
+    // (an `input`, below) reads as it did
+    if (reach && reach.calls && node.type === 'call') {
+      const settled = this.throughSettledCall(node, (n) => this.timeframeLiteralOf(n, depth + 1, reach))
+      if (settled !== null) return settled
     }
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
-      if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1)
+      if (bound && bound.kind === 'expr') return this.timeframeLiteralOf(bound.node, depth + 1, reach)
       // ⭐ C33 — A PARAMETER IS ITS CALLER'S ARGUMENT. `data_adr(string tf) =>
       // request.security(…, timeframe = tf, …)` called as `data_adr(i_adr_1_tf)`
       // (average-day-range-adr-pivots) asks for the timeframe the call site
@@ -12112,8 +14325,11 @@ export class Resolver {
       // the corpus with this rule on. The request is the one the member gets by
       // writing the caller's argument at the call (`c33ObjectReads`, H5 block).
       if (bound && bound.kind === 'param') {
-        return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1))
+        return this.throughBinding(bound, (b) => this.timeframeLiteralOf(b.node, depth + 1, reach))
       }
+      // ⭐⭐ (request unit PR 2) — a name the runtime lane holds per bar, bound once to a settled call
+      const aliased = !bound && reach && reach.calls ? this.settledAliasOf(node.name) : null
+      if (aliased) return this.timeframeLiteralOf(aliased, depth + 1, reach)
       return null
     }
     // ⭐ PLAIN `input` IS THE v3/v4 SPELLING and it is what the MTF scripts use:
@@ -12126,7 +14342,7 @@ export class Resolver {
       for (let i = 0; i < args.length; i += 1) {
         const a = args[i]
         if (a && (a.name === 'defval' || (!a.name && i === 0))) {
-          const folded = this.timeframeLiteralOf(a.value, depth + 1)
+          const folded = this.timeframeLiteralOf(a.value, depth + 1, reach)
           if (folded !== null && node.tok) {
             this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
               call: node.name,
@@ -12248,6 +14464,10 @@ export class Resolver {
     const kw = v.tok ? v.tok.value : null
     if (kw === 'true') return 'on'
     if (kw === 'false') return 'off'
+    // ⭐ REQ — the constant written through a plain binding (`igaps = barmerge.gaps_off`)
+    const through = this.builtinNameThrough(v)
+    if (through === 'barmerge.gaps_off') return 'off'
+    if (through === 'barmerge.gaps_on') return 'on'
     // A name bound to a constant (`gaps = igaps`, an `input.bool`): ask the
     // resolver for its folded value, minting nothing.
     const minted = this.paramMint
@@ -12263,8 +14483,9 @@ export class Resolver {
   /** P0 0H — does this timeframe argument name bars OTHER than the chart's own?
    *  `timeframe.period`, `''` and a literal naming the base are the identity. */
   requestIsOtherPeriod(tfNode) {
-    if (this.ownTimeframeOf(tfNode) !== null) return false
-    const raw = this.timeframeLiteralOf(tfNode)
+    const reach = this.requestTimeframeReach()
+    if (this.ownTimeframeOf(tfNode, 0, reach) !== null) return false
+    const raw = this.timeframeLiteralOf(tfNode, 0, reach)
     if (raw === null) return true
     if (String(raw).trim() === '') return false
     const code = PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
@@ -12280,6 +14501,12 @@ export class Resolver {
     // ⭐ P0 0H — a value-changing argument this door cannot honour, named first.
     const argDecline = this.requestArgsDecline(placed)
     if (argDecline) return argDecline
+    // ⭐⭐ ENGINE 55 (review L5) — a spelling this door cannot even turn into a listing (a
+    // foreign exchange, `BRK/B`), by its code and the one sentence. ⛔ A spelling it CAN
+    // turn into a listing (`XAUUSD`, `SPX`) never reaches here: it is a `sym` node, and the
+    // bind refuses only the plots that read it (review M1).
+    const spelled = this.otherSymbolSpellingDeclineOf(node)
+    if (spelled) return { why: spelled.why, message: spelled.message }
 
     // 1. THE SESSION. `ticker.new(prefix, sym, session.extended)` asks for pre- and
     //    post-market prints; `sym` serves the regular session. The rewrite keeps
@@ -12313,8 +14540,9 @@ export class Resolver {
     //    the bars it holds. `timeframe.period` is Pine's own name for "the chart's
     //    own timeframe", which is always servable because it is the base itself.
     const tfNode = positional[1]
-    if (this.ownTimeframeOf(tfNode) === null) {
-      const raw = this.timeframeLiteralOf(tfNode)
+    const reach = this.requestTimeframeReach()
+    if (this.ownTimeframeOf(tfNode, 0, reach) === null) {
+      const raw = this.timeframeLiteralOf(tfNode, 0, reach)
       const code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
       // ⭐ C41 — a symbol built by `ticker.modify(…)` (or any other `ticker.*`
       // modifier) never reached `requestTargetOf`'s timeframe read, so below the
@@ -12326,6 +14554,18 @@ export class Resolver {
         return built ? lowerTfRefusal({ code, base: this.basePeriod, session: built }) : null
       })()
       const lowerWhy = lower ? ` Below the chart's own timeframe: ${lower.why}.` : ''
+      // ⭐ RS RATING L11 (Q-RS7 R3) — this chart's own symbol read at "D" on a weekly chart is served for a
+      // bare `close` only (`dailyOnWeeklyTargetOf`); anything else is named here, not as a resample.
+      // ⭐ L13 (Q-RS-M) — a monthly chart the same.
+      if (code === 'D' && (this.basePeriod === 'W' || this.basePeriod === 'M') && this.ownSymbolNameOf(positional[0]) !== null) {
+        const period = this.basePeriod === 'W' ? 'week' : 'month'
+        return {
+          why: `on a ${period}ly chart a daily read of this chart’s own symbol is served for a bare \`close\` only `
+            + `(a ${period}’s last daily close is its close: witnessed on NYSE:RDDT 1W and 1M, capture-queue rows `
+            + 'Q-RS7 and Q-RS-M); this one reads another expression or looks ahead, which needs the symbol’s daily bars, '
+            + `and a ${period}ly chart holds none beside its own ${period}ly bars.`,
+        }
+      }
       if (code && !TF_RESAMPLABLE.includes(code)) {
         // ⚰️ A SECOND, WORSE COPY OF `servableTimeframesText` LIVED HERE, and it
         // was only ever correct by accident: `.join(' and ')` reads right for the
@@ -12369,7 +14609,10 @@ export class Resolver {
     // (`ticker.new(prefix, ticker, session.*)`) names a session; read once.
     if (asked.session === undefined) {
       const call = asked.symbolNode ? this.tickerCallIn(asked.symbolNode) : null
-      asked.session = call ? call.name : null
+      // ⛔ REQ — a symbol written through `ticker.modify(…)` now reads as the chart's own where
+      // nothing is modified (`unmodifiedTickerArg`); BELOW the chart it keeps the refusal it had
+      // (a ticker-building call names a session), so no lower read is newly served by that rule.
+      asked.session = call ? call.name : (asked.symbolNode ? this.tickerModifierIn(asked.symbolNode) : null)
     }
     const shape = lowerTfRefusal({
       code,
@@ -12425,7 +14668,7 @@ export class Resolver {
       const n = stack.pop()
       if (!n || typeof n !== 'object' || seen.has(n)) continue
       seen.add(n)
-      if (n.type === 'tf' || n.type === 'tf_live' || n.type === 'sym' || n.type === 'ltf') {
+      if (n.type === 'tf' || n.type === 'tf_live' || n.type === 'tf_merge' || n.type === 'sym' || n.type === 'ltf') {
         what = 'another request'
       } else if (n.type === 'call' && own(RECURRENCES, n.name)) {
         what = 'a running value (a `var` or a self-reference), whose value depends on where the series starts'
@@ -12482,7 +14725,9 @@ export class Resolver {
       if (!a) continue
       const isSession = a.name === 'session' || (!a.name && i === 2)
       if (!isSession) continue
-      const spelled = a.value && a.value.type === 'name' ? a.value.name : null
+      // ⭐ REQ — the constant may be written through a plain binding (`isess = session.regular`,
+      // then `session = isess`): `builtinNameThrough` follows it, and nothing else.
+      const spelled = this.builtinNameThrough(a.value)
       if (spelled !== 'session.regular') return null
     }
     // ⛔⛔ THE VENUE IS JUDGED HERE TOO, AND THIS IS THE HOLE IT CLOSES. Argument
@@ -12506,6 +14751,60 @@ export class Resolver {
     return null
   }
 
+  /** ⭐⭐ REQ (coverage unit, 2026-11-16) — THE SYMBOL INSIDE `ticker.modify(<symbol>)` WHEN THE CALL
+   *  MODIFIES NOTHING: exactly one argument (positional, or named `tickerid`), or null.
+   *
+   *  Pine's reference, `ticker.modify(tickerid, session, adjustment, backadjustment, settlement_as_close)`:
+   *  "`session` … If session is not given, then `syminfo.session` value is used." "`adjustment` … If
+   *  adjustment is not given, then default adjustment value is used." `backadjustment` and
+   *  `settlement_as_close` default to `inherit`. So with the symbol alone the call asks for that
+   *  symbol on the CHART's session with the instrument's default adjustment — which is the series a
+   *  plain request for the symbol reads on every chart this engine draws (`sym` serves the regular
+   *  session, the chart's own; see `tickerCallArg` on why a NON-default session refuses).
+   *  It is the built-in "Correlation coefficient"'s own spelling: `ticker.modify(input.symbol(…))`.
+   *  ⛔ ANY SECOND ARGUMENT (a session, an adjustment, …) IS A DIFFERENT SERIES and is not read here:
+   *  the call then keeps the refusal it had. */
+  unmodifiedTickerArg(node) {
+    if (!node || node.type !== 'call' || node.name !== 'ticker.modify') return null
+    const args = (node.args || []).filter(Boolean)
+    if (args.length !== 1) return null
+    const a = args[0]
+    if (a.name && a.name !== 'tickerid') return null
+    return a.value !== undefined ? a.value : null
+  }
+
+  /** ⭐ REQ (coverage unit, 2026-11-16) — THE BUILT-IN NAME A NODE SPELLS, through plain bindings:
+   *  `x` where the script wrote `x = session.regular` (or `y = x`) answers `'session.regular'`; a name
+   *  the script does not bind answers itself; anything else (a call, a ternary, a parameter, a
+   *  reassigned or opaque binding, a chain deeper than four) answers null. For the two request
+   *  arguments that are Pine CONSTANTS and that scripts hoist into a name: a ticker call's `session`
+   *  and `lookahead`. ⛔ It folds nothing and resolves nothing: a binding is followed only while it
+   *  is a bare name. */
+  builtinNameThrough(node, depth = 0) {
+    if (!node || node.type !== 'name' || depth > 4) return null
+    const bound = this.env && this.env.get(node.name)
+    if (!bound) return node.name
+    if (bound.kind !== 'expr' || !bound.node) return null
+    return this.builtinNameThrough(bound.node, depth + 1)
+  }
+
+  /** ⭐⭐ (request unit PR 2, EXT-OWN, engine 90) — is this `ticker.new(syminfo.prefix, syminfo.ticker, session =
+   *  session.extended)` (followed through plain bindings and constant ternaries, as `tickerCallIn` follows), naming
+   *  nothing else (no adjustment, no back-adjustment, no settlement)? The one spelling a capture grades
+   *  (`runtimeExtendedOwnDaily`). ⛔ The prefix and the ticker are the chart's own BY NAME (`syminfo.prefix`,
+   *  `syminfo.ticker`, unbound): a literal names another listing, which this does not read. */
+  extendedOwnTickerOf(node) {
+    const call = this.tickerCallIn(node)
+    if (!call || call.name !== 'ticker.new') return false
+    const args = (call.args || []).filter(Boolean)
+    const slotOf = (name, i) => args.find((a) => a.name === name) || (args[i] && !args[i].name ? args[i] : null)
+    if (args.length !== 3) return false
+    if (args.some((a) => a.name && !['prefix', 'ticker', 'session'].includes(a.name))) return false
+    const builtin = (a) => (a && a.value ? this.builtinNameThrough(a.value) : null)
+    return builtin(slotOf('prefix', 0)) === 'syminfo.prefix' && builtin(slotOf('ticker', 1)) === 'syminfo.ticker'
+      && builtin(slotOf('session', 2)) === 'session.extended'
+  }
+
   ownSymbolNameOf(node, depth = 0) {
     if (!node || depth > 4) return null
     // ⭐ A CONSTANT-CONDITION TERNARY PICKS ITS BRANCH — the idiom `ownTimeframeOf`
@@ -12518,6 +14817,18 @@ export class Resolver {
     }
     const tick = this.tickerCallArg(node)
     if (tick) return this.ownSymbolNameOf(tick, depth + 1)
+    // ⭐⭐ REQ (coverage unit, 2026-11-16) — `ticker.modify(<symbol>)` WITH NOTHING MODIFIED IS THE SYMBOL.
+    // See `unmodifiedTickerArg` for the reference sentences this rests on.
+    const unmodified = this.unmodifiedTickerArg(node)
+    if (unmodified) return this.ownSymbolNameOf(unmodified, depth + 1)
+    // ⭐⭐ REQ — AN EMPTY SYMBOL IS THE CHART'S OWN. Pine's reference for `request.security`, `symbol`:
+    // "Use an empty string or `syminfo.tickerid` to request data using the chart's symbol." So `""`
+    // (a literal, or an `input.symbol` / v4 `input(type = input.symbol)` whose default is `""`) is
+    // the same request `syminfo.tickerid` makes — the mirror of C28b's empty TIMEFRAME.
+    // ⚰️ It fell through to `pine:request` ("could not be resolved to one symbol").
+    if (node.type === 'string' && String(node.value).trim() === '') return 'syminfo.tickerid'
+    const symDefault = this.symbolInputDefaultOf(node)
+    if (symDefault && symDefault.type === 'string' && String(symDefault.value).trim() === '') return 'syminfo.tickerid'
     if (node.type === 'name') {
       // ⛔⛔ THE BINDING IS CONSULTED FIRST, AND THE ORDER IS THE WHOLE GUARD.
       // `syminfo.tickerid` is NAMESPACED and cannot be shadowed, but the v2/v3
@@ -12589,46 +14900,79 @@ export class Resolver {
       if (prefix === undefined) return inner
       return { ticker: inner.ticker, venue: inner.venue ? '?' : prefix }
     }
-    if (node.type === 'string') {
-      // ⭐ `EXCHANGE:TICKER` IS THE SPELLING `ticker.new` ALREADY TAKES, written as
-      // one string, and both are judged by `US_EQUITY_VENUES` so they cannot
-      // disagree about one script.
-      const raw = String(node.value).trim().toUpperCase()
-      const ticker = tickerWithoutVenue(raw)
-      // ⭐ READ, NEVER RE-TYPED — `parse.js` owns what a ticker may look like.
-      if (ticker === null || !TICKER_SHAPE.test(ticker)) return null
-      const found = VENUE_QUALIFIED.exec(raw)
-      return { ticker, venue: found ? found[1] : '' }
-    }
+    // ⭐ REQ — `ticker.modify(<symbol>)` with nothing modified (`unmodifiedTickerArg`)
+    const unmodified = this.unmodifiedTickerArg(node)
+    if (unmodified) return this.otherSymbolOf(unmodified, depth + 1)
+    if (node.type === 'string') return pineSymbolSpelling(node.value)
     if (node.type === 'name') {
       const bound = this.env && this.env.get(node.name)
-      if (bound && bound.kind === 'expr') return this.otherSymbolOf(bound.node, depth + 1)
+      if (bound && bound.kind === 'expr') {
+        const r = this.otherSymbolOf(bound.node, depth + 1)
+        // ⭐ SETTINGS PARITY (symbol) — a symbol read through a NAME bound to an input names that input
+        // and the spelling of its default (`SYMBOL_INPUT_SINK`); the first binding read wins
+        if (r && !r.input) {
+          const dv = this.symbolInputDefaultOf(bound.node)
+          if (dv && dv.type === 'string') {
+            const ia = bound.node.args || []
+            const ta = ia.find((a) => a && a.name === 'title') || ia.filter((a) => a && !a.name)[1]
+            const inputTitle = ta && ta.value && ta.value.type === 'string' ? String(ta.value.value) : null
+            return { ...r, input: node.name, inputDefault: String(dv.value), inputTitle }
+          }
+        }
+        return r
+      }
       return null
     }
     // ⭐ `input.symbol('SPY')` FOLDS TO ITS DEFAULT, the same way `input.timeframe`
     // does and for the same recorded reason: TradingView's own Pine Screener
     // "falls back to defaults for `input.symbol`". Every fold lands in
     // `usedInputs`, so a frozen input is never silent.
-    if (node.type === 'call' && (node.name === 'input.symbol' || node.name === 'input.string')) {
-      const args = node.args || []
-      for (let i = 0; i < args.length; i += 1) {
-        const a = args[i]
-        if (a && (a.name === 'defval' || (!a.name && i === 0))) {
-          const folded = this.otherSymbolOf(a.value, depth + 1)
-          if (folded !== null && node.tok) {
-            this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
-              call: node.name,
-              title: null,
-              folded: `'${folded.ticker}'`,
-              line: node.tok.line,
-              column: node.tok.column,
-            })
-          }
-          return folded
-        }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv !== undefined) {
+      if (dv === null) return null
+      const folded = this.otherSymbolOf(dv, depth + 1)
+      if (folded !== null && node.tok) {
+        this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
+          call: node.name,
+          title: null,
+          folded: `'${folded.ticker}'`,
+          line: node.tok.line,
+          column: node.tok.column,
+        })
       }
+      return folded
     }
     return null
+  }
+
+  /** ⭐⭐ RS RATING L2 — THE DEFAULT AN INPUT HANDS A REQUEST'S SYMBOL ARGUMENT: the
+   *  `defval` node of `input.symbol(…)` / `input.string(…)` / an UNTYPED `input(…)`;
+   *  `null` for one of those calls with no
+   *  readable default; `undefined` for any other node. ONE reader for `otherSymbolOf`
+   *  and `rawSymbolSpellingOf`, so the fold and the spelling refusal cannot disagree.
+   *  ⭐ Pine types an untyped `input()` by its default's literal type (reference,
+   *  `input`: "the type of the input is determined by the type of the default value"),
+   *  so `input('SP:SPX', title = …)` IS a string input — the shape RS Rating writes for
+   *  its comparative symbol. ⛔ A default that is not text (`input(4200)`, `input(close)`)
+   *  folds to no symbol — `otherSymbolOf` answers null for it — and a `type =` argument
+   *  (v4's `input(…, type = input.resolution)`) is its own declaration, never read here. */
+  symbolInputDefaultOf(node) {
+    if (!node || node.type !== 'call') return undefined
+    const untyped = node.name === 'input'
+    if (!untyped && node.name !== 'input.symbol' && node.name !== 'input.string') return undefined
+    const args = node.args || []
+    // ⛔ REQ (coverage unit, 2026-11-16) — a v3 / v4 `input(…, type = input.symbol)` is NOT read here. It was
+    // tried: pmax-explorer's twenty `type = input.symbol` inputs then translated twenty per-symbol requests and
+    // its PMax plot moved MATCH -> DIVERGE on the production lane (`vendorHarness.coverageAudit`). Any
+    // `type =` argument is its own declaration and ends the read, as before.
+    if (untyped && args.some((a) => a && a.name === 'type')) return undefined
+    for (let i = 0; i < args.length; i += 1) {
+      const a = args[i]
+      if (a && (a.name === 'defval' || (!a.name && i === 0))) {
+        return a.value
+      }
+    }
+    return untyped ? undefined : null
   }
 
   /** `request.security(<symbol>, <timeframe>, expr)` → the node it means, or null.
@@ -12694,15 +15038,19 @@ export class Resolver {
       if (LOWER_TF_SINK) LOWER_TF_SINK.add(code)
       return { type: 'ltf', value: code, args: [out] }
     }
-    if (code) out = { type: live ? 'tf_live' : 'tf', value: code, args: [out] }
-    if (code && !live) {
-      this.htfStepBacks.set(`${node.tok ? node.tok.line : '?'}:${code}`, {
-        line: node.tok ? node.tok.line : null,
-        column: node.tok ? node.tok.column : null,
-        requested: code,
-        base: this.basePeriod,
-      })
-    }
+    // ⭐⭐ ENGINE 55 — LOOK-AHEAD OFF IS `tf_merge`, TRADINGVIEW'S MERGE: the period's
+    // value on the bar that closes it, the last closed period on every other bar, the
+    // newest finished bar withheld by name (`interpret.js`'s `tf_merge` arm). ⚰️ It was
+    // `tf` (the last CLOSED period on every bar) plus a disclosed one-bar lag on each
+    // period's last bar (`htfLookaheadOffStepBacks`, deleted): 213 wrong bars on the
+    // two `support-and-resistance-multi-time-frame` captures. Formula `tf` keeps its
+    // own meaning; only this door writes `tf_merge`.
+    // ⭐⭐ RS RATING L11 — a daily read of ANOTHER symbol on a weekly chart (`dailyOnWeeklyTargetOf`) is
+    // no merge: its `sym` keeps the DAILY base's gate below, so on this chart the host lane withholds it
+    // whole by name (`request:other-timeframe`) and only the run, handed the held series per request
+    // (`requestSupply.js`), reads it.
+    // ⭐ RS RATING L12 PR 2 — and a daily read ABOVE an intraday chart (`above`), the same way
+    if (code && target.below !== true && target.above !== true) out = { type: live ? 'tf_live' : 'tf_merge', value: code, args: [out] }
     // ⭐⭐ C49 — A REQUEST FOR ANOTHER TIMEFRAME CARRIES THE GATE OF THE BASE IT
     // WAS TRANSLATED FOR, ON A CHART PANE. The pane translates once (for a daily
     // base) and its tree is bound on every chart; on any chart but the base's the
@@ -12715,7 +15063,8 @@ export class Resolver {
     // ⭐ ANOTHER SYMBOL TOO, and the gate goes OUTSIDE its `sym`: the merge is a
     // property of the request, not of the instrument, and `sym` hands the other
     // listing's bars at the CHART's timeframe — its 5-minute bars on a 5-minute chart.
-    const gateBase = this.strict ? (target.folded || (code ? this.basePeriod : null)) : null
+    const gateBase = (target.below === true || target.above === true) ? 'D'
+      : this.strict ? (target.folded || (code ? this.basePeriod : null)) : null
     if (gateBase && !other) out = requestBaseNode(gateBase, out)
     if (other) {
       out = { type: 'sym', value: other, args: [out] }
@@ -12726,9 +15075,94 @@ export class Resolver {
         if (!OTHER_SYMBOL_SINK.has(other)) OTHER_SYMBOL_SINK.set(other, new Set())
         OTHER_SYMBOL_SINK.get(other).add(target.venue == null ? '?' : target.venue)
       }
+      if (SYMBOL_INPUT_SINK) {
+        // the input this node's ticker came from (null: a literal, anything else), judged over the FINAL
+        // trees by `symbolInputsOf`: emission is not inclusion (RS Rating's plot pass translates the
+        // rating's fixed `'SP:SPX'` read too, and no plot keeps it)
+        const via = target.positional && target.positional[0] ? this.otherSymbolOf(target.positional[0]) : null
+        SYMBOL_INPUT_SINK.set(out, via && via.input
+          ? { input: via.input, venue: target.venue == null ? '?' : target.venue, default: via.inputDefault, title: via.inputTitle }
+          : null)
+      }
       if (gateBase) out = requestBaseNode(gateBase, out)
     }
     return out
+  }
+
+  /** ⭐⭐ ENGINE 55 — the other-symbol spelling this request names, when NO binding can
+   *  serve it (`otherSymbols.js::staticallyUnservable`): `{code, why}`, or null. ONE
+   *  reader for the screen, the pane and the runtime lane (`pineRuntimeFrontend.js`
+   *  asks it through its own `Resolver`), so the refusal is one sentence everywhere:
+   *  `pine:request — \`request.security\`: <code> — <reason>`. */
+  otherSymbolStaticDeclineOf(node) {
+    const placed = positionaliseSecurityArgs(node.args || [])
+    if (!placed || placed[0] === undefined) return null
+    if (this.ownSymbolNameOf(placed[0]) !== null) return null
+    const otherSym = this.otherSymbolOf(placed[0])
+    if (!otherSym) return this.otherSymbolSpellingDeclineOf(node)
+    const s = staticallyUnservable(otherSym.ticker, otherSym.venue)
+    return s ? { code: s.code, ticker: otherSym.ticker, why: `${s.code} — ${s.reason}`,
+      message: staticOtherSymbolMessage(otherSym.ticker, s) } : null
+  }
+
+  /** ⭐⭐ ENGINE 55 (review L5) — a request whose symbol is a LITERAL spelling this door
+   *  cannot turn into a listing at all (`otherSymbolOf` takes no foreign exchange and no
+   *  `BRK/B`), when `otherSymbols.js::spellingUnservable` names why: `{code, ticker, why,
+   *  message}`, or null. The runtime lane asks the same question (through
+   *  `otherSymbolStaticDeclineOf`), so a spelling one lane refuses the other refuses too,
+   *  in the same words, instead of the runtime lane reading bars that never come. */
+  otherSymbolSpellingDeclineOf(node) {
+    const placed = positionaliseSecurityArgs(node.args || [])
+    if (!placed || placed[0] === undefined) return null
+    if (this.ownSymbolNameOf(placed[0]) !== null || this.otherSymbolOf(placed[0])) return null
+    const raw = this.rawSymbolSpellingOf(placed[0])
+    if (raw === null) return null
+    const s = spellingUnservable(raw)
+    return s ? { code: s.code, ticker: s.ticker, why: `${s.code} — ${s.reason}`,
+      message: staticOtherSymbolMessage(s.ticker, s) } : null
+  }
+
+  /** The literal string a request's symbol argument spells, followed through the shapes
+   *  `otherSymbolOf` follows (a name's binding, a constant ternary branch, an
+   *  `input.symbol` / `input.string` default, `ticker.new(prefix, sym)`), or null. */
+  rawSymbolSpellingOf(node, depth = 0) {
+    if (!node || depth > 4) return null
+    if (node.value && typeof node.value === 'object' && node.value.type && node.name !== undefined && !node.type) {
+      return this.rawSymbolSpellingOf(node.value, depth + 1)
+    }
+    if (node.type === 'string') return String(node.value)
+    if (node.type === 'ternary') {
+      const taken = this.constantBranchOf(node)
+      return taken ? this.rawSymbolSpellingOf(taken, depth + 1) : null
+    }
+    if (node.type === 'name') {
+      const bound = this.env && this.env.get(node.name)
+      // ⭐ REQ — A PARAMETER IS ITS CALLER'S ARGUMENT, FOR NAMING ONLY (C33's rule, other axis): a
+      // spelling this door cannot serve is NAMED when it arrives through a helper
+      // (`ratio("USI:ADVN.NY", …)`), read through the frame the resolver is inside.
+      // ⛔ NOT for serving: `ownSymbolNameOf` / `otherSymbolOf` do not follow a parameter. Measured, a
+      // five-ticker screener whose helper reads each ticker through many fractal offsets
+      // (best-abcd-pattern-screener) then translated past the 10 s budget (`pine:timeout`) where it had
+      // been refused by name at once. Serving through a parameter waits for a per-call-site memo.
+      if (bound && bound.kind === 'param') {
+        return this.throughBinding(bound, (b) => (b && b.node ? this.rawSymbolSpellingOf(b.node, depth + 1) : null))
+      }
+      return bound && bound.kind === 'expr' ? this.rawSymbolSpellingOf(bound.node, depth + 1) : null
+    }
+    const unmodified = this.unmodifiedTickerArg(node)
+    if (unmodified) return this.rawSymbolSpellingOf(unmodified, depth + 1)
+    const tick = this.tickerCallArg(node)
+    if (tick) {
+      const inner = this.rawSymbolSpellingOf(tick, depth + 1)
+      if (inner === null) return null
+      const prefix = tickerCallPrefixOf(node)
+      if (prefix === undefined) return inner
+      // a computed or chart-own prefix (`?`, `@syminfo.prefix`) spells no literal
+      return prefix === '?' || String(prefix).startsWith('@') ? null : `${prefix}:${inner}`
+    }
+    const dv = this.symbolInputDefaultOf(node)
+    if (dv) return this.rawSymbolSpellingOf(dv, depth + 1)
+    return null
   }
 
   /** ⭐⭐ C23 — WHAT A `request.security(…)` ASKS FOR, without resolving its value:
@@ -12771,15 +15205,28 @@ export class Resolver {
 
     // 1. WHOSE BARS: this chart's own, or a ticker we can name. Anything else —
     //    a computed symbol, another venue — falls through.
-    const own = this.ownSymbolNameOf(positional[0])
+    let own = this.ownSymbolNameOf(positional[0])
+    // ⭐⭐ (request unit PR 2, EXT-OWN) — the chart's own symbol on the extended session, on a daily chart, on the
+    // runtime lane's reader alone (`runtimeExtendedOwnDaily`); held to the identity below
+    const extendedOwn = own === null && this.runtimeExtendedOwnDaily && this.basePeriod === 'D'
+      && this.extendedOwnTickerOf(positional[0])
+    if (extendedOwn) own = 'syminfo.tickerid'
     const otherSym = own === null ? this.otherSymbolOf(positional[0]) : null
     const other = otherSym ? otherSym.ticker : null
     const venue = otherSym ? otherSym.venue : null
     if (own === null && other === null) return null
+    // ⭐⭐ ENGINE 55 (review M1) — A SPELLING NO BINDING CAN SERVE (`XAUUSD`, `SPX`, `ADVN`,
+    // `ADVDEC.NY`) STAYS A `sym` NODE HERE, and the BIND refuses the plots that read it,
+    // by name (`otherSymbols.js::otherSymbolRefusalOfTree`, one sentence:
+    // `staticOtherSymbolMessage`), while every other plot is drawn. ⚰️ The first engine-55
+    // cut declined it here; the member door then refused the WHOLE script, so a saved
+    // copy with two correct plots and one such read went `refused` on the 54 -> 55 upgrade.
 
     // 2. WHICH PERIOD: the chart's own (`timeframe.period`) or a code `tf` can
     //    resample. A computed timeframe is exactly what the node shape forbids.
     const tfNode = positional[1]
+    // ⭐⭐ (request unit, TF-FOLD) — the runtime lane's reach (`requestTimeframeReach`); none elsewhere
+    const reach = this.requestTimeframeReach()
     // ⭐ C28b — AN EMPTY TIMEFRAME IS THE CHART'S OWN. Pine's reference for
     // `request.security`: "To use the chart's main timeframe, use an empty
     // string or the `timeframe.period` variable." The `''` spelling (a literal,
@@ -12787,19 +15234,21 @@ export class Resolver {
     // the same request `timeframe.period` makes. ⚰️ It fell through to
     // `pine:request`, and a colour written through it drew in the pane's gold
     // where TradingView draws the script's own (donchian-channels, RDDT 1D).
-    const sameTimeframe = this.ownTimeframeOf(tfNode) !== null
-      || String(this.timeframeLiteralOf(tfNode) ?? '?').trim() === ''
+    const sameTimeframe = this.ownTimeframeOf(tfNode, 0, reach) !== null
+      || String(this.timeframeLiteralOf(tfNode, 0, reach) ?? '?').trim() === ''
     let code = null
     // C49 — the base period a LITERAL timeframe folded to the identity on (null for
     // `timeframe.period` / `''`, which are the chart's own on every chart)
     let folded = null
     if (!sameTimeframe) {
-      const raw = this.timeframeLiteralOf(tfNode)
+      const raw = this.timeframeLiteralOf(tfNode, 0, reach)
       // ⭐ TWO QUESTIONS, ASKED SEPARATELY: what does Pine call this, and can this
       // engine serve it? The second belongs to `TF_RESAMPLABLE` and is asked, not
       // copied — so a timeframe the engine learns to resample reaches this door on
       // the same day rather than a release later.
       code = raw === null ? null : PINE_TF_SPELLING[String(raw).trim().toUpperCase()]
+      // ⛔ (request unit PR 2, EXT-OWN) — an extended-session ticker is read at the chart's own daily timeframe only
+      if (extendedOwn && code !== this.basePeriod) return null
       // ⭐⭐ C47 — THE QUARTER, `'3M'`, FOR A LOOK-AHEAD REQUEST ON A DAILY CHART.
       // `request.security(syminfo.tickerid, '3M', x, lookahead = barmerge.
       // lookahead_on)` reads the quarter the bar is INSIDE — `tf_live`, as the
@@ -12849,10 +15298,30 @@ export class Resolver {
           column: node.tok ? node.tok.column : null,
           requested: code,
           base: this.basePeriod,
-          foldedTo: 'the chart\u2019s own series',
+          foldedTo: extendedOwn
+            ? 'the chart\u2019s own daily series (on a daily chart TradingView shows no extended-hours data)'
+            : 'the chart\u2019s own series',
         })
         folded = code
         code = null
+      } else if (code === 'D' && (this.basePeriod === 'W' || this.basePeriod === 'M')) {
+        // ⭐⭐ RS RATING L11 (Q-RS7) — A DAILY READ ON A WEEKLY CHART (`dailyOnWeeklyTargetOf`):
+        // this chart's own `close` (R3), or another symbol's daily series held and sampled per
+        // week by the supply (R2 / R4); anything else declines as it always did.
+        // ⭐ L13 (Q-RS-M) — and on a MONTHLY chart, per month (R3 witnessed 32 of 32 RDDT months).
+        return this.dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue)
+      } else if (code === 'D' && isIntradayTf(this.basePeriod) && this.aboveDailyReads) {
+        // ⭐⭐ RS RATING L12 PR 2 (U-DAILY) — A DAILY READ ABOVE AN INTRADAY CHART, look-ahead off: this chart's
+        // own symbol or another one, served by the run from the symbol's HELD daily rows, each chart bar reading
+        // the daily row its session had completed (`requestSupply.js::aboveChartRead`). The host lane never draws
+        // it (the daily gate below); a look-ahead read declines as it always did.
+        // ⛔ A BARE open / high / low / close only: the probes witnessed those four (rs-own-daily D01..D04, rs-spx
+        // X01..X04 on 1 / 5 / 15 / 30 / 60m); any other expression at "D" declines, refused by name as before.
+        if (this.requestLookaheadOf(args, placed) !== false) return null
+        const v = positional[2]
+        const bare = !!v && v.type === 'name' && ['open', 'high', 'low', 'close'].includes(v.name) && !(this.env && this.env.has(v.name))
+        if (!bare) return null
+        return { own, other, venue, code: 'D', live: false, positional, folded: null, above: true }
       } else if (isLowerTfRequest(code, this.basePeriod)) {
         // ⭐⭐ C41 — A TIMEFRAME BELOW THE CHART'S OWN. Whether it is served is
         // `lowerTf.js`'s answer alone (`lowerTfDeclineOf` — the ONE reader, also
@@ -12891,6 +15360,37 @@ export class Resolver {
     if (live && !code) live = false
 
     return { own, other, venue, code, live, positional, folded }
+  }
+
+  /** ⭐⭐ RS RATING L11 (Q-RS7, `rs-weekly-2026-11-17`) — A DAILY READ ON A WEEKLY CHART, look-ahead
+   *  off. Asked only where this resolver's base IS weekly (the runtime lane, which translates per chart;
+   *  the member door translates for a daily base, where `"D"` is the identity and carries the daily gate,
+   *  C49), so no daily chart's translation moves.
+   *    * THIS CHART'S OWN SYMBOL (R3): served for a bare `close` only, as the identity. TradingView's
+   *      weekly close is its week's last daily close (139 of 139 settled NYSE:RDDT weeks, the weekly
+   *      capture against the committed daily one), and on the forming week both are the latest price.
+   *      Any other expression needs the symbol's daily bars, which a weekly chart does not hold: it
+   *      declines (null) and is refused by name (`securityDeclineReason`, `requestSupply.js`).
+   *    * ANOTHER SYMBOL (R2 / R4): `{…, code: 'D', below: true}`. The supply serves it only where a
+   *      witness row's weekly block names a daily read (`otherSymbols.js::witnessReadOf`), evaluating the
+   *      expression on the HELD daily series and sampling each week (`weekSampleOf`); every other symbol
+   *      is refused there by name. The host lane never draws it (`securityAsNode`: the daily gate). */
+  dailyOnWeeklyTargetOf(node, args, placed, positional, own, other, venue) {
+    if (this.requestLookaheadOf(args, placed) !== false) return null
+    if (own !== null) {
+      const v = positional[2]
+      const bareClose = !!v && v.type === 'name' && v.name === 'close' && !(this.env && this.env.has('close'))
+      if (!bareClose) return null
+      this.baseFolds.set(`${node.tok ? node.tok.line : '?'}:D`, {
+        line: node.tok ? node.tok.line : null,
+        column: node.tok ? node.tok.column : null,
+        requested: 'D',
+        base: this.basePeriod,
+        foldedTo: `the chart’s own close (a ${this.basePeriod === 'M' ? 'month' : 'week'}’s last daily close is its ${this.basePeriod === 'M' ? 'monthly' : 'weekly'} close)`,
+      })
+      return { own, other: null, venue: null, code: null, live: false, positional, folded: this.basePeriod }
+    }
+    return { own: null, other, venue, code: 'D', live: false, positional, folded: null, below: true }
   }
 
   /** ⭐ C47 — is this the one quarter request this door serves? The timeframe is
@@ -12939,6 +15439,20 @@ export class Resolver {
       const keyword = v && v.tok ? v.tok.value : null
       if (keyword === 'true') { live = true; continue }
       if (keyword === 'false') continue
+
+      // ⭐⭐ REQ (coverage unit, 2026-11-16) — THE CONSTANT WRITTEN THROUGH A PLAIN BINDING.
+      // `ilookahead = barmerge.lookahead_on` then `lookahead = ilookahead` is the same request as
+      // writing the constant at the call (`builtinNameThrough`: bare names only, nothing folded).
+      // ⛔ ONLY THE TWO LOOK-AHEAD CONSTANTS. A name that ends at anything else — an input, a
+      // `barmerge.gaps_*` constant passed as look-ahead (previous-n-daysweeksmonths-high-low writes
+      // `ilookaehad = barmerge.gaps_on`; v4 types all four constants `const bool` and states no
+      // value for any of them) — is not a look-ahead value this door can read, and still declines.
+      // ⛔ RULED (coordinator, 2026-11-16): served only if exactly one reading MATCHes that script's own
+      // captures. Neither can be graded there (its next wall, `pine:offset-literal`, refuses first), so it
+      // stays refused; Q-REQ2 (`capture-queue-2026-11-16-request-security.md`) is the probe that parts them.
+      const through = a.name === 'lookahead' ? this.builtinNameThrough(v) : null
+      if (through === 'barmerge.lookahead_on') { live = true; continue }
+      if (through === 'barmerge.lookahead_off') continue
 
       // ⛔ ANYTHING ELSE STILL DECLINES THE WHOLE CALL. This admits the two
       // declared constants and the two keywords Pine spells them with — never
@@ -13056,11 +15570,24 @@ export class Resolver {
     // `pine.variables.test.js` — re-enters the same value binding. Routing the
     // common case through there reported `pine:cycle` for a call that simply
     // nests. Measured: it went red on the first attempt at this fix.
+    let tree
     try {
-      return bound.value.kind === 'expr'
+      tree = bound.value.kind === 'expr'
         ? this.resolve(bound.value.node)
         : this.resolveBinding(bound.value, node.tok, name)
     } finally { this.frames.pop(); this.env = prevEnv }
+    // ⭐⭐ THE VERSION ISLAND'S ONE BOUNDARY (design section 2.6; the runtime lane's own lowering asks the same,
+    // `pineRuntimeFrontend.js::islandNaBoolResult`): a function judged under another Pine version hands this code
+    // a bool that can be `na` there. What TradingView hands a v6 caller for a v5 `na` bool is not captured (LV6).
+    const defVersion = bound.defTok ? versionAt(bound.defTok, this.pineVersion) : null
+    if (defVersion !== null && defVersion !== versionAt(node.tok, this.pineVersion)
+        && islandBoolMayBeNa(tree)) {
+      throw new PineRefusal(LIBRARY_VERSION, `\`${name}\` is a Pine v${defVersion} library function that hands this `
+        + `v${this.pineVersion} script a bool that can be \`na\` in Pine v${defVersion}; a v${this.pineVersion} `
+        + 'bool is never `na`, and what TradingView hands the script there is not captured (LV6), so it is not drawn',
+      locate(node.tok))
+    }
+    return tree
   }
 
   /** ⛔ C48 — A FUNCTION THAT READS A `var` WRITTEN SINCE IT WAS DECLARED is
@@ -13138,9 +15665,21 @@ export class Resolver {
    *  ⛔ PHASE 1 (2026-10-30): `accdist`, `nvi` and `pvi` are running totals from
    *  the first loaded bar, so only a PANE (`strict`) is handed them. A SCREEN gets
    *  `null` and so meets the ruling it always met (`_functions_excluded`), the
-   *  same containment `ta.cum` has at the screen door. */
+   *  same containment `ta.cum` has at the screen door.
+   *  ⛔ W1 (review, 2026-11-02): and a running total W1 served to the pane is
+   *  REFUSED BY NAME to a drawing, at either drawing door (`objectPass`, the host
+   *  object pass; `objectDoor`, the runtime lane's object door) — see
+   *  `PINE_DRAWING_HELD_SERIES` for why. A refusal, not `null`: no older refusal
+   *  of these names says what is wrong with a drawing of them (`obv`'s ruling even
+   *  says a chart may draw it). */
   seriesTreeOf(short, pineName, tok) {
     if (!this.strict && PINE_WINDOW_DEPENDENT_SERIES.has(short)) return null
+    if ((this.objectPass || this.objectDoor) && PINE_DRAWING_HELD_SERIES.has(short)) {
+      throw new PineRefusal('pine:window-dependent',
+        `${REFUSALS['pine:window-dependent']} — \`${pineName}\` is a running total from the first bar `
+        + 'the chart loaded, and a drawing prints it with nothing to say how much history that was '
+        + '(a pane plot of it is served, with that disclosure)', locate(tok))
+    }
     return BUILTIN_SERIES_TREE[short]()
   }
 
@@ -13167,8 +15706,8 @@ export class Resolver {
    *  many arguments it takes and what kind each one is. The only thing this
    *  module supplies is a ROLE ORDER, and only where one has been measured. */
   resolveTableCall(pineName, base, args, tok) {
-    // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x /
-    // syminfo.mintick) * syminfo.mintick`: Pine's reference, "the value rounded to
+    // ⭐⭐ H5 (step 84) — `math.round_to_mintick(x)` IS `math.round(x * (1 /
+    // syminfo.mintick)) * syminfo.mintick`: Pine's reference, "the value rounded to
     // the symbol's mintick … with ties rounding up", which is `math.round` on the
     // tick count. Written HERE AS THAT PINE and resolved, so the tick is the
     // binding's like every `syminfo.mintick` (settled per symbol from the
@@ -13180,16 +15719,31 @@ export class Resolver {
     // lane's text on the same bars (`vendorHarness.h5MulticatorValues`).
     if (pineName === 'math.round_to_mintick' && Array.isArray(args) && args.length === 1
       && args[0] && !args[0].name) {
+      // ⭐ SAR TICK TIE (2026-11-16) — the tick COUNT is `x * (1 / tick)`, not `x / tick`
+      // (`tickRound.js`: parabolic-sar SPY prints 654.405 as "654.41"; the quotient lands under the half).
       const x = args[0].value !== undefined ? args[0].value : args[0]
-      const mintick = { type: 'name', name: 'syminfo.mintick', tok }
-      return this.resolve({
-        type: 'binary', op: '*', tok, right: mintick,
-        left: { type: 'call', name: 'math.round', tok,
-          args: [{ name: null, value: { type: 'binary', op: '/', tok, left: x, right: mintick } }] },
-      })
+      return this.resolve(roundToMintickTree(x, tok, true))
     }
     const bare = normaliseName(base)
     this.refuseBareModernSpelling(pineName, base, tok)
+    // ⭐ W1 (2026-11-02) — A v1–v4 SCRIPT'S BARE ONE-ARGUMENT `barssince(cond)` IS
+    // PINE'S OWN, UNBOUNDED `barssince` — the function v5 renamed `ta.barssince`
+    // (v4 reference: `barssince(condition) → series[integer]`, one parameter). The
+    // table's `barssince(condition, n)` takes TWO, so a one-argument call cannot be
+    // the table's and was refused `pine:arity` ("add a number") — the capped
+    // near-miss `PINE_INEXPRESSIBLE.barssince` exists to stop. It is re-routed to
+    // the namespaced spelling, so it meets EXACTLY what `ta.barssince(cond)` meets:
+    // the exact unbounded count on a pane, that entry's refusal on a screen.
+    // ⛔ Bounded by the version (as `LEGACY_BARE_NAMESPACE` routing is): from v5 the
+    // bare spelling is not Pine, and a versionless source is the formula box.
+    // ⭐⭐ LEGACY SEMANTICS (B2, 2026-11-15) — AND v1 TOO: the v1 reference's signature is
+    // `barssince(condition)`, one parameter (https://www.tradingview.com/pine-script-reference/v1/#fun_barssince),
+    // and S18's `vw-ternary-arm-legacy-v1-cum` (no pragma, `study(`) draws it. A pragma-less source is v1
+    // only when it declares itself (`this.pineV1`); the formula box keeps the table's two-argument form.
+    if (bare === 'barssince' && pineName === base && ((this.pineVersion !== null && this.pineVersion <= 4) || this.pineV1)
+        && Array.isArray(args) && args.length === 1 && args[0] && !args[0].name) {
+      return this.resolveTableCall('ta.barssince', base, args, tok)
+    }
     // ⭐ PHASE 1 (2026-10-30) — `ta.alma`'s optional fifth argument, `floor`.
     // A written `false` is the four-argument call exactly (TradingView's
     // reference applies `math.floor` to `m` only when it is true), so it is
@@ -13338,6 +15892,13 @@ export class Resolver {
       }
       // ⭐ PHASE 1 — the two expansions that decline (`null`) on a shape they do
       // not take say which shape, rather than handing `null` on as a tree.
+      // ⭐ U-BUILTIN B2 — the angle conversions take one angle, by position.
+      if (bare === 'toradians' || bare === 'todegrees') {
+        const tree = BUILTIN_CALL_TREE[bare](built)
+        if (tree) return tree
+        throw new PineRefusal('pine:arity',
+          `${REFUSALS['pine:arity']} — \`${pineName}\` converts one angle, given ${built.length}`, locate(tok))
+      }
       if (bare === 'swma' || bare === 'tsi') {
         const tree = BUILTIN_CALL_TREE[bare](built)
         if (tree) return tree
@@ -13346,6 +15907,42 @@ export class Resolver {
             ? `\`${pineName}\` takes one series, by position`
             : `\`${pineName}\` needs its source and its two lengths, each length a whole `
               + 'number this engine can read when it builds the formula', locate(tok))
+      }
+      // ⭐ W1 — `ta.cmo` / `ta.cog`: a length that reaches a window is not a member
+      // knob (`windowBoundInputs`, as the table path's `int` slot records it), and
+      // a shape the expansion declines is named rather than handed on as `null`.
+      // ⛔ A `ta.cog` the budget refuses is refused HERE, by name and in the
+      // budget's own words (`cogOverBudget`), never translated for the budget to
+      // refuse downstream after the member was told it worked.
+      if (bare === 'cmo' || bare === 'cog') {
+        if (built.length === 2) for (const n of declaredInputNames(built[1])) this.windowBoundInputs.add(n)
+        // ⛔ W1 FIX (coordinator ruling, 2026-11-02) — `ta.cmo` over a source that can
+        // be `na` after its first value is REFUSED BY NAME (`cmoSourceCannotGap` says
+        // why), on every lane this Resolver serves: TradingView's answer there is
+        // unknown, and a value drawn where it may hide is the one thing never shipped.
+        if (bare === 'cmo' && built.length === 2 && !cmoSourceCannotGap(built[0], this.table)) {
+          throw new PineRefusal('pine:arity',
+            `${REFUSALS['pine:arity']} — \`${pineName}\` was given a source that can be \`na\` on a bar `
+            + 'after its first value, and what TradingView draws there is not known: its published body '
+            + 'and its own remark ("na values in the source series are ignored") give different numbers '
+            + 'on that bar and the bars after it, and no capture says which it computes, so this engine '
+            + 'draws neither. It is served over a price the bar itself holds (`close`, `open`, `high`, '
+            + '`low`, `hl2`, `hlc3`, `ohlc4`, `hlcc4`). TO UNBLOCK: give it one of those, e.g. '
+            + `\`${pineName}(close, 14)\``, locate(tok))
+        }
+        const tree = BUILTIN_CALL_TREE[bare](built)
+        const over = bare === 'cog' ? cogOverBudget(built, tree) : null
+        if (over) {
+          throw new PineRefusal('pine:budget',
+            `${REFUSALS['pine:budget']} — \`${pineName}\`, unrolled into one term per bar of its `
+            + `window: ${over}`, locate(tok))
+        }
+        if (tree) return tree
+        throw new PineRefusal(built.length === 2 ? 'pine:window' : 'pine:arity',
+          built.length === 2
+            ? `\`${pineName}\` needs its length as a whole number this engine can read when it `
+              + 'builds the formula'
+            : `\`${pineName}\` takes a source and a length, by position`, locate(tok))
       }
       if (bare === 'kcw' && (built.length < 3 || built.length > 4)) {
         throw new PineRefusal('pine:arity',
@@ -13472,11 +16069,11 @@ export class Resolver {
     // the SAME transform through the same three lines below — a second copy of
     // the argument walk here is `lesson_a_second_authority_over_one_value`, and
     // the two would drift the first time either was touched.
-    const namespacedName = own(PINE_NAMESPACED_TREE, pineName)
-      ? pineName
-      : ((this.pineVersion !== null && this.pineVersion <= 4
-          && !pineName.includes('.') && own(PINE_NAMESPACED_TREE, `ta.${pineName}`))
-        ? `ta.${pineName}` : null)
+    // ⛔⛔ HONESTY-SWEEP item 2 — a v1-v3 bare `highestbars`/`lowestbars` has no stated sign.
+    if (legacyBarsSignUnstated(pineName, this.pineVersion)) {
+      throw new PineRefusal('pine:builtin', `\`${pineName}\`: ${LEGACY_BARS_SIGN_SENTENCE}`, locate(tok))
+    }
+    const namespacedName = pineNamespacedName(pineName, this.pineVersion)
     if (namespacedName) {
       // ⛔ NAMES REFUSE BEFORE ANYTHING IS RESOLVED — see `refuseUnmeasuredNamedArgs`.
       // `ta.pivothigh(source = high, rightbars = 3, leftbars = 7)` translated to
@@ -13508,6 +16105,15 @@ export class Resolver {
           ? resolvedRaw.map((a, k) => (k === resolvedRaw.length - 1 ? foldLength(a) : a))
           : resolvedRaw)
       const shifted = PINE_NAMESPACED_TREE[namespacedName](resolved)
+      // ⭐ ENGINE 56 (S1, S10) — Pine names the NEWEST of a tie over ANY source (a two-valued
+      // computed one included: witnessed at v4, v5 and v6, `vw-cs2-highestbars-computed-v6`): a
+      // source that is not a bar price is marked so (`tieNewest`)
+      if ((namespacedName === 'ta.highestbars' || namespacedName === 'ta.lowestbars')
+        && shifted && shifted.type === 'op' && shifted.name === 'u-' && shifted.args[0]
+        && shifted.args[0].type === 'call' && Array.isArray(shifted.args[0].args)
+        && !isBarPriceTree(shifted.args[0].args[0])) {
+        shifted.args[0].args[0] = cCall('tieNewest', [shifted.args[0].args[0]])
+      }
       // ⛔⛔ A BUILDER MAY REFUSE IN ITS OWN WORDS, and one that does not gets a
       // sentence about ARITY rather than about pivots. ⚰️ This site used to
       // throw the pivot message for every falsy return, so the wording was
@@ -13554,6 +16160,13 @@ export class Resolver {
     // that does not start at the listing, where today it matches TradingView after
     // its first 15 bars. That is a pre-existing host rule (`cum` sums the loaded
     // bars), named here rather than changed by this lane.
+    // ⭐⭐ 2026-11-09 — THE TREE STAYS `cum`, AND OFF THE LISTING IT IS NO LONGER
+    // SERVED AS THE LOADED COUNT. `barIndexShift.js::RUNNING_TOTAL_CALLS` reads
+    // `cum(1)` as `bar_index + 1`, so `interpret.js::barIndexMask` withholds a plotted
+    // `ta.cum(1)` by name (`running-total:window`: TradingView 11,761 where this
+    // chart drew 1, `vw-bar-counters-spy-1-2026-10-02`), while the
+    // `atr-trailing-stoploss` guard `cum_1 < 16` is a THRESHOLD and keeps exactly
+    // the served bars it had — withheld on its first 15 only (`running-total:early-bars`).
     // ⛔⛔ `|| hostOnly` IS LOAD-BEARING AND A CORPUS SCRIPT PROVED IT. The
     // `pineName !== base || !key` test is a SPELLING carve-out: it lets a member
     // write a DECLARED table name directly without meeting the refusal aimed at
@@ -13641,6 +16254,7 @@ export class Resolver {
         // `ownTimeframeOf` states (a rebound `period` is not the chart's).
         if (this.ownTimeframeOf(argNode) !== null) return this.chartOwnTimeOf('timeframe.period', pineName, tok)
         const rawTf = this.timeframeLiteralOf(argNode)
+        // ⛔ U-BUILTIN B1 — `"1440"` is NOT read as `"D"` here (`clockTfCodeOf` says why).
         const tfCode = rawTf === null ? null : PINE_TF_SPELLING[String(rawTf).trim().toUpperCase()]
         // ⭐⭐ C36 — `"60"`, the ONE literal the probe asked (T06). Compared as the
         // text the script wrote, not through `PINE_TF_SPELLING`: `"1H"` folds to
@@ -13666,8 +16280,13 @@ export class Resolver {
           // `clockTransformFor` applies the bare name's ×1000 only for a script that
           // declares a `//@version`, so anchoring to the same test is what keeps the
           // two spellings in step for a versionless script too.
-          const leaf = clockLeaf('dayopentime')
-          return this.pineVersion !== null ? cOp('*', [leaf, cNum(1000)]) : leaf
+          // ⭐⭐ U-BUILTIN T-D (2026-11-19) — AND THE ANCHOR IS THE SESSION'S 09:30 OPEN, NOT MIDNIGHT.
+          // ⚰️ This was `dayopentime` (midnight New York), served on every chart: capture
+          // `vw-bt-time-1440-spy-{1d,60}-2026-11-16` R6 reads TradingView's `time("D")` as the 09:30
+          // open on every daily and regular-hours hourly bar, and the midnight anchor was 34,200 s early
+          // on every one of them. `interpret.js::dayAnchorNode` is the tree; the chart-clock mask withholds
+          // it by name on a chart whose bars leave the regular session (`time-day:off-session`).
+          return dayAnchorNode(this.pineVersion !== null)
         }
         const anchorPeriod = rawTf === null ? null : timeAnchorPeriodOf(rawTf)
         if (anchorPeriod !== null) return this.periodAnchorOf(anchorPeriod, pineName, tok)
@@ -13884,10 +16503,9 @@ export class Resolver {
           // or one of their means. A computed source can be `na`, and what Pine's
           // session sum does with an `na` term is unwitnessed, so it keeps the
           // refusal below rather than a guess.
-          const barPrice = ['open', 'high', 'low', 'close'].filter((n) => own(this.table.series || {}, n))
-            .map((n) => cSeries(n))
-            .concat(['hl2', 'ohlc4', 'hlcc4'].map((n) => derivedSeriesTree(n, this.table)).filter(Boolean))
-            .some((t) => JSON.stringify(t) === JSON.stringify(got))
+          // ⭐ W1 — asked of `isBarPriceSource`, the one place the question is answered
+          // (`ta.cmo` asks it too); `hlc3` itself never reaches here (it is `want`).
+          const barPrice = isBarPriceSource(got, this.table)
           if (barPrice && own(this.table.functions, 'vwapOf')) return cCall('vwapOf', [got])
           throw new PineRefusal('pine:arity',
             REFUSALS['pine:arity'] + ' — ' + '`' + pineName + '`' + ' was given a '
@@ -14151,20 +16769,53 @@ export class Resolver {
         + 'only as a `textop` operand, and a session feeding a time-in-range '
         + 'comparison is not one. 70 uses across 23 files, and nothing routes '
         + 'them: this is a grammar limit, not a threshold',
-      // ⛔ R20 — the item (c) routing carries D2's limit, as `seriesDependentMessage`
-      // does. Without it a member is told their expression default will be handled
-      // and not told it cannot reach a pane while D2 stands.
-      // ⛔ R21 — two facts, both measured: no IR path today, AND no IR result on a
-      // pane while D2 stands. The D2 half alone reads as "it will be carried, just
-      // not drawn here", which the IR measurement contradicts.
-      time:
-        '20 uses across 11 files. 15 defaults would carry as numbers; the 5 that '
-        + 'are expressions are item (c)\'s — and the IR lane has no path for them '
-        + 'yet, nor does any IR result reach a pane while ruling D2 stands. '
-        + '6 reach a column, under the threshold',
+      // ⚰️ `time` WAS HERE (R16/R20/R21's retirement sentence). RULING-0927 (2026-11-07)
+      // serves `input.time` at its default above, so this sentence could no longer be reached.
       string:
         'in a timeframe position this folds exactly as `input.timeframe` does and '
         + 'adds no separate mechanism — 14 uses across 3 files',
+    }
+    // ⭐⭐ RULING-0927 (2026-11-07) — `input.time` FOLDS TO ITS DEFAULT, IN MILLISECONDS,
+    // FOR THE ONE CAPTURED FORM ONLY. Capture `vw-time-tf-spy-1d-2026-09-27.json` T16:
+    // `input.time(timestamp("18 May 2022 00:00 +0000"))` / 86 400 000 reads 19130 on every
+    // bar — the timestamp itself, in ms. The default is read by the RUNTIME lane's own
+    // reader (`runtimeInputs.js::timeInputDefaultOf`), which since r1 serves only that
+    // form (`WITNESSED_TIME_DEFAULT`, no `confirm = true`) and refuses every other by
+    // name, so the two lanes agree on what is served and with which sentence.
+    // ⭐ r1 (N5): asked BEFORE `knobReads`, so a v4 `input(…, type = input.time)` is never
+    // recorded as a knob this lane does not offer.
+    // ⛔ ONLY THE DEFAULT IS SERVED HERE. No knob is minted (`time` is not in
+    // `PARAM_MANIFEST_ELIGIBLE_KINDS`), so a member value can only arrive by hand;
+    // it is refused by name rather than read in a unit no capture has pinned.
+    if (isTimeInputCall(node)) {
+      const timeKey = typeof node.boundName === 'string' ? node.boundName : null
+      if (timeKey && this.inputValues
+          && Object.prototype.hasOwnProperty.call(this.inputValues, timeKey)) {
+        throw new PineRefusal('pine:input-kind',
+          `${REFUSALS['pine:input-kind']} — \`${timeKey}\` is an \`input.time\`: this lane `
+          + 'serves its default only; a member\'s date is a setting of the runtime lane', locate(node.tok))
+      }
+      const lookup = (n) => {
+        const b = this.env && this.env.get(n)
+        return b && b.kind === 'expr' ? b.node : null
+      }
+      const got = timeInputDefaultOf(node, lookup)
+      if (got.skip) {
+        throw new PineRefusal('pine:input-kind',
+          `${REFUSALS['pine:input-kind']} — \`${name}\` — ${got.skip}`, locate(node.tok))
+      }
+      const folded = cNum(got.ms)
+      this.usedInputs.set(`${node.tok.line}:${node.tok.column}`, {
+        call: name,
+        title: title && title.type === 'string' ? title.value : null,
+        folded: printFormula(folded),
+        name: typeof node.boundName === 'string' ? node.boundName : null,
+        min: null,
+        max: null,
+        line: node.tok.line,
+        column: node.tok.column,
+      })
+      return folded
     }
     // ⭐ 2026-09-28 — see `knobReads`. Recorded before any refusal below, so a
     // question that reaches a knob says so even when the knob cannot resolve.
@@ -14916,6 +17567,11 @@ export function chartOnlySentence(word, how = {}) {
     return `${code} draws a horizontal level; ${how.site === 'bound' ? 'assigned to a name it' : 'its price is not a fixed number this door can read, so it'} is not carried, and ${SCREEN_READS} either`
   }
   if (word === 'fill') {
+    // ⭐ G-h (r1) — a band withheld because its colour reads a block this chart cannot
+    // gate: the gate's own sentence (`resolveFillHandles`), not the edges'
+    if (host && how.site === 'top' && typeof how.withheld === 'string' && how.withheld) {
+      return `${code} is not drawn: its colour is withheld — ${how.withheld}`
+    }
     if (how.site === 'top' && how.band) {
       return host
         ? `${code} is carried as the band between its two plots; it is not a column, so ${SCREEN_READS}`
@@ -15226,6 +17882,47 @@ const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
   kind: 'state', seed, seedEnv, update, updateEnv, at,
 })
 
+/** ⭐ DOOR-ROBUSTNESS — the SEED nodes of the `var`s declared `var string <name> = …`.
+ *  Keyed by the seed OBJECT because that is what every later binding of the same
+ *  variable keeps (`reassignState`, `foldIfChain`'s "same seed OBJECT" rule), so a
+ *  `var string` is known as text by its DECLARATION wherever it is read, however many
+ *  writes stand between. Read by the drawing lane's text reader (`stringVarTextOf`). */
+const STRING_VAR_SEEDS = new WeakSet()
+
+/** ⭐ DOOR-ROBUSTNESS — is this guard (a parse node) made only of chart-period reads
+ *  (`timeframe.*`), literals and operators? Such a guard has one value on every bar of a chart
+ *  of one period; any other name (an input, a series, a user binding) can change it. */
+const periodOnlyGuard = (n, depth = 0) => {
+  if (!n || typeof n !== 'object' || depth > 32) return false
+  switch (n.type) {
+    case 'number': case 'string': case 'bool': return true
+    case 'name': return /^timeframe\.[a-z_]+$/.test(String(n.name || ''))
+    case 'binary': return periodOnlyGuard(n.left, depth + 1) && periodOnlyGuard(n.right, depth + 1)
+    case 'unary': return periodOnlyGuard(n.arg, depth + 1)
+    case 'paren': return periodOnlyGuard(n.expr || n.inner || n.value, depth + 1)
+    default: return false
+  }
+}
+/** Why a `var string` shown while it still holds its `na` seed is withheld (after "`x` is a `var string` "). */
+export const STRING_VAR_NA_SEED_WHY = 'still holding the `na` it was declared with on this chart, and what TradingView '
+  + 'shows for that is not captured yet (probe `vw-rob1-var-string-text`), so the text is not drawn'
+/** `var string <name> = <seed>`, or `var <name> = "<text>"`: mark the seed. `toks` is the declaration's
+ *  tokens. ⭐ Q-ROB6 (2026-11-16) — an UNTYPED `var` whose seed is a string LITERAL is a string too: Pine
+ *  infers a variable's type from its initial value (a declaration without a type keyword takes the type of
+ *  the value it is initialised with), and a literal is the one value whose type needs nothing read.
+ *  ⛔ Only a literal: an untyped `var` seeded with anything else stays unmarked, so CBC-FMT F11 (`pine:type`
+ *  for a number in a text slot) is not reopened. Measured on mtf-key-levels-support-and-resistance:
+ *  `var DNoSpaces = " "`, read through `DailySpaces + "pdOpen"`, dropped 22 name labels TradingView draws
+ *  (" pdOpen", " pdHigh" ...): the per-bar lane drew 3 labels of TradingView's 27, now 25. */
+const markStringVarSeed = (toks, seed) => {
+  const typed = toks && toks[1]
+  const declaredString = typed && typed.kind === 'ident' && typed.value === 'string'
+  const untyped = typed && typed.kind === 'ident' && toks[2] && toks[2].kind === 'punct' && toks[2].value === '='
+  const literalText = seed && typeof seed === 'object' && seed.type === 'string'
+  if (seed && typeof seed === 'object' && (declaredString || (untyped && literalText))) STRING_VAR_SEEDS.add(seed)
+  return seed
+}
+
 /** How many bars of history a translated `var` accumulates over.
  *
  *  ⚠️⚠️ THIS IS AN ASSUMPTION, AND IT IS STATED RATHER THAN HIDDEN BECAUSE IT
@@ -15472,6 +18169,22 @@ const varSeedOf = (seed, reads) => {
 }
 
 const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
+/** ⭐⭐ ENGINE 49 — mark a `name = rhs` declaration binding whose initialiser reads its own history
+ *  while `name` was not declared before it (`selfReferencingDeclaration`, asked of `declEnv`, the
+ *  env the declaration was written in). The `Resolver` refuses a marked binding `pine:cycle` in
+ *  v3+ only. Returns the binding.
+ *  ⭐⭐ ENGINE 50 — "declared before" counts a VARIABLE only (`declaredAsVariable`: an earlier
+ *  user function of the same name does not declare it), and every mark is also RECORDED in
+ *  `sink` (the walk's `ctx.selfDeclarations`), which refuses the whole script in v3+ after the
+ *  walk, read or not (`translatePineResult`). */
+const markSelfDeclaration = (binding, name, declEnv, sink) => {
+  if (binding && binding.kind === 'expr'
+      && selfReferencingDeclaration(binding.node, name, declaredAsVariable(declEnv, name))) {
+    binding.selfDeclaration = name
+    if (Array.isArray(sink)) sink.push({ name, at: binding.at })
+  }
+  return binding
+}
 
 /** ⭐ C22 — `Resolver.textEqTree`'s memo: per scope, per operand NODE (by
  *  identity — a guard re-read is the same parse node), per operator + literal.
@@ -15539,6 +18252,83 @@ function ifBranches(stmts, i) {
     }
   }
   return { branches, next: j }
+}
+
+/** ⭐⭐ (request unit PR 2, engine 90) — A SCRIPT FUNCTION'S RESULT AS ONE EXPRESSION, for the runtime lane's
+ *  request-timeframe reader alone (`Resolver.requestSettledFunctions` → `throughSettledCall`). `inl` is the body the
+ *  runtime lane keeps for a function (`pineRuntimeFrontend.js`, `inlineBodyByName`: `{params, lines, result, body}`).
+ *  TWO SHAPES, AND NOTHING ELSE:
+ *   · an EXPRESSION body (`f(a) => expr`, or plain `name = expr` lines then a last expression, the substitution form
+ *     the runtime lane already inlines by): its `result`, with its lines as the body's own bindings;
+ *   · `X = '<text>'` (typed `string X = …` too), then ONE `if` / `else if` / … / `else` chain whose every arm is the
+ *     single statement `X := '<text>'`, then optionally `X` alone (Saty ATR Levels' `timeframe_func()`, TehThomas'
+ *     `getAlignedTimeframe()`). Pine returns a function's last value; the chain's value is the value of the arm that
+ *     ran, which is the text that arm writes to X, and so is X read after it: the ternary
+ *     `c1 ? t1 : c2 ? t2 : … : tElse`. The `else` is required (without it the chain's value where no arm runs is
+ *     `na`, and X's is its first text: two answers, neither served here).
+ *  ⛔ Anything else is refused BY NAME (`{refused: <why>}`): the runtime lane names it at the request it stops.
+ *  ⛔ It READS nothing and decides nothing: the reader asks `constantBranchOf` of each test, so a test that varies
+ *  per bar answers null there, as the same ternary written out does. */
+export function settledRequestFunctionOf(inl) {
+  const SHAPE = 'a body this lane settles is one expression, or `x = \'<text>\'` then one `if` / `else if` / `else` '
+    + 'chain whose every arm is `x := \'<text>\'` (then optionally `x`)'
+  const refuse = (what) => ({ refused: `${what}; ${SHAPE}` })
+  if (!inl || !Array.isArray(inl.params)) return refuse('its body was not kept')
+  if (inl.result && Array.isArray(inl.lines)) return { params: inl.params, lines: inl.lines, node: inl.result }
+  const body = Array.isArray(inl.body) ? inl.body : null
+  if (!body || !body.length) return refuse('its body was not kept')
+  const isText = (n) => !!n && n.type === 'string' && typeof n.value === 'string'
+  const parsed = (toks) => {
+    try { return parseWholeExpression(toks) } catch { return null }
+  }
+  // 1. `X = '<text>'`, or typed (`string X = …`, `simple string X = …`)
+  const decl = body[0]
+  const dh = (decl && decl.header) || []
+  if ((decl.sub && decl.sub.length) || dh.some((t) => isPunct(t, ':='))) return refuse('its first line is not `x = \'<text>\'`')
+  const eq = findTop(dh, (t) => isPunct(t, '='))
+  const nameTok = eq >= 1 ? dh[eq - 1] : null
+  const typed = eq >= 1 ? dh.slice(0, eq - 1) : []
+  if (!nameTok || nameTok.kind !== 'ident' || TYPE_WORDS.has(nameTok.value)
+      || !typed.every((t) => t.kind === 'ident' && ['const', 'simple', 'series', 'string'].includes(t.value))) {
+    return refuse('its first line is not `x = \'<text>\'`')
+  }
+  const name = nameTok.value
+  if (!isText(parsed(dh.slice(eq + 1)))) return refuse(`\`${name}\` does not start as text written into the script`)
+  // 2. ONE `if` chain, with an `else`, every arm the one statement `X := '<text>'`
+  const ih = (body[1] && body[1].header) || []
+  if (!ih.length || ih[0].kind !== 'ident' || ih[0].value !== 'if') return refuse(`no \`if\` chain follows \`${name} = …\``)
+  const chain = ifBranches(body, 1)
+  if (!chain || !chain.branches.length) return refuse(`no \`if\` chain follows \`${name} = …\``)
+  if (chain.branches[chain.branches.length - 1].condToks !== null) return refuse('its `if` chain has no `else`')
+  const arms = []
+  for (const br of chain.branches) {
+    const sub = Array.isArray(br.sub) ? br.sub : []
+    const st = sub.length === 1 ? sub[0] : null
+    const h = (st && st.header) || []
+    if (!st || (st.sub && st.sub.length) || h.length < 3 || h[0].kind !== 'ident' || h[0].value !== name
+        || !isPunct(h[1], ':=')) {
+      return refuse(`an arm of its \`if\` chain is not the one statement \`${name} := '<text>'\``)
+    }
+    const value = parsed(h.slice(2))
+    if (!isText(value)) return refuse(`an arm writes \`${name}\` something other than text written into the script`)
+    const test = br.condToks === null ? null : parsed(br.condToks)
+    if (br.condToks !== null && !test) return refuse('a test of its `if` chain does not read as one expression')
+    arms.push({ test, value, tok: br.tok })
+  }
+  // 3. then nothing, or `X` alone
+  const tail = body.slice(chain.next)
+  if (tail.length > 1) return refuse(`more follows its \`if\` chain than \`${name}\``)
+  if (tail.length === 1) {
+    const th = tail[0].header || []
+    if ((tail[0].sub && tail[0].sub.length) || th.length !== 1 || th[0].kind !== 'ident' || th[0].value !== name) {
+      return refuse(`more follows its \`if\` chain than \`${name}\``)
+    }
+  }
+  let node = arms[arms.length - 1].value
+  for (let k = arms.length - 2; k >= 0; k -= 1) {
+    node = { type: 'ternary', test: arms[k].test, yes: arms[k].value, no: node, tok: arms[k].tok }
+  }
+  return { params: inl.params, lines: [], node }
 }
 
 /** ⭐⭐ C43 — EVERY `runtime.error(…)` THE SCRIPT WRITES, AND WHERE IT STANDS.
@@ -15787,7 +18577,7 @@ function partReadsCallHistory(part, chart, depth = 0) {
         return !(a && a.type === 'name' && chart.has(a.name) && bound(a.name) === undefined)
       }
       case 'call':
-        if (String(n.name || '').startsWith('ta.') || bound(n.name) !== undefined) return true
+        if (isTaCallName(n.name) || bound(n.name) !== undefined) return true
         return (n.args || []).some((a) => walk(a && a.value !== undefined ? a.value : a, d + 1))
       case 'unary': return walk(n.arg, d + 1)
       case 'binary': return walk(n.left, d + 1) || walk(n.right, d + 1)
@@ -16736,9 +19526,9 @@ function destructureBindings(toks, env, first) {
   const names = toks.slice(1, close)
     .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
 
-  const dmi = eqAtDmi(toks, close) >= 0 ? dmiParts(toks, close, names, env, first) : null
-  if (dmi) return { names, bindings: dmi }
-
+  // ⭐ RMA-SEED — `ta.dmi` is an ordinary `PINE_TUPLE_BUILTINS` member now (its body over `ta.rma`), so it is
+  // taken apart here like `ta.bb`; ⚰️ its own arm (`dmiParts`, three legs of the house table's one-period `adx`,
+  // refusing an unequal pair) is gone.
   const builtin = builtinTupleParts(toks, close, names, env, first)
   if (builtin) return { names, bindings: builtin }
 
@@ -16922,7 +19712,7 @@ function tupleRefusalTail(call, names, env) {
     return '`' + shown + '`' + ' could not be taken apart'
   }
   // ⭐ THE LIST IS DERIVED so it cannot go stale the day another tuple is added.
-  const known = [...Object.keys(PINE_TUPLE_BUILTINS), 'dmi'].sort()
+  const known = Object.keys(PINE_TUPLE_BUILTINS).sort()
     .map((k) => '`' + 'ta.' + k + '`').join(', ')
   return 'this engine has no tuple form for ' + '`' + shown + '`'
     + ' — the ones it can take apart are ' + known
@@ -17702,7 +20492,7 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
         throw new PineRefusal('pine:state',
           `${REFUSALS['pine:state']} — \`${first.value}\``, locate(first))
       }
-      const seedNode = parseWholeExpression(toks.slice(eqAt + 1))
+      const seedNode = markStringVarSeed(toks, parseWholeExpression(toks.slice(eqAt + 1)))
       env.set(varName.value, stateBinding(
         seedNode, new Map(env), selfNode(varName), new Map(env), locate(varName)))
       // ⭐ C48 — a `var` declared in a block that does not run on every bar keeps
@@ -18029,6 +20819,13 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       if (rhs.length === 0) {
         throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(first))
       }
+      // ⭐⭐ ENGINE 50 — a block-valued declaration whose block reads its own history is
+      // RECORDED here (review ENG49-1122 note 6); the walk refuses it in v3+ after the walk.
+      // Nothing about this statement's fold changes.
+      if (ctx && Array.isArray(ctx.selfDeclarations) && !declaredAsVariable(env, nameTok.value)
+          && blockDeclarationReadsOwnHistory(stmts, i, nameTok.value)) {
+        ctx.selfDeclarations.push({ name: nameTok.value, at: locate(nameTok) })
+      }
       if (rhs[0].kind === 'ident' && rhs[0].value === 'if') {
         const folded = foldIfChain(stmts, i, ctx, env)
         consumeMutators(ctx, st.body)
@@ -18106,9 +20903,9 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
       // one run (`oneExecutionTokens`) — and the object lane reads it instead.
       const mark = condCallMark(ctx, rhs, nameTok.value)
       const declEnv = new Map(env)
-      env.set(nameTok.value, exprBinding(
+      env.set(nameTok.value, markSelfDeclaration(exprBinding(
         stampInputName(parseWholeExpression(rhs), nameTok.value),
-        declEnv, locate(nameTok)))
+        declEnv, locate(nameTok)), nameTok.value, declEnv, ctx && ctx.selfDeclarations))
       // ⛔ A MARK, NOT A REFUSAL: the plot lane reads this binding as it always
       // has (and mints the parameters it always did); the OBJECT lane's Resolver
       // (`refuseCondCalls`) refuses it by the sentence carried here, or reads
@@ -18218,31 +21015,8 @@ function foldStatements(stmts, ctx, env, trace = null, { declarationIsValue = fa
 // references. Inlining the trees here would work and would silently undo C2C's
 // ×48 compaction — a line whose y-coordinate is `close` must be an integer in
 // the saved document, not a second copy of a tree a plot already stores.
-const OBJECT_ENUM_VALUES = Object.freeze({
-  'xloc.bar_index': 'bar_index', 'xloc.bar_time': 'bar_time',
-  'yloc.price': 'price', 'yloc.abovebar': 'abovebar', 'yloc.belowbar': 'belowbar',
-  'extend.none': 'none', 'extend.right': 'right', 'extend.left': 'left', 'extend.both': 'both',
-  'line.style_solid': 'solid', 'line.style_dashed': 'dashed', 'line.style_dotted': 'dotted',
-  'line.style_arrow_left': 'arrow_left', 'line.style_arrow_right': 'arrow_right',
-  'line.style_arrow_both': 'arrow_both',
-  'size.tiny': 'tiny', 'size.small': 'small', 'size.normal': 'normal',
-  'size.large': 'large', 'size.huge': 'huge', 'size.auto': 'auto',
-  'text.align_left': 'left', 'text.align_center': 'center', 'text.align_right': 'right',
-  'text.align_top': 'top', 'text.align_bottom': 'bottom',
-  // ⭐ A CLOSED THREE-NAME VOCABULARY. All 13 real usages across the corpus and
-  // the acceptance dashboard are plain `text.format_bold`; `none` and `italic`
-  // are carried because a table that knew one of three would drop the other two
-  // with no trace, which is the failure this property was added to stop.
-  // ⛔ A COMBINED `text.format_bold + text.format_italic` is NOT a name and
-  // does not resolve here — it falls to `valueRef`, which returns null, and the
-  // converter records it via `dropProp`. Counted, never half-applied.
-  'text.format_none': 'none', 'text.format_bold': 'bold', 'text.format_italic': 'italic',
-  'position.top_left': 'top_left', 'position.top_center': 'top_center',
-  'position.top_right': 'top_right', 'position.middle_left': 'middle_left',
-  'position.middle_center': 'middle_center', 'position.middle_right': 'middle_right',
-  'position.bottom_left': 'bottom_left', 'position.bottom_center': 'bottom_center',
-  'position.bottom_right': 'bottom_right',
-})
+// ⭐ Engine 51 — the vocabulary is ONE table, `../objectEnums.js` (every member of
+// the reference's namespaces and the witnessed legacy spellings), imported here.
 
 /**
  * ⭐⭐ `text_format` — THE ONE PINE CONSTANT FAMILY THAT DOES ARITHMETIC.
@@ -18265,7 +21039,7 @@ const OBJECT_ENUM_VALUES = Object.freeze({
  * `text.format_none`, `text.format_bold`, `text.format_italic` and nothing else,
  * so an unknown `text.format_*` is a refusal rather than a value to pass along.
  */
-const TEXT_FORMAT_FLAGS = Object.freeze({
+export const TEXT_FORMAT_FLAGS = Object.freeze({
   'text.format_none': null,
   'text.format_bold': 'bold',
   'text.format_italic': 'italic',
@@ -18284,16 +21058,15 @@ export function canonicalTextFormat(flags) {
   return out.length ? out.join('_') : 'none'
 }
 
-/** Every `label.style_*` Pine names, kept as its own string. ⚠️ The RENDERER
- *  decides what a style draws; this door only has to carry what was written. */
-const LABEL_STYLE_RE = /^label\.style_[a-z_]+$/
-const BOX_STYLE_RE = /^box\.style_[a-z_]+$/
+
+// ⛔⛔ HONESTY-SWEEP item 1 — the enum-`na` refusal sentence (`../enumNaRule.js`), re-exported.
+export { ENUM_NA_SENTENCE, ENUM_NAMED_CALL_SENTENCE }
 
 export function objectEnumValue(name) {
-  if (Object.hasOwn(OBJECT_ENUM_VALUES, name)) return OBJECT_ENUM_VALUES[name]
-  if (LABEL_STYLE_RE.test(name)) return name.slice('label.style_'.length)
-  if (BOX_STYLE_RE.test(name)) return name.slice('box.style_'.length)
-  return undefined
+  // ⛔ Engine 51 — only a constant the table holds. `label.style_<anything>` used to
+  // pass by pattern, so `label.style_labeldown` (v4) reached the renderer as an
+  // unknown `labeldown` and drew centred with no pointer.
+  return Object.hasOwn(OBJECT_ENUM_VALUES, name) ? OBJECT_ENUM_VALUES[name] : undefined
 }
 
 /** `barstate.islast and X` → `{rest: X, isLast: true}`. Only top-level
@@ -18434,6 +21207,141 @@ function objectBlockRunsOf(trees, hits, makeResolverRaw) {
   })
   return out
 }
+
+/* ─── ⭐⭐ ENGINE 52 — THE STATIC READER'S VALUES, BEYOND WORDS ─────────────────
+ *
+ * `buildObjectProgram`'s static reader (`staticEnumValue`) answers a value fixed
+ * before bar 0 as `{s}` (string), `{b}` (bool), `{w}` (a constant's word) and, since
+ * engine 52, `{n}` (number), `{hex}` (an object colour, alpha included) and `{arr}`
+ * (a list of those, only what `str.split` makes). These are its pure operations. */
+/** The input kinds whose default is a drawing's value (C16), by the key it answers. */
+const STATIC_INPUT_KIND = Object.freeze({
+  'input.int': 'n', 'input.float': 'n', 'input.bool': 'b', 'input.color': 'hex',
+  // v4's `input(…, type = input.integer)` (the v4 name of the int input type)
+  'input.integer': 'n',
+})
+const STATIC_STR_FNS = new Set(['str.lower', 'str.upper', 'str.replace', 'str.replace_all', 'str.split',
+  'str.contains', 'str.startswith', 'str.endswith', 'str.tostring', 'str.length'])
+const STATIC_NUM_OPS = new Set(['+', '-', '*', '/', '<', '>', '<=', '>='])
+/** One key per static value, so `==` compares a value with its own kind only. */
+const staticKey = (v) => ('s' in v ? `s:${v.s}` : 'w' in v ? `w:${v.w}` : 'n' in v ? `n:${v.n}`
+  : 'hex' in v ? `hex:${String(v.hex).toUpperCase()}` : 'arr' in v ? 'arr' : 'obj' in v ? 'obj' : `b:${v.b}`)
+function staticBinary(op, l, r, truncate = null) {
+  if ('s' in l && 's' in r) return op === '+' ? { s: l.s + r.s } : null
+  if (!('n' in l) || !('n' in r)) return null
+  const a = l.n
+  const b = r.n
+  switch (op) {
+    case '+': return { n: a + b }
+    case '-': return { n: a - b }
+    case '*': return { n: a * b }
+    // ⭐ Division: whether Pine truncates is the caller's to say, by the engine's ONE rule
+    // (`constIntDivisionTruncates` + `pineConstIntValue`, F1, witnessed `vw-int-div-assign`):
+    // before v6 exactly when BOTH operands are `const int`, never from v6. `null` (not
+    // settled) folds only an exact quotient, where both readings agree.
+    case '/': {
+      if (b === 0) return null
+      if (truncate === true) return { n: Math.trunc(a / b) }
+      if (truncate === false) return { n: a / b }
+      return Number.isInteger(a / b) ? { n: a / b } : null
+    }
+    // ⭐ engine 78 (#1858) — two numbers equal only within Pine's epsilon are NOT static here: the exact
+    // and the tolerant answer differ, and which one the script meant depends on its version and on whether
+    // they are constants (`pineCompare.js::constCompareFold`). The dynamic path decides it.
+    case '<': return pineCompareAmbiguous(a, b) ? null : { b: a < b }
+    case '>': return pineCompareAmbiguous(a, b) ? null : { b: a > b }
+    case '<=': return pineCompareAmbiguous(a, b) ? null : { b: a <= b }
+    case '>=': return pineCompareAmbiguous(a, b) ? null : { b: a >= b }
+    default: return null
+  }
+}
+/** ⭐ engine 78 (#1858) — `staticBinary` for its rail only (`pineCompareSites.test.js`: an ambiguous pair is
+ *  not static). No product caller. */
+export const __staticBinaryForTests = (op, l, r, truncate = null) => staticBinary(op, l, r, truncate)
+/** A string one occurrence of which can overlap the next (a prefix that is also a suffix). */
+const selfOverlaps = (t) => { for (let k = 1; k < t.length; k += 1) if (t.slice(0, k) === t.slice(t.length - k)) return true; return false }
+function staticBuiltin(name, v) {
+  const S = (i) => (v[i] && 's' in v[i] ? v[i].s : null)
+  const N = (i) => (v[i] && 'n' in v[i] ? v[i].n : null)
+  const H = (i) => (v[i] && 'hex' in v[i] ? v[i].hex : null)
+  switch (name) {
+    case 'color.new': {
+      if (v.length !== 2 || H(0) === null || N(1) === null) return null
+      const hex = withObjectTransparency(H(0), N(1))
+      return hex ? { hex } : null
+    }
+    case 'color.rgb': {
+      if (v.length < 3 || v.length > 4) return null
+      const ch = [N(0), N(1), N(2)]
+      if (ch.some((c) => c === null || c < 0 || c > 255)) return null
+      const base = `#${ch.map((c) => Math.round(c).toString(16).padStart(2, '0').toUpperCase()).join('')}`
+      if (v.length === 3) return { hex: base }
+      if (N(3) === null) return null
+      const hex = withObjectTransparency(base, N(3))
+      return hex ? { hex } : null
+    }
+    case 'color.from_gradient': {
+      if (v.length !== 5 || [0, 1, 2].some((i) => N(i) === null) || H(3) === null || H(4) === null) return null
+      const a = objectHexToPacked(H(3))
+      const b = objectHexToPacked(H(4))
+      if (a === null || b === null) return null
+      const hex = packedToObjectHex(fromGradient(N(0), N(1), N(2), a, b))
+      return hex ? { hex } : null
+    }
+    case 'str.lower': return v.length === 1 && S(0) !== null ? { s: S(0).toLowerCase() } : null
+    case 'str.upper': return v.length === 1 && S(0) !== null ? { s: S(0).toUpperCase() } : null
+    case 'str.length': return v.length === 1 && S(0) !== null ? { n: S(0).length } : null
+    case 'str.contains': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).includes(S(1)) } : null
+    case 'str.startswith': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).startsWith(S(1)) } : null
+    case 'str.endswith': return v.length === 2 && S(0) !== null && S(1) !== null ? { b: S(0).endsWith(S(1)) } : null
+    case 'str.replace_all':
+      return v.length === 3 && [0, 1, 2].every((i) => S(i) !== null) && S(1) !== '' && !selfOverlaps(S(1)) ? { s: S(0).split(S(1)).join(S(2)) } : null
+    case 'str.replace': {
+      // Pine: the `occurrence`-th (0-based, default 0) occurrence of `target`
+      // ⛔ a target that can overlap itself (`aa` in `aaa`): which occurrences Pine counts is
+      // not stated, so it is not folded
+      if (v.length < 3 || v.length > 4 || ![0, 1, 2].every((i) => S(i) !== null) || S(1) === '' || selfOverlaps(S(1))) return null
+      const nth = v.length === 4 ? N(3) : 0
+      if (nth === null || !Number.isInteger(nth) || nth < 0) return null
+      let at = -1
+      for (let k = 0; k <= nth; k += 1) { at = S(0).indexOf(S(1), at + 1); if (at < 0) return { s: S(0) } }
+      return { s: S(0).slice(0, at) + S(2) + S(0).slice(at + S(1).length) }
+    }
+    case 'str.split': {
+      if (v.length !== 2 || S(0) === null || S(1) === null || S(1) === '') return null
+      const parts = S(0).split(S(1))
+      // ⛔ an empty piece (two separators together, one at an end) is not pinned: not folded
+      return parts.some((p) => p === '') ? null : { arr: parts.map((s) => ({ s })) }
+    }
+    case 'str.tostring':
+      // ⛔ only what needs no number format: a string, or a whole number
+      if (v.length !== 1) return null
+      if (S(0) !== null) return { s: S(0) }
+      return N(0) !== null && Number.isInteger(N(0)) ? { s: String(N(0)) } : null
+    case 'array.get': {
+      const arr = v[0] && v[0].arr
+      const i = N(1)
+      return arr && v.length === 2 && Number.isInteger(i) && i >= 0 && i < arr.length ? arr[i] : null
+    }
+    case 'array.size': return v.length === 1 && v[0] && v[0].arr ? { n: v[0].arr.length } : null
+    case 'math.max': return v.length >= 2 && v.every((x) => 'n' in x) ? { n: Math.max(...v.map((x) => x.n)) } : null
+    case 'math.min': return v.length >= 2 && v.every((x) => 'n' in x) ? { n: Math.min(...v.map((x) => x.n)) } : null
+    case 'math.abs': return v.length === 1 && N(0) !== null ? { n: Math.abs(N(0)) } : null
+    default: return null
+  }
+}
+/** The int sizes the reference equates with a `size.*` word, per family (0 is `size.auto`). */
+const POINT_SIZE_ANCHOR_SET = Object.freeze({
+  label: new Set([0, ...Object.values(POINT_SIZE_ANCHORS.label)]),
+  boxTable: new Set([0, ...Object.values(POINT_SIZE_ANCHORS.boxTable)]),
+})
+/** ⛔ A helper body run before bar 0 stops after this many loop passes in all. */
+const STATIC_HELPER_MAX_PASSES = 1000
+
+/** ⭐⭐ ENGINE 54 — where the object pass names each create site's source call
+ *  (`translation.objectDiagnostics[OBJECT_SITE_SOURCES]`: `{s1: '12:5', ...}`), read by the
+ *  member door to mint a run half's `sites` (`memberPaneDefinition::hostPartialRunHalf`). */
+export const OBJECT_SITE_SOURCES = 'siteSources'
 
 function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatement,
   objectOpts = {}) {
@@ -18728,9 +21636,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  (`rawTrees`/`iterTrees`, `runtime/objectLane.js`): that lane evaluates each
    *  pass itself and keeps exactly the program it had. */
   const hostPasses = !rawTrees && !iterTrees
-  /** ⭐ C9 — the script's declared history buffer (`declaredMaxBarsBackOf`, the
-   *  one reader both lanes use). See `historyReadRef`. */
-  const declaredMaxBarsBack = declaredMaxBarsBackOf(source)
+  /** ⭐ C9 — the buffer a per-bar history read may reach into (`historyReadBufferOf`, the
+   *  one authority both lanes use). See `historyReadRef`. */
+  const historyReadBuffer = historyReadBufferOf(source)
   /** tree index → the counter it must be evaluated for. */
   const iteratedTrees = {}
   const collected = collectObjectOps(stmts, {
@@ -18912,6 +21820,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     lostRemovals: [],
   }
   const lostRemovalFamilies = []
+  /** ⭐⭐ FAMILIES WHOSE OBJECTS ARE WITHHELD BECAUSE A REMOVAL OF THEM CANNOT BE
+   *  EXECUTED — `k._box.pop().delete()` on a user type's field
+   *  (`pineObjects.js::refuseChainedElement`, `objectFnInline.js::bodyEffects`'s
+   *  `chained`). Pine's reference states what the step does; this program has no
+   *  register for the list it acts on, so it cannot say WHICH box went. Every
+   *  box is therefore withheld and counted (`content:lost`), never drawn where
+   *  TradingView deleted one — and the script's other drawings (the table the
+   *  ict-killzones capture matches) keep serving. Coordinator ruling 2026-11-08:
+   *  per-object withholding, never the whole script. */
+  const removalWithheldFamilies = new Set(
+    ((collected.diagnostics && collected.diagnostics.chainedRemovals) || []).filter(Boolean))
   const lostRemoval = (via, op) => {
     const family = op && op.k === 'clear' ? 'table' : (op && op.family) || null
     lostRemovalFamilies.push({ via, family })
@@ -18969,6 +21888,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     diagnostics.attemptedOps += 1
     const fx = rc.effects || { kinds: { delete: 1 }, families: [null], creates: [null] }
     for (const family of fx.families || []) lostRemovalFamilies.push({ via, family })
+    for (const family of fx.chained || []) removalWithheldFamilies.add(family)
     for (const family of fx.creates || []) lostCreate(family)
     for (const [k, n] of Object.entries(fx.kinds || {})) {
       if (!diagnostics.unconvertedFnOps) diagnostics.unconvertedFnOps = {}
@@ -18979,6 +21899,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // to derive the key families it must classify, and a variable argument is
     // invisible to it.
     dropped(`fn:${rc.why}`)
+  }
+  // ⭐⭐ A CREATE INTO A LIST THIS PROGRAM DOES NOT HOLD (`pineObjects.js::
+  // refuseFieldCreates`, `k._box.unshift(box.new(…))`): one attempt and one
+  // `content:lost` each — the object is withheld, by name, and counted.
+  for (const fam of (collected.diagnostics && collected.diagnostics.fieldCreates) || []) {
+    diagnostics.attemptedOps += 1
+    lostCreate(fam)
+    dropped('content:lost')
+  }
+  if (collected.diagnostics && collected.diagnostics.fieldCreates && collected.diagnostics.fieldCreates.length) {
+    diagnostics.fieldCreateFamilies = [...new Set(collected.diagnostics.fieldCreates)].sort()
   }
   if (refusedCalls.length) {
     diagnostics.refusedCalls = refusedCalls.map((rc) => `${rc.fn}:${rc.why}@${rc.line}`
@@ -19068,6 +21999,39 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  Every existing call site passes nothing and behaves exactly as before. */
   /** ⭐ C17 — the refusal the last unresolvable tree threw (`guardRefusals`). */
   let lastCanonRefusal = null
+  /** ⭐ DRAW-1 — the reason `guardOfIn` returned `undefined` on when no refusal was thrown
+   *  (`OBJECT_CONDITION_WHY`), read only to NAME the drop (`guardRefusals`). */
+  let guardDropWhy = null
+  const dropWhy = (why) => { guardDropWhy = why; return undefined }
+  /** ⭐⭐ W3-S1 (2026-11-02) — THE TEXT READER'S OWN REFUSAL, BY NAME, AND NOT ON
+   *  `lastCanonRefusal`. That one is read to DECIDE (`rtAdmits`: which refusals the
+   *  runtime lane may answer where the drawing stands), so a text-only give-up must
+   *  not ride it — a `pine:block` written there would have opened the runtime lane
+   *  to a cell it never served before. This one is diagnostics-only: the cell and
+   *  create drop sites read it when the slot's read wrote no canonical refusal, so
+   *  `cellTextWhy` / `createDropWhy` name the SHAPE instead of "no refusal recorded"
+   *  (the W3 census of 2026-11-02 counted 22 such cells). Nothing reads it to decide. */
+  let lastTextRefusal = null
+  const textRefuse = (guard, message) => { lastTextRefusal = { guard, message } }
+  /** ⭐ W3-S1 — `compileMessagePattern`'s refusal NAME, said as the shape it names. */
+  const messageFormatWhyText = (why) => {
+    const m = /^format:(element|number-pattern):(.*)$/.exec(String(why))
+    if (m && m[1] === 'element') {
+      if (m[2] === 'number') return 'has a `{N,number}` element with no pattern — the published default is `{N}`\'s `#,###.###`, and whether the bare `number` form prints the same is unmeasured'
+      if (m[2] === 'date' || m[2] === 'time') return `has a \`{N,${m[2]},…}\` element: a UTC date or time the reference formats by a pattern no capture has measured`
+      return `has a \`{N,${m[2]}}\` element this reader does not hold`
+    }
+    if (m) return `has a number pattern \`${m[2]}\` no capture or published example pins (\`#.##\` is read; \`percent\` stays refused until capture Q-W3-3 matches)`
+    const plain = {
+      'format:quote': 'has an apostrophe, MessageFormat\'s quote character',
+      'format:brace': 'has an unbalanced brace',
+      'format:index': 'names an argument it was not given',
+      'format:arguments': 'is called with a named argument or no pattern',
+      'format:pattern-not-literal': 'reads a pattern that is not a literal string',
+      'format:number-over-text': 'applies a number pattern to a text argument',
+    }
+    return plain[why] || `was refused as ${why}`
+  }
   const canonicalOf = (node, inline, envOverride) => {
     const getter = findGetter(node)
     if (getter) { diagnostics.getters.push(getter); return null }
@@ -19287,6 +22251,28 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  slot's read is byte-identical to what it was — which is the property
    *  `textEnumSlot.test.js`'s control asserts. */
   let enumLeaves = false
+  /** ⛔⛔ HONESTY-SWEEP item 1 (2026-11-07) — AN `na` READ UNDER AN ENUM WALK.
+   *  Set by `textNodeOf`'s `na` branch while `enumLeaves` is on; read by
+   *  `valueRef`'s enum arm, which sets `enumNaDrop`. See `ENUM_NA_SENTENCE`. */
+  let enumNaSeen = false
+  /** Set when a slot's enum read refused: `'na'` (an `na` reached) or `'named'` (a helper called
+   *  with a named argument, review r1 N1); reset (false) by each converter before it reads a slot. */
+  let enumNaDrop = false
+  /** ⛔ HONESTY-SWEEP r1 — does this enum expression reach a call to the script's own function
+   *  with a NAMED argument (directly, through `expr` name bindings, or in a ternary arm)? */
+  const namedHelperCallIn = (n, env, depth = 0) => {
+    if (!n || typeof n !== 'object' || depth > 8) return false
+    if (n.type === 'call') {
+      const b = env && typeof env.get === 'function' ? env.get(n.name) : null
+      return !!(b && b.kind === 'fn' && (n.args || []).some((a) => a && a.name))
+    }
+    if (n.type === 'name') {
+      const o = openName(n, env, 0)
+      return !!(o && namedHelperCallIn(o.node, o.env || env, depth + 1))
+    }
+    if (n.type === 'ternary') return namedHelperCallIn(n.yes, env, depth + 1) || namedHelperCallIn(n.no, env, depth + 1)
+    return false
+  }
 
   /** ⭐⭐ THE ONE PLACE A TEXT NODE BECOMES A FORMATTED NUMBER.
    *
@@ -19307,6 +22293,17 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  (`lesson_a_guard_repeated_is_a_guard_unproved`). */
   const numNode = (ast, fmt, implicit = false) => {
     if (enumLeaves) return null
+    // ⭐⭐ CBC-FMT (F11) — A NUMBER NOBODY STRINGIFIED, IN A TEXT SLOT, IS A COMPILE ERROR on
+    // TradingView: `text` (a label's, a cell's, a tooltip) is a series STRING and Pine does not
+    // convert a number into one (`str.tostring` does). Such a script never draws there, so the
+    // drawing is refused by name rather than printed with a format TradingView never applies.
+    // ⛔ Only OUTSIDE a `str.format` argument: there an implicit number is exactly what `{N}`
+    // is handed (`messageNumber`, below).
+    if (implicit && !messageNumber) {
+      textRefuse('pine:type', 'a number stands where Pine takes text (a label, box or cell `text` is a '
+        + 'series string, and TradingView does not compile a number there): `str.tostring(…)` makes it text')
+      return null
+    }
     const ref = internTree(ast)
     if (!ref) return null
     // ⭐⭐ A NUMBER NOBODY STRINGIFIED, INSIDE A `str.format` ARGUMENT, is
@@ -19341,6 +22338,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const refuseFmt = (why) => {
       diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
       diagnostics.textFormatRefusals[why] = (diagnostics.textFormatRefusals[why] || 0) + 1
+      // ⭐ W3-S1 — named for the drop site: WHICH element or pattern was refused.
+      textRefuse('pine:text-value', `\`str.format\` ${messageFormatWhyText(why)}`)
       return null
     }
     const args = node.args || []
@@ -19390,7 +22389,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       n = b.node
     }
     if (!n || n.type !== 'call' || !(n.name === 'input' || n.name === 'input.string')) return null
-    const opt = (n.args || []).find((a) => a && a.name === 'options')
+    let opt = (n.args || []).find((a) => a && a.name === 'options')
+    // ⭐ HONESTY-SWEEP item 1 — `options` passed POSITIONALLY: the reference's own
+    // signature is `input.string(defval, title, options, tooltip, inline, group, …)`
+    // (https://www.tradingview.com/pine-script-reference/v6/#fun_input.string), so the
+    // third positional argument IS `options` (`halfStyle = input.string('Solid',
+    // 'Line Style', ['Solid', 'Dashed', 'Dotted'])`).
+    if (!opt && n.name === 'input.string' && Array.isArray(n.args) && n.args.length >= 3
+      && n.args.slice(0, 3).every((a) => a && !a.name)) opt = n.args[2]
     const els = opt && opt.value && opt.value.type === 'collection' ? opt.value.elements : null
     if (!Array.isArray(els) || !els.length || !els.every((e) => e && e.type === 'string')) return null
     return els.map((e) => String(e.value))
@@ -19411,8 +22417,54 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    * capture shows what a `na` size or position draws. So a default-less switch
    * is read only when its subject is an `input.string` whose `options` every arm
    * covers — then "nothing matches" cannot happen and the last arm is the else.
-   * Anything else is refused (null), which drops the prop by name upstream.
+   * Anything else is refused (null).
+   *
+   * ⛔⛔ HONESTY-SWEEP item 1 (2026-11-07): under an ENUM walk that refusal used to
+   * drop only the PROP, so the drawing was drawn with the renderer's default style
+   * even on the bars where an arm DID match (`st(m) => switch m "A" => line.style_dashed`
+   * drew solid where TradingView draws dashed). A default-less switch that can miss
+   * is an `na` enum (`ENUM_NA_SENTENCE`): the whole drawing is withheld (`enum:na`).
    */
+  /** ⭐ HONESTY-SWEEP item 1 — a ternary chain whose `na` tail cannot be reached.
+   *
+   *      s == 'Solid' ? line.style_solid : s == 'Dotted' ? line.style_dotted
+   *        : s == 'Dashed' ? line.style_dashed : na
+   *
+   *  When every test is `<subject> == '<label>'` over ONE subject that opens to an
+   *  `input.string` whose `options` the labels all cover (`inputOptionsOf`, the rule a
+   *  default-less `switch` already reads by), the final `na` is dead and the chain is
+   *  read with its last arm as the else. Returns the rewritten node, or null (the
+   *  chain is read as written, and its `na` refuses by name: `ENUM_NA_SENTENCE`). */
+  const coveredNaTail = (node, scope) => {
+    const isNa = (n) => n && n.type === 'name' && n.name === 'na'
+    const tests = []
+    let n = node
+    for (let hop = 0; n && n.type === 'ternary' && hop < 64; hop += 1) {
+      tests.push(n)
+      if (isNa(n.no)) break
+      n = n.no
+    }
+    const last = tests[tests.length - 1]
+    if (!last || !isNa(last.no) || tests.length < 1) return null
+    let subject = null
+    const labels = []
+    for (const t of tests) {
+      const c = t.test
+      if (!c || c.type !== 'binary' || c.op !== '==') return null
+      const [lit, subj] = c.left && c.left.type === 'string' ? [c.left, c.right]
+        : c.right && c.right.type === 'string' ? [c.right, c.left] : [null, null]
+      if (!lit || !subj || subj.type !== 'name') return null
+      if (subject && subject !== subj.name) return null
+      subject = subj.name
+      labels.push(String(lit.value))
+      if (isNa(t.yes)) return null
+    }
+    const opts = inputOptionsOf({ type: 'name', name: subject }, scope || scopeEnv)
+    if (!opts || !opts.every((o) => labels.includes(o))) return null
+    const rebuild = (k) => (k === tests.length - 1 ? tests[k].yes : { ...tests[k], no: rebuild(k + 1) })
+    return rebuild(0)
+  }
+
   const switchTextOf = (sw, depth, inline) => {
     if (!sw || !sw.subject || !Array.isArray(sw.arms)) return null
     const env = sw.env || scopeEnv
@@ -19434,9 +22486,25 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     if (sw.fallback) {
       tail = armText(sw.fallback)
     } else {
-      const opts = inline ? null : inputOptionsOf(sw.subject, env)
+      // ⭐ HONESTY-SWEEP item 1 — the same coverage rule THROUGH A CALL: a helper
+      // `lineStyle(x) => switch x …` whose subject is its own parameter, called with an
+      // `input.string` whose `options` every arm covers, cannot miss either.
+      let opts = null
+      if (!inline) opts = inputOptionsOf(sw.subject, env)
+      else if (sw.subject.type === 'name' && inline.bound && Array.isArray(inline.bound.params)) {
+        const k = inline.bound.params.indexOf(sw.subject.name)
+        const a = k >= 0 && Array.isArray(inline.args) ? inline.args[k] : null
+        const argNode = a && !a.name ? (a.value !== undefined ? a.value : a) : null
+        if (argNode) opts = inputOptionsOf(argNode, inline.callerEnv || env)
+      }
       const covered = opts && opts.every((o) => arms.some((a) => String(a.label.value) === o))
-      if (!covered || !arms.length) return null
+      if (!covered || !arms.length) {
+        if (enumLeaves) {
+          enumNaSeen = true
+          textRefuse('pine:enum-na', ENUM_NA_SENTENCE)
+        }
+        return null
+      }
       tail = armText(arms[arms.length - 1].binding)
       arms = arms.slice(0, -1)
     }
@@ -19593,8 +22661,77 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     diagnostics.textTooDeep = diagnostics.textTooDeep || []
     const entry = `nest>${TEXT_NODE_MAX_NEST}@${at ? at.line : '?'}`
     if (!diagnostics.textTooDeep.includes(entry)) diagnostics.textTooDeep.push(entry)
+    textRefuse('pine:text-value', `this text's node nests deeper than the runtime reads (${entry})`)
     return null
   }
+  /**
+   * ⭐⭐ DOOR-ROBUSTNESS — THE TEXT A `var string` HOLDS, READ FROM ITS WRITES.
+   *
+   * `var string s = na` / `if g` / `    s := <text>` then `table.cell(…, text = s)` compiles on
+   * TradingView: `s` is a string by declaration. ⚰️ The reader had no branch for a `state`
+   * binding, so the name fell to the numeric last resort, which CBC-FMT (F11) made a
+   * `pine:type` refusal ("a number stands where Pine takes text") — a false sentence here,
+   * and two cells of volume-pace-pressure-table lost. Before F11 that last resort carried the
+   * state as a NUMBER, which is the guess F11 closed; this does not re-open it: a `var` not
+   * declared `string` never reaches here, and a write that is not text refuses by its own name.
+   *
+   * What is served is what the `var` rule states (Pine reference, `var`: initialised once,
+   * then holds its value until a `:=` runs), in the shapes where that needs no memory:
+   *   · never written                      → the seed's text;
+   *   · written on every bar               → that write's text;
+   *   · written under a guard that is the SAME on every bar of the chart (`timeframe.*`,
+   *     an input, a constant: `decidedTest`) → the write's text where the guard holds,
+   *     the text below it (in the end, the seed) where it does not;
+   *   · written in every branch of an `if … else` → the branch's text, per bar.
+   * ⛔ A write under a guard that changes bar to bar, with no write in the other branch, is
+   * a LATCH (the text of the last bar whose guard held). A text template holds no bar-to-bar
+   * memory, so it is refused by name; so is a write that reads the variable's own text.
+   * Returns a text node, or null with `textRefuse` naming why.
+   */
+  const stringVarTextOf = (bound, name, depth) => {
+    const KEEP = { keep: true }
+    const stop = (why) => { textRefuse('pine:text-value', `\`${name}\` is a \`var string\` ${why}`); return null }
+    const walk = (u, env, d) => {
+      if (!u || d > 32) return stop('written through more nested blocks than this reader follows')
+      if (u.type === 'selfref') return KEEP
+      // a fold's arm: the update one branch of an `if` left behind (`foldIfChain::asUpdate`)
+      if (u.type === 'bound' && u.binding && u.binding.kind === 'expr' && u.binding.node) {
+        return walk(u.binding.node, u.binding.env || env, d + 1)
+      }
+      const isArm = (n) => !!n && n.type === 'bound' && !!n.binding && n.binding.kind === 'expr'
+      if (u.type === 'ternary' && isArm(u.yes) && isArm(u.no)) {
+        const condTree = canonicalOf(u.test, null, env)
+        if (!condTree) return stop('written in a block whose condition this reader cannot read')
+        const decided = decidedTest(condTree)
+        if (decided !== null) return walk(decided !== 0 ? u.yes : u.no, env, d + 1)
+        const then = walk(u.yes, env, d + 1)
+        if (!then) return null
+        const other = walk(u.no, env, d + 1)
+        if (!other) return null
+        if (then === KEEP || other === KEEP) {
+          return stop('written in a block that runs on some bars only, so it holds the text of the last bar '
+            + 'that block ran on; a drawing text here is computed from the current bar alone')
+        }
+        const cond = internTree(condTree)
+        return cond ? { t: 'if', cond, then, else: other } : stop('written in a block whose condition this reader cannot carry')
+      }
+      // a write: `name := <text>`
+      if (parseReadsName(u, name)) return stop('built from its own earlier text (it reads itself where it is written)')
+      const text = textNodeOf(u, env, depth + 1, null, env)
+      if (!text && !lastTextRefusal) return stop('written with a text this reader cannot read')
+      return text
+    }
+    lastTextRefusal = null
+    const held = walk(bound.update, bound.updateEnv, 0)
+    if (held !== KEEP) return held
+    // ⛔ THE SEED IS WHAT IS SHOWN, AND AN `na` SEED IS NOT WITNESSED (coordinator ruling B,
+    // 2026-11-16). F4's capture pins a LABEL created with `text = na` as ""; what TradingView
+    // shows for a `var string` still holding `na` (in a table cell above all) is not captured,
+    // so it is withheld by name until probe Q-ROB1 (`vw-rob1-var-string-text.pine`) answers.
+    if (bound.seed && bound.seed.type === 'name' && bound.seed.name === 'na') return stop(STRING_VAR_NA_SEED_WHY)
+    return textNodeOf(bound.seed, bound.seedEnv, depth + 1, null, bound.seedEnv)
+  }
+
   const textNodeOf = (node, scope, depth = 0, inline = null, envAt = null) => {
     if (!node) return null
     // ⛔ C42 — a call the object reader marked in a block that runs once (see
@@ -19619,6 +22756,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const at = node.tok ? locate(node.tok) : null
       const entry = `steps>${TEXT_WORK_BUDGET}@${at ? at.line : '?'}`
       if (!diagnostics.textTooLarge.includes(entry)) diagnostics.textTooLarge.push(entry)
+      textRefuse('pine:text-value', `this text is larger than the reader's work bound (${entry})`)
       return null
     }
     // ⛔⛔ THE RECURSION GUARD, AND IT FAILED SILENTLY AT THE WRONG NUMBER.
@@ -19646,6 +22784,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const at = node.tok ? locate(node.tok) : null
       const entry = `depth>${TEXT_MAX_DEPTH}@${at ? at.line : '?'}`
       if (!diagnostics.textTooDeep.includes(entry)) diagnostics.textTooDeep.push(entry)
+      textRefuse('pine:text-value', `this text nests deeper than the reader follows (${entry})`)
       return null
     }
     if (node.type === 'string') return { t: 'lit', s: String(node.value) }
@@ -19656,6 +22795,23 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const arg0 = node.args && node.args[0] && node.args[0].value
       if (arg0 && arg0.type === 'name' && own(BUILTIN_SYMBOL_SCOPED, arg0.name)
         && !(node.args[1])) return { t: 'sym', name: arg0.name }
+      // ⭐⭐ CBC-FMT (S17, s21) — A NUMERIC CONSTANT WITH NO FORMAT: the version decides
+      // (`pineTextFormat.js::literalTostringText`). FULL (a v5 literal) is printed as that text; TEN (v6)
+      // falls through to the one core below; an unwitnessed version or spelling is held like an
+      // unwitnessed `input.timeframe` text (`UNWITNESSED_TF_TEXT`: the op runs, the property is unknown).
+      if (arg0 && node.args && node.args.length === 1) {
+        let version = null
+        // ⭐⭐ the version island: inside a v5 library, the library's version (`versionAt`)
+        try { version = versionAt(node.tok, makeResolver(scopeEnv).pineVersion) } catch { version = null }
+        const lit = literalTostringText(arg0, { version })
+        if (lit && lit.text !== undefined) return { t: 'lit', s: lit.text }
+        if (lit) {
+          const why = `${lit.why} v${version}`
+          diagnostics.textFormatRefusals = diagnostics.textFormatRefusals || {}
+          diagnostics.textFormatRefusals[why] = (diagnostics.textFormatRefusals[why] || 0) + 1
+          return UNWITNESSED_TF_TEXT
+        }
+      }
       // ⭐⭐ C33 — `str.tostring(<a getter | its history | a getter-fed scalar>)`:
       // a number the OBJECT RUNTIME holds, formatted by the one number format
       // (`{t:'val'}`). ⛔ Only in a create/update's own text outside loops
@@ -19741,6 +22897,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (!a || !b) return null
       return { t: 'cat', args: [a, b] }
     }
+    if (node.type === 'ternary' && enumLeaves) {
+      // ⭐ HONESTY-SWEEP item 1 — an unreachable `na` tail is not an `na` enum.
+      const pruned = coveredNaTail(node, scope)
+      if (pruned) return textNodeOf(pruned, scope, depth + 1, inline, envAt)
+    }
     if (node.type === 'ternary') {
       // ⭐ C10 — A TEST THAT IS THE SAME ON EVERY BAR ANSWERS WITH ITS LIVE ARM
       // WHEN THE DEAD ONE CANNOT BE READ, as the resolver's own `ternary` case
@@ -19774,7 +22935,22 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // re-captions are recorded with `t: ""`. ⚰️ It fell to the numeric last
     // resort and printed "NaN". (`str.tostring(na)` is NOT this: that call
     // prints "NaN", F3.)
-    if (node.type === 'name' && node.name === 'na') return { t: 'lit', s: '' }
+    //
+    // ⛔⛔ HONESTY-SWEEP item 1 (2026-11-07) — BUT NOT IN AN ENUM SLOT. F4's capture
+    // pins `na` as `""` for a TEXT; it says nothing about a `style`, a `size` or a
+    // `position` that is `na` (an `if` with no `else`, a `switch` with no default,
+    // `c ? line.style_dashed : na`). The reference lists only the named constants
+    // for those slots, and the renderer turned `""` into its own default (a solid
+    // line, a default label). Refused by name (`ENUM_NA_SENTENCE`) until capture
+    // Q-HS1 (`vw-hs1-enum-na.pine`) says what TradingView draws.
+    if (node.type === 'name' && node.name === 'na') {
+      if (enumLeaves) {
+        enumNaSeen = true
+        textRefuse('pine:enum-na', ENUM_NA_SENTENCE)
+        return null
+      }
+      return { t: 'lit', s: '' }
+    }
     if (node.type === 'name') {
       // ⭐ THE ENUM LEAF. `position.top_left` → `'top_left'`, the same string
       // `valueRef` already produces for a table written with a literal position,
@@ -19792,6 +22968,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // uses; a field the binding cannot settle is withheld, never printed.
       if (!enumLeaves && own(BUILTIN_SYMBOL_SCOPED, node.name)) return { t: 'sym', name: node.name }
       const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐⭐ DOOR-ROBUSTNESS — A `var string` IS TEXT BY ITS DECLARATION (`stringVarTextOf`):
+      // read from its writes, or refused by the name of what stopped the read. It never
+      // reaches the numeric last resort below, whose `pine:type` ("a number stands where
+      // Pine takes text") is false about a variable the author declared a string.
+      if (!enumLeaves && !inline && bound && bound.kind === 'state' && STRING_VAR_SEEDS.has(bound.seed)) {
+        return stringVarTextOf(bound, node.name, depth)
+      }
       // ⭐⭐ C29 — `timeframe.period` IN A TEXT SLOT IS THE PERIOD'S TEXT, in the
       // script's Pine version: the resolver's own `stringValueOf` (`periodTextOf`),
       // which also records the read so a chart of another period refuses the
@@ -19889,7 +23072,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // parameter and render a cell that is confidently wrong — the one outcome a
     // dashboard must never produce.
     if (node.type === 'call' && node.name) {
-      const bound = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      const declared = (scope && typeof scope.get === 'function' && scope.get(node.name)) || null
+      // ⭐ Engine 51 — a helper whose body is `name = switch …` (C47) is opaque to
+      // every lane but the drawing one, which reads it through `objectLane` (the
+      // Resolver's own door, `resolveCall`). The text reader takes the same door,
+      // so `text_size = get_size(input.string(…))` (ict-killzones-pivots-tfo) is the
+      // word the switch picks rather than an unreadable slot drawn at the default.
+      const bound = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane
+        ? declared.objectLane : declared
       // ⛔⛔ A NESTED TEXT HELPER REFUSES BY NAME, AND THAT IS A DECISION.
       //
       // `f_outer(x) => '[' + f_inner(x) + ']'` is one user function reading
@@ -19931,6 +23121,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         if (!diagnostics.nestedTextHelpers.includes(entry)) {
           diagnostics.nestedTextHelpers.push(entry)
         }
+        textRefuse('pine:text-value', `a text helper called inside another text helper (\`${entry}\`) is read one level deep only`)
         return null
       }
       if (bound && bound.kind === 'fn' && bound.value && bound.value.node
@@ -20055,6 +23246,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     const known = colorNodeOfBase(node, scope, depth)
     if (known || !node || depth > 12) return known
+    // ⭐⭐ Engine 52 — a colour fixed before bar 0 that the readers above did not follow
+    // (a `var` transparency, a switch over a string input, a helper over inputs, a field
+    // of the script's own type): the static reader's colour (`staticPropValue`), C44's
+    // transparency by the one formula. Asked here, so an ARM of a per-bar choice
+    // (`stDir < 0 ? theme.bull : theme.bear`) is read the same way as a whole colour.
+    {
+      const st = staticPropValue(node, scope)
+      if (st && 'hex' in st) return { c: 'lit', hex: st.hex }
+    }
     // ⛔ R36 — THIS READ RESOLVES NOTHING AND MINTS NOTHING. The transparency is
     // read off the `input.int` / `input.float` call's own literal default
     // (`inputNumberDefault`, plain name bindings only) and handed to the static
@@ -20087,6 +23287,26 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   }
   const colorNodeOfBase = (node, scope, depth = 0) => {
     if (!node || depth > 12) return null
+    // ⭐⭐ Engine 52 — a `bound` node (a default reassigned in an `if`, folded to a choice
+    // of bindings: `color c = color.white` / `if …` / `c := …`) is followed through its
+    // `expr` binding, exactly as the text reader follows one (`textNodeOf`), so a cell's
+    // colour is read where its text already is (uncharted-volume-v2's ATRx cell).
+    // ⛔ Only the `expr` kind, the text reader's own rule.
+    if (node.type === 'bound' && node.binding && node.binding.kind === 'expr' && node.binding.node) {
+      const env = node.binding.env || scope
+      const via = colorNodeOf(node.binding.node, env, depth + 1)
+      if (via) return via
+      // a choice inside the binding reads its TEST in the binding's own scope (a block
+      // local: `absMult <= 7 ? color.white : …`), as the text reader reads one (`envAt`)
+      const b = node.binding.node
+      if (b.type === 'ternary' && !b.noElse && env !== scopeEnv) {
+        let cond = null
+        try { cond = internTree(canonicalOf(b.test, null, env)) } catch { cond = null }
+        const then = cond ? colorNodeOf(b.yes, env, depth + 1) : null
+        const other = then ? colorNodeOf(b.no, env, depth + 1) : null
+        if (cond && then && other) return { c: 'if', cond, then, else: other }
+      }
+    }
     // ⭐⭐ C37 — `chart.fg_color` / `chart.bg_color` ARE THE CHART'S OWN COLOURS:
     // carried as a REFERENCE (the Pine name itself) and resolved where the
     // drawing is painted, against the chart it is painted on
@@ -20111,10 +23331,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // ⛔ ONLY a name the script never reassigns, anywhere (`mutableNames`).
     if (node.type === 'name') {
       const sb = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
-      if (sb && sb.kind === 'state' && sb.seed && sb.update && sb.update.type === 'selfref'
-          && objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function'
-          && !objectOpts.mutableNames.has(node.name)) {
-        const seeded = colorNodeOf(sb.seed, sb.seedEnv || scope, depth + 1)
+      // ⭐ ENGINE 58 — the one predicate the plot and paint lanes share (`neverReassignedVarSeed`).
+      const seed = neverReassignedVarSeed(sb, node.name, objectOpts.mutableNames)
+      if (seed) {
+        const seeded = colorNodeOf(seed.node, seed.env || scope, depth + 1)
         if (seeded && seeded.c === 'lit') return seeded
       }
     }
@@ -20219,7 +23439,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       for (const x of n) { const c = armHistoryCall(x, depth + 1); if (c) return c }
       return null
     }
-    if (n.type === 'call' && typeof n.name === 'string' && n.name.startsWith('ta.')) return n
+    if (n.type === 'call' && typeof n.name === 'string' && isTaCallName(n.name)) return n
     for (const [k, v] of Object.entries(n)) {
       if (k === 'tok' || k === 'endTok' || !v || typeof v !== 'object') continue
       const c = armHistoryCall(v, depth + 1)
@@ -20429,10 +23649,35 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const c = body ? colorNodeOf(body, scope, depth + 1) : null
         if (c) return c
       }
+      // ⭐ TC (text-colour unit) — AND A SCRIPT'S OWN ONE-EXPRESSION READ METHOD IN THE DOTTED
+      // FORM (`chart.fg_color.transp(50)` over `method transp(color x, int t) => color.new(x, t)`):
+      // the same substitution, the receiver as its first argument — the rewrite `recv.m(a)` →
+      // `m(recv, a)` the Resolver's read methods (`inlineReadMethod`, C11c) and the runtime front
+      // end (`methodCallOf`) already make. ⛔ Only `readMethodDefs`' methods (declared once, not
+      // also a plain function, one expression that writes nothing), and only where nothing in
+      // scope binds the dotted name; the body is read by THIS reader, so a colour it cannot say
+      // is still dropped by name. ⚰️ The call fell to the drop above (`prop:unreadable`), so
+      // volatility-trend-score's two reference lines were not drawn by either lane.
+      if (!bound && plain && splitMethodName(node.name)) {
+        const mf = splitMethodName(node.name)
+        const def = objectColourMethods().get(mf.method)
+        if (def && def.params.length === args.length + 1) {
+          const recvArg = { name: null, value: { type: 'name', name: mf.recv, tok: node.tok } }
+          const body = substituteFrame(def.body, { bound: { params: def.params }, args: [recvArg, ...args], callerEnv: scope })
+          const c = body ? colorNodeOf(body, scope, depth + 1) : null
+          if (c) return c
+        }
+      }
     }
     return null
   }
-  const lateColourOf = (node, scope, depth) => rtColourOf(node, scope, depth) || hostColourOf(node, scope, depth)
+  /** ⭐ TC — the script's own read methods, for the colour reader above (built once, on first ask). */
+  let objectColourMethodsMemo = null
+  const objectColourMethods = () => {
+    if (!objectColourMethodsMemo) objectColourMethodsMemo = readMethodDefs(stmts)
+    return objectColourMethodsMemo
+  }
+  const lateColourOf =(node, scope, depth) => rtColourOf(node, scope, depth) || hostColourOf(node, scope, depth)
 
   /** ⭐⭐ C20 — A DRAWING COLOUR ONLY THE RUNTIME LANE CAN COMPUTE.
    *
@@ -20632,7 +23877,715 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  Pine's own default and the drawing survives. Serving the value is better
    *  and is a real capability (`input.string` read as an enum word — 689 sites
    *  across 109 drawing scripts); crashing is very much worse than either. */
-  const enumNodeOf = (node, scope) => {
+  /** ⭐⭐ ENGINE 51 (review of #1149, blocker 1) — AN ENUM WORD THE SCRIPT FIXES
+   *  BEFORE BAR 0, READ STATICALLY.
+   *
+   *  Every value this walk follows is the same on every bar: a literal, an enum
+   *  constant, an `input.string` (or a bare `input` with a string default — this
+   *  product gives it no knob, its default is the only value: C16), names bound to
+   *  those, a `var` nothing reassigns (it holds its initializer: read once on bar 0,
+   *  exactly as without `var`), `?:` / `==` / `!=` / `and` / `or` / `not` over them,
+   *  a user function called with such arguments, and a `switch` over such a subject
+   *  — its arm keys literals or names of string constants (`pTR => …`), and the
+   *  three function-body shapes the fold reads as a switch: `pos = switch s …` with
+   *  a final `pos`, `result = switch x …`, and `pos = <default>` / `switch s` /
+   *  `"x" => pos := …` / `pos` (the default is the switch's fallback).
+   *  Returns `{w}` (an enum word), `{s}` (a string), `{b}` (a boolean) or null for
+   *  anything not fixed before bar 0 — the per-bar reader (`textNodeOf`) takes those.
+   *  ⛔ A switch that matches no arm and has no fallback is `na`: null here, so the
+   *  ordinary reader decides (and refuses it by name). */
+  /** ⭐ Engine 51 — a name the script never reassigns anywhere (`mutableNames`, read off
+   *  the raw tokens). Unknown (no ledger handed in) is NOT never-reassigned. */
+  const neverReassigned = (name) => !!(objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function')
+    && !objectOpts.mutableNames.has(name)
+  /** ⛔ Engine 51 — a name the member can move: a DECLARED input (the member door's
+   *  knobs, `declareInputs` — an `input.string` with options is an enum knob there) or
+   *  one the caller hands a value for (`inputValues`). Its default is NOT its only value,
+   *  so the static enum reader leaves it to the per-bar reader, which reads the knob. */
+  const isKnob = (name) => {
+    const d = objectOpts.declareInputs
+    if (d && (d === 'all' || (Array.isArray(d) ? d.includes(name) : typeof d.has === 'function' && d.has(name)))) return true
+    const v = objectOpts.inputValues
+    return !!(v && Object.prototype.hasOwnProperty.call(v, name))
+  }
+  /** ⭐ Engine 51 — `var [type] x = <one-line expr>` declared inside a block, the ONLY
+   *  declaration of `x` in the script and never reassigned: its initializer, parsed.
+   *  The object pass's scope does not hold a block `var` (a mutable local is opaque,
+   *  `inlinedLocalBinding`), so the static enum reader asks this; it reads the seed
+   *  only where every name in it is fixed before bar 0, so when the block first runs
+   *  does not matter. */
+  const staticBlockVars = (() => {
+    const out = new Map()
+    const declCount = new Map()
+    const TYPE_WORDS = new Set(['int', 'float', 'bool', 'string', 'color'])
+    const visit = (list, inBlock) => {
+      for (const st of list || []) {
+        const h = st.header || []
+        const eq = findTop(h, (t) => isPunct(t, '='))
+        if (eq > 0) {
+          let at = h[0] && h[0].kind === 'ident' && h[0].value === 'var' ? 1 : 0
+          if (h[at] && h[at].kind === 'ident' && TYPE_WORDS.has(h[at].value) && h[at + 1] && h[at + 1].kind === 'ident') at += 1
+          const nameTok = at === eq - 1 ? h[at] : null
+          if (nameTok && nameTok.kind === 'ident') {
+            declCount.set(nameTok.value, (declCount.get(nameTok.value) || 0) + 1)
+            const rhs = h.slice(eq + 1)
+            if (inBlock && h[0].value === 'var' && !(st.sub || []).length) {
+              let node = null
+              try { node = parseWholeExpression(rhs) } catch { node = null }
+              if (node) out.set(nameTok.value, node)
+            } else if (inBlock && rhs[0] && rhs[0].kind === 'ident' && rhs[0].value === 'switch' && (st.sub || []).length) {
+              // `x = switch s` / arms, declared inside a block (seasonality's
+              // `tablePosition = switch tablePositionInput` under `if barstate.islast`):
+              // its arms, parsed, as the static reader's switch (`staticSwitch`)
+              let sw = null
+              try {
+                const arms = []
+                let fallback = null
+                for (const arm of st.sub) {
+                  const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+                  const value = at < 0 || (arm.sub || []).length ? null : parseWholeExpression(arm.header.slice(at + 1))
+                  if (!value) { arms.length = 0; fallback = null; break }
+                  const binding = { kind: 'expr', node: value }
+                  if (at === 0) fallback = binding
+                  else arms.push({ match: arm.header.slice(0, at), binding })
+                }
+                const subject = rhs.length > 1 ? parseWholeExpression(rhs.slice(1)) : { type: 'number', value: 1, tok: { ...rhs[0], value: 'true' } }
+                if (arms.length || fallback) sw = { kind: 'switch', subject, arms, fallback, env: null }
+              } catch { sw = null }
+              if (sw) out.set(nameTok.value, sw)
+            }
+          }
+        }
+        if ((st.sub || []).length) visit(st.sub, true)
+      }
+    }
+    visit(stmts, false)
+    for (const name of [...out.keys()]) if (declCount.get(name) !== 1 || !neverReassigned(name)) out.delete(name)
+    return out
+  })()
+  /** ⭐ Engine 51 — the script's own `enum` declarations, by name and member
+   *  (`enum PanelPosition` / `bottom_right = "Bottom Right"`). The static enum reader
+   *  reads a member (`PanelPosition.bottom_right`) as a value of its own kind, equal
+   *  only to itself, so `input.enum(PanelPosition.bottom_right)` handed to a helper that
+   *  switches on the members is read like a string input. */
+  const scriptEnums = (() => {
+    const out = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length >= 2 && h[0].kind === 'ident' && h[0].value === 'enum' && h[1].kind === 'ident') {
+        // the members: the first word of each line after the name (the grouper folds an
+        // enum's member lines into its header), or of each statement under it
+        const members = new Set()
+        for (let i = 2; i < h.length; i += 1) {
+          if (h[i].kind === 'ident' && h[i].line !== h[i - 1].line) members.add(h[i].value)
+        }
+        for (const m of st.sub || []) {
+          const mh = m.header || []
+          if (mh[0] && mh[0].kind === 'ident') members.add(mh[0].value)
+        }
+        out.set(h[1].value, members)
+      }
+    }
+    return out
+  })()
+  /** ⭐⭐ Engine 52 — the script's own `type` declarations, by name: their fields in
+   *  declaration order (`type ThemePalette` / `color frame` …). The static reader reads
+   *  `T.new(…)` over values fixed before bar 0 as a value with those fields (`{obj}`),
+   *  and `x.field` as the field's value (multicator-table's `theme.frame`).
+   *  ⛔ A field declared with a default is read only when the call gives it. */
+  const scriptTypes = (() => {
+    const out = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length < 2 || h[0].kind !== 'ident' || h[0].value !== 'type' || h[1].kind !== 'ident') continue
+      // the field lines: statements under the name, or (as the grouper folds an enum's
+      // member lines) the header's own later lines, one field per line
+      const lines = []
+      for (let i = 2; i < h.length; i += 1) {
+        if (h[i].line !== h[i - 1].line || i === 2) lines.push([])
+        lines[lines.length - 1].push(h[i])
+      }
+      if (h.length > 2 && h[2].line === h[1].line) continue
+      const fields = []
+      for (const mh of [...lines, ...(st.sub || []).map((m) => m.header || [])]) {
+        const eq = mh.findIndex((t) => isPunct(t, '='))
+        const end = eq < 0 ? mh.length : eq
+        const nameTok = mh[end - 1]
+        if (!nameTok || nameTok.kind !== 'ident' || end < 2) { fields.length = 0; break }
+        fields.push(nameTok.value)
+      }
+      if (fields.length) out.set(h[1].value, fields)
+    }
+    return out
+  })()
+  const enumMemberOf = (name) => {
+    const dot = typeof name === 'string' ? name.indexOf('.') : -1
+    if (dot <= 0) return null
+    const members = scriptEnums.get(name.slice(0, dot))
+    return members && members.has(name.slice(dot + 1)) ? { s: `\u0000enum:${name}` } : null
+  }
+  /** ⭐⭐ Engine 52 — the script's own multi-line helpers (`f(a, b) =>` with a body of
+   *  statements), by name: their parameter names and body, for `staticHelperBody`.
+   *  ⛔ A parameter with a default is not read (the call may omit it). */
+  const staticFnDefs = (() => {
+    const out = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (!(st.sub || []).length || h.length < 4 || h[0].kind !== 'ident' || !isPunct(h[1], '(')) continue
+      const arrow = h.findIndex((t) => isPunct(t, '=>'))
+      if (arrow !== h.length - 1 || !isPunct(h[arrow - 1], ')')) continue
+      const params = []
+      let piece = []
+      let ok = true
+      for (const t of [...h.slice(2, arrow - 1), { kind: 'punct', value: ',' }]) {
+        if (isPunct(t, ',')) {
+          if (!piece.length) { if (params.length || h.slice(2, arrow - 1).length) ok = false; break }
+          if (piece.some((p) => isPunct(p, '=')) || piece[piece.length - 1].kind !== 'ident') { ok = false; break }
+          params.push(piece[piece.length - 1].value)
+          piece = []
+        } else piece.push(t)
+      }
+      if (ok && !out.has(h[0].value)) out.set(h[0].value, { params, body: st.sub })
+      else out.set(h[0].value, null)
+    }
+    for (const [k, v] of [...out]) if (!v) out.delete(k)
+    return out
+  })()
+  /** ⭐⭐ Engine 52 — RUN a helper's body on values fixed before bar 0: `x = e` /
+   *  `T x = e` (a local), `x := e` / `x += e`, `for i = a to b [by s]` (bounded:
+   *  `STATIC_HELPER_MAX_PASSES` passes in all), `if c` / `else`, and a last bare
+   *  expression, its value. Every expression is the static reader's, with the
+   *  helper's locals and arguments as values (`frame.vals`); a name outside them
+   *  resolves in the script's scope like any other. Anything else — a statement
+   *  this list does not hold, a value it cannot read — answers null: not folded. */
+  const staticHelperBody = (def, argVals, depth) => {
+    if (depth > 24) return null
+    const vals = new Map(def.params.map((p, i) => [p, argVals[i]]))
+    const frame = { vals }
+    let passes = 0
+    let last = null
+    const ev = (toks) => {
+      if (!toks.length) return null
+      let n = null
+      try { n = parseWholeExpression(toks) } catch { n = null }
+      return n ? staticEnumValue(n, scopeEnv, frame, depth + 1) : null
+    }
+    const TYPE_WORDS = new Set(['int', 'float', 'bool', 'string', 'color', 'var', 'varip'])
+    const run = (list) => {
+      let prevIf = null // the last `if`'s outcome, for an `else` after it
+      for (const st of list) {
+        const h = st.header || []
+        if (!h.length || h[0].kind !== 'ident') return false
+        const sub = st.sub || []
+        if (h[0].value === 'for') {
+          const eq = h.findIndex((t) => isPunct(t, '='))
+          const to = h.findIndex((t) => t.kind === 'ident' && t.value === 'to')
+          const by = h.findIndex((t) => t.kind === 'ident' && t.value === 'by')
+          if (eq !== 2 || h[1].kind !== 'ident' || to < 0 || !sub.length) return false
+          const a = ev(h.slice(eq + 1, to))
+          const b = ev(h.slice(to + 1, by < 0 ? h.length : by))
+          const s = by < 0 ? { n: a && b && b.n < a.n ? -1 : 1 } : ev(h.slice(by + 1))
+          if (!a || !b || !s || !('n' in a) || !('n' in b) || !('n' in s) || !s.n) return false
+          if (!Number.isInteger(a.n) || !Number.isInteger(b.n) || !Number.isInteger(s.n)) return false
+          // ⭐ v6 re-evaluates the `to` bound before every pass (v6 migration guide, "Dynamic
+          // `for` loop boundaries"); earlier versions evaluate it once. A body that MOVES the
+          // bound would answer differently in the two, so it is not folded.
+          const toToks = h.slice(to + 1, by < 0 ? h.length : by)
+          for (let i = a.n; s.n > 0 ? i <= b.n : i >= b.n; i += s.n) {
+            passes += 1
+            if (passes > STATIC_HELPER_MAX_PASSES) return false
+            vals.set(h[1].value, { n: i })
+            if (!run(sub)) return false
+            const again = ev(toToks)
+            if (!again || !('n' in again) || again.n !== b.n) return false
+          }
+          prevIf = null
+          last = null
+          continue
+        }
+        if (h[0].value === 'if' || (h[0].value === 'else' && h[1] && h[1].value === 'if')) {
+          if (h[0].value === 'else' && prevIf === null) return false
+          const c = h[0].value === 'else' && prevIf ? { b: false } : ev(h.slice(h[0].value === 'if' ? 1 : 2))
+          if (!c || typeof c.b !== 'boolean') return false
+          if (h[0].value === 'else' && prevIf) { last = null; continue }
+          if (c.b && !run(sub)) return false
+          prevIf = c.b
+          last = null
+          continue
+        }
+        if (h[0].value === 'else' && h.length === 1) {
+          if (prevIf === null) return false
+          if (!prevIf && !run(sub)) return false
+          prevIf = null
+          last = null
+          continue
+        }
+        prevIf = null
+        if (sub.length) return false
+        const at = h.findIndex((t) => isPunct(t, '=') || isPunct(t, ':=') || isPunct(t, '+='))
+        if (at > 0) {
+          let k = 0
+          while (k < at - 1 && h[k].kind === 'ident' && TYPE_WORDS.has(h[k].value)) k += 1
+          if (k !== at - 1 || h[k].kind !== 'ident') return false
+          const name = h[k].value
+          const v = ev(h.slice(at + 1))
+          if (!v) return false
+          if (isPunct(h[at], '=')) vals.set(name, v)
+          else {
+            if (!vals.has(name)) return false
+            if (isPunct(h[at], ':=')) vals.set(name, v)
+            else { const sum = staticBinary('+', vals.get(name), v); if (!sum) return false; vals.set(name, sum) }
+          }
+          last = null
+          continue
+        }
+        last = ev(h)
+        if (!last) return false
+      }
+      return true
+    }
+    return run(def.body) ? last : null
+  }
+  /** ⛔⛔ Engine 52 (re-review of #1164, B1) — AN ALLOWLIST, NOT AN ENUMERATION OF ESCAPES.
+   *  The static reader answers an object (`{obj}`) or a list (`{arr}`) through a name only
+   *  when EVERY occurrence of that name in the script is one of:
+   *    (a) its single `=` declaration;
+   *    (b) a pure read `name.f1…fn` whose last field is declared PRIMITIVE (int, float, bool,
+   *        string, color) in the script's types and by no type as anything else, and that is
+   *        not followed by an assignment, `(` or `[` (a method form `name.m(` is a call);
+   *    (c) a list read by the builtin `array.get(name, …)` / `array.size(name)`, or the
+   *        method forms `name.get(…)` / `name.size()` ONLY when the script declares no
+   *        function or method of its own named `get` / `size`.
+   *  Anything else is an escape: a sub-chain that yields an object (`inner = outer.inner`,
+   *  `f(outer.inner)` — Pine objects are references), a pass, an alias, a reassignment, a
+   *  field assignment at any depth, any method call. ⚰️ The enumeration this replaces
+   *  missed a user method named `get`, an alias through a field read, and a field passed as
+   *  an argument (re-review N7-N10), and elliot-wave-detector-pro's `confirmedCtx` before
+   *  that. */
+  /** The script CALLS `table.merge_cells` (or the method form `t.merge_cells(`): read off the
+   *  token stream, where comments are already gone, never off the raw source text. */
+  const scriptMergesCells = (() => {
+    const seen = (list) => (list || []).some((st) => (st.header || []).some((t, i, h) => t && t.kind === 'ident'
+      && /(^|\.)merge_cells$/.test(String(t.value)) && h[i + 1] && isPunct(h[i + 1], '(')) || seen(st.sub))
+    return seen(stmts)
+  })()
+  const staticReadOnlyRoots = (() => {
+    const PRIM = new Set(['int', 'float', 'bool', 'string', 'color'])
+    const QUAL = new Set(['series', 'simple', 'const', 'varip', 'var'])
+    // field name → the kinds it is declared as across the script's types
+    const fieldKinds = new Map()
+    for (const st of stmts || []) {
+      const h = st.header || []
+      if (h.length < 2 || h[0].kind !== 'ident' || h[0].value !== 'type' || h[1].kind !== 'ident') continue
+      const lines = []
+      for (let i = 2; i < h.length; i += 1) {
+        if (h[i].line !== h[i - 1].line || i === 2) lines.push([])
+        lines[lines.length - 1].push(h[i])
+      }
+      for (const mh of [...lines, ...(st.sub || []).map((m) => m.header || [])]) {
+        const eq = mh.findIndex((t) => isPunct(t, '='))
+        const end = eq < 0 ? mh.length : eq
+        const nameTok = mh[end - 1]
+        if (!nameTok || nameTok.kind !== 'ident') continue
+        const typeToks = mh.slice(0, end - 1).filter((t) => !(t.kind === 'ident' && QUAL.has(t.value)))
+        const prim = typeToks.length === 1 && typeToks[0].kind === 'ident' && PRIM.has(typeToks[0].value)
+        const set = fieldKinds.get(nameTok.value) || new Set()
+        set.add(prim ? 'prim' : 'object')
+        fieldKinds.set(nameTok.value, set)
+      }
+    }
+    const primField = (f) => { const k = fieldKinds.get(f); return !!k && k.size === 1 && k.has('prim') }
+    // a function or method of the script's own named get / size (a bare `get(` / `size(`)
+    let userGetSize = false
+    const ASSIGN = new Set([':=', '+=', '-=', '*=', '/=', '%=', '='])
+    const READS = new Set(['array.get', 'array.size'])
+    const occ = []
+    const walk = (list) => {
+      for (const st of list || []) {
+        const h = st.header || []
+        for (let i = 0; i < h.length; i += 1) {
+          const t = h[i]
+          if (!t || t.kind !== 'ident') continue
+          if ((t.value === 'get' || t.value === 'size') && h[i + 1] && isPunct(h[i + 1], '(')) userGetSize = true
+          occ.push({ v: String(t.value), next: h[i + 1], prev: h[i - 1], prev2: h[i - 2] })
+        }
+        if ((st.sub || []).length) walk(st.sub)
+      }
+    }
+    walk(stmts)
+    const bad = new Set()
+    const decls = new Map()
+    for (const { v, next, prev, prev2 } of occ) {
+      const dot = v.indexOf('.')
+      const root = dot > 0 ? v.slice(0, dot) : v
+      const nextIs = (x) => next && next.kind === 'punct' && next.value === x
+      const assigned = next && next.kind === 'punct' && ASSIGN.has(next.value)
+      if (dot > 0) {
+        const chain = v.slice(dot + 1).split('.')
+        const last = chain[chain.length - 1]
+        if (nextIs('(')) {
+          if (!((last === 'get' || last === 'size') && chain.length === 1 && !userGetSize)) bad.add(root)
+          continue
+        }
+        if (assigned || nextIs('[') || !primField(last)) bad.add(root)
+        continue
+      }
+      if (assigned) {
+        decls.set(root, (decls.get(root) || 0) + 1)
+        if (decls.get(root) > 1 || next.value !== '=') bad.add(root)
+        continue
+      }
+      if (prev && isPunct(prev, '(') && prev2 && prev2.kind === 'ident' && READS.has(prev2.value)) continue
+      bad.add(root)
+    }
+    return { escapes: (name) => bad.has(name) }
+  })()
+  /** ⭐ Does Pine truncate this `/`? The engine's one rule (F1): before v6, exactly when BOTH
+   *  operands are `const int` (`pineConstIntValue`, which follows bindings and the script's
+   *  declaration words: a `var`, `simple`, `float`, `input.*` is not `const int`). A helper's
+   *  own local or parameter is not a binding that rule can follow, so a quotient over one is
+   *  left unsettled (`null`: only an exact quotient folds). */
+  const staticTruncates = (node, scope, frame) => {
+    let version = null
+    try { version = activePaletteVersion() } catch { version = null }
+    if (!constIntDivisionTruncates(version)) return false
+    const names = []
+    const walk = (n, d = 0) => {
+      if (!n || typeof n !== 'object' || d > 32) return
+      if (n.type === 'name') names.push(n.name)
+      for (const k of ['left', 'right', 'arg', 'test', 'yes', 'no']) walk(n[k], d + 1)
+      for (const a of n.args || []) walk(a && a.value !== undefined ? a.value : a, d + 1)
+    }
+    walk(node)
+    if (frame && (frame.vals || frame.params) && names.some((x) => (frame.vals && frame.vals.has(x)) || (frame.params && frame.params.includes(x)))) return null
+    const lookup = (name) => (scope && typeof scope.get === 'function' ? scope.get(name) : undefined)
+    const ctx = { version, declWords: DECL_WORDS_SINK }
+    return pineConstIntValue(node.left, lookup, ctx) !== null && pineConstIntValue(node.right, lookup, ctx) !== null
+  }
+  const staticEnumValue = (node, scope, frame = null, depth = 0) => {
+    const v = staticEnumValueRaw(node, scope, frame, depth)
+    // ⛔ an object or a list read through a NAME something else can change is not its seed
+    if (v && ('obj' in v || 'arr' in v) && node && node.type === 'name'
+      && !(frame && frame.vals && frame.vals.has(node.name)) && staticReadOnlyRoots.escapes(node.name)) return null
+    return v
+  }
+  const staticEnumValueRaw = (node, scope, frame = null, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 24) return null
+    // ⭐ Engine 52 — a helper body's own locals and arguments (`staticHelperBody`)
+    if (frame && frame.vals && node.type === 'name' && frame.vals.has(node.name)) return frame.vals.get(node.name)
+    const look = (name) => {
+      if (frame && frame.locals && frame.locals.has(name)) return { b: frame.locals.get(name), local: true }
+      const b = scope && typeof scope.get === 'function' ? scope.get(name) : null
+      return b ? { b, local: false } : null
+    }
+    if (node.type === 'string') return { s: String(node.value) }
+    // the parser reads `true` / `false` as the numbers 1 / 0; the token keeps the word
+    if (node.type === 'number' && node.tok && (node.tok.value === 'true' || node.tok.value === 'false')) return { b: node.tok.value === 'true' }
+    // ⭐⭐ ENGINE 52 — the same reader, for a NUMBER and a COLOUR fixed before bar 0
+    // (`staticPropValue` below: a colour, a width, a point size, a row count).
+    if (node.type === 'number') return Number.isFinite(Number(node.value)) ? { n: Number(node.value) } : null
+    if (node.type === 'colour') return /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(String(node.value)) ? { hex: String(node.value) } : null
+    if (node.type === 'name') {
+      if (node.name === 'true' || node.name === 'false') return { b: node.name === 'true' }
+      if (frame && Array.isArray(frame.params)) {
+        const k = frame.params.indexOf(node.name)
+        if (k >= 0) {
+          const a = frame.args[k]
+          return a ? staticEnumValue(a, frame.callerEnv, frame.callerFrame, depth + 1) : null
+        }
+      }
+      const member = enumMemberOf(node.name)
+      if (member) return member
+      const hit = look(node.name)
+      if (!(hit && hit.local) && isKnob(node.name)) return null
+      if (!hit) {
+        // a `var` declared once inside a block and never reassigned (`staticBlockVars`)
+        const bv = staticBlockVars.get(node.name)
+        if (bv && bv.kind === 'switch') return staticSwitch(bv, null, depth + 1)
+        if (bv) return staticEnumValue(bv, scope, null, depth + 1)
+        const w = objectEnumValue(node.name)
+        if (w !== undefined) return { w: String(w) }
+        // ⭐ Engine 52 — a Pine colour constant (`color.blue`, the palette's own hex)
+        if (isColourName(node)) { const h = colourHexOf(node); return h ? { hex: String(h) } : null }
+        // ⭐ Engine 52 — `x.field` of a value of the script's own type (`scriptTypes`)
+        const dot = node.name.lastIndexOf('.')
+        if (dot > 0) {
+          const head = staticEnumValue({ ...node, name: node.name.slice(0, dot) }, scope, frame, depth + 1)
+          const f = node.name.slice(dot + 1)
+          return head && head.obj && Object.hasOwn(head.obj, f) ? head.obj[f] || null : null
+        }
+        return null
+      }
+      const { b, local } = hit
+      const sub = local ? frame : null
+      // ⛔⛔ Engine 52 — A NAME THE SCRIPT REASSIGNS IS NOT ITS DECLARATION. The scope can
+      // hold the declaration's binding for a name a later `:=` (in a loop, a block, a
+      // helper) moves (C28: artemis's `knnVal = 0.0`, written in the kNN loop): reading the
+      // declaration drew `◈ NEUTRAL` where TradingView draws `▼ BEAR`. Measured once numbers
+      // became readable here; a local of a helper frame is the frame's own.
+      if (!local && objectOpts.mutableNames && typeof objectOpts.mutableNames.has === 'function'
+        && objectOpts.mutableNames.has(node.name)) return null
+      if (b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution) {
+        return staticEnumValue(b.node, b.env || scope, sub, depth + 1)
+      }
+      if (b.kind === 'switch') return staticSwitch(b, sub, depth + 1)
+      // a top-level `var x = switch [s]` (its switch hung on the binding, `varSwitch`)
+      if (!local && b.varSwitch && neverReassigned(node.name)) return staticSwitch(b.varSwitch, null, depth + 1)
+      // a `var` NOTHING reassigns holds its initializer on every bar (enumWordOf's rule)
+      if (!local && b.kind === 'state' && b.seed && b.update && b.update.type === 'selfref') {
+        let last = null
+        try { last = makeResolver(scopeEnv).finalBindings.get(node.name) } catch { last = null }
+        return last === b && neverReassigned(node.name) ? staticEnumValue(b.seed, b.seedEnv || scope, null, depth + 1) : null
+      }
+      return null
+    }
+    if (node.type === 'call') {
+      const args = node.args || []
+      // `input.enum(E.m, …)`: its default member is the only value (C16 — no knob)
+      if (node.name === 'input.enum') {
+        const named = args.find((a) => a && a.name === 'defval')
+        const first = args.find((a) => a && !a.name)
+        const dv = named ? named.value : first ? first.value : null
+        return dv && dv.type === 'name' ? enumMemberOf(dv.name) : null
+      }
+      if (node.name === 'input.string' || node.name === 'input') {
+        const typed = args.find((a) => a && a.name === 'type')
+        const typedAs = typed && typed.value && typed.value.type === 'name' ? typed.value.name : null
+        if (typed && typedAs !== 'input.string' && !STATIC_INPUT_KIND[typedAs]) return null
+        const named = args.find((a) => a && a.name === 'defval')
+        const first = args.find((a) => a && !a.name)
+        const dv = named ? named.value : first ? first.value : null
+        if (!dv) return null
+        if (dv.type === 'string') return typedAs && typedAs !== 'input.string' ? null : { s: String(dv.value) }
+        // a default NAMED (`input.string(bcenter, …)` with `bcenter = position.bottom_center`)
+        if (dv.type === 'name' && (!typedAs || typedAs === 'input.string')) return staticEnumValue(dv, scope, frame, depth + 1)
+        // ⭐ Engine 52 — v4's generic `input(<number | bool | colour>)`: its default, of its own kind
+        const v = staticEnumValue(dv, scope, frame, depth + 1)
+        const want = typedAs ? STATIC_INPUT_KIND[typedAs] : null
+        return v && ('n' in v || 'b' in v || 'hex' in v) && (!want || want in v) ? v : null
+      }
+      // ⭐ Engine 52 — `input.int` / `input.float` / `input.bool` / `input.color`: no knob
+      // reads a drawing's input (C16), so its default is its value (the name rule `isKnob`
+      // above still leaves a member's knob to the per-bar reader).
+      if (STATIC_INPUT_KIND[node.name]) {
+        const named = args.find((a) => a && a.name === 'defval')
+        const first = args.find((a) => a && !a.name)
+        const dv = named ? named.value : first ? first.value : null
+        const v = dv ? staticEnumValue(dv, scope, frame, depth + 1) : null
+        return v && STATIC_INPUT_KIND[node.name] in v ? v : null
+      }
+      // ⭐⭐ Engine 52 — `T.new(…)` of the script's own type: its fields, by position or name
+      if (typeof node.name === 'string' && node.name.endsWith('.new') && scriptTypes.has(node.name.slice(0, -4))) {
+        const fields = scriptTypes.get(node.name.slice(0, -4))
+        const obj = {}
+        let pos = 0
+        for (const a of args) {
+          if (!a) return null
+          const f = a.name ? a.name : fields[pos++]
+          if (!f || !fields.includes(f) || Object.hasOwn(obj, f)) return null
+          obj[f] = staticEnumValue(a.value, scope, frame, depth + 1)
+        }
+        return { obj }
+      }
+      // ⭐⭐ Engine 52 — a colour built from values fixed before bar 0. C44: `color.new`'s and
+      // `color.rgb`'s `t` is 0 = opaque … 100 = invisible, float accepted, `color.rgb`'s
+      // defaulting to 0; the paint is the ONE formula the object runtime uses
+      // (`withObjectTransparency`). C46: `color.from_gradient` is the runtime's own
+      // measured blend (`fromGradient`), clamped; what it does not pin answers null.
+      if (node.name === 'color.new' || node.name === 'color.rgb' || node.name === 'color.from_gradient'
+        || STATIC_STR_FNS.has(node.name) || node.name === 'array.get' || node.name === 'array.size'
+        || node.name === 'math.max' || node.name === 'math.min' || node.name === 'math.abs') {
+        if (args.some((a) => !a || a.name)) return null
+        const vals = args.map((a) => staticEnumValue(a.value, scope, frame, depth + 1))
+        if (vals.some((v) => !v)) return null
+        return staticBuiltin(node.name, vals)
+      }
+      const hit = look(node.name)
+      const declared = hit ? hit.b : null
+      // ⭐⭐ Engine 52 — a helper whose BODY is statements (`locNsze(x) => y = str.split(…)`,
+      // a bounded `for` joining its pieces, then `out`): run on the values fixed before bar
+      // 0 (`staticHelperBody`), which reads only its own locals and its arguments.
+      const fn = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane
+        ? declared.objectLane : declared
+      if (!fn || fn.kind !== 'fn' || !fn.value || !Array.isArray(fn.params) || (fn.value.kind !== 'switch' && !(fn.value.kind === 'expr' && fn.value.node))) {
+        // ⛔ only the script's OWN helper of that name (a local of the same name wins)
+        const def = !(hit && hit.local) ? staticFnDefs.get(node.name) : null
+        if (def && !args.some((a) => !a || a.name) && args.length === def.params.length) {
+          const vals = args.map((a) => staticEnumValue(a.value, scope, frame, depth + 1))
+          if (vals.every(Boolean)) return staticHelperBody(def, vals, depth + 1)
+        }
+        return null
+      }
+      // a parameter typed by one of the script's own enums (`parse_position(PanelPosition p)`)
+      // reaches this binding as two names, the type and the parameter: the type is dropped
+      const params = fn.params.filter((q, i) => !(scriptEnums.has(q) && i + 1 < fn.params.length && !scriptEnums.has(fn.params[i + 1])))
+      if (args.some((a) => !a || a.name) || args.length !== params.length) return null
+      const inner = { params, args: args.map((a) => a.value), callerEnv: scope, callerFrame: frame, locals: fn.locals || null }
+      if (fn.value.kind === 'switch') return staticSwitch(fn.value, inner, depth + 1)
+      if (fn.value.kind === 'expr' && fn.value.node) return staticEnumValue(fn.value.node, fn.value.env || scope, inner, depth + 1)
+      return null
+    }
+    if (node.type === 'ternary') {
+      if (node.noElse) return null
+      const c = staticEnumValue(node.test, scope, frame, depth + 1)
+      if (!c || typeof c.b !== 'boolean') return null
+      return staticEnumValue(c.b ? node.yes : node.no, scope, frame, depth + 1)
+    }
+    if (node.type === 'unary' && node.op === 'not') {
+      const v = staticEnumValue(node.arg, scope, frame, depth + 1)
+      return v && typeof v.b === 'boolean' ? { b: !v.b } : null
+    }
+    if (node.type === 'unary' && (node.op === '-' || node.op === '+')) {
+      const v = staticEnumValue(node.arg, scope, frame, depth + 1)
+      return v && 'n' in v ? { n: node.op === '-' ? -v.n : v.n } : null
+    }
+    if (node.type === 'binary') {
+      const l = staticEnumValue(node.left, scope, frame, depth + 1)
+      if (!l) return null
+      // ⭐ Engine 52 — arithmetic and order over numbers, `+` over strings
+      if (STATIC_NUM_OPS.has(node.op)) {
+        const r = staticEnumValue(node.right, scope, frame, depth + 1)
+        if (!r) return null
+        return staticBinary(node.op, l, r, node.op === '/' ? staticTruncates(node, scope, frame) : null)
+      }
+      if (node.op === 'and' || node.op === 'or') {
+        if (typeof l.b !== 'boolean') return null
+        if (node.op === 'and' && !l.b) return { b: false }
+        if (node.op === 'or' && l.b) return { b: true }
+        const r = staticEnumValue(node.right, scope, frame, depth + 1)
+        return r && typeof r.b === 'boolean' ? { b: r.b } : null
+      }
+      if (node.op === '==' || node.op === '!=') {
+        const r = staticEnumValue(node.right, scope, frame, depth + 1)
+        if (!r) return null
+        // ⭐ engine 78 (#1858) — and two numbers equal only within the epsilon are not static (`staticBinary`)
+        if ('n' in l && 'n' in r && pineCompareAmbiguous(l.n, r.n)) return null
+        const eq = staticKey(l) === staticKey(r)
+        return { b: node.op === '==' ? eq : !eq }
+      }
+    }
+    return null
+  }
+  /** A `switch` binding read statically (see `staticEnumValue`). */
+  const staticSwitch = (sw, frame, depth) => {
+    if (!sw || !sw.subject || !Array.isArray(sw.arms) || depth > 24) return null
+    const env = sw.env || scopeEnv
+    const subj = staticEnumValue(sw.subject, env, frame, depth + 1)
+    // a string subject (a string input, an enum member) or `true` (a switch with no subject)
+    // ⭐ Engine 52 — or a number (`switch lineWidthInput` / `1 => …`)
+    const kindOf = (v) => (v && 's' in v ? 's' : v && typeof v.b === 'boolean' ? 'b' : v && 'n' in v ? 'n' : null)
+    const kind = kindOf(subj)
+    if (!kind) return null
+    for (const arm of sw.arms) {
+      let m = null
+      try { m = parseWholeExpression(arm.match) } catch { m = null }
+      const label = m ? staticEnumValue(m, env, frame, depth + 1) : null
+      if (kindOf(label) !== kind) return null
+      if (label[kind] !== subj[kind]) continue
+      const b = arm.binding
+      return b && b.kind === 'expr' && b.node ? staticEnumValue(b.node, b.env || env, frame, depth + 1) : null
+    }
+    const f = sw.fallback
+    return f && f.kind === 'expr' && f.node ? staticEnumValue(f.node, f.env || env, frame, depth + 1) : null
+  }
+
+  /** ⭐⭐ ENGINE 51 (review of #1149, blocker 2) — A PER-BAR CHOICE BETWEEN FIXED
+   *  STRINGS, HANDED TO A HELPER, IS LIFTED OUT OF THE CALL.
+   *
+   *  uncharted-volume-v2 positions its Volume table with
+   *  `f_getTablePos(hasRecentHV ? 'Top Center' : volTablePosition)`, on the last bar
+   *  (`if barstate.islast …`: the `var table` is made there and `table.set_position`
+   *  re-applies it every run). The helper compares its parameter with string
+   *  literals, which no tree can say about a per-bar string — but each ARM of the
+   *  choice is fixed before bar 0, so
+   *      f(c ? a : b)  ==  c ? f(a) : f(b)
+   *  and each side is read statically (`staticEnumValue`). The condition is the
+   *  ordinary per-bar condition (`textNodeOf`'s own reading of a test), evaluated
+   *  where the op runs. Only a NAMED argument chain to a `?:` whose two arms are
+   *  fixed strings is lifted; anything else returns null and the reader goes on. */
+  const hoistEnumChoice = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return null
+    if (node.type === 'name') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      return b && b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution
+        ? hoistEnumChoice(b.node, b.env || scope, depth + 1) : null
+    }
+    if (node.type !== 'call' || !Array.isArray(node.args) || node.args.some((a) => !a || a.name)) return null
+    const declared = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+    const fn = declared && declared.kind === 'opaque' && declared.isFunction && declared.objectLane ? declared.objectLane : declared
+    if (!fn || fn.kind !== 'fn') return null
+    // the `?:` an argument names, through plain name bindings
+    const choiceOf = (n, env, d = 0) => {
+      if (!n || d > 8) return null
+      if (n.type === 'ternary' && !n.noElse) return { t: n, env }
+      if (n.type !== 'name') return null
+      const b = env && typeof env.get === 'function' ? env.get(n.name) : null
+      return b && b.kind === 'expr' && b.node && !b.condCall && !b.oneExecution ? choiceOf(b.node, b.env || env, d + 1) : null
+    }
+    for (let i = 0; i < node.args.length; i += 1) {
+      const ch = choiceOf(node.args[i].value, scope)
+      if (!ch) continue
+      if (staticEnumValue(ch.t.test, ch.env)) continue // a fixed test is the static reader's
+      const yes = staticEnumValue(ch.t.yes, ch.env)
+      const no = staticEnumValue(ch.t.no, ch.env)
+      if (!yes || !no || !('s' in yes) || !('s' in no)) return null
+      const withArg = (s) => ({ ...node, args: node.args.map((a, k) => (k === i ? { ...a, value: { type: 'string', value: s, tok: a.value && a.value.tok } } : a)) })
+      const side = (s) => {
+        const st = staticEnumValue(withArg(s), scope)
+        return st && 'w' in st ? { t: 'lit', s: st.w } : hoistEnumChoice(withArg(s), scope, depth + 1)
+      }
+      const then = side(yes.s)
+      const other = side(no.s)
+      if (!then || !other) return null
+      let cond = null
+      try {
+        const liveCond = stateOk && readsState(ch.t.test)
+        cond = liveCond ? liftTextCond(ch.t.test, null, ch.env) : internTree(canonicalOf(ch.t.test, null, ch.env))
+      } catch { cond = null }
+      return cond ? { t: 'if', cond, then, else: other } : null
+    }
+    return null
+  }
+
+  /** ⭐ Engine 51 — is this a NUMBER (a point size): a numeric literal, an
+   *  `input.int` / `input.float` (or a bare `input` with a numeric default), or a name
+   *  bound to one, through plain bindings? */
+  const pointSizeNode = (node, scope, depth = 0) => {
+    if (!node || depth > 8) return false
+    if (node.type === 'number') return true
+    if (node.type === 'unary' && node.op === '-') return pointSizeNode(node.arg, scope, depth + 1)
+    if (node.type === 'call' && (node.name === 'input.int' || node.name === 'input.float' || node.name === 'input')) {
+      const args = node.args || []
+      const named = args.find((a) => a && a.name === 'defval')
+      const first = args.find((a) => a && !a.name)
+      const dv = named ? named.value : first ? first.value : null
+      return !!dv && dv.type === 'number'
+    }
+    if (node.type === 'name') {
+      const b = scope && typeof scope.get === 'function' ? scope.get(node.name) : null
+      return !!(b && b.kind === 'expr' && b.node) && pointSizeNode(b.node, b.env || scope, depth + 1)
+    }
+    return false
+  }
+
+  /** ⭐ Engine 52 — the static reader for a non-enum slot (a colour, a number, a text). */
+  const staticPropValue = (node, scope) => {
+    try { return staticEnumValue(node, scope) } catch { return null }
+  }
+  const enumNodeOf = (node, scope, slot = null) => {
+    // ⭐ Engine 51 — a word fixed before bar 0 is that word (`staticEnumValue`).
+    {
+      let st = null
+      try { st = staticEnumValue(node, scope) } catch { st = null }
+      if (st && 'w' in st) return { t: 'lit', s: st.w }
+      // ⛔ Engine 52 — a STRING folded before bar 0 (`str.lower` / `str.split` / a join loop
+      // over an input) that SPELLS a constant's word is NOT that word: no capture shows that
+      // spelling in an enum slot (C47, `vendorHarness.c47PositionSize`), so it is not served.
+      let ho = null
+      try { ho = hoistEnumChoice(node, scope) } catch { ho = null }
+      if (ho) return ho
+    }
+    enumNaSeen = false
     enumLeaves = true
     textEqGate.off = true
     let t = null
@@ -20836,6 +24789,48 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     return null
   }
+  /** ⭐ W3-S1 — a short Pine-ish spelling of a parse node (depth-bounded), for a
+   *  refusal that names the SHAPE it could not read. Diagnostics only. */
+  const spellNode = (node, depth = 0) => {
+    if (!node || typeof node !== 'object') return '?'
+    if (depth > 3) return '…'
+    const list = (args) => (args || []).map((a) => spellNode(a && a.value !== undefined ? a.value : a, depth + 1)).join(', ')
+    switch (node.type) {
+      case 'name': return String(node.name)
+      case 'number': return String(node.value)
+      case 'string': return JSON.stringify(String(node.value)).slice(0, 14)
+      case 'call': return `${node.name}(${list(node.args)})`
+      case 'binary': return `${spellNode(node.left, depth + 1)} ${node.op} ${spellNode(node.right, depth + 1)}`
+      case 'ternary': return `${spellNode(node.test, depth + 1)} ? ${spellNode(node.yes, depth + 1)} : ${spellNode(node.no, depth + 1)}`
+      case 'unary': return `${node.op}${spellNode(node.arg, depth + 1)}`
+      case 'bound': return String(node.name || 'bound')
+      default: return String(node.type)
+    }
+  }
+  /** ⭐ W3-S1 — the KIND of per-pass shape the host lane did not read, with its
+   *  spelling: the first sub-node that mentions the counter and is none of the
+   *  lane's own shapes (`loopTextOf`: a literal, `+`, `str.tostring(x[, "fmt"])` of
+   *  the counter's arithmetic). Reads nothing and counts nothing: `openName` only. */
+  const perPassShapeOf = (node, depth = 0) => {
+    if (!node || typeof node !== 'object' || depth > 8) return 'a shape this reader cannot spell'
+    if (node.type === 'name' && !loopIds.includes(node.name)) {
+      const opened = openName(node, scopeEnv, 0)
+      if (!opened) return `a local the loop reassigns or this reader cannot open: \`${node.name}\``
+      return perPassShapeOf(opened.node, depth + 1)
+    }
+    if (node.type === 'binary' && node.op === '+') {
+      return perPassShapeOf(mentionsLoop(node.left) ? node.left : node.right, depth + 1)
+    }
+    if (node.type === 'ternary') return `a \`?:\` whose test or arm moves per pass: \`${spellNode(node)}\``
+    if (node.type === 'call') {
+      const fn = scopeEnv && typeof scopeEnv.get === 'function' ? scopeEnv.get(node.name) : null
+      if (fn && fn.kind === 'fn') return `a helper called over a per-pass value: \`${spellNode(node)}\``
+      if (node.name === 'array.get' || /\.get$/.test(String(node.name))) return `an element picked out of a list by the counter: \`${spellNode(node)}\``
+      if (node.name === 'str.tostring' || node.name === 'tostring') return `\`str.tostring\` of a per-pass value under a format this lane does not read per pass: \`${spellNode(node)}\``
+      return `a built-in over a per-pass value: \`${spellNode(node)}\``
+    }
+    return `\`${spellNode(node)}\``
+  }
   const valueRef = (node, slot) => {
     if (!node) return null
     // ⭐⭐ ASKED BEFORE THE TEXT AND COLOUR SLOTS, DELIBERATELY. A cell whose
@@ -20876,6 +24871,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       }
       if (!iterTrees) {
         diagnostics.loopValuesUnresolved += 1
+        // ⭐ W3-S1 — named: WHICH per-pass shape this lane does not read
+        // (`perPassShapeOf`), so a cell dropped here says so instead of nothing.
+        textRefuse('loop:per-pass', `${slot ? `the \`${slot}\` slot` : 'a value'} moves per pass of the loop and is ${perPassShapeOf(node)} — this lane reads per pass only a literal, \`+\`, the counter's arithmetic and \`str.tostring\` of it`)
         return null
       }
     }
@@ -20885,7 +24883,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const t = fitTextNest(textNodeOf(node, scopeEnv), node.tok ? locate(node.tok) : null)
         || rtTextOf(node, null, null)
       if (t && holdsUnwitnessed(t)) return { v: 'text', node: t, unwitnessed: true }
-      return t ? { v: 'text', node: t } : null
+      if (t) return { v: 'text', node: t }
+      // ⭐ Engine 52 — a text fixed before bar 0 (`str.*` over inputs and literals)
+      const st = staticPropValue(node, scopeEnv)
+      return st && 's' in st ? { v: 'text', node: { t: 'lit', s: st.s } } : null
     }
     if (slot && isColourSlot(slot)) {
       const c = colorNodeOf(node, scopeEnv)
@@ -20928,8 +24929,53 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // dropped prop and a table silently anchored to `top_right`, Pine's default,
     // in the opposite corner from the one the author asked for.
     if (slot && ENUM_SLOTS.has(slot) && !(node.type === 'name' && objectEnumValue(node.name) !== undefined)) {
-      const e = enumNodeOf(node, scopeEnv)
+      // ⛔ Engine 51 (review of #1149, minor 4) — Pine v6 takes an INTEGER `text_size` /
+      // `size` in typographic points (`text_size = 11`, `input.int(12)`). This chart's
+      // renderers size text by the six `size.*` words only, so a point size is withheld
+      // by name (`ENUM_DROPS.points`), never drawn at a word's size.
+      // ⭐⭐ Engine 52 — SERVED: a point size fixed before bar 0 is carried as that
+      // number (`{v:'const'}`), both renderers size it (`objectCanvas.js::textSizePx`),
+      // and the runtime lane carries the int too (`objectStore.js`). Only a number this
+      // door cannot read before bar 0 is still withheld by name.
+      if (slot === 'text_size' || slot === 'size') {
+        const pt = staticPropValue(node, scopeEnv)
+        if (pt && 'n' in pt) {
+          // ⛔ Engine 52 (review M5) — only a size the reference EQUATES with a word is served
+          // (`POINT_SIZE_ANCHORS`: labels 0/7/10/12/18/24, boxes and cells 0/8/10/14/20/36);
+          // any other int's pixels are unwitnessed, so it is withheld by name.
+          const anchors = POINT_SIZE_ANCHOR_SET[slot === 'size' ? 'label' : 'boxTable']
+          if (Number.isFinite(pt.n) && anchors.has(pt.n)) {
+            diagnostics.textSizePointsServed = (diagnostics.textSizePointsServed || 0) + 1
+            return { v: 'const', value: pt.n }
+          }
+          enumNaDrop = 'pointsUnwitnessed'
+          diagnostics.textSizePointsUnwitnessed = (diagnostics.textSizePointsUnwitnessed || 0) + 1
+          return null
+        }
+        if (pointSizeNode(node, scopeEnv)) {
+          diagnostics.textSizePoints = (diagnostics.textSizePoints || 0) + 1
+          enumNaDrop = 'points'
+          return null
+        }
+      }
+      const e = enumNodeOf(node, scopeEnv, slot)
       if (e) return { v: 'text', node: e }
+      // ⛔⛔ HONESTY-SWEEP item 1 — an `na` this walk reached is not an unreadable
+      // word: the drawing that holds it is WITHHELD by name (`enumNaDrop`, read by
+      // the create / setter / cell converters), never drawn with a default style.
+      if (enumNaSeen) {
+        diagnostics.enumNa = (diagnostics.enumNa || 0) + 1
+        enumNaDrop = 'na'
+        return null
+      }
+      // ⛔⛔ HONESTY-SWEEP r1 (review N1) — a helper called with a NAMED argument computes this
+      // word, and this reader does not inline that call: withheld (`enum:named-call`), never
+      // dropped to the renderer's default (`ENUM_NAMED_CALL_SENTENCE`).
+      if (namedHelperCallIn(node, scopeEnv)) {
+        diagnostics.enumNamedCall = (diagnostics.enumNamedCall || 0) + 1
+        enumNaDrop = 'named'
+        return null
+      }
       // ⛔⛔ AND IT STOPS HERE. An enum slot this reader cannot turn into a WORD
       // is DROPPED — it must never fall through to the numeric paths below.
       //
@@ -20947,6 +24993,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `objectDiagnostics` counts the drop so it is visible rather than
       // silent.
       diagnostics.enumUnreadable = (diagnostics.enumUnreadable || 0) + 1
+      // ⛔⛔ Engine 51 — AND THE DRAWING IS WITHHELD BY NAME (`pine:enum-unreadable`),
+      // read by the create / setter / cell converters. Dropping the prop drew the
+      // renderer's default in its place: a table in the wrong corner, a cell at the
+      // wrong size (ict-killzones-pivots-tfo: TradingView `small`, ours the default).
+      enumNaDrop = 'unreadable'
       return null
     }
     // ⭐ C14 — a WHOLE coordinate read off a drawing (see `stateOperand`).
@@ -20984,7 +25035,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const at = historyReadRef(node)
       if (at !== undefined) return at
     }
-    return resolveTree(node)
+    const tr = resolveTree(node)
+    if (tr || !slot) return tr
+    // ⭐ Engine 52 — a number fixed before bar 0 that the columnar reader refused
+    const st = staticPropValue(node, scopeEnv)
+    return st && 'n' in st ? { v: 'const', value: st.n } : null
   }
 
   /** ⭐⭐ C9 (2026-09-29) — `x[e]` WITH A PER-BAR `e`, AS A COORDINATE.
@@ -21003,8 +25058,6 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *    · `no-max-bars-back`: how far back TradingView lets the read reach is the
    *      buffer it sizes the series to, and without a declared `max_bars_back`
    *      that size is TradingView's own detection, which no capture measures;
-   *    · `max-bars-back-call`: `max_bars_back(x, n)` sizes one series, a rule
-   *      this read does not model;
    *    · `source`: the value read back is not a plain name (`(a + b)[e]`), or is a
    *      name the script reassigns (its history is the end-of-bar value, which a
    *      column read at this op's position would not be);
@@ -21016,22 +25069,22 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const arg = node.arg
     if (!arg || arg.type !== 'name') return historyRefused('source')
     if (objectOpts.mutableNames && objectOpts.mutableNames.has(arg.name)) return historyRefused('source')
-    if (declaredMaxBarsBack.call) return historyRefused('max-bars-back-call')
     // ⭐⭐ C29 (C9, measured 2026-09-30, `vw-mbb-auto-spy-1d-2026-09-30.json`): with
     // NO `max_bars_back` declared TradingView ran dynamic offsets up to 399 with no
     // error, `close[k]` equal to its own bar every time — its automatic sizing
     // covers at least `AUTO_MAX_BARS_BACK` (400). So an undeclared read is served
     // up to that measured bound, `auto` marking that past it is UNMEASURED: the
     // runtime withholds (never errors, never guesses) an offset at or beyond it.
-    const autoBuffer = !declaredMaxBarsBack.limit
+    // ⭐ WS-C — so is a script whose declared buffer is SMALLER: a declaration never
+    // shrinks the read (`historyReadBufferOf`, measured on M2 and Q-MBB-1).
     const src = arg.name === 'bar_index' ? { v: 'bar' } : resolveTree(arg)
     if (!src) return historyRefused('unreadable')
     const back = internTree(idx)
     if (!back) return historyRefused('unreadable')
     diagnostics.historyReads = (diagnostics.historyReads || 0) + 1
-    return autoBuffer
-      ? { v: 'at', args: [src, back], limit: AUTO_MAX_BARS_BACK, auto: true }
-      : { v: 'at', args: [src, back], limit: declaredMaxBarsBack.limit }
+    return historyReadBuffer.auto
+      ? { v: 'at', args: [src, back], limit: historyReadBuffer.limit, auto: true }
+      : { v: 'at', args: [src, back], limit: historyReadBuffer.limit }
   }
   const historyRefused = (why) => {
     if (!diagnostics.historyReadRefusals) diagnostics.historyReadRefusals = {}
@@ -21054,6 +25107,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  not a result. Named here so it reads as the approximation it is.
    *  ⏭ ROUTED: distributing a call over a ternary ARGUMENT (`f(c ? a : b)` →
    *  `c ? f(a) : f(b)`) is what would resolve it, and it is its own capability. */
+  /** ⭐ Engine 52 — a property whose unreadable value WITHHELD its drawing, by name
+   *  and line (`withheldPropNames`); `dropProp` (drawn at the default) has no caller. */
+  const withheldProp = (family, k, node) => {
+    const at = node && node.tok ? locate(node.tok) : null
+    const entry = `${family}.${k}@${at ? at.line : '?'}`
+    diagnostics.withheldPropNames = diagnostics.withheldPropNames || []
+    if (!diagnostics.withheldPropNames.includes(entry)) diagnostics.withheldPropNames.push(entry)
+  }
   const dropProp = (family, k, node) => {
     diagnostics.droppedProps = (diagnostics.droppedProps || 0) + 1
     const at = node && node.tok ? locate(node.tok) : null
@@ -21168,6 +25229,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   const regs = []
   const colls = []
   const locals = []
+  /** ⭐⭐ FIELD REGISTER, STEP A — the field names held as no register (see below). */
+  const untracedFieldRegs = []
   for (const [name, d] of collected.decls) {
     if (d.kind === 'coll') {
       const id = `c${colls.length}`
@@ -21178,11 +25241,30 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // family off the listing).
       colls.push({ id, family: d.family, cap: MAX_OBJECT_COLLECTION_CAP, ...(d.slots ? { slots: d.slots } : {}),
         ...(d.persist ? { persist: true } : {}) })
+    } else if (d.kind === 'local' && String(name).includes('.')
+        && !(collected.dominatedFields && collected.dominatedFields.has(name))
+        && !(collected.varFields && collected.varFields.has(name))
+        && !(collected.plainFields && collected.plainFields.has(name))) {
+      // ⭐⭐ STEP A (b) — a field whose every read follows a write of it in the same bar keeps its register
+      // (`pineObjects.js::dominatedFields`): the per-bar clear below is never observed.
+      // ⭐⭐ FIELD REGISTER, STEP A (2026-11-19, coordinator ruling) — A DRAWING HELD IN A FIELD (`z.lb`, `z.a.lb`) IS
+      // UNTRACED. Registered as a plain local it was CLEARED EVERY BAR (`locals` below), whatever its owner's
+      // `var`-ness: for `var z = Z.new(na)` the delete of yesterday's `z.lb` read `na`, and the host lane drew every
+      // label the script deleted (26 where TradingView keeps 1), counting nothing. Not registered, everything acting
+      // through the field is counted where it is read (`delete:target`, `update:target`), so the drawing is withheld by
+      // name. Step B (the field takes its owner's `var`-ness) serves it again, on the reference's `var` sentence.
+      untracedFieldRegs.push(name)
     } else {
       const id = `r${regs.length}`
       regId.set(name, id)
       regs.push({ id, family: d.family })
-      if (d.kind === 'local') locals.push(id)
+      // ⭐⭐ FIELD REGISTER, STEP B (2026-11-19, coordinator ruling) — a field takes its owner's `var`-ness
+      // (`pineObjects.js::fieldOwnerVarness`): a `var` owner's field is NOT cleared per bar (Pine's `var z` is one
+      // object kept across bars, so `z.lb` keeps last bar's label); a plain owner's is (a new object every bar). A
+      // dominated field ((b) above) keeps the per-bar clear it had: no read of it ever observes the clear.
+      const persistentField = String(name).includes('.') && !(collected.dominatedFields && collected.dominatedFields.has(name))
+        && collected.varFields && collected.varFields.has(name)
+      if (d.kind === 'local' && !persistentField) locals.push(id)
     }
   }
 
@@ -21326,7 +25408,11 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   for (const [list, via] of [[collected.diagnostics.loopBlocked, 'reader:loop'], [collected.diagnostics.unsupported, 'reader:unsupported']]) {
     for (const name of list || []) {
       const m = /^([a-z]+)\.(set_[a-z0-9_]+)$/.exec(String(name))
-      if (m) lostSetterName(m[1], m[2], via, null)
+      // ⭐⭐ UNTRACED HANDLE (class sweep, 2026-11-19) — `object.<setter>` is a setter whose FAMILY the reader could
+      // not name (a value receiver, a chained element, a field read off an expression): it reaches every family that
+      // has a setter of that name. ⚰️ Read as a family called `object`, it matched no setter table and noted nothing:
+      // the drawing stayed where it was made, with only a "not supported" note.
+      if (m) lostSetterName(m[1] === 'object' ? null : m[1], m[2], via, null)
     }
   }
 
@@ -21345,6 +25431,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
    *  "fine" for the second case. Ordering makes the distinction unnecessary
    *  anyway — the reader emits the create immediately before the call. */
   const emittedSites = new Set()
+  /** ⭐⭐ ENGINE 54 — each emitted create site's SOURCE CALL (`objectSiteKey` of its
+   *  `<family>.new` token): the id the per-bar run stamps on the objects the same call
+   *  makes. Rides NON-ENUMERABLY on `diagnostics` (`OBJECT_SITE_SOURCES`), so no stored
+   *  document and no census over the diagnostics changes by a byte. */
+  const siteSources = {}
+  Object.defineProperty(diagnostics, OBJECT_SITE_SOURCES, { value: siteSources, enumerable: false, configurable: true })
 
   const targetRef = (argNode) => {
     const v = argNode && argNode.value
@@ -21507,7 +25599,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     let regName = null
     let handleBack = 0
     if (OBJECT_NS.has(head)) {
-      if (args.length !== 1 || args[0].name) return null
+      // ⭐ Engine 51 — the handle may be NAMED (`line.get_y1(id=l)`, Pine's own
+      // parameter name); any other name is not this getter's and is not read.
+      if (args.length !== 1 || (args[0].name && args[0].name !== 'id')) return null
       const a = args[0].value
       // ⭐⭐ C48 — `line.get_y1(c[1])`: A GETTER ON THE HANDLE THE VARIABLE HELD n
       // BARS AGO (the register's own ring, `MAX_HANDLE_BACK`). Capture
@@ -22012,6 +26106,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     const s = String(line).slice(0, 260)
     if (list.length < 40 && !list.includes(s)) list.push(s)
   }
+  /** ⭐ Engine 51 (review of #1149, minor 5) — a drawing WITHHELD by the enum rule
+   *  (`ENUM_DROPS`), structured: what it is, where, and why. The no-output verdict
+   *  reads the first one so its headline names the withheld drawing instead of
+   *  "no plot and no alert condition". */
+  const noteWithheld = (op, family, kind) => {
+    const list = diagnostics.withheldDrawings || (diagnostics.withheldDrawings = [])
+    const d = ENUM_DROPS[kind]
+    if (d && list.length < 20) list.push({ family: family || null, line: op && op.line !== undefined ? op.line : null, guard: d.guard, sentence: d.sentence })
+  }
   const noteCreateDrop = (op, slot, r) => {
     noteWhy('createDropWhy', `create ${op.family}@${op.line === undefined ? '?' : op.line} ${slot}: `
       + (r ? `${r.guard || 'refused'} ${String(r.message || '').slice(0, 200)}` : 'no refusal recorded'))
@@ -22131,6 +26234,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   }
   const guardOf = (guards, op) => {
     const opScope = scopeEnv
+    guardDropWhy = null
     try {
       return guardOfIn(guards, opScope, op)
     } finally {
@@ -22152,6 +26256,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     /** ⭐ C45 / C48 (review round 2) — a guard term NOT decided before bar 0: the op
      *  runs only on some bars (read by `colorNodeOf` through `varies`, below). */
     let canonicalVaries = false
+    /** ⭐ DOOR-ROBUSTNESS — a conjunct made ONLY of chart-period reads and literals
+     *  (`periodOnlyGuard`) whose value is false on every bar at this translation's period, so the
+     *  op never runs on a chart of this period. Read only where a conversion would otherwise
+     *  count a loss (`neverRunOps`). ⛔ Never a guard that reads an input: the object pass folds
+     *  an input at its default, and a member who switches it on must still be told the op is
+     *  lost (measured: htf-liquidity-dashboard-tfo's per-timeframe rows, `if _use and …`). */
+    let decidedFalse = false
     // ⭐ C20 — a drawing inside a runtime `while` runs where the run ARRIVES at
     // its statement, pass by pass — whatever the guards say, and even with none
     // (a `continue` above it skips it on some passes, which no guard shows).
@@ -22160,7 +26271,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     for (const g of guards) {
       scopeEnv = g.locals ? scopeFor(g.locals, op) : opScope
       let node
-      try { node = parseWholeExpression(g.toks) } catch { return undefined }
+      try { node = parseWholeExpression(g.toks) } catch { return dropWhy(OBJECT_CONDITION_WHY.unparsed) }
       // ⭐⭐ `barstate.islast` IS ANSWERABLE HERE AND NOWHERE ELSE.
       // `BUILTIN_CONSTANT_TREE` deliberately refuses it, and that ruling is
       // right for a SCAN: "the last bar" depends on how many bars were asked
@@ -22228,7 +26339,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (readsState(node) || (hostPasses && loopIds.length && mentionsLoop(node))) {
         // ⛔ C14 — a scalar is written once per bar; a loop body reads it per iteration.
         // ⭐ C25 — a LOOP scalar is written per pass, where it stands: read per pass.
-        if (loopIds.length && mentionsScalar(node, 0, true)) return undefined
+        if (loopIds.length && mentionsScalar(node, 0, true)) return dropWhy(OBJECT_CONDITION_WHY.loopScalar)
         const live = liftLive(node)
         if (!live) {
           // ⭐ C25 — named: the loop scalar this condition could not lift, as the
@@ -22238,14 +26349,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
             const b = nm ? scopeEnv.get(nm) : null
             if (b && b.kind === 'opaque') lastCanonRefusal = { guard: b.guard, message: b.message }
           }
-          return undefined
+          return dropWhy(OBJECT_CONDITION_WHY.unlifted)
         }
         // ⭐⭐ C16 — INSIDE A COUNTED LOOP a `get`/`size` comparison has one
         // answer per ITERATION, and the runtime evaluates the body op per
         // iteration (`low < box.get_bottom(b)` for each zone in institutional-
         // smc). ⛔ Only a crossing still refuses there: it is observed once per
         // bar, and a body runs several times a bar.
-        if (loopIds.length && liveHasCross(live)) return undefined
+        if (loopIds.length && liveHasCross(live)) return dropWhy(OBJECT_CONDITION_WHY.loopCross)
         // ⭐⭐ C16 — LATCHED: evaluated ONCE where the `if` stands, and read by
         // every op of its block and of its `else` (the reader hands both the
         // SAME condition tokens). Re-evaluating it per op let the block's own
@@ -22258,6 +26369,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (inRtLoop) continue
       let ast = canonicalOf(node)
       if (ast && !bindTimeConstantTree(ast) && decidedTest(ast) === null) canonicalVaries = true
+      if (ast && !rawTrees && periodOnlyGuard(node)) {
+        const decided = decidedTest(ast)
+        if (decided !== null && (g.negate ? decided !== 0 : decided === 0)) decidedFalse = true
+      }
       if (!ast) {
         if (rtOp && rtAdmits(lastCanonRefusal)) { needReached = true; continue }
         // ⭐⭐ C33 — AN `and` WITH A TERM THIS READER CANNOT READ, GATED BY AN INPUT.
@@ -22271,14 +26386,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
         if (partial) {
           diagnostics.guardPartial = diagnostics.guardPartial || []
-          const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${(partial.why && partial.why.guard) || 'refused'}`
+          // ⭐ DRAW-1 — never head-less: a term that threw no guard is `pine:object-condition`
+          const e = `${op.k}@${op.line === undefined ? '?' : op.line}: ${(partial.why && partial.why.guard) || OBJECT_CONDITION_GUARD}`
           if (!diagnostics.guardPartial.includes(e)) diagnostics.guardPartial.push(e)
           liveParts.push(latchOf(g.toks, partial.live))
           unknownGuard = true
           continue
         }
         lastCanonRefusal = whole
-        return undefined
+        return dropWhy(OBJECT_CONDITION_WHY.unreduced)
       }
       // ⭐⭐ SYNTHESISED IN THE PARSER'S SHAPE, NOT THE RESOLVER'S.
       //
@@ -22303,8 +26419,15 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // false and RUNS the else. Canonical mode only: a raw parse node is the
       // runtime lane's to lower (`pineRuntimeFrontend`), and casting a node of
       // the other language here would be the hybrid the paragraph below forbids.
+      // ⭐⭐ OBJECTS C (2026-11-19) — AND AN `else` ARM IS A `not`, READ AS ONE. The cast above reaches a NUMBER
+      // (`implicitBoolCast`: `ph != 0`), never a `bool` that can be `na` (`b := c ? true : na`, a `bool(na)` latch):
+      // its guard stayed the bare series, the arm's `!` of an `na` answered `na`, and the arm NEVER drew, where Pine
+      // reads `not na` as true and runs it (S1 / s18, `naOperandReadAsFalse`). ⚰️ relative-strength-index-divergences-
+      // libertus (RDDT 1D, licence-held capture): `l = … : pivoth ? label.new(…PIVOT…) : pivotl ? label.new(…PIVOT…)
+      // : na`, `pivoth := … ? true : na`: every low PIVOT (9 of TradingView's 48 labels) was missing, and nothing was
+      // counted as dropped. So a negated guard is read at the `not` site, where an operand that can be `na` reads false.
       if (!rawTrees && ast && (g.negate || guards.length > 1)) {
-        ast = makeResolver().condition(ast, 'guard', tok || (node && node.tok))
+        ast = makeResolver().condition(ast, g.negate ? 'not' : 'guard', tok || (node && node.tok))
       }
       // ⚰️⚰️ AND FOR A LONG TIME THE TWO LINES BELOW STILL EMITTED `op`
       // UNCONDITIONALLY, directly under the paragraph that says they must not.
@@ -22357,6 +26480,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     // unchanged.
     const varies = !!(lastBarOnly || requiresLive || requiresEmpty || unknownGuard || needReached
       || liveParts.length || canonicalVaries)
+    const never = decidedFalse && !needReached && !unknownGuard
     if (needReached) {
       if (unknownGuard) return undefined
       // ⛔ Only a guard made of VALUES: object state (a liveness test, a getter,
@@ -22368,10 +26492,10 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     }
     const ref = acc === null ? null : internTree(acc)
     if (acc !== null && ref === null) return undefined
-    if (!liveParts.length) return { when: ref, extra, varies }
+    if (!liveParts.length) return { when: ref, extra, varies, ...(never ? { never } : {}) }
     // ⭐ The pure conjunction stays ONE tree; the live parts AND onto it.
     const parts = ref ? [ref, ...liveParts] : liveParts
-    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra, varies }
+    return { when: parts.length === 1 ? parts[0] : { v: 'bool', op: 'and', args: parts }, extra, varies, ...(never ? { never } : {}) }
   }
 
   const namedOrPositional = (args, order) => {
@@ -22753,12 +26877,23 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
     rtArgNodes = rtOp ? rtCollectArgNodes(op) : null
     rtMarkSpecs = rtSpecs.length
     rtMarkDropped = diagnostics.droppedProps || 0
-    const g = guardOf(op.guards, op)
+    // ⛔⛔ W9-OQ-N2 — A DRAWING STEP A BROKER VALUE REACHES (`strategyTaint.js`) is withheld BY
+    // NAME through the same lost-op bookkeeping a refused guard takes: its object, handle,
+    // removals and setters are accounted for, `dropReasons['strategy:<kind>']` counts it and
+    // `guardRefusals` names the read. Only that step: the script's other drawings and plots stand.
+    const brokerTaint = op.k !== 'loop' && Number.isInteger(op.line) ? strategyTaintDrawingAtLine(op.line) : null
+    const brokerRefusal = brokerTaint
+      ? { guard: 'pine:strategy-call', message: `${REFUSALS['pine:strategy-call']} — \`${brokerTaint.word}\`` }
+      : null
+    const g = brokerTaint ? undefined : guardOf(op.guards, op)
     // ⭐ C45 / C48 — set for EVERY op before any of its values is read (no reset needed)
     colourOpConditional = !!(g && g.varies)
     colourOpFirstBarOnly = firstBarOnlyCreate(op, g)
     if (g === undefined) {
-      noteGuardRefusal(op, lastCanonRefusal)
+      // ⭐ DRAW-1 — a drop is never head-less: the refusal the condition threw, else the reason
+      // `guardOfIn` returned on (`guardDropWhy`), else the general sentence.
+      noteGuardRefusal(op, brokerRefusal || (lastCanonRefusal && lastCanonRefusal.guard ? lastCanonRefusal : null)
+        || guardDropWhy || OBJECT_CONDITION_WHY.unrecorded)
       if (op.k === 'loop') unconverted(op.body, 'guard:loop')
       if (op.k === 'delete' || op.k === 'clear') lostRemoval(`guard:${op.k}`, op)
       if (op.k === 'create') { lostCreate(op.family); lostInto(op) }
@@ -22769,7 +26904,8 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (op.k === 'delete') stateLostBy(op, targetRef(op.target))
       if (op.k.startsWith('coll_')) lostColl(op.coll, `guard:${op.k}@${op.line === undefined ? '?' : op.line}`)
       if (op.k === 'copy') lostCopy(op)
-      dropped(`guard:${op.k}`)
+      if (brokerRefusal) dropped(`strategy:${op.k}`)
+      else dropped(`guard:${op.k}`)
       // ⭐ C22 — a lost setter that would have MOVED its object marks it, every bar
       if (op.k === 'update') { const m = lostGeometryOp(op, targetRef(op.target), undefined); if (m) ops.push(m) }
       continue
@@ -22899,6 +27035,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const raw = namedOrPositional(op.args, order)
       const props = {}
       let bad = false
+      let enumNa = false
       const required = REQUIRED[op.family] || new Set()
       stateOk = !loopIds.length
       stateOp = op
@@ -22917,15 +27054,43 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         // ⛔ O1 — READ, NEVER RESET: `rtTextOf` consults `lastCanonRefusal`, so
         // the sentence is taken only when THIS slot's read wrote a new one.
         const refusalBefore = lastCanonRefusal
+        const textRefusalBefore = lastTextRefusal
+        enumNaDrop = false
         const v = valueRef(node, k)
         if (!v) {
-          if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) {
-            noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal : null)
+          if (enumNaDrop) {
+            // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — withheld by name, never a default style.
+            noteCreateDrop(op, k, { guard: ENUM_DROPS[enumNaDrop].guard, message: ENUM_DROPS[enumNaDrop].sentence })
+            noteWithheld(op, op.family, enumNaDrop)
+            enumNa = enumNaDrop
             bad = true
             break
           }
-          dropProp(op.family, k, node)
-          continue
+          if (required.has(k) || (CONTENT[op.family] && CONTENT[op.family].has(k))) {
+            // ⭐ W3-S1 — the text reader's own named refusal when no canonical one was written.
+            noteCreateDrop(op, k, lastCanonRefusal !== refusalBefore ? lastCanonRefusal
+              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null)
+            bad = true
+            break
+          }
+          // ⭐ Engine 52 (review B3) — a table's `columns` / `rows` paint nothing: the layout
+          // sizes by its cells (`objectCanvas.js::layoutTables`). The runtime reads them only to
+          // bound a merge (`objectRuntime.js`, TradingView's out-of-range error), so an
+          // unreadable count is IGNORED unless the script merges cells, where it withholds.
+          if (op.family === 'table' && (k === 'columns' || k === 'rows') && !scriptMergesCells) {
+            diagnostics.inertTableCounts = (diagnostics.inertTableCounts || 0) + 1
+            continue
+          }
+          // ⛔⛔ ENGINE 52 — A PROPERTY THIS DOOR CANNOT READ WITHHOLDS ITS DRAWING BY NAME
+          // (`ENUM_DROPS.value`, `pine:prop-unreadable`). It used to be dropped, so the
+          // renderer drew its default in its place: a label in the default colour, a line
+          // at the default width, a table with no frame colour. Never a default.
+          withheldProp(op.family, k, node)
+          noteCreateDrop(op, k, { guard: ENUM_DROPS.value.guard, message: ENUM_DROPS.value.sentence })
+          noteWithheld(op, op.family, 'value')
+          enumNa = 'value'
+          bad = true
+          break
         }
         props[k] = v
       }
@@ -22934,11 +27099,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // `label.new(x, y)` with `y` absent is not a label at a default height —
       // Pine has no default there, so neither may this.
       if (!bad) for (const k of required) if (!(k in props)) { bad = true; break }
-      if (bad) { lostCreate(op.family); lostInto(op); dropped(`create:${op.family}`); continue }
+      if (bad) { lostCreate(op.family); lostInto(op); if (enumNa) dropped(ENUM_DROPS[enumNa].drop); else dropped(`create:${op.family}`); continue }
       if (rtHeldProp()) { lostCreate(op.family); lostInto(op); dropped('runtime:prop'); continue }
       // ⭐ RECORDED ONLY ONCE THE CREATE IS REALLY IN THE PROGRAM, which is what
       // makes the `{r:'site'}` reference below safe to hand out.
       emittedSites.add(op.site)
+      { const key = objectSiteKey(op.at); if (key) siteSources[op.site] = key }
       ops.push(withUnwitnessedMarked({
         k: 'create',
         family: op.family,
@@ -22954,11 +27120,20 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // ⭐⭐ C45 — the setter is lost AND its object cannot be named: what it would
       // have moved or captioned is withheld by list or family (`lostUnaddressed`),
       // never left drawn where it was made. Counted where it always was.
-      if (!target) { stateLostFamilies.add(op.family || null); lostUnaddressed(op, 'update:target'); dropped('update:target'); continue }
+      if (!target) {
+        stateLostFamilies.add(op.family || null)
+        lostUnaddressed(op, 'update:target')
+        // ⭐⭐ CLASS GUARD (2026-11-19) — a method-form setter on a handle the reader could not trace
+        // (`pineObjects.js::emitMethodForm`): every family its NAME reaches loses what it moves or writes
+        if (op.untraced) lostSetterName(null, op.untraced, 'update:target', op.line)
+        dropped('update:target')
+        continue
+      }
       const props = {}
       let bad = false
       stateOk = !loopIds.length
       stateOp = op
+      enumNaDrop = false
       try {
         op.props.forEach((name, i) => {
           const node = op.args[i] && op.args[i].value
@@ -22970,7 +27145,12 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (bad || !Object.keys(props).length) {
         contentLostBy(op, target)
         stateLostBy(op, target)
-        dropped('update:props')
+        // ⛔ HONESTY-SWEEP item 1 — a setter whose style can be `na` is named as such.
+        // ⛔⛔ Engine 51 (review of #1149, major 3) — a setter whose style / size / position
+        // this door cannot read WITHHOLDS THE OBJECT it would have restyled (`contentLost`,
+        // handle-wide), never leaves it drawn in the value it was made with.
+        if (enumNaDrop) { contentLost.push(target); noteWithheld(op, op.family, enumNaDrop); dropped(ENUM_DROPS[enumNaDrop].drop) }
+        else dropped('update:props')
         // ⭐ C22 — a lost setter that would have MOVED its object marks it on the
         // bars its guard holds (`lostGeometryOp`)
         const m = lostGeometryOp(op, target, when, lastBarOnly)
@@ -23033,15 +27213,34 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       const raw = namedOrPositional(op.args, CELL_POSITIONAL)
       const props = {}
       let badCell = false
+      let neverRunText = false
       for (const [k, node] of Object.entries(raw)) {
         if (!OBJECT_CELL_PROPS.includes(k)) { unsupportedProp('cell', k, node); continue }
         const cellRefusalBefore = lastCanonRefusal
+        const textRefusalBefore = lastTextRefusal
+        enumNaDrop = false
         const v = valueRef(node, k)
+        if (!v && enumNaDrop) {
+          // ⛔ HONESTY-SWEEP item 1 (and r1 N1) — a cell whose size or alignment can be `na`, or is
+          // computed by a helper called with a named argument, is withheld by name.
+          noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: ${ENUM_DROPS[enumNaDrop].guard} ${ENUM_DROPS[enumNaDrop].sentence.slice(0, 200)}`)
+          badCell = ENUM_DROPS[enumNaDrop].drop
+          noteWithheld(op, 'table', enumNaDrop)
+          break
+        }
         if (!v) {
           // ⭐ P2 — the sentence behind a `cell:text` count, as `createDropWhy`
           // gives a create's (diagnostics only; nothing reads it to decide).
+          // ⭐ W3-S1 — the text reader's own named refusal when no canonical one was written.
+          // ⭐ DOOR-ROBUSTNESS — a cell whose block NEVER runs on a chart of this period (`g.never`:
+          // its guard is false on every bar, e.g. `if timeframe.isminutes` folded on a daily
+          // translation) loses nothing when its text cannot be read: TradingView never draws it
+          // here either, and a chart of a period where it would run refuses the drawings by name
+          // (`periodReads.js::periodReadsObjectRefusal`). Named (`neverRunOps`), never counted.
+          if (k === 'text' && g && g.never) { neverRunText = true; break }
           if (k === 'text') {
-            const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal : null
+            const r = lastCanonRefusal !== cellRefusalBefore ? lastCanonRefusal
+              : lastTextRefusal !== textRefusalBefore ? lastTextRefusal : null
             noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: `
               + (r ? `${r.guard || 'refused'} ${String(r.message || '').slice(0, 200)}` : 'no refusal recorded'))
           }
@@ -23050,11 +27249,23 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
           // as "the value is empty", which is a different and worse claim than
           // "we could not import this row".
           if (k === 'text') { badCell = true; break }
-          dropProp('cell', k, node)
-          continue
+          // ⛔⛔ ENGINE 52 — a cell's colour, tooltip or width this door cannot read
+          // withholds the cell by name (`ENUM_DROPS.value`), never drawn at the default.
+          withheldProp('cell', k, node)
+          noteWhy('cellTextWhy', `cell@${op.line === undefined ? '?' : op.line}: ${ENUM_DROPS.value.guard} ${k}: ${ENUM_DROPS.value.sentence.slice(0, 200)}`)
+          noteWithheld(op, 'table', 'value')
+          badCell = ENUM_DROPS.value.drop
+          break
         }
         props[k] = v
       }
+      if (neverRunText) {
+        diagnostics.neverRunOps = diagnostics.neverRunOps || []
+        const e = `cell@${op.line === undefined ? '?' : op.line}`
+        if (!diagnostics.neverRunOps.includes(e)) diagnostics.neverRunOps.push(e)
+        continue
+      }
+      if (typeof badCell === 'string') { dropped(badCell); continue }
       if (badCell) { dropped('cell:text'); continue }
       if (rtHeldProp()) { dropped('runtime:prop'); continue }
       ops.push(withUnwitnessedMarked({ k: 'cell', target, col, row, when, ...lastBarOnly, props }))
@@ -23065,6 +27276,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       if (!target) { dropped('cellpatch:target'); continue }
       if (!col || !row) { dropped('cellpatch:address'); continue }
       const node = op.args[0] && op.args[0].value
+      enumNaDrop = false
       const v = node ? valueRef(node, op.prop) : null
       // ⛔⛔ AN UNREADABLE PATCH DROPS THE WHOLE OP, NOT THE PROPERTY. A `cell`
       // with an unreadable colour still draws, because the rest of that call is
@@ -23073,7 +27285,14 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       // operation that runs every bar and means nothing. It is named twice on
       // purpose — by property and line, so an engineer can find the expression,
       // and by drop reason, so the op count still adds up.
-      if (!v) { dropProp('cell', op.prop, node); dropped(`cellpatch:${op.prop}`); continue }
+      // ⛔⛔ Engine 51 (review of #1149, major 3) — a size / alignment patch this door cannot
+      // read withholds its TABLE by name (`contentLost`): the cell would otherwise stay at
+      // the size an earlier write gave it, which is not what TradingView shows.
+      if (!v && enumNaDrop) { contentLost.push(target); noteWithheld(op, 'table', enumNaDrop); dropped(ENUM_DROPS[enumNaDrop].drop); continue }
+      // ⛔⛔ ENGINE 52 — and a patch whose value is unreadable WITHHOLDS ITS TABLE
+      // (`contentLost`), the size patch's rule (M3): dropping the patch alone left the
+      // cell in the colour an earlier write gave it, which TradingView does not show.
+      if (!v) { withheldProp('cell', op.prop, node); contentLost.push(target); noteWithheld(op, 'table', 'value'); dropped(ENUM_DROPS.value.drop); continue }
       ops.push(withUnwitnessedMarked({ k: 'cellpatch', target, col, row, when, ...lastBarOnly, props: { [op.prop]: v } }))
     } else if (op.k === 'clear') {
       const target = targetRef(op.target)
@@ -23265,6 +27484,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
             const staleBounds = staleReads(src, { when: o.when, from: o.from, to: o.to, step: o.step })
             if (staleBounds.length) {
               noteReadBeforeWrite(src, staleBounds)
+              noteGuardRefusal(src, OBJECT_CONDITION_WHY.readBeforeWrite(staleBounds))
               unconverted(src.body, 'guard:loop')
               dropped(`guard:${src.k}`)
               continue
@@ -23282,6 +27502,7 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         const stale = staleReads(src, o)
         if (!stale.length) { out.push(o); continue }
         noteReadBeforeWrite(src, stale)
+        noteGuardRefusal(src, OBJECT_CONDITION_WHY.readBeforeWrite(stale))
         if (src.k === 'create') { lostCreate(src.family); lostInto(src) }
         if (src.k === 'update') { contentLostBy(src, o.target); stateLostBy(src, o.target) }
         if (src.k === 'delete' || src.k === 'clear') { lostRemoval(`guard:${src.k}`, src); stateLostBy(src, o.target) }
@@ -23496,8 +27717,9 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // object that register can hold, because nothing here can say which of them
   // the lost step would have reached.
   statePass()
+  if (removalWithheldFamilies.size) diagnostics.removalWithheldFamilies = [...removalWithheldFamilies].sort()
   const withholdContent = () => {
-  if (contentLost.length || geometryLost.length || unaddressed.length) {
+  if (contentLost.length || geometryLost.length || unaddressed.length || removalWithheldFamilies.size) {
     const each = (list, fn) => {
       for (const o of list || []) { fn(o); if (o.k === 'loop') each(o.body, fn) }
     }
@@ -23585,7 +27807,13 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
       return [...req].some((k) => isNaLiteral(o.props && o.props[k])
         && !written.has(`${o.family}.${k}`) && !written.has(`*.${k}`))
     }
-    const content = spread([...contentLost, ...captioned])
+    // ⭐ every create of a family a lost chained removal names (see
+    // `removalWithheldFamilies`) — table and linefill included.
+    const removalSeeds = []
+    if (removalWithheldFamilies.size) {
+      each(ops, (o) => { if (o.k === 'create' && removalWithheldFamilies.has(o.family)) removalSeeds.push({ r: 'site', id: o.site }) })
+    }
+    const content = spread([...contentLost, ...captioned, ...removalSeeds])
     // ⭐ C25 — an object a lost step would have MOVED (`geometryLost`) is held
     // the same way, and counted under its own name.
     let geometry = spread([...geometryLost, ...moved])
@@ -23801,6 +28029,27 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
   // that reduces nothing is byte-identical to before.
   if (windowAmbiguity && windowAmbiguity.size) {
     let withheldSteps = 0
+    /** A sub-tree reads a registered reduction (or cannot be printed: assumed to). */
+    const astAmbiguous = (ast) => {
+      let f = null
+      try { f = printFormula(ast) } catch { f = null }
+      if (f === null) return true
+      for (const key of windowAmbiguity.keys()) if (f.includes(key)) return true
+      return false
+    }
+    /** The `&&` conjuncts of a guard that read no registered reduction, ANDed, or
+     *  null. Only a plain tree guard is split; anything else (a latch, an object
+     *  state read) answers null and the step keeps today's withholding. */
+    const measuredConjuncts = (when) => {
+      if (!when || when.v !== 'tree' || !Number.isInteger(when.tree)) return null
+      const parts = []
+      const split = (t) => { if (t && t.type === 'op' && t.name === '&&') { split(t.args[0]); split(t.args[1]) } else parts.push(t) }
+      split(trees[when.tree])
+      if (parts.length < 2) return null
+      const free = parts.filter((t) => !astAmbiguous(t))
+      if (!free.length || free.length === parts.length) return null
+      return free.reduce((acc, t) => (acc ? cOp('&&', [acc, t]) : t), null)
+    }
     const attach = (list) => list.map((o) => {
       let out = o
       if (o.k === 'loop' && Array.isArray(o.body)) {
@@ -23841,7 +28090,18 @@ function buildObjectProgram(stmts, source, env, makeResolverRaw, bindingByStatem
         }
       }
       withheldSteps += 1
-      return { ...out, withhold: internTree(orOf(amb)) }
+      // ⭐⭐ W-C22-DEL — THE PART OF THE GUARD THAT IS STILL MEASURED. A guard that
+      // reads an unmeasured reduction is usually `a && b && …` where only some
+      // conjuncts read it (vdubus: `not na(ph) and array.size(zzP) >= 5 and …`). On
+      // a bar one of the OTHER conjuncts is false, Pine did not run the step, and
+      // that is certain (C17's known-false rule): `withholdRuns` is the AND of the
+      // conjuncts that read no registered reduction (the SAME containment test
+      // `ambiguityOfTree` makes, so it can only under-claim), and the runtime skips
+      // the step there instead of withholding it. Without it every such bar counted
+      // as a create Pine MAY have made, which is what the collector rule below
+      // (`objectRuntime.js::noteUnknownCreate`) now counts.
+      const runs = measuredConjuncts(out.when)
+      return { ...out, withhold: internTree(orOf(amb)), ...(runs ? { withholdRuns: internTree(runs) } : {}) }
     })
     const attached = attach(keptOps)
     keptOps.splice(0, keptOps.length, ...attached)
@@ -23943,10 +28203,19 @@ function isHostLane(opts) {
  */
 export function translatePine(source, opts = {}) {
   const outerSink = OTHER_SYMBOL_SINK
+  const outerSymbolInputSink = SYMBOL_INPUT_SINK
   const outerPeriodSink = PERIOD_READ_SINK
   const outerLowerSink = LOWER_TF_SINK
   const outerLibrarySink = LIBRARY_LINK_SINK
   const outerDeclWords = DECL_WORDS_SINK
+  const outerTaintAt = strategyTaintAtLine
+  const outerTaintDrawingAt = strategyTaintDrawingAtLine
+  const outerCalcBars = CALC_BARS_SINK
+  const calcBarsSink = { count: null }
+  CALC_BARS_SINK = calcBarsSink
+  // ⭐ COND-TA (engine 58, G-b) — the legacy bare-name predicate is installed by
+  // `translatePineResult` once the version is lexed, and put back HERE, whatever returns.
+  const outerLegacyTa = setLegacyTaCall(null)
   LIBRARY_LINK_SINK = null
   DECL_WORDS_SINK = null
   const sink = new Map()
@@ -23954,6 +28223,8 @@ export function translatePine(source, opts = {}) {
   LOWER_TF_SINK = lowerSink
   const periodSink = { names: new Map(), count: 0, inOutput: false, outside: false, current: new Set() }
   OTHER_SYMBOL_SINK = sink
+  const symbolInputSink = new WeakMap()
+  SYMBOL_INPUT_SINK = symbolInputSink
   PERIOD_READ_SINK = periodSink
   let t
   let libraryLink = null
@@ -23962,19 +28233,31 @@ export function translatePine(source, opts = {}) {
   } finally {
     libraryLink = LIBRARY_LINK_SINK
     OTHER_SYMBOL_SINK = outerSink
+    SYMBOL_INPUT_SINK = outerSymbolInputSink
     PERIOD_READ_SINK = outerPeriodSink
     LOWER_TF_SINK = outerLowerSink
     LIBRARY_LINK_SINK = outerLibrarySink
     DECL_WORDS_SINK = outerDeclWords
+    strategyTaintAtLine = outerTaintAt
+    strategyTaintDrawingAtLine = outerTaintDrawingAt
+    CALC_BARS_SINK = outerCalcBars
+    setLegacyTaCall(outerLegacyTa)
   }
   if (!t || typeof t !== 'object') return t
+  // ⭐⭐ CBC-FMT — the window the host lane computes this script on (`declarationCalcBars`),
+  // and whether it requests other bars (refused inside a window by name,
+  // `engine/calcBarsWindow.js`): on every return. Absent for a script that declares no count.
+  if (calcBarsSink.count !== null) {
+    t.calcBarsCount = calcBarsSink.count
+    if (CALC_BARS_REQUEST_SOURCE.test(strippedForScan(String(source || '')))) t.calcBarsRequest = true
+  }
   // ⭐⭐ L1 — WHAT WAS LINKED, AND WHERE A LIBRARY'S REFUSAL REALLY POINTS. Present
   // only when a library was linked, so every other result is byte-identical. A
   // refusal located inside a library's code is moved to the member's own import
   // line and names the library and its line; spliced names read `alias.name`.
   if (libraryLink && libraryLink.libraries.length) {
     t.libraries = libraryLink.libraries.map((l) => ({
-      path: l.path, alias: l.alias, licence: l.licence, attribution: l.attribution, url: l.url,
+      path: l.path, alias: l.alias, sha256: l.sha256, licence: l.licence, attribution: l.attribution, url: l.url,
     }))
     const fix = (r) => remapLibraryLocation(r, libraryLink)
     if (t.refusal) t.refusal = fix(t.refusal)
@@ -24008,6 +28291,8 @@ export function translatePine(source, opts = {}) {
   // ⭐⭐ C26 — WHICH OTHER SYMBOLS THE TREES READ, AND HOW EACH WAS SPELLED.
   // Present only when a `sym` node was emitted, so every other result is
   // byte-identical to before. Sorted, so one script is one array.
+  const symbolInputs = symbolInputsOf(t, symbolInputSink)
+  if (symbolInputs.length) t.symbolInputs = symbolInputs
   if (sink.size) {
     t.otherSymbols = [...sink.keys()].sort().map((ticker) => ({
       ticker, spellings: [...sink.get(ticker)].sort(),
@@ -24087,7 +28372,7 @@ function translatePineResult(source, opts = {}) {
   // this function, so every phase — resolve, print, round-trip, object pass —
   // is inside it. Opening it any later would leave the phase that actually hangs
   // outside the guard, which is the mistake this guard was written to correct.
-  beginTranslateBudget(opts.budgetMs, opts.sourcePath)
+  beginTranslateBudget(opts.budgetMs, opts.sourcePath, opts.now)
   // ⭐ THE PALETTE SCOPE IS SAVED HERE and restored in the SAME `finally` that
   // closes the budget, so a translation can never leave its version behind for
   // the next one. It is OPENED once the lexer has read the version, below.
@@ -24095,6 +28380,8 @@ function translatePineResult(source, opts = {}) {
   try {
   // ⭐ WAVE B accumulators: what the script says about how it LOOKS.
   let overlay = null
+  // PRICE-SCALE JOIN: which scale the declaration puts the script on (`declarationScale`).
+  let declScale = null
   const levels = []
   /** ⭐ C1-B — every `fill(handleA, handleB, …)` the script writes, by HANDLE.
    *  Resolved to output indexes after the outputs are known, because a fill may
@@ -24119,7 +28406,12 @@ function translatePineResult(source, opts = {}) {
   LIBRARY_LINK_SINK = lexed.libraryLink || null
 
   const { tokens, indents, version, lines, rawOffsetMap } = lexed
+  const pineV1 = lexed.v1Declared === true
   beginPaletteScope(version)
+  // ⭐ COND-TA (engine 58, G-b) — in Pine v1-v4 (and a script with no `//@version`,
+  // which TradingView compiles as v1) a bare `sma(…)` is a `ta.*` call with its own
+  // call-site history (`legacyTaNames.js`); every history reader asks `isTaCallName`.
+  setLegacyTaCall(legacyTaCallFor(version))
   // ⭐ F1 — what each declared name was declared AS, for `pineConstIntValue`.
   DECL_WORDS_SINK = declarationWordsOf(tokens)
   if (tokens.length === 0) {
@@ -24134,6 +28426,28 @@ function translatePineResult(source, opts = {}) {
   let declaration = null
   let title = null
   const hardRefusals = []
+  /** ⭐⭐ CBC-FMT — the declaration's `calc_bars_count`, read by the one reader. A count
+   *  that is not a positive literal refuses by name on every lane. A positive count is the
+   *  window the HOST lane computes on (`CALC_BARS_SINK`, stamped on every return by
+   *  `translatePine`); a SCREEN is computed over a symbol's whole stored history, so its
+   *  value would be a different number under the same name, and it refuses by name instead. */
+  const calcBarsDeclared = (toks, word) => {
+    const cbc = declarationCalcBars(toks)
+    if (!cbc) return
+    if (cbc.guard) {
+      hardRefusals.push(refusalValue(cbc.guard, cbc.why, locate(cbc.tok)))
+      return
+    }
+    if (isHostLane(opts)) {
+      if (CALC_BARS_SINK) CALC_BARS_SINK.count = cbc.count
+      return
+    }
+    hardRefusals.push(refusalValue('pine:window-dependent',
+      `${REFUSALS['pine:window-dependent']} — \`${word}(calc_bars_count = ${cbc.count})\` makes TradingView `
+      + `compute the script on the chart's last ${cbc.count} bars only, and a screen computes it on the whole `
+      + 'history it reads, so every value would be a different number under the same name.',
+      locate(cbc.tok)))
+  }
   // ⭐⭐ TRACK F (DEC-006) — created ONCE per `translatePine` call (never per
   // output/per-Resolver, see `Resolver.paramMint`'s own comment for why),
   // `null` unless `opts.paramManifest` asked for it — the same opt-in, off-
@@ -24199,6 +28513,21 @@ function translatePineResult(source, opts = {}) {
   }
   const guardVaries = (condToks) => !invariantNamesOf() || !condToks || !condToks.length
     || !guardIsBarInvariant(condToks, invariantNamesOf())
+  /** ⭐⭐ COND-TA — the same question INSIDE a function body: a parameter is never a top-level
+   *  name (it hides one of the same spelling), and it is fixed for the run only where every call
+   *  site passes a bar-invariant argument (`barInvariantParams`). Read on first use. */
+  let invariantParamsMemo
+  const guardVariesIn = (fnName, params) => {
+    const names = invariantNamesOf()
+    if (!names) return guardVaries
+    if (invariantParamsMemo === undefined) {
+      try { invariantParamsMemo = barInvariantParams(stmts, { isPunct, findTop, boundName }, names) } catch { invariantParamsMemo = new Map() }
+    }
+    const scoped = new Set(names)
+    for (const p of params || []) scoped.delete(p)
+    for (const p of invariantParamsMemo.get(fnName) || []) scoped.add(p)
+    return (condToks) => !condToks || !condToks.length || !guardIsBarInvariant(condToks, scoped)
+  }
   /** ⭐ C42 — the script's value functions that read their own history
    *  (`callHistoryFunctions`), read on first use; a drawing function is judged
    *  where the object reader inlines it. Unreadable → none (the fold then marks
@@ -24225,7 +28554,11 @@ function translatePineResult(source, opts = {}) {
     }
     return chartSeriesMemo
   }
-  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf }
+  // ⭐⭐ ENGINE 50 — `selfDeclarations`: every v3+-refusable self-referencing declaration THIS
+  // walk meets (`markSelfDeclaration`, and the block-valued form), read once after the walk. Only
+  // this ctx and the ones spread from it carry it: the harvest folds and the loop unroll build
+  // their own, so a re-fold over a partial env can never record a declaration.
+  const ctx = { consumed: new Set(), bindingByStatement, condAware: guardVaries, historyFns: historyFnsOf, chartSeries: chartSeriesOf, selfDeclarations: [] }
 
   /** ⭐⭐ R2 STEP 1 — RUN THE WALK'S OWN READER OVER A BLOCK IT REFUSED, SO ITS
    *  LOCALS ARE BOUND BY SOMEBODY.
@@ -24345,6 +28678,8 @@ function translatePineResult(source, opts = {}) {
       kind: 'opaque',
       guard,
       isFunction,
+      // ⭐ ENGINE 50 — a function that did not fold still covers the variable beneath it
+      ...(isFunction ? { hidesVariable: variableBeneath(env, name) } : {}),
       message: `${REFUSALS[guard]}${extra ? ` — ${extra}` : ''}`,
       at: at || null,
     })
@@ -24377,14 +28712,57 @@ function translatePineResult(source, opts = {}) {
   let stmts
   try {
     stmts = blockStatements(tokens, indents, 0)
+    // ⭐⭐ I6a-N4 — a block whose lines are not at a block indent refuses BY NAME (both lanes).
+    refuseOffBlockIndent(stmts, indents)
   } catch (err) {
     const r = fromError(err)
     return { ...blank, version, refusal: r, refusals: [r] }
+  }
+  // ⭐⭐ B3 (s22, s23) — in v2/v3 a script function's read of a chart series at an offset, called inside
+  // a block, is the function's own copy (CARRY); this lane reads the chart, so it refuses by name (the
+  // runtime lane computes it; v1 is not yet captured). v4+ reads the chart (s23 -v4, s22 -v5: 222/222).
+  if (carryShapeVersion(version, lexed.v1Declared)) {
+    const at = callsInBlocks(stmts, new Set(chartOffsetFunctions(stmts).keys()))
+    if (at) {
+      const r = refusalValue(FN_HISTORY_IN_BLOCK, `${REFUSALS[FN_HISTORY_IN_BLOCK]} — \`${at.value}\``, locate(at))
+      return { ...blank, version, refusal: r, refusals: [r] }
+    }
   }
   // ⭐⭐ C11c — a block's constant-seeded `var` is one program variable, bound
   // before the walk starts; its declaration is passed over where it stands
   // (`hoistBlockVars`). FIRST, because a same-spelled sibling is renamed on the
   // tokens every later reader sees.
+  // ⛔⛔ W9-OQ-N2 (2026-11-07) - WHERE A BROKER VALUE REACHES WHAT A MEMBER SEES (`strategyTaint.js`).
+  // Read on the original statements, before any renaming. Host lane only: the screener lane
+  // refuses a `strategy()` script whole (`pine:declaration-strategy`). A row and a paint read
+  // their verdict where they are built (`strategyTaintAtLine`); a band, a drawing, `alert()` or
+  // `hline` a broker value reaches has no row to refuse, so it refuses the script by name.
+  let strategyTaint = new Map()
+  if (isHostLane(opts)) {
+    // ⛔ A trace that fails is not a clean trace: the script refuses by name rather than serve.
+    try { strategyTaint = strategyTaintSinks(stmts) } catch {
+      hardRefusals.push(refusalValue('pine:strategy-call',
+        `${REFUSALS['pine:strategy-call']} — where its \`strategy.*\` values reach could not be traced`, null))
+    }
+  }
+  strategyTaintAtLine = (line, name) => {
+    for (const v of strategyTaint.values()) if (v.tok.line === line && v.name === name) return v
+    return null
+  }
+  // ⛔ OWNER RULING (2026-11-08, STRAT-COLOR r2): a drawing a broker value reaches is withheld
+  // ALONE, by name, in the object pass; refusing the script would also refuse its untainted plots
+  // (`rsi-vwap-indicator`'s RSI), an invisible over-refusal.
+  strategyTaintDrawingAtLine = (line) => {
+    for (const v of strategyTaint.values()) {
+      if (v.tok.line === line && !STRATEGY_TAINT_ROW_SINKS.has(v.name) && !STRATEGY_TAINT_SCRIPT_SINKS.has(v.name)) return v
+    }
+    return null
+  }
+  for (const v of strategyTaint.values()) {
+    if (!STRATEGY_TAINT_SCRIPT_SINKS.has(v.name)) continue
+    hardRefusals.push(refusalValue('pine:strategy-call',
+      `${REFUSALS['pine:strategy-call']} — \`${v.word}\` (reaches \`${v.name}\`)`, locate(v.tok)))
+  }
   const hoistedVars = hoistBlockVars(stmts)
   ctx.hoisted = hoistedVars.skip
   // ⭐ O1 (step 67) — a counted loop that only searches for the FIRST index whose
@@ -24614,9 +28992,11 @@ function translatePineResult(source, opts = {}) {
       // ⭐⭐ WAVE B: THE AUTHOR'S PANE INTENT IS NOW READ. It always sat right
       // here in the tokens and was walked past.
       overlay = declarationOverlay(toks)
+      declScale = declarationScale(toks)
       notes.push(noteOf('pine:declaration',
         'the indicator() declaration decides how a chart draws, and a screen reads none of it',
         first))
+      calcBarsDeclared(toks, word)
       // ⭐⭐ P0 0H (2026-10-05) — THESE ARGUMENTS USED TO VANISH. `timeframe =`
       // moves EVERY output onto other bars; computing on the chart's own instead
       // is a different number under the same name, so it refuses by name.
@@ -24652,7 +29032,9 @@ function translatePineResult(source, opts = {}) {
         const firstString = toks.find((t) => t.kind === 'string')
         title = firstString ? firstString.value : null
         overlay = declarationOverlay(toks)
+        declScale = declarationScale(toks)
         notes.push(noteOf('pine:strategy-chart', STRATEGY_CHART_NOTE, first))
+        calcBarsDeclared(toks, word)
         continue
       }
       hardRefusals.push(refusalValue('pine:declaration-strategy',
@@ -24667,7 +29049,10 @@ function translatePineResult(source, opts = {}) {
     if (word === 'import' || word === 'export') {
       // ⭐ L1 — an import the linker could not serve says WHICH library and why.
       const why = word === 'import' && first.libraryRefusal ? ` — ${first.libraryRefusal}` : ''
-      hardRefusals.push(refusalValue('pine:module', `${REFUSALS['pine:module']}${why}`, locate(first)))
+      // ⭐ U15 — a named library refusal keeps its own name
+      const code = word === 'import' && first.libraryRefusalCode && REFUSALS[first.libraryRefusalCode]
+        ? first.libraryRefusalCode : 'pine:module'
+      hardRefusals.push(refusalValue(code, `${REFUSALS[code]}${why}`, locate(first)))
       continue
     }
 
@@ -24693,10 +29078,25 @@ function translatePineResult(source, opts = {}) {
         if (vec === false) continue
       }
       if (word === 'var' && nameTok && eq > 0) {
+        // ⭐ Engine 51 — `var x = switch [s]` / arms: whatever the value lane makes of it
+        // (a refusal, or a state over the bare word), the drawing lane's static enum
+        // reader takes the switch hung on the binding here (`varSwitch`;
+        // `buildObjectProgram`'s `staticEnumValue`). A switch with no subject takes its
+        // first arm whose condition holds: read as a switch on `true`.
+        const hangSwitch = () => {
+          const rhs = toks.slice(eq + 1)
+          if (!(rhs[0] && rhs[0].kind === 'ident' && rhs[0].value === 'switch' && (stmt.sub || []).length)) return
+          const subject = rhs.length > 1 ? rhs.slice(1) : [{ ...rhs[0], value: 'true' }]
+          let built = null
+          try { built = switchBinding(subject, stmt.sub, ctx, env, rhs[0]) } catch { built = null }
+          const marked = env.get(nameTok.value)
+          if (built && marked && typeof marked === 'object') Object.defineProperty(marked, 'varSwitch', { value: built, enumerable: false })
+        }
         try {
           env.set(nameTok.value, stateBinding(
-            parseWholeExpression(toks.slice(eq + 1)),
+            markStringVarSeed(toks, parseWholeExpression(toks.slice(eq + 1))),
             new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
+          hangSwitch()
           continue
         } catch (err) {
           const r = fromError(err)
@@ -24704,6 +29104,7 @@ function translatePineResult(source, opts = {}) {
             { line: r.line, column: r.column, index: r.index, token: r.token },
             `\`${nameTok.value}\``)
           notes.push({ ...r, code: r.guard })
+          hangSwitch()
           continue
         }
       }
@@ -24905,6 +29306,8 @@ function translatePineResult(source, opts = {}) {
             kind: 'opaque',
             guard: 'pine:function-def',
             isFunction: true,
+            // ⭐ ENGINE 50 — the variable this name still holds beneath the function (`variableBeneath`)
+            hidesVariable: variableBeneath(env, nameTok.value),
             message: `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` is defined more `
               + 'than once (an overload), and this engine would apply one body to every call',
             at: locate(nameTok),
@@ -24924,7 +29327,10 @@ function translatePineResult(source, opts = {}) {
         // looking straight at. Bound, it reaches `MAX_CALL_DEPTH` and refuses at
         // `pine:cycle`, which is the true sentence. The object is filled in after
         // the fold, and the `new Map` copies the REFERENCE, so the body sees it.
-        const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]) }
+        // ⭐ ENGINE 50 — `hidesVariable`: a variable of the same name declared before this function
+        // stays declared (separate namespaces), in this body and after it (`variableBeneath`)
+        const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]),
+          hidesVariable: variableBeneath(env, nameTok.value), defTok: nameTok }
         fnEnv.set(nameTok.value, self)
         // ⭐ WHAT THE BODY LEAVES BEHIND IS THE LAST WORD ON EACH LOCAL, exactly as
         // `finalBindings = new Map(env)` is at the top level. `foldStatements`
@@ -24935,7 +29341,7 @@ function translatePineResult(source, opts = {}) {
         const beforeFn = new Map(fnEnv)
         const bodyTrace = {}
         let value = arrow === toks.length - 1
-          ? foldStatements(stmt.sub, ctx, fnEnv, bodyTrace, { declarationIsValue: true })
+          ? foldStatements(stmt.sub, { ...ctx, condAware: guardVariesIn(nameTok.value, params) }, fnEnv, bodyTrace, { declarationIsValue: true })
           : exprBinding(parseWholeExpression(toks.slice(arrow + 1)), fnEnv, locate(toks[arrow]))
         // ⭐ A BODY WHOSE LAST STATEMENT IS A DECLARATION RETURNS WHAT IT DECLARES
         // — see `trailingDeclarationName`. The binding read here is the one the
@@ -25137,6 +29543,12 @@ function translatePineResult(source, opts = {}) {
         continue
       }
       if (env.has(nameTok.value) && env.get(nameTok.value).kind === 'opaque') continue
+      // ⭐⭐ ENGINE 50 — a block-valued declaration whose block reads its own history is
+      // RECORDED (review ENG49-1122 note 6) and refused in v3+ after the walk; its fold below
+      // is unchanged.
+      if (!declaredAsVariable(env, nameTok.value) && blockDeclarationReadsOwnHistory(stmts, si - 1, nameTok.value)) {
+        ctx.selfDeclarations.push({ name: nameTok.value, at: locate(nameTok) })
+      }
       // ⭐ `x = if cond` / … / `else` — an if EXPRESSION. Pine's `if` yields the
       // last value of the branch it takes, which is a ternary spelled across
       // lines, and folding it needs the same machinery a reassignment does.
@@ -25223,12 +29635,26 @@ function translatePineResult(source, opts = {}) {
       if (rhs[0].kind === 'ident' && BLOCK_KEYWORDS.has(rhs[0].value)) {
         markOpaque(nameTok.value, 'pine:block', locate(rhs[0]), `\`${nameTok.value}\``)
         notes.push(noteOf('pine:block', REFUSALS['pine:block'], rhs[0]))
+        // ⭐⭐ B4 — a SUBJECT-LESS `name = switch` stays opaque to every value reader (unchanged), and
+        // the COLOUR reader alone is handed the chain it is (`subjectlessSwitchNode`, the `:=` form's
+        // reading), hung non-enumerably on the binding (`colourChainOf`).
+        if (rhs.length === 1 && rhs[0].value === 'switch' && stmts[si - 1] && (stmts[si - 1].sub || []).length) {
+          let chain = null
+          try { chain = subjectlessSwitchNode(stmts[si - 1].sub, rhs[0]) } catch { chain = null }
+          const marked = env.get(nameTok.value)
+          if (chain && marked && typeof marked === 'object') {
+            Object.defineProperty(marked, 'colourSwitch', { value: { node: chain, env: new Map(env) }, enumerable: false })
+          }
+        }
         continue
       }
       try {
-        env.set(nameTok.value, exprBinding(
-        stampInputName(parseWholeExpression(rhs), nameTok.value),
-        new Map(env), locate(nameTok)))
+        {
+          const declEnv = new Map(env)
+          env.set(nameTok.value, markSelfDeclaration(exprBinding(
+            stampInputName(parseWholeExpression(rhs), nameTok.value),
+            declEnv, locate(nameTok)), nameTok.value, declEnv, ctx.selfDeclarations))
+        }
         // ⭐⭐ R2 STEP 1 — and the TOP-LEVEL walk records too, which is the half
         // that actually mattered. `scopeFor` used to re-parse EVERY name the
         // object collector had walked past — including top-level ones — and a
@@ -25356,6 +29782,9 @@ function translatePineResult(source, opts = {}) {
         let pargs = null
         try { pargs = parseArguments(new Cursor(toks.slice(2))) } catch { pargs = null }
         const paintRec = { kind: word, args: pargs, env: new Map(env), tok: first }
+        // ⛔ W9-OQ-N2 — the broker value this paint's arguments reach, if any.
+        const paintTaint = strategyTaintAtLine(first.line, word)
+        if (paintTaint) paintRec.strategyWord = paintTaint.word
         paints.push(paintRec)
         // ⭐ the sentence waits for `resolvePaints` (drawn / withheld / hidden / `na`)
         const paintHow = { lane: 'host', site: 'top', paint: null }
@@ -25388,6 +29817,21 @@ function translatePineResult(source, opts = {}) {
   }
   logPos = null
   delete env.set
+
+  // ⭐⭐ ENGINE 50 — A v3+ SELF-REFERENCING DECLARATION REFUSES THE WHOLE SCRIPT, WHETHER OR NOT
+  // ANYTHING READS IT (review ENG49-1122 notes 1, 2, 3, 6). TradingView does not compile such a
+  // script at all, so whether a plot happens to resolve the binding is beside the point: engine 49
+  // refused only what the `Resolver` resolved, and an unread declaration, one read only through
+  // `color=`, a name an earlier user function holds and a block-valued `x = if/switch …` were
+  // still drawn here while the runtime lane, which asks at the statement, refused them. Now the
+  // walk records each one where it is written (`ctx.selfDeclarations`) and the first in source
+  // order is a HARD refusal, with the one v3+ sentence the `Resolver` and the runtime lane give.
+  // v1/v2 and no pragma compile these spellings: nothing is read for them here.
+  if (!listingSeedIsUnpinned(version) && ctx.selfDeclarations.length) {
+    const first = ctx.selfDeclarations.slice().sort((a, b) => byPosition(a.at || {}, b.at || {}))[0]
+    hardRefusals.push(refusalValue('pine:cycle',
+      `${REFUSALS['pine:cycle']} — ${selfReferenceSentence(first.name, version)}`, first.at || null))
+  }
 
   // ── ⭐⭐ THE CLOSING PASS: every mutation the walk did NOT account for ─────
   //
@@ -25601,7 +30045,7 @@ function translatePineResult(source, opts = {}) {
         partialReadCache,
         // ⭐⭐ C45 — the arm reader asks which script functions read their own history
         historyFns: historyFnsOf,
-        strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
+        strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineScript: true, pineV1,
         noteSink: (code, message, tok) => notes.push(noteOf(code, message, tok)),
         // ⭐ THE BUDGET REACHES EVERY RESOLVER OR IT PROTECTS NONE. The object
         // pass below builds its own, and a hang there is just as fatal.
@@ -25676,7 +30120,7 @@ function translatePineResult(source, opts = {}) {
     const outerSymbols = OTHER_SYMBOL_SINK
     const outerPeriod = PERIOD_READ_SINK
     const readsOther = (n, d = 0) => !!n && typeof n === 'object' && d < 256
-      && (n.type === 'sym' || n.type === 'tf' || (Array.isArray(n.args) && n.args.some((a) => readsOther(a, d + 1))))
+      && (n.type === 'sym' || n.type === 'tf' || n.type === 'tf_merge' || (Array.isArray(n.args) && n.args.some((a) => readsOther(a, d + 1))))
     // the calls that vary bar to bar whatever they are handed (`readsBars`'s own set)
     const barFns = barVaryingNamesFor(table)
     for (const site of runtimeErrorPlan.sites) {
@@ -25707,7 +30151,7 @@ function translatePineResult(source, opts = {}) {
             if (!n || typeof n !== 'object') continue
             if (n.type === 'series' && typeof n.name === 'string') series.add(n.name)
             if (n.type === 'call' && barFns.has(n.name)) barCalls = true
-            if (n.type === 'offset' || n.type === 'tf' || n.type === 'sym') barCalls = true
+            if (n.type === 'offset' || n.type === 'tf' || n.type === 'tf_merge' || n.type === 'sym') barCalls = true
             if (Array.isArray(n.args)) stack.push(...n.args)
             else if (n.arg && typeof n.arg === 'object') stack.push(n.arg)
           }
@@ -25761,9 +30205,18 @@ function translatePineResult(source, opts = {}) {
   for (const out of outputs) {
     const resolver = makeResolver(positionEnv(out))
     // ⭐ C48 — see `Resolver.resolveBinding`: a CHART's plot reads a conditional
-    // call through and carries its block's guard for the bind. ⛔ The host lane
-    // only: the screener lane binds no chart, and reads as it always has.
-    resolver.condGate = isHostLane(opts)
+    // call through and carries its block's guard for the bind.
+    // ⭐⭐ COND-TA (engine 58) — THE SCREENER LANE ASKS THE SAME QUESTION, AND HAS NO
+    // BIND TO HAND THE ANSWER TO. ⚰️ It "read as it always had": `if close > open` /
+    // `v := ta.sma(close, 3)` / `plot(v)` translated `ok` as `close > open ? sma(close, 3)
+    // : na`, the EVERY-BAR mean, wrong on 242 of RDDT's 635 bars against
+    // `vw-call-site-history` C03 (and every `?:` arm, block local and `var` filled in a
+    // block the same way). A screen or an alert built from that formula (the Import
+    // tab's Apply) is evaluated column-wise by the server lanes with no `meta.blockRuns`
+    // to stop it. So the screener lane reads with the host lane's gates on, and every
+    // gate the VALUE carries is refused by name at the end of the output
+    // (`SCREEN_GATE_SENTENCE`): no chart is bound there to say the block ran on every bar.
+    resolver.condGate = true
     // ⭐ C29 — the chart-period reads made while THIS output resolves (`recordPeriodRead`).
     const periodReadsBefore = PERIOD_READ_SINK ? PERIOD_READ_SINK.count : 0
     if (PERIOD_READ_SINK) { PERIOD_READ_SINK.inOutput = true; PERIOD_READ_SINK.current = new Set() }
@@ -25775,13 +30228,7 @@ function translatePineResult(source, opts = {}) {
       // every individual guard reported itself satisfied. Inside the try on
       // purpose: this becomes a per-output refusal like any other, rather than an
       // exception escaping `translatePine`.
-      if (translateBudgetExpired()) {
-        throw new PineRefusal('pine:timeout',
-          `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
-          + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
-          + '. This is a translator defect, not a limit on the script: report it with the file.',
-          null)
-      }
+      if (translateBudgetExpired()) throw wholeScriptTimeout(opts.sourcePath)
 
       const cur = new Cursor(out.toks.slice(2))
       const args = parseArguments(cur)
@@ -25799,7 +30246,10 @@ function translatePineResult(source, opts = {}) {
       const {
         shift, paramId: shiftParamId, displaceFrom, displaceParams,
       } = foldDisplacement(resolver, seriesArg)
-      const base = resolver.resolve(seriesArg.value)
+      const resolvedBase = resolver.resolve(seriesArg.value)
+      // ⭐ ENGINE 56 (A3) — a v1-v5 `bool` PLOTTED is `na` where it is `na` (S1: `close > na_s`)
+      const plottedNa = out.kind === 'plot' && !writtenLogic(seriesArg.value) ? boolNaFlagOf(resolvedBase, resolver.pineVersion) : null
+      const base = plottedNa ? boolNaValue(plottedNa, resolvedBase) : resolvedBase
       const ast = shift > 0 ? { type: 'offset', value: shift, args: [base] } : base
       // ⭐ 2026-09-26 — A POSITIVE DISPLACEMENT THAT IS AN INPUT'S OWN VALUE CARRIES
       // THAT INPUT'S PARAMETER ID, on the OFFSET NODE (a bare number cannot hold a
@@ -25866,10 +30316,10 @@ function translatePineResult(source, opts = {}) {
       const flat = !readsBars(ast)
       // ⭐⭐ THE OTHER SPELLING OF "SCAFFOLDING", AND IT IS THE AUTHOR'S OWN STATEMENT
       // TOO. `outputHidden` reads `display = display.none`; this reads the plot the
-      // author gave NO TITLE and then handed to `fill()` as a band edge —
-      //     mPlot = plot(ohlc4, title="", style=plot.style_circles, linewidth=0)
-      //     fill(mPlot, pPlot, …)
-      // which is `high_engagement__03-supertrend-kivancozbilgic` line 29, the script
+      // author gave NO TITLE and then handed to `fill()` as a band edge (an empty-
+      // titled, zero-width plot of `ohlc4` used only as one side of a `fill`), which is
+      // `high_engagement__03-supertrend-kivancozbilgic` line 29 (licence-held, so
+      // described and not quoted: docs/pine/LICENSING.md §2d), the script
       // that made this a ruling. Both facts are required: an untitled plot that nothing
       // fills is still a column, and a NAMED plot handed to `fill()` is a series the
       // author labelled and may well want screened.
@@ -25910,6 +30360,9 @@ function translatePineResult(source, opts = {}) {
       // ⭐ F2 — and how many block gates the VALUE noted, before the presentation
       // below reads the colour: see `colourRuns`.
       const valueBlockRuns = resolver.blockRuns.length
+      // ⭐ COND-TA — and whether the VALUE left a mark with no guard to carry (the screener
+      // lane refuses the value for its own marks only: a screen reads no colour).
+      const valueCondRefusal = resolver.condRefusal
       row = {
         kind: out.kind,
         title: outputTitle(args, out.kind, out.role) || null,
@@ -25921,8 +30374,6 @@ function translatePineResult(source, opts = {}) {
         formula,
         ast,
         baseTimeframeFolds: [...resolver.baseFolds.values()],
-        // ⭐ P0 — see `htfStepBacks`; the `_folds` channel of the same name words it.
-        htfLookaheadOffStepBacks: [...resolver.htfStepBacks.values()],
         inputsFolded: [...resolver.usedInputs.values()].map((e) => {
           // ⛔ `windowBound` TRAVELS WITH THE ENTRY rather than being re-derived
           // by the reader. Whether an input reached an `int` slot is a fact about
@@ -26022,7 +30473,20 @@ function translatePineResult(source, opts = {}) {
       // (`engine/blockRuns.js`); a guard this engine cannot read, or a mark with
       // none, refuses the row here — after the whole output, value and
       // presentation, minted what it always minted.
-      if (resolver.condRefusal) throw resolver.condRefusal
+      if (isHostLane(opts) ? resolver.condRefusal : valueCondRefusal) throw (isHostLane(opts) ? resolver.condRefusal : valueCondRefusal)
+      // ⛔⛔ W9-OQ-N2 (2026-11-07) - AN OUTPUT A BROKER VALUE REACHES REFUSES BY NAME.
+      // With the broker dark, a `strategy.*` STATE value reaching ANY argument of this call
+      // (its colour above all, which falls soft to one default colour when uncarried) is a
+      // value no lane computes. `strategyTaintSinks` follows it through names, `var` / `:=`,
+      // ternaries, `switch` / `if` blocks, functions, methods and collections; a row it reaches
+      // is refused `pine:strategy-call`, as a direct read already is.
+      {
+        const sinkTaint = strategyTaintAtLine(out.tok.line, out.kind)
+        if (sinkTaint) {
+          throw new PineRefusal('pine:strategy-call',
+            `${REFUSALS['pine:strategy-call']} — \`${sinkTaint.word}\``, locate(sinkTaint.tok))
+        }
+      }
       // ⛔⛔ F2 (review) — A GATE ONLY THE COLOUR NOTED IS THE COLOUR'S (H1's rule,
       // `colourBlockRunsOf`). One resolver reads the value and then the
       // presentation, so a colour that reads a conditional call (`condCall`) or a
@@ -26041,28 +30505,7 @@ function translatePineResult(source, opts = {}) {
       const colourRules = colourAlone
         ? COLOUR_RULE_KEYS.map((k) => row.presentation[k]).filter(Boolean) : []
       const colourRuns = resolver.condGate && colourRules.length ? resolver.blockRuns.splice(valueBlockRuns) : []
-      const guardsOf = (runs) => {
-        const out = []
-        if (!runs.length) return out
-        const minted = resolver.paramMint
-        const observer = resolver.onCondition
-        resolver.paramMint = null
-        resolver.onCondition = null
-        resolver.mintOnly += 1
-        try {
-          for (const g of runs) {
-            const node = blockGuardNode(g.chain)
-            let guard
-            try { guard = resolver.condition(resolver.resolve(node), 'ternary', node.tok) } catch { throw g.err }
-            out.push({ why: g.why, guard })
-          }
-        } finally {
-          resolver.mintOnly -= 1
-          resolver.paramMint = minted
-          resolver.onCondition = observer
-        }
-        return out
-      }
+      const guardsOf = (runs) => blockGateGuardsOf(resolver, runs)
       const colourGates = guardsOf(colourRuns)
       if (colourGates.length) {
         for (const rule of colourRules) {
@@ -26092,7 +30535,28 @@ function translatePineResult(source, opts = {}) {
         }
         for (const g of armRunGates(armTrees, table)) gates.push(g)
       }
-      if (gates.length) Object.defineProperty(row, '_blockRuns', { value: gates, enumerable: false })
+      // ⭐⭐ COND-TA (engine 58) — THE SCREENER LANE BINDS NO CHART: a VALUE gate is a
+      // refusal. ⛔ The value's own gates only — those its value noted (`valueBlockRuns`)
+      // and its value tree's arms (`armRunTreesOf`): a screen or an alert reads the value,
+      // never a colour, so a colour's call is not a reason to refuse it.
+      if (!isHostLane(opts)) {
+        // ⛔⛔ INTERIM (coordinator ruling 2026-11-16, option B) — THE RIGHT SIDE OF A v6 `and` / `or`
+        // IS NOT REFUSED HERE YET (`logicRight`): this lane still serves it as the every-bar value,
+        // exactly as master does. That is a KNOWN TradingView DIFFERENCE, not a correct reading (the
+        // to-v6 guide: the right side runs only where the left side has not decided the answer).
+        // Refusing it took a third of the Screener import's accepted corpus off in one step, so the
+        // refusal is switched on together with the hoist offer and the screener-lane run check (the
+        // follow-up unit). Pinned, and written to go red then: `condTaLanes.test.js` section 8. The
+        // host lane keeps its gate. ⛔ A `?:` arm, a block, a helper and an `if` expression are
+        // refused here as built, including one standing INSIDE such a right side.
+        const valueGates = [...guardsOf(resolver.blockRuns.slice(0, valueBlockRuns)),
+          ...armRunGates(armRunTreesOf(row), table, { skipLogicRight: true })]
+        if (valueGates.length) {
+          throw new PineRefusal('pine:block', `${REFUSALS['pine:block']} — ${valueGates[0].why}${SCREEN_GATE_SENTENCE}`,
+            locate(out.tok))
+        }
+      }
+      if (gates.length && isHostLane(opts)) Object.defineProperty(row, '_blockRuns', { value: gates, enumerable: false })
     } catch (err) {
       row = {
         kind: out.kind,
@@ -26258,7 +30722,7 @@ function translatePineResult(source, opts = {}) {
       const probe = new Resolver(env, table, declaredTypes,
         { finalBindings, finalLocals, mutated: reassigned, source, rawOffsetMap,
           paramMint: null,
-          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
+          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineScript: true, pineV1,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth,
           sourcePath: opts.sourcePath })
@@ -26398,13 +30862,7 @@ function translatePineResult(source, opts = {}) {
     // ⛔ THE OBJECT PASS IS A SECOND ENTRY POINT AND NEEDS THE SAME BOUND. It
     // builds its own Resolver, so without this it buys a fresh step budget after
     // the output loop has already spent the script's whole wall clock.
-    if (translateBudgetExpired()) {
-      throw new PineRefusal('pine:timeout',
-        `${REFUSALS['pine:timeout']} — gave up after ${translateBudgetMs()}ms for the whole script`
-        + (opts.sourcePath ? ' translating `' + opts.sourcePath + '`' : '')
-        + '. This is a translator defect, not a limit on the script: report it with the file.',
-        null)
-    }
+    if (translateBudgetExpired()) throw wholeScriptTimeout(opts.sourcePath)
     // ⭐ `objectRawTrees` is set by the LANE ADAPTER (`runtime/objectLane.js`)
     // and by nothing else. Unset, this pass behaves byte-identically to before.
     // ⭐ C18 — `runtimeCheck` is the member door's compile check for values read
@@ -26437,7 +30895,7 @@ function translatePineResult(source, opts = {}) {
           objectPass: true,
           methodDefs: objectMethodDefs,
           windowAmbiguity: objectWindowAmbiguity,
-          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version,
+          strict: opts.strict === true, screen: !isHostLane(opts), pineVersion: version, pineScript: true, pineV1,
           basePeriod: opts.basePeriod, newestBarIsForming: opts.newestBarIsForming,
           budgetMs: opts.budgetMs, maxSteps: opts.maxSteps, maxDepth: opts.maxDepth, sourcePath: opts.sourcePath,
         onCondition: opts.onCondition })
@@ -26473,6 +30931,10 @@ function translatePineResult(source, opts = {}) {
       walkStarts,
       topStatements: new Set(stmts),
       mutableNames: reassigned,
+      // ⭐ Engine 51 — the member's knobs: a declared input (or one the member set) is
+      // never read at its default by the static enum reader (`staticEnumValue`)
+      declareInputs: opts.declareInputs || null,
+      inputValues: opts.inputValues && typeof opts.inputValues === 'object' ? opts.inputValues : null,
       windowAmbiguity: objectWindowAmbiguity,
       runtimeCheck,
       runtimeExclude,
@@ -26563,7 +31025,7 @@ function translatePineResult(source, opts = {}) {
   // ⭐⭐ B1 — THE PAINTS (`bgcolor` / `barcolor`), read once, with every name
   // settled and a resolver of their own (as the fills below get theirs). Host lane
   // only: `paints` is empty on the screener lane by construction.
-  const paintRecs = paints.length ? resolvePaints(paints, { resolver: makeResolver(), version }) : null
+  const paintRecs = paints.length ? resolvePaints(paints, { resolver: makeResolver(), version, hostLane: isHostLane(opts) }) : null
   // ⭐ B1 (step 61) — the deferred sentences, said once the outcome is known. A
   // fill not yet resolved (the no-output return below has no plots) keeps its
   // `band: false` sentence, which is then the true one.
@@ -26571,10 +31033,15 @@ function translatePineResult(source, opts = {}) {
     for (const p of chartOnlyPending) {
       if (p.paint) p.how.paint = paintRecs ? paintRecs[paints.indexOf(p.paint)] || null : null
       if (p.fillRec) p.how.band = carriedFills.has(p.fillRec)
+      // ⭐ G-h (r1) — a band G-h withheld says why, by its gate's own sentence
+      if (p.fillRec && withheldFills.has(p.fillRec)) p.how.withheld = withheldFills.get(p.fillRec)
       p.note.message = chartOnlySentence(p.word, p.how)
     }
   }
   const carriedFills = new Set()
+  /** ⭐ G-h (r1) — the fills whose colour read a block mark with no guard to carry:
+   *  fill → the refusal's sentence (`resolveFillHandles`). */
+  const withheldFills = new Map()
   sayChartOnly()
   // A paint that DRAWS: carried and not hidden by the author (`display.none`).
   const paintDraws = !!(paintRecs && paintRecs.some((p) => !p.withheld && !p.hidden && !p.na))
@@ -26635,7 +31102,16 @@ function translatePineResult(source, opts = {}) {
       // fall through — `objectOnlyCleanWin` / `paintOnlyWin` decide, below
     } else {
     const guard = draws ? 'pine:objects-only' : 'pine:no-output'
-    const r = refusalValue(guard, REFUSALS[guard], null)
+    // ⛔ Engine 51 (review of #1149, minor 5) — WHEN A WITHHELD DRAWING IS WHY NOTHING IS
+    // LEFT, THE HEADLINE SAYS SO. "No plot and no alert condition" is true of such a
+    // script and names nothing its author can act on; the drawing it lost, and the
+    // reason, is the fact that matters.
+    const withheld = !cleanObjectOnly && objectPass.diagnostics
+      && (objectPass.diagnostics.withheldDrawings || [])[0]
+    const r = withheld
+      ? refusalValue(withheld.guard, withheldHeadline(withheld),
+        withheld.line === null ? null : { line: withheld.line, column: null, index: null, token: null })
+      : refusalValue(guard, REFUSALS[guard], null)
     return {
       ok: false, version, declaration, title, outputs: [], selected: -1,
       presentation: { overlay, levels, ...(paintRecs ? { paints: paintRecs } : {}) },
@@ -26697,9 +31173,23 @@ function translatePineResult(source, opts = {}) {
   const paintOnlyWin = isHostLane(opts) && resolved.length === 0 && paintDraws && paintsClean
     && !objectsLost
 
+  // ⭐⭐ DRAW-1 — A CLEAN OBJECT PROGRAM WHOSE EVERY PLOT IS `na` ON EVERY BAR IS THE OBJECT-ONLY
+  // WIN TOO. `plotshape(show ? x : na)` with `show` an input left off folds to the literal `na`
+  // (`parse.js`: `na` IS `0 / 0`), so the row is hidden as `constant` and the script used to
+  // carry `pine:constant-only` ("nothing here a chart or a screen could move on") beside a
+  // drawing that moves on every bar (high-low-open-mid-ranges: 171 ops, 0 dropped, 7 such rows).
+  // A plot of `na` draws nothing on TradingView (the reference: `na` is "not available", no
+  // value is plotted) and nothing here. ⛔ ONLY `na`: a constant NUMBER (`plot(50)`) is a line
+  // TradingView draws and this pane hides as `constant`, so it keeps the refusal. Host lane
+  // only: the screener contract is unchanged (still no column to filter on).
+  const naOnlyObjectsWin = isHostLane(opts) && resolved.length > 0
+    && resolved.every((r) => r.refusal === null && r.hidden && r.hiddenReason === 'constant' && isNaConstantTree(r.ast))
+    && !!(objectPass.program && Array.isArray(objectPass.program.ops) && objectPass.program.ops.length > 0)
+    && !!(objectPass.diagnostics && objectPass.diagnostics.droppedOps === 0)
+
   let noContent = null
   if (!blocked && usable.length === 0 && refusals.length === 0
-      && !(isHostLane(opts) && (objectOnlyCleanWin || paintOnlyWin))) {
+      && !(isHostLane(opts) && (objectOnlyCleanWin || paintOnlyWin || naOnlyObjectsWin))) {
     // ⛔ THE REASON IS DERIVED FROM WHY THE ROWS WERE HIDDEN, never defaulted.
     // Ordered most-specific first: a passthrough says the meaning was in
     // presentation, a constant says the column cannot move, and only an
@@ -26754,7 +31244,7 @@ function translatePineResult(source, opts = {}) {
 
   // ⭐ C1-B's bands, resolved HERE rather than inside the literal below, so the
   // `fill` sentences can say whether each band was carried (B1, step 61).
-  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, version })
+  const presentationFills = resolveFillHandles(fills, outputs, resolved, { env, resolver: makeResolver(), carried: carriedFills, withheld: withheldFills, version, hostLane: isHostLane(opts) })
   sayChartOnly()
 
   const result = {
@@ -26768,6 +31258,8 @@ function translatePineResult(source, opts = {}) {
     version,
     declaration,
     title,
+    // (CBC-FMT — `calcBarsCount` / `calcBarsRequest` are stamped by `translatePine` on EVERY
+    // return, this one and the early ones alike, as `mode` is: `CALC_BARS_SINK`.)
     // ⭐⭐ WAVE B — THE SCRIPT'S OWN VISUAL PROGRAM, alongside its calculations.
     // `overlay` is the author's pane intent, read from the declaration this door
     // previously only glanced at for a title. `levels` are the `hline` values it
@@ -26778,6 +31270,8 @@ function translatePineResult(source, opts = {}) {
     // half-carried: a band with one edge is not a band.
     presentation: {
       overlay,
+      // Present only when the declaration passes `scale =`, so every other result keeps its shape.
+      ...(declScale ? { scale: declScale } : {}),
       levels,
       // ⭐ (j) j.3b — `resolver` reaches the fills HERE and nowhere earlier; it does
       // not exist at collection time, which is why a conditional fill colour was
@@ -26973,20 +31467,24 @@ export function isBareSource(node) {
  *  outside a scope, so a colour resolved where no script's version is known is a
  *  loud defect, never a silent v5.
  *
- *  ⚠️ `null` (no `//@version=`), v1 and v2 are UNMEASURED and keep the table this
- *  file always used (v5) — `pinePalette.UNMEASURED_FALLBACK` says so where the
- *  choice lives. */
+ *  ⭐ ENGINE 58 — `null` (no `//@version=`), v1 and v2 draw the v3 table (409
+ *  captures, 0 contradictions; `pinePalette.js` header). `null` is passed through
+ *  as `null` and `pinePalette.paletteFor` reads it as v1, the one place that rule
+ *  lives. */
 const NO_PALETTE_SCOPE = Symbol('no palette scope')
 let PALETTE_VERSION = NO_PALETTE_SCOPE
 
-/** Open a palette scope; returns the previous one so a caller can restore it. */
-function beginPaletteScope(version) {
+/** Open a palette scope; returns the previous one so a caller can restore it.
+ *  ⭐ (finding 4, 2026-11-20) EXPORTED for the runtime lane's front end (`pineRuntimeFrontend.js::buildRuntimeIr`),
+ *  which reaches this file's colour helpers through the shared `Resolver` and opened no scope: every colour name it
+ *  resolved (`color.r(color.red)`) stopped as `runtime:lower`, an engine defect, never a value. */
+export function beginPaletteScope(version) {
   const prior = PALETTE_VERSION
   PALETTE_VERSION = Number.isFinite(version) ? version : null
   return prior
 }
 
-function endPaletteScope(prior) { PALETTE_VERSION = prior }
+export function endPaletteScope(prior) { PALETTE_VERSION = prior }
 
 function activePaletteVersion() {
   if (PALETTE_VERSION === NO_PALETTE_SCOPE) {
@@ -27077,6 +31575,12 @@ const PINE_PLOT_STYLES = Object.freeze({
   'plot.style_circles': 'markers',
 })
 
+/** The plot styles whose `na` bars are a BREAK, not a bridge (User Manual, `plot()`
+ *  `style`): `linebr` and `areabr`. `plot.style_steplinebr` is not mapped at all
+ *  (its na handling is stated nowhere beyond its name, presentation spec U8), so it
+ *  stays `styleUncarried`. */
+const PINE_BREAKING_STYLES = Object.freeze(new Set(['plot.style_linebr', 'plot.style_areabr']))
+
 // ⭐ BOTH SPELLINGS, ONE ANSWER. A bare `red` is only a colour when nothing in
 // the script has bound that name to something else — a member's own variable
 // called `green` must not silently become a colour. The bound-name check is the
@@ -27111,7 +31615,10 @@ function inputDefaultNode(node) {
 }
 
 const isColourName = (v) => !!v && v.type === 'name' && isPineColourSpelling(v.name)
-const colourHexOf = (v) => pineColourHex(v.name, activePaletteVersion())
+// ⭐⭐ (finding 4 x the version island, 2026-11-20) a colour name is resolved at the version of the code that WRITES
+// it: a v5 library's `color.red` inside a v6 script is v5's #FF5252 (`versionAt`; every other token reads the scope's,
+// the program's). The runtime lane reaches this through the shared `Resolver` since it opens the palette scope.
+const colourHexOf = (v) => pineColourHex(v.name, versionAt(v && v.tok, activePaletteVersion()))
 
 // ⛔⛔ A PARSE NODE IS `number`; A CANONICAL ENGINE NODE IS `num`. Two
 // vocabularies, one letter apart, and the wrong one fails SILENTLY — every
@@ -27247,6 +31754,31 @@ function constantColourSelector(node, env, ctx) {
  *  constant selectors folded (`constantColourSelector`) — bounded. Used to tell
  *  "the default's branch is `na`" (the absent colour) from "a colour this door
  *  cannot say". */
+/** ⭐⭐ ENGINE 58 (S11) — A `var` THE SCRIPT NEVER REASSIGNS: its seed `{node, env}`,
+ *  else null. Pine evaluates a `var`'s seed on the first bar and the name holds it from
+ *  then on, so a `var` nothing writes again (`update` is its own past, `selfref`) IS its
+ *  seed. ⛔ "Never reassigned" is the script-wide reassignment set (`mutated`: the
+ *  Resolver's, or the object lane's `mutableNames`), so a `c := …` ANYWHERE keeps it a
+ *  state. ⭐ ONE predicate for every lane: the object lane's C37 colour read, and the plot
+ *  and paint lanes' two readers of a static colour — its hue (`staticColourOf`) and its
+ *  transparency (`colourHelperTransparency`). The caller still asks whether the seed is ONE
+ *  colour whatever the bar — a seed that reads the bar is frozen at bar 0's answer in Pine,
+ *  which no per-bar colour is, so it stays withheld.
+ *  ⛔ NOT in `colourConditional` or `settledColourNode`: a seed that qualifies is ONE static
+ *  colour, which `colourConditional` answers null for and `settledColourNode`'s only reader
+ *  (the `na` test) cannot see (a static colour is never `na`) — a branch there changes no
+ *  answer, and two mutants (2026-11-15) proved it. Every carrier of a `var` colour reaches
+ *  `staticColourOf` (a flat colour, a rule's leaf, a `color.new` base). */
+function neverReassignedVarSeed(binding, name, mutated) {
+  if (!(binding && binding.kind === 'state' && binding.seed && binding.update && binding.update.type === 'selfref')) return null
+  if (!mutated || typeof mutated.has !== 'function' || mutated.has(name)) return null
+  return { node: binding.seed, env: binding.seedEnv || null }
+}
+
+/** The script-wide reassignment set a colour reader consults (`neverReassignedVarSeed`):
+ *  the walk's Resolver's. Absent (no resolver) ⇒ nothing is known never-reassigned. */
+const reassignedOf = (ctx) => (ctx && ctx.resolver && ctx.resolver.mutated) || null
+
 function settledColourNode(node, env, ctx) {
   let cur = node
   let e = env
@@ -27607,6 +32139,15 @@ function staticColourOf(node, env, depth = 0, ctx = null) {
     if (bound && bound.kind === 'expr') {
       return staticColourOf(bound.node, bound.env || env, depth + 1, ctx)
     }
+    // ⭐⭐ ENGINE 58 (S11) — A `var` NOTHING REASSIGNS, SEEDED WITH ONE COLOUR, IS THAT
+    // COLOUR (`neverReassignedVarSeed`, the C37 rule the object lane already follows).
+    // ⚰️ `var color c = color.new(color.green, 80)` read as "an expression this door
+    // cannot say": money-flow-index's `bgcolor` withheld on 666 bars, inside-bar-setup's
+    // `barcolor`s likewise, where TradingView paints the seed on every bar.
+    if (bound && bound.kind === 'state') {
+      const seed = neverReassignedVarSeed(bound, node.name, reassignedOf(ctx))
+      if (seed) return staticColourOf(seed.node, seed.env || env, depth + 1, ctx)
+    }
     // Bound to something this door cannot open (an opaque binding) — then a bare
     // colour spelling is the member's variable, not Pine's constant.
     if (bound && isBareColourSpelling(node.name)) return null
@@ -27740,18 +32281,48 @@ function colourInputNameOf(node, env, depth = 0, ctx = null) {
   return null
 }
 
+/** Is a colour branch the INPUT itself (through names), not `color.new(<input>, t)` or any other wrapper? */
+function colourBranchIsBareInput(node, env, depth = 0) {
+  if (!node || depth > 6) return false
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return !!(bound && bound.kind === 'expr') && colourBranchIsBareInput(bound.node, bound.env || env, depth + 1)
+  }
+  return node.type === 'call' && (node.name === 'input.color' || node.name === 'input')
+}
+
 /** For a fill's colour argument: which `input.color` each of its two colours
  *  (`colorUp` / `colorDown`) comes from, matched by the colour each branch folds
  *  to. Null where a branch reads no input, or the match is ambiguous. */
 function fillColourInputsOf(args, env, colorUp, colorDown, ctx = null) {
   const a = (args || []).find((x) => x && x.name === 'color')
     || (args || []).filter((x) => x && !x.name)[2]
-  const node = a && a.value
+  let node = a && a.value
+  // ⭐ SETTINGS PARITY (area colours, 2026-11-17) — a fill colour written through a NAME is that name's
+  // ternary: RS Rating writes `fillCol = rs > rsMA ? posCol : negCol` then `fill(…, color = fillCol)`, and its
+  // two area colours were never the member's knob
+  for (let d = 0; node && node.type === 'name' && d < 4; d += 1) {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (!bound || bound.kind !== 'expr') break
+    env = bound.env || env
+    node = bound.node
+  }
   if (!node || node.type !== 'ternary') return null
   const yesHex = staticColourOf(node.yes, env, 0, ctx)
   const noHex = staticColourOf(node.no, env, 0, ctx)
-  const yesIn = colourInputNameOf(node.yes, env, 0, ctx)
-  const noIn = colourInputNameOf(node.no, env, 0, ctx)
+  const withOwn = (branch, info) => {
+    if (!info) return info
+    // ⭐ OWN TRANSPARENCY: the branch IS the input (no `color.new(input, t)` around it), so the input's own
+    // default carries the band's alpha and a member's pick is the WHOLE colour, alpha included (TradingView
+    // set F: positive / negative area picked at 0.5 / 0.6 paint at 0.5 / 0.6, not the default's 0.25)
+    if (!colourBranchIsBareInput(branch, env)) return info
+    const t = colourHelperTransparency(branch, env, ctx)
+    const alpha = Number.isFinite(t) && t > 0 && t <= 100 ? Math.round((1 - t / 100) * 255) : null
+    return { ...info, own: true, ...(alpha !== null && /^#[0-9a-f]{6}$/i.test(info.hex)
+      ? { ownHex: `${info.hex.toUpperCase()}${alpha.toString(16).padStart(2, '0').toUpperCase()}` } : {}) }
+  }
+  const yesIn = withOwn(node.yes, colourInputNameOf(node.yes, env, 0, ctx))
+  const noIn = withOwn(node.no, colourInputNameOf(node.no, env, 0, ctx))
   const pick = (hex) => {
     const fromYes = yesHex && yesHex === hex ? yesIn : undefined
     const fromNo = noHex && noHex === hex ? noIn : undefined
@@ -27795,6 +32366,14 @@ function colourHelperTransparency(node, env, ctx, depth = 0) {
     const arm = openBoundArm(node, env)
     return arm ? colourHelperTransparency(arm.node, arm.env, ctx, depth + 1) : null
   }
+  // ⭐ ENGINE 58 (C4) — THE LEAVES, for a caller that asks what a colour PAINTS
+  // (`colourTransparencyOf`), not only what a helper WRITES: `#RRGGBBAA`'s last
+  // byte is OPACITY, and Pine's `color.t` answers the inverse.
+  if (ctx && ctx.paintLeaves && node.type === 'colour') {
+    ctx.paintLeaves.leaf = true
+    const m = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(String(node.value))
+    return m ? Math.round((1 - parseInt(m[1], 16) / 255) * 100) : 0
+  }
   // ⭐⭐ A NAME AND AN `input.color` DEFAULT ARE OPENED, exactly as
   // `staticColourOf` opens them — otherwise the two readers disagree about the
   // same colour. ⚰️ Measured on a live TradingView capture (cc-yata, 2026-09-27):
@@ -27809,8 +32388,19 @@ function colourHelperTransparency(node, env, ctx, depth = 0) {
       const v = a && a.value !== undefined ? a.value : a
       return colourHelperTransparency(v, ctx.inline.callerEnv || env, { ...ctx, inline: null }, depth + 1)
     }
-    return bound && bound.kind === 'expr'
-      ? colourHelperTransparency(bound.node, bound.env || env, ctx, depth + 1) : null
+    if (bound && bound.kind === 'expr') return colourHelperTransparency(bound.node, bound.env || env, ctx, depth + 1)
+    // ⭐ ENGINE 58 (S11) — a never-reassigned `var` is its seed, for its transparency as for
+    // its hue (`staticColourOf`): `var color c = color.new(color.green, 80)` paints at 80.
+    if (bound && bound.kind === 'state') {
+      const seed = neverReassignedVarSeed(bound, node.name, reassignedOf(ctx))
+      if (seed) return colourHelperTransparency(seed.node, seed.env || env, ctx, depth + 1)
+    }
+    // ⭐ ENGINE 58 (C4) — a bare Pine colour name (`color.teal`, v3/v4 `teal`) paints OPAQUE.
+    if (!bound && ctx && ctx.paintLeaves && isColourName(node)) {
+      ctx.paintLeaves.leaf = true
+      return 0
+    }
+    return null
   }
   // ⭐ 2026-09-28 (ruling 1) — the same door `staticColourOf` opens, so a
   // constant-selected branch keeps its own transparency.
@@ -27894,40 +32484,27 @@ function colourTransparencyOf(node, env, depth = 0, exact = false) {
   // ⛔ THE GATE: no static colour, no static transparency. Same question, one
   // authority, so the two answers cannot disagree about what counts as a colour.
   if (staticColourOf(node, env, depth) === null) return null
-
-  if (node.type === 'name') {
-    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
-    if (bound && bound.kind === 'expr') {
-      return colourTransparencyOf(bound.node, bound.env || env, depth + 1, exact)
-    }
-    // A bare Pine colour name (`color.teal`, or v3/v4 `teal`) is OPAQUE.
-    return 0
-  }
-  if (node.type === 'colour') {
-    // ⭐ `#RRGGBBAA`'s last byte is OPACITY, not transparency — Pine's `color.t`
-    // answers the inverse, so the conversion belongs here rather than at a call
-    // site that would have to remember which way round it goes.
-    const v = String(node.value)
-    const m = /^#[0-9a-f]{6}([0-9a-f]{2})$/i.exec(v)
-    if (m) return Math.round((1 - parseInt(m[1], 16) / 255) * 100)
-    return 0
-  }
-  if (node.type === 'call' && node.name === 'input.color') {
-    // ⚠️ THE DISCLOSURE RIDES HERE: this reads the input's DEFAULT. A member who
-    // moves the colour picker's alpha still gets the default rendering, and for
-    // Uncharted Clouds that governs the entire cloud opacity.
-    return colourTransparencyOf(inputColourDefaultNode(node), env, depth + 1, exact)
-  }
-  if (node.type === 'call' && (node.name === 'color.new' || node.name === 'color.rgb')) {
-    const opacity = colourHelperAlpha(node, env, null)
-    // ⭐ C29 — what `color.t` ANSWERS is a WHOLE transparency, truncated
-    // (`color.t(color.new(c, 70.5))` reads 70, measured). The paint keeps the
-    // exact float (`colourHelperAlpha`); this is the read-back, so it truncates.
-    // `exact`: what the colour PAINTS (an object's own `#RRGGBBAA`), never truncated.
-    if (opacity === null) return null
-    return exact ? (1 - opacity) * 100 : wholeTransparency((1 - opacity) * 100)
-  }
-  return null
+  // ⭐⭐ ENGINE 58 (C4) — ONE READER OF A COLOUR'S TRANSPARENCY, the plot lane's
+  // (`colourHelperTransparency`), asked with its LEAVES on (`paintLeaves`: a bare
+  // colour name is 0, a `#RRGGBBAA` literal its own byte). ⚰️ This function was a
+  // second walk of the same question and lacked the generic `input(<colour>)` the
+  // plot lane opens: `z = input(color.new(#ff5d00, 50), '')` then `box.new(…,
+  // bgcolor = z)` painted `#ff5d00` OPAQUE where TradingView paints `#ff5d0080`
+  // (ict-ifvg; 15 of 679 scripts in the class). One walk now: bindings, a
+  // constant-selected branch, `input.color` / `input(…)` defaults, a colour helper,
+  // `color.new` / `color.rgb`'s transparency, and the two leaves.
+  const probe = { leaf: false }
+  const raw = colourHelperTransparency(node, env, { paintLeaves: probe }, depth)
+  if (raw === null || !Number.isFinite(raw)) return null
+  // A leaf's answer is already the whole number Pine reads back (a literal's byte,
+  // rounded; a name's 0), and it is what an object paints, so it is kept as is.
+  if (probe.leaf) return raw
+  // ⭐ C29 — what `color.t` ANSWERS is a WHOLE transparency, truncated
+  // (`color.t(color.new(c, 70.5))` reads 70, measured). The paint keeps the
+  // exact float (`colourHelperAlpha`); this is the read-back, so it truncates.
+  // `exact`: what the colour PAINTS (an object's own `#RRGGBBAA`), never truncated.
+  const opacity = opacityOfTransparency(raw)
+  return exact ? (1 - opacity) * 100 : wholeTransparency((1 - opacity) * 100)
 }
 
 /** ⭐⭐ THE COLOUR A DRAWING OBJECT PAINTS: `staticColourOf`'s hex WITH its
@@ -27966,6 +32543,27 @@ function staticObjectColourOf(node, env) {
   if (own && t === Math.round((1 - parseInt(own[1], 16) / 255) * 100)) return hex
   // ⭐ C20 — the one formula, shared with the object runtime's `{c:'new'}`.
   return withObjectTransparency(base[0], t)
+}
+
+/** ⭐⭐ ENGINE 58 (review item 7) — DOES AN ALPHA EXPRESSION READ A SETTING? True when
+ *  `node` (or a name it is bound to, through the walk's own env) reaches an `input` /
+ *  `input.*` call. ⛔ Such an alpha FOLDS to the input's DEFAULT (`alphaNumberOf`), and a
+ *  folded presentation mints no parameter (R36), so the member's own value would never
+ *  reach it: the colour is withheld by name instead of drawn at a default the member
+ *  cannot change. A literal, `color.t` of a static colour and arithmetic on literals read
+ *  no setting. */
+function alphaReadsInput(node, env, depth = 0) {
+  if (!node || typeof node !== 'object' || depth > 16) return false
+  if (Array.isArray(node)) return node.some((n) => alphaReadsInput(n, env, depth + 1))
+  if (node.type === 'call' && typeof node.name === 'string' && (node.name === 'input' || node.name.startsWith('input.'))) return true
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    return !!(bound && bound.kind === 'expr' && alphaReadsInput(bound.node, bound.env || env, depth + 1))
+  }
+  for (const [k, v] of Object.entries(node)) {
+    if (k !== 'type' && v && typeof v === 'object' && alphaReadsInput(v, env, depth + 1)) return true
+  }
+  return false
 }
 
 /** The NUMBER an alpha slot holds: a literal, or `color.t` of a static colour.
@@ -28311,8 +32909,108 @@ function securityColourRule(node, env, depth, ctx) {
   return inner
 }
 
+/** ⭐⭐ ENGINE 58 — `color.new(<a colour rule>, T)` WITH `T` FIXED BEFORE BAR 0 IS
+ *  THE RULE, EVERY LEAF AT TRANSPARENCY `T`. Pine's `color.new` SETS a colour's
+ *  transparency (it never stacks onto the base's), so each leaf the rule picks is
+ *  painted at `1 − T/100`, whatever alpha the leaf carried; an `na` leaf stays the
+ *  absent colour. ⚰️ The walker followed a name and a helper to a conditional but
+ *  stopped at `color.new`, so the plot drew in the pane's gold — measured on
+ *  `uptrick-volatility-weighted-cloud` (`color.new(barCol, 0)`) and
+ *  `volume-weighted-bands` (`color.new(trendCol, 60)`: TradingView `#5cf0d766`).
+ *  `T` is read by the one alpha reader (`alphaNumberOf`): a literal, an input's
+ *  default, arithmetic on them. Returns `undefined` for a call that is not
+ *  `color.new` (the caller goes on), else the rule or null. Never mints (R36). */
+function colourNewOverRule(node, env, depth, ctx) {
+  if (node.name !== 'color.new') return undefined
+  const args = node.args || []
+  const positional = args.filter((a) => a && !a.name)
+  const base = ((args.find((a) => a && a.name === 'color')) || positional[0] || {}).value
+  const tNode = ((args.find((a) => a && a.name === 'transp')) || positional[1] || {}).value
+  if (base === undefined || tNode === undefined) return null
+  // ⛔ (review item 7) a `T` read from a setting would be baked at its default: not carried.
+  if (alphaReadsInput(tNode, env)) return null
+  const t = alphaNumberOf(tNode, env, ctx)
+  if (t === null || !Number.isFinite(t)) return null
+  // ⛔ On the legacy pass, a colour whose constant selectors fold (owner ruling 1:
+  // `color.new(thA, 0)` over an `input.string` theme chain) is left to the folding
+  // pass, which reads it as the one colour (or rule) the default takes — so every
+  // colour that pass already carried keeps its shape.
+  if (!(ctx && ctx.foldSelectors) && ctx && ctx.resolver && env) {
+    const probe = { ...ctx, foldSelectors: { n: 0 } }
+    let folds = false
+    try { folds = !!staticColourOf(node, env, 0, probe) || probe.foldSelectors.n > 0 } catch { folds = false }
+    if (folds) return null
+  }
+  const inner = colourConditional(base, env, depth + 1, ctx)
+  if (!inner || (!inner.indexTree && !inner.test)) return null
+  const alpha = opacityOfTransparency(t)
+  const plain = (h) => (typeof h === 'string' && /^#[0-9a-f]{8}$/i.test(h) ? h.slice(0, 7) : h)
+  const out = { ...inner, opacity: alpha >= 1 ? null : alpha, withholdMint: true }
+  if (inner.test) {
+    out.up = plain(inner.up)
+    out.down = plain(inner.down)
+  }
+  if (Array.isArray(inner.palette)) out.palette = inner.palette.map((e) => (e === TRANSPARENT_PALETTE_ENTRY ? e : plain(e)))
+  return out
+}
+
+/** ⭐⭐ LEGACY SEMANTICS (B4, 2026-11-15) — TWO SPELLINGS OF A COLOUR CHAIN THE READER DID NOT OPEN,
+ *  as the ternary chain each IS, or null (the node is neither; the caller keeps its own path):
+ *    - `iff(cond, a, b)` (v1-v4, not a script's own `iff`): Pine's `cond ? a : b`, the arms opened the
+ *      same way so `iff(c1, iff(c2, lime, green), red)` is a three-leaf chain. squeeze-momentum
+ *      (LazyBear, no pragma) colours its histogram so; TradingView's palette is the four leaves in
+ *      order (`study.palettes`, the per-bar colorer index).
+ *    - a name bound to a SUBJECT-LESS `switch` whose arms are one expression each: the first arm whose
+ *      condition holds, the bare `=>` arm otherwise, `na` with none — `subjectlessSwitchNode`'s chain
+ *      (an `na` condition is false: `nz` around anything that is not a comparison). bbtrend (v6) colours
+ *      its columns so, four `color.new` names.
+ *  ⚰️ Master folded neither and drew the pane's gold; engine 58 withheld both (`pine:colour-unread`).
+ *  The chain is resolved in the env the colour was written in (the switch binding's own). */
+const containsIff = (n, d = 0) => !!n && d < 9 && ((n.type === 'call' && n.name === 'iff')
+  || (n.type === 'ternary' && (containsIff(n.yes, d + 1) || containsIff(n.no, d + 1))))
+
+function colourChainOf(node, env, depth = 0) {
+  if (!node || depth > 8) return null
+  if (node.type === 'call' && node.name === 'iff' && Array.isArray(node.args) && node.args.length === 3
+      && node.args.every((a) => a && !a.name)) {
+    let version = null
+    try { version = activePaletteVersion() } catch { version = null }
+    if (version !== null && version >= 5) return null
+    const own = env && typeof env.get === 'function' ? env.get('iff') : null
+    if (own) return null
+    // the arms stay as written: a nested `iff` in one is opened by the ternary step below, on the next
+    // pass through `colourConditional` (`containsIff`)
+    return { node: { type: 'ternary', test: node.args[0].value, yes: node.args[1].value, no: node.args[2].value, tok: node.tok }, env }
+  }
+  if (node.type === 'ternary') {
+    const yes = colourChainOf(node.yes, env, depth + 1)
+    const no = colourChainOf(node.no, env, depth + 1)
+    if (!yes && !no) return null
+    return { node: { ...node, yes: yes ? yes.node : node.yes, no: no ? no.node : node.no }, env }
+  }
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr' && bound.node && bound.node.type === 'call' && bound.node.name === 'iff') {
+      return colourChainOf(bound.node, bound.env || env, depth + 1)
+    }
+    // a subject-less `name = switch`: the chain the declaration hung for this reader
+    if (bound && bound.colourSwitch && bound.colourSwitch.node) {
+      const inner = colourChainOf(bound.colourSwitch.node, bound.colourSwitch.env, depth + 1)
+      return inner || { node: bound.colourSwitch.node, env: bound.colourSwitch.env }
+    }
+    return null
+  }
+  return null
+}
+
 function colourConditional(node, env, depth = 0, ctx = null) {
   if (!node || depth > 8) return null
+  // ⭐⭐ B4 — `iff` and a subject-less `switch`: the ternary chain each is (`colourChainOf`).
+  if ((node.type === 'call' && node.name === 'iff') || node.type === 'name'
+      || (node.type === 'ternary' && containsIff(node))) {
+    const chain = colourChainOf(node, env)
+    if (chain) return colourConditional(chain.node, chain.env, depth + 1, ctx)
+  }
   if (node.type === 'bound') {
     const arm = openBoundArm(node, env)
     return arm ? colourConditional(arm.node, arm.env, depth + 1, ctx) : null
@@ -28350,6 +33048,8 @@ function colourConditional(node, env, depth = 0, ctx = null) {
     if (ctx && ctx.inline) return null
     const requested = securityColourRule(node, env, depth, ctx)
     if (requested !== undefined) return requested
+    const setAlpha = colourNewOverRule(node, env, depth, ctx)
+    if (setAlpha !== undefined) return setAlpha
     const helper = openColourHelper(node, env, ctx)
     if (!helper) return null
     const inner = colourConditional(helper.node, helper.env, depth + 1, { ...ctx, inline: helper.inline })
@@ -28608,9 +33308,9 @@ function colourGradientRule(node, env, ctx, depth = 0) {
  *  (fvg-trend) and v5 (btc-charlie), static / two-colour / chain / `na`-gated /
  *  palette-less colours on both calls. NOT WITNESSED, so withheld by name with
  *  `tools/visual_conformance/probes/vw-bgcolor-barcolor.pine` queued: a non-zero
- *  or `na` `offset`, `show_last`, any other `display`, `overlay` / `force_overlay`,
- *  and a v3/v4 `bgcolor` with no `transp` (its documented default of 90 has no
- *  capture).
+ *  or `na` `offset`, `show_last`, any other `display`, `overlay` / `force_overlay`.
+ *  (A v1-v4 `bgcolor` with no `transp` takes 90: v4 by CAP round 4, v1-v3 and
+ *  unannotated by the S1 probes `vw-cs1-transp-v{1,2,3}`, engine 58.)
  *
  *  ⛔ NOTHING MINTS. Every rule resolves with the resolver's `paramMint` held at
  *  null (R36): a paint added to a script must not create a parameter and renumber
@@ -28642,6 +33342,85 @@ export function isLegacyPineVersion(version) {
  *  `f2-fill-v4`: `filledAreasStyle.transparency` 90, painted alpha byte 26). */
 const V4_FILL_DEFAULT_TRANSP = 90
 
+/** ⭐⭐ ENGINE 58 — IS THIS A v1-v3 SCRIPT (or one with no `//@version`)? The ONE
+ *  predicate the legacy PLOT default reads (`legacyPlotDefault`). A missing version is
+ *  v1 (TradingView compiles it so), never "modern". */
+export function isPreV4PineVersion(version) {
+  // ⛔ STRICT (engine 58 review): `null` is a real answer (no `//@version`, v1);
+  // `undefined` is a FORGOTTEN one, and a forgotten version must not quietly read as
+  // v1 and take the legacy defaults. Same contract as `colourHexByName`.
+  if (version === undefined) throw new Error("isPreV4PineVersion needs the script's Pine version (null when it declares none)")
+  if (version === null) return true
+  if (!Number.isInteger(version)) throw new Error(`isPreV4PineVersion: ${JSON.stringify(version)} is not a Pine version`)
+  return version <= 3
+}
+
+/** ⭐⭐ ENGINE 58 — THE TRANSPARENCY A v1-v3 `plot` / `plotshape` / `plotchar`
+ *  TAKES WITH NO `transp`: 35 (`styleState.transparency` 35, alpha byte `a6`).
+ *  Derived from 409 TradingView captures of v1/v2/v3/unannotated scripts
+ *  (sessions S2-S6, licence-held, verdicts in the evidence ledger), 0
+ *  contradictions, on every colour form: a named colour, a per-bar (colorer)
+ *  colour and no colour at all (the `#2962FF` default), over the styles line,
+ *  linebr, histogram, area, circles, cross, shapes and chars; and PROBED (session
+ *  S1, `tests/fixtures/vendor/transparency-defaults-by-version-rddt-1d-2026-11-14.json`,
+ *  probes `vw-cs1-transp-v{1,2,3}`): line, `columns` and `stepline` 35, `plotarrow`
+ *  35, `bgcolor` 90, `fill` 90 (plot-plot and hline-hline), `hline` no
+ *  transparency at all (opaque). An explicit `transp = N` draws N exactly (a v2
+ *  Bollinger band's `transp = 0`: `#008080ff`); `barcolor` draws 0; v4+ plots draw
+ *  0 (unchanged).
+ *  ⭐ AND IT IS A STYLE TRANSPARENCY, FOLDED INTO AN OPAQUE COLOUR ONLY (the
+ *  vendor's own rule, `compare.mjs::withStyleTransparency`): a colour that carries
+ *  its own alpha keeps it. Witnessed at v3 by the S4 capture
+ *  `accumulationdistribution-volume-adv-ci8dh` (`color = adr >= 0 ? #65D25B66 :
+ *  #FE6B6966`, styleState transparency 35, drawn at `66`).
+ *  ⛔ NOT WITNESSED, so withheld by name (`COLOUR_DEFAULT_UNWITNESSED`): a gradient
+ *  (a v5+ form in any case). */
+export const LEGACY_PLOT_DEFAULT_TRANSP = 35
+
+/** ⭐⭐ ENGINE 58 (review item 4, coordinator ruling) — A SCRIPT WITH NO `//@version`
+ *  THAT USES v4+ SYNTAX. TradingView compiles a script with no pragma as v1, and v1 has
+ *  no namespaced built-ins (`ta.*`, `color.red`, `input.int`), no `indicator()` and no
+ *  `var`: such a script does NOT compile there. This door does not guess which version
+ *  the author meant — it refuses BY NAME and asks for the header (`NO_VERSION_GUARD`).
+ *  The forms are the ones no v1-v3 script can write: a member of a namespace that v4
+ *  introduced, `plot.style_*` / `hline.style_*`, `indicator(` / `library(`, a `var` /
+ *  `varip` declaration. ⛔ Read over the source with comments and strings blanked
+ *  (`strippedForScan`), so `// ta.ema` or `"color.red"` is not syntax. Returns the
+ *  first form found (for the sentence), or null. */
+export const NO_VERSION_GUARD = 'pine:version-missing'
+// ⛔ NO LOOKBEHIND (the declared floor is iOS 16; Safari before 16.4 throws on `(?<!` when the
+// chunk is PARSED, `src/noRegexLookbehind.test.js`). "Not preceded by a word character or a dot"
+// is written as a consumed prefix, `(?:^|[^\w.])`, and the form itself is capture group 1.
+const MODERN_PINE_FORMS = Object.freeze([
+  /(?:^|[^\w.])((?:ta|math|str|request|array|matrix|map|input|color|chart|timeframe|ticker|runtime|log|polyline|box|table|label|line|linefill)\.[A-Za-z_]\w*)/,
+  /(?:^|[^\w.])((?:plot|hline)\.style_\w+)/,
+  /(?:^|[^\w.])((?:indicator|library)\s*\()/,
+  /(?:^|\n)[ \t]*((?:var|varip)[ \t]+[A-Za-z_])/,
+])
+export function modernPineSyntaxIn(source) {
+  if (typeof source !== 'string' || !source) return null
+  const text = strippedForScan(source)
+  for (const re of MODERN_PINE_FORMS) {
+    const m = re.exec(text)
+    if (m) return m[1].trim()
+  }
+  return null
+}
+export const noVersionSentence = (form) => 'This script has no `//@version` header but uses newer Pine syntax'
+  + (form ? ` (\`${form}\`)` : '') + '; add the header TradingView expects (e.g. `//@version=5`).'
+const LEGACY_DEFAULT_KINDS = Object.freeze(new Set(['plot', 'plotshape', 'plotchar']))
+/** ⭐ ENGINE 58 — the outputs a theme reference (`chart.fg_color@85`) is carried on: a
+ *  plot and (S11) the two marker calls, whose glyph wears it as the plot's line does. */
+const THEME_COLOUR_KINDS = Object.freeze(new Set(['plot', 'plotshape', 'plotchar']))
+
+/** ⭐⭐ ENGINE 58 — THE TWO NAMES A PLOT'S COLOUR IS WITHHELD UNDER (never drawn in
+ *  a stand-in colour; `memberPaneDefinition` draws such a row in no colour and
+ *  says why). `pine:colour-unread`: the author wrote a colour (or a `transp`) this
+ *  door cannot read. `pine:colour-default-unwitnessed`: the colour is read, and
+ *  the transparency TradingView puts on it by default has no capture. */
+export const COLOUR_UNREAD = 'pine:colour-unread'
+export const COLOUR_DEFAULT_UNWITNESSED = 'pine:colour-default-unwitnessed'
+
 /** ⭐⭐ A STYLE TRANSPARENCY (`transp =`, a v4 default) → the opacity whose exact
  *  byte TradingView paints: `round((100 − t) × 255 / 100)`, half-up. Stored as the
  *  decimal `(100 − t) / 100`, which `designTokens.withAlphaByte` rounds to exactly
@@ -28672,15 +33451,69 @@ function plainColourExpr(n, depth = 0) {
   if (!n || depth > 32) return false
   if (n.type === 'colour') return true
   if (isNaColourLeaf(n)) return true
-  if (n.type === 'name') return /^color\.[a-z_]+$/.test(String(n.name))
+  // ⭐ ENGINE 58 — and a v1-v3 bare name (`lime`), the spelling those versions use
+  // (S1 `vw-cs1-transp-v{1,2,3}`: `bgcolor(close > open ? lime : maroon)` reads 90).
+  if (n.type === 'name') return /^color\.[a-z_]+$/.test(String(n.name)) || isBareColourSpelling(n.name)
   if (n.type === 'ternary') return plainColourExpr(n.yes, depth + 1) && plainColourExpr(n.no, depth + 1)
   return false
+}
+
+/** ⭐⭐ DIV-4 — the non-enumerable key a withheld `barcolor` record carries its
+ *  colour under for the runtime lane: `{line, column, node}` (`resolvePaint`). */
+export const PAINT_RUNTIME_COLOUR = Symbol.for('uct.pine.paintRuntimeColour')
+
+/** A parse node copied for a runtime `objectTreesAt` spec: tokens reduced to their
+ *  position and text, functions dropped — the shape the object pass hands over
+ *  (`buildObjectProgram`'s `rtSanitize`). */
+function runtimeSpecNode(n, depth = 0) {
+  if (n === null || typeof n !== 'object') return n
+  if (depth > 200) throw new Error('a colour nests deeper than a document carries')
+  if (Array.isArray(n)) return n.map((x) => runtimeSpecNode(x, depth + 1))
+  const out = {}
+  for (const [k, v] of Object.entries(n)) {
+    if (k === 'tok') {
+      if (v && typeof v === 'object') out.tok = { kind: v.kind, value: v.value, line: v.line, column: v.column }
+      continue
+    }
+    if (typeof v === 'function' || v === undefined) continue
+    out[k] = runtimeSpecNode(v, depth + 1)
+  }
+  return out
+}
+
+/** ⭐ DIV-4 — a paint's non-literal `offset` folded to the whole number Pine
+ *  shifts by, or null. The ONE fold a plot's `offset` uses (`foldDisplacement`):
+ *  the resolver, then `constantValueOf` (a declared input folds to its default,
+ *  which is the member's value when one overrode it). Resolved with no mint, and
+ *  every input it reads is recorded displacement-bound, so it is never also a
+ *  knob that would move nothing (`resolvePaints` stamps it on `_colourInputs`). */
+function paintFoldedOffset(node, ctx) {
+  const r = ctx && ctx.resolver
+  if (!r || !node || isNaColourLeaf(node)) return null
+  const minted = r.paramMint
+  r.paramMint = null
+  let folded
+  try {
+    folded = r.resolve(node)
+  } catch {
+    return null
+  } finally {
+    r.paramMint = minted
+  }
+  const v = constantValueOf(folded)
+  if (v === null || !Number.isInteger(v)) return null
+  for (const n of declaredInputNames(folded)) r.displacementBoundInputs.add(n)
+  return v
 }
 
 function resolvePaint(p, ctx) {
   const at = locate(p.tok)
   const rec = { kind: p.kind, line: at ? at.line : null }
   const withhold = (code, why) => ({ ...rec, withheld: { code, reason: why } })
+  // ⛔ W9-OQ-N2 — a paint a broker value reaches is withheld BY NAME, before anything is read.
+  if (p.strategyWord) {
+    return withhold('pine:strategy-call', `${REFUSALS['pine:strategy-call']} — \`${p.strategyWord}\``)
+  }
   if (!Array.isArray(p.args)) return withhold('paint:arguments', `\`${p.kind}(…)\`'s arguments could not be read`)
   const legacy = isLegacyPineVersion(ctx.version)
   const sig = (legacy ? PAINT_SIGNATURES.legacy : PAINT_SIGNATURES.modern)[p.kind]
@@ -28721,14 +33554,31 @@ function resolvePaint(p, ctx) {
   // na` (O4, overridden on every bar by a later `barcolor`, so the screenshot shows
   // nothing of it) or a computed one stays withheld by name.
   if (named.has('show_last')) {
-    const sl = paintIntLiteral(named.get('show_last'))
-    if (sl === null || sl < 0) return withhold('paint:show-last', `a \`show_last\` that is not a whole-number literal on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
+    // ⭐⭐ ENGINE 58 (S11) — `show_last` is an `input int` fixed before bar 0, folded as
+    // `offset` is (`paintFoldedOffset`: an input at its default, arithmetic on literals
+    // and inputs; every input it reads is recorded displacement-bound, never a knob that
+    // moves nothing). ⚰️ Only a literal was read: LRC-DGT's `show_last = len` (600) and
+    // dual-supertrend's (377) withheld the paint, where TradingView draws exactly that many.
+    const sl = paintIntLiteral(named.get('show_last')) ?? paintFoldedOffset(named.get('show_last'), ctx)
+    if (sl === null || sl < 0) return withhold('paint:show-last', `a \`show_last\` that does not fold to a whole number on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
     rec.showLast = sl
   }
   if (named.has('offset')) {
-    const off = paintIntLiteral(named.get('offset'))
+    const node = named.get('offset')
+    // ⭐ DIV-4 — `offset` is a `simple int` (Pine v5/v6 reference, `barcolor` /
+    // `bgcolor`: "offset (simple int) Shifts the color series to the left or to the
+    // right on the given number of bars. Default is 0."). A simple value is fixed
+    // before bar 0, so an offset that FOLDS to a whole number (an input at its
+    // default, arithmetic on literals and inputs) is the number Pine shifts by;
+    // `paintFoldedOffset` folds it as a plot's `offset` is folded
+    // (`foldDisplacement`). ⛔ `na`, and anything that reads a bar, stay withheld.
+    const off = paintIntLiteral(node) ?? paintFoldedOffset(node, ctx)
     if (off === null) {
-      return withhold('paint:offset', `an \`offset\` that is not a whole-number literal on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
+      if (isNaColourLeaf(node)) {
+        return withhold('paint:offset', `\`offset = na\` on \`${p.kind}\`: where TradingView draws such a paint is not captured `
+          + `(O4 of ${PAINT_PROBE} is painted over on every bar by a later \`barcolor\`)`)
+      }
+      return withhold('paint:offset', `an \`offset\` that does not fold to a whole number on \`${p.kind}\` has no capture (${PAINT_PROBE})`)
     }
     if (off !== 0) rec.offset = off
   }
@@ -28742,6 +33592,8 @@ function resolvePaint(p, ctx) {
   // joined by `?:`): a colour with its own alpha (`color.new`) under the default is
   // not witnessed, and stays withheld by name.
   const v4DefaultTransp = legacy && p.kind === 'bgcolor' && !named.has('transp') && !isNaColourLeaf(colour)
+  // ⭐ ENGINE 58 — the 90 holds at v1-v3 and unannotated too (S1 probes
+  // `vw-cs1-transp-v{1,2,3}`, `tests/fixtures/vendor/transparency-defaults-by-version-rddt-1d-2026-11-14.json`: `bgcolor` transparency 90).
   if (v4DefaultTransp && !plainColourExpr(colour)) {
     return withhold('paint:v4-default-transp',
       `a v${ctx.version} \`bgcolor\` with no \`transp\` over a colour with its own alpha has no capture (${PAINT_PROBE})`)
@@ -28762,7 +33614,23 @@ function resolvePaint(p, ctx) {
   }
   const carried = typeof pres.color === 'string' || !!pres.colorCondition || !!pres.colorIndex || !!pres.colorGradient
   if (!carried || pres.colorDynamic) {
-    return withhold('paint:colour', `\`${p.kind}\`'s colour is an expression this door cannot carry yet`)
+    const out = withhold('paint:colour', `\`${p.kind}\`'s colour is an expression this door cannot carry yet`)
+    // ⭐⭐ DIV-4 — WHERE THE PER-BAR RUN CAN READ IT: the colour's parse node and the
+    // statement it stands at, for a door that reads the colour from the runtime lane
+    // (`memberPaneDefinition::runtimeReadPaints`). NON-ENUMERABLE, so the translation
+    // every other reader sees (and serialises) is byte-identical; the record stays
+    // WITHHELD here, and only a door that can read it exactly lifts it.
+    // ⛔ `barcolor` only: it has no style transparency, so the run's packed colour is
+    // the whole answer. A `bgcolor`'s `transp` / v4 default is not read from a run here.
+    if (p.kind === 'barcolor' && p.tok && Number.isInteger(p.tok.line) && Number.isInteger(p.tok.column)) {
+      try {
+        Object.defineProperty(out, PAINT_RUNTIME_COLOUR, {
+          value: Object.freeze({ line: p.tok.line, column: p.tok.column, node: runtimeSpecNode(colour) }),
+          enumerable: false,
+        })
+      } catch { /* a node too deep to copy stays withheld */ }
+    }
+    return out
   }
   // `na` (and a colour whose default settles on `na`) arrives as TradingView's
   // `rgba(0,0,0,0)`: for a paint that is NO paint — no shading, the candle's own
@@ -28802,9 +33670,94 @@ function resolvePaint(p, ctx) {
   return rec
 }
 
+/** ⭐ C48 — the guard tree of each block gate a resolver noted (`noteBlockRun`),
+ *  resolved for its tree alone: nothing minted, no condition observed. A guard this
+ *  engine cannot read throws the gate's own refusal. One reader for the output loop,
+ *  the paints and the fills (G-h). */
+function blockGateGuardsOf(resolver, runs) {
+  const out = []
+  if (!runs.length) return out
+  const minted = resolver.paramMint
+  const observer = resolver.onCondition
+  resolver.paramMint = null
+  resolver.onCondition = null
+  resolver.mintOnly += 1
+  try {
+    for (const g of runs) {
+      const node = blockGuardNode(g.chain)
+      let guard
+      try { guard = resolver.condition(resolver.resolve(node), 'ternary', node.tok) } catch { throw g.err }
+      out.push({ why: g.why, guard })
+    }
+  } finally {
+    resolver.mintOnly -= 1
+    resolver.paramMint = minted
+    resolver.onCondition = observer
+  }
+  return out
+}
+
+/** ⭐⭐ G-h — A PAINT'S OR A FILL'S COLOUR HONOURS C48's BLOCK GATES, as a plot's
+ *  colour does (F2). Read with `condGate` on, the colour notes each block whose call
+ *  it reads off the every-bar number (`condCall`, a `var` filled in a block that
+ *  skips: `stateRuns`); those gates ride the colour's own rules
+ *  (`COLOUR_BLOCK_RUNS`, read by `colourBlockRunsOf`), so the bind withholds that
+ *  colour's condition column where the block runs after a bar it skipped — and a
+ *  withheld paint or fill colour draws NOTHING (`binder.pointColour` /
+ *  `fillColours`): the paint itself is withheld there, never painted off the
+ *  every-bar value. ⚰️ They resolved with `condGate` off, so
+ *  `bgcolor(close > s ? color.red : na)` with `s` filled from a `ta.*` call in a
+ *  block that skips painted from the every-bar `s`, with no note.
+ *  Returns `{value, gates}` to hang on the rules, or `{value, refusal}` where a block
+ *  mark has no guard to carry — the caller withholds the paint by name. */
+function holderColourGates(resolver, read) {
+  const before = resolver.blockRuns.length
+  const heldRefusal = resolver.condRefusal
+  resolver.condRefusal = null
+  const prev = resolver.condGate
+  resolver.condGate = true
+  let value
+  let runs
+  let refusal = null
+  try {
+    value = read()
+  } finally {
+    resolver.condGate = prev
+    runs = resolver.blockRuns.splice(before)
+    refusal = resolver.condRefusal
+    resolver.condRefusal = heldRefusal
+  }
+  if (refusal) return { value, refusal }
+  let gates = []
+  try { gates = blockGateGuardsOf(resolver, runs) } catch (err) { return { value, refusal: err } }
+  return { value, gates }
+}
+
+function hangColourGates(holder, gates) {
+  const rules = COLOUR_RULE_KEYS.map((k) => holder && holder[k]).filter((r) => r && typeof r === 'object')
+  for (const rule of rules) {
+    const had = Array.isArray(rule[COLOUR_BLOCK_RUNS]) ? rule[COLOUR_BLOCK_RUNS] : []
+    Object.defineProperty(rule, COLOUR_BLOCK_RUNS, { value: [...had, ...gates], enumerable: false, configurable: true })
+  }
+}
+
 function resolvePaints(paints, ctx) {
   const out = paints.map((p) => {
-    try { return resolvePaint(p, ctx) } catch (err) {
+    try {
+      const r = ctx && ctx.resolver
+      if (!r || !ctx.hostLane || !Array.isArray(r.blockRuns)) return resolvePaint(p, ctx)
+      // ⭐⭐ G-h — the paint's colour, read with C48's block gates on (`holderColourGates`)
+      const { value: rec, gates, refusal } = holderColourGates(r, () => resolvePaint(p, ctx))
+      if (rec && rec.withheld) return rec
+      // a gate with no rule to hang on is a colour the translation already folded to
+      // ONE value on every bar (or `na`): no bar can read the block differently
+      if (refusal) {
+        return { kind: p.kind, line: rec ? rec.line : null,
+          withheld: { code: 'pine:block', reason: String((refusal && refusal.message) || refusal) } }
+      }
+      if (gates.length) hangColourGates(rec, gates)
+      return rec
+    } catch (err) {
       const at = locate(p.tok)
       return { kind: p.kind, line: at ? at.line : null,
         withheld: { code: 'paint:arguments', reason: String((err && err.message) || err) } }
@@ -28814,7 +33767,8 @@ function resolvePaints(paints, ctx) {
   const r = ctx && ctx.resolver
   if (r && r.usedInputs && r.usedInputs.size) {
     const stamped = [...r.usedInputs.values()]
-      .map((e) => (e.name && r.windowBoundInputs.has(e.name) ? { ...e, windowBound: true } : e))
+      .map((e) => (e.name && (r.windowBoundInputs.has(e.name) || r.displacementBoundInputs.has(e.name))
+        ? { ...e, windowBound: true } : e))
     Object.defineProperty(out, '_colourInputs', { value: stamped, enumerable: false })
   }
   return out
@@ -28831,17 +33785,38 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
     if (ai === undefined || bi === undefined || ai === bi) continue
     if (!resolved[ai] || resolved[ai].refusal || !resolved[bi] || resolved[bi].refusal) continue
     let pres = {}
+    let fillGates = null
     try {
       // ⛔ FAIL-SOFT, as the collector's own `catch` always was: a colour this
       // grammar cannot read must not cost the member the BAND. The edges are the
       // indicator; the colour is the annotation.
-      pres = outputPresentation(f.args || [], {
+      const readPres = () => outputPresentation(f.args || [], {
         env: f.env || (ctx && ctx.env),
         resolver: ctx && ctx.resolver,
         kind: 'fill',
         version: ctx && ctx.version,
       }) || {}
+      const r = ctx && ctx.resolver
+      if (r && ctx.hostLane && Array.isArray(r.blockRuns)) {
+        // ⭐⭐ G-h — the fill's colour, read with C48's block gates on
+        const got = holderColourGates(r, readPres)
+        pres = got.value || {}
+        fillGates = got
+      } else pres = readPres()
     } catch { pres = {} }
+    // ⭐⭐ G-h — a fill colour that read a block that skips carries that block's gate on
+    // its rules (a colour with no rule was folded to one value on every bar: nothing to
+    // gate). A block mark with no guard to carry (`condRefusal`) is not carried at all:
+    // a withheld fill colour draws nothing, so the band is withheld whole.
+    if (fillGates && fillGates.refusal) {
+      // ⛔ r1 — by name: the member is told the band is withheld and why, never that
+      // its edges are not plots (`chartOnlySentence`'s `how.withheld`)
+      if (ctx && ctx.withheld) {
+        ctx.withheld.set(f, String((fillGates.refusal && fillGates.refusal.message) || fillGates.refusal))
+      }
+      continue
+    }
+    if (fillGates && fillGates.gates.length) hangColourGates(pres, fillGates.gates)
     const pair = (typeof pres.colorUp === 'string' && typeof pres.colorDown === 'string')
       ? (pres.colorUp !== pres.colorDown ? pres : null)
       : null
@@ -28874,6 +33849,8 @@ function resolveFillHandles(fills, outputs, resolved, ctx) {
     // keeps exactly what it says. ⚠️ A CONDITIONAL fill keeps today's rule (its
     // colours are the paint): set F measured static colours only.
     const stated = !pair && pres.color && !Number.isFinite(pres.opacity)
+    // ⭐ ENGINE 58 — the 90 holds at v1-v3 and unannotated too (S1 probes
+    // `vw-cs1-transp-v{1,2,3}`: `filledAreasStyle` 90 between two plots and two hlines).
     const staticOpacity = stated
       ? (isLegacyPineVersion(ctx && ctx.version) ? styleTransparencyOpacity(V4_FILL_DEFAULT_TRANSP) : 1)
       : pres.opacity
@@ -28950,15 +33927,28 @@ function resolveColourTree(resolver, cond, tree) {
  *  this door used to read names only — the colour was dropped and the row drew
  *  in the engine's default, measured on a live capture.
  *
- *  ⛔ ONLY THE POSITIONS EVERY MEASURED VERSION AGREES ON. Index 5 is `transp`
- *  in v4 and `trackprice` in v5 (`plot`), so it is left out rather than guessed
- *  per version; a script passing six positionals keeps the first five. Index 0
- *  is the series itself and is never presentation. */
+ *  ⭐⭐ ENGINE 58 — INDEX 5 IS READ PER VERSION. It is `transp` in v1-v4 (every
+ *  one of the three calls: `plot(series, title, color, linewidth, style, transp,
+ *  …)`, `plotshape(series, title, style, location, color, transp, …)`,
+ *  `plotchar(series, title, char, location, color, transp, …)`) and the next
+ *  parameter in v5/v6 (`trackprice` / `offset`), which is not presentation. ⚰️ It
+ *  was left out of every version, so a v1-v4 `plot(x, "T", red, 1, line, 70)`
+ *  drew opaque where TradingView draws 70. The runtime lane reads the same slot
+ *  (`pineRuntimeFrontend.js::TRANSP_POSITION_LEGACY`). Index 0 is the series
+ *  itself and is never presentation. */
 const POSITIONAL_PRESENTATION = Object.freeze({
   plot: Object.freeze([null, 'title', 'color', 'linewidth', 'style']),
   plotshape: Object.freeze([null, 'title', 'style', 'location', 'color']),
   plotchar: Object.freeze([null, 'title', 'char', 'location', 'color']),
 })
+const POSITIONAL_PRESENTATION_LEGACY = Object.freeze(Object.fromEntries(
+  Object.entries(POSITIONAL_PRESENTATION).map(([k, sig]) => [k, Object.freeze([...sig, 'transp'])])))
+
+/** The positional signature of a series output at a script's version. */
+function seriesPositionalSignature(kind, version) {
+  if (!Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')) return null
+  return isLegacyPineVersion(version) ? POSITIONAL_PRESENTATION_LEGACY[kind] : POSITIONAL_PRESENTATION[kind]
+}
 
 /** ⭐⭐ A `fill`'s positional colour (and v4's positional `transp`).
  *
@@ -29016,6 +34006,11 @@ function displacedPresentation(pres, shift) {
   for (const k of ['colorCondition', 'colorIndex', 'colorGradient']) {
     const rule = pres[k]
     if (!rule || !rule.ast) continue
+    // ⭐⭐ ENGINE 58 — A RULE THAT READS NO BAR NEEDS NO DISPLACEMENT: it answers
+    // the same on every bar, so bar j-N's colour IS bar j's. ⚰️ `barOffsetNode` on
+    // a constant palette index (`fikira-pivots`: `Show_last ? color.purple : na`,
+    // `offset = -ofs`) threw, the rule was declined, and the plot drew in gold.
+    if (!readsBars(rule.ast)) continue
     try {
       const ast = barOffsetNode(rule.ast, shift, null, null, null)
       const formula = printFormula(ast)
@@ -29036,9 +34031,14 @@ function outputPresentation(args, ctx) {
   const pres = {}
   const kind = ctx && ctx.kind
   const positional = args.filter((a) => !a.name)
+  // ⭐ ENGINE 58 — the script's version, for the series outputs' per-version
+  // positional `transp` and the v1-v3 default (`legacyPlotDefault`). The palette
+  // scope holds it for every output a translation reads.
+  const seriesVersion = Object.hasOwn(POSITIONAL_PRESENTATION, kind || '')
+    ? (ctx && ctx.version !== undefined ? ctx.version : activePaletteVersion()) : undefined
   const signature = kind === 'fill'
     ? fillPositionalSignature(args, ctx && ctx.version)
-    : (Object.hasOwn(POSITIONAL_PRESENTATION, kind || '') ? POSITIONAL_PRESENTATION[kind] : null)
+    : seriesPositionalSignature(kind, seriesVersion)
   // ⭐ A NAMED argument wins; a positional one answers only where the signature
   // places that name. Pine refuses both at once, so the order is never a choice
   // between two values the author wrote.
@@ -29097,6 +34097,14 @@ function outputPresentation(args, ctx) {
         pres.opacity = opacityOfTransparency(t)
         stampTransparency(pres, t, 'color')
       }
+    } else if (THEME_COLOUR_KINDS.has(kind) && themePlotColourOf(c.value, ctx && ctx.env, ctx)) {
+      // ⭐⭐ ENGINE 58 — `chart.fg_color` / `chart.bg_color` (optionally through
+      // `color.new(…, T)`) on a PLOT is a THEME REFERENCE, carried as the Pine name
+      // (`chart.fg_color@85`) and resolved against the chart it is drawn on
+      // (`objectTheme.js`, the C37 rule the object lane already follows; the plot
+      // pool resolves it, `pool.planBindings`). ⚰️ It was "a colour this door cannot
+      // say" and drew in gold (`smart-money`: `color.new(chart.fg_color, 85)`).
+      pres.color = themePlotColourOf(c.value, ctx && ctx.env, ctx)
     } else {
       // ⭐⭐ C1-A: A CONDITIONAL BETWEEN TWO STATIC COLOURS IS NOW CARRIED.
       // The condition is resolved into an ordinary canonical tree and travels as
@@ -29286,18 +34294,172 @@ function outputPresentation(args, ctx) {
       pres.style = 'markers'
     }
   } else if (st && st.value && st.value.type === 'name') {
-    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) pres.style = PINE_PLOT_STYLES[st.value.name]
-    else pres.styleUncarried = st.value.name
+    if (Object.hasOwn(PINE_PLOT_STYLES, st.value.name)) {
+      pres.style = PINE_PLOT_STYLES[st.value.name]
+      // ⭐⭐ 2026-11-17 (backlog row 42) — THE TWO "WITH BREAKS" STYLES BREAK. The
+      // User Manual: `plot.style_linebr` *"Allows the plotting of discontinuous lines
+      // by not plotting on na values, and not joining such gaps."*; `plot.style_areabr`
+      // *"is similar to plot.style_area but it doesn't bridge over na values."* —
+      // against `plot.style_line`, which *"does draw a line through them by joining
+      // the most recent non-na value to the next non-na value."* Both mapped to the
+      // bridging style and drew joined. `sparse` is the document's own "blank by
+      // design" (`binder.js`: one render series per valued run, because
+      // lightweight-charts 5.2 joins whitespace).
+      if (PINE_BREAKING_STYLES.has(st.value.name)) pres.sparse = true
+    } else pres.styleUncarried = st.value.name
   }
 
-  const tr = numberValue((arg('transp') || {}).value)
+  const trArg = arg('transp')
+  let tr = numberValue((trArg || {}).value)
+  const absentColour = !!(c && isNaColourLeaf(c.value)) || settledNa
+  // ⭐⭐ ENGINE 58 — A SERIES OUTPUT'S `transp` THAT IS NOT A LITERAL is folded by
+  // the one alpha reader (`alphaNumberOf`: an input's default, arithmetic on
+  // literals), and when it does not fold the colour is WITHHELD by name — it was
+  // dropped, and the plot drew opaque where TradingView draws the transparency.
+  if (trArg && tr === null && LEGACY_DEFAULT_KINDS.has(kind) && !absentColour) {
+    // ⛔ (review item 7) a `transp` read from a setting (`tp = input(40)`) would be
+    // baked at its default, with no knob for the member: withheld by name.
+    const readsInput = alphaReadsInput(trArg.value, ctx && ctx.env)
+    let folded = null
+    if (!readsInput) {
+      try { folded = alphaNumberOf(trArg.value, ctx && ctx.env, ctx) } catch { folded = null }
+    }
+    if (folded !== null && Number.isFinite(folded)) tr = folded
+    else if (!pres.colorDynamic) {
+      pres.colorWithheld = readsInput
+        ? { code: COLOUR_UNREAD, reason: 'its `transp` is read from a setting, which this door would fix at its default' }
+        : { code: COLOUR_UNREAD, reason: 'its `transp` is not a number this door can read' }
+    }
+  }
   // ⛔ A `transp=` never makes an absent colour visible: `color = na` stays at
   // opacity 0 whatever transparency the author also wrote.
-  if (tr !== null && !(c && isNaColourLeaf(c.value)) && !settledNa) {
-    pres.opacity = styleTransparencyOpacity(tr)
-    stampTransparency(pres, tr, 'transp')
+  // ⭐⭐ ENGINE 58 (review item 3) — ON A SERIES OUTPUT IT IS A STYLE TRANSPARENCY, and
+  // TradingView folds a style transparency into an OPAQUE colour only
+  // (`foldStyleTransparency`, the rule the v1-v3 default already follows): a colour with
+  // its own alpha keeps it. ⚰️ It was set as the plot's opacity whatever the colour, and
+  // the sheet MULTIPLIED it into an own-alpha colour (`#FF000080` at `transp = 70` drew
+  // `26` where TradingView draws `80`).
+  if (tr !== null && !absentColour) {
+    if (LEGACY_DEFAULT_KINDS.has(kind)) foldStyleTransparency(pres, tr, 'transp')
+    else {
+      pres.opacity = styleTransparencyOpacity(tr)
+      stampTransparency(pres, tr, 'transp')
+    }
+  }
+  // ⭐⭐ ENGINE 58 — …AND WITH NO `transp` AT ALL, A v1-v3 SERIES OUTPUT TAKES 35.
+  if (!trArg && LEGACY_DEFAULT_KINDS.has(kind) && isPreV4PineVersion(seriesVersion) && !absentColour) {
+    legacyPlotDefault(pres)
   }
   return pres
+}
+
+/** ⭐⭐ ENGINE 58 — a plot colour that is `chart.fg_color` / `chart.bg_color`, or
+ *  `color.new` of one with a whole transparency fixed before bar 0, as the theme
+ *  reference string (`objectTheme.themeColourWithTransparency`); null otherwise.
+ *  ⛔ A script's own binding of the name wins, as it does for a colour name. */
+function themePlotColourOf(node, env, ctx, depth = 0) {
+  if (!node || depth > 8) return null
+  if (node.type === 'name') {
+    const bound = env && typeof env.get === 'function' ? env.get(node.name) : null
+    if (bound && bound.kind === 'expr') return themePlotColourOf(bound.node, bound.env || env, ctx, depth + 1)
+    if (bound) return null
+    return THEME_NAMES.includes(node.name) ? node.name : null
+  }
+  if (node.type === 'call' && node.name === 'color.new') {
+    const args = node.args || []
+    const positional = args.filter((a) => a && !a.name)
+    const base = themePlotColourOf(((args.find((a) => a && a.name === 'color')) || positional[0] || {}).value, env, ctx, depth + 1)
+    if (!base) return null
+    const tNode = ((args.find((a) => a && a.name === 'transp')) || positional[1] || {}).value
+    if (tNode === undefined) return base
+    // ⛔ (review item 7) a transparency read from a setting is not baked at its default.
+    if (alphaReadsInput(tNode, env)) return null
+    const t = alphaNumberOf(tNode, env, ctx)
+    return Number.isInteger(t) ? themeColourWithTransparency(base, t) : null
+  }
+  return null
+}
+
+/** ⭐⭐ ENGINE 58 — `LEGACY_PLOT_DEFAULT_TRANSP` on a v1-v3 series output with no
+ *  `transp`, or the colour withheld by name where the default is not witnessed.
+ *
+ *  ⭐ ONE AUTHORITY, HERE. The member door used to add 35% to a v3 row with NO
+ *  colour (`memberPaneDefinition::tradingViewDefaultColour`, `version === 3`), the
+ *  only case its probe measured; the captures since show the same 35 on every
+ *  colour form and v1/v2/unannotated too, so the rule moved here and the door's
+ *  copy was deleted. The door still supplies the `#2962FF` hue of a colourless
+ *  row (a rendering default); the transparency is the translation's.
+ *
+ *  ⛔ A colour the door cannot read (`colorDynamic`) is left to its own withhold.
+ *  ⭐ Every plot style takes it (S1 probed `columns` and `stepline`: 35).
+ *  ⭐ OPAQUE COLOURS ONLY: a colour with its own alpha (a `#RRGGBBAA` literal, a
+ *  helper transparency) keeps it; a rule whose leaves mix the two takes 35 on its
+ *  opaque leaves only, baked per leaf. ⛔ A gradient is withheld by name. */
+function legacyPlotDefault(pres) {
+  if (pres.colorDynamic) return
+  if (pres.colorGradient) {
+    pres.colorWithheld = { code: COLOUR_DEFAULT_UNWITNESSED, reason: 'its colour is a gradient: the transparency TradingView gives it with no `transp` is not captured for a v1-v3 script' }
+    return
+  }
+  foldStyleTransparency(pres, LEGACY_PLOT_DEFAULT_TRANSP, 'default')
+}
+
+/** ⭐⭐ ENGINE 58 — THE ONE RULE FOR A STYLE TRANSPARENCY ON A SERIES OUTPUT (the
+ *  v1-v3 default 35, and an explicit `transp = N`): TradingView folds it into an
+ *  OPAQUE colour only (`compare.mjs::withStyleTransparency`: only an `ff` alpha takes
+ *  it). So:
+ *    · a colour (or rule) whose own alpha is set below opaque (`color.new(c, 40)`, a
+ *      `#RRGGBBAA` literal) keeps it — never multiplied;
+ *    · an opaque colour takes it (`opacity`, the exact byte `styleTransparencyOpacity`
+ *      paints), and a rule whose leaves mix the two takes it on its opaque leaves only,
+ *      baked per leaf;
+ *    · a theme reference with no transparency of its own takes it as its own
+ *      (`chart.fg_color@N`); one with a transparency keeps it;
+ *    · a gradient takes it when both ends are opaque, and is otherwise withheld by name
+ *      (which bars are opaque is not provable here).
+ *  ⛔ `pres.opacity === 1` (`color.new(c, 0)`) is an opaque colour, and takes it. */
+function foldStyleTransparency(pres, t, via) {
+  if (pres.colorDynamic) return
+  const opaqueHex = (h) => typeof h === 'string' && /^#[0-9a-f]{6}(ff)?$/i.test(h)
+  const a = styleTransparencyOpacity(t)
+  const setAll = () => {
+    pres.opacity = a
+    stampTransparency(pres, t, via)
+  }
+  // a colour (or rule) that already carries its own transparency keeps it
+  if (Number.isFinite(pres.opacity) && pres.opacity < 1) return
+  if (!(t > 0)) {
+    if (Number.isFinite(pres.opacity)) return
+    return setAll()
+  }
+  const theme = typeof pres.color === 'string' ? parseThemeColour(pres.color) : null
+  if (theme) {
+    if (theme.transparency === 0 && Number.isInteger(t)) pres.color = themeColourWithTransparency(pres.color, t)
+    else if (theme.transparency === 0) {
+      pres.colorWithheld = { code: COLOUR_UNREAD, reason: 'its `transp` is not a whole number, which a chart colour cannot carry' }
+    }
+    return
+  }
+  if (pres.colorGradient) {
+    const g = pres.colorGradient
+    if (opaqueHex(g.from) && opaqueHex(g.to)) return setAll()
+    pres.colorWithheld = { code: COLOUR_UNREAD, reason: 'its `transp` applies over a gradient whose ends carry their own transparency, and which bars are opaque is not known' }
+    return
+  }
+  const rule = typeof pres.colorUp === 'string' || Array.isArray(pres.colorPalette)
+  if (!rule) {
+    if (typeof pres.color === 'string' && !opaqueHex(pres.color)) return
+    return setAll()
+  }
+  const leaves = [pres.colorUp, pres.colorDown, ...(pres.colorPalette || [])]
+    .filter((h) => typeof h === 'string' && h !== TRANSPARENT_PALETTE_ENTRY)
+  if (leaves.every(opaqueHex)) return setAll()
+  const bake = (h) => (opaqueHex(h) ? (paletteEntryWithAlpha(h.slice(0, 7), a) || h) : h)
+  if (typeof pres.colorUp === 'string') {
+    pres.colorUp = bake(pres.colorUp)
+    pres.colorDown = bake(pres.colorDown)
+  }
+  if (Array.isArray(pres.colorPalette)) pres.colorPalette = pres.colorPalette.map((e) => (e === TRANSPARENT_PALETTE_ENTRY ? e : bake(e)))
 }
 
 /** `indicator(..., overlay = true)` — the author's own statement about WHICH
@@ -29316,6 +34478,25 @@ function declarationOverlay(toks) {
     }
   }
   return null
+}
+
+/** PRICE-SCALE JOIN (2026-11-16). `indicator(..., scale = scale.right | scale.left | scale.none)`:
+ *  the scale the author put the script on, as `'right'` / `'left'` / `'none'`; `'other'` when
+ *  the argument is passed and is not one of those three constants; `null` when it is not passed.
+ *  Read for ONE consumer: whether an overlay script's plots join the price pane's autoscale
+ *  (`memberPaneDefinition.joinsPriceScale`). Only an absent argument or `scale.right` joins:
+ *  `scale.none` and `scale.left` take the plots off the price scale on TradingView, and an
+ *  argument this reader cannot name is not guessed at. Still disclosed as chart-only (the scale
+ *  itself is not carried; `DECLARATION_PRESENTATION_ARGS`). */
+const DECLARATION_SCALES = Object.freeze({ 'scale.right': 'right', 'scale.left': 'left', 'scale.none': 'none' })
+function declarationScale(toks) {
+  const a = callNamedArgToks(toks, 'scale')
+  if (!a) return null
+  const v = a.value
+  if (v.length === 1 && v[0].kind === 'ident' && Object.prototype.hasOwnProperty.call(DECLARATION_SCALES, v[0].value)) {
+    return DECLARATION_SCALES[v[0].value]
+  }
+  return 'other'
 }
 
 /** ⭐⭐ P0 0H (2026-10-05) — ONE NAMED ARGUMENT OF THE FIRST CALL IN A STATEMENT,
@@ -29355,6 +34536,37 @@ function callNamedArgToks(toks, name) {
     }
   }
   return null
+}
+
+/** ⭐⭐ CBC-FMT — THE ONE READER OF `calc_bars_count` IN A DECLARATION (the
+ *  `indicator(...)` / `study(...)` / `strategy(...)` statement's tokens), for every door:
+ *  the host lane stamps what it answers (`translatePine` → `calcBarsCount`, which the
+ *  member door writes to `meta.calcBarsCount`), the runtime front end refuses by the same
+ *  names (`pineRuntimeFrontend.js`), and nothing else reads the count. ⚰️ It replaces a
+ *  regex over the whole source (`objectStore.js::declaredCalcBarsOf`), which took the FIRST
+ *  `calc_bars_count = <digits>` anywhere — a `request.security(…, calc_bars_count = 200000)`
+ *  argument included — and so windowed scripts that declare no window (review D2).
+ *
+ *  → `null` (absent, `na` or `0`: every bar), `{count, tok}` (a positive whole-number
+ *  literal), or `{guard, why, tok}` (refused by name: anything that is not a literal count). */
+export function declarationCalcBars(toks) {
+  const found = callNamedArgToks(toks, 'calc_bars_count')
+  if (!found) return null
+  const v = found.value
+  if (v.length === 1 && v[0].kind === 'ident' && v[0].value === 'na') return null
+  const raw = v.length === 1 && v[0].kind === 'number' ? String(v[0].raw ?? v[0].value) : null
+  if (raw !== null && /^\d+$/.test(raw)) {
+    const n = Number(raw)
+    // ⭐ S10 (`vw-cbc-zero-rddt-1d-2026-11-15`, MATCH): `0` computes every bar, as no count does
+    if (n === 0) return null
+    if (Number.isSafeInteger(n)) return { count: n, tok: found.nameTok }
+  }
+  const text = v.length ? v.map((t) => (t.raw ?? t.value)).join(' ') : 'nothing'
+  return {
+    guard: 'pine:calc-bars-count-expr',
+    why: `${REFUSALS['pine:calc-bars-count-expr']} (it reads \`${text}\`)`,
+    tok: found.nameTok,
+  }
 }
 
 /** ⭐⭐ P0 0H — `indicator(timeframe = …)` / v4 `study(resolution = …)`: the
@@ -29415,6 +34627,14 @@ function barVaryingNamesFor(table) {
   return set
 }
 const BAR_VARYING_SET = new Set([...BAR_READERS, ...Object.keys(RECURRENCES)])
+
+/** ⭐ DRAW-1 — is this formula tree Pine's `na` itself (`parse.js` canonicalises the word
+ *  `na` to `0 / 0`)? Exactly that node: a tree that merely evaluates to `na` somewhere is
+ *  not asked about here. */
+export function isNaConstantTree(node) {
+  return !!(node && node.type === 'op' && node.name === '/' && Array.isArray(node.args) && node.args.length === 2
+    && node.args.every((a) => a && a.type === 'num' && a.value === 0))
+}
 
 export function readsBars(node, table = TABLE) {
   const barFns = barVaryingNamesFor(table)
@@ -29607,6 +34827,7 @@ export function conditionKindOf(node, table = TABLE) {
       case 'sym':
       case 'tf':
       case 'tf_live':
+      case 'tf_merge':
       case 'ltf':
         return Array.isArray(n.args) && n.args.length === 1 ? kindOf(n.args[0], depth + 1) : 'unknown'
       case 'textop':
@@ -29659,6 +34880,22 @@ export function conditionKindOf(node, table = TABLE) {
  *  became a probe literal, and every label went unknown. */
 const NA_FALSE_LOGIC_SITES = new Set(['and', 'or', 'not', '&&', '||', '!'])
 const NEVER_NA_OPS = new Set(['<', '<=', '>', '>=', '==', '!='])
+/** ⭐⭐ THE VERSION ISLAND'S BOUNDARY — can this resolved tree, the result of a function judged under Pine v5, be an
+ *  `na` bool THERE (whatever this columnar lane holds for it)? Pine v5 (S1, F2's Q-NL): a comparison with an `na`
+ *  operand is `na`; `and` / `or` / `not` and `na()` are never `na`; a bool name, a bool call, a `?:` of those can be. */
+const ISLAND_NEVER_NA_SERIES = new Set(['open', 'high', 'low', 'close', 'hl2', 'hlc3', 'ohlc4', 'hlcc4'])
+function islandBoolMayBeNa(t, d = 0) {
+  if (!t || typeof t !== 'object' || d > 64 || t.type === 'num' || !isBoolishTree(t)) return false
+  const args = Array.isArray(t.args) ? t.args : []
+  if (t.type === 'op' && ['&&', '||', '!'].includes(t.name)) return false
+  if (t.type === 'call' && t.name === 'na') return false
+  if (t.type === 'op' && NEVER_NA_OPS.has(t.name)) {
+    return !args.every((a) => !!a && ((a.type === 'num' && Number.isFinite(a.value))
+      || (a.type === 'series' && ISLAND_NEVER_NA_SERIES.has(a.name))))
+  }
+  if (t.type === 'op' && t.name === '?:') return islandBoolMayBeNa(args[1], d + 1) || islandBoolMayBeNa(args[2], d + 1)
+  return true
+}
 export function conditionNeverNa(tree) {
   if (!tree || typeof tree !== 'object') return false
   if (tree.type === 'num') return Number.isFinite(tree.value)
@@ -30009,6 +35246,14 @@ function verifyRoundTrip(formula, ast) {
 // --------------------------------------------------------------------------- //
 // refusal values
 // --------------------------------------------------------------------------- //
+
+/** ⭐ Engine 51 (review of #1149, minor 5) — the headline of a script with no plot and
+ *  no alert condition whose drawing was withheld by the enum rule. */
+function withheldHeadline(w) {
+  const what = w.family ? `the ${w.family}` : 'the drawing'
+  const where = w.line === null || w.line === undefined ? '' : ` at line ${w.line}`
+  return `this script has no plot or alert condition, and ${what} it draws${where} is withheld: ${w.sentence}`
+}
 
 function refusalValue(guard, message, at, suggest, span) {
   return {

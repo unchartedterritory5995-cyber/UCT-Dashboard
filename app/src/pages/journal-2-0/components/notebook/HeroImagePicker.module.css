@@ -8,7 +8,7 @@
   border-radius: 10px;
   cursor: pointer;
   font-size: 14px;
-  transition: border-color 120ms ease, color 120ms ease, background 120ms ease;
+  transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
 }
 .empty:hover { border-color: var(--ut-gold); color: var(--accent); }
 .empty:focus {
@@ -28,7 +28,7 @@
   width: 100%;
   border-radius: 10px;
   overflow: hidden;
-  transition: box-shadow 120ms ease;
+  transition: box-shadow var(--duration-fast) var(--ease-out);
 }
 /* Wave 8 (8A): the outline is removed only in the rule that draws the ring
    in its place, and the ring is the gold token -- the old 50% gold measured
@@ -51,7 +51,7 @@
   top: 8px; right: 8px;
   display: flex; gap: 6px;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
 .filled:hover .overlay, .filled:focus .overlay { opacity: 1; }
 .iconBtn {

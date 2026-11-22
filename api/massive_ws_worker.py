@@ -172,11 +172,11 @@ _state = {
     "reclassified_total": 0,         # cumulative rows whose Side was recovered via NBBO re-pass
     "last_reclassify_count": 0,      # rows recovered in the most recent re-pass
     "fast_path_subscribes": 0,       # cumulative new contracts fast-path-subscribed on first big print
-    # Phase 2f: on-demand OI fetch via Schwab
+    # Phase 2f: on-demand OI fetch (Massive chain snapshot, via oi_snapshots)
     "oi_fetch_queue_size": 0,        # contracts pending on-demand fetch
-    "oi_fetch_batches_sent": 0,      # cumulative Schwab batch calls
-    "oi_fetch_contracts_resolved": 0, # contracts where Schwab returned OI > 0
-    "oi_fetch_contracts_unresolved": 0, # contracts where Schwab returned no data
+    "oi_fetch_batches_sent": 0,      # cumulative OI batch calls
+    "oi_fetch_contracts_resolved": 0, # contracts where the fetch returned OI > 0
+    "oi_fetch_contracts_unresolved": 0, # contracts where the fetch returned no data
     # Stage-2 batch-cap (2026-07-22): how many unresolved contracts we DIDN'T
     # flow-probe this/most flushes because the count/time cap tripped (they went
     # to Stage-3 instead). A climbing _last during RTH = bursts of fresh
@@ -259,7 +259,7 @@ def _log_q_event(action: str, occ: str, reason: str = None,
 
 # Phase 2f: on-demand OI fetch queue. The flusher adds contracts that miss
 # the 2-stage snapshot+flow lookup; a background task drains the queue and
-# fetches from Schwab in batches. Results persist to contract_oi_snapshots
+# fetches OI in batches. Results persist to contract_oi_snapshots
 # so subsequent flushes pick them up via Stage 1.
 _oi_fetch_queue: list = []    # list of (sym, cp_letter, strike, exp_mdy) tuples
 _oi_fetch_seen: set = set()   # contracts we've already queued this session (dedup)
@@ -580,7 +580,7 @@ _OI_FALLBACK_TTL = float(os.environ.get("MASSIVE_OI_FALLBACK_CACHE_TTL", "600"))
 # to 3 ORDER-BY-id-DESC probes PER EVENT (the 86.7s-of-88.7s batch on 7/17).
 # These caps bound Stage-2's cost per flush: a hard probe COUNT cap and a wall-
 # clock TIME BUDGET. Whatever we don't probe stays unresolved → Stage-3 (the
-# on-demand Schwab queue, drained every 20s) picks it up and Stage-1 has it next
+# on-demand OI queue, drained every 20s) picks it up and Stage-1 has it next
 # batch. So the only cost of skipping is OI arriving a cycle later, never tape
 # latency. Set MASSIVE_OI_STAGE2_MAX_PROBES=0 to disable Stage-2 entirely.
 _OI_STAGE2_MAX_PROBES = int(os.environ.get("MASSIVE_OI_STAGE2_MAX_PROBES", "60"))
@@ -692,7 +692,7 @@ def _load_oi_for_events(events: list) -> dict:
                 # the flusher for seconds — starving the WS reader so new prints
                 # land late. Bound Stage-2 by a probe COUNT cap and a wall-clock
                 # TIME BUDGET; anything past the cap stays unresolved and is
-                # handled by Stage-3 (on-demand Schwab) below.
+                # handled by Stage-3 (on-demand OI fetch) below.
                 sql2 = """
                     SELECT OI FROM flow
                     WHERE Symbol = ? AND CallPut = ? AND Strike = ?
@@ -754,9 +754,9 @@ def _load_oi_for_events(events: list) -> dict:
     except Exception as e:
         logger.warning("[massive-ws] OI batch lookup failed: %s", e)
 
-    # Phase 2f: Stage 3 -- enqueue unresolved contracts for on-demand Schwab
+    # Phase 2f: Stage 3 -- enqueue unresolved contracts for the on-demand OI
     # fetch. The background oi_fetch_manager task drains the queue every 20s,
-    # calls Schwab in batch, and persists to contract_oi_snapshots. The NEXT
+    # fetches OI in batch, and persists to contract_oi_snapshots. The NEXT
     # batch of events for these contracts will hit Stage 1 (snapshot cache)
     # and get the OI for free.
     #
@@ -769,7 +769,7 @@ def _load_oi_for_events(events: list) -> dict:
             continue
         sym = e.root
         if sym and sym[-1].isdigit():
-            # Adjusted/when-issued -- Schwab will 400, don't bother
+            # Adjusted/when-issued -- no chain is served, don't bother
             continue
         cp_letter = 'C' if e.cp == 'CALL' else 'P'
         exp_mdy = f"{e.expiry.month}/{e.expiry.day}/{e.expiry.year}"
@@ -845,7 +845,7 @@ def _load_ticker_metadata(symbols: list) -> dict:
 
     Reuses the same pattern as flow_db.get_mktcap_batch -- any ticker that's
     ever been in FlowDB (from a BBS upload, prior Bullflow, etc.) has its
-    metadata cached and we can read it for free without hitting Schwab.
+    metadata cached and we can read it for free without a vendor call.
 
     Returns: {"AAPL": {"mktcap": 3100000000000, "sector": "Technology"}, ...}
     Symbols never seen before are simply omitted.
@@ -1389,7 +1389,7 @@ def _build_warm_start_contracts(limit: int = 950) -> list:
 # Phase 2b: Spot price cache with TTL. Populated lazily by a background
 # fetcher task that drains _spot_fetch_queue every 10 seconds. Same pattern
 # as Phase 2f on-demand OI fetch -- the flusher queues symbols, background
-# task hits Schwab, results land in cache; next flush picks them up.
+# task fetches OI, results land in cache; next flush picks them up.
 #
 # This means the FIRST event on a previously-unknown symbol gets spot=0,
 # but subsequent events (for active symbols, common case) get real spot.
@@ -1397,6 +1397,109 @@ _SPOT_CACHE: dict = {}        # {symbol: (price, fetched_at_ts)}
 _SPOT_TTL_SEC = 60            # quote freshness window
 _spot_fetch_queue: list = []  # symbols pending fetch (deduped)
 _spot_fetch_seen: set = set() # symbols already queued this drain cycle
+
+# Stock and ETF spot reads ONE Massive batch snapshot per drain cycle first; Yahoo
+# stays for the index roots below and for any symbol the snapshot gave no usable
+# price for. A snapshot price is used only when it means what the Yahoo read means
+# (the regular-session price): the row's own last trade, printed inside the regular
+# session and no older than the freshness window. Anything else falls to Yahoo.
+_SPOT_YAHOO_ONLY = frozenset(("SPX", "SPXW", "NDX", "DJX", "RUT", "VIX", "XSP"))
+_SPOT_SNAPSHOT_MAX_AGE_SEC = 60.0   # last trade older than this = no usable price
+_SPOT_SNAPSHOT_TIMEOUT_SEC = 3.0    # socket timeout of the one snapshot call
+
+
+def _spot_in_regular_session(ts) -> bool:
+    """True when epoch second `ts` is inside the NYSE regular session (holidays
+    and 1pm closes honoured). False on any doubt, which means "read Yahoo"."""
+    try:
+        from api.services import session_calendar
+        return session_calendar.session_at(datetime.fromtimestamp(ts, ET)) == "rth"
+    except Exception:
+        return False
+
+
+def _spot_from_snapshot_row(row, sym, now_ts):
+    """Regular-session spot for `sym` from one snapshot row, or None (= ask Yahoo).
+
+    None when the row is for another ticker, has no last trade, the price is not
+    a positive finite number, the trade printed outside the regular session, is
+    older than _SPOT_SNAPSHOT_MAX_AGE_SEC (or stamped in the future), or the
+    price is more than 50% away from the row's own day close."""
+    try:
+        if not isinstance(row, dict) or row.get("ticker") != sym:
+            return None
+        last = row.get("lastTrade")
+        if not isinstance(last, dict):
+            return None
+        price, t_ns = last.get("p"), last.get("t")
+        if isinstance(price, bool) or not isinstance(price, (int, float)):
+            return None
+        if not (0 < price < float("inf")):
+            return None
+        if isinstance(t_ns, bool) or not isinstance(t_ns, (int, float)) or t_ns <= 0:
+            return None
+        traded_at = t_ns / 1e9
+        if not (-5.0 <= now_ts - traded_at <= _SPOT_SNAPSHOT_MAX_AGE_SEC):
+            return None
+        if not _spot_in_regular_session(traded_at):
+            return None
+        day = row.get("day")
+        day_close = day.get("c") if isinstance(day, dict) else None
+        if (isinstance(day_close, (int, float)) and not isinstance(day_close, bool)
+                and day_close > 0 and abs(price - day_close) > 0.5 * day_close):
+            return None
+        return float(price)
+    except Exception:
+        return None
+
+
+def _fetch_spot_snapshot_blocking(symbols):
+    """ONE Massive batch snapshot for `symbols` -> {ticker: row}; {} on any failure.
+
+    Runs in a thread. Never raises and never logs the error (the URL carries the
+    API key). Stdlib only, like the on-demand quote read below."""
+    try:
+        import urllib.request
+        url = ("https://api.massive.com/v2/snapshot/locale/us/markets/stocks/tickers"
+               "?tickers=" + ",".join(symbols) + "&apiKey=" + MASSIVE_API_KEY)
+        with urllib.request.urlopen(url, timeout=_SPOT_SNAPSHOT_TIMEOUT_SEC) as resp:
+            if resp.status != 200:
+                return {}
+            payload = json.loads(resp.read().decode("utf-8"))
+        out = {}
+        for row in payload.get("tickers") or []:
+            if isinstance(row, dict) and isinstance(row.get("ticker"), str):
+                out[row["ticker"]] = row
+        return out
+    except Exception:
+        return {}
+
+
+async def _snapshot_spots(batch):
+    """{symbol: spot} for the stocks and ETFs of `batch` the snapshot could price.
+
+    At most one Massive call; none outside the regular session, for index roots
+    or without a key. Never raises: on any failure the caller reads Yahoo for the
+    whole batch, exactly as before."""
+    try:
+        if not MASSIVE_API_KEY or not _spot_in_regular_session(time.time()):
+            return {}
+        syms = [s for s in batch
+                if s not in _SPOT_YAHOO_ONLY and s.isascii() and s.isalnum()]
+        if not syms:
+            return {}
+        rows = await asyncio.wait_for(
+            asyncio.to_thread(_fetch_spot_snapshot_blocking, syms),
+            timeout=_SPOT_SNAPSHOT_TIMEOUT_SEC + 1.0)
+        now = time.time()
+        out = {}
+        for sym in syms:
+            spot = _spot_from_snapshot_row(rows.get(sym), sym, now)
+            if spot is not None:
+                out[sym] = spot
+        return out
+    except Exception:
+        return {}
 
 
 # Phase 2h: Last-trade-price cache for Lee-Ready tick test fallback.
@@ -1436,6 +1539,9 @@ _TICK_TEST_CACHE: dict = {}
 from collections import deque
 _RAW_T_HISTORY: dict = {}  # sym -> deque[(ts_ns, price)]
 _RAW_T_MAX = 50            # keep last 50 prints per contract
+# OBSERVE ONLY (2026-11-06): counts prints a proposed 24 h quiet-eviction would touch. No behaviour change.
+from api.services.mem_observe import bump as _memobs_bump
+_MEMOBS_QUIET_NS = 24 * 3600 * 1_000_000_000
 
 
 # Phase 2 (6/29 audit): per-contract NBBO history with time-aligned lookup.
@@ -2648,7 +2754,11 @@ async def _run_session(ws):
             _state["q_subscribed_count"] = len(_q_subscribed)
 
     async def spot_fetch_manager():
-        """Phase 2b: drain spot fetch queue every 10 sec via Yahoo Finance.
+        """Phase 2b: drain spot fetch queue every 10 sec.
+
+        Stocks and ETFs read one Massive batch snapshot per cycle first
+        (_snapshot_spots, regular session only). Yahoo, below, reads the index
+        roots and whatever the snapshot had no usable price for.
 
         Uses Yahoo's v8/chart endpoint (same one their ytd-performance route
         is already using in production). One request per symbol, run in
@@ -2723,11 +2833,13 @@ async def _run_session(ws):
                 _spot_fetch_seen.update(overflow)
             _state["spot_fetch_queue_size"] = len(_spot_fetch_queue)
 
+            snap = await _snapshot_spots(batch)
             try:
                 import httpx
                 async with httpx.AsyncClient(timeout=8.0) as client:
-                    tasks = [fetch_one(client, sym) for sym in batch]
+                    tasks = [fetch_one(client, sym) for sym in batch if sym not in snap]
                     results = await asyncio.gather(*tasks, return_exceptions=False)
+                results = list(snap.items()) + results
                 now = time.time()
                 resolved = 0
                 for sym, spot in results:
@@ -2735,8 +2847,8 @@ async def _run_session(ws):
                         _SPOT_CACHE[sym] = (spot, now)
                         resolved += 1
                 logger.info(
-                    "[massive-ws] spot fetch (Yahoo): %d symbols -> %d resolved",
-                    len(batch), resolved
+                    "[massive-ws] spot fetch: %d symbols -> %d resolved (%d from the Massive snapshot)",
+                    len(batch), resolved, len(snap)
                 )
                 _state["spot_fetches_sent"] = _state.get("spot_fetches_sent", 0) + 1
                 _state["spot_symbols_resolved"] = _state.get("spot_symbols_resolved", 0) + resolved
@@ -2747,12 +2859,12 @@ async def _run_session(ws):
     async def oi_fetch_manager():
         """Phase 2f: drain the on-demand OI fetch queue every 20 seconds.
 
-        Calls Schwab in batches of up to 200 contracts per call. Persists
-        results to contract_oi_snapshots with source='ondemand-schwab' so
+        Fetches OI in batches of up to 200 contracts per call. Persists
+        results to contract_oi_snapshots with source='ondemand' so
         subsequent event batches pick them up via Stage 1 (DB cache).
 
         20-second cadence is a compromise:
-        - Faster (e.g., 5s) -- more Schwab calls but contracts get OI sooner
+        - Faster (e.g., 5s) -- more vendor calls but contracts get OI sooner
         - Slower (e.g., 60s) -- fewer calls but multi-fire contracts miss OI
           on their first 2-3 fires.
 
@@ -2766,7 +2878,7 @@ async def _run_session(ws):
             except asyncio.TimeoutError:
                 pass
             else:
-                # Session tearing down: skip the final Schwab batch during
+                # Session tearing down: skip the final OI batch during
                 # teardown; the next session re-queues unresolved contracts.
                 break
             if not _oi_fetch_queue:
@@ -2775,7 +2887,7 @@ async def _run_session(ws):
             batch = _oi_fetch_queue[:]
             _oi_fetch_queue.clear()
             _state["oi_fetch_queue_size"] = 0
-            # Cap to 200 per Schwab call. Anything over goes back to the
+            # Cap to 200 per fetch. Anything over goes back to the
             # queue for the next 20s cycle.
             if len(batch) > 200:
                 overflow = batch[200:]
@@ -3406,6 +3518,10 @@ async def _run_session(ws):
                     if hist is None:
                         hist = deque(maxlen=_RAW_T_MAX)
                         _RAW_T_HISTORY[sym] = hist
+                    elif hist and ts_ms * 1_000_000 - hist[-1][0] > _MEMOBS_QUIET_NS:
+                        # OBSERVE ONLY (mem_observe, 2026-11-06): this print's tick test reads history
+                        # older than 24 h -- exactly the prints a 24 h eviction would re-classify.
+                        _memobs_bump("raw_t_quiet24_prints")
                     hist.append((ts_ms * 1_000_000, price))
                     # Phase 2c: refresh LRU tracker for this contract so
                     # active contracts stay in the Q subscription pool
@@ -3778,13 +3894,13 @@ def backfill_stranded_spots(target_date_mdyyyy: str = None) -> dict:
     Silent on failure: logs + returns {"error": "..."} rather than raising.
     """
     import sqlite3
-    from datetime import datetime, timezone, timedelta
 
     started = time.time()
 
-    # Default target_date to today in ET (matches CreatedDate format).
+    # Default target_date to today in ET (matches CreatedDate format). The zone
+    # carries the UTC offset, so this holds in winter (UTC-5) and summer (UTC-4).
     if not target_date_mdyyyy:
-        _et_now = datetime.now(timezone.utc) + timedelta(hours=-4)  # July DST
+        _et_now = datetime.fromtimestamp(started, ET)
         target_date_mdyyyy = f"{_et_now.month}/{_et_now.day}/{_et_now.year}"
 
     try:
@@ -3850,11 +3966,10 @@ def backfill_stranded_spots(target_date_mdyyyy: str = None) -> dict:
     # (rare on options but possible) don't get clipped.
     try:
         m_s, d_s, y_s = target_date_mdyyyy.split("/")
-        et_offset = timedelta(hours=-4)  # July DST
-        day_open_et = datetime(int(y_s), int(m_s), int(d_s), 8, 0, 0)
-        day_close_et = datetime(int(y_s), int(m_s), int(d_s), 17, 0, 0)
-        period1 = int((day_open_et - et_offset).replace(tzinfo=timezone.utc).timestamp())
-        period2 = int((day_close_et - et_offset).replace(tzinfo=timezone.utc).timestamp())
+        day_open_et = datetime(int(y_s), int(m_s), int(d_s), 8, 0, 0, tzinfo=ET)
+        day_close_et = datetime(int(y_s), int(m_s), int(d_s), 17, 0, 0, tzinfo=ET)
+        period1 = int(day_open_et.timestamp())
+        period2 = int(day_close_et.timestamp())
     except Exception as e:
         logger.warning("[spot-backfill] bad target_date parse: %s", e)
         return {"error": f"target_date parse: {e}", "rows_updated": 0}
@@ -3896,9 +4011,7 @@ def backfill_stranded_spots(target_date_mdyyyy: str = None) -> dict:
                 if close is None:
                     continue
                 # Convert bar's Unix timestamp to ET minute-of-day.
-                bar_dt_et = (
-                    datetime.fromtimestamp(ts_unix, tz=timezone.utc) + et_offset
-                )
+                bar_dt_et = datetime.fromtimestamp(ts_unix, tz=ET)
                 mod = bar_dt_et.hour * 60 + bar_dt_et.minute
                 bars_by_minute[mod] = float(close)
             # Also grab daily close as a fallback for buckets with no

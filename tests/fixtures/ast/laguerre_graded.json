@@ -1,0 +1,60 @@
+{
+ "_": "THE LAGUERRE FILTER AND THE LAGUERRE RSI THAT WERE GRADED. Each entry is a call and the hash (`astHash`) of the formula tree it expands to, which was run through this engine and compared with TradingView running a probe written from the published equations (SPY daily from its listing, 8,509 bars; run studio-laguerre-2026-11-18; the capture is vendor data and is not in the repository). The filter is equal on every bar it has a value for to 1 part in a quadrillion (8,317 bars, a 192-bar restart); the RSI to 2 parts in 100 billion (8,445 bars, a 64-bar restart, which is what that restart leaves). That witnesses this engine's restart against a carried run of the same equations; TradingView has no Laguerre of its own. Both builders (the window's and the server's) must produce exactly these trees. A change that moves a hash is a new formula and needs a new grade before this file may change.",
+ "contract": "uct.laguerre-graded/1",
+ "graded": {
+  "laguerre(hl2, 0.8)": {
+   "call": {
+    "type": "call",
+    "name": "laguerre",
+    "args": [
+     {
+      "type": "op",
+      "name": "/",
+      "args": [
+       {
+        "type": "op",
+        "name": "+",
+        "args": [
+         {
+          "type": "series",
+          "name": "high"
+         },
+         {
+          "type": "series",
+          "name": "low"
+         }
+        ]
+       },
+       {
+        "type": "num",
+        "value": 2
+       }
+      ]
+     },
+     {
+      "type": "num",
+      "value": 0.8
+     }
+    ]
+   },
+   "hash": "sha256:f33f3c9e85321e5a818bf108862031e978fd00b6a3d18eb31489411ab7942942"
+  },
+  "laguerreRsi(close, 0.5)": {
+   "call": {
+    "type": "call",
+    "name": "laguerreRsi",
+    "args": [
+     {
+      "type": "series",
+      "name": "close"
+     },
+     {
+      "type": "num",
+      "value": 0.5
+     }
+    ]
+   },
+   "hash": "sha256:42fe603b1f610e712ffe091387a22ec5cc6570cf3c2c1dbc6db9cf494aa13184"
+  }
+ }
+}

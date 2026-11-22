@@ -1,0 +1,24 @@
+//@version=6
+indicator("UCTPROBE_VW_BI_TIME_CLOSE_2ARG", overlay = false)
+
+// U-BUILTIN (2026-11-19). `time_close(timeframe, session[, timezone])`, THE TWO- AND THREE-ARGUMENT FORMS.
+//
+// The one-argument `time_close(<tf>)` is measured (`vw-clock-close-tfchange-*`) and served; with a session
+// it refuses by name ("measured with exactly one argument"). The reference: the UNIX time of the current
+// bar's close for the specified timeframe and session, or na if the time point is outside the session.
+// Unread: the value inside the window (the session's end, the bar's close, the period's close?) and the
+// zone form. Read relative to the bar, -1 for na.
+//
+// CAPTURE: AMEX:SPY 60 (extended hours off, >= 400 bars) and AMEX:SPY 1D (>= 300 bars). Inputs at defaults.
+
+secs(t) => na(t) ? -1.0 : (t - time) / 1000.0
+
+plot(bar_index, "C0_bar_index_CONTROL")
+plot(hour, "HOUR")
+plot(minute, "MINUTE")
+plot(secs(time_close(timeframe.period)), "C1_own_one_arg_CONTROL")
+plot(secs(time_close(timeframe.period, "0930-1600")), "C2_own_rth")
+plot(secs(time_close(timeframe.period, "1000-1100")), "C3_own_short_window")
+plot(secs(time_close("D", "0930-1600")), "C4_D_rth")
+plot(secs(time_close(timeframe.period, "0930-1600", "America/New_York")), "C5_own_rth_ny")
+plot(secs(time_close(timeframe.period, "0930-1600", "UTC")), "C6_own_rth_utc")

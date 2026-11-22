@@ -482,13 +482,219 @@ def premarket_starters():
     ]
 
 
+#: UCT RELATIVE STRENGTH starters (Phase 2a, unit 2a-08): plain-English names
+#: over the filter keys `filters.py` ships for the ten BAR-DERIVED columns
+#: (`rs_columns.COLUMNS`, the builder's `_step("bars_rs")`).
+#: ⚰️ This said they "fill on the first nightly build after deploy with no flag
+#: to flip". Corrected 2026-11-07 (review findings #12, #5): the `bars_rs` step
+#: follows `registry_defs.RS_V2_ENABLED` (review unit U3), so with the flag off the ten columns
+#: are NULL and every starter here would be a screen that found nothing.
+#: `rs_starters()` therefore returns nothing unless that flag is on, the same
+#: shape as `archive_starters()`. The group label has its own row in the
+#: client's `screenGroups.js` GROUPS (it used to fall back to Momentum leaders).
+#:
+#: ⚰️ This said "NO STARTER ON A RATING COLUMN UNTIL IT FILLS IN PROD":
+#: `rs_rating_ibd` and the columns beside it read the `rs_rating_history` side
+#: table, whose writer (`rs_history_nightly`, 04:15 ET) was dark behind
+#: `RS_HISTORY_ENABLED` on 2026-11-06, so `test_screener_saved.
+#: _KNOWN_EMPTY_IN_PROD` banned them. They filled: the flag was armed on
+#: 2026-11-07 and on 2026-11-13 2,390 of 2,404 liquid stocks carried a rating,
+#: so the ban entries were deleted on 2026-11-14 and a starter may filter a
+#: rating column. The three HELD BACK on 2026-11-06 are still not shipped here
+#: (the rating screens are their own piece of work, not this comment's):
+#:   "RS 90+ (IBD-style)"          rs_rating_ibd >= 90
+#:   "RS 90+ in a leading sector"  rs_rating_ibd >= 90 and sector_rs_pct >= 80
+#:   "RS rating climbing"          rs_rating_chg_20 >= 10 and rs_rating_ibd >= 70
+#:
+#: ⚠️ THRESHOLDS ARE EDITORIAL CLAIMS (`_open_range`'s docstring) and the owner
+#: has not yet approved the set (engineering map §5, open question 5). Every
+#: number below is either one the firm already publishes ($10M+ traded, price
+#: $5+, RS 80+) or the rule's own definition (a flag at 1, a cross whose age is
+#: inside one month of 21 sessions, up on 3+ of 20). Hit counts against a prod
+#: snapshot are UNMEASURED at 2026-11-06 — the collector merged the same day —
+#: and several describe genuinely uncommon events that SHOULD be empty on a
+#: quiet tape (the "counts are a snapshot, not a guarantee" note above).
+#: ⚠️ Mansfield is read on 200 DAILY bars (`rs_columns.MANSFIELD_LENGTH`); the
+#: plan's "(weekly)" wording is not what the column computes, so no name here
+#: says weekly.
+RS_STARTER_GROUP = "Relative strength"
+#: The two published floors every RS starter carries: $10M+ traded is the
+#: `dollar_vol_30d` preset, price $5+ the floor the flagship starters use.
+_RS_LIQUID = ({"key": "dollar_vol_30d", "op": "gte", "min": 10_000_000},
+              {"key": "price", "op": "gte", "min": 5})
+
+
+def rs_v2_enabled() -> bool:
+    """`registry_defs.RS_V2_ENABLED`, read at call time. Unreadable ⇒ off (dark)."""
+    try:
+        from api.services.signature import registry_defs  # noqa: PLC0415 - lazy
+        return bool(getattr(registry_defs, "RS_V2_ENABLED", False))
+    except Exception:  # noqa: BLE001 -- an unreadable gate shows nothing
+        return False
+
+
+def rs_screens_served(user=None) -> bool:
+    """Is THIS user served the five RS screens (``rs_post_pass.surfaces_on``: the flag
+    on for everyone, or ``admin`` and the user is an admin; unit U10), read at call
+    time. No user is a member's answer. Unreadable is off: today's starters.
+
+    Only the starters payload is gated. The scan and count routes need no gate: a
+    column that exists may be filtered by anyone."""
+    try:
+        from . import rs_post_pass  # noqa: PLC0415 - lazy
+        return bool(rs_post_pass.surfaces_on(user))
+    except Exception:  # noqa: BLE001 -- an unreadable gate changes nothing
+        return False
+
+
+def rs_starters(screens=None):
+    """The RS starters, or none while RS_V2_ENABLED is off (see above).
+
+    ``screens``: are the five served to the user being answered (`starters(user)`
+    passes `rs_screens_served(user)`; left out, it is a member's answer).
+
+    Not served (production today): the nine below, exactly as they were.
+    Served (RS screens unit U4): the five screens of `rs_screens` (Top RS Rating, RS New
+    Highs, RS New High Before Price, UCT RS Leaders, RS exit warnings; three keep the
+    id of the starter they replace), then the six single-rule lists they absorb,
+    each carrying ``hidden: true`` so the picker leaves it out while a pinned or
+    last-used id still resolves. Both flags are needed: the five read columns the
+    RS_V2 `bars_rs` step writes."""
+    if not rs_v2_enabled():
+        return []
+
+    def liquid():
+        return [dict(f) for f in _RS_LIQUID]
+
+    previous = [
+        {"id": "starter_rs_new_high", "name": "RS new highs (52-week)",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line against SPY closed the last session at a 52-week high on daily bars, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_new_high", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # `aliases` (optional, any starter): extra words the screen picker's search
+        # matches and never shows (ScreenMenu.jsx `match`). Members look for this
+        # screen by the names it already has elsewhere: "RSNHBP", and the blue dot
+        # that marks it on a chart. The key rides through `_stocks_only` and the
+        # saved-screens route untouched; a starter without search words has no key.
+        {"id": "starter_rs_nh_before_price", "name": "RS new high before price",
+         "group": RS_STARTER_GROUP,
+         "aliases": ["RSNHBP", "RS new high before price", "blue dot"],
+         "description": "Stocks whose RS line made a 52-week high on the last session while price is still more than 2% below its own 52-week high, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_nh_before_price", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_rs_nh_red_day", "name": "RS new highs on a red day",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line made a 52-week high on a session SPY closed down 0.5% or more, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_nh_red_day", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        {"id": "starter_rs_green_on_red", "name": "Up on down days (3+ of 20)",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks that closed up on at least 3 of the last 20 sessions' SPY down days (SPY down 0.5% or more), $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "green_on_red_20", "op": "gte", "min": 3},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "green_on_red_20", "dir": "desc"}}},
+        # The age keeps counting after a cross the line has since given back
+        # (`relative_strength.bars_ago_column`), so "still above" is a second
+        # clause, the same rule `_RUN_RULE` states for the run columns.
+        {"id": "starter_rs_cross_up_21ema", "name": "RS line crossed above its 21 EMA within 5 bars",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line against SPY crossed above its 21-day EMA within the last 5 sessions and is still above it, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_cross_up_bars_ago", "op": "between", "min": 0, "max": 5},
+             {"key": "rs_line_above_ma", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_cross_up_bars_ago", "dir": "asc"}}},
+        # The zero-cross age counts crosses in EITHER direction, so the sign
+        # clause is what makes "turned positive" true.
+        {"id": "starter_rs_mansfield_positive", "name": "Mansfield turned positive this month",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose Mansfield RS (the RS line against its own 200-day average) crossed zero within the last 21 sessions and reads above zero now, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "mansfield_cross_bars_ago", "op": "lte", "max": 21},
+             {"key": "mansfield", "op": "gt", "min": 0},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "mansfield", "dir": "desc"}}},
+        # Agreement alone cuts both ways (two falling slopes agree too), so the
+        # leaders clause is the published RS 80+ floor plus the line above its
+        # average; `rs_rank` is the fast UCT rating and fills in prod today.
+        {"id": "starter_rs_leaders_equal_weight", "name": "Leaders vs equal-weight too",
+         "group": RS_STARTER_GROUP,
+         "description": "RS 80+ stocks whose RS line is above its 21-day EMA and whose 20-day RS slope has the same sign against SPY and against equal-weight RSP, $10M+ traded, price $5+",
+         "spec": {"filters": [
+             {"key": "rs_rank", "op": "gte", "min": 80},
+             {"key": "rs_benchmark_agree", "op": "eq", "value": 1},
+             {"key": "rs_line_above_ma", "op": "eq", "value": 1},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # RS Exit Warnings (2026-11-13; the chart's rsExit, Mike Webster's method).
+        # An age is 0 on the newest session, so "the last 5 sessions" is 0-4.
+        # A warning is a prompt to review a position, never an order to sell,
+        # and the descriptions say so.
+        {"id": "starter_rs_exit_warning_5", "name": "RS exit warning in the last 5 sessions",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line against SPY flashed a Quick Break, Quicksand or Grateful Dead Break (Mike Webster's warnings, daily 21/50-day averages of the RS line) in the last 5 sessions, $10M+ traded, price $5+. A warning to review the position, not an order to sell",
+         "spec": {"filters": [
+             {"key": "rs_exit_bars_ago", "op": "between", "min": 0, "max": 4},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_exit_bars_ago", "dir": "asc"}}},
+        {"id": "starter_rs_quicksand_5", "name": "Quicksand in the last 5 sessions",
+         "group": RS_STARTER_GROUP,
+         "description": "Stocks whose RS line against SPY, after breaking below its 21-day average, closed below the level of that break in the last 5 sessions (Mike Webster's Quicksand), $10M+ traded, price $5+. A warning to review the position, not an order to sell",
+         "spec": {"filters": [
+             {"key": "rs_quicksand_bars_ago", "op": "between", "min": 0, "max": 4},
+             *liquid()],
+          "view": "relative_strength", "sort": {"key": "rs_quicksand_bars_ago", "dir": "asc"}}},
+    ]
+    if not (rs_screens_served() if screens is None else screens):
+        return previous
+    from . import rs_screens  # noqa: PLC0415 - lazy
+    return rs_screens.starters(previous)
+
+
 def starters(user=None):
     """Every starter this user may see. The Extended hours pair joins only when
-    `premarket.served_to(user)`; with no user that is a member's answer, so a caller
-    that does not pass one fails closed at `admin`."""
+    `premarket.served_to(user)`, and the five RS screens (with the hidden marks on the
+    lists they absorb) only when `rs_screens_served(user)`; with no user each is a
+    member's answer, so a caller that does not pass one fails closed at `admin`."""
     from api.services.screener import premarket  # noqa: PLC0415
     extra = premarket_starters() if premarket.served_to(user) else []
-    return [_stocks_only(s) for s in [*_starter_defs(), *extra]]
+    return [_stocks_only(s) for s in [*_starter_defs(rs_screens_served(user)), *extra]]
+
+
+def starters_to_record():
+    """The starters the nightly membership record takes (`membership.record_all`).
+
+    One list while there is one: `starters()`, as before. While RS_SCREENS_ENABLED is
+    `admin` there are two (a member is served the nine RS lists, the owner the five
+    screens), and the record takes both: the lists so "new today" keeps working for
+    members, the five so it works for the owner now and for everyone on the first day
+    of a full release. The record is keyed by a screen's criteria, so a list both
+    carry is recorded once."""
+    member = starters()
+    try:
+        from . import rs_post_pass  # noqa: PLC0415 - lazy
+        owner_only = rs_post_pass.enabled() and not rs_post_pass.surfaces_on()
+    except Exception:  # noqa: BLE001 -- an unreadable gate records what is served
+        owner_only = False
+    if not owner_only:
+        return member
+    return member + [_stocks_only(s) for s in _starter_defs(True)]
+
+
+def starters_with_the_rs_screens() -> list:
+    """The starter list as it is served to a user the RS screens are shown to, whoever
+    asks: the five screens with their controls, the retired seven marked hidden. The
+    nightly jobs that speak about the five (the join/leave messages) read this, because
+    under RS_SCREENS_ENABLED=admin `starters()` with no user is the members' list."""
+    return [_stocks_only(s) for s in _starter_defs(True)]
 
 
 def _live_volume_or_nightly(min_x):
@@ -518,7 +724,11 @@ def _live_volume_or_nightly(min_x):
     ]}
 
 
-def _starter_defs():
+def _starter_defs(rs_screens_on=None):
+    # `rs_screens_on`: are the five RS screens served to the user being answered
+    # (`starters(user)`); left out, a member's answer (`rs_screens_served()`).
+    if rs_screens_on is None:
+        rs_screens_on = rs_screens_served()
     # ── UCT Preset Scans — the firm's curated setups ──────────────────────────
     # ⛔ candle_starters() is NO LONGER surfaced here (owner call, 2026-09-20):
     # the candle-shape wall was noise as a "preset scan" list. The function is
@@ -529,7 +739,7 @@ def _starter_defs():
     # keep the ids and the vol_nweek_low / dollar_vol literals exactly.
     # More can be added later; every entry must be a runnable spec (that rail
     # derives its check from THIS list).
-    return [
+    core = [
         # UCT 50 — top 50 by composite rating (rank owns ordering; top_n caps).
         {"id": "starter_uct_50", "name": "UCT 50",
          "group": "Momentum leaders",
@@ -596,6 +806,32 @@ def _starter_defs():
          "description": "Stocks that doubled in eight weeks, then held within 20% of the high",
          "spec": {"filters": [{"key": "base_structure", "op": "contains", "value": ",power-play,"}],
                   "view": "bases", "sort": {"key": "rs_rank", "dir": "desc"}}},
+        # ── Anticipation: the firm's TC2000 column (Pradeep Bonde / Stockbee), row for row ──
+        #   Price History > 3                                        -> price > 3
+        #   (c/c5>=1.13 and c>3) or (c/c5>1.06 and c>50)  Is True    -> the any-of group
+        #   MinV3.1>600000  Is True                                  -> min_volume_3d_prior > 600K
+        #   Price History above Avg 50                               -> above_50sma (close > SMA50)
+        #   Capitalization > 250   (TC2000 counts it in MILLIONS)    -> market_cap > $250M
+        # ⛔ THE THRUST ROW IS ONE GROUP. Its `or` has no outer brackets in TC2000; flattened
+        # into the AND list it would let a stock pass on the first branch with the price,
+        # volume and cap rows unchecked. The same reading as `pcf.readConditionRows`.
+        # `chg_pct_1w` is close vs the close 5 sessions back, i.e. `c/c5`, as a percent.
+        # Needs SCREENER_LOGIC_ENABLED (armed on production; with it off the screen is refused
+        # with a sentence, never run without its thrust clause).
+        {"id": "starter_anticipation", "name": "Anticipation",
+         "group": "Momentum leaders",
+         "description": "Stocks up 13%+ in 5 days (6%+ over $50), price over $3, 600K+ shares on 3 prior days, above 50 day, market cap $250M+",
+         "spec": {"filters": [
+             {"key": "price", "op": "gt", "min": 3},
+             {"key": "min_volume_3d_prior", "op": "gt", "min": 600_000},
+             {"key": "above_50sma", "op": "eq", "value": 1},
+             {"key": "market_cap", "op": "gt", "min": 250_000_000}],
+          "logic": {"any": [
+             {"all": [{"key": "chg_pct_1w", "op": "gte", "min": 13},
+                      {"key": "price", "op": "gt", "min": 3}]},
+             {"all": [{"key": "chg_pct_1w", "op": "gt", "min": 6},
+                      {"key": "price", "op": "gt", "min": 50}]}]},
+          "view": "performance", "sort": {"key": "chg_pct_1w", "dir": "desc"}}},
         {"id": "starter_stage2_breakout", "name": "Stage-2 breakouts",
          "group": "Breakouts & entries",
          "description": "Stocks that broke the last swing high above a flat or rising 30 week average",
@@ -746,4 +982,12 @@ def _starter_defs():
              {"key": "optionable", "op": "eq", "value": 1},
              {"key": "rs_rank", "op": "gte", "min": 70}],
           "view": "events", "sort": {"key": "days_to_earnings", "dir": "asc"}}},
-    ] + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()
+    ]
+    rs = rs_starters(rs_screens_on)
+    if rs and rs_screens_on:
+        # The five RS screens are served: "Leaders (RS >= 90)" leaves the picker with
+        # the six RS lists (`rs_screens.RETIRED_IDS`). Hidden, not removed: its id still
+        # resolves. Only while the five are really there (`rs` is empty without RS_V2).
+        from . import rs_screens  # noqa: PLC0415 - lazy
+        core = [rs_screens.retire(s) for s in core]
+    return core + rs + (pattern_starters() if pattern_presets_enabled() else []) + archive_starters()

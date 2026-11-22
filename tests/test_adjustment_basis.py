@@ -32,7 +32,7 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def _seed_meta(ticker, splits=None):
-    cache.set(bs._META_KEY.format(ticker), {"ipo": None, "splits": splits or []}, ttl=3600)
+    bs._META_CACHE.set(bs._META_KEY.format(ticker), {"ipo": None, "splits": splits or []}, ttl=3600)
 
 
 def _sessions(start, n):
@@ -183,7 +183,7 @@ def test_the_label_agrees_with_what_the_serve_path_actually_did(fresh_db, monkey
 
 
 def test_never_raises_on_a_broken_meta_shape(fresh_db):
-    cache.set(bs._META_KEY.format("BROKEN"), {"splits": "not-a-list"}, ttl=3600)
+    bs._META_CACHE.set(bs._META_KEY.format("BROKEN"), {"splits": "not-a-list"}, ttl=3600)
     _write_flat_series("BROKEN", "D")
     assert ab.compute_adjustment_basis("BROKEN", "D") == ab.UNDETERMINED
 

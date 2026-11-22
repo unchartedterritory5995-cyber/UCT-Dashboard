@@ -26,6 +26,13 @@ const TOKEN = /aria-|role=/
 /** Files that render nothing an assistive technology needs named. One reason
  *  each — the reason is the audit record. */
 export const EXEMPT = Object.freeze({
+  // Tier 1b fix round 1: Sheet wrappers -- the repo's Sheet carries the dialog role and its name ("Add", "Folders").
+  'components/notebook/NotebookPlusSheet.jsx': 'renders the repo Sheet, which is the named dialog (title "Add")',
+  'components/notebook/FolderSheet.jsx': 'renders the repo Sheet, which is the named dialog (title "Folders")',
+  // S16 (audit 2026-11-05): the first run's eager gate -- the sheet it opens is the repo Sheet (a named dialog,
+  // "Make the Notebook yours"), and the inline ask is a named section; both live in the lazy FirstRunSheet.jsx.
+  'components/notebook/FirstRunGate.jsx':
+    'the eager gate: renders the lazy FirstRunSheet (a named dialog or a named section) or null; no markup of its own',
   'components/notebook/NotebookFlagGate.jsx':
     'renders its children or null; no markup or control of its own',
   'components/notebook/GettingStartedChecklist.jsx':
@@ -42,6 +49,8 @@ export const EXEMPT = Object.freeze({
     'the community library card dispatcher (P4b): renders LayoutLibraryCard, StyleLibraryCard or GalleryCard (each a card with its own named controls) or null; no markup or control of its own',
   'components/notebook/myTools/RoutinesTab.jsx':
     'renders ToolsTab with kind routine (the list with its named filters, rows, menu and live region); no markup of its own',
+  'components/notebook/myTools/TemplatesTab.jsx':
+    'one sentence and one native button named by its visible text ("Open Manage templates"), inside My tools\' tabpanel (named by its tab); since follow-up C the list it drew lives in Manage templates; no control that needs aria',
   'components/notebook/myTools/TrackersTab.jsx':
     'renders ToolsTab with kind tracker (the list with its named filters, rows, menu and live region); no markup of its own',
   'components/notebook/myTools/UsedInList.jsx':

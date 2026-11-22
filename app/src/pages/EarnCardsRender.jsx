@@ -1,4 +1,4 @@
-// app/src/pages/EarnCardsRender.jsx — headless, token-gated "Set to Report" export.
+// app/src/pages/EarnCardsRender.jsx — headless "Set to Report" export.
 //
 // One FULL-WIDTH row per company (owner call 7/26: the 2-col grid shrank the
 // type; clarity beats density). Each row: logo · ticker · company · report
@@ -8,15 +8,16 @@
 //
 // Data arrives in the URL (?data= base64url JSON) — the estimates set only
 // exists wire-side at build time; the wire stays the single source of truth.
-// Public route (no AuthGuard); ?token= checked against VITE_CHART_RENDER_TOKEN.
+// Public route (no AuthGuard). The page fetches no data of its own (logos aside),
+// so the page asks the server whether the address's token is accepted before it
+// draws.
 
 import { formatCompact } from '../lib/presentation/presentationPrimitives'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import uctLogo from '../components/intro/assets/compass-mark.png'
+import { useServerTokenCheck } from '../lib/renderToken'
+import uctLogo from '../components/intro/assets/compass-mark.webp'
 
-
-import { renderTokenOk } from '../lib/renderToken'
 const SESS = {
   AMC: { label: 'AFTER CLOSE', color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
   BMO: { label: 'BEFORE OPEN', color: '#4ade80', bg: 'rgba(74,222,128,0.12)' },
@@ -177,19 +178,21 @@ export default function EarnCardsRender() {
   const token = sp.get('token') || ''
   const w = Math.min(1200, Math.max(700, parseInt(sp.get('w') || '1000', 10)))
   const payload = useMemo(() => decodeData(sp.get('data') || ''), [sp])
-  const [err, setErr] = useState('')
+  // The page asks the server whether the address's token is accepted before it draws.
+  const check = useServerTokenCheck(token)
 
   useEffect(() => {
     window.__panelReady = false
-    if (!renderTokenOk(token)) { setErr('unauthorized'); return }
+    if (check !== 'ok') return
     // The priced move arrives IN the payload (exp_move_pct, computed wire-side
     // for just the shown names) — the full-day enrichment endpoint recomputes
     // 78-120 names and can take minutes cold, which shot chip-less panels.
     const t = setTimeout(() => { window.__panelReady = true }, 2400) // logos settle
     return () => clearTimeout(t)
-  }, [token, payload])
+  }, [check, payload])
 
-  if (err) return <div style={{ color: '#e74c3c', padding: 20 }}>{err}</div>
+  if (check === 'refused') return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
+  if (check === 'pending') return null
   const rows = (payload && payload.rows) || []
 
   return (

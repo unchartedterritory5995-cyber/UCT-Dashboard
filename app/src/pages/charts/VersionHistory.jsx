@@ -118,13 +118,16 @@ export function useVersionHistoryAvailable(active = true) {
 }
 
 /** The entry in the Layouts menu. Renders NOTHING unless the store answers. */
-export function VersionHistoryMenuItem({ className, onOpen }) {
+// glyphClass / labelClass (owner 11-14): the top-bar menu's row layout (gold glyph · label).
+export function VersionHistoryMenuItem({ className, onOpen, glyphClass = null, labelClass = null }) {
   const available = useVersionHistoryAvailable(true)
   if (!available) return null
   return (
     <button type="button" className={className} onClick={onOpen} data-testid="version-history-open">
-      <UIcon name="clock" size={14} gold={false} style={{ verticalAlign: '-2px', marginRight: 6 }} />
-      Version history
+      <span className={glyphClass || undefined} aria-hidden="true" style={glyphClass ? undefined : { verticalAlign: '-2px', marginRight: 6, display: 'inline-flex' }}>
+        <UIcon name="clock" size={glyphClass ? 15 : 14} gold={!!glyphClass} />
+      </span>
+      <span className={labelClass || undefined}>Version history</span>
     </button>
   )
 }

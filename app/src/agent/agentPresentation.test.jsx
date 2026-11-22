@@ -56,6 +56,54 @@ describe('1 · presentOf: the smallest view, chosen from the RESULT and the memb
     expect(presentOf({ text: 'long methodology…', present: { kind: 'value', value: '25.6%', label: 'US · % above 50-day', note: 'As of 2026-10-09 close' } }))
       .toMatchObject({ kind: 'value', value: '25.6%', details: { text: 'long methodology…' } })
   })
+  describe('a reply of several blocks states every block in its lead', () => {
+    const rows = (n) => Array.from({ length: n }, (_, i) => `• AAA${i} above ${i} — active`).join('\n')
+    it('rows, then a truthful negative: the negative is not under Details', () => {
+      const t = `Your price alerts (6):\n${rows(6)}\n\nYou have no indicator alerts.`
+      const v = presentOf(t)
+      expect(v).toMatchObject({ kind: 'text', text: 'Your price alerts (6)\nYou have no indicator alerts.' })
+      expect(v.details.text).toBe(t)
+    })
+    it('rows in both blocks: each is named', () => {
+      const v = presentOf(`Your price alerts (6):\n${rows(6)}\n\nYour indicator alerts (2):\n• RSI above 70 — active\n• MACD cross — paused`)
+      expect(v.text).toBe('Your price alerts (6)\nYour indicator alerts (2)')
+    })
+    it('a block that could not be read is said up front', () => {
+      expect(presentOf(`Your price alerts (6):\n${rows(6)}\n\nI couldn't read your indicator alerts right now, so they aren't included.`).text).toMatch(/couldn't read your indicator alerts/)
+    })
+    it('over a table: the same lead', () => {
+      const v = presentOf({ text: `Scan (6):\n${rows(6)}\n\nNo earnings dates were available.`, table: { columns: [{ key: 'a', label: 'A' }], rows: [{ a: 1 }] } })
+      expect(v).toMatchObject({ kind: 'table', text: 'Scan (6)\nNo earnings dates were available.' })
+    })
+    it('short blocks with nothing behind them leave no empty Details', () => {
+      const long = `${'A first short block that says one whole thing to the member. '.repeat(2).trim()}\n\n${'A second one, which says the other thing they asked about here. '.repeat(2).trim()}`
+      const v = presentOf(long)
+      expect(v.text.split('\n')).toHaveLength(2)
+      expect(v.details).toBeUndefined()
+    })
+    it('paragraphs of prose keep the single lead', () => {
+      const para = 'Breadth narrowed through the week as fewer names held above their rising averages, and the leaders that did hold were concentrated in two groups, which is a pattern worth watching. '.repeat(2).trim()
+      const v = presentOf(`${para}\n\n${para}`)
+      expect(v.text.split('\n')).toHaveLength(1)
+      expect(v.details.text).toContain(para)
+    })
+    it('a list of one block is unchanged: its lead, the rows in Details', () => {
+      const v = presentOf(`Your price alerts (6):\n${rows(6)}`)
+      expect(v.text).toBe('Your price alerts (6):')
+    })
+    it('asked for depth, the whole reply is shown', () => {
+      const t = `Your price alerts (6):\n${rows(6)}\n\nYou have no indicator alerts.`
+      expect(presentOf(t, { message: 'show me the details of my alerts' })).toMatchObject({ text: t })
+    })
+    it('a refusal or an error view keeps every block too', () => {
+      const v = presentOf({ text: `That didn't run:\n${rows(6)}\n\nNothing was changed.`, error: true })
+      expect(v).toMatchObject({ kind: 'error', text: "That didn't run\nNothing was changed." })
+    })
+    it('a capability view is untouched: it chose its own lead', () => {
+      const v = presentOf({ text: `Long:\n${rows(6)}\n\nNote.`, present: { kind: 'value', value: '25.6%', label: 'Float' } })
+      expect(v).toMatchObject({ kind: 'value', value: '25.6%' })
+    })
+  })
   it('INHERITED: a tool that returns only text + a table still gets a view (lead + rows; the rest in details)', () => {
     const long = `Screen: 3,665 stocks match (Price > $10). Showing the first 2 by RS Rank.\n${'More detail. '.repeat(30)}`
     const v = presentOf({ text: long, table: { columns: [{ key: 'ticker', label: 'Symbol' }, { key: 'rs', label: 'RS' }], rows: [{ ticker: 'NVDA', rs: 99 }, { ticker: 'PLTR', rs: 98 }] } }, { message: 'strongest stocks' })

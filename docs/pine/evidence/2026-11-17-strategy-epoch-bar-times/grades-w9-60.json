@@ -1,0 +1,1712 @@
+{
+ "schema": "uct.strategy-decl-grades/v1",
+ "generatedBy": "app/src/components/chart/engine/__tests__/vendorHarness/vendorHarness.corpus.test.js",
+ "lane": "runtime-on",
+ "run": "the 60 W9 Strategy Tester report captures, runtime-on, broker armed, after strategy-epoch-bar-times",
+ "base": "feat/strategy-epoch-bar-times on d49d6ab6c9 (uncommitted at run time, committed with this file)",
+ "laneEvidence": {
+  "requested": "runtime-on",
+  "objectsOnlyPane": true,
+  "gateOpen": true,
+  "declined": 6,
+  "gated": 0,
+  "runtimeDrawn": 54,
+  "hostRefused": 60,
+  "reachedRuntime": 60,
+  "declines": {
+   "runtime:call-undeclared-builtin-state": 2,
+   "runtime:strategy-repaint": 2,
+   "runtime:strategy-value": 2
+  },
+  "strategy": {
+   "brokerGate": true,
+   "graded": 60,
+   "brokerRuns": 54,
+   "verdicts": {
+    "EXPECTED-REFUSAL": 11,
+    "INCONCLUSIVE": 12,
+    "UNGRADABLE": 10,
+    "MATCH": 27
+   }
+  }
+ },
+ "results": [
+  {
+   "id": "s1-broker-core-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/s1-broker-core-rddt-1d-2026-11-15.json",
+   "script": "UCTPROBE_S1_BROKER",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "51 of 51 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unsettled",
+   "strategy": {
+    "broker": true,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by runtime:strategy-unsettled",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "2 orders fill on the same opening tick, and the order TradingView fills them in is not stated (unsettled: Q-S1d, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": 47,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1d-close-reverse-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1d-close-reverse-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1d-close-reverse",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "2 orders fill on the same opening tick, and the order TradingView fills them in is not stated (unsettled: Q-S1d, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1d-close-reverse-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1d-close-reverse-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1d-close-reverse",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)",
+   "strategy": {
+    "broker": true,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (1, floor 5)",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "2 orders fill on the same opening tick, and the order TradingView fills them in is not stated (unsettled: Q-S1d, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": 2,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1d-two-entries-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-entries-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1d-two-entries",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "the entry `A` filled on an opening tick where 1 later entry waits, and what TradingView does with them then is not witnessed (unsettled: Q-S1d, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1d-two-entries-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-entries-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1d-two-entries",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (0, floor 5)",
+   "strategy": {
+    "broker": true,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (0, floor 5)",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "the entry `A` filled on an opening tick where 1 later entry waits, and what TradingView does with them then is not witnessed (unsettled: Q-S1d, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": 2,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1d-two-stops-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-stops-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1d-two-stops",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "2 orders sit at the same price 59.21, and the order TradingView fills them in is not stated (unsettled: Q-S1d, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1d-two-stops-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1d-two-stops-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1d-two-stops",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (2, floor 5)",
+   "strategy": {
+    "broker": true,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (2, floor 5)",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "2 orders sit at the same price 59.21, and the order TradingView fills them in is not stated (unsettled: Q-S1d, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": 2,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1e-stop-past-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1e-stop-past-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1e-stop-past",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "exit `x` became active at a price already past its level, and where TradingView fills it then is not stated (unsettled: Q-S1e, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1e-stop-past-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1e-stop-past-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1e-stop-past",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)",
+   "strategy": {
+    "broker": true,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (1, floor 5)",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "exit `x` became active at a price already past its level, and where TradingView fills it then is not stated (unsettled: Q-S1e, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": 1,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1g-blocked-stop-entry-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1g-blocked-stop-entry-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1g-blocked-stop-entry",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-PYR-PRICE is not pinned by a matching TradingView capture (capture row Q-S1g, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1g-blocked-stop-entry-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1g-blocked-stop-entry-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1g-blocked-stop-entry",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)",
+   "strategy": {
+    "broker": true,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (1, floor 5)",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-PYR-PRICE is not pinned by a matching TradingView capture (capture row Q-S1g, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": 1,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1h-fifo-exit-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1h-fifo-exit-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1h-fifo-exit",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "an exit targets an open trade that is not the oldest, and TradingView closes the oldest trades first (FIFO) with a split this broker does not model (unsettled: Q-S1h, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1h-fifo-exit-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1h-fifo-exit-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1h-fifo-exit",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "3 of 4 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (2, floor 5)",
+   "strategy": {
+    "broker": true,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (2, floor 5)",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "an exit targets an open trade that is not the oldest, and TradingView closes the oldest trades first (FIFO) with a split this broker does not model (unsettled: Q-S1h, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": 3,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1j-stop-limit-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1j-stop-limit-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1j-stop-limit",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-STOP-LIMIT is not pinned by a matching TradingView capture (capture row Q-S1j, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1j-stop-limit-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1j-stop-limit-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1j-stop-limit",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (0, floor 5)",
+   "strategy": {
+    "broker": true,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (0, floor 5)",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-STOP-LIMIT is not pinned by a matching TradingView capture (capture row Q-S1j, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": 1,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1k-fractional-profit-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1k-fractional-profit-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1k-fractional-profit",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "`strategy.exit` with a distance of 150.5 ticks, not a whole number of ticks (unsettled: Q-S1k, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1k-fractional-profit-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1k-fractional-profit-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1k-fractional-profit",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)",
+   "strategy": {
+    "broker": true,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (1, floor 5)",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "`strategy.exit` with a distance of 150.5 ticks, not a whole number of ticks (unsettled: Q-S1k, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": 1,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1k-na-modify-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1k-na-modify-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1k-na-modify",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:strategy-call) [runtime declined: runtime:call-undeclared-builtin-state]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate \u2014 `strategy.position_size`; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1k-na-modify-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1k-na-modify-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1k-na-modify",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:strategy-call) [runtime declined: runtime:call-undeclared-builtin-state]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate \u2014 `strategy.position_size`; strategy UNGRADABLE at step 0: the reference has too few trades (0, floor 5)",
+   "strategy": {
+    "broker": false,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (0, floor 5)",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": 1,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1k-profit-and-limit-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1k-profit-and-limit-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1k-profit-and-limit",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-EXIT-LEVELS is not pinned by a matching TradingView capture (capture row Q-S1k, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "vw-s1-q-s1k-profit-and-limit-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/vw-s1-q-s1k-profit-and-limit-rpt-rddt-1d-2026-11-16.json",
+   "script": "vw-s1-q-s1k-profit-and-limit",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "2 of 3 items could not be compared; strategy UNGRADABLE at step 0: the reference has too few trades (1, floor 5)",
+   "strategy": {
+    "broker": true,
+    "verdict": "UNGRADABLE",
+    "step": 0,
+    "reason": "the reference has too few trades (1, floor 5)",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-EXIT-LEVELS is not pinned by a matching TradingView capture (capture row Q-S1k, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": 1,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-d1-margin50-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/w9-d1-margin50-rddt-1d-2026-11-16.json",
+   "script": "W9_D1_MARGIN50",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:strategy-call) [runtime declined: runtime:strategy-value]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate \u2014 `strategy.margin_liquidation_price`; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": false,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": null,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-d1-margin50-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/w9-d1-margin50-rpt-rddt-1d-2026-11-16.json",
+   "script": "W9_D1_MARGIN50",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:strategy-call) [runtime declined: runtime:strategy-value]: a strategy order or `strategy.*` value comes from the simulated broker TradingView runs for a strategy (orders, fills, positions), which this engine does not simulate \u2014 `strategy.margin_liquidation_price`; strategy EXPECTED-REFUSAL at step 1: refused by door",
+   "strategy": {
+    "broker": false,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by door",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": 20,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-d11-late-first-use-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/w9-d11-late-first-use-rddt-1d-2026-11-16.json",
+   "script": "W9_D11_LATE_FIRST_USE",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 39 items agree; strategy INCONCLUSIVE at step 0: strategy-reference: the report is not-requested",
+   "strategy": {
+    "broker": true,
+    "verdict": "INCONCLUSIVE",
+    "step": 0,
+    "reason": "strategy-reference: the report is not-requested",
+    "referenceTrades": null,
+    "tradesRun": 32,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-d11-late-first-use-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/w9-d11-late-first-use-rpt-rddt-1d-2026-11-16.json",
+   "script": "W9_D11_LATE_FIRST_USE",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 32,
+    "tradesRun": 32,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-PYR",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 38,
+     "texts": 32
+    }
+   }
+  },
+  {
+   "id": "w9-g1-v3-properties-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-g1-v3-properties-rddt-1d-2026-11-15.json",
+   "script": "UCTPROBE_V3_PROPERTIES",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 3 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 7,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-V3",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 2,
+     "texts": 0
+    }
+   }
+  },
+  {
+   "id": "w9-k1-commission-pct-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-k1-commission-pct-rddt-1d-2026-11-15.json",
+   "script": "W9_K1_COMMISSION_PCT",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-COMM-PCT",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-k2-commission-contract-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-k2-commission-contract-rddt-1d-2026-11-15.json",
+   "script": "W9_K2_COMMISSION_CONTRACT",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-COMM-CONTRACT",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-k3-commission-order-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-k3-commission-order-rddt-1d-2026-11-15.json",
+   "script": "W9_K3_COMMISSION_ORDER",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-COMM-ORDER",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-k4-slippage-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-k4-slippage-rddt-1d-2026-11-15.json",
+   "script": "W9_K4_SLIPPAGE",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-SLIPPAGE",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-mk1-markers-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/w9-mk1-markers-rddt-1d-2026-11-16.json",
+   "script": "W9_MK1_MARKERS",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-mk1-markers-rpt-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/w9-mk1-markers-rpt-rddt-1d-2026-11-16.json",
+   "script": "W9_MK1_MARKERS",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-p1-on-close-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-p1-on-close-rddt-1d-2026-11-15.json",
+   "script": "W9_P1_ON_CLOSE",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "37 of 37 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned",
+   "strategy": {
+    "broker": true,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by runtime:strategy-unpinned",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-POC is not pinned by a matching TradingView capture (capture row W9-P1, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": 23,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-p1b-on-close-fills-nv-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-p1b-on-close-fills-nv-rddt-1d-2026-11-15.json",
+   "script": "W9_P1B_ON_CLOSE_FILLS_NV",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "40 of 40 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned",
+   "strategy": {
+    "broker": true,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by runtime:strategy-unpinned",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-POC is not pinned by a matching TradingView capture (capture row W9-P1, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": 40,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-p1b-on-close-fills-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-p1b-on-close-fills-rddt-1d-2026-11-15.json",
+   "script": "W9_P1B_ON_CLOSE_FILLS",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:state) [runtime declined: runtime:strategy-repaint]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability \u2014 `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs \u2014 so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today \u2014 `_runs`; strategy EXPECTED-REFUSAL at step 1: refused by door",
+   "strategy": {
+    "broker": false,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by door",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": 20,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-p2-order-fills-nv-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-p2-order-fills-nv-rddt-1d-2026-11-15.json",
+   "script": "W9_P2_ORDER_FILLS_NV",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "40 of 40 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned",
+   "strategy": {
+    "broker": true,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by runtime:strategy-unpinned",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-FILLS is not pinned by a matching TradingView capture (capture row W9-P2, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": 40,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-p2-order-fills-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-p2-order-fills-rddt-1d-2026-11-15.json",
+   "script": "W9_P2_ORDER_FILLS",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "refused on our side: member door refused (pine:state) [runtime declined: runtime:strategy-repaint]: this value carries forward in a way the bounded accumulator cannot hold. `var` state that re-seeds does translate, as `accum`; what this one needs is a running total with no window, which the grammar has no node for. TO UNBLOCK: an unbounded accumulator would end static decidability \u2014 `maxLookback` could no longer be a tree sum and the repaint verdict could no longer be decided before the tree runs \u2014 so it is not a backlog item. `closedTable.json::_no_offset_reopened_by` names who may re-open that (the repaint-claim owner and the manifest owner, together). Re-seeding the value at a stated window turns it into `accum`, which translates today \u2014 `_runs`; strategy EXPECTED-REFUSAL at step 1: refused by door",
+   "strategy": {
+    "broker": false,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by door",
+    "refusedBy": "door",
+    "refusal": "the member door refused the script, so nothing was run",
+    "referenceTrades": 20,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-p3-every-tick-history-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-p3-every-tick-history-rddt-1d-2026-11-15.json",
+   "script": "W9_P3_EVERY_TICK_HISTORY",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TICK-HIST",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1a-size-v2-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v2-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1A_SIZE_V2",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 10 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 7,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-V3",
+     "B-VAL",
+     "B-WHEN"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 9,
+     "texts": 0
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1a-size-v4-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v4-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1A_SIZE_V4",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 11 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 7,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-V4-MARGIN0",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 10,
+     "texts": 0
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1a-size-v5cash-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v5cash-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1A_SIZE_V5CASH",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 38,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1a-size-v5pct-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v5pct-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1A_SIZE_V5PCT",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 38,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1a-size-v6-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1a-size-v6-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1A_SIZE_V6",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 7,
+    "tradesRun": 7,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-FUNDS",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 38,
+     "texts": 7
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1b-defaults-v4-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1b-defaults-v4-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1B_DEFAULTS_V4",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 11 items agree; strategy MATCH at step 7: every trade, fill and stated report slot equal; every value series equal bar by bar",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 7,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar",
+    "referenceTrades": 40,
+    "tradesRun": 40,
+    "rulesExercised": [
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-ENTRY-ORDER",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-PYR",
+     "B-QTY",
+     "B-REVERSE",
+     "B-ROUND",
+     "B-SIG",
+     "B-V4-MARGIN0",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 10,
+     "texts": 0
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1b-defaults-v5-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1b-defaults-v5-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1B_DEFAULTS_V5",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 40,
+    "tradesRun": 40,
+    "rulesExercised": [
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-ENTRY-ORDER",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-PYR",
+     "B-QTY",
+     "B-REVERSE",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-ENTRY-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 38,
+     "texts": 39
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1b-defaults-v6-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1b-defaults-v6-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1B_DEFAULTS_V6",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 39 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 31,
+    "tradesRun": 31,
+    "rulesExercised": [
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-ENTRY-ORDER",
+     "B-FILL",
+     "B-FUNDS-REVERSE",
+     "B-FUNDS-SHORT",
+     "B-MARGIN",
+     "B-MARGIN-CALL",
+     "B-MARGIN-CALL-ALL",
+     "B-MARKET",
+     "B-PYR",
+     "B-QTY",
+     "B-QTY-REVERSE",
+     "B-REVERSE",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-ENTRY-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 38,
+     "texts": 30
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1e-live-past-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1e-live-past-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1E_LIVE_PAST",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-EXIT-BIND",
+     "B-EXIT-LIFE",
+     "B-FIFO",
+     "B-FILL",
+     "B-GAP",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-PATH",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1i-short-v6-rddt-1d-2026-11-16",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1i-short-v6-rddt-1d-2026-11-16.json",
+   "script": "W9_Q_S1I_SHORT_V6",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 40 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 23,
+    "tradesRun": 23,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-FUNDS-SHORT",
+     "B-MARGIN",
+     "B-MARGIN-CALL",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 39,
+     "texts": 22
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1j-stop-limit-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1j-stop-limit-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1J_STOP_LIMIT",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "37 of 37 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned",
+   "strategy": {
+    "broker": true,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by runtime:strategy-unpinned",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-STOP-LIMIT is not pinned by a matching TradingView capture (capture row Q-S1j, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": 19,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-q-s1k-exit-levels-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1k-exit-levels-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1K_EXIT_LEVELS",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-EXIT-BIND",
+     "B-EXIT-LIFE",
+     "B-FIFO",
+     "B-FILL",
+     "B-GAP",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-PATH",
+     "B-QTY",
+     "B-SIG",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1k-exit-levels-v6-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1k-exit-levels-v6-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1K_EXIT_LEVELS_V6",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-EXIT-BIND",
+     "B-EXIT-LIFE",
+     "B-FIFO",
+     "B-FILL",
+     "B-GAP",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-PATH",
+     "B-QTY",
+     "B-SIG",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-q-s1p-when-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-q-s1p-when-rddt-1d-2026-11-15.json",
+   "script": "W9_Q_S1P_WHEN",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL",
+     "B-WHEN"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-r1-risk-allow-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-r1-risk-allow-rddt-1d-2026-11-15.json",
+   "script": "W9_R1_RISK_ALLOW",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-RISK-ALLOW",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-ENTRY-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-r1-risk-ddown-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-r1-risk-ddown-rddt-1d-2026-11-15.json",
+   "script": "W9_R1_RISK_DDOWN",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 40,
+    "tradesRun": 40,
+    "rulesExercised": [
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-QTY",
+     "B-REVERSE",
+     "B-RISK-DDOWN",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-ENTRY-CLOSE-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 39
+    }
+   }
+  },
+  {
+   "id": "w9-r1-risk-intraday-range-spy-15-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-r1-risk-intraday-range-spy-15-2026-11-15.json",
+   "script": "W9_R1_RISK_INTRADAY",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "37 of 37 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unsettled",
+   "strategy": {
+    "broker": true,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by runtime:strategy-unsettled",
+    "refusedBy": "runtime:strategy-unsettled",
+    "refusal": "this strategy's trades depend on the bar its backtest starts from, and this run is not known to start at the symbol's first bar (unsettled: Q-S1n, docs/pine/capture-queue-2026-10-05-s1.md)",
+    "referenceTrades": 20,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-x1-trail-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-x1-trail-rddt-1d-2026-11-15.json",
+   "script": "W9_X1_TRAIL",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "37 of 37 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned",
+   "strategy": {
+    "broker": true,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by runtime:strategy-unpinned",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-TRAIL is not pinned by a matching TradingView capture (capture row W9-X1, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": 20,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-x2-partial-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-x2-partial-rddt-1d-2026-11-15.json",
+   "script": "W9_X2_PARTIAL",
+   "verdict": "INCONCLUSIVE",
+   "verdictWithoutStrategy": "INCONCLUSIVE",
+   "reason": "39 of 39 items could not be compared; strategy EXPECTED-REFUSAL at step 1: refused by runtime:strategy-unpinned",
+   "strategy": {
+    "broker": true,
+    "verdict": "EXPECTED-REFUSAL",
+    "step": 1,
+    "reason": "refused by runtime:strategy-unpinned",
+    "refusedBy": "runtime:strategy-unpinned",
+    "refusal": "the broker rule B-EXIT-QTY is not pinned by a matching TradingView capture (capture row W9-X2, docs/pine/W9-STRATEGY-DESIGN.md 5.2)",
+    "referenceTrades": 40,
+    "rulesExercised": [],
+    "graded": null
+   }
+  },
+  {
+   "id": "w9-x3-oca-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-x3-oca-rddt-1d-2026-11-15.json",
+   "script": "W9_X3_OCA",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 37 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-GAP",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-OCA",
+     "B-PATH",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ALL-ID",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 36,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-x4-order-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-x4-order-rddt-1d-2026-11-15.json",
+   "script": "W9_X4_ORDER",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 38 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 20,
+    "tradesRun": 20,
+    "rulesExercised": [
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-ORDER",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-NO-COMMENT",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 37,
+     "texts": 20
+    }
+   }
+  },
+  {
+   "id": "w9-x5-cancel-rddt-1d-2026-11-15",
+   "file": "tests/fixtures/vendor/harness/w9-x5-cancel-rddt-1d-2026-11-15.json",
+   "script": "W9_X5_CANCEL",
+   "verdict": "MATCH",
+   "verdictWithoutStrategy": "MATCH",
+   "reason": "all 40 items agree; strategy MATCH at step 8: every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+   "strategy": {
+    "broker": true,
+    "verdict": "MATCH",
+    "step": 8,
+    "reason": "every trade, fill and stated report slot equal; every value series equal bar by bar; every drawn text equal",
+    "referenceTrades": 22,
+    "tradesRun": 22,
+    "rulesExercised": [
+     "B-CANCEL",
+     "B-CLOSE",
+     "B-DEFAULTS",
+     "B-DIR",
+     "B-EXIT-BIND",
+     "B-EXIT-LIFE",
+     "B-FIFO",
+     "B-FILL",
+     "B-MARGIN",
+     "B-MARKET",
+     "B-ORDER",
+     "B-PATH",
+     "B-QTY",
+     "B-ROUND",
+     "B-SIG",
+     "B-TXT-CLOSE-ALL-ID",
+     "B-VAL"
+    ],
+    "graded": {
+     "trades": true,
+     "fills": true,
+     "slots": 9,
+     "values": 39,
+     "texts": 22
+    }
+   }
+  }
+ ]
+}

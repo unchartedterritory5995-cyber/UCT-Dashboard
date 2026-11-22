@@ -26,7 +26,7 @@
  * on a Mac, Ctrl+H deletes a character, so it says Cmd+Option+F there.
  * A read-only editor gets no replace row at all.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import { chordText, modKeyLabel, replaceChordKeys } from '../../lib/platform'
 import styles from './NoteFindBar.module.css'
@@ -38,8 +38,9 @@ const composing = (e) => Boolean(e.nativeEvent?.isComposing || e.isComposing || 
 const undoWithdrawnText = () =>
   `The note changed since — use ${chordText([modKeyLabel(), 'Z'])} to undo in the editor`
 
-export default function NoteFindBar({ editor, onClose, initialReplace = false }) {
-  const [term, setTerm] = useState('')
+export default function NoteFindBar({ editor, onClose, initialReplace = false, initialTerm = '' }) {
+  // `initialTerm`: what the member typed into the stand-in drawn while this chunk was on its way (EditorToolSlots.jsx).
+  const [term, setTerm] = useState(initialTerm)
   const [matchCount, setMatchCount] = useState(0)
   const [activeIndex, setActiveIndex] = useState(-1)
   const [caseSensitive, setCaseSensitive] = useState(false)
@@ -54,7 +55,17 @@ export default function NoteFindBar({ editor, onClose, initialReplace = false })
   const inputRef = useRef(null)
   const canReplace = Boolean(editor?.isEditable)
 
-  useEffect(() => { inputRef.current?.focus() }, [])
+  // Layout effect, caret at the end: when the bar takes over from the stand-in, focus never leaves the field and the
+  // next letter lands after the ones already typed.
+  useLayoutEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.focus()
+    const end = el.value.length
+    el.setSelectionRange?.(end, end)
+  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (initialTerm) runSearch(initialTerm, false, false) }, [])
   // Opening with the replace shortcut while the bar is already open.
   useEffect(() => { if (initialReplace) setShowReplace(true) }, [initialReplace])
 

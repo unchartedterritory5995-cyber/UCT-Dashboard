@@ -1,0 +1,12 @@
+//@version=4
+study("vw-w1-barssince-v4")
+
+// PROVENANCE: written 2026-11-07 for the Pine parity programme from the inline shape in
+// docs/pine/capture-queue-2026-11-02-w1.md, W1-B (row B01/B02). The code below these comments is that doc's text.
+// NEVER COMPILED ON TRADINGVIEW: a line that does not compile IS a reading - record the error text and the line.
+// QUESTION: v4's one-argument barssince(cond): expected identical to v6 ta.barssince (r11-barssince-spy-1d-2026-09-11), na before the first true bar.
+// CAPTURE: AMEX:SPY 1D FROM THE LISTING, inputs at defaults.
+
+c = close > open
+plot(barssince(c), "B01_barssince_v4")
+plot(barssince(close > close[1] and volume > volume[1]), "B02_barssince_v4_compound")

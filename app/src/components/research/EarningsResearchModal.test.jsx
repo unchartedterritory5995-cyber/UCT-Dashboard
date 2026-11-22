@@ -180,13 +180,13 @@ describe('Ask AI section', () => {
   it('is the last tab, after the group that carries News and Filings', () => {
     renderModal()
     const tabs = screen.getAllByRole('tab').map(t => t.textContent.trim())
-    expect(tabs[tabs.length - 1]).toBe('Ask AI')
+    expect(tabs[tabs.length - 1]).toBe('UCT Agent')
     // ⛔ Asserted against COVERAGE, not against 'News'/'Filings' directly.
     // Those are sub-tabs now, so they are not in this row at all — and
     // `indexOf` returns -1 for a missing label, which every "Ask AI is after
     // it" comparison would then pass VACUOUSLY. Name the row's own member.
     expect(tabs).toContain('Coverage')
-    expect(tabs.indexOf('Ask AI')).toBeGreaterThan(tabs.indexOf('Coverage'))
+    expect(tabs.indexOf('UCT Agent')).toBeGreaterThan(tabs.indexOf('Coverage'))
     const coverage = GROUPS.find(g => g.id === 'coverage')
     expect(coverage.members).toEqual(expect.arrayContaining(['news', 'filings']))
   })

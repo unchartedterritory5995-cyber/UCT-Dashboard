@@ -238,7 +238,7 @@ def skip_items(rng: random.Random, n: int = 6) -> list[dict]:
             continue
         ref = f"{SOURCE}#2-skip-{i}"
         lesson = (f"The honest stop is {fmt(f['stop_pct'])}% away. {money(f['risk_dollars'])} of risk buys "
-                  f"{shares_word(f['shares'])}. Skip it. Never tighten the stop to make it fit.")
+                  f"{shares_word(f['shares'])}. Skip it, or wait for a tighter trigger. Never tighten the stop to make it fit.")
         out.append(make_item(
             type="size", skill_id="size.gate", module="M5",
             q=_q(account, risk, entry, stop, lead="The stop under the base is honest. "),
@@ -349,11 +349,68 @@ def ladder_size_items(rng: random.Random, n: int = 4) -> list[dict]:
     return out
 
 
+#: owner ruling 2026-11-12 (decision D-005 + his note on a 15% stop item: "Risk/Stop is too wide so the question is
+#: invalid"): he prefers 1-3%, 3.5% is good, he takes up to 5%; past 5% he mostly waits for a tighter trigger. So a
+#: share-count item never shows a stop past MAX_STOP_PCT (the skip items, whose point is the wide stop, stay).
+MAX_STOP_PCT = 5.0
+REFILL_SEED = SEED + 2         # its own stream, so every surviving item keeps its id
+SKIP_WORDS = "Skip it, or wait for a tighter trigger"
+
+
+def _choice_shares(n: int) -> str:
+    return f"{n:,} share" + ("" if n == 1 else "s")
+
+
+def _share_distractors(f: dict, key_shares: int) -> list[int]:
+    """The mistakes a member actually makes, as share counts: rounding up, ignoring the cap (the raw formula),
+    dividing the risk by the entry or by the stop price instead of by the risk per share, a decimal slip. Rounding up is
+    left out: it is one share off, inside the scorer's tolerance, so it would score right."""
+    risk, entry, stop, per = f["risk_dollars"], f["entry"], f["stop"], f["per_share"]
+    raw = [f.get("shares"), math.ceil(risk / per) if per else None, math.floor(risk / entry), math.floor(risk / stop),
+           key_shares * 10, key_shares // 10, key_shares * 2, max(1, key_shares // 2), key_shares + 5]
+    out = []
+    for x in raw:
+        # more than the scorer's 1-share tolerance away, or a wrong choice would score right
+        if isinstance(x, int) and x > 0 and abs(x - key_shares) > 1 and x not in out:
+            out.append(x)
+    return out
+
+
+def as_choice_item(it: dict) -> dict:
+    """Owner 2026-11-12 ("make these ones multiple choice"): a share-count item becomes four choices. The key keeps
+    `shares` (score_size reads it) and gains `answer` (the reveal card's label); position dollars leave the key,
+    because the drill's dollar box asked for dollars AT RISK and so marked right answers wrong."""
+    p, a, f = it["prompt_json"], it["answer_json"], it["reveal_json"].get("facts") or {}
+    if p.get("format") != "size" or "choices" in p:
+        return it
+    rng = random.Random(it["id"])
+    if a.get("skip"):
+        # the risk buys no whole share, so "0 shares" would be a second right answer; the wrong choices are the
+        # real mistakes instead: forcing a share, tightening the stop, or buying a starter anyway
+        choices = [SKIP_WORDS, "Buy 1 share anyway", "Move the stop up so it fits", "Buy a small starter"]
+        it["answer_json"] = {"skip": True, "answer": SKIP_WORDS}
+    else:
+        key = int(a["shares"])
+        choices = [_choice_shares(key)] + [_choice_shares(x) for x in _share_distractors(f, key)[:3]]
+        it["answer_json"] = {"shares": key, "answer": _choice_shares(key)}
+    rng.shuffle(choices)
+    p["choices"] = choices
+    p["skip_allowed"] = bool(a.get("skip")) or p.get("skip_allowed", False)
+    return it
+
+
 def generate() -> dict[str, list[dict]]:
     rng = random.Random(SEED)
     items = (forward_items(rng) + reverse_items(rng) + capped_items(rng) + skip_items(rng)
              + flat_vs_scaled_items(rng) + drawdown_items(rng) + ladder_size_items(rng)
              + tight_forward_items())          # appended last: the owner's tight-stop batch
+    # past-5% share-count items leave; the same number come back with stops of 5% or less, on their own stream
+    wide = [it for it in items if it["skill_id"] == "size.formula" and it["prompt_json"].get("format") == "size"
+            and (it["reveal_json"].get("facts") or {}).get("stop_pct", 0) > MAX_STOP_PCT]
+    items = [it for it in items if it not in wide]
+    items += forward_items(random.Random(REFILL_SEED), len(wide),
+                           stop_pcts=tuple(x for x in STOP_PCTS_TIGHT if x <= MAX_STOP_PCT), tag="forward-refill")
+    items = [as_choice_item(it) for it in items]
     for it in items:
         if it["type"] == "size":
             assert it["prompt_json"].get("entry") and it["prompt_json"].get("stop"), it["id"]     # §8.5

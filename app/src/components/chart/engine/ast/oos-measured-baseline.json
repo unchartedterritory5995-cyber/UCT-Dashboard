@@ -212,7 +212,7 @@
       "pine:request",
       "pine:request"
     ],
-    "flat": 0,
+    "flat": 2,
     "pair": 0,
     "fillFlat": 0,
     "fillPair": 0
@@ -358,7 +358,7 @@
       "pine:collection"
     ],
     "flat": 18,
-    "pair": 0,
+    "pair": 2,
     "fillFlat": 0,
     "fillPair": 0
   }

@@ -1,0 +1,53 @@
+# The shared setup of every job in .github/workflows/pine-heavy.yml (one copy, so the legs cannot drift).
+#
+#   * Node 20 (the gate's and the Pine runtime image's major) and the app's node_modules, CACHED as a
+#     directory keyed on the lockfile: a hit skips `npm ci` entirely.
+#   * ⛔ LICENCE-HELD MATERIAL IS NOT HERE AND MUST NEVER BE FETCHED. The out-of-git stores
+#     (tools/vendor_harness/licence_held.py, ourSide.js's supply store, PINE_LIBRARY_STORE) are pinned
+#     by the workflow's env to directories this step creates EMPTY, and it fails if any is non-empty or
+#     if a variable that would point a rail at the owner's machine is set. A licence-held rail then
+#     SKIPS BY NAME, as it is written to when the store is absent.
+#   * The no-network wrapper (tools/ci_offline.sh) proves itself before any test runs under it.
+name: pine heavy setup
+description: Node + cached node_modules, empty licence-held stores, and a proven no-network sandbox
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: node_modules (cached on the lockfile)
+      id: nm
+      uses: actions/cache@v4
+      with:
+        path: app/node_modules
+        key: pine-heavy-nm-${{ runner.os }}-node20-${{ hashFiles('app/package-lock.json') }}
+
+    - name: npm ci (cache miss only)
+      if: steps.nm.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: app
+      run: npm ci --no-audit --no-fund
+
+    - name: The licence-held stores are empty and nothing points at the owner's machine
+      shell: bash
+      run: |
+        set -euo pipefail
+        for v in UCT_VENDOR_CAPTURE_STORE UCT_HARNESS_SUPPLY_STORE; do
+          d="${!v:-}"
+          test -n "$d" || { echo "::error::$v is not pinned by the workflow env"; exit 1; }
+          mkdir -p "$d"
+          if [ -n "$(ls -A "$d")" ]; then echo "::error::$v=$d is not empty"; exit 1; fi
+          echo "$v=$d (empty)"
+        done
+        for v in PINE_LIBRARY_STORE LOCALAPPDATA VENDOR_HARNESS_DIR; do
+          if [ -n "${!v:-}" ]; then echo "::error::$v is set (${!v}); the heavy jobs read committed fixtures only"; exit 1; fi
+        done
+        echo "committed fixtures only: $(git ls-files tests/fixtures/vendor | wc -l) files under tests/fixtures/vendor"
+
+    - name: The test sandbox has no network (self-check)
+      shell: bash
+      # the wrapper comes from the WORKFLOW's commit (this action's own checkout), never from the ref
+      # under test, so a dispatch against an older branch still runs offline
+      run: bash "${{ github.action_path }}/../../../tools/ci_offline.sh" --self-check
