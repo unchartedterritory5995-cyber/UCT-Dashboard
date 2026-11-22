@@ -642,6 +642,9 @@ def rules(cid):
         from .stat_rules import stat_rules
         got = stat_rules(cid, C, V, [None if not ok(x) else x for x in SC])
         return {group: [(name, [NAN if v is None else v for v in col]) for name, col in readings] for group, readings in got.items()}
+    if cid == 'wall-18':                                    # the number of shares I own and my average cost: the member's OWN figures
+        # nothing here can be computed from bars: the rule is about the two settings (see `grade._grade_fill_in`)
+        return {'__fill_in__': [('the shares the member owns', 150.0), ('the average cost', 48.25)]}
     if cid and cid.startswith('udaily-'):                  # a daily measure below a day: the acceptance rules of the 5 minute chart
         from .udaily_rules import udaily_rules
         return udaily_rules(cid)

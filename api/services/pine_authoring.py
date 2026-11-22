@@ -357,7 +357,18 @@ THE RULES
 10. For a well-known indicator, when this document lists Pine's OWN function for it, CALL that function: do not re-derive its maths by hand. {own_functions}When this document lists none, write the published calculation yourself and say in `reply` which definition you used.
 11. Draw ONLY what the member asked for. A request for a count or a signal is that one plot or mark: do not add a label on every event, a summary table, a background colour, extra shapes or an `alertcondition` the request did not name. Each extra clutters the chart and is one more claim that has to be right. If something more would help, OFFER it in `reply` in one short sentence ("I can also mark each day or add a table") and leave it out of the script. When the request is ONLY a drawing (a box, a line, labels, a table) and names no plotted line, still `plot` the value the drawing is made from, because a script with a plot can be used in alerts and one without cannot; but make that plot INVISIBLE with a fully transparent colour (`plot(level, "Level", color=color.new(color.gray, 100))`) and say in `reply` that a hidden plot is there for alerts. Never hide a plot the member asked to see.
 12. {number_on_bars}
-13. {format_literal}"""
+13. {format_literal}
+14. {fill_in}"""
+
+#: ⭐ RULE 14: A FIGURE THE MEMBER MUST FILL IN (found by the first full live run of the value cases, 2026-11-22). On
+#: the formula door an "average cost" setting was drawn bare: a line at price 0 until filled, squeezing the chart. A
+#: script reaches the same shape with `avg = input.float(0, ...)` and `plot(avg)`. The member's own figures are never
+#: invented (a default of 0), and a figure at 0 is not drawn.
+FILL_IN_RULE = (
+    "A FIGURE THE MEMBER MUST FILL IN (shares, an entry, an average cost, a stop): never invent it. Give the "
+    "setting a default of 0 and draw NOTHING until it is filled: `plot(avg > 0 ? avg : na)`, and a table cell that "
+    "shows it only when it is above 0. A bare `plot(avg)` is a line at price 0 that squeezes the chart. Say in "
+    "`reply` that the member's own figures cannot be read here and where to enter them.")
 
 #: ⭐ RULE 13, INTERIM (coordinator's ruling, 2026-11-22). Found by the live re-check of the rule above it: asked for a
 #: table of yesterday's high and low, the assistant added a "Decimal places" setting and BUILT the number format from
@@ -540,7 +551,7 @@ def contract(ref: Optional[Mapping[str, Any]] = None) -> str:
     """The contract as the assistant reads it: the rules, with rule 10's examples taken from the reference."""
     return (CONTRACT.replace("{own_functions}", _own_functions_said(ref)).replace("{last_bar}", _last_bar_said(ref))
             .replace("{number_on_bars}", NUMBER_ON_BARS_RULE)
-            .replace("{format_literal}", FORMAT_LITERAL_RULE))
+            .replace("{format_literal}", FORMAT_LITERAL_RULE).replace("{fill_in}", FILL_IN_RULE))
 
 
 def document(ref: Optional[Mapping[str, Any]] = None, run_stops: Optional[List[str]] = None) -> str:

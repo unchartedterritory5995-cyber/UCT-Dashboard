@@ -67,7 +67,7 @@ def test_the_fixture_is_whole():
         # a case may be recorded WRONG: a known defect of the door, named, never silently passed
         assert case.get("recorded_verdict", "wrong" if "defect" in case else None) in (None, "wrong"), case["id"]
         assert ("defect" in case) == (case.get("recorded_verdict") == "wrong") and len(case.get("defect") or "x" * 99) > 80, case["id"]
-    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "j06", "count-on-bars-01", "table-format-01", "wall-26", "intraday-02"]     # every one is named here, on purpose
+    assert [c["id"] for c in CASES if c.get("recorded_verdict") == "wrong"] == ["intraday-01", "date-start-01", "wall-18", "j06", "count-on-bars-01", "table-format-01", "wall-26", "intraday-02"]     # every one is named here, on purpose
 
 
 @pytest.mark.parametrize("case", HERE, ids=[c["id"] for c in HERE])
@@ -92,7 +92,7 @@ def test_every_formula_case_has_a_rule_that_covers_the_whole_market():
         want = rules.rules(case["id"])
         assert want, case["id"]
         for what, readings in want.items():
-            if what != "__outputs__":
+            if what not in ("__outputs__", "__fill_in__"):
                 bars = G.CHARTS[case.get("chart", "daily")]["bars"]        # the chart the case names (daily unless it says)
                 assert readings and all(len(col) == len(bars) for _name, col in readings), (case["id"], what)
     assert len(G.CHARTS["daily"]["bars"]) == market.BAR_COUNT and {c.get("chart", "daily") for c in FORMULA} == {"daily", "intraday"}
@@ -171,7 +171,7 @@ def test_CONTROL_a_rule_read_one_bar_late_fails_the_right_answer(monkeypatch):
 
     def late(cid):
         want = real(cid)
-        return None if want is None else {what: (readings if what == "__outputs__" else [(name, [G.NAN] + list(col[:-1])) for name, col in readings])
+        return None if want is None else {what: (readings if what in ("__outputs__", "__fill_in__") else [(name, [G.NAN] + list(col[:-1])) for name, col in readings])
                                           for what, readings in want.items()}
     monkeypatch.setattr(rules, "rules", late)
     wrong = sum(G.grade_case(c)["verdict"] == "wrong" for c in FORMULA)
