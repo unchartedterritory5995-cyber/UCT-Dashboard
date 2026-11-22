@@ -109,8 +109,9 @@ copy. The design keeps today's rule, no weaker and no stricter:
   with `agent-ci-required` = success.
 - So in the queue: a queued pull request that touches an Agent path AND a self-protected path fails the
   verdict, with today's message (its own run could vouch for itself, AUDIT's local evidence decides). It lands
-  outside the queue, by an owner or admin, after AUDIT signs off; the ruleset's bypass list holds that one role,
-  for pull requests only.
+  outside the queue, by an owner or admin, after AUDIT signs off, and never while an Agent re-arm or evidence run
+  is in flight, and only on AUDIT's GO line for that head; the ruleset's bypass list holds that one role, for
+  pull requests only.
 - A queued pull request that touches a self-protected path and NO Agent path needs no Agent evidence and is
   not held. The status description says how many self-protected paths it touched.
 - Measured on 2026-11-17 to 11-21 (718 merges): 47 touch a self-protected path, 35 of them touch no Agent
@@ -175,9 +176,27 @@ Three consequences for the cutover:
   `master`'s copy of the workflow before cutover.
 - Every pull request open at cutover needs a push, a reopen or an agent ci run before the App's status exists on its head.
 
-What this does not close: anything that lands on `master` can name the environment. A rail in the required static check
-refuses any workflow but the two posters from naming the environment, the variable, the secret or the context; whether the
-rail files or all of `.github/workflows/**` should be Agent paths is a question for AUDIT (on #2501).
+**Anything that lands on `master` can name the environment, so the follower refuses it before it lands (AUDIT
+review 2, finding 1).** The environment's branch policy admits every workflow file on `master`. A test that compares
+names is not enough: `environment: ${{ format('agent-ci-{0}', 'verdict') }}` passes a string match, and a test runs
+from the pull request's own tree. So the check lives in `tools/agent_ci_required.py` (self-protected, run from
+`master`), and the follower applies it to EVERY queued entry, those with no Agent path included, over the whole
+`.github/workflows/` tree at `head_sha`, read from git objects. It fails any entry where:
+
+- a job outside the two posters has an `environment` key, whatever its value;
+- a job uses a reusable workflow that is not `./.github/workflows/...`;
+- a file other than the two posters names `AGENT_CI_VERDICT_*` or the context outside a comment.
+
+Scanning the whole tree also fails an entry queued BEHIND one that adds such a file. The same check runs on the pull
+request's head, so such a pull request cannot enter the queue. The test rail stays and calls the same code.
+
+The three rail files (`tests/test_ci_agent_merge_ref.py`, `tests/test_agent_ci_required.py`,
+`tests/test_agent_ci_evidence.py`) are Agent paths AND self-protected, and `.github/actions/**` is self-protected;
+`.github/workflows/**` as a whole is not an Agent path (about 7 ordinary pull requests a day would otherwise go to an
+admin bypass, for a risk the check above closes structurally).
+
+The environment has "Allow administrators to bypass" OFF (`can_admins_bypass: false`, set 2026-11-22 on this repo and
+the rehearsal repo): the branch policy carries the whole identity argument.
 
 ### 3.7 Safeguards the queue does not replace (AUDIT D2, 8.3, 8.4)
 
@@ -273,4 +292,5 @@ nothing else was changed. **Abort rule:** queue wait p90 over 45 minutes, or the
 | 8.2 scope | Accepted by AUDIT: today's path list; widen by a path if a deploy-gate Agent red is ever traced outside it. |
 | 8.3 records | 3.7: `verify` merge-group mode. |
 | 8.4 the hold | 3.7 and section 5. |
+| Review 2, findings 1 to 4 | 3.6 (the follower's workflow-tree check, the rail files and local actions, the environment's admin bypass off), 3.4 (the bypass sentence), and `CUTOVER.md`. |
 | 8.5 | The real Agent suite first runs in a merge group at cutover step 6 (acceptable only because a failure removes the entry and rollback is one switch); queue-timeout removals of Agent entries are on the week-one watch list. |

@@ -9,16 +9,24 @@ Every step here is reversible with one switch (the last section).
       said APPROVED on both.
 - [ ] The verdict's GitHub App exists, is installed on this repo with commit statuses read and write, and its
       credentials are in the environment `agent-ci-verdict`, whose deployment-branch policy allows `master` only.
-- [x] The follower was rehearsed with that App in the rehearsal repo (2026-11-22, #2501 at `6b9fffe029`): it posts
-      the verdict, a job on a `gh-readonly-queue/...` ref is refused the environment, and a status posted by
-      GitHub Actions under the same name does not satisfy the required check. Repeat if #2501 changes.
-- [ ] `agent/int` has taken `master`'s copy of `agent-ci-required.yml`.
+- [ ] The follower was rehearsed with that App in the rehearsal repo at #2501's FINAL head: it posts the verdict, a
+      job on a `gh-readonly-queue/...` ref is refused the environment, a status posted by GitHub Actions under the
+      same name does not satisfy the required check, and a no-Agent-path entry that adds a workflow whose
+      `environment` is an expression is REMOVED. (Rehearsed at `6b9fffe029` on 2026-11-22, before the follower's
+      workflow-tree check existed; that does not count for this box.)
+- [ ] `git diff origin/master origin/agent/int -- .github/workflows/agent-ci-required.yml` is empty. Done by the
+      Agent Lead (merge `master` into `agent/int` after #2501 lands, outside a re-arm or evidence run: the file is an
+      Agent path, so the merge starts an 18-job run). Checked by AUDIT.
+- [ ] Environment `agent-ci-verdict` has "Allow administrators to bypass" OFF (`can_admins_bypass: false`).
+      Set on 2026-11-22; re-read it on the day:
+      `gh api repos/northstar-quarry/UCT-Dashboard/environments/agent-ci-verdict --jq .can_admins_bypass`
 - [ ] The list of open pull requests is recorded: each needs a push, a reopen or an agent ci run before the
       App's status exists on its head. The cutover message says so.
 - [ ] The Agent part is merged: Agent jobs run on `merge_group` for a queued pull request that touches an Agent
       path, and `agent-ci-required` is posted on the merge group's commit.
-- [x] The Agent part was exercised by real `merge_group` events in the rehearsal repo (2026-11-22, round 4, with a
-      stand-in for the 18 Agent jobs): pass, skip, fail and self-protected. Repeat it if #2501 changes the workflow.
+- [ ] The Agent part was exercised by real `merge_group` events in the rehearsal repo at #2501's FINAL head (with a
+      stand-in for the 18 Agent jobs): no Agent path, Agent path, Agent + self-protected, and an Agent entry stacked
+      behind a machinery edit.
 - [ ] The owner has said go for the switch-on.
 - [ ] No required check is flaky. Check the last 7 days of `master gate static checks` and `agent-ci-required`
       for a red that went green on a rerun with no change.
