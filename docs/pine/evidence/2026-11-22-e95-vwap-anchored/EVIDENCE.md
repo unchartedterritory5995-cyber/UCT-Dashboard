@@ -44,7 +44,7 @@ anchor there; on a Session anchor that is the first partial session).
 |---|---|
 | The anchored sums are their own class, read off the manifest's own roster: out of `RUNNING_TOTAL_CALLS` and out of the additive-constant algebra (the pass reads them as any other call, fixed while their arguments do not move) | `barIndexShift.js::ANCHOR_RESET_CALLS`, Python twin `ast_bar_index_shift.ANCHOR_RESET_CALLS` |
 | A requirement tag with a true sentence: `anchor_dependent` (accepted by the pane, refused by the screener, the sweep, an alert, a share and a listing, as every `series` entry must be). Not `window_dependent` (its sentence says every value moves with more history) and not `occurrence_dependent`; no pane badge (the per-bar withholding already says it on the chart) | `closedTable.json::_requirement_tags.anchor_dependent` |
-| Off the listing, the bars before the first bar the anchor fires on this chart are withheld BY NAME, PER BAR (`vwap:before-first-anchor`), with every bar that reads them within the tree's reach, or every later bar under a value kept for good; it fails closed (every bar) under another series' request or over a recurrence's own value. From the listing nothing is named (TradingView is `na` there too) | `interpret.js::builtinWitnessMask` (`BUILTIN_WITNESS_CODES`, `firstAnchorBar`), Python twin `ast_interpret.builtin_witness_mask` |
+| Off the listing, the bars before the first bar the anchor fires on this chart are withheld BY NAME, PER BAR (`vwap:before-first-anchor`), with every bar that reads them within the tree's reach, or every later bar under a value kept for good; it fails closed (every bar) under another series' request or over a recurrence's own value. ⛔ The anchor is read AS THIS CHART CAN KNOW IT (every mask applied): the built-in's own `na(src[1])` restart is true on this chart's bar 0 and false on TradingView's, so it is no known reset, and the bars until the first known anchor are withheld (found while building this rail: read raw, the built-in summed from bar 0 off the listing). From the listing nothing is named (TradingView is `na` there too) | `interpret.js::builtinWitnessMask` (`BUILTIN_WITNESS_CODES`, `firstAnchorBar`), Python twin `ast_interpret.builtin_witness_mask` |
 | The code is a per-bar one (`PER_BAR_CLOCK_CODES`): the headless lane computes the script and the vendor harness grades those bars "not compared"; its sentence: "the VWAP starts at the first anchor shown on the chart" | `interpret.js::VWAP_BEFORE_FIRST_ANCHOR`, `CHART_CLOCK_WITHHELD` |
 | The runtime lane: its warm-up curtain (two starts) already withholds those bars per run; a column the columnar lane blanks whole by the code declines by the same name | `pineRuntimeFrontend.js::BUILTIN_WITNESS_REFUSALS` |
 | A screen that spells the table name itself is refused with the tag's own sentence | `pine.js::PINE_INEXPRESSIBLE.vwapAnchor` / `vwapAnchorDev` |
@@ -53,8 +53,9 @@ Rails (`vwapAnchored.test.js`, 7 more; `tests/test_vwap_anchor_parity.py`, 5 mor
 served from its first in-window anchor bit for bit (the average and each band), the bars before it withheld by name in
 the per-bar channel and never whole; `nz(vwap)` is withheld there, never drawn as 0; `nz(v) - nz(v[5])` reads no
 running total, is withheld until its read reaches the anchor and is exact after; from the listing nothing is named;
-the sentence is true and is not the running-total one. Mutants VA9-VA12: put it back among the running totals (JS,
-Python); serve the bars before the first anchor (JS, Python).
+the sentence is true and is not the running-total one; an anchor this chart cannot read on its first bar (the built-in's
+`na(src[1])` restart) is no reset. Mutants VA9-VA14: put it back among the running totals (JS, Python); serve the bars
+before the first anchor (JS, Python); read the anchor raw (JS, Python).
 
 ## What the member sees
 

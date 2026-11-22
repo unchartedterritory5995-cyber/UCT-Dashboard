@@ -109,6 +109,24 @@
    "to": "            code_at = [VWAP_BEFORE_FIRST_ANCHOR if i < 0 else None for i in range(n)]",
    "rail": "python -m pytest -q -p no:warnings tests/test_vwap_anchor_parity.py",
    "expectRed": "failed"
+  },
+  {
+   "id": "VA13",
+   "mutant": "the anchor is read raw, not as this chart can know it (JS): the built-in's na(src[1]) restart on bar 0 off the listing is taken as a reset, and the bars after it are summed from a bar TradingView did not restart on",
+   "file": "app/src/components/chart/engine/ast/interpret.js",
+   "from": "firstAnchorBar(known(args[1]), n)",
+   "to": "firstAnchorBar(colOf(args[1]), n)",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vwapAnchored.test.js",
+   "expectRed": "bar 0"
+  },
+  {
+   "id": "VA14",
+   "mutant": "the anchor is read raw, not as this chart can know it (Python twin)",
+   "file": "api/services/ast_interpret.py",
+   "from": "                first = _first_anchor_bar([NAN if v is None else v for v in known], n)",
+   "to": "                first = _first_anchor_bar(col_of(args[1]), n)",
+   "rail": "python -m pytest -q -p no:warnings tests/test_vwap_anchor_parity.py",
+   "expectRed": "failed"
   }
  ]
 }

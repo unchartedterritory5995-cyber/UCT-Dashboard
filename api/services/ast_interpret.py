@@ -6812,7 +6812,13 @@ def builtin_witness_mask(tree: Any, bars: List[dict],
         if nested and not is_vwap:
             continue
         if is_vwap:
-            first = n if (nested or _reads_recurrence_binding(node)) else _first_anchor_bar(col_of(args[1]), n)
+            # the anchor as this chart can know it: every mask applied (``interpret``), so a bar whose anchor reads
+            # before the chart's first bar, or any other withheld read, is no known reset (``builtinWitnessMask``)
+            if nested or _reads_recurrence_binding(node):
+                first = n
+            else:
+                known = interpret(args[1], bars, inputs, budget, scalars, dict(inner, withheldBarsSink=None))
+                first = _first_anchor_bar([NAN if v is None else v for v in known], n)
             code_at = [VWAP_BEFORE_FIRST_ANCHOR if i < first else None for i in range(n)]
         elif _reads_recurrence_binding(node):
             continue      # never reached: a window over ``self`` is refused by the interpreter first
