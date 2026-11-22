@@ -84,35 +84,54 @@ compared bar where the chart starts at the symbol's listing.
   from 0 so a value is drawn before the first anchor; the runtime kernel dropped; bands from the average; a held
   source at other bytes graded; a moved timeframe setting dropped; a source-held row read as store-held).
 
-## Grade diff (train integration: master + #2465 + #2466 + #2474, before and after this unit)
+## Census and grade (the train before this unit vs the train with it: master + #2465 + #2466 + #2474, both lanes)
 
-TradingView's built-in VWAP pasted as Pine, Session anchor (its default): 6 captures (4 symbols, 1D), both lanes
-identical.
+Measured after the hazard ruling and both fixes it surfaced (the known anchor, the bounded bar-index mask), local,
+under the heavy lock.
+
+**Census** (the 37 corpus rows that call `ta.vwap` with more than one argument, member door):
+
+| lane | served in full | attached | refused |
+|---|---|---|---|
+| production | 1 -> 3 | 0 -> 3 | 36 -> 31 |
+| runtime-on | 1 -> 3 | 0 -> 4 | 36 -> 30 |
+
+**0 served -> refused, 0 attached -> refused, on either lane.**
+
+**Grade diff** (25 VWAP captures; production lane):
 
 | | before | after |
 |---|---|---|
-| captures | 6 INCONCLUSIVE (`pine:reassign`) | **4 MATCH** (7 of 7 plots each), 2 INCONCLUSIVE |
+| verdicts | 25 INCONCLUSIVE | 4 MATCH, 2 DIVERGE, 19 INCONCLUSIVE |
 
 - **0 MATCH lost.**
-- The 2 INCONCLUSIVE rows are charts that do not start at the listing: the built-in's own no-volume guard
-  (`if barstate.islast and ta.cum(volume) == 0 runtime.error(...)`) reads a running total, which is withheld by name
-  there (`running-total:window`), so every plot is. Its refinement (a `cum` of a non-negative series that is above 0 is
-  above 0 from the listing too) touches the bar-index mask machinery and is its own unit.
+- TradingView's built-in VWAP at its default (Session) anchor, 6 captures on 4 symbols, 1D: **4 MATCH** (all 8 items
+  each), and the 2 rows that the earlier grade left INCONCLUSIVE (charts the hazard ruling was about) now compare
+  **every compared bar equal** (14,544 and 8,507 bars, every plot), with 1 bar per plot withheld by name and not
+  compared; they stay INCONCLUSIVE only for that bar. The built-in's no-volume guard (`ta.cum(volume) == 0`) does not
+  withhold them.
+- **2 rows move INCONCLUSIVE -> DIVERGE, and the divergence is the EVENTS supply, not the VWAP.** UCT's own probe
+  `vw-data-vwap-anchors` (AAPL 1D, JPM 1D), refused whole before (the 2-argument `ta.vwap`), now draws: the
+  Splits-anchored VWAP MATCHES (9,930 bars, AAPL), the Dividends-anchored one agrees on every compared bar (3,592 and
+  5,759) with the rest withheld by name, and the Earnings-anchored one diverges because ITS ANCHOR does: the probe's
+  own plot of the earnings anchor bar (`not na(request.earnings(...))`, no VWAP in it) differs from TradingView on 12
+  scattered bars on each symbol (AAPL: TradingView 1 / ours 0; JPM: TradingView 0 / ours 1), consistent with a report
+  placed on the neighbouring daily bar. Those 12 anchors carry into 473 (AAPL) and 368 (JPM) VWAP bars. This is the
+  E2 event engine's daily placement (#2465), seen now because the probe translates: named for the coordinator.
+- Runtime-on lane: PENDING. Its first run stopped on the harness's own guard ("STRATEGY BROKER NEVER RAN": 4 of the
+  25 captures are strategies, graded on their trades, and the broker is not armed in this run), on both trains; it is
+  re-queued over the 21 non-strategy captures and filled here when it lands.
 
-**The 7 event-anchor rows** (`s4-vwap-anchors-retake3-2026-11-21`, Anchor Period = Earnings, Dividends, Splits) are
-graded on the held source now (past `pine:character` and the input numbering) and stay INCONCLUSIVE on a named wall:
-the anchor is a `switch` on a text input, reduced at translate time to its default arm, so it is no member setting
-and the moved setting cannot be set. Serving it is the next unit (a `switch` on an enum input as a live knob, with the
-rule that an arm the knob does not pick never withholds or refuses the chart).
-
-CENSUS_AND_GRADE_PENDING
+**The 7 event-anchor rows of the built-in** (Anchor Period = Earnings, Dividends, Splits) stay INCONCLUSIVE on a named
+wall: the anchor is a `switch` on a text input, reduced at translate time to its default arm, so it is no member
+setting and the moved setting cannot be set ("Anchor Period" is not a setting of our document). Serving it is unit 2b.
 
 ## Findings outside this unit
 
-- The no-volume guard above (`running-total:window` on charts not from the listing): `ta.cum(volume) == 0` is read as
-  `dep` (`==` has no side), so the built-in is withheld whole there on the host lane. A total of a never-negative
-  source that is already above 0 on this chart is above 0 on TradingView too, so `== 0` is KNOWN false wherever this
-  chart's own total is positive: a threshold refinement of `barIndexShift.js`, its own unit.
+- The earlier draft named the built-in's no-volume guard (`ta.cum(volume) == 0`) as what kept 2 rows INCONCLUSIVE.
+  Measured after the ruling it is not: those rows compare every compared bar equal. (What did blank the built-in off
+  the listing was `isfirst` carried forever under the anchored sum, fixed above.)
+- The E2 daily earnings placement (12 anchor bars on each of AAPL and JPM 1D, above): for #2465.
 - A `switch` on a text input is no member setting (above): unit 2b.
 - (4a) On bar 0 the host lane draws `timeframe.change(...)` as `na` where the run draws 0 (named in #2474's evidence;
   not changed here). For an anchor it is the safe side: an unknown anchor is no known reset.
