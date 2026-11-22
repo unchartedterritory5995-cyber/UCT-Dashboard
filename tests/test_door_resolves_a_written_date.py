@@ -140,6 +140,8 @@ def test_several_dates_come_in_the_order_written_once_each_and_capped():
     assert [d["date"] for d in got] == ["2026-06-02", "2026-06-05"]
     # one stretch of words is one date: "3 March 14" is the 3rd of March, never also the 14th
     assert [d["date"] for d in dc.dates_named("since 3 March 14 day ATR above", NOW)] == ["2026-03-03"]
+    # ... and here nothing but "one stretch, one date" stops the second reading ("March 14" is followed by no length word)
+    assert [d["date"] for d in dc.dates_named("the high of 3 March 14 points above", NOW)] == ["2026-03-03"]
     many = ", ".join(f"{d} June 2026" for d in range(1, 12))
     assert len(dc.dates_named(many, NOW)) == dc.MAX_DATES == 6
 
