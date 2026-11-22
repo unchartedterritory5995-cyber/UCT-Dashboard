@@ -2431,6 +2431,18 @@
       ],
       "note": "ARMED on web 2026-10-04. D-1 + D-2 (Lane R, owner ruling 2026-10-02 'everything we can possibly get'): a 'Date status' strip on /calendar and GET /api/calendar/date-status?syms=A,B (<=400). Three states, each derived from a field a provider leg we pay for returns, with the reading named on every row: estimated (date_est=true: Finnhub with no hour, or FMP's range, which carries no session or confirmation field) -> confirmed (a provider placed it in a session: bmo/amc, or Finnhub hour=dmh; the same reading as the calendar's 'confirmed only' filter) -> reported (actuals on file), plus unstated. The Wall Street Horizon 'company-signaled' middle state is returned as UNAVAILABLE with its reason (no provider we hold carries it). D-2: calendar_date_history gains first_confirmed_at, first_estimated_at, status/status_basis/status_at, date_first_seen_at, and on a move prev_status + moved_at, so a drift reads as 'estimate revised' or 'confirmed date changed'. Every timestamp is when UCT's calendar build first saw the fact, not the company's announcement time; the payload says so. RECORDING runs inside the calendar build whether or not this is set (columns added in place; updated_at keeps its meaning for screener/earnings_movement; the /api/calendar payload is unchanged), because the lifecycle cannot be back-filled. ENABLEMENT GATE for the read surface, default OFF, read per request on the auth payload (earnings_date_status_enabled, present only when on); unset = the route 404s before identity and the strip is absent. Arm: railway variables --service web --set EARNINGS_DATE_STATUS_ENABLED=1 (owner). Rollback = unset it."
     },
+    "INDEX_INTRADAY_DEEP_ENABLED": {
+      "status": "dark",
+      "since": "2026-11-21",
+      "where": [],
+      "default": "1",
+      "values": [
+        "0",
+        "1"
+      ],
+      "owner": "owner",
+      "note": "KILL SWITCH, default ON (unset = on; only 0/false/no/off kills), read per call in api/index_bars.py::deep_enabled. SERVICES: web and bars-api (both run index_bars' warm loop, which starts the deep backfill thread). NOT SET ANYWHERE: unset is the new behaviour (FMP's settled 5-minute index history, about 3 years, prepended before Yahoo's 60-day intraday window for SPX and NDX 5/15/30/60, behind the seam check). Off (0): every intraday index answer is exactly what it was before 2026-11-21 (Yahoo only), and the backfill thread asks FMP nothing. Coordinator ruling 2026-11-21 (Fred RS intraday grade)."
+    },
     "INDEX_REBALANCE_EVENTS_ENABLED": {
       "status": "armed",
       "since": "2026-10-02",
