@@ -12,27 +12,27 @@ indicator("UCTPROBE_VW_BARSTATE_FORMING", overlay = false)
 //
 // Captured in regular hours, so the newest bar is a realtime bar that has not closed. Expected on that bar:
 // isconfirmed 0, isrealtime 1, islast 1, ishistory 0, islastconfirmedhistory 0 (it is 1 on the bar BEFORE).
-// isnew is 1 only on a bar's first tick, so on a forming bar read mid-bar it is 0. Every historical bar reads
-// isconfirmed 1, isrealtime 0, ishistory 1. The engine must draw exactly these columns, bar for bar.
+// Every historical bar reads isconfirmed 1, isrealtime 0, ishistory 1. The engine must draw exactly these columns,
+// bar for bar.
 //
 //   F00          bar_index (control: which bar a row is)
 //   F01          barstate.isconfirmed            as 1 / 0
 //   F02          barstate.isrealtime             as 1 / 0
-//   F03          barstate.isnew                  as 1 / 0
-//   F04          barstate.islast                 as 1 / 0
-//   F05          barstate.ishistory              as 1 / 0
-//   F06          barstate.islastconfirmedhistory as 1 / 0
-//   F07          barstate.isconfirmed ? close : na   (a VALUE that depends on the state: a community shape)
-//   F08          barstate.isrealtime and barstate.isnew ? 1 : 0
-//   F09          close (control: reads no state)
+//   F03          barstate.islast                 as 1 / 0
+//   F04          barstate.ishistory              as 1 / 0
+//   F05          barstate.islastconfirmedhistory as 1 / 0
+//   F06          barstate.isconfirmed ? close : na   (a VALUE that depends on the state: a community shape)
+//   F07          close (control: reads no state)
+//
+// NOT HERE: `barstate.isnew`. Both lanes refuse it by name (pine:builtin, RULING-0927: it needs per-tick evaluation),
+// and a refused line would withhold the whole probe (language probe 2026-11-21). Its forming-bar witness is the
+// community visualizer row (Q-BSF-e), graded refused, for a future per-tick unit.
 
 plot(bar_index, "F00")
 plot(barstate.isconfirmed ? 1 : 0, "F01")
 plot(barstate.isrealtime ? 1 : 0, "F02")
-plot(barstate.isnew ? 1 : 0, "F03")
-plot(barstate.islast ? 1 : 0, "F04")
-plot(barstate.ishistory ? 1 : 0, "F05")
-plot(barstate.islastconfirmedhistory ? 1 : 0, "F06")
-plot(barstate.isconfirmed ? close : na, "F07")
-plot(barstate.isrealtime and barstate.isnew ? 1 : 0, "F08")
-plot(close, "F09")
+plot(barstate.islast ? 1 : 0, "F03")
+plot(barstate.ishistory ? 1 : 0, "F04")
+plot(barstate.islastconfirmedhistory ? 1 : 0, "F05")
+plot(barstate.isconfirmed ? close : na, "F06")
+plot(close, "F07")
