@@ -92,7 +92,7 @@ Response 200:
 {"note": {"id": "<note id>", "title": "<title>", "url": "<note url>"}}
 ```
 
-## Member session reads (793)
+## Member session reads (796)
 
 ### Limits
 
@@ -654,6 +654,8 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/patterns/catalog` | paid | screener |  |
 | GET | `/api/patterns/confirmed/{sym}` | paid | screener | {sym}, tf=D |
 | GET | `/api/patterns/{sym}` | paid | screener | {sym}, tf=D, types, min_conf=50.0, confirmed_only=True, include_structures=False |
+| GET | `/api/pine/breadth/{spelling}` | paid | screener | {spelling} |
+| GET | `/api/pine/events/{ticker}` | paid | screener | {ticker} |
 | GET | `/api/pine/history-window` | member | screener |  |
 | GET | `/api/pine/libraries` | member | screener |  |
 | GET | `/api/pine/libraries/{author}/{name}/{version}` | member | screener | {author}, {name}, {version} |
@@ -728,6 +730,7 @@ Responses are JSON unless the path says export. Params: `{name}` is a path param
 | GET | `/api/research/seasonality/{sym}` | paid | research | {sym} |
 | GET | `/api/research/short-data/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/short-interest-list` | paid | research | rank, limit |
+| GET | `/api/research/stock-stats/{ticker}` | paid | research | {ticker} |
 | GET | `/api/research/treasury-auctions` | paid | research |  |
 | GET | `/api/research/treasury-yields` | paid | research |  |
 | GET | `/api/risk-summary` | paid | member-workspace |  |

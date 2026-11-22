@@ -100,3 +100,71 @@ def test_problems_can_fire(tmp_path):
     (t / "test_index_developing_bar.py").unlink()
     found = tool.problems(tmp_path, {})
     assert any("NAMED file is missing" in p for p in found) and any("REQUIRED file is not gated" in p for p in found)
+
+
+# ── the pull-request copy (2026-11-22) ────────────────────────────────────────────────────────────
+PR_WORKFLOW = REPO / ".github" / "workflows" / "bars-rails-pr.yml"
+
+
+def _pr_doc() -> dict:
+    return yaml.safe_load(PR_WORKFLOW.read_text(encoding="utf-8"))
+
+
+def copy_problems(gate_job: dict, pr_job: dict) -> list[str]:
+    """Every way the pull-request job differs from the gate's bars-rails job; empty when it is a faithful copy."""
+    out = []
+    if pr_job.get("steps") != gate_job.get("steps"):
+        out.append("the pull-request job's steps are not the gate job's steps")
+    if pr_job.get("timeout-minutes") != gate_job.get("timeout-minutes"):
+        out.append("the pull-request job's timeout is not the gate job's")
+    extra = set(pr_job) - {"name", "runs-on", "timeout-minutes", "steps"}
+    if extra:
+        out.append(f"the pull-request job carries keys the gate job may not: {sorted(extra)}")
+    return out
+
+
+def test_the_pull_request_job_is_the_gate_job_step_for_step():
+    """Twelve of the 48 red gate runs of 2026-11-14..22 were this job, and no pull request had run it: #2365 merged
+    with every check green and the gate went red on the file it changed. bars-rails-pr.yml runs the same steps
+    before the merge; a copy that drifts reopens the gap without anyone seeing it."""
+    pr = _pr_doc()
+    assert set(pr["jobs"]) == {JOB}, sorted(pr["jobs"])
+    assert copy_problems(_doc()["jobs"][JOB], pr["jobs"][JOB]) == []
+    spec = importlib.util.spec_from_file_location("promotion_gate_for_the_bars_pr_copy", REPO / "tools" / "promotion_gate.py")
+    pg = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pg)
+    assert pg.classify(PR_WORKFLOW.read_text(encoding="utf-8")) == "no"      # a PR check never gates a promotion
+
+
+def test_the_pull_request_job_runs_when_a_gated_file_or_what_it_reads_changes():
+    """The path list is held to the tool's own patterns and names, so a rail added to tools/bars_gate_rails.py
+    under a new pattern cannot be gated on master and silently skipped on the pull request."""
+    doc = _pr_doc()
+    on = doc.get("on", doc.get(True))
+    assert set(on) == {"pull_request"}, f"bars-rails-pr.yml runs on pull requests only (the gate owns master): {sorted(on)}"
+    trigger = on["pull_request"]
+    assert trigger.get("branches") == ["master"]
+    paths = set(trigger.get("paths") or [])
+    tool = _tool()
+    for needed in (*tool.PATTERNS, *tool.NAMED, "api/**", "services/**", "tools/**", "requirements.txt",
+                   ".github/workflows/bars-rails-pr.yml", ".github/workflows/master-deploy-gate.yml"):
+        assert needed in paths, f"bars-rails-pr.yml does not run when {needed} changes"
+
+
+def test_copy_problems_can_fire():
+    """Each kind of drift, planted on the real gate job, is named."""
+    import copy
+    gate_job = _doc()["jobs"][JOB]
+    assert copy_problems(gate_job, copy.deepcopy(gate_job)) == []
+    edited = copy.deepcopy(gate_job)
+    edited["steps"][-1]["run"] = edited["steps"][-1]["run"].replace("$files", "tests/test_bar_contract.py")
+    assert any("steps" in p for p in copy_problems(gate_job, edited))
+    dropped = copy.deepcopy(gate_job)
+    dropped["steps"].pop(0)
+    assert any("steps" in p for p in copy_problems(gate_job, dropped))
+    slow = copy.deepcopy(gate_job)
+    slow["timeout-minutes"] = 360
+    assert any("timeout" in p for p in copy_problems(gate_job, slow))
+    optional = copy.deepcopy(gate_job)
+    optional["continue-on-error"] = True
+    assert any("keys" in p for p in copy_problems(gate_job, optional))

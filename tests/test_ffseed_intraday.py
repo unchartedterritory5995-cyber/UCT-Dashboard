@@ -15,9 +15,15 @@ What is pinned:
     session's extended close and the next session's open, stops at its deadline and at the gap's end,
     leaves a series it cannot join alone, and costs nothing the second time;
   * an answer is WHOLE only when it holds bars of the as-of day and no other record of that day (the
-    stored 1m, 5m, 15m, the other timeframe's answer) shows a trade in a later bucket; an empty answer
-    never proves anything; a wholesale store change voids every proof;
-  * a refused gated timeframe is retried on later ticks, bounded, also after a forced rebuild;
+    stored 1m, 5m, 15m, 30m, 60m, the other timeframe's answer) shows a trade in a later bucket; an empty
+    answer never proves anything; a wholesale store change voids every proof;
+  * a re-derived 30m / 60m write carries its 15m base's own check instant, never the wall clock;
+  * a refused gated timeframe is retried on later ticks, bounded (in the process too, and an unreadable
+    count is spent), only while the quiet gap is open (its rebuild too), and only when a refused
+    timeframe (or the 15m it derives from) proved more; a force runs only in its session's quiet gap
+    and gives its refusals fresh retries;
+  * a rebuild of a session already published keeps the delta from the build devices held before that
+    session (and keeps that build on R2), and keeps the published split list when its own read fails;
   * the measure (symbols whose last bar is the session's last regular bucket) on full, short and
     early-close fixtures;
   * the refusal: a gated timeframe under either floor is not published and not named, the others are;
@@ -104,7 +110,7 @@ class FakeStore:
     on every write."""
 
     def __init__(self):
-        self.rows, self.revs, self.writes = {}, {}, 0
+        self.rows, self.revs, self.writes, self.checked = {}, {}, 0, {}
         self._lock = threading.Lock()
 
     def put(self, sym, tf, rows, checked_at=0.0):
@@ -114,6 +120,7 @@ class FakeStore:
                 held[int(b["t"])] = dict(b)
             self.writes += 1
             self.revs[(sym, tf)] = self.writes
+            self.checked.setdefault((sym, tf), []).append(checked_at)     # each write's check instant
         return len(rows)
 
     def rev(self, sym, tf):
@@ -138,9 +145,12 @@ class FakeStore:
         rows = [b for _, b in sorted(self.rows.get((sym, tf), {}).items())][-count:]
         return rows, len(rows)
 
+    def seal_checked(self, sym, tf):
+        return None                                  # nothing seals this store (the real store's: a test there)
+
     def kw(self, fetch, **more):
         return dict(fetch=fetch, derive=self.derive, store=self.put, rev=self.rev, last_ts=self.last_ts,
-                    day_tail=self.day_tail, n_workers=1, now=AFTER, **more)
+                    day_tail=self.day_tail, seal_checked=self.seal_checked, n_workers=1, now=AFTER, **more)
 
 
 def forming(d: date, at_h: int, at_m: int) -> dict:
@@ -278,6 +288,80 @@ def test_an_answer_is_whole_only_when_no_other_record_of_the_day_shows_a_later_t
     assert intraday.later_trade("60", et(FRI, 14, 30), [("a", et(FRI, 15, 30))]) == ("a", et(FRI, 15, 30))
     assert intraday.last_bar_of_day(day_bars(THU, 5) + day_bars(FRI, 5, last=600), FRI) == et(FRI, 9, 55)
     assert intraday.last_bar_of_day(day_bars(THU, 5), FRI) is None and intraday.last_bar_of_day([], FRI) is None
+
+
+def test_the_stored_thirty_and_sixty_minute_bars_of_the_day_are_records_too():
+    """Both answers stop at 12:55 / 12:45 and agree with each other, but the store already holds a later
+    30m (S30) or 60m (S60) bar of that day: a trade the provider's 5m and 15m must hold. Nothing else in
+    the store contradicts the answers, so only the stored 30m / 60m tail can refuse them."""
+    st, calls = FakeStore(), []
+    st.put("S30", "30", [bar(et(FRI, 15, 30))])
+    st.put("S60", "60", [bar(et(FRI, 14, 30))])                  # the 14:30 hour of the session grid
+    stops = {(s, tf): 13 * 60 for s in ("S30", "S60", "THIN") for tf in ("5", "15")}
+    stats = intraday.complete_session(FRI, ["S30", "S60", "THIN"], **st.kw(provider(calls, cut=stops)))
+    assert (stats["tfs"]["5"]["short_answer"], stats["tfs"]["15"]["short_answer"]) == (2, 2)
+    proven = intraday.known_complete(FRI, rev=st.rev)
+    assert [tf for tf in ffseed.GATED_TFS if proven("S30", tf)] == []
+    assert [tf for tf in ffseed.GATED_TFS if proven("S60", tf)] == []
+    assert [tf for tf in ffseed.GATED_TFS if proven("THIN", tf)] == ["5", "15", "30", "60"]   # the control
+    assert ("S30", "5") not in st.rows and st.rows[("S30", "30")] == {et(FRI, 15, 30): bar(et(FRI, 15, 30))}
+
+
+class _Wall:
+    """`ffseed_intraday`'s wall clock (`time.time`), set by the test; its monotonic clock is the real one."""
+
+    def __init__(self, t: float):
+        self.t = t
+
+    def time(self) -> float:
+        return self.t
+
+    @staticmethod
+    def monotonic() -> float:
+        import time as _time
+        return _time.monotonic()
+
+
+def _void_the_thirty(st: FakeStore, sym: str) -> None:
+    st.put(sym, "30", [dict(bar(et(FRI, 15, 30)), v=5)])          # any later write voids the 30m proof only
+
+
+def test_a_rederived_series_carries_its_base_check_instant_not_the_wall_clock(monkeypatch):
+    """A 30m / 60m write is the resample of the stored 15m, so it is as old as the 15m's provider check:
+    when the 15m is `current` (proven by an earlier pass), the re-derived write carries the instant that
+    earlier pass checked the 15m at, never the time of the re-derivation (a newer check's seal wins)."""
+    wall = _Wall(1000.0)
+    monkeypatch.setattr(intraday, "time", wall)
+    st, calls = FakeStore(), []
+    intraday.complete_session(FRI, ["AAA"], **st.kw(provider(calls)))
+    assert st.checked[("AAA", "15")] == [1000.0] and st.checked[("AAA", "30")] == [1000.0]
+    _void_the_thirty(st, "AAA")
+    wall.t = 5000.0                                              # the next pass, an hour later
+    again = intraday.complete_session(FRI, ["AAA"], **st.kw(provider(calls)))
+    assert again["requests"] == 0 and again["tfs"]["15"]["current"] == 1 and again["tfs"]["30"]["done"] == 1
+    assert st.checked[("AAA", "30")][-1] == 1000.0               # the 15m's own check, not 5000
+    assert intraday.known_complete(FRI, rev=st.rev)("AAA", "30")
+
+
+def test_a_rederived_series_whose_base_entry_names_no_instant_takes_the_settle_instant(monkeypatch):
+    """A ledger entry written before the check instant was recorded: the derived write claims the
+    session's settle instant, which no check of the pass can predate, never the wall clock."""
+    wall = _Wall(intraday.settled_at(FRI) + 600.0)
+    monkeypatch.setattr(intraday, "time", wall)
+    st, calls = FakeStore(), []
+    intraday.complete_session(FRI, ["AAA"], **st.kw(provider(calls)))
+    with open(intraday._ledger_path(), encoding="ascii") as f:
+        led = json.load(f)
+    for entries in led["tfs"].values():
+        for sym in entries:
+            entries[sym] = entries[sym][:2]                      # [revision, first day]: no instant
+    with open(intraday._ledger_path(), "w", encoding="ascii") as f:
+        json.dump(led, f)
+    _void_the_thirty(st, "AAA")
+    wall.t += 3600.0
+    again = intraday.complete_session(FRI, ["AAA"], **st.kw(provider(calls)))
+    assert again["requests"] == 0 and again["tfs"]["30"]["done"] == 1
+    assert st.checked[("AAA", "30")][-1] == float(intraday.settled_at(FRI))
 
 
 def test_a_late_run_is_held_to_the_as_of_days_own_rows_and_an_empty_answer_never_proves():
@@ -568,6 +652,44 @@ def test_a_store_replaced_wholesale_voids_every_proof(store):
     assert len(calls) == 2 and all(intraday.known_complete(FRI)(sym, tf) for tf in ffseed.GATED_TFS)
 
 
+def test_a_rederived_series_sealed_after_its_bases_recorded_check_is_rewritten_and_proven(store, monkeypatch):
+    """The real store. After the nightly pass (15m checked at t1), a request-path check of the 15m at t2
+    finds nothing new and SEALS it (a seal is not a write: the 15m proof stands); the 30m read path then
+    rebuilds the 30m from that 15m (a write: the 30m proof is void) and seals it at the 15m seal's own
+    check, t2 (bars_fetch._local_tail_repair). The retry pass re-derives the 30m from the same 15m: a
+    write claiming t1 would lose to the t2 seal (bars_sqlite._drop_stale_sealed drops every row, put_bars
+    returns 0) and the 30m would stay unproven. The rows it resamples were checked at t2."""
+    sym = "ZZSEAL"
+    wall = _Wall(float(intraday.settled_at(FRI) + 300))           # the nightly pass asks at 20:06
+    monkeypatch.setattr(intraday, "time", wall)
+    intraday.complete_session(FRI, [sym], fetch=provider([]), n_workers=1, now=AFTER)
+    assert all(intraday.known_complete(FRI)(sym, tf) for tf in ffseed.GATED_TFS)
+    t1, t2 = wall.t, wall.t + 1800.0
+    lo, _hi = intraday.day_bounds(FRI)
+    end = float(et(FRI, 20, 0))
+    bs.record_sealed(sym, "15", end, float(lo), t2)
+    bs.put_bars(sym, "30", bars_fetch._derive_from_stored_base(sym, "30", lo))
+    bs.record_sealed(sym, "30", end, float(lo), t2)
+    proven = intraday.known_complete(FRI)
+    assert proven(sym, "15") and not proven(sym, "30") and proven(sym, "60")
+    assert bs.series_meta(sym, "15")["sealed_checked_at"] == t2 == bs.series_meta(sym, "30")["sealed_checked_at"]
+    wrote = []
+    real_store = intraday._store
+
+    def spy(s, tf, rows, ck):
+        n = real_store(s, tf, rows, ck)
+        wrote.append((tf, ck, n))
+        return n
+    monkeypatch.setattr(intraday, "_store", spy)
+    wall.t = t2 + 1800.0                                           # the retry pass, an hour after t1
+    again = intraday.complete_session(FRI, [sym], fetch=provider([]), n_workers=1, now=AFTER)
+    assert again["requests"] == 0 and again["tfs"]["15"]["current"] == 1 and again["tfs"]["60"]["current"] == 1
+    assert len(wrote) == 1 and wrote[0][2] > 0, wrote              # put_bars wrote the re-derived rows
+    assert wrote[0][:2] == ("30", t2) and t1 < t2                  # at the newest check of the rows it resamples
+    assert (again["tfs"]["30"]["done"], again["tfs"]["30"]["failed"]) == (1, 0)
+    assert intraday.known_complete(FRI)(sym, "30")
+
+
 # ---- the measure: full, short and early-close fixtures -------------------------------------------
 
 def _table(asof: date, tf: str, tails: dict) -> dict:
@@ -800,6 +922,9 @@ def night(monkeypatch):
     from api.services import data_sync
     monkeypatch.setattr(data_sync, "credentials_ok", lambda: True)
     monkeypatch.setattr(ffseed, "_force_spent_said", "")
+    # the process-level state a test must not inherit from another (a fresh worker process)
+    monkeypatch.setattr(ffseed, "_force_gap_said", "", raising=False)
+    monkeypatch.setattr(ffseed, "_retry_runs", {}, raising=False)
     monkeypatch.delenv("FFSEED_GATED_RETRIES", raising=False)
     monkeypatch.delenv("FFSEED_FORCE_ASOF", raising=False)
     log, script, builds = [], {"passes": [], "refusals": []}, [0]
@@ -954,3 +1079,270 @@ def test_a_spent_force_says_so_once_and_names_the_file(night, monkeypatch, caplo
     ffseed.tick(at(SAT, 11, 30))
     spent = [r.getMessage() for r in caplog.records if "already force-built" in r.getMessage()]
     assert len(spent) == 1 and ".last_ffseed_forced" in spent[0] and "FFSEED_FORCE_ASOF=2026-11-20" in spent[0]
+
+
+def test_a_force_after_its_sessions_quiet_gap_closed_is_refused_and_not_spent(night, monkeypatch, caplog):
+    """Friday is still the newest closed session on Monday until 20:15, but its quiet gap closed at 04:00:
+    a force then could only publish every gated timeframe refused, and would burn the force."""
+    log, script = night
+    _force_friday(script, monkeypatch)
+    caplog.set_level(logging.WARNING, logger="api.services.ffseed")
+    for minute in (0, 30):
+        assert ffseed.tick(at(MON, 10, minute)) is None
+    assert log == [] and ffseed._read_forced() == ""
+    said = [r.getMessage() for r in caplog.records if "FFSEED_FORCE_ASOF=2026-11-20" in r.getMessage()]
+    assert len(said) == 1 and "a later session has begun (2026-11-23)" in said[0] and "not spent" in said[0]
+
+
+def test_a_force_before_its_sessions_quiet_gap_waits_for_it(night, monkeypatch, caplog):
+    log, script = night
+    monkeypatch.setattr(ffseed, "BUILD_AFTER_MIN", 16 * 60 + 30)      # Friday is the newest closed at 16:30
+    _force_friday(script, monkeypatch)
+    caplog.set_level(logging.WARNING, logger="api.services.ffseed")
+    for early in (at(FRI, 16, 45), at(FRI, 19, 45)):
+        assert ffseed.tick(early) is None
+    assert log == [] and ffseed._read_forced() == ""
+    said = [r.getMessage() for r in caplog.records if "FFSEED_FORCE_ASOF=2026-11-20" in r.getMessage()]
+    assert len(said) == 1 and "session not settled" in said[0]
+    m = ffseed.tick(at(FRI, 20, 5))                                   # the gap is open: the force runs
+    assert m["asof"] == "2026-11-20" and ffseed._read_forced() == "2026-11-20"
+    assert log == [("pass", FRI), ("publish", FRI, ("60",))]
+
+
+def test_a_force_gives_its_refusals_fresh_retries_and_says_how_many(night, monkeypatch, caplog):
+    log, script = night
+    script["passes"] = [{"tfs": {"60": {"done": 0}}}] * 4 + [{"tfs": {"60": {"done": 3}}}]
+    script["refusals"] = [["60"], ["60"], []]
+    ffseed._write_marker(20261119)
+    for t in (at(FRI, 20, 20), at(FRI, 20, 50), at(FRI, 21, 20)):     # the nightly and both retries
+        ffseed.tick(t)
+    assert ffseed._read_retry()["tries"] == 2 and ffseed.gated_retry_due(at(SAT, 9, 0)) is None
+    monkeypatch.setenv("FFSEED_FORCE_ASOF", "2026-11-20")
+    caplog.set_level(logging.WARNING, logger="api.services.ffseed")
+    m = ffseed.tick(at(SAT, 10, 0))
+    assert sorted(m["refused"]) == ["60"] and ffseed._read_retry()["tries"] == 0
+    said = [r.getMessage() for r in caplog.records if "forced rebuild of 2026-11-20 REFUSED" in r.getMessage()]
+    assert len(said) == 1 and "2 gated retries" in said[0]
+    m = ffseed.tick(at(SAT, 10, 30))                                  # the retry the line promised
+    assert m is not None and "refused" not in m and log[-2:] == [("pass", FRI), ("publish", FRI, ())]
+
+
+@pytest.mark.parametrize("env", ["FFSEED_GATED_RETRIES", "FFSEED_INTRADAY_BACKFILL"])
+def test_a_forced_rebuild_whose_refusal_cannot_be_retried_says_so(night, monkeypatch, caplog, env):
+    log, script = night
+    _force_friday(script, monkeypatch)
+    monkeypatch.setenv(env, "0")
+    caplog.set_level(logging.WARNING, logger="api.services.ffseed")
+    ffseed.tick(at(SAT, 10, 0))
+    said = [r.getMessage() for r in caplog.records if "forced rebuild of 2026-11-20 REFUSED" in r.getMessage()]
+    assert len(said) == 1 and "will NOT be retried" in said[0] and f"{env}=0" in said[0]
+    assert ffseed.tick(at(SAT, 10, 30)) is None
+
+
+# ---- the retry's own bounds: what it counts, when it rebuilds -------------------------------------
+
+def test_a_retry_whose_count_cannot_be_written_is_still_bounded_in_process(night, tmp_path):
+    log, script = night
+    script["passes"] = [{"tfs": {"30": {"done": 0}}}]                 # no pass ever proves anything
+    script["refusals"] = [["30"]]
+    ffseed._write_marker(20261119)
+    ffseed.tick(at(FRI, 20, 20))
+    assert ffseed._read_retry()["tries"] == 0
+    (tmp_path / ".ffseed_gated_retry.tmp").mkdir()                   # from here on the state cannot be written
+    for h in range(1, 6):
+        ffseed.tick(at(SAT, h, 0))
+    assert log == [("pass", FRI), ("publish", FRI, ("30",)), ("pass", FRI), ("pass", FRI)]
+    assert ffseed._read_retry()["tries"] == 0                         # the file never moved: the process counted
+
+
+@pytest.mark.parametrize("tries", ["two", 1.5, True, -1, None])
+def test_a_retry_count_that_is_not_a_whole_number_is_spent_never_zero(night, tmp_path, tries):
+    (tmp_path / ".ffseed_gated_retry").write_text(
+        json.dumps({"asof": "2026-11-20", "tries": tries, "tfs": ["30"]}), encoding="ascii")
+    assert ffseed.gated_retry_due(at(SAT, 9, 0)) is None
+    ffseed.note_refused(FRI, {"refused": {"30": {"reason": "x"}}})    # a rebuild of that session refused it again
+    assert ffseed.gated_retry_due(at(SAT, 9, 0)) is None
+    ffseed.note_refused(MON, {"refused": {"30": {"reason": "x"}}})    # another session starts its own count
+    assert ffseed._read_retry()["tries"] == 0 and ffseed.gated_retry_due(at(MON, 21, 0)) == MON
+
+
+def test_a_retry_whose_pass_ends_after_the_quiet_gap_closed_does_not_rebuild(night, monkeypatch, caplog):
+    log, script = night
+    t = [0.0]
+    monkeypatch.setattr(ffseed, "_mono", lambda: t[0], raising=False)
+    inner = intraday.complete_session
+
+    def half_an_hour(asof, **kw):
+        t[0] += 1800.0
+        return inner(asof, **kw)
+    monkeypatch.setattr(intraday, "complete_session", half_an_hour)
+    script["passes"] = [{"tfs": {"30": {"done": 0}}}, {"tfs": {"30": {"done": 5}}}]
+    script["refusals"] = [["30"]]
+    ffseed._write_marker(20261119)
+    ffseed.tick(at(FRI, 20, 20))
+    m = ffseed.tick(at(SUN, 12, 0))                                   # ends 12:30 Sunday: rebuilt
+    assert m is not None and log[-1] == ("publish", FRI, ("30",))
+    caplog.set_level(logging.WARNING, logger="api.services.ffseed")
+    n = len(log)
+    assert ffseed.tick(at(MON, 3, 40)) is None                        # ends 04:10 Monday: the gap has closed
+    assert log[n:] == [("pass", FRI)] and ffseed._read_retry()["tries"] == 2
+    assert any("after the quiet gap closed" in r.getMessage() for r in caplog.records)
+
+
+def test_a_retry_rebuilds_only_when_a_refused_timeframe_or_its_base_proved_more(night):
+    log, script = night
+    script["refusals"] = [["30"]]
+    script["passes"] = [{"tfs": {"30": {"done": 0}}},
+                        {"tfs": {"5": {"done": 40}, "60": {"done": 40}, "30": {"done": 0}}},   # only the others
+                        {"tfs": {"15": {"done": 2}, "30": {"done": 0}}}]                     # 30m's own base
+    ffseed._write_marker(20261119)
+    ffseed.tick(at(FRI, 20, 20))
+    assert ffseed.tick(at(FRI, 20, 50)) is None and log[-1] == ("pass", FRI)
+    m = ffseed.tick(at(FRI, 21, 20))
+    assert m["build"] == "B2" and log[-1] == ("publish", FRI, ("30",))
+
+
+def test_what_a_retry_counts_as_new_for_the_refused_timeframes():
+    s = {"tfs": {"5": {"done": 7}, "15": {"done": 3}, "30": {"done": 1}, "60": {"done": 0}}}
+    assert ffseed._proved_for_refused(s, ["30"]) == 4                 # its own and its 15m base's
+    assert ffseed._proved_for_refused(s, ["60"]) == 3
+    assert ffseed._proved_for_refused(s, ["5"]) == 7                  # 5m derives from nothing
+    assert ffseed._proved_for_refused(s, ["15"]) == 3
+    assert ffseed._proved_for_refused(s, ["5", "60"]) == 10
+    assert ffseed._proved_for_refused(s, []) == 11                    # none named: every timeframe counts
+    assert ffseed._proved_for_refused({"tfs": {}}, ["30"]) == 0
+
+
+# ---- what a rebuild of a session already published republishes ---------------------------------
+
+class FakeR2:
+    """The bucket as build_and_publish and prune see it: objects by key, listed by prefix, deleted by key."""
+
+    def __init__(self):
+        self.objs = {}
+
+    def put(self, key, data, content_type):
+        self.objs[key] = bytes(data)
+        return True
+
+    def get(self, key):
+        return self.objs.get(key)
+
+    def builds(self):
+        return sorted({k.split("/")[1] for k in self.objs if k.count("/") == 2})
+
+    def get_paginator(self, _name):
+        return self
+
+    def paginate(self, Bucket, Prefix):                               # noqa: N803 - boto's names
+        return [{"Contents": [{"Key": k} for k in sorted(self.objs) if k.startswith(Prefix)]}]
+
+    def delete_object(self, Bucket, Key):                             # noqa: N803
+        self.objs.pop(Key, None)
+
+
+@pytest.fixture
+def r2(monkeypatch):
+    from api.services import data_sync
+    b = FakeR2()
+    monkeypatch.setattr(data_sync, "credentials_ok", lambda: True)
+    monkeypatch.setattr(data_sync, "put_bytes", b.put)
+    monkeypatch.setattr(data_sync, "get_bytes", b.get)
+    monkeypatch.setattr(data_sync, "_client", lambda: b)
+    monkeypatch.setattr(data_sync, "_bucket", lambda: "bucket")
+    monkeypatch.delenv("FFSEED_KEEP", raising=False)
+    return b
+
+
+def _utc(d: date, h: int, m: int) -> datetime:
+    return datetime(d.year, d.month, d.day, h, m, tzinfo=ZoneInfo("UTC"))
+
+
+TUE = date(2026, 11, 24)
+
+
+def test_a_same_session_rebuild_keeps_the_delta_from_the_previous_session_and_keeps_that_build(r2):
+    """Devices hold Thursday's build overnight. Friday's first build diffs against it; a retry that
+    republishes Friday must still give them a delta (not every full pack), and must not prune it."""
+    from api.services import ffseed_delta as dl
+    table = _table(FRI, "5", {s: None for s in SYMS})
+    table.update(_daily(MON, SYMS))
+    kw = dict(symbols=SYMS, read=_read(table), min_symbols=1, complete=_yes)
+    b0 = ffseed.build_and_publish(tfs=["D"], asof=THU, now=_utc(FRI, 1, 31), **kw)       # no 5m on Thursday
+    b1 = ffseed.build_and_publish(tfs=["5", "D"], asof=FRI, now=_utc(SAT, 1, 37), **kw)  # Friday's first
+    b2 = ffseed.build_and_publish(tfs=["5", "D"], asof=FRI, now=_utc(SAT, 2, 7), **kw)   # Friday's retry
+    assert b1["tfs"]["D"]["delta"]["base"] == b0["build"] and "delta" not in b1["tfs"]["5"]
+    assert b2["tfs"]["D"]["delta"]["base"] == b0["build"]
+    # a timeframe Thursday's build did not have: from the build that has it
+    assert b2["tfs"]["5"]["delta"]["base"] == b1["build"]
+    assert r2.builds() == sorted([b0["build"], b1["build"], b2["build"]])
+    b3 = ffseed.build_and_publish(tfs=["5", "D"], asof=FRI, now=_utc(SAT, 2, 37), **kw)  # a second retry
+    assert b3["tfs"]["D"]["delta"]["base"] == b0["build"] and b3["tfs"]["5"]["delta"]["base"] == b2["build"]
+    assert r2.builds() == sorted([b0["build"], b2["build"], b3["build"]])      # the night's first goes, not b0
+    # a device on Thursday's build applies the retry's delta and holds exactly the retry's pack
+    held, new, d = r2.get(b0["tfs"]["D"]["key"]), r2.get(b3["tfs"]["D"]["key"]), b3["tfs"]["D"]["delta"]
+    got = dl.apply_delta(held, r2.get(d["key"]))
+    for sym in SYMS:
+        want = fmt.decode_symbol(new, fmt.read_trailer(new), sym)
+        assert all(list(got[sym][k]) == list(want[k]) for k in fmt.COLUMNS), sym
+    # the next session's first build diffs against the newest build, and the older ones go
+    b4 = ffseed.build_and_publish(tfs=["D"], asof=MON, now=_utc(TUE, 1, 31), **kw)
+    assert b4["tfs"]["D"]["delta"]["base"] == b3["build"]
+    assert r2.builds() == sorted([b3["build"], b4["build"]])
+
+
+def test_a_same_session_rebuild_whose_split_read_failed_keeps_the_published_list(r2):
+    kw = dict(tfs=["D"], symbols=SYMS, read=_read(_daily(MON, SYMS)), min_symbols=1)
+    held = {"session": "2026-11-23", "symbols": {"BBB": 2.0}}
+    b1 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 1, 37), splits=lambda a, s: held, **kw)
+    assert b1["splits"] == held
+    b2 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 2, 7), **kw)          # the read fails (offline)
+    assert b2["splits"] == held and json.loads(r2.get("ffseed/latest.json"))["splits"] == held
+    fresh = {"session": "2026-11-23", "symbols": {}}
+    b3 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 2, 37), splits=lambda a, s: fresh, **kw)
+    assert b3["splits"] == fresh                                              # an answer wins over the held list
+    # another session's list is never carried over: the next session without an answer has none
+    b4 = ffseed.build_and_publish(asof=MON, now=_utc(TUE, 1, 31), **kw)
+    assert "splits" not in b4
+
+
+def _d_only():
+    return dict(tfs=["D"], symbols=SYMS, read=_read(_daily(MON, SYMS)), min_symbols=1)
+
+
+def _applies(r2: FakeR2, held_key: str, delta_key: str, new_key: str) -> bool:
+    """A device holding `held_key`'s pack that applies the delta holds exactly `new_key`'s pack."""
+    from api.services import ffseed_delta as dl
+    got, new = dl.apply_delta(r2.get(held_key), r2.get(delta_key)), r2.get(new_key)
+    return all(list(got[s][k]) == list(fmt.decode_symbol(new, fmt.read_trailer(new), s)[k])
+               for s in SYMS for k in fmt.COLUMNS)
+
+
+def test_a_rebuild_whose_recorded_base_is_gone_diffs_against_the_published_build(r2):
+    b0 = ffseed.build_and_publish(asof=THU, now=_utc(FRI, 1, 31), **_d_only())
+    b1 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 1, 37), **_d_only())
+    for key in [k for k in r2.objs if k.startswith(f"ffseed/{b0['build']}/")]:
+        del r2.objs[key]                                       # the recorded base is gone from R2
+    b2 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 2, 7), **_d_only())
+    d = b2["tfs"]["D"]["delta"]                                # a delta all the same, from the published build
+    assert d["base"] == b1["build"]
+    assert _applies(r2, b1["tfs"]["D"]["key"], d["key"], b2["tfs"]["D"]["key"])
+
+
+@pytest.mark.parametrize("tfs", [7, "D", ["D"]])
+def test_a_malformed_recorded_base_reads_as_no_record_and_never_stops_a_rebuild(r2, tmp_path, tfs):
+    ffseed.build_and_publish(asof=THU, now=_utc(FRI, 1, 31), **_d_only())
+    b1 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 1, 37), **_d_only())
+    path = tmp_path / ".ffseed_delta_base.json"
+    rec = json.loads(path.read_text(encoding="ascii"))
+    rec["manifest"]["tfs"] = tfs                               # still kind ffseed, still a build id
+    path.write_text(json.dumps(rec), encoding="ascii")
+    b2 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 2, 7), **_d_only())
+    assert b2["tfs"]["D"]["delta"]["base"] == b1["build"]     # as with no record: the published build
+
+
+def test_a_malformed_published_manifest_reads_as_none_and_never_stops_a_build(r2):
+    r2.objs["ffseed/latest.json"] = json.dumps({"kind": fmt.KIND, "build": "20261120T0131Z",
+                                                "asof": "2026-11-19", "tfs": 7}).encode()
+    b1 = ffseed.build_and_publish(asof=FRI, now=_utc(SAT, 1, 37), **_d_only())
+    assert set(b1["tfs"]) == {"D"} and "delta" not in b1["tfs"]["D"]
