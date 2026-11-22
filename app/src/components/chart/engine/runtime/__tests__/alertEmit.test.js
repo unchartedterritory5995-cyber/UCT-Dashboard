@@ -9,7 +9,7 @@
 //   3. NOTHING the pane draws moves: the columns equal the same script with its alert() lines removed;
 //   4. only a run over every bar carries a record (a resumed run, which ran only the newest bars, carries none).
 import { describe, it, expect, beforeEach } from 'vitest'
-import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeAlertsOf } from '../runtimeColumns.js'
+import { computeRuntimeColumns, resetRuntimeSessions, resetRuntimeLedgers, runtimeAlertsOf, runtimeIncrementalOf } from '../runtimeColumns.js'
 import { ALERT_EMIT, ALERT_LOG_CAP, ALERT_MESSAGE_CAP, beginAlertLog, takeAlertLog, alertEmit } from '../collections.js'
 
 beforeEach(() => { resetRuntimeSessions(); resetRuntimeLedgers() })
@@ -76,6 +76,18 @@ describe('AL1: alert() is recorded where it runs', () => {
       .replace(/if v > open\n(?!\s)/, '').replace(/if close < v\n(?!\s)/, ''))
     expect(withAlerts.x).toEqual(without.x)
     expect(Object.keys(withAlerts)).toEqual(Object.keys(without))
+  })
+
+  it('only a run over EVERY bar carries a record: a run resumed from a checkpoint carries none (absent, never empty)', () => {
+    const src = [...head, 'if close > open', '    alert("up")', 'plot(close, "x")', ''].join(NL)
+    const ctx = { tf: 'D', newestBarIsForming: true, historyFromListing: true, symbol: { ticker: 'SPY', exchange: 'AMEX' } }
+    const cold = computeRuntimeColumns(doc(src), ROWS, ctx, { now: () => 0 })
+    expect(runtimeIncrementalOf(cold).resumedFrom).toBe(null)
+    expect(runtimeAlertsOf(cold)).not.toBe(null)
+    const tick = ROWS.map((b, i) => (i === ROWS.length - 1 ? { ...b, c: b.c + 0.5, h: b.h + 0.5 } : b))
+    const warm = computeRuntimeColumns(doc(src), tick, ctx, { now: () => 0 })
+    expect(runtimeIncrementalOf(warm).resumedFrom, 'resumed').not.toBe(null)
+    expect(runtimeAlertsOf(warm)).toBe(null)
   })
 
   it('the builtin is internal (no script can spell it) and the log is capped, newest kept, the rest counted', () => {
