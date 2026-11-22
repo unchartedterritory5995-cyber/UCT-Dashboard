@@ -115,6 +115,7 @@ still carry the old reason text (snapshots, not compared in CI).
 - **The capability** `request-breadth` is admitted by the coordinator once two scripts (one community) grade
   MATCH_SUBSTITUTED with the runtime pane on against our production supply.
 - **B1's stage** goes to `all` (and `PINE_BREADTH_SUPPLY_ENABLED=all` on web) only when B2 ships.
+- **The spread unit** (next section), ranked first among the breadth follow-ups.
 
 ## B3 (up / down volume as a new derived series): NOT in this unit
 
