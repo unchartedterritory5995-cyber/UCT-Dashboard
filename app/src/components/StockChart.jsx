@@ -12172,6 +12172,9 @@ function StockChartBody({
         // render's own builders make them over the next symbol's bars, and the render's own applier sets the
         // price lines in the paint's task. The chip that follows the tag reads the line, so it moves with it.
         sessionTags: (built, s) => _activeSessionTagsFor(_extPriceOf(readLiveQuote(s)), built.filteredBars),
+        // the member's alert lines on the next symbol (Chart Settings -> Price alerts): the list this render holds is
+        // ONE for every symbol, so they are the render's own function of it (`alertLineOpts` above), for `s`
+        alertLines: (s) => (_alertLinesOn ? alertPriceLines(activeAlertLevels(_alertRows, s)) : null),
         applySessionTags: (tags, s) => {
           _liveExtAppliedRef.current = _extPriceOf(readLiveQuote(s))
           _applySessionTags(tags)
@@ -15973,8 +15976,12 @@ function StockChartBody({
   // Chart Settings → Price alerts: an alert set, deleted or gone off (the list revalidates), a symbol switch, or the
   // switch itself redraws the lines on the current candle series — without re-running updateChart.
   useEffect(() => {
+    // ⛔ (imperative switch) while another symbol is painted, the series carries THAT symbol's lines (the paint drew
+    // them); a render of the replaced symbol in between (the list revalidated) must not put its lines back. The
+    // body's render of the painted symbol, or the replay of this one, syncs them (both read the newest list).
+    if (switchCtl && switchCtl.pendingSym()) return
     syncAlertPriceLines(alertLinesRef.current, candleSeriesRef.current, alertLineOpts)
-  }, [alertLineOpts, chartReady])
+  }, [alertLineOpts, chartReady])  // eslint-disable-line react-hooks/exhaustive-deps -- `switchCtl` is this chart's for its life
 
   // Chart Settings → My trades: new fills, a new bar range, a symbol switch or the switch itself re-hands the ONE markers
   // controller the whole list (the chart's markers + these) — without re-running updateChart. No controller yet: the

@@ -28,7 +28,8 @@
 //            and zones are never drawn on the new candles.
 //            ⭐ The metadata layers are NOT cleared blind: `view.metaFor(sym)` reads what the app already holds
 //            for the new symbol (its name, its event markers, its listing date) and the pass draws THAT, so a
-//            symbol the app has met is painted with its name and its badges in the frame.
+//            symbol the app has met is painted with its name and its badges in the frame. Likewise the member's
+//            alert lines (`view.alertLines`: one alerts list for every symbol, filtered by the new one).
 //   CHANNEL  the developing-bar channel: closed for the old symbol in `apply`, opened for the new one by the
 //            React commit (the store subscription is the hook's; a second subscriber here would be a second
 //            writer of the candle series).
@@ -243,6 +244,8 @@ export function createSwitchController({ applyFrame, buildFrame }) {
       meta: view.metaFor(sym, built),
       // its session tags (the Pre/Post chip, the RTH close), from its bars, the clock and the quote the app holds
       sessionTags: view.sessionTags(built, sym),
+      // the member's alert lines on it: ONE alerts list for every symbol, held by the chart's last render
+      alertLines: typeof view.alertLines === 'function' ? (view.alertLines(sym) || NO_LINES) : NO_LINES,
     }
     // the box the pass reads its bars from: the same field names as the render box's committed copy.
     // ⛔ It is a throwaway: it never updates. A closure the pass installed that kept it would read these bars for
@@ -267,7 +270,7 @@ export function createSwitchController({ applyFrame, buildFrame }) {
     }
     return {
       ok: true, sym, tf: view.tf, fromSym: frame.sym, frame: next, tail: tail.kind, tailData: tail, meta: b.meta,
-      sessionTags: b.sessionTags, view,
+      sessionTags: b.sessionTags, alertLines: b.alertLines, view,
       seal: () => { sealed = true },
     }
   }
@@ -336,7 +339,8 @@ export function createSwitchController({ applyFrame, buildFrame }) {
         // render's closures over the old symbol's)
         _metaNowRef: { current: () => t.meta },
         _drawMetaRef: { current: (m, fresh) => v.drawMeta(m, fresh, t.tailData) },
-        alertLineOptsRef: { current: NO_LINES },   // the member's alerts on the old symbol (a render holds the new one's)
+        // the member's alerts on the NEW symbol (never the old one's): one list for every symbol, so readable here
+        alertLineOptsRef: { current: t.alertLines || NO_LINES },
         wmLogoRef: { current: null },              // the old symbol's logo image (its effect loads the new one)
       }
       pending = { sym, tf: t.tf, fromSym: t.fromSym }
