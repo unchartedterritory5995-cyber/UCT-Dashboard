@@ -668,6 +668,14 @@ export const FUNCTIONS = [
   { code: 'IDXC', label: 'Index changes (additions and removals)', group: 'Market',
     ticker: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] },
     market: { panel: 'IndexChanges', args: [{ kind: 'marketView', prop: 'view' }, { kind: 'idxcIndex', prop: 'index' }] } },
+  // STAT (2026-11-21): one stock's statistics, worked out by the server from the daily prices it
+  // already stores (GET /api/research/stock-stats/{ticker}, held for the session): ATR, realized
+  // volatility, average daily range, the 52-week range, volume; beta and correlation against SPY and
+  // its sector fund, up and down capture; returns 1W to 5Y, the best and worst day and week; its own
+  // declines of 20% or more; and how it acted in every S&P 500 correction MKTH finds inside its
+  // history. No arguments. STAT is not in the site's stock universe.
+  { code: 'STAT', label: 'Stock statistics (volatility, beta, returns, drawdowns, how it acted in every market correction)', group: 'Security',
+    ticker: { panel: 'StockStats' } },
 ]
 
 /** Other spellings of a registered code: `alias → code`. The parser answers an alias with the code
@@ -1025,6 +1033,10 @@ const FUNCTION_WORDS = {
   IDXC: { example: 'IDXC', keywords: ['index changes', 'index additions', 'index removals', 'added to the s&p', 'removed from the index',
     'index rebalance', 'sp500 changes', 'index deletions', 'index history'],
     note: 'The provider\'s list of additions and removals with the stock replaced and the reason. One stock: NVDA IDXC. On a panel that follows a stock, IDXC MARKET is all three indexes.' },
+  // STAT: "volatility" stays IVH's and VOL's, "correlation" CORR's, "drawdowns" MKTH's (each answers it first today)
+  STAT: { example: 'NVDA STAT', keywords: ['stock statistics', 'statistics', 'stock stats', 'atr', 'beta', 'max drawdown',
+    'up capture', 'down capture'],
+    note: "From UCT's stored daily prices (split-adjusted, price only). A record, not a forecast." },
 }
 for (const [code, w] of Object.entries(FUNCTION_WORDS)) {
   const f = BY_CODE[code]

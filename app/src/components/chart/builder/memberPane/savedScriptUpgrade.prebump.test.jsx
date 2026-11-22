@@ -336,6 +336,16 @@ describe('pre-bump F3 — the SAME refused maths stays held past its engine', ()
     const row = rowOf(stale('u_bbbbbbbbbb35'), { has_pine_source: true, pine_source: SCRIPT, engine_status: sameMaths(true) })
     expect(upgradeKindOf(row, N + 1)).toBe('retranslate')
   })
+
+  // ⭐ TRACK 6 (a) (coordinator ruling 2026-11-22): a RUNTIME document is recompiled from its source on
+  // every run, so an older engine's refusal expires with that engine, same maths or not. The server's
+  // `engine_withheld_reason` answers the same (tests/test_pine_runtime_composition.py).
+  it('a RUNTIME document: an older refusal expires at N + 1 even on the same maths; today’s still binds', () => {
+    const d = { id: 'u_bbbbbbbbbb36', compute: { kind: 'runtime', source: SCRIPT, outputs: { v: 0 } }, meta: {} }
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(true) }), N + 1)).not.toBe('refused')
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(false) }), N + 1)).not.toBe('refused')
+    expect(upgradeKindOf(rowOf(d, { engine_status: sameMaths(true) }), N)).toBe('refused')
+  })
 })
 
 // ⭐ pre-bump review F1 — the store refused the write-back of an upgrade of a version an

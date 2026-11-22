@@ -114,6 +114,12 @@ jobs:
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: python -m pytest tests/test_no_shadowed_definitions.py -q
 
+      # 2026-11-22: left to the gate at first (68 s on the gate runner). #1658 then merged using a flag nothing
+      # declared, every PR check green, and the gate went red for an hour (run 44128410568): no PR job ran this.
+      - name: Visibility flags are declared (offline)
+        if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+        run: python -m pytest tests/test_visibility_flag_ledger.py -q
+
       # Not in the gate (yet): both went red on master on 2026-11-20 with no PR job running them.
       - name: Tools that import api.* pin the shared-data-root census
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}

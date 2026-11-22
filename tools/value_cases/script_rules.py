@@ -347,6 +347,8 @@ def _run_counts():
 def drawn_rules(sid):
     """{numbers: [(what, [values any of which is right])], words: [(what, must, must_not)], labels: (what, dates, text or None),
     numbers_on_bars: (what, {day: the whole number written on that bar})}"""
+    if sid == 'table-format-01':                             # a table with yesterday's high and yesterday's low (a daily chart)
+        return {'numbers': [("yesterday's high", [H[LAST - 1]]), ("yesterday's low", [L[LAST - 1]])]}
     if sid == 'count-on-bars-01':
         counts = _run_counts()
         return {'numbers_on_bars': ('the count written on each bar of a run (1 to 9, starting again at 1 after 9)',
@@ -566,6 +568,7 @@ ASKED = {'h03': {'plot'}, 'h05': {'plotshape'}, 'i01': {'plot', 'table'}, 'i02':
          'i04': {'plot', 'label'}, 'i05': {'plot', 'table'}, 'i06': {'plot', 'label'},
          'j01': {'plot'}, 'j02': {'plot'}, 'j03': {'plot'}, 'j04': {'plot'}, 'j05': {'plot'}, 'j06': {'table'},
          'l01': {'line', 'plot'}, 'l02': {'box'}, 'l03': {'line'}, 'l04': {'box'}, 'l05': {'line', 'plot'}, 'l06': {'label'},
+         'table-format-01': {'table'},
          'count-on-bars-01': {'label', 'plotchar', 'plotshape'},
          'k01': {'table'}, 'k02': {'plot'}, 'k03': {'plot', 'background'}, 'k04': {'plot', 'table'}, 'k05': {'plot'}, 'k06': {'plot'}}
 #: ids whose column rules are DIFFERENT columns that must all be there, not readings of one
@@ -577,7 +580,7 @@ def has_rule(case_id):
 
 
 def drawn_rules_known(case_id):
-    return case_id in {'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06', 'count-on-bars-01'}
+    return case_id in {'table-format-01', 'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'j06', 'k01', 'k04', 'l01', 'l02', 'l03', 'l04', 'l05', 'l06', 'count-on-bars-01'}
 
 
 def code_of(source):
