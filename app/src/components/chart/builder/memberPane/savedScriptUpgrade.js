@@ -57,6 +57,12 @@
 // a STALE row is seen — a member whose documents are all current never downloads
 // it — and the stale row is HELD (not drawn) until its new translation lands:
 // the old values are known to be possibly wrong, so they are not shown meanwhile.
+//
+// ⭐⭐ THE PASTE WORKER (2026-11-21): AND THE TRANSLATION RUNS IN THE MEMBER DOOR'S WORKER. What arrives on demand is
+// the door's service (`memberDoorAsync.js`): each stale row is built in its worker, one row at a time, and the chart's
+// thread only reads the answer. A row translated on this thread froze the tab for the whole call (seconds to minutes
+// on a long script), and every engine bump sends every member's stale rows through here. A worker that stopped is a
+// fact about the check, never about the script: the row is drawn as stored, never refused (`judgeRetranslation`).
 import { PINE_RECURRENCE_ORIGIN } from '../../engine/nativeRegistry'
 import { runtimePaneBuilt } from '../../engine/runtimePaneGate'
 import {
@@ -195,14 +201,27 @@ function carryOwned(next, stored, row) {
  *         | {status: 'inconclusive', reason: string}}
  */
 export function retranslateRow(row, memberPaneDefinition) {
-  const stored = row.definition
-  const source = row.pine_source
   let built
   try {
-    built = memberPaneDefinition({ source, id: row.def_id })
+    built = memberPaneDefinition({ source: row.pine_source, id: row.def_id })
   } catch (err) {
-    return { status: 'inconclusive', reason: `the translator threw: ${String((err && err.message) || err)}` }
+    return judgeRetranslation(row, null, String((err && err.message) || err))
   }
+  return judgeRetranslation(row, built, null)
+}
+
+/**
+ * ⭐ What a stale row's new translation means (`retranslateRow`'s verdict, wherever the door ran): `built` the door's
+ * answer, `threw` the message of a door that threw instead (then `built` is null).
+ */
+export function judgeRetranslation(row, built, threw) {
+  const stored = row.definition
+  const source = row.pine_source
+  if (threw !== null && threw !== undefined) return { status: 'inconclusive', reason: `the translator threw: ${threw}` }
+  // ⭐ THE PASTE WORKER — the worker that built it stopped (it died, it could not answer): a fact about this device's
+  // check, not about the script, so the stored picture is kept, NEVER refused (a refusal is remembered server-side
+  // and every server lane would then withhold the member's script on every device)
+  if (built && built.doorWorkerStopped === true) return { status: 'inconclusive', reason: `the check stopped: ${built.reason || ''}` }
   if (!built || !built.ok) {
     const reason = (built && built.reason) || 'the translator returned nothing'
     if (/^the translator threw/.test(reason)) return { status: 'inconclusive', reason }
@@ -242,7 +261,9 @@ const _recorded = new Set()      // `key:status` already sent to the store
 
 const keyOf = (row, engine = SCRIPT_ENGINE_VERSION) => `${row.def_id}@${row.version}#${engine}`
 
-/** The translator module, loaded once, on demand. */
+/** The translator module, loaded once, on demand: the member door's service (`memberDoorAsync.js`), which builds the
+ *  row in the door's worker (and, where there are no workers, here). A module handed in by a test without a service
+ *  (`{memberPaneDefinition}`) is called on this thread, as before. */
 let _translator = null
 const _listeners = new Set()
 const _pending = new Set()       // keys queued for translation
@@ -255,7 +276,7 @@ export function __setTranslatorForTests(mod) {
 }
 
 function loadTranslator() {
-  if (!_translator) _translator = import('./memberPaneDefinition')
+  if (!_translator) _translator = import('./memberDoorAsync')
   return _translator
 }
 
@@ -310,6 +331,7 @@ function notifyCoalesced() {
 
 function translateEach(entries, mod) {
   if (!entries.length) return
+  if (typeof mod.memberDoorService === 'function') { upgradeThroughDoor(mod.memberDoorService(), entries); return }
   const [[k, row], ...rest] = entries
   idle(() => {
     if (!_memo.has(k)) {
@@ -319,6 +341,33 @@ function translateEach(entries, mod) {
     }
     translateEach(rest, mod)
   })
+}
+
+/** ⭐⭐ THE PASTE WORKER — A STALE ROW IS TRANSLATED IN THE MEMBER DOOR'S WORKER, NEVER ON THE CHART'S THREAD. One row
+ *  at a time, in order, each a shared keyed build of the door's service (`{source, id: def_id}`): the chart's thread
+ *  only reads the answer. A paste made meanwhile goes first (the service builds the newest first) and the row is
+ *  built again once the worker is free. Where there are no workers the service builds here, one row per idle slot,
+ *  as before. */
+function upgradeThroughDoor(service, entries) {
+  if (!entries.length) return
+  const [[k, row], ...rest] = entries
+  const go = () => {
+    if (_memo.has(k)) { upgradeThroughDoor(service, rest); return }
+    let release = null
+    let settled = false
+    release = service.subscribe({ source: row.pine_source, id: row.def_id }, (landed) => {
+      if (settled) return
+      settled = true
+      _memo.set(k, landed && landed.error
+        ? judgeRetranslation(row, null, landed.error.message || 'no message')
+        : judgeRetranslation(row, landed ? landed.built : null, null))
+      _pending.delete(k)
+      notifyCoalesced()
+      // (a build answered at once, where there are no workers, lands before `subscribe` returns its release)
+      Promise.resolve().then(() => { if (release) release(); upgradeThroughDoor(service, rest) })
+    })
+  }
+  if (service.offThread) go(); else idle(go)
 }
 
 function flush(rowsByKey) {
