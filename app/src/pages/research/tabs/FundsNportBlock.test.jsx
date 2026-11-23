@@ -99,6 +99,25 @@ describe('Funds (N-PORT) block', () => {
     expect(within(row('Invented Fund 01')).getByText('Invented Trust 1')).toBeTruthy()
   })
 
+  it('a change a stock split may have touched and that could not be checked reads "not comparable", and the split list is said', () => {
+    const block = { ...OK,
+      data_set: { ...OK.data_set, splits: { state: 'unavailable' } },
+      summary: { ...OK.summary, added: 0, cut: 0, unchanged: 0, not_comparable: 255 },
+      holders: OK.holders.map((h, i) => (i === 0 ? { ...h, name: 'Larchmont Index Fund', state: 'not_comparable', change_shares: null, change_pct: null } : h)) }
+    render(<FundsNportBlock block={block} sym="ZQAA" />)
+    const row = screen.getByText('Larchmont Index Fund').closest('tr')
+    expect(within(row).getByText('Change not comparable')).toBeTruthy()
+    expect(row.querySelector('[data-col="change"]').textContent).toBe('not comparable')
+    expect(row.querySelector('[data-col="changePct"]').textContent).toBe('not comparable')
+    expect(screen.getByText(/^Since each fund's previous report: 0 added, 0 cut, 0 unchanged, 31 new, 14 sold out, 255 not comparable\./)).toBeTruthy()
+    expect(screen.getByTestId('funds-nport-period').textContent).toMatch(/The list of stock splits could not be read for this data set/)
+  })
+
+  it('earlier shares put through a split between the reports are said', () => {
+    render(<FundsNportBlock block={{ ...OK, summary: { ...OK.summary, splits: [['2031-07-15', 4]] } }} sym="ZQAA" />)
+    expect(screen.getByText(/^A stock split fell between some funds' two reports \(4-for-1 on Jul 15, 2031\): their shares before are counted in post-split shares/)).toBeTruthy()
+  })
+
   it("the fund links to its own filing on sec.gov in a new tab", () => {
     render(<FundsNportBlock block={OK} sym="ZQAA" />)
     const link = screen.getByRole('link', { name: 'Invented Fund 00' })

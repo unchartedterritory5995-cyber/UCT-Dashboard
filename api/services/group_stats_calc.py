@@ -26,7 +26,8 @@ BREADTH (from stored daily closes, split-adjusted, price only):
     last 20, 50 or 200 stored closes ending that day;
   * new 52-week high (low): that day's close above (below) every one of the stock's previous
     `HIGH_SESSIONS - 1` stored closes; within 5% of the 52-week high: that day's close at least
-    `NEAR_HIGH` of the highest of the last `HIGH_SESSIONS` closes. All on CLOSING prices;
+    `NEAR_HIGH` of the highest of the last `HIGH_SESSIONS` closes, compared exactly on the prices as stored
+    (`near_high`: a close of exactly 95% counts). All on CLOSING prices;
   * advance / decline: that day's close against the stock's previous stored close;
   * a stock counts on a day only when it has a close dated that session and enough closes for the measure.
 
@@ -49,6 +50,7 @@ import math
 from array import array
 from bisect import bisect_right
 from datetime import date
+from fractions import Fraction
 from typing import Iterable, Optional
 
 from api.services.rs_weighted_return import RS_TERMS
@@ -304,6 +306,22 @@ def sessions_from(day_counts: dict, priced: int) -> tuple:
     return tuple(d for d in sessions if d <= newest), newest
 
 
+def near_high(close: float, high: float) -> bool:
+    """True when `close` is at least `NEAR_HIGH` of `high`, compared EXACTLY on the prices as they were stored.
+
+    A stored close is a decimal (15.77) and its binary double is not, so `0.95 * 16.60` rounds to 15.770000000000001
+    and a close of exactly 95% read as not near (2026-11-22 review: high 16.60, close 15.77). Comparing the doubles
+    exactly does not help either: 15.77's double sits just under 15.77 and 16.60's just over. So, far from the line,
+    the float arithmetic decides (its error is many orders below the margin); within that margin each price is read
+    back as the shortest decimal that gives the same double (`repr`, which is the decimal the store wrote) and the
+    two are compared as fractions, with `NEAR_HIGH` read the same way (19/20)."""
+    d = close - NEAR_HIGH * high
+    if abs(d) > 1e-12 * (abs(close) + abs(high)):
+        return d > 0
+    share = Fraction(repr(NEAR_HIGH))
+    return share.denominator * Fraction(repr(close)) >= share.numerator * Fraction(repr(high))
+
+
 def stock_breadth(days, vals, targets: dict, line_days) -> dict:
     """One stock's answers. `targets`: {label: session ordinal} (now, week, month); `line_days`: the line's
     sessions. Returns {label: {above20, above50, above200, near_high, new_high, new_low, move}, 'line':
@@ -334,7 +352,7 @@ def stock_breadth(days, vals, targets: dict, line_days) -> dict:
         if i >= HIGH_SESSIONS - 1:
             window = vals[i - HIGH_SESSIONS + 1:i + 1]
             prev = vals[i - HIGH_SESSIONS + 1:i]
-            out["near_high"] = vals[i] >= NEAR_HIGH * max(window)
+            out["near_high"] = near_high(vals[i], max(window))
             out["new_high"] = vals[i] > max(prev)
             out["new_low"] = vals[i] < min(prev)
         else:
