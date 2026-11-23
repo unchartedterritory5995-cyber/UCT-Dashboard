@@ -29,8 +29,8 @@
    "id": "R1",
    "mutant": "B-ROUND rounds a tie DOWN",
    "file": "app/src/components/chart/engine/runtime/broker.js",
-   "from": "const roundToTick = (p) => Number((Math.floor(p / mintick + 0.5 + 1e-6) * mintick)",
-   "to": "const roundToTick = (p) => Number((Math.ceil(p / mintick - 0.5 - 1e-6) * mintick)",
+   "from": "const roundToTick = (p) => Number((Math.floor(p / mintick + 0.5) * mintick)",
+   "to": "const roundToTick = (p) => Number((Math.ceil(p / mintick - 0.5) * mintick)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
   },
   {
@@ -149,8 +149,8 @@
    "id": "T2",
    "mutant": "close_all's generated exit id has another text",
    "file": "app/src/components/chart/engine/runtime/strategyRecord.js",
-   "from": "text: 'Close position order'",
-   "to": "text: 'Close position'",
+   "from": "if (row.kind === 'close_all') return { text: 'Close position order'",
+   "to": "if (row.kind === 'close_all') return { text: 'Close position'",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/runtime/__tests__/w9ValueReadbacks.test.js"
   },
   {
@@ -357,15 +357,15 @@
    "id": "H1",
    "mutant": "the pairing no longer checks a style title against the source",
    "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
-   "from": "if (title === null || want === null || title !== want) {",
-   "to": "if (title === null || want === null) {",
+   "from": "if (title === null || d.title === null || title !== d.title) {",
+   "to": "if (title === null || d.title === null) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
   },
   {
    "id": "H2",
    "mutant": "the pairing no longer checks OUR plot count",
    "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
-   "from": "if (!Array.isArray(ourPlots) || ourPlots.length !== n) {",
+   "from": "if (!Array.isArray(ourPlots) || ourPlots.length !== values.length) {",
    "to": "if (!Array.isArray(ourPlots)) {",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
   },
@@ -373,8 +373,8 @@
    "id": "H3",
    "mutant": "THE SWAP: two of our plots are paired with each other's capture plot",
    "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
-   "from": "      ours: ourPlots[k - 1],",
-   "to": "      ours: ourPlots[k === 4 ? 4 : k === 5 ? 3 : k - 1],",
+   "from": "    ours: ourPlots[k].points,",
+   "to": "    ours: ourPlots[k === 3 ? 4 : k === 4 ? 3 : k].points,",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
   },
   {
@@ -405,7 +405,7 @@
    "id": "H7",
    "mutant": "the source declares a plot count the harness no longer checks against the capture",
    "file": "app/src/components/chart/engine/__tests__/vendorHarness/strategyHarness.js",
-   "from": "if (declared.length !== n) return",
+   "from": "if (i !== n) return",
    "to": "if (false) return",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/vendorHarness/strategyGrading.test.js"
   },

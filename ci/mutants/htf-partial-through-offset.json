@@ -15,8 +15,8 @@
    "id": "P2",
    "mutant": "JS: shift by k + 1",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "          const k = Number(node.value) || 0",
-   "to": "          const k = (Number(node.value) || 0) + 1",
+   "from": "        const k = Number(node.value) || 0",
+   "to": "        const k = (Number(node.value) || 0) + 1",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
    "expectRed": "x[1] (bars 3-6"
   },
@@ -33,8 +33,8 @@
    "id": "P4",
    "mutant": "Python: shift by k + 1",
    "file": "api/services/ast_interpret.py",
-   "from": "                k = int(node.get(\"value\") or 0)",
-   "to": "                k = int(node.get(\"value\") or 0) + 1",
+   "from": "            k = int(node.get(\"value\") or 0)",
+   "to": "            k = int(node.get(\"value\") or 0) + 1",
    "rail": "python -m pytest tests/test_pine_htf_partial_through_offset.py -q -p no:cacheprovider",
    "expectRed": "x[1] (bars 3-6"
   },
@@ -103,21 +103,21 @@
   },
   {
    "id": "P12",
-   "mutant": "JS: a running value withheld from the first partial bar on (engine 56's forward rule), taking away bars a smoother has forgotten it in",
+   "mutant": "JS: a running value withheld from the first partial bar on (engine 56's forward rule), taking away bars its two starts agree on (rail: ITEM 4's acceptance measure, htfTwoStarts.test.js; this manifest's own rail holds every bar of its ema rows since a4863b712c, so it cannot tell the two rules apart)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "          out = walk.exact === true ? u : forward(u)",
+   "from": "          out = walk.exact === true && walk.carryForward !== true ? u : forward(u)",
    "to": "          out = forward(u)",
-   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfPartialThroughOffset.test.js",
-   "expectRed": "ema(x, 3)"
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/htfTwoStarts.test.js",
+   "expectRed": "withheld until its starts agree, then drawn"
   },
   {
    "id": "P13",
-   "mutant": "Python: a running value withheld from the first partial bar on",
+   "mutant": "Python: a running value withheld from the first partial bar on (rail: ITEM 4's acceptance measure, tests/test_pine_htf_two_starts.py, the JS lane's column with two starts)",
    "file": "api/services/ast_interpret.py",
-   "from": "                out = u if exact else forward(u)",
+   "from": "                out = u if (exact and not carry_forward) else forward(u)",
    "to": "                out = forward(u)",
-   "rail": "python -m pytest tests/test_pine_htf_partial_through_offset.py -q -p no:cacheprovider",
-   "expectRed": "ema(x, 3)"
+   "rail": "python -m pytest tests/test_pine_htf_two_starts.py -q -p no:cacheprovider",
+   "expectRed": "test_the_python_lane_gives_the_js_lanes_column_with_two_starts"
   }
  ]
 }
