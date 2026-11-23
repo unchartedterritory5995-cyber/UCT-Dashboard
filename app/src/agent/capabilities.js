@@ -404,10 +404,12 @@ export function manifestFor(ctx = {}) {
 // `groups` (Phase 2): refresh only the providers whose `refreshGroup` is among the routing groups this
 // message was sent with (null = every provider). A provider with no `refreshGroup` always refreshes.
 // `refresh` is handed those groups: a section that is sent only with its group reads them here.
-export async function refreshContext(budgetMs = 1500, { groups = null } = {}) {
+// `host` (2026-11-23): the host this turn is planned on, handed to each refresh — a provider whose data source lives ON the host
+// (the indicator-alert hook's writers) re-reads THAT host's book, never whichever host an earlier build happened to note.
+export async function refreshContext(budgetMs = 1500, { groups = null, host = null } = {}) {
   const jobs = [...PROVIDERS.values()].filter(p => typeof p.refresh === 'function')
     .filter(p => !groups || !p.refreshGroup || groups.includes(p.refreshGroup))
-    .map(p => Promise.resolve().then(() => p.refresh({ groups })).catch(() => {}))
+    .map(p => Promise.resolve().then(() => p.refresh({ groups, host })).catch(() => {}))
   if (!jobs.length) return
   await Promise.race([Promise.all(jobs), new Promise(r => setTimeout(r, budgetMs))])
 }
