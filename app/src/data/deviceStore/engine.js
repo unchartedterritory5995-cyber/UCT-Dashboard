@@ -134,14 +134,20 @@ function _asofMaxOf(index) {
   return m > 0 ? isoOfYmd(m) : null
 }
 const _emptyState = () => ({ v: 1, noRoom: null, bad: {} })
-/** A state file's contents, kept only where well-formed (anything else is forgotten: the safe direction is to try). */
-function _stateOf(j) {
+/** A state file's contents, kept only where well-formed (anything else is forgotten: the safe direction is to try).
+ *  ⭐ CAPPED WHEN READ (review of #2563, LOW-4): a record written while the clock ran ahead never locks this browser
+ *  out past its schedule counted from `nowMs` (this load): "no room" at most NO_ROOM_RETRY_MS, a bad pack at most its
+ *  try's wait. ("Never again for this build", after the last try, is not a time and is kept.) */
+function _stateOf(j, nowMs) {
   const out = _emptyState()
   const n = j?.noRoom
-  if (n && Number.isFinite(n.until) && Number.isFinite(n.at)) out.noRoom = { ...n }
+  if (n && Number.isFinite(n.until) && Number.isFinite(n.at)) out.noRoom = { ...n, until: Math.min(n.until, nowMs + NO_ROOM_RETRY_MS) }
   for (const [tf, b] of Object.entries(j?.bad || {})) {
     if (STORED_TFS.includes(tf) && b && typeof b.build === 'string' && typeof b.sha256 === 'string' && Number.isSafeInteger(b.tries)
-        && b.tries > 0 && (b.until === null || Number.isFinite(b.until))) out.bad[tf] = { ...b }
+        && b.tries > 0 && (b.until === null || Number.isFinite(b.until))) {
+      const wait = BAD_PACK_RETRY_MS[Math.min(b.tries, BAD_PACK_RETRY_MS.length) - 1]
+      out.bad[tf] = { ...b, until: b.until === null ? null : Math.min(b.until, nowMs + wait) }
+    }
   }
   return out
 }
@@ -422,7 +428,7 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
           try { const j = await _readJson(SPLITS_FILE); splits = _splitsOf({ splits: j && { session: j.session, symbols: Object.fromEntries((j.symbols || []).map((x) => [x, 1])) } }) } catch { splits = null }
         }
         if (all.includes(INGEST_STATE_FILE)) {
-          try { state = _stateOf(await _readJson(INGEST_STATE_FILE)) } catch { state = _emptyState() }
+          try { state = _stateOf(await _readJson(INGEST_STATE_FILE), now()) } catch { state = _emptyState() }
         }
         return _scan(all)
       })()
@@ -610,6 +616,22 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     const need = bytes + headroomBytes
     return { ok: free >= need, free, need }
   }
+  /** M5 (review of #2563, LOW-4): the bytes of THIS build's resumable partial download of `tf` already on disk (its
+   *  .prog names exactly this entry), so the room check asks only for the rest. 0 for none, and for a gzip pack (it
+   *  restarts from zero). */
+  async function _resumableBytes(tf, entry) {
+    if (entry.encoding === 'gzip') return 0
+    try {
+      for (const [g, kinds] of _scan(await io.list()).get(tf) || []) {
+        if (kinds.has('ok') || !kinds.has('prog') || !kinds.has('pack')) continue
+        const p = await _readJson(progName(tf, g))
+        if (p.build !== entry.build || p.sha256 !== entry.sha256 || p.bytes !== entry.bytes || p.url !== entry.url) continue
+        const h = await _open(packName(tf, g))
+        try { return Math.max(0, Math.min(h.size(), entry.bytes)) } finally { h.close() }
+      }
+    } catch { /* none readable: count nothing */ }
+    return 0
+  }
   /** M5: every uncommitted generation of `tf` (a partial, an unmarked delta generation) goes: no room to finish it. */
   async function _dropUncommitted(tf) {
     let gens
@@ -651,8 +673,10 @@ export function createDeviceEngine({ io, fetchFn = (...a) => fetch(...a), onEven
     if (blocked) return { ...blocked, tf }
     const backoff = await _backoffFor(tf, entry)
     if (backoff) return backoff
-    // ⭐ ROOM FIRST (M5): both paths write a new generation the size of the full pack
-    const room = await _room(entry.bytes)
+    // ⭐ ROOM FIRST (M5): both paths write a new generation the size of the full pack; a full download that RESUMES
+    // needs only the rest of it (LOW-4 of the review of #2563)
+    const deltaFirst = entry.delta != null && !_deltaRefusal(entry, cur)
+    const room = await _room(entry.bytes - (deltaFirst ? 0 : await _resumableBytes(tf, entry)))
     if (!room.ok) { await _dropUncommitted(tf); return _noRoom(tf, 'headroom', { need: room.need, free: room.free }) }
     let why = null
     if (entry.delta != null) {

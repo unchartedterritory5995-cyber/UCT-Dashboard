@@ -160,6 +160,9 @@ export function createDeviceClient({
       .then((r) => { if (r) Object.assign(persist, r) }, (e) => { persist.error = String(e?.message || e).slice(0, 120) })
   }
   const _holdsSeed = (info) => !!info?.tfs && Object.keys(info.tfs).length > 0
+  /** Files are held here: say so again (review of #2563, LOW-1: an off tab's removal that settled just after this tab
+   *  started wrote '0' over the marker start() wrote, and this tab then downloaded a seed nothing would clean up). */
+  const _noteFiles = () => { try { noteFiles() } catch { /* storage blocked */ } }
 
   const keyOf = (sym, tf) => `${tf}|${String(sym).toUpperCase()}`
 
@@ -179,10 +182,10 @@ export function createDeviceClient({
         const r = pending.get(m.id)
         if (r) { pending.delete(m.id); r(m.ok ? (m.res ?? null) : null) }
       } else if (m.type === 'event') {
-        if (m.event?.type === 'gen') { _drop(String(m.event.tf)); _maybePersist() }
+        if (m.event?.type === 'gen') { _drop(String(m.event.tf)); _maybePersist(); _noteFiles() }
       } else if (m.type === 'status') {
         status = m
-        if (_holdsSeed(m.info)) _maybePersist()
+        if (_holdsSeed(m.info)) { _maybePersist(); _noteFiles() }
       }
     }
     worker.onerror = () => {
@@ -323,8 +326,9 @@ export function createDeviceClient({
       _worker()
       if (!ingestAsked) {
         ingestAsked = true
-        // this browser now runs the store: its worker may write files (removed if the store is off here later, M9)
-        try { noteFiles() } catch { /* storage blocked */ }
+        // this browser now runs the store: its worker may write files (removed later only for the member's '0', a
+        // purge, or 30 days unused off by default: source.js); the stamp is the stale rule's clock
+        try { noteFiles(now()) } catch { /* storage blocked */ }
         afterPaint(() => idle(() => {
           if (dead) return
           _askIngest(false)
