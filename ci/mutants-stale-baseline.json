@@ -1,0 +1,87 @@
+{
+ "schema": "uct.ci-mutants-stale/v1",
+ "about": "Mutants in ci/mutants/*.json whose `from` no longer resolves exactly once in its file (or whose file is gone), as measured on master 5b19c609c7, 2026-11-23: 45 of 849 mutants, in 18 of 82 manifests. Each would mutate nothing if run. This is a DEBT list, owed by each manifest's author, and it ONLY SHRINKS: give the mutant the `from` and `to` of the file's current text, run it with tools/ci_mutant_runner.py, and remove its id here. No new entry is ever added (tools/ci_mutant_manifests.py, tests/test_ci_mutant_manifests.py). To see what is wrong with each: python tools/ci_mutant_manifests.py --list",
+ "stale": {
+  "chart-markers-na-breaks.json": [
+   "NB5"
+  ],
+  "co2-theme-colours-runtime.json": [
+   "N8"
+  ],
+  "history-before-chart.json": [
+   "H1",
+   "H11",
+   "PH1",
+   "PH4"
+  ],
+  "host-known-divergence.json": [
+   "HK-J4"
+  ],
+  "htf-live-first-period.json": [
+   "L10",
+   "L11",
+   "PL10",
+   "PL11"
+  ],
+  "htf-partial-through-offset.json": [
+   "P12",
+   "P13",
+   "P2",
+   "P4"
+  ],
+  "landing-train-2.json": [
+   "H1",
+   "H2",
+   "H3",
+   "H7",
+   "R1",
+   "T2"
+  ],
+  "library-island-bool-na.json": [
+   "W20",
+   "W21"
+  ],
+  "library-version-island.json": [
+   "V23"
+  ],
+  "objects-other-symbol-unsettled.json": [
+   "OU-M3"
+  ],
+  "pine-heavy-rails.json": [
+   "H4",
+   "H6"
+  ],
+  "request-tf-fold.json": [
+   "TF4"
+  ],
+  "strategy-readbacks-a.json": [
+   "R1",
+   "T2"
+  ],
+  "strategy-readbacks-b.json": [
+   "H1",
+   "H2",
+   "H3",
+   "H7"
+  ],
+  "strategy-readbacks.json": [
+   "H1",
+   "H2",
+   "H3",
+   "H7",
+   "R1",
+   "T2"
+  ],
+  "strategy-v4-margin-d12b.json": [
+   "D1",
+   "D3"
+  ],
+  "tc-text-colour.json": [
+   "M11-na-compare-served",
+   "M20-differential-colour-new-off-by-one"
+  ],
+  "udt-collections.json": [
+   "U10"
+  ]
+ }
+}
