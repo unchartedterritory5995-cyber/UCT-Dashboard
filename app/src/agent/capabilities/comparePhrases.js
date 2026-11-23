@@ -163,8 +163,11 @@ const ADD_RES = [
   [new RegExp(`^(?:add|put|show) (?:a |an )?${LIST} ${COMP_NOUN}$`), null, 1],
   // "add a comparison with QQQ", "set up a comparison against SPY"
   [new RegExp(`^(?:add|put|make|set up|start|do|show) (?:a |an )?comparison (?:${WITH}|of|for) (?:the )?${LIST}$`), null, 1],
-  // "plot SPY against NVDA" (canon: plot → add) — the BASE named after the symbols
-  [new RegExp(`^(?:add|put) ${LIST} (?:against|vs\\.?|versus|relative to) (${SELF}|${TICK})$`), 2, 1],
+  // "plot SPY against NVDA" (canon: plot → add) — the BASE named after the symbols. ⛔ PL decision 11-23 (AUDIT T2 F2): only
+  // when the member TYPED a plotting verb (plot / chart / graph — checked on the typed words in compareOfWords). "put / stack /
+  // set X against Y" is as often a placement or a layout as an overlay, so no target is read from "against" there: the model's.
+  // ("compare X against Y" keeps the X chart as the target: the first entry above.)
+  [new RegExp(`^(?:add|chart|graph) ${LIST} (?:against|vs\\.?|versus|relative to) (${SELF}|${BASE_TOK})$`), 2, 1, /^\s*(?:(?:please|now|ok|okay|can you|could you)\s+)*(?:plot|chart|graph)\b/i],
 ]
 const REMOVE_RES = [
   // "remove the QQQ comparison", "drop the SPY and QQQ overlays"
@@ -197,9 +200,10 @@ export function compareOfWords({ raw, lower, host, typed }) {
     const ref = named ? null : onlyChartWith(host, list => syms.every(x => has(list, x)))
     return { add: [], remove: syms, clear: false, ...(ref ? { __target: ref } : {}) }
   }
-  for (const [re, gBase, gList] of ADD_RES) {
+  for (const [re, gBase, gList, typedVerb] of ADD_RES) {
     const m = re.exec(s)
     if (!m) continue
+    if (typedVerb && !typedVerb.test(String(typed || raw || ''))) return null
     const syms = tickerList(m[gList], raw, host)
     if (!syms) return null
     const base = baseOf(gBase ? m[gBase] : null, raw, host)
@@ -357,4 +361,37 @@ export function compareViewOfWords({ raw, lower, host }) {
   const g = new RegExp(`^${GNAME} ${GKIND}$`).exec(t)
   if (g && !badName(g[1])) return view('rotation', { group: g[1], groupType: typeOf(g[2]) === 'any' ? null : typeOf(g[2]) })
   return null
+}
+
+// ── a PRONOUN subject across turns (AUDIT T2 F1, 11-23) ──
+// "compare it with QQQ" / "show it as percent" with a chart CLICKED: the click stands for "it" ONLY when the conversation
+// has no other subject. When an earlier turn's subject is another chart (the chart the last change touched, or a stock or
+// chart the previous message named), "it" may mean that one, so the instant reading is withdrawn: the request goes on to the
+// conversation rules / the model, which see both. Words that point at the click themselves ("this chart") are not pronouns here.
+const PRONOUN = /\b(?:it|that|here|there|this(?!\s+chart\b)|this one|that one|this stock|that stock)\b/i
+const FAMILY = new Set(['chart.compare', 'chartSetup.compareDisplay', 'chartSetup.compareGroup'])
+/** true → do not run this instant compare reading (the subject may be another chart). */
+export function compareSubjectElsewhere(ops, text, { host, memory = null, epoch = null, prevText = '' } = {}) {
+  const t = String(text || '')
+  if (!Array.isArray(ops) || !ops.length || !PRONOUN.test(t)) return false
+  const ours = ops.some(o => FAMILY.has(o?.action) || (o?.action === 'chart.setScale' && percentOfWords({ lower: canonish(t).replace(/[.!?]+$/, '').trim() })))
+  if (!ours) return false
+  const sel = selectedOf(host)
+  if (!sel) return false                                       // no click: the subject rules (references.subjectTarget) decide
+  const charts = chartsOf(host)
+  const clicked = charts.find(c => c.ref === sel)
+  if (!clicked) return false
+  let s = null
+  try { s = memory?.subject?.('chart', epoch) || null } catch { s = null }
+  if (s && s.ref !== sel && s.ref !== clicked.chart && s.ref !== clicked.chartRef) return true
+  const prev = String(prevText || '')
+  if (!prev) return false
+  const mine = String(clicked.symbol || '').toUpperCase()
+  for (const m of prev.matchAll(/\$?[A-Za-z][A-Za-z0-9.]{0,9}/g)) {
+    const sym = tickerWord(m[0], prev, host, { strict: true })
+    if (sym && sym !== mine) return true
+  }
+  // a chart named by position / ordinal / set (the clicked chart named by its own ticker is the click)
+  const own = mine ? new RegExp(`\\b(?:the|this|that)\\s+\\$?${esc(mine.toLowerCase())}\\s+(?:chart|one)\\b`, 'g') : null
+  return NAMES_A_CHART.test(own ? prev.toLowerCase().replace(own, ' ') : prev.toLowerCase())
 }

@@ -310,3 +310,60 @@ describe('Compare Rotation / Overlay view (compare.openView) — instant, throug
     expect(screen.getAllByTestId('agent-receipt').length).toBeGreaterThan(0)
   }, 40000)
 })
+
+// AUDIT T2 F1 (11-23): a PRONOUN ("it", "this one") with a chart clicked stands for the click ONLY when the conversation has no
+// other subject. Both orders, plus controls; the clicked chart is c0 (SPY) throughout.
+describe('rail: "compare it with …" never lands on the CLICKED chart while the conversation’s subject is another chart', () => {
+  let m
+  const all = ['c0', 'c1', 'c2', 'c3']
+  const none = () => { for (const id of all) expect(syms(m.board, id), id).toEqual([]) }
+  beforeEach(() => { m = p.mount(...FOUR()); p.select('c0') })
+
+  it('(a) turn 1 acts on the TSLA chart, turn 2 "compare it with DIA" → not instant, nothing changed on the clicked chart', async () => {
+    await m.say('make the TSLA chart weekly')
+    await waitFor(() => expect(widget(m.board, 'c3').opts.tf).toBe('W'))
+    const n = p.turns()
+    const out = await m.say('compare it with DIA')
+    expect(p.turns()).toBe(n + 1)                                  // the model reads it (here: the sentinel, no plan)
+    expect(out).toMatch(MODEL_SENTINEL)
+    none()
+  })
+
+  it('(a) turn 1 asks about NVDA, turn 2 "compare it with DIA" → not instant, nothing changed', async () => {
+    await m.say('tell me about NVDA')
+    const n = p.turns()
+    await m.say('compare it with DIA')
+    expect(p.turns()).toBe(n + 1)
+    none()
+  })
+
+  it('(a) "show it as percent" after acting on the TSLA chart → not instant either; the clicked chart keeps its scale', async () => {
+    await m.say('make the TSLA chart weekly')
+    await waitFor(() => expect(widget(m.board, 'c3').opts.tf).toBe('W'))
+    await m.say('show it as percent')
+    for (const id of all) expect(csOf(m.board, id).percentScale, id).toBeFalsy()
+  })
+
+  it('(b) no earlier subject: "compare it with DIA" → the clicked chart, instant', async () => {
+    await m.say('compare it with DIA')
+    await waitFor(() => expect(syms(m.board, 'c0')).toEqual(['DIA']))
+    for (const id of ['c1', 'c2', 'c3']) expect(syms(m.board, id), id).toEqual([])
+    expect(p.turns()).toBe(0)
+  })
+
+  it('control: the earlier subject IS the clicked chart → instant there', async () => {
+    await m.say('make the SPY chart weekly')
+    await waitFor(() => expect(widget(m.board, 'c0').opts.tf).toBe('W'))
+    await m.say('compare it with DIA')
+    await waitFor(() => expect(syms(m.board, 'c0')).toEqual(['DIA']))
+    expect(p.turns()).toBe(0)
+  })
+
+  it('control: words that point at the click themselves ("this chart") → the clicked chart, even after the TSLA turn', async () => {
+    await m.say('make the TSLA chart weekly')
+    await waitFor(() => expect(widget(m.board, 'c3').opts.tf).toBe('W'))
+    await m.say('compare this chart with DIA')
+    await waitFor(() => expect(syms(m.board, 'c0')).toEqual(['DIA']))
+    expect(syms(m.board, 'c3')).toEqual([])
+  })
+})

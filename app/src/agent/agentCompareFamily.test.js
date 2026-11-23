@@ -62,7 +62,7 @@ describe('C1-034 add symbols (chart.compare) — generated', () => {
   it('generated count', () => expect(SELF_TPL.length * LISTS.length).toBeGreaterThan(200))
 
   // ⛔ the BASE (the chart compared against) and the symbols added are never confused
-  const BASE_TPL = ['compare {B} with {L}', 'compare {B} to {L}', 'compare {B} against {L}', 'compare {B} vs {L}', 'overlay {L} on {B}', 'plot {L} against {B}']
+  const BASE_TPL = ['compare {B} with {L}', 'compare {B} to {L}', 'compare {B} against {L}', 'compare {B} vs {L}', 'overlay {L} on {B}', 'plot {L} against {B}', 'chart {L} against {B}']
   const BASES = [['NVDA', 'cl'], ['AAPL', 'cr'], ['nvda', 'cl'], ['aapl', 'cr']]
   it.each(cases(BASE_TPL, BASES))('"%s" × base %j → that chart, the other symbols added', (tpl, [b, ref]) => {
     for (const [l, want] of [['QQQ', ['QQQ']], ['MSFT and SPY', ['MSFT', 'SPY']]]) {
@@ -75,6 +75,16 @@ describe('C1-034 add symbols (chart.compare) — generated', () => {
   it('a symbol shown on ANOTHER chart is still the one added, never the target', () => {
     expect(only(read('compare AAPL with NVDA', TWO()))).toMatchObject({ target: 'cr', args: { add: ['NVDA'] } })
     expect(only(read('compare NVDA with AAPL', TWO()))).toMatchObject({ target: 'cl', args: { add: ['AAPL'] } })
+  })
+  // ⛔ PL decision 11-23 (AUDIT T2 F2): "put / stack / set X against Y" may be a placement or a layout — no target is read from
+  // "against" with those verbs (the model's); only a typed plotting verb, or "compare X against Y", names the Y / X chart
+  it.each(['put QQQ against AMD', 'stack QQQ against AMD', 'set QQQ against AMD', 'put QQQ vs AAPL', 'stick QQQ against AMD'])('F2: "%s" → no compare reading', (text) => {
+    const r = read(text, TWO())
+    expect((r?.ops || []).some(o => o.action === 'chart.compare'), text).toBe(false)
+  })
+  it('F2: "compare AAPL against QQQ" keeps the AAPL chart; "plot QQQ against AAPL" the AAPL chart', () => {
+    expect(only(read('compare AAPL against QQQ', TWO()))).toMatchObject({ target: 'cr', args: { add: ['QQQ'] } })
+    expect(only(read('plot QQQ against AAPL', TWO()))).toMatchObject({ target: 'cr', args: { add: ['QQQ'] } })
   })
   it('a base no chart shows, or "compare X with X", is not read (the model decides)', () => {
     expect(read('compare TSLA with QQQ', TWO())).toBe(null)
