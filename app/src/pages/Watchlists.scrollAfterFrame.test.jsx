@@ -24,7 +24,11 @@
  *       scrolls in the commit meanwhile
  *   K11 the row is gone when the frame comes: nothing scrolls, and when it is back the snap happens (it was not
  *       marked done) (F5)
- *   K12 under StrictMode a list opened on a selection still snaps (F4)
+ *   K12 StrictMode smoke test: a list opened on a selection still snaps after StrictMode's simulated unmount (F4).
+ *       It cannot tell a key move from another (at mount the virtualizer has no viewport yet, so every mount snap
+ *       takes the commit path) and, with real frames, it also passes a snap deferred to the frame; the commit timing of
+ *       a non-key snap is railed by K9V and K11's tail
+ *   K9V a symbol set from elsewhere on a virtualized list is centred in the commit, with no frame (frames held)
  *   K13 a FAR key move on a virtualized list (a wrap from the first row to the last) is centred in the commit, as on
  *       the parent: centring there would show rows the list has not drawn, and in the frame callback they would be
  *       drawn a frame later than on the parent (review of the rAF variant, F3)
@@ -335,7 +339,13 @@ describe('a virtualized list', () => {
     await frame(() => expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }]))
   })
 
-  it('K12: under StrictMode a list opened on a selection still snaps', async () => {
+  it('K9V: a symbol set from elsewhere is centred in the commit, with no frame', async () => {
+    const { rerender, ctx } = await mount('big', 'Big')   // frames held from here
+    await act(() => { rerender(listEl('big', 'Big', { ...ctx, sym: 'S5' })) })
+    expect(seen.scrollTo).toEqual([{ top: 5 * ROW, behavior: 'auto' }])   // row 5 centred, before any frame
+  })
+
+  it('K12: StrictMode smoke test: a list opened on a selection still snaps', async () => {
     // Real frames through the mount (a virtualized list measures its viewport in a frame), and whatever a deferral
     // would have run by now has run: the snap must have happened, StrictMode's simulated unmount notwithstanding.
     await mount('big', 'Big', { sym: 'S50', strict: true, clear: false })

@@ -661,7 +661,7 @@ const WatchRow = React.memo(function WatchRow({
 // itemSizeCache) and `getSize()` (the viewport from its last rect report). Neither reads layout (virtual-core 3.14.0
 // index.js 366-373 and 439-523). `top` is where `scrollToIndex(idx, { align: 'center' })` puts the viewport before the
 // max-offset clamp (getOffsetForAlignment); that clamp only moves it back toward the rows already drawn.
-function centredViewStaysDrawn(virt, idx, drawn) {
+export function centredViewStaysDrawn(virt, idx, drawn) {
   try {
     if (!drawn || !drawn.length) return false
     const m = virt.getMeasurements()[idx]
