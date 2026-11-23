@@ -2,7 +2,8 @@
  * NEXT-ROW: ONE ARROW PRESS IS ONE RENDER OF THE LIST (2026-11-23, next-row key profile, round 3).
  *
  * On the /charts board the colour group's symbol lives in a store (groupSymsStore), whose readers render
- * synchronously in the press's own task, the list's host among them. The key handler set the selection inside a
+ * synchronously in the press's own task, a WatchlistWidget's host among them (the one host that passes
+ * `selectInPress`; the board's other list hosts keep the transition, like P3's). The key handler set the selection inside a
  * `startTransition` (6beb18e1c1, for hosts that keep the group symbol in React STATE, the breadth drill, where the
  * transition lets a fast scan skip rows), so on the board one press rendered the list THREE times: the store's
  * render (the new group symbol, the old selection), then the selection from the `hubSym -> setSelectedSym` effect
@@ -127,7 +128,7 @@ async function mountOnFirstRow(listId, host) {
   return view
 }
 
-describe('a store host (the /charts board)', () => {
+describe('a store host (a WatchlistWidget on /charts)', () => {
   it('P1 virtualized list: one press is one render of Watchlists and one of ScanRows, and no transition', async () => {
     hoisted.prebuilt = [{ id: 'big', name: 'Big', items: Array.from({ length: 400 }, (_, i) => ({ id: `S${i}`, sym: `S${i}`, notes: '' })) }]
     const store = makeStore()

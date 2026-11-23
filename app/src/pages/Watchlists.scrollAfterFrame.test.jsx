@@ -34,6 +34,18 @@
  *       drawn a frame later than on the parent (review of the rAF variant, F3)
  *   K14 a key press after the member scrolled the list away is centred in the commit, likewise
  *   K15 the ordinary press, its centred view inside the drawn rows, still waits for the frame callback
+ * The hosts above keep the selection in the key handler's transition (`ctx = { sym, setSym }`). A WatchlistWidget on
+ * /charts is the other kind (review of #2617): its host keeps the group symbol in a store, and the list sets its
+ * selection beside the symbol, in the press's own SyncLane render (`selectInPress`). The same rails on that host:
+ *   K4S the press: the group symbol in the handler, the highlight in the press, nothing scrolled or measured in the key
+ *       task; in the frame callback THAT row is centred (its offset) and scrolled into view
+ *   K5S a held arrow centres once per frame, on the last row; nothing more on the next frame or the backstop
+ *   K13S a wrap is centred in the commit, with no frame
+ *   K15S the ordinary press waits for the frame callback
+ *   K16 IN THE KEY TASK, outside act: in the listener nothing has rendered; after ONE microtask (React's SyncLane flush,
+ *       queued in the press) the highlight is on the new row and the snap's frame callback is waiting, before any task
+ *       has run (a 0 ms timer set before the press has not). React reads `window.event` for the press's update lane, so
+ *       the rail also checks that jsdom sets it during the dispatch.
  *
  * Mutation proof (each run before calling these done): see the PR body.
  *
@@ -41,7 +53,7 @@
  * so the virtualizer measures a viewport and every row is 600 px), spies on the two scroll calls and the
  * scrollHeight read, and animation frames the test runs by hand.
  */
-import React from 'react'
+import React, { useMemo, useSyncExternalStore } from 'react'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, waitFor, act } from '@testing-library/react'
 import { ChartsSymContext } from './charts/ChartsSymContext'
@@ -169,6 +181,36 @@ async function mount(listId, name, { sym = null, strict = false, holdFirst = fal
   await act(async () => { await sleep(50) })              // the mount's own frames (if not held) come and go first
   if (!holdFirst) { holdFrames(); if (clear) clearSeen() }
   return { ...view, picked, ctx }
+}
+
+/** A WatchlistWidget's host on /charts: the group symbol in a store, read through useSyncExternalStore, and
+ *  `selectInPress` (Watchlists.pressRenders.test.jsx's StoreHost). `picked` records every write, as `mount`'s does. */
+function makeStore(picked) {
+  let sym = null
+  const subs = new Set()
+  return {
+    get: () => sym,
+    set: (s) => { picked.push(s); if (s === sym) return; sym = s; for (const f of subs) f() },
+    subscribe: (f) => { subs.add(f); return () => subs.delete(f) },
+  }
+}
+function StoreHost({ store, children }) {
+  const sym = useSyncExternalStore(store.subscribe, store.get)
+  const ctx = useMemo(() => ({ sym, setSym: store.set, selectInPress: true }), [sym, store])
+  return <ChartsSymContext.Provider value={ctx}>{children}</ChartsSymContext.Provider>
+}
+/** As `mount`, on a store host: mounted, settled, frames held, recorders emptied. */
+async function mountStore(listId, name) {
+  const picked = []
+  const store = makeStore(picked)
+  const view = render(
+    <StoreHost store={store}><Watchlists embedded pickList={`community:${listId}`} pickName={name} /></StoreHost>,
+  )
+  await waitFor(() => expect(view.container.querySelectorAll('[data-watch-sym]').length).toBeGreaterThan(0))
+  await act(async () => { await sleep(50) })
+  holdFrames()
+  clearSeen()
+  return { ...view, picked, store }
 }
 
 describe('a small list (every row drawn)', () => {
@@ -350,5 +392,97 @@ describe('a virtualized list', () => {
     // would have run by now has run: the snap must have happened, StrictMode's simulated unmount notwithstanding.
     await mount('big', 'Big', { sym: 'S50', strict: true, clear: false })
     expect(seen.scrollTo.filter((c) => c.top > 0).length).toBeGreaterThan(0)
+  })
+})
+
+describe('a store host (a WatchlistWidget on /charts: the selection set in the press), virtualized list', () => {
+  const SYMS = Array.from({ length: BIG }, (_, i) => `S${i}`)
+  beforeEach(() => { hoisted.prebuilt = [{ id: 'big', name: 'Big', items: mkItems(SYMS) }] })
+
+  it('K4S: the highlight and the group symbol move in the press; in the frame callback THAT row is centred once', async () => {
+    const { container, picked, store } = await mountStore('big', 'Big')
+    await press(); await frame(); await settle(); clearSeen()   // on S0, its scroll done
+    expect(store.get()).toBe('S0')
+    let pickedInHandler = null
+    await act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+      pickedInHandler = [...picked]
+    })
+    expect(pickedInHandler).toEqual(['S0', 'S1'])        // the group symbol, set in the handler
+    expect(selectedSyms(container)).toEqual(['S1'])      // the highlight, in the press
+    expect(seen.scrollTo).toEqual([])                    // nothing centred in the key task ...
+    expect(seen.heightReads).toBe(0)                     // ... nor the scroller's height read
+    expect(seen.intoView).toEqual([])
+    await frame(() => {                                  // in the frame callback, at row 1's offset
+      expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }])
+      expect(seen.intoView).toEqual([{ sym: 'S1', opts: NEAREST }])
+    })
+  })
+
+  it('K5S: a held arrow centres once per frame, on the last row', async () => {
+    const { container } = await mountStore('big', 'Big')
+    await press(); await frame(); await settle(); clearSeen()   // on S0
+    await press(); await press(); await press()
+    expect(selectedSyms(container)).toEqual(['S3'])
+    expect(seen.scrollTo).toEqual([])
+    expect(seen.intoView).toEqual([])
+    await frame(() => {
+      expect(seen.scrollTo).toEqual([{ top: 3 * ROW, behavior: 'auto' }])
+      expect(seen.intoView).toEqual([{ sym: 'S3', opts: NEAREST }])
+    })
+    await frame()                                        // nothing more from the list on the next frame
+    await act(async () => { await sleep(300) })          // nor from the backstop timer
+    expect(seen.intoView).toHaveLength(1)
+    await press()                                        // the next press scrolls in its own frame
+    await frame(() => expect(seen.intoView.map((c) => c.sym)).toEqual(['S3', 'S4']))
+  })
+
+  it('K13S: a wrap (first row -> last) is centred in the commit, with no frame', async () => {
+    const { container, store } = await mountStore('big', 'Big')
+    await press(); await frame(); await settle(); clearSeen()   // on S0, the list at its top
+    await press('ArrowUp')                               // wraps to S399, far below every drawn row
+    expect(store.get()).toBe('S399')
+    expect(selectedSyms(container)).toEqual([])          // S399 is not drawn yet ...
+    expect(seen.scrollTo).toHaveLength(1)                // ... and the list was centred on it in the commit
+    expect(seen.scrollTo[0].top).toBeGreaterThan(20 * ROW)
+    await frame(() => expect(seen.scrollTo).toHaveLength(1))   // and not again in the frame
+  })
+
+  it('K15S: the ordinary press still waits for the frame callback', async () => {
+    await mountStore('big', 'Big')
+    await press(); await frame(); await settle(); clearSeen()   // on S0
+    await press()                                        // S1: one row on
+    expect(seen.scrollTo).toEqual([])
+    await frame(() => expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }]))
+  })
+
+  it('K16: IN THE KEY TASK, outside act: one microtask after the press the highlight is on the new row and the snap\'s frame callback waits', async () => {
+    const { container, store } = await mountStore('big', 'Big')
+    await press(); await frame(); await settle(); clearSeen()   // on S0
+    const framesBefore = new Set(frames.keys())          // whatever the virtualizer left waiting is not the press's
+    const newFrames = () => [...frames.keys()].filter((id) => !framesBefore.has(id)).length
+    let eventType = null                                 // what React reads for the press's update lane
+    const probe = () => { eventType = window.event?.type ?? null }
+    window.addEventListener('keydown', probe, { capture: true })   // the capture phase at window: before Watchlists' listener
+    let taskRan = false
+    const prevAct = globalThis.IS_REACT_ACT_ENVIRONMENT
+    globalThis.IS_REACT_ACT_ENVIRONMENT = false          // React's own scheduling, not act's queue
+    try {
+      setTimeout(() => { taskRan = true }, 0)            // a marker: a task boundary crossed would let it run
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+      expect(store.get()).toBe('S1')                     // the handler set the group symbol ...
+      expect(selectedSyms(container)).toEqual(['S0'])    // ... and nothing has rendered inside the listener
+      expect(newFrames()).toBe(0)
+      await Promise.resolve()                            // the microtask React queued in the press
+      expect(taskRan).toBe(false)                        // still the key task
+      expect(selectedSyms(container)).toEqual(['S1'])    // the highlight: rendered and committed in the key task
+      expect(newFrames()).toBeGreaterThan(0)             // the scroll's frame callbacks, registered by its passive effects
+      expect(seen.scrollTo).toEqual([])                  // and nothing scrolled yet
+    } finally {
+      globalThis.IS_REACT_ACT_ENVIRONMENT = prevAct
+      window.removeEventListener('keydown', probe, { capture: true })
+    }
+    expect(eventType, 'jsdom sets window.event during a dispatch (React reads it for the update lane)').toBe('keydown')
+    await frame(() => expect(seen.scrollTo).toEqual([{ top: 1 * ROW, behavior: 'auto' }]))   // that callback IS the snap
   })
 })
