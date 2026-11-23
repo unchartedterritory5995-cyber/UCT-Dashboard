@@ -17,6 +17,12 @@
 // lib/storagePersist.askPersistOnce: after checking `persisted()`, and never again once this browser was asked
 // (a marker in localStorage; Firefox asks the member, and a refusal or a dismissal stands). The bars pack keeps its own
 // ask for now (see lib/storagePersist.js). Never awaited by anything. The answer is in `status().storage`.
+// ⛔ ONLY FOR A HAND-SET '1' (review of #2537 head 107dea1ee1, P-7 MEDIUM 2). A member on the desktop DEFAULT (no key:
+// switch.deviceStoreKeyState 'absent') never chose the store, and Firefox would show them a permission prompt with no
+// context: never asked (`status().storage.skipped` 'default'; no storage call, no marker, so a later '1' is asked once).
+// Without it the browser may evict the packs under disk pressure; the cost is one download, never data: the leader's
+// next open finds no generation (engine.js `_scan`), reads answer null (the charts ask the server), and the next ingest
+// downloads the full packs again under #2563's room check and backoffs.
 //
 // ⭐ A PAGE LEFT OPEN FOR DAYS (review of #2537, M2: a tab, the desktop app). The ingest used to be asked once per page
 // load, so such a page never took the next night's build, and after the next session the split guard refused every
@@ -66,6 +72,7 @@ import { afterFirstChartPaint } from '../../lib/barsPackClient'
 import { isAppVisible, onDeskHiddenChange } from '../../lib/deskVisibility'
 import { deviceStoreKilledNow } from '../../lib/chartSpeed'
 import { askPersistOnce } from '../../lib/storagePersist'
+import { deviceStoreKeyState } from './switch'
 import { SERVED_TFS } from './tfs'
 import { noteDeviceFiles } from './residue'
 
@@ -91,6 +98,9 @@ export const READ_TIMEOUT_MS = 8000
 /** Background reads that may wait their turn; past it the oldest is dropped (answers null). */
 export const WAITING_READS_MAX = 256
 const SERVED = new Set(SERVED_TFS)
+
+/** Did this browser's member hand-set the store ON ('1')? Only then is persistence asked (see the header). */
+const _choseOn = () => { try { return deviceStoreKeyState() === 'on' } catch { return false } }
 
 const _whenIdle = (fn) => {
   try { if (typeof requestIdleCallback === 'function') { requestIdleCallback(() => fn(), { timeout: 8000 }); return } } catch { /* fall through */ }
@@ -130,6 +140,7 @@ export function createDeviceClient({
   recheckMs = RECHECK_MS,
   killed = deviceStoreKilledNow,
   noteFiles = noteDeviceFiles,
+  askPersist = _choseOn,
 } = {}) {
   let worker = null
   let dead = false
@@ -155,6 +166,9 @@ export function createDeviceClient({
   function _maybePersist() {
     if (persistLooked || !storage) return
     persistLooked = true
+    let ask = false
+    try { ask = askPersist() === true } catch { ask = false }
+    if (!ask) { persist.skipped = 'default'; return }   // the member is on the default: never asked
     Promise.resolve()
       .then(() => askPersistOnce({ storage }))
       .then((r) => { if (r) Object.assign(persist, r) }, (e) => { persist.error = String(e?.message || e).slice(0, 120) })

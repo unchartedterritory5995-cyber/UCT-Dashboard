@@ -14,8 +14,11 @@
 //                            none never ran here... unless a switch key is stored (a tester who ran it before this
 //                                 marker existed; the caller says so, from the switch's own read). Looked at once.
 //   'uct.deviceStore.lastRun'  when the store last ran here (ms): the stale rule. No stamp: never stale. It NEVER moves
-//                            backwards (a clock set back after running ahead leaves the newer stamp), and a page left
-//                            on refreshes it on its 30-minute re-check and every committed generation (client.js).
+//                            backwards (a clock set back after running ahead leaves the newer stamp) by up to
+//                            DEVICE_LAST_RUN_FUTURE_MAX_MS; a stamp further ahead of a run's clock is corrupt (a clock once
+//                            set to 2099 would keep an abandoned seed "not stale" for ever: review of #2537 head
+//                            107dea1ee1, P-3 a) and the run overwrites it. A page left on refreshes it on its 30-minute
+//                            re-check and every committed generation (client.js).
 //   'uct.deviceStore.staleSince'  the first off-by-default load that saw the seed stale (ms). A stale seed goes only
 //                            when a SECOND such load, at least DEVICE_FILES_STALE_CONFIRM_MS later, still sees it stale
 //                            (review of #2563 round 2: the rule trusts the local clock, so one load under a clock that ran
@@ -36,6 +39,8 @@ export const DEVICE_LAST_RUN_KEY = 'uct.deviceStore.lastRun'
 /** Off by default, packs unused this long are deleted: 30 days. A narrow window or a metered connection for a while
  *  costs no download; a browser that left the store behind for good does not keep ~80 MB forever. */
 export const DEVICE_FILES_STALE_MS = 30 * 86_400_000
+/** A run stamp more than this far ahead of a run's own clock is corrupt, and the run overwrites it: 7 days. */
+export const DEVICE_LAST_RUN_FUTURE_MAX_MS = 7 * 86_400_000
 /** The first stale off-by-default load (ms), see the header. */
 export const DEVICE_STALE_SINCE_KEY = 'uct.deviceStore.staleSince'
 /** ...and how long a second stale load must come after it: 24 h. */
@@ -80,14 +85,15 @@ export function deviceFilesStaleConfirmed(nowMs) {
 }
 
 /** The store runs in this browser: its files may exist. The marker is (re)written when it does not say so; `nowMs`
- *  (the store running: started, a re-check, a generation) also stamps the run, NEVER backwards, and forgets any stale
- *  record. Never throws. */
+ *  (the store running: started, a re-check, a generation) also stamps the run, NEVER backwards (unless the stamp is more
+ *  than DEVICE_LAST_RUN_FUTURE_MAX_MS ahead: corrupt, overwritten), and forgets any stale record. Never throws. */
 export function noteDeviceFiles(nowMs) {
   try { if (localStorage.getItem(DEVICE_FILES_KEY) !== '1') localStorage.setItem(DEVICE_FILES_KEY, '1') } catch { /* storage blocked */ }
   if (!Number.isFinite(nowMs)) return
   try {
     const had = Number(localStorage.getItem(DEVICE_LAST_RUN_KEY))
-    if (!(Number.isFinite(had) && had > nowMs)) localStorage.setItem(DEVICE_LAST_RUN_KEY, String(nowMs))
+    const newer = Number.isFinite(had) && had > nowMs && had - nowMs <= DEVICE_LAST_RUN_FUTURE_MAX_MS
+    if (!newer) localStorage.setItem(DEVICE_LAST_RUN_KEY, String(nowMs))
     if (localStorage.getItem(DEVICE_STALE_SINCE_KEY) !== null) localStorage.removeItem(DEVICE_STALE_SINCE_KEY)
   } catch { /* storage blocked */ }
 }

@@ -9,10 +9,16 @@
 // default), a member who typed 'off' or 'false' to switch the store off must not be switched ON by it.
 // ⭐⭐ THE DEFAULT IS ON FOR DESKTOPS ONLY (owner, 2026-11-21; #2537), and it decides ONLY when no key is stored
 // (`_defaultOn` -> `deviceStoreDefaultOn`): ON when the browser gives POSITIVE evidence of a desktop (the desktop app's
-// bridge, lib/desktopBridge.isDesktopApp; or styles/breakpoints MQ.desktop, `(min-width: 1025px)`, matching) AND the
-// connection is not metered (navigator.connection: saveData, a cellular type, or a slow-2g / 2g / 3g effectiveType,
-// where the browser reports one; it is read FIRST, so the desktop app on a metered connection is off too). Anything else
-// (a phone, a touch-tier tablet, a narrow or zoomed window, no matchMedia) reads OFF with the reason 'default-off',
+// bridge, lib/desktopBridge.isDesktopApp; or DEVICE_STORE_DESKTOP_QUERY matching) AND the connection is not metered
+// (navigator.connection: saveData, a cellular type, or a slow-2g / 2g / 3g effectiveType, where the browser reports one;
+// it is read FIRST, so the desktop app on a metered connection is off too).
+// ⭐ A DESKTOP IS A WIDE WINDOW *AND* A MOUSE (review of #2537 head 107dea1ee1, P-4 T2): DEVICE_STORE_DESKTOP_QUERY is
+// styles/breakpoints MQ.desktop, `(min-width: 1025px)`, AND `(hover: hover) and (pointer: fine)`, the PRIMARY input is a
+// mouse or a trackpad: the pairing this repo's CSS already uses for desktop-only comfort (BuilderSheet, VideosSection,
+// ImageBox; lesson: pointer queries gate the input, width gates the layout, a desktop rule needs both). A wide touch-first
+// screen (an iPad in landscape, a tablet-mode Surface or Chromebook) is not a desktop: no ~80 MB download on what is
+// often a cellular plan Safari cannot report. The desktop app is ON at any width and with any pointer (the bridge).
+// Anything else (a phone, a touch-tier tablet, a narrow or zoomed window, no matchMedia) reads OFF with the reason 'default-off',
 // which KEEPS the packs (source.js): the default moves with the window and the connection from load to load, and a
 // narrow window today must not cost a download tomorrow. The seed is ~80 MB of packs per browser (79.96 MB measured
 // 2026-11-22), downloaded after the first chart paint, at idle. `DEVICE_STORE_DEFAULT_ON` is the one switch for all of
@@ -52,6 +58,10 @@ export const DEVICE_STORE_KEY = 'uct.deviceStore'
  *  admits (desktop, unmetered) and OFF everywhere else; false, no browser defaults on. */
 export const DEVICE_STORE_DEFAULT_ON = true
 
+/** What a browser must match to be a desktop by default (see the header): the desktop width AND a mouse or trackpad as
+ *  the primary pointer. */
+export const DEVICE_STORE_DESKTOP_QUERY = `${MQ.desktop} and (hover: hover) and (pointer: fine)`
+
 /** Effective connection types that are metered or too slow for a ~80 MB seed. */
 const METERED_EFFECTIVE = new Set(['slow-2g', '2g', '3g'])
 
@@ -64,7 +74,7 @@ export function deviceStoreDefaultOn() {
     if (c && (c.saveData === true || c.type === 'cellular' || METERED_EFFECTIVE.has(String(c.effectiveType || '')))) return false
     if (isDesktopApp()) return true                       // the desktop app, whatever its window's width
     const mm = typeof window !== 'undefined' ? window.matchMedia : null
-    return typeof mm === 'function' && mm.call(window, MQ.desktop).matches === true
+    return typeof mm === 'function' && mm.call(window, DEVICE_STORE_DESKTOP_QUERY).matches === true
   } catch {
     return false
   }
