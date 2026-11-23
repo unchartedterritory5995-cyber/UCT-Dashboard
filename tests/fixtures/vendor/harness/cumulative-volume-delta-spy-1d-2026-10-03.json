@@ -255,9 +255,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_UwVXaSiFL6RjsfYvZRc5cA==_Vz1ZUb996UVrOV7rakDXN8Iw9gFlanhVhW19e7cAahcY14AGFv3t1/+i8jzQwJCWYyV8gkDqQnDGruwrk6d+YYM1Zx53qFQgjc39TMjkAxyUK3K5taE0fxDaraeIXCUI0MLZDDnrCLSFBECSQzENGE6uuBo53esTvlqVhjMNcji0WjB5fG311WSIqBNM2euAmbZAf4etInjp+xgd8njjsz8nnSv7GDfCzMGk0izbAxk25EIczU9/VC0+/m/na8P0nRTdTB7HWMjuETg9fN6/V9MTyo6lZ53bYKlYLKQQvfUeQ6DMj4oIuA6ismQrtnTvAC+k3i8ao+vJPcufKa6xD1wMjcho27ClxOShg5uxL+MBjlcI7zpQOPAWa3RB2C4gTfM+ihuLxXajqL7TExZRYeo7ZPfA7m1zMs1EWhTw4kAst7MShXCX2xTbEA0GseB8Sb9R2hIY4nl2InGAdKRIggWhE9iQnawl/57b3SpLYyiJ8tuLeKWyOZtjZYCLsCXv8vknklhZi8AEpAfzTvnmL5ID/wGh6+BMJ6UvQKfV+wxbyWlL1bYMXly1DgtW7RITdjNZmQh1t+DdKU1cIUiyUP4XuJLAmyauBI42FDffRNRzP7xt",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_UwVXaSiFL6RjsfYvZRc5cA==_Vz1ZUb996UVrOV7rakDXN8Iw9gFlanhVhW19e7cAahcY14AGFv3t1/+i8jzQwJCWYyV8gkDqQnDGruwrk6d+YYM1Zx53qFQgjc39TMjkAxyUK3K5taE0fxDaraeIXCUI0MLZDDnrCLSFBECSQzENGE6uuBo53esTvlqVhjMNcji0WjB5fG311WSIqBNM2euAmbZAf4etInjp+xgd8njjsz8nnSv7GDfCzMGk0izbAxk25EIczU9/VC0+/m/na8P0nRTdTB7HWMjuETg9fN6/V9MTyo6lZ53bYKlYLKQQvfUeQ6DMj4oIuA6ismQrtnTvAC+k3i8ao+vJPcufKa6xD1wMjcho27ClxOShg5uxL+MBjlcI7zpQOPAWa3RB2C4gTfM+ihuLxXajqL7TExZRYeo7ZPfA7m1zMs1EWhTw4kAst7MShXCX2xTbEA0GseB8Sb9R2hIY4nl2InGAdKRIggWhE9iQnawl/57b3SpLYyiJ8tuLeKWyOZtjZYCLsCXv8vknklhZi8AEpAfzTvnmL5ID/wGh6+BMJ6UvQKfV+wxbyWlL1bYMXly1DgtW7RITdjNZmQh1t+DdKU1cIUiyUP4XuJLAmyauBI42FDffRNRzP7xt"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -30942,10 +30942,38 @@
   "unreadable": []
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 658,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 260928,
+    "fnv1a": 3783927247
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:28Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 658,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 260928,
+    "fnv1a": 3783927247
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:28Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 260928,
-  "fnv1a": 3783927247
+  "chars": 260276,
+  "fnv1a": 251483528
  }
 }

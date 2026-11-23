@@ -917,3 +917,53 @@ def test_r2_withheld_bars_zero_needs_no_nan():
     c, fake, _ = client()
     [r] = run(c, [job(n=5)])
     assert list(r.columns["value"]) == [2 * b["c"] for b in bars_fixture(5)]
+
+
+# --- track 6 (2026-11-23): the service's own numbers, `GET /v1/metrics` ---------------------------------
+#
+# The nightly sweep reads `workers.live` once per runtime group to bound its requests in flight
+# (`scan_evaluator._runtime_in_flight`). The read is signed like /v1/run over the EMPTY body (the
+# service's `metricsRoute`); anything it cannot read is `None`, never a guess and never a raise.
+
+def test_metrics_is_a_signed_get_over_the_empty_body_and_answers_the_services_numbers():
+    fake = PineRuntimeFake()
+    c, _, _ = client(fake, get_transport=fake.get)
+    m = c.metrics()
+    assert m["workers"]["live"] == 2 and fake.metrics_calls == ["http://pine-runtime.test/v1/metrics"]
+    assert fake.calls == [], "no run was sent"
+    # the same empty body twice in one second is never signed twice with one timestamp (the replay guard)
+    assert c.metrics()["workers"]["live"] == 2
+
+
+@pytest.mark.parametrize("fault", ["unconfigured", "no-get-transport", "refused", "not-json", "not-an-object",
+                                   "unreachable"])
+def test_metrics_that_cannot_be_read_is_None_and_never_raises(fault):
+    fake = PineRuntimeFake()
+    kw = {"get_transport": fake.get}
+    if fault == "unconfigured":
+        kw["url"] = None
+    elif fault == "no-get-transport":
+        kw = {}
+    elif fault == "refused":
+        fake.metrics_reply = (401, b'{"protocol":1,"error":{"guard":"runtime:server-auth"}}')
+    elif fault == "not-json":
+        fake.metrics_reply = (200, b"<html>")
+    elif fault == "not-an-object":
+        fake.metrics_reply = (200, b"[2]")
+    elif fault == "unreachable":
+        def boom(url, headers, timeout):
+            raise ConnectionError("no route")
+        kw["get_transport"] = boom
+    c, _, _ = client(fake, **kw)
+    assert c.metrics() is None
+
+
+def test_a_client_handed_its_own_transport_never_reads_metrics_over_the_network(monkeypatch):
+    """⛔ Every rail's client is built with a fake POST transport. It must not fall back to the real GET
+    transport for metrics: a fake never reaches the network through a default."""
+    monkeypatch.setattr(prc, "httpx_get_transport", lambda *a, **k: pytest.fail("network"))
+    c, _, _ = client()
+    assert c.get_transport is None and c.metrics() is None
+    # the production client (no transport handed in) does get the real GET transport
+    assert prc.PineRuntimeClient(url="http://x.test", secret="s", identity=FIXTURE_IDENTITY).get_transport \
+        is prc.httpx_get_transport

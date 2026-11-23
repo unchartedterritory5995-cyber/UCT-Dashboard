@@ -131,7 +131,7 @@ function lengthIn(q, word) {
 // It never claims a type or a length that was not applied.
 function afterAdding(hit, q) {
   const f = hit.fresh
-  if (!f) return { addedSay: hit.say, addedRow: hit.say, addNext: ' Click it here to change its settings, colors and pane.' }
+  if (!f) return { addedSay: hit.say, addedRow: hit.say, addNext: ' Click it here to change its settings, colors and pane.', editNext: ' Its settings are open here: its inputs, colors and pane.' }
   const addedSay = `${f.stem} ${f.length}`
   const n = lengthIn(q, hit.word)
   const sets = [
@@ -140,7 +140,11 @@ function afterAdding(hit, q) {
   ]
   return { addedSay, addedRow: addedSay, addNext: sets.length
     ? ` That’s what a new one starts as. Click it here, then set ${sets.join(' and ')}.`
-    : ' Click it here to change its settings, colors and pane.' }
+    : ' Click it here to change its settings, colors and pane.',
+  // the same, said where the new one's settings are already open (an add from the Indicators window opens them)
+  editNext: sets.length
+    ? ` Its settings are open here. That’s what a new one starts as, so set ${sets.join(' and ')}.`
+    : ' Its settings are open here: its inputs, colors and pane.' }
 }
 /** The one catalog indicator the words name → { id, name, say, label, labelName } | null. `say` is what to search for, and
  *  `label` is the one on the chart: "EMA 20" when the words give its length, so the EMA 9 above it is not taken for it. */

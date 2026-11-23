@@ -144,7 +144,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_ILiM84hD6Dx1xClgLFalig==_9M4IjSoH9MDR/T5xpGejMSAhXM7vxDZQ2Z1/R/9rgiBX+WJ5XSqjg4oWx+dTfzrXY0n9LzjpLKhrUWnAVxS2PBgjkDlaJoed32EgVzYUgi2I3rISLE9hzzSD9BprNzW3SkceupOkN9rvEHp49hYNKg7BYn8lRryXfBbmqHHU1dszYzjJ+lZEmvR2JKWFPCSOKLIh43bWonoNDMXMiWsc00QO73rCrO3YvH8GCxtYIhWvHgijkN511EwD7ZGJOq3x9bissTRXIIr24wCIyv4pddN+w9RpR5t/de9jTY/TODtf8KR0XWE4Rw4jlS3Sg/MdISHzkmqgeJ8Kz5S+IL6pnSPDu7G8QiUysmkS9wBlbZ9MGhMtVXOoQBv+0eBUQJcSVcslmdZB1o1MZfQC3vpQvmb+jS1KyqrzB6Plcn7IOKpcAOLwo/fYD7No4erTu7K9pPlG139Vm+z6GmqKxxlmt5g4uEYsRwQIz4h0reIqP0PoMIS7KXjW7goT20m8MmUGNBD5HPY21CThGRCZg5tz5U1i1MgoustrvSXbCoZKLk0Ub7a/oY1bydA9yEyDvxxWdr9NFmbljxGdZOGcTWz1mOXGk5d/x6t3TfvS"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -9603,10 +9603,25 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 646,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 83171,
+    "fnv1a": 1782496091
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:26Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 83171,
-  "fnv1a": 1782496091
+  "chars": 82863,
+  "fnv1a": 2085145675
  }
 }

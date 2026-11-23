@@ -69,13 +69,17 @@ describe('device client', () => {
     expect(c.peekBars('AAA', 'D')).not.toBeNull()
   })
 
-  it('a new D generation drops the cached D, W and M (and nothing else)', async () => {
+  it('a new D generation drops the cached D (and nothing else); W and M are never served (H1)', async () => {
     const w = workerOver(await disk())
     const c = createDeviceClient({ makeWorker: () => w, afterPaint: () => {} })
-    await c.getBars('AAA', 'D'); await c.getBars('AAA', 'W'); await c.getBars('AAA', 'M')
-    expect(c.peekBars('AAA', 'W').t.length).toBe(49)          // 350 calendar days = 50 ISO weeks, the oldest dropped
+    await c.getBars('AAA', 'D'); await c.getBars('BBB', 'D')
+    // review of #2537 H1: W / M from the device's D window were shallow and lacked the period in progress
+    expect(await c.getBars('AAA', 'W')).toBeNull()
+    expect(await c.getBars('AAA', 'M')).toBeNull()
+    expect(w.posted.filter((m) => m.tf === 'W' || m.tf === 'M')).toHaveLength(0)
+    expect(c.cacheSize()).toBe(2)
     w.onmessage({ data: { type: 'event', event: { type: 'gen', tf: '5', build: 'x' } } })
-    expect(c.cacheSize()).toBe(3)
+    expect(c.cacheSize()).toBe(2)
     w.onmessage({ data: { type: 'event', event: { type: 'gen', tf: 'D', build: 'x' } } })
     expect(c.cacheSize()).toBe(0)
   })

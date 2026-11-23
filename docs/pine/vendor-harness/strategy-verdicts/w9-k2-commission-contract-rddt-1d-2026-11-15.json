@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "w9-k2-commission-contract-rddt-1d-2026-11-15",
- "captureSha256": "eda9b9183a4725fef85f007117c1bb647dfa1c2b7ab9f9a770f9cad6f49ef3e1",
- "receipt": 30211712,
+ "captureSha256": "36bfd4c4c82efcfe75126b992ceedb736f77a4ac6b843b16d5fe0cefc6e74117",
+ "receipt": 1518950804,
  "sourceSha256": "b104c70b2bec95baae2fb72a5b14396308d8ee6cf922a35b25dd266c97e07d9d",
  "queueTargetId": "W9-K2",
  "symbol": "NYSE:RDDT",

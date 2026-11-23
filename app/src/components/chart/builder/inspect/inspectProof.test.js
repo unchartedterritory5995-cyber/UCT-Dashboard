@@ -86,7 +86,7 @@ describe('twenty scripts: each inspected variable equals its expression plotted 
 
       // the same expressions, written out by hand, as their own script
       const exprs = Object.entries(byHand).filter(([, e]) => !NUMBER.test(e))
-      const hand = build(script(`${title} by hand`, exprs.map(([name, e]) => `plot(${e}, title="hand ${name}")`)))
+      const hand = await build(script(`${title} by hand`, exprs.map(([name, e]) => `plot(${e}, title="hand ${name}")`)))
       expect(hand.ok, hand.reason).toBe(true)
       const handOut = compute(hand.definition, BARS)
       expect(Array.isArray(handOut.outputs), handOut.reason).toBe(true)
@@ -118,7 +118,7 @@ describe('twenty scripts: each inspected variable equals its expression plotted 
   it('CONTROL: a by-hand expression that is NOT the variable\'s is caught', async () => {
     const source = script('Control', ['fast = ta.sma(close, 10)', 'plot(fast)'])
     const got = await inspectScript({ source, bars: BARS, names, build, compute })
-    const hand = compute(build(script('Control by hand', ['plot(ta.sma(close, 11), title="hand fast")'])).definition, BARS)
+    const hand = compute((await build(script('Control by hand', ['plot(ta.sma(close, 11), title="hand fast")']))).definition, BARS)
     const want = hand.outputs.find((o) => o.title === 'hand fast').values
     const mine = got.columns[probeTitle('fast')]
     let differs = 0

@@ -1,0 +1,78 @@
+{
+  "schema": "uct.ci-mutants/v1",
+  "about": "ENGINE 94 (fix/pine-e94-deterministic-budgets): no answer depends on how fast the machine is. The translator's window trips the WHOLE call by name (a latch every clock limb sets, so a swallowed throw cannot leave a partial translation), a deterministic per-call step budget bounds the call, and the member door's own runs read a clock that never moves. Every rule, broken once, must turn its rail red.",
+  "mutants": [
+    {
+      "id": "E1",
+      "mutant": "translatePine ignores the latched trip: a partial translation leaks out",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "  if (LAST_WINDOW.trip) {",
+      "to": "  if (false && LAST_WINDOW.trip) {",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e94.test.js",
+      "expectRed": "the whole script refuses by name"
+    },
+    {
+      "id": "E2",
+      "mutant": "a clock limb throws without latching the window",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "  if (!WINDOW_TRIP) WINDOW_TRIP = refusal",
+      "to": "  void refusal",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e94.test.js",
+      "expectRed": "the whole script refuses by name"
+    },
+    {
+      "id": "E3",
+      "mutant": "the call's steps are not counted: no deterministic bound",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "  CALL_STEPS += 1",
+      "to": "  void CALL_STEPS",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e94.test.js",
+      "expectRed": "the whole script refuses, naming the steps"
+    },
+    {
+      "id": "E4",
+      "mutant": "the member door's runs read the host's clock again",
+      "file": "app/src/components/chart/engine/runtime/runtimeColumns.js",
+      "from": "    return withAmbientRunClock(STILL, fn)",
+      "to": "    return fn()",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e94.test.js",
+      "expectRed": "inside the door"
+    },
+    {
+      "id": "E5",
+      "mutant": "the step budget ships as the 400M placeholder",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "export const PINE_TRANSLATE_CALL_MAX_STEPS = 500000000",
+      "to": "export const PINE_TRANSLATE_CALL_MAX_STEPS = 400000000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e94.test.js",
+      "expectRed": "not the 400M placeholder"
+    },
+    {
+      "id": "E6",
+      "mutant": "the wall stop ships as a measurement lifted it (600 s)",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "export const PINE_TRANSLATE_BUDGET_MS = 1080000",
+      "to": "export const PINE_TRANSLATE_BUDGET_MS = 600000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.e94.test.js",
+      "expectRed": "the census's value"
+    },
+    {
+      "id": "E7",
+      "mutant": "the wall stop below 3x the slowest served call (the old 10 s)",
+      "file": "app/src/components/chart/engine/ast/pine.js",
+      "from": "export const PINE_TRANSLATE_BUDGET_MS = 1080000",
+      "to": "export const PINE_TRANSLATE_BUDGET_MS = 10000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/pine.timeout.test.js",
+      "expectRed": "the wall stop is the last resort"
+    },
+    {
+      "id": "E8",
+      "mutant": "the door deadline ships at #2225's 5 minutes (sized while every translation was cut at 10 s)",
+      "file": "app/src/components/chart/builder/memberPane/memberPaneDefinition.js",
+      "from": "export const MEMBER_DOOR_BUDGET_MS = 1500000",
+      "to": "export const MEMBER_DOOR_BUDGET_MS = 300000",
+      "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/builder/memberPane/doorDeadline.test.js",
+      "expectRed": "the shipped door deadline is ruling (C)"
+    }
+  ]
+}

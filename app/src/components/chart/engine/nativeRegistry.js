@@ -104,6 +104,7 @@ import { ENGINE_ERROR } from './ast/parse'
 // first's lengths. That shows as a WRONG NUMBER, not an error.
 import { bindConstsFor } from './ast/bind'
 import { isPineOriginDoc, otherSymbolPending, staticOtherSymbolMessage } from './otherSymbols'
+import { OTHER_SYMBOL_BEFORE_HELD_CODE, otherSymbolBeforeHeldSentence } from './ast/interpret'
 // ⭐⭐ P1 — the chart lane's pre-compute refusals and its other-symbol decision
 // are the SHARED EVALUABILITY GATE's (`evaluability.js`); this module applies them.
 import { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE } from './evaluability'
@@ -191,6 +192,7 @@ import {
   historyFromListingFor, listingOptsFor, listingSeedUnpinnedFor, varOriginAbsoluteFor, barIndexAbsoluteFor,
   resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD,
 } from './astColumns.js'
+import { FIRST_PAGE_CODE, FIRST_PAGE_NOTE } from './firstPage.js'
 // ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
 // ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
@@ -2357,6 +2359,11 @@ export { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE }
 export function externalReadNotices(def, columns) {
   if (!def || !columns) return []
   const out = []
+  // ⭐⭐ (the first-draw unit, 2026-11-23) — a pane showing its FIRST PAGE (`firstPage.js`): every plot carries
+  // `FIRST_PAGE_CODE` per bar until the full answer replaces the page; the member reads why, once
+  if (Object.values(withheldBarsReport(columns) || {}).some((codes) => codes && codes[FIRST_PAGE_CODE])) {
+    out.push({ code: FIRST_PAGE_CODE, reason: FIRST_PAGE_NOTE })
+  }
   // ⭐⭐ ENGINE 55 — A PINE TRANSLATION'S OTHER-SYMBOL REFUSALS ARE PUBLISHED TOO. Its
   // translate-time disclosures ride `meta.disclosures`, but a ticker the BIND refuses
   // (`ADVQ` held nowhere, an unwitnessed venue) is decided per chart and was said
@@ -2368,6 +2375,14 @@ export function externalReadNotices(def, columns) {
       if (otherSymbolPending(r)) continue
       out.push({ code: r.code, reason: r.static === true ? staticOtherSymbolMessage(r.ticker, r)
         : `This indicator reads \`${r.ticker}\`: ${r.reason}` })
+    }
+    // ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — the bars a series withholds before its first row are named
+    // per bar (`OTHER_SYMBOL_BEFORE_HELD_CODE`); where a plot carries them, the member reads why, once per series
+    const held = withheldBarsReport(columns) || {}
+    if (Object.values(held).some((codes) => codes && codes[OTHER_SYMBOL_BEFORE_HELD_CODE])) {
+      for (const b of (other && other.beforeHeld) || []) {
+        out.push({ code: OTHER_SYMBOL_BEFORE_HELD_CODE, reason: otherSymbolBeforeHeldSentence(b.ticker, b.from) })
+      }
     }
     // ⭐ review F1 — and every paint whose colour that refusal leaves undrawn, by its own name
     out.push(...colourReaderPaintNotices(def, columns))

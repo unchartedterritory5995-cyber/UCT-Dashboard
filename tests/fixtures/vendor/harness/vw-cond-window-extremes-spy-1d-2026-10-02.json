@@ -416,9 +416,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_38xhgc3FmnSbPekGsdFV9w==_GtdYsX9zCAoznfScZ+TnFK+g5xr43IsB6pC5HjMa1NoP3ynk339JH9gyV7f4Dmxh+MspCKln597UmTLXNHO/nwv/T77s5ptdyj37BLpbdm3vAb08q0iZvUiKacIX0A4nX0hRrNhvbm6RgM1kubBMUavboc1J3cmoSHzUZKmt7cGUOd5bhZhsl2HtUD28AH3XfLuEQn5ZmWsED9kY/GuX9zke4U1cFvm/DpcF9x1s23+kt7utZ1iGj1QbgWNE2I8VBl3iZGvSbYFWnSXy5GwV4n2eS0PGkF3LnMcUMzLbUCj3E0mOV2QPp318IQabaV1D6OEH0AWTKFZPMhV1sLv1vPQm3ES0P+3PrGT/TclPnCjeVbLlgMFvct92gtu9yTeEwUQyxLPLDQL3Bgep5WvOG5hieAClJzMxzYru0nkVu4Bw0Ck/PNP2K0fFlQO8buchtP64uyJYPoIsOON2hvkPxFC526zzE40ZpR/Bo98EX0EPAMNy7AWx+3rBATehbZjShtQRzZYQ8PxdA+oVmA5Jc280VNnAN+yGkhYWTLsuRQVX8JaJGPHVlNQbqrQ3o+O2ntrYVitpcogZyK76aZzKeq7k9R7aHuzMgM8tgh/V7UHsp2OYuP3f+1aPUZeIV8ybiFqug2HG8Nnn4pf3/DQO1q3oNxB1zGsW2tU47gY7XuuXeovoltKlb5upCRPez0DRqW8n6AQa2X9ihrDEs1fzTnZzgcDMIJe0XjKLy6c9GHcjSb454bD/XgCSdkVsFi2gI/x0ah2yotwEFrBepgMtVT+0nCa8EUswT49J0jg0aZ0A7i74O20k6vd3ZaipfxBBq4flSjtCASqnYXEjbOINm1xeeFRgOJLVPYWYcvOkY8WIdXNWGMyzAj3gQ13okkGzPpq3Kx+Iw0e0w96s8QGFjOb+HnH+hLnxw2TMUtxEotIXuViphHhosBw+DvJpJyuaITeh1+1FTGZARKCukS7/FbNEAZNt+ZBKf1C/q+V3vCpQFknHZgHxhiU/iS2WaRjXSMwwU0qiJ2TZ73t4x3fFVaxL3aF/ZVp7FDWpUODcmWJXzzGTVHG1QXz8MJh2/Uajrb5KGf7C3amyKe57VJ5fF6BDCGZThDPGVmhNk7DS8H4Htn/PPHPPfGUZ0MHVxMaBcSGN17hjgOAH7E/PcogBRrmSgaNmcWmnEk0EkBDPz3zit73GVdnJh/2eVEEEx1qdDEfrySr1naz3orqrsyo8+1pxqbox02iat59hl9pKoN+DTn+f0aI4UPI14/JxHzmzY+A5a7lQ37RqudY54Uo34g==",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_38xhgc3FmnSbPekGsdFV9w==_GtdYsX9zCAoznfScZ+TnFK+g5xr43IsB6pC5HjMa1NoP3ynk339JH9gyV7f4Dmxh+MspCKln597UmTLXNHO/nwv/T77s5ptdyj37BLpbdm3vAb08q0iZvUiKacIX0A4nX0hRrNhvbm6RgM1kubBMUavboc1J3cmoSHzUZKmt7cGUOd5bhZhsl2HtUD28AH3XfLuEQn5ZmWsED9kY/GuX9zke4U1cFvm/DpcF9x1s23+kt7utZ1iGj1QbgWNE2I8VBl3iZGvSbYFWnSXy5GwV4n2eS0PGkF3LnMcUMzLbUCj3E0mOV2QPp318IQabaV1D6OEH0AWTKFZPMhV1sLv1vPQm3ES0P+3PrGT/TclPnCjeVbLlgMFvct92gtu9yTeEwUQyxLPLDQL3Bgep5WvOG5hieAClJzMxzYru0nkVu4Bw0Ck/PNP2K0fFlQO8buchtP64uyJYPoIsOON2hvkPxFC526zzE40ZpR/Bo98EX0EPAMNy7AWx+3rBATehbZjShtQRzZYQ8PxdA+oVmA5Jc280VNnAN+yGkhYWTLsuRQVX8JaJGPHVlNQbqrQ3o+O2ntrYVitpcogZyK76aZzKeq7k9R7aHuzMgM8tgh/V7UHsp2OYuP3f+1aPUZeIV8ybiFqug2HG8Nnn4pf3/DQO1q3oNxB1zGsW2tU47gY7XuuXeovoltKlb5upCRPez0DRqW8n6AQa2X9ihrDEs1fzTnZzgcDMIJe0XjKLy6c9GHcjSb454bD/XgCSdkVsFi2gI/x0ah2yotwEFrBepgMtVT+0nCa8EUswT49J0jg0aZ0A7i74O20k6vd3ZaipfxBBq4flSjtCASqnYXEjbOINm1xeeFRgOJLVPYWYcvOkY8WIdXNWGMyzAj3gQ13okkGzPpq3Kx+Iw0e0w96s8QGFjOb+HnH+hLnxw2TMUtxEotIXuViphHhosBw+DvJpJyuaITeh1+1FTGZARKCukS7/FbNEAZNt+ZBKf1C/q+V3vCpQFknHZgHxhiU/iS2WaRjXSMwwU0qiJ2TZ73t4x3fFVaxL3aF/ZVp7FDWpUODcmWJXzzGTVHG1QXz8MJh2/Uajrb5KGf7C3amyKe57VJ5fF6BDCGZThDPGVmhNk7DS8H4Htn/PPHPPfGUZ0MHVxMaBcSGN17hjgOAH7E/PcogBRrmSgaNmcWmnEk0EkBDPz3zit73GVdnJh/2eVEEEx1qdDEfrySr1naz3orqrsyo8+1pxqbox02iat59hl9pKoN+DTn+f0aI4UPI14/JxHzmzY+A5a7lQ37RqudY54Uo34g=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -50932,10 +50932,38 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1338,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 290579,
+    "fnv1a": 3454320743
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:44Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1338,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 290579,
+    "fnv1a": 3454320743
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:44Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 290579,
-  "fnv1a": 3454320743
+  "chars": 288569,
+  "fnv1a": 3593635058
  }
 }

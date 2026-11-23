@@ -1206,5 +1206,7 @@ tbody tr { cursor: pointer; }
 .naCell { color: var(--br-faint, var(--ink-faint)); }
 /* A provisional session (the canonical one has not landed yet). */
 .provisionalDate { font-style: italic; color: var(--br-faint, var(--ink-faint)); }
+/* A back-tested UCT session (today's list run backward): unshaded cells, a quiet dotted date. */
+.backtestDate { color: var(--br-faint, var(--ink-faint)); text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
 /* The universe line in a column's header menu. */
 .colInfoNote { margin-top: 6px; color: color-mix(in srgb, var(--signature-text) 47%, var(--signature-faint)); }   /* ~#bdbdc1 */

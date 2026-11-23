@@ -11,11 +11,25 @@
 //                       visibility (lib/deskVisibility.isAppVisible) on every change and once a minute
 //                       while visible, so the leader's feed pauses when no tab is looked at
 //
-// ⭐ PERSISTENT STORAGE, ASKED ONCE. OPFS is best-effort storage: under disk pressure the browser may
-// evict the 70+ MB of seed files. Once a seed file is held (the worker's status, or a new generation),
-// the page asks `navigator.storage.persist()` ONCE (only a page can; a worker cannot), after checking
-// `persisted()`, never awaited by anything: Chrome decides by itself (no prompt), and a browser that
-// asks the member does so without holding any work. The answer is in `status().storage`.
+// ⭐ PERSISTENT STORAGE, ASKED ONCE PER BROWSER PROFILE (review of #2537, L5). OPFS is best-effort storage: under disk
+// pressure the browser may evict the 70+ MB of seed files. Once a seed file is held (the worker's status, or a new
+// generation), the page asks `navigator.storage.persist()` (only a page can; a worker cannot) through
+// lib/storagePersist.askPersistOnce: after checking `persisted()`, and never again once this browser was asked
+// (a marker in localStorage; Firefox asks the member, and a refusal or a dismissal stands). The bars pack keeps its own
+// ask for now (see lib/storagePersist.js). Never awaited by anything. The answer is in `status().storage`.
+//
+// ⭐ A PAGE LEFT OPEN FOR DAYS (review of #2537, M2: a tab, the desktop app). The ingest used to be asked once per page
+// load, so such a page never took the next night's build, and after the next session the split guard refused every
+// copy while the minute feed kept polling. Now, on the visible beat this client already has (no timer of its own),
+// a page re-asks the leader to bring the seed up to date every RECHECK_MS while visible, at idle, one ask queued at a
+// time; the leader bounds the manifest itself (workerCore MANIFEST_RECHECK_MIN_MS, whichever tab asks) and runs one
+// ingest at a time, deltas where the manifest offers them (engine.js). The leader also stops the feed for a seed the
+// split guard refuses for good (workerCore, engine.serves). Nothing of this runs while the app is hidden.
+//
+// ⭐ A KILL THAT REACHES AN OPEN PAGE (M9). The kill cookies are read once per page load (switch.js), so an open page
+// kept its worker and feed until a reload. The same visible beat reads them FRESH (lib/chartSpeed.deviceStoreKilledNow;
+// an auth answer refreshes them, and AuthContext re-asks /api/auth/me when a tab becomes visible): killed, the client
+// stops its worker for good (shutdown). Every read then answers null, and the charts ask the server.
 //
 // ⭐ THE SYNCHRONOUS CACHE EXPIRES (SYNC_CACHE_TTL_MS). Today's bars grow every minute, so a copy read
 // a while ago is behind (never WRONG: it holds complete buckets only, live.js); past the TTL `peekBars`
@@ -27,6 +41,7 @@
 // around the selection and the rows on screen, each on every linked timeframe), and the chart the member then
 // clicked waited behind all of them: measured on a D + 30m board, its copy landed 100 to 830 ms after the click
 // (18 ms with nothing else asked), the D/W/M hold ran out, and the switch was slower than with the store off.
+// A read the worker does not answer within READ_TIMEOUT_MS gives up (null) and frees its place, on either lane.
 //   urgent      the member's own ask (a key press, the chart on screen): sent at once, always, and never counted
 //   background  everything else (the default): at most BACKGROUND_READS_MAX in the worker at a time, the next
 //               one sent when an answer comes back. A key that is still waiting when an urgent ask for it
@@ -49,7 +64,10 @@
 
 import { afterFirstChartPaint } from '../../lib/barsPackClient'
 import { isAppVisible, onDeskHiddenChange } from '../../lib/deskVisibility'
+import { deviceStoreKilledNow } from '../../lib/chartSpeed'
+import { askPersistOnce } from '../../lib/storagePersist'
 import { SERVED_TFS } from './tfs'
+import { noteDeviceFiles } from './residue'
 
 /** Where the first-frame seed's manifest lives (the edge, docs/charts/first-frame-seed-format.md section 2:
  *  `latest.json` names the build and each timeframe's url / bytes / sha256). Overridable per browser. */
@@ -58,8 +76,18 @@ export const DEVICE_SEED_MANIFEST_KEY = 'uct.deviceStore.manifest'
 export const SYNC_CACHE_MAX = 96
 export const SYNC_CACHE_TTL_MS = 20_000
 export const VISIBLE_HEARTBEAT_MS = 60_000
+/** A page left open re-asks the leader to bring the seed up to date this often, while visible (M2). The nightly build
+ *  lands once per closed session (~20:15-21:40 ET) and a held seed serves through the next session, so 30 minutes
+ *  takes the new build within half an hour of the member looking at the page, at two small manifest asks an hour. */
+export const RECHECK_MS = 30 * 60_000
 /** Background reads in the worker at a time (the urgent lane is never counted and never waits). */
 export const BACKGROUND_READS_MAX = 2
+/** How long a read waits for the worker's answer before it gives up (answers null) and frees its place. A real
+ *  read answers in 1 to 20 ms, a cold open of a timeframe in a few hundred; this is for a worker that hangs (its
+ *  storage open never settling, a leader tab frozen in the background), which otherwise held every asker of the
+ *  key, and with two such reads the whole background lane, for the page's life. Only reads time out: an ingest
+ *  downloads for minutes. */
+export const READ_TIMEOUT_MS = 8000
 /** Background reads that may wait their turn; past it the oldest is dropped (answers null). */
 export const WAITING_READS_MAX = 256
 const SERVED = new Set(SERVED_TFS)
@@ -92,16 +120,26 @@ export function createDeviceClient({
   visible = isAppVisible,
   onVisibilityChange = _onVisibilityChange,
   setIntervalFn = (fn, ms) => setInterval(fn, ms),
+  clearIntervalFn = (h) => clearInterval(h),
   storage = (typeof navigator !== 'undefined' && navigator.storage) || null,
   backgroundMax = BACKGROUND_READS_MAX,
   waitingMax = WAITING_READS_MAX,
   setTimer = (fn, ms) => setTimeout(fn, ms),
+  clearTimer = (h) => clearTimeout(h),
+  readTimeoutMs = READ_TIMEOUT_MS,
+  recheckMs = RECHECK_MS,
+  killed = deviceStoreKilledNow,
+  noteFiles = noteDeviceFiles,
 } = {}) {
   let worker = null
   let dead = false
   let nextId = 1
   let ingestAsked = false
+  let lastIngestAt = -Infinity   // when this page last asked the leader for an ingest (M2)
+  let recheckQueued = false      // a re-check waits for idle
+  let beat = null                // the visible beat's interval
   const pending = new Map()      // id → resolve
+  let readTimeouts = 0           // reads the worker did not answer in time (diagnostics)
   const cache = new Map()        // `${tf}|${SYM}` → {cols, at} (LRU: Map order)
   const reads = new Map()        // `${tf}|${SYM}` → in-flight read
   // background reads not sent yet: one Map per ASK (the reads of one task), oldest ask first; each Map
@@ -111,22 +149,20 @@ export function createDeviceClient({
   let openAsk = null             // the ask this task's reads join (closed by a timer: the task is over)
   let backgroundOut = 0          // background reads the worker has not answered
   let status = null
-  /** navigator.storage persistence: asked at most once per page. */
+  /** navigator.storage persistence: looked at once per page, ASKED at most once per browser (lib/storagePersist). */
   const persist = { asked: false, persisted: null, granted: null, error: null }
+  let persistLooked = false
   function _maybePersist() {
-    if (persist.asked || !storage) return
-    persist.asked = true
+    if (persistLooked || !storage) return
+    persistLooked = true
     Promise.resolve()
-      .then(() => (typeof storage.persisted === 'function' ? storage.persisted() : null))
-      .then((already) => {
-        persist.persisted = already === true
-        if (already === true || typeof storage.persist !== 'function') return already === true
-        return storage.persist()
-      })
-      .then((granted) => { persist.granted = granted === true; if (granted === true) persist.persisted = true })
-      .catch((e) => { persist.error = String(e?.message || e).slice(0, 120) })
+      .then(() => askPersistOnce({ storage }))
+      .then((r) => { if (r) Object.assign(persist, r) }, (e) => { persist.error = String(e?.message || e).slice(0, 120) })
   }
   const _holdsSeed = (info) => !!info?.tfs && Object.keys(info.tfs).length > 0
+  /** Files are held here: say so again (review of #2563, LOW-1: an off tab's removal that settled just after this tab
+   *  started wrote '0' over the marker start() wrote, and this tab then downloaded a seed nothing would clean up). */
+  const _noteFiles = () => { try { noteFiles() } catch { /* storage blocked */ } }
 
   const keyOf = (sym, tf) => `${tf}|${String(sym).toUpperCase()}`
 
@@ -146,10 +182,10 @@ export function createDeviceClient({
         const r = pending.get(m.id)
         if (r) { pending.delete(m.id); r(m.ok ? (m.res ?? null) : null) }
       } else if (m.type === 'event') {
-        if (m.event?.type === 'gen') { _drop(String(m.event.tf)); _maybePersist() }
+        if (m.event?.type === 'gen') { _drop(String(m.event.tf)); _maybePersist(); _noteFiles() }
       } else if (m.type === 'status') {
         status = m
-        if (_holdsSeed(m.info)) _maybePersist()
+        if (_holdsSeed(m.info)) { _maybePersist(); _noteFiles() }
       }
     }
     worker.onerror = () => {
@@ -162,13 +198,26 @@ export function createDeviceClient({
     return worker
   }
 
-  function _call(msg) {
+  /** One message to the worker and its answer. `timeoutMs` > 0: unanswered after that long, it resolves null and is
+   *  forgotten (an answer that arrives later finds no entry and is ignored). The timer never outlives its answer. */
+  function _call(msg, timeoutMs = 0) {
     const w = _worker()
     if (!w) return Promise.resolve(null)
     const id = nextId++
     return new Promise((resolve) => {
-      pending.set(id, resolve)
-      try { w.postMessage({ ...msg, id }) } catch { pending.delete(id); resolve(null) }
+      let timer = null
+      const done = (v) => { if (timer != null) { clearTimer(timer); timer = null } resolve(v) }
+      pending.set(id, done)
+      if (timeoutMs > 0) {
+        timer = setTimer(() => {
+          timer = null
+          if (pending.get(id) !== done) return
+          pending.delete(id)
+          readTimeouts++
+          resolve(null)
+        }, timeoutMs)
+      }
+      try { w.postMessage({ ...msg, id }) } catch { pending.delete(id); done(null) }
     })
   }
 
@@ -226,7 +275,7 @@ export function createDeviceClient({
     const raw = new Promise((resolve) => { settle = resolve })
     const send = (background) => {
       if (background) backgroundOut++
-      _call({ op: 'read', sym, tf }).then((res) => {
+      _call({ op: 'read', sym, tf }, readTimeoutMs).then((res) => {
         if (background) backgroundOut--
         settle(res)
         _pump()
@@ -246,19 +295,46 @@ export function createDeviceClient({
     while (cache.size > cacheMax) cache.delete(cache.keys().next().value)
   }
 
+  const _visibleNow = () => { try { return visible() !== false } catch { return true } }
   /** Tell the leader whether this page is looked at (it starts the live feed on the first call). */
-  const _report = () => _call({ op: 'live', visible: (() => { try { return visible() !== false } catch { return true } })() })
+  const _report = () => _call({ op: 'live', visible: _visibleNow() })
+
+  /** Ask the leader to bring the seed up to date (`recheck`: a long-lived page's periodic ask, which the leader bounds). */
+  function _askIngest(recheck) {
+    lastIngestAt = now()
+    return _call({ op: 'ingest', manifestUrl: manifestUrl(), ...(recheck ? { recheck: true } : {}) })
+  }
+
+  /** On every visible beat (and on becoming visible): a kill read fresh stops this client for good (M9); else a
+   *  re-check that is due is asked at idle (M2). Never while hidden: the callers ask only when visible. */
+  function _whileVisible() {
+    if (dead) return
+    let k = false
+    try { k = killed() === true } catch { k = false }
+    if (k) { api.shutdown(); return }
+    if (recheckQueued || now() - lastIngestAt < recheckMs) return
+    recheckQueued = true
+    idle(() => {
+      recheckQueued = false
+      if (dead || !_visibleNow()) return     // hidden meanwhile: the next visible beat asks
+      _askIngest(true)
+    })
+  }
 
   const api = {
     start() {
       _worker()
       if (!ingestAsked) {
         ingestAsked = true
+        // this browser now runs the store: its worker may write files (removed later only for the member's '0', a
+        // purge, or 30 days unused off by default: source.js); the stamp is the stale rule's clock
+        try { noteFiles(now()) } catch { /* storage blocked */ }
         afterPaint(() => idle(() => {
-          _call({ op: 'ingest', manifestUrl: manifestUrl() })
+          if (dead) return
+          _askIngest(false)
           _report()
-          try { onVisibilityChange(() => { _report() }) } catch { /* no document */ }
-          try { setIntervalFn(() => { try { if (visible() !== false) _report() } catch { /* hidden */ } }, VISIBLE_HEARTBEAT_MS) } catch { /* no timers */ }
+          try { onVisibilityChange(() => { _report(); if (_visibleNow()) _whileVisible() }) } catch { /* no document */ }
+          try { beat = setIntervalFn(() => { if (_visibleNow()) { _report(); _whileVisible() } }, VISIBLE_HEARTBEAT_MS) } catch { /* no timers */ }
         }))
       }
       return api
@@ -273,12 +349,16 @@ export function createDeviceClient({
       cache.set(k, c)
       return c.cols
     },
-    /** `urgent`: the member's own ask (see TWO LANES above); anything else takes the background lane. */
-    getBars(sym, tf, { urgent = false } = {}) {
+    /** `urgent`: the member's own ask (see TWO LANES above); anything else takes the background lane.
+     *  ⭐ `newerThan` (review of #2558, P4-L2): the `through` of the copy the caller holds and has REFUSED (the store's device
+     *  rule: short of its current bucket). A cached copy no newer than that is not the answer: the worker is asked (the
+     *  read in flight for the key, if any, is joined, never doubled), on the same lane as any other read. Every read that
+     *  does not say keeps the cache exactly as before. */
+    getBars(sym, tf, { urgent = false, newerThan = null } = {}) {
       tf = String(tf)
       if (!sym || !SERVED.has(tf)) return Promise.resolve(null)
       const hit = api.peekBars(sym, tf)
-      if (hit) return Promise.resolve(hit)
+      if (hit && !(Number.isFinite(newerThan) && !(hit.through > newerThan))) return Promise.resolve(hit)
       const k = keyOf(sym, tf)
       const running = reads.get(k)
       if (running) {
@@ -312,10 +392,19 @@ export function createDeviceClient({
     inFlight() { return pending.size + askOf.size },
     /** Diagnostics: the asks held (each with a read still waiting, plus the one this task is filling). */
     asksHeld() { return asks.length },
+    /** Diagnostics: reads the worker did not answer within READ_TIMEOUT_MS. */
+    readTimeouts() { return readTimeouts },
     /** Diagnostics: the worker's rule behind what getBars answers (engine.why), or null with no engine yet. */
     why(sym, tf) { return sym ? _call({ op: 'why', sym: String(sym).toUpperCase(), tf: String(tf) }) : Promise.resolve(null) },
     status: () => ({ ...(status || {}), storage: { ...persist } }),
     cacheSize: () => cache.size,
+    /** Stop for good (a kill reached this open page, M9): the worker is terminated and never started again (its leader
+     *  lock goes with it, and with it the minute feed this tab ran); the visible beat stops. Every read answers null. */
+    shutdown() {
+      dead = true
+      if (beat != null) { try { clearIntervalFn(beat) } catch { /* gone */ } beat = null }
+      api.dispose()
+    },
     dispose() {
       const left = []
       for (const ask of asks) for (const w of ask.values()) left.push(w)

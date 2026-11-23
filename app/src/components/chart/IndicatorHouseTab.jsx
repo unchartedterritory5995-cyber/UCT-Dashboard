@@ -127,9 +127,12 @@ export async function ownScriptCopyId(item, built, own, fetchScript = fetchStore
 /** A Pine house entry's copy, built exactly as Create Indicator builds a pasted script: `{doc, options}` to
  *  save, or `{error}`. Loaded on the press, so the tab itself stays light. */
 export async function buildPineCopy(item, id) {
-  const [{ memberPaneDefinition }, { withEngineStamp }, registry] = await Promise.all([
-    import('./builder/memberPane/memberPaneDefinition'), import('./engine/scriptEngineVersion'), import('./engine/nativeRegistry')])
-  const built = memberPaneDefinition({ source: item.pine, id, name: item.name })
+  const [{ doorBuildOnce }, { withEngineStamp }, registry] = await Promise.all([
+    import('./builder/memberPane/memberDoorAsync'), import('./engine/scriptEngineVersion'), import('./engine/nativeRegistry')])
+  // ⭐ THE PASTE WORKER (2026-11-21): built in the member door's worker, never on the page's thread (a long script held
+  // the tab for the whole translation on the press); where there are no workers the door builds here, as before
+  const landed = await doorBuildOnce({ source: item.pine, id, name: item.name })
+  const built = landed && !landed.error ? landed.built : null
   const def = built && built.ok ? built.definition : null
   if (!def || built.saveable === false) return { error: 'It could not be prepared just now. Try again.' }
   // ⛔ a script that repaints needs the member's own acknowledgement, which only Create Indicator asks for

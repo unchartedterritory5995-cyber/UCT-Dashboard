@@ -193,7 +193,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_Y+/fG4Ec3th0NKXTMHGqrg==_vG6zEzqJiabfvHB4k1JWdqIxZ1i5rptoW+pwYRPiEvqhfNFVEh45kJd3Ofcxu76/qPpo58M4gQ1jLNM4aSQJwB209ZxGL1lAX0f2TupgLZ6235UNJSV6B0YM5Qe6vJm6YqitF1D+7POWLySSl7zmrix4G1OeoO2fJCfqf8A/xAunigf0rgU2pRaM2lZ4aATlMSUlst+dG5iJGUu3PJbw1Cykx7CZ4LV7vQGQacKpgDcGu/CAPI7QUCoXmbARbRw51TWNYi6BtPuyJAGtzOCwnRQ0/eLu1v2PIgoyKq+XsI0o1Qz/iMFX615QPFEOoR/xgZAenTiX7N3g+OHL0Et32hFrodcdM2Af+DImsr547mqSFtnl5Orgman4vXKa9AqulOjwZuptb4GBQZrvmTczepiYlKbQ0m2jl1V74yM3JHWX/6RHvpOgLRHZMxfguh0p8g+avXLm8WcwVEspkOfk5UmP+tr8t5FjFRDmgGLsHRgw1zaF5hCdDnVH9fAstrepsib45uURJwoGAgvFcoYPksB1OHYEz8J5COoGwcQvzslrO2NHsd1XrqWVxEbvqhlmmrewfcpYYVzR3vXYE/FevZCYrCQ+2lmggOFrM6CQgz3HR9Sa8b+1VDV/geQvM2f+vv5kxnDLk9ZGNwcgO/PNp0MXeMXEEtyQ8+4KSfnj6ZZCeWLrErn7Er/AHyQbKR1dd9ey9bndRpIwjIvr4CmHBWcfN6KOJsl/e+hKdVR/LzNBlQR2KzD7XDwqUbY8JY5EbSWTT+svmnX3NMXYJjA3yQarCbmOlt56DMwU0gcjTNDju8fH7+CxZOVvqlvITCnn0PDVsaPTSmiNAxdKPh6FxRhRo7e7yvArpHnndSn8y3Oh8pG/J/gWPbYuEiYfS45A16Mdz+9DcRhBIo5/+ckLd5UIPYg1YkxolmF5mqMJZVIYDjM2BOzl0tC4nQqIcKbNhs93E3xerXMq/K+H3eTUFznIP32a8yemGg=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -99524,10 +99524,25 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1030,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 442955,
+    "fnv1a": 2139388859
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:36Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 442955,
-  "fnv1a": 2139388859
+  "chars": 442265,
+  "fnv1a": 3073610532
  }
 }

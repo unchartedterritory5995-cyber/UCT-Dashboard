@@ -1,7 +1,7 @@
 // app/src/components/chart/builder/memberPane/oversizeKeep.test.jsx
 //
 // ⭐⭐ ITEM 2 (2026-11-21, coordinator ruling) — A PREVIEW THE STORE CANNOT HOLD IS KEPT ANOTHER WAY AT ADD, OR ITS ADD
-// IS REFUSED UP FRONT, BY NAME (`memberPaneDefinition.js::withOversizeKeep`, `MemberPane.jsx::keptBuildOf`).
+// IS REFUSED UP FRONT, BY NAME (`memberPaneDefinition.js::withOversizeKeep`, `addAuthority.js::keptForAdd`, read by `MemberPane.jsx`).
 //
 // ⚰️ vdubus-pattern-gen-v2-restored-refined (committed, MPL-2.0): its host document is ~4 MB as the store counts it
 // (one ambiguity guard of a two-site `var` array window, inlined once per read), the store's cap is 64 KiB, and the

@@ -327,7 +327,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_9s/E3o280g+piuk3zAJi/Q==_ks/p//MRdOIkSJz3gWqnkf4nx2rkNRO9fyIDhj6zb+MTzHNIZm6cYgsCIneyzg8p84IPUoD/9mne6+c7WGeb3CkGd6zi3p+aDWtXvxDgQuOYzNLU9KL/HOMH1k2zHEZ+I4z/Qo7EJ0iXEqKVPRJBbmRpl0IBCvdp5/5iQTd9jikbies7XUw7jErINvTWtMVidK+xTgHM8pDPhr9svI50as5WRAZmtaARwnbxi/ZKAq+m4gbLbNbfZBRtKWvkjyZzQs5kGw1zr/TN0/GzE+fv1WjRzzgQ0Obmn9zeIv09ILhfSszVJ5o7wLgJhmfGyvDPw894axJG9+mC7AZep4TxMzXI304MUKCVFKRqA9tWhxV5nuHsTD82uzjgtxMGfuoDK+A+MeK1ZLcjLteKT+OFqwOrIFTLQEsclCgFMqaalli/oEvQGrCr5f30+YsJ/mVpA4Dft3x8UQxFOYf2PQfpcIPePRTzRUVnFv4Frb3jX54uLzI9+uKLBRHt6ZigKTa4R2f+/07L+cI3dfzITK1y38dIlR+7N97FwwGEeoqA6s/Dh3+PnGClzqXfP3p7xNJbgbdnQ1D279wzwN17T4U2hqNDqYrBAQIf5LOmdccffnsfuBxsA1iz3HzaZN4myrZGrMnfBNvIK7CgEiTpEfj23VqACukxtdGlWoqAEzqZv4cNiVhnBC5k0CSFEcG0a6gsvt074IPfJNNhsa+UvnP5rPemKxw3E+5yohmP/97WeTlDNGGBMph+di4ULNIBno/8fsgsMuRUFKmutEnytT3r/boB+K2ucHTVZ5C9JfvQeEhpZH8i7KFrW2cXvl3F35ixc4A+sX/HSLibTBoiKCRoEhyHZ9O01LU6ZpYBVa05HsVqZr/vjDr+pbeAdmiooloi8ieTv4Kud4VNqcClQVkylo2kNK8U4fuW5RVPgG0/q84bhM5iZDgTg4F9DjVY8krDwCN6t+GVL9M0WkF71Z/4XjyECXw4Rf11w1MufNcdpufkVtJFyD4sro/bbIR7ylwI+U/IaXOkaX+ETpVBIEhXZ17m2iK674ceB3KtVU6h2gHZY4CxmQNg3FdICoZJNrkImMG9AJ7Sq4TAfF/SOov501pTm6zy3EQGVHIfHGbYbpmEm7CpsXVqO3dKwJb9rpxh7RHLyd70bDBkImFV5fjkNdqApZhmhBdThGa/hzr3YpCoJjFZWHC+xikDZe0Hu0HXCqsOsR12jIh7pF9kNFpFtGrlXvj33zQZKmzaHRirSGbGlcf3CZDCh08osMzVlCgMpKlTP5ode+51NhdavR+QlDW3jM3SKJLZhc+NZxd4lXlB"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -15859,10 +15859,25 @@
   }
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1358,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 143571,
+    "fnv1a": 1489821163
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:41Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 143571,
-  "fnv1a": 1489821163
+  "chars": 142553,
+  "fnv1a": 3482633668
  }
 }

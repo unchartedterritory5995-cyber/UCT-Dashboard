@@ -54,12 +54,18 @@ import { ACTION, parseKey, isDateTf, isIntradayTf, unixToDateLabel, keyOf } from
 import { isSealedRow, bucketEnd, normT } from './reducer'
 import { deviceSource as _defaultDeviceSource } from '../deviceStore/source'
 import { deviceCopyFresh } from '../deviceStore/fresh'
+import { deviceServesTf } from '../deviceStore/tfs'
+import { onDeviceStoreKill } from '../../lib/chartSpeed'
 
 export const PERSIST_DEBOUNCE_MS = 1000
 export const META_VERSION = 1
 /** How long a hydrate waits, after its saved-copy reads, for an on-device read still in flight (a
  *  ready device store answers in ~1 ms; a later answer still lands, it just does not hold the caller). */
 export const DEVICE_HYDRATE_WAIT_MS = 8
+/** A `newer` device re-read that found nothing newer is not asked again for the same key and held copy within this
+ *  (review of #2565, P6-L1: below the minute-frame feed's 2 s retry, so a frame that lands is picked up by the next ask
+ *  at most this much later). */
+export const NEWER_RETRY_MS = 1500
 
 const finite = (x) => typeof x === 'number' && Number.isFinite(x)
 
@@ -166,6 +172,7 @@ const _defaultIdle = (fn) => {
 export function createPersist({
   registry, io = null, debounceMs = PERSIST_DEBOUNCE_MS, idle = _defaultIdle, now = () => Date.now(),
   setTimer = (fn, ms) => setTimeout(fn, ms), clearTimer = (h) => clearTimeout(h), device = undefined,
+  onDeviceKill = null,
 } = {}) {
   const IO = { memPutMonotonic, memPeekEntry, idbPutMonotonic, idbGet, idbImportPack, idbPutHistory, idbGetHistory, idbGetHistoryEntry, ...(io || {}) }
   // ⭐ THE ON-DEVICE COPY (data/deviceStore). A key with no mem record is also looked up in the device
@@ -174,8 +181,11 @@ export function createPersist({
   // provisional / context, never persisted, the server's answer replaces or joins it under the
   // reducer's rules), so a symbol nobody opened in this browser paints without waiting on the server.
   const DEV = device === undefined ? _defaultDeviceSource() : device
-  // (which cache-tfs it holds is the source's own answer: deviceStore/tfs.SERVED_TFS)
-  const _devKey = (p) => !!DEV && !p.window
+  // ⛔ THE ONE GATE EVERY DEVICE READ OF THE STORE GOES THROUGH (hydrateMem, hydrate, refreshDevice, _deviceAgain): a
+  // key whose cache-tf the device serves (deviceStore/tfs.SERVED_TFS: D and the intraday session grid). Never W or M
+  // (review of #2537, H1: derived from the device's D window they lacked the period in progress and the depth): such a
+  // key is never asked of the device, whatever source this store holds, and behaves exactly as with the store off.
+  const _devKey = (p) => !!DEV && !p.window && deviceServesTf(p.cacheTf)
   /** Does the entry carry a stamp a save wrote (persist's envelope: identity, a seal, a completeness claim)? A
    *  saved answer of the BarStore's always does (the server sends cache_key, bar_contract.py). */
   const _stamped = (s) => s.cacheKey != null || s.historyRev != null || s.completeThrough != null
@@ -189,7 +199,12 @@ export function createPersist({
   const _claimless = (s) => !s.restSeen && !s.developing && !_stamped(s)
   /** One device read of `p`'s key. `urgent` (the member's own ask: a key press, the chart on screen) goes ahead of
    *  every background read (deviceStore/client.js, TWO LANES); a warm passes nothing and waits its turn. */
-  const _devRead = (p, urgent) => (urgent === true ? DEV.read(p.sym, p.cacheTf, { urgent: true }) : DEV.read(p.sym, p.cacheTf))
+  // `newerThan` (review of #2558, P4-L2): the `through` of the copy the entry holds, when the read is to bring it FORWARD:
+  // the device client then never answers it from its recently-read cache with a copy no newer than that one.
+  const _devRead = (p, urgent, newerThan = null) => {
+    if (!Number.isFinite(newerThan)) return urgent === true ? DEV.read(p.sym, p.cacheTf, { urgent: true }) : DEV.read(p.sym, p.cacheTf)
+    return DEV.read(p.sym, p.cacheTf, urgent === true ? { urgent: true, newerThan } : { newerThan })
+  }
   /** Is a device READ worth making for this entry? Nothing held, only a device copy (it moves its own copy
    *  FORWARD: review of #2189, a copy warmed at 09:35 must not paint its 09:35 bars at 15:55), or a copy with no
    *  claim, which a FRESH device copy may join (`_joinRefused` decides when the copy is in hand). */
@@ -233,6 +248,35 @@ export function createPersist({
   /** key → `through` (unix s) of the device copy the entry holds: how far it is complete (deviceStore
    *  fresh.js / prefetch.devicePaints read it). Bounded, oldest out. */
   const devThrough = new Map()
+  /**
+   * ⭐ A NEWER RE-READ THAT FOUND NOTHING IS NOT ASKED AGAIN AT ONCE (review of #2565, P6-L1). key → {through, at}: the held
+   * copy's stamp a `newer` read was asked against, and when it answered "nothing newer". The device applies a minute's frame
+   * on the feed's schedule (lib/minuteFrames/consumer: the minute's end + 7 s + up to 3 s, then every 2 s until it is
+   * there), so its copy changes at most about every 2 s while a frame is landing; a held arrow asked every press. The same
+   * key against the same held stamp is not asked newer again within NEWER_RETRY_MS; a newer held copy or another key asks at
+   * once. Bounded, oldest out. Nothing reaches the device client for a skipped ask (its lanes are untouched).
+   */
+  const newerMiss = new Map()
+  const _noteMiss = (key, through) => {
+    newerMiss.delete(key)
+    newerMiss.set(key, { through, at: now() })
+    if (newerMiss.size > 1000) newerMiss.delete(newerMiss.keys().next().value)
+  }
+  /** ⛔ A KILL SEEN ON THIS PAGE (review of #2565, P6-L2; lib/chartSpeed.onDeviceStoreKill, told once by the device client's
+   *  beat). Every entry holding device rows: its stamp vouches for nothing (DEVICE_KILLED: a first answer keeps none of
+   *  them newer than itself), and the store re-asks the server for it now (`onDeviceKill`: the network's kick, which only a
+   *  key a chart is on takes), so a chart already showing a device copy gets the answer's rows instead of waiting for its
+   *  next poll. Nothing is blanked. Only with a device source: never with the store off. */
+  const offKill = DEV ? onDeviceStoreKill(() => {
+    const keys = []
+    for (const k of registry.keys()) {
+      const s = registry.peek(k)
+      if (!s?.deviceRows) continue
+      registry.dispatch(k, { type: ACTION.DEVICE_KILLED, key: k })
+      keys.push(k)
+    }
+    try { onDeviceKill?.(keys) } catch { /* a re-ask is a speed-up only */ }
+  }) : null
   const _noteDev = (key, through) => {
     devThrough.delete(key)
     devThrough.set(key, Number.isFinite(through) ? through : null)
@@ -259,7 +303,12 @@ export function createPersist({
     const was = { dev: devThrough.has(key), through: held, saved: savedAt.has(key), savedAt: savedAt.get(key) }
     _noteDev(key, got.through ?? null)
     _noteSaved(key, got.savedAt ?? null)
-    registry.dispatch(key, { type: ACTION.DEVICE_HIT, key, gen, payload: { sym: p.sym, bars: got.rows, saved_at: got.savedAt ?? null } })
+    // `forming_t`: the copy's last row is the bucket in progress (deviceStore/source.js `formingT`): the reducer files
+    // it as the developing bar whatever the clock says, never as a closed bar (review of #2537, M1)
+    const formingT = Number.isFinite(got.formingT) ? { forming_t: got.formingT } : null
+    // `through`: the copy's stamp rides on the entry with its marker (reducer `deviceThrough`): what the first answer may
+    // keep of the device's rows is what it vouches for (review of #2558, P4-L3)
+    registry.dispatch(key, { type: ACTION.DEVICE_HIT, key, gen, payload: { sym: p.sym, bars: got.rows, saved_at: got.savedAt ?? null, through: got.through ?? null, ...formingT } })
     const after = registry.peek(key)
     if (after === before || after?.source !== 'device') {
       if (was.dev) _noteDev(key, was.through); else devThrough.delete(key)
@@ -400,15 +449,28 @@ export function createPersist({
      * Bring a held DEVICE copy (no server answer yet) forward to the device's newest: synchronously
      * from the device's recent-read cache, else one worker read. The switch calls it on every peek of
      * such an entry (prefetch), so a copy warmed long ago is re-read before it is shown. Resolves true
-     * when the entry moved. `urgent`: the member's own ask (`_devRead`).
+     * when the entry moved. `urgent`: the member's own ask (`_devRead`). `newer`: the device rule REFUSED the copy held
+     * ('stale'): the read asks for one newer than it (`_devRead` newerThan), so the client's recently-read cache does not
+     * answer with the copy just refused (review of #2558, P4-L2). One read per key in flight, whatever asks (the client).
      */
-    refreshDevice(key, { urgent = false } = {}) {
+    refreshDevice(key, { urgent = false, newer = false } = {}) {
       const p = parseKey(key)
       if (!p || p.window || !_devKey(p) || !_deviceMay(registry.peek(key))) return Promise.resolve(false)
       const gen = registry.getSnapshot(key).gen
       try { if (_deviceHit(key, p, gen, DEV.peek(p.sym, p.cacheTf))) return Promise.resolve(true) } catch { /* optional */ }
-      return Promise.resolve().then(() => _devRead(p, urgent)).then((got) => _deviceHit(key, p, gen, got)).catch(() => false)
+      const held = newer === true ? devThrough.get(key) : null
+      if (Number.isFinite(held)) {
+        const m = newerMiss.get(key)
+        if (m && m.through === held && now() - m.at < NEWER_RETRY_MS) return Promise.resolve(false)
+      }
+      return Promise.resolve().then(() => _devRead(p, urgent, held)).then((got) => {
+        const moved = _deviceHit(key, p, gen, got)
+        if (Number.isFinite(held)) { if (moved) newerMiss.delete(key); else _noteMiss(key, held) }
+        return moved
+      }).catch(() => false)
     },
+    /** Stop listening for a kill (the store's dispose). */
+    dispose() { try { offKill?.() } catch { /* gone */ } },
     /** Write every pending key now (page hide / tests). */
     async flush() {
       const keys = [...watched.keys()]

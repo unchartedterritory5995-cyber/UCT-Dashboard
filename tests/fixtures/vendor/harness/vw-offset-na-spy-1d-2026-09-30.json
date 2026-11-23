@@ -196,9 +196,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_wUE7f2ZCL0NY4aO9O8q0Xw==_yO/HHpyFuvDmA4qIaJLiB0Uru0mClhVcVwwo4C0QOMduwXusXxCadN0jCTvfk+Zvr31O7dDYTQf7KerYn3xoFXAtv5OgpaeaeTAQTj/jHUiYk1yb000hWNsnKcyyhVfH28E+BepvafDdDeZeDzpA0P8vBY1UlHZ62WG+Z3ZvwXj3jKgg/15feF7f6AP1mL2KYMzcPfD6e7QvGObcp8coMX9x2oJRZRgxf66om/R6ABmJp6v7GiCyI0KPa/2xmJsGJCPXiEGEC5SiSZBNUKDIgMsjnhR0F/fzZXvBKrH0Pp4YWlLVUPADvhGYi0PL9WUiTJvtvwZOPcfnSuOWlIQ/9SkYftJl9+73oZ6kmFC8pxEia9DF6Sqm8bLQBBsvLp2UbvFWb9As3a1edzB4CTuwd5JcxhyuPOCG7dy2uR8Y6pqgCJycDZN1e0a+1VMW5MPmOFMgxe59+rwJ2yfpM0CTWbM/m2sYb/vx6j0bT9xfMUGB4H6jGJ38qr3AC1uifL4zmX2EixtWVvaKSUvk6PYkmZhk/jdfKfDpq0tfxZdnIK76pkmw+l+CE/oQbBdSm6Toc03s5AwQCQqItO4kEIBCpZ+oZD6lj8KWyegEO0tr22KhbMBTewD2PkhuICNkfTX+dgUBwdNG9EAp8sp3dO9yoJUdg/rLTwFpJyIex1hCFXkQ+DrGZDLHVWdGZjVKyQ==",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_wUE7f2ZCL0NY4aO9O8q0Xw==_yO/HHpyFuvDmA4qIaJLiB0Uru0mClhVcVwwo4C0QOMduwXusXxCadN0jCTvfk+Zvr31O7dDYTQf7KerYn3xoFXAtv5OgpaeaeTAQTj/jHUiYk1yb000hWNsnKcyyhVfH28E+BepvafDdDeZeDzpA0P8vBY1UlHZ62WG+Z3ZvwXj3jKgg/15feF7f6AP1mL2KYMzcPfD6e7QvGObcp8coMX9x2oJRZRgxf66om/R6ABmJp6v7GiCyI0KPa/2xmJsGJCPXiEGEC5SiSZBNUKDIgMsjnhR0F/fzZXvBKrH0Pp4YWlLVUPADvhGYi0PL9WUiTJvtvwZOPcfnSuOWlIQ/9SkYftJl9+73oZ6kmFC8pxEia9DF6Sqm8bLQBBsvLp2UbvFWb9As3a1edzB4CTuwd5JcxhyuPOCG7dy2uR8Y6pqgCJycDZN1e0a+1VMW5MPmOFMgxe59+rwJ2yfpM0CTWbM/m2sYb/vx6j0bT9xfMUGB4H6jGJ38qr3AC1uifL4zmX2EixtWVvaKSUvk6PYkmZhk/jdfKfDpq0tfxZdnIK76pkmw+l+CE/oQbBdSm6Toc03s5AwQCQqItO4kEIBCpZ+oZD6lj8KWyegEO0tr22KhbMBTewD2PkhuICNkfTX+dgUBwdNG9EAp8sp3dO9yoJUdg/rLTwFpJyIex1hCFXkQ+DrGZDLHVWdGZjVKyQ=="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -5401,10 +5401,38 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 738,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 33314,
+    "fnv1a": 1868572366
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:48Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 738,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 33314,
+    "fnv1a": 1868572366
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:48Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 33314,
-  "fnv1a": 1868572366
+  "chars": 32500,
+  "fnv1a": 3376177785
  }
 }

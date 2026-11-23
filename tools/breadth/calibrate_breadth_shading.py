@@ -52,8 +52,8 @@ GRID = [0.5, 1, 2, 3, 4, 5, 7.5, 10, 12.5, 15, 20, 25, 30]
 # drill window's reading endpoint; re-exported here under the names this tool always had.
 sys.path.insert(0, ROOT)
 from api.services.breadth_shade_rule import (  # noqa: E402,F401
-    LEVELS, MARKET_WIDE_COLS, NOT_PER_UNIVERSE, UCT_BACKTEST_KEYS, WINDOW_FLOOR, _paired, cut_key,
-    load_uct_rows, numeric, quantile, read_export as _read_export, shade, shade_value,
+    LEVELS, MARKET_WIDE_COLS, NOT_PER_UNIVERSE, WINDOW_FLOOR, _paired, cut_key, is_backtested_cell,
+    load_uct_deep_rows, numeric, quantile, read_export as _read_export, shade, shade_value,
 )
 
 
@@ -65,9 +65,14 @@ def sig(x: float) -> float:
 
 
 def load_rows(universe: str = "uct", uct_deep: str = "", uct_backtest: str = "", exposure_db: str = "") -> list:
+    """The rows the Monitor SHOWS. ⛔ (2026-11-22) UCT is never calibrated on the V2 `uct_backtest`
+    series any more: it is today's list run backward, and it is not what the cells display."""
     sys.path.insert(0, ROOT)
-    if universe == "uct" and uct_deep and uct_backtest:
-        return load_uct_rows(uct_deep, uct_backtest, exposure_db)
+    if uct_backtest:
+        raise SystemExit("--uct-backtest is retired: UCT is calibrated on the Monitor's own rows "
+                         "(--uct-deep), its back-tested sessions excluded")
+    if universe == "uct" and uct_deep:
+        return load_uct_deep_rows(uct_deep, exposure_db)
     if universe != "uct":
         from api.services import breadth_universe_monitor as bum  # noqa: E402
         ds = bum.dates(universe)
@@ -76,6 +81,29 @@ def load_rows(universe: str = "uct", uct_deep: str = "", uct_backtest: str = "",
     from api.services import breadth_monitor as svc  # noqa: E402
     rows = svc.get_history_deep(days=8000)
     return [r for r in rows if not r.get("_live")]
+
+
+def apply_uct_pit(rows: list, series_path: str) -> int:
+    """The Monitor's own overlay (`breadth_uct_pit.overlay`) and derive pass on the back-tested
+    rows, so the ranking sees exactly what the cells show with BREADTH_UCT_PIT on. Only the rebuilt
+    rows take the re-derived fields; every other row stays as exported."""
+    sys.path.insert(0, ROOT)
+    import copy
+    from api.services import breadth_uct_pit as pit  # noqa: E402
+    from api.services import breadth_monitor as svc  # noqa: E402
+    os.environ["BREADTH_UCT_PIT"] = "1"
+    pit.SERIES_PATH = series_path
+    pit._view.clear()
+    n = pit.overlay(rows)
+    work = copy.deepcopy(rows)
+    svc._derive_ascending(work, 0)
+    for r, w in zip(rows, work):
+        if r.get("_uct_pit"):
+            for k, v in w.items():
+                if k != "adv_decline_cum":
+                    r[k] = v
+        r.pop("_ad_back", None)
+    return n
 
 
 def spec_for(spec: dict, universe: str) -> dict:
@@ -109,30 +137,62 @@ def write_all(by_universe: dict) -> None:
         f.write("\n")
 
 
-def build_cutoffs(rows: list, spec: dict) -> dict:
+#: How far past its share a level may reach before a tie moves its cutoff (continuous columns
+#: land on their share within a session or two; a tied value can hold a third of history).
+TIE_SLACK = 1.2
+
+
+def tie_strict(vals: list, cut: float, share: float, end: str) -> float:
+    """⛔ (2026-11-23) A level never covers more history than its share. On a column with few
+    distinct values (distribution days, UCT Exp, CNN Fear & Greed, the up/down ratios) the quantile
+    lands ON a common value, and every session tied with it would be shaded: UCT Exp read Extreme
+    on a third of its sessions. When the sessions at or past the cutoff exceed the share, the
+    cutoff moves to the next distinct value further out (past the last one: nothing is that rare)."""
+    import bisect
+    n = len(vals)
+    if not n:
+        return cut
+    if end == "hi":
+        if (n - bisect.bisect_left(vals, cut)) / n <= share * TIE_SLACK + 1.0 / n:
+            return cut
+        i = bisect.bisect_right(vals, cut)
+        return sig(vals[i]) if i < n else math.nextafter(vals[-1], math.inf)
+    if bisect.bisect_right(vals, cut) / n <= share * TIE_SLACK + 1.0 / n:
+        return cut
+    i = bisect.bisect_left(vals, cut) - 1
+    return sig(vals[i]) if i >= 0 else math.nextafter(vals[0], -math.inf)
+
+
+def build_cutoffs(rows: list, spec: dict, universe: str = "uct") -> dict:
     cols = {}
     fields = {}
     for key, c in spec["cols"].items():
         if c.get("kind"):
             continue
         field = c.get("basis") or key
-        fields[cut_key(c, field)] = (c, field)
+        fields[cut_key(c, field)] = (c, field, key)
     for ck in sorted(fields):
-        c, field = fields[ck]
-        vals = sorted(v for v in (shade_value(c, field, r) for r in rows) if v is not None)
+        c, field, key = fields[ck]
+        # ⛔ a back-tested UCT session is never part of the ranking (breadth_shade_rule)
+        vals = sorted(v for v in (shade_value(c, field, r) for r in rows
+                                  if not is_backtested_cell(key, r, universe)) if v is not None)
         if len(vals) < 20:
             continue  # too thin to rank — the UI leaves the column unshaded
         cols[ck] = {
             "n": len(vals),
             "mid": sig(quantile(vals, 0.5)),
-            "lo": [sig(quantile(vals, p / 100)) for p in GRID],
-            "hi": [sig(quantile(vals, 1 - p / 100)) for p in GRID],
+            "lo": [tie_strict(vals, sig(quantile(vals, p / 100)), p / 100, "lo") for p in GRID],
+            "hi": [tie_strict(vals, sig(quantile(vals, 1 - p / 100)), p / 100, "hi") for p in GRID],
         }
     dates = sorted(r["date"] for r in rows if r.get("date"))
+    # the first session a PER-UNIVERSE column is ranked over (UCT: its first real, not back-tested,
+    # session; the market-wide columns keep the whole window from `from`)
+    real = [r["date"] for r in rows if r.get("date") and not is_backtested_cell("", r, universe)]
     return {
         "generated": _date.today().isoformat(),
         "sessions": len(dates),
         "from": dates[0] if dates else None,
+        "ranked_from": min(real) if real else None,
         "to": dates[-1] if dates else None,
         "grid": GRID,
         # every count column is ranked as a share of the row's universe (shadeSpec `per`)
@@ -173,6 +233,8 @@ def main(argv=None) -> int:
     ap.add_argument("--uct-deep", default="", help="UCT: the Monitor's deep rows (read-only production export)")
     ap.add_argument("--uct-backtest", default="", help="UCT: the V2 uct_backtest series (read-only production export)")
     ap.add_argument("--exposure-db", default="", help="UCT: a local monitor copy whose uct_exposure wins")
+    ap.add_argument("--uct-pit", default="", help="UCT: the point-in-time history series (breadth_uct_pit) "
+                                                  "laid over the back-tested rows, as the Monitor serves it")
     args = ap.parse_args(argv)
     with open(SPEC, encoding="utf-8") as f:
         spec = json.load(f)
@@ -182,6 +244,10 @@ def main(argv=None) -> int:
             return 2
     uspec = spec_for(spec, args.universe)
     rows = load_rows(args.universe, args.uct_deep, args.uct_backtest, args.exposure_db)
+    if args.uct_pit:
+        if args.universe != "uct":
+            raise SystemExit("--uct-pit is UCT only")
+        print(f"uct pit rows laid over: {apply_uct_pit(rows, args.uct_pit)}")
     # ⭐ THE WINDOW (owner 2026-11-19): every universe over ALL of its point-in-time history —
     # UCT (uct_backtest), US and Nasdaq from 2008-01-02, NYSE from 2009-06-11. Nothing before
     # 2008-01-02 is used, whatever a source holds (extending earlier is an owner decision).
@@ -194,7 +260,7 @@ def main(argv=None) -> int:
             print(f"no cutoffs for {args.universe} in {os.path.relpath(OUT, ROOT)}")
             return 2
     else:
-        cut = build_cutoffs(rows, uspec)
+        cut = build_cutoffs(rows, uspec, args.universe)
         every[args.universe] = cut
         write_all(every)
         print(f"wrote {os.path.relpath(OUT, ROOT)} [{args.universe}] ({len(cut['cols'])} columns)")

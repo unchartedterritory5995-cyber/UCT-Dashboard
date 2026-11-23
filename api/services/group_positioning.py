@@ -41,7 +41,10 @@ THE DEFINITIONS (pure, tested on invented figures in tests/test_group_positionin
   * funds: of the members whose funds' change is known (at least one fund with a previous report in the data), the
     share where more funds added (`added` + `new`) than cut (`cut` + `sold_out`), and the median net change in the
     shares held by the funds with both reports, in percent of what they held before (`both_now` against
-    `both_prior`; none when they held none before).
+    `both_prior`; none when they held none before). The index puts a fund's earlier shares in post-split terms
+    across a stock split between its reports; a member with any fund whose change is NOT COMPARABLE (a split may
+    fall between the reports and could not be checked: `not_comparable`) has no known change here, never a guessed
+    add or cut.
 MEMORY: the per-stock figures are kept as one short list per stock with a figure (`STOCK_FIELDS`) and each group
 lists its members' symbols; the stores' own rows are let go as soon as their figures are taken.
 """
@@ -120,7 +123,7 @@ def read_insider() -> dict:
 
 #: the per-stock summary fields of the N-PORT index this reads (fund_holders_nport_data `summary`)
 NPORT_FIELDS = ("funds", "added", "cut", "unchanged", "new", "no_prior", "sold_out", "both_now", "both_prior",
-                "period_from", "period_to")
+                "period_from", "period_to", "not_comparable")
 
 
 def read_nport(symbols: Iterable[str]) -> dict:
@@ -155,7 +158,8 @@ def read_nport(symbols: Iterable[str]) -> dict:
                                                    "prior_quarter": meta.get("prior_quarter"),
                                                    "built_at": meta.get("built_at"), "periods": meta.get("periods"),
                                                    "prior_missing": meta.get("prior_missing"),
-                                                   "matched_value_pct": cov.get("matched_value_pct")}}
+                                                   "matched_value_pct": cov.get("matched_value_pct"),
+                                                   "splits": (meta.get("splits") or {}).get("state")}}
 
 
 # ── one stock's figures (pure) ───────────────────────────────────────────────────────────────────────────
@@ -174,12 +178,15 @@ def short_figures(row: Optional[dict]) -> Optional[tuple]:
 def fund_figures(s: Optional[dict]) -> Optional[tuple]:
     """(funds holding it now, funds that added, funds that cut, net change in percent) from one N-PORT summary, or
     None. Added counts `added` + `new` (a new position); cut counts `cut` + `sold_out`. Both are None when no fund's
-    change is known (no fund holding or having held it has a previous report in the data); the net is the change
-    in the shares held by the funds with both reports, in percent of what they held before, None when they held
-    none before."""
+    change is known (no fund holding or having held it has a previous report in the data), and when any fund's change
+    is not comparable (a stock split may fall between its reports and could not be checked); the net is the change
+    in the shares held by the funds with both reports (post-split), in percent of what they held before, None when
+    they held none before."""
     if not isinstance(s, dict):
         return None
     funds = _count(s.get("funds"))
+    if _count(s.get("not_comparable")):
+        return funds, None, None, None
     up = _count(s.get("added")) + _count(s.get("new"))
     down = _count(s.get("cut")) + _count(s.get("sold_out"))
     known = up + down + _count(s.get("unchanged")) > 0
@@ -342,7 +349,8 @@ def build(sym_groups: dict, *, short_reader: Optional[Callable[[], dict]] = None
     parts["funds"] = {"state": got.get("state", "failed"), "source": meta.get("source"), "quarter": meta.get("quarter"),
                       "prior_quarter": meta.get("prior_quarter"), "built_at": meta.get("built_at"),
                       "period_from": lo, "period_to": hi, "prior_missing": meta.get("prior_missing"),
-                      "matched_value_pct": meta.get("matched_value_pct"), "covered": counts["funds"],
+                      "matched_value_pct": meta.get("matched_value_pct"), "splits": meta.get("splits"),
+                      "covered": counts["funds"],
                       "known": counts["funds_known"], "universe": len(syms)}
     del got
 

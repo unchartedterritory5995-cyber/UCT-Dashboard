@@ -198,7 +198,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_fFkygRlWejktqBm/TQyRHQ==_cHzjAb9HTnCshm9+cTNBnt/1v9aUYWjJISuaerO/ZUgyXIWn+vS5N9V/8r7jtThfoBCT5qzs1HSPSBJnMH7IBdYgqeS14jKG4Uv/Yn8raURVTDIbJeA6BPUU/+G1Z3sf1wyurisL9P2AdxJ0vIPe1MyDCbO/EYXKkReA2bucBBPDc7CQHYW+3/c6sBVcq8YGHpFkAY+U5xYbFlZVTraKgvdmFIUTrbbf3bV6Ds3LgiqJ8Kx3TzIuwkdTTx0TwodvCPqa1y14OMlFXv2GUDZ0jbQhj8zx5pdQ96wXpDtojZ5b8VWt12CUVpqFx/+LOdZewa9bVgIzt9lxk3GFBxdBi1RQSH51lblA80Fow9fXccqZ6k+7GCC2xrAMto1RrY/IQkY/xNtVGfMfFX5dqMu4t+yh4CWaHHt6oett1NGyGEmFceqxbO39TwqjYWdvE5SL30HJo0Me6VICurpUhKuc0gZKl3y1Ya5Ecb6wK/LfFVEF3JDcWetD52xOdCL0V6ndOsY+sa01DzINJkYtsSNRVQw49e80V4W4ce/jgkAKsHAkai5wczCAv6joAFU7qEClkmGUw1DTU0rsVY7ISpLPo5iMt5sfLZffBxKDYqPy8AVJf7+QuyeQrbC12bTYuwtKtc8668/ipfjgFK8PWdgGLIQg67g8nvvhwzaDHmkJjC4RGcXVO9mbTuEaVvvm19sGAT/jap8BNZ5n45ssS68g7oZjLsl959wUf8Ar8QgQXIwaSQCwOP69dlIxORBnlNEIZA2U5ZyGwhg7FAF+FaISt9LBB542+hPYD2PgO8LZcXrJgxkPz5sH8aChlP7jTFd0J98cUbTYMhUq7llVWkfR18tdI8BJ6gNgw4U0F9NTYZNVkbncWjRLQ3DtBxn7bEA7KbROiRKgbqWMoOgX5C1gZ/Vdoc/omzoQegNuYElF9Yr57icYf8VNh2fM7csc4v3MvdMvKjQjcfXrQoUmboSYp0Q5GgwIMcRcfJ4au3DJcKMMPhPiLsRe0tu+5XDOXE0ox/1P8MSQMjtY6WBBIPVdlLVKbvno2XioUYECIT5q3jg0HwbT88QoUPCHb+aIbxDpTaoDvpkTGIYZLLkkZh5JvSHpRqSo33MuyiEgj56t9Htd2zgrEB76pYX3SLkO2k2Rf5RwIKnMnJBlnsaXApc9M4JCWsc04BlwGGtWrd2x+uq7ycI4oK4cLnhGwI5TwMKtzhUKkSKS06AWzQ3FEwGBdonXy5lC6KO//edTWeq/4u6WGnFExMG61e6W1+IdpGWoPksu67GWDrXTEXJqu0iNdK6FbTKx9PwVxnKtncrQKxUArISMzmgaw/dt9LtKrk3AKYO/csk+2BHPxpaQJD5k/4qiY3nxaTzJHcGMhr2/qUBW+Sr5N77zYBX6FGsHAqrQbqhnMZoeidQp57vHmj/L9+3vVx3q3K6M0KLrypI2/XrOkW0="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -11655,10 +11655,25 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1490,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 78594,
+    "fnv1a": 1845835077
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:36Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 78594,
-  "fnv1a": 1845835077
+  "chars": 77443,
+  "fnv1a": 4104610751
  }
 }

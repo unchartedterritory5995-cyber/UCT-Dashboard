@@ -48,7 +48,7 @@
 
 import { manifestFor } from '../capabilities'
 import { readIndicator, readWidget, readSetting, SLOTS } from './slots'
-import { GEAR, TOOLS_MENU, actionFeatures } from './actions'
+import { GEAR, TOOLS_MENU, actionFeatures, WL_LIBRARY, WL_LISTS, WL_SHOW_LIBRARY, wlLibraryTab } from './actions'
 import { CONTROL_FEATURE } from './controls'
 
 // ── shared openings ──
@@ -69,6 +69,11 @@ const named = (more = {}) => [{ within: 'chartSettings', attr: 'data-row-primary
 const MOVING_AVERAGE = /\b(moving averages?|sma|ema|wma|vwma|hma|smma|dema|tema|lsma)\b/
 const ROW_ON = { within: 'chartSettings', attr: 'data-row-primary', on: true }
 const added = () => [{ within: 'chartSettings', attr: 'data-row-primary', named: '{ind.addedRow}' }, { within: 'chartSettings', attr: 'data-row-primary', named: '{ind.name}' }]
+// ⭐ the settings of the one just added: since UCT Signature R1 (11-15) an add from the Indicators window selects the new
+// instance, and the tab shows its editor (ChartSettingsIndicators armAdd → data-view="editor", the list hidden), not the list
+const EDITOR = { within: 'chartSettings', attr: 'data-testid', value: 'inspector' }
+const LIST_VIEW = { within: 'chartSettings', attr: 'data-view', value: 'list' }
+const NEW_CHART_TAB = { within: 'chart.contextMenu', attr: 'data-menu-id', value: 'new-chart-tab' }
 // the row of the indicator asked about; with none named (or not on this chart), any row of the chart's own list
 const ROW = { within: 'chartSettings', attr: 'data-row-primary' }
 const rowStep = (result) => [
@@ -198,7 +203,9 @@ export const GUIDE_FEATURES = [
     caps: ['widget.move'],
     explain: 'Drag a widget by its header to move it. Drop it where the gold outline shows; the other widgets make room.',
     steps: [
-      { target: 'widget.headerBar', name: 'the header', text: 'Grab this header and drag the widget where you want it. The gold outline shows where it will land.' },
+      // a chart on the board has no header bar of its own (its header is integrated, owner 11-11; on the UCT frame 11-13 too):
+      // its top row, the one with the symbol, is what the board drags it by
+      { target: ['widget.headerBar', { within: '@chart', grab: true }], name: 'the header', text: 'Grab this header and drag the widget where you want it. The gold outline shows where it will land.' },
     ],
     doIt: { say: 'Tell me where — for example “swap these two charts” or “move the watchlist to the left”.' },
   },
@@ -300,12 +307,17 @@ export const GUIDE_FEATURES = [
     doIt: { say: 'Tell me the date — for example “go to March 15 2024”.' },
   },
   {
-    id: 'chartTab', terms: ['chart tab', 'chart tabs'], control: 'the + on the chart’s header', title: 'Adding a chart tab', topic: 'charts',
+    id: 'chartTab', terms: ['chart tab', 'chart tabs'], control: 'the chart', title: 'Adding a chart tab', topic: 'charts',
     words: [/\b(chart|new|add|another)\b.*\btabs?\b/],
     caps: ['chart.addTab'],
-    explain: 'The + on a chart’s header adds a tab to that chart, with its own settings. Tabs sit in a strip above the chart: click to switch, double-click to rename.',
+    explain: 'Right-click a chart and choose New chart tab to add a tab to that chart, with its own settings. Tabs sit in a strip above the chart: click to switch, double-click to rename, and its + adds another.',
     steps: [
-      { target: 'chart.addTab', name: 'the +', text: 'Click this + to add a tab to this chart. It opens with its own settings.', off: 'This chart already has tabs: use the + on its tab strip.' },
+      // a chart with its own header + (a host that does not integrate the header): that is the door, and the walkthrough ends there
+      { target: 'chart.addTab', name: 'the +', text: 'Click this + to add a tab to this chart. It opens with its own settings.', off: 'This chart already has tabs: use the + on its tab strip.', optional: true, endsOnClick: true },
+      // ⭐ the board's integrated chart header has no + (owner 11-11): the door is the chart's right-click menu (ChartWidget
+      // "New chart tab", offered while the chart has no extra tabs; then the tab strip's + takes over)
+      { target: 'chart.plot', name: 'the chart', text: 'Right-click anywhere on the chart.', waitFor: NEW_CHART_TAB, absent: 'This chart already has tabs, so its menu has no New chart tab: use the + on its tab strip.' },
+      { target: NEW_CHART_TAB, name: 'New chart tab', text: 'Click New chart tab. The tab opens with its own settings.', endsOnClick: true },
     ],
     doIt: { say: 'Say “add a chart tab” and I’ll do it.' },
   },
@@ -365,7 +377,7 @@ export const GUIDE_FEATURES = [
     caps: ['watchlist.show'],
     explain: 'Open a list in a Watchlist widget, click the + in its header and type the ticker. Alt+Q adds the chart’s ticker to a list.',
     steps: [
-      { target: { widgetType: 'watchlist', attr: 'data-guide', value: 'watchlist.picker' }, name: 'your lists', text: 'Click the list to add to.', waitFor: { widgetType: 'watchlist', guide: 'watchlist.addSymbol' } },
+      { target: WL_LISTS, name: 'your lists', text: 'Click the list to add to.', waitFor: { widgetType: 'watchlist', guide: 'watchlist.addSymbol' } },
       { target: { widgetType: 'watchlist', guide: 'watchlist.addSymbol' }, name: 'the +', text: 'Click + and type the ticker.' },
     ],
     doIt: { say: 'Tell me both — for example “add NVDA to Momentum”.' },
@@ -406,14 +418,20 @@ export const GUIDE_FEATURES = [
     id: 'watchlistCreate', everyPage: true, terms: ['new watchlist', 'create a watchlist', 'creating a watchlist'], control: 'the Widgets menu', title: 'Creating a watchlist', topic: 'watchlists',
     words: [/\b(?:create|creating|make|making|build|building|start|starting|set up|setting up|new)\b(?:\s+(?:a|an|the|my|me|another|new|own|custom|first|second|stock|ticker|personal|blank))*\s+(?:watch ?)?lists?\b/],
     caps: ['watchlist.create'],
-    explain: 'You create a watchlist in a Watchlist widget: in its list picker, click ＋ New, name the list and click Create. The picker opens when you add the widget (+ Add widget ▾ → Watchlist), or from ‹ Lists on a Watchlist widget already on your board.',
+    explain: 'You create a watchlist in a Watchlist widget: in its library, open My Lists, click New list, name it and click Create (where the widget shows its list picker instead, it is ＋ New there). Add the widget from + Add widget → Watchlist, or use one already on your board.',
     steps: [
       { target: { widgetType: 'watchlist', guide: 'watchlist.lists' }, text: 'New lists start in the list picker. Click ‹ Lists on this widget to open it (the widget will show your new list afterwards), or press Next to add a new Watchlist widget instead.', optional: true, waitFor: 'watchlist.picker', nextLabel: 'Next' },
-      { target: 'workspace.widgets', text: 'Click + Add widget.', waitFor: ['workspace.widgetsMenu', 'watchlist.picker'] },
-      { target: 'workspace.widgets.watchlist', text: 'Click Watchlist to add one to your board. If the board is full, the menu says so — close a widget first.', waitFor: 'watchlist.picker', retreat: true },
-      { target: { within: 'watchlist.picker', aria: 'New watchlist' }, text: 'This is the list picker. Click ＋ New to start a list.', waitFor: { within: 'watchlist.picker', aria: 'New watchlist name' }, pin: true },
-      { target: { within: 'watchlist.picker', aria: 'New watchlist name' }, text: 'Type a name for the list.', waitFor: { inWidget: 'watchlist.addSymbol' }, nextLabel: 'Next', pin: true, retreat: true },
-      { target: 'watchlist.createList', text: 'Click Create. If it can’t be created, the form tells you here and nothing is saved.', waitFor: { inWidget: 'watchlist.addSymbol' }, pin: true, retreat: true },
+      // ⭐ the board's UCT frame (owner 11-13 / 11-15): the widget's LIBRARY is its picker (pages/charts/widgets/LibraryRail.jsx),
+      // and ‹ Lists is hidden there. A narrow widget closes its library over the list; this button shows it again
+      { target: WL_SHOW_LIBRARY.target, text: 'New lists start in this widget’s library. Click this to show it, or press Next to add a new Watchlist widget instead.', optional: true, waitFor: WL_LIBRARY, nextLabel: 'Next' },
+      { target: 'workspace.widgets', text: 'Click + Add widget.', waitFor: ['workspace.widgetsMenu', 'watchlist.picker', WL_LIBRARY] },
+      { target: 'workspace.widgets.watchlist', text: 'Click Watchlist to add one to your board.', waitFor: ['workspace.place', 'watchlist.picker', WL_LIBRARY], retreat: true },
+      { ...PLACE, waitFor: ['watchlist.picker', WL_LIBRARY] },
+      // the picker's ＋ New, or the library's New list. That one is on the library's My Lists tab only, so until the member opens
+      // it the ring is on that tab, and it moves to New list once the tab is open. One step, so a lost control still retreats
+      { target: [{ within: 'watchlist.picker', aria: 'New watchlist' }, { within: 'watchlist.library', guide: 'watchlist.railNewList' }, wlLibraryTab('My Lists')], text: 'Click ＋ New to start a list. In the widget’s library it’s New list, on the My Lists tab.', waitFor: [{ within: 'watchlist.picker', aria: 'New watchlist name' }, { within: 'watchlist.library', attr: 'id', value: 'rail-new-list' }], pin: true },
+      { target: [{ within: 'watchlist.picker', aria: 'New watchlist name' }, { within: 'watchlist.library', attr: 'id', value: 'rail-new-list' }], text: 'Type a name for the list.', waitFor: { inWidget: 'watchlist.addSymbol' }, nextLabel: 'Next', pin: true, retreat: true },
+      { target: ['watchlist.createList', { within: 'watchlist.library', label: 'Create' }], text: 'Click Create. If it can’t be created, the form tells you here and nothing is saved.', waitFor: { inWidget: 'watchlist.addSymbol' }, pin: true, retreat: true },
       { target: { inWidget: 'watchlist.addSymbol' }, text: 'The list is open in this widget and saved in My Lists. Click + to add its first ticker.', noBack: true },
     ],
     doIt: { say: 'Tell me what to call it — for example “create a watchlist called Momentum” — and I’ll make it once you confirm.' },
@@ -483,7 +501,11 @@ export const GUIDE_FEATURES = [
       // one already on the chart shows On chart: its row only selects it, and the ＋ beside it is what adds another
       { only: 'ind', target: [{ within: 'indicators.addSurface', aria: 'Add another {ind.name}' }, { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' }], name: 'the result', text: '{ind.name} is already on this chart. Click this ＋ to add another.', altText: 'Click {ind.name} to add it to this chart.', waitFor: { not: { within: 'indicators.addSurface', attr: 'data-def-id', value: '{ind.id}' } } },
       // the row just added is the selected one: "SMA 5", not the SMA 50 above it
-      { only: 'ind', target: [ROW_ON, ...added()], name: 'the indicator list', text: '{ind.addedSay} is on the chart.{ind.addNext}', noBack: true },
+      // a host that goes back to the list after the add: the new row, which opens its settings (skipped where they are open already).
+      // Its result is "the list is no longer showing" (an ENDING, `not`), so an editor some other indicator left open is never
+      // taken for this add having happened (startIndex reads no `not` result)
+      { only: 'ind', target: [ROW_ON, ...added()], name: 'the indicator list', text: '{ind.addedSay} is on the chart.{ind.addNext}', waitFor: { not: LIST_VIEW }, noBack: true, optional: true, late: true },
+      { only: 'ind', target: EDITOR, name: 'its settings', text: '{ind.addedSay} is on the chart.{ind.editNext}', noBack: true },
       { unless: 'ind', target: { within: 'chartSettings', aria: 'Search indicators' }, name: 'the search box', text: 'Search for an indicator and add it. The ones already on the chart are listed in the Indicators section — click one to change its settings, colors and pane.' },
     ],
     doIt: {

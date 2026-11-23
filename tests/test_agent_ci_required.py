@@ -1263,11 +1263,30 @@ def _wf(job_extra="", top_extra="", steps="      - run: 'true'\n"):
     return f"name: x\non: push\n{top_extra}jobs:\n  build:\n    runs-on: ubuntu-latest\n{job_extra}    steps:\n{steps}"
 
 
-def _tree_now() -> dict:
-    """The workflow tree this test runs in, as the tool reads one: {path: bytes}."""
-    files = {p.relative_to(ROOT).as_posix(): p.read_bytes() for p in sorted((ROOT / ".github" / "workflows").iterdir()) if p.suffix in (".yml", ".yaml")}
+def _tree_now(root=ROOT) -> dict:
+    """The workflow tree this test runs in, as the tool reads one: {path: bytes}. The tool reads git OBJECTS, which
+    hold these files with LF. A checkout made with core.autocrlf=true (Git for Windows' default) holds the same
+    blobs with CRLF, so the working tree's bytes are brought back to the blobs' line ends here (AUDIT review 3 of
+    #2501, finding A: one rail below matched "\n" against the raw bytes and failed on such a checkout)."""
+    files = {p.relative_to(root).as_posix(): p.read_bytes().replace(b"\r\n", b"\n")
+             for p in sorted((root / ".github" / "workflows").iterdir()) if p.suffix in (".yml", ".yaml")}
     assert len(files) > 20, "found too few workflows: this is not the repository's tree"
     return files
+
+
+def test_MQ_the_rails_read_the_tree_with_the_blobs_line_ends_and_the_scan_does_not_depend_on_them(tmp_path):
+    """Finding A's rail, on any runner: a CRLF checkout of 21 workflows is read back as LF by _tree_now, and the scan
+    itself gives one answer for a tree whatever its line ends (a blob COMMITTED with CRLF is judged like any other)."""
+    folder = tmp_path / ".github" / "workflows"
+    folder.mkdir(parents=True)
+    for i in range(21):
+        (folder / f"w{i}.yml").write_bytes(CLEAN.replace("\n", "\r\n").encode("utf-8"))
+    got = _tree_now(tmp_path)
+    assert len(got) == 21 and set(got.values()) == {CLEAN.encode("utf-8")}
+    crlf = {path: raw.replace(b"\n", b"\r\n") for path, raw in _tree_now().items()}
+    assert any(b"\r\n" in raw for raw in crlf.values()) and acr.workflow_problems(crlf) == []
+    sneaky = _wf("    environment: ${{ vars.E }}\n").replace("\n", "\r\n")
+    assert acr.workflow_problems({**crlf, W + "new.yml": sneaky}) == ["new.yml: job build declares an environment"]
 
 
 def test_MQ_todays_workflow_tree_has_zero_findings():
@@ -1328,21 +1347,30 @@ def test_MQ_a_secret_cannot_be_read_without_the_key_so_the_key_is_the_check():
 @pytest.mark.parametrize("uses,bad", [
     ("someone/repo/.github/workflows/x.yml@main", True), ("northstar-quarry/other/.github/workflows/x.yml@" + "a" * 40, True),
     ("northstar-quarry/UCT-Dashboard/.github/workflows/agent-ci.yml@master", True),      # this repository BY NAME: another ref's copy
-    ("./.github/workflows/../../elsewhere.yml", False), ("../.github/workflows/x.yml", True), (".github/workflows/x.yml", True),
+    ("../.github/workflows/x.yml", True), (".github/workflows/x.yml", True),
     ("${{ vars.WF }}", True), ("", True), ("./.github/actions/x", True),
     ("./.github/workflows/agent-ci.yml", False), ("./.github/workflows/new.yml", False),
+    # AUDIT review 3 of #2501, finding B: the right prefix, then a path that is not one file IN the folder. The first
+    # row was pinned here as allowed until 2026-11-23.
+    ("./.github/workflows/../../elsewhere.yml", "path"), ("./.github/workflows/../actions/x/action.yml", "path"),
+    ("./.github/workflows/sub/x.yml", "path"),            # a `/` and no `..`
+    ("./.github/workflows/..", "path"), ("./.github/workflows/x..yml", "path"), ("./.github/workflows/..\\..\\x.yml", "path"),   # a `..` and no `/`
 ])
 def test_MQ_a_job_may_call_a_reusable_workflow_only_from_this_repositorys_tree(uses, bad):
     text = f"on: push\njobs:\n  call:\n    uses: '{uses}'\n"
     got = acr.workflow_problems({W + "new.yml": text})
-    assert bool(got) is bad, (uses, got)
-    if bad:
+    assert bool(got) is bool(bad), (uses, got)
+    if bad == "path":
+        assert got == [f"new.yml: job call calls a reusable workflow by a path that is not a file directly in .github/workflows ({uses[:50]})"], got
+    elif bad:
         assert got[0].startswith("new.yml: job call calls a reusable workflow outside this repository's tree"), got
     # a STEP's `uses` is an action, not a workflow: free, unless it names a workflows path
     step = "on: push\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: '%s'\n"
     assert acr.workflow_problems({W + "new.yml": step % "actions/checkout@v4"}) == []
     assert acr.workflow_problems({W + "new.yml": step % "./.github/actions/pine-heavy-setup"}) == []
     assert acr.workflow_problems({W + "new.yml": step % "someone/repo/.github/workflows/x.yml@main"})
+    assert acr.workflow_problems({W + "new.yml": step % "./.github/workflows/../actions/x"}) == [
+        "new.yml: job a calls a reusable workflow by a path that is not a file directly in .github/workflows (./.github/workflows/../actions/x)"]
 
 
 @pytest.mark.parametrize("label,text,finding", [
@@ -1436,6 +1464,7 @@ def test_MQ_the_status_text_names_the_file_and_the_job_and_keeps_its_last_senten
 # ---- the same judge, reading a commit's tree from git objects ------------------------------------------------------------------
 FORMAT_ENV = "name: sneaky\non: push\njobs:\n  mint:\n    runs-on: ubuntu-latest\n    environment: ${{ format('agent-ci-{0}', 'verdict') }}\n    steps:\n      - run: 'true'\n"
 REMOTE_CALL = "name: far\non: push\njobs:\n  far:\n    uses: someone/repo/.github/workflows/x.yml@main\n"
+CLIMBING_CALL = "name: up\non: push\njobs:\n  up:\n    uses: ./.github/workflows/../../other/x.yml\n"
 
 
 def test_MQ_a_commits_workflow_tree_is_read_from_git_objects_and_nothing_is_checked_out(tmp_path):
@@ -1479,6 +1508,8 @@ def test_MQ_a_symlink_among_the_workflows_is_not_a_regular_file(tmp_path):
     ({"README.md": "r2\n", ".github/workflows/sneaky.yml": FORMAT_ENV}, "sneaky.yml: job mint declares an environment"),
     ({"docs/x.md": "x\n", ".github/workflows/far.yml": REMOTE_CALL}, "far.yml: job far calls a reusable workflow outside this repository's tree (someone/repo/.github/workflows/x.yml@main)"),
     ({".github/workflows/broken.yml": "jobs: {a: [}\n"}, "broken.yml: does not parse as YAML (ParserError)"),
+    # AUDIT review 3, finding B: the probe that was not caught
+    ({"other/x.yml": CLEAN, ".github/workflows/up.yml": CLIMBING_CALL}, "up.yml: job up calls a reusable workflow by a path that is not a file directly in .github/workflows (./.github/workflows/../../other/x.yml)"),
 ])
 def test_MQ_the_follower_fails_every_entry_whose_tree_could_reach_the_app_a_plain_one_included(tmp_path, pr_files, finding):
     """AUDIT's two new rows: an expression-named environment, and a remote reusable workflow, each in an entry that

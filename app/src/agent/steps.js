@@ -56,7 +56,7 @@ export function outcomeOf(bodies, op, shown = null) {
  *  `refMap` and returned as [{ref, kind, label}] for the server and the model. Keyed by (kind, real ref). */
 export async function newRefs(host, capCtx, refMap) {
   let built
-  try { await refreshContext(1500); built = buildContext(host, { ...capCtx, message: '' }) } catch { return [] }
+  try { await refreshContext(1500, { host }); built = buildContext(host, { ...capCtx, message: '' }) } catch { return [] }
   const known = new Set(Object.values(refMap).map(v => `${v.kind}:${v.ref}`))
   const labels = {}
   for (const section of Object.values(built.context || {})) {
@@ -449,7 +449,7 @@ export function createStepRunner() {
       const { host, capCtx, memoryRef, conversationRef, mark } = deps
       paused = null
       const full = manifestFor({ ...capCtx, manageIndicators })
-      await refreshContext(1500)
+      await refreshContext(1500, { host })
       mark?.('context:refreshed')
       const { context, refMap } = buildContext(host, { ...capCtx, message: text })
       mark?.('context:built')

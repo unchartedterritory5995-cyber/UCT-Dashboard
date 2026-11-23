@@ -35,7 +35,7 @@ def test_the_schema_is_the_same_bytes_whatever_routing_picked():
 def test_the_rules_block_is_the_same_bytes_and_the_actions_follow_it():
     parts = [turn.system_parts(c, u, True) for c, u in routing_shapes()]
     assert len({p[0] for p in parts}) == 1
-    assert all(len(p) == 2 for p in parts)
+    assert all(len(p) in (2, 3) for p in parts)          # 3: the actions cut at a line (test_uct_agent_prefix_split.py)
     assert turn._ACTIONS_HEADING not in parts[0][0] and all(turn._ACTIONS_HEADING in p[1] for p in parts)
 
 

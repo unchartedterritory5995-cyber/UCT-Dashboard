@@ -49,6 +49,10 @@ const entries = new Map()
 // ⭐ U15 — the paths the store answered for but would not SERVE (an entry with no
 // verified sha256): path -> the sentence the lanes refuse the import line with.
 const unservable = new Map()
+// ⭐ THE PASTE WORKER — moves whenever the registry may have moved (`memberDoorImage.memberDoorStateVersion`)
+let revision = 0
+/** The registry's revision (its value is meaningless). */
+export function pineLibraryStoreRevision() { return revision }
 
 /** ⭐ U15 — WHY a library entry may not be compiled, or null when it may. ONE rule for
  *  every source of entries (the server's store, `opts.libraries`, a test): a library
@@ -100,6 +104,7 @@ export function registerPineLibrary(entry) {
   if (denied) {
     unservable.set(path, { reason: denied, code: 'denied' })
     entries.delete(path)
+    revision += 1
     return null
   }
   const licence = libraryLicenceProblem(entry)
@@ -107,6 +112,7 @@ export function registerPineLibrary(entry) {
   if (problem) {
     unservable.set(path, { reason: problem, code: licence ? 'licence' : 'no-sha' })
     entries.delete(path)
+    revision += 1
     return null
   }
   const stored = Object.freeze({
@@ -120,6 +126,7 @@ export function registerPineLibrary(entry) {
   })
   unservable.delete(path)
   entries.set(path, stored)
+  revision += 1
   return stored
 }
 
@@ -127,6 +134,7 @@ export function registerPineLibrary(entry) {
  *  (`code`: `'no-sha'`, or `'licence'` for a non-commercial licence). */
 export function markPineLibraryUnservable(path, reason, code = 'no-sha') {
   if (!IMPORT_PATH.test(String(path || ''))) return
+  revision += 1
   unservable.set(String(path), { reason: String(reason || 'the library store will not serve it'),
     code: code === 'licence' || code === 'denied' ? code : 'no-sha' })
 }
@@ -137,8 +145,29 @@ export function pineLibraryUnservable(path) { const h = unservable.get(String(pa
 /** `{reason, code}` for a held, unservable `path`, or null. */
 export function pineLibraryHeld(path) { return unservable.get(String(path)) || null }
 
+/** ⭐ THE PASTE WORKER (2026-11-20) — the registry as plain data, for the member door's worker
+ *  (`builder/memberPane/memberDoorImage.js`): a worker is its own module graph and starts EMPTY, and the
+ *  translators there must link exactly the libraries this page holds. */
+export function pineLibraryStoreImage() {
+  return { entries: [...entries.values()], unservable: [...unservable] }
+}
+/** Hold exactly an image's libraries (`pineLibraryStoreImage`): the worker's side. Each entry was admitted by
+ *  `registerPineLibrary` where the image was taken, so it is kept as it came (frozen), not admitted twice. */
+export function applyPineLibraryStoreImage(img) {
+  revision += 1
+  entries.clear()
+  unservable.clear()
+  const m = img && typeof img === 'object' ? img : {}
+  for (const e of Array.isArray(m.entries) ? m.entries : []) {
+    if (e && typeof e.path === 'string') entries.set(e.path, Object.freeze({ ...e }))
+  }
+  for (const [p, h] of Array.isArray(m.unservable) ? m.unservable : []) {
+    if (typeof p === 'string' && h && typeof h === 'object') unservable.set(p, { ...h })
+  }
+}
+
 export function pineLibraryEntry(path) { return entries.get(String(path)) || null }
-export function clearPineLibraries() { entries.clear(); unservable.clear() }
+export function clearPineLibraries() { revision += 1; entries.clear(); unservable.clear() }
 export function registeredPineLibraries() { return [...entries.keys()].sort() }
 
 /** The import paths a source names (top-level `import A/B/N` lines). */

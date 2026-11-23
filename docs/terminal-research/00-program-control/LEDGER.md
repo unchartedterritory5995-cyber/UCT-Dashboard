@@ -5041,3 +5041,116 @@ the unchanged full path. There are 2 deleted `api/` lines, both the rewritten ro
   `screener.rs_post_pass` -> `routers.auth` -> `research.iv_history`). It never runs the IPO scan, the IV history read or
   either new job; the older files it keeps running lack only what it never invokes.
 - **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## COT legacy reader matches by CFTC contract code first (Hard Red Spring wheat had stopped updating) · `fix/cot-legacy-market-names` · 2026-11-22
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/cot_service.py`, `api/services/cot_finer.py` |
+
+- **The change.** `cot_service._parse_cftc_stream` now matches each row through `cot_finer.symbol_for` (the contract code
+  first, through `cot_finer.CONTRACT_CODES`; then the market name, runs of spaces collapsed; a code match beats a name
+  match for the same symbol and week), reading the optional `CFTC Contract Market Code` column; `_CFTC_ALIASES` gains
+  "WHEAT-HRSpring - MIAX FUTURES EXCHANGE" -> MW. `cot_finer.py` changes in its docstring only. Checked once against the
+  CFTC's 2026 legacy file: the only records that change are MW's 46 weeks (none before); every other record is identical
+  and in the same order.
+- **Flow-worker.** Reaches `cot_service` through a static chain (`flow_worker_main` -> `flow_gap_autofill` ->
+  `liveflow_monitor` -> `bars_fetch` -> `breadth_monitor` -> `breadth_live_universes` -> `market_indicators.producers` ->
+  `market_indicators.registry` -> `cot_service`), and `cot_finer` one hop further only through the new function-level
+  import inside `_parse_cftc_stream` (not in its closure before). Its closure uses `cot_service`'s symbol tables,
+  `DB_PATH`, `_get_conn`, `init_db` and `get_cot_data`; it never runs `_parse_cftc_stream`, `refresh_from_current`,
+  `seed_from_historical`, `refresh_if_stale`, `daily_catchup` or `get_status` (the COT jobs live in `api/main.py`, the COT
+  routes in `api/routers/cot.py`, neither in its closure), so it never even imports `cot_finer`. The older files it keeps
+  running lack only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## Terminal review follow-ups 2 (N-PORT changes across splits, GRPS empty build and busy pause, COT by trader seeding, near the 52-week high) · `fix/terminal-review-followups-2` · 2026-11-22
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/cot_finer.py` |
+
+- **The change in the stranded file.** `cot_finer.refresh` no longer ends a run on a file of the wrong shape: it records a
+  past year's failure in a new `cot_finer_shape` table (created by `cot_finer.init_db`), goes on to the next file, and
+  `plan` leaves that year out for `SHAPE_RETRY_S` (a week); `store` removes the record once the year is read. `symbol_for`,
+  `CONTRACT_CODES` and the parser are unchanged.
+- **Flow-worker.** Reaches `cot_finer` only through the function-level import inside `cot_service._parse_cftc_stream`
+  (the chain in the row above), which uses `symbol_for` alone. It never runs `refresh`, `plan`, `store`, `init_db` or the
+  scheduled run (registered in `api/main.py`, not in its closure). The older file it keeps running lacks only what it
+  never invokes.
+- **The other files are not in its closure** (`group_stats.py`, `group_stats_calc.py`, `group_positioning.py`,
+  `fund_holders_nport.py`, `fund_holders_nport_data.py`; checked with `reachable_paths`). `reference_corp_actions.py`,
+  which is in it (through `live_massive_router` -> `dividends_calendar`), is not changed: the N-PORT job only calls its
+  existing `fetch_confirmed_splits_strict` and `split_ratio`.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## COT legacy store fills its own missing history once (the one-time backfill) · `fix/cot-legacy-one-time-backfill` · 2026-11-22
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: NOT EXERCISED, safe; NO marker bump** |
+| stranded files | `api/services/cot_service.py` |
+
+- **The change.** `seed_from_historical` now reads one yearly file at a time (download, parse, upsert, drop; a 2 s pause
+  between two files; a 403 or 429 ends it; one seed at a time under `_SEED_LOCK`; two optional arguments, `outcome` and
+  `keep_going`, whose defaults are the old call), and a complete seed writes the marker row `legacy_backfill_v1` in a new
+  `cot_meta` table (created by `init_db`). The new `legacy_backfill` runs it once, from a new job registered in
+  `api/main.py` (`cot_legacy_backfill`, daily 22:40 ET), inside scan_period's quiet span through `cot_finer.quiet`; until
+  a complete run writes the marker, at most one attempt a New York day. `_parse_cftc_stream`, `_upsert_records`,
+  `refresh_from_current`, the readers and the symbol tables are unchanged.
+- **Flow-worker.** Reaches `cot_service` through the same static chain as before (`flow_worker_main` ->
+  `flow_gap_autofill` -> `liveflow_monitor` -> `bars_fetch` -> `breadth_monitor` -> `breadth_live_universes` ->
+  `market_indicators.producers` -> `market_indicators.registry` -> `cot_service`). The one new import is function-level
+  (`cot_finer.quiet` inside `_quiet`) and adds no module to its closure: `cot_finer` was already reached through
+  `_parse_cftc_stream`, and `scan_period` through `theme_performance`. Its closure uses `cot_service`'s symbol tables,
+  `DB_PATH`, `_get_conn` and `get_cot_data`; it never runs `seed_from_historical`, `legacy_backfill` or `init_db` (their
+  only callers, `api/main.py`'s lifespan and job and `api/routers/cot.py`, are not in its closure; checked with
+  `reachable_paths`). The older file it keeps running lacks only what it never invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## The device-store and chart-speed kills ride the live-prices poll, and its error answers · `fix/device-kill-reaches-open-pages` (PR #2583) · 2026-11-23
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; NO marker bump** |
+| stranded files | `api/routers/auth.py`, `api/routers/live_prices.py` |
+
+- **Additive.** `auth.py` gains `_kill_cookie_values()` (the one statement of which kill cookies the environment calls
+  for) and `set_kill_cookies_when_killed(response)`; `_set_chart_speed_cookie` now writes through `_kill_cookie_values`
+  (the same Set-Cookie headers, in the same order, for every readable environment, pinned per environment by
+  `tests/test_device_store_kill.py`; a kill whose variable cannot be read is left out instead of raising).
+  `live_prices.py`: `get_live_prices` gains a LAST parameter `response: Response = None` (FastAPI injects it on the HTTP
+  route) and a new `_error_answer` for its two 400s and its 503; with `response` None, every function caller's case, the
+  function sets nothing and returns exactly what it returned before.
+- **Flow-worker.** Reaches `live_prices` through a static chain whose hop into it is a function-level import
+  (`flow_worker_main` -> `auth_surface_check` -> `flow_proxy` -> `auth_service` -> `auth_db` -> `journal_two.db` ->
+  `journal_two.notes` -> `journal_two.trader_blocks` -> `routers.live_prices`), and `routers.auth` through `live_prices`'
+  function-level import (checked with `reachable_paths`). It mounts neither router (`flow_worker_main` includes only the
+  debug and vouch routers), so it never serves `/api/live-prices` or an auth answer; it never calls
+  `_set_chart_speed_cookie`, `set_kill_cookies_when_killed` or `_kill_cookie_values`; any call it makes to
+  `get_live_prices` as a function passes no `response`. The older files it keeps running lack only what it never
+  invokes.
+- **No marker bump.** A restart drops the OPRA socket for zero behavioural difference.
+
+## The web lifespan stops the bars-warm pool, and the admin stop ends a whole universe warm · `fix/bars-warm-pool-shutdown` (PR #2601) · 2026-11-23
+
+| | |
+|---|---|
+| classification | **flow-worker stranded: ADDITIVE, safe; NO marker bump** |
+| stranded files | `api/routers/bars.py`, `api/services/bars_fetch.py` |
+
+- **Additive.** `bars_fetch.py` gains `_new_bars_warm_pool()` (the pool's one factory, the same executor and arguments as
+  the import line it replaces), `stop_bars_warm_pool(*, reopen)` and `shutdown_bars_warm_pool()` (the one way the pool
+  is stopped), `_bars_warm_lock`, `_bars_warm_closed`, and the universe warm's run helpers (`_begin_warm_run`,
+  `_warm_count`, `_count_warm_results`, `_end_warm_run`, `supersede_warm_run`). The altered code is the two universe
+  warms (a captured pool, a run id, each job read through its own `result()`) and the admin warm-universe-stop's body in
+  `bars.py` (the shared stop).
+- **Flow-worker.** Reaches both files only through static chains (`reachable_paths`); it mounts no bars router
+  (`flow_worker_main` includes only the debug and vouch routers), so it never serves the admin warm routes and never
+  runs a universe warm; nothing outside web's lifespan calls the new stop. At import it builds the pool through the
+  factory: the same pool. The older files it keeps running lack only what it never invokes. worker and bars-api the
+  same: they import serve functions from `api.routers.bars` and mount no router.
+- **No marker bump.** flow-worker deploys only by hand, and it executes none of the altered code; a restart drops the
+  OPRA socket for zero behavioural difference.

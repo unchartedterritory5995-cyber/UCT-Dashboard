@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "w9-q-s1a-size-stop-v6-rddt-1d-2026-11-17",
- "captureSha256": "5dc8a6b82bf02870755b261d746953fca169c53d5b200f3b113d656c338b92e3",
- "receipt": 3296284520,
+ "captureSha256": "3ac6c099e1d6d0e800ab4d79d3e1d3c235b8ec1764e5728d49d39af9c0547349",
+ "receipt": 100941138,
  "sourceSha256": "4180e6c4c63aa7ad8617da4d6f2bf6a5314dd17db34944f73b142af286687ab0",
  "queueTargetId": "Q-S1a",
  "symbol": "NYSE:RDDT",

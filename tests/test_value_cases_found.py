@@ -304,3 +304,42 @@ def test_an_adoption_handed_no_detector_asks_the_products_own():
     notes = {}
     adopted, kept = value_eval.adopt({"cases": scripts}, {"verdicts": {cid: "right"}, "answers": {cid: {"script": {"pine": plain}}}}, STAMPS, {}, notes)
     assert adopted == [] and cid in kept and cap in notes["held_for_coverage"][cid]
+
+
+# -- a record a test rests on, line by line, stands when the door answers right again (2026-11-22: intraday-04) --
+
+def test_a_right_answer_over_a_record_the_case_says_to_keep_is_not_adopted_and_is_named():
+    kept = dict(_script_case("a", "plot day low"), keep_record="a test changes these lines")
+    data, adopted, kept_ids, _held = _adopt([kept, _script_case("b", "plot")], {"a": "plot other lines", "b": "plot table"})
+    assert adopted == ["b"] and "a" in kept_ids and data["cases"][0]["answer"]["script"]["pine"] == "plot day low"
+    notes = {}
+    value_eval.adopt({"cases": [dict(kept)]}, _run({"a": "plot other lines"}), STAMPS, {}, notes, capabilities_of=_caps)
+    assert notes["kept_by_name"] == {"a": "a test changes these lines"}
+    assert value_eval.kept_lines(notes["kept_by_name"]) == ["NOT ADOPTED a: right again, and its record stands by the case's own word: a test changes these lines"]
+    assert value_eval.kept_lines({}) == [] and value_eval.kept_lines(None) == []
+    # a wall or formula case may say it too
+    wall = dict(copy.deepcopy(WALL), keep_record="why")
+    adopted, kept_ids = value_eval.adopt({"cases": [wall]}, report_right(wall), STAMPS, {})
+    assert adopted == [] and kept_ids == [wall["id"]]
+
+
+def test_a_FIXED_DEFECT_on_such_a_case_is_adopted_all_the_same():
+    wrong = dict(_script_case("a", "plot loop", "wrong"), keep_record="a test changes these lines")
+    data, adopted, _kept, _held = _adopt([wrong], {"a": "plot"}, fixed_by={"a": FIX})
+    assert adopted == ["a"] and data["cases"][0]["answer"]["script"]["pine"] == "plot" and data["cases"][0]["found"][0]["defect"] == "it was wrong"
+    assert data["cases"][0]["keep_record"] == "a test changes these lines"          # the word stays on the case
+
+
+def test_the_cases_that_say_keep_my_record_say_why_and_a_test_really_rests_on_each():
+    named = {c["id"]: c["keep_record"] for c in CASES if c.get("keep_record")}
+    assert set(named) == {"intraday-04"} and all(isinstance(why, str) and len(why) > 40 for why in named.values())
+    # the reason names a test file that exists and reads that case
+    for cid, why in named.items():
+        path = ROOT / why.split(" ")[0]
+        assert path.exists() and cid in path.read_text(encoding="utf-8"), (cid, why)
+    # the command prints them, from what THIS adoption kept (its code, never a comment)
+    import ast
+    main = next(n for n in ast.walk(ast.parse((ROOT / "tools" / "value_eval.py").read_text(encoding="utf-8"))) if isinstance(n, ast.FunctionDef) and n.name == "main")
+    loops = [n for n in ast.walk(main) if isinstance(n, ast.For) and isinstance(n.iter, ast.Call) and getattr(n.iter.func, "id", None) == "kept_lines"
+             and "kept_by_name" in ast.dump(n.iter)]
+    assert loops and any(isinstance(c, ast.Call) and getattr(c.func, "id", None) == "print" for n in loops for c in ast.walk(n))

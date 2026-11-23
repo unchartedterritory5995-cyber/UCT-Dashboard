@@ -69,9 +69,33 @@ class _Client:
     _api_key = "FAKE"
 
 
+#: The request path's own background threads (`bars_fetch._start_bounded_delta`'s provider repair and
+#: `_bounded_job`'s local rebuild). Each is short-lived; the pools' idle workers are not, and are never joined here.
+_REQUEST_THREAD_PREFIXES = ("bars-reqdelta-", "bars-job-")
+
+
+def _drain_request_work(sq, started_before, timeout=5.0):
+    """Teardown: finish what this test's requests left running while `_DB_PATH` is still THIS test's store.
+
+    Each test has its own bars.db (tmp_path), but every thread's connection follows the module's `_DB_PATH` through
+    `bump_db_epoch` (`bars_sqlite._conn`). A repair thread released here and still running after the epoch moves
+    reopens on the NEXT test's store and writes there, or opens it while that test's setup initialises it. Seen on
+    PR #2588's "Bars rails" (2026-11-23): `sqlite3.OperationalError: database is locked` at `init_db` ->
+    `PRAGMA journal_mode=WAL`, in the setup of the test after the one that left a repair running (Z1/Z2 pin it).
+    The proofs and seals the repair queued are written here too: tests/conftest.py turns the background meta flusher
+    off (BARS_META_FLUSH_SECONDS=0), so they would otherwise stay in the process buffer that `series_meta` merges into
+    every later read."""
+    deadline = time.monotonic() + timeout
+    for t in threading.enumerate():
+        if t not in started_before and t.name.startswith(_REQUEST_THREAD_PREFIXES):
+            t.join(max(0.0, deadline - time.monotonic()))
+    sq.flush_meta()
+
+
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     from api.services import bars_sqlite as sq
+    started_before = set(threading.enumerate())
     monkeypatch.setattr(sq, "_DB_PATH", str(tmp_path / "bars.db"))
     sq.bump_db_epoch()
     sq.init_db()
@@ -90,7 +114,9 @@ def env(tmp_path, monkeypatch):
     # teardown) — a "slow provider at the open" — and answers nothing.
     release = threading.Event()
     calls: list[str] = []
-    prov = {"answer": None}
+    # `release` / `started_before`: for `_provider_calls_after_the_answer`, which lets the provider answer and joins
+    # this test's repair threads before it counts
+    prov = {"answer": None, "release": release, "started_before": started_before}
 
     def _provider(client, url):
         calls.append(url)
@@ -102,7 +128,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(bars_fetch, "_paginate_massive_aggs", _provider)
     yield sq, calls, clock, prov
     release.set()
-    time.sleep(0.05)
+    _drain_request_work(sq, started_before)
     bars_fetch.cache.clear()
     sq.bump_db_epoch()
 
@@ -142,6 +168,34 @@ def _row_dicts(rows):
     return [dict(t=r[0], o=r[1], h=r[2], l=r[3], c=r[4], v=r[5]) for r in rows]
 
 
+def _first_provider_call(calls, timeout=5.0) -> bool:
+    """Wait (bounded) until the provider has been asked once. True when it was."""
+    deadline = time.monotonic() + timeout
+    while not calls and time.monotonic() < deadline:
+        time.sleep(0.01)
+    return bool(calls)
+
+
+def _provider_calls_after_the_answer(calls, prov, timeout=5.0):
+    """How many times the provider was asked by this request, counted once its repair thread has FINISHED.
+
+    The request path asks the provider on its OWN thread (`bars-reqdelta-*`, `bars_fetch._start_bounded_delta`), and
+    `_get_bars_inner` returns at the request deadline (0.3 s here) whether or not that thread has reached the provider:
+    before it does, it runs the local rebuild and its SQLite reads. On a loaded runner that took longer than the
+    deadline: master's deploy gate, 2026-11-23 13:26Z (run 45184001216, "Bars rails"), failed
+    `assert len(calls) == 1` with `0 == 1`, while the same failure report, rendered a moment later, already showed the
+    provider's URL in `calls`. So: wait (bounded) for the first call, then let the provider answer and JOIN this test's
+    repair threads (bounded), and only then count: a second call, however late, is counted (review of #2601, W-3: a
+    fixed settle after the first call missed one that came later). A provider never asked still reads 0."""
+    deadline = time.monotonic() + timeout
+    _first_provider_call(calls, timeout)
+    prov["release"].set()
+    for t in threading.enumerate():
+        if t not in prov["started_before"] and t.name.startswith(_REQUEST_THREAD_PREFIXES):
+            t.join(max(0.0, deadline - time.monotonic()))
+    return len(calls)
+
+
 @pytest.mark.parametrize("tf", ["30", "60"])
 def test_stale_derived_tf_first_answer_is_rebuilt_from_stored_15m_without_the_provider(env, tf):
     sq, calls, _, _ = env
@@ -169,22 +223,58 @@ def test_stale_derived_tf_first_answer_is_rebuilt_from_stored_15m_without_the_pr
 
 
 def test_CONTROL_stale_base_still_asks_the_provider_only_from_the_rebuilt_tail(env, monkeypatch):
-    sq, calls, _, _ = env
+    sq, calls, _, prov = env
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
     _seed(sq, "30", base_today_end=(9, 0))          # 15m stops at 08:45: not current
     bars_fetch._get_bars_inner("SPY", "30", 60)
-    assert len(calls) == 1, "a base that is not current cannot answer"
+    assert _provider_calls_after_the_answer(calls, prov) == 1, "a base that is not current cannot answer"
     assert sq.get_last_ts("SPY", "30") == _ts(2026, 11, 11, 8, 30), "covered part rebuilt locally"
     assert "/range/15/minute/2026-11-11/" in calls[0], "provider asked only from the rebuilt tail"
 
 
 def test_base_that_does_not_overlap_the_target_tail_is_never_used(env, monkeypatch):
-    sq, calls, _, _ = env
+    sq, calls, _, prov = env
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
     target = _seed(sq, "30", base_overlap=False)    # 15m only began today
     bars_fetch._get_bars_inner("SPY", "30", 60)
-    assert len(calls) == 1
+    assert _provider_calls_after_the_answer(calls, prov) == 1
     assert sq.get_last_ts("SPY", "30") == target[-1]["t"], "no fabricated contiguous tail"
+
+
+#: How long Z1's provider takes to answer: well past the request (0.3 s) and past the old teardown's 50 ms grace.
+_Z1_PROVIDER_S = 1.0
+
+
+def test_Z1_a_request_leaves_its_provider_repair_running_past_its_answer(env, monkeypatch):
+    """First half of a PAIR (Z2 reads what this leaves). The provider answers today's 15m rows _Z1_PROVIDER_S
+    after it is asked, long after the request returned (0.3 s deadline): the repair then WRITES (the 15m base, the
+    30m resample) through whatever store `_DB_PATH` names at that moment."""
+    sq, calls, _, prov = env
+    monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
+    _seed(sq, "30", base_today_end=(9, 0))
+    today = _session_rows(2026, 11, 11, 15, end=(9, 45))
+    prov["answer"] = lambda url: (time.sleep(_Z1_PROVIDER_S), [dict(t=b["t"] * 1000, o=b["o"], h=b["h"], l=b["l"],
+                                                                    c=b["c"], v=b["v"]) for b in today])[1]
+    bars_fetch._get_bars_inner("SPY", "30", 60)
+    assert _first_provider_call(calls) and len(calls) == 1
+    assert [t for t in threading.enumerate() if t.name.startswith("bars-reqdelta-SPY-30")], \
+        "the control cannot tell: the repair already finished"
+
+
+def test_Z2_the_next_tests_store_holds_nothing_of_it(env):
+    """Second half: this fresh store stays empty after Z1's provider has answered. Without the teardown drain, Z1's
+    repair wakes after this test's setup moved `_DB_PATH` here and writes SPY into THIS store (or locks it during
+    setup)."""
+    import sqlite3
+    sq, *_ = env
+    time.sleep(_Z1_PROVIDER_S + 1.0)
+    c = sqlite3.connect(sq._DB_PATH, timeout=5)
+    try:
+        rows = c.execute("SELECT ticker, tf FROM series_meta").fetchall()
+        bars = c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0]
+    finally:
+        c.close()
+    assert rows == [] and bars == 0, f"another test's repair wrote into this store: {rows}, {bars} bars"
 
 
 def test_a_thinner_base_never_downgrades_the_stored_overlap_bucket(env):
@@ -417,7 +507,7 @@ def test_forming_bucket_repair_blocks_exactly_as_master(env, monkeypatch, tf, en
     """Same-session first answer with the forming bucket absent: the repair is waited
     on for the full ceiling — whether or not the newest closed bucket is proven — and
     the answer carries no extra keys. This PR changes nothing here."""
-    sq, calls, _, _ = env
+    sq, calls, _, prov = env
     monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 1.0)
     rows = _seed_fine(sq, tf, end)
     if proven:
@@ -430,4 +520,4 @@ def test_forming_bucket_repair_blocks_exactly_as_master(env, monkeypatch, tf, en
     assert bars_fetch.get_serve_layer() == "sd-deadline"
     assert body["bars"][-1]["t"] == rows[-1]["t"]
     assert set(body) == {"ticker", "tf", "bars"}
-    assert len(calls) == 1
+    assert _provider_calls_after_the_answer(calls, prov) == 1

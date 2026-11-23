@@ -202,6 +202,45 @@ def _reset_uct_agent_meters():
 
 
 @pytest.fixture(autouse=True)
+def _reopen_the_bars_seed_pool_a_lifespan_test_stopped():
+    """A test that runs the real `api.main` lifespan through its shutdown half (the boot time box, the SPA
+    HEAD rail, any `with TestClient(app)` over api.main) stops the bars-seed pool for good, as a process
+    shutdown should (stream.shutdown_seed_pool). One pytest process is many "processes" in a row: without
+    this, every later test whose stream kicks a seed is silently refused (seen: a seed-kick test reading six
+    refusals, and `api/routers/stream_bars_test.py` expecting `seeded == ["AAPL"]`).
+
+    The same for the bars-warm pool (api/services/bars_fetch.py shutdown_bars_warm_pool, called by the same
+    lifespan): it is created AT IMPORT, so "reopen" is a fresh pool from the module's own factory
+    (`_new_bars_warm_pool`) in place of the stopped one (seen: test_bars_review_followups' warm_bars_async test
+    reading nothing after test_boot_does_not_wait_on_bars_db). tests/test_bars_warm_pool_shutdown.py T7/T8 are
+    the paired rails for both halves.
+
+    A pool left closed is reopened BEFORE each test and AFTER each test. Both halves are needed:
+      after   reaches the tests under api/** that follow in the same process (this conftest covers tests/
+              only, and every test that runs the real lifespan lives under tests/);
+      before  does not depend on fixture order. `monkeypatch` is created by the autouse fixtures above this
+              one, so it is torn down AFTER this fixture: a test that stops the pool and only then patches
+              `_seed_closed` back open records "closed" as the value to restore, and that undo runs after
+              the reset below. The next test's setup half is what reopens it.
+    Looked up via sys.modules (no forced import)."""
+    import sys
+
+    def _reopen():
+        mod = sys.modules.get("api.routers.stream")
+        if mod is not None and getattr(mod, "_seed_closed", False):
+            mod._seed_closed = False
+            mod._seed_pool = None
+        warm = sys.modules.get("api.services.bars_fetch")
+        if warm is not None and getattr(warm, "_bars_warm_closed", False):
+            warm._bars_warm_closed = False
+            warm._bars_warm_pool = warm._new_bars_warm_pool()
+
+    _reopen()
+    yield
+    _reopen()
+
+
+@pytest.fixture(autouse=True)
 def _reset_calendar_serve_stale():
     """Clear the Calendar's serve-stale slots between tests.
 

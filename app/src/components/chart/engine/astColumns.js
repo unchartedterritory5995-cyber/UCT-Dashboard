@@ -16,7 +16,7 @@
 // ⛔ ONE ADDITION, INERT ON THE CHART: `ctx.workSink` reaches every `interpret` here as
 // `opts.workSink`, where the evaluator counts its node evaluations (`interpret.js::evalNode`).
 // No chart sets it, so the chart's `interpret` options are the ones they were.
-import { interpret, listingSeedIsUnpinned } from './ast/interpret'
+import { interpret, listingSeedIsUnpinned, SERIES_UNKNOWN_BEFORE_FIRST } from './ast/interpret'
 import { ENGINE_ERROR, isRefusal } from './ast/parse'
 import { foldBound, bindConstsFor } from './ast/bind'
 import {
@@ -528,9 +528,32 @@ const OTHER_SYMBOLS = '__otherSymbols'
 
 function withOtherSymbols(out, other) {
   if (other) {
+    const beforeHeld = beforeHeldOf(other.symbols)
     Object.defineProperty(out, OTHER_SYMBOLS, {
-      value: Object.freeze({ served: other.served, refused: other.refused }), enumerable: false,
+      value: Object.freeze({ served: other.served, refused: other.refused, ...(beforeHeld.length ? { beforeHeld } : {}) }),
+      enumerable: false,
     })
+  }
+  return out
+}
+
+/** ⭐⭐ (engine 94, coordinator ruling 2026-11-22) — each served series whose first row is our store's depth
+ *  (`SERIES_UNKNOWN_BEFORE_FIRST`): `[{ticker, from}]`, `from` its first row's time. PLAIN DATA, not the series' own
+ *  non-enumerable mark: it rides the record across the host worker's `postMessage` (`AST_SIDE_RECORDS`), and the strip
+ *  says it (`nativeRegistry.externalReadNotices`, `otherSymbolBeforeHeldSentence`). */
+function beforeHeldOf(symbols) {
+  const out = []
+  for (const [ticker, series] of Object.entries(symbols || {})) {
+    if (!Array.isArray(series) || series[SERIES_UNKNOWN_BEFORE_FIRST] !== true) continue
+    let from = null
+    for (const b of series) {
+      const t = b && typeof b === 'object' ? b.t : undefined
+      if (typeof t === 'number' && Number.isFinite(t) && (from === null || t < from)) from = t
+    }
+    // ⛔ NOT frozen: the record is re-attached frozen at its top only (`AST_SIDE_RECORDS`), and a worker's answer is a
+    // structured clone, so a frozen entry here would make the main thread's bytes differ from the worker's
+    // (`hostLaneLearnedRoute.rail.test.js` E compares frozen depth too)
+    if (from !== null) out.push({ ticker, from })
   }
   return out
 }
@@ -544,7 +567,7 @@ export function otherSymbolReport(columns) {
 /** ⭐ ENGINE 56 — the key a column map carries its per-bar witness withholdings under,
  *  non-enumerable like `__chartClock`: plot key → `{code: Float64Array(0/1)}`. */
 const WITHHELD_BARS = '__withheldBars'
-function withWithheldBars(out, byKey) {
+export function withWithheldBars(out, byKey) {
   const rows = {}
   for (const [key, codes] of Object.entries(byKey || {})) {
     if (codes && codes.size) rows[key] = Object.freeze(Object.fromEntries(codes))

@@ -79,10 +79,21 @@ _BOOT_QUIET_S = {
 }
 
 
+def _assistant_model_setting() -> dict:
+    """{"assistant_model": "incompatible"} when an assistant is configured with a model that rejects the forced tool
+    call it makes (`api.services.forced_tool_choice`), else {}. It says only that: never the model or a variable."""
+    try:
+        from api.services import forced_tool_choice
+        problem = forced_tool_choice.startup_problem()
+    except Exception:  # noqa: BLE001 - observability never breaks the boot
+        problem = None
+    return {"assistant_model": problem} if problem else {}
+
+
 def _boot_summary() -> dict:
     marks = list(_BOOT_MARKS)
     if not marks:
-        return {}
+        return _assistant_model_setting()
     by = dict(marks)
     segs = [(marks[i][0], round(marks[i + 1][1] - marks[i][1], 2)) for i in range(len(marks) - 1)]
     return {
@@ -90,10 +101,16 @@ def _boot_summary() -> dict:
         "to_serving_s": round(by["ready"], 2) if "ready" in by else None,
         "slowest": [{"from": n, "s": d} for n, d in sorted(segs, key=lambda x: -x[1])[:5]],
         "previous_shutdown": _PREVIOUS_SHUTDOWN,
+        **_assistant_model_setting(),
     }
 
 
 def _boot_log() -> None:
+    try:  # ONE named error when the server starts with an assistant model that rejects its forced tool call
+        from api.services import forced_tool_choice
+        forced_tool_choice.log_startup_problem()
+    except Exception:  # noqa: BLE001 - observability never breaks the boot
+        pass
     try:
         b = _boot_summary()
         logging.getLogger("uct.boot").warning(
@@ -10984,6 +11001,28 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[startup] COT by trader type job registration failed (non-fatal): {e}")
 
+        # COT LEGACY BACKFILL (2026-11-22): the legacy store re-reads its ten seed years ONCE, so the weeks the
+        # code-first parser (PR #2533) now matches in past years (Hard Red Spring wheat, MW) are filled without the
+        # admin reseed. cot_service.legacy_backfill: daily at BACKFILL_RUN_AT_ET (22:40 ET, inside scan_period's quiet
+        # span every day, after the 21:10 trader-type run); one indexed read and nothing else once its marker
+        # (`legacy_backfill_v1` in cot.db) is written; an empty store stays the boot seed's job; a run that did not
+        # complete is asked again on a later day, at most once a day. Never on a member's request.
+        _boot_mark("COT-legacy-backfill")
+        try:
+            def _cot_legacy_backfill_job():
+                print(f"[scheduler] COT legacy one-time backfill check: {_cot_service.legacy_backfill()}")
+
+            _scheduler.add_job(
+                _cot_legacy_backfill_job,
+                trigger=CronTrigger(hour=_cot_service.BACKFILL_RUN_AT_ET[0],
+                                    minute=_cot_service.BACKFILL_RUN_AT_ET[1], timezone=_ET),
+                id="cot_legacy_backfill", max_instances=1, replace_existing=True, coalesce=True,
+                misfire_grace_time=1800,
+            )
+            print("[startup] COT legacy one-time backfill check scheduled -- daily 22:40 ET until it completes")
+        except Exception as e:
+            print(f"[startup] COT legacy backfill job registration failed (non-fatal): {e}")
+
         # Pine support loop, Phase B — the daily digest (docs/pine/support-loop/PHASE-B.md).
         # Light: two indexed SELECTs + one JSON read, cached per ET day; posts one admin
         # Discord line only when there is work (PINE_SUPPORT_DIGEST_POST=off silences it).
@@ -11473,6 +11512,20 @@ async def lifespan(app: FastAPI):
         _csg_stop.shutdown()
     except Exception as e:  # noqa: BLE001
         print(f"[shutdown] cold-preload pool stop failed (non-fatal): {type(e).__name__}")
+    # The same for the chart stream's bars-seed pool (api/routers/stream.py _kick_seed), measured holding the
+    # join the same way: "4 non-daemon thread(s) still running after 5s: bars-seed_0..3". Never fatal.
+    try:
+        from api.routers import stream as _seed_stop
+        _seed_stop.shutdown_seed_pool()
+    except Exception as e:  # noqa: BLE001
+        print(f"[shutdown] bars-seed pool stop failed (non-fatal): {type(e).__name__}")
+    # And the bars-warm pool (api/services/bars_fetch.py: warm_bars_async, the admin universe warm, scan_period's
+    # deep daily warm), measured holding the join after that fix: "bars-warm_0..3", exits at 12.0-12.6 s.
+    try:
+        from api.services import bars_fetch as _warm_stop
+        _warm_stop.shutdown_bars_warm_pool()
+    except Exception as e:  # noqa: BLE001
+        print(f"[shutdown] bars-warm pool stop failed (non-fatal): {type(e).__name__}")
 
     # ⚡ Last write before the pod goes away, so the REPLACEMENT boots warm.
     # Deliberately after the scheduler stops (no job can be mutating the cache

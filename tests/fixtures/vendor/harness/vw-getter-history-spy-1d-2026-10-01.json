@@ -382,9 +382,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_UMNzpObs32lJgiH5NFEO8A==_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",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_UMNzpObs32lJgiH5NFEO8A==_MeKZjraTgszCdbPxZLiOcPY9lcWzJxBKRa45QX8YnOC4f13yBhXWdtzl6SWSAQUC0p7KdLS2YBl+nKWQZLfIeR75TMrVCvhzjl4MXaZPPqQLMEnEyvK4KTO2GLt3/u+RXLXJaULlMoTEtJbBLQkZEX1IRBz/7hzg7+BW/Vx5+9hIv9OLKLIKT9F0utVlwSa5JQy69Ec8v43NjcgT/aBa8fGC3UVoDh7QZFwMMmROH3IqwgexODTmHjdhXGqdp5tbG5F0R6M3l7b3eznZ5arlqWl5XsRrrZZEuiPVtd3rigF2G635vlEfjhGCzvmAtEP/eJ75W5a7YFMJhEa55Qp+QmxzQ0SrX2d3GtL3EYk2IvoBH5gMdR/QJbnBpynKIbg/GyxpfqE+sBUJAVO+cfxrYP07IjEDNxYwRFfceA8VYWMAIFo24fzX+NY55LSq9itsF+awcKuqDvWyuzN5BGMfg/ECDLj59M4y/SX/DS2Zwh5E+zoIqS/4bc1WoOgez7ujqI6iD0vg7EJLQvjclvCYYHlTeutMAd3KUlbAYRF6K9cSG2tOlpWnuGm1aUsgcmLO1RnEEkI83DFdr/JMnnVQ3X2NWtjqlV2jDyfNjRENXDlzZo3OlRGO240nOArrh+AduHpPCdMMPftxvX02Zu+4QLFTIfU5bRpd5IaJfn/t75hXdfeZ04Kl8CNlh38jo+m7TZM0DlHODQeXIMDxJyYJFU5v5GPMj6B1oi1norX7t+rJLqgq8SN/43JeYomtoGBQJPXSpSwGTMZ7nkXC87LNbKNijwgJVg+lOvkvvl5HanmHIx3ds9IiHZrvePOfWcjzInaVXIynjVk584VVttJYlLuTaG116RieFaaxCoWp2jhcXxEYSjUxGm79Nkuc2u7cGzJbi3LN1Irx9JBe3ri+t0gI4Ga0pd/XB8kM1gKEkgBH5J3XwnvK6Wj/ZIgt9nVt3it8EspigV+8C5sBf0k62KT8b+fQEW2bn2A2KB5czu+5EM3/bdeibg3c4u9NP4om50CYl8oZM5arefYH290dDeNM1wGV+2Qnk0zvZnNPJoitzzybtEYZEj86v/w4/ZjI1XfhoWk+SxulbJ0NGhmHSeM0f3+d6bsaSScYef6rZ+qV0Uf8fwBuzyt7yq70LrXDi5dHsTYqiepSuGCMBZ5WYIzufdADASb5p6X034rNK356yfikivbeo9bqnC9RdfHxPda45SN+LiH8OjytMtV40f1MTOQ1wBq8KFwwAeecSkhG7vz+6HO9ukGcwVFmQ50F8Vz05aTPpcBf54cCzVDFIMqhPlyPQxpYGDfS/UxYz5tyRKE8sQQBi2ffWDdQf3yONisvNlzpmC/SDDms6pjbKLU2d4iO1Gn800t3uTZmgx+hw/I7uvAG3vOOsatWSAS9WE6cD52cZU5X59Po4LtW/TXrukmjtIZ2iiEYqRf1CAQg2Jz4Yt9pzowb1JJ6Ywx4o2JiE/gIV8voQNQc7upE07YktiAL4W/PwjWMxfrSRiC+64Ms8/1ElVq8KGISebq6uXC7EssVJ1jQ/Av3IqKz01vUL5a63DQYlRMVZw+H2064fbKMVgX41npzghImtsxPKaz9aRSPU1omVfRpXxhaHPhKtsnVo4heiPnoKZI/JVSdov96OHFptP/0fBFyHeSAqIoPtS6lhuVXFEHZHd6Eoi4jOfHB3lStI5IhxZaZOsCkpOUQ0tkZT+JfEB8ghdbApRB2adt+GA27WFStX844/XY6qvyVy/iWGVFNdr70sTIK39z6/NHg6HD6p8YdzFLFNUze7wUq/AOj6pQas7me/kTWa0qQlA2IBm1qEW4rzdP/x/Cd0uwJHeQk6EOH3afN+BvyF/YaEtx/lR609cx3+85O+gCVJhyoR1RdZp37P1gRGdvW6SuIzQW3GuUYEXKWduSqboSTlVmrAwCT06JNSSFJWm+3JNircGyDUQI/DXvI28oPlExqEpKongFpTHTdazcKxMN8IFkt5nsll5yiY0HO74qa0ajaBQisj0dwhqIU11KkPMHlvN7pvub0V04Zli7OiAVdz4+BWjsgg9rcig3pJDSeeQqU68I/gy00naUJnCNogKh24R+ZeS43+/XJoGWc27GlG9cYA4VVh+JE7jYfsIt8beO/HDxl0FrIvVFLer4gCNUeRDOYW6/TUeHHYQqtyzHj16n5CsrSj8oKNKVPuzhX4uRWMEBt6HU0HFFQlYW4GAOeDX4iHP64uPDI0wTSfuIHSYNIylqc7rbE9qmFtajlDnVN8ZlH13PXbQu1MuNFp1Z0j4YTniHyGvfOx8Ojst4UDYZnJwghQWm0GYkx+J1VvWa4C5KVVCphZTtGAOBm633pp53QXu6fwPgd/zt04G6cgII7gEg6urzATuX0Z+CtVLV0UXgJPIPS/G1hNG2CqxhUY8shrGwF7enUUKg6XqHvnkZ5MfBODAuGJEBVQ0NbPgBIO77r+0wgqECXqxw+rVVEzOVI/WrOHI7cJ6xQ6M/j09QCvJHHkrgCA98qm+pM6qM/SaXtmSngmXRw526HyRUbjSUUDjqRgICrk80gcWt47WOW8dtKWH/+kje8n8uWloQH3OHQFdLWPo99fNmHUFixHvr1+42w2u717NHTKTlBdqa8lwF0T7w+OQ0q6VBiwrt3lJntAY0cOBJLLo/QPjHaRlmC+izU1vFQvIKgTG7doQ2Iv+OtDD/u7V0Olij1cCptu7q6hhoqe3lODZix/9BVu2yESOG6P7dn2vm398dsmdxYIXoBz55ChxKtMfQ2IgV711gwAPFkVbDO5zeWUbKBMK052KiErzVnkRj6HtaQyCE+kzJqmtNjaA7PhI2yO9MM6q2KRhzYrYlM2UWpkPHV5S/6s5A5q3Cq/c0aqMNK5hT1nNVOHKQ3qZjA1nGuthvo1DIijGv831Thj9Eg3N6hOJhBNeNFdViyf72JX77t7NY05B/jkwB60quHwU9KWmf2NBwfctXwYHLTdO4PuTsWC3zX/cFjMRvaEmFFaOmhHJSOcWyzM5V4HXQJn8GKXlFf0uuoPAYL7fYRY/fpvBe6mxNerwpBKR0hDKtugNfOlC8pmsGzFSY3+S8ElYggPNtcLY9MsIyeTVXcha0RjDDAjg93FzXHCUCif8pviwvDyOrcRTAxxpQOayj4iOoh5lsfkdCndaJ/OBZw/ZrKkVoSyYgG/Hn8wP6K2msZBNVKNVsFinUG6L/lG2PAbrYNMH0TIOS89NapeZ2qD+4Fm/qSDBx7q4Yy2IJSGsp2l1cUOLWGfFAdKVvxHV2ccRg="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -8143,10 +8143,38 @@
  "warnings": [
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 3326,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 64642,
+    "fnv1a": 1137738140
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:46Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 3326,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 64642,
+    "fnv1a": 1137738140
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:46Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 64642,
-  "fnv1a": 1137738140
+  "chars": 58654,
+  "fnv1a": 2406807703
  }
 }

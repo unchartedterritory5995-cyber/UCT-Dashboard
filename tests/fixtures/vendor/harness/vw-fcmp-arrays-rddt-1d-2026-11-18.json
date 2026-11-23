@@ -418,7 +418,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_e50sQoOx4ID54rxcgVdNoA==_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"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -19280,10 +19280,25 @@
   "newestBarIsForming: the caller asserted true, but the newest bar's period (the session close of the bar's trading day (session_holidays read)) ends 2026-11-18T21:00:00.000Z and the capture is at 2026-11-18T22:06:23.204Z — recorded false, the chart's own answer",
   "the newest D/W/M bar closed less than 5 h before this capture: TradingView confirms such a bar hours after the regular close (measured between 19:22 and 20:55 ET, docs/pine/barstate.md ruling 3.1), so the vendor's own barstate.isconfirmed may still read 0 on it"
  ],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 2094,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 82194,
+    "fnv1a": 3721242094
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:45Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 82194,
-  "fnv1a": 3721242094
+  "chars": 80439,
+  "fnv1a": 3253120613
  }
 }

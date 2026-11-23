@@ -186,7 +186,7 @@ def test_the_date_numbers_a_turn_may_use():
 def test_a_date_number_the_turn_did_not_supply_is_refused(tree, how):
     supplied = dc.supplied_date_numbers(WORDS, {"dates": dc.dates_named(WORDS, NOW)}, None, None)
     exc = refused_by(dc.check_date_numbers, created(tree), supplied)
-    assert exc is not None and exc.gate == "envelope:reference", tree
+    assert exc is not None and exc.gate == "envelope:date-number", tree
     told = exc.for_model()
     for piece in (how, "a date number this turn did not give you", "A date's number is never worked out",
                   "2026-06-02 is 1780372800", "ask for it in plain words (the day, the month and the year), and never ask for a number"):
@@ -252,7 +252,7 @@ def test_THE_FINDING_the_recorded_answer_is_refused_and_the_repair_carries_the_r
 def test_an_answer_that_works_the_date_out_twice_changes_nothing(conv, clean_env, model):
     client = model([emits(from_the_date(WRONG)), emits(from_the_date(WRONG + 86400))])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=CHART)
-    assert r["ok"] is False and r["gate"] == "envelope:reference" and len(client.calls) == 2
+    assert r["ok"] is False and r["gate"] == "envelope:date-number" and len(client.calls) == 2
     assert not (r.get("envelope") or {}).get("ops")
 
 

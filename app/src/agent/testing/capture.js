@@ -158,7 +158,12 @@ export function captureCase(spec, c, mode, { isProtectedLayout = null, catalogs 
         }),
       } : null
       if (t.pending) history = [...history, { role: 'member', text: t.pending.request }]
-      req = buildNl1Request({ host, text: t.say, capCtx: CAP_CTX, manageIndicators: managesIndicators(host), memory, pendingQuestion: pq, isProtectedLayout, budget })
+      // the member's previous message, as the panel passes it (useAgent: the chat's last member line before this one). A
+      // single case's `hist` alternates member / UCT lines (member first); a conversation's history carries its roles.
+      const said = Array.isArray(c.turns) ? history.filter(h => h.role === 'member').map(h => h.text)
+        : [...(c.hist || []).filter((_, i) => i % 2 === 0), ...(t.pending ? [t.pending.request] : [])]
+      const prevText = said[said.length - 1] || ''
+      req = buildNl1Request({ host, text: t.say, capCtx: CAP_CTX, manageIndicators: managesIndicators(host), memory, pendingQuestion: pq, isProtectedLayout, budget, prevText })
     } else {
       // today: a local question is stored in the browser; the model sees only that one was asked
       if (t.pending) history = [...history, { role: 'member', text: t.pending.request }, { role: 'outcome', text: 'Asked which target.', data: { kind: 'clarify-target' } }]
