@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 1803,
+  "passed": 1798,
+  "failed": 4,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 415.25,
+  "failed_files": [
+    "tests/test_terminal_seen.py",
+    "tests/test_terminal_unusual_volume_scan.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "4 failed, 1798 passed, 1 skipped, 16 warnings in 415.25s (0:06:55)",
+  "ok": true
+}

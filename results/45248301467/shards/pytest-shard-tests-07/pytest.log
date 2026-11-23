@@ -1,0 +1,440 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  8%]
+........................................F.............................F. [  9%]
+..............+++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~~~~~~~ Stack of chart-heal (129112359630528) ~~~~~~~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/discord_interactions.py", line 2047, in _run
+    out = heal_stand_in(app_id, token, req, headline, produce=produce, edit_fn=edit_fn)
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/discord_interactions.py", line 2011, in heal_stand_in
+    sleep(delay)
+~~~~~~~~~~~~~~ Stack of flow-conviction-warmer (129113781618368) ~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_summary.py", line 523, in _warm_loop
+    time.sleep(45)  # under _CACHE_TTL (60s) so the cache never expires cold
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+F....................................................................... [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 26%]
+........................................................................ [ 28%]
+........................................................................ [ 29%]
+........................................................................ [ 30%]
+..................................................................sss... [ 32%]
+......s...........sss................................................... [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 40%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 53%]
+.......................................................F................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 62%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+.............................................................
+[evst] heavy study: 6662 sessions, 6661 episodes, 4 windows: 0.18s wall, 0.18s CPU (this process)
+........... [ 72%]
+........................................................................ [ 74%]
+........................................................................ [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+................................................                         [100%]
+=================================== FAILURES ===================================
+_________ test_build_commands_has_chart_alias_and_settings_subcommands _________
+
+    def test_build_commands_has_chart_alias_and_settings_subcommands():
+        from api.services.discord_interactions import build_commands, build_chart_command, GUILD_ONLY
+        cmds = {c["name"]: c for c in build_commands()}
+>       assert set(cmds) == {"chart", "c", "chartsettings", "buzz", "flow", "lesson"}  # six doors since /lesson
+E       AssertionError: assert {'buzz', 'c',..., 'flow', ...} == {'buzz', 'c',...ow', 'lesson'}
+E         
+E         Extra items in the left set:
+E         'study'
+E         'cot'
+E         'news'
+E         
+E         Full diff:
+E           {
+E               'buzz',
+E               'c',
+E               'chart',
+E               'chartsettings',
+E         +     'cot',
+E               'flow',
+E               'lesson',
+E         +     'news',
+E         +     'study',
+E           }
+
+tests/test_discord_chart_prefs.py:85: AssertionError
+_____________ test_a_weekly_strip_is_the_developing_weeks_numbers ______________
+
+    def test_a_weekly_strip_is_the_developing_weeks_numbers():
+        b = _daily()
+        st = compute_stats(b, "W")
+        week = b[-5:]
+        assert st["period"] == "W" and st["avg_bars"] == 10
+        assert (st["open"], st["high"], st["low"], st["close"]) == (
+            week[0]["o"], max(x["h"] for x in week), min(x["l"] for x in week), week[-1]["c"])
+        assert st["volume"] == sum(x["v"] for x in week) == 5 * 14_000_000
+        prev_close = b[-6]["c"]
+        assert abs(st["day_pct"] - (week[-1]["c"] / prev_close - 1) * 100) < 1e-9, "the change is the WEEK's"
+        assert abs(st["gap_pct"] - (week[0]["o"] / prev_close - 1) * 100) < 1e-9
+        prior = [5 * 1_000_000 * (w + 1) for w in range(3, 13)]                 # the 10 completed weeks before
+>       assert st["avg_vol"] == sum(prior) / 10 and st["avg_vol_50"] is None
+E       assert (41300000.0 == (425000000 / 10))
+E        +  where 425000000 = sum([20000000, 25000000, 30000000, 35000000, 40000000, 45000000, ...])
+
+tests/test_discord_chart_weekly_stats.py:41: AssertionError
+__________ test_a_note_that_cannot_be_written_still_posts_the_charts ___________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x756d5107aa20>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_a_note_that_cannot_be_wri0')
+
+    def test_a_note_that_cannot_be_written_still_posts_the_charts(monkeypatch, tmp_path):
+        import datetime as _dt
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+        monkeypatch.setenv("DISCORD_INDEX_CLOSE_ENABLED", "1")
+        monkeypatch.setenv("DISCORD_TSDR_WEBHOOK_URL", "https://discord.test/hook")
+        monkeypatch.setattr(idx, "pick_notable", lambda **k: [])
+        posts = []
+>       rep = idx.run_close_post(
+            bars_fn=lambda s, tf, n: [{"t": 20260827, "o": 1, "h": 2, "l": 1, "c": 1.5, "v": 9}],
+            house_fn=lambda *a: b"png", stats_fn=lambda b: {}, name_fn=lambda s, tf, t: f"{s}.png",
+            note_fn=lambda moves: (_ for _ in ()).throw(RuntimeError("model down")),
+            post_fn=lambda url, p, f: posts.append(p["content"]) or True,
+            now_et=_dt.datetime(2026, 8, 27, 15, 45))
+
+tests/test_discord_close_note.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+api/services/discord_index_close.py:417: in run_close_post
+    return _run_close_post_locked(report, now, day, bars_fn=bars_fn, house_fn=house_fn,
+api/services/discord_index_close.py:445: in _run_close_post_locked
+    report["warm_waited_s"] = round(wait_until_warm(sleep_fn=sleep_fn), 1)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+sleep_fn = None, uptime_fn = None
+
+    def wait_until_warm(sleep_fn=None, uptime_fn=None) -> float:
+        """Block until the pod has been up WARM_MIN_UPTIME_S. Returns seconds waited.
+    
+        An unknown uptime waits NOTHING: a clock we cannot read must not be able to
+        silence a scheduled public post."""
+        sleep = sleep_fn or time.sleep
+        up = (uptime_fn or uptime_seconds)()
+        if up is None or up >= WARM_MIN_UPTIME_S:
+            return 0.0
+        wait = WARM_MIN_UPTIME_S - up
+        log.info("[index-close] pod is %.0fs old; waiting %.0fs for it to warm before rendering", up, wait)
+>       sleep(wait)
+E       Failed: Timeout (>120.0s) from pytest-timeout.
+
+api/services/discord_index_close.py:178: Failed
+----------------------------- Captured stderr call -----------------------------
+2026-11-23 19:49:41,992 INFO api.services.discord_index_close: [index-close] pod is 49s old; waiting 251s for it to warm before rendering
+------------------------------ Captured log call -------------------------------
+INFO     api.services.discord_index_close:discord_index_close.py:177 [index-close] pod is 49s old; waiting 251s for it to warm before rendering
+______________ test_forward_includes_ended_but_unreported_quarter ______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x756d977efef0>
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_forward_includes_ended_bu0')
+
+    def test_forward_includes_ended_but_unreported_quarter(monkeypatch, tmp_path):
+        # THE 2026-07-02 MXL bug: two days after the Jun-30 quarter END (weeks
+        # before its REPORT), the old `period_end < today` filter dropped the
+        # Jun-quarter estimate row and the blind-sequential labels pinned the
+        # Sep-quarter numbers under the "2026 Q2" label — all four forward cards
+        # shifted one quarter, and every YoY % compared the wrong quarters.
+        et = _mod(monkeypatch, tmp_path)
+        import api.services.earnings_table as etmod
+    
+        fake_year = _realistic_year({
+            2025: {1: (0.10, 1.0e8), 2: (0.20, 1.2e8), 3: (0.30, 1.4e8), 4: (0.40, 1.6e8)},
+            2026: {1: (0.22, 1.37e8)},          # only Q1 reported as of early July
+        })
+    
+        def fake_fmp(path, params, timeout=10):
+            if "analyst-estimates" in path:
+                return [
+                    {"date": "2026-03-31", "epsAvg": 0.18, "revenueAvg": 1.35e8},  # reported → skip
+                    {"date": "2026-06-30", "epsAvg": 0.30, "revenueAvg": 1.60e8},  # ended, unreported → KEEP
+                    {"date": "2026-09-30", "epsAvg": 0.38, "revenueAvg": 1.74e8},
+                    {"date": "2026-12-31", "epsAvg": 0.41, "revenueAvg": 1.81e8},
+                    {"date": "2027-03-31", "epsAvg": 0.38, "revenueAvg": 1.78e8},
+                    {"date": "2027-06-30", "epsAvg": 0.44, "revenueAvg": 1.92e8},
+                ]
+            if "stable/earnings" in path:   # the next scheduled report
+                return [{"date": "2026-07-28", "epsActual": None, "revenueActual": None}]
+            return None
+    
+        monkeypatch.setenv("FUNDAMENTALS_FMP_ANALYST_ESTIMATES", "1")
+        monkeypatch.setattr(etmod.ee, "get_year_earnings", fake_year)
+        route_fmp(monkeypatch, fake_fmp)
+        import calendar, time
+        now = calendar.timegm(time.strptime("2026-07-02", "%Y-%m-%d"))
+        q = et._build_quarterly("ZZMXL", now)
+        fwd = [r for r in q if not r["reported"]]
+>       assert [r["label"] for r in fwd] == ["2026 Q2", "2026 Q3", "2026 Q4", "2027 Q1"]
+E       AssertionError: assert ['2026 Q3', '...1', '2027 Q2'] == ['2026 Q2', '...4', '2027 Q1']
+E         
+E         At index 0 diff: '2026 Q3' != '2026 Q2'
+E         
+E         Full diff:
+E           [
+E         -     '2026 Q2',
+E               '2026 Q3',
+E               '2026 Q4',
+E               '2027 Q1',
+E         +     '2027 Q2',
+E           ]
+
+tests/test_earnings_table.py:129: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_discord_render_adapters.py::test_the_v2_handlers_bind_adapters_and_not_the_raw_clients[_chart_kwargs]
+tests/test_earnings_intel_model.py::TestFiscalIdentity::test_consensus_rows_placed_by_report_date_not_calendar_quarter
+tests/test_earnings_reaction.py::TestSurvivability::test_a_bars_failure_returns_empty_instead_of_raising
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3454: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_discord_render_adapters.py::test_the_v2_handlers_bind_adapters_and_not_the_raw_clients[_chart_kwargs]
+tests/test_earnings_intel_model.py::TestFiscalIdentity::test_consensus_rows_placed_by_report_date_not_calendar_quarter
+tests/test_earnings_reaction.py::TestSurvivability::test_a_bars_failure_returns_empty_instead_of_raising
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:3457: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback)).strftime("%Y-%m-%d")
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:740: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_discord_render_forensics.py::test_c09_background_work_yields_to_members_in_the_queue_and_is_capped_at_the_renderer
+tests/test_discord_render_forensics.py::test_c13_a_playwright_call_log_carrying_the_render_token_is_scrubbed_before_it_is_logged
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:847: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+tests/test_discord_render_symbols.py::test_the_pre_v2_dispatch_chooses_the_partition_from_the_symbol
+tests/test_discord_render_symbols.py::test_an_equity_still_reads_the_stocks_partition
+tests/test_discord_render_symbols.py::test_an_unknown_symbol_takes_flow_sources_documented_default
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/watchlist_card.py:131: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_earnings_warm_row_adapter.py::test_run_submits_stale_names_and_reports_what_topn_dropped
+tests/test_earnings_warm_row_adapter.py::test_companions_are_submitted_for_a_name_the_preview_filter_drops
+tests/test_earnings_warm_row_adapter.py::test_companions_off_leaves_the_brief_budget_exactly_as_it_was
+tests/test_earnings_warm_row_adapter.py::test_a_brief_still_rides_its_own_row_not_a_board_row
+tests/test_earnings_warm_row_adapter.py::test_companions_look_further_ahead_than_the_briefs
+tests/test_earnings_warm_row_adapter.py::test_the_census_counts_coverage_from_artifacts_not_from_its_own_queue
+tests/test_earnings_warm_row_adapter.py::test_a_broken_warm_says_so_at_warning
+tests/test_earnings_warm_row_adapter.py::test_a_fully_covered_board_stays_silent
+tests/test_earnings_warm_row_adapter.py::test_coverage_does_not_demand_a_brief_the_pass_never_promised
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/_pytest/threadexception.py:82: PytestUnhandledThreadExceptionWarning: Exception in thread earn-warm-batch-preview
+  
+  Traceback (most recent call last):
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+      self.run()
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+      self._target(*self._args, **self._kwargs)
+    File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/earnings_preview_warm.py", line 540, in _close_after
+      wait(futures, timeout=6 * 3600)
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py", line 289, in wait
+      with _AcquireFutures(fs):
+           ^^^^^^^^^^^^^^^^^^^
+    File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/_base.py", line 149, in __enter__
+      future._condition.acquire()
+      ^^^^^^^^^^^^^^^^^
+  AttributeError: 'NoneType' object has no attribute '_condition'
+  
+    warnings.warn(pytest.PytestUnhandledThreadExceptionWarning(msg))
+
+tests/test_econ_search.py: 91 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_entitlements.py::test_NOTHING_under_api_SLICES_A_SERIES_BY_A_TOOLKIT_NUMBER__BY_AST
+tests/test_entitlements.py::test_the_NUMBERS_live_in_exactly_ONE_place
+tests/test_entitlements_manifest.py::test_no_python_product_path_reads_the_manifest
+tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:539: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    d = datetime.utcnow()
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:180: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_a_PAID_member_is_NOT_refused_on_any_route_gated_here
+tests/test_exposed_routes_gated.py::test_the_paid_pass_produces_REAL_successes_not_just_absence_of_refusal
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/insider.py:330: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7278 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:158: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 7278 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/rs_ranking.py:159: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:65: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py: 22 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/sector_strength.py:66: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=calendar_days)).strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2171: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    to_date = datetime.utcnow().strftime("%Y-%m-%d")
+
+tests/test_exposed_routes_gated.py::test_an_ADMIN_is_not_refused_on_the_admin_routes
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/bars_fetch.py:2172: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    from_date = (datetime.utcnow() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+
+tests/test_feature_flag_ledger.py::test_every_off_by_default_gate_is_declared
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+tests/test_feature_flag_ledger.py::test_the_ledger_does_not_describe_gates_that_no_longer_exist
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_document_ocr.py:642: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:668: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:683: no tesseract binary on this machine — the real-engine rail cannot run here (the dark-by-default rails above still do)
+SKIPPED [1] tests/test_document_ocr.py:832: no tesseract binary on this machine: the member-facing chain needs the real engine
+SKIPPED [1] tests/test_document_ocr.py:1060: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1084: no tesseract binary on this machine
+SKIPPED [1] tests/test_document_ocr.py:1112: no tesseract binary on this machine
+FAILED tests/test_discord_chart_prefs.py::test_build_commands_has_chart_alias_and_settings_subcommands - AssertionError: assert {'buzz', 'c',..., 'flow', ...} == {'buzz', 'c',...ow', 'lesson'}
+  
+  Extra items in the left set:
+  'study'
+  'cot'
+  'news'
+  
+  Full diff:
+    {
+        'buzz',
+        'c',
+        'chart',
+        'chartsettings',
+  +     'cot',
+        'flow',
+        'lesson',
+  +     'news',
+  +     'study',
+    }
+FAILED tests/test_discord_chart_weekly_stats.py::test_a_weekly_strip_is_the_developing_weeks_numbers - assert (41300000.0 == (425000000 / 10))
+ +  where 425000000 = sum([20000000, 25000000, 30000000, 35000000, 40000000, 45000000, ...])
+FAILED tests/test_discord_close_note.py::test_a_note_that_cannot_be_written_still_posts_the_charts - Failed: Timeout (>120.0s) from pytest-timeout.
+FAILED tests/test_earnings_table.py::test_forward_includes_ended_but_unreported_quarter - AssertionError: assert ['2026 Q3', '...1', '2027 Q2'] == ['2026 Q2', '...4', '2027 Q1']
+  
+  At index 0 diff: '2026 Q3' != '2026 Q2'
+  
+  Full diff:
+    [
+  -     '2026 Q2',
+        '2026 Q3',
+        '2026 Q4',
+        '2027 Q1',
+  +     '2027 Q2',
+    ]
+4 failed, 5163 passed, 7 skipped, 14738 warnings in 700.06s (0:11:40)

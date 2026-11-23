@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 48,
+  "passed": 47,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 11.88,
+  "failed_files": [
+    "tests/discord_render/test_cold_path_boot_preload_wiring.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 47 passed, 3 warnings in 11.88s",
+  "ok": true
+}

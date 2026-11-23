@@ -1,0 +1,17 @@
+{
+  "suite": "pytest",
+  "collected": 4237,
+  "passed": 4182,
+  "failed": 4,
+  "errored": 0,
+  "skipped": 51,
+  "wall_s": 849.2,
+  "failed_files": [
+    "tests/test_hub_sandbox_model_keys.py",
+    "tests/test_journal_styles_schema.py",
+    "tests/test_journal_two_derivation_versions.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "4 failed, 4182 passed, 51 skipped, 3470 warnings in 849.20s (0:14:09)",
+  "ok": true
+}

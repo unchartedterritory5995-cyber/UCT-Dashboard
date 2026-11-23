@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 5589,
+  "passed": 5588,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 859.78,
+  "failed_files": [
+    "tests/test_value_cases.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 5588 passed, 26 warnings in 859.78s (0:14:19)",
+  "ok": true
+}

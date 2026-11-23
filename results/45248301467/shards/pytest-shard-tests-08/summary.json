@@ -1,0 +1,19 @@
+{
+  "suite": "pytest",
+  "collected": 3255,
+  "passed": 3226,
+  "failed": 13,
+  "errored": 1,
+  "skipped": 15,
+  "wall_s": 459.82,
+  "failed_files": [
+    "tests/test_flat_top_golden.py",
+    "tests/test_flow_lanes_failed_call_charged.py",
+    "tests/test_flow_prepare.py",
+    "tests/test_flow_read_gate_manifest.py",
+    "tests/test_flow_rth_guard.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "13 failed, 3226 passed, 15 skipped, 25 warnings, 1 error in 459.82s (0:07:39)",
+  "ok": true
+}

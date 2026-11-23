@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 2418,
+  "passed": 2416,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 530.05,
+  "failed_files": [
+    "api/services/journal_two/note_connectors/test_connector_corpora.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 2416 passed, 1 skipped, 38 warnings in 530.05s (0:08:50)",
+  "ok": true
+}

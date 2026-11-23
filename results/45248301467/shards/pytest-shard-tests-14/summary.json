@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 3167,
+  "passed": 3163,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 1,
+  "wall_s": 529.96,
+  "failed_files": [
+    "tests/test_pattern_scan_depth_and_sym.py",
+    "tests/test_persistence_manifest_server_keys.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 3163 passed, 1 skipped, 5 warnings in 529.96s (0:08:49)",
+  "ok": true
+}

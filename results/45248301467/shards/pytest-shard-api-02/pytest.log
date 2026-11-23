@@ -1,0 +1,189 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  7%]
+........................................................................ [ 10%]
+........................................................................ [ 13%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+........................................................................ [ 21%]
+................................................F....................... [ 23%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+....................F................................................... [ 34%]
+........................................................................ [ 37%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 47%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 69%]
+........................................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 90%]
+...................................F.........................ssss....... [ 93%]
+........................................................................ [ 95%]
+..................................................................F..... [ 98%]
+..........................................                               [100%]
+=================================== FAILURES ===================================
+_______ test_distinct_custom_tags_past_the_cap_convert_linearly_in_order _______
+
+    def test_distinct_custom_tags_past_the_cap_convert_linearly_in_order():
+        """D3 re-review r2 (N4): past the depth cap `_flat_chain` wrapped every leaf in one element
+        per open inline tag NAME, custom tags included, so `<x0><x1>…` built a chain as deep as the
+        name count: 1,000 names raised RecursionError, and 3,000 with words took 11.5 s (every leaf
+        built the whole chain). Only mark tags and `a` carry anything, so only they are chained."""
+        import re
+        import time
+    
+        def run(n):
+            html = _distinct_custom_tags(n)
+            started = time.perf_counter()
+            out = html_to_tiptap(html)
+            elapsed = time.perf_counter() - started
+            got = re.findall(_WORD_RE, " ".join(r["text"] for r in _texts(out["doc"])))
+            assert got == [f"w{i}" for i in range(n)]
+            return elapsed
+    
+        small, big = run(1000), run(5000)
+>       assert big / max(small, 1e-3) < 12, (small, big)  # linear is 5x; quadratic is 25x
+E       AssertionError: (0.006069456999995282, 0.15052206400000046)
+E       assert (0.15052206400000046 / 0.006069456999995282) < 12
+E        +  where 0.006069456999995282 = max(0.006069456999995282, 0.001)
+
+api/services/journal_two/test_note_convert_d3.py:724: AssertionError
+______ test_no_python_source_splits_into_more_lines_than_it_has_newlines _______
+
+    def test_no_python_source_splits_into_more_lines_than_it_has_newlines():
+        """M-2's hazard as a property of the tree: a raw U+2028/U+2029 (or any other
+        character `str.splitlines()` breaks on) inside a source file puts every rail
+        that maps `node.lineno` through `splitlines()` one line off below it."""
+        from pathlib import Path
+    
+        root = Path(__file__).resolve().parents[3]
+        offenders, scanned = [], 0
+        for top in ("api", "tools", "scripts", "tests"):
+            for path in (root / top).rglob("*.py"):
+                text = path.read_bytes().decode("utf-8", errors="replace").replace("\r\n", "\n")
+                scanned += 1
+                newline_lines = text.count("\n") + (0 if (not text or text.endswith("\n")) else 1)
+                if len(text.splitlines()) != newline_lines:
+                    offenders.append(path.relative_to(root).as_posix())
+        assert scanned > 2000, scanned          # 3,779 files when written
+>       assert not offenders, offenders
+E       AssertionError: ['tests/test_agent_ci_required.py']
+E       assert not ['tests/test_agent_ci_required.py']
+
+api/services/journal_two/test_note_convert_mddoc.py:1143: AssertionError
+__________________ test_lock_releases_on_holder_process_exit ___________________
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_lock_releases_on_holder_p0')
+
+    @requires_posix
+    def test_lock_releases_on_holder_process_exit(tmp_path):
+        """When the lock-holding process exits, the OS releases the flock.
+        A new process can then acquire it. This is what guarantees we don't
+        leak locks across container restarts."""
+        lock_path = str(tmp_path / "sched.lock")
+        ctx = multiprocessing.get_context("spawn")
+    
+        def _short_lived_holder(p):
+            from api.services import scheduler_lock as sl
+            sl.acquire_scheduler_lock(path=p)
+            # Process exits immediately, releasing the flock
+    
+        holder = ctx.Process(target=_short_lived_holder, args=(lock_path,))
+>       holder.start()
+
+api/services/scheduler_lock_test.py:136: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/process.py:121: in start
+    self._popen = self._Popen(self)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/context.py:289: in _Popen
+    return Popen(process_obj)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/popen_spawn_posix.py:32: in __init__
+    super().__init__(process_obj)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/popen_fork.py:19: in __init__
+    self._launch(process_obj)
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/popen_spawn_posix.py:47: in _launch
+    reduction.dump(process_obj, fp)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+obj = <SpawnProcess name='SpawnProcess-2' parent=2385 initial>
+file = <_io.BytesIO object at 0x7f12c4901080>, protocol = None
+
+    def dump(obj, file, protocol=None):
+        '''Replacement for pickle.dump() using ForkingPickler.'''
+>       ForkingPickler(file, protocol).dump(obj)
+E       AttributeError: Can't get local object 'test_lock_releases_on_holder_process_exit.<locals>._short_lived_holder'
+
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/multiprocessing/reduction.py:60: AttributeError
+________________ test_router_breadth_row_carries_null_entity_id ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f12c4963980>
+
+    def test_router_breadth_row_carries_null_entity_id(monkeypatch):
+        from api.routers import ticker_search as router_mod
+        import api.services.breadth_symbols as breadth_symbols
+    
+        monkeypatch.setattr(
+            breadth_symbols, "search",
+            lambda qq, limit: [{"ticker": "UCTA50", "name": "Above 50-day", "symbol_hit": True}],
+        )
+        resp = router_mod.ticker_search(q="UCTA50", limit=20, type="breadth")
+>       assert resp["results"]
+E       assert []
+
+api/services/test_ticker_search_entity_master_integration.py:225: AssertionError
+=============================== warnings summary ===============================
+api/services/journal_two/note_connectors/providers/obsidian.py:964
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/services/journal_two/test_note_convert_mddoc.py::test_the_invisible_character_class_is_defined_once_under_api
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+api/services/journal_two/test_obsidian_ingest.py::test_redeem_does_not_require_a_session_cookie
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+api/services/test_brain_sync.py::test_sync_installs_new_pack
+api/services/test_brain_sync.py::test_sync_skips_when_current
+api/services/test_brain_sync.py::test_sync_fires_on_install_callbacks
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/brain_sync.py:101: DeprecationWarning: Python 3.14 will, by default, filter extracted tar archives and reject files or modify their metadata. Use the filter argument to control this behavior.
+    tf.extractall(staging, members=members)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] api/services/test_brain_service.py:85: uct-intelligence submodule not checked out
+SKIPPED [1] api/services/test_brain_service.py:94: uct-intelligence submodule not checked out
+SKIPPED [1] api/services/test_brain_service.py:101: uct-intelligence submodule not checked out
+SKIPPED [1] api/services/test_brain_service.py:114: uct-intelligence submodule not checked out
+FAILED api/services/journal_two/test_note_convert_d3.py::test_distinct_custom_tags_past_the_cap_convert_linearly_in_order - AssertionError: (0.006069456999995282, 0.15052206400000046)
+assert (0.15052206400000046 / 0.006069456999995282) < 12
+ +  where 0.006069456999995282 = max(0.006069456999995282, 0.001)
+FAILED api/services/journal_two/test_note_convert_mddoc.py::test_no_python_source_splits_into_more_lines_than_it_has_newlines - AssertionError: ['tests/test_agent_ci_required.py']
+assert not ['tests/test_agent_ci_required.py']
+FAILED api/services/scheduler_lock_test.py::test_lock_releases_on_holder_process_exit - AttributeError: Can't get local object 'test_lock_releases_on_holder_process_exit.<locals>._short_lived_holder'
+FAILED api/services/test_ticker_search_entity_master_integration.py::test_router_breadth_row_carries_null_entity_id - assert []
+4 failed, 2698 passed, 4 skipped, 7 warnings in 462.44s (0:07:42)

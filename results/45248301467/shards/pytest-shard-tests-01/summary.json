@@ -1,0 +1,16 @@
+{
+  "suite": "pytest",
+  "collected": 2634,
+  "passed": 2631,
+  "failed": 3,
+  "errored": 0,
+  "skipped": 0,
+  "wall_s": 561.26,
+  "failed_files": [
+    "tests/test_a12_s6_consistency_rail.py",
+    "tests/test_a8_taxonomy.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "3 failed, 2631 passed, 36 warnings in 561.26s (0:09:21)",
+  "ok": true
+}

@@ -1,0 +1,169 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  3%]
+........................................................................ [  7%]
+........................................................................ [ 11%]
+..........................s............................................. [ 15%]
+........................................................................ [ 19%]
+........................................................................ [ 23%]
+........................................................................ [ 27%]
+........................................................................ [ 31%]
+........................................................................ [ 35%]
+........................................................................ [ 39%]
+........................................................................ [ 43%]
+........................................................................ [ 47%]
+........................................................................ [ 51%]
+........................................................................ [ 55%]
+........................................................................ [ 59%]
+........................................................................ [ 63%]
+........................................................................ [ 67%]
+........................................................................ [ 71%]
+........................................................................ [ 75%]
+........................................................................ [ 79%]
+........................................................................ [ 83%]
+........................................................................ [ 87%]
+........................................................................ [ 91%]
+........................................................................ [ 95%]
+.........................................................F.......FFF.... [ 99%]
+...                                                                      [100%]
+=================================== FAILURES ===================================
+_______________________ test_route_answers_and_is_gated ________________________
+
+client = (<starlette.testclient.TestClient object at 0x7f1d53037d10>, {'user': {'email': 'a@example.test', 'id': 't13-member-a', 'role': 'admin'}})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1d21fce1b0>
+
+    def test_route_answers_and_is_gated(client, monkeypatch):
+        c, state = client
+        r = c.post("/api/terminal/seen/cn", json={"sym": "nvda", "keys": ["2026-10-07|a"]})
+>       assert r.status_code == 200 and r.json()["first_visit"] is True and r.json()["code"] == "CN"
+E       assert (404 == 200)
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+tests/test_terminal_seen.py:128: AssertionError
+________ test_by_now_reads_the_live_reading_highest_first_and_dates_it _________
+
+served = <module 'api.services.screener.snapshot_db' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/screener/snapshot_db.py'>
+
+    def test_by_now_reads_the_live_reading_highest_first_and_dates_it(served):
+        out = _run("now_base")
+>       assert [r["ticker"] for r in out["rows"]] == ["CALM", "BUSY"]          # HEAVY is quiet today (0.7x)
+E       AssertionError: assert [] == ['CALM', 'BUSY']
+E         
+E         Right contains 2 more items, first extra item: 'CALM'
+E         
+E         Full diff:
+E         + []
+E         - [
+E         -     'CALM',
+E         -     'BUSY',
+E         - ]
+
+tests/test_terminal_unusual_volume_scan.py:116: AssertionError
+______ test_the_floors_keep_funds_cheap_and_thin_names_off_both_readings _______
+
+served = <module 'api.services.screener.snapshot_db' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/screener/snapshot_db.py'>
+
+    def test_the_floors_keep_funds_cheap_and_thin_names_off_both_readings(served):
+        for name in ("now_base", "last_base"):
+            got = set(_tickers(name))
+            assert not got & {"FUND", "CHEAP", "THIN"}, name
+        # CONTROL: each of the three really is loud enough to be listed without its floor
+        for drop, back in (("security_type", "FUND"), ("price", "CHEAP"), ("dollar_vol_30d", "THIN")):
+            body = dict(REQUESTS["now_base"]["body"])
+            body["filters"] = [f for f in body["filters"] if f["key"] != drop]
+>           assert back in [r["ticker"] for r in query.run_scan(body)["rows"]], drop
+E           AssertionError: security_type
+E           assert 'FUND' in []
+
+tests/test_terminal_unusual_volume_scan.py:133: AssertionError
+_________ test_the_direction_and_the_multiple_are_rules_on_the_server __________
+
+served = <module 'api.services.screener.snapshot_db' from '/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/screener/snapshot_db.py'>
+
+    def test_the_direction_and_the_multiple_are_rules_on_the_server(served):
+>       assert _tickers("now_up_3") == ["CALM"]                                # 5.5x and up; BUSY is down
+E       AssertionError: assert [] == ['CALM']
+E         
+E         Right contains one more item: 'CALM'
+E         
+E         Full diff:
+E         + []
+E         - [
+E         -     'CALM',
+E         - ]
+
+tests/test_terminal_unusual_volume_scan.py:137: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964
+tests/test_term048_watchlist_alerts_s7.py::test_nothing_re_arms_a_watchlist_alert_row
+tests/test_terminal_next_flag.py::test_the_gate_is_VISIBLE_to_the_AST_index_and_demands_a_ledger_entry
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_term048_watchlist_alerts_s7.py::test_nothing_re_arms_a_watchlist_alert_row
+tests/test_terminal_next_flag.py::test_the_gate_is_VISIBLE_to_the_AST_index_and_demands_a_ledger_entry
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_term069_chain_leg_retired.py::test_nothing_under_api_imports_the_retired_chain_module
+tests/test_term069_chain_leg_retired.py::test_nothing_under_api_reads_a_yfinance_option_chain_except_the_named_module
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+  <unknown>:186: SyntaxWarning: invalid escape sequence '\['
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+  <unknown>:968: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+  <unknown>:262: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+  <unknown>:55: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+  <unknown>:3: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+  <unknown>:1347: SyntaxWarning: invalid escape sequence '\d'
+
+tests/test_test_discovery_coverage.py::test_no_production_module_is_wearing_a_test_name
+  <unknown>:627: SyntaxWarning: invalid escape sequence '\w'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_survivorship_is_declared.py:91: no local screener.db to measure against
+FAILED tests/test_terminal_seen.py::test_route_answers_and_is_gated - assert (404 == 200)
+ +  where 404 = <Response [404 Not Found]>.status_code
+FAILED tests/test_terminal_unusual_volume_scan.py::test_by_now_reads_the_live_reading_highest_first_and_dates_it - AssertionError: assert [] == ['CALM', 'BUSY']
+  
+  Right contains 2 more items, first extra item: 'CALM'
+  
+  Full diff:
+  + []
+  - [
+  -     'CALM',
+  -     'BUSY',
+  - ]
+FAILED tests/test_terminal_unusual_volume_scan.py::test_the_floors_keep_funds_cheap_and_thin_names_off_both_readings - AssertionError: security_type
+assert 'FUND' in []
+FAILED tests/test_terminal_unusual_volume_scan.py::test_the_direction_and_the_multiple_are_rules_on_the_server - AssertionError: assert [] == ['CALM']
+  
+  Right contains one more item: 'CALM'
+  
+  Full diff:
+  + []
+  - [
+  -     'CALM',
+  - ]
+4 failed, 1798 passed, 1 skipped, 16 warnings in 415.25s (0:06:55)

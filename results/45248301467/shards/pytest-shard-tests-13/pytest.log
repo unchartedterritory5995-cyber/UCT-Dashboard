@@ -1,0 +1,197 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  2%]
+........................................................................ [  5%]
+........................................................................ [  8%]
+........................................................................ [ 11%]
+........................................................................ [ 13%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 22%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+.................................................................FFFF... [ 33%]
+...............................................................s........ [ 35%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+.........................s.............................................. [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 49%]
+........................................................................ [ 52%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 63%]
+........................................................................ [ 66%]
+........................................................................ [ 69%]
+...............s........................................................ [ 71%]
+........................................................................ [ 74%]
+........................................................................ [ 77%]
+........................................................................ [ 80%]
+......[dormant] self-heal rebuilt active set (0 active)
+.................................................................. [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+........................................................................ [ 93%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+..............                                                           [100%]
+=================================== FAILURES ===================================
+_ test_reader_door_without_a_session_reads_no_body[/api/j2/entry-context/why] __
+
+db_path = '/tmp/tmplx4_ja65.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7648d9a8acf0>
+door = ('notebook_entry_context', 'api.services.journal_two.entry_context', 'PUT', '/api/j2/entry-context/why')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.entry_context' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmplx4_ja65.db
+_ test_reader_door_without_a_session_reads_no_body[/api/j2/plan-grades/trades/t1/relink] _
+
+db_path = '/tmp/tmphe5zrmcy.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7648da2db290>
+door = ('notebook_plan_grades', 'api.services.journal_two.plan_grading', 'POST', '/api/j2/plan-grades/trades/t1/relink')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.plan_grading' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmphe5zrmcy.db
+__ test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery] __
+
+db_path = '/tmp/tmpaxsgj09s.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7648da2db890>
+door = ('notebook_template_gallery', 'api.services.journal_two.template_gallery', 'POST', '/api/j2/template-gallery')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpaxsgj09s.db
+_ test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery/g1/report] _
+
+db_path = '/tmp/tmpv5pk_sn9.db'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7648da2db7a0>
+door = ('notebook_template_gallery', 'api.services.journal_two.template_gallery', 'POST', '/api/j2/template-gallery/g1/report')
+
+    @pytest.mark.parametrize("door", REAL_WRITE_DOORS, ids=[d[3] for d in REAL_WRITE_DOORS])
+    def test_reader_door_without_a_session_reads_no_body(db_path, monkeypatch, door):
+        import importlib
+        name, svc_name, method, path = door
+        svc = importlib.import_module(svc_name)
+>       monkeypatch.setenv(svc.FLAG, "1")
+E       AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+
+tests/test_notebook_upload_cap_2.py:340: AttributeError
+---------------------------- Captured stdout setup -----------------------------
+[auth] Migrated: added email_verified column to users
+[auth] Migrated: added last_login_at column to users
+[auth] Migrated: added referral_code column to users
+[auth] Migrated: added full_name column to users
+[auth] Migrated: added toolkit column to users
+[auth] Migrated: added user_agent column to sessions
+[auth] Migrated: added ip_address column to sessions
+[auth] Migrated: added last_seen_at column to sessions
+[auth] Database ready at /tmp/tmpv5pk_sn9.db
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_notebook_widgets_service.py:3
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_notebook_widgets_service.py:3: SyntaxWarning: invalid escape sequence '\d'
+    Every consumed function is monkeypatched: no network, no live data, no C:\data.
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_notebook_upload_cap.py: 2 warnings
+tests/test_notebook_voice_notes.py: 43 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+tests/test_notes_answer_is_the_committed_row.py::test_no_note_writer_under_api_re_reads_after_its_commit
+tests/test_oi44_loop_blockers_gate.py::test_no_loop_blocking_route_handler_beyond_the_named_partner_owned_exception
+tests/test_oi44_loop_blockers_gate.py::test_the_allowlist_itself_still_names_a_real_route_and_is_not_stale
+tests/test_oi44_loop_blockers_gate.py::test_oi_confirmation_map_specifically_no_longer_blocks_the_loop
+tests/test_open_reads_gate.py::test_the_flag_is_declared_as_a_MODE_with_OFF_as_its_default
+tests/test_ops_second_transport.py::test_the_recipients_variable_NAME_comes_from_the_RESOLVER_not_a_literal
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_oi_morning.py::test_render_returns_png
+tests/test_oi_morning.py::test_render_returns_png
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/oi_morning.py:442: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    for (r, g, b, a) in lg.getdata()])
+
+tests/test_open_reads_gate.py::test_i_ENFORCE_admits_an_ADMIN_session[/openapi.json]
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID chart_markers_endpoint_api_chart_markers__ticker__get for function chart_markers_endpoint at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/routers/earnings.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_open_reads_gate.py::test_i_ENFORCE_admits_an_ADMIN_session[/openapi.json]
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID test_discord_post_api_live_test_discord_post_get for function test_discord_post at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_open_reads_gate.py::test_i_ENFORCE_admits_an_ADMIN_session[/openapi.json]
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/openapi/utils.py:225: UserWarning: Duplicate Operation ID admin_clear_before_date_api_live_admin_clear_before_date_get for function admin_clear_before_date at /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/liveflow_router.py
+    warnings.warn(message, stacklevel=1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_notebook_voice_notes.py:256: no ffmpeg on this box
+SKIPPED [1] tests/test_notebook_wave8_walk.py:636: could not import 'playwright._impl._helper': No module named 'playwright'
+SKIPPED [1] tests/test_nyse_calendar_vendor_evidence.py:141: the 60m capture is kept outside git: C:/Users/Patrick/AppData/Local/uct-vendor-batch/runs/probes2-2026-09-28/captures/vw-clock-close-tfchange-spy-60-2026-09-28.json
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/entry-context/why] - AttributeError: module 'api.services.journal_two.entry_context' has no attribute 'FLAG'
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/plan-grades/trades/t1/relink] - AttributeError: module 'api.services.journal_two.plan_grading' has no attribute 'FLAG'
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery] - AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+FAILED tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/template-gallery/g1/report] - AttributeError: module 'api.services.journal_two.template_gallery' has no attribute 'FLAG'
+4 failed, 2599 passed, 3 skipped, 59 warnings in 619.20s (0:10:19)

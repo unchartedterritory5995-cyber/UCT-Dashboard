@@ -1,0 +1,216 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  1%]
+........................................................................ [  2%]
+........................................................................ [  3%]
+........................................................................ [  5%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 10%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 16%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 21%]
+........................................................................ [ 23%]
+........................................................................ [ 24%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 29%]
+........................................................................ [ 30%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 45%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 56%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 61%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 66%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 85%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 90%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 96%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+...........................................+++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+~~~~~~~~~~~~~~ Stack of flow-conviction-warmer (136881043920576) ~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/home/runner/work/UCT-Dashboard/UCT-Dashboard/api/flow_summary.py", line 523, in _warm_loop
+    time.sleep(45)  # under _CACHE_TTL (60s) so the cache never expires cold
+~~~~~~~~~~~~~~~~~ Stack of mi-event-study_0 (136882956531392) ~~~~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/thread.py", line 90, in _worker
+    work_item = work_queue.get(block=True)
+~~~~~~~~~~~~~~~~~~~ Stack of mi-breadth_0 (136882922968768) ~~~~~~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/thread.py", line 90, in _worker
+    work_item = work_queue.get(block=True)
+~~~~~~~~~~~~~~~~ Stack of mi-breadth-events_0 (136882939750080) ~~~~~~~~~~~~~~~~
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1075, in _bootstrap_inner
+    self.run()
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/concurrent/futures/thread.py", line 90, in _worker
+    work_item = work_queue.get(block=True)
++++++++++++++++++++++++++++++++++++ Timeout ++++++++++++++++++++++++++++++++++++
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_below_it_is_red _
+
+tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_THE_RATCHET_the_first_ful0')
+
+    def test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_below_it_is_red(tmp_path):
+        data = _unset(DATA)
+        assert data["thresholds"]["formula"] is None and data["thresholds"]["wall"] is None
+        (tmp_path / "a").mkdir()
+        full = value_eval.grade_run(data, _answers_dir(tmp_path / "a"))
+        verdict = value_eval.apply_ratchet(data, full)
+        # the line is what the run got RIGHT: a known defect is below it from the start, and fixing one raises nothing by itself
+        assert verdict["ok"] and data["thresholds"]["formula"] == len(RIGHT) and data["thresholds"]["wall"] == len(RIGHT_WALL)
+        # a later full run with one formula wrong is below the line: red, and the line does not move
+        late = copy.deepcopy(RIGHT[0]["answer"])
+        for o in _outputs(late):
+            o["tree"] = _late(o["tree"])
+        (tmp_path / "b").mkdir()
+        worse = value_eval.grade_run(data, _answers_dir(tmp_path / "b", changed={RIGHT[0]["id"]: late}))
+        verdict = value_eval.apply_ratchet(data, worse)
+        assert verdict["ok"] is False and "formula" in verdict["below"]
+        assert data["thresholds"]["formula"] == len(RIGHT)
+        # LANE BY LANE: a lane with a request unanswered is neither written nor tested; a lane fully answered is
+        data2 = _unset(DATA)
+        (tmp_path / "c").mkdir()
+        partial = value_eval.grade_run(data2, _answers_dir(tmp_path / "c", missing={FORMULA[0]["id"]}))
+        verdict = value_eval.apply_ratchet(data2, partial)
+        assert verdict["ok"] and data2["thresholds"]["formula"] is None and data2["thresholds"]["wall"] == len(RIGHT_WALL)
+        # and a run that answers no lane fully touches nothing
+        data3 = copy.deepcopy(DATA)
+        (tmp_path / "d").mkdir()
+>       thin = value_eval.grade_run(data3, _answers_dir(tmp_path / "d", missing={FORMULA[0]["id"], WALL[0]["id"]}))
+
+tests/test_value_cases.py:432: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tools/value_eval.py:85: in grade_run
+    result = G.grade_case(case, fresh[case["id"]])
+tools/value_cases/grade.py:291: in grade_case
+    result = grade(case['id'], answer, case.get('chart', 'daily'))
+tools/value_cases/grade.py:129: in grade
+    cols = [(name, *evaluate(tree, inputs, chart, calc)) for name, tree in built]
+tools/value_cases/grade.py:90: in evaluate
+    return _interpret(tree, c['bars'], inputs, c['tf'], c['symbols']), None
+tools/value_cases/grade.py:78: in _interpret
+    return [_num(x) for x in ast_interpret.interpret(call_expansions.expand_calls(tree), bars, inputs, None, None, {'tf': tf, 'symbols': symbols})]
+api/services/ast_interpret.py:5082: in interpret
+    column = _interpret_column(ast, bars, inputs, budget, scalars, opts)
+api/services/ast_interpret.py:9632: in _interpret_column
+    return _to_column(eval_node(ast), length)
+api/services/ast_interpret.py:8681: in eval_node
+    _value = _eval_raw(n)
+api/services/ast_interpret.py:8903: in _eval_raw
+    return run_recurrence(n, spec)
+api/services/ast_interpret.py:9432: in run_recurrence
+    nxt = step(body, j, history)
+api/services/ast_interpret.py:9161: in step
+    got = columns.get(sk(x), _MISSING)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+x = {'args': [{'args': [{'name': 'close', 'type': 'series'}, {'args': [{...}], 'type': 'offset', 'value': 1}], 'name': '>'...], 'name': '?:', 'type': 'op'}, {'type': 'num', 'value': 0}], 'name': '?:', 'type': 'op'}], 'name': '?:', 'type': 'op'}
+
+    def sk(x: Any) -> Any:
+>       got = _id_of.get(id(x))
+E       Failed: Timeout (>120.0s) from pytest-timeout.
+
+api/services/ast_interpret.py:9095: Failed
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_uct_agent_latency.py::test_the_stream_route_is_gzip_exempt
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_uct_agent_qa_member_refused.py: 20 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_uct_agent_v2_cost_measure.py::test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off
+  tests/test_uct_agent_v2_cost_measure.py:97: PytestWarning: record_property is incompatible with junit_family 'xunit2' (use 'legacy' or 'xunit1')
+    def test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off(record_property):
+
+tests/test_uct_agent_v2_cost_measure.py::test_the_flagship_worst_case_is_over_the_cap_and_may_not_grow_while_v2_is_off
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/tests/test_uct_agent_v2_cost_measure.py:114: UserWarning: planner v2 flagship worst case $0.3641 is over the $0.25 cap: v2 cannot be enabled until an owner decision
+    warnings.warn(f"planner v2 flagship worst case ${r['worst_turn_usd']:.4f} is over the ${v2.DEFAULT_TURN_USD} cap: "
+
+tests/test_user_definition_edit_forget.py::test_forget_has_a_PRODUCTION_call_site_and_it_is_the_write_path
+tests/test_user_definition_edit_forget.py::test_user_value_functions_docstring_claim_about_forget_is_TRUE_now
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_value_cases.py::test_THE_RATCHET_the_first_full_run_writes_the_threshold_and_a_later_run_below_it_is_red - Failed: Timeout (>120.0s) from pytest-timeout.
+1 failed, 5588 passed, 26 warnings in 859.78s (0:14:19)

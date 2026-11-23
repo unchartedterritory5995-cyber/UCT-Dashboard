@@ -1,0 +1,316 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+......................F................................................. [  1%]
+........................................................................ [  2%]
+........................................................................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  8%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 13%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 17%]
+........................................................................ [ 18%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 22%]
+...................sss...sss...ss....ss....s.....s.....s.....s.....ss... [ 23%]
+.ss....s.....s.......................................................... [ 24%]
+........................................................................ [ 26%]
+...........................................s.....s...................... [ 27%]
+...................sss...sss...s.....s.................................. [ 28%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 32%]
+........................................................................ [ 33%]
+........................................................................ [ 34%]
+........................................................................ [ 36%]
+........................................................................ [ 37%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 42%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 48%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+..................................................x..
+[TERM-030] week-contract readers outside api.routers.calendar: 10
+    FROZEN    api.services.calendar_alerts._get_reporters_for_date_with_status
+    asserted  api.services.calendar_week_poster.build_payloads
+    asserted  api.services.earnings_calendar_audit._get_week
+    asserted  api.services.earnings_preview_warm._rank
+    asserted  api.services.earnings_season.read_week
+    BARE      api.services.fed_watch._calendar_payloads
+    asserted  api.services.journal_two.earnings_followup._board_names
+    asserted  api.services.research.earnings_ai_adapter._cross_check_live_window
+    asserted  api.services.uct_agent.marketdata.earnings_reactions.cached_day
+    asserted  api.services.wire.detector.todays_reporters
+[TERM-030] owner-internal readers (denominator, not in scope): 8 — asserted 1
+    asserted  api.routers.calendar._collect_reporters_for_ics
+    bare      api.routers.calendar._days_for_date
+    bare      api.routers.calendar.cached_report_session
+    bare      api.routers.calendar.get_month_calendar
+    bare      api.routers.calendar.most_anticipated_png
+    bare      api.routers.calendar.refresh_calendar
+    bare      api.routers.calendar.rewarm_current_week_once
+    bare      api.routers.calendar.sector_read
+F.................. [ 52%]
+....F........................................F.......................... [ 53%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 58%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 64%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 69%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 80%]
+........................................................................ [ 82%]
+........................................................................ [ 83%]
+........................................................................ [ 84%]
+........................................................................ [ 85%]
+........................................................................ [ 87%]
+........................................................................ [ 88%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 93%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 98%]
+........................................................................ [ 99%]
+............................                                             [100%]
+=================================== FAILURES ===================================
+_______ test_snapshot_records_the_vendor_data_time_beside_unchanged_rows _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ce8260cd910>
+
+    def test_snapshot_records_the_vendor_data_time_beside_unchanged_rows(monkeypatch):
+        from api.services import massive
+        c = massive._MassiveRestClient.__new__(massive._MassiveRestClient)
+        c._api_key = "k"
+        now = 1_791_830_000.0
+        monkeypatch.setattr(massive.time, "time", lambda: now)
+        tickers = [{"ticker": f"T{i}", "updated": int((now - 900 - i) * 1e9),
+                    "day": {"c": 10, "v": 5}, "prevDay": {"c": 9}, "lastTrade": {"p": 10}}
+                   for i in range(100)]
+        tickers.append({"ticker": "FUT", "updated": int((now + 3600) * 1e9), "day": {"c": 1}})
+        tickers.append({"ticker": "NOSTAMP", "day": {"c": 1}})
+        monkeypatch.setattr(c, "_get", lambda url: {"tickers": tickers}, raising=False)
+        out = c.get_full_market_snapshot()
+>       assert set(out["T0"]) == {"last_price", "prev_close", "today_vol", "prev_vol", "day_open",
+                                  "day_high", "day_low", "last_trade_ns"}
+E       AssertionError: assert {'day_close',...rade_ns', ...} == {'day_high', ...v_close', ...}
+E         
+E         Extra items in the left set:
+E         'min_t_ms'
+E         'min_close'
+E         'day_close'
+E         
+E         Full diff:
+E           {
+E         +     'day_close',
+E               'day_high',
+E               'day_low',
+E               'day_open',
+E               'last_price',
+E               'last_trade_ns',
+E         +     'min_close',
+E         +     'min_t_ms',
+E               'prev_close',
+E               'prev_vol',
+E               'today_vol',
+E           }
+
+tests/test_breadth_pipeline_current.py:259: AssertionError
+________ test_every_reader_outside_the_owner_calls_the_shared_assertion ________
+
+capsys = <_pytest.capture.CaptureFixture object at 0x7ce825030ec0>
+
+    def test_every_reader_outside_the_owner_calls_the_shared_assertion(capsys):
+        readers, _ = _full_census()
+        outside = {r: ok for r, ok in readers.items() if not r.startswith(OWNER + ".")}
+        owner = {r: ok for r, ok in readers.items() if r.startswith(OWNER + ".")}
+        with capsys.disabled():
+            print(f"\n[TERM-030] week-contract readers outside {OWNER}: {len(outside)}")
+            for r in sorted(outside):
+                tag = 'asserted' if outside[r] else ('FROZEN  ' if r in FROZEN else 'BARE    ')
+                print(f"    {tag}  {r}")
+            print(f"[TERM-030] owner-internal readers (denominator, not in scope): {len(owner)}"
+                  f" — asserted {sum(owner.values())}")
+            for r in sorted(owner):
+                print(f"    {'asserted' if owner[r] else 'bare    '}  {r}")
+        assert outside, "the census found no readers at all — it cannot be seeing the source"
+        assert owner, "the census found no owner-internal readers — it cannot be seeing the router"
+        bare = sorted(r for r, ok in outside.items() if not ok and r not in FROZEN)
+>       assert not bare, f"week-contract readers with no week_days() assertion: {bare}"
+E       AssertionError: week-contract readers with no week_days() assertion: ['api.services.fed_watch._calendar_payloads']
+E       assert not ['api.services.fed_watch._calendar_payloads']
+
+tests/test_calendar_week_contract.py:443: AssertionError
+_________________ test_most_anticipated_card_render_is_pinned __________________
+
+    def test_most_anticipated_card_render_is_pinned():
+        """calendar_png_common is shared by all three cards, so a change there
+        reaches this already-shipped one too. The hash is a TRIPWIRE, not a
+        freeze: when a deliberate chrome change trips it, look at the render and
+        re-pin. Last re-pinned 2026-07-30 for the full-bleed logo tile (which
+        also nudged the monogram corner radius 0.22 -> 0.24)."""
+        import hashlib
+        from api.services.calendar_anticipated_png import render_anticipated_png
+        entries = [
+            {"sym": "AAPL", "name": "Apple Inc.", "timing": "amc", "weekday": "MON",
+             "mc_b": 3400.0, "logo_path": None},
+            {"sym": "MSFT", "name": "Microsoft Corporation", "timing": "bmo",
+             "weekday": "WED", "mc_b": 3100.0, "logo_path": None},
+            {"sym": "NVDA", "name": "NVIDIA Corporation", "timing": "amc",
+             "weekday": "THU", "mc_b": 4200.0, "logo_path": None},
+            {"sym": "XOM", "name": "Exxon Mobil Corporation", "timing": "bmo",
+             "weekday": "FRI", "mc_b": 480.0, "logo_path": None},
+            {"sym": "KO", "name": "The Coca-Cola Company", "timing": "bmo",
+             "weekday": "TUE", "mc_b": 290.5, "logo_path": None},
+            {"sym": "F", "name": "Ford Motor Company", "timing": "amc",
+             "weekday": "TUE", "mc_b": 0.42, "logo_path": None},
+        ]
+        got = hashlib.sha256(
+            render_anticipated_png("Week of Aug 3-7, 2026", entries)).hexdigest()
+>       assert got == "f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c"
+E       AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+E         
+E         - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+E         + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+
+tests/test_calendar_week_post.py:283: AssertionError
+_________ test_unmarked_rows_render_byte_identical_to_before_the_marks _________
+
+    def test_unmarked_rows_render_byte_identical_to_before_the_marks():
+        """A row with no honesty fields must not change at all: pinned against the
+        pre-change renderer's bytes (sha256 of the same input on master bda17ea4ce)."""
+        import hashlib
+        week = [_day(f"D{i}", n_bmo=5, n_amc=3, n_tbd=2) for i in range(5)]
+        got = hashlib.sha256(render_earnings_week_png("Week of Aug 3-7, 2026", week)).hexdigest()
+>       assert got == "b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d"
+E       AssertionError: assert 'bae70540fcc6...f8a2aaf88f38c' == 'b34d84a1187e...2eef649f6e58d'
+E         
+E         - b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d
+E         + bae70540fcc6f41a2bd54a4cf2ab509383688b76f91a1d11314f8a2aaf88f38c
+
+tests/test_calendar_week_post.py:814: AssertionError
+=============================== warnings summary ===============================
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+api/baselines.py:456
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+<unknown>:964: 1 warning
+tests/test_cadence_heartbeat.py: 1 warning
+tests/test_calendar_week_contract.py: 3 warnings
+tests/test_canonical_address_book.py: 6 warnings
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+tests/test_calendar_ics_token_v2.py::test_an_anonymous_scope_all_is_capped_and_says_so
+tests/test_calendar_ics_token_v2.py::test_under_the_cap_nothing_is_cut_and_no_notice_is_added
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:484: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+tests/test_chart_renderer_signed_out.py: 3 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:740: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("startup")
+
+tests/test_chart_renderer_admin_recycle.py: 64 warnings
+tests/test_chart_renderer_pool.py: 34 warnings
+tests/test_chart_renderer_service.py: 12 warnings
+tests/test_chart_renderer_signed_out.py: 6 warnings
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/fastapi/applications.py:4495: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    return self.router.on_event(event_type)
+
+tests/test_chart_renderer_admin_recycle.py: 32 warnings
+tests/test_chart_renderer_pool.py: 17 warnings
+tests/test_chart_renderer_service.py: 6 warnings
+tests/test_chart_renderer_signed_out.py: 3 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/services/chart_renderer/app.py:847: DeprecationWarning: 
+          on_event is deprecated, use lifespan event handlers instead.
+  
+          Read more about it in the
+          [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+          
+    @app.on_event("shutdown")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+SKIPPED [1] tests/test_chart_parity_harness.py:46: chart_parity imports playwright at module scope
+SKIPPED [30] tests/test_bs_iv.py:49: price pinned to intrinsic floor; no recoverable vol
+XFAIL tests/test_calendar_week_contract.py::test_a_malformed_week_fails_calendar_alerts_by_name - calendar_alerts is frozen by S7 (see FROZEN)
+FAILED tests/test_breadth_pipeline_current.py::test_snapshot_records_the_vendor_data_time_beside_unchanged_rows - AssertionError: assert {'day_close',...rade_ns', ...} == {'day_high', ...v_close', ...}
+  
+  Extra items in the left set:
+  'min_t_ms'
+  'min_close'
+  'day_close'
+  
+  Full diff:
+    {
+  +     'day_close',
+        'day_high',
+        'day_low',
+        'day_open',
+        'last_price',
+        'last_trade_ns',
+  +     'min_close',
+  +     'min_t_ms',
+        'prev_close',
+        'prev_vol',
+        'today_vol',
+    }
+FAILED tests/test_calendar_week_contract.py::test_every_reader_outside_the_owner_calls_the_shared_assertion - AssertionError: week-contract readers with no week_days() assertion: ['api.services.fed_watch._calendar_payloads']
+assert not ['api.services.fed_watch._calendar_payloads']
+FAILED tests/test_calendar_week_post.py::test_most_anticipated_card_render_is_pinned - AssertionError: assert '814a9107c457...e7d9627274bdd' == 'f1ae5925d8d8...fc17075e86d0c'
+  
+  - f1ae5925d8d831afff593177813d75518587518dca245ce9b3bfc17075e86d0c
+  + 814a9107c457afb2317fcc8d49c5e2ce60fea889e08b325febfe7d9627274bdd
+FAILED tests/test_calendar_week_post.py::test_unmarked_rows_render_byte_identical_to_before_the_marks - AssertionError: assert 'bae70540fcc6...f8a2aaf88f38c' == 'b34d84a1187e...2eef649f6e58d'
+  
+  - b34d84a1187e3f2238d1338e40749a4cab966768e5077ee596c2eef649f6e58d
+  + bae70540fcc6f41a2bd54a4cf2ab509383688b76f91a1d11314f8a2aaf88f38c
+4 failed, 5753 passed, 31 skipped, 1 xfailed, 247 warnings in 702.67s (0:11:42)

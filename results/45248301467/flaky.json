@@ -1,0 +1,96 @@
+{
+  "flaky": [],
+  "flaky_size": 0,
+  "flaky_new": 0,
+  "flaky_fixed": 0,
+  "stable_runs_to_leave": 5,
+  "runs": [
+    "1510",
+    "1511",
+    "1512",
+    "1513",
+    "1514",
+    "1515",
+    "1516",
+    "1519",
+    "1521",
+    "1524",
+    "1528",
+    "1531",
+    "1533"
+  ],
+  "pairs": [
+    {
+      "a": "1510",
+      "b": "1511",
+      "equivalent": false,
+      "why": ".github/workflows/full-suite-report.yml changed the suite-running job(s) pytest; .github/workflows/master-deploy-gate.yml changed the suite-running job(s) gate; .github/workflows/promote-production.yml changed OUTSIDE `jobs:` \u2014 every job sees that"
+    },
+    {
+      "a": "1511",
+      "b": "1512",
+      "equivalent": false,
+      "why": ".github/workflows/agent-ci.yml changed the suite-running job(s) browser; .github/workflows/full-suite-report.yml changed the suite-running job(s) collect_profile; .gitignore is referenced by 15 source file(s)"
+    },
+    {
+      "a": "1512",
+      "b": "1513",
+      "equivalent": null,
+      "why": ".github/workflows/agent-ci-required.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1513",
+      "b": "1514",
+      "equivalent": false,
+      "why": ".github/workflows/agent-ci.yml changed the suite-running job(s) browser, capability-regression-clock, server, union; api/backfill_from_patches.py is referenced by 5 source file(s); api/backfill_ticktest.py is referenced by 3 source file(s)"
+    },
+    {
+      "a": "1514",
+      "b": "1515",
+      "equivalent": null,
+      "why": ".github/workflows/front-door.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1515",
+      "b": "1516",
+      "equivalent": null,
+      "why": ".github/workflows/live-check.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1516",
+      "b": "1519",
+      "equivalent": null,
+      "why": ".github/workflows/authoring-eval-runner.yml is UNREADABLE at one of the two commits"
+    },
+    {
+      "a": "1519",
+      "b": "1521",
+      "equivalent": false,
+      "why": "the shard plan differs (3a534f99e vs b790d6af0): who shares a process changed"
+    },
+    {
+      "a": "1521",
+      "b": "1524",
+      "equivalent": false,
+      "why": "the shard plan differs (b790d6af0 vs 60f9a84fb): who shares a process changed"
+    },
+    {
+      "a": "1524",
+      "b": "1528",
+      "equivalent": false,
+      "why": "the shard plan differs (60f9a84fb vs 9a69e30c0): who shares a process changed"
+    },
+    {
+      "a": "1528",
+      "b": "1531",
+      "equivalent": false,
+      "why": "the shard plan differs (9a69e30c0 vs ed109ff4a): who shares a process changed"
+    },
+    {
+      "a": "1531",
+      "b": "1533",
+      "equivalent": false,
+      "why": "the shard plan differs (ed109ff4a vs b3feec261): who shares a process changed"
+    }
+  ]
+}

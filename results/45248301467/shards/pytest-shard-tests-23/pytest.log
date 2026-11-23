@@ -1,0 +1,307 @@
+/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+........................................................................ [  7%]
+........................................................................ [ 14%]
+........................................................................ [ 22%]
+........................................................................ [ 29%]
+........................................................................ [ 36%]
+...................................................F.................... [ 44%]
+........................................................................ [ 51%]
+........................................................................ [ 59%]
+........................................................................ [ 66%]
+........................................................................ [ 73%]
+........................................................................ [ 81%]
+......................................................................F. [ 88%]
+........................................................................ [ 96%]
+.....................................                                    [100%]
+=================================== FAILURES ===================================
+________________ test_the_real_tree_matches_the_ratchet_exactly ________________
+
+    def test_the_real_tree_matches_the_ratchet_exactly():
+        counts = cen.counts(cen.census(BASE))
+        baseline = cen.load_baseline(BASE)
+        grew, new, slack = cen.compare(counts, baseline)
+>       assert new == [], (
+            "a NEW file reaches a vendor outside its adapter -- route it through the "
+            f"adapter (api/services/massive_adapter.py for Massive): {new}")
+E       AssertionError: a NEW file reaches a vendor outside its adapter -- route it through the adapter (api/services/massive_adapter.py for Massive): [('finnhub', 'api/services/journal_two/earnings_followup.py', 0, 1), ('fmp', 'api/services/journal_two/earnings_followup.py', 0, 1), ('fmp', 'api/services/ticker_ipo.py', 0, 1), ('massive', 'api/services/breadth_v2_producer.py', 0, 3), ('massive', 'api/services/ingest_runtime.py', 0, 1), ('massive', 'api/services/marketcap/acquire.py', 0, 2), ('massive', 'api/services/options_universe_log.py', 0, 2), ('polygon_direct', 'api/services/marketcap/acquire.py', 0, 4), ('yfinance', 'api/services/breadth_eod_extras.py', 0, 1), ('yfinance', 'api/services/earnings_session_resolver.py', 0, 1)]
+E       assert [('finnhub', ...', 0, 2), ...] == []
+E         
+E         Left contains 10 more items, first extra item: ('finnhub', 'api/services/journal_two/earnings_followup.py', 0, 1)
+E         
+E         Full diff:
+E         - []
+E         + [
+E         +     (
+E         +         'finnhub',
+E         +         'api/services/journal_two/earnings_followup.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'fmp',
+E         +         'api/services/journal_two/earnings_followup.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'fmp',
+E         +         'api/services/ticker_ipo.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/breadth_v2_producer.py',
+E         +         0,
+E         +         3,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/ingest_runtime.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/marketcap/acquire.py',
+E         +         0,
+E         +         2,
+E         +     ),
+E         +     (
+E         +         'massive',
+E         +         'api/services/options_universe_log.py',
+E         +         0,
+E         +         2,
+E         +     ),
+E         +     (
+E         +         'polygon_direct',
+E         +         'api/services/marketcap/acquire.py',
+E         +         0,
+E         +         4,
+E         +     ),
+E         +     (
+E         +         'yfinance',
+E         +         'api/services/breadth_eod_extras.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         +     (
+E         +         'yfinance',
+E         +         'api/services/earnings_session_resolver.py',
+E         +         0,
+E         +         1,
+E         +     ),
+E         + ]
+
+tests/test_vendor_callsite_census.py:58: AssertionError
+_________ test_the_declared_exceptions_are_exactly_the_ones_that_exist _________
+
+census = {'calls': [{'body': {'always': [], 'fields': [], 'kind': 'none', 'literals': {}, ...}, 'callee': 'useSWR', 'contentTyp... '/api/voice/tts/stream?token={}'}, {'file': 'src/hub/voiceNote.js', 'line': 34, 'url': '/api/voice/transcribe'}, ...]}
+
+    def test_the_declared_exceptions_are_exactly_the_ones_that_exist(census):
+        """A declared exception that no longer exists is a stale excuse; an
+        undeclared one is a new blind spot. Both fail by name."""
+        unresolved = {(c["file"], c["method"], c["path"]) for c in census["calls"] if c["body"]["kind"] == "unresolved"}
+        assert unresolved == DECLARED_UNRESOLVED
+        unattributed = {(u["file"], u["url"].split("?")[0]) for u in census["unattributed"]}
+>       assert unattributed == DECLARED_UNATTRIBUTED
+E       AssertionError: assert {('src/compon...scribe'), ...} == {('src/compon...scribe'), ...}
+E         
+E         Extra items in the left set:
+E         ('src/pages/journal-2-0/components/notebook/NoticesBox.jsx', '/api/voice/insights')
+E         ('src/pages/journal-2-0/components/notebook/NoticesBox.jsx', '/api/voice/insights/{}/dismiss')
+E         
+E         Full diff:
+E           {
+E               (
+E                   'src/components/NavBar.jsx',
+E                   '/api/voice/insights/pending',
+E               ),
+E               (
+E                   'src/components/mobile/MoreSheet.jsx',
+E                   '/api/voice/insights/pending',
+E               ),
+E               (
+E                   'src/components/voice/VoiceSessionsPanel.jsx',
+E                   '/api/voice/sessions/{}/trace',
+E               ),
+E               (
+E                   'src/components/voice/VoiceTelemetryPanel.jsx',
+E                   '/api/voice/transcripts/export',
+E               ),
+E               (
+E                   'src/hooks/useReadAloud.js',
+E                   '/api/voice/tts/stream',
+E               ),
+E               (
+E                   'src/hub/voiceNote.js',
+E                   '/api/voice/transcribe',
+E               ),
+E               (
+E         +         'src/pages/journal-2-0/components/notebook/NoticesBox.jsx',
+E         +         '/api/voice/insights',
+E         +     ),
+E         +     (
+E         +         'src/pages/journal-2-0/components/notebook/NoticesBox.jsx',
+E         +         '/api/voice/insights/{}/dismiss',
+E         +     ),
+E         +     (
+E                   'src/testing/agent/agentHarness.jsx',
+E                   '/api/voice/transcribe',
+E               ),
+E           }
+
+tests/test_voice_client_request_shapes.py:257: AssertionError
+=============================== warnings summary ===============================
+<unknown>:964
+<unknown>:964
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+  <unknown>:964: SyntaxWarning: invalid escape sequence '\`'
+
+<unknown>:7
+<unknown>:7
+tests/test_visibility_flag_ledger.py::test_the_derivation_finds_the_flag_this_file_was_written_for
+tests/test_visibility_flag_ledger.py::test_every_visibility_flag_is_declared
+  <unknown>:7: SyntaxWarning: invalid escape sequence '\d'
+
+../../../../../opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40
+  /opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+tests/test_vendor_callsite_census.py::test_the_real_tree_matches_the_ratchet_exactly
+tests/test_vendor_callsite_census.py::test_the_census_is_not_blind_on_the_real_tree
+tests/test_vendor_callsite_census.py::test_the_census_sees_what_the_literal_census_is_blind_to
+tests/test_vendor_callsite_census.py::test_the_census_sees_what_the_literal_census_is_blind_to
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/journal_two/note_connectors/providers/obsidian.py:964: SyntaxWarning: invalid escape sequence '\`'
+    taken off, cut at the first `?` or `#`, percent-decoded ONCE and every `\` read as `/`
+
+tests/test_voice_client_request_shapes.py::test_the_briefing_request_the_client_builds_is_answered_not_refused
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/baselines.py:456: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    _baselines_last_loaded = datetime.utcnow()
+
+tests/test_voice_cost_summary.py: 10 warnings
+  /home/runner/work/UCT-Dashboard/UCT-Dashboard/api/services/voice_usage.py:20: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow().strftime("%Y-%m")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /home/runner/work/UCT-Dashboard/UCT-Dashboard/pytest-junit.xml -
+=========================== short test summary info ============================
+FAILED tests/test_vendor_callsite_census.py::test_the_real_tree_matches_the_ratchet_exactly - AssertionError: a NEW file reaches a vendor outside its adapter -- route it through the adapter (api/services/massive_adapter.py for Massive): [('finnhub', 'api/services/journal_two/earnings_followup.py', 0, 1), ('fmp', 'api/services/journal_two/earnings_followup.py', 0, 1), ('fmp', 'api/services/ticker_ipo.py', 0, 1), ('massive', 'api/services/breadth_v2_producer.py', 0, 3), ('massive', 'api/services/ingest_runtime.py', 0, 1), ('massive', 'api/services/marketcap/acquire.py', 0, 2), ('massive', 'api/services/options_universe_log.py', 0, 2), ('polygon_direct', 'api/services/marketcap/acquire.py', 0, 4), ('yfinance', 'api/services/breadth_eod_extras.py', 0, 1), ('yfinance', 'api/services/earnings_session_resolver.py', 0, 1)]
+assert [('finnhub', ...', 0, 2), ...] == []
+  
+  Left contains 10 more items, first extra item: ('finnhub', 'api/services/journal_two/earnings_followup.py', 0, 1)
+  
+  Full diff:
+  - []
+  + [
+  +     (
+  +         'finnhub',
+  +         'api/services/journal_two/earnings_followup.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'fmp',
+  +         'api/services/journal_two/earnings_followup.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'fmp',
+  +         'api/services/ticker_ipo.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/breadth_v2_producer.py',
+  +         0,
+  +         3,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/ingest_runtime.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/marketcap/acquire.py',
+  +         0,
+  +         2,
+  +     ),
+  +     (
+  +         'massive',
+  +         'api/services/options_universe_log.py',
+  +         0,
+  +         2,
+  +     ),
+  +     (
+  +         'polygon_direct',
+  +         'api/services/marketcap/acquire.py',
+  +         0,
+  +         4,
+  +     ),
+  +     (
+  +         'yfinance',
+  +         'api/services/breadth_eod_extras.py',
+  +         0,
+  +         1,
+  +     ),
+  +     (
+  +         'yfinance',
+  +         'api/services/earnings_session_resolver.py',
+  +         0,
+  +         1,
+  +     ),
+  + ]
+FAILED tests/test_voice_client_request_shapes.py::test_the_declared_exceptions_are_exactly_the_ones_that_exist - AssertionError: assert {('src/compon...scribe'), ...} == {('src/compon...scribe'), ...}
+  
+  Extra items in the left set:
+  ('src/pages/journal-2-0/components/notebook/NoticesBox.jsx', '/api/voice/insights')
+  ('src/pages/journal-2-0/components/notebook/NoticesBox.jsx', '/api/voice/insights/{}/dismiss')
+  
+  Full diff:
+    {
+        (
+            'src/components/NavBar.jsx',
+            '/api/voice/insights/pending',
+        ),
+        (
+            'src/components/mobile/MoreSheet.jsx',
+            '/api/voice/insights/pending',
+        ),
+        (
+            'src/components/voice/VoiceSessionsPanel.jsx',
+            '/api/voice/sessions/{}/trace',
+        ),
+        (
+            'src/components/voice/VoiceTelemetryPanel.jsx',
+            '/api/voice/transcripts/export',
+        ),
+        (
+            'src/hooks/useReadAloud.js',
+            '/api/voice/tts/stream',
+        ),
+        (
+            'src/hub/voiceNote.js',
+            '/api/voice/transcribe',
+        ),
+        (
+  +         'src/pages/journal-2-0/components/notebook/NoticesBox.jsx',
+  +         '/api/voice/insights',
+  +     ),
+  +     (
+  +         'src/pages/journal-2-0/components/notebook/NoticesBox.jsx',
+  +         '/api/voice/insights/{}/dismiss',
+  +     ),
+  +     (
+            'src/testing/agent/agentHarness.jsx',
+            '/api/voice/transcribe',
+        ),
+    }
+2 failed, 971 passed, 24 warnings in 821.47s (0:13:41)

@@ -1,0 +1,15 @@
+{
+  "suite": "pytest",
+  "collected": 1694,
+  "passed": 1689,
+  "failed": 1,
+  "errored": 0,
+  "skipped": 4,
+  "wall_s": 341.64,
+  "failed_files": [
+    "tests/test_note_creation_doors_no_block_tokens.py"
+  ],
+  "totals_line_found": true,
+  "runner_line": "1 failed, 1689 passed, 4 skipped, 28 warnings in 341.64s (0:05:41)",
+  "ok": true
+}
