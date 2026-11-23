@@ -140,8 +140,9 @@ def test_every_reference_script_is_what_the_section_says(graded):
 
 def test_the_one_wrong_one_is_refused_for_its_reason_and_the_getter_is_right_since_e96(graded):
     """⭐ e96 #2610: the label whose text is arithmetic on a read-back value is DRAWN, with the right number. The proof
-    the studio designed: `obj:getter` goes RIGHT when e96's engine fix lands (a mutant reverting #2610's read of the
-    arithmetic, `stateNumber`, turns it back to WRONG and this rail red: ci/mutants/e96-train-integration.json TJ10)."""
+    the studio designed: `obj:getter` goes RIGHT when e96's engine fix lands (a mutant reverting the piece of #2610 the
+    script rests on, the write of its local `rise` from getter arithmetic (`scalarNumber`), turns it back to WRONG and
+    this rail red: ci/mutants/e96-train-integration.json TJ10)."""
     getter = "\n".join(str(line) for line in graded["ref-obj-getter"]["lines"])
     assert "RIGHT  a line from the lowest low of the last 60 bars to the newest close" in getter      # the line is drawn right
     assert "RIGHT  a label at the end of the line" in getter and "all labels []" not in getter       # and now the label is

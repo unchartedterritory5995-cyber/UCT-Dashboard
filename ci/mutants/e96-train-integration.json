@@ -1,6 +1,6 @@
 {
   "schema": "uct.ci-mutants/v1",
-  "about": "Train e96 x train e95 (engine 96): U-DAILY part A (#2550) meets master's one-sentence-per-guard (#2559) and day-length question words (#2578). The ONE function (`daily_values_below_a_day`) reads U-DAILY's capability (D in crossContext.json's tfBelowADayCodes, on a chart whose own timeframe is below a day); the ONE day-length sentence promises what that capability does, and THE TIE holds it; the daily read's door check raises gates of its own, never `envelope:reference`; the prompt and the guard's repair teach the daily read and keep master's rule for a question. Each rule, broken once, must turn its rail red. (coordinator ruling 2026-11-23, after train/e95's 2b bind audit) A knob script WITH a daily read is bound first and routed second: the evaluator prunes before the daily route, and the chart's daily supply, fetch and binder call ask the document the instance's inputs bind (TJ6-TJ9). (c) x #2568 (coordinator ruling 2026-11-23): a door worker that goes silent or never loads while the authoring check waits gives (c)'s plain 'could not be checked here', with nothing sent to the assistant (TJ11). The studio's reference script ref-obj-getter is graded RIGHT since e96 (#2610), marked engine_fixed; reverting #2610's read of the arithmetic turns it back to WRONG (TJ10).",
+  "about": "Train e96 x train e95 (engine 96): U-DAILY part A (#2550) meets master's one-sentence-per-guard (#2559) and day-length question words (#2578). The ONE function (`daily_values_below_a_day`) reads U-DAILY's capability (D in crossContext.json's tfBelowADayCodes, on a chart whose own timeframe is below a day); the ONE day-length sentence promises what that capability does, and THE TIE holds it; the daily read's door check raises gates of its own, never `envelope:reference`; the prompt and the guard's repair teach the daily read and keep master's rule for a question. Each rule, broken once, must turn its rail red. (coordinator ruling 2026-11-23, after train/e95's 2b bind audit) A knob script WITH a daily read is bound first and routed second: the evaluator prunes before the daily route, and the chart's daily supply, fetch and binder call ask the document the instance's inputs bind (TJ6-TJ9). (c) x #2568 (coordinator ruling 2026-11-23): a door worker that goes silent or never loads while the authoring check waits gives (c)'s plain 'could not be checked here', with nothing sent to the assistant (TJ11). The studio's reference script ref-obj-getter is graded RIGHT since e96 (#2610), marked engine_fixed; reverting #2610's write of a local from getter arithmetic (the path the script takes) turns it back to WRONG (TJ10).",
   "mutants": [
     {
       "id": "TJ1",
@@ -85,10 +85,10 @@
     },
     {
       "id": "TJ10",
-      "mutant": "#2610 reverted where it reads getter arithmetic in a text (`stateNumber`): the studio's ref-obj-getter goes back to WRONG",
+      "mutant": "#2610 reverted where the script reads it: a local set from getter arithmetic (`scalarNumber`, the write ref-obj-getter's `rise` takes) is not planned, so the studio's ref-obj-getter goes back to WRONG",
       "file": "app/src/components/chart/engine/ast/pine.js",
-      "from": "const live = stateOperand(arg0) || (readsState(arg0) ? stateNumber(arg0) : null)",
-      "to": "const live = stateOperand(arg0)",
+      "from": "getterRef(node) || scalarNumber(node)) : null",
+      "to": "getterRef(node)) : null",
       "rail": "python -B -m pytest tests/test_value_cases_reference_scripts.py -q -p no:cacheprovider",
       "expectRed": "ref-obj-getter"
     },
