@@ -1,8 +1,8 @@
 {
-  "promoted_sha": "97490698642a94b73a784071b732a977c8ef896d",
-  "master_sha": "97490698642a94b73a784071b732a977c8ef896d",
-  "gate_run_id": "45270345316",
+  "promoted_sha": "6abb372b43b2a7de4d5dd43b3a80b712d5a77f14",
+  "master_sha": "6abb372b43b2a7de4d5dd43b3a80b712d5a77f14",
+  "gate_run_id": "45271421602",
   "range_scan_state": "EXECUTED",
   "range_scan_verdict": "CLEAN",
-  "ts": "2026-11-23T21:55:44.828189Z"
+  "ts": "2026-11-23T22:14:34.782464Z"
 }
