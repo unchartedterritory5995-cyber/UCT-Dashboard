@@ -84,7 +84,8 @@ describe('teach coverage probe (inventory phrasings, routing only)', () => {
       const cases = []
       for (const r of report) {
         const exp = want[r.id]
-        if (!exp) continue
+        // ⚰️ withheld: the owner switched the control off or hid its widget from the add menus (status.mjs says why)
+        if (!exp || exp.withheld) continue
         for (const [k, say] of [['a', `how do I ${lower(r.action)}`], ['b', r.example && r.example !== 'none' ? `show me how to ${lower(r.example)}` : null]]) {
           const got = r[k]
           if (!say || !got || got.feature !== exp.feature || (exp.title && got.title !== exp.title)) continue

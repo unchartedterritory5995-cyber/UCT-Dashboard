@@ -1,0 +1,13 @@
+·······stderr | src/agent/agentHonestStatus.test.jsx > 2 · the panel reports what UCT did, never what the model said it did > FAILED: when the write is refused, the member is told it did not happen — no receipt
+stderr | src/agent/agentHonestStatus.test.jsx > 2 · the panel reports what UCT did, never what the model said it did > FAILED: when the write is refused, the member is told it did not happen — no receipt
+teach probe: 428/499 rows reach a walkthrough {"VERIFIED":{"rows":295,"reached":292},"ASSIGNED / NOT REACHED":{"rows":60,"reached":39},"NO WALKTHROUGH":{"rows":46,"reached":0},"NO ASSIGNED WALKTHROUGH":{"rows":75,"reached":74},"ROUTED / BROWSER FAILED":{"rows":23,"reached":23}}
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  src/agent/agentGuideHeldOutCov2.test.js > held-out cov-2: two-part asks, drawing tools and edits, indicator alerts, Multi Chart and layout controls > how do I switch this chart to weekly and then add the RSI → "named":"RSI"
+ FAIL  src/agent/agentPeriodSort.test.jsx > source: ONE writer — the popover and UCT Agent share runPeriodSort; Dock is handleDockPeriodSort > the Agent host's run is runPeriodSort with NO timeframe; dock is the panel's handleDockPeriodSort, which returns the new id
+ Test Files  2 failed | 462 passed | 5 skipped (469)
+      Tests  2 failed | 66922 passed | 12 skipped | 9 todo (66945)
+   Start at  01:01:58
+   Duration  1757.40s (transform 107.27s, setup 93.55s, import 985.41s, tests 12095.37s, environment 249.45s)
+exit=1
+
+Note (pl-teachfix): the agentGuideHeldOutCov2 failure is this branch's own: the indicator add now ends on the new instance's editor (data-testid=inspector). Its expectation was updated, then the guide set was re-run: src/agent/agentGuide* + agentPeriodSort = 30 files, 1088 passed, 1 failed (agentPeriodSort, known on master).
