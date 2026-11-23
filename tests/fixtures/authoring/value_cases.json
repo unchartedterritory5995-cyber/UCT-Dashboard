@@ -13,8 +13,215 @@
   "udt",
   "while"
  ],
+ "capabilities_held_by_a_reference_script": [
+  "for-in",
+  "generics",
+  "max_bars_back",
+  "method-call",
+  "realtime-state",
+  "switch",
+  "udt",
+  "while"
+ ],
  "capabilities_used_without_words": [
   "request-other"
+ ],
+ "reference_scripts": [
+  {
+   "id": "ref-switch",
+   "lane": "script",
+   "chart": "daily",
+   "holds": "cap-02",
+   "capabilities": [
+    "switch"
+   ],
+   "words": "Let me choose the type of moving average in the settings, SMA, EMA or WMA, with SMA as the default and a length of 20, and plot that average on the price chart",
+   "written": {
+    "on": "2026-11-23",
+    "by": "hand"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Moving average, by type\", overlay=true)\nkind = input.string(\"SMA\", \"Type\", options=[\"SMA\", \"EMA\", \"WMA\"])\nlen = input.int(20, \"Length\", minval=1)\nma = switch kind\n    \"EMA\" => ta.ema(close, len)\n    \"WMA\" => ta.wma(close, len)\n    => ta.sma(close, len)\nplot(ma, \"Moving average\")\n"
+    }
+   }
+  },
+  {
+   "id": "ref-while",
+   "lane": "script",
+   "chart": "daily",
+   "holds": "cap-09",
+   "capabilities": [
+    "while"
+   ],
+   "words": "Plot the average volume of the last 10 up days, where an up day closes above the prior close, skipping the down days in between",
+   "written": {
+    "on": "2026-11-23",
+    "by": "hand"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (a while loop)\")\nfloat total = 0.0\nint found = 0\nint k = 0\nwhile found < 10 and k < bar_index\n    if close[k] > close[k + 1]\n        total += volume[k]\n        found += 1\n    k += 1\nplot(found == 10 ? total / 10 : na, \"Average up-day volume\")\n"
+    }
+   }
+  },
+  {
+   "id": "ref-max-bars-back",
+   "lane": "script",
+   "chart": "daily",
+   "holds": "cap-09",
+   "capabilities": [
+    "max_bars_back"
+   ],
+   "words": "Plot the average volume of the last 10 up days, where an up day closes above the prior close, skipping the down days in between",
+   "written": {
+    "on": "2026-11-23",
+    "by": "hand"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (a look back with max_bars_back)\")\nmax_bars_back(close, 500)\nmax_bars_back(volume, 500)\nfloat total = 0.0\nint found = 0\nint last = math.min(bar_index - 1, 400)\nif last >= 0\n    for k = 0 to last\n        if close[k] > close[k + 1]\n            total += volume[k]\n            found += 1\n            if found == 10\n                break\nplot(found == 10 ? total / 10 : na, \"Average up-day volume\")\n"
+    }
+   }
+  },
+  {
+   "id": "ref-for-in-generics",
+   "lane": "script",
+   "chart": "daily",
+   "holds": "cap-03",
+   "capabilities": [
+    "for-in",
+    "generics"
+   ],
+   "words": "Plot the average of the last 5 swing highs as a line, where a swing high is a bar whose high is above the highs of the 3 bars before it and the 3 bars after it",
+   "written": {
+    "on": "2026-11-23",
+    "by": "hand"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Average of the last 5 swing highs\", overlay=true)\nvar array<float> swings = array.new<float>()\nbool isSwing = high[3] > ta.highest(high, 3)[4] and high[3] > ta.highest(high, 3)\nif isSwing\n    array.push(swings, high[3])\n    if array.size(swings) > 5\n        array.shift(swings)\nfloat total = 0.0\nfor v in swings\n    total += v\nplot(array.size(swings) == 5 ? total / 5 : na, \"Average of the last 5 swing highs\")\n"
+    }
+   }
+  },
+  {
+   "id": "ref-method-call",
+   "lane": "script",
+   "chart": "daily",
+   "holds": "cap-09",
+   "capabilities": [
+    "method-call"
+   ],
+   "words": "Plot the average volume of the last 10 up days, where an up day closes above the prior close, skipping the down days in between",
+   "written": {
+    "on": "2026-11-23",
+    "by": "hand"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days\")\nvar ups = array.new_float()\nif close > close[1]\n    ups.push(volume)\n    if ups.size() > 10\n        ups.shift()\nplot(ups.size() == 10 ? ups.avg() : na, \"Average up-day volume\")\n"
+    }
+   }
+  },
+  {
+   "id": "ref-udt",
+   "lane": "script",
+   "chart": "daily",
+   "holds": "cap-04",
+   "capabilities": [
+    "udt"
+   ],
+   "words": "Draw a horizontal line at each of the last 3 swing lows, where a swing low is a bar whose low is below the lows of the 3 bars before it and the 3 bars after it, from the swing bar to the right edge, and remove the oldest line when a new swing low makes a fourth",
+   "written": {
+    "on": "2026-11-23",
+    "by": "hand"
+   },
+   "edge": {
+    "back": 3,
+    "low": true
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Last 3 swing lows\", overlay=true, max_lines_count=500)\ntype Swing\n    int bar\n    float price\n    line ln\nvar array<Swing> swings = array.new<Swing>()\nbool isLow = low[3] < ta.lowest(low, 3)[4] and low[3] < ta.lowest(low, 3)\nif isLow\n    Swing s = Swing.new(bar_index - 3, low[3], line.new(bar_index - 3, low[3], bar_index, low[3], extend=extend.right))\n    array.push(swings, s)\n    if array.size(swings) > 3\n        Swing old = array.shift(swings)\n        line.delete(old.ln)\nfor s in swings\n    line.set_xy2(s.ln, bar_index, s.price)\n"
+    }
+   }
+  },
+  {
+   "id": "ref-realtime-state",
+   "lane": "script",
+   "chart": "daily",
+   "holds": "cap-06",
+   "capabilities": [
+    "realtime-state"
+   ],
+   "words": "Put one label on the latest bar only, showing how far the close is above or below its 50 day simple moving average, in percent with two decimals",
+   "written": {
+    "on": "2026-11-23",
+    "by": "hand"
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Percent from the 50 day average\", overlay=true)\nfloat ma = ta.sma(close, 50)\nvar label lb = na\nif barstate.islast\n    label.delete(lb)\n    lb := label.new(bar_index, high, str.tostring((close / ma - 1) * 100, \"#.00\") + \"%\")\n"
+    }
+   }
+  },
+  {
+   "id": "ref-obj-getter",
+   "lane": "script",
+   "chart": "daily",
+   "holds": "cap-05",
+   "capabilities": [
+    "obj:getter"
+   ],
+   "words": "Draw a line from the lowest low of the last 60 bars to the latest close, and put a label at the end of the line showing how many dollars the line rises",
+   "written": {
+    "on": "2026-11-23",
+    "by": "hand"
+   },
+   "edge": {
+    "back": 60,
+    "low": true
+   },
+   "recorded_verdict": "wrong",
+   "defect": "ENGINE, SILENT: the label is not drawn and nothing is reported. The script labels the rise of its line as line.get_y2(ln) - line.get_y1(ln). The line is drawn right; the label, whose text is ARITHMETIC on a value read back from a drawing, is missing, with no error. Isolated 2026-11-23: one read-back value alone in a label is drawn, the same script with the rise computed directly is right ($8.06), and the same subtraction plotted is right; any arithmetic on a read-back value in a label's text loses the label. A script must draw the right value or be refused by name, never neither. Routed to the engine train.",
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Lowest low of 60 bars to the close\", overlay=true)\nfloat lo = ta.lowest(low, 60)\nint back = -ta.lowestbars(low, 60)\nvar line ln = na\nvar label lb = na\nif barstate.islast\n    line.delete(ln)\n    label.delete(lb)\n    ln := line.new(bar_index - back, lo, bar_index, close)\n    float rise = line.get_y2(ln) - line.get_y1(ln)\n    lb := label.new(bar_index, close, \"$\" + str.tostring(rise, \"#.00\"))\n"
+    }
+   }
+  },
+  {
+   "id": "ref-conditional-ta",
+   "lane": "script",
+   "chart": "daily",
+   "holds": "cap-09",
+   "capabilities": [
+    "conditional-ta"
+   ],
+   "words": "Plot the average volume of the last 10 up days, where an up day closes above the prior close, skipping the down days in between",
+   "written": {
+    "on": "2026-11-23",
+    "by": "hand"
+   },
+   "refused": {
+    "guard": "pine:block",
+    "why": "A CORRECT NAMED REFUSAL, kept as a specimen. The assistant is told it may write a ta.sma / ta.ema call inside an `if` block at the top level of the script. This script does exactly that (ta.sma(volume, 10) inside `if close > close[1]`), and the engine refuses its plot by name, rightly: the block does not run on every bar, so the call would see only the bars its block runs on. The fault is the WORDING, which invites a script the engine does not run. When the capability is worded as what the gate admits (a ta call in a block that runs on every bar), a reference script written to that wording holds it. Until then conditional-ta is held by nothing."
+   },
+   "answer": {
+    "turn": "script",
+    "script": {
+     "pine": "//@version=5\nindicator(\"Average volume of the last 10 up days (an average inside an if)\")\nvar float avgUp = na\nif close > close[1]\n    avgUp := ta.sma(volume, 10)\nplot(avgUp, \"Average up-day volume\")\n"
+    }
+   }
+  }
  ],
  "cases": [
   {
