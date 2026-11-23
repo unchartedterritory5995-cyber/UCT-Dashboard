@@ -44,7 +44,7 @@ import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CO
 import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
 import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY, isEventRequest,
-  breadthReadsOf } from '../../otherSymbols'
+  breadthReadsOf, withChartNewestDay } from '../../otherSymbols'
 import { EVENTS_KEY } from '../../pineEvents'
 // ⭐⭐ T4 F1b — the chart's own financial figures (UCT data, never graded as TradingView's)
 import { FINANCIAL_KEY, financialReadOf } from '../../pineFinancial'
@@ -365,6 +365,19 @@ export function recordedSupplyOf(capture, dir = _supplyDir) {
         && ![true, false, null].includes(e.newestBarIsForming)) {
       bad(`other.${ticker}.newestBarIsForming must be the route's tri-state (true, false or null), not ${JSON.stringify(e.newestBarIsForming)}`)
     }
+    // ⭐⭐ INDEX PROVENANCE (coordinator ruling 2026-11-22): where the served series came from, as the route named it
+    // (`deep.from` / `deep.through` / `deep.filled`): read by `compare.mjs::provenanceBarsOf`. Optional; a record
+    // without it grades exactly as before.
+    if (Object.prototype.hasOwnProperty.call(e, 'provenance')) {
+      const pv = e.provenance
+      const iso = (x) => typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x)
+      if (!pv || typeof pv !== 'object') bad(`other.${ticker}.provenance is not an object`)
+      if (!['index:fmp', 'index:fmp-rollup'].includes(pv.class)) bad(`other.${ticker}.provenance.class must be index:fmp or index:fmp-rollup, not ${JSON.stringify(pv.class)}`)
+      for (const k of ['deepFrom', 'deepThrough', 'firstOwnSession']) {
+        if (pv[k] !== null && pv[k] !== undefined && !iso(pv[k])) bad(`other.${ticker}.provenance.${k} is not an ISO session date`)
+      }
+      if (!Array.isArray(pv.filled) || !pv.filled.every(iso)) bad(`other.${ticker}.provenance.filled must list ISO session dates`)
+    }
     if (forms[1]) e.bars = outOfGitRows(ticker, e, bad)            // [] -> e.notOnThisMachine
   }
   // ⭐⭐ T4 E2 — the chart symbol's corporate events as OUR server's events door answered them beside the capture
@@ -471,6 +484,26 @@ function recordedClassificationOf(capture) {
 /** The committed-capture index another symbol's bars are supplied from (`otherSymbolSupply`), for its rails. */
 export function __otherCaptureIndexForTests() { return otherCaptureIndex() }
 
+/** ⭐⭐ INDEX ROUNDING (coordinator ruling 2026-11-23, `compare.mjs::indexRoundingOf`) — X(t): the index close OUR run
+ *  read on each chart bar, aligned with `bars`, or null when the document reads no index (a request whose witness row is
+ *  `kind: 'index'`, `SP:SPX`) or more than one (which one a ratio divides by is then not ours to guess).
+ *  ⛔ NEVER A SECOND SOURCE: the bind is the one the host lane asks (`registry.otherSymbolsFor`, over the run's own
+ *  `ctx.secondary` and `withChartNewestDay`, as `astColumns.js` calls it), and the read is the engine's own `sym` arm
+ *  (`interpret`: the bar's own `t`, exact, never forward-filled), so a bar the run could not read reads null here and the
+ *  comparator grades it exactly as before. */
+export function indexReadValuesOf(doc, ctx, bars) {
+  const tickers = [...new Set(otherSymbolRequestsOf(doc)
+    .filter(({ ticker, spellings }) => (spellings || []).some((v) => { const r = witnessRowOf(v, ticker); return !!(r && r.kind === 'index') }))
+    .map(({ ticker }) => String(ticker).trim().toUpperCase()))]
+  if (tickers.length !== 1) return null
+  const decision = registry.otherSymbolsFor(doc, withChartNewestDay(ctx, bars))
+  if (!decision || !decision.symbols || !Array.isArray(decision.symbols[tickers[0]])) return null
+  const col = interpretTree({ type: 'sym', value: tickers[0], args: [{ type: 'series', name: 'close' }] }, bars,
+    undefined, undefined, undefined, { symbols: decision.symbols })
+  if (!col || typeof col.length !== 'number' || col.length !== bars.length) return null
+  return Array.from(col, (x) => (Number.isFinite(x) && x > 0 ? x : null))
+}
+
 /** The secondary supply a capture's script asks for, and the notes naming what
  *  could not be supplied. (Exported for RS RATING L11's rail, which grades a probe's daily reads
  *  below a weekly chart on the runtime lane with this same supply.) */
@@ -485,6 +518,7 @@ export function otherSymbolSupply(def, capture) {
   // symbols it names (`recordedSupplyOf`); every other symbol keeps C26's committed captures.
   const recorded = recordedSupplyOf(capture)
   const unrecorded = []
+  const indexProvenance = []
   // ⭐⭐ T4 E2 — the chart's own corporate events: ONE entry, the events door's answer for the capture's symbol, under
   // the key the chart files it (`pineEvents.EVENTS_KEY`), never a bars entry
   if (requests.some(({ ticker, spellings }) => isEventRequest(ticker, spellings) && !financialReadOf(ticker))) {
@@ -536,6 +570,12 @@ export function otherSymbolSupply(def, capture) {
         const flagged = Object.prototype.hasOwnProperty.call(rec, 'newestBarIsForming')
         secondary.set(cacheKey, { bars: over || rec.bars, status: 'available',
           ...(flagged ? { newestBarIsForming: rec.newestBarIsForming } : {}) })
+        if (rec.provenance) {
+          indexProvenance.push({ symbol: storeKey, ...rec.provenance })
+          notes.push(`other symbol ${ticker}: index provenance ${rec.provenance.class} ${rec.provenance.deepFrom}..${rec.provenance.deepThrough}`
+            + (rec.provenance.filled.length ? `, ETF-filled ${rec.provenance.filled.join(', ')}` : '')
+            + ': those bars are graded into the provenance block, never into matching')
+        }
         notes.push(`other symbol ${ticker}: the bars our server serves, recorded beside the capture `
           + `(${rec.servedBy}; ${rec.source})`
           + (flagged ? `; newest bar forming: ${rec.newestBarIsForming}` : '')
@@ -593,7 +633,7 @@ export function otherSymbolSupply(def, capture) {
     const e = secondary.get(t)
     return e && e.exchange ? e.exchange : null
   }
-  return { secondary, exchangeOf, notes, unrecorded }
+  return { secondary, exchangeOf, notes, unrecorded, indexProvenance }
 }
 
 // ─── ⭐⭐ RC1 — WARM BARS: THE SAME SERIES' OWN HISTORY, FROM COMMITTED CAPTURES ─
@@ -1845,7 +1885,8 @@ function runOurSideOnTheParityClock(capture) {
     // ⭐ C26 — another symbol's bars, from committed captures only.
     // ⭐ SETTINGS PARITY (symbol): the supply the capture's own symbol choice asks for (the chart fetches
     // the instance's chosen comparison symbol, `symbolInputs.instanceDocumentForFetch`)
-    const supply = otherSymbolSupply(instanceDocumentForFetch(def, { inputs: instanceInputs }), capture)
+    const fetchDoc = instanceDocumentForFetch(def, { inputs: instanceInputs })
+    const supply = otherSymbolSupply(fetchDoc, capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
     if (ctx.symbol.securityType) {
@@ -1905,6 +1946,9 @@ function runOurSideOnTheParityClock(capture) {
     notes.push(`plots/objects: ${decision.kind}: ${decision.why}`)
     const calcCols = registry.computeFor(def, calcBars, instanceInputs, calcCtx)
     const cols = replay ? columnsInWindow(calcCols, replayPre) : calcCols
+    // ⭐⭐ INDEX ROUNDING — X(t), from the run's own bind and supply (`indexReadValuesOf`), on the window's bars
+    const indexRead = supply.secondary ? indexReadValuesOf(fetchDoc, calcCtx, calcBars) : null
+    const indexReadValues = indexRead ? indexRead.slice(replayPre) : null
     // ⭐⭐ THE STRATEGY'S OWN OUTPUT (2026-11-17): what the broker document's run published beside its columns
     const strategy = strategyDoc
       ? strategyRunOf(calcCols, calcBars, replay ? replaySupply.rows.concat(capture.bars.rows) : capture.bars.rows)
@@ -2203,6 +2247,10 @@ function runOurSideOnTheParityClock(capture) {
       // ⭐⭐ T4 B2 — the `USI:` spellings this run read from UCT breadth (`otherSymbols.breadthReadsOf`): the grade never
       // reads MATCH on them (`compare.mjs`, coordinator ruling 2026-11-22)
       breadth: breadthReadsOf(def),
+      // ⭐⭐ INDEX PROVENANCE — where each recorded index series came from (`compare.mjs::provenanceBarsOf`)
+      indexProvenance: supply.indexProvenance || [],
+      // ⭐⭐ INDEX ROUNDING — the index close this run read on each capture bar, or null (`compare.mjs::indexRoundingOf`)
+      indexReadValues,
       // ⭐⭐ (2026-11-17) — a broker document's run: its record, or why it published none (`strategyRunOf`);
       // null for every other document. Graded by `strategyLane.js`.
       strategy,

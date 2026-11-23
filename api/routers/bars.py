@@ -1921,20 +1921,13 @@ def warm_universe_stop(request: Request):
     Shuts down the bars-warm thread pool (cancelling pending tasks), then
     re-creates it so future warms can start cleanly. In-flight HTTP calls
     that have already been dispatched will finish — Python ThreadPoolExecutor
-    can't interrupt them — but no new tasks will be picked up.
+    can't interrupt them — but no new tasks will be picked up. The one stop
+    (bars_fetch.stop_bars_warm_pool), shared with the process shutdown.
     """
     _check_admin_auth(request)
-    try:
-        _bars_fetch._bars_warm_pool.shutdown(wait=False, cancel_futures=True)
-    except Exception:
-        pass
-    with _warm_state_lock:
-        was_running = _warm_state.get("running", False)
-        if was_running:
-            _warm_state["running"] = False
-            _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
-    # Recreate the pool so the next /api/admin/warm-universe call works
-    _bars_fetch._bars_warm_pool = _bars_fetch._BarsWarmExecutor(max_workers=4, thread_name_prefix="bars-warm")
+    # the status first (the stopped run loses its claim on it), then the pool (the runner's next submit raises)
+    was_running = _bars_fetch.supersede_warm_run()
+    _bars_fetch.stop_bars_warm_pool(reopen=True)
     return {"status": "stopped", "was_running": was_running}
 
 

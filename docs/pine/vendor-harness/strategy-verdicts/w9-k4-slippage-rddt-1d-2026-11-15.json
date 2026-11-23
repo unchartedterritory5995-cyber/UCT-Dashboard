@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "w9-k4-slippage-rddt-1d-2026-11-15",
- "captureSha256": "102ff05459008c468c48fe236b3701a574f132a94626967a2a291add49b97021",
- "receipt": 2087093207,
+ "captureSha256": "a6e44fde8cb014895aa697d0ac22e2934b7617aafdba9179a87700c921ad2782",
+ "receipt": 3346580894,
  "sourceSha256": "9690a905c91b359b24a154479070e4012a4337b1d4a0aa760c69572e5a050ca7",
  "queueTargetId": "W9-K4",
  "symbol": "NYSE:RDDT",

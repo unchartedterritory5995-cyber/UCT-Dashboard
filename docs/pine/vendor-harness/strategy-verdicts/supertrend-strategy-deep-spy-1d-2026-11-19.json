@@ -1,8 +1,8 @@
 {
  "schema": "uct.strategy-verdict/v1",
  "captureId": "supertrend-strategy-deep-spy-1d-2026-11-19",
- "captureSha256": "0d9df34fade882f4d602d7aad57c976adf87aec339a6c878e838e2d08f59f109",
- "receipt": 3323669889,
+ "captureSha256": "d4ada45cd632bb77d634a97d27fa01eba91229fde3ff3d9ca3b322871d75ac0d",
+ "receipt": 3924179001,
  "sourceSha256": "7e343cf8b46cb5aab4eb84ee28dcd76c1af2e2af8461dec02271b6a89133c00a",
  "queueTargetId": "Q-SU-7",
  "symbol": "AMEX:SPY",

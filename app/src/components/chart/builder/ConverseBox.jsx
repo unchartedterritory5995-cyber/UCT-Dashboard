@@ -295,7 +295,7 @@ export default function ConverseBox({
       if (turn.outcome === OUTCOMES.ANSWER && res && res.script && opensScripts) {
         const settled = await settleScript(res,
           (refusal) => converse({ message: words, state: before, gateCtx, snippets, scriptRefusal: refusal }),
-          { check: (pine, script) => checkScript(pine, { chart: chartRef.current || null, admission: script && script.admission }),
+          { check: (pine, script, { cancelled } = {}) => checkScript(pine, { chart: chartRef.current || null, admission: script && script.admission, cancelled }),
             // (the sheet closed mid-answer: no more waiting, no more repair calls)
             cancelled: () => !openRef.current })
         if (!openRef.current) return

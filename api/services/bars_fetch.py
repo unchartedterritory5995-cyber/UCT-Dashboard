@@ -4232,7 +4232,51 @@ def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) ->
 # cache before the client requests it (e.g. when a breadth drill list is
 # fetched, warm the top tickers' Daily bars so chart loads are instant).
 from concurrent.futures import ThreadPoolExecutor as _BarsWarmExecutor
-_bars_warm_pool = _BarsWarmExecutor(max_workers=4, thread_name_prefix="bars-warm")
+
+
+def _new_bars_warm_pool():
+    """The bars-warm pool: 4 workers named "bars-warm_N". The ONE factory (import, the admin stop's fresh pool,
+    the test suite's reopen in tests/conftest.py)."""
+    return _BarsWarmExecutor(max_workers=4, thread_name_prefix="bars-warm")
+
+
+_bars_warm_pool = _new_bars_warm_pool()
+_bars_warm_lock = _threading.Lock()
+#: Set by shutdown_bars_warm_pool() (process shutdown): from then on the pool stays stopped, nothing reopens it.
+_bars_warm_closed = False
+
+
+def stop_bars_warm_pool(*, reopen: bool) -> None:
+    """Stop the bars-warm pool. THE one way it is stopped:
+      reopen=True   /api/admin/warm-universe-stop: a fresh pool takes its place so the next warm can start,
+                    unless the process already stopped it for good (then nothing reopens it);
+      reopen=False  process shutdown (shutdown_bars_warm_pool, the web lifespan): stopped for good.
+    `wait=False`: a job already running is a provider read Python cannot interrupt; it finishes on its own, and
+    at process exit api/serve_dual.py's bounded join bounds it. `cancel_futures=True`: a job not yet started never
+    runs. A submit to the stopped pool raises RuntimeError, which every submitter already reads as "pool shutting
+    down" (warm_bars_async returns; the universe warms stop submitting and count what they submitted; scan_period's
+    deep daily warm stops), so no request handler sees it. Safe to call twice."""
+    global _bars_warm_pool, _bars_warm_closed
+    with _bars_warm_lock:
+        pool = _bars_warm_pool
+        if not reopen:
+            _bars_warm_closed = True
+        elif not _bars_warm_closed:
+            _bars_warm_pool = _new_bars_warm_pool()
+    try:
+        pool.shutdown(wait=False, cancel_futures=True)
+    except Exception:  # noqa: BLE001 -- a stop never raises
+        pass
+
+
+def shutdown_bars_warm_pool() -> None:
+    """At process shutdown (the web lifespan's last steps): let the bars-warm pool's IDLE workers exit now.
+
+    Measured at web pod swaps after #2577 stopped the bars-seed pool: the exit join still spent its whole 5 s on
+    "bars-warm_0..3" (exits at 12.0-12.6 s). Idle ThreadPoolExecutor workers wait on the work queue until
+    interpreter shutdown wakes them, which api/serve_dual.py's `os._exit` never reaches. Same fix as the bars-seed
+    pool (api/routers/stream.py shutdown_seed_pool) and the cold-preload pool (cold_start_guard.shutdown)."""
+    stop_bars_warm_pool(reopen=False)
 
 # ── Never-block cold fetch (instant-charts Phase 4) ──────────────────────────
 # A truly-cold symbol's provider fetch can take ~15-22s; holding a REQUEST thread
@@ -4788,6 +4832,77 @@ _warm_state = {
 _warm_state_lock = _threading.Lock()
 
 
+# ⭐ A UNIVERSE WARM IS A RUN WITH AN ID (review of #2601, MEDIUM-1). The admin stop used to leave a multi-timeframe
+# runner going: it woke from the cancelled jobs, moved on to the next timeframe and submitted every ticker to the
+# FRESH pool the stop had just put in place (~3,700 x 7 provider-backed jobs), while the status read idle, a second run
+# could start, and the old runner's last block then overwrote the new run's status. Now:
+#   - a runner captures the pool ONCE at its start and submits only to it, so any stop (admin or process) makes its
+#     next submit raise; a refused submit ends the WHOLE run, not only the current timeframe;
+#   - each run has an id (`_warm_state["run_id"]`); the admin stop takes a new one (`supersede_warm_run`), and a runner
+#     writes `_warm_state` (its counts, its end) only while its id is current: a stopped runner can never count into,
+#     or end, the run started after it.
+def _begin_warm_run(total: int, tf_label: str) -> int:
+    """A universe warm's start: a new run id and a fresh status. Returns the id."""
+    with _warm_state_lock:
+        run_id = int(_warm_state.get("run_id") or 0) + 1
+        _warm_state.update({
+            "run_id": run_id,
+            "running": True,
+            "started_at": _time.time(),
+            "started_iso": datetime.utcnow().isoformat() + "Z",
+            "completed_iso": None,
+            "total": total,
+            "done": 0,
+            "skipped": 0,
+            "errors": 0,
+            "tf": tf_label,
+        })
+    return run_id
+
+
+def _warm_count(run_id: int, *, skipped: bool = False, error: bool = False) -> None:
+    """One job (or one skip) of run `run_id`, counted only while that run is the current one."""
+    with _warm_state_lock:
+        if _warm_state.get("run_id") != run_id:
+            return
+        _warm_state["done"] += 1
+        if skipped:
+            _warm_state["skipped"] += 1
+        if error:
+            _warm_state["errors"] += 1
+
+
+def _count_warm_results(run_id: int, futures: list) -> None:
+    """Each job through its OWN result(), never as_completed(): a job that stop_bars_warm_pool cancelled
+    (cancel_futures=True) never wakes as_completed (CPython tells its waiters only when a worker picks the job up), so
+    the runner used to wait for ever after every stop with work queued."""
+    for fut in futures:
+        try:
+            ok = fut.result()
+        except Exception:  # a failed job, or one a stop cancelled (CancelledError)
+            ok = False
+        _warm_count(run_id, error=not ok)
+
+
+def _end_warm_run(run_id: int) -> None:
+    with _warm_state_lock:
+        if _warm_state.get("run_id") == run_id:
+            _warm_state["running"] = False
+            _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
+
+
+def supersede_warm_run() -> bool:
+    """The admin stop's half on the status: the current run loses its claim (a new id) and reads stopped. Returns
+    whether a run was in progress. Call BEFORE stopping the pool, so nothing the stopped runner still does lands."""
+    with _warm_state_lock:
+        was_running = bool(_warm_state.get("running", False))
+        _warm_state["run_id"] = int(_warm_state.get("run_id") or 0) + 1
+        if was_running:
+            _warm_state["running"] = False
+            _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
+    return was_running
+
+
 def _build_universe_ticker_list() -> list[str]:
     """Build the combined ticker list to warm: priority + breadth-list + cap-universe."""
     PRIORITY = ['SPY', 'QQQ', 'IWM', 'DIA', 'AAPL', 'NVDA', 'MSFT', 'TSLA',
@@ -4844,28 +4959,15 @@ def _run_universe_warm(tickers: list[str], tf: str, bars_count: int) -> None:
     submitted to the bars-warm pool (4 workers) so live API requests aren't
     blocked. This typically completes in 1-3 hours for ~3,700 tickers.
     """
-    from concurrent.futures import as_completed
-    with _warm_state_lock:
-        _warm_state.update({
-            "running": True,
-            "started_at": _time.time(),
-            "started_iso": datetime.utcnow().isoformat() + "Z",
-            "completed_iso": None,
-            "total": len(tickers),
-            "done": 0,
-            "skipped": 0,
-            "errors": 0,
-            "tf": tf,
-        })
+    pool = _bars_warm_pool             # ⭐ captured ONCE: a stop makes every later submit raise (see the run notes)
+    run_id = _begin_warm_run(len(tickers), tf)
 
     futures = []
     for sym in tickers:
         # Quick path: skip if disk cache already has it.
         try:
             if disk_cache.get(sym, tf, bars_count) is not None:
-                with _warm_state_lock:
-                    _warm_state["skipped"] += 1
-                    _warm_state["done"] += 1
+                _warm_count(run_id, skipped=True)
                 continue
         except Exception:
             pass
@@ -4878,23 +4980,12 @@ def _run_universe_warm(tickers: list[str], tf: str, bars_count: int) -> None:
                 return False
 
         try:
-            futures.append(_bars_warm_pool.submit(_task))
+            futures.append(pool.submit(_task))
         except RuntimeError:
-            break  # pool shutting down
+            break  # the pool was stopped (process shutdown or the admin stop): this run is over
 
-    for fut in as_completed(futures):
-        try:
-            ok = fut.result()
-        except Exception:
-            ok = False
-        with _warm_state_lock:
-            _warm_state["done"] += 1
-            if not ok:
-                _warm_state["errors"] += 1
-
-    with _warm_state_lock:
-        _warm_state["running"] = False
-        _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
+    _count_warm_results(run_id, futures)
+    _end_warm_run(run_id)
 
 
 def _check_admin_auth(request: Request) -> None:
@@ -4913,23 +5004,13 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
     intraday) so the most-viewed TF is hot earliest. Aggregate progress is
     reported in _warm_state.
     """
-    from concurrent.futures import as_completed
     total_jobs = len(tickers) * len(tfs)
-    with _warm_state_lock:
-        _warm_state.update({
-            "running": True,
-            "started_at": _time.time(),
-            "started_iso": datetime.utcnow().isoformat() + "Z",
-            "completed_iso": None,
-            "total": total_jobs,
-            "done": 0,
-            "skipped": 0,
-            "errors": 0,
-            "tf": ",".join(tfs),
-        })
+    pool = _bars_warm_pool             # ⭐ captured ONCE: a stop makes every later submit raise (see the run notes)
+    run_id = _begin_warm_run(total_jobs, ",".join(tfs))
 
     for tf in tfs:
         futures = []
+        stopped = False
         is_deep_tf = tf in ("D", "W", "M")
         for sym in tickers:
             # For D/W/M we always re-warm because users may have already
@@ -4938,9 +5019,7 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
             if not is_deep_tf:
                 try:
                     if disk_cache.get(sym, tf, bars_count) is not None:
-                        with _warm_state_lock:
-                            _warm_state["skipped"] += 1
-                            _warm_state["done"] += 1
+                        _warm_count(run_id, skipped=True)
                         continue
                 except Exception:
                     pass
@@ -4994,23 +5073,16 @@ def _run_universe_warm_multi_tf(tickers: list[str], tfs: list[str], bars_count: 
                     return False
 
             try:
-                futures.append(_bars_warm_pool.submit(_task))
+                futures.append(pool.submit(_task))
             except RuntimeError:
+                stopped = True
                 break
 
-        for fut in as_completed(futures):
-            try:
-                ok = fut.result()
-            except Exception:
-                ok = False
-            with _warm_state_lock:
-                _warm_state["done"] += 1
-                if not ok:
-                    _warm_state["errors"] += 1
+        _count_warm_results(run_id, futures)
+        if stopped:
+            break                      # ⭐ the WHOLE run ends, not only this timeframe
 
-    with _warm_state_lock:
-        _warm_state["running"] = False
-        _warm_state["completed_iso"] = datetime.utcnow().isoformat() + "Z"
+    _end_warm_run(run_id)
 
 
 # Default warm set: Daily first (dominant scan TF), then Weekly/Monthly for

@@ -199,6 +199,7 @@ import {
   historyFromListingFor, listingOptsFor, listingSeedUnpinnedFor, varOriginAbsoluteFor, barIndexAbsoluteFor,
   resolveInputs, enumIndexOf, treeScalars, PARAM_SETTING_GUARD, SYMBOL_SETTING_GUARD, defaultBoundDocument,
 } from './astColumns.js'
+import { FIRST_PAGE_CODE, FIRST_PAGE_NOTE } from './firstPage.js'
 // ⭐⭐ HEADLESS (R6) — `computeFor` dispatches on the ONE router the headless export asks too.
 import { computeLaneOf, COMPUTE_LANE } from './computeLane.js'
 // ⭐⭐ HOST WORKER — a chart's costly host document, computed off the main thread.
@@ -2365,6 +2366,11 @@ export { FORMULA_LTF_GUARD, FORMULA_LTF_MESSAGE }
 export function externalReadNotices(def, columns) {
   if (!def || !columns) return []
   const out = []
+  // ⭐⭐ (the first-draw unit, 2026-11-23) — a pane showing its FIRST PAGE (`firstPage.js`): every plot carries
+  // `FIRST_PAGE_CODE` per bar until the full answer replaces the page; the member reads why, once
+  if (Object.values(withheldBarsReport(columns) || {}).some((codes) => codes && codes[FIRST_PAGE_CODE])) {
+    out.push({ code: FIRST_PAGE_CODE, reason: FIRST_PAGE_NOTE })
+  }
   // ⭐⭐ ENGINE 55 — A PINE TRANSLATION'S OTHER-SYMBOL REFUSALS ARE PUBLISHED TOO. Its
   // translate-time disclosures ride `meta.disclosures`, but a ticker the BIND refuses
   // (`ADVQ` held nowhere, an unwitnessed venue) is decided per chart and was said

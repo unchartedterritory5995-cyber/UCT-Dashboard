@@ -144,7 +144,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_vfK5fLCfCGqKA/dm02On3Q==_O6Tbq7Gtyalas+/CzqEOYEV7JS6WAFaIK1yF7r/VW+8lpHZGlpNqC8Goe6AHB7IXCfoWCfjFhZuy2qCSOxivrHZQPhpFZOFL3j1uuy2kfHlptkKzex1O2pvm6NiyVQuN1Yq/C81gYRBkqS2/hcG8Tk91aKgPbCIe74NkPRcUwqLe8ULJUG2L0bJJmBcv1BQECBmH1E9HWT6wfXjcCvoBA7Q5LQwArhJTQ3qzKqiGubZ5+BRvaZ9fOkyfMF58njF05ffHcZmodtjKbHCfHFGwksuw5qcqWQA89ec7zFiTrdB7nlM9qr2ijyPK8ogHMG0BdZqfygjOQetbJazXS2FrDAaFyusnYEQ2dRWVFIwYClgcDvyp2jmPwW3oKMA7mxOgRZTVbthsS4ImX66Pg0zp2qZ0GuluIZB95EJ3wQb/WSgsw1KapB1IGTHwX/C5mhT1QV1kAMc+6XmW5w7WqLQoFLd7TVCrqO9IBvle/+Xtuuc2OMZvJLD3dKQAoDq5whOjJZ9+tB3Rk8OIavaJQk3V1vEfYP/eUcOWAUt7nU1HTEQhTMjU8yxa9OcqlGrmMZlhKZ6koXlMZDlHL7tWgnUgFNuvOAdNaieVn5keKy3X9Oe8PHgPu4k9485N7+Y55UuPrI+WC9Gz8ZA7MRefHXMam4Ss/TSZz/EG2OL5soIAGVdGxAOMDtkQfCB2XbFFPUS5iSaTcCeAqIrfFphwlBUvUSf72TRC+edA/LHgYtG4tgjwIlVgkukSCnQSpCGwkMwfqGajQp54/hEFtubevbyWprkZ1Gidk+8ZzIsCCsDitSQwTvj0aoys/oiGqGKIEHSc9QGKE/Rdg5LmVxb0A2LEcvwmgZk9mqP5yyX4KigtV+6i48dz8/KLWgWmXheOYSJUyFmUcJglUzF0CKRLddhLAjxLCzA58ynmps0IwQjVI2a9b5URG8SuvyWQ3Wj7lZSdjRrh7qAmfDBWeK7x5hXHKeIybtZIfX56u9WjKa/Yc2LPFUerJcwaVs4lxN0ft6HPA1d/9eXoiZ5YiVngVNPmbgWLULZuhHyvWEc7U6BjCquvAx3AM/HJLXXUpOZtLrvGuOiFQpdD8Ke8Bf620KqJl46FhNYkWhDqwDYKH5Mc2KHE5lQtcYI9o22FaQCcfWrDhEouXHcZowYaZUrKEyyZOhH47QdI6iIFszdgI1WKjey96yvpHoUbXzWVCW6bP2CuH7koYXIxJ9wGDytYjOYyhngfPH9p1E/VKhENjvtnoXCOHA140HdPf9ks1iL4lpuP4jx5Fux0yzd+kOvwTMu8/2zn7b8Pj2pHYaupoHsFpRviYPXos9mznm/Sm4DbWbM6outShMLfnXk8VI7Xmqi6kEMdp5/zQ3FEm0z5OSRTjjYQgq7iWqQoYLaMdU8mkZ8LmTVqUPDOR36ZFLRB92EtJyTWo1ALeG6X9dWgPTHS"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -9014,10 +9014,25 @@
   }
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1482,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 62290,
+    "fnv1a": 3084836695
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:44Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 62290,
-  "fnv1a": 3084836695
+  "chars": 61147,
+  "fnv1a": 3307660238
  }
 }

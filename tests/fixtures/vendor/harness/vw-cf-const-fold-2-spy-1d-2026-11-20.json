@@ -447,7 +447,7 @@
     "type": "text",
     "defval": "",
     "isHidden": true,
-    "value": "bmI9Ks46_2vOpkJ+7S2Uci9cOGulJ9g==_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"
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -247423,10 +247423,25 @@
   }
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 2214,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 2292529,
+    "fnv1a": 1766722613
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:44Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 2292529,
-  "fnv1a": 1766722613
+  "chars": 2290656,
+  "fnv1a": 376051991
  }
 }

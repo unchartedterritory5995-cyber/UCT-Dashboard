@@ -183,16 +183,22 @@ def _choice_max_chars() -> int:
 #: meet. The limit is read from the schema (never typed here), the door's own words for the bars version never
 #: exceed BARS_PHRASE_MAX_CHARS, and the import fails if those words would not leave the assistant room for its own.
 CHOICE_MAX_CHARS = _choice_max_chars()
-BARS_PHRASE_MAX_CHARS = 60
-ROOM_FOR_THE_ASSISTANTS_WORDS = 20
+#: ⭐ 2026-11-23, second unit. MEASURED on the 24 day-length requests: told the limit, the assistant still wrote 7 choices
+#: of 82 to 96 characters. Its OWN words in them ran 27 to 58; the rest was the time range and the bar counts it had put
+#: back. So the room is a number the door keeps for the assistant and TELLS it each turn, and the door's phrase is
+#: whatever is left of the schema's limit: DERIVED from it, never a second number.
+ROOM_FOR_THE_ASSISTANTS_WORDS = 28
+BARS_PHRASE_MAX_CHARS = CHOICE_MAX_CHARS - ROOM_FOR_THE_ASSISTANTS_WORDS
+#: the form the door can always write, when even the shortest time words would not fit
+BARS_PHRASE_LAST_RESORT = "these bars in place of days"
 
 
-def require_room_in_a_choice(limit: int, required: int = BARS_PHRASE_MAX_CHARS, room: int = ROOM_FOR_THE_ASSISTANTS_WORDS) -> None:
-    """Refuse to start when the words a guard requires in a choice would not fit the choice (with room to say what
-    the choice draws). Raised at import: a schema limit lowered under the guard's words is found before a member is."""
-    if required + room > limit:
-        raise RuntimeError(f"a choice may be {limit} characters, and the day-length guard requires up to {required} "
-                           f"of them with {room} left for the assistant's own words: the two cannot both hold")
+def require_room_in_a_choice(limit: int, room: int = ROOM_FOR_THE_ASSISTANTS_WORDS, least: int = len(BARS_PHRASE_LAST_RESORT)) -> None:
+    """Refuse to start when the words a guard requires in a choice could not fit the choice once the assistant's room
+    is kept. Raised at import: a schema limit lowered under the guard's words is found before a member is."""
+    if limit - room < least:
+        raise RuntimeError(f"a choice may be {limit} characters; with {room} kept for the assistant's own words the "
+                           f"day-length guard's shortest wording ({least}) does not fit: the two cannot both hold")
 
 
 require_room_in_a_choice(CHOICE_MAX_CHARS)
@@ -817,9 +823,22 @@ STRICT_WORDS_RULE = (
 DAY_LENGTH_CHOICE_RULE = (
     f"A choice is at most {CHOICE_MAX_CHARS} characters, and a longer one is refused. In the version on this chart's "
     "bars put `uct_language_notes.day_lengths_bars_phrase` as given: it is the door's own wording of what those bars "
-    "span, every length at once. Never call that version by its number of days. If "
+    "span, every length at once, counts included when they fit. Do not say the counts or the times again in your own "
+    "words: `uct_language_notes.day_lengths_choice_room` is how many characters of your own that choice may hold "
+    "beside the phrase. Count them. Never call that version by its number of days. If "
     "`uct_language_notes.daily_measure_inside` is true, a daily measure CAN be read inside a formula of this chart: "
     "build what the member asked that way, and ask only about what still cannot be written. ")
+
+#: ⭐ 2026-11-23 -- THE SAME FACT, WHERE THE FIRST ATTEMPT READS IT. `WHICH_BAR_EXIT` reached the assistant only in a
+#: repair note, after a guard had refused its formula. Six live samples of one request ("how many bars back the most
+#: recent close above today's close was"): 4 right, each one after that note; 2 wrong, each a first formula that
+#: passed every guard (`barssince(close > close[1])`, `barssince(close[1] > close)`), built and not disclosed.
+#: ⛔ ONE constant: the instruction below ends with `WHICH_BAR_EXIT` itself, never a second wording of it.
+LOOK_BACK_RULE = (
+    "  A LOOK-BACK NEVER COMPARES ITS BARS WITH TODAY'S VALUE. Inside sum, highest, barssince and every other window "
+    "each series is read at its own bar: `close > close` there compares every bar with itself, and `close[1] > close` "
+    "compares each bar with the one before it. Neither is \"an earlier close above today's close\"."
+    + WHICH_BAR_EXIT + " When you decline, the door can have it written as a script.\n")
 
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
@@ -1175,6 +1194,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "accumulation and distribution days, and \"up on volume\" count. A close above its own OPEN "
     "is an up BAR (a green candle): use that only when the member says candle, an up or down "
     "bar, or \"above its open\". A colour alone (\"green shading\") says nothing about which.\n"
+    + LOOK_BACK_RULE +
     "  FOR THE FIRST TIME IN N BARS (or days: \"the first new high in 30 days\", \"hasn't done it in "
     "N bars\") is the condition now AND not once on the N bars before: "
     "cond && (offset 1 of barssince(cond, N)) >= N. `barssince` takes its window as its second "
@@ -1582,25 +1602,44 @@ def bars_phrase(message: Any, chart: Any) -> Optional[str]:
     assistant writes the rest of its choice around them. None when the request gives no length in days below a day.
 
     Shorter forms when the full one would not fit: without the counts, then "these bars" with the times alone."""
+    forms = bars_phrases(message, chart)
+    return next((said for said in forms if len(said) <= BARS_PHRASE_MAX_CHARS), None)
+
+
+def _compact_time(about: str) -> str:
+    """The door's time words, shorter: "about 1 hour 45 minutes" -> "1 h 45 min". Trading days stay as they are said."""
+    said = about.replace("about ", "", 1)
+    said = re.sub(r"\bminutes?\b", "min", said)
+    return re.sub(r"\bhours?\b", "h", said)
+
+
+def bars_phrases(message: Any, chart: Any) -> List[str]:
+    """EVERY form the door can write for the version on this chart's bars, the fullest first. `bars_phrase` takes the
+    first that leaves the assistant its room; `check_day_lengths` accepts any of them: one function, so what the
+    door says, what its note asks for and what its guard accepts cannot disagree. [] when there is nothing to say.
+
+    One length: "50 five-minute bars, about 4 hours" / "50 five-minute bars (4 h)" / "these bars (4 h)".
+    Several, the counts in the member's order and the times from the shortest to the longest:
+    "10, 21 and 50 five-minute bars, about 50 minutes to 4 hours" / "10, 21 and 50 five-minute bars (50 min to 4 h)" /
+    "five-minute bars, about 50 minutes to 4 hours" / "five-minute bars (50 min to 4 h)" / "these bars (50 min to 4 h)".
+    The last resort names no time and always fits."""
     notes = day_length_notes(message, chart)
     if not notes:
-        return None
+        return []
     spans = [n["on_this_chart"] for n in notes]
-    if len(spans) == 1:
-        return spans[0] if len(spans[0]) <= BARS_PHRASE_MAX_CHARS else None
+    counts = [str(n["days"]) for n in notes]
+    listed = counts[0] if len(counts) == 1 else ", ".join(counts[:-1]) + " and " + counts[-1]
     if ", " not in spans[0]:                             # the chart's minutes are not known: "50 bars of this chart"
-        counts = [str(n["days"]) for n in notes]
-        said = ", ".join(counts[:-1]) + " and " + counts[-1] + " bars of this chart"
-        return said if len(said) <= BARS_PHRASE_MAX_CHARS else "these bars in place of days"
+        return [f"{listed} bars of this chart", BARS_PHRASE_LAST_RESORT]
     kind = spans[0].split(", ", 1)[0].split(" ", 1)[1]   # "five-minute bars"
     ordered = sorted(notes, key=lambda n: n["days"])
     low, high = (n["on_this_chart"].split(", ", 1)[1] for n in (ordered[0], ordered[-1]))
+    if len(spans) == 1:
+        return [spans[0], f"{listed} {kind} ({_compact_time(low)})", f"these bars ({_compact_time(low)})", BARS_PHRASE_LAST_RESORT]
     times = low if low == high else f"{low} to {high.replace('about ', '', 1)}"
-    counts = [str(n["days"]) for n in notes]
-    for said in (f"{', '.join(counts[:-1])} and {counts[-1]} {kind}, {times}", f"{kind}, {times}", f"these bars, {times}"):
-        if len(said) <= BARS_PHRASE_MAX_CHARS:
-            return said
-    return None
+    short = _compact_time(low) if low == high else f"{_compact_time(low)} to {_compact_time(high)}"
+    return [f"{listed} {kind}, {times}", f"{listed} {kind} ({short})", f"{kind}, {times}", f"{kind} ({short})",
+            f"these bars ({short})", BARS_PHRASE_LAST_RESORT]
 
 
 def day_length_turn_notes(message: Any, chart: Any) -> Dict[str, Any]:
@@ -1614,6 +1653,7 @@ def day_length_turn_notes(message: Any, chart: Any) -> Dict[str, Any]:
     phrase = bars_phrase(message, chart)
     if phrase:
         out["day_lengths_bars_phrase"] = phrase
+        out["day_lengths_choice_room"] = CHOICE_MAX_CHARS - len(phrase)      # the assistant's own words, as a NUMBER
     if daily_values_below_a_day(chart):
         out["daily_measure_inside"] = True
     return out
@@ -1636,15 +1676,19 @@ def check_day_lengths(envelope: Mapping[str, Any], message: Any, chart: Any) -> 
             for choice in (q.get("choices") or []) if isinstance(q, Mapping) else []:
                 text = " ".join(str(choice).split())
                 # the BARS version is a choice that speaks of this chart's bars; "on daily bars" is the daily line
-                if not re.search(r"\bbars?\b", text, re.I) or re.search(r"\bdaily\s+bars?\b", text, re.I):
+                # ⚰️ 2026-11-23: "The ratio with a 21 day EMA, which is its 21-bar EMA on a daily chart" IS the daily
+                # version, described with the word "bar"; it was read as the bars version and refused.
+                if (not re.search(r"\bbars?\b", text, re.I) or re.search(r"\bdaily\s+bars?\b", text, re.I)
+                        or re.search(r"\bon\s+(?:an?\s+|the\s+)?daily\s+chart\b", text, re.I)):
                     continue
                 span = next((s for s in by_days.values() if s.split(",")[0] in text and s.split(", ")[-1] in text), None)
                 called_days = next((n for n in by_days if re.search(rf"(?<![\d.]){n}[\s-]*days?\b", text, re.I)), None)
-                carries_the_phrase = phrase is not None and phrase in text
+                carries_the_phrase = any(form in text for form in bars_phrases(message, chart))
                 if (span is None and not carries_the_phrase) or called_days is not None:
                     # ⛔ THE NOTE ASKS FOR WHAT THE CODE ACCEPTS, and for something that fits a choice. It used to
                     # ask for every span "exactly", which no choice of a request with several lengths could hold.
-                    wanted = (f"put these words in it as given: \"{phrase}\"" if phrase is not None
+                    wanted = (f"put these words in it as given: \"{phrase}\", and at most {CHOICE_MAX_CHARS - len(phrase)} "
+                              "characters of your own beside them" if phrase is not None
                               else f"name one of these exactly: {'; '.join(by_days.values())}")
                     raise _Refused(
                         "envelope:days-choice-in-days",

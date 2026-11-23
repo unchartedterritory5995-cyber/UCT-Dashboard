@@ -217,9 +217,9 @@
     "id": "text",
     "name": "ILScript",
     "type": "text",
-    "defval": "bmI9Ks46_uV/ptvD9UFy95SVIvD5Avw==_ssBuE6SgxKW6lpM6i/CJjfqQentzFVYXmW/wfx4/juz8LMvEbOS8Bd1lQt8TZWzOrRIpZ+tIFp0HrP1K4QaKPoIo2IVNACyhRS/XzJE/ZtBVeQzwqSCS6ozIi963qnI7G4Sd0GZitG1m5pr4DXIFDBYtRAdg8iSogJZGu8m8DECptChHQCFumb7FO0kKmsb6BG9CDE7x0oAlyyeHCOH3GX/Qqq6DS23bw1RGtj7/ReedQ2q17ErXA8q1v4PTj9wbzJxHHHdUvdp1KO0zk/YpAOjK+ZYNPkdEv0iPEaa3cC8A4E1GCmUbXg2Fc5v7bO0BL6udixHd67ijtRVkJi7KMgKsnTc12rjtEKd5dylHf/juHkg1XJ4rquk/4KjavIuys7yCHxZcY2Rvmxl91qLPQpvFuY4fYi23C/DihMIEuwGT06u8OXochSw7Jo3RviXXZhMZEaqXh+V+1Qis6qZM+3E2rKAqlRv5VZbpIIQtt0MiAFRDDFr4+8kC39yk6df3mIwnIs1ifx4AKzkgDAlZJPzXqLQMB1/5qDlFKvLL8Fz5NB3Z/Sh9Vvz3cohvMxeft6QyUf4VjqCeUsrxDvnGKAKpvkIxzVHsSrzAHat6Ecw4VxWsSWkhmhaLLp2zZpfeD3A1DSKqSDUqaexPEFYpSbmXUe7cU6jAgbiOk+LrUJt1pl/aVRGPQdQWECfSyjC4pfZKbWxWK0nW+xhLc5VgvAAo60vDbx5LgAcFl7LSNaLt2qFMD2IA1acjo/279pHjZQAn3uHKHzIgBIm24uJRFL2hZFjp7YAG9giPAQKQ5D9PygKtF2ZQZk8Te1u3fKm8PCzi9z1vvGXiAApbyQSIpc0SKPWo5RJNw/xqN2SOaBgq3jPoA5IqPyq2TyXowmRtQALw0PVeFIf8JBa0BIxG7cCjTLnOCNxHu3P22qRXNc7DRNNV0aCdhaL25p9ko6cAt0uvLHWR2CFXDJ3HyXOrcpwjxMU82UvEsYppfMEkxVErSLdqr53Z0OtTbM6GDBtg6VMjZ3JI4uh6hZFldewlraylvI6tQDB0Cj0gl2r+0/gKksF3CCQ038Q+QL9RoWgV6ofOAAhW80367yHeS1PK1FoMxpDr2FQyTWE/Zu01XTTRxG8ScSrI48iBe0SqljKXTyhZoAMDWWwoFdwInathuZ25jyFnkFSuis5hV62DcWdp60NPGIacNSZ1Bp9IGS6UdhUD6n2suEgzkGVR2onSmFuIlN+bsSK0eK8eK7zCOcUyXbOU0hddI5pBglM4hT2+eKgIkk9EeXvw+4tKTWv4FKhzCHfPpV8KpXORXuemtKRbQ1K2kAbD2ge+BFd5LZxmmaHTL8SkgvGUapCmlie81fxyrfsEI0eGZVLiAnvMZeMqvY4/4JY=",
+    "defval": "[redacted: TradingView compiled script]",
     "isHidden": true,
-    "value": "bmI9Ks46_uV/ptvD9UFy95SVIvD5Avw==_ssBuE6SgxKW6lpM6i/CJjfqQentzFVYXmW/wfx4/juz8LMvEbOS8Bd1lQt8TZWzOrRIpZ+tIFp0HrP1K4QaKPoIo2IVNACyhRS/XzJE/ZtBVeQzwqSCS6ozIi963qnI7G4Sd0GZitG1m5pr4DXIFDBYtRAdg8iSogJZGu8m8DECptChHQCFumb7FO0kKmsb6BG9CDE7x0oAlyyeHCOH3GX/Qqq6DS23bw1RGtj7/ReedQ2q17ErXA8q1v4PTj9wbzJxHHHdUvdp1KO0zk/YpAOjK+ZYNPkdEv0iPEaa3cC8A4E1GCmUbXg2Fc5v7bO0BL6udixHd67ijtRVkJi7KMgKsnTc12rjtEKd5dylHf/juHkg1XJ4rquk/4KjavIuys7yCHxZcY2Rvmxl91qLPQpvFuY4fYi23C/DihMIEuwGT06u8OXochSw7Jo3RviXXZhMZEaqXh+V+1Qis6qZM+3E2rKAqlRv5VZbpIIQtt0MiAFRDDFr4+8kC39yk6df3mIwnIs1ifx4AKzkgDAlZJPzXqLQMB1/5qDlFKvLL8Fz5NB3Z/Sh9Vvz3cohvMxeft6QyUf4VjqCeUsrxDvnGKAKpvkIxzVHsSrzAHat6Ecw4VxWsSWkhmhaLLp2zZpfeD3A1DSKqSDUqaexPEFYpSbmXUe7cU6jAgbiOk+LrUJt1pl/aVRGPQdQWECfSyjC4pfZKbWxWK0nW+xhLc5VgvAAo60vDbx5LgAcFl7LSNaLt2qFMD2IA1acjo/279pHjZQAn3uHKHzIgBIm24uJRFL2hZFjp7YAG9giPAQKQ5D9PygKtF2ZQZk8Te1u3fKm8PCzi9z1vvGXiAApbyQSIpc0SKPWo5RJNw/xqN2SOaBgq3jPoA5IqPyq2TyXowmRtQALw0PVeFIf8JBa0BIxG7cCjTLnOCNxHu3P22qRXNc7DRNNV0aCdhaL25p9ko6cAt0uvLHWR2CFXDJ3HyXOrcpwjxMU82UvEsYppfMEkxVErSLdqr53Z0OtTbM6GDBtg6VMjZ3JI4uh6hZFldewlraylvI6tQDB0Cj0gl2r+0/gKksF3CCQ038Q+QL9RoWgV6ofOAAhW80367yHeS1PK1FoMxpDr2FQyTWE/Zu01XTTRxG8ScSrI48iBe0SqljKXTyhZoAMDWWwoFdwInathuZ25jyFnkFSuis5hV62DcWdp60NPGIacNSZ1Bp9IGS6UdhUD6n2suEgzkGVR2onSmFuIlN+bsSK0eK8eK7zCOcUyXbOU0hddI5pBglM4hT2+eKgIkk9EeXvw+4tKTWv4FKhzCHfPpV8KpXORXuemtKRbQ1K2kAbD2ge+BFd5LZxmmaHTL8SkgvGUapCmlie81fxyrfsEI0eGZVLiAnvMZeMqvY4/4JY="
+    "value": "[redacted: TradingView compiled script]"
    },
    {
     "id": "pineId",
@@ -10640,10 +10640,38 @@
   "unreadable": []
  },
  "warnings": [],
+ "redactions": [
+  {
+   "field": "study.inputs[name=ILScript].value",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1430,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 67799,
+    "fnv1a": 2409140310
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:34Z"
+  },
+  {
+   "field": "study.inputs[name=ILScript].defval",
+   "index": 0,
+   "replacedWith": "[redacted: TradingView compiled script]",
+   "originalChars": 1430,
+   "originalReceipt": {
+    "algo": "fnv1a32-utf16",
+    "chars": 67799,
+    "fnv1a": 2409140310
+   },
+   "by": "tools/vendor_harness/redact_capture.mjs",
+   "at": "2026-11-23T08:15:34Z"
+  }
+ ],
  "receipt": {
   "algo": "fnv1a32-utf16",
   "over": "JSON.stringify(capture without its receipt key)",
-  "chars": 67799,
-  "fnv1a": 2409140310
+  "chars": 65603,
+  "fnv1a": 1959989971
  }
 }
