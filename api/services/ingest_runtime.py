@@ -167,6 +167,7 @@ class IngestRuntime:
         # SEED_HOLD_S so a slow or failed seed never blanks the live candle.
         self._seed_hold: dict = {}
         self._first_seed: set = set()            # first seed scheduled, not finished
+        self._seed_gen: dict = {}                # sym -> bumped each time T restarts (stale-seed guard)
         self._reader: Optional[asyncio.Task] = None
         self._grace_until: Optional[float] = None
         self.counters = {"bars_routed": 0, "bars_unrouted": 0, "bars_superseded": 0,
@@ -174,7 +175,8 @@ class IngestRuntime:
                          "forgets": 0, "seeds_started": 0, "seeds_applied": 0,
                          "seed_errors": 0, "reseeds": 0, "upstream_changes": 0,
                          "bars_invalid": 0, "prices_invalid": 0, "keys_without_channels": 0,
-                         "seed_reoffers": 0, "bars_held_for_seed": 0, "seed_hold_expired": 0}
+                         "seed_reoffers": 0, "bars_held_for_seed": 0, "seed_hold_expired": 0,
+                         "seeds_superseded": 0}
 
     def attach(self, server) -> None:
         self.server = server
@@ -216,7 +218,23 @@ class IngestRuntime:
             if not chans.get(sym) and sym in self._interest:
                 self._interest.discard(sym)
                 self.bc.remove_interest([sym])
-        for sym in sorted(new_syms):
+        # 3) T (re)starting: the minute map holds none of the trades from before it, so a
+        #    seed from an earlier chart today no longer covers the developing minute. ⛔ Owner
+        #    2026-11-23: SPY/QQQ/IWM stay wanted all day via the volume owner (AM+A, no T); a
+        #    reopened chart got begin_seed "already seeded today", no seed and no hold, and the
+        #    forming candle opened at the first trade after the switch (a flat dash). Forget
+        #    the seed; a symbol with a chart key gets a fresh one, held like a new symbol's.
+        #    The failed-seed retry gate is kept (a thin name is not re-fetched on every reopen),
+        #    and the seed generation moves on so a seed still in flight from before T stopped
+        #    can neither release this hold nor end it early (its fetch predates the restart).
+        t_started = {s for s, ch in delta.subscribe.items() if "T" in ch}
+        charted = {s for s, _ in self._keys}
+        for sym in sorted(t_started):
+            self.bc.reset_seed(sym, forget_failure=False)
+            self._seed_gen[sym] = self._seed_gen.get(sym, 0) + 1
+            if sym in charted and self.seeding:
+                self._seed_hold[sym] = self._now()     # a fresh hold, not an older seed's
+        for sym in sorted(new_syms | (t_started & charted)):
             self._schedule_seed(sym, first=True)
         self.side.sync(union)        # lease expiry may have released seeds / volume symbols
 
@@ -395,7 +413,10 @@ class IngestRuntime:
         task.add_done_callback(self._seed_tasks.discard)
 
     async def _seed(self, sym: str) -> None:
+        gen = self._seed_gen.get(sym, 0)
         async with self._seed_sem:
+            if gen != self._seed_gen.get(sym, 0):
+                return                        # T restarted while queued: the newer seed runs
             if not self.bc.begin_seed(sym):
                 self._release_hold(sym)       # already seeded today: nothing partial to hide
                 return
@@ -407,6 +428,12 @@ class IngestRuntime:
                 log.warning("[stream-ingest] seed(%s) failed: %s", sym, type(e).__name__)
                 bars = []
             # back on the loop: the apply (and the frames it emits) is ordered with the reader
+            if gen != self._seed_gen.get(sym, 0):
+                # T restarted mid-fetch: this fetch predates the restart. Drop it whole (an
+                # empty apply would also arm the failure gate against the newer seed); the
+                # hold, the first-seed mark and the re-offer belong to the newer seed.
+                self.counters["seeds_superseded"] += 1
+                return
             if self.bc.apply_seed(sym, bars):
                 self.counters["seeds_applied"] += 1
                 self._seed_hold.pop(sym, None)

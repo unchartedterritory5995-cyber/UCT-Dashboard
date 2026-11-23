@@ -498,14 +498,17 @@ class BarBroadcaster:
             self._seeded[su] = day
         return True
 
-    def reset_seed(self, sym: str) -> None:
-        """Forget that `sym` was seeded (and any failed attempt), so the next
-        begin_seed fetches again. stream-ingest calls it for every chart symbol after
-        a Massive RECONNECT: the minutes the socket missed come back from REST (D8)."""
+    def reset_seed(self, sym: str, forget_failure: bool = True) -> None:
+        """Forget that `sym` was seeded (and, unless `forget_failure` is False, any failed
+        attempt), so the next begin_seed fetches again. stream-ingest calls it for every chart
+        symbol after a Massive RECONNECT: the minutes the socket missed come back from REST (D8);
+        and with forget_failure=False when T restarts for a symbol, so a name whose seed keeps
+        failing is still fetched at most once per _seed_retry_ms however often it is reopened."""
         su = sym.upper()
         with self._lock:
             self._seeded.pop(su, None)
-            self._seed_failed_at.pop(su, None)
+            if forget_failure:
+                self._seed_failed_at.pop(su, None)
 
     def apply_seed(self, sym: str, bars) -> bool:
         """D8 step 3: fold fetched 1-min bars into the minute map (see ensure_seeded).

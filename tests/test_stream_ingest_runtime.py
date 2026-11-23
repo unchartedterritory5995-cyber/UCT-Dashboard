@@ -870,3 +870,123 @@ def test_a_slow_seed_never_blanks_the_live_candle_past_the_hold():
         await asyncio.wait_for(t, 2)
         await rig.rt.stop_reader()
     asyncio.run(go())
+
+
+def test_a_reopened_chart_reseeds_when_its_trades_stopped_in_between():
+    """Owner 2026-11-23: typing SPY/QQQ/IWM (all on watchlists) painted the forming 1m candle
+    as a flat dash for the rest of the minute. The volume owner holds those symbols all day on
+    AM+A only, so the symbol stays wanted (its seed mark survives) while T stops whenever no chart
+    holds it. Reopening a chart mid-minute restarts T; the minute map then holds only the trades
+    since, and begin_seed said "already seeded today": no seed, no hold, a wrong open locked on the
+    client (liveBarMerge I2). T coming back means the minutes since T stopped are not in the map, so
+    the symbol must be seeded again, with its partial bucket held exactly like a new symbol's."""
+    fetches = []
+    gate = threading.Event()
+
+    def fetcher(sym):
+        fetches.append(sym)
+        if len(fetches) > 1:
+            gate.wait(2)
+            return [{"t": T0 + 10 * MIN, "o": 5.0, "h": 9.0, "l": 4.0, "c": 6.0, "v": 900}]
+        return [{"t": T0, "o": 1.0, "h": 2.0, "l": 0.5, "c": 1.5, "v": 10}]
+
+    rig = Rig(seeding=True, fetcher=fetcher)
+    rig.now[0] = T0 + 30_000
+    vol = {"volume": {"ZZA": frozenset({"AM", "A"})}}
+    both = {**vol, "bars": {"ZZA": frozenset({"AM", "A", "T"})}}
+
+    async def go():
+        c = FakeConn([hello(), desired(1, both, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: rig.rt.counters["seeds_applied"] == 1)
+        # the chart closes: T stops, the volume owner keeps the symbol wanted
+        c.inbox.put_nowait(enc(fp.Patch(gen=1, seq=1, owners={"bars": {"ZZA": frozenset()}},
+                                        keys_remove=frozenset({("ZZA", "1")}))))
+        await until(lambda: ("ZZA", "1") not in rig.rt._key_routes)
+        assert "ZZA" in rig.rt._interest
+        # 10 minutes later the chart is reopened 30 s into a minute
+        rig.now[0] = T0 + 10 * MIN + 30_000
+        c.inbox.put_nowait(enc(fp.Patch(gen=1, seq=2, owners={"bars": {"ZZA": frozenset({"AM", "A", "T"})}},
+                                        keys_add=frozenset({("ZZA", "1")}))))
+        await until(lambda: ("ZZA", "1") in rig.rt._key_routes)
+        rig.trade("ZZA", T0 + 10 * MIN + 31_000, 6.0, 10)  # mid-bucket: NOT the open
+        await asyncio.sleep(0.05)
+        assert len(fetches) == 2, "T restarted: the symbol must be seeded again"
+        assert not [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0 + 10 * MIN], "partial bucket leaked"
+        gate.set()
+        await until(lambda: rig.rt.counters["seeds_applied"] == 2)
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0 + 10 * MIN])
+        first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0 + 10 * MIN][0]
+        assert first.bar["o"] == 5.0 and first.bar["v"] >= 900, "the first frame carries the true open"
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
+
+
+def _reopen(c, seq, add):
+    bars_ch = frozenset({"AM", "A", "T"}) if add else frozenset()
+    key = frozenset({("ZZA", "1")})
+    return enc(fp.Patch(gen=1, seq=seq, owners={"bars": {"ZZA": bars_ch}},
+                        keys_add=key if add else frozenset(), keys_remove=frozenset() if add else key))
+
+
+def test_a_reopen_keeps_the_failed_seed_retry_gate():
+    """Review 2026-11-23: a T restart forgets the seed mark but NOT a recent failure, so a thin
+    watchlist name whose seed keeps coming back empty is not re-fetched on every reopen."""
+    fetches = []
+    rig = Rig(seeding=True, fetcher=lambda s: fetches.append(s) or [])
+    rig.now[0] = T0 + 30_000
+    both = {"volume": {"ZZA": frozenset({"AM", "A"})}, "bars": {"ZZA": frozenset({"AM", "A", "T"})}}
+
+    async def go():
+        c = FakeConn([hello(), desired(1, both, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: len(fetches) == 1 and "ZZA" not in rig.rt._seed_hold)
+        for seq in range(1, 7, 2):                         # three quick close/reopen cycles
+            c.inbox.put_nowait(_reopen(c, seq, False))
+            c.inbox.put_nowait(_reopen(c, seq + 1, True))
+        await until(lambda: rig.rt.counters["upstream_changes"] >= 7)
+        await asyncio.sleep(0.05)
+        assert len(fetches) == 1, "a failed seed is retried only after the retry gate"
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
+
+
+def test_a_seed_in_flight_from_before_a_t_restart_cannot_release_the_new_hold():
+    """Review 2026-11-23: close and reopen while the first seed is still fetching. The old fetch
+    predates the restart; it must not end the new hold or send its bucket. The newer seed does."""
+    gates = [threading.Event(), threading.Event()]
+    calls = []
+
+    def fetcher(sym):
+        i = len(calls)
+        calls.append(i)
+        gates[i].wait(2)
+        o = 1.0 if i == 0 else 5.0
+        return [{"t": T0, "o": o, "h": 9.0, "l": 0.5, "c": 6.0, "v": 900}]
+
+    rig = Rig(seeding=True, fetcher=fetcher)
+    rig.now[0] = T0 + 30_000
+    both = {"volume": {"ZZA": frozenset({"AM", "A"})}, "bars": {"ZZA": frozenset({"AM", "A", "T"})}}
+
+    async def go():
+        c = FakeConn([hello(), desired(1, both, frozenset({("ZZA", "1")}))])
+        t = await run_until(c, rig.srv, lambda: len(calls) == 1)
+        c.inbox.put_nowait(_reopen(c, 1, False))
+        c.inbox.put_nowait(_reopen(c, 2, True))
+        await until(lambda: len(calls) == 2)
+        rig.trade("ZZA", T0 + 31_000, 6.0, 10)
+        gates[0].set()                                     # the stale seed lands first
+        await until(lambda: rig.rt.counters["seeds_superseded"] == 1)
+        await asyncio.sleep(0.05)
+        assert "ZZA" in rig.rt._seed_hold, "the stale seed must not end the new hold"
+        assert not [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0 and not u.final]
+        gates[1].set()
+        await until(lambda: [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0])
+        first = [u for u in bars_in(c, ("ZZA", "1")) if u.bar["t"] == T0][0]
+        assert first.bar["o"] == 5.0, "the first frame comes from the seed fetched after the restart"
+        await c.close()
+        await asyncio.wait_for(t, 2)
+        await rig.rt.stop_reader()
+    asyncio.run(go())
