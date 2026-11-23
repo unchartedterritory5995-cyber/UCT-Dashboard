@@ -759,15 +759,17 @@ export function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChan
   const scrolledForRef = useRef(null)
   // ⭐ (2026-11-23, next-row key profile; review of #2598) AN ARROW KEY'S SNAP RUNS IN THE NEXT ANIMATION FRAME
   // CALLBACK, NOT IN THIS EFFECT. `scrollToIndex` reads the scroller's scrollHeight/clientHeight (virtual-core
-  // getMaxScrollOffset), a forced layout, then scrolls. WHERE THIS EFFECT RUNS on /charts (react-dom 19.2.4): the key
-  // task renders the group store's readers at SyncLane (the charts, and Watchlists with the new `hubSym` but the old
-  // `selectedSym`); Watchlists' `[hubSym]` effect then sets `selectedSym` at DefaultLane, rendered in the NEXT
-  // scheduler task, and that commit's passive effects (this one) are themselves scheduled. Here the snap ran in that
-  // passive callback. Now it runs in the next frame callback registered from it (utils/afterPaintSlot.js
-  // createNextFrameSlot): the layout it reads is the one that frame needs anyway, and the scroll is painted in that
-  // frame. That is the frame that first paints the highlight when the highlight's commit and this callback share a
-  // scheduler slice; when React yields between them, the highlight paints a frame before the scroll, exactly as on the
-  // parent, whose scroll ran in this same callback.
+  // getMaxScrollOffset), a forced layout, then scrolls. It now runs in the next frame callback registered from this
+  // effect (utils/afterPaintSlot.js createNextFrameSlot): the layout it reads is the one that frame needs anyway, and
+  // the scroll is painted in that frame. WHERE THIS EFFECT RUNS (react-dom 19.2.4):
+  //   • the /charts board (a host whose group symbol is in a store, `selectInPress`): the key handler sets the
+  //     selection in the SAME SyncLane render as the group symbol (Watchlists' handleKeyDown), so this commit is the key
+  //     task's own and its passive effects are flushed at its end. The frame callback is registered in the key task:
+  //     the highlight, the charts' setData and the scroll all belong to the first frame after the key.
+  //   • any other host (the selection in a transition): the `[hubSym]` effect or the transition commits the selection
+  //     in a later scheduler task, and this passive effect is scheduled after that commit. The scroll's frame is then
+  //     the highlight's when that commit and this callback share a scheduler slice; when React yields between them,
+  //     the highlight paints a frame before the scroll, as before this change (the scroll ran in this same callback).
   // ONLY a move the arrow keys made (`keyMoveRef`, set by Watchlists' handleKeyDown) waits; a list opened on a
   // selection, a search, a symbol set from elsewhere snap here in the commit exactly as before. A held key snaps
   // once per frame, to the newest row. The snap is marked done when it RUNS: a row missing then is snapped by the
@@ -1974,9 +1976,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   // Scroll the active row into view when selection changes via keyboard.
   // ⭐ (2026-11-23, next-row key profile; review of #2598) FOR AN ARROW KEY'S MOVE, IN THE NEXT ANIMATION FRAME
-  // CALLBACK. On /charts an arrow key's selection commits one scheduler task after the key task (the `[hubSym]`
-  // effect below sets it at DefaultLane; see ScanRows' snap effect for the whole path), and this passive effect is
-  // scheduled after that commit. The row lookup and `scrollIntoView` (a forced layout, then a scroll) ran here; now
+  // CALLBACK. On the /charts board an arrow key's selection commits in the key task itself, beside the group symbol
+  // (handleKeyDown, `selectInPress`), and this passive effect is flushed at the end of that commit; on other hosts it
+  // commits in a later scheduler task (the transition, or the `[hubSym]` effect below) and this effect is scheduled
+  // after it (see ScanRows' snap effect for both paths). The row lookup and `scrollIntoView` (a forced layout, then a scroll) ran here; now
   // they run in the next frame callback registered from here (utils/afterPaintSlot.js createNextFrameSlot), where the
   // layout is the one that frame needs anyway. Which row, and whether this widget scrolls at all, is decided here as
   // before; any other selection (a list opened on one, a search, a symbol set from elsewhere) scrolls here exactly as
