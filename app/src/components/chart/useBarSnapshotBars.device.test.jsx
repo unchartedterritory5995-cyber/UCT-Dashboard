@@ -19,6 +19,10 @@
 //        new bucket, never a blank frame
 //   L1R (P4-L1) a render React throws away (a transition that something else on the page suspends) never marks the view
 //       as SHOWN: when the chart really shows that key later, after its bucket has ended, the copy is refused
+// P6-L2 (review of #2565): A KILL SEEN ON THE OPEN PAGE (the device client's beat read the kill cookie fresh):
+//   FK1 a first mount on a fresh device copy shows the loading state, then the answer
+//   FK2 a timeframe change onto a fresh device copy holds the previous timeframe until answered
+//   FK3 a chart ALREADY showing the device copy is never blanked by the kill: its rows stay until the answer replaces them
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { Suspense, use, startTransition, useLayoutEffect } from 'react'
@@ -26,6 +30,7 @@ import { createRoot } from 'react-dom/client'
 import { createBarStore } from '../../data/barStore/index'
 import { keyOf } from '../../data/barStore/types'
 import { fakeCandle, fakePrices, fakeStream } from '../../data/barStore/testing/fakeFeeds'
+import * as speed from '../../lib/chartSpeed'
 
 const S = vi.hoisted(() => ({ store: null }))
 vi.mock('../../data/barStore/index', async (orig) => {
@@ -110,8 +115,9 @@ async function answered(w, h, p) {
 }
 const K = (tf) => keyOf({ sym: SYM, tf: String(tf) })
 
-beforeEach(() => { vi.useFakeTimers() })
-afterEach(() => { S.store?.dispose(); vi.useRealTimers() })
+const KILL = () => { document.cookie = 'uct_device_store=0; path=/'; return speed.deviceStoreKilledNow() }
+beforeEach(() => { vi.useFakeTimers(); document.cookie = 'uct_device_store=; max-age=0; path=/'; speed.__resetChartSpeedForTests() })
+afterEach(() => { S.store?.dispose(); vi.useRealTimers(); document.cookie = 'uct_device_store=; max-age=0; path=/'; speed.__resetChartSpeedForTests() })
 
 describe('P3-M2 the chart\'s first mount and timeframe change consult the device refusal', () => {
   it('FM1 a first mount on a 5m copy whose bucket just rolled (10:05:05, short its 10:04 minute): loading, then the answer', async () => {
@@ -263,5 +269,56 @@ describe('P3-M2 the chart\'s first mount and timeframe change consult the device
     await act(async () => { release(); await vi.advanceTimersByTimeAsync(5) })
     expect(out.bars).toBeNull()                                        // shown now, and refused
     await act(async () => { root.unmount() })
+  })
+
+  it('FK1 after the kill is seen, a first mount on a fresh device copy: loading, then the answer', async () => {
+    vi.setSystemTime(et(10, 7, 30) * 1000)
+    const w = world({ 5: { rows: [...yday(5), ...rows(5, et(9, 30), et(10, 5)), { t: et(10, 5), ...px(et(10, 5)) }], through: et(10, 7), formingT: et(10, 5) } })
+    expect(KILL()).toBe(true)
+    const p = params()
+    const h = await mount(p)
+    expect(w.store.peek(K(5)).source).toBe('device')
+    expect(h.result.current.bars).toBeNull()
+    await answered(w, h, p)
+    expect(h.result.current.bars?.length).toBeGreaterThan(0)
+    expect(w.store.peek(K(5)).restSeen).toBe(true)
+  })
+
+  it('FK2 after the kill is seen, a timeframe change onto a fresh device copy holds the previous timeframe until answered', async () => {
+    vi.setSystemTime(et(10, 7, 30) * 1000)
+    const w = world({ 5: { rows: [...yday(5), ...rows(5, et(9, 30), et(10, 5)), { t: et(10, 5), ...px(et(10, 5)) }], through: et(10, 7), formingT: et(10, 5) } })
+    let p = params({ resolvedTf: '15', _barsTf: '15', activeTfRef: { current: '15' } })
+    const h = await mount(p)
+    await answered(w, h, p)                                            // 15m on screen, answered
+    const on15 = h.result.current.bars
+    expect(on15?.length).toBeGreaterThan(0)
+    p._onScreenSrcRef.current = { sym: SYM, tf: '15', ext: false, bars: on15 }
+    KILL()
+    p = { ...p, resolvedTf: '5', _barsTf: '5' }                         // the member presses 5m
+    h.rerender(p)
+    await act(async () => { await vi.advanceTimersByTimeAsync(5) })
+    h.rerender(p)
+    expect(w.store.peek(K(5)).source).toBe('device')
+    expect(h.result.current._tfSwitchHold).toBe(true)
+    expect(h.result.current.bars).toBeNull()
+    await answered(w, h, p)
+    expect(h.result.current._tfSwitchHold).toBe(false)
+    expect(h.result.current.bars?.length).toBeGreaterThan(0)
+  })
+
+  it('FK3 a chart already showing the device copy is not blanked by the kill; the answer replaces its rows', async () => {
+    vi.setSystemTime(et(10, 4, 30) * 1000)
+    const w = world({ 5: { rows: [...yday(5), ...rows(5, et(9, 30), et(10, 0)), { t: et(10, 0), ...px(et(10, 0)) }], through: et(10, 4), formingT: et(10, 0) } })
+    const p = params()
+    const h = await mount(p)
+    const shown = h.result.current.bars
+    expect(shown?.length).toBeGreaterThan(0)
+    KILL()
+    await act(async () => { await vi.advanceTimersByTimeAsync(5) })
+    h.rerender(p)
+    expect(h.result.current.bars?.length).toBe(shown.length)         // still on screen
+    await answered(w, h, p)
+    expect(w.store.peek(K(5)).restSeen).toBe(true)
+    expect(h.result.current.bars?.length).toBeGreaterThan(0)
   })
 })
