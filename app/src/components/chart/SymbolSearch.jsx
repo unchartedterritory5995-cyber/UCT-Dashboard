@@ -85,6 +85,9 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   // symbol (typing TSLA + Enter goes to TSLA even if the cursor sits on another row).
   const navByKbdRef = useRef(false)
   const lastIntentRef = useRef(null)   // the text last reported through onTypedIntent
+  // The typing pause's timer. `submit` clears it: the Enter commit no longer re-renders the search (its teardown waits
+  // for the frame), so a pause still running at Enter would otherwise report the entered text after the switch.
+  const intentTimerRef = useRef(0)
 
   // Imperative open-with-text — used by ChartPane so typing a letter on the
   // chart opens the search with that letter already entered.
@@ -260,6 +263,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
       lastIntentRef.current = text
       try { onTypedIntent(text) } catch { /* a warm never breaks search */ }
     }, TYPED_INTENT_SETTLE_MS)
+    intentTimerRef.current = t
     return () => clearTimeout(t)
   }, [query, open, chip, onTypedIntent, breadthAll, sym])
   // A new search session may warm the same text again.
@@ -279,6 +283,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
     closingRef.current = token
     openRef.current = false
     abortRef.current?.abort()
+    clearTimeout(intentTimerRef.current)
     const d = dialogRef.current
     if (d) {
       d.parentElement.style.display = 'none'   // the portal root (the backdrop)
