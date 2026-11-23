@@ -347,20 +347,33 @@ export function createPrefetch(o = {}) {
    *  ⭐ `URGENT` (2026-11-22): the member's own ask, whose device read goes ahead of every warm's (deviceStore/
    *  client.js, TWO LANES). Passed only by the switch itself (deviceWarm at the key press, the two prepares, the
    *  device rule); every warm passes nothing, so the ~80 keys a scrolled list asks for wait their turn. */
+  //
+  // ⭐ ONE HYDRATE IN FLIGHT PER KEY AND LANE (2026-11-23, live-session CPU profile). A row entering a list's window is
+  // hydrated by three callers in one task (the neighbour hold's `set`, `warmMemFromIDB`, the list warm's deferred
+  // prefetch), and until its cache read lands the entry holds nothing, so each started its own persist.hydrate: the
+  // whole tail record and the whole deep-history record read three times. A caller now gets the hydrate already in
+  // flight for the key. Per LANE: an URGENT caller (the switch) never joins a background one, so its device read keeps
+  // its lane exactly as before. Once that hydrate settles the next caller reads again (prefetch.hydrateDedupe).
+  const hydrating = new Map()   // key (or `u|key` on the urgent lane) → the hydrate in flight
   function _hydrate(key, lane) {
     const st = S()
     const s = st.peek(key)
     // a held DEVICE copy (no server answer) is brought forward to the device's newest first
     if (_deviceHeld(s)) return Promise.resolve(st.persist.refreshDevice?.(key, lane)).catch(() => false).then(() => st.peek(key))
     if (s && (s.depth || s.restSeen || s.developing)) return Promise.resolve(s)
+    const id = lane?.urgent === true ? `u|${key}` : key
+    const running = hydrating.get(id)
+    if (running) return running
     // Pinned while it reads, so a herd hydrating more keys than the LRU holds cannot evict
     // the entry between its cache read and the verdict taken on it.
     st.registry.acquire(key)
     // TERM-033: a FAILED device-cache read hydrates nothing (NOTHING_HYDRATED). It is never read as
     // an answer: the verdict below is taken on what the store holds, so the warm asks the server.
-    return st.persist.hydrate(key, lane).catch(nothingHydrated)
+    const p = st.persist.hydrate(key, lane).catch(nothingHydrated)
       .then(() => st.peek(key))
-      .finally(() => st.registry.release(key))
+      .finally(() => { st.registry.release(key); if (hydrating.get(id) === p) hydrating.delete(id) })
+    hydrating.set(id, p)
+    return p
   }
 
   /**
