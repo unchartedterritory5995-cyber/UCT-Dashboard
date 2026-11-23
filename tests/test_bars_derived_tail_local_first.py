@@ -69,9 +69,32 @@ class _Client:
     _api_key = "FAKE"
 
 
+#: The request path's own background threads (`bars_fetch._start_bounded_delta`'s provider repair and
+#: `_bounded_job`'s local rebuild). Each is short-lived; the process-wide `bars-meta-flush` thread and the pools'
+#: idle workers are not, and are never joined here.
+_REQUEST_THREAD_PREFIXES = ("bars-reqdelta-", "bars-job-")
+
+
+def _drain_request_work(sq, started_before, timeout=5.0):
+    """Teardown: finish what this test's requests left running, and write what they queued, while `_DB_PATH`
+    is still THIS test's store.
+
+    Each test has its own bars.db (tmp_path), but every thread's connection follows the module's `_DB_PATH` through
+    `bump_db_epoch` (`bars_sqlite._conn`). A repair thread released here, or the `bars-meta-flush` thread carrying the
+    proofs and seals that thread queued (flushed once a second), otherwise opens the NEXT test's store while its setup
+    initialises it. Seen on PR #2588's "Bars rails" (2026-11-23): `sqlite3.OperationalError: database is locked` at
+    `init_db` -> `PRAGMA journal_mode=WAL`, in the setup of the test after the one that left a repair running."""
+    deadline = time.monotonic() + timeout
+    for t in threading.enumerate():
+        if t not in started_before and t.name.startswith(_REQUEST_THREAD_PREFIXES):
+            t.join(max(0.0, deadline - time.monotonic()))
+    sq.flush_meta()
+
+
 @pytest.fixture
 def env(tmp_path, monkeypatch):
     from api.services import bars_sqlite as sq
+    started_before = set(threading.enumerate())
     monkeypatch.setattr(sq, "_DB_PATH", str(tmp_path / "bars.db"))
     sq.bump_db_epoch()
     sq.init_db()
@@ -102,7 +125,7 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(bars_fetch, "_paginate_massive_aggs", _provider)
     yield sq, calls, clock, prov
     release.set()
-    time.sleep(0.05)
+    _drain_request_work(sq, started_before)
     bars_fetch.cache.clear()
     sq.bump_db_epoch()
 
@@ -202,6 +225,33 @@ def test_base_that_does_not_overlap_the_target_tail_is_never_used(env, monkeypat
     bars_fetch._get_bars_inner("SPY", "30", 60)
     assert _provider_calls_after_the_answer(calls) == 1
     assert sq.get_last_ts("SPY", "30") == target[-1]["t"], "no fabricated contiguous tail"
+
+
+def test_Z1_a_request_leaves_its_provider_repair_running_past_its_answer(env, monkeypatch):
+    """First half of a PAIR (Z2 reads what this leaves). The provider is still answering when the request returns
+    (the 0.3 s deadline); released at teardown, the repair finishes and queues its proof and seal for SPY 30."""
+    sq, calls, _, _ = env
+    monkeypatch.setattr(bars_fetch, "_REQUEST_DEADLINE_SECONDS", 0.3)
+    _seed(sq, "30", base_today_end=(9, 0))
+    bars_fetch._get_bars_inner("SPY", "30", 60)
+    assert _provider_calls_after_the_answer(calls) == 1
+    assert [t for t in threading.enumerate() if t.name.startswith("bars-reqdelta-SPY-30")], \
+        "the control cannot tell: the repair already finished"
+
+
+def test_Z2_the_next_tests_store_holds_nothing_of_it(env):
+    """Second half: a fresh store stays empty through two meta-flush ticks. Without the teardown drain, Z1's
+    repair (or the flusher carrying what it queued) writes SPY 30 into THIS store, or locks it during setup."""
+    import sqlite3
+    sq, *_ = env
+    time.sleep(2.5 * max(sq._META_FLUSH_S, 0.2))
+    c = sqlite3.connect(sq._DB_PATH, timeout=5)
+    try:
+        rows = c.execute("SELECT ticker, tf FROM series_meta").fetchall()
+        bars = c.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0]
+    finally:
+        c.close()
+    assert rows == [] and bars == 0, f"another test's repair wrote into this store: {rows}, {bars} bars"
 
 
 def test_a_thinner_base_never_downgrades_the_stored_overlap_bucket(env):
