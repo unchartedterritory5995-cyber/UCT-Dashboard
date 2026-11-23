@@ -312,6 +312,17 @@ describe('C27 / C41 — what the product fetches', () => {
     expect(lowerTfWindowsOf(defOf(['60']), 'W', 5000)[0].bars).toBe(BARS_ROUTE_MAX)
   })
 
+  it('⭐ (train e95, the 2b bind audit) a knob arm the instance does not pick fetches no lower timeframe; a picked one does', () => {
+    const pick = { type: 'op', name: '==', args: [{ type: 'series', name: 'src' }, { type: 'num', value: 1 }] }
+    const read = { type: 'ltf', value: '60', args: [{ type: 'series', name: 'close' }] }
+    const def = { id: 'u_k', inputs: [{ key: 'src', type: 'enum', options: ['Chart', 'Hourly'], default: 'Chart' }],
+      compute: { kind: 'ast', trees: { v: { type: 'op', name: '?:', args: [pick, read, { type: 'series', name: 'close' }] } } },
+      meta: { recurrenceOrigin: 'pine', lowerTf: ['60'] } }
+    const look = () => def
+    expect(lowerTfWindowsNeeded([{ defId: 'k', inputs: {} }], look, 'D', 300)).toEqual([])
+    expect(lowerTfWindowsNeeded([{ defId: 'k', inputs: { src: 'Hourly' } }], look, 'D', 300).map((x) => x.tf)).toEqual(['15'])
+  })
+
   it('⛔ NOTHING is fetched for a document that reads no lower timeframe, or on a chart that serves none', () => {
     expect(lowerTfWindowsOf(defOf(), 'D', 5000)).toEqual([])
     expect(lowerTfWindowsOf(defOf([]), 'D', 5000)).toEqual([])

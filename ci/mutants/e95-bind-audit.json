@@ -82,6 +82,24 @@
    "to": "  const cost = hostLaneCostOf(host.definition)",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/__tests__/hostLaneRouteBound.test.js",
    "expectRed": "offered to the runtime lane"
+  },
+  {
+   "id": "BA10",
+   "mutant": "the financial fetch reads the SAVED document (an unpicked arm's financial read is fetched for)",
+   "file": "app/src/components/chart/engine/useSecondarySources.js",
+   "from": "    if (def && financialNeeded(instanceDocumentForFetch(def, inst))) return true",
+   "to": "    if (def && financialNeeded(def)) return true",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/financialSupply.test.js",
+   "expectRed": "fetches no financial figures"
+  },
+  {
+   "id": "BA11",
+   "mutant": "the lower-timeframe fetch reads the SAVED document's stamp (an unpicked arm's lower timeframe is fetched for)",
+   "file": "app/src/components/chart/engine/lowerTf.js",
+   "from": "    const def = saved ? boundAtInputs(saved, inst.inputs) : null",
+   "to": "    const def = saved",
+   "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/lowerTf.test.js",
+   "expectRed": "fetches no lower timeframe"
   }
  ]
 }
