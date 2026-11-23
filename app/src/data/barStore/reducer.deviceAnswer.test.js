@@ -7,6 +7,15 @@
 //       answer carries are the answer's; the device's OLDER rows (deeper than the answer, same basis) stay
 //   NA4 ...but a live (push) bar newer than the answer is not the device's and stays
 //   NA5 an answer that reaches the device's tail drops nothing
+// P4-L3 (review of #2558): ...BUT THE DEVICE'S COMPLETE CANDLES ARE NOT A HOLE TO OPEN. A copy's `through` (the newest minute
+// the device applied) vouches for every bucket that ends at or before it: those are complete minute rollups of the server's
+// own minutes. Dropped, the newest candles the member was already looking at vanished until the stream or the next poll
+// sent them again. Only what the stamp does not vouch for goes (NA3 is a copy with no stamp: it vouches for nothing).
+//   NA6 a lagging answer on a copy complete through 11:30: its complete 11:20 and 11:25 candles stay (still LOCAL, so the
+//       server's own rows replace them); its 11:30 forming bar, untouched by any tick, goes
+//   NA7 ...a row whose bucket ends AFTER the stamp (closed by the clock, a minute or more short) goes; the one before stays
+//   NA8 the server's next answer carrying those buckets replaces the kept candles with its own (a correction lands)
+//   NA9 the stamp rides with the marker: set by a device copy, gone with an invalidate and with a no_data answer
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { reduce, initialState } from './reducer'
 import { keyOf, ACTION, STATUS, DEV_SRC } from './types'
@@ -19,15 +28,16 @@ const ctx = { nowMs: NOW, streamLive: true }
 const K = keyOf({ sym: 'SIM', tf: '5' })
 const bar = (m, k = 1) => ({ t: T(m), o: 100 * k, h: 101 * k, l: 99 * k, c: 100.5 * k, v: 10 })
 const closedTo = (lastM, fromM = 570) => { const o = []; for (let m = fromM; m <= lastM; m += 5) o.push(bar(m)); return o }
-const device = (bars, formingAt = null) => ({ type: ACTION.DEVICE_HIT, payload: { sym: 'SIM', bars, saved_at: T(691) * 1000, ...(formingAt != null ? { forming_t: T(formingAt) } : {}) } })
+const device = (bars, formingAt = null, through = null) => ({ type: ACTION.DEVICE_HIT, payload: { sym: 'SIM', bars, saved_at: T(691) * 1000,
+  ...(formingAt != null ? { forming_t: T(formingAt) } : {}), ...(through != null ? { through } : {}) } })
 const answer = (bars, extra = {}) => ({
   type: ACTION.REST_FULL, payload: {
     bars, contract: 1, grid: 'eth-clock', session: 'rth', cache_key: 'b1:SIM:5:eth-clock', series_rev: 1000, history_rev: 5,
     verified_through: T(690), tail_status: 'verified', developing: null, ...extra,
   },
 })
-/** The device copy at 11:31: 09:30 ... 11:25 closed, the 11:30 bucket forming. */
-const withDevice = () => reduce(initialState(K, ctx), device([...closedTo(685), bar(690, 1.01)], 690), ctx)
+/** The device copy at 11:31: 09:30 ... 11:25 closed, the 11:30 bucket forming (`through`: its stamp, none by default). */
+const withDevice = (through = null) => reduce(initialState(K, ctx), device([...closedTo(685), bar(690, 1.01)], 690, through), ctx)
 
 beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(NOW) })
 afterEach(() => { vi.useRealTimers() })
@@ -51,7 +61,7 @@ describe('P3-L1 device rows never become answered rows', () => {
     expect(s.bars.length).toBe(closedTo(685).length)
   })
 
-  it('NA3 an answer that LAGS the device (through 11:15): the device\'s newer rows and forming bar go', () => {
+  it('NA3 an answer that LAGS a copy with no stamp (through 11:15): the device\'s newer rows and forming bar go', () => {
     const s = reduce(withDevice(), answer(closedTo(675, 600)), ctx)
     expect(s.restSeen).toBe(true)
     expect(s.bars.at(-1).t).toBe(T(675))                            // nothing newer than the answer's tail
@@ -75,5 +85,43 @@ describe('P3-L1 device rows never become answered rows', () => {
     expect(s.bars.at(-1).t).toBe(T(685))
     expect(s.developing?.t).toBe(T(690))
     expect(s.bars[0].t).toBe(T(570))
+  })
+})
+
+describe('P4-L3 the device\'s complete candles are kept, what its stamp does not vouch for goes', () => {
+  it('NA6 a lagging answer on a copy complete through 11:30: its 11:20 and 11:25 candles stay, its forming bar goes', () => {
+    const s0 = withDevice(T(690))
+    expect(s0.deviceThrough).toBe(T(690))
+    const s = reduce(s0, answer(closedTo(675, 600)), ctx)
+    expect(s.restSeen).toBe(true)
+    expect(s.bars.filter((b) => b.t > T(675)).map((b) => [b.t, b.src])).toEqual([[T(680), 'local'], [T(685), 'local']])
+    expect(s.developing).toBeNull()                                 // the 11:30 bucket was forming: not complete
+    expect(s.bars.filter((b) => b.t >= T(600) && b.t <= T(675)).every((b) => b.src === 'rest')).toBe(true)
+  })
+
+  it('NA7 ...a row whose bucket ends after the stamp goes; the one before it stays', () => {
+    // through 11:28: the 11:20 bucket (ends 11:25) is complete; the 11:25 one (ends 11:30) is not, whatever the clock says
+    const s0 = reduce(initialState(K, ctx), device(closedTo(685), null, T(688)), ctx)
+    expect(s0.bars.at(-1).t).toBe(T(685))
+    const s = reduce(s0, answer(closedTo(675, 600)), ctx)
+    expect(s.bars.filter((b) => b.t > T(675)).map((b) => b.t)).toEqual([T(680)])
+  })
+
+  it('NA8 the server\'s next answer carrying those buckets replaces the kept candles with its own', () => {
+    const s1 = reduce(withDevice(T(690)), answer(closedTo(675, 600)), ctx)
+    const corrected = [...closedTo(675, 600), bar(680, 1.002), bar(685, 1.003)]
+    const s = reduce(s1, answer(corrected, { series_rev: 1001 }), ctx)
+    const at = (t) => s.bars.find((b) => b.t === t)
+    expect([at(T(680)).src, at(T(680)).c]).toEqual(['rest', bar(680, 1.002).c])
+    expect([at(T(685)).src, at(T(685)).c]).toEqual(['rest', bar(685, 1.003).c])
+  })
+
+  it('NA9 the stamp rides with the marker: set by a device copy, gone with an invalidate and with no_data', () => {
+    const s0 = withDevice(T(690))
+    expect([s0.deviceRows, s0.deviceThrough]).toEqual([true, T(690)])
+    const inv = reduce(s0, { type: ACTION.INVALIDATE, reason: 'test' }, ctx)
+    expect(inv.deviceThrough ?? null).toBeNull()
+    const nd = reduce(withDevice(T(690)), { type: ACTION.REST_ERROR, payload: { error: 'no_data' } }, ctx)
+    expect(nd.deviceThrough ?? null).toBeNull()
   })
 })
