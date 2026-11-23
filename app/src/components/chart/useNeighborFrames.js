@@ -71,18 +71,29 @@ export function deriveVol(sessionApplied, hvcSet, volExtremes, r) {
   const sig = `${r.vol.sig}|hvc${identitySig(hvcSet)}|vx${identitySig(volExtremes)}`
   return deriveFrom(sessionApplied, 'vol', sig, () => volDataOf(sessionApplied, r.vol.p, hvcSet, volExtremes, r.adjustTime, chartTimesFor(sessionApplied, r.adjustTime)))
 }
-/** The chart's volume recipe (`p`: chartDerived.volDataOf's plain values; `at`: the adjustTime signature). */
-export function volRecipeOf(p, at, markVolumeExtremes) {
-  return { on: !markVolumeExtremes, p, sig: `${stableSig(p)}|at${at}` }
+/**
+ * The chart's volume recipe (`p`: chartDerived.volDataOf's plain values; `at`: the adjustTime signature).
+ * ⭐ (2026-11-23, next-row chart walks, item ii) PREPARED WHETHER OR NOT THE CHART MARKS THE HIGHEST-VOLUME BAR. It was
+ * `on: !markVolumeExtremes`: the preparer could not know the chart's `volExtremes` (a fresh object per chart memo) and
+ * the volume is filed under that object's identity, so a chart with the /charts look (pane/paneLook.js
+ * `markVolumeExtremes: true`) built its volume at every press. The extremes are filed now too (`deriveVolExtremes`),
+ * so the preparer and the arriving chart name the same object. (`markVolumeExtremes` stays a parameter: the call
+ * sites read as before.)
+ */
+export function volRecipeOf(p, at, markVolumeExtremes) {   // eslint-disable-line no-unused-vars
+  return { on: true, p, sig: `${stableSig(p)}|at${at}` }
 }
 /** The chart's highest-volume-ever recipe (`markVolumeExtremes`, and the year it is shown in). */
 export function volExtremesRecipeOf(markVolumeExtremes, entryDate, exitDate) {
-  return { on: !!markVolumeExtremes, entryDate: entryDate ?? null, exitDate: exitDate ?? null }
+  const on = !!markVolumeExtremes
+  const a = entryDate ?? null, b = exitDate ?? null
+  return { on, entryDate: a, exitDate: b, sig: stableSig([a, b]) }
 }
-/** StockChart `volExtremes` (chartDerived.volExtremesOf), or null when the chart does not mark it. */
+/** StockChart `volExtremes` (chartDerived.volExtremesOf), or null when the chart does not mark it: filed under the bars
+ *  it was computed from, so the preparer's and the chart's are ONE object (the volume's signature names it). */
 export function deriveVolExtremes(filtered, r) {
   if (!r.vx || !r.vx.on || !filtered?.length) return null
-  return volExtremesOf(filtered, r.vx.entryDate, r.vx.exitDate)
+  return deriveFrom(filtered, 'volExtremes', r.vx.sig, () => volExtremesOf(filtered, r.vx.entryDate, r.vx.exitDate))
 }
 export function deriveVolMa(sessionApplied, r) {
   return deriveFrom(sessionApplied, 'volMa', r.volMa.sig, () => volMaDataOf(sessionApplied, r.volMa.period, r.adjustTime, chartTimesFor(sessionApplied, r.adjustTime)))
@@ -119,7 +130,8 @@ export function* prepareRow(sym, rank, c) {
   if (!hasDerived(display, 'close', r.close.sig)) { deriveClose(display, r); yield }
   const hvc = deriveHvc(filtered, r)
   yield
-  if (r.vol.on) { deriveVol(filtered, hvc, null, r); yield }
+  // the volume under the very extremes the arriving chart will name (null when it does not mark them)
+  if (r.vol.on) { deriveVol(filtered, hvc, deriveVolExtremes(filtered, r), r); yield }
   if (r.volMa.on) { deriveVolMa(filtered, r); yield }
   nfCount('barsPrepared')
   const binder = c.engineRef.current ? c.engineRef.current.binder : null
