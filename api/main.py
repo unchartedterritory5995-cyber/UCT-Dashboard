@@ -79,10 +79,21 @@ _BOOT_QUIET_S = {
 }
 
 
+def _assistant_model_setting() -> dict:
+    """{"assistant_model": "incompatible"} when an assistant is configured with a model that rejects the forced tool
+    call it makes (`api.services.forced_tool_choice`), else {}. It says only that: never the model or a variable."""
+    try:
+        from api.services import forced_tool_choice
+        problem = forced_tool_choice.startup_problem()
+    except Exception:  # noqa: BLE001 - observability never breaks the boot
+        problem = None
+    return {"assistant_model": problem} if problem else {}
+
+
 def _boot_summary() -> dict:
     marks = list(_BOOT_MARKS)
     if not marks:
-        return {}
+        return _assistant_model_setting()
     by = dict(marks)
     segs = [(marks[i][0], round(marks[i + 1][1] - marks[i][1], 2)) for i in range(len(marks) - 1)]
     return {
@@ -90,10 +101,16 @@ def _boot_summary() -> dict:
         "to_serving_s": round(by["ready"], 2) if "ready" in by else None,
         "slowest": [{"from": n, "s": d} for n, d in sorted(segs, key=lambda x: -x[1])[:5]],
         "previous_shutdown": _PREVIOUS_SHUTDOWN,
+        **_assistant_model_setting(),
     }
 
 
 def _boot_log() -> None:
+    try:  # ONE named error when the server starts with an assistant model that rejects its forced tool call
+        from api.services import forced_tool_choice
+        forced_tool_choice.log_startup_problem()
+    except Exception:  # noqa: BLE001 - observability never breaks the boot
+        pass
     try:
         b = _boot_summary()
         logging.getLogger("uct.boot").warning(
