@@ -159,7 +159,8 @@ function sameTaskRoute(sym, tf, sess) {
   return 'prepare'
 }
 
-/** ⭐ DIAGNOSTICS (device store on only): ONE record per switch, at its commit, of what the first frame is built
+/** ⭐ DIAGNOSTICS (a tester's page only: DIAG, the device store on AND diag.deviceDiagOn): ONE record per switch, at
+ *  its commit, of what the first frame is built
  *  from and, when it is not the device copy, which rule refused it (data/deviceStore/diag.js). Read by no
  *  decision; a failure here never costs the switch. */
 function noteDeviceFor(sym, tf, sess, outcome, pre = null) {
@@ -177,7 +178,7 @@ function noteDeviceFor(sym, tf, sess, outcome, pre = null) {
 }
 
 /** ⭐ DIAGNOSTICS (2026-11-21): the device rule's answer for this chart's key NOW, while no server answer holds it
- *  (null once one does, and with the device store off). A switch that waited commits after the server answered, and
+ *  (null once one does, and without DIAG). A switch that waited commits after the server answered, and
  *  its record's own verdict then reads 'held:rest' whatever kept the device copy from painting in the meantime
  *  (devgates 2026-11-21: 107 of 116 typed and 70-row records said only that). The last answer seen here is the record's `pre`. */
 function deviceRuleBeforeAnswer(sym, tf, sess) {

@@ -14,9 +14,9 @@
 // ⭐ PERSISTENT STORAGE, ASKED ONCE PER BROWSER PROFILE (review of #2537, L5). OPFS is best-effort storage: under disk
 // pressure the browser may evict the 70+ MB of seed files. Once a seed file is held (the worker's status, or a new
 // generation), the page asks `navigator.storage.persist()` (only a page can; a worker cannot) through
-// lib/storagePersist.askPersistOnce: after checking `persisted()`, and never again once this browser was asked, by this
-// client or by the bars pack (one marker for the app; Firefox asks the member, and a refusal or a dismissal stands).
-// Never awaited by anything. The answer is in `status().storage`.
+// lib/storagePersist.askPersistOnce: after checking `persisted()`, and never again once this browser was asked
+// (a marker in localStorage; Firefox asks the member, and a refusal or a dismissal stands). The bars pack keeps its own
+// ask for now (see lib/storagePersist.js). Never awaited by anything. The answer is in `status().storage`.
 //
 // ⭐ A PAGE LEFT OPEN FOR DAYS (review of #2537, M2: a tab, the desktop app). The ingest used to be asked once per page
 // load, so such a page never took the next night's build, and after the next session the split guard refused every

@@ -1,16 +1,17 @@
 // app/src/lib/storagePersist.js — navigator.storage.persist(), asked AT MOST ONCE PER BROWSER PROFILE (review of #2537,
 // L5).
 //
-// Two callers want the origin's storage kept under disk pressure: the bars pack (lib/barsPackClient, IndexedDB) and the
-// on-device bar store (data/deviceStore/client, OPFS). Chrome and Edge decide silently; FIREFOX ASKS THE MEMBER (a
-// permission prompt). The bars pack asked on every run that ingested (each new pack version, several a day) and the
-// device client on every page load while not persisted, so a member who refused or dismissed the prompt could be
-// asked again and again. Now ONE marker for the app, in localStorage: once this browser was asked, whatever the answer
-// (granted, refused, dismissed, or the call threw), it is never asked again; already persistent, it is never asked.
-// Without localStorage (blocked) the marker lives for the page load.
+// Chrome and Edge decide silently; FIREFOX ASKS THE MEMBER (a permission prompt). The on-device bar store's client
+// (data/deviceStore/client) asked on every page load while the origin was not persistent, so a member who refused or
+// dismissed the prompt was asked again on each load. Now a marker in localStorage: once this browser was asked,
+// whatever the answer (granted, refused, dismissed, or the call threw), it is never asked again; already persistent, it
+// is never asked. Without localStorage (blocked) the marker lives for the page load.
 //
-// Loaded lazily (a dynamic import from the bars pack's run, a static one from the device client's chunk): nothing here
-// is in first-open bytes.
+// ⚠️ NOT YET SHARED WITH THE BARS PACK. lib/barsPackClient.js `_run` still asks on every run that ingests a new pack
+// version (the review assumed it asked once; it does not). It runs for every member, store or not, in the entry chunk
+// (the Notebook's first-open bytes), so moving it onto this marker is its own change, measured on a build.
+//
+// Loaded only by the device client's lazy chunk: nothing here is in first-open bytes.
 
 export const PERSIST_ASKED_KEY = 'uct.storage.persistAsked'
 
