@@ -161,8 +161,9 @@ export function createDeviceClient({
   }
   const _holdsSeed = (info) => !!info?.tfs && Object.keys(info.tfs).length > 0
   /** Files are held here: say so again (review of #2563, LOW-1: an off tab's removal that settled just after this tab
-   *  started wrote '0' over the marker start() wrote, and this tab then downloaded a seed nothing would clean up). */
-  const _noteFiles = () => { try { noteFiles() } catch { /* storage blocked */ } }
+   *  started wrote '0' over the marker start() wrote, and this tab then downloaded a seed nothing would clean up), and
+   *  stamp the run (round 2: a page left on for 30+ days must not read as stale to an off tab; never backwards). */
+  const _noteFiles = () => { try { noteFiles(now()) } catch { /* storage blocked */ } }
 
   const keyOf = (sym, tf) => `${tf}|${String(sym).toUpperCase()}`
 
@@ -302,6 +303,8 @@ export function createDeviceClient({
   /** Ask the leader to bring the seed up to date (`recheck`: a long-lived page's periodic ask, which the leader bounds). */
   function _askIngest(recheck) {
     lastIngestAt = now()
+    // a page left on for days keeps the run stamp fresh on this beat (review of #2563 round 2), no timer of its own
+    if (recheck) _noteFiles()
     return _call({ op: 'ingest', manifestUrl: manifestUrl(), ...(recheck ? { recheck: true } : {}) })
   }
 
