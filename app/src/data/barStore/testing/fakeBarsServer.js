@@ -35,7 +35,8 @@ export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
 }
 
 /** The server's answer for a parsed request at Date.now().
- *  `mode`: ok | behind (legacy, 09:40) | behind-unsealed (contract, 09:40, no seal) | nodata | shed | fail */
+ *  `mode`: ok | closed (contract, the closed buckets only: no forming row, no developing) | behind (legacy, 09:40) |
+ *  behind-unsealed (contract, 09:40, no seal) | nodata | shed | fail */
 export function serverAnswer(q, mode = 'ok') {
   if (mode === 'nodata') return { body: { bars: [], no_data: true } }
   if (mode === 'shed') return { body: { error: 'warming' }, status: 503, headers: { 'Retry-After': '3' } }
@@ -59,6 +60,19 @@ export function serverAnswer(q, mode = 'ok') {
         ticker: q.sym, tf: q.tf, bars: intradayRows(tf, OPEN + 600, { since: q.since }), contract: 1,
         grid: 'eth-clock', session: 'rth', cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(),
         history_rev: 1, verified_through: null, complete_through: null, tail_status: 'unverified', developing: null,
+      },
+    }
+  }
+  if (mode === 'closed') {
+    // The store holds the CLOSED buckets only (its forming minute not written yet, no live partial in this process):
+    // a contract answer with no developing bar, its newest row the last closed bucket.
+    const rows = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= now)
+    const end = rows.length ? bucketEndUnix(rows[rows.length - 1].t, tf, {}) : null
+    return {
+      body: {
+        ticker: q.sym, tf: q.tf, bars: rows, contract: 1, grid: 'eth-clock', session: 'rth',
+        cache_key: `b1:${q.sym}:${q.tf}:eth-clock`, series_rev: Date.now(), history_rev: 1,
+        verified_through: now, complete_through: end, tail_status: 'verified', developing: null,
       },
     }
   }
