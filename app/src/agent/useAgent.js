@@ -2800,8 +2800,10 @@ export default function useAgent({ host: workspaceHost, gridMode = false, surfac
       }
       let fast = fast0
       // AUDIT T2 F1 (Compare family): "compare it with QQQ" with a chart clicked while the conversation's subject is ANOTHER chart —
-      // never the click on a guess (capabilities/comparePhrases.compareSubjectElsewhere): the conversation rules / the model read it
-      if (fast?.kind === 'ops' && compareSubjectElsewhere(fast.ops, text, { host, memory: memoryRef.current, epoch: epochNow, prevText: previousMemberText(memberSaidRef.current, text) })) { mark('fast:compare-subject-to-model'); fast = null }
+      // never the click on a guess (capabilities/comparePhrases.compareSubjectElsewhere): the conversation rules / the model read it.
+      // Only the general reader's own readings (fastParse): a conversation reference (`memRef`, e.g. "compare it to the top 3") keeps
+      // Gate C S6's rule, where a click made after the change outranks the conversation's chart.
+      if (!memRef && fast?.kind === 'ops' && compareSubjectElsewhere(fast.ops, text, { host, memory: memoryRef.current, epoch: epochNow, prevText: previousMemberText(memberSaidRef.current, text) })) { mark('fast:compare-subject-to-model'); fast = null }
       if (fast?.kind === 'ops' && !(await typedSymbolsKnown(fast.ops, text))) { mark('fast:symbol-to-model'); fast = null }
       // F-16 widened (owner 2026-11-10): the Options Flow widget's own chips are never claimed as a screen (screener.js), so they
       // reach the planner and widget.setOption; a flow SCREEN with no chip word keeps the F-16 refusal. (The round-3 refusal block
