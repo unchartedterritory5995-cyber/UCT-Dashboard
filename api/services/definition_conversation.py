@@ -806,6 +806,17 @@ DAY_LENGTH_CHOICE_RULE = (
     "`uct_language_notes.daily_measure_inside` is true, a daily measure CAN be read inside a formula of this chart: "
     "build what the member asked that way, and ask only about what still cannot be written. ")
 
+#: ⭐ 2026-11-23 -- THE SAME FACT, WHERE THE FIRST ATTEMPT READS IT. `WHICH_BAR_EXIT` reached the assistant only in a
+#: repair note, after a guard had refused its formula. Six live samples of one request ("how many bars back the most
+#: recent close above today's close was"): 4 right, each one after that note; 2 wrong, each a first formula that
+#: passed every guard (`barssince(close > close[1])`, `barssince(close[1] > close)`), built and not disclosed.
+#: ⛔ ONE constant: the instruction below ends with `WHICH_BAR_EXIT` itself, never a second wording of it.
+LOOK_BACK_RULE = (
+    "  A LOOK-BACK NEVER COMPARES ITS BARS WITH TODAY'S VALUE. Inside sum, highest, barssince and every other window "
+    "each series is read at its own bar: `close > close` there compares every bar with itself, and `close[1] > close` "
+    "compares each bar with the one before it. Neither is \"an earlier close above today's close\"."
+    + WHICH_BAR_EXIT + " When you decline, the door can have it written as a script.\n")
+
 CONVERSE_SYSTEM_PROMPT = (
     "You are UCT's indicator-authoring assistant. Each turn you receive ONE member "
     "message and the CURRENT indicator, and you answer with exactly one call to "
@@ -1155,6 +1166,7 @@ CONVERSE_SYSTEM_PROMPT = (
     "cond && (offset 1 of barssince(cond, N)) >= N. `barssince` takes its window as its second "
     "argument and answers N when the condition was not true that recently. Never leave the "
     "\"first time\" part out: without it the mark repeats on every bar of a run.\n"
+    + LOOK_BACK_RULE +
     "  READINGS UCT HAS RULED (2026-11-19: each was measured coming back two ways, or wrong): "
     "A BAND WITH A PUBLISHED CONSTRUCTION IS NEVER REPLACED BY ANOTHER DEVIATION. VWAP's bands are the volume-weighted deviation of price around VWAP since its anchor; a regression channel's bands are the deviation of price around the regression line. Neither is a deviation of the close over N bars, and a formula here cannot hold either: say so (unsupported) and offer the line itself (the VWAP, the regression line). For VWAP's bands, also say that UCT's built-in Session VWAP in the Indicators list draws them (its Std dev bands setting). Never draw another deviation under that name. "
     "\"More than X\" and \"above X\" are STRICT (>); \"at least X\" and \"X or more\" are >=. "
