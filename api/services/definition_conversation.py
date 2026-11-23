@@ -5617,7 +5617,7 @@ _BUDGET_GATES = {"cost:user": "budget_user", "cost:global": "budget_global",
 _PLATFORM_GATES = {"model:transport"}
 #: ⭐ O7 -- the provider refused OUR ACCOUNT. Its own class: an outage heals, this needs a person.
 _ACCOUNT_GATES = {"model:unavailable"}
-_INTERNAL_GATES = {"internal:error", "internal:timeout"}
+_INTERNAL_GATES = {"internal:error", "internal:timeout", dc.FORCED_TOOL_CHOICE_GATE}
 _MODEL_GATE_PREFIXES = ("envelope:", "model:", "schema:", "lint:", "budget:", "converse:")
 
 #: ⭐ UNSUPPORTED DEMAND. Deterministic buckets over a model-"unsupported" turn's own
@@ -6115,6 +6115,11 @@ def _converse_turn(message: Any, *, user_id: Any, view: Any, authoring: Any,
     if isinstance(trace, dict):
         trace["refusals"] = refusals
     extra = {"not_understood": not_understood, "unavailable": unavailable}
+
+    if dc.forced_tool_choice_unsupported():
+        # refused BY NAME, before any call and any charge: the configured model rejects the forced call below
+        # (`forced_tool_choice`). Everything the door answers WITHOUT the assistant was answered above, as always.
+        return _refusal(dc.FORCED_TOOL_CHOICE_GATE, **extra)
 
     while attempts < MAX_MODEL_CALLS:
         if cancelled is not None and cancelled.is_set():

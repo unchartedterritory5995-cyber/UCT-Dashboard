@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 import { setupPanel, ONE } from './testing/panelHarness'
+import { fastParse } from './fastPath'
 import { loadAgentConfig, _resetAgentConfig } from './agentClient'
 import { WIDGET_HELD_OUT, LIST_HELD_OUT } from './agentExecHeldOut.test.js'
 import { WIDGET_TUNE, LIST_TUNE, WIDGET_TUNE2, JOURNAL_TUNE } from './agentExecTune.js'
@@ -44,10 +45,20 @@ const widgetWant = (c, b) => ({
   action: !!b && b.capabilities.some(x => x.name === 'widget.setOption'),
   list: !!b && !!b.context?.widgetControls?.[0]?.controls?.[c.type],
 })
-const listWant = (c, b) => ({
-  model: !!b,
-  action: !!b && b.capabilities.some(x => x.name === 'chart.setSetting' && (x.args?.properties?.setting?.enum || []).includes(c.setting)),
-})
+// LEGEND family (pl-legend): a list wish the instant path now reads (capabilities/legendPhrases.js) makes NO model call. It is
+// counted as `instant` only when the instant reading is exactly the case's op (chart.setSetting, its setting AND value);
+// `handled` = the first model call carries the action, or the instant reading is exactly right. `model` / `action` keep their
+// meaning (what the first model call carries), so a phrasing that moved to the instant path leaves those two columns.
+const instantOp = (c) => {
+  const r = fastParse(c.text)
+  const o = r?.kind === 'ops' && r.ops.length === 1 ? r.ops[0] : null
+  return !!o && o.action === 'chart.setSetting' && o.args.setting === c.setting && o.args.value === c.value
+}
+const listWant = (c, b) => {
+  const action = !!b && b.capabilities.some(x => x.name === 'chart.setSetting' && (x.args?.properties?.setting?.enum || []).includes(c.setting))
+  const instant = !b && instantOp(c)
+  return { model: !!b, action, instant, handled: action || instant }
+}
 const journalWant = (c, b) => ({
   model: !!b,
   action: !!b && b.capabilities.some(x => x.name === 'widget.sendToJournal'),
@@ -62,7 +73,11 @@ const PINNED = {
   // C3-170, C3-166, C3-151, C3-152; this head: 24/21/21, misses C3-170, C3-151, C3-152; no other row dropped)
   'widget held-out v1': { model: '24/24', action: '21/24', list: '21/24' }, 'widget held-out v2': { model: '24/24', action: '21/24', list: '21/24' },
   'widget tune v1': { model: '24/24', action: '20/24', list: '21/24' }, 'widget tune v2': { model: '24/24', action: '21/24', list: '21/24' },
-  'list held-out v1': { model: '8/8', action: '7/8' }, 'list held-out v2': { model: '8/8', action: '8/8' },
+  // LEGEND family (pl-legend, legendPhrases.js): 4 of the 8 list held-out phrasings are now read on the instant path, exactly
+  // (setting AND value), so they make no model call. Before: model 8/8, action v1 7/8 / v2 8/8. After: handled (the first call
+  // carries the action, or the instant reading is exactly the op) v1 7/8 / v2 8/8 — the same rows as before, none dropped; the v1
+  // miss is still "add RVOL to the stat strip above the chart" (reaches the model without the action, as before)
+  'list held-out v1': { model: '4/8', action: '3/8', instant: '4/8', handled: '7/8' }, 'list held-out v2': { model: '4/8', action: '4/8', instant: '4/8', handled: '8/8' },
   // round 2 (before the word-based names: name held-out2 list 4/6 both; journal held-out2 action 3/4 both)
   // after the routing gate (a name routes only beside a word of its controls): "on the new-highs/new-lows widget add the S&P 500" says
   // no control word, so it reaches the action by a reroute only — the price of 0 corpus side-effect turns

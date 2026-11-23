@@ -27,6 +27,12 @@ spending the guarantee. Process-level parallelism is the only real option and th
 web pod is deliberately single-process (in-process SSE state) -- an architectural
 constraint, not a tuning knob.
 
+⭐ ONE NAMED EXCEPTION, AND IT IS NOT THE INTERPRETER (track 6, 2026-11-23):
+`_runtime_requests_in_flight`, the RUNTIME group's requests to the pine-runtime
+service. Those wait on another service's workers, not on this pod's GIL. The ban
+above stays whole for every tree definition, and an AST rail holds the exception
+to that one function and its one caller (`_evaluate_runtime_group`).
+
 ⛔ A MEMBER REQUEST NEVER TRIGGERS AN EVALUATION. Not bounded on the request path
 -- ABSENT from it. `/confluence-scan`'s four bounds (`_DPC_SCAN_BUDGET_S = 10.0`
 wall clock, `_DPC_COLD_LANE_SLOTS = 2` of 64 ~ 3%, `_DPC_COLD_PACE_S = 0.25`,
@@ -133,6 +139,7 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import datetime
+import functools
 import logging
 import math
 import os
@@ -1469,6 +1476,35 @@ _RUNTIME_PROFILES = {NIGHTLY: "sweep", LIVE: "sweep", ON_DEMAND: "on-demand"}
 #: sent in chunks of 50 and a chunk is the unit a kill / stage change can reach.
 _RUNTIME_CHUNK = pine_runtime_client.SWEEP_CHUNK
 
+#: ⭐⭐ TRACK 6 (coordinator ruling, 2026-11-23): THE NIGHT'S RUNTIME DOCUMENTS RUN IN SUB-GROUPS OF THIS
+#: MANY, ONE SUB-GROUP AFTER THE OTHER. Each sub-group reads and encodes its chunks once (`_runtime_prepare`)
+#: and files ALL its documents when its last chunk is answered, so a run cut part-way (a web deploy kills the
+#: process; the deadline stops it between chunks) loses at most the ONE sub-group in flight. One group of all
+#: the night's documents files nothing before its last chunk: two deploys on 2026-11-23 cut the whole night's
+#: runtime work that way.
+#:
+#: THE DERIVATION, from the rates measured on 2026-11-23 (the next nightly sweep re-measures it: one log line
+#: per sub-group, with its documents, jobs, seconds and jobs/min):
+#:   * the web side per job, by sub-group size k (local, the service's own time excluded). Reading the bars,
+#:     converting their times and encoding them is paid once per chunk PER SUB-GROUP, so it shrinks as 1/k:
+#:       k=25 ~4 ms/job · k=9 ~8 ms/job · k=5 ~12 ms/job · k=1 ~45 ms/job.
+#:   * the service side: ~0.67 s per 50-job request, ~0.45 s of it one of the service's 2 workers computing,
+#:     with ONE request in flight (1.5 req/s). Two in flight (`RUNTIME_IN_FLIGHT_CEILING`) about halve it, and
+#:     the next chunk is read while this chunk's requests are out, so it hides under the web side's time.
+#:   * so k=9 is ~8 ms/job, ~7k jobs/min: the night's ~280k jobs (25 documents) in ~40 min, under the 60-min
+#:     bar. Before: the whole night as one group, one request in flight, ~4.3k jobs/min, ~65 min.
+#:   * a cut loses at most one sub-group: 9 of 25 documents, ~1/3 of the night. A smaller k bounds the loss
+#:     tighter and reads the bars more often (k=5: ~12 ms/job, ~5k jobs/min, ~56 min, too near the bar).
+#: Changing it is a commit, re-derived from the per-sub-group log lines.
+RUNTIME_SWEEP_SUBGROUP = 9
+
+#: ⭐ TRACK 6 (coordinator ruling, 2026-11-23): AT MOST THIS MANY OF THE RUNTIME GROUP'S REQUESTS ARE IN FLIGHT
+#: AT ONCE. The bound itself is the service's OWN live worker count (`GET /v1/metrics` ``workers.live``, 2
+#: today), read once per group (`_runtime_in_flight`), and never above this ceiling: more requests than the
+#: service has workers only queue there, and each in-flight request holds its ~10 MB body on this pod. An
+#: unreadable count means ONE request in flight, never more. Raising it is a commit, after a measurement.
+RUNTIME_IN_FLIGHT_CEILING = 2
+
 
 
 def _scannable_handle(definition: Any) -> str:
@@ -1771,11 +1807,25 @@ def _evaluate_runtime_group(definitions: Sequence[Any], tf: str, *,
     when its run completed with nothing withheld; one document's failure (any exception
     in its request or its tally) is that document's alone.
 
-    ⛔ THE STOP IS CHECKED BETWEEN CHUNKS, AND A STOPPED GROUP FILES NOTHING. Every
-    document of a group completes at the group's last chunk, so a group the deadline
-    stops has no complete document: each one is `None` (never started, in the sweep's
-    words), never a receipt describing part of the universe as all of it. The overrun
-    is one chunk, not one document.
+    ⛔ THE STOP IS CHECKED BETWEEN CHUNKS, AND A STOPPED SUB-GROUP FILES NOTHING. Every
+    document of a sub-group completes at the sub-group's last chunk, so a sub-group the
+    deadline stops has no complete document: each one is `None` (never started, in the
+    sweep's words), never a receipt describing part of the universe as all of it. The
+    overrun is one chunk, not one document.
+
+    ⭐⭐ TRACK 6 (coordinator ruling, 2026-11-23): SUB-GROUPS, AND TWO REQUESTS IN FLIGHT.
+      * The documents run in sub-groups of `RUNTIME_SWEEP_SUBGROUP`, one after the other
+        (`_runtime_subgroup`). Each sub-group reads its chunks once and files all its
+        documents when it completes, so a cut (a deploy kills the process, or the deadline
+        stops it) loses at most the sub-group in flight; the earlier ones are filed, and
+        the resume bit (`_resume_order`) puts the unfiled ones first next time.
+      * The requests go through `_runtime_requests_in_flight`, the ONE named exception to
+        this module's concurrency ban, at most `_runtime_in_flight(client)` at once: the
+        service's own live worker count, read ONCE per group, at most
+        `RUNTIME_IN_FLIGHT_CEILING`, and 1 when it cannot be read. A run of ONE document
+        (`_evaluate_runtime`, on demand) reads no metrics and sends one request at a time.
+      * Each document's requests, answers and receipt are exactly what it got before:
+        every answer is tallied on this thread, in chunk order and document order.
     """
     outcomes: list = [None] * len(definitions)
     runs: list = []
@@ -1807,18 +1857,76 @@ def _evaluate_runtime_group(definitions: Sequence[Any], tf: str, *,
         kept, limit_withheld, limit_reason = [], len(universe), HISTORY_WITHHELD
     tf_code = runs[0][1].tf_code
 
-    client = None
-    # ⚠️ A STOPWATCH FOR THE LOG LINE BELOW, NEVER A BUDGET: the budget is `stop_reason`,
-    # handed in by `run_sweep`, the one thing that knows how long the sweep has run.
-    timing = {"prepare": 0.0, "service": 0.0, "jobs": 0}
+    receipt = {"session": session, "universe": len(universe), "limit_withheld": limit_withheld,
+               "limit_reason": limit_reason, "history_withheld": history_withheld, "tick": tick}
+    group = len(runs) > 1
+    subgroups = [runs[s:s + RUNTIME_SWEEP_SUBGROUP] for s in range(0, len(runs), RUNTIME_SWEEP_SUBGROUP)]
+    # ⚠️ A STOPWATCH FOR THE LOG LINES, NEVER A BUDGET: the budget is `stop_reason`, handed in
+    # by `run_sweep`, the one thing that knows how long the sweep has run.
+    timing = {"prepare": 0.0, "requests": 0.0, "jobs": 0}
     t_start = time.perf_counter()
-    live = list(runs)
+    lane: dict = {}
+    with contextlib.ExitStack() as stack:
+
+        def connect() -> dict:
+            """The client and the request lane, opened at the group's FIRST request (a run that
+            sends nothing builds neither). The in-flight bound is read ONCE per group, and only
+            for a group: a run of one document has one request per chunk, nothing to overlap."""
+            if not lane:
+                client = _runtime_client()
+                in_flight = _runtime_in_flight(client) if group else 1
+                send = stack.enter_context(_runtime_requests_in_flight(in_flight))
+                lane.update(client=client, in_flight=in_flight, send=send)
+            return lane
+
+        for n, sub in enumerate(subgroups, 1):
+            stopped = _runtime_subgroup(sub, outcomes, kept=kept, tf_code=tf_code, want=want,
+                                        session=session, stop_reason=stop_reason, connect=connect,
+                                        receipt=receipt, timing=timing,
+                                        label=(n, len(subgroups)) if group else None)
+            if stopped:
+                return outcomes, stopped
+    if group:
+        wall = time.perf_counter() - t_start
+        log.info("[scan] runtime sweep group: %d document(s) x %d symbol(s) = %d job(s) in %.1fs "
+                 "(%.0f jobs/min), %d sub-group(s) of at most %d, %s request(s) in flight; bars "
+                 "read+encoded once per symbol per sub-group in %.1fs, the requests (this thread's "
+                 "share: sending, then waiting on the answers) %.1fs",
+                 len(runs), len(kept), timing["jobs"], wall,
+                 (60.0 * timing["jobs"] / wall) if wall > 0 else 0.0,
+                 len(subgroups), RUNTIME_SWEEP_SUBGROUP, lane.get("in_flight", "no"),
+                 timing["prepare"], timing["requests"])
+    return outcomes, None
+
+
+def _runtime_subgroup(sub: Sequence[tuple], outcomes: list, *, kept: Sequence[str], tf_code: str,
+                      want: int, session: int, stop_reason: Any, connect: Any,
+                      receipt: Mapping[str, Any], timing: dict, label: Optional[tuple]) -> Optional[str]:
+    """ONE sub-group of `_evaluate_runtime_group` (``sub``: its ``(index, _RuntimeRun)`` pairs),
+    run over every chunk and FILED when its last chunk is answered. Each document's outcome is
+    written into ``outcomes``. Returns the word ``stop_reason`` answered with (the sub-group is
+    then unfiled, each of its live documents ``None``), or ``None``.
+
+    CHUNK-OUTER, DOCUMENT-INNER, as the group always was: each chunk is read and encoded ONCE
+    for the sub-group's documents and the admission is asked again per document. Then every
+    admitted document's request for the chunk is SENT (`connect()["send"]`, at most the lane's
+    in-flight bound running at once), the NEXT chunk is read and encoded while they are out
+    (only when more than one may be in flight: one at a time, each request runs as it is sent),
+    and only then are the answers tallied, on THIS thread, in document order -- so a document's
+    counts, lists and receipt are exactly what it got with one request at a time.
+    """
+    t_start = time.perf_counter()
+    mine_timing = {"prepare": 0.0, "requests": 0.0, "jobs": 0}
+    live = list(sub)
+    lane: Optional[dict] = None
+    ahead: Optional[tuple] = None             # (start, prepared): the next chunk, read early
+    stopped: Optional[str] = None
     for start in range(0, len(kept), _RUNTIME_CHUNK):
         stopped = stop_reason() if stop_reason is not None else None
         if stopped:
             for i, _run in live:
                 outcomes[i] = None
-            return outcomes, stopped
+            break
         chunk = kept[start:start + _RUNTIME_CHUNK]
         # ⛔ ASKED AGAIN FOR EVERY CHUNK AND EVERY DOCUMENT.
         admitted = []
@@ -1831,26 +1939,53 @@ def _evaluate_runtime_group(definitions: Sequence[Any], tf: str, *,
             else:
                 admitted.append((i, run))
         if not admitted:
+            ahead = None
             continue
-        t0 = time.perf_counter()
-        jobs, sent, unread = _runtime_prepare(chunk, start, tf_code, want, session)
-        timing["prepare"] += time.perf_counter() - t0
+        if ahead is not None and ahead[0] == start:
+            jobs, sent, unread = ahead[1]
+        else:
+            t0 = time.perf_counter()
+            jobs, sent, unread = _runtime_prepare(chunk, start, tf_code, want, session)
+            mine_timing["prepare"] += time.perf_counter() - t0
+        ahead = None
         failed = set()
+        out: list = []                        # (i, run, the jobs sent, wait) in document order
+        t0 = time.perf_counter()
         for i, run in admitted:
+            if not jobs:
+                out.append((i, run, None, None))
+                continue
+            try:
+                lane = connect()
+                mine = [dataclasses.replace(j, want=(run.plot,)) for j in jobs]
+                request = functools.partial(
+                    lane["client"].run, def_id=run.row["def_id"], version=run.row["version"],
+                    doc=run.definition, owner_id=run.row["user_id"], profile=run.profile, jobs=mine)
+                out.append((i, run, mine, lane["send"](request)))
+            except Exception as exc:                         # noqa: BLE001
+                outcomes[i] = exc
+                failed.add(i)
+        mine_timing["requests"] += time.perf_counter() - t0
+        # ⭐ READ AHEAD: the next chunk's bars are read and encoded while this chunk's requests
+        # are out, so the service's time hides under this pod's (`RUNTIME_SWEEP_SUBGROUP`).
+        nxt = start + _RUNTIME_CHUNK
+        if (lane is not None and lane["in_flight"] > 1 and nxt < len(kept)
+                and any(wait is not None for _i, _run, _mine, wait in out)):
+            t0 = time.perf_counter()
+            ahead = (nxt, _runtime_prepare(kept[nxt:nxt + _RUNTIME_CHUNK], nxt, tf_code, want, session))
+            mine_timing["prepare"] += time.perf_counter() - t0
+        for i, run, mine, wait in out:
             try:
                 for sym, reason, detail in unread:
                     run.unread(sym, reason, detail)
-                if not jobs:
+                if wait is None:
                     continue
-                if client is None:
-                    client = _runtime_client()
-                mine = [dataclasses.replace(j, want=(run.plot,)) for j in jobs]
                 t0 = time.perf_counter()
-                results = client.run(def_id=run.row["def_id"], version=run.row["version"],
-                                     doc=run.definition, owner_id=run.row["user_id"],
-                                     profile=run.profile, jobs=mine)
-                timing["service"] += time.perf_counter() - t0
-                timing["jobs"] += len(mine)
+                results = wait()
+                mine_timing["requests"] += time.perf_counter() - t0
+                if isinstance(results, BaseException):
+                    raise results
+                mine_timing["jobs"] += len(mine)
                 run.take(mine, results, sent)
             except Exception as exc:                         # noqa: BLE001
                 # ⛔ ONE DOCUMENT'S FAILURE IS ITS OWN: the others still run the night.
@@ -1859,24 +1994,110 @@ def _evaluate_runtime_group(definitions: Sequence[Any], tf: str, *,
         if failed:
             live = [(i, run) for i, run in live if i not in failed]
             if not live:
-                return outcomes, None
+                break
 
-    for i, run in live:
-        try:
-            outcomes[i] = run.finish(session=session, universe=len(universe),
-                                     limit_withheld=limit_withheld, limit_reason=limit_reason,
-                                     history_withheld=history_withheld, tick=tick)
-        except Exception as exc:                             # noqa: BLE001
-            outcomes[i] = exc
-    if len(runs) > 1:
+    filed = 0
+    if not stopped:
+        for i, run in live:
+            try:
+                outcomes[i] = run.finish(**receipt)
+                filed += 1 if outcomes[i].get("persisted") else 0
+            except Exception as exc:                         # noqa: BLE001
+                outcomes[i] = exc
+    for key in timing:
+        timing[key] += mine_timing[key]
+    if label is not None:
         wall = time.perf_counter() - t_start
-        log.info("[scan] runtime sweep group: %d document(s) x %d symbol(s) = %d job(s) in %.1fs "
-                 "(%.0f jobs/min); bars read+encoded once per symbol in %.1fs, the requests "
-                 "(encode the body, the service, the reply) %.1fs",
-                 len(runs), len(kept), timing["jobs"], wall,
-                 (60.0 * timing["jobs"] / wall) if wall > 0 else 0.0,
-                 timing["prepare"], timing["service"])
-    return outcomes, None
+        rate = (60.0 * mine_timing["jobs"] / wall) if wall > 0 else 0.0
+        in_flight = lane["in_flight"] if lane is not None else "no"
+        if stopped:
+            log.warning("[scan] runtime sweep sub-group %d/%d STOPPED (%s): %d document(s), %d job(s) "
+                        "in %.1fs (%.0f jobs/min), %s request(s) in flight; NONE filed (a partial "
+                        "universe is never filed), so they lead the next run",
+                        label[0], label[1], stopped, len(sub), mine_timing["jobs"], wall, rate, in_flight)
+        else:
+            log.info("[scan] runtime sweep sub-group %d/%d: %d document(s), %d job(s) in %.1fs "
+                     "(%.0f jobs/min), %s request(s) in flight; bars read+encoded once in %.1fs, the "
+                     "requests (this thread's share) %.1fs; %d of %d filed",
+                     label[0], label[1], len(sub), mine_timing["jobs"], wall, rate, in_flight,
+                     mine_timing["prepare"], mine_timing["requests"], filed, len(sub))
+    return stopped
+
+
+def _runtime_in_flight(client: Any) -> int:
+    """How many of the runtime group's requests may be in flight at once: the pine-runtime
+    service's OWN live worker count (``GET /v1/metrics`` ``workers.live``, read through the
+    signed client, ONCE per group), at most `RUNTIME_IN_FLIGHT_CEILING`.
+
+    ⛔ AN UNREADABLE COUNT MEANS 1, NEVER MORE: no metrics door, a refusal, a timeout, a reply
+    without ``workers.live``, or a value that is not a whole number of at least 1. One request
+    in flight is how the sweep ran before, so not knowing costs speed and nothing else. Never
+    raises."""
+    try:
+        metrics = client.metrics()
+    except Exception:                                        # noqa: BLE001
+        metrics = None
+    workers = metrics.get("workers") if isinstance(metrics, Mapping) else None
+    live = workers.get("live") if isinstance(workers, Mapping) else None
+    if isinstance(live, bool) or not isinstance(live, int) or live < 1:
+        log.warning("[scan] runtime sweep: the service's live worker count is unreadable (%s), so ONE "
+                    "request is in flight", repr(live)[:40])
+        return 1
+    return min(live, RUNTIME_IN_FLIGHT_CEILING)
+
+
+@contextlib.contextmanager
+def _runtime_requests_in_flight(in_flight: int):
+    """⛔⛔ THE ONE NAMED EXCEPTION TO THIS MODULE'S CONCURRENCY BAN (track 6, coordinator
+    ruling 2026-11-23). Yields ``send(request) -> wait``: ``request`` is a zero-argument
+    callable, ONE runtime document's request for ONE chunk (`PineRuntimeClient.run`), and
+    ``wait()`` returns its value, or the ``Exception`` it raised (a ``BaseException``, such as
+    the process being stopped, propagates). At most ``in_flight`` requests run at once (the
+    pool's own bound). ``in_flight <= 1`` runs each request as it is sent, on this thread,
+    exactly as the sweep always did. On exit, requests not yet started are cancelled and the
+    running ones are waited for.
+
+    WHY THE BAN DOES NOT REACH THIS. The ban (module docstring) was MEASURED for the
+    in-process tree interpreter, which the 1e-9 cross-lane guarantee makes GIL-bound: threads
+    there buy nothing and cost more. It stays, whole, for every tree definition. A request
+    here is not the interpreter: it WAITS on another service's worker (~0.45 s of a ~0.67 s
+    50-job request is one of the pine-runtime service's 2 workers computing) and the GIL is
+    free while it waits. With one request in flight, the service's second worker sat idle all
+    night (2026-11-23).
+
+    ⛔ THE SCOPE IS RAILED BY AST (tests/test_scan_evaluator.py): the pool is imported and
+    built in this function and nowhere else in the module, this function knows nothing of the
+    module (it runs the callables it is handed), and its ONE caller is
+    `_evaluate_runtime_group`. A tree definition never reaches it.
+    """
+    if in_flight <= 1:
+        def send_now(request: Any) -> Any:
+            try:
+                value = request()
+            except Exception as exc:                         # noqa: BLE001 -- handed to the document's tally
+                value = exc
+            return lambda: value
+
+        yield send_now
+        return
+    from concurrent.futures import ThreadPoolExecutor
+    pool = ThreadPoolExecutor(max_workers=in_flight, thread_name_prefix="scan-runtime-request")
+
+    def send(request: Any) -> Any:
+        future = pool.submit(request)
+
+        def wait() -> Any:
+            try:
+                return future.result()
+            except Exception as exc:                         # noqa: BLE001 -- handed to the document's tally
+                return exc
+
+        return wait
+
+    try:
+        yield send
+    finally:
+        pool.shutdown(wait=True, cancel_futures=True)
 
 
 def _runtime_client() -> "pine_runtime_client.PineRuntimeClient":
@@ -3520,7 +3741,8 @@ def sweep_catch_up() -> Optional[dict]:
     for the next boot to find.
 
     ⛔ IT NEVER RUNS BESIDE THE SCHEDULED SWEEP: the caller (`api/main.py`) holds one
-    lock over both jobs. This module imports no concurrency primitive (the census in
+    lock over both jobs. This module imports no concurrency primitive outside its one
+    named exception, the runtime group's requests (the census in
     tests/test_scan_evaluator.py).
 
     Returns the run's receipt, or ``None`` when nothing was due.

@@ -18,6 +18,8 @@ vi.mock('../pages/journal-2-0/components/VoiceInputButton', () => ({ default: ()
 const env = (ops) => ({ disposition: 'apply', reply: '', question: null, unsupported_category: null, ops })
 const w = (id, type, x, y, opts = {}) => ({ id, type, x, y, w: 3, h: 5, color: 'N', opts })
 const firstTurn = (p) => p.st.calls.find(c => c[1] === '/api/agent/turn')?.[2] || null
+// LEGEND family (pl-legend): the list TUNE phrasings the instant path now reads (legendPhrases.js) — every one of them
+const INSTANT_LIST = new Set(LIST_TUNE.map(c => c.text))
 const optsOf = (board, id) => board.state.widgets.find(x => x.id === id).opts
 
 // ── Family W: one control of one widget, on a control the widget keeps in `opts` (no mounted door needed) ──
@@ -83,13 +85,28 @@ describe('family L through the REAL panel: chart.setSetting header.fields | head
     const was = listOf(c.setting, csOf(board))
     p.st.envelopes.push((body) => op(body, c.setting, c.value))
     const out = await say(text)
-    const b = firstTurn(p)
-    expect(b.capabilities.find(x => x.name === 'chart.setSetting').args.properties.setting.enum).toContain(c.setting)
+    // LEGEND family (pl-legend): these TUNE phrasings are now read on the instant path (capabilities/legendPhrases.js), so no
+    // model call is made and there is no first call to inspect — pinned as 0 calls. End state, receipt and exact Undo are
+    // asserted below exactly as before. The model path's carry is still pinned, by the case after this one.
+    if (INSTANT_LIST.has(text)) expect(p.turns(), out).toBe(0)
+    else expect(firstTurn(p).capabilities.find(x => x.name === 'chart.setSetting').args.properties.setting.enum).toContain(c.setting)
     const now = listOf(c.setting, csOf(board))
     const key = c.value.slice(1)
     expect(now.includes(key), out).toBe(c.value[0] === '+')
     expect(now.filter(k => k !== key)).toEqual(was.filter(k => k !== key))       // nothing else moved
     expect(out).toMatch(/(Info row|Bar info): (added|removed) /)
+    await say('undo')
+    expect(JSON.stringify(board.state.widgets)).toBe(before)
+  }, 40000)
+  it('a list wish the instant path does not read still reaches the model carrying chart.setSetting and the list setting; it lands; Undo exact', async () => {
+    const { say, board } = p.mount(...ONE('NVDA'))
+    const before = JSON.stringify(board.state.widgets)
+    p.st.envelopes.push((body) => op(body, 'header.fields', '+sector'))
+    const out = await say('info row: the sector too')
+    expect(p.turns()).toBe(1)
+    expect(firstTurn(p).capabilities.find(x => x.name === 'chart.setSetting').args.properties.setting.enum).toContain('header.fields')
+    expect(headerFieldKeys(csOf(board).header)).toContain('sector')
+    expect(out).toMatch(/Info row: added Sector/)
     await say('undo')
     expect(JSON.stringify(board.state.widgets)).toBe(before)
   }, 40000)

@@ -64,7 +64,9 @@ from __future__ import annotations
 import hashlib
 import io
 import re
+import shutil
 import sqlite3
+import time
 import tokenize
 from pathlib import Path
 
@@ -73,7 +75,7 @@ from fastapi import APIRouter, Depends
 from fastapi.testclient import TestClient
 
 from api.middleware.auth_middleware import get_current_user, get_current_user_with_plan
-from api.services import auth_db, rollout
+from api.services import auth_db, request_timing, rollout
 from api.services import rollout_gate as rg
 
 REPO = Path(__file__).resolve().parents[1]
@@ -259,6 +261,12 @@ def _fingerprint(data_dir: Path) -> dict:
     rail flake on whatever order the requests landed in (PR jobs on #2228 and
     fix/pine-door-deadline). It is diagnostics, not member data, so its CONTENT is not
     compared - but its PRESENCE still is: a kill switch that deleted it would still fail.
+
+    ⚰️ (2026-11-23) PRESENCE flaked too: the app creates the day's file from a
+    background thread when a minute rolls over, so the day's FIRST write could land
+    between the two snapshots and read as "the switch changed bytes on disk" (PR #2534,
+    run 45163044700). The master rail therefore calls `_timing_log_first()` before its
+    "before" snapshot. Presence is NOT excluded: see that helper and its two controls.
     """
     conn = sqlite3.connect(str(data_dir / "auth.db"))
     try:
@@ -275,6 +283,29 @@ def _fingerprint(data_dir: Path) -> dict:
             else:
                 files[str(rel)] = hashlib.sha256(f.read_bytes()).hexdigest()
     return {"rows": rows, "files": files}
+
+
+def _timing_log_first() -> list[Path]:
+    """Make the request-timing log EXIST before the master rail's "before" snapshot,
+    written by the app's own writer (`request_timing.write_minute`, the call its
+    background thread makes), so the file name and folder are the app's, not restated.
+
+    WHY FIRST. The app creates `request_timing/<UTC day>.jsonl` only when a minute
+    rolls over, from a background thread, so the day's first write can land anywhere,
+    including between the two snapshots. With the file already there:
+      * a file that APPEARS cannot appear: it is present before and after;
+      * a file the switch DELETES is still missing afterwards, and the rail still fails
+        (`test_CONTROL_the_rail_still_REDS_when_the_switch_DELETES_the_timing_log`).
+
+    WHICH DAYS. A write between the snapshots is for the minute in progress
+    (`request_timing._cur`, handed to the writer when it rolls over) or the current
+    one, so the day of each is created. They differ only around midnight UTC.
+    Returns the files it made sure of.
+    """
+    minutes = sorted({m for m in (request_timing._cur["m"], int(time.time() // 60)) if m})
+    for m in minutes:
+        request_timing.write_minute(request_timing._new_minute(m))
+    return [Path(request_timing.store_dir()) / (request_timing._day(m) + ".jsonl") for m in minutes]
 
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -300,6 +331,9 @@ def test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_N
             "would prove nothing about it")
 
     # 2. THROW IT — no reimport, no restart, and the store is fingerprinted first.
+    # The app's timing log is made to exist BEFORE the snapshot, so its first write of
+    # the day cannot land mid-throw and read as a change (see `_timing_log_first`).
+    _timing_log_first()
     before = _fingerprint(data_dir)
     if thrown is None:
         _switches(monkeypatch, None)
@@ -451,6 +485,74 @@ def test_CONTROL_the_fingerprint_SEES_a_removed_tag(people, data_dir):
     cohort = next(iter(rg.COHORT_KILL_SWITCHES))
     assert rollout.remove_from_cohort(cohort, [TAGGED_ADMIN]) == 1
     assert _fingerprint(data_dir)["rows"] != before["rows"]
+
+
+@pytest.fixture
+def timing_log_quiet(data_dir, monkeypatch):
+    """For the two timing-log controls: the app's own timing writes are OFF
+    (`REQUEST_TIMING_ENABLED=0`, the layer becomes a pass-through) and the log is
+    pinned inside the fingerprinted data dir. So the ONLY writes to it are the ones
+    the control makes, at the moment it chooses, and nothing races the control."""
+    monkeypatch.setenv("REQUEST_TIMING_ENABLED", "0")
+    monkeypatch.delenv("REQUEST_TIMING_DIR", raising=False)
+    store = Path(request_timing.store_dir())
+    assert store.parent == data_dir, f"the timing log is not under the data dir: {store}"
+    return store
+
+
+THE_RAIL = test_THROWN_the_master_switch_kills_EVERY_surface_for_EVERYONE_and_deletes_NOTHING
+
+
+def test_CONTROL_the_rail_still_REDS_when_the_switch_DELETES_the_timing_log(
+        real_app, as_user, people, data_dir, monkeypatch, timing_log_quiet):
+    """⛔ Creating the log first must not buy quiet by going blind. The master rail
+    is run as it is, with one change: the throw (`_killed_violations`, called between
+    the two snapshots) also deletes the timing log. It must fail, on the file."""
+    real_killed = _killed_violations
+    deleted: list[str] = []
+
+    def killed_and_deleted(*args, **kwargs):
+        out = real_killed(*args, **kwargs)
+        for f in sorted(timing_log_quiet.glob("*.jsonl")):
+            f.unlink()
+            deleted.append(f.name)
+        return out
+
+    monkeypatch.setitem(globals(), "_killed_violations", killed_and_deleted)
+    with pytest.raises(AssertionError) as red:
+        THE_RAIL(None, real_app, as_user, people, data_dir, monkeypatch)
+    assert deleted, "the throw deleted no timing log; this control proved nothing"
+    said = str(red.value)
+    assert "changed bytes on disk" in said and "request_timing" in said, (
+        "the rail failed, but not on the deleted timing log:\n" + said[:600])
+
+
+def test_CONTROL_a_timing_log_that_APPEARS_during_the_throw_no_longer_reds_the_rail(
+        real_app, as_user, people, data_dir, monkeypatch, timing_log_quiet):
+    """The flake itself (PR #2534): no timing log when the throw starts, and the app's
+    writer creates the day's file between the two snapshots. The master rail is run as
+    it is, with the log removed just before `_timing_log_first()` and a write the
+    app's way (`write_minute` for the current minute) inside the throw. Green now;
+    red if `_timing_log_first()` stops making the file."""
+    real_first, real_killed = _timing_log_first, _killed_violations
+    seen: dict = {}
+
+    def first_from_nothing():
+        shutil.rmtree(timing_log_quiet, ignore_errors=True)
+        seen["absent_at_start"] = not timing_log_quiet.exists()
+        return real_first()
+
+    def killed_while_the_writer_writes(*args, **kwargs):
+        out = real_killed(*args, **kwargs)
+        request_timing.write_minute(request_timing._new_minute(int(time.time() // 60)))
+        seen["written"] = sorted(f.name for f in timing_log_quiet.glob("*.jsonl"))
+        return out
+
+    monkeypatch.setitem(globals(), "_timing_log_first", first_from_nothing)
+    monkeypatch.setitem(globals(), "_killed_violations", killed_while_the_writer_writes)
+    THE_RAIL(None, real_app, as_user, people, data_dir, monkeypatch)
+    assert seen.get("absent_at_start") is True, "the timing log was not absent when the throw started"
+    assert seen.get("written"), "no timing log was written during the throw; this control proved nothing"
 
 
 def test_the_census_finds_a_gate_mounted_at_ROUTER_level():

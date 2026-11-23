@@ -72,6 +72,37 @@ class PineRuntimeFake:
         self.seen: set = set()
         self.urls: List[str] = []
         self.timeouts: List[float] = []
+        #: `GET /v1/metrics` (`get`, the `GetTransport` signature): the `workers.live` it serves (None = the
+        #: pool block is absent), a canned `(status, body)` to answer instead, and every metrics request served.
+        self.live_workers: Optional[Any] = 2
+        self.metrics_reply: Optional[Tuple[int, bytes]] = None
+        self.metrics_calls: List[str] = []
+
+    def get(self, url: str, headers: Mapping[str, str], timeout: float) -> Tuple[int, bytes]:
+        """``server.mjs::metricsRoute``: signed like /v1/run over the EMPTY body, the same clock and replay rules."""
+        self.metrics_calls.append(url)
+        if not url.endswith("/v1/metrics"):
+            return 404, b'{"ok":false}'
+        sig = {k.lower(): v for k, v in headers.items()}.get("x-pine-runtime-signature")
+        m = _HEADER.match(sig or "")
+        if not m:
+            return _err(401, "runtime:server-auth", "the request carries no signature")
+        t, v1 = int(m.group(1)), m.group(2)
+        if abs(self.now() - t) > 60:
+            return _err(401, "runtime:server-auth", "clock skew")
+        want_any = [hmac.new(s.encode(), f"{t}.{hashlib.sha256(b'').hexdigest()}".encode(), hashlib.sha256).hexdigest()
+                    for s in self.secrets]
+        if not any(hmac.compare_digest(w, v1) for w in want_any):
+            return _err(401, "runtime:server-auth", "the signature does not match the empty body")
+        if v1 in self.seen:
+            return _err(401, "runtime:server-auth", "replay")
+        self.seen.add(v1)
+        if self.metrics_reply is not None:
+            return self.metrics_reply
+        workers = None if self.live_workers is None else {"live": self.live_workers, "starts": 2, "recycles": 0,
+                                                          "kills": 0, "ooms": 0, "crashes": 0}
+        return 200, json.dumps({"protocol": 1, "uptime_s": 60, "engine": dict(self.identity), "requests": 0,
+                                "queue_depth": 0, "workers": workers}).encode("utf-8")
 
     # the Transport signature
     def __call__(self, url: str, body: bytes, headers: Mapping[str, str], timeout: float) -> Tuple[int, bytes]:

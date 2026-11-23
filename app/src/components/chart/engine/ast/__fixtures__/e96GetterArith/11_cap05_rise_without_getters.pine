@@ -1,0 +1,12 @@
+//@version=5
+indicator("Lowest low of 60 bars to the close", overlay=true)
+float lo = ta.lowest(low, 60)
+int back = -ta.lowestbars(low, 60)
+var line ln = na
+var label lb = na
+if barstate.islast
+    line.delete(ln)
+    label.delete(lb)
+    ln := line.new(bar_index - back, lo, bar_index, close)
+    float rise = close - lo
+    lb := label.new(bar_index, close, "$" + str.tostring(rise, "#.00"))
