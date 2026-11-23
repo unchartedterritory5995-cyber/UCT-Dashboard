@@ -76,7 +76,7 @@ def _this_repo(fallback: str) -> str:
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-REPO = _this_repo("unchartedterritory5995-cyber/UCT-Dashboard")
+REPO = _this_repo("northstar-quarry/UCT-Dashboard")
 SITE = os.environ.get("LIVE_CHECK_SITE", "https://uctintelligence.com")
 RAILWAY_GQL = "https://backboard.railway.com/graphql/v2"
 RAILWAY_PROJECT = os.environ.get("RAILWAY_PROJECT_ID", "d6574d0b-7973-4ece-b35c-65c0ad4c453d")
