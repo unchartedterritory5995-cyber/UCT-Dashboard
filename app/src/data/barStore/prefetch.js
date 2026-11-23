@@ -68,6 +68,7 @@ import { viewShowExtended } from '../../utils/viewSession'
 import { isNativeTf, fetchTf } from '../../components/chart/timeframes'
 import { isCacheCurrentForView, expectedBarsBehind } from '../../utils/marketSession'
 import { deviceCopyFresh } from '../deviceStore/fresh'
+import { deviceServesTf } from '../deviceStore/tfs'
 import { BARSTORE } from '../../components/chart/barStoreSwitch'
 import { prefetchTickerMeta as _defaultTickerMeta } from '../../hooks/useTickerMeta'
 import {
@@ -758,9 +759,13 @@ export function createPrefetch(o = {}) {
   // group took the round instead of one same-task render. So the hydrate runs here exactly as the first look would
   // have run it (its mem half in this call; IndexedDB and the device read beside it), and the device read below is
   // for an entry that already exists.
+  // ⛔ ...AND NOTHING AT ALL FOR A KEY THE DEVICE DOES NOT SERVE (review of #2537, H1: W, M, the extended 60m grid).
+  // The hydrate above exists only because the device read would make the entry; with no device read there is nothing
+  // to do, and the key press leaves that key exactly as the store-off key press does (hooks/useSymbolHandoff
+  // primeDeviceFor is never called then).
   function deviceWarm(sym, tf, { showExtended } = {}) {
     const key = keyFor(sym, tf, { showExtended })
-    if (!key) return Promise.resolve(false)
+    if (!key || !deviceServesTf(parseKey(key)?.cacheTf)) return Promise.resolve(false)
     const st = S()
     try { if (!st.peek(key)) _hydrate(key, URGENT) } catch { /* a store with no registry: the read below still leaves */ }
     try { return Promise.resolve(st.persist?.refreshDevice?.(key, URGENT)).catch(() => false) } catch { return Promise.resolve(false) }

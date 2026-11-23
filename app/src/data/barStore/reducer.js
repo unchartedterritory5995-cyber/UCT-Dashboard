@@ -954,17 +954,32 @@ function _applyLocal(state, action, ctx, source) {
     return finalize(state, { bars: mergeRows(state, rows) }, ctx)
   }
   // No server answer yet: the local copy is the best we have. Its last row is the forming
-  // bucket when the clock says that bucket has not ended.
+  // bucket when the clock says that bucket has not ended...
+  // ⛔ ...OR WHEN THE DEVICE SAYS SO (review of #2537, M1). A device copy's last row may be the bucket in progress
+  // relative to the newest minute the DEVICE applied (deviceStore/live.js), and names it (`forming_t`, persist.js).
+  // Read just after that bucket's end, before the frame of its last minute has landed, the clock alone filed it as a
+  // CLOSED bar one minute short, and the server's answer then changed the candle. Named, it is the developing bar.
+  // (Only a device copy carries the marker: no other copy's payload is read for it.)
   const nowSec = Math.floor((ctx.nowMs ?? Date.now()) / 1000)
   let devIn = null
   const lastRow = rows[rows.length - 1]
-  if (!lastRow._sealed && bucketEnd(lastRow.t, working) > nowSec) { devIn = lastRow; rows = rows.slice(0, -1) }
+  const namedForming = source === 'device' && numOrNull(p.forming_t) === lastRow.t
+  if (!lastRow._sealed && (namedForming || bucketEnd(lastRow.t, working) > nowSec)) { devIn = lastRow; rows = rows.slice(0, -1) }
   let bars = mergeRows(working, rows)
   if (spans !== state.sealedSpans) {
     // Absences inside a restored span are the server's: drop earlier local-only rows there.
     for (const sp of spans) bars = mergeRows({ ...working, bars, sealedSpans: spans }, [], sp)
   }
   let dev = state.developing
+  // ⛔ THE DEVICE'S NEWER COPY SUPERSEDES ITS OWN EARLIER FORMING BAR (review of #2537, M1: the other half of the roll).
+  // A device copy lands only on an entry whose developing bar is none, a live one, or the device's own (a LOCAL bar:
+  // persist _joinRefused refuses any other, and refreshDevice dispatches only a NEWER copy). The newer copy says what
+  // that bucket is now: a closed row (above), the forming row (`devIn`), or nothing it vouches for any more (today's
+  // forming D after the close, live.js). Kept, the older forming bar was closed or settled INTO the rows, where its
+  // rank ties the copy's and it is merged last, so it REPLACED the complete bucket the newer copy had just brought (a
+  // copy warmed at 10:02 and shown at 10:07 painted its 10:00 bar as it was at 10:02). A live bar (push / tick) is not
+  // the device's and is never dropped here.
+  if (source === 'device' && dev && dev.src === DEV_SRC.LOCAL) dev = null
   let st = { ...working, bars, sealedSpans: spans }
   if (devIn && (!dev || devIn.t > dev.t)) {
     if (dev) { ({ bars } = closeDeveloping(st, bars)); st = { ...st, bars } }

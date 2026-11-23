@@ -652,7 +652,8 @@ def _client(user):
 def test_the_route_is_one_paid_get_and_a_refused_caller_never_reaches_the_service(monkeypatch):
     asked = []
     monkeypatch.setattr(gs, "get_group_stats", lambda kind, name: asked.append((kind, name)) or {"status": "ok"})
-    (r,) = route.router.routes
+    # the router also carries ERNSC's season read (tests/test_sector_earnings.py)
+    (r,) = [x for x in route.router.routes if x.path == "/api/research/group-stats"]
     assert r.path == "/api/research/group-stats" and r.methods == {"GET"}
     assert route.require_paid in {d.call for d in r.dependant.dependencies}
     assert route.require_paid.__module__ == "api.routers.group_stats"

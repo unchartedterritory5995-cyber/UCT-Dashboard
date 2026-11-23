@@ -21,8 +21,8 @@
    "id": "HK-J4",
    "mutant": "the editor status panel files pine:known-divergence under no family",
    "file": "app/src/components/chart/builder/editorStatus.js",
-   "from": "    exact: ['pine:known-divergence'],",
-   "to": "    exact: [],",
+   "from": "    exact: ['pine:known-divergence', 'pine:held-divergence'],",
+   "to": "    exact: ['pine:held-divergence'],",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/hostKnownDivergence.test.js"
   },
   {

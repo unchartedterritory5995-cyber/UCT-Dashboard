@@ -6,8 +6,8 @@
    "id": "H1",
    "mutant": "JS: the host chain drops the period -1 mask (master's column: nz(close[1]) draws 0 on bar 0)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "    historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column),",
-   "to": "    null,",
+   "from": "    const before = historyBeforeChartMask(tree, bars, inputs, budget, scalars, opts, column)",
+   "to": "    const before = null",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
    "expectRed": "nz(close[1]) (bar 0"
   },
@@ -96,8 +96,8 @@
    "id": "H11",
    "mutant": "JS: a time(<period>) anchor walked (its key != key[1] taken as a read before the chart: the clock's bar 0 withheld)",
    "file": "app/src/components/chart/engine/ast/interpret.js",
-   "from": "    { exact: true, requestSites: true, beforeFirst: off === true, memo, skip: isPeriodAnchor })",
-   "to": "    { exact: true, requestSites: true, beforeFirst: off === true, memo })",
+   "from": "    { exact: true, requestSites: true, beforeFirst: off === true, memo, shapes: walkShapesOf(opts), skip: isPeriodAnchor },",
+   "to": "    { exact: true, requestSites: true, beforeFirst: off === true, memo, shapes: walkShapesOf(opts) },",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/ast/historyBeforeChart.test.js",
    "expectRed": "KEPT time(\"W\")"
   },
@@ -105,7 +105,7 @@
    "id": "PH1",
    "mutant": "Python: the chain drops the period -1 mask",
    "file": "api/services/ast_interpret.py",
-   "from": "        before = history_before_chart_mask(ast, bars, inputs, budget, scalars, opts, column)",
+   "from": "        before = history_before_chart_mask(ast, bars, inputs, budget, scalars, opts, named_against)",
    "to": "        before = None",
    "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
    "expectRed": "nz(close[1]) (bar 0"
@@ -132,8 +132,8 @@
    "id": "PH4",
    "mutant": "Python: the listing ignored",
    "file": "api/services/ast_interpret.py",
-   "from": "    off = o.get(\"barIndexAbsolute\") is True and o.get(\"historyFromListing\") is not True",
-   "to": "    off = o.get(\"barIndexAbsolute\") is True",
+   "from": "    off = (o.get(\"barIndexAbsolute\") is True and o.get(\"historyFromListing\") is not True",
+   "to": "    off = (o.get(\"barIndexAbsolute\") is True",
    "rail": "python -m pytest tests/test_pine_history_before_chart.py -q -p no:cacheprovider",
    "expectRed": "CONTROL nz(close[1]) from the listing"
   },

@@ -24,9 +24,11 @@ symbol for the session: an answer is keyed on the newest session whose evening h
 (`market_history.evening_key`, 20:15 New York time on a trading day) and only closes up to that
 session are read, so a chart view that writes today's unfinished bar into the store never changes
 it. A stock whose newest close is older than that session (a halt, a store that has not caught up)
-is read again at most every `LAG_RECHECK_S`. The held answers are capped (`CACHE_MAX`, the least
-recently asked dropped first); one request per symbol builds at a time (a second waits for it), and
-at most `BUILD_SLOTS` symbols build at once (past `BUILD_WAIT_S` the request says `busy`).
+is read again at most every `LAG_RECHECK_S`, and so is one whose answer was built while SPY or its
+sector fund was not held (that read is tried again after `LAG_RECHECK_S` too). The held answers are
+capped (`CACHE_MAX`, the least recently asked dropped first); one request per symbol builds at a time
+(a second waits for it), and at most `BUILD_SLOTS` symbols build at once (past `BUILD_WAIT_S` the
+request says `busy`).
 MEASURED (2026-11-21, invented bars through the real read path on the dev PC, not production): one
 stock of 6,011 daily rows costs about 0.17 to 0.19 s of CPU the first time it is asked for in a
 session (the store read and its serve-time heal about 0.125 s of that, the same read the chart's
@@ -246,11 +248,18 @@ def _held(sym: str, key: str, stamp: tuple, now: float) -> Optional[dict]:
     return None
 
 
+def _bench_missing(answer: dict) -> bool:
+    """True when SPY or the sector fund was not held as the answer was built: `bench_closes` tries
+    that read again after `LAG_RECHECK_S`, and the stock's held answer must follow it."""
+    beta = answer.get("beta") or {}
+    return any((beta.get(k) or {}).get("state") == "not_held" for k in ("spy", "sector"))
+
+
 def _keep(sym: str, key: str, stamp: tuple, answer: dict, now: float) -> None:
     status = answer.get("status")
     if status not in ("ok", "not_held"):
         return                                        # a failed read is never held
-    lagging = status == "not_held" or (answer.get("data_through") or "") < key
+    lagging = status == "not_held" or (answer.get("data_through") or "") < key or _bench_missing(answer)
     with _lock:
         _cache[sym] = {"key": key, "stamp": stamp, "at": now, "answer": answer,
                        "recheck_at": now + LAG_RECHECK_S if lagging else None}

@@ -1,0 +1,46 @@
+/* ERNSC (2026-11-22): the total row and an opened sector's reporters. App tokens only; type size follows the board
+   density through --panel-*. The shared table, toolbar and fold rules are marketPanels.module.css's. */
+
+.plain {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.totalRow td {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+  min-width: 0;
+}
+
+/* Every reporter, the biggest beats and misses first: as many short columns as the panel holds, one on a phone. */
+.repList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--space-xs) var(--space-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.repItem {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.repLine {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.due {
+  white-space: nowrap;
+}
