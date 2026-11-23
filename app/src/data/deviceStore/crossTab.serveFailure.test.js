@@ -34,6 +34,15 @@ describe("the leader's serve failing is a counted miss", () => {
     xt.close()
   })
 
+  it('a failure that cannot be turned into text is still a counted miss, never a rejection', async () => {
+    // (review of #2611) String(Object.create(null)) throws: noting the failure must not itself fail the read
+    const xt = createCrossTab({ locks: null, makeChannel: null, tabId: 'A', serve: () => { throw Object.create(null) } })
+    await expect(xt.request({ op: 'read', sym: 'AAPL', tf: 'D' })).resolves.toBeNull()
+    expect(xt.stats().serveFailures).toBe(1)
+    expect(typeof xt.stats().lastServeError).toBe('string')
+    xt.close()
+  })
+
   it('CONTROL: a serve that answers is passed through and counts nothing', async () => {
     const xt = createCrossTab({ locks: null, makeChannel: null, tabId: 'A', serve: (req) => ({ ok: req.sym }) })
     expect(await xt.request({ op: 'read', sym: 'AAPL', tf: 'D' })).toEqual({ ok: 'AAPL' })
