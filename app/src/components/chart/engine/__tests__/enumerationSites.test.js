@@ -767,6 +767,17 @@ const LEDGER = [
   { file: 'app/src/components/chart/builder/builtinForks.js',
     region: 'SPECS — each customizable built-in\'s parity-proven formula equivalent',
     anchor: 'export const SPECS = Object.freeze({', fate: 'keep' },
+  // ⭐ COMPARE FAMILY (#2613, 2026-11-23) — `agent/capabilities/comparePhrases.js::NOT_TICKERS`: the indicator
+  // abbreviations a member may type in a compare phrase ("rsi", "macd", "ema", "sma", "atr", ...), which the
+  // phrase must not read as tickers. ⛔ NOTHING CAN DERIVE IT: which short words are indicator names rather than
+  // symbols is a fact about how people type, not about the registry, and the set names WORDS, never a definition
+  // id. Found by the discovery scan on the first engine-rails run after #2613 merged (master was red on this rail),
+  // not declared by its PR. `keep`: the set is the vocabulary.
+  // ⚠️ AN OVER-MATCH, SAID PLAINLY: the scan counts a stop-word list that happens to hold four or more indicator
+  // abbreviations as a hand-list of indicators. Narrowing the scan for stop-word lists is a separate decision.
+  { file: 'app/src/agent/capabilities/comparePhrases.js',
+    region: 'NOT_TICKERS — indicator abbreviations a compare phrase must not read as tickers',
+    anchor: 'const NOT_TICKERS = new Set([', fate: 'keep' },
   // ⭐ AGENT H14 (2026-11-15) — `agent/stateRail.js::IND_TYPE`: the words a member types for an
   // indicator ("the rsi", "my macd", "the bollinger") mapped to the definition each one means,
   // so the Agent can tell WHICH instance on the chart a request names before it changes one.
@@ -1329,7 +1340,10 @@ const RETIRED_BY_B4_ALERTS = [
 // morning as `CAPTION_CALL_WORDS`; one table with the name words since the afternoon, the row RENAMED), the
 // short plain word a settings row says a formula function with; ledgered `keep` as the bridge to one
 // `caption` declaration in the closed table, see its row.
-const SITE_COUNT = 26
+// ⭐ 26 -> 27 AT THE COMPARE FAMILY (#2613, 2026-11-23): `agent/capabilities/comparePhrases.js::NOT_TICKERS`, the
+// indicator abbreviations a compare phrase must not read as tickers; ledgered `keep` (an over-match of a stop-word
+// list, said in its row), see its row.
+const SITE_COUNT = 27
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1514,7 +1528,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // server-side rows above, every one `keep`.
     // ⭐ `{keep: 20}` -> `{keep: 21}` AT FIX LANE F1 (2026-11-10): the public RS
     // glossary's `RS_INDICATORS` table joins as a `keep`. See its LEDGER row.
-    expect(counts).toEqual({ keep: 26 })  // 23 -> 24: COND-TA's Pine v1-v4 bare-name roster (legacyTaNames.js); 24 -> 25: header custom stats' QUICK_PICKS (CustomStatBuilder.jsx); 25 -> 26: the function words' CALL_WORDS (derivedName.js)
+    expect(counts).toEqual({ keep: 27 })  // 23 -> 24: COND-TA's Pine v1-v4 bare-name roster (legacyTaNames.js); 24 -> 25: header custom stats' QUICK_PICKS (CustomStatBuilder.jsx); 25 -> 26: the function words' CALL_WORDS (derivedName.js); 26 -> 27: the compare family's NOT_TICKERS (comparePhrases.js)
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1612,6 +1626,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       ["api/services/signature/registry_defs.py::RS_SPLIT_DEFS — the server lane`s own row registry for the RS split (rsRating, rsPhases, rsVsEma)","keep"],
       ["api/services/signature/rs_provider.py::rs_*_envelope — one provider per RS split row, each naming its own id (an over-match: no list)","keep"],
       ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map","keep"],
+      ["app/src/agent/capabilities/comparePhrases.js::NOT_TICKERS — indicator abbreviations a compare phrase must not read as tickers","keep"],
       ["app/src/agent/stateRail.js::IND_TYPE — the words a member says for an indicator, each mapped to the definition it means","keep"],
       ["app/src/components/chart/CustomStatBuilder.jsx::QUICK_PICKS — the custom header stat picker`s one-tap starting points","keep"],
       ["app/src/components/chart/builder/authoring/derivedName.js::CALL_WORDS — the short plain word a formula function is said with, in a name and in a settings row","keep"],
@@ -2344,6 +2359,9 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // See its LEDGER row for why naming IDS (and only ids) keeps it safe.
     ).toEqual([
       // ⭐ PHASE 4 — `builtinForks.js::SPECS`, the custom-copy formula table. Ledgered.
+      // ⭐ COMPARE FAMILY (#2613) — `comparePhrases.js::NOT_TICKERS`, indicator words a compare phrase must not
+      // read as tickers (an over-match of a stop-word list). Added deliberately; ledgered.
+      'app/src/agent/capabilities/comparePhrases.js',
       // ⭐ AGENT H14 — `stateRail.js::IND_TYPE`, spoken word -> definition. Ledgered.
       'app/src/agent/stateRail.js',
       // ⭐ HEADER CUSTOM STATS — `CustomStatBuilder.jsx::QUICK_PICKS`, one-tap starting points. Ledgered.
@@ -2455,8 +2473,10 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // `keep`, lives under `app/src` with a `.js` extension, and holds the
     // `Popular` tab's curated ids — a file the discovery scan must keep finding.
     expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
-      // ⭐ AGENT H14 — IND_TYPE; a `.js` under app/src, walkable.
-      .toEqual(['app/src/agent/stateRail.js',
+      // ⭐ COMPARE FAMILY (#2613) — NOT_TICKERS; a `.js` under app/src, walkable.
+      .toEqual(['app/src/agent/capabilities/comparePhrases.js',
+        // ⭐ AGENT H14 — IND_TYPE; a `.js` under app/src, walkable.
+        'app/src/agent/stateRail.js',
         // ⭐ HEADER CUSTOM STATS — QUICK_PICKS; a `.jsx` under app/src, walkable.
         'app/src/components/chart/CustomStatBuilder.jsx',
         // ⭐ FUNCTION WORDS (2026-11-21) — CALL_WORDS; a `.js` under app/src, walkable.
