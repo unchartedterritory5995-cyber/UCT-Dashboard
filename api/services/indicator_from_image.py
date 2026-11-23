@@ -223,6 +223,10 @@ REFUSALS: Mapping[str, str] = MappingProxyType({
         "nothing in that picture could be turned into a formula this engine can draw"),
     "vision:internal": (
         "the picture reader hit an internal problem checking this candidate"),
+    # 2026-11-23: OUR setting (`forced_tool_choice`): the configured model rejects the forced call this reader makes
+    "vision:assistant-model": (
+        "reading an indicator from a picture is switched off by a setting on our side, so the picture was not sent "
+        "and nothing was charged -- please try again later"),
 })
 
 
@@ -539,6 +543,11 @@ def candidates_from_image(*, image_bytes: bytes, media_type: str, user_id: Any,
             "vision:image-too-large",
             f"{len(image_bytes) // 1024} KB against a ceiling of "
             f"{MAX_IMAGE_BYTES // 1024} KB; crop it to the indicator itself")
+
+    from api.services import forced_tool_choice
+    if forced_tool_choice.rejects(MODEL):
+        # refused BY NAME, before any reservation, call or charge: this model rejects the forced call below
+        return _refusal("vision:assistant-model")
 
     # ⭐ THE SAME DAY KEY THE OTHER AI DOOR FILES UNDER. Two spellings of "today"
     # would file two doors' spend under two dates and quietly double the cap.

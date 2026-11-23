@@ -114,8 +114,19 @@ def test_nine_cases_each_with_its_words_its_rule_and_where_it_stands():
             assert len(history) == 1, cid
         assert case["needs"] and case["distinguishes"] and R.has_rule(cid)
     assert {cid for cid, case in RECORDED.items() if case.get("recorded_verdict") == "wrong"} == {"cap-03"}
-    for finding in ("occurrence 0 is the newest", "EQUALS a high in the 3 bars before it", "read-back", "1,261 of 1,639 bars differ"):
+    # cap-03's record is the door's CURRENT answer (live 2026-11-23, after #2572, #2573 and #2574), and it names what stands
+    for finding in ("on the swing bar itself", "EQUALS a high in the 3 bars before it", "read-back", "739 of 1,643 bars differ",
+                    "all three live samples"):
         assert finding in RECORDED["cap-03"]["defect"], finding
+    # the answer of the first pass is kept, as the specimen of the one finding that IS fixed, with what fixed it
+    (first_pass,) = RECORDED["cap-03"]["found"]
+    assert first_pass["fixed_by"] == {"pr": "#2573", "merge": "e161dd870304e6e30e01169c7f50affc6fa49dd6"}
+    for finding in ("occurrence 0 is the newest", "1,261 of 1,639 bars differed"):
+        assert finding in first_pass["defect"], finding
+    assert first_pass["answer"] != RECORDED["cap-03"]["answer"] and first_pass["recorded"]["front"] != RECORDED["cap-03"]["recorded"]["front"]
+    # cap-01 waits with BOTH live passes beside it: the stand-in, then two right scripts and one stand-in that was not said
+    for said in ("DISCLOSED STAND-IN", "2 of 3 RIGHT, as scripts", "NOT disclosed", "stays pending"):
+        assert said in PENDING["cap-01"]["found_live"], said
     assert RECORDED["cap-04"]["edge"] == {"back": 3, "low": True} and RECORDED["cap-05"]["edge"] == {"back": 60, "low": True}
     assert set(COLUMN_RULES) | set(DRAWN_RULES) == set(IDS)
     assert [R.RULES[cid] for cid in COLUMN_RULES] == [R.rule_cap01, R.rule_cap02, R.rule_cap03, R.rule_cap07, R.rule_cap09]
@@ -435,7 +446,10 @@ def test_the_four_formula_answers_are_held_by_value_three_right_and_one_wrong():
         got = G.grade(cid, RECORDED[cid]["answer"])
         assert got["verdict"] == "right", (cid, got["lines"])
     got = G.grade("cap-03", RECORDED["cap-03"]["answer"])
-    assert got["verdict"] == "wrong" and "1261 of 1639 bars differ" in got["lines"][0], got["lines"]
+    assert got["verdict"] == "wrong" and "739 of 1643 bars differ" in got["lines"][0], got["lines"]
+    # the first pass's answer, kept as a specimen: wrong by the same rule, on more bars
+    was = G.grade("cap-03", RECORDED["cap-03"]["found"][0]["answer"])
+    assert was["verdict"] == "wrong" and "1261 of 1639 bars differ" in was["lines"][0], was["lines"]
 
 
 def test_ONE_RULE_WHICHEVER_LANE_ANSWERS(monkeypatch):
@@ -508,8 +522,10 @@ def test_cap03_the_words_can_be_met_on_the_formula_lane_and_each_finding_alone_i
     assert G.grade("cap-03", _formula_answer("cap-03", _said_exactly(1, 5)))["verdict"] == "wrong"
     # finding 2 alone: the newest five, of `pivothigh` (an equal high in the 3 bars before still counts as a swing)
     assert G.grade("cap-03", _formula_answer("cap-03", _said_exactly(0, 4, strict=False)))["verdict"] == "wrong"
-    # the record is both at once, and it is the tree this helper writes for them
-    assert _said_exactly(1, 5, strict=False) == _tree_of("cap-03")
+    # the FIRST pass was both at once (one swing late, and the engine's swing): the tree this helper writes for them
+    assert _said_exactly(1, 5, strict=False) == RECORDED["cap-03"]["found"][0]["answer"]["ops"][0]["outputs"][0]["tree"]
+    # the record now reads the newest five (fixed by the table's sentence) and is still the engine's swing, on its own bar
+    assert _said_exactly(0, 4, strict=False) == _tree_of("cap-03")
 
 
 def test_cap04_a_swing_window_one_bar_longer_is_caught_only_on_the_edge_chart():
