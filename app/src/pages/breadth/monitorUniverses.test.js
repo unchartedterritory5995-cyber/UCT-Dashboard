@@ -44,12 +44,16 @@ describe('the Monitor universes', () => {
     }
   })
 
-  it('off UCT: Health hidden (—), the Phase 3 columns n/a, market-wide and ratio-adjusted notes', () => {
-    expect(universeCellOverride('breadth_score', 'nasdaq')).toBe('—')
-    expect(universeColumnNote('breadth_score', 'nasdaq')).toMatch(/UCT-calibrated.*not yet available for Nasdaq/)
-    for (const k of ['up_vol_ratio', 'hvc_52w', 'atr_ext_7', 'new_ath']) {
-      expect(universeCellOverride(k, 'us')).toBe('n/a')
-      expect(universeColumnNote(k, 'us')).toBe('Not available for this universe yet.')
+  it('off UCT: Health scored with its own bands, the Phase 3 columns n/a, market-wide and ratio-adjusted notes', () => {
+    expect(universeCellOverride('breadth_score', 'nasdaq')).toBeNull()
+    expect(universeColumnNote('breadth_score', 'nasdaq')).toMatch(/Nasdaq’s own bands/)
+    expect(universeCellOverride('new_ath', 'us', { new_ath: 4 })).toBe('n/a')   // never off UCT
+    expect(universeColumnNote('new_ath', 'us')).toBe('Not available for this universe yet.')
+    for (const k of ['up_vol_ratio', 'hvc_52w', 'atr_ext_7']) {
+      // rebuilt per universe: a value shows, a session the series lacks reads n/a
+      expect(universeCellOverride(k, 'us', { [k]: 3 })).toBeNull()
+      expect(universeCellOverride(k, 'us', { [k]: null })).toBe('n/a')
+      expect(universeColumnNote(k, 'us')).toMatch(/own list for each session/)
     }
     expect(universeColumnNote('vix', 'nyse')).toMatch(/Market-wide/)
     expect(universeColumnNote('mcclellan_osc', 'nyse')).toMatch(/Ratio-adjusted on NYSE.*UCT’s raw/)
@@ -76,8 +80,9 @@ describe('the Columns menu tags (ColumnsMenu columnTag)', () => {
     expect(columnTagFor('vix', 'uct')).toBeNull()
     expect(columnTagFor('breadth_score', 'uct')).toBeNull()
     expect(columnTagFor('vix', 'nasdaq')).toMatchObject({ label: 'Market-wide' })
-    expect(columnTagFor('up_vol_ratio', 'nasdaq')).toMatchObject({ label: 'n/a for Nasdaq', na: true })
-    expect(columnTagFor('breadth_score', 'nyse')).toMatchObject({ label: 'n/a for NYSE', na: true })
+    expect(columnTagFor('up_vol_ratio', 'nasdaq')).toBeNull()
+    expect(columnTagFor('new_ath', 'nasdaq')).toMatchObject({ label: 'n/a for Nasdaq', na: true })
+    expect(columnTagFor('breadth_score', 'nyse')).toBeNull()
     expect(columnTagFor('pct_above_50sma', 'us')).toBeNull()
   })
 })

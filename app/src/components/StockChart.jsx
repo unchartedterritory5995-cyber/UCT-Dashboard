@@ -1845,7 +1845,8 @@ import {
   // and only when that pane carries a stored member size.
   paneOwnerOf,
 } from './chart/engine/displayTarget'
-import { parsePaneOfTarget, parseSource, sourceInputsOf } from './chart/engine/sourceRef'
+import { parsePaneOfTarget, parseSource, sourceInputsOf, symbolsNeeded } from './chart/engine/sourceRef'
+import { readsVendorPrefix, setIndexHistoryNote } from './chart/engine/indexHistoryNotice'
 import { chromePlan, capturedPriceRange, viewLockFractions, joinedAutoscaleExtent, lookbackPlacementSettled, LOOKBACK_REVEAL_MAX_MS } from './chart/chromeGeometry'
 import { healViewLocksOnce } from './chart/viewLockHeal'
 import { LIBRARY_HIDDEN_IDS } from './chart/discoveryCatalog'
@@ -10706,6 +10707,19 @@ function StockChartBody({
   const _spanFirstT = displayBars?.length ? displayBars[0].t : null
   const _spanLastT = displayBars?.length ? displayBars[displayBars.length - 1].t : null
   heldSessionsRef.current = useMemo(() => sessionsSpanned(_spanFirstT, _spanLastT), [_spanFirstT, _spanLastT])
+  // ⭐⭐ (2026-11-23, coordinator ruling) THE INDEX-HISTORY DISCLOSURE: an instance whose index series (SPX / NDX) is served
+  // with our data vendor's older intraday history JOINED before Yahoo's window, on a chart whose oldest loaded bar reaches
+  // that history (`indexHistoryNotice.readsVendorPrefix`), carries one sentence in its pane's disclosure strip. Decided
+  // from the served entry's own `deep` record and this chart's bars; nothing else.
+  useEffect(() => {
+    const listed = _storedInstances() || []
+    for (const inst of Array.isArray(listed) ? listed : []) {
+      if (!inst || !inst.instanceId) continue
+      const keys = symbolsNeeded([inst], _defOf, resolvedTf)
+      const on = !!secondarySources && keys.some((k) => readsVendorPrefix(secondarySources.get(k), _spanFirstT))
+      setIndexHistoryNote(inst.instanceId, on, binderNoticeScope)
+    }
+  }, [secondarySources, _spanFirstT, _storedInstances, _defOf, resolvedTf, binderNoticeScope])
   // ⛔ The drawing overlay maps BY INDEX (future points `bars.length-1+futureBars`,
   // the nearestIndex→logicalToCoordinate fallback, toChart's logical→bar), so it must
   // see the exact array the candle series is built from — index-aligned with
