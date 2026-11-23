@@ -94,7 +94,7 @@ export function withMarketWide(universeRow, uctRow) {
 /** Columns with no per-universe source yet (Phase 3): "n/a" off UCT. */
 export const UNAVAILABLE_COLS = new Set(['up_vol_ratio', 'hvc_52w', 'atr_ext_7', 'new_ath'])
 
-/** Health is UCT-calibrated: hidden ("—") off UCT. */
+/** Health: scored off UCT with that universe's own bands (breadth_health_bands, 2026-11-23). */
 export const HEALTH_COL = 'breadth_score'
 
 export const NOT_AVAILABLE_NOTE = 'Not available for this universe yet.'
@@ -106,7 +106,9 @@ export const NOT_AVAILABLE_NOTE = 'Not available for this universe yet.'
 export function universeColumnNote(key, universe) {
   if (!universe || universe === DEFAULT_UNIVERSE) return null
   const label = universeLabel(universe)
-  if (key === HEALTH_COL) return `UCT-calibrated, so it is not yet available for ${label}.`
+  if (key === HEALTH_COL) {
+    return `Scored with ${label}’s own bands: each band edge sits at the same percentile of ${label}’s history as UCT’s does in UCT’s.`
+  }
   if (UNAVAILABLE_COLS.has(key)) return NOT_AVAILABLE_NOTE
   if (MARKET_WIDE_COLS.has(key)) return 'Market-wide: the same reading on every universe.'
   if (key === 'mcclellan_osc') {
@@ -122,7 +124,6 @@ export function universeColumnNote(key, universe) {
 /** What a cell shows instead of its value on this universe ('n/a' / '—'), or null. */
 export function universeCellOverride(key, universe) {
   if (!universe || universe === DEFAULT_UNIVERSE) return null
-  if (key === HEALTH_COL) return '—'
   if (UNAVAILABLE_COLS.has(key)) return 'n/a'
   return null
 }
@@ -130,12 +131,12 @@ export function universeCellOverride(key, universe) {
 /**
  * The Columns menu's tag for a column on this universe (ColumnsMenu `columnTag`): null on UCT;
  * "Market-wide" for a column that is the same everywhere; "n/a for <universe>" (dimmed) for
- * Health and the not-yet-available columns.
+ * the not-yet-available columns.
  */
 export function columnTagFor(key, universe) {
   if (!universe || universe === DEFAULT_UNIVERSE) return null
   const label = universeLabel(universe)
-  if (key === HEALTH_COL || UNAVAILABLE_COLS.has(key)) {
+  if (UNAVAILABLE_COLS.has(key)) {
     return { label: `n/a for ${label}`, title: universeColumnNote(key, universe), na: true }
   }
   if (MARKET_WIDE_COLS.has(key)) {
