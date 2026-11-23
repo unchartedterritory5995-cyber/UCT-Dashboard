@@ -11,6 +11,7 @@ import { projectMemberDocument } from './memberDocumentProjection'
 import { stripParamInputs } from './paramInputs'
 import { symbolInputSpecs, specializeSymbols, originalDocumentOf, instanceDocumentForFetch } from './symbolInputs'
 import { fetchableOtherSymbols, symTickersOf } from './otherSymbols'
+import { boundAtInputs } from './knobBind.js'
 import { runtimeBuildInputs } from './runtime/runtimeInputs'
 import { runHalfRunInputs } from './runHalfInputs'
 import { __permitRuntimePaneForTests, __resetRuntimePanePermission } from './runtimePaneGate'
@@ -90,7 +91,10 @@ describe('the setting, on load and at compute', () => {
     expect(foreign).toMatchObject({ ok: false, key: 'lineTicker' })
     expect(foreign.message).toMatch(/^Comparative Symbol for Line: /)
     expect(specializeSymbols(def, { lineTicker: '???' })).toMatchObject({ ok: false, key: 'lineTicker' })
-    expect(instanceDocumentForFetch(def, { inputs: { lineTicker: 'LSE:VOD' } })).toBe(def)
+    // ⭐ e95 unit 2b — the fetch plan is the document bound at the instance's settings (`knobBind.js::boundAtInputs`):
+    // a refused symbol choice adds nothing to it (the bound document, unspecialised)
+    expect(instanceDocumentForFetch(def, { inputs: { lineTicker: 'LSE:VOD' } }))
+      .toEqual(boundAtInputs(def, { lineTicker: 'LSE:VOD' }))
   })
 
   it('the drawings\' run is handed the member\'s text, which becomes the input\'s default node', () => {
