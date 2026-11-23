@@ -1274,7 +1274,27 @@ export function createPrefetch(o = {}) {
   // TYPED_INTENT_SETTLE_MS, 140 ms): by Enter it is held and the handoff paints it like a list flip.
   // ⛔ A PREFIX IS NOT A TICKER: the daily pack holds every symbol's daily set, so text with none is a
   // partial word on the way to one and costs nothing (the D path's rule, read from the D key).
-  function _warmTypedIntraday(sym, tf) {
+  /** ⭐ (2026-11-23, review of #2624 section 2d) THE TYPED TEXT'S SERVER COLUMNS AT EVERY LINKED TIMEFRAME. Enter's
+   *  one-render decision needs every linked chart's columns (useSymbolHandoff decisionGateFor), and this warm told the
+   *  symbol warmers (the server-columns lane, engine/serverWarm.js) only about the typing chart's timeframe. So at the
+   *  moment it has decided the text IS a ticker, it tells them about `alsoTfs` too (the host's linked charts:
+   *  ChartPane `typedIntentTfs`): the same call a hovered list row makes for every linked timeframe
+   *  (prefetchBarOnIntent), with the same budget (serverWarm: near-first, at most ACTIVE_MAX_NEAR requests at once,
+   *  nothing for a timeframe no chart draws server columns at, nothing cached or in flight twice, a struggling server
+   *  left alone). Never for a prefix: only where this warm itself tells its own timeframe. */
+  function _tellTyped(T, tf, alsoTfs) {
+    tellSymbolWarmers([T], tf, { priority: true })
+    const own = String(tf)
+    const seen = new Set([own, String(fetchTf(own))])
+    for (const t of Array.isArray(alsoTfs) ? alsoTfs : []) {
+      const k = String(t)
+      if (!t || seen.has(k)) continue
+      seen.add(k)
+      tellSymbolWarmers([T], k, { priority: true })
+    }
+  }
+
+  function _warmTypedIntraday(sym, tf, alsoTfs) {
     if (!_isSym(String(sym))) return null
     const T = String(sym).trim().toUpperCase()
     const key = keyFor(T, tf)
@@ -1316,7 +1336,7 @@ export function createPrefetch(o = {}) {
       }
       const s0 = (await _raced(_hydrate(key), INTENT_HYDRATE_RACE_MS)) ?? S().peek(key)
       if (typed !== mine) return 'superseded'
-      tellSymbolWarmers([T], tf, { priority: true })
+      _tellTyped(T, tf, alsoTfs)
       const behind = closedBehind(s0)
       if (!behind && _localPaints(s0, fetchTf(String(tf)))) { _joinLake(key); return 'cache' }
       // a copy behind the clock is asked even when its status says it is satisfied (ASK_AGAIN: no status is)
@@ -1332,9 +1352,9 @@ export function createPrefetch(o = {}) {
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }
 
-  function warmTypedSymbol(sym, tf = 'D') {
+  function warmTypedSymbol(sym, tf = 'D', { alsoTfs = null } = {}) {
     if (!sym || !tf) return null
-    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf)
+    if (!['D', 'W', 'M'].includes(String(tf))) return _warmTypedIntraday(sym, tf, alsoTfs)
     if (!_isSym(String(sym))) return null
     const key = keyFor(String(sym).trim().toUpperCase(), tf)
     if (!key) return null
@@ -1345,7 +1365,7 @@ export function createPrefetch(o = {}) {
     const held = S().peek(key)
     const typedSym = String(sym).trim().toUpperCase()
     if (held?.restSeen && held.status === STATUS.CURRENT && asked.has(key) && now() - asked.get(key).at < TYPED_REASK_MS) {
-      tellSymbolWarmers([typedSym], tf, { priority: true })   // a known name, bars current: its companions may not be
+      _tellTyped(typedSym, tf, alsoTfs)   // a known name, bars current: its companions may not be
       return null
     }
     if (typed && typed.key === key) return null
@@ -1363,7 +1383,7 @@ export function createPrefetch(o = {}) {
       if (deep) S().deepPrime?.(key, { priority: 'urgent' })
       if (s0?.depth) {
         // A held set exists, so the text IS a ticker (a prefix has none, see below).
-        tellSymbolWarmers([typedSym], tf, { priority: true })
+        _tellTyped(typedSym, tf, alsoTfs)
         const last = s0.developing ? s0.developing.t : s0.bars[s0.bars.length - 1].t
         if (!deep && _typedCachePaints(key.split('_')[0], String(tf), unixToDateLabel(last), S().persist.savedAtOf?.(key) ?? null)) return 'cache'
       }
@@ -1373,7 +1393,7 @@ export function createPrefetch(o = {}) {
       const s = await ensure(key, { until: DISPLAYABLE, depth, priority: 'urgent', signal: ctl.signal, local: false })
       if (ctl.signal.aborted && !mine.kept) return false
       const answered = !!(s?.restSeen && !s.error && s.depth)
-      if (answered && !s0?.depth && typed === mine) tellSymbolWarmers([typedSym], tf, { priority: true })   // the authority just said it is real
+      if (answered && !s0?.depth && typed === mine) _tellTyped(typedSym, tf, alsoTfs)   // the authority just said it is real
       return answered ? 'network' : false
     })().catch(() => false).finally(() => { if (typed === mine) typed = null })
   }
@@ -1422,7 +1442,7 @@ export function prewarmVisibleList(tickers, opts = {}) { return _f().prewarmVisi
 export function prefetchListDeep(tickers, opts = {}) { return _f().prefetchListDeep(tickers, opts) }
 export function prefetchReplayTimeframes(sym, cutoffIso, opts = {}) { return _f().prefetchReplayTimeframes(sym, cutoffIso, opts) }
 export function prefetchBarOnIntent(sym, tf = 'D', opts = {}) { return _f().prefetchBarOnIntent(sym, tf, opts) }
-export function warmTypedSymbol(sym, tf = 'D') { return _f().warmTypedSymbol(sym, tf) }
+export function warmTypedSymbol(sym, tf = 'D', opts = {}) { return _f().warmTypedSymbol(sym, tf, opts) }
 export function createNeighborHold() { return _f().createNeighborHold() }
 export function edgeWarmList(tickers, opts = {}) { return _f().edgeWarmList(tickers, opts) }
 

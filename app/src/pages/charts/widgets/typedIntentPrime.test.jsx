@@ -191,4 +191,17 @@ describe('ChartWidget wires it', () => {
     })
     expect(calls).toEqual([['groupSymsStore', 'activeColor', expect.any(String)]])
   })
+
+  it('(review of #2624 2d) hands ChartPane the linked charts\' timeframes: typedIntentTfs from groupTfSets[activeColor]', () => {
+    let expr = null
+    walk(ast, (n) => {
+      if (n.type === 'JSXOpeningElement' && n.name?.name === 'ChartPane') {
+        const a = n.attributes.find((x) => x.type === 'JSXAttribute' && x.name?.name === 'typedIntentTfs')
+        if (a) expr = a.value?.expression
+      }
+    })
+    const names = []
+    walk(expr, (c) => { if (c.type === 'Identifier') names.push(c.name) })
+    expect(names).toEqual(expect.arrayContaining(['groupTfSets', 'activeColor']))
+  })
 })

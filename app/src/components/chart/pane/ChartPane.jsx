@@ -116,6 +116,8 @@ const SHIFT_F = chordById('SHIFT_F')
  *                          renders a static label (trade drawer, drill modal)
  *   onTypedIntent          (sym) => void, optional: told the settled typed text beside the
  *                          chart's own typed warm (ChartWidget: the linked group's device reads)
+ *   typedIntentTfs         string[], optional: the linked charts' timeframes; the typed warm tells
+ *                          the server-columns warmers about them too, once the text is a ticker
  *   onTfChange             (code) => void
  *   density                "full" | "compact" | "mini"; compact drops the meta
  *                          row, the session toggle and the clock (keeps
@@ -164,6 +166,7 @@ function ChartPane({
   tf,
   onSymbolChange = null,
   onTypedIntent = null,
+  typedIntentTfs = null,
   onTfChange = null,
   density = 'full',
   // Host features for the settings modal's Indicators tab (a ChartWidget's
@@ -1050,8 +1053,12 @@ function ChartPane({
   // show the ticker in its own task, as a list pick does. A host that throws never breaks this chart's warm.
   const hostTypedIntentRef = useRef(onTypedIntent)
   hostTypedIntentRef.current = onTypedIntent
+  // (review of #2624, 2d) ...and the linked charts' timeframes: the warm tells the server-columns warmers about each of
+  // them too, at the moment it knows the text is a ticker (data/barStore/prefetch _tellTyped)
+  const typedTfsRef = useRef(typedIntentTfs)
+  typedTfsRef.current = typedIntentTfs
   const handleTypedIntent = useCallback((s) => {
-    (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf)
+    (BARSTORE ? storeWarmTypedSymbol : legacyWarmTypedSymbol)(s, effectiveTf, { alsoTfs: typedTfsRef.current })
     try { hostTypedIntentRef.current?.(s) } catch { /* a warm never breaks search */ }
   }, [effectiveTf])
 
