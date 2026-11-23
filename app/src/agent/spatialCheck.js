@@ -1426,7 +1426,7 @@ const XO_SCAN = new RegExp(String.raw`\b${XO_DET}(?:${XO_TFW}\s+${XO_NOUN}|${XO_
 const XO_BODY_END = /[.;:!?—–()]|\s+(?:but|then|though|although|while|because|since|whereas|unless|if|when)\b/i
 const XO_SEP = /\s*,\s*(?:(?:and|or|&|nor|plus)\s+)?|\s+(?:and|or|nor|plus)\s+|\s*&\s*/gi
 // an item that starts a new clause ends the list: a command, a complement ("the rest"), a relative clause, a person
-const XO_LIST_END = /^(?:(?:please\s+)?(?:set|make|put|switch|change|add|move|turn|show|hide|remove|give|apply|take|drop|flip|close|delete|draw|plot|open|reset|replace|use|do|swap|load|bring|go|goes|leave|keep|let|skip|ignore|exclude|spare|stay|stays|then|to|into|onto|with|and|or|nor|plus|also|not|never|don['’]?t|dont|hands\s+off|without)\b|(?:all\s+)?the\s+(?:rest|others|remaining)\b|everything\s+else\b|all\s+(?:the\s+)?(?:rest|others)\b|every\s+other\b|each\s+other\b|(?:which|who|whose|because|since|as|if|when|so|but|i|we|you|they|it['’]s|that\s+(?:i|you|we|is|are|was|were))\b)/i
+const XO_LIST_END = /^(?:(?:please\s+)?(?:set|make|put|switch|change|add|move|turn|show|hide|remove|give|apply|take|drop|flip|close|delete|draw|plot|open|reset|replace|use|do|swap|load|bring|go|goes|leave|keep|let|skip|ignore|exclude|spare|stay|stays|then|to|into|onto|with|and|or|nor|plus|also|not|never|don['’]?t|dont|hands\s+off|without)\b|(?:all\s+)?the\s+(?:rest|others|remaining)\b|everything\s+else\b|all\s+(?:the\s+)?(?:rest|others)\b|every\s+other\b|each\s+other\b|(?:thanks|thank\s+you|thx|cheers|please)\s*[.!]*$|(?:which|who|whose|because|since|as|if|when|so|but|i|we|you|they|it['’]s|that\s+(?:i|you|we|is|are|was|were))\b)/i
 const XO_TAIL = /^(.*?)((?:\s+(?:alone|be|out(?:\s+of\s+(?:it|this|that|them))?|as\s+(?:it\s+|they\s+)?(?:is|are|was|were)|as\s+is|untouched|unchanged|the\s+same|where\s+(?:it\s+is|they\s+are)|though|please|thanks|for\s+now|this\s+time|too|either|as\s+well|also))*)$/i
 const XO_STRONG_TAIL = /\b(?:alone|be|out|as\s+(?:it\s+|they\s+)?(?:is|are|was|were)|as\s+is|untouched|unchanged|the\s+same|where)\b/i
 const XO_KEEP_AT = new RegExp(String.raw`^(.*?)\s+(?:(?:on|at|in)\s+)?(?:(?:a|the)\s+)?${KEEP_SETTING}(?:\s+(?:as\s+(?:it\s+)?is|for\s+now|too))?$`, 'i')
@@ -1627,7 +1627,8 @@ function xoRelative(b) {
   // a relative pronoun, a contraction or a copula — or an indefinite / free-relative head ("anything daily", "whatever's …")
   if (!/\b(?:that|which|who|what)\b|['’](?:s|re)\b|\b(?:is|are|sits?|sitting|set|showing|shows?|using|displayed|drawn|shown)\b/i.test(link) && !/^(?:anything|everything|whatever|whichever|what)$/i.test(head)) return null
   const what = m[4].replace(/\s+(?:timeframe|tf|interval|setting|style|type|mode|view|right\s+now|now|currently|today)$/i, '').trim()
-  if (!what || /\b(?:I|you|we|he|she|they|me|us|it)\b/.test(what) || GEN_RELATION.test(what)) return null   // a relation: its readers'
+  if (!what || /\b(?:I|you|we|he|she|they|me|us|it)\b/.test(what) || GEN_RELATION.test(what)) return null
+  if (/^(?:else|other|more|at\s+all|of\s+(?:it|them|those|these))\b/i.test(what)) return null   // "anything else": a complement   // a relation: its readers'
   const v = what.replace(/\s+(?:charts?|ones?|candles?)$/i, (x) => (/candles?/i.test(x) ? x : '')).trim()
   const singular = !!m[1] && !/s$/i.test(m[1])
   const noun = singular ? 'chart' : 'charts'
