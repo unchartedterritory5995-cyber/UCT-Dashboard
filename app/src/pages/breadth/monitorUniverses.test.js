@@ -44,9 +44,9 @@ describe('the Monitor universes', () => {
     }
   })
 
-  it('off UCT: Health hidden (—), the Phase 3 columns n/a, market-wide and ratio-adjusted notes', () => {
-    expect(universeCellOverride('breadth_score', 'nasdaq')).toBe('—')
-    expect(universeColumnNote('breadth_score', 'nasdaq')).toMatch(/UCT-calibrated.*not yet available for Nasdaq/)
+  it('off UCT: Health scored with its own bands, the Phase 3 columns n/a, market-wide and ratio-adjusted notes', () => {
+    expect(universeCellOverride('breadth_score', 'nasdaq')).toBeNull()
+    expect(universeColumnNote('breadth_score', 'nasdaq')).toMatch(/Nasdaq’s own bands/)
     for (const k of ['up_vol_ratio', 'hvc_52w', 'atr_ext_7', 'new_ath']) {
       expect(universeCellOverride(k, 'us')).toBe('n/a')
       expect(universeColumnNote(k, 'us')).toBe('Not available for this universe yet.')
@@ -77,7 +77,7 @@ describe('the Columns menu tags (ColumnsMenu columnTag)', () => {
     expect(columnTagFor('breadth_score', 'uct')).toBeNull()
     expect(columnTagFor('vix', 'nasdaq')).toMatchObject({ label: 'Market-wide' })
     expect(columnTagFor('up_vol_ratio', 'nasdaq')).toMatchObject({ label: 'n/a for Nasdaq', na: true })
-    expect(columnTagFor('breadth_score', 'nyse')).toMatchObject({ label: 'n/a for NYSE', na: true })
+    expect(columnTagFor('breadth_score', 'nyse')).toBeNull()
     expect(columnTagFor('pct_above_50sma', 'us')).toBeNull()
   })
 })
