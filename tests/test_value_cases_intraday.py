@@ -16,7 +16,8 @@ judged by eye. This is the chart they are held on, and the three verdicts:
 
 The three: `intraday-03` (yesterday's close plus and minus the 20 day average range, built on daily bars) is RIGHT on
 every bar; `intraday-01` (a number stood in for the ATR) and `intraday-02` (the ATR of fourteen 5 MINUTE bars where
-the words ask for 14 DAYS, disclosed) are recorded WRONG.
+the words ask for 14 DAYS, disclosed) were built WRONG. Since the day-length guard the door ASKS for both, by name, and
+both are wall cases; each wrong build is kept as the case's specimen and its by-value rule stays.
 """
 from __future__ import annotations
 
@@ -163,17 +164,24 @@ def test_the_daily_ATR_by_hand_is_the_products_daily_ATR():
 
 def test_the_fixture_holds_the_three_cases_of_the_5_minute_chart():
     # (`intraday-02`, the disclosed stand-in, is a WALL case since the day-length guard: the right answer asks, by name)
-    assert [c["id"] for c in INTRADAY] == ["intraday-01", "intraday-03"] and BY_ID["intraday-02"]["lane"] == "wall"
-    assert all("5 minute chart" in c["words"] for c in INTRADAY)
-    assert [c.get("recorded_verdict", "right") for c in INTRADAY] == ["wrong", "right"]
+    assert [c["id"] for c in INTRADAY] == ["intraday-03"] and BY_ID["intraday-01"]["lane"] == BY_ID["intraday-02"]["lane"] == "wall"
+    assert all("5 minute chart" in BY_ID[cid]["words"] for cid in ("intraday-01", "intraday-02", "intraday-03"))
+    assert [c.get("recorded_verdict", "right") for c in INTRADAY] == ["right"]
+    # (`intraday-01`, the number standing in, is a wall case too since 11-23: the same wall rule, its build a specimen)
+    assert BY_ID["intraday-01"]["wall"] == BY_ID["intraday-02"]["wall"]
+    placeholder = G.specimen(BY_ID["intraday-01"])
+    assert "Placeholder" in placeholder["defect"] and G.grade("intraday-01", placeholder["answer"], "intraday")["verdict"] == "wrong"
     # (the stand-in is the case's SPECIMEN: its record while it was wrong, and kept in `found` since the door asks)
     stand_in = G.specimen(BY_ID["intraday-02"])
     assert "STAND-IN WAS BUILT" in stand_in["defect"] and "5 MINUTE bars" in stand_in["defect"]
     # its by-value rule stays (it is what the request must equal the day a daily read below a day can be built)
     assert G.grade("intraday-02", {"ops": stand_in["answer"]["ops"]}, "intraday")["verdict"] == "wrong"
     # the rule of intraday-01 moved from the daily stand-in to the chart the words name, and says so
-    moved = BY_ID["intraday-01"]["rule"]["history"][-1]
-    assert moved["quote"] == "On a 5 minute chart" and moved["digest"] == BY_ID["intraday-01"]["rule"]["digest"] == G.rule_digest("intraday-01")
+    # (kept under `becomes` while the case is a wall case: what it must be the day a daily read below a day can be built)
+    becomes = BY_ID["intraday-01"]["becomes"]
+    assert becomes["lane"] == "formula" and "U-DAILY" in becomes["when"] and "rule" not in BY_ID["intraday-01"]
+    moved = becomes["rule"]["history"][-1]
+    assert moved["quote"] == "On a 5 minute chart" and moved["digest"] == becomes["rule"]["digest"] == G.rule_digest("intraday-01")
     for case in INTRADAY:
         assert G.rule_digest(case["id"]) == case["rule"]["digest"], case["id"]
 
@@ -238,7 +246,7 @@ def test_with_no_engine_to_place_a_daily_calculation_NOTHING_is_graded(monkeypat
     with pytest.raises(LaneUnavailable):
         G.grade("intraday-03", BY_ID["intraday-03"]["answer"], "intraday")
     # a formula on the chart's own bars needs no projection and is graded as ever
-    assert G.grade("intraday-01", BY_ID["intraday-01"]["answer"], "intraday")["verdict"] == "wrong"
+    assert G.grade("intraday-01", G.specimen(BY_ID["intraday-01"])["answer"], "intraday")["verdict"] == "wrong"
 
 
 # ── the script case of the 5 minute chart ──
@@ -302,7 +310,7 @@ def test_a_case_is_graded_on_the_chart_IT_names():
         assert G.grade_case({k: v for k, v in case.items() if k != "chart"})["verdict"] == "wrong"
     except LaneUnavailable as exc:
         pytest.skip(f"the projection is not available here: {str(exc)[:200]}")
-    assert case["chart"] == "intraday" and G.grade_case(BY_ID["intraday-01"])["verdict"] == "wrong"
+    assert case["chart"] == "intraday" and G.grade("intraday-01", G.specimen(BY_ID["intraday-01"])["answer"], "intraday")["verdict"] == "wrong"
 
 
 # -- found by the first full live run, as a member: where a refusal's words are --
