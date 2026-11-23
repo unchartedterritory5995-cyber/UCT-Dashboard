@@ -151,11 +151,15 @@ def test_THE_FINDING_days_built_as_bars_of_a_chart_below_a_day_are_refused():
     exc = refused_by(dc.check_day_lengths, STAND_IN, WORDS, FIVE)
     assert exc is not None and exc.gate == "envelope:reference"
     told = exc.for_model()
+    # ⭐⭐ U-DAILY (e96): the repair is now the DAILY READ, which builds what was asked (the question it replaced stays
+    # a right answer at the door: `test_the_question_given_at_once_costs_one_call_and_builds_nothing`)
     for piece in ("`atr(..., 14)` is 14 five-minute bars, about 1 hour 10 minutes, and the member asked for 14 DAYS",
-                  "If EVERY part of the indicator is a daily line on the chart's own symbol, keep the formula and add set_calculation_timeframe D",
-                  "do NOT build it on the chart's bars under a note", "disposition clarify, `ops: []`, and ONE question",
-                  "two `choices` that each name what they draw in time",
-                  'the bars version written as "14 five-minute bars, about 1 hour 10 minutes" and never as 14 days'):
+                  "Write the 14 day measure as a DAILY READ, tf(<the measure>, D)",
+                  "shows on every bar of this chart the value of THE LAST FINISHED DAY",
+                  "Another symbol goes INSIDE it: tf(sym(SPY, close), D)",
+                  "If EVERY part of the indicator is a daily line on the chart's own symbol, you may instead keep the formula and add set_calculation_timeframe D",
+                  "Do NOT build it on the chart's bars under a note",
+                  'written as "14 five-minute bars, about 1 hour 10 minutes" and never as 14 days'):
         assert piece in told, piece
     # the words name the chart, whatever chart the request came from (the live rounds were sent from a daily one)
     assert refused_by(dc.check_day_lengths, STAND_IN, "On a 5 minute chart, " + WORDS, DAILY) is not None
@@ -174,6 +178,9 @@ def test_THE_FINDING_days_built_as_bars_of_a_chart_below_a_day_are_refused():
     (STAND_IN, WORDS + " " + ATR_CHOICES[1], FIVE, "and the pick stands when the first request rides along with it"),
     (created(op("+", CLOSE, num(14))), WORDS, FIVE, "the number is not a window of a call"),
     (env(0, disposition="unsupported", reply="I can't combine them yet."), WORDS, FIVE, "a plain refusal changes nothing"),
+    # ⭐⭐ U-DAILY (e96): inside a daily read the member's days ARE days
+    (created(op("+", call("sessionLow"), op("*", num(0.6), {"type": "tf", "value": "D", "args": [ATR_14]}))), WORDS, FIVE,
+     "the member's days inside a daily read are days"),
 ])
 def test_CONTROL_what_is_built_on_days_or_was_asked_in_bars_is_left_alone(answer, words, chart, why):
     assert refused_by(dc.check_day_lengths, answer, words, chart) is None, why
@@ -216,19 +223,35 @@ def test_a_question_about_something_else_is_never_judged():
 
 # ── at the door ──
 
-def test_the_stand_in_is_sent_back_and_the_question_with_its_offers_is_the_answer(conv, clean_env, model):
-    client = model([emits(STAND_IN), emits(REFUSED_BY_NAME)])
+#: ⭐⭐ U-DAILY (e96) -- what the request IS: today's low so far plus 60 percent of the 14 DAY ATR (a daily read), and a
+#: dot on each bar that closes above it
+DAILY_LINE = op("+", call("sessionLow"), op("*", num(0.6), {"type": "tf", "value": "D", "args": [ATR_14]}))
+DAILY_BUILD = created(DAILY_LINE, op(">", CLOSE, DAILY_LINE))
+
+
+def test_the_stand_in_is_sent_back_and_the_daily_read_is_the_answer(conv, clean_env, model):
+    client = model([emits(STAND_IN), emits(DAILY_BUILD)])
     r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=FIVE)
     assert len(client.calls) == 2 and r.get("attempts") == 2, (r.get("gate"), r.get("reason"))
-    assert r["disposition"] == "clarify" and not (r.get("envelope") or {}).get("ops")
-    shown = json.dumps(r)
-    assert "I can't yet add today's own low to a daily measure like the 14 day ATR on a 5 minute chart" in shown
-    for choice in ATR_CHOICES:
-        assert choice in shown, choice
-    assert "is 14 five-minute bars, about 1 hour 10 minutes" in json.dumps(client.calls[1]["messages"])      # what the model was told in between
+    assert r["ok"] is True and (r.get("envelope") or {}).get("ops"), (r.get("gate"), r.get("reason"))
+    between = json.dumps(client.calls[1]["messages"])                   # what the model was told in between
+    assert "is 14 five-minute bars, about 1 hour 10 minutes" in between and "tf(<the measure>, D)" in between
     # and the turn carried the door's own span from the start: the assistant never works it out
     first = client.calls[0]["messages"][0]["content"]
     assert '"day_lengths"' in first and '"days": 14' in first and SPAN_14 in first
+
+
+def test_the_daily_read_given_at_once_costs_one_call(conv, clean_env, model):
+    client = model([emits(DAILY_BUILD)])
+    r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=FIVE)
+    assert r["ok"] is True and len(client.calls) == 1, (r.get("gate"), r.get("reason"))
+
+
+def test_a_daily_read_on_a_daily_chart_is_sent_back(conv, clean_env, model):
+    client = model([emits(DAILY_BUILD), emits(STAND_IN)])
+    r = conv.converse(WORDS, user_id="u1", view=empty_view(0), chart=DAILY)
+    assert len(client.calls) == 2 and r["ok"] is True, (r.get("gate"), r.get("reason"))     # on a daily chart 14 bars ARE 14 days
+    assert "for a chart BELOW A DAY" in json.dumps(client.calls[1]["messages"])
 
 
 def test_the_question_given_at_once_costs_one_call_and_builds_nothing(conv, clean_env, model):
@@ -271,23 +294,25 @@ def test_the_stand_in_twice_changes_nothing(conv, clean_env, model):
     assert r["ok"] is False and r["gate"] == "envelope:reference" and len(client.calls) == 2
 
 
-def test_the_instructions_say_days_are_days_and_how_to_ask(conv):
+def test_the_instructions_say_days_are_days_and_build_them_as_a_daily_read(conv):
     prompt = " ".join(conv.CONVERSE_SYSTEM_PROMPT.split())
+    # ⭐⭐ U-DAILY (e96): the question became a build: the finished day, named plainly (coordinator ruling 2026-11-22)
     for piece in ("ON A CHART BELOW A DAY A LENGTH IN DAYS IS DAYS", "never that many bars of the chart",
                   "`uct_language_notes.day_lengths` lists each one with what that many bars of THIS chart really span (`on_this_chart`)",
-                  "When EVERY part of the indicator is a daily LINE on the chart's own symbol, build it and add set_calculation_timeframe D",
-                  "the words compare each bar of this chart with the daily measure",
-                  "or read another symbol (which takes no calculation timeframe at all)",
-                  "Do NOT build it on the chart's bars under a note", "the member reads the chart",
-                  "ask ONE question: one plain sentence of why, then two `choices` that each name what they draw IN TIME",
-                  "Write the bars version with the `on_this_chart` words exactly as given, and never call it by its number of days",
-                  BARS_CHOICE, "The ratio with an average of 21 five-minute bars (about 1 hour 45 minutes)",
-                  "Nothing for now: on a daily chart this builds exactly as asked",
-                  "Build only what the member picks, named for what it is"):
+                  "Build each daily measure as a DAILY READ, tf(<the measure>, D)",
+                  "the value of THE LAST FINISHED DAY (yesterday's on every bar of today)",
+                  "the rest of the formula stays on the chart's own bars",
+                  "sessionLow() + tf(atr(high, low, close, 14), D)",
+                  "ANOTHER SYMBOL GOES INSIDE THE READ",
+                  "A DAILY READ IS NEVER TODAY'S VALUE SO FAR",
+                  "name every daily read plainly for the day it shows",
+                  "you may instead build it and add set_calculation_timeframe D",
+                  "is never used on a daily or higher chart",
+                  "Do NOT build a daily measure on the chart's bars under a note", "the member reads the chart",
+                  "named with the `on_this_chart` words exactly as given and never by their number of days"):
         assert piece in prompt, piece
-    # the two spans the instructions quote are the door's own arithmetic, not typed twice
-    assert dc.span_on_this_chart(50, 5) == SPAN_50 and "50 five-minute bars (about 4 hours)" in prompt
-    assert dc.span_on_this_chart(21, 5) == "21 five-minute bars, about 1 hour 45 minutes"
+    # the span the instructions quote is the door's own arithmetic, not typed twice
+    assert dc.span_on_this_chart(50, 5) == SPAN_50 and "a line of 50 bars of a 5 minute chart is about four hours" in prompt
 
 
 # ── measured: nothing right is refused ──

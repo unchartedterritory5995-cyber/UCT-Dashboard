@@ -13493,356 +13493,366 @@
   },
   {
    "id": "udaily-01",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, plot this stock's 20 day percent change minus SPY's 20 day percent change",
-   "wall": {
-    "names": [
-     "daily measure",
-     "20 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "9b2b205faada844a",
+    "history": [
      {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "9b2b205faada844a",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "9b2b205faada844a",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "20 day"
+     ],
+     "offers": [
       {
-       "digest": "9b2b205faada844a",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
    "id": "udaily-02",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, show the bars where the close crossed above its 50 day simple moving average",
-   "wall": {
-    "names": [
-     "daily measure",
-     "50 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "4780b46944be3122",
+    "history": [
      {
-      "what": "the daily measure as a line on its own, on daily bars",
-      "words": [
-       "daily bars"
-      ]
-     },
-     {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "4780b46944be3122",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "4780b46944be3122",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "50 day"
+     ],
+     "offers": [
       {
-       "digest": "4780b46944be3122",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the daily measure as a line on its own, on daily bars",
+       "words": [
+        "daily bars"
+       ]
+      },
+      {
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
    "id": "udaily-03",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, show when the 10 day simple moving average is above the 20 day simple moving average, the 20 day is above the 50 day, and all three are higher than they were 5 bars ago",
-   "wall": {
-    "names": [
-     "daily measure",
-     "10 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "1f23f06ebee0c192",
+    "history": [
      {
-      "what": "the daily measure as a line on its own, on daily bars",
-      "words": [
-       "daily bars"
-      ]
-     },
-     {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "1f23f06ebee0c192",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "1f23f06ebee0c192",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "10 day"
+     ],
+     "offers": [
       {
-       "digest": "1f23f06ebee0c192",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the daily measure as a line on its own, on daily bars",
+       "words": [
+        "daily bars"
+       ]
+      },
+      {
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
    "id": "udaily-04",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, plot the 14 day simple average of the high minus the low as a percent of the close, and show the bars where it is more than 2 standard deviations above its own 100 bar average",
-   "wall": {
-    "names": [
-     "daily measure",
-     "14 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "8954df59694be367",
+    "history": [
      {
-      "what": "the daily measure as a line on its own, on daily bars",
-      "words": [
-       "daily bars"
-      ]
-     },
-     {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "8954df59694be367",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "8954df59694be367",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "14 day"
+     ],
+     "offers": [
       {
-       "digest": "8954df59694be367",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the daily measure as a line on its own, on daily bars",
+       "words": [
+        "daily bars"
+       ]
+      },
+      {
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
    "id": "udaily-05",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, show when the close is above the 10 day exponential moving average and the 10 day is above the 21 day exponential moving average",
-   "wall": {
-    "names": [
-     "daily measure",
-     "10 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "7dc0488693a970c6",
+    "history": [
      {
-      "what": "the daily measure as a line on its own, on daily bars",
-      "words": [
-       "daily bars"
-      ]
-     },
-     {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "7dc0488693a970c6",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "7dc0488693a970c6",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "10 day"
+     ],
+     "offers": [
       {
-       "digest": "7dc0488693a970c6",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the daily measure as a line on its own, on daily bars",
+       "words": [
+        "daily bars"
+       ]
+      },
+      {
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
    "id": "udaily-06",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, plot this stock's close divided by SPY's close with a 21 day exponential moving average of that ratio, and colour the background green when the ratio is above its average",
-   "wall": {
-    "names": [
-     "daily measure",
-     "21 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "24e61c13b7f3c883",
+    "history": [
      {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "24e61c13b7f3c883",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "24e61c13b7f3c883",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "21 day"
+     ],
+     "offers": [
       {
-       "digest": "24e61c13b7f3c883",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
    "id": "udaily-07",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, plot the number of the last 20 days on which this stock's percent change for the day was greater than SPY's",
-   "wall": {
-    "names": [
-     "daily measure",
-     "20 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "9c552dfb6d75bf89",
+    "history": [
      {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "9c552dfb6d75bf89",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "9c552dfb6d75bf89",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "20 day"
+     ],
+     "offers": [
       {
-       "digest": "9c552dfb6d75bf89",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
    "id": "udaily-08",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, plot this stock's 63 day percent change minus SPY's 63 day percent change",
-   "wall": {
-    "names": [
-     "daily measure",
-     "63 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "ddaac587c542fe08",
+    "history": [
      {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "ddaac587c542fe08",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "ddaac587c542fe08",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "63 day"
+     ],
+     "offers": [
       {
-       "digest": "ddaac587c542fe08",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
    "id": "udaily-09",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, plot the 50 day correlation between this stock's daily percent change and SPY's daily percent change",
-   "wall": {
-    "names": [
-     "daily measure",
-     "50 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "7e2eff48107166b6",
+    "history": [
      {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "7e2eff48107166b6",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "7e2eff48107166b6",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "50 day"
+     ],
+     "offers": [
       {
-       "digest": "7e2eff48107166b6",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
    "id": "udaily-10",
-   "lane": "wall",
+   "lane": "formula",
    "chart": "intraday",
    "words": "On a 5 minute chart, plot this stock's beta to SPY over the last 60 days, calculated from daily percent changes",
-   "wall": {
-    "names": [
-     "daily measure",
-     "60 day"
-    ],
-    "offers": [
+   "rule": {
+    "digest": "cee2dcea6b7f67fa",
+    "history": [
      {
-      "what": "the same idea on this chart's own bars, named for what they span",
-      "words": [
-       "five-minute bars"
-      ]
+      "digest": "cee2dcea6b7f67fa",
+      "reason": "written from the request's words before the answer was read"
      }
     ]
    },
-   "becomes": {
-    "lane": "formula",
-    "when": "a daily read below a day can be built (the engine unit U-DAILY)",
-    "rule": {
-     "digest": "cee2dcea6b7f67fa",
-     "history": [
+   "why": "U-DAILY (e96, part A) built the read this case waited for: a daily read, tf(<the measure>, D), shows the last finished day on every bar of a chart below a day. So this is a FORMULA case now, held BY VALUE on every 5 minute bar to tools/value_cases/udaily_rules.py (both honest readings of a daily measure; a daily read is the finished one). The engine's own reference build is graded RIGHT by tests/test_value_cases_udaily.py; the live answer is recorded by the studio's re-run.",
+   "was": {
+    "lane": "wall",
+    "wall": {
+     "names": [
+      "daily measure",
+      "60 day"
+     ],
+     "offers": [
       {
-       "digest": "cee2dcea6b7f67fa",
-       "reason": "written from the request's words before the answer was read"
+       "what": "the same idea on this chart's own bars, named for what they span",
+       "words": [
+        "five-minute bars"
+       ]
       }
      ]
-    }
+    },
+    "until": "U-DAILY (e96, part A)"
    }
   },
   {
@@ -13871,6 +13881,33 @@
     ]
    },
    "held": "Not an acceptance case by value yet: on the built 5 minute chart this condition is true on NO bar under any reading of the 14 day ATR, so a rule could not tell a right answer from a formula that is never true. Re-admit if the fixture gains a session where it can be true. The member's words are not changed to make it one."
+  },
+  {
+   "id": "udaily-12",
+   "lane": "formula",
+   "chart": "intraday",
+   "words": "On a 5 minute chart, plot the highest high of the last 20 days as a line, not counting today",
+   "rule": {
+    "digest": "d2a0b1c5e47c2cdb",
+    "history": [
+     {
+      "digest": "d2a0b1c5e47c2cdb",
+      "reason": "written from the request's words before the answer was read"
+     }
+    ]
+   },
+   "says": [
+    [
+     "last finished day",
+     "yesterday",
+     "previous day",
+     "prior day",
+     "previous session",
+     "prior session",
+     "before today"
+    ]
+   ],
+   "why": "THE WORDING OF A DAILY READ (coordinator ruling 2026-11-22). A daily read shows the last finished day, and the member must be told so in plain words, so nobody reads it as today's forming value. Held by value to the one reading the words leave (today not counted: the 20 days finished before today), and by what the reply SAYS: it names the day the value is of."
   },
   {
    "id": "wall-33",

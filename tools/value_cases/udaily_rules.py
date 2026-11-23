@@ -158,8 +158,14 @@ def udaily_rules(cid):
         return {"the 50 day correlation with SPY's daily changes": _stat(50, 'correlation')}
     if cid == 'udaily-10':                                  # the beta to SPY over the last 60 days, from daily percent changes
         return {'the 60 day beta to SPY': _stat(60, 'beta')}
+    if cid == 'udaily-12':                                  # the highest high of the last 20 days, not counting today
+        # the words leave ONE honest reading: today is not counted, so it is the 20 days finished before today
+        return {'the highest high of the 20 days before today': [(FINISHED, [max(DH[DAY[i] - 20:DAY[i]]) for i in range(N)])]}
     return None
 
 
-#: every id here, in order
+#: every id here, in order: the ten acceptance cases (the 5 minute twins of daily-chart cases)
 IDS = tuple(f'udaily-{k:02d}' for k in range(1, 11))
+#: ⭐⭐ U-DAILY (e96) -- the case that holds the WORDING of a daily read (coordinator ruling 2026-11-22): built right by
+#: value, and the reply names the value plainly as the last finished day (its `says`)
+WORDING_IDS = ('udaily-12',)

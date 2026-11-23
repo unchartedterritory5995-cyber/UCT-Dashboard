@@ -458,6 +458,10 @@ function answerOnMain(plan, per, key, stop, pane, sig, docId, inputs, ctx, extra
  */
 export function hostLaneColumns(def, bars, inputs, ctx, extras) {
   if (!ctx || typeof ctx.hostPane !== 'string' || !ctx.hostPane) return null
+  // ⭐⭐ U-DAILY (e96) — a document handed DAILY bars for its daily reads (`ctx.dailyFrame`, whose `place` is the
+  // chart's projection, a function no worker message can carry) is computed on this thread, as every request that
+  // is not a chart's is (`nativeRegistry` falls through to `astLaneColumns`)
+  if (ctx.dailyFrame) return null
   const plan = astLanePlan(def, bars, inputs, ctx)
   if (plan.done) return plan.done
   const pane = ctx.hostPane

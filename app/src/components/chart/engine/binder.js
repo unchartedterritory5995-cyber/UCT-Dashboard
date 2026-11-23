@@ -117,6 +117,7 @@ import { splitGapRuns, hasPitLineage, isConnectedPool, valueAtFor } from './gapR
 import { resolveInstanceFrames } from './calcTimeframeCapability'
 import { projectFrameColumns, frameBarsUsable, frameKey } from './mtfProjection'
 import { SOURCE_STATUS } from './secondaryBars'
+import { dailyReadSupplyFor } from './dailyReadSupply'
 import { otherSymbolsSignature } from './otherSymbols'
 import { lowerTfSignature } from './lowerTf'
 import { setChartClockNotes } from './chartClockNotice'
@@ -2556,6 +2557,12 @@ export function createBinder({ chart, LWC, scope = '' }) {
         runCols.set(inst.instanceId, null)
         continue
       }
+      // ⭐⭐ U-DAILY (e96) — A FORMULA THAT READS A DAILY VALUE (`tf` of D) ON A CHART BELOW A DAY is computed with
+      // the symbol's DAILY bars beside the chart's (`dailyReadSupply.js`; `useCalcFrames` fetches them for it). Until
+      // they are in hand it is not computable yet (no series, no stale value), as a framed instance waits for its frame.
+      const daily = frame ? null : dailyReadSupplyFor(def, frameMap, ctx.sym, ctx.tf)
+      if (daily && daily.pending) continue
+      const dailySig = daily && daily.frame ? `|day:${daily.sig}` : ''
       // ⭐ U2b — what the compute reads BEYOND bars and inputs that can change under
       // an unchanged key (a server definition's live benchmark tail, `plots[].
       // liveTail`): the registry says so through one optional hook
@@ -2592,6 +2599,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         + (strategyDepth !== null ? `|ld${strategyDepth}` : '')
         + (!frame && ctx.historyFromListing === true ? '|listing' : '')
         + (!frame && ctx.barIndexFromFirstBar === true ? '|bar0' : '')
+        + dailySig
       // ⭐ (e85) the pane, without what the data moves (the other-symbol, live-tail and forming parts of `sig`): a run
       // half waiting for SPX keeps its picture across SPX's own update
       instancePanes.set(inst.instanceId, `${ctx.sym || ''}\u0001${frame || ctx.tf || ''}\u0001${inputsSignature(inst.inputs)}`)
@@ -2615,7 +2623,7 @@ export function createBinder({ chart, LWC, scope = '' }) {
         // 16-cell Multi-Chart grid has sixteen symbols and one module.
         // ⭐⭐ NEIGHBOR FRAMES — the same compute over these very bars, done ahead in idle time (`prepare`)
         if (!frame) nfMisses += 1
-        const pre = frame ? null : takePrepared(registry, def, inst, calcBars, sourceCols,
+        const pre = frame || daily ? null : takePrepared(registry, def, inst, calcBars, sourceCols,
           { sym: ctx.sym, tf: ctx.tf, forming: formingNow, otherSig, lowerSig })
         if (pre) nfHits += 1
         const r = pre ? { ok: true, value: pre } : attempt(() => registry.computeFor(def, calcBars, inst.inputs,
@@ -2667,6 +2675,8 @@ export function createBinder({ chart, LWC, scope = '' }) {
             // document that reads BELOW the chart (`lowerTf.js` decides what is
             // served; a framed instance is served none).
             lowerTf,
+            // ⭐⭐ U-DAILY (e96) — the daily bars its daily reads are computed on (absent for every other document)
+            ...(daily && daily.frame ? { dailyFrame: daily.frame } : {}),
             // ⭐⭐ HOST WORKER — THE PANE ASKING: this chart's binder and this instance. A costly
             // host document is computed off the main thread for a chart's request only, and a
             // newer request of the same pane supersedes an older one (`hostLaneAsync.js`).
@@ -2695,6 +2705,9 @@ export function createBinder({ chart, LWC, scope = '' }) {
       }
       runCols.set(inst.instanceId, cols)
       clockSeen.add(inst.instanceId)
+      // ⭐⭐ U-DAILY — the daily bars were behind the chart (it shows a day they do not know has finished): refreshed by
+      // the same answer a calculated frame gets (`ctx.onFrameStale`, below)
+      if (daily && daily.frame && daily.frame.stale) staleFrames.add('D')
       if (isHostLanePending(cols)) {
         // ⭐⭐ HOST WORKER — STALE-WHILE-REVALIDATE: the values are in the worker. The columns below
         // are the pane's last picture (or none, the first time: the pane's loading state), and every
