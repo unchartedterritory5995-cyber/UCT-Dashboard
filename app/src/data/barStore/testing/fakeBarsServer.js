@@ -38,7 +38,8 @@ export function intradayRows(tf, now, { since = null, from = OPEN } = {}) {
 
 /** The server's answer for a parsed request at Date.now().
  *  `mode`: ok | closed (contract, the closed buckets only: no forming row, no developing) | lagging (closed, but a bucket
- *  is stored only LAGGING_S after it ends: the server's write lag at a boundary) | behind (legacy, 09:40) |
+ *  is stored only LAGGING_S after it ends: the server's write lag at a boundary) | lag:<seconds> (the same, with that
+ *  lag, fractional: `lag:1.5`) | behind (legacy, 09:40) |
  *  behind-unsealed (contract, 09:40, no seal) | nodata | shed | fail */
 export function serverAnswer(q, mode = 'ok') {
   if (mode === 'nodata') return { body: { bars: [], no_data: true } }
@@ -66,10 +67,11 @@ export function serverAnswer(q, mode = 'ok') {
       },
     }
   }
-  if (mode === 'closed' || mode === 'lagging') {
+  const lag = /^lag:(\d+(?:\.\d+)?)$/.exec(String(mode))
+  if (mode === 'closed' || mode === 'lagging' || lag) {
     // The store holds the CLOSED buckets only (its forming minute not written yet, no live partial in this process):
     // a contract answer with no developing bar, its newest row the last closed bucket.
-    const stored = mode === 'lagging' ? now - LAGGING_S : now
+    const stored = lag ? Date.now() / 1000 - Number(lag[1]) : mode === 'lagging' ? now - LAGGING_S : now
     const rows = intradayRows(tf, now, { since: q.since }).filter((b) => bucketEndUnix(b.t, tf, {}) <= stored)
     const end = rows.length ? bucketEndUnix(rows[rows.length - 1].t, tf, {}) : null
     return {

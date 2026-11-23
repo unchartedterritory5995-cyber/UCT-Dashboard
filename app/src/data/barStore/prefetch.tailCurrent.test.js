@@ -32,6 +32,7 @@
 //       again when the member comes back), no error
 //   B3  at most 3 tail asks in flight per hold, whatever the tail it is given
 //   B4  a row's count in its bucket survives a long sweep (the bound is the bucket, not the last 64 rows)
+//   B5  (review of fb6fed4328) deliberate tapping, 150 ms between presses, is NOT a sweep: each press asks its rows
 // Real store, real network, real facade, a held fake server.
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { installFakeIndexedDB } from './testing/fakeIndexedDB'
@@ -455,7 +456,7 @@ describe("re-review of #2619 (B): the tail's asks are bounded per hold, and a pa
     w.store.dispose()
   })
 
-  it('B2 a tail ask for a row the member passed is aborted: never answered, no cooldown, asked again on return, no error', async () => {
+  it('B2 a tail ask for a row the member passed is aborted: never answered, cooldown kept, asked again on return, no error', async () => {
     vi.setSystemTime(at(10, 0, 50))
     const w = await boot('closed')
     const L = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
@@ -481,19 +482,53 @@ describe("re-review of #2619 (B): the tail's asks are bounded per hold, and a pa
     }
     const kB = w.pf.keyFor('B', '1')
     expect(w.store.peek(kB)?.error ?? null).toBe(null)           // not an error
-    // not an answer: B does not cool. (A warm never re-asks a held server answer it would flip to, so the probe is a warm
-    // that wants more depth than B holds: it asks unless B is cooling, prefetch `_cooling`.)
-    const b0 = w.server.calls.length
-    w.pf.prefetch([kB], { priority: 'urgent', depth: 1_000_000 })
-    await w.server.flush(40)
-    expect(w.server.calls.slice(b0).filter((c) => c.q.sym === 'B').length).toBe(1)
-    await w.server.drain()
+    // not an answer (review of fb6fed4328, LOW): B keeps the cooldown of its last ANSWER, the warm's at 10:00:50 (cooling to
+    // 10:01:50), neither lost nor restarted by the aborted ask. (A warm never re-asks a held server answer it would flip
+    // to, so the probe is a warm wanting more depth than B holds: it asks unless B is cooling, prefetch `_cooling`.)
+    const probeB = async () => {
+      const b0 = w.server.calls.length
+      w.pf.prefetch([kB], { priority: 'urgent', depth: 1_000_000 })
+      await w.server.flush(40)
+      const n = w.server.calls.slice(b0).filter((c) => c.q.sym === 'B').length
+      await w.server.drain()
+      return n
+    }
+    expect(await probeB()).toBe(0)                              // 10:01:01.8: still cooling from its answer
     await tick(400)
     const a0 = tailOf('A').length
     hold.set(L, '1', { tail: ['C', 'D', 'A'], selected: 'B' })  // the member comes back, 1.2 s after A's first ask
     await w.server.flush()
     await w.server.drain()
     expect(tailOf('A').length - a0).toBe(1)                     // A is asked again: its aborted ask was not counted
+    await tick(50_000)                                          // 10:01:52: past the ANSWER's cooldown (not an abort's)
+    expect(await probeB()).toBe(1)
+    hold.clear()
+    w.store.dispose()
+  })
+
+  it('B5 deliberate tapping, 150 ms between presses, right after a boundary: each press asks its rows (not a sweep)', async () => {
+    vi.setSystemTime(at(10, 0, 50))
+    const w = await boot('closed')
+    const R = Array.from({ length: 16 }, (_, i) => `T${String(i).padStart(2, '0')}`)
+    await warmAll(w, R, '1')
+    const hold = w.pf.createNeighborHold()
+    hold.set(R, '1', { tail: [R[1], R[2]], selected: R[0] })
+    await tick(11_000)                                          // 10:01:01: every row one bucket behind
+    const before = w.server.calls.length
+    const tailCalls = () => w.server.calls.slice(before).filter((c) => c.q.warm)
+    let ctl = null
+    for (let i = 1; i <= 10; i++) {
+      for (const c of w.server.open()) c.respond()
+      await w.server.flush()
+      ctl?.abort()
+      ctl = new AbortController()
+      w.pf.prepareForDisplay(R[i], '1', { signal: ctl.signal }).catch(() => {})
+      hold.set(R, '1', { tail: [R[i + 1], R[i + 2], R[i - 1]], selected: R[i] })
+      await w.server.flush()
+      await tick(150)
+    }
+    expect(tailCalls().length).toBeGreaterThanOrEqual(10)       // the row entering as next+1 at each press, at least
+    expect(w.P.TAIL_SWEEP_MS).toBeLessThan(150)
     hold.clear()
     w.store.dispose()
   })
