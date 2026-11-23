@@ -11519,6 +11519,13 @@ async def lifespan(app: FastAPI):
         _seed_stop.shutdown_seed_pool()
     except Exception as e:  # noqa: BLE001
         print(f"[shutdown] bars-seed pool stop failed (non-fatal): {type(e).__name__}")
+    # And the bars-warm pool (api/services/bars_fetch.py: warm_bars_async, the admin universe warm, scan_period's
+    # deep daily warm), measured holding the join after that fix: "bars-warm_0..3", exits at 12.0-12.6 s.
+    try:
+        from api.services import bars_fetch as _warm_stop
+        _warm_stop.shutdown_bars_warm_pool()
+    except Exception as e:  # noqa: BLE001
+        print(f"[shutdown] bars-warm pool stop failed (non-fatal): {type(e).__name__}")
 
     # ⚡ Last write before the pod goes away, so the REPLACEMENT boots warm.
     # Deliberately after the scheduler stops (no job can be mutating the cache

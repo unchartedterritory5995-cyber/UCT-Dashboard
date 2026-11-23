@@ -88,9 +88,13 @@ def test_the_web_senders_never_log_the_page_url_either(module):
     assert not offenders, f"{module} logs a token-bearing URL:\n  " + "\n  ".join(offenders)
 
 
-def test_scrub_removes_a_token_from_a_real_playwright_error():
+def test_scrub_removes_a_token_from_a_real_playwright_error(monkeypatch):
     """End to end on the renderer's own scrub, with the shape that actually leaked."""
     import importlib.util
+    # app.py does the flat import `from edge_scope import ...`, as it runs in its image (WORKDIR /app), so its folder
+    # has to be on sys.path. This test used to get that only when a neighbour in the same process had put it there
+    # (tests/test_chart_renderer_*.py), and was red whenever the shard plan put them in different processes.
+    monkeypatch.syspath_prepend(str(RENDERER.parent))
     spec = importlib.util.spec_from_file_location("cr_app_scrub", RENDERER)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

@@ -156,7 +156,9 @@ class DeclaredSplits:
         if has_key is not None:
             self._has_key = bool(has_key)
         elif uses_builtin:
-            self._has_key = bool(os.environ.get("FMP_API_KEY"))
+            # TERM-022: the credential is the ADAPTER's question (`fmp_client.is_configured`), never read here
+            from api.services import fmp_client
+            self._has_key = fmp_client.is_configured()
         else:
             self._has_key = True                     # a swapped fetcher brings its own provider
         # ⭐ A CLOSED BRAKE IS WAITED OUT, within `max_wait_s` per run (review,

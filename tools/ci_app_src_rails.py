@@ -99,20 +99,8 @@ KNOWN_RED: dict[str, str] = {
         "cannot be COLLECTED: _ohlcv_ddl() asserts one ohlcv DDL in CODE and finds 0 (the parametrize runs at import)",
     "tests/test_a12_s6_consistency_rail.py::test_column_presets_have_a_typed_store_now":
         "AssertionError: the write side is gone (the column-presets store this rail pins moved)",
-    "tests/test_gate_box_lock.py::test_a_DEAD_holder_is_reclaimed_AND_the_reclaim_is_recorded":
-        "dev-PC lock (scripts/gate_shards.py's box lock): on a runner a live pid reads as the holder (LockHeld)",
-    "tests/test_gate_box_lock.py::test_R3_a_bypassed_run_under_a_live_holder_still_lands_INCONCLUSIVE_CONTENDED":
-        "dev-PC lock: shells out to `powershell`, which a Linux runner does not have (FileNotFoundError)",
-    "tests/test_gate_box_lock.py::test_the_load_reading_NEVER_changes_the_holder_contract":
-        "dev-PC lock: pid 999999 reads as a live holder on a runner (LockHeld), so the contract cannot be probed there",
-    "tests/test_gate_box_lock.py::test_the_lock_self_check_still_passes_end_to_end":
-        "dev-PC lock: the self-check finds the running pytest itself as the holder on a runner (LockHeld)",
     "tests/test_journal_styles_schema.py::test_the_committed_fixture_is_what_the_composer_makes_now":
         "the composer's output moved: regenerate journalStylesComposed.json and let its schema test judge the diff",
-    "tests/test_notebook_campaign_clock.py::test_the_shared_data_root_is_refused[C:\\\\DATA\\\\clock]":
-        "Windows path semantics: on Linux `C:\\DATA\\clock` is a relative name, so the refusal it pins cannot fire there",
-    "tests/test_notebook_campaign_clock.py::test_the_shared_data_root_is_refused[c:\\\\data\\\\sub\\\\x]":
-        "Windows path semantics: on Linux `c:\\data\\sub\\x` is a relative name, so the refusal it pins cannot fire there",
     "tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body[/api/j2/entry-context/why]":
         "AttributeError: api.services.journal_two.entry_context has no attribute 'FLAG' (the flag this door read moved)",
     "tests/test_notebook_upload_cap_2.py::test_reader_door_without_a_session_reads_no_body"
