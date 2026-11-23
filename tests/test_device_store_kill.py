@@ -17,7 +17,10 @@ What each test proves:
   * The cookie: readable, site-wide, long-lived when killed; a deletion when not; independent of the chart speed kill.
   * It rides /me beside the payload's readout, both ways.
   * The name is one fact in two files: pinned equal to chartSpeed.js's DEVICE_STORE_COOKIE.
-  * It never raises: it rides every sign-in.
+  * It never raises: it rides every sign-in. Since the review of #2583 (LOW-2) that holds by construction: the kill
+    parsers are read inside the one mapping helper's tries, and a kill that cannot be read gets no header at all.
+  * The auth path's whole wire, byte for byte and in order, per environment (one helper now states the mapping for
+    the auth path and the live-prices poll; this pins that the auth path's answer did not move).
 """
 
 import importlib
@@ -200,6 +203,56 @@ def test_a_chart_speed_cookie_failure_does_not_lose_the_device_kill(auth):
     r = FirstSetFails()
     auth._set_chart_speed_cookie(r)
     assert [c for c in r.headers.getlist("set-cookie") if c.startswith("uct_device_store=0;")]
+
+
+@pytest.mark.parametrize("unreadable", ["speed", "device"])
+def test_an_unreadable_kill_never_raises_and_never_costs_the_other(auth, monkeypatch, unreadable):
+    """The parsers are read INSIDE the tries (review of #2583, LOW-2: `_set_chart_speed_cookie` used to evaluate them as
+    arguments, outside any try). A kill that cannot be read gets NO header, neither a set nor a deletion, so the
+    browser keeps what it holds (a kill once seen stays until an auth answer says otherwise); the other is written."""
+    def boom():
+        raise RuntimeError("env unreadable")
+
+    _set(SPEED_ENV, "0")
+    _set(ENV, "0")
+    monkeypatch.setattr(auth, "_chart_speed_enabled" if unreadable == "speed" else "_device_store_kill", boom)
+    r = Response()
+    auth._set_chart_speed_cookie(r)    # must not raise
+    other = "uct_device_store" if unreadable == "speed" else "uct_chart_speed"
+    got = r.headers.getlist("set-cookie")
+    assert [h.split("=", 1)[0] for h in got] == [other], got
+    assert got[0].startswith(f"{other}=0;")
+
+
+#: (CHART_SPEED_ENABLED, DEVICE_STORE_ENABLED) -> the values the auth path must write: (uct_chart_speed, uct_device_store),
+#: None = a deletion. Spellings included: the cookie carries "0", never the variable's own text.
+AUTH_WIRE = [
+    (None, None, None, None),
+    ("1", "1", None, None),
+    ("0", None, "0", None),
+    ("off", "no", "0", "0"),
+    (" FALSE ", "off", "0", "0"),
+    (None, "0", None, "0"),
+    ("yes", "purge", None, "purge"),
+    ("0", " PURGE ", "0", "purge"),
+    ("anything", "purged", None, None),
+]
+
+
+@pytest.mark.parametrize("speed, device, speed_value, device_value", AUTH_WIRE)
+def test_the_auth_path_wire_exactly(auth, speed, device, speed_value, device_value):
+    """The auth path's WHOLE Set-Cookie list, byte for byte and in order, against `_set_kill_cookie` called with the
+    values the mapping must produce. Green on the implementation before the review of #2583 and after it: one helper
+    now states the mapping for both writers, and this answer must not move."""
+    _set(SPEED_ENV, speed)
+    _set(ENV, device)
+    r = Response()
+    auth._set_chart_speed_cookie(r)
+    want = Response()
+    auth._set_kill_cookie(want, auth.CHART_SPEED_COOKIE, speed_value)
+    auth._set_kill_cookie(want, auth.DEVICE_STORE_COOKIE, device_value)
+    assert len(want.headers.getlist("set-cookie")) == 2
+    assert r.headers.getlist("set-cookie") == want.headers.getlist("set-cookie")
 
 
 def test_me_sets_the_cookie_beside_its_payload(auth, a_member, monkeypatch):

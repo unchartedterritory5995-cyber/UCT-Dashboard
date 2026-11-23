@@ -559,6 +559,49 @@ GATE_READ_PATHS = (
     "api/services/uct_agent/scan/sat/section_b_requests.json",
     "docs/agent/program/contracts/MD-1-phrasings.md",
     "tools/pine_coverage/runtime_lane.mjs",
+    # 2026-11-23 sweep: found missing by the read-set rail (master full suite, run 45066472928 on
+    # af1cb918a1). Each one is READ by a vitest source (readFileSync / a JSON import / an import of
+    # the module), checked line by line; the five that are only NAMED are in the rail's
+    # NAMED_BUT_NOT_READ instead. Adding a path only makes C0 short-circuit less often (never more).
+    # -- the Pine / chart engine rails: the runtime allow/kill lists, the named-indicator table, the
+    #    server sources the engine's parity rails pin (capabilities, presentation schema, runtime and
+    #    user definitions, the bars router, the alert-rev migration), the paint predicate the coverage
+    #    census imports, and the evidence / vendor-harness verdicts the capability rails read.
+    #    `docs/pine/rs-rating` and `.../strategy-verdicts` are read as directories (whole-tree entries).
+    "api/data/named_indicators.json",
+    "api/data/pine_runtime_allowlist.json",
+    "api/data/pine_runtime_killlist.json",
+    "api/routers/bars.py",
+    "api/services/alert_rev_migration.py",
+    "api/services/pine_capabilities.py",
+    "api/services/presentation_schema.py",
+    "api/services/runtime_definitions.py",
+    "api/services/user_definitions.py",
+    "docs/pine/evidence/2026-11-15-w3n-d1/evidence.json",
+    "docs/pine/evidence/2026-11-16-draw1-drawing-objects/runs/report.json",
+    "docs/pine/rs-rating",
+    "docs/pine/vendor-harness/runtime-on/verdicts.json",
+    "docs/pine/vendor-harness/strategy-verdicts",
+    "tools/pine_coverage/paint_predicate.mjs",
+    # -- the Agent terminal-data rails (`app/src/agent/agentTerminalData*.test.js`,
+    #    `agentFlowChipsParity.test.js`) pin client constants to these server sources
+    "api/confluence_screen.py",
+    "api/flow_scoreboard.py",
+    "api/services/call_themes.py",
+    "api/services/events_timeline.py",
+    "api/services/research/iv_history.py",
+    "api/services/short_data.py",
+    "api/services/uct_agent/marketdata/analyst_actions.py",
+    "api/services/uct_agent/marketdata/leaders_long_run.py",
+    "api/services/uct_agent/turn.py",
+    "api/services/voice_regime_classifier.py",
+    # -- the terminal panel models (`listAlertModel.test.js`, `groupDrillModel.test.js`)
+    "api/services/list_alerts.py",
+    "api/services/rs_benchmarks.py",
+    "api/services/terminal_grammar.py",
+    # -- the Study challenge games (`mistake.test.js`, `earnings.test.js`) read their lesson files
+    "docs/study/courses/F12/F12.07.json",
+    "docs/study/courses/F5/F5.08.json",
 )
 
 
