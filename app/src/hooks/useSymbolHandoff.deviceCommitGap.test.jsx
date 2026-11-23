@@ -270,7 +270,8 @@ describe('P4-M1 the switch asks the chart\'s own refusal when it shows the chart
     press('BBB')
     await advance(250)                                               // 10:05:00.050: the device applies the 10:04 minute
     w.dev.BBB[1] = devCopy(1, et(10, 5))
-    await advance(60)                                                // 10:05:00.110: the columns landed
+    // (React commits at the end of the act window: it ends exactly when the columns land, 10:05:00.100)
+    await advance(50)                                                // 10:05:00.100: the columns landed
     const first = log.find((f) => f.charts[0].shown === 'BBB')
     expect(first).toBeTruthy()
     expect(first.at).toBe(etMs(10, 5, 0, 100))
