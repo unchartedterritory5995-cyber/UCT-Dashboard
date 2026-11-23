@@ -8,7 +8,7 @@
 // ⭐⭐ DEFAULT ON FOR DESKTOP ONLY (owner, 2026-11-21): desktop browsers and the desktop app. A phone, a touch-tier
 // tablet (≤ 1024 px: styles/breakpoints MQ.desktop is false) and a metered connection (navigator.connection's
 // saveData, a cellular type, or a slow-2g/2g/3g effectiveType where the browser reports it) stay OFF: the seed is
-// ~540 MB per browser. It needs POSITIVE evidence of a desktop (the desktop app's bridge, or MQ.desktop matching):
+// ~80 MB of packs per browser (measured 2026-11-22: 79.96 MB over the six timeframes). It needs POSITIVE evidence of a desktop (the desktop app's bridge, or MQ.desktop matching):
 // a browser that cannot say (no matchMedia) stays off.
 //
 // Tiny on purpose: persist.js imports this statically; everything else of the device store is loaded
@@ -22,7 +22,7 @@ export const DEVICE_STORE_KEY = 'uct.deviceStore'
 /** The default is ON, for the browsers `deviceStoreDefaultOn` admits (desktop only); OFF everywhere else. */
 export const DEVICE_STORE_DEFAULT_ON = true
 
-/** Connection types that are metered or too slow for a ~540 MB seed. */
+/** Connection types that are metered or too slow for a ~80 MB seed. */
 const METERED_EFFECTIVE = new Set(['slow-2g', '2g', '3g'])
 
 /** Does the default turn the device store ON in this browser? Desktop only, never on a metered connection.
