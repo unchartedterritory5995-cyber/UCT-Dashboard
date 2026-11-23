@@ -74,7 +74,7 @@ def test_non_vacuity_the_saved_tree_reads_the_day_and_each_binding_reads_what_it
 class TestTheEvaluator:
     def test_THE_COMPOSITION_an_unpicked_daily_arm_is_never_routed_nothing_waits_for_daily_bars(self):
         """Bound at Session the tree is ``close``: drawn bar for bar, with NO daily bars handed and nothing withheld."""
-        clock = []
+        clock = {}
         got = run(KNOB_DAILY, {"anchor": 0}, {"tf": "5", "chartClockSink": clock})
         assert got == [c["c"] for c in CHART]
         assert ai.DAILY_READ_NO_DAILY_BARS not in clock
@@ -84,7 +84,7 @@ class TestTheEvaluator:
         assert run(KNOB_DAILY, {"anchor": DAY}, dict(WITH_DAILY)) == [105.0] * 4 + [106.0] * 4 + [107.0] * 4
 
     def test_CONTROL_the_picked_daily_arm_with_no_daily_bars_is_withheld_by_name(self):
-        clock = []
+        clock = {}
         assert run(KNOB_DAILY, {"anchor": DAY}, {"tf": "5", "chartClockSink": clock}) == [None] * len(CHART)
         assert ai.DAILY_READ_NO_DAILY_BARS in clock
 

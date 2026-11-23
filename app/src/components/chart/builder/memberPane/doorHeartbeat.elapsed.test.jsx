@@ -82,11 +82,12 @@ describe('the clock line itself', () => {
 describe('⭐⭐ the member pane: while the build runs, "Checking your script..." and for how long, kept current', () => {
   it('0:00 says it is checking; 42 s on, 0:42; a second later, 0:43; the answer ends it', async () => {
     const made = []
-    // (the production bounds: this worker says nothing until it answers, so it is still LOADING for the page (e96
-    // train: the silence bound starts at a worker's first word, `MEMBER_DOOR_LOAD_MS` before it), and the line counts
-    // the whole time, past the 30 s a silent worker would be given; the bounds have their own rails,
-    // `doorHeartbeat.test.js`)
-    svc = createMemberDoorService({ factory: () => { const w = new HoldingWorker(); made.push(w); return w } })
+    // (the production silence and load bounds: this worker says nothing until it answers, so it is still LOADING for
+    // the page (e96 train: the silence bound starts at a worker's first word, `MEMBER_DOOR_LOAD_MS` before it), and the
+    // line counts the whole time, past the 30 s a silent worker would be given. A watchdog far past the rail: under this
+    // rail's environment the door's deadline is short; the bounds have their own rails, `doorHeartbeat.test.js`)
+    svc = createMemberDoorService({ factory: () => { const w = new HoldingWorker(); made.push(w); return w },
+      watchdogMs: 7200000 })
     __setMemberDoorServiceForTests(svc)
     render(
       <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
