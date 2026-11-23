@@ -20,8 +20,13 @@
 //   L1R (P4-L1) a render React throws away (a transition that something else on the page suspends) never marks the view
 //       as SHOWN: when the chart really shows that key later, after its bucket has ended, the copy is refused
 // P6-L2 (review of #2565): A KILL SEEN ON THE OPEN PAGE (the device client's beat read the kill cookie fresh):
-//   FK1 a first mount on a fresh device copy shows the loading state, then the answer
-//   FK2 a timeframe change onto a fresh device copy holds the previous timeframe until answered
+//   FK1 a first mount on a fresh device copy THE STORE ALREADY HOLDS shows the loading state, then the answer
+//   FK2 a timeframe change onto a fresh device copy the store already holds keeps the previous timeframe until answered
+//   (the copy joined while the store was on: the chart's own refusal is what keeps it off the screen)
+// After #2620 (persist._deviceHit joins nothing once the page has seen a kill):
+//   FK1n a first mount AFTER the kill on a key the store does not hold yet: the device copy never joins the store,
+//        the chart shows the loading state, then the answer
+//   FK2n the same for a timeframe change: the previous timeframe is held until the answer
 //   FK3 a chart ALREADY showing the device copy is never blanked by the kill: its rows stay until the answer replaces them
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
@@ -115,6 +120,10 @@ async function answered(w, h, p) {
 }
 const K = (tf) => keyOf({ sym: SYM, tf: String(tf) })
 
+/** The device copy of `tf` joins the store with no chart on it (what a warm or a linked chart's prime does). */
+async function joinDevice(w, tf) {
+  await act(async () => { w.store.persist.hydrate(K(tf), { urgent: true }).catch(() => {}); await vi.advanceTimersByTimeAsync(5) })
+}
 const KILL = () => { document.cookie = 'uct_device_store=0; path=/'; return speed.deviceStoreKilledNow() }
 beforeEach(() => { vi.useFakeTimers(); document.cookie = 'uct_device_store=; max-age=0; path=/'; speed.__resetChartSpeedForTests() })
 afterEach(() => { S.store?.dispose(); vi.useRealTimers(); document.cookie = 'uct_device_store=; max-age=0; path=/'; speed.__resetChartSpeedForTests() })
@@ -271,40 +280,59 @@ describe('P3-M2 the chart\'s first mount and timeframe change consult the device
     await act(async () => { root.unmount() })
   })
 
-  it('FK1 after the kill is seen, a first mount on a fresh device copy: loading, then the answer', async () => {
+  it('FK1 after the kill is seen, a first mount on a fresh device copy the store already holds: loading, then the answer', async () => {
     vi.setSystemTime(et(10, 7, 30) * 1000)
     const w = world({ 5: { rows: [...yday(5), ...rows(5, et(9, 30), et(10, 5)), { t: et(10, 5), ...px(et(10, 5)) }], through: et(10, 7), formingT: et(10, 5) } })
+    await joinDevice(w, 5)                                             // joined while the store was on
+    expect(w.store.peek(K(5)).source).toBe('device')
     expect(KILL()).toBe(true)
     const p = params()
     const h = await mount(p)
-    expect(w.store.peek(K(5)).source).toBe('device')
+    expect(w.store.peek(K(5)).source).toBe('device')                   // still the device's rows: the CHART refuses them
     expect(h.result.current.bars).toBeNull()
     await answered(w, h, p)
     expect(h.result.current.bars?.length).toBeGreaterThan(0)
     expect(w.store.peek(K(5)).restSeen).toBe(true)
   })
 
-  it('FK2 after the kill is seen, a timeframe change onto a fresh device copy holds the previous timeframe until answered', async () => {
+  it('FK1n after the kill is seen, a device copy the store does not hold yet never joins: loading, then the answer', async () => {
     vi.setSystemTime(et(10, 7, 30) * 1000)
     const w = world({ 5: { rows: [...yday(5), ...rows(5, et(9, 30), et(10, 5)), { t: et(10, 5), ...px(et(10, 5)) }], through: et(10, 7), formingT: et(10, 5) } })
-    let p = params({ resolvedTf: '15', _barsTf: '15', activeTfRef: { current: '15' } })
+    expect(KILL()).toBe(true)
+    const p = params()
     const h = await mount(p)
-    await answered(w, h, p)                                            // 15m on screen, answered
-    const on15 = h.result.current.bars
-    expect(on15?.length).toBeGreaterThan(0)
-    p._onScreenSrcRef.current = { sym: SYM, tf: '15', ext: false, bars: on15 }
-    KILL()
-    p = { ...p, resolvedTf: '5', _barsTf: '5' }                         // the member presses 5m
-    h.rerender(p)
-    await act(async () => { await vi.advanceTimersByTimeAsync(5) })
-    h.rerender(p)
-    expect(w.store.peek(K(5)).source).toBe('device')
-    expect(h.result.current._tfSwitchHold).toBe(true)
+    expect(w.store.peek(K(5)).source).not.toBe('device')               // #2620: nothing joins once the page has seen a kill
     expect(h.result.current.bars).toBeNull()
     await answered(w, h, p)
-    expect(h.result.current._tfSwitchHold).toBe(false)
     expect(h.result.current.bars?.length).toBeGreaterThan(0)
+    expect(w.store.peek(K(5)).restSeen).toBe(true)
   })
+
+  for (const [name, joined] of [['FK2', true], ['FK2n', false]]) {
+    it(`${name} after the kill is seen, a timeframe change onto a fresh device copy ${joined ? 'the store already holds' : 'the store does not hold yet (it never joins)'} holds the previous timeframe until answered`, async () => {
+      vi.setSystemTime(et(10, 7, 30) * 1000)
+      const w = world({ 5: { rows: [...yday(5), ...rows(5, et(9, 30), et(10, 5)), { t: et(10, 5), ...px(et(10, 5)) }], through: et(10, 7), formingT: et(10, 5) } })
+      let p = params({ resolvedTf: '15', _barsTf: '15', activeTfRef: { current: '15' } })
+      const h = await mount(p)
+      await answered(w, h, p)                                          // 15m on screen, answered
+      const on15 = h.result.current.bars
+      expect(on15?.length).toBeGreaterThan(0)
+      p._onScreenSrcRef.current = { sym: SYM, tf: '15', ext: false, bars: on15 }
+      if (joined) { await joinDevice(w, 5); expect(w.store.peek(K(5)).source).toBe('device') }   // joined while the store was on
+      KILL()
+      p = { ...p, resolvedTf: '5', _barsTf: '5' }                       // the member presses 5m
+      h.rerender(p)
+      await act(async () => { await vi.advanceTimersByTimeAsync(5) })
+      h.rerender(p)
+      if (joined) expect(w.store.peek(K(5)).source).toBe('device')      // still the device's rows: the CHART refuses them
+      else expect(w.store.peek(K(5)).source).not.toBe('device')         // #2620: nothing joins once the page has seen a kill
+      expect(h.result.current._tfSwitchHold).toBe(true)
+      expect(h.result.current.bars).toBeNull()
+      await answered(w, h, p)
+      expect(h.result.current._tfSwitchHold).toBe(false)
+      expect(h.result.current.bars?.length).toBeGreaterThan(0)
+    })
+  }
 
   it('FK3 a chart already showing the device copy is not blanked by the kill; the answer replaces its rows', async () => {
     vi.setSystemTime(et(10, 4, 30) * 1000)
