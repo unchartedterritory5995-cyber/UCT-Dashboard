@@ -36,7 +36,11 @@ const DEFAULT_UNTIL = Object.freeze([STATUS.CONTEXT, STATUS.CURRENT, STATUS.UNAV
  * ⭐ A KEY THAT ALREADY PAINTS IS READ FROM THE CACHE AFTER THE FRAME (2026-11-23, live-session CPU profile: the bar
  * cache's IndexedDB result handlers ran ~24 ms per next-row press inside the window the charts draw in). The first
  * subscriber of a key hydrates it (`_start`): the mem record, the IDB tail record (up to 3,000 rows) and the IDB
- * deep-history record (up to 20,000 rows), each a whole structured-clone read on the main thread. For a key that already
+ * deep-history record (up to 20,000 rows), each a whole structured-clone read on the main thread.
+ * ⛔ THE FIRST FRAME IS TODAY'S (review of #2630): the MEM record (synchronous) still joins in the subscribe's own task,
+ * exactly as before, so a deeper mem copy is in the first frame whatever the chart draws from it (an EMA's unbounded
+ * memory, a long MA, a cumulative series, a pinned or zoomed-out view). Only the two IndexedDB reads, asynchronous today
+ * too (their results already land in a later task), wait for the frame. For a key that already
  * holds a SERVER ANSWER of at least this many rows (closed + the forming one), those reads can only add rows OLDER than
  * the answer: the reducer never lets a saved copy move an answer's rows, restores seals only before an answer, and
  * prepends history only below the oldest row held. This many rows covers the chart's default view: the switch's own
@@ -124,6 +128,8 @@ export function createBarStore(o = {}) {
       const s0 = registry.peek(key)
       const held = s0?.restSeen ? s0.bars.length + (s0.developing ? 1 : 0) : 0
       if (held >= HYDRATE_AFTER_FRAME_MIN_ROWS) {
+        // the mem record now, in this task, exactly as before (the first frame); the IndexedDB reads after the frame
+        try { persist.hydrateMem?.(key) } catch { /* derived */ }
         laterHydrate.add(key)
         if (!laterFrame) {
           // (afterPaint runs at once on a hidden page: `_hydrateLater` then clears this before it returns)
