@@ -4685,6 +4685,46 @@
     }
    }
   },
+  "newsLibrary.toNotebook": {
+   "digest": "91fcb753985b9311",
+   "phrasings": {
+    "send the NVDA headline to my notebook": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the NVDA story in my journal": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "clip the NVDA headline into my notebook": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
+  "watchlist.add.fromHeadline": {
+   "digest": "f6d2e48edecd2375",
+   "phrasings": {
+    "add this headline's ticker to Momentum": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "add the ticker from the selected headline to my Momentum list": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    },
+    "put the stock from this story on the Momentum watchlist": {
+     "digest": "44136fa355b3678a",
+     "gaps": [],
+     "modes": {}
+    }
+   }
+  },
   "newsLibrary.save": {
    "digest": "0a7b6822479210fa",
    "phrasings": {

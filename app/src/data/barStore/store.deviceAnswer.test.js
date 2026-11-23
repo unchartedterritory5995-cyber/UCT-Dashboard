@@ -2,7 +2,8 @@
 // what an answer leaves of the device's rows is what persist WRITES, as a server-backed copy that a later page reads
 // back unmarked (no device rule then judges it).
 //   SA1 a terminal no_data answer on a key holding device rows: nothing is written to mem or IndexedDB
-//   SA2 an answer that LAGS the device: what is written holds no row newer than the answer
+//   SA2 an answer that LAGS the device: what is written holds the device's COMPLETE candles newer than the answer (its
+//       stamp vouches for them: P4-L3, review of #2558, no hole), and nothing the stamp does not vouch for (its forming bar)
 import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from 'vitest'
 import { createBarStore } from './index'
 import { keyOf, ACTION, STATUS } from './types'
@@ -51,7 +52,7 @@ describe('P3-L1 what persist writes after an answer on a device-rows key', () =>
     w.store.dispose()
   })
 
-  it('SA2 an answer that lags the device (through 11:15): what is written holds no row newer than it', async () => {
+  it('SA2 an answer that lags the device (through 11:15): what is written keeps its complete 11:20 and 11:25 candles, no forming bar', async () => {
     const lagging = {
       ticker: 'NEWB', tf: '5', bars: closedTo(675, 600), contract: 1, grid: 'eth-clock', session: 'rth', cache_key: 'b1:NEWB:5:eth-clock',
       series_rev: 1000, history_rev: 1, verified_through: T(690), tail_status: 'verified', developing: null,
@@ -62,7 +63,8 @@ describe('P3-L1 what persist writes after an answer on a device-rows key', () =>
     expect(w.store.peek(w.key).restSeen).toBe(true)
     expect(w.memPutMonotonic).toHaveBeenCalled()
     const written = w.memPutMonotonic.mock.calls.at(-1)[2]
-    expect(written.some((r) => r.t > T(675))).toBe(false)
+    expect(written.filter((r) => r.t > T(675)).map((r) => r.t)).toEqual([T(680), T(685)])   // complete through 11:31: vouched
+    expect(written.some((r) => r.t === T(690))).toBe(false)                                  // the 11:30 bucket was forming
     expect(w.store.peek(w.key).developing?.t ?? null).not.toBe(T(690))
     off()
     w.store.dispose()

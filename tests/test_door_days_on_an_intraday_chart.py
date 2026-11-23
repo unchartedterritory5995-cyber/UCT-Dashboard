@@ -154,8 +154,8 @@ def test_THE_FINDING_days_built_as_bars_of_a_chart_below_a_day_are_refused():
     for piece in ("`atr(..., 14)` is 14 five-minute bars, about 1 hour 10 minutes, and the member asked for 14 DAYS",
                   "If EVERY part of the indicator is a daily line on the chart's own symbol, keep the formula and add set_calculation_timeframe D",
                   "do NOT build it on the chart's bars under a note", "disposition clarify, `ops: []`, and ONE question",
-                  "two `choices` that each name what they draw in time",
-                  'the bars version written as "14 five-minute bars, about 1 hour 10 minutes" and never as 14 days'):
+                  "two `choices` of at most 80 characters that each name what they draw in time",
+                  f'the bars version carrying "{dc.bars_phrase(WORDS, FIVE)}" as given and never called 14 days'):
         assert piece in told, piece
     # the words name the chart, whatever chart the request came from (the live rounds were sent from a daily one)
     assert refused_by(dc.check_day_lengths, STAND_IN, "On a 5 minute chart, " + WORDS, DAILY) is not None
@@ -280,7 +280,8 @@ def test_the_instructions_say_days_are_days_and_how_to_ask(conv):
                   "or read another symbol (which takes no calculation timeframe at all)",
                   "Do NOT build it on the chart's bars under a note", "the member reads the chart",
                   "ask ONE question: one plain sentence of why, then two `choices` that each name what they draw IN TIME",
-                  "Write the bars version with the `on_this_chart` words exactly as given, and never call it by its number of days",
+                  "A choice is at most 80 characters, and a longer one is refused",
+                  "put `uct_language_notes.day_lengths_bars_phrase` as given", "Never call that version by its number of days",
                   BARS_CHOICE, "The ratio with an average of 21 five-minute bars (about 1 hour 45 minutes)",
                   "Nothing for now: on a daily chart this builds exactly as asked",
                   "Build only what the member picks, named for what it is"):
