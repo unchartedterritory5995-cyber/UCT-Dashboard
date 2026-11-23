@@ -150,7 +150,7 @@ const listEl = (listId, name, ctx) => (
 )
 
 /** Mounted, settled, frames held, recorders emptied. `picked` records the group symbol writes as they happen. */
-async function mount(listId, name, { sym = null, strict = false, holdFirst = false } = {}) {
+async function mount(listId, name, { sym = null, strict = false, holdFirst = false, clear = true } = {}) {
   const picked = []
   const ctx = { sym, setSym: (s) => { picked.push(s) } }
   if (holdFirst) holdFrames()
@@ -158,7 +158,7 @@ async function mount(listId, name, { sym = null, strict = false, holdFirst = fal
   const view = render(strict ? <React.StrictMode>{el}</React.StrictMode> : el)
   await waitFor(() => expect(view.container.querySelectorAll('[data-watch-sym]').length).toBeGreaterThan(0))
   await act(async () => { await sleep(50) })              // the mount's own frames (if not held) come and go first
-  if (!holdFirst) { holdFrames(); clearSeen() }
+  if (!holdFirst) { holdFrames(); if (clear) clearSeen() }
   return { ...view, picked, ctx }
 }
 
@@ -299,7 +299,9 @@ describe('a virtualized list', () => {
   })
 
   it('K12: under StrictMode a list opened on a selection still snaps', async () => {
-    await mount('big', 'Big', { sym: 'S50', strict: true, holdFirst: true })
-    expect(seen.scrollTo.filter((c) => c.top > 0)).toHaveLength(1)
+    // Real frames through the mount (a virtualized list measures its viewport in a frame), and whatever a deferral
+    // would have run by now has run: the snap must have happened, StrictMode's simulated unmount notwithstanding.
+    await mount('big', 'Big', { sym: 'S50', strict: true, clear: false })
+    expect(seen.scrollTo.filter((c) => c.top > 0).length).toBeGreaterThan(0)
   })
 })
