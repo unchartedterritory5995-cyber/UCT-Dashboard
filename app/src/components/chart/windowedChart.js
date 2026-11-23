@@ -368,6 +368,10 @@ export function createWindowedChart(chart, { disabled = renderWindowDisabled } =
             return r
           }
           case 'dataByIndex': return (i, mismatch) => target.dataByIndex(i - st.ws, mismatch)
+          // `data()`: the rows the app handed `setData`, AS GIVEN, plus the live tail. A series set through
+          // SET_DATA_PAINTED (the candles with net-change colours) holds them UNPAINTED here: the colours exist only
+          // in what the library holds, so read a colour through `dataByIndex` (the library's rows), never `data()`.
+          // Every candle `data()` reader is listed, with what it reads, in netChangePaint.dataReaders.test.js.
           case 'data': return () => {
             if (!rec.full) return target.data()
             if (!rec.tail.size) return rec.full

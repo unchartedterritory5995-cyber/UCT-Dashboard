@@ -115,9 +115,12 @@ function netRefsOf(data) {
  * PAINTED. The wrap re-mapped EVERY row at each setData (one new object per bar: ~1.3 ms a next-row press on a daily
  * chart, production profile) while the facade (chart/windowedChart.js) handed the library a window of ~750 of them.
  * It now hands the facade the rows as they came and the paint (`SET_DATA_PAINTED`): the facade paints the window it
- * cuts, and the rows an extension adds when it adds them, with the colours read at this setData (as the rows painted
- * here kept them before). What the library holds is what it held before; the refs are the whole pass's, read from the
- * tail. A series without the facade (the window switched off) is painted whole, as before.
+ * cuts, and repaints the WHOLE new window at every re-cut after it (an extension left, a consistency re-cut), with the
+ * colours read at this setData (as the rows painted here kept them before). What the library holds is what it held
+ * before; the refs are the whole pass's, read from the tail. A series without the facade (the window switched off) is
+ * painted whole, as before. (So a long pan left repaints the window at each extension, one object per windowed row,
+ * where the whole pass left only a slice to cut: correct, and a cost an extension pays, not a switch.) `data()` holds
+ * the rows unpainted (windowedChart.js `data`).
  * @param {object} series  the price series (the render-window facade's, in StockChart)
  * @param {() => object} readNC  the live colours (StockChart `netColorsRef.current`)
  * @param {{netPrevCloseRef, lastNetCloseRef, netPrevBarRef, lastNetBarRef, lastNetTimeRef}} refs  what update()
