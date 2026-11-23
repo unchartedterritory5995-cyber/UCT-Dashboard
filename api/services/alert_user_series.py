@@ -1031,7 +1031,9 @@ def _make_value_fn(def_id: str, plot_key: str,
         run_tree, param_why = tree_for(params)
         if param_why:
             return [None] * len(bars)
-        short = ast_interpret.unresolved_lookback(run_tree, bars)
+        # ⭐ (train e95, the 2b bind audit) the history THIS setting's arm reads: an unpicked knob arm's longer lookback
+        # never withholds the column (the evaluator prunes it at these inputs)
+        short = ast_interpret.unresolved_lookback(tree_at_settings(run_tree, definition, params), bars)
         if short:
             return [None] * len(bars)
         # ⛔ NO TIMEFRAME, NO OTHER SYMBOL: its bars cannot be read at the alert's

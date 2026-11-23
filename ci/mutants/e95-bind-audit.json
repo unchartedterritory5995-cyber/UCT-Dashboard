@@ -100,6 +100,15 @@
    "to": "    const def = saved",
    "rail": "cd app && npx vitest run --maxWorkers=1 src/components/chart/engine/lowerTf.test.js",
    "expectRed": "fetches no lower timeframe"
+  },
+  {
+   "id": "BA12",
+   "mutant": "the alert column's history check reads the unbound tree (an unpicked arm's longer lookback withholds every bar)",
+   "file": "api/services/alert_user_series.py",
+   "from": "        short = ast_interpret.unresolved_lookback(tree_at_settings(run_tree, definition, params), bars)",
+   "to": "        short = ast_interpret.unresolved_lookback(run_tree, bars)",
+   "rail": "python -m pytest -q tests/test_knob_arms_gates.py",
+   "expectRed": "test_an_unpicked_arm_s_longer_lookback_never_withholds_the_column"
   }
  ]
 }
