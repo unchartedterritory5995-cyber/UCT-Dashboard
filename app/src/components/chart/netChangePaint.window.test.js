@@ -10,6 +10,8 @@
  *      load, after the view extends the window left, and after a live update
  *   C3 only the window's rows are painted: the colours are read for about the window's bars, not every bar, and the
  *      rows left of the window stay as they came (the app's `data()` still holds every row)
+ *   C4 the rows an extension adds keep the colours of the setData that brought them: a colour change made after it
+ *      (StockChart's netColorsRef moves every render) reaches the chart with the next setData, as before
  *
  * The reference below is the wrap exactly as it was before this change (StockChart.jsx updateChart at 44a7defafb).
  */
@@ -168,7 +170,7 @@ const frame = () => new Promise((r) => setTimeout(r, 60))
 
 const N = 8000
 /** A board whose candle series records every array the LIBRARY is handed (the raw series' setData). */
-function board(NC) {
+function board(NC, readNC = null) {
   const el = document.createElement('div')
   document.body.appendChild(el)
   const raw = createChart(el, { width: 900, height: 500, timeScale: { rightOffset: 8 } })
@@ -186,7 +188,7 @@ function board(NC) {
   let reads = 0
   const counted = new Proxy(NC, { get: (t, k) => { if (k === 'mode') reads += 1; return t[k] } })
   const R = mkRefs()
-  installNetChangePaint(series, () => counted, R)
+  installNetChangePaint(series, readNC || (() => counted), R)
   return { chart, series, handed, R, reads: () => reads, ts: chart.timeScale() }
 }
 
@@ -238,5 +240,23 @@ describe('C3 only the window is painted', () => {
     expect(refSetData(data, NC_NET).painted[1].color).toBeDefined()
     expect(b.series.data()[1]).toBe(data[1])                    // ... and the rows left of the window as they came
     expect(b.series.data()[1].color).toBeUndefined()
+  })
+})
+
+describe('C4 the colours of a setData stay with its rows', () => {
+  it('an extension after a colour change paints the rows it adds with the setData's colours', async () => {
+    const data = candles(N)
+    const want = refSetData(data, NC_NET)
+    const holder = { nc: NC_NET }
+    const b = board(NC_NET, () => holder.nc)
+    b.chart.window.setWindow(renderWindowRows(150, 0), { span: 150 })
+    b.series.setData(data)
+    const ws = b.chart.window.windowStart()
+    holder.nc = { ...NC_NET, up: '#010101', down: '#020202', borUp: '#030303', borDown: '#040404', wickUp: '#050505', wickDown: '#060606' }
+    b.ts.setVisibleLogicalRange({ from: 3000, to: 3150 })
+    await frame()
+    const ws2 = b.chart.window.windowStart()
+    expect(ws2).toBeLessThan(ws)                                 // it did extend (or this proves nothing)
+    expect(b.handed[b.handed.length - 1]).toEqual(want.painted.slice(ws2))
   })
 })
