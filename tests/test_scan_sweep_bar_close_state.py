@@ -45,6 +45,8 @@ from api.services.nyse_calendar import (
 ET = datetime.timezone(datetime.timedelta(hours=-5))   # EST; 2025-11-28 is EST
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 EVALUATOR = ROOT / "api" / "services" / "screener" / "scan_evaluator.py"
+#: the module a `**ast_interpret.<fn>(...)` spread in the sweep's opts is read from
+INTERPRET = ROOT / "api" / "services" / "ast_interpret.py"
 
 #: 2025-11-28 — the day after Thanksgiving, a 1pm ET close, and in the set.
 HALF_DAY = datetime.datetime(2025, 11, 28, tzinfo=ET)
@@ -97,6 +99,75 @@ def test_the_NIGHTLY_control__last_sessions_bar_is_closed_at_0500():
     assert _state(at_five, prev) is False
 
 
+def _spread_keys(spread: pyast.AST, home: pyast.Module) -> set:
+    """Every key a `**f(...)` spread in the opts dict can hand, read off `f`'s own returns.
+
+    ⭐ 2026-11-18 (7fbb1b81e1, engine 78): the sweep's opts gained
+    `**ast_interpret.pine_compare_opts_for(definition)`. In the AST a spread is a dict
+    entry whose KEY is `None`, so this rail crashed on `None.value`. Skipping it would be
+    worse than crashing: a spread can hand ANY key, `newest_bar_is_forming` included, and
+    the rail would vouch for keys it never read. So the spread is READ: its callee is found
+    by name, and every `return` in it must be a dict literal with constant keys. Anything
+    else fails here, by name."""
+    assert isinstance(spread, pyast.Call), (
+        f"a `**` spread this rail cannot read: {pyast.dump(spread)[:160]}")
+    func = spread.func
+    if isinstance(func, pyast.Attribute) and isinstance(func.value, pyast.Name) \
+            and func.value.id == "ast_interpret":
+        home, name = pyast.parse(io.open(INTERPRET, encoding="utf-8").read()), func.attr
+    elif isinstance(func, pyast.Name):
+        name = func.id
+    else:
+        raise AssertionError(f"a `**` spread from a callee this rail cannot locate: {pyast.dump(func)[:160]}")
+    fn = next((n for n in home.body if isinstance(n, pyast.FunctionDef) and n.name == name), None)
+    assert fn is not None, f"the spread's callee `{name}` is not a top-level function where it was looked for"
+    keys, returns = set(), 0
+    for node in pyast.walk(fn):
+        if isinstance(node, pyast.Return):
+            returns += 1
+            assert isinstance(node.value, pyast.Dict) and all(
+                isinstance(k, pyast.Constant) for k in node.value.keys), (
+                f"`{name}` returns something other than a dict literal with constant keys (line "
+                f"{node.lineno}), so this rail cannot say which keys the sweep hands `interpret`")
+            keys |= {k.value for k in node.value.keys}
+    assert returns, f"`{name}` has no return: the spread was not read"
+    return keys
+
+
+def _opts_keys(opts: pyast.AST, home: pyast.Module) -> set:
+    """The keys of the opts dict literal: its constant keys AND every key its spreads can hand."""
+    assert isinstance(opts, pyast.Dict), f"opts is no longer a dict literal: {pyast.dump(opts)[:160]}"
+    keys = set()
+    for key, value in zip(opts.keys, opts.values):
+        if key is None:                                    # `**spread`
+            keys |= _spread_keys(value, home)
+        else:
+            assert isinstance(key, pyast.Constant), f"a computed opts key: {pyast.dump(key)[:160]}"
+            keys.add(key.value)
+    return keys
+
+
+def test_a_spread_that_hands_the_tri_state_is_SEEN__the_control():
+    """⭐ WITHOUT THIS, the rail below passes for a reader that drops spreads. A spread
+    whose callee can return `newest_bar_is_forming` on one branch must surface that key;
+    a callee whose return is not a dict literal must fail rather than read as empty."""
+    home = pyast.parse(
+        "def leaks(d):\n"
+        "    if d:\n"
+        "        return {'newest_bar_is_forming': True}\n"
+        "    return {}\n"
+        "def opaque(d):\n"
+        "    return dict(d)\n")
+    seen = _opts_keys(pyast.parse("{'now': 1, **leaks(definition)}", mode="eval").body, home)
+    assert seen == {"now", "newest_bar_is_forming"}, seen
+    try:
+        _opts_keys(pyast.parse("{'now': 1, **opaque(definition)}", mode="eval").body, home)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("a spread whose keys cannot be read was vouched for as empty")
+
+
 def test_the_sweep_hands_an_INSTANT_and_never_a_mode():
     """⛔ THE ENCODING ITSELF, PINNED BY AST. `mode` is not a clock. If this call
     ever hands a mode-derived boolean again, the half-day case above goes wrong
@@ -108,7 +179,7 @@ def test_the_sweep_hands_an_INSTANT_and_never_a_mode():
              and getattr(n.func, "attr", None) == "interpret"]
     assert len(calls) == 1, f"{len(calls)} interpret calls in evaluate_one"
     opts = {k.arg: k.value for k in calls[0].keywords}["opts"]
-    keys = {k.value for k in opts.keys}
+    keys = _opts_keys(opts, tree)
     assert "now" in keys, f"the sweep no longer hands an evaluating instant: {keys}"
     assert "newest_bar_is_forming" not in keys, (
         "the sweep is asserting the tri-state again instead of handing the instant "
