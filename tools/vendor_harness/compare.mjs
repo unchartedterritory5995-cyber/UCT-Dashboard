@@ -533,7 +533,39 @@ export function provenanceBarsOf(times, provenance, { intraday = false } = {}) {
   return any ? out : null
 }
 
-export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null, behindBars = null, provenanceBars = null }) {
+// ─── ⭐⭐ INDEX ROUNDING (coordinator ruling 2026-11-23) ─────────────────────────────────────────────────────────────────
+// TradingView's historical SPX is one index TICK (0.01) away from two vendors that agree with each other. An RS-style plot
+// reads value = close / X(t) * k, so a one-tick difference in X moves it by at most a relative 0.01 / (X - 0.01), which
+// 0.0101 / X(t) bounds for every X above 1. A Yahoo-sourced bar (a provenance bar never gets here: it is graded in its
+// block, above) whose value DIFFERS beyond the tolerance and lies within that bound is ROUNDING-EQUAL. Its SUB-TICK part
+// (|rel| < 0.005 / X(t)) is TradingView's daily close carrying a third decimal (3936.691 against our 3936.69).
+// X(t) is OUR index value read on that bar (`ours.indexReadValues`, `ourSide.js::indexReadValuesOf`: the engine's own
+// `sym` read of the index close over the run's own bind and supply), never the vendor's and never a second source.
+// ⛔ A ROUNDING-EQUAL BAR IS NEVER A MATCH: it leaves `valueMismatches` for its own column (`roundingEqual`), never
+// enters `matching`, and a plot whose only steady divergences are rounding-equal stays DIVERGE with the class named in
+// its reason (`plotVerdict`). DIVERGE, not a new verdict: the verdict set is what every consumer (the coverage map, the
+// evidence ledger, capability admission) reads, and none of them may be told MATCH by this class.
+// ⛔ "EXACT" STAYS EXACT: a bar inside the normal tolerance is `matching` as before. A capture that reads no index, and a
+// bar on which our side read none, grade exactly as before.
+export const INDEX_TICK_REL = 0.0101
+export const INDEX_SUB_TICK_REL = 0.005
+
+/** One differing bar against the index-rounding bound: `{rel, ticks, subTick}`, or null when it is not rounding-equal
+ *  (no index read on the bar, an `na` on either side, or a difference above one index tick through the ratio).
+ *  `ticks` = the difference in index ticks, rel · X / 0.01 (at most 1.01). */
+export function indexRoundingOf(ours, vendor, x) {
+  if (typeof x !== 'number' || !Number.isFinite(x) || x <= 0 || isNa(ours) || isNa(vendor) || vendor === 0) return null
+  const rel = Math.abs(Number(ours) - vendor) / Math.abs(vendor)
+  if (!(rel <= INDEX_TICK_REL / x)) return null
+  return { rel, ticks: (rel * x) / 0.01, subTick: rel < INDEX_SUB_TICK_REL / x }
+}
+
+/** The rounding-equal column as words: `12 (sub-tick 9, worst 0.98 tick)`. */
+export function roundingText(re) {
+  return `${re.compared} (sub-tick ${re.subTick}, worst ${Number(re.worst).toFixed(2)} tick)`
+}
+
+export function comparePlot({ times, vendor, ours, vendorColors = null, ourColors = null, warmupBars = 0, colorWarmupBars = warmupBars, tol, oursUnreadAfter = null, withheldBars = null, floatOrderFloor = null, unsettledBars = null, behindBars = null, provenanceBars = null, indexRead = null }) {
   const n = times.length
   const res = {
     bars: n,
@@ -622,6 +654,8 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
     const region = i < warmupBars ? res.warmup : res.steady
     region.compared += 1
     let kind = null
+    // ⭐⭐ INDEX ROUNDING: a differing bar within one index tick through the ratio (`indexRoundingOf`)
+    let rounding = null
     if (isNa(v) !== isNa(o)) { kind = 'na'; res.naMismatches += 1 }
     else if (!isNa(v)) {
       const d = Math.abs(o - v)
@@ -631,11 +665,19 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
       const floor = floatOrderFloor && Number.isFinite(floatOrderFloor[i]) ? floatOrderFloor[i] : 0
       if (!valuesAgree(o, v, tol)) {
         if (floor > 0 && valuesAgree(o, v, tol, floor)) res.floatOrderFloorUsed += 1
-        else { kind = 'value'; res.valueMismatches += 1 }
+        else if (indexRead && (rounding = indexRoundingOf(o, v, indexRead[i]))) {
+          const re = res.roundingEqual || (res.roundingEqual = { compared: 0, subTick: 0, steady: 0, worst: 0, first: null })
+          re.compared += 1
+          if (rounding.subTick) re.subTick += 1
+          if (region === res.steady) re.steady += 1
+          if (rounding.ticks > re.worst) re.worst = rounding.ticks
+          if (!re.first && region === res.steady) re.first = { bar: i, time: times[i], vendor: v, ours: Number(o), index: indexRead[i], ticks: rounding.ticks }
+        } else { kind = 'value'; res.valueMismatches += 1 }
       }
     }
     if (vendorColors && !isNa(v) && vendorColors[i] !== undefined && vendorColors[i] !== null) res.colorComparable += 1
-    if (!kind && vendorColors && ourColors && !isNa(v) && i >= colorWarmupBars) {
+    // ⛔ a rounding-equal bar's colour is not graded, as a differing value's is not: its value is not the vendor's
+    if (!kind && !rounding && vendorColors && ourColors && !isNa(v) && i >= colorWarmupBars) {
       const vc = vendorColors[i]
       const oc = ourColors[i]
       if (oc === COLOUR_WITHHELD_POINT) {
@@ -659,7 +701,8 @@ export function comparePlot({ times, vendor, ours, vendorColors = null, ourColor
         steadyDivergentBars.push(i)
         steadyDivergent.push({ bar: i, time: times[i], kind })
       }
-    } else {
+    } else if (!rounding) {
+      // ⛔ a rounding-equal bar is counted in its own column above, NEVER here
       res.matching += 1
     }
     if (region === res.steady) steadyComparedBars.push(i)
@@ -787,7 +830,18 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
     const shape = p && p.kind === 'converging-prefix'
       ? ` — a CONVERGING PREFIX: bars ${f.bar}..${p.lastDivergentBar}${p.contiguous ? '' : ' (with agreeing bars inside the run)'} differ with |err| falling ${p.absErrFirst.toExponential(2)} → ${p.absErrLast.toExponential(2)}, then all ${p.agreeingAfter} later bars agree (the recursive-state-seeded-at-the-window signature)`
       : p ? ` — ${p.kind}, last at bar ${p.lastDivergentBar}` : ''
-    return { verdict: 'DIVERGE', reason: `${r.steady.divergent} steady-state bars disagree; first at bar ${f.bar} (${readingOf(f)})${shape}` }
+    const also = r.roundingEqual && r.roundingEqual.steady > 0
+      ? `; ${r.roundingEqual.steady} more differ only by index rounding, counted apart (rounding-equal ${roundingText(r.roundingEqual)})` : ''
+    return { verdict: 'DIVERGE', reason: `${r.steady.divergent} steady-state bars disagree; first at bar ${f.bar} (${readingOf(f)})${shape}${also}` }
+  }
+  // ⭐⭐ INDEX ROUNDING: a plot whose ONLY steady divergences are rounding-equal is never MATCH. It stays DIVERGE, the
+  // class named (checked before Guard 1, as a measured divergence is: a difference is reported over "too few bars")
+  if (r.roundingEqual && r.roundingEqual.steady > 0) {
+    const re = r.roundingEqual
+    const f = re.first
+    return { verdict: 'DIVERGE', reason: `${re.steady} steady-state bars differ, every one ROUNDING-EQUAL (index rounding: within `
+      + `one index tick through the ratio, |rel| <= ${INDEX_TICK_REL} / X(t); ${roundingText(re)}); first at bar ${f.bar} `
+      + `(value: vendor ${fmt(f.vendor)} vs ours ${fmt(f.ours)}, index ${fmt(f.index)}); never a MATCH` }
   }
   // ⛔ GUARD 1 (index provenance): a plot with provenance bars speaks only for its Yahoo-sourced bars, which must reach
   // the floor on their own (checked before "no bar compared", so a wholly-provenance plot names why)
@@ -827,7 +881,8 @@ export function plotVerdict(r, { colorMeasured, colorResolvable, vendorColorReas
   }
   return { verdict: 'MATCH', reason: `${r.steady.compared} steady-state bars agree`
     + (r.floatOrderFloorUsed ? ` (${r.floatOrderFloorUsed} of them within the float-order floor of the running total the plot is a linear combination of)` : '')
-    + (r.warmup.divergent ? ` (${r.warmup.divergent} warm-up bars differ, reported separately)` : '') }
+    + (r.warmup.divergent ? ` (${r.warmup.divergent} warm-up bars differ, reported separately)` : '')
+    + (r.roundingEqual && r.roundingEqual.compared ? ` (${r.roundingEqual.compared} warm-up bars rounding-equal, reported separately)` : '') }
 }
 
 const fmt = (x) => (x === null || x === undefined ? 'na' : typeof x === 'number' ? String(x) : JSON.stringify(x))
@@ -1010,6 +1065,9 @@ export function compareCapture(capture, ours, opts = {}) {
   const behindBars = supplyBehind && times.length ? times.map((_, i) => i === times.length - 1) : null
   // ⭐⭐ INDEX PROVENANCE: one mask for the capture (every plot of a script that reads the series depends on it)
   const provenanceBars = provenanceBarsOf(times, ours.indexProvenance, { intraday: isIntradayCapture(capture) })
+  // ⭐⭐ INDEX ROUNDING: our side's index read X(t) on every capture bar (`indexReadValues`); a capture that reads no index,
+  // or a column not aligned with these bars, carries none and grades exactly as before (fail closed)
+  const indexRead = Array.isArray(ours.indexReadValues) && ours.indexReadValues.length === times.length ? ours.indexReadValues : null
   const rowsByTime = new Map((capture.plotValues.rows || []).map((r) => [String(r[0]), r]))
   const roles = vendorPlotRoles(capture)
   for (const p of roles.notDrawn) base.notCompared.push({ id: p.id, title: p.title, type: p.type, why: 'alertcondition — draws nothing on TradingView either; not a visual claim' })
@@ -1117,7 +1175,7 @@ export function compareCapture(capture, ours, opts = {}) {
     const unreadAfter = [treeShift ? times.length - treeShift : null, o.withheldNewest === true ? times.length - 1 : null]
       .filter((x) => x !== null)
     const plotArgs = { times, vendor: vendorVals, ours: oursCol, vendorColors: colourUngraded ? null : gradedVendorColors, ourColors: colourUngraded ? null : gradedOurColors, warmupBars, colorWarmupBars, tol, oursUnreadAfter: unreadAfter.length ? Math.min(...unreadAfter) : null,
-      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null, behindBars, provenanceBars }
+      withheldBars: leadBy(o.withheldBars, treeShift) || null, floatOrderFloor: leadBy(o.floatOrderFloor, treeShift) || null, behindBars, provenanceBars, indexRead }
     let r = comparePlot(plotArgs)
     const verdictOpts = {
       colorMeasured: vc.measured && !colourUngraded,
@@ -2270,6 +2328,9 @@ export function renderSummary(results) {
       tail = f.kind === 'color'
         ? `${d.title}: bar ${f.bar} t=${f.time} color vendor=${f.vendorColor ?? 'none'} ours=${f.ourColor ?? 'none'}`
         : `${d.title}: bar ${f.bar} t=${f.time} ${f.kind} vendor=${fmt(f.vendor)} ours=${fmt(f.ours)}`
+    } else if (d && d.stats && d.stats.roundingEqual && d.stats.roundingEqual.first) {
+      const f = d.stats.roundingEqual.first
+      tail = `${d.title}: bar ${f.bar} t=${f.time} rounding-equal vendor=${fmt(f.vendor)} ours=${fmt(f.ours)} index=${fmt(f.index)}`
     }
     lines.push(`${pad(r.id, 44)} ${pad(`${r.symbol || '?'} ${r.timeframe || '?'}`, 16)} ${pad(plots, 6)} ${pad(r.verdict, 17)} ${tail}`)
     for (const p of (r.plots || [])) {
@@ -2277,7 +2338,9 @@ export function renderSummary(results) {
       const detail = s ? `cmp ${s.compared} ok ${s.matching} warm ${s.warmup.divergent}/${s.warmup.compared} steady ${s.steady.divergent}/${s.steady.compared} maxRel ${s.maxRel.toExponential(2)}` : ''
       // ⛔ GUARD 2 (index provenance): the provenance block beside the verdict, never inside `ok`
       const prov = s && s.provenance ? ` · provenance ${provenanceText(s.provenance)}` : ''
-      lines.push(`    ${pad(p.title ?? p.id, 40)} ${pad(p.verdict, 17)} ${detail}${prov}${p.verdict !== 'MATCH' && p.verdict !== MATCH_SUBSTITUTED ? ` — ${p.reason}` : ''}`)
+      // ⭐⭐ INDEX ROUNDING: its own column beside `ok`, never inside it
+      const rnd = s && s.roundingEqual ? ` · rounding-equal ${roundingText(s.roundingEqual)}` : ''
+      lines.push(`    ${pad(p.title ?? p.id, 40)} ${pad(p.verdict, 17)} ${detail}${prov}${rnd}${p.verdict !== 'MATCH' && p.verdict !== MATCH_SUBSTITUTED ? ` — ${p.reason}` : ''}`)
     }
     if (r.objects) lines.push(`    ${pad('objects', 40)} ${pad(r.objects.verdict, 13)} ${r.objects.reason}`)
     if (r.paints) lines.push(`    ${pad('paints', 40)} ${pad(r.paints.verdict || 'NOT GRADED', 13)} ${r.paints.reason}`)
@@ -2302,6 +2365,20 @@ export function renderSummary(results) {
       + provRows.map(([r, x]) => `${r.id} ${r.verdict} ${(100 * x.share).toFixed(1)}% provenance (${x.prov} bars)`).join('; '))
     const named = new Set(results.flatMap((r) => (r.plots || []).flatMap((pl) => Object.keys((pl && pl.stats && pl.stats.provenance) || {}))))
     for (const cls of Object.keys(PROVENANCE_REASONS)) if (named.has(cls)) lines.push(`  ${cls}: ${PROVENANCE_REASONS[cls]}`)
+  }
+  // ⭐⭐ INDEX ROUNDING: every capture with rounding-equal bars, by name, with its count beside its verdict
+  const rndRows = results.map((r) => {
+    let n = 0
+    let sub = 0
+    for (const p of r.plots || []) {
+      const re = p && p.stats && p.stats.roundingEqual
+      if (re) { n += re.compared || 0; sub += re.subTick || 0 }
+    }
+    return [r, n, sub]
+  }).filter(([, n]) => n > 0)
+  if (rndRows.length) {
+    lines.push(`INDEX ROUNDING (${rndRows.length} captures; bars within one index tick through the ratio, |rel| <= ${INDEX_TICK_REL} / X(t), `
+      + 'counted apart, never into a MATCH): ' + rndRows.map(([r, n, sub]) => `${r.id} ${r.verdict} ${n} rounding-equal bars (sub-tick ${sub})`).join('; '))
   }
   lines.push(`TOTAL ${results.length} captures — MATCH ${tally.MATCH} · DIVERGE ${tally.DIVERGE} · INCONCLUSIVE ${tally.INCONCLUSIVE}`
     + (tally.MATCH_SUBSTITUTED ? ` · MATCH_SUBSTITUTED ${tally.MATCH_SUBSTITUTED} (verified with substituted inputs; never counted as MATCH)` : ''))

@@ -42,7 +42,7 @@ import { runtimeDeclinedTag } from '../../../../../../../tools/pine_coverage/run
 import { maxLookback, CHART_CLOCK_WHOLE, TF_MERGE_NEWEST_CODE, TF_MERGE_FIRST_CODE, interpret as interpretTree } from '../../ast/interpret'
 import { setRuntimeDoorClock, RUNTIME_REQUEST_WITHHELD_KEY } from '../../runtime/runtimeColumns'
 import { paneObjectsGate } from '../../ast/paneGate'
-import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY } from '../../otherSymbols'
+import { otherSymbolRequestsOf, storeTickerOf, witnessRowOf, heldFetchOf, heldFetchesOf, OWN_DAILY_KEY, withChartNewestDay } from '../../otherSymbols'
 import { lowerTfCodesOf, LOWER_TF_SOURCE } from '../../lowerTf'
 import { storeExchangeOfCapture } from './storeExchange.js'
 import { createFakeChart } from '../fakeChart'
@@ -451,6 +451,26 @@ function recordedClassificationOf(capture) {
 
 /** The committed-capture index another symbol's bars are supplied from (`otherSymbolSupply`), for its rails. */
 export function __otherCaptureIndexForTests() { return otherCaptureIndex() }
+
+/** ⭐⭐ INDEX ROUNDING (coordinator ruling 2026-11-23, `compare.mjs::indexRoundingOf`) — X(t): the index close OUR run
+ *  read on each chart bar, aligned with `bars`, or null when the document reads no index (a request whose witness row is
+ *  `kind: 'index'`, `SP:SPX`) or more than one (which one a ratio divides by is then not ours to guess).
+ *  ⛔ NEVER A SECOND SOURCE: the bind is the one the host lane asks (`registry.otherSymbolsFor`, over the run's own
+ *  `ctx.secondary` and `withChartNewestDay`, as `astColumns.js` calls it), and the read is the engine's own `sym` arm
+ *  (`interpret`: the bar's own `t`, exact, never forward-filled), so a bar the run could not read reads null here and the
+ *  comparator grades it exactly as before. */
+export function indexReadValuesOf(doc, ctx, bars) {
+  const tickers = [...new Set(otherSymbolRequestsOf(doc)
+    .filter(({ ticker, spellings }) => (spellings || []).some((v) => { const r = witnessRowOf(v, ticker); return !!(r && r.kind === 'index') }))
+    .map(({ ticker }) => String(ticker).trim().toUpperCase()))]
+  if (tickers.length !== 1) return null
+  const decision = registry.otherSymbolsFor(doc, withChartNewestDay(ctx, bars))
+  if (!decision || !decision.symbols || !Array.isArray(decision.symbols[tickers[0]])) return null
+  const col = interpretTree({ type: 'sym', value: tickers[0], args: [{ type: 'series', name: 'close' }] }, bars,
+    undefined, undefined, undefined, { symbols: decision.symbols })
+  if (!col || typeof col.length !== 'number' || col.length !== bars.length) return null
+  return Array.from(col, (x) => (Number.isFinite(x) && x > 0 ? x : null))
+}
 
 /** The secondary supply a capture's script asks for, and the notes naming what
  *  could not be supplied. (Exported for RS RATING L11's rail, which grades a probe's daily reads
@@ -1763,7 +1783,8 @@ function runOurSideOnTheParityClock(capture) {
     // ⭐ C26 — another symbol's bars, from committed captures only.
     // ⭐ SETTINGS PARITY (symbol): the supply the capture's own symbol choice asks for (the chart fetches
     // the instance's chosen comparison symbol, `symbolInputs.instanceDocumentForFetch`)
-    const supply = otherSymbolSupply(instanceDocumentForFetch(def, { inputs: instanceInputs }), capture)
+    const fetchDoc = instanceDocumentForFetch(def, { inputs: instanceInputs })
+    const supply = otherSymbolSupply(fetchDoc, capture)
     if (supply.secondary) { ctx.secondary = supply.secondary; ctx.exchangeOf = supply.exchangeOf }
     notes.push(...supply.notes)
     if (ctx.symbol.securityType) {
@@ -1823,6 +1844,9 @@ function runOurSideOnTheParityClock(capture) {
     notes.push(`plots/objects: ${decision.kind}: ${decision.why}`)
     const calcCols = registry.computeFor(def, calcBars, instanceInputs, calcCtx)
     const cols = replay ? columnsInWindow(calcCols, replayPre) : calcCols
+    // ⭐⭐ INDEX ROUNDING — X(t), from the run's own bind and supply (`indexReadValuesOf`), on the window's bars
+    const indexRead = supply.secondary ? indexReadValuesOf(fetchDoc, calcCtx, calcBars) : null
+    const indexReadValues = indexRead ? indexRead.slice(replayPre) : null
     // ⭐⭐ THE STRATEGY'S OWN OUTPUT (2026-11-17): what the broker document's run published beside its columns
     const strategy = strategyDoc
       ? strategyRunOf(calcCols, calcBars, replay ? replaySupply.rows.concat(capture.bars.rows) : capture.bars.rows)
@@ -2115,6 +2139,8 @@ function runOurSideOnTheParityClock(capture) {
       substituted: substitutedInputsOf(capture, classificationSubstitutions(source, ctx.symbol, capture)),
       // ⭐⭐ INDEX PROVENANCE — where each recorded index series came from (`compare.mjs::provenanceBarsOf`)
       indexProvenance: supply.indexProvenance || [],
+      // ⭐⭐ INDEX ROUNDING — the index close this run read on each capture bar, or null (`compare.mjs::indexRoundingOf`)
+      indexReadValues,
       // ⭐⭐ (2026-11-17) — a broker document's run: its record, or why it published none (`strategyRunOf`);
       // null for every other document. Graded by `strategyLane.js`.
       strategy,

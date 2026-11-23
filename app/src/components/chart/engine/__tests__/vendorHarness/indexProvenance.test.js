@@ -96,7 +96,7 @@ describe('the capture grade wires it (code, not prose)', () => {
     const src = fs.readFileSync(path.resolve(globalThis.process.cwd(), '../tools/vendor_harness/compare.mjs'), 'utf8')
     expect(src).toMatch(/const provenanceBars = provenanceBarsOf\(times, ours\.indexProvenance, \{ intraday: /)
     const args = src.match(/const plotArgs = \{[\s\S]*?\}\n/)
-    expect(args && args[0]).toMatch(/behindBars, provenanceBars \}/)
+    expect(args && args[0]).toMatch(/behindBars, provenanceBars, indexRead \}/)
   })
 
   it('our side answers the recorded provenance (`ourSide.js`)', () => {
