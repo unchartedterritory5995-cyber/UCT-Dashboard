@@ -9,6 +9,14 @@
 //
 // Cost: this file is loaded with import() only after the page's own load event, so it is not part of
 // first-open bytes; observing performance entries is free; one sendBeacon per page load.
+//
+// ⭐ CHART-SWITCH SPEED (2026-11-23). The page-load report above is sent once, ~20 s in; a member switches
+// charts for hours after it. lib/switchSpeed.js counts key-press-to-frame times into fixed buckets, and this
+// file sends those COUNTS when the page is hidden or left: a second kind of report (`kind: 'switches'`) to
+// the same door, at most one per SWITCH_SEND_GAP_MS while the page lives (plus the one as it is left), and
+// none at all when no chart was switched. It is integers only: `switchesField` REBUILDS the field from
+// whole numbers it has checked one by one, so nothing the page holds (a ticker, a list's name) can be in it,
+// whatever handed it over. The instrument is found on `window`, never imported: this chunk stays as it was.
 import { isDesktopApp } from './desktopBridge'
 
 export const REPORT_AFTER_MS = 20000
@@ -17,6 +25,17 @@ const ENDPOINT = '/api/perf/beacon'
 // The mark barsPackClient.markFirstChartPaint sets. A literal, not an import: importing barsPackClient
 // would pull it into this small after-load chunk. perfBeacon.test.js pins the two equal.
 export const FIRST_CANDLES_MARK = 'uct:first-chart-paint'
+// Where lib/switchSpeed.js leaves `{ take }`. A literal, not an import (as above); the test pins the two equal.
+export const SWITCH_SPEED_GLOBAL = '__uctSwitchSpeed'
+/** A hidden page sends its switch counts at most this often (they keep adding up in between). */
+export const SWITCH_SEND_GAP_MS = 5 * 60_000
+/** ...and a page sends at most this many switch reports in its life. */
+export const MAX_SWITCH_SENDS = 40
+// The transport's own bounds on the field (the server's are the exact ones: api/services/perf_beacon.py).
+const SWITCH_MAX_CELLS = 64
+const SWITCH_MAX_CELL_LEN = 32
+const SWITCH_MAX_COUNTERS = 16
+const SWITCH_MAX_INT = 100000
 
 /** `/charts/NVDA?x=1` -> `/charts`. */
 export function pageTemplate(pathname) {
@@ -73,7 +92,37 @@ export function buildReport({ pathname, origin, desktop, nav, fcp, lcp, candles,
   }
 }
 
-/** Observe, then send once: after REPORT_AFTER_MS, or earlier if the page is hidden or left. */
+const wholeNumber = (v, max) => Number.isInteger(v) && v >= 0 && v <= max
+
+/**
+ * The `switches` field, REBUILT from what the instrument handed over: `{ v, cells: [[int...]...], counters: [int...] }`
+ * with every number a whole one in range, or undefined (nothing is sent) if anything at all is not. Never a
+ * pass-through: a string, a float, an extra key or an oversized list cannot reach the report.
+ */
+export function switchesField(raw) {
+  if (!raw || typeof raw !== 'object' || !wholeNumber(raw.v, 99)) return undefined
+  if (!Array.isArray(raw.cells) || raw.cells.length > SWITCH_MAX_CELLS) return undefined
+  if (!Array.isArray(raw.counters) || raw.counters.length > SWITCH_MAX_COUNTERS) return undefined
+  const cells = []
+  for (const c of raw.cells) {
+    if (!Array.isArray(c) || c.length > SWITCH_MAX_CELL_LEN) return undefined
+    const row = []
+    for (const v of c) {
+      if (!wholeNumber(v, SWITCH_MAX_INT)) return undefined
+      row.push(v)
+    }
+    cells.push(row)
+  }
+  const counters = []
+  for (const v of raw.counters) {
+    if (!wholeNumber(v, SWITCH_MAX_INT)) return undefined
+    counters.push(v)
+  }
+  return { v: raw.v, cells, counters }
+}
+
+/** Observe, then send the page-load report once: after REPORT_AFTER_MS, or earlier if the page is hidden or left.
+ *  After it, each time the page is hidden or left: the chart-switch counts, if there are any (see the top). */
 export function startPerfBeacon({ win = window, doc = document, perf = window.performance, desktop = isDesktopApp() } = {}) {
   if (!perf || typeof perf.getEntriesByType !== 'function' || typeof win.navigator?.sendBeacon !== 'function') return () => {}
   let lcp
@@ -105,16 +154,35 @@ export function startPerfBeacon({ win = window, doc = document, perf = window.pe
     try {
       win.navigator.sendBeacon(ENDPOINT, new Blob([JSON.stringify(report)], { type: 'application/json' }))
     } catch { /* measurement never breaks the page */ }
-    cleanup()
+    win.clearTimeout(timer)
   }
-  const onHide = () => { if (doc.visibilityState === 'hidden') send() }
+
+  // The chart-switch counts. `leaving`: the page is going away, so the gap does not hold this one back.
+  let switchSends = 0
+  let lastSwitchSendAt = -Infinity
+  const sendSwitches = (leaving) => {
+    if (switchSends >= MAX_SWITCH_SENDS) return
+    const now = perf.now()
+    if (!leaving && now - lastSwitchSendAt < SWITCH_SEND_GAP_MS) return
+    let switches
+    try { switches = switchesField(win[SWITCH_SPEED_GLOBAL]?.take?.()) } catch { return }
+    if (!switches) return
+    switchSends += 1
+    lastSwitchSendAt = now
+    const body = { page: pageTemplate(win.location.pathname), client: desktop ? 'desktop' : 'browser', kind: 'switches', switches }
+    try {
+      win.navigator.sendBeacon(ENDPOINT, new Blob([JSON.stringify(body)], { type: 'application/json' }))
+    } catch { /* measurement never breaks the page */ }
+  }
+
+  const onHide = () => { if (doc.visibilityState === 'hidden') { send(); sendSwitches(false) } }
+  const onLeave = () => { send(); sendSwitches(true) }
   const timer = win.setTimeout(send, Math.max(0, REPORT_AFTER_MS - perf.now()))
   doc.addEventListener('visibilitychange', onHide)
-  win.addEventListener('pagehide', send)
-  function cleanup() {
+  win.addEventListener('pagehide', onLeave)
+  return function stop() {
     win.clearTimeout(timer)
     doc.removeEventListener('visibilitychange', onHide)
-    win.removeEventListener('pagehide', send)
+    win.removeEventListener('pagehide', onLeave)
   }
-  return cleanup
 }

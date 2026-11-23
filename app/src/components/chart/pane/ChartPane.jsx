@@ -11,6 +11,7 @@ import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import useRowLadder from './useRowLadder'
 import ChartIdentityRow from './ChartIdentityRow'
+import { hintSwitchTrigger, TRIGGER_TYPED } from '../../../lib/switchSpeed'
 import SymbolActionsMenu from './SymbolActionsMenu'
 // /charts integrated header: at or above this pane width the timeframe row joins the
 // title row (one header row); below it, two rows. Measured pane width, px.
@@ -1039,6 +1040,13 @@ function ChartPane({
       focusableRef.current?.focus({ preventScroll: true })
     })
   }, [onSymbolChange])
+  // The header's search (a ticker typed and entered, or one of its results picked): the same handler, with the
+  // switch-speed instrument told the switch was TYPED (lib/switchSpeed.js: a picked result is a click, and the
+  // event alone would call it a list click). Set, switch, cleared: one task.
+  const handleSearchedSymbol = useCallback((s) => {
+    hintSwitchTrigger(TRIGGER_TYPED)
+    try { handleSymbolChange(s) } finally { hintSwitchTrigger(-1) }
+  }, [handleSymbolChange])
   // Type-to-search: start fetching the typed D/W/M symbol before Enter (warmTypedSymbol).
   // P3-S1: the chart's own source warms (chart/barStoreSwitch.js). The store's typed warm never
   // answers 'stale-answer' (a late answer is merged by the reducer) — and nothing here reads it.
@@ -1298,7 +1306,7 @@ function ChartPane({
           brandLogo={themeIdx.isIndex || isBreadthLike}
           boundsRef={focusableRef}
           themeVars={menuVars}
-          onSymbolChange={onSymbolChange ? handleSymbolChange : null}
+          onSymbolChange={onSymbolChange ? handleSearchedSymbol : null}
           onTypedIntent={onSymbolChange ? handleTypedIntent : null}
           economic={allowEconomic}
           showChange={!rowHideChange && !exhibit && !_themeViewLabel && hdr.showChange && !isDelisted && !isBreadthLike && !isEcon && !(themeIdx.isIndex && !idxGain)}
